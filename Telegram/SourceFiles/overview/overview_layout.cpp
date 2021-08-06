@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "overview/overview_layout_delegate.h"
 #include "data/data_document.h"
+#include "data/data_document_resolver.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "data/data_media_types.h"
@@ -16,12 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "data/data_file_click_handler.h"
 #include "styles/style_overview.h"
 #include "styles/style_chat.h"
 #include "core/file_utilities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "layout/layout_selection.h"
 #include "mainwidget.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
@@ -42,7 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
-#include "app.h"
+#include "ui/ui_utility.h"
 
 namespace Overview {
 namespace Layout {
@@ -56,6 +59,14 @@ TextParseOptions _documentNameOptions = {
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
+
+constexpr auto kMaxInlineArea = 1280 * 720;
+
+[[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
+	const auto dimensions = document->dimensions;
+	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
+}
+
 
 } // namespace
 
@@ -181,12 +192,21 @@ void ItemBase::ensureCheckboxCreated() {
 }
 
 void RadialProgressItem::setDocumentLinks(
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		bool forceOpen) {
 	const auto context = parent()->fullId();
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentOpenClickHandler>(
+			document,
+			crl::guard(this, [=](FullMsgId id) {
+				delegate()->openDocument(document, id, forceOpen);
+			}),
+			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),
-		std::make_shared<DocumentCancelClickHandler>(document, context));
+		std::make_shared<DocumentCancelClickHandler>(
+			document,
+			nullptr,
+			context));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(
@@ -271,7 +291,10 @@ Photo::Photo(
 	not_null<PhotoData*> photo)
 : ItemBase(delegate, parent)
 , _data(photo)
-, _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
+, _link(std::make_shared<PhotoOpenClickHandler>(
+	photo,
+	crl::guard(this, [=](FullMsgId id) { delegate->openPhoto(photo, id); }),
+	parent->fullId())) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
 			|| _data->hasExact(Data::PhotoSize::Thumbnail))) {
@@ -355,7 +378,7 @@ void Photo::setPixFrom(not_null<Image*> image) {
 		delegate()->unregisterHeavyItem(this);
 	}
 
-	_pix = App::pixmapFromImageInPlace(std::move(img));
+	_pix = Ui::PixmapFromImage(std::move(img));
 }
 
 void Photo::ensureDataMediaCreated() const {
@@ -446,7 +469,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 		img.setDevicePixelRatio(cRetinaFactor());
 
-		_pix = App::pixmapFromImageInPlace(std::move(img));
+		_pix = Ui::PixmapFromImage(std::move(img));
 		_pixBlurred = !(thumbnail || good);
 	}
 
@@ -563,7 +586,6 @@ TextState Video::getState(
 }
 
 void Video::updateStatusText() {
-	bool showPause = false;
 	int statusSize = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
@@ -592,7 +614,12 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(delegate, parent)
 , _data(voice)
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
+, _namel(std::make_shared<DocumentOpenClickHandler>(
+	_data,
+	crl::guard(this, [=](FullMsgId id) {
+		delegate->openDocument(_data, id);
+	}),
+	parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -899,11 +926,17 @@ Document::Document(
 : RadialProgressItem(delegate, parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
+, _namel(std::make_shared<DocumentOpenClickHandler>(
+	_data,
+	crl::guard(this, [=](FullMsgId id) {
+		delegate->openDocument(_data, id);
+	}),
+	parent->fullId()))
 , _st(st)
+, _generic(::Layout::DocumentGenericPreview::Create(_data))
 , _date(langDateTime(base::unixtime::parse(_data->date)))
-, _datew(st::normalFont->width(_date))
-, _colorIndex(documentColorIndex(_data, _ext)) {
+, _ext(_generic.ext)
+, _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(
 		st::defaultTextStyle,
 		Ui::Text::FormatSongNameFor(_data).textWithEntities(),
@@ -1062,7 +1095,6 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (wthumb) {
 				ensureDataMediaCreated();
 				const auto thumbnail = _dataMedia->thumbnail();
-				const auto thumbLoaded = (thumbnail != nullptr);
 				const auto blurred = _dataMedia->thumbnailInline();
 				if (thumbnail || blurred) {
 					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
@@ -1079,7 +1111,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.fillRect(rthumb, st::overviewFileThumbBg);
 				}
 			} else {
-				p.fillRect(rthumb, documentColor(_colorIndex));
+				p.fillRect(rthumb, _generic.color);
 				if (!radial && loaded && !_ext.isEmpty()) {
 					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::overviewFileExtFg);
@@ -1096,10 +1128,15 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					auto radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
-						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
+						p.setBrush(wthumb
+							? st::msgDateImgBgSelected
+							: _generic.selected);
 					} else {
 						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
-						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), _a_iconOver.value(over ? 1. : 0.)));
+						p.setBrush(anim::brush(
+							wthumb ? st::msgDateImgBg : _generic.dark,
+							wthumb ? st::msgDateImgBgOver : _generic.over,
+							_a_iconOver.value(over ? 1. : 0.)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 
@@ -1216,7 +1253,6 @@ TextState Document::getState(
 		StateRequest request) const {
 	ensureDataMediaCreated();
 	const auto loaded = dataLoaded();
-	const auto wthumb = withThumb();
 
 	if (_data->isSong()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
@@ -1225,7 +1261,6 @@ TextState Document::getState(
 			_width - nameleft - nameright,
 			_name.maxWidth());
 		const auto nametop = _st.songNameTop;
-		const auto statustop = _st.songStatusTop;
 
 		if (const auto state = cornerDownloadTextState(point, request); state.link) {
 			return state;
@@ -1262,7 +1297,6 @@ TextState Document::getState(
 		const auto namewidth = std::min(
 			_width - nameleft - nameright,
 			_name.maxWidth());
-		const auto statustop = st::linksBorder + _st.fileStatusTop;
 		const auto datetop = st::linksBorder + _st.fileDateTop;
 
 		const auto rthumb = style::rtlrect(
@@ -1453,6 +1487,9 @@ Link::Link(
 		if (_page->document) {
 			_photol = std::make_shared<DocumentOpenClickHandler>(
 				_page->document,
+				crl::guard(this, [=](FullMsgId id) {
+					delegate->openDocument(_page->document, id);
+				}),
 				parent->fullId());
 		} else if (_page->photo) {
 			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
@@ -1462,6 +1499,9 @@ Link::Link(
 				|| _page->siteName == qstr("Facebook")) {
 				_photol = std::make_shared<PhotoOpenClickHandler>(
 					_page->photo,
+					crl::guard(this, [=](FullMsgId id) {
+						delegate->openPhoto(_page->photo, id);
+					}),
 					parent->fullId());
 			} else {
 				_photol = createHandler(_page->url);
@@ -1763,6 +1803,332 @@ Link::LinkEntry::LinkEntry(const QString &url, const QString &text)
 , lnk(UrlClickHandler::IsSuspicious(url)
 	? std::make_shared<HiddenUrlClickHandler>(url)
 	: std::make_shared<UrlClickHandler>(url)) {
+}
+
+// Copied from inline_bot_layout_internal.
+Gif::Gif(
+	not_null<Delegate*> delegate,
+	not_null<HistoryItem*> parent,
+	not_null<DocumentData*> gif)
+: RadialProgressItem(delegate, parent)
+, _data(gif) {
+	setDocumentLinks(_data, true);
+	_data->loadThumbnail(parent->fullId());
+}
+
+Gif::~Gif() = default;
+
+int Gif::contentWidth() const {
+	if (_data->dimensions.width() > 0) {
+		return _data->dimensions.width();
+	}
+	return style::ConvertScale(_data->thumbnailLocation().width());
+}
+
+int Gif::contentHeight() const {
+	if (_data->dimensions.height() > 0) {
+		return _data->dimensions.height();
+	}
+	return style::ConvertScale(_data->thumbnailLocation().height());
+}
+
+void Gif::initDimensions() {
+	int32 w = contentWidth(), h = contentHeight();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+int32 Gif::resizeGetHeight(int32 width) {
+	_width = width;
+	_height = _minh;
+	return _height;
+}
+
+QSize Gif::countFrameSize() const {
+	const auto animating = (_gif && _gif->ready());
+	auto framew = animating ? _gif->width() : contentWidth();
+	auto frameh = animating ? _gif->height() : contentHeight();
+	const auto height = st::inlineMediaHeight;
+	const auto maxSize = st::maxStickerSize;
+	if (framew * height > frameh * _width) {
+		if (framew < maxSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= maxSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * maxSize) / framew;
+				framew = maxSize;
+			}
+		}
+	} else {
+		if (frameh < maxSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= maxSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * maxSize) / frameh;
+				frameh = maxSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+void Gif::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+	switch (notification) {
+	case NotificationReinit: {
+		if (_gif) {
+			if (_gif->state() == State::Error) {
+				_gif.setBad();
+			} else if (_gif->ready() && !_gif->started()) {
+				if (_gif->width() * _gif->height() > kMaxInlineArea) {
+					_data->dimensions = QSize(
+						_gif->width(),
+						_gif->height());
+					_gif.reset();
+				} else {
+					auto height = st::inlineMediaHeight;
+					auto frame = countFrameSize();
+					_gif->start(
+						frame.width(),
+						frame.height(),
+						_width,
+						height,
+						ImageRoundRadius::None, RectPart::None);
+				}
+			} else if (_gif->autoPausedGif()
+					&& !delegate()->itemVisible(this)) {
+				clearHeavyPart();
+			}
+		}
+
+		update();
+	} break;
+
+	case NotificationRepaint: {
+		if (_gif && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
+	}
+}
+
+void Gif::validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) {
+	if (!image || (_thumbGood && !good)) {
+		return;
+	} else if ((_thumb.size() == size * cIntRetinaFactor())
+		&& (_thumbGood || !good)) {
+		return;
+	}
+	_thumbGood = good;
+	_thumb = image->pixNoCache(
+		frame.width() * cIntRetinaFactor(),
+		frame.height() * cIntRetinaFactor(),
+		(Images::Option::Smooth
+			| (good ? Images::Option::None : Images::Option::Blurred)),
+		size.width(),
+		size.height());
+}
+
+void Gif::prepareThumbnail(QSize size, QSize frame) {
+	const auto document = _data;
+	Assert(document != nullptr);
+
+	ensureDataMediaCreated();
+	validateThumbnail(_dataMedia->thumbnail(), size, frame, true);
+	validateThumbnail(_dataMedia->thumbnailInline(), size, frame, false);
+}
+
+void Gif::paint(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		const PaintContext *context) {
+	const auto document = _data;
+	ensureDataMediaCreated();
+	const auto preview = Data::VideoPreviewState(_dataMedia.get());
+	preview.automaticLoad(getItem()->fullId());
+
+	const auto displayLoading = !preview.usingThumbnail()
+		&& document->displayLoading();
+	const auto loaded = preview.loaded();
+	const auto loading = preview.loading();
+	if (loaded
+		&& !_gif
+		&& !_gif.isBad()
+		&& CanPlayInline(document)) {
+		auto that = const_cast<Gif*>(this);
+		that->_gif = preview.makeAnimation([=](
+				Media::Clip::Notification notification) {
+			that->clipCallback(notification);
+		});
+	}
+
+	const auto animating = (_gif && _gif->started());
+	if (displayLoading) {
+		ensureRadial();
+		if (!_radial->animating()) {
+			_radial->start(dataProgress());
+		}
+	}
+	const auto radial = isRadialAnimation();
+
+	int32 height = st::inlineMediaHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+	if (animating) {
+		const auto pixmap = _gif->current(
+			frame.width(),
+			frame.height(),
+			_width,
+			height,
+			ImageRoundRadius::None,
+			RectPart::None,
+			/*context->paused ? 0 : */context->ms);
+		if (_thumb.isNull()) {
+			_thumb = pixmap;
+			_thumbGood = true;
+		}
+		p.drawPixmap(r.topLeft(), pixmap);
+	} else {
+		prepareThumbnail({ _width, height }, frame);
+		if (_thumb.isNull()) {
+			p.fillRect(r, st::overviewPhotoBg);
+		} else {
+			p.drawPixmap(r.topLeft(), _thumb);
+		}
+	}
+
+	const auto selected = (selection == FullSelection);
+
+	if (radial
+		|| _gif.isBad()
+		|| (!_gif && !loaded && !loading && !preview.usingThumbnail())) {
+		const auto radialOpacity = (radial && loaded)
+			? _radial->opacity()
+			: 1.;
+		p.fillRect(r, st::msgDateImgBg);
+
+		p.setOpacity(radialOpacity);
+		auto icon = [&] {
+			if (radial || loading) {
+				return &st::historyFileInCancel;
+			} else if (loaded) {
+				return &st::historyFileInPlay;
+			}
+			return &st::historyFileInDownload;
+		}();
+		const auto size = st::overviewVideoRadialSize;
+		QRect inner((_width - size) / 2, (height - size) / 2, size, size);
+		icon->paintInCenter(p, inner);
+		if (radial) {
+			p.setOpacity(1);
+			const auto margin = st::msgFileRadialLine;
+			const auto rinner = inner
+				- QMargins(margin, margin, margin, margin);
+			auto &bg = selected
+				? st::historyFileInRadialFgSelected
+				: st::historyFileInRadialFg;
+			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
+		}
+	}
+
+	const auto checkDelta = st::overviewCheckSkip + st::overviewCheck.size;
+	const auto checkLeft = _width - checkDelta;
+	const auto checkTop = st::overviewCheckSkip;
+	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
+}
+
+void Gif::update() {
+	delegate()->repaintItem(this);
+}
+
+void Gif::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	_dataMedia->goodThumbnailWanted();
+	_dataMedia->thumbnailWanted(parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
+void Gif::clearHeavyPart() {
+	_gif.reset();
+	_dataMedia = nullptr;
+}
+
+void Gif::setPosition(int32 position) {
+	AbstractLayoutItem::setPosition(position);
+	if (position < 0) {
+		_gif.reset();
+	}
+}
+
+float64 Gif::dataProgress() const {
+	ensureDataMediaCreated();
+	return _dataMedia->progress();
+}
+
+bool Gif::dataFinished() const {
+	return !_data->loading();
+}
+
+bool Gif::dataLoaded() const {
+	ensureDataMediaCreated();
+	const auto preview = Data::VideoPreviewState(_dataMedia.get());
+	return preview.loaded();
+}
+
+bool Gif::iconAnimated() const {
+	return true;
+}
+
+TextState Gif::getState(
+		QPoint point,
+		StateRequest request) const {
+	if (hasPoint(point)) {
+		const auto link = (_data->loading() || _data->uploading())
+			? _cancell
+			: dataLoaded()
+			? _openl
+			: _savel;
+		return { parent(), link };
+	}
+	return {};
+}
+
+void Gif::updateStatusText() {
+	int statusSize = 0;
+	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
+		statusSize = Ui::FileStatusSizeFailed;
+	} else if (_data->uploading()) {
+		statusSize = _data->uploadingData->offset;
+	} else if (dataLoaded()) {
+		statusSize = Ui::FileStatusSizeLoaded;
+	} else {
+		statusSize = Ui::FileStatusSizeReady;
+	}
+	if (statusSize != _status.size()) {
+		int status = statusSize, size = _data->size;
+		if (statusSize >= 0 && statusSize < 0x7F000000) {
+			size = status;
+			status = Ui::FileStatusSizeReady;
+		}
+		_status.update(status, size, -1, 0);
+		_status.setSize(statusSize);
+	}
 }
 
 } // namespace Layout

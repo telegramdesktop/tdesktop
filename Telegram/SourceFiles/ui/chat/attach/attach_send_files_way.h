@@ -14,6 +14,7 @@ namespace Ui {
 enum class AttachButtonType {
 	Edit,
 	Delete,
+	Modify,
 	None,
 };
 

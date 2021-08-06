@@ -41,7 +41,6 @@ Content ContentFromState(
 			return;
 		}
 		const auto substepsTotal = state.substepsTotal;
-		const auto step = static_cast<int>(state.step);
 		const auto done = state.substepsPassed;
 		const auto add = state.substepsNow;
 		const auto doneProgress = done / float64(substepsTotal);

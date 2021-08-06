@@ -43,6 +43,21 @@ struct Panel::Progress {
 	rpl::lifetime geometryLifetime;
 };
 
+struct Panel::WebviewWithLifetime {
+	WebviewWithLifetime(
+		QWidget *parent = nullptr,
+		Webview::WindowConfig config = Webview::WindowConfig());
+
+	Webview::Window window;
+	rpl::lifetime lifetime;
+};
+
+Panel::WebviewWithLifetime::WebviewWithLifetime(
+	QWidget *parent,
+	Webview::WindowConfig config)
+: window(parent, std::move(config)) {
+}
+
 Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 : widget(parent)
 , animation(
@@ -68,7 +83,7 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 }
 
 Panel::~Panel() {
-	// Destroy _widget before _webview.
+	_webview = nullptr;
 	_progress = nullptr;
 	_widget = nullptr;
 }
@@ -451,7 +466,7 @@ bool Panel::showWebview(
 	}
 	showWebviewProgress();
 	_widget->destroyLayer();
-	_webview->navigate(url);
+	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
 		const auto &padding = st::paymentsPanelPadding;
@@ -490,14 +505,14 @@ bool Panel::createWebview() {
 	}, bottom->lifetime());
 	container->show();
 
-	_webview = std::make_unique<Webview::Window>(
+	_webview = std::make_unique<WebviewWithLifetime>(
 		container.get(),
 		Webview::WindowConfig{
 			.userDataPath = _delegate->panelWebviewDataPath(),
 		});
-	const auto raw = _webview.get();
+	const auto raw = &_webview->window;
 	QObject::connect(container.get(), &QObject::destroyed, [=] {
-		if (_webview.get() == raw) {
+		if (_webview && &_webview->window == raw) {
 			_webview = nullptr;
 			if (_webviewProgress) {
 				hideWebviewProgress();
@@ -517,7 +532,7 @@ bool Panel::createWebview() {
 	container->geometryValue(
 	) | rpl::start_with_next([=](QRect geometry) {
 		raw->widget()->setGeometry(geometry);
-	}, container->lifetime());
+	}, _webview->lifetime);
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {
 		const auto save = _saveWebviewInformation

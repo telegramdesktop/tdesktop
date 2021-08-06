@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "platform/linux/linux_gtk_integration.h"
 
 #include <QtWidgets/QApplication>
 
@@ -22,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 namespace {
+
+using Platform::internal::GtkIntegration;
 
 class Arguments {
 public:
@@ -45,7 +48,31 @@ private:
 } // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv) {
+: Core::Launcher(argc, argv)
+, _arguments(argv, argv + argc) {
+}
+
+int Launcher::exec() {
+	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
+		if (*i == "-basegtkintegration" && std::distance(i, e) > 2) {
+			return GtkIntegration::Exec(
+				GtkIntegration::Type::Base,
+				QString::fromStdString(*(i + 1)),
+				QString::fromStdString(*(i + 2)));
+		} else if (*i == "-webviewhelper" && std::distance(i, e) > 2) {
+			return GtkIntegration::Exec(
+				GtkIntegration::Type::Webview,
+				QString::fromStdString(*(i + 1)),
+				QString::fromStdString(*(i + 2)));
+		} else if (*i == "-gtkintegration" && std::distance(i, e) > 2) {
+			return GtkIntegration::Exec(
+				GtkIntegration::Type::TDesktop,
+				QString::fromStdString(*(i + 1)),
+				QString::fromStdString(*(i + 2)));
+		}
+	}
+
+	return Core::Launcher::exec();
 }
 
 void Launcher::initHook() {

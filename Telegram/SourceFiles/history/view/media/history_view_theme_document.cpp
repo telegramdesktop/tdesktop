@@ -14,13 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_document_media.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
+#include "data/data_wall_paper.h"
 #include "base/qthelp_url.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
-#include "window/themes/window_theme.h"
-#include "layout.h" // FullSelection
-#include "app.h" // App::pixmapFromImageInPlace.
+#include "ui/ui_utility.h"
+#include "layout/layout_selection.h" // FullSelection
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -121,10 +122,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	auto loaded = dataLoaded();
 	auto displayLoading = _data->displayLoading();
 
-	auto inWebPage = (_parent->media() != this);
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
-
-	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -258,7 +256,7 @@ void ThemeDocument::prepareThumbnailFrom(
 			Data::PatternColor(_background),
 			_intensity);
 	}
-	_thumbnail = App::pixmapFromImageInPlace(std::move(original));
+	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;
 }
 
@@ -269,7 +267,6 @@ TextState ThemeDocument::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
-	auto bubble = _parent->hasBubble();
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;

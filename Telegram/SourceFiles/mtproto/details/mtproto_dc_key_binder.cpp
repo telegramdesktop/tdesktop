@@ -25,7 +25,7 @@ namespace {
 	auto serialized = SerializedRequest::Serialize(data);
 	serialized.setMsgId(realMsgId);
 	serialized.setSeqNo(0);
-	serialized.addPadding(false, true);
+	serialized.addPadding(true);
 
 	constexpr auto kMsgIdPosition = SerializedRequest::kMessageIdPosition;
 	constexpr auto kMinMessageSize = 5;
@@ -109,7 +109,6 @@ DcKeyBindState DcKeyBinder::handleResponse(const mtpBuffer &response) {
 	auto from = response.begin();
 	const auto end = from + response.size();
 	auto error = MTPRpcError();
-	auto result = MTPBool();
 	if (response[0] == mtpc_boolTrue) {
 		return DcKeyBindState::Success;
 	} else if (response[0] == mtpc_rpc_error && error.read(from, end)) {

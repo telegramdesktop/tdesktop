@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
@@ -331,19 +332,20 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::openFile() {
+Media::View::OpenRequest Result::openRequest() {
 	if (_document) {
-		DocumentOpenClickHandler(_document).onClick({});
+		return Media::View::OpenRequest(nullptr, _document, nullptr);
 	} else if (_photo) {
-		PhotoOpenClickHandler(_photo).onClick({});
+		return Media::View::OpenRequest(nullptr, _photo, nullptr);
 	}
+	return {};
 }
 
 void Result::cancelFile() {
 	if (_document) {
-		DocumentCancelClickHandler(_document).onClick({});
+		DocumentCancelClickHandler(_document, nullptr).onClick({});
 	} else if (_photo) {
-		PhotoCancelClickHandler(_photo).onClick({});
+		PhotoCancelClickHandler(_photo, nullptr).onClick({});
 	}
 }
 
@@ -362,29 +364,27 @@ bool Result::hasThumbDisplay() const {
 
 void Result::addToHistory(
 		History *history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor) const {
-	clientFlags |= MTPDmessage_ClientFlag::f_from_inline_bot;
+	flags |= MessageFlag::FromInlineBot;
 
 	auto markup = MTPReplyMarkup();
 	if (_mtpKeyboard) {
-		flags |= MTPDmessage::Flag::f_reply_markup;
+		flags |= MessageFlag::HasReplyMarkup;
 		markup = *_mtpKeyboard;
 	}
 	sendData->addToHistory(
 		this,
 		history,
 		flags,
-		clientFlags,
 		msgId,
 		fromId,
-		mtpDate,
+		date,
 		viaBotId,
 		replyToId,
 		postAuthor,

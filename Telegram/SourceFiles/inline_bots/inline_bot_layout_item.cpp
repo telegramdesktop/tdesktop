@@ -28,14 +28,6 @@ NeverFreedPointer<DocumentItems> documentItemsMap;
 
 } // namespace
 
-void ItemBase::setPosition(int32 position) {
-	_position = position;
-}
-
-int32 ItemBase::position() const {
-	return _position;
-}
-
 Result *ItemBase::getResult() const {
 	return _result;
 }
@@ -198,11 +190,10 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 			_result->_content_url,
 			false);
 	} else if (const auto document = _result->_document
-		&& _result->_document->createMediaView()->canBePlayed()) {
-		return std::make_shared<DocumentOpenClickHandler>(
-			_result->_document);
+		; document && document->createMediaView()->canBePlayed()) {
+		return std::make_shared<OpenFileClickHandler>();
 	} else if (_result->_photo) {
-		return std::make_shared<PhotoOpenClickHandler>(_result->_photo);
+		return std::make_shared<OpenFileClickHandler>();
 	}
 	return ClickHandlerPtr();
 }

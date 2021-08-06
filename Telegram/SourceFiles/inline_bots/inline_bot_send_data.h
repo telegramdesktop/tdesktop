@@ -41,11 +41,10 @@ public:
 	virtual void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
@@ -75,21 +74,19 @@ class SendDataCommon : public SendData {
 public:
 	using SendData::SendData;
 
-	struct SentMTPMessageFields {
-		MTPString text = MTP_string();
-		MTPVector<MTPMessageEntity> entities = MTP_vector<MTPMessageEntity>();
+	struct SentMessageFields {
+		TextWithEntities text;
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 	};
-	virtual SentMTPMessageFields getSentMessageFields() const = 0;
+	virtual SentMessageFields getSentMessageFields() const = 0;
 
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
@@ -118,7 +115,7 @@ public:
 		return !_message.isEmpty();
 	}
 
-	SentMTPMessageFields getSentMessageFields() const override;
+	SentMessageFields getSentMessageFields() const override;
 
 private:
 	QString _message;
@@ -152,7 +149,7 @@ public:
 		return true;
 	}
 
-	SentMTPMessageFields getSentMessageFields() const override;
+	SentMessageFields getSentMessageFields() const override;
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -191,7 +188,7 @@ public:
 		return true;
 	}
 
-	SentMTPMessageFields getSentMessageFields() const override;
+	SentMessageFields getSentMessageFields() const override;
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -224,7 +221,7 @@ public:
 		return (!_firstName.isEmpty() || !_lastName.isEmpty()) && !_phoneNumber.isEmpty();
 	}
 
-	SentMTPMessageFields getSentMessageFields() const override;
+	SentMessageFields getSentMessageFields() const override;
 
 	QString getLayoutDescription(const Result *owner) const override;
 
@@ -254,11 +251,10 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
@@ -296,11 +292,10 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
@@ -332,11 +327,10 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
@@ -364,7 +358,7 @@ public:
 		return true;
 	}
 
-	SentMTPMessageFields getSentMessageFields() const override;
+	SentMessageFields getSentMessageFields() const override;
 
 	QString getLayoutDescription(const Result *owner) const override;
 

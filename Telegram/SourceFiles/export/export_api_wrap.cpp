@@ -24,7 +24,7 @@ namespace {
 constexpr auto kUserpicsSliceLimit = 100;
 constexpr auto kFileChunkSize = 128 * 1024;
 constexpr auto kFileRequestsCount = 2;
-constexpr auto kFileNextRequestDelay = crl::time(20);
+//constexpr auto kFileNextRequestDelay = crl::time(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
@@ -39,12 +39,6 @@ struct LocationKey {
 		return std::tie(type, id) < std::tie(other.type, other.id);
 	}
 };
-
-std::tuple<const uint64 &, const uint64 &> value_ordering_helper(const LocationKey &value) {
-	return std::tie(
-		value.type,
-		value.id);
-}
 
 LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	auto result = LocationKey();
@@ -257,7 +251,7 @@ auto ApiWrap::RequestBuilder<Request>::done(
 	FnMut<void()> &&handler
 ) -> RequestBuilder& {
 	if (handler) {
-		auto &silence_warning = _builder.done(std::move(handler));
+		[[maybe_unused]] auto &silence_warning = _builder.done(std::move(handler));
 	}
 	return *this;
 }
@@ -267,7 +261,7 @@ auto ApiWrap::RequestBuilder<Request>::done(
 	FnMut<void(Response &&)> &&handler
 ) -> RequestBuilder& {
 	if (handler) {
-		auto &silence_warning = _builder.done(std::move(handler));
+		[[maybe_unused]] auto &silence_warning = _builder.done(std::move(handler));
 	}
 	return *this;
 }
@@ -277,7 +271,7 @@ auto ApiWrap::RequestBuilder<Request>::fail(
 	Fn<bool(const MTP::Error &)> &&handler
 ) -> RequestBuilder& {
 	if (handler) {
-		auto &silence_warning = _builder.fail([
+		[[maybe_unused]] auto &silence_warning = _builder.fail([
 			common = base::take(_commonFailHandler),
 			specific = std::move(handler)
 		](const MTP::Error &error) {

@@ -11,11 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "history/view/history_view_element.h"
 #include "data/data_document.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_session.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+
+bool File::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
+	return p == _openl || p == _savel || p == _cancell;
+}
+bool File::dragItemByHandler(const ClickHandlerPtr &p) const {
+	return p == _openl || p == _savel || p == _cancell;
+}
 
 void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _savel || p == _cancell) {
@@ -104,9 +113,19 @@ void File::setDocumentLinks(
 		not_null<HistoryItem*> realParent) {
 	const auto context = realParent->fullId();
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentOpenClickHandler>(
+			document,
+			crl::guard(this, [=](FullMsgId id) {
+				_parent->delegate()->elementOpenDocument(document, id);
+			}),
+			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),
-		std::make_shared<DocumentCancelClickHandler>(document, context));
+		std::make_shared<DocumentCancelClickHandler>(
+			document,
+			crl::guard(this, [=](FullMsgId id) {
+				_parent->delegate()->elementCancelUpload(id);
+			}),
+			context));
 }
 
 File::~File() = default;

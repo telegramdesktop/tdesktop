@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_scheduled_section.h"
 
 #include "history/view/controls/history_view_compose_controls.h"
+#include "history/view/history_view_empty_list_bubble.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
@@ -126,10 +128,7 @@ ScheduledWidget::ScheduledWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->adaptive().changed()
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
@@ -148,13 +147,23 @@ ScheduledWidget::ScheduledWidget(
 			const auto media = item->media();
 			if (media && !media->webpage()) {
 				if (media->allowsEditCaption()) {
-					Ui::show(Box<EditCaptionBox>(controller, item));
+					controller->show(Box<EditCaptionBox>(controller, item));
 				}
 			} else {
 				_composeControls->editMessage(fullId);
 			}
 		}
 	}, _inner->lifetime());
+
+	{
+		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
+			_inner,
+			st::msgServicePadding);
+		const auto emptyText = Ui::Text::Semibold(
+			tr::lng_scheduled_messages_empty(tr::now));
+		emptyInfo->setText(emptyText);
+		_inner->setEmptyInfoWidget(std::move(emptyInfo));
+	}
 
 	setupScrollDownButton();
 	setupComposeControls();
@@ -274,7 +283,7 @@ void ScheduledWidget::setupComposeControls() {
 void ScheduledWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
@@ -384,7 +393,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		insertTextOnCancel));
 
 	//ActivateWindow(controller());
-	const auto shown = Ui::show(std::move(box));
+	const auto shown = controller()->show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
 	return true;
@@ -454,7 +463,7 @@ void ScheduledWidget::uploadFile(
 		action.options = options;
 		session().api().sendFile(fileContent, type, action);
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -464,7 +473,7 @@ bool ScheduledWidget::showSendingFilesError(
 	const auto text = [&] {
 		const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media);
+			ChatRestriction::SendMedia);
 		if (error) {
 			return *error;
 		}
@@ -499,7 +508,7 @@ void ScheduledWidget::send() {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -544,7 +553,7 @@ void ScheduledWidget::sendVoice(
 	const auto callback = [=](Api::SendOptions options) {
 		sendVoice(bytes, waveform, duration, options);
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -579,13 +588,13 @@ void ScheduledWidget::edit(
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		if (item) {
-			Ui::show(Box<DeleteMessagesBox>(item, false));
+			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {
 			_composeControls->focus();
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -610,13 +619,13 @@ void ScheduledWidget::edit(
 
 		const auto &err = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (err == u"MESSAGE_EMPTY"_q) {
 			_composeControls->focus();
 		} else {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		}
 		update();
 		return true;
@@ -638,7 +647,7 @@ void ScheduledWidget::sendExistingDocument(
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -648,9 +657,11 @@ bool ScheduledWidget::sendExistingDocument(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -668,7 +679,7 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -678,9 +689,11 @@ bool ScheduledWidget::sendExistingPhoto(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -699,13 +712,13 @@ void ScheduledWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		Ui::show(Box<InformBox>(errorText));
+		controller()->show(Box<InformBox>(errorText));
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -1164,17 +1177,29 @@ bool ScheduledWidget::listIsGoodForAroundPosition(
 	return true;
 }
 
+Window::SectionActionResult ScheduledWidget::sendBotCommand(
+		Bot::SendCommandRequest request) {
+	if (request.peer != _history->peer) {
+		return Window::SectionActionResult::Ignore;
+	}
+	listSendBotCommand(request.command, request.context);
+	return Window::SectionActionResult::Handle;
+}
+
 void ScheduledWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
 	const auto callback = [=](Api::SendOptions options) {
-		const auto text = WrapBotCommandInChat(_history->peer, command, context);
+		const auto text = Bot::WrapCommandInChat(
+			_history->peer,
+			command,
+			context);
 		auto message = ApiWrap::MessageToSend(_history);
 		message.textWithTags = { text };
 		message.action.options = options;
 		session().api().sendMessage(std::move(message));
 	};
-	Ui::show(
+	controller()->show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }

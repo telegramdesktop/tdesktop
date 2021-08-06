@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "layout.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
@@ -60,8 +59,7 @@ enum class MediaCheckResult {
 not_null<HistoryItem*> CreateUnsupportedMessage(
 		not_null<History*> history,
 		MsgId msgId,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -73,18 +71,21 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
 	text.entities.push_front(
 		EntityInText(EntityType::Italic, 0, text.text.size()));
-	flags &= ~MTPDmessage::Flag::f_post_author;
-	flags |= MTPDmessage::Flag::f_legacy;
+	flags &= ~MessageFlag::HasPostAuthor;
+	flags |= MessageFlag::Legacy;
+	const auto groupedId = uint64();
 	return history->makeMessage(
 		msgId,
 		flags,
-		clientFlags,
 		replyTo,
 		viaBotId,
 		date,
 		from,
 		QString(),
-		text);
+		text,
+		MTP_messageMediaEmpty(),
+		MTPReplyMarkup(),
+		groupedId);
 }
 
 MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
@@ -171,15 +172,13 @@ void HistoryItem::HistoryItem::Destroyer::operator()(HistoryItem *value) {
 HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
-	MTPDmessage::Flags flags,
-	MTPDmessage_ClientFlags clientFlags,
+	MessageFlags flags,
 	TimeId date,
 	PeerId from)
 : id(id)
 , _history(history)
 , _from(from ? history->owner().peer(from) : history->peer)
 , _flags(flags)
-, _clientFlags(clientFlags)
 , _date(date) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerLocalMessage(this);
@@ -232,7 +231,7 @@ void HistoryItem::setGroupId(MessageGroupId groupId) {
 
 HistoryMessageReplyMarkup *HistoryItem::inlineReplyMarkup() {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
+		if (markup->flags & ReplyMarkupFlag::Inline) {
 			return markup;
 		}
 	}
@@ -319,11 +318,11 @@ bool HistoryItem::hasUnreadMediaFlag() const {
 			return false;
 		}
 	}
-	return _flags & MTPDmessage::Flag::f_media_unread;
+	return _flags & MessageFlag::MediaIsUnread;
 }
 
 bool HistoryItem::isUnreadMention() const {
-	return mentionsMe() && (_flags & MTPDmessage::Flag::f_media_unread);
+	return mentionsMe() && (_flags & MessageFlag::MediaIsUnread);
 }
 
 bool HistoryItem::mentionsMe() const {
@@ -331,7 +330,7 @@ bool HistoryItem::mentionsMe() const {
 		&& !Core::App().settings().notifyAboutPinned()) {
 		return false;
 	}
-	return _flags & MTPDmessage::Flag::f_mentioned;
+	return _flags & MessageFlag::MentionsMe;
 }
 
 bool HistoryItem::isUnreadMedia() const {
@@ -348,7 +347,7 @@ bool HistoryItem::isUnreadMedia() const {
 }
 
 void HistoryItem::markMediaRead() {
-	_flags &= ~MTPDmessage::Flag::f_media_unread;
+	_flags &= ~MessageFlag::MediaIsUnread;
 
 	if (mentionsMe()) {
 		history()->updateChatListEntry();
@@ -359,7 +358,7 @@ void HistoryItem::markMediaRead() {
 void HistoryItem::setIsPinned(bool pinned) {
 	const auto changed = (isPinned() != pinned);
 	if (pinned) {
-		_flags |= MTPDmessage::Flag::f_pinned;
+		_flags |= MessageFlag::Pinned;
 		history()->session().storage().add(Storage::SharedMediaAddExisting(
 			history()->peer->id,
 			Storage::SharedMediaType::Pinned,
@@ -367,7 +366,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 			{ id, id }));
 		history()->peer->setHasPinnedMessages(true);
 	} else {
-		_flags &= ~MTPDmessage::Flag::f_pinned;
+		_flags &= ~MessageFlag::Pinned;
 		history()->session().storage().remove(Storage::SharedMediaRemoveOne(
 			history()->peer->id,
 			Storage::SharedMediaType::Pinned,
@@ -380,7 +379,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
+		if (markup->flags & ReplyMarkupFlag::Inline) {
 			return false;
 		}
 		return true;
@@ -388,10 +387,10 @@ bool HistoryItem::definesReplyKeyboard() const {
 
 	// optimization: don't create markup component for the case
 	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-	return (_flags & MTPDmessage::Flag::f_reply_markup);
+	return (_flags & MessageFlag::HasReplyMarkup);
 }
 
-MTPDreplyKeyboardMarkup::Flags HistoryItem::replyKeyboardFlags() const {
+ReplyMarkupFlags HistoryItem::replyKeyboardFlags() const {
 	Expects(definesReplyKeyboard());
 
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
@@ -400,7 +399,7 @@ MTPDreplyKeyboardMarkup::Flags HistoryItem::replyKeyboardFlags() const {
 
 	// optimization: don't create markup component for the case
 	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-	return MTPDreplyKeyboardMarkup_ClientFlag::f_zero | 0;
+	return ReplyMarkupFlag::None;
 }
 
 void HistoryItem::addLogEntryOriginal(
@@ -442,22 +441,22 @@ UserData *HistoryItem::getMessageBot() const {
 
 bool HistoryItem::isHistoryEntry() const {
 	return IsServerMsgId(id)
-		|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
+		|| (_flags & MessageFlag::LocalHistoryEntry);
 }
 
 bool HistoryItem::isAdminLogEntry() const {
-	return (_clientFlags & MTPDmessage_ClientFlag::f_admin_log_entry);
+	return (_flags & MessageFlag::AdminLogEntry);
 }
 
 bool HistoryItem::isFromScheduled() const {
 	return isHistoryEntry()
-		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+		&& (_flags & MessageFlag::IsOrWasScheduled);
 }
 
 bool HistoryItem::isScheduled() const {
 	return !isHistoryEntry()
 		&& !isAdminLogEntry()
-		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+		&& (_flags & MessageFlag::IsOrWasScheduled);
 }
 
 void HistoryItem::destroy() {
@@ -561,11 +560,11 @@ void HistoryItem::indexAsNewItem() {
 }
 
 void HistoryItem::setRealId(MsgId newId) {
-	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
+	Expects(_flags & MessageFlag::BeingSent);
 	Expects(IsClientMsgId(id));
 
 	const auto oldId = std::exchange(id, newId);
-	_clientFlags &= ~MTPDmessage_ClientFlag::f_sending;
+	_flags &= ~MessageFlag::BeingSent;
 	if (IsServerMsgId(id)) {
 		_history->unregisterLocalMessage(this);
 	}
@@ -847,11 +846,10 @@ void HistoryItem::applyTTL(TimeId destroyAt) {
 }
 
 void HistoryItem::sendFailed() {
-	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
-	Expects(!(_clientFlags & MTPDmessage_ClientFlag::f_failed));
+	Expects(_flags & MessageFlag::BeingSent);
+	Expects(!(_flags & MessageFlag::SendingFailed));
 
-	_clientFlags = (_clientFlags | MTPDmessage_ClientFlag::f_failed)
-		& ~MTPDmessage_ClientFlag::f_sending;
+	_flags = (_flags | MessageFlag::SendingFailed) & ~MessageFlag::BeingSent;
 	history()->session().changes().historyUpdated(
 		history(),
 		Data::HistoryUpdate::Flag::LocalMessages);
@@ -896,7 +894,7 @@ bool HistoryItem::unread() const {
 		}
 		return true;
 	}
-	return (_clientFlags & MTPDmessage_ClientFlag::f_clientside_unread);
+	return (_flags & MessageFlag::ClientSideUnread);
 }
 
 bool HistoryItem::showNotification() const {
@@ -910,7 +908,7 @@ bool HistoryItem::showNotification() const {
 }
 
 void HistoryItem::markClientSideAsRead() {
-	_clientFlags &= ~MTPDmessage_ClientFlag::f_clientside_unread;
+	_flags &= ~MessageFlag::ClientSideUnread;
 }
 
 MessageGroupId HistoryItem::groupId() const {
@@ -1045,10 +1043,43 @@ ClickHandlerPtr goToMessageClickHandler(
 	});
 }
 
+MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
+	using Flag = MessageFlag;
+	using MTP = MTPDmessage::Flag;
+	return Flag()
+		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
+		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
+		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
+		| ((flags & MTP::f_silent) ? Flag::Silent : Flag())
+		| ((flags & MTP::f_post) ? Flag::Post : Flag())
+		| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag())
+		| ((flags & MTP::f_edit_hide) ? Flag::HideEdited : Flag())
+		| ((flags & MTP::f_pinned) ? Flag::Pinned : Flag())
+		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
+		| ((flags & MTP::f_via_bot_id) ? Flag::HasViaBot : Flag())
+		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
+		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
+		| ((flags & MTP::f_views) ? Flag::HasViews : Flag());
+}
+
+MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags) {
+	using Flag = MessageFlag;
+	using MTP = MTPDmessageService::Flag;
+	return Flag()
+		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
+		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
+		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
+		| ((flags & MTP::f_silent) ? Flag::Silent : Flag())
+		| ((flags & MTP::f_post) ? Flag::Post : Flag())
+		| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag())
+		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
+		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag());
+}
+
 not_null<HistoryItem*> HistoryItem::Create(
 		not_null<History*> history,
 		const MTPMessage &message,
-		MTPDmessage_ClientFlags clientFlags) {
+		MessageFlags localFlags) {
 	return message.match([&](const MTPDmessage &data) -> HistoryItem* {
 		const auto media = data.vmedia();
 		const auto checked = media
@@ -1058,8 +1089,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			return CreateUnsupportedMessage(
 				history,
 				data.vid().v,
-				data.vflags().v,
-				clientFlags,
+				FlagsFromMTP(data.vflags().v) | localFlags,
 				MsgId(0), // No need to pass reply_to data here.
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
@@ -1070,27 +1100,26 @@ not_null<HistoryItem*> HistoryItem::Create(
 			};
 			return history->makeServiceMessage(
 				data.vid().v,
-				clientFlags,
+				FlagsFromMTP(data.vflags().v) | localFlags,
 				data.vdate().v,
 				text,
-				data.vflags().v,
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
-			return history->makeServiceMessage(data, clientFlags);
+			return history->makeServiceMessage(data, localFlags);
 		}
-		return history->makeMessage(data, clientFlags);
+		return history->makeMessage(data, localFlags);
 	}, [&](const MTPDmessageService &data) -> HistoryItem* {
 		if (data.vaction().type() == mtpc_messageActionPhoneCall) {
-			return history->makeMessage(data, clientFlags);
+			return history->makeMessage(data, localFlags);
 		}
-		return history->makeServiceMessage(data, clientFlags);
+		return history->makeServiceMessage(data, localFlags);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
 			tr::lng_message_empty(tr::now)
 		};
 		return history->makeServiceMessage(
 			data.vid().v,
-			clientFlags,
+			localFlags,
 			TimeId(0),
 			text);
 	});

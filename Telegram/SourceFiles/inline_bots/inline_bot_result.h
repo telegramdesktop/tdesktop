@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_cloud_file.h"
 #include "api/api_common.h"
+#include "media/view/media_view_open_common.h"
 
 class FileLoader;
 class History;
@@ -54,18 +55,17 @@ public:
 	// inline bot result. If it returns true you need to send this result.
 	bool onChoose(Layout::ItemBase *layout);
 
-	void openFile();
+	Media::View::OpenRequest openRequest();
 	void cancelFile();
 
 	bool hasThumbDisplay() const;
 
 	void addToHistory(
 		History *history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor) const;
@@ -131,6 +131,8 @@ struct ResultSelected {
 	not_null<Result*> result;
 	not_null<UserData*> bot;
 	Api::SendOptions options;
+	// Open in OverlayWidget;
+	bool open = false;
 };
 
 } // namespace InlineBots

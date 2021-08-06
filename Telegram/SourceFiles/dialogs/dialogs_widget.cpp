@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -266,7 +267,7 @@ Widget::Widget(
 		}, lifetime());
 	}
 
-	controller->adaptive().changed(
+	controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		updateForwardBar();
 	}, lifetime());
@@ -651,7 +652,7 @@ void Widget::startWidthAnimation() {
 		QPainter p(&image);
 		Ui::RenderWidget(p, _scroll);
 	}
-	_widthAnimationCache = App::pixmapFromImageInPlace(std::move(image));
+	_widthAnimationCache = Ui::PixmapFromImage(std::move(image));
 	_scroll->setGeometry(scrollGeometry);
 	_scroll->hide();
 }
@@ -699,7 +700,6 @@ void Widget::startSlideAnimation() {
 		_folderTopBar->hide();
 	}
 
-	int delta = st::slideShift;
 	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
 	}
@@ -1571,7 +1571,7 @@ void Widget::updateControlsGeometry() {
 	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
 	auto smallLayoutRatio = (width() < st::columnMinimalWidthLeft) ? (st::columnMinimalWidthLeft - width()) / float64(st::columnMinimalWidthLeft - smallLayoutWidth) : 0.;
 	auto filterLeft = (controller()->filtersWidth() ? st::dialogsFilterSkip : st::dialogsFilterPadding.x() + _mainMenuToggle->width()) + st::dialogsFilterPadding.x();
-	auto filterRight = (_lockUnlock->isVisible() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
+	auto filterRight = (session().domain().local().hasLocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
 	auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, width(), filterAreaHeight);

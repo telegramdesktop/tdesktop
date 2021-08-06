@@ -59,9 +59,7 @@ class Account;
 class Domain;
 class SessionSettings;
 
-class Session final
-	: public base::has_weak_ptr
-	, private base::Subscriber {
+class Session final : public base::has_weak_ptr {
 public:
 	Session(
 		not_null<Account*> account,

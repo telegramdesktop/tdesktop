@@ -52,4 +52,4 @@ private:
 
 };
 
-} // namespace Info
+} // namespace Settings

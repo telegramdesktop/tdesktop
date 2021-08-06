@@ -16,11 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -113,9 +111,7 @@ private:
 
 };
 
-class ConnectionState::Widget::ProxyIcon
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class ConnectionState::Widget::ProxyIcon final : public Ui::RpWidget {
 public:
 	ProxyIcon(QWidget *parent);
 
@@ -144,12 +140,10 @@ ConnectionState::Widget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent
 			st::connectingRadial.size.height(),
 			st::connectingProxyOn.height()));
 
-	using namespace Window::Theme;
-	subscribe(Background(), [=](const BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			refreshCacheImages();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		refreshCacheImages();
+	}, lifetime());
 
 	refreshCacheImages();
 }
@@ -169,7 +163,7 @@ void ConnectionState::Widget::ProxyIcon::refreshCacheImages() {
 				(height() - icon.height()) / 2,
 				width());
 		}
-		return App::pixmapFromImageInPlace(std::move(image));
+		return Ui::PixmapFromImage(std::move(image));
 	};
 	_cacheOn = prepareCache(st::connectingProxyOn);
 	_cacheOff = prepareCache(st::connectingProxyOff);
@@ -441,9 +435,6 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 		break;
 	}
 	result.textWidth = st::normalFont->width(result.text);
-	const auto maxTextWidth = (state.type == State::Type::Waiting)
-		? st::normalFont->width(tr::lng_reconnecting(tr::now, lt_count, 88))
-		: result.textWidth;
 	result.contentWidth = (result.textWidth > 0)
 		? (st::connectingTextPadding.left()
 			+ result.textWidth

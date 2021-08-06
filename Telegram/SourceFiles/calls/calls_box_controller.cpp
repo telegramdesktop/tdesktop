@@ -357,7 +357,7 @@ base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	result->addAction(tr::lng_context_delete_selected(tr::now), [=] {
-		Ui::show(
+		_window->show(
 			Box<DeleteMessagesBox>(session, base::duplicate(ids)),
 			Ui::LayerOption::KeepOther);
 	});
@@ -398,7 +398,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 		if (const auto peer = session().data().peerLoaded(peerId)) {
 			const auto item = session().data().addNewMessage(
 				message,
-				MTPDmessage_ClientFlags(),
+				MessageFlags(),
 				NewMessageType::Existing);
 			insertRow(item, InsertWay::Append);
 		} else {

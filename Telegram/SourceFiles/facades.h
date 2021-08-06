@@ -14,15 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Data {
-struct FileOrigin;
-} // namespace Data
-
-namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
-} // namespace InlineBots
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace App {
 
@@ -37,17 +31,12 @@ template <typename Guard, typename Lambda>
 	};
 }
 
-void sendBotCommand(
-	not_null<PeerData*> peer,
-	UserData *bot,
-	const QString &cmd,
-	MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd);
 void activateBotCommand(
+	Window::SessionController *sessionController,
 	not_null<const HistoryItem*> msg,
 	int row,
 	int column);
-void searchByHashtag(const QString &tag, PeerData *inPeer);
 
 } // namespace App
 
@@ -58,7 +47,6 @@ namespace Ui {
 void showPeerProfile(not_null<PeerData*> peer);
 void showPeerProfile(not_null<const History*> history);
 
-void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 void showChatsList(not_null<Main::Session*> session);

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "lottie/lottie_single_player.h"
 #include "ui/cached_round_corners.h"
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -77,7 +77,6 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
 	if (_parent->media() == this) {
-		const auto infoWidth = _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();

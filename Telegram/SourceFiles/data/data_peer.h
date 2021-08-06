@@ -17,10 +17,80 @@ class UserData;
 class ChatData;
 class ChannelData;
 
-using ChatAdminRight = MTPDchatAdminRights::Flag;
-using ChatRestriction = MTPDchatBannedRights::Flag;
-using ChatAdminRights = MTPDchatAdminRights::Flags;
-using ChatRestrictions = MTPDchatBannedRights::Flags;
+enum class ChatAdminRight {
+	ChangeInfo = (1 << 0),
+	PostMessages = (1 << 1),
+	EditMessages = (1 << 2),
+	DeleteMessages = (1 << 3),
+	BanUsers = (1 << 4),
+	InviteUsers = (1 << 5),
+	PinMessages = (1 << 7),
+	AddAdmins = (1 << 9),
+	Anonymous = (1 << 10),
+	ManageCall = (1 << 11),
+	Other = (1 << 12),
+};
+inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
+using ChatAdminRights = base::flags<ChatAdminRight>;
+
+enum class ChatRestriction {
+	ViewMessages = (1 << 0),
+	SendMessages = (1 << 1),
+	SendMedia = (1 << 2),
+	SendStickers = (1 << 3),
+	SendGifs = (1 << 4),
+	SendGames = (1 << 5),
+	SendInline = (1 << 6),
+	EmbedLinks = (1 << 7),
+	SendPolls = (1 << 8),
+	ChangeInfo = (1 << 10),
+	InviteUsers = (1 << 15),
+	PinMessages = (1 << 17),
+};
+inline constexpr bool is_flag_type(ChatRestriction) { return true; }
+using ChatRestrictions = base::flags<ChatRestriction>;
+
+namespace Data {
+
+[[nodiscard]] ChatAdminRights ChatAdminRightsFlags(
+	const MTPChatAdminRights &rights);
+[[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
+	const MTPChatBannedRights &rights);
+[[nodiscard]] TimeId ChatBannedRightsUntilDate(
+	const MTPChatBannedRights &rights);
+
+} // namespace Data
+
+struct ChatAdminRightsInfo {
+	ChatAdminRightsInfo() = default;
+	explicit ChatAdminRightsInfo(ChatAdminRights flags) : flags(flags) {
+	}
+	explicit ChatAdminRightsInfo(const MTPChatAdminRights &rights)
+	: flags(Data::ChatAdminRightsFlags(rights)) {
+	}
+
+	ChatAdminRights flags;
+};
+
+struct ChatRestrictionsInfo {
+	ChatRestrictionsInfo() = default;
+	ChatRestrictionsInfo(ChatRestrictions flags, TimeId until)
+	: flags(flags)
+	, until(until) {
+	}
+	explicit ChatRestrictionsInfo(const MTPChatBannedRights &rights)
+	: flags(Data::ChatBannedRightsFlags(rights))
+	, until(Data::ChatBannedRightsUntilDate(rights)) {
+	}
+
+	ChatRestrictions flags;
+	TimeId until = 0;
+};
+
+struct BotCommand {
+	QString command;
+	QString description;
+};
 
 namespace Ui {
 class EmptyUserpic;
@@ -95,10 +165,16 @@ struct UnavailableReason {
 	}
 };
 
-[[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
-	const MTPChatBannedRights &rights);
-[[nodiscard]] TimeId ChatBannedRightsUntilDate(
-	const MTPChatBannedRights &rights);
+bool UpdateBotCommands(
+	std::vector<BotCommand> &commands,
+	const MTPVector<MTPBotCommand> &data);
+bool UpdateBotCommands(
+	base::flat_map<UserId, std::vector<BotCommand>> &commands,
+	UserId botId,
+	const MTPVector<MTPBotCommand> &data);
+bool UpdateBotCommands(
+	base::flat_map<UserId, std::vector<BotCommand>> &commands,
+	const MTPVector<MTPBotInfo> &data);
 
 } // namespace Data
 
@@ -116,25 +192,26 @@ private:
 
 };
 
-class PeerData {
-private:
-	static constexpr auto kSettingsUnknown = MTPDpeerSettings::Flag(1U << 9);
+enum class PeerSetting {
+	ReportSpam = (1 << 0),
+	AddContact = (1 << 1),
+	BlockContact = (1 << 2),
+	ShareContact = (1 << 3),
+	NeedContactsException = (1 << 4),
+	AutoArchived = (1 << 5),
+	Unknown = (1 << 6),
+};
+inline constexpr bool is_flag_type(PeerSetting) { return true; };
+using PeerSettings = base::flags<PeerSetting>;
 
+class PeerData {
 protected:
 	PeerData(not_null<Data::Session*> owner, PeerId id);
 	PeerData(const PeerData &other) = delete;
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-	static constexpr auto kEssentialSettings = 0
-		| MTPDpeerSettings::Flag::f_report_spam
-		| MTPDpeerSettings::Flag::f_add_contact
-		| MTPDpeerSettings::Flag::f_block_contact
-		| MTPDpeerSettings::Flag::f_share_contact
-		| kSettingsUnknown;
-	using Settings = Data::Flags<
-		MTPDpeerSettings::Flags,
-		kEssentialSettings.value()>;
+	using Settings = Data::Flags<PeerSettings>;
 
 	virtual ~PeerData();
 
@@ -342,19 +419,21 @@ public:
 
 	void checkFolder(FolderId folderId);
 
-	void setSettings(MTPDpeerSettings::Flags which) {
+	void setSettings(PeerSettings which) {
 		_settings.set(which);
 	}
 	auto settings() const {
-		return (_settings.current() & kSettingsUnknown)
+		return (_settings.current() & PeerSetting::Unknown)
 			? std::nullopt
 			: std::make_optional(_settings.current());
 	}
 	auto settingsValue() const {
-		return (_settings.current() & kSettingsUnknown)
+		return (_settings.current() & PeerSetting::Unknown)
 			? _settings.changes()
 			: (_settings.value() | rpl::type_erased());
 	}
+
+	void setSettings(const MTPPeerSettings &data);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -431,7 +510,7 @@ private:
 	TimeId _ttlPeriod = 0;
 	bool _hasPinnedMessages = false;
 
-	Settings _settings = { kSettingsUnknown };
+	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 

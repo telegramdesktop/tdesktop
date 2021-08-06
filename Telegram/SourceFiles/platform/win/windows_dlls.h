@@ -22,11 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Dlls {
 
-void init();
-void start();
-
-// KERNEL32.DLL
-inline BOOL(__stdcall *SetDllDirectory)(LPCWSTR lpPathName);
+void CheckLoadedModules();
 
 // UXTHEME.DLL
 inline HRESULT(__stdcall *SetWindowTheme)(
@@ -100,8 +96,6 @@ inline HRESULT(__stdcall *PSStringFromPropertyKey)(
 
 // DWMAPI.DLL
 
-inline HRESULT(__stdcall *DwmIsCompositionEnabled)(
-	_Out_ BOOL* pfEnabled);
 inline HRESULT(__stdcall *DwmSetWindowAttribute)(
 	HWND hwnd,
 	DWORD dwAttribute,

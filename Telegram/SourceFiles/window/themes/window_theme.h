@@ -98,9 +98,9 @@ bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
 	Cached *outCache);
-QColor CountAverageColor(const QImage &image);
-QColor AdjustedColor(QColor original, QColor background);
-QImage ProcessBackgroundImage(QImage image);
+[[nodiscard]] QColor CountAverageColor(const QImage &image);
+[[nodiscard]] QColor AdjustedColor(QColor original, QColor background);
+[[nodiscard]] QImage PreprocessBackgroundImage(QImage image);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -131,11 +131,13 @@ enum class ClearEditing {
 	KeepChanges,
 };
 
-class ChatBackground
-	: public base::Observable<BackgroundUpdate>
-	, private base::Subscriber {
+class ChatBackground final {
 public:
 	ChatBackground();
+
+	[[nodiscard]] rpl::producer<BackgroundUpdate> updates() const {
+		return _updates.events();
+	}
 
 	void start();
 
@@ -158,6 +160,9 @@ public:
 	void saveAdjustableColors();
 	void setTestingDefaultTheme();
 	void revert();
+
+	void appliedEditedPalette();
+	void downloadingStarted(bool tile);
 
 	[[nodiscard]] Data::WallPaper paper() const {
 		return _paper;
@@ -210,6 +215,7 @@ private:
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
 	void checkUploadWallPaper();
+	[[nodiscard]] QImage postprocessBackgroundImage(QImage image);
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
@@ -227,6 +233,7 @@ private:
 	friend bool IsNonDefaultBackground();
 
 	Main::Session *_session = nullptr;
+	rpl::event_stream<BackgroundUpdate> _updates;
 	Data::WallPaper _paper = Data::details::UninitializedWallPaper();
 	std::optional<QColor> _paperColor;
 	QImage _original;
@@ -259,7 +266,7 @@ private:
 
 };
 
-ChatBackground *Background();
+[[nodiscard]] ChatBackground *Background();
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
 

@@ -24,32 +24,6 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
-BotCommand::BotCommand(
-	const QString &command,
-	const QString &description)
-: command(command)
-, _description(description) {
-}
-
-bool BotCommand::setDescription(const QString &description) {
-	if (_description != description) {
-		_description = description;
-		_descriptionText = Ui::Text::String();
-		return true;
-	}
-	return false;
-}
-
-const Ui::Text::String &BotCommand::descriptionText() const {
-	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
-		_descriptionText.setText(
-			st::defaultTextStyle,
-			_description,
-			Ui::NameTextOptions());
-	}
-	return _descriptionText;
-}
-
 UserData::UserData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id) {
 }
@@ -132,7 +106,7 @@ void UserData::setBotInfoVersion(int version) {
 		botInfo->version = version;
 		owner().userIsBotChanged(this);
 	} else if (botInfo->version < version) {
-		if (!botInfo->commands.isEmpty()) {
+		if (!botInfo->commands.empty()) {
 			botInfo->commands.clear();
 			owner().botCommandsChanged(this);
 		}
@@ -155,34 +129,9 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
-
-		auto &v = d.vcommands().v;
-		botInfo->commands.reserve(v.size());
-		auto changedCommands = false;
-		int32 j = 0;
-		for (const auto &command : v) {
-			command.match([&](const MTPDbotCommand &data) {
-				const auto cmd = qs(data.vcommand());
-				const auto desc = qs(data.vdescription());
-				if (botInfo->commands.size() <= j) {
-					botInfo->commands.push_back(BotCommand(cmd, desc));
-					changedCommands = true;
-				} else {
-					if (botInfo->commands[j].command != cmd) {
-						botInfo->commands[j].command = cmd;
-						changedCommands = true;
-					}
-					if (botInfo->commands[j].setDescription(desc)) {
-						changedCommands = true;
-					}
-				}
-				++j;
-			});
-		}
-		while (j < botInfo->commands.size()) {
-			botInfo->commands.pop_back();
-			changedCommands = true;
-		}
+		const auto changedCommands = Data::UpdateBotCommands(
+			botInfo->commands,
+			d.vcommands());
 
 		botInfo->inited = true;
 
@@ -218,8 +167,7 @@ void UserData::madeAction(TimeId when) {
 void UserData::setAccessHash(uint64 accessHash) {
 	if (accessHash == kInaccessibleAccessHashOld) {
 		_accessHash = 0;
-//		_flags.add(MTPDuser_ClientFlag::f_inaccessible | 0);
-		_flags.add(MTPDuser::Flag::f_deleted);
+		_flags.add(Flag::Deleted);
 	} else {
 		_accessHash = accessHash;
 	}
@@ -244,11 +192,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto photo = update.vprofile_photo()) {
 		user->owner().processPhoto(*photo);
 	}
-	const auto settings = update.vsettings().match([&](
-			const MTPDpeerSettings &data) {
-		return data.vflags().v;
-	});
-	user->setSettings(settings);
+	user->setSettings(update.vsettings());
 	user->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(user->input),
 		update.vnotify_settings());
@@ -262,7 +206,16 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);
 	}
-	user->setFullFlags(update.vflags().v);
+	using Flag = UserDataFlag;
+	const auto mask = Flag::Blocked
+		| Flag::HasPhoneCalls
+		| Flag::PhoneCallsPrivate
+		| Flag::CanPinMessages;
+	user->setFlags((user->flags() & ~mask)
+		| (update.is_phone_calls_private() ? Flag::PhoneCallsPrivate : Flag())
+		| (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
+		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
+		| (update.is_blocked() ? Flag::Blocked : Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
 		? UserData::CallsStatus::Private

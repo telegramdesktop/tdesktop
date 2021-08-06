@@ -29,25 +29,50 @@ struct ChannelLocation {
 	}
 };
 
+enum class ChannelDataFlag {
+	Left = (1 << 0),
+	Creator = (1 << 1),
+	Forbidden = (1 << 2),
+	CallActive = (1 << 3),
+	CallNotEmpty = (1 << 4),
+	Signatures = (1 << 5),
+	Verified = (1 << 6),
+	Scam = (1 << 7),
+	Fake = (1 << 8),
+	Megagroup = (1 << 9),
+	Broadcast = (1 << 10),
+	Gigagroup = (1 << 11),
+	Username = (1 << 12),
+	Location = (1 << 13),
+	CanSetUsername = (1 << 14),
+	CanSetStickers = (1 << 15),
+	PreHistoryHidden = (1 << 16),
+	CanViewParticipants = (1 << 17),
+	HasLink = (1 << 18),
+	SlowmodeEnabled = (1 << 19),
+};
+inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
+using ChannelDataFlags = base::flags<ChannelDataFlag>;
+
 class MegagroupInfo {
 public:
 	struct Admin {
-		explicit Admin(MTPChatAdminRights rights)
+		explicit Admin(ChatAdminRightsInfo rights)
 		: rights(rights) {
 		}
-		Admin(MTPChatAdminRights rights, bool canEdit)
+		Admin(ChatAdminRightsInfo rights, bool canEdit)
 		: rights(rights)
 		, canEdit(canEdit) {
 		}
-		MTPChatAdminRights rights;
+		ChatAdminRightsInfo rights;
 		bool canEdit = false;
 	};
 
 	struct Restricted {
-		explicit Restricted(MTPChatBannedRights rights)
+		explicit Restricted(ChatRestrictionsInfo rights)
 		: rights(rights) {
 		}
-		MTPChatBannedRights rights;
+		ChatRestrictionsInfo rights;
 	};
 
 	ChatData *getMigrateFromChat() const;
@@ -55,6 +80,15 @@ public:
 
 	const ChannelLocation *getLocation() const;
 	void setLocation(const ChannelLocation &location);
+
+	bool updateBotCommands(const MTPVector<MTPBotInfo> &data);
+	bool updateBotCommands(
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data);
+	[[nodiscard]] auto botCommands() const
+		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
+		return _botCommands;
+	}
 
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
@@ -69,7 +103,7 @@ public:
 	QString creatorRank;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	bool joinedMessageFound = false;
-	MTPInputStickerSet stickerSet = MTP_inputStickerSetEmpty();
+	StickerSetIdentifier stickerSet;
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
@@ -82,40 +116,14 @@ public:
 private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
+	base::flat_map<UserId, std::vector<BotCommand>> _botCommands;
 
 };
 
 class ChannelData : public PeerData {
 public:
-	static constexpr auto kEssentialFlags = 0
-		| MTPDchannel::Flag::f_creator
-		| MTPDchannel::Flag::f_left
-		| MTPDchannel_ClientFlag::f_forbidden
-		| MTPDchannel::Flag::f_broadcast
-		| MTPDchannel::Flag::f_verified
-		| MTPDchannel::Flag::f_scam
-		| MTPDchannel::Flag::f_fake
-		| MTPDchannel::Flag::f_megagroup
-		| MTPDchannel::Flag::f_gigagroup
-		| MTPDchannel::Flag::f_restricted
-		| MTPDchannel::Flag::f_signatures
-		| MTPDchannel::Flag::f_username
-		| MTPDchannel::Flag::f_call_not_empty
-		| MTPDchannel::Flag::f_slowmode_enabled;
-	using Flags = Data::Flags<
-		MTPDchannel::Flags,
-		kEssentialFlags>;
-
-	static constexpr auto kEssentialFullFlags = 0
-		| MTPDchannelFull::Flag::f_can_view_participants
-		| MTPDchannelFull::Flag::f_can_set_username
-		| MTPDchannelFull::Flag::f_can_set_stickers
-		| MTPDchannelFull::Flag::f_location
-		| MTPDchannelFull::Flag::f_slowmode_seconds
-		| MTPDchannelFull::Flag::f_slowmode_next_send_date;
-	using FullFlags = Data::Flags<
-		MTPDchannelFull::Flags,
-		kEssentialFullFlags>;
+	using Flag = ChannelDataFlag;
+	using Flags = Data::Flags<ChannelDataFlags>;
 
 	using AdminRight = ChatAdminRight;
 	using Restriction = ChatRestriction;
@@ -130,13 +138,13 @@ public:
 	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(MTPDchannel::Flags which) {
+	void setFlags(ChannelDataFlags which) {
 		_flags.set(which);
 	}
-	void addFlags(MTPDchannel::Flags which) {
+	void addFlags(ChannelDataFlags which) {
 		_flags.add(which);
 	}
-	void removeFlags(MTPDchannel::Flags which) {
+	void removeFlags(ChannelDataFlags which) {
 		_flags.remove(which);
 	}
 	[[nodiscard]] auto flags() const {
@@ -144,22 +152,6 @@ public:
 	}
 	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
-	}
-
-	void setFullFlags(MTPDchannelFull::Flags which) {
-		_fullFlags.set(which);
-	}
-	void addFullFlags(MTPDchannelFull::Flags which) {
-		_fullFlags.add(which);
-	}
-	void removeFullFlags(MTPDchannelFull::Flags which) {
-		_fullFlags.remove(which);
-	}
-	[[nodiscard]] auto fullFlags() const {
-		return _fullFlags.current();
-	}
-	[[nodiscard]] auto fullFlagsValue() const {
-		return _fullFlags.value();
 	}
 
 	[[nodiscard]] int membersCount() const {
@@ -186,30 +178,28 @@ public:
 	void setKickedCount(int newKickedCount);
 
 	[[nodiscard]] bool haveLeft() const {
-		return flags() & MTPDchannel::Flag::f_left;
+		return flags() & Flag::Left;
 	}
 	[[nodiscard]] bool amIn() const {
 		return !isForbidden() && !haveLeft();
 	}
 	[[nodiscard]] bool addsSignature() const {
-		return flags() & MTPDchannel::Flag::f_signatures;
+		return flags() & Flag::Signatures;
 	}
 	[[nodiscard]] bool isForbidden() const {
-		return flags() & MTPDchannel_ClientFlag::f_forbidden;
+		return flags() & Flag::Forbidden;
 	}
 	[[nodiscard]] bool isVerified() const {
-		return flags() & MTPDchannel::Flag::f_verified;
+		return flags() & Flag::Verified;
 	}
 	[[nodiscard]] bool isScam() const {
-		return flags() & MTPDchannel::Flag::f_scam;
+		return flags() & Flag::Scam;
 	}
 	[[nodiscard]] bool isFake() const {
-		return flags() & MTPDchannel::Flag::f_fake;
+		return flags() & Flag::Fake;
 	}
 
-	static MTPChatBannedRights EmptyRestrictedRights(
-		not_null<PeerData*> participant);
-	static MTPChatBannedRights KickedRestrictedRights(
+	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(
 		not_null<PeerData*> participant);
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
 	[[nodiscard]] static bool IsRestrictedForever(TimeId until) {
@@ -217,38 +207,38 @@ public:
 	}
 	void applyEditAdmin(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &oldRights,
-		const MTPChatAdminRights &newRights,
+		ChatAdminRightsInfo oldRights,
+		ChatAdminRightsInfo newRights,
 		const QString &rank);
 	void applyEditBanned(
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &oldRights,
-		const MTPChatBannedRights &newRights);
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights);
 
 	void markForbidden();
 
 	[[nodiscard]] bool isGroupAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool lastParticipantsRequestNeeded() const;
 	[[nodiscard]] bool isMegagroup() const {
-		return flags() & MTPDchannel::Flag::f_megagroup;
+		return flags() & Flag::Megagroup;
 	}
 	[[nodiscard]] bool isBroadcast() const {
-		return flags() & MTPDchannel::Flag::f_broadcast;
+		return flags() & Flag::Broadcast;
 	}
 	[[nodiscard]] bool isGigagroup() const {
-		return flags() & MTPDchannel::Flag::f_gigagroup;
+		return flags() & Flag::Gigagroup;
 	}
 	[[nodiscard]] bool hasUsername() const {
-		return flags() & MTPDchannel::Flag::f_username;
+		return flags() & Flag::Username;
 	}
 	[[nodiscard]] bool hasLocation() const {
-		return fullFlags() & MTPDchannelFull::Flag::f_location;
+		return flags() & Flag::Location;
 	}
 	[[nodiscard]] bool isPublic() const {
 		return hasUsername() || hasLocation();
 	}
 	[[nodiscard]] bool amCreator() const {
-		return flags() & MTPDchannel::Flag::f_creator;
+		return flags() & Flag::Creator;
 	}
 
 	[[nodiscard]] auto adminRights() const {
@@ -257,7 +247,7 @@ public:
 	[[nodiscard]] auto adminRightsValue() const {
 		return _adminRights.value();
 	}
-	void setAdminRights(const MTPChatAdminRights &rights);
+	void setAdminRights(ChatAdminRights rights);
 	[[nodiscard]] bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
@@ -271,7 +261,7 @@ public:
 	[[nodiscard]] TimeId restrictedUntil() const {
 		return _restrictedUntil;
 	}
-	void setRestrictions(const MTPChatBannedRights &rights);
+	void setRestrictions(ChatRestrictionsInfo rights);
 	[[nodiscard]] bool hasRestrictions() const {
 		return (restrictions() != 0);
 	}
@@ -286,7 +276,7 @@ public:
 	[[nodiscard]] auto defaultRestrictionsValue() const {
 		return _defaultRestrictions.value();
 	}
-	void setDefaultRestrictions(const MTPChatBannedRights &rights);
+	void setDefaultRestrictions(ChatRestrictions rights);
 
 	// Like in ChatData.
 	[[nodiscard]] bool canWrite() const;
@@ -441,8 +431,7 @@ private:
 		-> const std::vector<Data::UnavailableReason> & override;
 	bool canEditLastAdmin(not_null<UserData*> user) const;
 
-	Flags _flags = Flags(MTPDchannel_ClientFlag::f_forbidden | 0);
-	FullFlags _fullFlags;
+	Flags _flags = ChannelDataFlags(Flag::Forbidden);
 
 	PtsWaiter _ptsWaiter;
 

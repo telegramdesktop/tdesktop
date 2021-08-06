@@ -161,12 +161,17 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
-			Api::EditMessageWithUploadedPhoto(item, data.file, data.options);
+			Api::EditMessageWithUploadedPhoto(
+				item,
+				data.file,
+				data.options,
+				data.attachedStickers);
 		} else {
 			_api->sendUploadedPhoto(
 				data.fullId,
 				data.file,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		}
 	}, _lifetime);
 
@@ -177,35 +182,18 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 			Api::EditMessageWithUploadedDocument(
 				item,
 				data.file,
-				std::nullopt,
-				data.options);
-		} else {
-			_api->sendUploadedDocument(
-				data.fullId,
-				data.file,
-				std::nullopt,
-				data.options);
-		}
-	}, _lifetime);
-
-	thumbDocumentReady(
-	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
-		if (data.edit) {
-			const auto item = session->data().message(data.fullId);
-			Api::EditMessageWithUploadedDocument(
-				item,
-				data.file,
 				data.thumb,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		} else {
 			_api->sendUploadedDocument(
 				data.fullId,
 				data.file,
 				data.thumb,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		}
 	}, _lifetime);
-
 
 	photoProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
@@ -231,9 +219,6 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 void Uploader::processPhotoProgress(const FullMsgId &newId) {
 	const auto session = &_api->session();
 	if (const auto item = session->data().message(newId)) {
-		const auto photo = item->media()
-			? item->media()->photo()
-			: nullptr;
 		sendProgressUpdate(item, Api::SendProgressType::UploadPhoto);
 	}
 }
@@ -467,6 +452,9 @@ void Uploader::sendNext() {
 					: Api::SendOptions();
 				const auto edit = uploadingData.file &&
 					uploadingData.file->to.replaceMediaOf;
+				const auto attachedStickers = uploadingData.file
+					? uploadingData.file->attachedStickers
+					: std::vector<MTPInputDocument>();
 				if (uploadingData.type() == SendMediaType::Photo) {
 					auto photoFilename = uploadingData.filename();
 					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {
@@ -483,7 +471,12 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					_photoReady.fire({ uploadingId, options, file, edit });
+					_photoReady.fire({
+						uploadingId,
+						options,
+						file,
+						edit,
+						attachedStickers });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::ThemeFile
 					|| uploadingData.type() == SendMediaType::Audio) {
@@ -500,31 +493,29 @@ void Uploader::sendNext() {
 							MTP_int(uploadingData.docPartsCount),
 							MTP_string(uploadingData.filename()),
 							MTP_bytes(docMd5));
-					if (uploadingData.partsCount) {
+					const auto thumb = [&]() -> std::optional<MTPInputFile> {
+						if (!uploadingData.partsCount) {
+							return std::nullopt;
+						}
 						const auto thumbFilename = uploadingData.file
 							? uploadingData.file->thumbname
 							: (qsl("thumb.") + uploadingData.media.thumbExt);
 						const auto thumbMd5 = uploadingData.file
 							? uploadingData.file->thumbmd5
 							: uploadingData.media.jpeg_md5;
-						const auto thumb = MTP_inputFile(
+						return MTP_inputFile(
 							MTP_long(uploadingData.thumbId()),
 							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
-						_thumbDocumentReady.fire({
-							uploadingId,
-							options,
-							file,
-							thumb,
-							edit });
-					} else {
-						_documentReady.fire({
-							uploadingId,
-							options,
-							file,
-							edit });
-					}
+					}();
+					_documentReady.fire({
+						uploadingId,
+						options,
+						file,
+						thumb,
+						edit,
+						attachedStickers });
 				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({
 						uploadingId,

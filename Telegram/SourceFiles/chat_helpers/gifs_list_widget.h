@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "layout/layout_mosaic.h"
 #include "app.h"
 
 #include <QtCore/QTimer>
@@ -142,45 +143,31 @@ private:
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
-	struct Row {
-		int maxWidth = 0;
-		int height = 0;
-		QVector<LayoutItem*> items;
-	};
-	QVector<Row> _rows;
 	void clearInlineRows(bool resultsDeleted);
 
 	std::map<
 		not_null<DocumentData*>,
 		std::unique_ptr<LayoutItem>> _gifLayouts;
-	LayoutItem *layoutPrepareSavedGif(
-		not_null<DocumentData*> document,
-		int32 position);
+	LayoutItem *layoutPrepareSavedGif(not_null<DocumentData*> document);
 
 	std::map<
 		not_null<InlineResult*>,
 		std::unique_ptr<LayoutItem>> _inlineLayouts;
-	LayoutItem *layoutPrepareInlineResult(
-		not_null<InlineResult*> result,
-		int32 position);
+	LayoutItem *layoutPrepareInlineResult(not_null<InlineResult*> result);
 
-	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, Row &row, int32 &sumWidth);
-	bool inlineRowFinalize(Row &row, int32 &sumWidth, bool force = false);
-
-	void layoutInlineRow(Row &row, int fullWidth);
 	void deleteUnusedGifLayouts();
 
 	void deleteUnusedInlineLayouts();
 
 	int validateExistingInlineRows(const InlineResults &results);
-	void selectInlineResult(int row, int column);
 	void selectInlineResult(
-		int row,
-		int column,
+		int index,
 		Api::SendOptions options,
 		bool forceSend = false);
 
 	Footer *_footer = nullptr;
+
+	Mosaic::Layout::MosaicLayout<LayoutItem> _mosaic;
 
 	int _selected = -1;
 	int _pressed = -1;

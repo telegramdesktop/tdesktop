@@ -668,7 +668,6 @@ int InnerWidget::desiredHeight() const {
 }
 
 void InnerWidget::setupContent() {
-	const auto quiz = _poll->quiz();
 	_content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content,

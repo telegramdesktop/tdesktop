@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
 #include "window/themes/window_theme.h"
@@ -416,15 +417,14 @@ BackgroundRow::BackgroundRow(
 	updateImage();
 
 	_chooseFromGallery->addClickHandler([=] {
-		Ui::show(Box<BackgroundBox>(controller));
+		controller->show(Box<BackgroundBox>(controller));
 	});
 	_chooseFromFile->addClickHandler([=] {
 		ChooseFromFile(controller, this);
 	});
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	base::ObservableViewer(
-		*Window::Theme::Background()
+	Window::Theme::Background()->updates(
 	) | rpl::filter([](const Update &update) {
 		return (update.type == Update::Type::New
 			|| update.type == Update::Type::Start
@@ -590,7 +590,7 @@ void BackgroundRow::updateImage() {
 		}
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_background = App::pixmapFromImageInPlace(std::move(back));
+	_background = Ui::PixmapFromImage(std::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
 	rtlupdate(radialRect());
@@ -635,7 +635,7 @@ void ChooseFromFile(
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
 			std::move(image)));
-		Ui::show(Box<BackgroundPreviewBox>(controller, local));
+		controller->show(Box<BackgroundPreviewBox>(controller, local));
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),
@@ -725,7 +725,7 @@ void SetupStickersEmoji(
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(
+		controller->show(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
@@ -736,7 +736,7 @@ void SetupStickersEmoji(
 		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box<Ui::Emoji::ManageSetsBox>(session));
+		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -775,8 +775,6 @@ void SetupMessages(
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
-	const auto small = st::settingsSendTypePadding;
-	const auto top = skip;
 	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
 	add(
 		SendByType::CtrlEnter,
@@ -862,7 +860,7 @@ void SetupDataStorage(
 		st::settingsButton,
 		tr::lng_download_path());
 	path->entity()->addClickHandler([=] {
-		Ui::show(Box<DownloadPathBox>(controller));
+		controller->show(Box<DownloadPathBox>(controller));
 	});
 	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
@@ -901,7 +899,8 @@ void SetupAutoDownload(
 			std::move(label),
 			st::settingsButton
 		)->addClickHandler([=] {
-			Ui::show(Box<AutoDownloadBox>(&controller->session(), source));
+			controller->show(
+				Box<AutoDownloadBox>(&controller->session(), source));
 		});
 	};
 	add(tr::lng_media_auto_in_private(), Source::User);
@@ -958,8 +957,7 @@ void SetupChatBackground(
 	}, tile->lifetime());
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	base::ObservableViewer(
-		*Window::Theme::Background()
+	Window::Theme::Background()->updates(
 	) | rpl::filter([](const Update &update) {
 		return (update.type == Update::Type::Changed);
 	}) | rpl::map([] {
@@ -1089,8 +1087,7 @@ void SetupDefaultThemes(
 		refreshColorizer(scheme.type);
 	}
 
-	base::ObservableViewer(
-		*Background()
+	Background()->updates(
 	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
@@ -1127,7 +1124,6 @@ void SetupDefaultThemes(
 		const auto fullSkips = width - count * single;
 		const auto skip = fullSkips / float64(skips);
 		auto left = padding.left() + 0.;
-		auto index = 0;
 		for (const auto button : buttons) {
 			button->resizeToWidth(single);
 			button->moveToLeft(int(std::round(left)), 0);
@@ -1142,7 +1138,7 @@ void SetupDefaultThemes(
 			// in Window::Theme::Revert which is called by Editor.
 			//
 			// So we check here, before we change the saved accent color.
-			Ui::show(Box<InformBox>(
+			window->show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 			return;
 		}
@@ -1255,9 +1251,9 @@ void SetupCloudThemes(
 	editWrap->toggleOn(rpl::single(BackgroundUpdate(
 		BackgroundUpdate::Type::ApplyingTheme,
 		Background()->tile()
-	)) | rpl::then(base::ObservableViewer(
-		*Background()
-	)) | rpl::filter([](const BackgroundUpdate &update) {
+	)) | rpl::then(
+		Background()->updates()
+	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		const auto userId = controller->session().userId();
@@ -1269,7 +1265,9 @@ void SetupCloudThemes(
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
 
-void SetupAutoNightMode(not_null<Ui::VerticalLayout*> container) {
+void SetupAutoNightMode(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	if (!Platform::IsDarkModeSupported()) {
 		return;
 	}
@@ -1294,7 +1292,7 @@ void SetupAutoNightMode(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](bool checked) {
 		if (checked && Window::Theme::Background()->editingTheme()) {
 			autoNight->setChecked(false);
-			Ui::show(Box<InformBox>(
+			controller->show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 		} else {
 			Core::App().settings().setSystemDarkModeEnabled(checked);
@@ -1451,7 +1449,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupThemeOptions(controller, content);
-	SetupAutoNightMode(content);
+	SetupAutoNightMode(controller, content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);

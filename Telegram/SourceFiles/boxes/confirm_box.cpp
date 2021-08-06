@@ -901,7 +901,7 @@ void DeleteMessagesBox::deleteAndClear() {
 			_moderateInChannel->session().api().kickParticipant(
 				_moderateInChannel,
 				_moderateFrom,
-				ChannelData::EmptyRestrictedRights(_moderateFrom));
+				ChatRestrictionsInfo());
 		}
 		if (_reportSpam->checked()) {
 			_moderateInChannel->session().api().request(

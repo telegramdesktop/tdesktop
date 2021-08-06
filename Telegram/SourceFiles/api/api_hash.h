@@ -17,7 +17,8 @@ namespace Api {
 	not_null<Main::Session*> session,
 	bool checkOutdatedInfo = false);
 [[nodiscard]] int32 CountRecentStickersHash(
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	bool attached = false);
 [[nodiscard]] int32 CountFavedStickersHash(not_null<Main::Session*> session);
 [[nodiscard]] int32 CountFeaturedStickersHash(
 	not_null<Main::Session*> session);

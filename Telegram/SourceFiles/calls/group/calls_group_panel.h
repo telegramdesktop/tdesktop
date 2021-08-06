@@ -11,9 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
+#include "ui/gl/gl_window.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -37,14 +39,10 @@ template <typename Widget>
 class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
-class Window;
 class ScrollArea;
 class GenericBox;
 class LayerManager;
 class GroupCallScheduledLeft;
-namespace GL {
-enum class Backend;
-} // namespace GL
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -64,6 +62,8 @@ class Toasts;
 class Members;
 class Viewport;
 enum class PanelMode;
+enum class StickedTooltip;
+class MicLevelTester;
 
 class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
@@ -80,11 +80,23 @@ public:
 	void showAndActivate();
 	void closeBeforeDestroy();
 
+	rpl::lifetime &lifetime();
+
 private:
 	using State = GroupCall::State;
 	struct ControlsBackgroundNarrow;
 
-	std::unique_ptr<Ui::Window> createWindow();
+	enum class NiceTooltipType {
+		Normal,
+		Sticked,
+	};
+	enum class StickedTooltipHide {
+		Unavailable,
+		Activated,
+		Discarded,
+	};
+
+	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	[[nodiscard]] PanelMode mode() const;
@@ -111,11 +123,18 @@ private:
 
 	void trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime);
 	void trackControlOver(not_null<Ui::RpWidget*> control, bool over);
-	void showNiceTooltip(not_null<Ui::RpWidget*> control);
+	void showNiceTooltip(
+		not_null<Ui::RpWidget*> control,
+		NiceTooltipType type = NiceTooltipType::Normal);
+	void showStickedTooltip();
+	void hideStickedTooltip(StickedTooltipHide hide);
+	void hideStickedTooltip(StickedTooltip type, StickedTooltipHide hide);
+	void hideNiceTooltip();
 
 	bool updateMode();
 	void updateControlsGeometry();
 	void updateButtonsGeometry();
+	void updateTooltipGeometry();
 	void updateButtonsStyles();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
@@ -127,6 +146,7 @@ private:
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTopButton();
 	void toggleWideControls(bool shown);
+	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
 
 	void endCall();
@@ -149,15 +169,18 @@ private:
 
 	QWidget *chooseSourceParent() override;
 	QString chooseSourceActiveDeviceId() override;
+	bool chooseSourceActiveWithAudio() override;
+	bool chooseSourceWithAudioSupported() override;
 	rpl::lifetime &chooseSourceInstanceLifetime() override;
-	void chooseSourceAccepted(const QString &deviceId) override;
+	void chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) override;
 	void chooseSourceStop() override;
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
-	Ui::GL::Backend _backend = Ui::GL::Backend();
-	const std::unique_ptr<Ui::Window> _window;
+	Ui::GL::Window _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
 
@@ -202,10 +225,15 @@ private:
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
 	object_ptr<Ui::ImportantTooltip> _niceTooltip = { nullptr };
+	QPointer<Ui::IconButton> _stickedTooltipClose;
+	QPointer<Ui::RpWidget> _niceTooltipControl;
+	StickedTooltips _stickedTooltipsShown;
 	Fn<void()> _callShareLinkCallback;
 
 	const std::unique_ptr<Toasts> _toasts;
 	base::weak_ptr<Ui::Toast::Instance> _lastToast;
+
+	std::unique_ptr<MicLevelTester> _micLevelTester;
 
 	rpl::lifetime _peerLifetime;
 

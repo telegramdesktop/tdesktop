@@ -14,12 +14,6 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-class QTemporaryFile;
-class DBusMenuExporter;
-class StatusNotifierItem;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -70,22 +64,11 @@ protected:
 
 private:
 	class Private;
+	friend class Private;
 	const std::unique_ptr<Private> _private;
+
 	bool _sniAvailable = false;
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
-
-	void updateIconCounters();
-	void handleNativeSurfaceChanged(bool exist);
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	StatusNotifierItem *_sniTrayIcon = nullptr;
-	uint _sniRegisteredSignalId = 0;
-	uint _sniWatcherId = 0;
-	uint _appMenuWatcherId = 0;
-	std::unique_ptr<QTemporaryFile> _trayIconFile;
-
-	bool _appMenuSupported = false;
-	DBusMenuExporter *_mainMenuExporter = nullptr;
 
 	QMenu *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
@@ -108,19 +91,8 @@ private:
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	void setSNITrayIcon(int counter, bool muted);
-	void attachToSNITrayIcon();
-	void handleSNIHostRegistered();
-
-	void handleSNIOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
-
-	void handleAppMenuOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
+	void updateIconCounters();
+	void handleNativeSurfaceChanged(bool exist);
 
 	void psLinuxUndo();
 	void psLinuxRedo();
@@ -136,7 +108,6 @@ private:
 	void psLinuxStrikeOut();
 	void psLinuxMonospace();
 	void psLinuxClearFormat();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 };
 

@@ -268,7 +268,6 @@ bool MessagesList::empty() const {
 
 rpl::producer<MessagesResult> MessagesList::viewer(
 		MessagesQuery &&query) const {
-	auto copy = query;
 	return rpl::single(
 		queryCurrent(query)
 	) | rpl::then(sliceUpdated() | rpl::map([=] {

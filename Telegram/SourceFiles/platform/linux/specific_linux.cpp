@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
+#include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -27,9 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
-#include "platform/linux/linux_notification_service_watcher.h"
 #include "platform/linux/linux_xdp_file_dialog.h"
-#include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -44,10 +43,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #include <private/qguiapplication_p.h>
-#include <glib.h>
-#include <gio/gio.h>
 #include <glibmm.h>
 #include <giomm.h>
+#include <jemalloc/jemalloc.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -63,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Platform;
 using BaseGtkIntegration = base::Platform::GtkIntegration;
+using UiWaylandIntegration = Ui::Platform::WaylandIntegration;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
@@ -71,26 +70,14 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
-constexpr auto kHandlerTypeName = "x-scheme-handler/tg"_cs;
 constexpr auto kDarkColorLimit = 192;
 
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
 
-constexpr auto kSnapcraftSettingsService = "io.snapcraft.Settings"_cs;
-constexpr auto kSnapcraftSettingsObjectPath = "/io/snapcraft/Settings"_cs;
-constexpr auto kSnapcraftSettingsInterface = kSnapcraftSettingsService;
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
-
-class PortalAutostart : public QWindow {
-public:
-	PortalAutostart(bool start, bool silent = false);
-};
-
-PortalAutostart::PortalAutostart(bool start, bool silent) {
+void PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
@@ -149,7 +136,12 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			+ '/'
 			+ handleToken;
 
-		QEventLoop loop;
+		const auto context = Glib::MainContext::create();
+		const auto loop = Glib::MainLoop::create(context);
+		g_main_context_push_thread_default(context->gobj());
+		const auto contextGuard = gsl::finally([&] {
+			g_main_context_pop_thread_default(context->gobj());
+		});
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -175,7 +167,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 					}
 				}
 
-				loop.quit();
+				loop->quit();
 			},
 			std::string(kXDGDesktopPortalService),
 			"org.freedesktop.portal.Request",
@@ -199,77 +191,16 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			std::string(kXDGDesktopPortalService));
 
 		if (signalId != 0) {
-			QGuiApplicationPrivate::showModalWindow(this);
-			loop.exec();
-			QGuiApplicationPrivate::hideModalWindow(this);
+			QWindow window;
+			QGuiApplicationPrivate::showModalWindow(&window);
+			loop->run();
+			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 	} catch (const Glib::Error &e) {
 		if (!silent) {
 			LOG(("Portal Autostart Error: %1").arg(
 				QString::fromStdString(e.what())));
 		}
-	}
-}
-
-class SnapDefaultHandler : public QWindow {
-public:
-	SnapDefaultHandler(const QString &protocol);
-};
-
-SnapDefaultHandler::SnapDefaultHandler(const QString &protocol) {
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		auto reply = connection->call_sync(
-			std::string(kSnapcraftSettingsObjectPath),
-			std::string(kSnapcraftSettingsInterface),
-			"GetSub",
-			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring("default-url-scheme-handler"),
-				Glib::ustring(protocol.toStdString()),
-			}),
-			std::string(kSnapcraftSettingsService));
-
-		const auto currentHandler = base::Platform::GlibVariantCast<
-			Glib::ustring>(reply.get_child(0));
-
-		const auto expectedHandler = qEnvironmentVariable("SNAP_NAME")
-			+ qsl(".desktop");
-
-		if (currentHandler == expectedHandler.toStdString()) {
-			return;
-		}
-
-		QEventLoop loop;
-
-		connection->call(
-			std::string(kSnapcraftSettingsObjectPath),
-			std::string(kSnapcraftSettingsInterface),
-			"SetSub",
-			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring("default-url-scheme-handler"),
-				Glib::ustring(protocol.toStdString()),
-				Glib::ustring(expectedHandler.toStdString()),
-			}),
-			[&](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
-					connection->call_finish(result);
-				} catch (const Glib::Error &e) {
-					LOG(("Snap Default Handler Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
-
-				loop.quit();
-			},
-			std::string(kSnapcraftSettingsService));
-
-		QGuiApplicationPrivate::showModalWindow(this);
-		loop.exec();
-		QGuiApplicationPrivate::hideModalWindow(this);
-	} catch (const Glib::Error &e) {
-		LOG(("Snap Default Handler Error: %1").arg(
-			QString::fromStdString(e.what())));
 	}
 }
 
@@ -404,24 +335,8 @@ bool GenerateDesktopFile(
 	}
 }
 
-void SetGtkScaleFactor() {
-	const auto integration = GtkIntegration::Instance();
-	const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
-	if (!integration || ratio > 1.) {
-		return;
-	}
-
-	const auto scaleFactor = integration->scaleFactor().value_or(1);
-	if (scaleFactor == 1) {
-		return;
-	}
-
-	LOG(("GTK scale factor: %1").arg(scaleFactor));
-	cSetScreenScale(style::CheckScale(scaleFactor * 100));
-}
-
 void SetDarkMode() {
-	static const auto Inited = [] {
+	[[maybe_unused]] static const auto Inited = [] {
 		QObject::connect(
 			qGuiApp,
 			&QGuiApplication::paletteChanged,
@@ -540,22 +455,6 @@ void SetDarkMode() {
 }
 
 } // namespace
-
-void SetWatchingMediaKeys(bool watching) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static std::unique_ptr<internal::GSDMediaKeys> GSDInstance;
-
-	if (watching) {
-		if (!GSDInstance) {
-			GSDInstance = std::make_unique<internal::GSDMediaKeys>();
-		}
-	} else {
-		if (GSDInstance) {
-			GSDInstance = nullptr;
-		}
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-}
 
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
@@ -742,7 +641,14 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
+	auto backgroundThread = true;
+	mallctl("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
+
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
+
+#ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
+	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell;wl-shell");
+#endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
@@ -753,11 +659,9 @@ void start() {
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
 
-	if (const auto integration = BaseGtkIntegration::Instance()) {
-		integration->prepareEnvironment();
-	} else {
-		g_warning("GTK integration is disabled, some features unavailable.");
-	}
+	GtkIntegration::Start(GtkIntegration::Type::Base);
+	GtkIntegration::Start(GtkIntegration::Type::Webview);
+	GtkIntegration::Start(GtkIntegration::Type::TDesktop);
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
@@ -812,7 +716,7 @@ void InstallLauncher(bool force) {
 
 	const auto icon = icons + kIconName.utf16() + qsl(".png");
 	auto iconExists = QFile::exists(icon);
-	if (Local::oldSettingsVersion() < 10021 && iconExists) {
+	if (Local::oldSettingsVersion() < 2008012 && iconExists) {
 		// Icon was changed.
 		if (QFile::remove(icon)) {
 			iconExists = false;
@@ -827,76 +731,6 @@ void InstallLauncher(bool force) {
 	QProcess::execute("update-desktop-database", {
 		applicationsPath
 	});
-}
-
-void RegisterCustomScheme(bool force) {
-	try {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-		if (InSnap()) {
-			SnapDefaultHandler(qsl("tg"));
-			return;
-		}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-		if (cExeName().isEmpty()) {
-			return;
-		}
-
-		const auto neededCommandlineBuilder = qsl("%1 -workdir %2 --").arg(
-			QString(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))),
-			QString(EscapeShell(QFile::encodeName(cWorkingDir()))));
-
-		const auto neededCommandline = qsl("%1 %u")
-			.arg(neededCommandlineBuilder);
-
-		const auto currentAppInfo = Gio::AppInfo::get_default_for_type(
-			std::string(kHandlerTypeName),
-			true);
-
-		if (currentAppInfo) {
-			const auto currentCommandline = QString::fromStdString(
-				currentAppInfo->get_commandline());
-
-			if (currentCommandline == neededCommandline) {
-				return;
-			}
-		}
-
-		auto registeredAppInfoList = g_app_info_get_recommended_for_type(
-			kHandlerTypeName.utf8().constData());
-
-		for (auto l = registeredAppInfoList; l != nullptr; l = l->next) {
-			const auto currentRegisteredAppInfo = reinterpret_cast<GAppInfo*>(
-				l->data);
-
-			const auto currentAppInfoId = QString(
-				g_app_info_get_id(currentRegisteredAppInfo));
-
-			const auto currentCommandline = QString(
-				g_app_info_get_commandline(currentRegisteredAppInfo));
-
-			if (currentCommandline == neededCommandline
-				&& currentAppInfoId.startsWith(qsl("userapp-"))) {
-				g_app_info_delete(currentRegisteredAppInfo);
-			}
-		}
-
-		if (registeredAppInfoList) {
-			g_list_free_full(registeredAppInfoList, g_object_unref);
-		}
-
-		const auto newAppInfo = Gio::AppInfo::create_from_commandline(
-			neededCommandlineBuilder.toStdString(),
-			std::string(AppName),
-			Gio::AppInfoCreateFlags::APP_INFO_CREATE_SUPPORTS_URIS);
-
-		if (newAppInfo) {
-			newAppInfo->set_as_default_for_type(
-				std::string(kHandlerTypeName));
-		}
-	} catch (const Glib::Error &e) {
-		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
-	}
 }
 
 PermissionStatus GetPermissionStatus(PermissionType type) {
@@ -954,33 +788,31 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
+	GtkIntegration::Autorestart(GtkIntegration::Type::Base);
+	GtkIntegration::Autorestart(GtkIntegration::Type::TDesktop);
+
 	if (const auto integration = BaseGtkIntegration::Instance()) {
-		integration->load();
+		integration->load(GtkIntegration::AllowedBackends());
 		integration->initializeSettings();
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
-		integration->load();
+		integration->load(GtkIntegration::AllowedBackends());
 	}
 
 	// wait for interface announce to know if native window frame is supported
-	if (const auto integration = WaylandIntegration::Instance()) {
+	if (const auto integration = UiWaylandIntegration::Instance()) {
 		integration->waitForInterfaceAnnounce();
 	}
 
-	SetGtkScaleFactor();
 	crl::async(SetDarkMode);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();
 	FileDialog::XDP::Start();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	NSWInstance = nullptr;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace ThirdParty
@@ -991,7 +823,6 @@ void psNewVersion() {
 #ifndef __HAIKU__
 	Platform::InstallLauncher();
 #endif // __HAIKU__
-	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {

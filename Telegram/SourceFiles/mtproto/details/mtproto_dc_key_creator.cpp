@@ -72,12 +72,39 @@ struct ParsedPQ {
 	return { pStr, qStr };
 }
 
+[[nodiscard]] bool IsGoodEncryptedInner(
+		bytes::const_span keyAesEncrypted,
+		const RSAPublicKey &key) {
+	Expects(keyAesEncrypted.size() == 256);
+
+	const auto modulus = key.getN();
+	const auto e = key.getE();
+	const auto shift = (256 - int(modulus.size()));
+	Assert(shift >= 0);
+	for (auto i = 0; i != 256; ++i) {
+		const auto a = keyAesEncrypted[i];
+		const auto b = (i < shift)
+			? bytes::type(0)
+			: modulus[i - shift];
+		if (a > b) {
+			return false;
+		} else if (a < b) {
+			return true;
+		}
+	}
+	return false;
+}
+
 template <typename PQInnerData>
 [[nodiscard]] bytes::vector EncryptPQInnerRSA(
 		const PQInnerData &data,
 		const RSAPublicKey &key) {
-	constexpr auto kSkipPrimes = 6;
-	constexpr auto kMaxPrimes = 65; // 260 bytes
+	constexpr auto kPrime = sizeof(mtpPrime);
+	constexpr auto kDataWithPaddingPrimes = 192 / kPrime;
+	constexpr auto kMaxSizeInPrimes = 144 / kPrime;
+	constexpr auto kDataHashPrimes = (SHA256_DIGEST_LENGTH / kPrime);
+	constexpr auto kKeySize = 32;
+	constexpr auto kIvSize = 32;
 
 	using BoxedPQInnerData = std::conditional_t<
 		tl::is_boxed_v<PQInnerData>,
@@ -85,31 +112,68 @@ template <typename PQInnerData>
 		tl::boxed<PQInnerData>>;
 	const auto boxed = BoxedPQInnerData(data);
 	const auto p_q_inner_size = tl::count_length(boxed);
-	const auto sizeInPrimes = (p_q_inner_size >> 2) + kSkipPrimes;
-	if (sizeInPrimes >= kMaxPrimes) {
-		auto tmp = mtpBuffer();
-		tmp.reserve(sizeInPrimes);
-		boxed.write(tmp);
-		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(sizeInPrimes * sizeof(mtpPrime)));
-		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
-		return {}; // can't be 255-byte string
+	const auto sizeInPrimes = (p_q_inner_size / kPrime);
+	if (sizeInPrimes > kMaxSizeInPrimes) {
+		return {};
 	}
 
-	auto encBuffer = mtpBuffer();
-	encBuffer.reserve(kMaxPrimes);
-	encBuffer.resize(kSkipPrimes);
-	boxed.write(encBuffer);
-	encBuffer.resize(kMaxPrimes);
-	const auto bytes = bytes::make_span(encBuffer);
+	auto dataWithPadding = mtpBuffer();
+	dataWithPadding.reserve(kDataWithPaddingPrimes);
+	boxed.write(dataWithPadding);
 
-	const auto hashSrc = bytes.subspan(
-		kSkipPrimes * sizeof(mtpPrime),
-		p_q_inner_size);
-	bytes::copy(bytes.subspan(sizeof(mtpPrime)), openssl::Sha1(hashSrc));
-	bytes::set_random(bytes.subspan(sizeInPrimes * sizeof(mtpPrime)));
+	// data_with_padding := data + random_padding_bytes;
+	dataWithPadding.resize(kDataWithPaddingPrimes);
+	const auto dataWithPaddingBytes = bytes::make_span(dataWithPadding);
+	bytes::set_random(dataWithPaddingBytes.subspan(sizeInPrimes * kPrime));
 
-	const auto bytesToEncrypt = bytes.subspan(3, 256);
-	return key.encrypt(bytesToEncrypt);
+	while (true) {
+		auto dataWithHash = mtpBuffer();
+		dataWithHash.reserve(kDataWithPaddingPrimes + kDataHashPrimes);
+		dataWithHash.append(dataWithPadding);
+
+		// data_pad_reversed := BYTE_REVERSE(data_with_padding);
+		ranges::reverse(bytes::make_span(dataWithHash));
+
+		// data_with_hash := data_pad_reversed
+		//	+ SHA256(temp_key + data_with_padding);
+		const auto tempKey = openssl::RandomValue<bytes::array<kKeySize>>();
+		dataWithHash.resize(kDataWithPaddingPrimes + kDataHashPrimes);
+		const auto dataWithHashBytes = bytes::make_span(dataWithHash);
+		bytes::copy(
+			dataWithHashBytes.subspan(kDataWithPaddingPrimes * kPrime),
+			openssl::Sha256(tempKey, bytes::make_span(dataWithPadding)));
+
+		auto aesEncrypted = mtpBuffer();
+		auto keyAesEncrypted = mtpBuffer();
+		aesEncrypted.resize(dataWithHash.size());
+		const auto aesEncryptedBytes = bytes::make_span(aesEncrypted);
+
+		// aes_encrypted := AES256_IGE(data_with_hash, temp_key, 0);
+		const auto tempIv = bytes::array<kIvSize>{ { bytes::type(0) } };
+		aesIgeEncryptRaw(
+			dataWithHashBytes.data(),
+			aesEncryptedBytes.data(),
+			dataWithHashBytes.size(),
+			tempKey.data(),
+			tempIv.data());
+
+		// temp_key_xor := temp_key XOR SHA256(aes_encrypted);
+		const auto fullSize = (kKeySize / kPrime) + dataWithHash.size();
+		keyAesEncrypted.resize(fullSize);
+		const auto keyAesEncryptedBytes = bytes::make_span(keyAesEncrypted);
+		const auto aesHash = openssl::Sha256(aesEncryptedBytes);
+		for (auto i = 0; i != kKeySize; ++i) {
+			keyAesEncryptedBytes[i] = tempKey[i] ^ aesHash[i];
+		}
+
+		// key_aes_encrypted := temp_key_xor + aes_encrypted;
+		bytes::copy(
+			keyAesEncryptedBytes.subspan(kKeySize),
+			aesEncryptedBytes);
+		if (IsGoodEncryptedInner(keyAesEncryptedBytes, key)) {
+			return key.encrypt(keyAesEncryptedBytes);
+		}
+	}
 }
 
 [[nodiscard]] std::string EncryptClientDHInner(
@@ -566,7 +630,6 @@ void DcKeyCreator::dhClientParamsAnswered(
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(2);
-		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash2() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash2(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
@@ -586,7 +649,6 @@ void DcKeyCreator::dhClientParamsAnswered(
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(3);
-		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash3() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash3(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));

@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "layout.h"
+#include "layout/layout_item_base.h"
+#include "layout/layout_document_generic_preview.h"
+#include "media/clip/media_clip_reader.h"
 #include "core/click_handler_types.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
@@ -40,7 +42,7 @@ public:
 
 };
 
-class ItemBase : public LayoutItemBase {
+class ItemBase : public LayoutItemBase, public base::has_weak_ptr {
 public:
 	ItemBase(not_null<Delegate*> delegate, not_null<HistoryItem*> parent);
 	~ItemBase();
@@ -52,13 +54,6 @@ public:
 		const PaintContext *context) = 0;
 
 	QDateTime dateTime() const;
-
-	void setPosition(int position) {
-		_position = position;
-	}
-	int position() const {
-		return _position;
-	}
 
 	HistoryItem *getItem() const {
 		return _parent;
@@ -93,7 +88,6 @@ private:
 	const not_null<HistoryItem*> _parent;
 	const QDateTime _dateTime;
 	std::unique_ptr<Checkbox> _check;
-	int _position = 0;
 
 };
 
@@ -116,7 +110,9 @@ protected:
 		ClickHandlerPtr &&openl,
 		ClickHandlerPtr &&savel,
 		ClickHandlerPtr &&cancell);
-	void setDocumentLinks(not_null<DocumentData*> document);
+	void setDocumentLinks(
+		not_null<DocumentData*> document,
+		bool forceOpen = false);
 
 	void radialAnimationCallback(crl::time now) const;
 
@@ -199,6 +195,64 @@ private:
 
 	QPixmap _pix;
 	bool _goodLoaded = false;
+
+};
+
+class Gif final : public RadialProgressItem {
+public:
+	Gif(
+		not_null<Delegate*> delegate,
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> gif);
+	~Gif();
+
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
+	void paint(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		const PaintContext *context) override;
+	TextState getState(
+		QPoint point,
+		StateRequest request) const override;
+
+	void clearHeavyPart() override;
+	void setPosition(int32 position) override;
+
+protected:
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
+	bool iconAnimated() const override;
+
+private:
+	QSize countFrameSize() const;
+	int contentWidth() const;
+	int contentHeight() const;
+
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good);
+	void prepareThumbnail(QSize size, QSize frame);
+
+	void update();
+
+	void ensureDataMediaCreated() const;
+	void updateStatusText();
+
+	void clipCallback(Media::Clip::Notification notification);
+
+	Media::Clip::ReaderPointer _gif;
+
+	const not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	StatusText _status;
+
+	QPixmap _thumb;
+	bool _thumbGood = false;
 
 };
 
@@ -319,6 +373,7 @@ private:
 	ClickHandlerPtr _msgl, _namel;
 
 	const style::OverviewFileLayout &_st;
+	const ::Layout::DocumentGenericPreview _generic;
 
 	bool _thumbLoaded = false;
 	QPixmap _thumb;
@@ -326,7 +381,7 @@ private:
 	Ui::Text::String _name;
 	QString _date, _ext;
 	int32 _datew, _extw;
-	int32 _thumbw, _colorIndex;
+	int32 _thumbw;
 
 	bool withThumb() const;
 	bool updateStatusText();

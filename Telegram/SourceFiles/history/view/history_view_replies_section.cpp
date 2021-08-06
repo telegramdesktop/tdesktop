@@ -193,10 +193,7 @@ RepliesWidget::RepliesWidget(
 	_rootView->raise();
 	_topBarShadow->raise();
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->adaptive().changed()
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
@@ -215,7 +212,7 @@ RepliesWidget::RepliesWidget(
 			const auto media = item->media();
 			if (media && !media->webpage()) {
 				if (media->allowsEditCaption()) {
-					Ui::show(Box<EditCaptionBox>(controller, item));
+					controller->show(Box<EditCaptionBox>(controller, item));
 				}
 			} else {
 				_composeControls->editMessage(fullId);
@@ -413,7 +410,7 @@ void RepliesWidget::setupComposeControls() {
 	) | rpl::map([=] {
 		return Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_messages);
+			ChatRestriction::SendMessages);
 	});
 
 	_composeControls->setHistory({
@@ -544,7 +541,7 @@ void RepliesWidget::setupComposeControls() {
 void RepliesWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
@@ -637,7 +634,6 @@ bool RepliesWidget::confirmSendingFiles(
 		Api::SendType::Normal,
 		SendMenu::Type::SilentOnly); // #TODO replies schedule
 
-	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
 			Ui::SendFilesWay way,
@@ -655,7 +651,7 @@ bool RepliesWidget::confirmSendingFiles(
 		insertTextOnCancel));
 
 	//ActivateWindow(controller());
-	const auto shown = Ui::show(std::move(box));
+	const auto shown = controller()->show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
 	return true;
@@ -752,7 +748,7 @@ bool RepliesWidget::showSlowmodeError() {
 std::optional<QString> RepliesWidget::writeRestriction() const {
 	return Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_messages);
+		ChatRestriction::SendMessages);
 }
 
 void RepliesWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -821,7 +817,7 @@ bool RepliesWidget::showSendingFilesError(
 		const auto peer = _history->peer;
 		const auto error = Data::RestrictionError(
 			peer,
-			ChatRestriction::f_send_media);
+			ChatRestriction::SendMedia);
 		if (error) {
 			return *error;
 		}
@@ -945,13 +941,13 @@ void RepliesWidget::edit(
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		if (item) {
-			Ui::show(Box<DeleteMessagesBox>(item, false));
+			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {
 			doSetInnerFocus();
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -976,13 +972,13 @@ void RepliesWidget::edit(
 
 		const auto &err = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (err == u"MESSAGE_EMPTY"_q) {
 			doSetInnerFocus();
 		} else {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		}
 		update();
 		return true;
@@ -1016,9 +1012,11 @@ bool RepliesWidget::sendExistingDocument(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -1050,9 +1048,11 @@ bool RepliesWidget::sendExistingPhoto(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -1073,7 +1073,7 @@ void RepliesWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		Ui::show(Box<InformBox>(errorText));
+		controller()->show(Box<InformBox>(errorText));
 		return;
 	}
 	sendInlineResult(result, bot, Api::SendOptions());
@@ -1394,15 +1394,17 @@ bool RepliesWidget::showMessage(
 	return true;
 }
 
-bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
-	if (item->history() != _history || item->replyToTop() != _rootId) {
-		return false;
+Window::SectionActionResult RepliesWidget::sendBotCommand(
+		Bot::SendCommandRequest request) {
+	if (request.peer != _history->peer) {
+		return Window::SectionActionResult::Ignore;
 	}
-	replyToMessage(item->fullId());
-	return true;
+	listSendBotCommand(request.command, request.context);
+	return Window::SectionActionResult::Handle;
 }
 
 void RepliesWidget::replyToMessage(FullMsgId itemId) {
+	// if (item->history() != _history || item->replyToTop() != _rootId) {
 	_composeControls->replyToMessage(itemId);
 	refreshTopBarActiveChat();
 }
@@ -1773,7 +1775,10 @@ bool RepliesWidget::listIsGoodForAroundPosition(
 void RepliesWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	const auto text = WrapBotCommandInChat(_history->peer, command, context);
+	const auto text = Bot::WrapCommandInChat(
+		_history->peer,
+		command,
+		context);
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = { text };
 	message.action.replyTo = replyToId();

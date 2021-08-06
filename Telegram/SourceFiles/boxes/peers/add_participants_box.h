@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 
+struct ChatAdminRightsInfo;
+struct ChatRestrictionsInfo;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -70,18 +73,17 @@ private:
 // with search + contacts search + global search.
 class AddSpecialBoxController
 	: public PeerListController
-	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsBoxController::Role;
 
 	using AdminDoneCallback = Fn<void(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &adminRights,
+		ChatAdminRightsInfo adminRights,
 		const QString &rank)>;
 	using BannedDoneCallback = Fn<void(
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &bannedRights)>;
+		ChatRestrictionsInfo bannedRights)>;
 	AddSpecialBoxController(
 		not_null<PeerData*> peer,
 		Role role,
@@ -109,12 +111,12 @@ private:
 	void showAdmin(not_null<UserData*> user, bool sure = false);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights,
+		ChatAdminRightsInfo rights,
 		const QString &rank);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &rights);
+		ChatRestrictionsInfo rights);
 	void kickUser(not_null<PeerData*> participant, bool sure = false);
 	bool appendRow(not_null<PeerData*> participant);
 	bool prependRow(not_null<UserData*> user);
@@ -143,9 +145,7 @@ protected:
 };
 
 // Finds chat/channel members, then contacts, then global search results.
-class AddSpecialBoxSearchController
-	: public PeerListSearchController
-	, private base::Subscriber {
+class AddSpecialBoxSearchController : public PeerListSearchController {
 public:
 	using Role = ParticipantsBoxController::Role;
 

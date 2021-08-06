@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
@@ -27,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "apiwrap.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
@@ -251,13 +251,13 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 		auto closeLeft = width - 2 * padding;
 		p.fillRect(style::rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
-	_notificationSampleSmall = App::pixmapFromImageInPlace(std::move(sampleImage));
+	_notificationSampleSmall = Ui::PixmapFromImage(std::move(sampleImage));
 	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
 void NotificationsCount::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
-		_notificationSampleUserpic = App::pixmapFromImageInPlace(
+		_notificationSampleUserpic = Ui::PixmapFromImage(
 			Core::App().logoNoMargin().scaled(
 				st::notifyPhotoSize * cIntRetinaFactor(),
 				st::notifyPhotoSize * cIntRetinaFactor(),
@@ -303,7 +303,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 
-	_notificationSampleLarge = App::pixmapFromImageInPlace(std::move(sampleImage));
+	_notificationSampleLarge = Ui::PixmapFromImage(std::move(sampleImage));
 }
 
 void NotificationsCount::removeSample(SampleWidget *widget) {

@@ -52,6 +52,7 @@ private:
 
 	void setCloudVolume(int volume);
 	void setSliderVolume(int volume);
+	void updateSliderColor(float64 value);
 
 	QColor unmuteColor() const;
 	QColor muteColor() const;
@@ -64,7 +65,6 @@ private:
 
 	QRect _itemRect;
 	QRect _speakerRect;
-	QRect _volumeRect;
 	QPoint _arcPosition;
 
 	const base::unique_qptr<Ui::MediaSlider> _slider;

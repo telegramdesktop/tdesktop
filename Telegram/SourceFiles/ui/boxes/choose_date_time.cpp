@@ -126,7 +126,6 @@ private:
 	void setInnerFocus();
 	void putNext(const object_ptr<TimePart> &field, QChar ch);
 	void erasePrevious(const object_ptr<TimePart> &field);
-	void finishInnerAnimating();
 	void setErrorShown(bool error);
 	void setFocused(bool focused);
 	void startBorderAnimation();
@@ -419,7 +418,6 @@ void TimeInput::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height - _st.border, width(), _st.border, _st.borderFg);
 	}
 	auto errorDegree = _a_error.value(_error ? 1. : 0.);
-	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.value(1.);
 	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
@@ -537,14 +535,6 @@ void TimeInput::setFocused(bool focused) {
 			st::scheduleDateField.duration);
 		startBorderAnimation();
 	}
-}
-
-void TimeInput::finishInnerAnimating() {
-	_hour->finishAnimating();
-	_minute->finishAnimating();
-	_a_borderOpacity.stop();
-	_a_borderShown.stop();
-	_a_error.stop();
 }
 
 void TimeInput::startBorderAnimation() {

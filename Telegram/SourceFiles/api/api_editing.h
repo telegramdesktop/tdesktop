@@ -31,12 +31,14 @@ void EditMessageWithUploadedDocument(
 	HistoryItem *item,
 	const MTPInputFile &file,
 	const std::optional<MTPInputFile> &thumb,
-	SendOptions options);
+	SendOptions options,
+	std::vector<MTPInputDocument> attachedStickers);
 
 void EditMessageWithUploadedPhoto(
 	HistoryItem *item,
 	const MTPInputFile &file,
-	SendOptions options);
+	SendOptions options,
+	std::vector<MTPInputDocument> attachedStickers);
 
 mtpRequestId EditCaption(
 	not_null<HistoryItem*> item,

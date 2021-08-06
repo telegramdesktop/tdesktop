@@ -144,7 +144,6 @@ void MembersRow::setSkipLevelUpdate(bool value) {
 
 void MembersRow::updateState(
 		const Data::GroupCallParticipant *participant) {
-	setSsrc(participant ? participant->ssrc : 0);
 	setVolume(participant
 		? participant->volume
 		: Group::kDefaultVolume);
@@ -155,10 +154,16 @@ void MembersRow::updateState(
 		_mutedByMe = false;
 		_raisedHandRating = 0;
 	} else if (!participant->muted
-		|| (participant->sounding && participant->ssrc != 0)) {
+		|| (participant->sounding && participant->ssrc != 0)
+		|| (participant->additionalSounding
+			&& GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
 		setState(State::Active);
-		setSounding(participant->sounding && participant->ssrc != 0);
-		setSpeaking(participant->speaking && participant->ssrc != 0);
+		setSounding((participant->sounding && participant->ssrc != 0)
+			|| (participant->additionalSounding
+				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
+		setSpeaking((participant->speaking && participant->ssrc != 0)
+			|| (participant->additionalSpeaking
+				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
 		_mutedByMe = participant->mutedByMe;
 		_raisedHandRating = 0;
 	} else if (participant->canSelfUnmute) {
@@ -281,10 +286,6 @@ void MembersRow::setState(State state) {
 			nowMuted ? 1. : 0.,
 			st::widgetFadeDuration);
 	}
-}
-
-void MembersRow::setSsrc(uint32 ssrc) {
-	_ssrc = ssrc;
 }
 
 void MembersRow::setVolume(int volume) {

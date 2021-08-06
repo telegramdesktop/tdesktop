@@ -29,8 +29,11 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-ADD https://api.github.com/repos/desktop-app/patches/git/refs/heads/master patches-version.json
-RUN git clone --depth=1 $GIT/desktop-app/patches.git
+RUN git clone $GIT/desktop-app/patches.git
+
+WORKDIR patches
+RUN git checkout 87a2e9ee07
+WORKDIR ..
 
 FROM builder AS extra-cmake-modules
 
@@ -635,7 +638,6 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-qt-harfbuzz \
 	-qt-pcre \
 	-no-icu \
-	-no-gtk \
 	-no-feature-xcb-sm \
 	-no-feature-wayland-server \
 	-static \
@@ -738,7 +740,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin 56f0e53eaccfaed54c513f8795cc03a25e2a72f8
+RUN git fetch --depth=1 origin 91d836dc84a16584c6ac52b36c04c0de504d9c34
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update

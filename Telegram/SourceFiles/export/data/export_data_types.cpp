@@ -21,16 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <range/v3/view/transform.hpp>
 #include <range/v3/range/conversion.hpp>
 
-namespace App { // Hackish..
-QString formatPhone(QString phone);
-} // namespace App
-
 namespace Export {
 namespace Data {
 namespace {
 
-constexpr auto kUserPeerIdShift = (1ULL << 32);
-constexpr auto kChatPeerIdShift = (2ULL << 32);
 constexpr auto kMaxImageSize = 10000;
 constexpr auto kMigratedMessagesIdShift = -1'000'000'000;
 
@@ -546,7 +540,6 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 		if (const auto resultsList = results.vresults()) {
 			for (const auto &single : resultsList->v) {
 				single.match([&](const MTPDpollAnswerVoters &voters) {
-					const auto &option = voters.voption().v;
 					const auto i = ranges::find(
 						result.answers,
 						voters.voption().v,
@@ -1798,7 +1791,7 @@ bool SkipMessageByDate(const Message &message, const Settings &settings) {
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber) {
 	return phoneNumber.isEmpty()
 		? Utf8String()
-		: App::formatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
+		: Ui::FormatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
 }
 
 Utf8String FormatDateTime(

@@ -165,7 +165,7 @@ void EditPrivacyBox::editExceptions(
 		}));
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
-	Ui::show(
+	_window->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }

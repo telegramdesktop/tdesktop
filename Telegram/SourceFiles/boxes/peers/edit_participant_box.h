@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
+#include "data/data_peer.h"
 
 namespace MTP {
 class Error;
@@ -73,13 +74,13 @@ public:
 		QWidget*,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights,
+		ChatAdminRightsInfo rights,
 		const QString &rank);
 
 	void setSaveCallback(
 			Fn<void(
-				MTPChatAdminRights,
-				MTPChatAdminRights,
+				ChatAdminRightsInfo,
+				ChatAdminRightsInfo,
 				const QString &rank)> callback) {
 		_saveCallback = std::move(callback);
 	}
@@ -88,10 +89,7 @@ protected:
 	void prepare() override;
 
 private:
-	using Flag = MTPDchatAdminRights::Flag;
-	using Flags = MTPDchatAdminRights::Flags;
-
-	[[nodiscard]] MTPChatAdminRights defaultRights() const;
+	[[nodiscard]] ChatAdminRightsInfo defaultRights() const;
 
 	not_null<Ui::InputField*> addRankInput();
 	void transferOwnership();
@@ -109,11 +107,11 @@ private:
 	bool canTransferOwnership() const;
 	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(bool isGroup);
 
-	const MTPChatAdminRights _oldRights;
+	const ChatAdminRightsInfo _oldRights;
 	const QString _oldRank;
 	Fn<void(
-		MTPChatAdminRights,
-		MTPChatAdminRights,
+		ChatAdminRightsInfo,
+		ChatAdminRightsInfo,
 		const QString &rank)> _saveCallback;
 
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
@@ -132,10 +130,10 @@ public:
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights,
-		const MTPChatBannedRights &rights);
+		ChatRestrictionsInfo rights);
 
 	void setSaveCallback(
-			Fn<void(MTPChatBannedRights, MTPChatBannedRights)> callback) {
+			Fn<void(ChatRestrictionsInfo, ChatRestrictionsInfo)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
@@ -143,10 +141,7 @@ protected:
 	void prepare() override;
 
 private:
-	using Flag = MTPDchatBannedRights::Flag;
-	using Flags = MTPDchatBannedRights::Flags;
-
-	[[nodiscard]] MTPChatBannedRights defaultRights() const;
+	[[nodiscard]] ChatRestrictionsInfo defaultRights() const;
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -158,9 +153,9 @@ private:
 	void createUntilVariants();
 	TimeId getRealUntilValue() const;
 
-	const MTPChatBannedRights _oldRights;
+	const ChatRestrictionsInfo _oldRights;
 	TimeId _until = 0;
-	Fn<void(MTPChatBannedRights, MTPChatBannedRights)> _saveCallback;
+	Fn<void(ChatRestrictionsInfo, ChatRestrictionsInfo)> _saveCallback;
 
 	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
 	std::vector<base::unique_qptr<Ui::Radiobutton>> _untilVariants;

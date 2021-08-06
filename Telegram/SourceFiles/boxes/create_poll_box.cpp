@@ -436,7 +436,6 @@ void Options::Option::updateFieldGeometry() {
 	const auto skip = st::defaultRadio.diameter
 		+ st::defaultCheckbox.textPosition.x();
 	const auto left = anim::interpolate(0, skip, shown);
-	const auto width = _content->width() - left;
 	_field->resizeToWidth(_content->width() - left);
 	_field->moveToLeft(left, 0);
 }
@@ -1085,7 +1084,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		send({ .silent = true });
 	};
 	const auto sendScheduled = [=] {
-		Ui::show(
+		_controller->show(
 			HistoryView::PrepareScheduleBox(
 				this,
 				SendMenu::Type::Scheduled,

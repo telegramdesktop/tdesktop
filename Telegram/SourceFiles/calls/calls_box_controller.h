@@ -16,7 +16,7 @@ class SessionController;
 
 namespace Calls {
 
-class BoxController : public PeerListController, private base::Subscriber {
+class BoxController : public PeerListController {
 public:
 	explicit BoxController(not_null<Window::SessionController*> window);
 

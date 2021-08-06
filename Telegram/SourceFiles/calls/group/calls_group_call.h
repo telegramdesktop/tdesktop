@@ -98,6 +98,8 @@ struct VideoEndpoint {
 	std::string id;
 
 	[[nodiscard]] bool empty() const noexcept {
+		Expects(id.empty() || peer != nullptr);
+
 		return id.empty();
 	}
 	[[nodiscard]] explicit operator bool() const noexcept {
@@ -167,6 +169,8 @@ struct ParticipantVideoParams;
 	const std::shared_ptr<ParticipantVideoParams> &params);
 [[nodiscard]] bool IsScreenPaused(
 	const std::shared_ptr<ParticipantVideoParams> &params);
+[[nodiscard]] uint32 GetAdditionalAudioSsrc(
+	const std::shared_ptr<ParticipantVideoParams> &params);
 
 class GroupCall final : public base::has_weak_ptr {
 public:
@@ -193,6 +197,15 @@ public:
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;
+
+	struct VideoTrack;
+
+	[[nodiscard]] static not_null<PeerData*> TrackPeer(
+		const std::unique_ptr<VideoTrack> &track);
+	[[nodiscard]] static not_null<Webrtc::VideoTrack*> TrackPointer(
+		const std::unique_ptr<VideoTrack> &track);
+	[[nodiscard]] static rpl::producer<QSize> TrackSizeValue(
+		const std::unique_ptr<VideoTrack> &track);
 
 	GroupCall(
 		not_null<Delegate*> delegate,
@@ -321,27 +334,8 @@ public:
 	-> rpl::producer<VideoEndpoint> {
 		return _videoEndpointLarge.value();
 	}
-
-	struct VideoTrack {
-		std::unique_ptr<Webrtc::VideoTrack> track;
-		rpl::variable<QSize> trackSize;
-		PeerData *peer = nullptr;
-		rpl::lifetime lifetime;
-		Group::VideoQuality quality = Group::VideoQuality();
-		bool shown = false;
-
-		[[nodiscard]] explicit operator bool() const {
-			return (track != nullptr);
-		}
-		[[nodiscard]] bool operator==(const VideoTrack &other) const {
-			return (track == other.track) && (peer == other.peer);
-		}
-		[[nodiscard]] bool operator!=(const VideoTrack &other) const {
-			return !(*this == other);
-		}
-	};
 	[[nodiscard]] auto activeVideoTracks() const
-	-> const base::flat_map<VideoEndpoint, VideoTrack> & {
+	-> const base::flat_map<VideoEndpoint, std::unique_ptr<VideoTrack>> & {
 		return _activeVideoTracks;
 	}
 	[[nodiscard]] auto shownVideoTracks() const
@@ -376,7 +370,6 @@ public:
 	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
-	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] rpl::producer<bool> isSharingScreenValue() const;
 	[[nodiscard]] bool isScreenPaused() const;
@@ -386,8 +379,11 @@ public:
 	[[nodiscard]] bool isCameraPaused() const;
 	[[nodiscard]] const std::string &cameraSharingEndpoint() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
+	[[nodiscard]] bool screenSharingWithAudio() const;
 	void toggleVideo(bool active);
-	void toggleScreenSharing(std::optional<QString> uniqueId);
+	void toggleScreenSharing(
+		std::optional<QString> uniqueId,
+		bool withAudio = false);
 	[[nodiscard]] bool hasVideoWithFrames() const;
 	[[nodiscard]] rpl::producer<bool> hasVideoWithFramesValue() const;
 
@@ -490,6 +486,9 @@ private:
 	void sendSelfUpdate(SendUpdateType type);
 	void updateInstanceMuteState();
 	void updateInstanceVolumes();
+	void updateInstanceVolume(
+		const std::optional<Data::GroupCallParticipant> &was,
+		const Data::GroupCallParticipant &now);
 	void applyMeInCallLocally();
 	void rejoin();
 	void leave();
@@ -550,6 +549,8 @@ private:
 		bool paused);
 	void markTrackPaused(const VideoEndpoint &endpoint, bool paused);
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
+
+	[[nodiscard]] int activeVideoSendersCount() const;
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -617,6 +618,7 @@ private:
 	rpl::variable<Webrtc::VideoState> _screenState;
 	rpl::variable<bool> _isSharingScreen = false;
 	QString _screenDeviceId;
+	bool _screenWithAudio = false;
 
 	base::flags<SendUpdateType> _pendingSelfUpdates;
 	bool _requireARGB32 = true;
@@ -625,7 +627,9 @@ private:
 	rpl::event_stream<VideoStateToggle> _videoStreamActiveUpdates;
 	rpl::event_stream<VideoStateToggle> _videoStreamPausedUpdates;
 	rpl::event_stream<VideoStateToggle> _videoStreamShownUpdates;
-	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
+	base::flat_map<
+		VideoEndpoint,
+		std::unique_ptr<VideoTrack>> _activeVideoTracks;
 	base::flat_set<VideoEndpoint> _shownVideoTracks;
 	rpl::variable<VideoEndpoint> _videoEndpointLarge;
 	rpl::variable<bool> _videoEndpointPinned = false;

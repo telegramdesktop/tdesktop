@@ -26,21 +26,30 @@ enum class MimeDataState {
 	Image,
 };
 
-std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
+[[nodiscard]] std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
 	FileDialog::OpenResult &&result,
 	Fn<bool(const Ui::PreparedList&)> checkResult,
 	Fn<void(tr::phrase<>)> errorCallback,
 	int previewWidth);
-MimeDataState ComputeMimeDataState(const QMimeData *data);
-bool ValidateEditMediaDragData(
+[[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
+[[nodiscard]] bool ValidatePhotoEditorMediaDragData(
+	not_null<const QMimeData*> data);
+[[nodiscard]] bool ValidateEditMediaDragData(
 	not_null<const QMimeData*> data,
 	Ui::AlbumType albumType);
-Ui::PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
-Ui::PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
-Ui::PreparedList PrepareMediaFromImage(
+[[nodiscard]] Ui::PreparedList PrepareMediaList(
+	const QList<QUrl> &files,
+	int previewWidth);
+[[nodiscard]] Ui::PreparedList PrepareMediaList(
+	const QStringList &files,
+	int previewWidth);
+[[nodiscard]] Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
+void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
+
+[[nodiscard]] bool ApplyModifications(const Ui::PreparedList &list);
 
 } // namespace Storage

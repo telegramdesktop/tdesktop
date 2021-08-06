@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
-#include "app.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -56,9 +56,7 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 
 } // namespace
 
-class BackgroundBox::Inner final
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class BackgroundBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
@@ -151,7 +149,7 @@ void BackgroundBox::prepare() {
 
 	_inner->chooseEvents(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
-		Ui::show(
+		_controller->show(
 			Box<BackgroundPreviewBox>(_controller, paper),
 			Ui::LayerOption::KeepOther);
 	}, _inner->lifetime());
@@ -176,7 +174,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			paper.mtpSettings()
 		)).send();
 	};
-	Ui::show(
+	_controller->show(
 		Box<ConfirmBox>(
 			tr::lng_background_sure_delete(tr::now),
 			tr::lng_selected_delete(tr::now),
@@ -204,16 +202,22 @@ BackgroundBox::Inner::Inner(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_check->invalidateCache();
+	}, lifetime());
+
 	using Update = Window::Theme::BackgroundUpdate;
-	subscribe(Window::Theme::Background(), [=](const Update &update) {
-		if (update.paletteChanged()) {
-			_check->invalidateCache();
-		} else if (update.type == Update::Type::New) {
+	Window::Theme::Background()->updates(
+	) | rpl::start_with_next([=](const Update &update) {
+		if (update.type == Update::Type::New) {
 			sortPapers();
 			requestPapers();
 			this->update();
 		}
-	});
+	}, lifetime());
+
 	setMouseTracking(true);
 }
 
@@ -235,8 +239,10 @@ void BackgroundBox::Inner::sortPapers() {
 		return std::make_tuple(
 			data.id() == current,
 			night ? data.isDark() : !data.isDark(),
-			!data.isDefault() && !data.isLocal(),
-			!data.isDefault() && data.isLocal());
+			Data::IsDefaultWallPaper(data),
+			!data.isDefault() && !Data::IsLegacy1DefaultWallPaper(data),
+			Data::IsLegacy2DefaultWallPaper(data),
+			Data::IsLegacy1DefaultWallPaper(data));
 	});
 	if (!_papers.empty() && _papers.front().data.id() == current) {
 		_papers.front().data = _papers.front().data.withParamsFrom(
@@ -337,7 +343,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 			Data::PatternColor(color),
 			paper.data.patternIntensity());
 	}
-	paper.thumbnail = App::pixmapFromImageInPlace(TakeMiddleSample(
+	paper.thumbnail = Ui::PixmapFromImage(TakeMiddleSample(
 		original,
 		st::backgroundSize));
 	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
@@ -362,6 +368,7 @@ void BackgroundBox::Inner::paintPaper(
 		_check->paint(p, checkLeft, checkTop, width());
 	} else if (Data::IsCloudWallPaper(paper.data)
 		&& !Data::IsDefaultWallPaper(paper.data)
+		&& !Data::IsLegacy2DefaultWallPaper(paper.data)
 		&& !v::is_null(over)
 		&& (&paper == &_papers[getSelectionIndex(over)])) {
 		const auto deleteSelected = v::is<DeleteSelected>(over);
@@ -391,6 +398,7 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		} else if (result >= _papers.size()) {
 			return Selection();
 		}
+		auto &data = _papers[result].data;
 		const auto deleteLeft = (column + 1) * (width + skip)
 			- st::stickerPanDeleteIconBg.width();
 		const auto deleteBottom = row * (height + skip) + skip
@@ -398,9 +406,10 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		const auto currentId = Window::Theme::Background()->id();
 		const auto inDelete = (x >= deleteLeft)
 			&& (y < deleteBottom)
-			&& Data::IsCloudWallPaper(_papers[result].data)
-			&& !Data::IsDefaultWallPaper(_papers[result].data)
-			&& (currentId != _papers[result].data.id());
+			&& Data::IsCloudWallPaper(data)
+			&& !Data::IsDefaultWallPaper(data)
+			&& !Data::IsLegacy2DefaultWallPaper(data)
+			&& (currentId != data.id());
 		return (result >= _papers.size())
 			? Selection()
 			: inDelete

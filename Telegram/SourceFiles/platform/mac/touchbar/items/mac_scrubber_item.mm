@@ -179,7 +179,7 @@ bool CanWriteToActiveChat(not_null<Window::Controller*> controller) {
 std::optional<QString> RestrictionToSendStickers(not_null<PeerData*> peer) {
 	return Data::RestrictionError(
 		peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 }
 
 std::optional<QString> RestrictionToSendStickers(
@@ -206,10 +206,10 @@ void AppendStickerSet(
 		return;
 	}
 	const auto set = it->second.get();
-	if (set->flags & MTPDstickerSet::Flag::f_archived) {
+	if (set->flags & Data::StickersSetFlag::Archived) {
 		return;
 	}
-	if (!(set->flags & MTPDstickerSet::Flag::f_installed_date)) {
+	if (!(set->flags & Data::StickersSetFlag::Installed)) {
 		return;
 	}
 
@@ -464,7 +464,7 @@ void AppendEmojiPacks(
 	auto callback = [=] {
 		if (document) {
 			if (const auto error = RestrictionToSendStickers(_controller)) {
-				Ui::show(Box<InformBox>(*error));
+				_controller->show(Box<InformBox>(*error));
 				return true;
 			}
 			Api::SendExistingDocument(
@@ -566,7 +566,10 @@ void AppendEmojiPacks(
 	rpl::merge(
 		rpl::merge(
 			_session->data().stickers().updated(),
-			_session->data().stickers().recentUpdated()
+			_session->data().stickers().recentUpdated(
+			) | rpl::filter([](Data::Stickers::Recent recent) {
+				return (recent != Data::Stickers::Recent::Attached);
+			}) | rpl::to_empty
 		) | rpl::map_to(ScrubberItemType::Sticker),
 		rpl::merge(
 			Core::App().settings().recentEmojiUpdated(),

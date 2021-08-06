@@ -22,6 +22,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Ui {
+class PathShiftGradient;
+} // namespace Ui
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -60,6 +64,14 @@ public:
 	virtual void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) = 0;
+	virtual void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) = 0;
+	virtual void elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView = false) = 0;
+	virtual void elementCancelUpload(const FullMsgId &context) = 0;
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
@@ -71,13 +83,23 @@ public:
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual bool elementIsChatWide() = 0;
+	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
+	virtual void elementReplyTo(const FullMsgId &to) = 0;
+
+	virtual ~ElementDelegate() {
+	}
 
 };
 
+[[nodiscard]] std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
+	Fn<void()> update);
+
 class SimpleElementDelegate : public ElementDelegate {
 public:
-	explicit SimpleElementDelegate(
-		not_null<Window::SessionController*> controller);
+	SimpleElementDelegate(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> update);
+	~SimpleElementDelegate();
 
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message,
@@ -97,6 +119,14 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) override;
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
+	void elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView = false) override;
+	void elementCancelUpload(const FullMsgId &context) override;
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
@@ -108,9 +138,12 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	void elementReplyTo(const FullMsgId &to) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 };
 
@@ -352,7 +385,7 @@ private:
 	// This should be called only from previousInBlocksChanged() or when
 	// DateBadge or UnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag
-	// MTPDmessage_ClientFlag::f_attach_to_previous.
+	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
 
 	QSize countOptimalSize() final override;

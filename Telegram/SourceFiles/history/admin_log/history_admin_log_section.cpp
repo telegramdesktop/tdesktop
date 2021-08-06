@@ -298,10 +298,7 @@ Widget::Widget(
 
 	_fixedBarShadow->raise();
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->adaptive().changed()
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
@@ -326,7 +323,7 @@ Widget::Widget(
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
 
 	_whatIsThis->setClickedCallback([=] {
-		Ui::show(Box<InformBox>(channel->isMegagroup()
+		controller->show(Box<InformBox>(channel->isMegagroup()
 			? tr::lng_admin_log_about_text(tr::now)
 			: tr::lng_admin_log_about_text_channel(tr::now)));
 	});

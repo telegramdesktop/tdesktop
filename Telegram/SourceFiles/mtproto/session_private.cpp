@@ -72,15 +72,6 @@ using namespace details;
 	return idsStr + "]";
 }
 
-[[nodiscard]] QString LogIds(const QVector<uint64> &ids) {
-	if (!ids.size()) return "[]";
-	auto idsStr = QString("[%1").arg(*ids.cbegin());
-	for (const auto id : ids) {
-		idsStr += QString(", %2").arg(id);
-	}
-	return idsStr + "]";
-}
-
 [[nodiscard]] QString ComputeAppVersion() {
 	return QString::fromLatin1(AppVersionStr) + ([] {
 #if defined OS_MAC_STORE
@@ -307,7 +298,7 @@ void SessionPrivate::clearOldContainers() {
 
 			resent = resent || !ids.empty();
 			for (const auto innerMsgId : ids) {
-				resend(innerMsgId, -1, true);
+				resend(innerMsgId, -1);
 			}
 		} else {
 			nextTimeout = std::min(i->second.sent - checkTime, nextTimeout);
@@ -1263,17 +1254,16 @@ void SessionPrivate::handleReceived() {
 			return restart();
 		}
 
+		constexpr auto kMinPaddingSize = 12U;
+		constexpr auto kMaxPaddingSize = 1024U;
+
 		auto encryptedInts = ints + kExternalHeaderIntsCount;
 		auto encryptedIntsCount = (intsCount - kExternalHeaderIntsCount) & ~0x03U;
 		auto encryptedBytesCount = encryptedIntsCount * kIntSize;
 		auto decryptedBuffer = QByteArray(encryptedBytesCount, Qt::Uninitialized);
 		auto msgKey = *(MTPint128*)(ints + 2);
 
-#ifdef TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _encryptionKey, msgKey);
-#else // TDESKTOP_MTPROTO_OLD
 		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _encryptionKey, msgKey);
-#endif // TDESKTOP_MTPROTO_OLD
 
 		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
 		auto serverSalt = *(uint64*)&decryptedInts[0];
@@ -1283,30 +1273,9 @@ void SessionPrivate::handleReceived() {
 		auto needAck = ((seqNo & 0x01) != 0);
 		auto messageLength = *(uint32*)&decryptedInts[7];
 		auto fullDataLength = kEncryptedHeaderIntsCount * kIntSize + messageLength; // Without padding.
-		auto badMessageLength = (messageLength > kMaxMessageLength);
 
 		// Can underflow, but it is an unsigned type, so we just check the range later.
 		auto paddingSize = static_cast<uint32>(encryptedBytesCount) - static_cast<uint32>(fullDataLength);
-
-#ifdef TDESKTOP_MTPROTO_OLD
-		constexpr auto kMinPaddingSize_oldmtp = 0U;
-		constexpr auto kMaxPaddingSize_oldmtp = 15U;
-		badMessageLength |= (/*paddingSize < kMinPaddingSize_oldmtp || */paddingSize > kMaxPaddingSize_oldmtp);
-
-		auto hashedDataLength = badMessageLength ? encryptedBytesCount : fullDataLength;
-		auto sha1ForMsgKeyCheck = hashSha1(decryptedInts, hashedDataLength);
-
-		constexpr auto kMsgKeyShift_oldmtp = 4U;
-		if (ConstTimeIsDifferent(&msgKey, sha1ForMsgKeyCheck.data() + kMsgKeyShift_oldmtp, sizeof(msgKey))) {
-			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message."));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
-
-			return restart();
-		}
-#else // TDESKTOP_MTPROTO_OLD
-		constexpr auto kMinPaddingSize = 12U;
-		constexpr auto kMaxPaddingSize = 1024U;
-		badMessageLength |= (paddingSize < kMinPaddingSize || paddingSize > kMaxPaddingSize);
 
 		std::array<uchar, 32> sha256Buffer = { { 0 } };
 
@@ -1323,9 +1292,11 @@ void SessionPrivate::handleReceived() {
 
 			return restart();
 		}
-#endif // TDESKTOP_MTPROTO_OLD
 
-		if (badMessageLength || (messageLength & 0x03)) {
+		if ((messageLength > kMaxMessageLength)
+			|| (messageLength & 0x03)
+			|| (paddingSize < kMinPaddingSize)
+			|| (paddingSize > kMaxPaddingSize)) {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(messageLength).arg(encryptedBytesCount));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
@@ -1584,7 +1555,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 
 				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container...").arg(info.serverTime));
 
-				resend(resendId, 0, true);
+				resend(resendId);
 			} else { // must create new session, because msg_id and msg_seqno are inconsistent
 				if (info.badTime) {
 					if (info.serverSalt) {
@@ -1882,7 +1853,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 			}
 		}
 		for (const auto msgId : toResend) {
-			resend(msgId, 10, true);
+			resend(msgId, 10);
 		}
 
 		mtpBuffer update(from - start);
@@ -1991,7 +1962,7 @@ mtpBuffer SessionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) cons
 		LOG(("RPC Error: could not read gziped bytes."));
 		return result;
 	}
-	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen, unpackedLen = 0;
+	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen;
 
 	z_stream stream;
 	stream.zalloc = 0;
@@ -2078,8 +2049,6 @@ void SessionPrivate::correctUnixtimeWithBadLocal(TimeId serverTime) {
 }
 
 void SessionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
-	uint32 idsCount = ids.size();
-
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(LogIdsVector(ids)));
 
 	QVector<MTPlong> toAckMore;
@@ -2196,7 +2165,7 @@ void SessionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const QByteAr
 		}
 		if ((state & 0x07) != 0x04) { // was received
 			DEBUG_LOG(("Message Info: state was received for msgId %1, state %2, resending in container").arg(requestMsgId).arg((int32)state));
-			resend(requestMsgId, 10, true);
+			resend(requestMsgId, 10);
 		} else {
 			DEBUG_LOG(("Message Info: state was received for msgId %1, state %2, ack").arg(requestMsgId).arg((int32)state));
 			acked.push_back(MTP_long(requestMsgId));
@@ -2214,10 +2183,7 @@ void SessionPrivate::clearSpecialMsgId(mtpMsgId msgId) {
 	}
 }
 
-void SessionPrivate::resend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer) {
+void SessionPrivate::resend(mtpMsgId msgId, crl::time msCanWait) {
 	const auto guard = gsl::finally([&] {
 		clearSpecialMsgId(msgId);
 		if (msCanWait >= 0) {
@@ -2231,7 +2197,7 @@ void SessionPrivate::resend(
 		_sentContainers.erase(i);
 
 		for (const auto innerMsgId : ids) {
-			resend(innerMsgId, -1, true);
+			resend(innerMsgId, -1);
 		}
 		return;
 	}
@@ -2246,7 +2212,7 @@ void SessionPrivate::resend(
 	lock.unlock();
 
 	request->lastSentTime = crl::now();
-	request->forceSendInContainer = forceContainer;
+	request->forceSendInContainer = true;
 	_resendingIds.emplace(msgId, request->requestId);
 	{
 		QWriteLocker locker(_sessionData->toSendMutex());
@@ -2616,12 +2582,7 @@ void SessionPrivate::destroyTemporaryKey() {
 bool SessionPrivate::sendSecureRequest(
 		SerializedRequest &&request,
 		bool needAnyResponse) {
-#ifdef TDESKTOP_MTPROTO_OLD
-	const auto oldPadding = true;
-#else // TDESKTOP_MTPROTO_OLD
-	const auto oldPadding = false;
-#endif // TDESKTOP_MTPROTO_OLD
-	request.addPadding(_connection->requiresExtendedPadding(), oldPadding);
+	request.addPadding(false);
 
 	uint32 fullSize = request->size();
 	if (fullSize < 9) {
@@ -2643,27 +2604,6 @@ bool SessionPrivate::sendSecureRequest(
 		).arg(getProtocolDcId()
 		).arg(_encryptionKey->keyId()));
 
-#ifdef TDESKTOP_MTPROTO_OLD
-	uint32 padding = fullSize - 4 - messageSize;
-
-	uchar encryptedSHA[20];
-	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA + 4));
-	hashSha1(
-		request->constData(),
-		(fullSize - padding) * sizeof(mtpPrime),
-		encryptedSHA);
-
-	auto packet = _connection->prepareSecurePacket(_keyId, msgKey, fullSize);
-	const auto prefix = packet.size();
-	packet.resize(prefix + fullSize);
-
-	aesIgeEncrypt_oldmtp(
-		request->constData(),
-		&packet[prefix],
-		fullSize * sizeof(mtpPrime),
-		_encryptionKey,
-		msgKey);
-#else // TDESKTOP_MTPROTO_OLD
 	uchar encryptedSHA256[32];
 	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA256 + 8));
 
@@ -2683,7 +2623,6 @@ bool SessionPrivate::sendSecureRequest(
 		fullSize * sizeof(mtpPrime),
 		_encryptionKey,
 		msgKey);
-#endif // TDESKTOP_MTPROTO_OLD
 
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 

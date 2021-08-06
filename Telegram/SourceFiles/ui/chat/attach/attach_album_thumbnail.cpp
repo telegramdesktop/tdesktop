@@ -29,8 +29,8 @@ AlbumThumbnail::AlbumThumbnail(
 : _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
-, _isVideo(file.type == PreparedFile::Type::Video)
-, _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
+, _isPhoto(file.type == PreparedFile::Type::Photo)
+, _isVideo(file.type == PreparedFile::Type::Video) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -76,11 +76,8 @@ AlbumThumbnail::AlbumThumbnail(
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
 		_name = "image.png";
-		_status = u"%1x%2"_q.arg(
-			_fullPreview.width()
-		).arg(
-			_fullPreview.height()
-		);
+		_status = FormatImageSizeText(_fullPreview.size()
+			/ _fullPreview.devicePixelRatio());
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		_name = fileinfo.fileName();
@@ -122,13 +119,11 @@ void AlbumThumbnail::updateFileRow(int row) {
 
 	const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
 		+ st::sendMediaRowSkip;
-
 	const auto top = row * fileHeight + st::sendBoxFileGroupSkipTop;
-	const auto size = st::editMediaButtonSize;
 
-	auto right = st::sendBoxFileGroupSkipRight + size;
+	auto right = st::sendBoxFileGroupSkipRight + st::boxPhotoPadding.right();
 	_deleteMedia->moveToRight(right, top);
-	right += st::sendBoxFileGroupEditInternalSkip + size;
+	right += st::sendBoxFileGroupEditInternalSkip + _deleteMedia->width();
 	_editMedia->moveToRight(right, top);
 }
 
@@ -229,6 +224,8 @@ void AlbumThumbnail::paintInAlbum(
 		{ x, y },
 		geometry.width(),
 		shrinkProgress);
+
+	_lastRectOfModify = QRect(QPoint(x, y), geometry.size());
 }
 
 void AlbumThumbnail::prepareCache(QSize size, int shrink) {
@@ -376,21 +373,29 @@ void AlbumThumbnail::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
 }
 
 void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
-	const auto width = _photo.width() / style::DevicePixelRatio();
+	const auto size = _photo.size() / style::DevicePixelRatio();
 	p.drawPixmapLeft(
-		left + (st::sendMediaPreviewSize - width) / 2,
+		left + (st::sendMediaPreviewSize - size.width()) / 2,
 		top,
 		outerWidth,
 		_photo);
 
+	const auto topLeft = QPoint{ left, top };
+
 	_lastRectOfButtons = paintButtons(
 		p,
-		{ left, top },
+		topLeft,
 		st::sendMediaPreviewSize,
 		0);
+
+	_lastRectOfModify = QRect(topLeft, size);
 }
 
-void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
+void AlbumThumbnail::paintFile(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) {
 	const auto &st = st::attachPreviewThumbLayout;
 	const auto textLeft = left + st.thumbSize + st.padding.right();
 
@@ -411,6 +416,10 @@ void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
 		outerWidth,
 		_status,
 		_statusWidth);
+
+	_lastRectOfModify = QRect(
+		QPoint(left, top),
+		_fileThumb.size() / style::DevicePixelRatio());
 }
 
 bool AlbumThumbnail::containsPoint(QPoint position) const {
@@ -418,14 +427,18 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return _lastRectOfButtons.contains(position);
+	return (_isPhoto
+		? _lastRectOfModify
+		: _lastRectOfButtons).contains(position);
 }
 
 AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return (position.x() < _lastRectOfButtons.center().x())
+	return !_lastRectOfButtons.contains(position)
+		? AttachButtonType::Modify
+		: (position.x() < _lastRectOfButtons.center().x())
 		? AttachButtonType::Edit
 		: AttachButtonType::Delete;
 }
@@ -492,11 +505,9 @@ QRect AlbumThumbnail::paintButtons(
 		QPoint point,
 		int outerWidth,
 		float64 shrinkProgress) {
-	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
-	const auto size = st::sendBoxAlbumGroupHeight;
-	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
-	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
-	const auto groupWidth = size * 2 + skipInternal;
+	const auto &skipRight = st::sendBoxAlbumGroupSkipRight;
+	const auto &skipTop = st::sendBoxAlbumGroupSkipTop;
+	const auto groupWidth = _buttons.width();
 
 	// If the width is tiny, it would be better to not display the buttons.
 	if (groupWidth > outerWidth) {
@@ -509,26 +520,13 @@ QRect AlbumThumbnail::paintButtons(
 		? (outerWidth - groupWidth) / 2
 		: outerWidth - skipRight - groupWidth);
 	const auto groupY = point.y() + skipTop;
-	const auto deleteLeft = skipInternal + size;
 
+	const auto opacity = p.opacity();
 	p.setOpacity(1.0 - shrinkProgress);
+	_buttons.paint(p, groupX, groupY);
+	p.setOpacity(opacity);
 
-	QRect groupRect(groupX, groupY, groupWidth, size);
-	_buttonsRect.paint(p, groupRect);
-
-	st::sendBoxAlbumGroupButtonMediaEdit.paint(
-		p,
-		groupX,
-		groupY,
-		outerWidth);
-	st::sendBoxAlbumGroupButtonMediaDelete.paint(
-		p,
-		groupX + size + skipInternal,
-		groupY,
-		outerWidth);
-	p.setOpacity(1);
-
-	return groupRect;
+	return QRect(groupX, groupY, groupWidth, _buttons.height());
 }
 
 } // namespace Ui

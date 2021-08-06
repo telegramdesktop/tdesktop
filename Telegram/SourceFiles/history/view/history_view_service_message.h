@@ -126,6 +126,4 @@ private:
 
 };
 
-void serviceColorsUpdated();
-
 } // namespace HistoryView

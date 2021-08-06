@@ -507,18 +507,18 @@ void Filler::addUserActions(not_null<UserData*> user) {
 }
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
+	const auto navigation = _controller;
 	if (_request.section != Section::ChatsList) {
-		const auto controller = _controller;
 		if (EditPeerInfoBox::Available(chat)) {
 			const auto text = tr::lng_manage_group_title(tr::now);
 			_addAction(text, [=] {
-				controller->showEditPeerBox(chat);
+				navigation->showEditPeerBox(chat);
 			});
 		}
 		if (chat->canAddMembers()) {
 			_addAction(
 				tr::lng_channel_add_members(tr::now),
-				[=] { AddChatMembers(controller, chat); });
+				[=] { AddChatMembers(navigation, chat); });
 		}
 		addPollAction(chat);
 		if (chat->canExportChatHistory()) {
@@ -533,6 +533,13 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 	_addAction(
 		tr::lng_profile_clear_history(tr::now),
 		ClearHistoryHandler(_peer));
+	if (_request.section != Section::ChatsList) {
+		if (!chat->amCreator()) {
+			_addAction(tr::lng_profile_report(tr::now), [=] {
+				HistoryView::ShowReportPeerBox(navigation, chat);
+			});
+		}
+	}
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
@@ -597,9 +604,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			[=] { channel->session().api().joinChannel(channel); });
 	}
 	if (_request.section != Section::ChatsList) {
-		const auto needReport = !channel->amCreator()
-			&& (!isGroup || channel->isPublic());
-		if (needReport) {
+		if (!channel->amCreator()) {
 			_addAction(tr::lng_profile_report(tr::now), [=] {
 				HistoryView::ShowReportPeerBox(navigation, channel);
 			});
@@ -829,10 +834,9 @@ void PeerMenuBlockUserBox(
 		not_null<PeerData*> peer,
 		std::variant<v::null_t, bool> suggestReport,
 		std::variant<v::null_t, ClearChat, ClearReply> suggestClear) {
-	using Flag = MTPDpeerSettings::Flag;
-	const auto settings = peer->settings().value_or(Flag(0));
+	const auto settings = peer->settings().value_or(PeerSettings(0));
 	const auto reportNeeded = v::is_null(suggestReport)
-		? ((settings & Flag::f_report_spam) != 0)
+		? ((settings & PeerSetting::ReportSpam) != 0)
 		: v::get<bool>(suggestReport);
 
 	const auto user = peer->asUser();

@@ -11,12 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "export/export_manager.h"
+#include "ui/platform/ui_platform_window.h"
 #include "platform/platform_window_title.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
+#include "media/view/media_view_open_common.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/layers/box_content.h"
@@ -66,7 +68,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		for (auto &[index, account] : _account->domain().accounts()) {
 			if (const auto anotherSession = account->maybeSession()) {
 				if (anotherSession->uniqueId() == prevSessionUniqueId) {
-					anotherSession->updates().updateOnline();
+					anotherSession->updates().updateOnline(crl::now());
 					return;
 				}
 			}
@@ -126,7 +128,7 @@ void Controller::checkLockByTerms() {
 		return;
 	}
 	Ui::hideSettingsAndLayer(anim::type::instant);
-	const auto box = Ui::show(Box<TermsBox>(
+	const auto box = show(Box<TermsBox>(
 		*data,
 		tr::lng_terms_agree(),
 		tr::lng_terms_decline()));
@@ -161,7 +163,7 @@ void Controller::checkLockByTerms() {
 }
 
 void Controller::showTermsDecline() {
-	const auto box = Ui::show(
+	const auto box = show(
 		Box<Window::TermsBox>(
 			TextWithEntities{ tr::lng_terms_update_sorry(tr::now) },
 			tr::lng_terms_decline_and_delete(),
@@ -193,7 +195,7 @@ void Controller::showTermsDelete() {
 			Ui::hideLayer();
 		}
 	};
-	Ui::show(
+	show(
 		Box<ConfirmBox>(
 			tr::lng_terms_delete_warning(tr::now),
 			tr::lng_terms_delete_now(tr::now),
@@ -266,7 +268,7 @@ void Controller::showSettings() {
 
 int Controller::verticalShadowTop() const {
 	return (Platform::NativeTitleRequiresShadow()
-		&& Platform::AllowNativeWindowFrameToggle()
+		&& Ui::Platform::NativeWindowFrameSupported()
 		&& Core::App().settings().nativeWindowFrame())
 		? st::lineWidth
 		: 0;
@@ -274,6 +276,13 @@ int Controller::verticalShadowTop() const {
 
 void Controller::showToast(const QString &text) {
 	Ui::Toast::Show(_widget.bodyWidget(), text);
+}
+
+void Controller::showLayer(
+		std::unique_ptr<Ui::LayerWidget> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) {
+	_widget.showLayer(std::move(layer), options, animated);
 }
 
 void Controller::showBox(
@@ -332,6 +341,15 @@ void Controller::preventOrInvoke(Fn<void()> &&callback) {
 	_widget.preventOrInvoke(std::move(callback));
 }
 
+void Controller::invokeForSessionController(
+		not_null<Main::Account*> account,
+		Fn<void(not_null<SessionController*>)> &&callback) {
+	_account->domain().activate(std::move(account));
+	if (_sessionController) {
+		callback(_sessionController.get());
+	}
+}
+
 QPoint Controller::getPointForCallPanelCenter() const {
 	Expects(_widget.windowHandle() != nullptr);
 
@@ -371,6 +389,19 @@ void Controller::showLogoutConfirmation() {
 
 Window::Adaptive &Controller::adaptive() const {
 	return *_adaptive;
+}
+
+void Controller::openInMediaView(Media::View::OpenRequest &&request) {
+	_openInMediaViewRequests.fire(std::move(request));
+}
+
+auto Controller::openInMediaViewRequests() const
+-> rpl::producer<Media::View::OpenRequest> {
+	return _openInMediaViewRequests.events();
+}
+
+rpl::lifetime &Controller::lifetime() {
+	return _lifetime;
 }
 
 } // namespace Window

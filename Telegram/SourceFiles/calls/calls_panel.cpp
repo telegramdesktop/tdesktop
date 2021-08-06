@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_userpic.h"
@@ -24,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/window.h"
+#include "ui/widgets/rp_window.h"
+#include "ui/layers/layer_manager.h"
+#include "ui/layers/generic_box.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/wrap/fade_wrap.h"
@@ -42,25 +45,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "window/main_window.h"
-#include "media/view/media_view_pip.h" // Utilities for frame rotation.
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
+#include "webrtc/webrtc_media_devices.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
+#include <QtCore/QTimer>
 
 namespace Calls {
 
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _window(createWindow())
+, _layerBg(std::make_unique<Ui::LayerManager>(widget()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
-	_window->body(),
+	widget(),
 	st::callTitle,
 	[=](bool maximized) { toggleFullScreen(maximized); }))
 #endif // !Q_OS_MAC
@@ -68,6 +72,7 @@ Panel::Panel(not_null<Call*> call)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Ui::CallButton>(widget(), st::callHangup))
 , _cancel(widget(), object_ptr<Ui::CallButton>(widget(), st::callCancel))
+, _screencast(widget(), st::callScreencastOn, &st::callScreencastOff)
 , _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
 , _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute)
 , _name(widget(), st::callName)
@@ -86,46 +91,27 @@ Panel::Panel(not_null<Call*> call)
 
 Panel::~Panel() = default;
 
-std::unique_ptr<Ui::Window> Panel::createWindow() {
-	auto result = std::make_unique<Ui::Window>();
-	const auto capabilities = Ui::GL::CheckCapabilities(result.get());
-	const auto use = Platform::IsMac()
-		? true
-		: Platform::IsWindows()
-		? capabilities.supported
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (Incoming)").arg(Logs::b(use)));
-	_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
-
-	if (use) {
-		return result;
-	}
-
-	// We have to create a new window, if OpenGL initialization failed.
-	return std::make_unique<Ui::Window>();
-}
-
 bool Panel::isActive() const {
-	return _window->isActiveWindow()
-		&& _window->isVisible()
-		&& !(_window->windowState() & Qt::WindowMinimized);
+	return window()->isActiveWindow()
+		&& window()->isVisible()
+		&& !(window()->windowState() & Qt::WindowMinimized);
 }
 
 void Panel::showAndActivate() {
-	if (_window->isHidden()) {
-		_window->show();
+	if (window()->isHidden()) {
+		window()->show();
 	}
-	const auto state = _window->windowState();
+	const auto state = window()->windowState();
 	if (state & Qt::WindowMinimized) {
-		_window->setWindowState(state & ~Qt::WindowMinimized);
+		window()->setWindowState(state & ~Qt::WindowMinimized);
 	}
-	_window->raise();
-	_window->activateWindow();
-	_window->setFocus();
+	window()->raise();
+	window()->activateWindow();
+	window()->setFocus();
 }
 
 void Panel::minimize() {
-	_window->setWindowState(_window->windowState() | Qt::WindowMinimized);
+	window()->setWindowState(window()->windowState() | Qt::WindowMinimized);
 }
 
 void Panel::replaceCall(not_null<Call*> call) {
@@ -134,26 +120,24 @@ void Panel::replaceCall(not_null<Call*> call) {
 }
 
 void Panel::initWindow() {
-	_window->setAttribute(Qt::WA_OpaquePaintEvent);
-	_window->setAttribute(Qt::WA_NoSystemBackground);
-	_window->setWindowIcon(
-		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
-	_window->setTitle(u" "_q);
-	_window->setTitleStyle(st::callTitle);
+	window()->setAttribute(Qt::WA_OpaquePaintEvent);
+	window()->setAttribute(Qt::WA_NoSystemBackground);
+	window()->setTitle(_user->name);
+	window()->setTitleStyle(st::callTitle);
 
-	_window->events(
+	window()->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
 			handleClose();
 		} else if (e->type() == QEvent::KeyPress) {
 			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
-				&& _window->isFullScreen()) {
-				_window->showNormal();
+				&& window()->isFullScreen()) {
+				window()->showNormal();
 			}
 		}
-	}, _window->lifetime());
+	}, window()->lifetime());
 
-	_window->setBodyTitleArea([=](QPoint widgetPoint) {
+	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
 		if (!widget()->rect().contains(widgetPoint)) {
 			return Flag::None | Flag(0);
@@ -179,28 +163,31 @@ void Panel::initWindow() {
 			: (Flag::Move | Flag::FullScreen);
 	});
 
-#ifdef Q_OS_WIN
-	// On Windows we replace snap-to-top maximizing with fullscreen.
-	//
-	// We have to switch first to showNormal, so that showFullScreen
-	// will remember correct normal window geometry and next showNormal
-	// will show it instead of a moving maximized window.
-	//
-	// We have to do it in InvokeQueued, otherwise it still captures
-	// the maximized window geometry and saves it.
-	//
-	// I couldn't find a less glitchy way to do that *sigh*.
-	const auto object = _window->windowHandle();
-	const auto signal = &QWindow::windowStateChanged;
-	QObject::connect(object, signal, [=](Qt::WindowState state) {
-		if (state == Qt::WindowMaximized) {
-			InvokeQueued(object, [=] {
-				_window->showNormal();
-				_window->showFullScreen();
-			});
-		}
-	});
-#endif // Q_OS_WIN
+	// Don't do that, it looks awful :(
+//#ifdef Q_OS_WIN
+//	// On Windows we replace snap-to-top maximizing with fullscreen.
+//	//
+//	// We have to switch first to showNormal, so that showFullScreen
+//	// will remember correct normal window geometry and next showNormal
+//	// will show it instead of a moving maximized window.
+//	//
+//	// We have to do it in InvokeQueued, otherwise it still captures
+//	// the maximized window geometry and saves it.
+//	//
+//	// I couldn't find a less glitchy way to do that *sigh*.
+//	const auto object = window()->windowHandle();
+//	const auto signal = &QWindow::windowStateChanged;
+//	QObject::connect(object, signal, [=](Qt::WindowState state) {
+//		if (state == Qt::WindowMaximized) {
+//			InvokeQueued(object, [=] {
+//				window()->showNormal();
+//				InvokeQueued(object, [=] {
+//					window()->showFullScreen();
+//				});
+//			});
+//		}
+//	});
+//#endif // Q_OS_WIN
 }
 
 void Panel::initWidget() {
@@ -224,9 +211,28 @@ void Panel::initControls() {
 			_call->setMuted(!_call->muted());
 		}
 	});
+	_screencast->setClickedCallback([=] {
+		if (!_call) {
+			return;
+		} else if (!Webrtc::DesktopCaptureAllowed()) {
+			if (auto box = Group::ScreenSharingPrivacyRequestBox()) {
+				_layerBg->showBox(std::move(box));
+			}
+		} else if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
+			if (_call->isSharingScreen()) {
+				_call->toggleScreenSharing(std::nullopt);
+			} else {
+				chooseSourceAccepted(*source, false);
+			}
+		} else {
+			Group::Ui::DesktopCapture::ChooseSource(this);
+		}
+	});
 	_camera->setClickedCallback([=] {
-		if (_call) {
-			_call->switchVideoOutgoing();
+		if (!_call) {
+			return;
+		} else {
+			_call->toggleCameraSharing(!_call->isSharingCamera());
 		}
 	});
 
@@ -237,7 +243,8 @@ void Panel::initControls() {
 	});
 	_updateOuterRippleTimer.setCallback([this] {
 		if (_call) {
-			_answerHangupRedial->setOuterValue(_call->getWaitingSoundPeakValue());
+			_answerHangupRedial->setOuterValue(
+				_call->getWaitingSoundPeakValue());
 		} else {
 			_answerHangupRedial->setOuterValue(0.);
 			_updateOuterRippleTimer.cancel();
@@ -277,6 +284,40 @@ void Panel::setIncomingSize(QSize size) {
 	_incomingFrameSize = size;
 	refreshIncomingGeometry();
 	showControls();
+}
+
+QWidget *Panel::chooseSourceParent() {
+	return window().get();
+}
+
+QString Panel::chooseSourceActiveDeviceId() {
+	return _call->screenSharingDeviceId();
+}
+
+bool Panel::chooseSourceActiveWithAudio() {
+	return false;// _call->screenSharingWithAudio();
+}
+
+bool Panel::chooseSourceWithAudioSupported() {
+//#ifdef Q_OS_WIN
+//	return true;
+//#else // Q_OS_WIN
+	return false;
+//#endif // Q_OS_WIN
+}
+
+rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
+	return lifetime();
+}
+
+void Panel::chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) {
+	_call->toggleScreenSharing(deviceId/*, withAudio*/);
+}
+
+void Panel::chooseSourceStop() {
+	_call->toggleScreenSharing(std::nullopt);
 }
 
 void Panel::refreshIncomingGeometry() {
@@ -339,7 +380,7 @@ void Panel::reinitWithCall(Call *call) {
 	_incoming = std::make_unique<Incoming>(
 		widget(),
 		_call->videoIncoming(),
-		_backend);
+		_window.backend());
 	_incoming->widget()->hide();
 
 	_call->mutedValue(
@@ -351,12 +392,19 @@ void Panel::reinitWithCall(Call *call) {
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
-	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		const auto active = (state == Webrtc::VideoState::Active);
-		_camera->setProgress(active ? 0. : 1.);
-		_camera->setText(active
-			? tr::lng_call_stop_video()
-			: tr::lng_call_start_video());
+	) | rpl::start_with_next([=] {
+		{
+			const auto active = _call->isSharingCamera();
+			_camera->setProgress(active ? 0. : 1.);
+			_camera->setText(active
+				? tr::lng_call_stop_video()
+				: tr::lng_call_start_video());
+		}
+		{
+			const auto active = _call->isSharingScreen();
+			_screencast->setProgress(active ? 0. : 1.);
+			_screencast->setText(tr::lng_call_screencast());
+		}
 	}, _callLifetime);
 
 	_call->stateValue(
@@ -519,16 +567,20 @@ void Panel::showControls() {
 }
 
 void Panel::closeBeforeDestroy() {
-	_window->close();
+	window()->close();
 	reinitWithCall(nullptr);
+}
+
+rpl::lifetime &Panel::lifetime() {
+	return window()->lifetime();
 }
 
 void Panel::initGeometry() {
 	const auto center = Core::App().getPointForCallPanelCenter();
 	const auto initRect = QRect(0, 0, st::callWidth, st::callHeight);
-	_window->setGeometry(initRect.translated(center - initRect.center()));
-	_window->setMinimumSize({ st::callWidthMin, st::callHeightMin });
-	_window->show();
+	window()->setGeometry(initRect.translated(center - initRect.center()));
+	window()->setMinimumSize({ st::callWidthMin, st::callHeightMin });
+	window()->show();
 	updateControlsGeometry();
 }
 
@@ -546,9 +598,9 @@ void Panel::refreshOutgoingPreviewInBody(State state) {
 
 void Panel::toggleFullScreen(bool fullscreen) {
 	if (fullscreen) {
-		_window->showFullScreen();
+		window()->showFullScreen();
 	} else {
-		_window->showNormal();
+		window()->showNormal();
 	}
 }
 
@@ -661,9 +713,11 @@ void Panel::updateControlsGeometry() {
 		updateOutgoingVideoBubbleGeometry();
 	}
 
-	auto bothWidth = _answerHangupRedial->width() + st::callCancel.button.width;
-	_decline->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
-	_cancel->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
+	auto threeWidth = _answerHangupRedial->width()
+		+ st::callCancel.button.width
+		- _screencast->width();
+	_decline->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
+	_cancel->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
 
 	updateHangupGeometry();
 }
@@ -685,16 +739,19 @@ void Panel::updateOutgoingVideoBubbleGeometry() {
 }
 
 void Panel::updateHangupGeometry() {
-	auto singleWidth = _answerHangupRedial->width();
-	auto bothWidth = singleWidth + st::callCancel.button.width;
-	auto rightFrom = (widget()->width() - bothWidth) / 2;
-	auto rightTo = (widget()->width() - singleWidth) / 2;
+	auto twoWidth = _answerHangupRedial->width() + _screencast->width();
+	auto threeWidth = twoWidth + st::callCancel.button.width;
+	auto rightFrom = (widget()->width() - threeWidth) / 2;
+	auto rightTo = (widget()->width() - twoWidth) / 2;
 	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
 	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
 	_mute->moveToRight(hangupRight - _mute->width(), _buttonsTop);
-	_camera->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
+	_screencast->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
+	_camera->moveToLeft(
+		hangupRight - _mute->width() + _screencast->width(),
+		_buttonsTop);
 }
 
 void Panel::updateStatusGeometry() {
@@ -724,8 +781,12 @@ void Panel::handleClose() {
 	}
 }
 
+not_null<Ui::RpWindow*> Panel::window() const {
+	return _window.window();
+}
+
 not_null<Ui::RpWidget*> Panel::widget() const {
-	return _window->body();
+	return _window.widget();
 }
 
 void Panel::stateChanged(State state) {
@@ -741,7 +802,7 @@ void Panel::stateChanged(State state) {
 		auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,
-				_window->isHidden()
+				window()->isHidden()
 				? anim::type::instant
 				: anim::type::normal);
 		};

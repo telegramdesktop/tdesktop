@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_photo.h"
 
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_auto_download.h"
 #include "core/application.h"
@@ -86,9 +87,17 @@ Photo::~Photo() {
 
 void Photo::create(FullMsgId contextId, PeerData *chat) {
 	setLinks(
-		std::make_shared<PhotoOpenClickHandler>(_data, contextId, chat),
+		std::make_shared<PhotoOpenClickHandler>(
+			_data,
+			crl::guard(this, [=](FullMsgId id) { showPhoto(id); }),
+			contextId),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
-		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
+		std::make_shared<PhotoCancelClickHandler>(
+			_data,
+			crl::guard(this, [=](FullMsgId id) {
+				_parent->delegate()->elementCancelUpload(id);
+			}),
+			contextId));
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else if (_data->inlineThumbnailBytes().isEmpty()
@@ -771,7 +780,7 @@ void Photo::playAnimation(bool autoplay) {
 	if (_streamed && autoplay) {
 		return;
 	} else if (_streamed && videoAutoplayEnabled()) {
-		Core::App().showPhoto(_data, _parent->data());
+		showPhoto(_parent->data()->fullId());
 		return;
 	}
 	if (_streamed) {
@@ -842,6 +851,10 @@ void Photo::parentTextUpdated() {
 		? createCaption(_parent->data())
 		: Ui::Text::String();
 	history()->owner().requestViewResize(_parent);
+}
+
+void Photo::showPhoto(FullMsgId id) {
+	_parent->delegate()->elementOpenPhoto(_data, id);
 }
 
 } // namespace HistoryView

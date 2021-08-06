@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
-constexpr auto kDefaultScheduleDuration = 60 * TimeId(60);
 constexpr auto kLabelRefreshInterval = 10 * crl::time(1000);
 
 using Context = ChooseJoinAsProcess::Context;
@@ -336,7 +335,6 @@ void ChooseJoinAsProcess::start(
 	}, _request->lifetime);
 
 	const auto finish = [=](JoinInfo info) {
-		const auto peer = _request->peer;
 		const auto done = std::move(_request->done);
 		const auto box = _request->box;
 		_request = nullptr;

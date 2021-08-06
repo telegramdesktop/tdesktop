@@ -210,8 +210,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RGBA,
-				GL_RGBA,
+				Ui::GL::kFormatRGBA,
+				Ui::GL::kFormatRGBA,
 				data.original.size(),
 				_rgbaSize,
 				data.original.bytesPerLine() / 4,
@@ -230,8 +230,8 @@ void Panel::Incoming::RendererGL::paint(
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->size,
 				_lumaSize,
 				yuv->y.stride,
@@ -243,8 +243,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				_chromaSize,
 				yuv->u.stride,
@@ -255,8 +255,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				_chromaSize,
 				yuv->v.stride,

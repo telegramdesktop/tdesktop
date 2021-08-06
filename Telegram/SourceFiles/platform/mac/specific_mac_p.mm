@@ -243,9 +243,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 namespace Platform {
 
-void SetWatchingMediaKeys(bool watching) {
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	NSImage *image = nil;
 	if (!icon.isNull()) {

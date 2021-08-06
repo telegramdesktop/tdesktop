@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_database.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "main/main_session.h"
 
 namespace ChatHelpers {
@@ -186,6 +187,52 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		session,
 		content,
 		box);
+}
+
+bool PaintStickerThumbnailPath(
+		QPainter &p,
+		not_null<Data::DocumentMedia*> media,
+		QRect target,
+		QLinearGradient *gradient) {
+	const auto &path = media->thumbnailPath();
+	const auto dimensions = media->owner()->dimensions;
+	if (path.isEmpty() || dimensions.isEmpty() || target.isEmpty()) {
+		return false;
+	}
+	p.save();
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.translate(target.topLeft());
+	if (gradient) {
+		const auto scale = dimensions.width() / float64(target.width());
+		const auto shift = p.worldTransform().dx();
+		gradient->setStart((gradient->start().x() - shift) * scale, 0);
+		gradient->setFinalStop(
+			(gradient->finalStop().x() - shift) * scale,
+			0);
+		p.setBrush(*gradient);
+	}
+	p.scale(
+		target.width() / float64(dimensions.width()),
+		target.height() / float64(dimensions.height()));
+	p.drawPath(path);
+	p.restore();
+	return true;
+}
+
+bool PaintStickerThumbnailPath(
+		QPainter &p,
+		not_null<Data::DocumentMedia*> media,
+		QRect target,
+		not_null<Ui::PathShiftGradient*> gradient) {
+	return gradient->paint([&](const Ui::PathShiftGradient::Background &bg) {
+		if (const auto color = std::get_if<style::color>(&bg)) {
+			p.setBrush(*color);
+			return PaintStickerThumbnailPath(p, media, target);
+		}
+		const auto gradient = v::get<QLinearGradient*>(bg);
+		return PaintStickerThumbnailPath(p, media, target, gradient);
+	});
 }
 
 } // namespace ChatHelpers

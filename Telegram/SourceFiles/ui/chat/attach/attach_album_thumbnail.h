@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/effects/animations.h"
 #include "ui/grouped_layout.h"
@@ -70,7 +71,9 @@ private:
 	GroupMediaLayout _layout;
 	std::optional<QRect> _animateFromGeometry;
 	const QImage _fullPreview;
-	const int _shrinkSize = 0;
+	const int _shrinkSize;
+	const bool _isPhoto;
+	const bool _isVideo;
 	QPixmap _albumImage;
 	QImage _albumCache;
 	QPoint _albumPosition;
@@ -81,12 +84,12 @@ private:
 	QString _status;
 	int _nameWidth = 0;
 	int _statusWidth = 0;
-	bool _isVideo = false;
 	float64 _suggestedMove = 0.;
 	Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
-	RoundRect _buttonsRect;
+	AttachControls _buttons;
 
+	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;
 
 	object_ptr<IconButton> _editMedia = { nullptr };

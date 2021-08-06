@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "profile/profile_block_peer_list.h"
-
-#include <QtCore/QTimer>
 
 namespace Ui {
 class FlatLabel;
@@ -22,7 +21,6 @@ struct PeerUpdate;
 namespace Profile {
 
 class GroupMembersWidget : public PeerListWidget {
-	Q_OBJECT
 
 public:
 	GroupMembersWidget(
@@ -36,13 +34,9 @@ public:
 
 	~GroupMembersWidget();
 
-Q_SIGNALS:
-	void onlineCountUpdated(int onlineCount);
-
-private Q_SLOTS:
-	void onUpdateOnlineDisplay();
-
 private:
+	void updateOnlineDisplay();
+
 	// Observed notifications.
 	void notifyPeerUpdated(const Data::PeerUpdate &update);
 
@@ -85,7 +79,7 @@ private:
 
 	int _onlineCount = 0;
 	TimeId _updateOnlineAt = 0;
-	QTimer _updateOnlineTimer;
+	base::Timer _updateOnlineTimer;
 
 };
 

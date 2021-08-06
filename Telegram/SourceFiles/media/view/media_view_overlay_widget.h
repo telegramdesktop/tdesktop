@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
+#include "media/view/media_view_open_common.h"
 
 namespace Data {
 class PhotoMedia;
@@ -77,14 +78,7 @@ public:
 	void setFocus();
 	void activate();
 
-	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
-	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
-	void showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context);
-	void showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud);
+	void show(OpenRequest request);
 
 	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from enterEvent() of child TWidget
@@ -97,8 +91,6 @@ public:
 
 	void activateControls();
 	void close();
-
-	PeerData *ui_getPeerForMouseAction();
 
 	void notifyFileDialogShown(bool shown);
 
@@ -288,11 +280,6 @@ private:
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
-	void showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context,
-		const Data::CloudTheme &cloud,
-		bool continueStreaming);
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(
 		DocumentData *document,
@@ -422,10 +409,13 @@ private:
 
 	void applyHideWindowWorkaround();
 
+	Window::SessionController *findWindow(bool switchTo = true) const;
+
 	bool _opengl = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
 
+	base::weak_ptr<Window::Controller> _window;
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;

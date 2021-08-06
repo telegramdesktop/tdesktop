@@ -7,7 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 class UserData;
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 namespace Calls::Group {
 
@@ -61,11 +67,23 @@ enum class VideoQuality {
 
 enum class Error {
 	NoCamera,
+	CameraFailed,
 	ScreenFailed,
 	MutedNoCamera,
 	MutedNoScreen,
 	DisabledNoCamera,
 	DisabledNoScreen,
 };
+
+enum class StickedTooltip {
+	Camera     = 0x01,
+	Microphone = 0x02,
+};
+constexpr inline bool is_flag_type(StickedTooltip) {
+	return true;
+}
+using StickedTooltips = base::flags<StickedTooltip>;
+
+[[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
 
 } // namespace Calls::Group

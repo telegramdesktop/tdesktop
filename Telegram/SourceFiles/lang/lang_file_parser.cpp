@@ -173,7 +173,6 @@ QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &rela
 	file.seek(0);
 
 	QByteArray data;
-	int skip = 0;
 	auto readUtf16Stream = [relativePath, absolutePath](auto &&stream) {
 		stream.setCodec("UTF-16");
 		auto string = stream.readAll();

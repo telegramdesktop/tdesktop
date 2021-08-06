@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "base/qt_adapters.h"
+#include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
 #include "app.h"
 
@@ -312,6 +313,7 @@ void Sandbox::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
+	Ui::DisableCustomScaling();
 	refreshGlobalProxy();
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();

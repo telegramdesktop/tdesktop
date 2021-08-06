@@ -191,7 +191,7 @@ void Viewport::updateSelected(QPoint position) {
 		return;
 	}
 	for (const auto &tile : _tiles) {
-		const auto geometry = tile->shown()
+		const auto geometry = tile->visible()
 			? tile->geometry()
 			: QRect();
 		if (geometry.contains(position)) {
@@ -352,7 +352,6 @@ Viewport::Layout Viewport::applyLarge(Layout layout) const {
 	const auto largeTop = largeRect.y();
 	const auto largeRight = largeLeft + largeRect.width();
 	const auto largeBottom = largeTop + largeRect.height();
-	const auto largeCenter = largeRect.center();
 	for (auto &geometry : list) {
 		if (geometry.tile == _large) {
 			geometry.*field = { QPoint(), layout.outer };
@@ -763,9 +762,14 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	const auto kMedium = style::ConvertScale(540);
 	const auto kSmall = style::ConvertScale(240);
 	const auto &endpoint = tile->endpoint();
-	const auto quality = (min >= kMedium)
+	const auto forceThumbnailQuality = !wide()
+		&& (ranges::count(_tiles, false, &VideoTile::hidden) > 1);
+	const auto forceFullQuality = wide() && (tile.get() == _large);
+	const auto quality = forceThumbnailQuality
+		? VideoQuality::Thumbnail
+		: (forceFullQuality || min >= kMedium)
 		? VideoQuality::Full
-		: (min >= kSmall && endpoint.type != VideoEndpointType::Screen)
+		: (min >= kSmall)
 		? VideoQuality::Medium
 		: VideoQuality::Thumbnail;
 	if (tile->updateRequestedQuality(quality)) {

@@ -23,12 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_document_resolver.h"
 #include "data/data_file_origin.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -99,12 +99,10 @@ private:
 };
 
 ServiceCheck::Generator::Generator() {
-	*_lifetime.make_state<base::Subscription>() = Window::Theme::Background(
-	)->add_subscription([=](const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			invalidate();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		invalidate();
+	}, _lifetime);
 }
 
 auto ServiceCheck::Generator::framesForStyle(
@@ -288,24 +286,25 @@ AdminLog::OwnedItem GenerateTextItem(
 		bool out) {
 	Expects(history->peer->isUser());
 
-	using Flag = MTPDmessage::Flag;
 	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 3);
-	const auto flags = Flag::f_entities
-		| Flag::f_from_id
-		| (out ? Flag::f_out : Flag(0));
-	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
-	const auto replyTo = 0;
-	const auto viaBotId = UserId(0);
+	const auto flags = MessageFlag::FakeHistoryItem
+		| MessageFlag::HasFromId
+		| (out ? MessageFlag::Outgoing : MessageFlag(0));
+	const auto replyTo = MsgId();
+	const auto viaBotId = UserId();
+	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
 		++id,
 		flags,
-		clientFlags,
 		replyTo,
 		viaBotId,
 		base::unixtime::now(),
 		out ? history->session().userId() : peerToUser(history->peer->id),
 		QString(),
-		TextWithEntities{ TextUtilities::Clean(text) });
+		TextWithEntities{ TextUtilities::Clean(text) },
+		MTP_messageMediaEmpty(),
+		MTPReplyMarkup(),
+		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -398,7 +397,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
 	const Data::WallPaper &paper)
-: SimpleElementDelegate(controller)
+: SimpleElementDelegate(controller, [=] { update(); })
 , _controller(controller)
 , _text1(GenerateTextItem(
 	delegate(),
@@ -624,6 +623,7 @@ void BackgroundPreviewBox::paintDate(Painter &p) {
 	if (!date || !_serviceBg) {
 		return;
 	}
+	auto hq = PainterHighQualityEnabler(p);
 	const auto text = date->text;
 	const auto bubbleHeight = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
 	const auto bubbleTop = st::msgServiceMargin.top();
@@ -687,8 +687,8 @@ void BackgroundPreviewBox::setScaledFromImage(
 	if (!_full.isNull()) {
 		startFadeInFrom(std::move(_scaled));
 	}
-	_scaled = App::pixmapFromImageInPlace(std::move(image));
-	_blurred = App::pixmapFromImageInPlace(std::move(blurred));
+	_scaled = Ui::PixmapFromImage(std::move(image));
+	_blurred = Ui::PixmapFromImage(std::move(blurred));
 	if (_blur && (!_paper.document() || !_full.isNull())) {
 		_blur->setDisabled(false);
 	}
@@ -760,7 +760,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 	};
 	_generating = Data::ReadImageAsync(
 		_media.get(),
-		Window::Theme::ProcessBackgroundImage,
+		Window::Theme::PreprocessBackgroundImage,
 		generateCallback);
 }
 
@@ -769,23 +769,25 @@ bool BackgroundPreviewBox::Start(
 		const QString &slug,
 		const QMap<QString, QString> &params) {
 	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
-		Ui::show(Box<BackgroundPreviewBox>(
+		controller->show(Box<BackgroundPreviewBox>(
 			controller,
 			paper->withUrlParams(params)));
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
-		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
+		controller->show(
+			Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
 	controller->session().api().requestWallPaper(slug, crl::guard(controller, [=](
 			const Data::WallPaper &result) {
-		Ui::show(Box<BackgroundPreviewBox>(
+		controller->show(Box<BackgroundPreviewBox>(
 			controller,
 			result.withUrlParams(params)));
-	}), [](const MTP::Error &error) {
-		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
-	});
+	}), crl::guard(controller, [=](const MTP::Error &error) {
+		controller->show(
+			Box<InformBox>(tr::lng_background_bad_link(tr::now)));
+	}));
 	return true;
 }
 

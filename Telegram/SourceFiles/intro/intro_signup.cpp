@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/intro_widget.h"
 #include "core/file_utilities.h"
-#include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
@@ -29,6 +28,7 @@ SignupWidget::SignupWidget(
 : Step(parent, account, data)
 , _photo(
 	this,
+	data->controller,
 	tr::lng_settings_crop_profile(tr::now),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)

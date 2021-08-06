@@ -205,7 +205,6 @@ void Pip::RendererSW::paintTransformedImage(
 	const auto rect = geometry.inner;
 	const auto rotation = geometry.rotation;
 	if (geometry.useTransparency) {
-		const auto sides = RectPart::AllSides & ~geometry.attached;
 		Ui::Shadow::paint(*_p, rect, geometry.outer.width(), st::callShadow);
 	}
 

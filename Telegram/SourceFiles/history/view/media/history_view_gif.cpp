@@ -33,9 +33,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
-#include "layout.h" // FullSelection
+#include "layout/layout_selection.h" // FullSelection
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -714,7 +715,6 @@ TextState Gif::cornerStatusTextState(
 		return result;
 	}
 	const auto padding = st::msgDateImgPadding;
-	const auto addWidth = st::historyVideoDownloadSize + 2 * padding.y() - padding.x();
 	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
 	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
@@ -927,9 +927,6 @@ void Gif::drawGrouped(
 	const auto streamingMode = _streamed || autoplay;
 	const auto activeOwnPlaying = activeOwnStreamed();
 
-	auto paintx = geometry.x(), painty = geometry.y(), paintw = geometry.width(), painth = geometry.height();
-
-	auto displayMute = false;
 	const auto streamed = activeOwnPlaying
 		? &activeOwnPlaying->instance
 		: nullptr;
@@ -1256,9 +1253,7 @@ void Gif::setStatusSize(int newSize) const {
 
 void Gif::updateStatusText() const {
 	ensureDataMediaCreated();
-	auto showPause = false;
 	auto statusSize = 0;
-	auto realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
@@ -1387,7 +1382,10 @@ void Gif::playAnimation(bool autoplay) {
 		return;
 	} else if ((_streamed && autoplayEnabled())
 		|| (!autoplay && _data->isVideoFile())) {
-		Core::App().showDocument(_data, _parent->data());
+		_parent->delegate()->elementOpenDocument(
+			_data,
+			_parent->data()->fullId(),
+			true);
 		return;
 	}
 	if (_streamed) {

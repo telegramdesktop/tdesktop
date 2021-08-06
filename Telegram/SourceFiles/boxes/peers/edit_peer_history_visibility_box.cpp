@@ -64,8 +64,6 @@ void FillContent(
 		return;
 	}
 
-	const auto channel = peer->asChannel();
-
 	historyVisibility->setValue(savedValue);
 
 	const auto result = parent->add(

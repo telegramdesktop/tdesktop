@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/ui/desktop_capture_choose_source.h"
 
-#include "ui/widgets/window.h"
+#include "ui/widgets/rp_window.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -62,6 +63,7 @@ public:
 
 	[[nodiscard]] rpl::producer<> activations() const;
 	void setActive(bool active);
+	[[nodiscard]] QString deviceIdKey() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -94,6 +96,7 @@ private:
 	void setupGeometryWithParent(not_null<QWidget*> parent);
 	void fillSources();
 	void setupSourcesGeometry();
+	void updateButtonsVisibility();
 	void destroy();
 
 	static base::flat_map<
@@ -101,12 +104,13 @@ private:
 		std::unique_ptr<ChooseSourceProcess>> &Map();
 
 	const not_null<ChooseSourceDelegate*> _delegate;
-	const std::unique_ptr<Ui::Window> _window;
+	const std::unique_ptr<RpWindow> _window;
 	const std::unique_ptr<ScrollArea> _scroll;
 	const not_null<RpWidget*> _inner;
 	const not_null<RpWidget*> _bottom;
 	const not_null<RoundButton*> _submit;
 	const not_null<RoundButton*> _finish;
+	const not_null<Checkbox*> _withAudio;
 
 	std::vector<std::unique_ptr<Source>> _sources;
 	Source *_selected = nullptr;
@@ -164,6 +168,10 @@ Source::Source(
 
 rpl::producer<> Source::activations() const {
 	return _activations.events();
+}
+
+QString Source::deviceIdKey() const {
+	return QString::fromStdString(_source.deviceIdKey());
 }
 
 void Source::setActive(bool active) {
@@ -242,7 +250,7 @@ rpl::lifetime &Source::lifetime() {
 ChooseSourceProcess::ChooseSourceProcess(
 	not_null<ChooseSourceDelegate*> delegate)
 : _delegate(delegate)
-, _window(std::make_unique<Ui::Window>())
+, _window(std::make_unique<RpWindow>())
 , _scroll(std::make_unique<ScrollArea>(_window->body()))
 , _inner(_scroll->setOwnedWidget(object_ptr<RpWidget>(_scroll.get())))
 , _bottom(CreateChild<RpWidget>(_window->body().get()))
@@ -255,7 +263,13 @@ ChooseSourceProcess::ChooseSourceProcess(
 	CreateChild<RoundButton>(
 		_bottom.get(),
 		tr::lng_group_call_screen_share_stop(),
-		st::desktopCaptureFinish)) {
+		st::desktopCaptureFinish))
+, _withAudio(
+	CreateChild<Checkbox>(
+		_bottom.get(),
+		tr::lng_group_call_screen_share_audio(tr::now),
+		false,
+		st::desktopCaptureWithAudio)) {
 	setupPanel();
 	setupSources();
 	activate();
@@ -336,7 +350,9 @@ void ChooseSourceProcess::setupPanel() {
 			return;
 		}
 		const auto weak = MakeWeak(_window.get());
-		_delegate->chooseSourceAccepted(_selectedId);
+		_delegate->chooseSourceAccepted(
+			_selectedId,
+			!_withAudio->isHidden() && _withAudio->checked());
 		if (const auto strong = weak.data()) {
 			strong->close();
 		}
@@ -375,6 +391,18 @@ void ChooseSourceProcess::setupPanel() {
 			bottomSkip);
 	}, _bottom->lifetime());
 
+	_withAudio->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto top = (bottomHeight - _withAudio->heightNoMargins()) / 2;
+		_withAudio->moveToLeft(bottomSkip, top);
+	}, _withAudio->lifetime());
+
+	_withAudio->setChecked(_delegate->chooseSourceActiveWithAudio());
+	_withAudio->checkedChanges(
+	) | rpl::start_with_next([=] {
+		updateButtonsVisibility();
+	}, _withAudio->lifetime());
+
 	const auto sharing = !_delegate->chooseSourceActiveDeviceId().isEmpty();
 	_finish->setVisible(sharing);
 	_submit->setVisible(!sharing);
@@ -395,7 +423,7 @@ void ChooseSourceProcess::setupPanel() {
 			+ rows * st::desktopCaptureSourceSize.height()
 			+ (rows - 1) * skips.height()
 			+ margins.bottom();
-		_inner->resize(width, std::max(height, innerHeight));
+		_inner->resize(width, innerHeight);
 	}, _inner->lifetime());
 
 	if (const auto parent = _delegate->chooseSourceParent()) {
@@ -419,6 +447,8 @@ void ChooseSourceProcess::fillSources() {
 	using Type = tgcalls::DesktopCaptureType;
 	auto screensManager = tgcalls::DesktopCaptureSourceManager(Type::Screen);
 	auto windowsManager = tgcalls::DesktopCaptureSourceManager(Type::Window);
+
+	_withAudio->setVisible(_delegate->chooseSourceWithAudioSupported());
 
 	auto screenIndex = 0;
 	auto windowIndex = 0;
@@ -448,15 +478,7 @@ void ChooseSourceProcess::fillSources() {
 				_selected->setActive(false);
 			}
 			_selected = raw;
-			_selectedId = QString::fromStdString(id);
-			if (_selectedId == _delegate->chooseSourceActiveDeviceId()) {
-				_selectedId = QString();
-				_finish->setVisible(true);
-				_submit->setVisible(false);
-			} else {
-				_finish->setVisible(false);
-				_submit->setVisible(true);
-			}
+			updateButtonsVisibility();
 		}, raw->lifetime());
 	};
 	for (const auto &source : screensManager.sources()) {
@@ -464,6 +486,24 @@ void ChooseSourceProcess::fillSources() {
 	}
 	for (const auto &source : windowsManager.sources()) {
 		append(source);
+	}
+}
+
+void ChooseSourceProcess::updateButtonsVisibility() {
+	const auto selectedId = _selected
+		? _selected->deviceIdKey()
+		: QString();
+	if (selectedId == _delegate->chooseSourceActiveDeviceId()
+		&& (!_delegate->chooseSourceWithAudioSupported()
+			|| (_withAudio->checked()
+				== _delegate->chooseSourceActiveWithAudio()))) {
+		_selectedId = QString();
+		_finish->setVisible(true);
+		_submit->setVisible(false);
+	} else {
+		_selectedId = selectedId;
+		_finish->setVisible(false);
+		_submit->setVisible(true);
 	}
 }
 

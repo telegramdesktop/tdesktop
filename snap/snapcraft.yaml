@@ -60,6 +60,10 @@ plugs:
     default-provider: gtk-common-themes
 
 slots:
+  tdesktop-dbus:
+    interface: dbus
+    bus: session
+    name: org.telegram.desktop
   tdesktop-mpris:
     interface: mpris
     name: tdesktop
@@ -117,7 +121,6 @@ parts:
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
-      - -DDESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES=OFF
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       snapcraftctl pull
@@ -303,6 +306,7 @@ parts:
       - libfreetype-dev
       - libgl-dev
       - libglib2.0-dev
+      - libgtk-3-dev
       - libharfbuzz-dev
       - libicu-dev
       - libpcre2-dev
@@ -338,6 +342,7 @@ parts:
       - libfreetype6
       - libgl1
       - libglib2.0-0
+      - libgtk-3-0
       - libharfbuzz0b
       - libicu66
       - libpcre2-16-0
@@ -398,7 +403,6 @@ parts:
         -release \
         -opensource \
         -confirm-license \
-        -no-gtk \
         -no-feature-xcb-sm \
         -no-feature-xcomposite-egl \
         -no-feature-xcomposite-glx \
@@ -420,6 +424,8 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
+      # Allow tdesktop's custom try-portal-and-fallback logic to work
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes/libqxdgdesktopportal.so
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.prl
@@ -451,7 +457,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 2410d5f77938e026c63dad14411a9656def0c3a8
+    source-commit: 91d836dc84a16584c6ac52b36c04c0de504d9c34
     plugin: cmake
     build-packages:
       - yasm

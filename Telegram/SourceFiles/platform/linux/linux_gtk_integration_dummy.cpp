@@ -10,33 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace internal {
 
+class GtkIntegration::Private {
+};
+
 GtkIntegration::GtkIntegration() {
 }
+
+GtkIntegration::~GtkIntegration() = default;
 
 GtkIntegration *GtkIntegration::Instance() {
 	return nullptr;
 }
 
-void GtkIntegration::load() {
+void GtkIntegration::load(const QString &allowedBackends) {
 }
 
-std::optional<int> GtkIntegration::scaleFactor() const {
-	return std::nullopt;
-}
-
-bool GtkIntegration::useFileDialog(FileDialogType type) const {
-	return false;
-}
-
-bool GtkIntegration::getFileDialog(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		FileDialogType type,
-		QString startFile) const {
-	return false;
+int GtkIntegration::exec(const QString &parentDBusName) {
+	return 1;
 }
 
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
@@ -45,6 +35,23 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 
 QImage GtkIntegration::getImageFromClipboard() const {
 	return {};
+}
+
+QString GtkIntegration::AllowedBackends() {
+	return {};
+}
+
+int GtkIntegration::Exec(
+		Type type,
+		const QString &parentDBusName,
+		const QString &serviceName) {
+	return 1;
+}
+
+void GtkIntegration::Start(Type type) {
+}
+
+void GtkIntegration::Autorestart(Type type) {
 }
 
 } // namespace internal

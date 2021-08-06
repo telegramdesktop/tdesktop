@@ -292,7 +292,6 @@ bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
 		return file.deleted;
 	};
 
-	auto filesCount = 0;
 	for (const auto &scan : value->filesInEdit(FileType::Scan)) {
 		if (FileChanged(scan)) {
 			return true;
@@ -1002,7 +1001,8 @@ void FormController::recoverPassword() {
 		const auto box = _view->show(Box<RecoverBox>(
 			&_controller->session(),
 			pattern,
-			_password.notEmptyPassport));
+			_password.notEmptyPassport,
+			_password.pendingResetDate != 0));
 
 		box->passwordCleared(
 		) | rpl::start_with_next([=] {
@@ -1139,7 +1139,6 @@ void FormController::decryptValues() {
 
 void FormController::fillErrors() {
 	const auto find = [&](const MTPSecureValueType &type) -> Value* {
-		const auto converted = ConvertType(type);
 		const auto i = _form.values.find(ConvertType(type));
 		if (i != end(_form.values)) {
 			return &i->second;
@@ -1382,7 +1381,6 @@ void FormController::uploadScan(
 			nullptr);
 		if (type == FileType::Scan || type == FileType::Translation) {
 			auto &list = nonconst->filesInEdit(type);
-			auto scanIndex = int(list.size());
 			list.push_back(std::move(scanInEdit));
 			return list.size() - 1;
 		}
@@ -2639,6 +2637,7 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 		Core::ParseCloudPasswordAlgo(result.vnew_algo()));
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(
 		Core::ParseSecureSecretAlgo(result.vnew_secure_algo()));
+	settings.pendingResetDate = result.vpending_reset_date().value_or_empty();
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random().v));
 	return applyPassword(std::move(settings));
 }

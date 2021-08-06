@@ -13,11 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "boxes/confirm_box.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
-#include "app.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
@@ -99,7 +99,7 @@ CodeWidget::CodeWidget(
 
 	_code->setDigitsCountMax(getData()->codeLength);
 
-	setTitleText(rpl::single(App::formatPhone(getData()->phone)));
+	setTitleText(rpl::single(Ui::FormatPhone(getData()->phone)));
 	updateDescText();
 }
 

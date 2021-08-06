@@ -36,7 +36,6 @@ public:
 		bool protocolForFiles) override;
 	void timedOut() override;
 	bool isConnected() const override;
-	bool requiresExtendedPadding() const override;
 
 	int32 debugState() const override;
 

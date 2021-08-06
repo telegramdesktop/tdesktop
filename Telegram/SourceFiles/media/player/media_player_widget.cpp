@@ -206,6 +206,11 @@ void Widget::setCloseCallback(Fn<void()> callback) {
 	_close->setClickedCallback([this] { stopAndClose(); });
 }
 
+void Widget::setShowItemCallback(
+		Fn<void(not_null<const HistoryItem*>)> callback) {
+	_showItemCallback = std::move(callback);
+}
+
 void Widget::stopAndClose() {
 	_voiceIsActive = false;
 	if (_type == AudioMsgId::Type::Voice) {
@@ -266,10 +271,6 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	const auto positionMs = std::clamp(
-		static_cast<crl::time>(progress * _lastDurationMs),
-		crl::time(0),
-		_lastDurationMs);
 	_seekPositionMs = -1;
 
 	instance()->finishSeeking(_type, progress);
@@ -311,15 +312,16 @@ void Widget::mousePressEvent(QMouseEvent *e) {
 
 void Widget::mouseReleaseEvent(QMouseEvent *e) {
 	if (auto downLabels = base::take(_labelsDown)) {
-		if (_labelsOver == downLabels) {
-			if (_type == AudioMsgId::Type::Voice) {
-				const auto current = instance()->current(_type);
-				const auto document = current.audio();
-				const auto context = current.contextId();
-				if (document && context) {
-					if (const auto item = document->owner().message(context)) {
-						Ui::showPeerHistoryAtItem(item);
-					}
+		if (_labelsOver != downLabels) {
+			return;
+		}
+		if (_type == AudioMsgId::Type::Voice) {
+			const auto current = instance()->current(_type);
+			const auto document = current.audio();
+			const auto context = current.contextId();
+			if (document && context && _showItemCallback) {
+				if (const auto item = document->owner().message(context)) {
+					_showItemCallback(item);
 				}
 			}
 		}
@@ -458,7 +460,6 @@ void Widget::handleSongUpdate(const TrackState &state) {
 		_playbackProgress->updateState(state);
 	}
 
-	auto stopped = IsStoppedOrStopping(state.state);
 	auto showPause = ShowPauseIcon(state.state);
 	if (instance()->isSeeking(_type)) {
 		showPause = true;
@@ -477,12 +478,11 @@ void Widget::handleSongUpdate(const TrackState &state) {
 }
 
 void Widget::updateTimeText(const TrackState &state) {
-	qint64 position = 0, length = 0, display = 0;
+	qint64 display = 0;
 	const auto frequency = state.frequency;
 	const auto document = state.id.audio();
 	if (!IsStoppedOrStopping(state.state)) {
-		display = position = state.position;
-		length = state.length;
+		display = state.position;
 	} else if (state.length) {
 		display = state.length;
 	} else if (const auto song = document->song()) {

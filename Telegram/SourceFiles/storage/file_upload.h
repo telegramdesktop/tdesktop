@@ -33,21 +33,16 @@ struct UploadedPhoto {
 	Api::SendOptions options;
 	MTPInputFile file;
 	bool edit = false;
+	std::vector<MTPInputDocument> attachedStickers;
 };
 
 struct UploadedDocument {
 	FullMsgId fullId;
 	Api::SendOptions options;
 	MTPInputFile file;
+	std::optional<MTPInputFile> thumb;
 	bool edit = false;
-};
-
-struct UploadedThumbDocument {
-	FullMsgId fullId;
-	Api::SendOptions options;
-	MTPInputFile file;
-	MTPInputFile thumb;
-	bool edit = false;
+	std::vector<MTPInputDocument> attachedStickers;
 };
 
 struct UploadSecureProgress {
@@ -85,9 +80,6 @@ public:
 	}
 	rpl::producer<UploadedDocument> documentReady() const {
 		return _documentReady.events();
-	}
-	rpl::producer<UploadedThumbDocument> thumbDocumentReady() const {
-		return _thumbDocumentReady.events();
 	}
 	rpl::producer<UploadSecureDone> secureReady() const {
 		return _secureReady.events();
@@ -148,7 +140,6 @@ private:
 
 	rpl::event_stream<UploadedPhoto> _photoReady;
 	rpl::event_stream<UploadedDocument> _documentReady;
-	rpl::event_stream<UploadedThumbDocument> _thumbDocumentReady;
 	rpl::event_stream<UploadSecureDone> _secureReady;
 	rpl::event_stream<FullMsgId> _photoProgress;
 	rpl::event_stream<FullMsgId> _documentProgress;

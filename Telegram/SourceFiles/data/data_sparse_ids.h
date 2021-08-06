@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_abstract_sparse_ids.h"
 #include "data/data_messages.h"
 
 namespace Storage {
@@ -14,35 +15,14 @@ struct SparseIdsListResult;
 struct SparseIdsSliceUpdate;
 } // namespace Storage
 
-class SparseIdsSlice {
+class SparseIdsSlice final : public AbstractSparseIds<base::flat_set<MsgId>> {
 public:
 	using Key = MsgId;
-
-	SparseIdsSlice() = default;
-	SparseIdsSlice(
-		const base::flat_set<MsgId> &ids,
-		MsgRange range,
-		std::optional<int> fullCount,
-		std::optional<int> skippedBefore,
-		std::optional<int> skippedAfter);
-
-	std::optional<int> fullCount() const { return _fullCount; }
-	std::optional<int> skippedBefore() const { return _skippedBefore; }
-	std::optional<int> skippedAfter() const { return _skippedAfter; }
-	std::optional<int> indexOf(MsgId msgId) const;
-	int size() const { return _ids.size(); }
-	MsgId operator[](int index) const;
-	std::optional<int> distance(MsgId a, MsgId b) const;
-	std::optional<MsgId> nearest(MsgId msgId) const;
-
-private:
-	base::flat_set<MsgId> _ids;
-	MsgRange _range;
-	std::optional<int> _fullCount;
-	std::optional<int> _skippedBefore;
-	std::optional<int> _skippedAfter;
+	using AbstractSparseIds<base::flat_set<MsgId>>::AbstractSparseIds;
 
 };
+
+using SparseUnsortedIdsSlice = AbstractSparseIds<std::vector<MsgId>>;
 
 class SparseIdsMergedSlice {
 public:
@@ -51,9 +31,11 @@ public:
 		Key(
 			PeerId peerId,
 			PeerId migratedPeerId,
-			UniversalMsgId universalId)
+			UniversalMsgId universalId,
+			bool scheduled = false)
 		: peerId(peerId)
-		, migratedPeerId(migratedPeerId)
+		, scheduled(scheduled)
+		, migratedPeerId(scheduled ? 0 : migratedPeerId)
 		, universalId(universalId) {
 		}
 
@@ -67,6 +49,7 @@ public:
 		}
 
 		PeerId peerId = 0;
+		bool scheduled = false;
 		PeerId migratedPeerId = 0;
 		UniversalMsgId universalId = 0;
 
@@ -77,6 +60,9 @@ public:
 		Key key,
 		SparseIdsSlice part,
 		std::optional<SparseIdsSlice> migrated);
+	SparseIdsMergedSlice(
+		Key key,
+		SparseUnsortedIdsSlice scheduled);
 
 	std::optional<int> fullCount() const;
 	std::optional<int> skippedBefore() const;
@@ -155,6 +141,7 @@ private:
 	Key _key;
 	SparseIdsSlice _part;
 	std::optional<SparseIdsSlice> _migrated;
+	std::optional<SparseUnsortedIdsSlice> _scheduled;
 
 };
 
@@ -205,7 +192,6 @@ private:
 
 	Key _key;
 	base::flat_set<MsgId> _ids;
-	MsgRange _range;
 	std::optional<int> _fullCount;
 	std::optional<int> _skippedBefore;
 	std::optional<int> _skippedAfter;

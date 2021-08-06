@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "core/update_checker.h"
 #include "data/data_countries.h"
-#include "app.h"
 #include "styles/style_layers.h"
 
 namespace Passport {
@@ -100,11 +99,11 @@ std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
 	for (const auto type : types) {
 		if (value.requiresSpecialScan(type)) {
 			const auto i = value.specialScansInEdit.find(type);
-			const auto j = result.emplace(
+			result.emplace(
 				type,
 				(i != end(value.specialScansInEdit)
 					? CollectScanInfo(i->second)
-					: ScanInfo(type))).first;
+					: ScanInfo(type)));
 		}
 	}
 	return result;
@@ -485,7 +484,7 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 			).match(value).hasMatch();
 		};
 		result.format = [](const QString &value) {
-			return App::formatPhone(value);
+			return Ui::FormatPhone(value);
 		};
 		result.postprocess = [](QString value) {
 			return value.replace(QRegularExpression("[^\\d]"), QString());
@@ -1064,7 +1063,6 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	const auto type = document->requiresSpecialScan(FileType::FrontSide)
 		? FileType::FrontSide
 		: FileType::Scan;
-	const auto allowMany = (type == FileType::Scan);
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), type, [=](QByteArray &&content) {
 		if (_scopeDocumentTypeBox) {

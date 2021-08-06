@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/ui_integration.h"
@@ -49,6 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_rotation.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "data/data_document_resolver.h"
+#include "data/data_file_click_handler.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -62,7 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "layout.h"
+#include "layout/layout_document_generic_preview.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
@@ -506,8 +509,16 @@ void OverlayWidget::updateGeometry() {
 		? window()->screen()
 		: QApplication::primaryScreen();
 	const auto available = screen->geometry();
-	const auto useSizeHack = _opengl && Platform::IsWindows();
-	const auto use = available.marginsAdded({ 0, 0, 0, 1 });
+	const auto openglWidget = _opengl
+		? static_cast<QOpenGLWidget*>(_widget.get())
+		: nullptr;
+	const auto useSizeHack = Platform::IsWindows()
+		&& openglWidget
+		&& (openglWidget->format().renderableType()
+			!= QSurfaceFormat::OpenGLES);
+	const auto use = useSizeHack
+		? available.marginsAdded({ 0, 0, 0, 1 })
+		: available;
 	const auto mask = useSizeHack
 		? QRegion(QRect(QPoint(), available.size()))
 		: QRegion();
@@ -1066,7 +1077,6 @@ void OverlayWidget::resizeContentByScreenSize() {
 		: (_streamed->controls.y()
 			- st::mediaviewCaptionPadding.bottom()
 			- st::mediaviewCaptionMargin.height());
-	const auto skipWidth = 0;
 	const auto skipHeight = (height() - bottom);
 	const auto availableWidth = width();
 	const auto availableHeight = height() - 2 * skipHeight;
@@ -1428,9 +1438,12 @@ void OverlayWidget::toMessage() {
 	if (!_session) {
 		return;
 	}
+
 	if (const auto item = _session->data().message(_msgid)) {
 		close();
-		Ui::showPeerHistoryAtItem(item);
+		if (const auto window = findWindow()) {
+			window->showPeerHistoryAtItem(item);
+		}
 	}
 }
 
@@ -1554,18 +1567,14 @@ void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
 		saveCancel();
 	} else {
-		DocumentOpenClickHandler::Open(
-			fileOrigin(),
+		Data::ResolveDocument(
+			findWindow(),
 			_document,
 			_document->owner().message(_msgid));
 		if (_document->loading() && !_radial.animating()) {
 			_radial.start(_documentMedia->progress());
 		}
 	}
-}
-
-PeerData *OverlayWidget::ui_getPeerForMouseAction() {
-	return _history ? _history->peer.get() : nullptr;
 }
 
 void OverlayWidget::downloadMedia() {
@@ -1809,19 +1818,31 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 			_photo
 		};
 	}
-	if (!IsServerMsgId(_msgid.msg)) {
-		return std::nullopt;
-	}
-	auto keyForType = [this](SharedMediaType type) -> SharedMediaKey {
+	const auto isServerMsgId = IsServerMsgId(_msgid.msg);
+	const auto isScheduled = [&] {
+		if (isServerMsgId) {
+			return false;
+		}
+		if (const auto item = _session->data().message(_msgid)) {
+			return item->isScheduled();
+		}
+		return false;
+	}();
+	const auto keyForType = [&](SharedMediaType type) -> SharedMediaKey {
 		return {
 			_history->peer->id,
 			_migrated ? _migrated->peer->id : 0,
 			type,
-			(_msgid.channel == _history->channelId()) ? _msgid.msg : (_msgid.msg - ServerMaxMsgId) };
+			(_msgid.channel == _history->channelId())
+				? _msgid.msg
+				: (_msgid.msg - ServerMaxMsgId),
+			isScheduled
+		};
 	};
-	return
-		sharedMediaType()
-		| keyForType;
+	if (!isServerMsgId && !isScheduled) {
+		return std::nullopt;
+	}
+	return sharedMediaType() | keyForType;
 }
 
 Data::FileOrigin OverlayWidget::fileOrigin() const {
@@ -1859,7 +1880,8 @@ bool OverlayWidget::validSharedMedia() const {
 		auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.type == b.type)
 				&& (a.peerId == b.peerId)
-				&& (a.migratedPeerId == b.migratedPeerId);
+				&& (a.migratedPeerId == b.migratedPeerId)
+				&& (a.scheduled == b.scheduled);
 		};
 		auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SharedMediaWithLastSlice &data) {
@@ -2004,15 +2026,6 @@ bool OverlayWidget::validCollage() const {
 		if (!_collage) {
 			return false;
 		}
-		const auto countDistanceInData = [](const auto &a, const auto &b) {
-			return [&](const WebPageCollage &data) {
-				const auto i = ranges::find(data.items, a);
-				const auto j = ranges::find(data.items, b);
-				return (i != end(data.items) && j != end(data.items))
-					? std::make_optional(i - j)
-					: std::nullopt;
-			};
-		};
 
 		if (key == _collage->key) {
 			return true;
@@ -2087,12 +2100,6 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	if (caption.text.isEmpty()) {
 		return;
 	}
-	const auto asBot = [&] {
-		if (const auto author = item->author()->asUser()) {
-			return author->isBot();
-		}
-		return false;
-	}();
 
 	using namespace HistoryView;
 	_caption = Ui::Text::String(st::msgMinWidth);
@@ -2245,73 +2252,58 @@ void OverlayWidget::activate() {
 	setFocus();
 }
 
-void OverlayWidget::showPhoto(
-		not_null<PhotoData*> photo,
-		HistoryItem *context) {
-	setSession(&photo->session());
+void OverlayWidget::show(OpenRequest request) {
+	const auto document = request.document();
+	const auto photo = request.photo();
+	const auto contextItem = request.item();
+	const auto contextPeer = request.peer();
+	if (photo) {
+		if (contextItem && contextPeer) {
+			return;
+		}
+		setSession(&photo->session());
 
-	if (context) {
-		setContext(context);
-	} else {
-		setContext(v::null);
-	}
+		if (contextPeer) {
+			setContext(contextPeer);
+		} else if (contextItem) {
+			setContext(contextItem);
+		} else {
+			setContext(v::null);
+		}
 
-	clearControlsState();
-	_firstOpenedPeerPhoto = false;
-	assignMediaPointer(photo);
+		clearControlsState();
+		_firstOpenedPeerPhoto = (contextPeer != nullptr);
+		assignMediaPointer(photo);
 
-	displayPhoto(photo, context);
-	preloadData(0);
-	activateControls();
-}
-
-void OverlayWidget::showPhoto(
-		not_null<PhotoData*> photo,
-		not_null<PeerData*> context) {
-	setSession(&photo->session());
-	setContext(context);
-
-	clearControlsState();
-	_firstOpenedPeerPhoto = true;
-	assignMediaPointer(photo);
-
-	displayPhoto(photo, nullptr);
-	preloadData(0);
-	activateControls();
-}
-
-void OverlayWidget::showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context) {
-	showDocument(document, context, Data::CloudTheme(), false);
-}
-
-void OverlayWidget::showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud) {
-	showDocument(document, nullptr, cloud, false);
-}
-
-void OverlayWidget::showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context,
-		const Data::CloudTheme &cloud,
-		bool continueStreaming) {
-	setSession(&document->session());
-
-	if (context) {
-		setContext(context);
-	} else {
-		setContext(v::null);
-	}
-
-	clearControlsState();
-
-	_streamingStartPaused = false;
-	displayDocument(document, context, cloud, continueStreaming);
-	if (!isHidden()) {
+		displayPhoto(photo, contextPeer ? nullptr : contextItem);
 		preloadData(0);
 		activateControls();
+	} else if (document) {
+		setSession(&document->session());
+
+		if (contextItem) {
+			setContext(contextItem);
+		} else {
+			setContext(v::null);
+		}
+
+		clearControlsState();
+
+		_streamingStartPaused = false;
+		displayDocument(
+			document,
+			contextItem,
+			request.cloudTheme()
+				? *request.cloudTheme()
+				: Data::CloudTheme(),
+			request.continueStreaming());
+		if (!isHidden()) {
+			preloadData(0);
+			activateControls();
+		}
+	}
+	if (const auto controller = request.controller()) {
+		_window = base::make_weak(&controller->window());
 	}
 }
 
@@ -2442,20 +2434,19 @@ void OverlayWidget::displayDocument(
 	refreshCaption(item);
 
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
-	if (documentBubbleShown()) {
-		if (!_document || !_document->hasThumbnail()) {
-			int32 colorIndex = documentColorIndex(_document, _docExt);
-			_docIconColor = documentColor(colorIndex);
-			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
-			_docIcon = thumbs[colorIndex];
+	const auto docGeneric = Layout::DocumentGenericPreview::Create(_document);
+	_docExt = docGeneric.ext;
+	_docIconColor = docGeneric.color;
+	_docIcon = docGeneric.icon();
 
-			int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
-			_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
-			if (_docExtWidth > extmaxw) {
-				_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-				_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
-			}
-		} else {
+	int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
+	_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
+	if (_docExtWidth > extmaxw) {
+		_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+		_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
+	}
+	if (documentBubbleShown()) {
+		if (_document && _document->hasThumbnail()) {
 			_document->loadThumbnail(fileOrigin());
 			const auto tw = _documentMedia->thumbnailSize().width();
 			const auto th = _documentMedia->thumbnailSize().height();
@@ -3108,7 +3099,11 @@ void OverlayWidget::switchToPip() {
 	const auto msgId = _msgid;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
-		showDocument(document, document->owner().message(msgId), {}, true);
+		show(OpenRequest(
+			findWindow(false),
+			document,
+			document->owner().message(msgId),
+			true));
 	};
 	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
@@ -3431,7 +3426,7 @@ void OverlayWidget::paintThemePreviewContent(
 			width(),
 			st::themePreviewMargin.top());
 	}
-	if (const auto fillTitleRect = (titleRect.y() < 0)) {
+	if (titleRect.y() < 0) {
 		titleRect.moveTop(0);
 		fillOverlay(titleRect);
 	}
@@ -3459,8 +3454,7 @@ void OverlayWidget::paintThemePreviewContent(
 		outer.y() + outer.height() - st::themePreviewMargin.bottom(),
 		outer.width(),
 		st::themePreviewMargin.bottom());
-	if (const auto fillButtonsRect
-		= (buttonsRect.y() + buttonsRect.height() > height())) {
+	if (buttonsRect.y() + buttonsRect.height() > height()) {
 		buttonsRect.moveTop(height() - buttonsRect.height());
 		fillOverlay(buttonsRect);
 	}
@@ -4302,10 +4296,14 @@ void OverlayWidget::handleMouseRelease(
 		}
 		// There may be a mention / hashtag / bot command link.
 		// For now activate account for all activated links.
-		if (_session) {
-			Core::App().domain().activate(&_session->account());
-		}
-		ActivateClickHandler(_widget, activated, button);
+		// findWindow() will activate account.
+		ActivateClickHandler(_widget, activated, {
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = _msgid,
+				.sessionWindow = base::make_weak(findWindow()),
+			})
+		});
 		return;
 	}
 
@@ -4537,6 +4535,36 @@ void OverlayWidget::applyHideWindowWorkaround() {
 			Ui::Platform::UpdateOverlayed(_widget);
 		}
 	}
+}
+
+Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
+	if (!_session) {
+		return nullptr;
+	}
+
+	const auto window = _window.get();
+	if (window) {
+		if (const auto controller = window->sessionController()) {
+			if (&controller->session() == _session) {
+				return controller;
+			}
+		}
+	}
+
+	const auto &active = _session->windows();
+	if (!active.empty()) {
+		return active.front();
+	} else if (window && switchTo) {
+		Window::SessionController *controllerPtr = nullptr;
+		window->invokeForSessionController(
+			&_session->account(),
+			[&](not_null<Window::SessionController*> newController) {
+				controllerPtr = newController;
+			});
+		return controllerPtr;
+	}
+
+	return nullptr;
 }
 
 // #TODO unite and check

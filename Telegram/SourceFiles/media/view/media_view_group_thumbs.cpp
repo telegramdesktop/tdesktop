@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/media/history_view_media.h"
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "core/crash_reports.h"
-#include "app.h"
 #include "styles/style_media_view.h"
 
 namespace Media {
@@ -38,6 +38,7 @@ int Round(float64 value) {
 using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
 
+#if 0
 [[nodiscard]] QString DebugSerializeMsgId(FullMsgId itemId) {
 	return QString("msg%1_%2").arg(itemId.channel.bare).arg(itemId.msg);
 }
@@ -73,6 +74,7 @@ using Key = GroupThumbs::Key;
 		return "null";
 	});
 }
+#endif
 
 Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	return v::match(key, [&](PhotoId photoId) {
@@ -287,7 +289,7 @@ void GroupThumbs::Thumb::validateImage() {
 			/ pixSize.width();
 		auto original = _image->original();
 		original.setDevicePixelRatio(cRetinaFactor());
-		_full = App::pixmapFromImageInPlace(original.copy(
+		_full = Ui::PixmapFromImage(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
 			takeWidth,
@@ -511,6 +513,7 @@ void GroupThumbs::RefreshFromSlice(
 	}
 }
 
+#if 0
 template <typename Slice>
 void ValidateSlice(
 		const Slice &slice,
@@ -544,6 +547,7 @@ void ValidateSlice(
 		}
 	}
 }
+#endif
 
 template <typename Slice>
 void GroupThumbs::fillItems(

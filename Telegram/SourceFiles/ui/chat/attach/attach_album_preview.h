@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "base/timer.h"
 
 namespace Ui {
 
@@ -35,6 +36,8 @@ public:
 		return _thumbChanged.events();
 	}
 
+	rpl::producer<int> thumbModified() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -55,9 +58,12 @@ private:
 	AlbumThumbnail *thumbUnderCursor();
 	void deleteThumbByIndex(int index);
 	void changeThumbByIndex(int index);
+	void modifyThumbByIndex(int index);
 	void thumbButtonsCallback(
 		not_null<AlbumThumbnail*> thumb,
 		AttachButtonType type);
+
+	void switchToDrag();
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
@@ -85,10 +91,15 @@ private:
 	AlbumThumbnail *_draggedThumb = nullptr;
 	AlbumThumbnail *_suggestedThumb = nullptr;
 	AlbumThumbnail *_paintedAbove = nullptr;
+	AlbumThumbnail *_pressedThumb = nullptr;
 	QPoint _draggedStartPosition;
+
+	base::Timer _dragTimer;
+	AttachButtonType _pressedButtonType = AttachButtonType::None;
 
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
+	rpl::event_stream<int> _thumbModified;
 
 	mutable Animations::Simple _thumbsHeightAnimation;
 	mutable Animations::Simple _shrinkAnimation;

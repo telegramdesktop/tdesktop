@@ -10,60 +10,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "dialogs/dialogs_key.h"
 
-class BotCommand {
-public:
-	BotCommand(const QString &command, const QString &description);
-
-	bool setDescription(const QString &description);
-	const Ui::Text::String &descriptionText() const;
-
-	QString command;
-
-private:
-	QString _description;
-	mutable Ui::Text::String _descriptionText;
-
-};
-
 struct BotInfo {
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
 	int version = 0;
 	QString description, inlinePlaceholder;
-	QList<BotCommand> commands;
+	std::vector<BotCommand> commands;
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken, shareGameShortName;
 	Dialogs::EntryState inlineReturnTo;
 };
 
+enum class UserDataFlag {
+	Contact = (1 << 0),
+	MutualContact = (1 << 1),
+	Deleted = (1 << 2),
+	Verified = (1 << 3),
+	Scam = (1 << 4),
+	Fake = (1 << 5),
+	BotInlineGeo = (1 << 6),
+	Blocked = (1 << 7),
+	HasPhoneCalls = (1 << 8),
+	PhoneCallsPrivate = (1 << 9),
+	Support = (1 << 10),
+	CanPinMessages = (1 << 11),
+};
+inline constexpr bool is_flag_type(UserDataFlag) { return true; };
+using UserDataFlags = base::flags<UserDataFlag>;
+
 class UserData : public PeerData {
 public:
-	static constexpr auto kEssentialFlags = 0
-		| MTPDuser::Flag::f_self
-		| MTPDuser::Flag::f_contact
-		| MTPDuser::Flag::f_mutual_contact
-		| MTPDuser::Flag::f_deleted
-		| MTPDuser::Flag::f_bot
-		| MTPDuser::Flag::f_bot_chat_history
-		| MTPDuser::Flag::f_bot_nochats
-		| MTPDuser::Flag::f_verified
-		| MTPDuser::Flag::f_scam
-		| MTPDuser::Flag::f_fake
-		| MTPDuser::Flag::f_restricted
-		| MTPDuser::Flag::f_bot_inline_geo;
-	using Flags = Data::Flags<
-		MTPDuser::Flags,
-		kEssentialFlags.value()>;
-
-	static constexpr auto kEssentialFullFlags = 0
-		| MTPDuserFull::Flag::f_blocked
-		| MTPDuserFull::Flag::f_phone_calls_available
-		| MTPDuserFull::Flag::f_phone_calls_private;
-	using FullFlags = Data::Flags<
-		MTPDuserFull::Flags,
-		kEssentialFullFlags.value()>;
+	using Flag = UserDataFlag;
+	using Flags = Data::Flags<UserDataFlags>;
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -87,13 +67,13 @@ public:
 	}
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(MTPDuser::Flags which) {
+	void setFlags(UserDataFlags which) {
 		_flags.set(which);
 	}
-	void addFlags(MTPDuser::Flags which) {
+	void addFlags(UserDataFlags which) {
 		_flags.add(which);
 	}
-	void removeFlags(MTPDuser::Flags which) {
+	void removeFlags(UserDataFlags which) {
 		_flags.remove(which);
 	}
 	auto flags() const {
@@ -103,45 +83,26 @@ public:
 		return _flags.value();
 	}
 
-	void setFullFlags(MTPDuserFull::Flags which) {
-		_fullFlags.set(which);
-	}
-	void addFullFlags(MTPDuserFull::Flags which) {
-		_fullFlags.add(which);
-	}
-	void removeFullFlags(MTPDuserFull::Flags which) {
-		_fullFlags.remove(which);
-	}
-	[[nodiscard]] auto fullFlags() const {
-		return _fullFlags.current();
-	}
-	[[nodiscard]] auto fullFlagsValue() const {
-		return _fullFlags.value();
-	}
-
 	[[nodiscard]] bool isVerified() const {
-		return flags() & MTPDuser::Flag::f_verified;
+		return flags() & UserDataFlag::Verified;
 	}
 	[[nodiscard]] bool isScam() const {
-		return flags() & MTPDuser::Flag::f_scam;
+		return flags() & UserDataFlag::Scam;
 	}
 	[[nodiscard]] bool isFake() const {
-		return flags() & MTPDuser::Flag::f_fake;
+		return flags() & UserDataFlag::Fake;
 	}
 	[[nodiscard]] bool isBotInlineGeo() const {
-		return flags() & MTPDuser::Flag::f_bot_inline_geo;
+		return flags() & UserDataFlag::BotInlineGeo;
 	}
 	[[nodiscard]] bool isBot() const {
 		return botInfo != nullptr;
 	}
 	[[nodiscard]] bool isSupport() const {
-		return flags() & MTPDuser::Flag::f_support;
+		return flags() & UserDataFlag::Support;
 	}
 	[[nodiscard]] bool isInaccessible() const {
-		constexpr auto inaccessible = 0
-			| MTPDuser::Flag::f_deleted;
-//			| MTPDuser_ClientFlag::f_inaccessible;
-		return flags() & inaccessible;
+		return flags() & UserDataFlag::Deleted;
 	}
 	[[nodiscard]] bool canWrite() const {
 		// Duplicated in Data::CanWriteValue().
@@ -212,7 +173,6 @@ private:
 		-> const std::vector<Data::UnavailableReason> & override;
 
 	Flags _flags;
-	FullFlags _fullFlags;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;

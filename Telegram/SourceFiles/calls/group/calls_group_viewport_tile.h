@@ -45,8 +45,11 @@ public:
 	[[nodiscard]] bool pinned() const {
 		return _pinned;
 	}
-	[[nodiscard]] bool shown() const {
-		return _shown && !_geometry.isEmpty();
+	[[nodiscard]] bool hidden() const {
+		return _hidden;
+	}
+	[[nodiscard]] bool visible() const {
+		return !_hidden && !_geometry.isEmpty();
 	}
 	[[nodiscard]] QRect pinOuter() const;
 	[[nodiscard]] QRect pinInner() const;
@@ -115,7 +118,7 @@ private:
 	Ui::Animations::Simple _topControlsShownAnimation;
 	bool _topControlsShown = false;
 	bool _pinned = false;
-	bool _shown = false;
+	bool _hidden = true;
 	std::optional<VideoQuality> _quality;
 
 	rpl::lifetime _lifetime;

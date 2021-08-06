@@ -35,6 +35,8 @@ PRIVATE
     CryptoHelper.h
     EncryptedConnection.cpp
     EncryptedConnection.h
+    FakeAudioDeviceModule.cpp
+    FakeAudioDeviceModule.h
     InstanceImpl.cpp
     InstanceImpl.h
     LogSinkImpl.cpp
@@ -47,9 +49,13 @@ PRIVATE
     Message.h
     NetworkManager.cpp
     NetworkManager.h
+    SctpDataChannelProviderInterfaceImpl.cpp
+    SctpDataChannelProviderInterfaceImpl.h
     StaticThreads.cpp
     StaticThreads.h
     ThreadLocalObject.h
+    TurnCustomizerImpl.cpp
+    TurnCustomizerImpl.h
     VideoCaptureInterface.cpp
     VideoCaptureInterface.h
     VideoCaptureInterfaceImpl.cpp
@@ -101,6 +107,12 @@ PRIVATE
     platform/darwin/GLVideoView.mm
     platform/darwin/GLVideoViewMac.h
     platform/darwin/GLVideoViewMac.mm
+    platform/darwin/objc_video_encoder_factory.h
+    platform/darwin/objc_video_encoder_factory.mm
+    platform/darwin/TGCMIOCapturer.h
+    platform/darwin/TGCMIOCapturer.m
+    platform/darwin/TGCMIODevice.h
+    platform/darwin/TGCMIODevice.mm
     platform/darwin/TGRTCCVPixelBuffer.h
     platform/darwin/TGRTCCVPixelBuffer.mm
     platform/darwin/TGRTCDefaultVideoDecoderFactory.h
@@ -121,11 +133,13 @@ PRIVATE
     platform/darwin/VideoCameraCapturerMac.mm
     platform/darwin/VideoCapturerInterfaceImpl.h
     platform/darwin/VideoCapturerInterfaceImpl.mm
+    platform/darwin/VideoCMIOCapture.h
+    platform/darwin/VideoCMIOCapture.mm
     platform/darwin/VideoMetalView.h
     platform/darwin/VideoMetalView.mm
     platform/darwin/VideoMetalViewMac.h
     platform/darwin/VideoMetalViewMac.mm
-
+    
     # POSIX
 
     # Teleram Desktop
@@ -202,6 +216,14 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_definitions(lib_tgcalls
     PRIVATE
         WEBRTC_LINUX
+    )
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(lib_tgcalls
+    PRIVATE
+        -Wno-deprecated-volatile
+        -Wno-ambiguous-reversed-operator
     )
 endif()
 

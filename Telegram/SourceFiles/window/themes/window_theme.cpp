@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::local.
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
@@ -430,12 +431,89 @@ bool InitializeFromSaved(Saved &&saved) {
 	return true;
 }
 
-QImage validateBackgroundImage(QImage image) {
+[[nodiscard]] QImage DitherImage(QImage image) {
+	Expects(image.bytesPerLine() == image.width() * 4);
+
+	const auto width = image.width();
+	const auto height = image.height();
+
+	if (width < 16 || height < 16) {
+		return image;
+	}
+
+	const auto area = width * height;
+	const auto shifts = std::make_unique<uchar[]>(area);
+	memset_rand(shifts.get(), area);
+
+	// shiftx = int(shift & 0x0F) - 8; shifty = int(shift >> 4) - 8;
+	// Clamp shifts close to edges.
+	for (auto y = 0; y != 8; ++y) {
+		const auto min = 8 - y;
+		const auto shifted = (min << 4);
+		auto shift = shifts.get() + y * width;
+		for (const auto till = shift + width; shift != till; ++shift) {
+			if ((*shift >> 4) < min) {
+				*shift = shifted | (*shift & 0x0F);
+			}
+		}
+	}
+	for (auto y = height - 7; y != height; ++y) {
+		const auto max = 8 + (height - y - 1);
+		const auto shifted = (max << 4);
+		auto shift = shifts.get() + y * width;
+		for (const auto till = shift + width; shift != till; ++shift) {
+			if ((*shift >> 4) > max) {
+				*shift = shifted | (*shift & 0x0F);
+			}
+		}
+	}
+	for (auto shift = shifts.get(), ytill = shift + area
+		; shift != ytill
+		; shift += width - 8) {
+		for (const auto till = shift + 8; shift != till; ++shift) {
+			const auto min = (till - shift);
+			if ((*shift & 0x0F) < min) {
+				*shift = (*shift & 0xF0) | min;
+			}
+		}
+	}
+	for (auto shift = shifts.get(), ytill = shift + area; shift != ytill;) {
+		shift += width - 7;
+		for (const auto till = shift + 7; shift != till; ++shift) {
+			const auto max = 8 + (till - shift - 1);
+			if ((*shift & 0x0F) > max) {
+				*shift = (*shift & 0xF0) | max;
+			}
+		}
+	}
+
+	auto result = image;
+	result.detach();
+
+	const auto src = reinterpret_cast<const uint32*>(image.constBits());
+	const auto dst = reinterpret_cast<uint32*>(result.bits());
+	for (auto index = 0; index != area; ++index) {
+		const auto shift = shifts[index];
+		const auto shiftx = int(shift & 0x0F) - 8;
+		const auto shifty = int(shift >> 4) - 8;
+		dst[index] = src[index + (shifty * width) + shiftx];
+	}
+
+	return result;
+}
+
+[[nodiscard]] QImage PostprocessBackgroundImage(
+		QImage image,
+		const Data::WallPaper &paper) {
 	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
 		image = std::move(image).convertToFormat(
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	image.setDevicePixelRatio(cRetinaFactor());
+	if (Data::IsDefaultWallPaper(paper)
+		|| Data::details::IsTestingDefaultWallPaper(paper)) {
+		return DitherImage(std::move(image));
+	}
 	return image;
 }
 
@@ -529,7 +607,9 @@ ChatBackground::ChatBackground() : _adjustableColors({
 }
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
-	_themeImage = validateBackgroundImage(std::move(themeImage));
+	_themeImage = PostprocessBackgroundImage(
+		std::move(themeImage),
+		Data::ThemeWallPaper());
 	_themeTile = themeTile;
 }
 
@@ -550,11 +630,12 @@ void ChatBackground::initialRead() {
 void ChatBackground::start() {
 	saveAdjustableColors();
 
-	subscribe(this, [=](const BackgroundUpdate &update) {
+	_updates.events(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			style::NotifyPaletteChanged();
 		}
-	});
+	}, _lifetime);
 
 	initialRead();
 
@@ -619,14 +700,18 @@ void ChatBackground::checkUploadWallPaper() {
 			if (const auto paper = Data::WallPaper::Create(_session, result)) {
 				setPaper(*paper);
 				writeNewBackgroundSettings();
-				notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
+				_updates.fire({ BackgroundUpdate::Type::New, tile() });
 			}
 		}).send();
 	});
 }
 
+QImage ChatBackground::postprocessBackgroundImage(QImage image) {
+	return PostprocessBackgroundImage(std::move(image), _paper);
+}
+
 void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
-	image = ProcessBackgroundImage(std::move(image));
+	image = PreprocessBackgroundImage(std::move(image));
 
 	const auto needResetAdjustable = Data::IsDefaultWallPaper(paper)
 		&& !Data::IsDefaultWallPaper(_paper)
@@ -652,10 +737,10 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		|| Data::details::IsTestingEditorWallPaper(_paper)) {
 		if (Data::details::IsTestingDefaultWallPaper(_paper)
 			|| image.isNull()) {
-			image.load(qsl(":/gui/art/bg.jpg"));
+			image.load(qsl(":/gui/art/background.jpg"));
 			setPaper(Data::details::TestingDefaultWallPaper());
 		}
-		image = validateBackgroundImage(std::move(image));
+		image = postprocessBackgroundImage(std::move(image));
 		setPreparedImage(image, image);
 	} else {
 		if (Data::IsLegacy1DefaultWallPaper(_paper)) {
@@ -669,7 +754,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		} else if (Data::IsDefaultWallPaper(_paper)
 			|| (!_paper.backgroundColor() && image.isNull())) {
 			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
-			image.load(qsl(":/gui/art/bg.jpg"));
+			image.load(qsl(":/gui/art/background.jpg"));
 		}
 		Local::writeBackground(
 			_paper,
@@ -679,7 +764,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 				: image));
 		if (const auto fill = _paper.backgroundColor()) {
 			if (_paper.isPattern() && !image.isNull()) {
-				auto prepared = validateBackgroundImage(
+				auto prepared = postprocessBackgroundImage(
 					Data::PreparePatternImage(
 						image,
 						*fill,
@@ -695,7 +780,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 				}
 			}
 		} else {
-			image = validateBackgroundImage(std::move(image));
+			image = postprocessBackgroundImage(std::move(image));
 			setPreparedImage(image, image);
 		}
 	}
@@ -704,10 +789,10 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 			&& !_pixmap.isNull()
 			&& !_pixmapForTiled.isNull()));
 
-	notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
+	_updates.fire({ BackgroundUpdate::Type::New, tile() }); // delayed?
 	if (needResetAdjustable) {
-		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
-		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+		_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
+		_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 	}
 	checkUploadWallPaper();
 }
@@ -754,10 +839,10 @@ void ChatBackground::preparePixmaps(QImage image) {
 				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
 			}
 		}
-		_pixmapForTiled = App::pixmapFromImageInPlace(std::move(imageForTiled));
+		_pixmapForTiled = Ui::PixmapFromImage(std::move(imageForTiled));
 	}
 	_isMonoColorImage = CalculateIsMonoColorImage(image);
-	_pixmap = App::pixmapFromImageInPlace(std::move(image));
+	_pixmap = Ui::PixmapFromImage(std::move(image));
 	if (!isSmallForTiled) {
 		_pixmapForTiled = _pixmap;
 	}
@@ -882,7 +967,7 @@ void ChatBackground::setTile(bool tile) {
 			&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
 			Local::writeSettings();
 		}
-		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, tile));
+		_updates.fire({ BackgroundUpdate::Type::Changed, tile }); // delayed?
 	}
 }
 
@@ -926,8 +1011,8 @@ void ChatBackground::reset() {
 	} else {
 		set(Data::ThemeWallPaper());
 		restoreAdjustableColors();
-		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
-		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+		_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
+		_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 	}
 	writeNewBackgroundSettings();
 }
@@ -989,7 +1074,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		// Apply current background image so that service bg colors are recounted.
 		set(_paper, std::move(_original));
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
 }
 
 void ChatBackground::setTestingDefaultTheme() {
@@ -999,7 +1084,7 @@ void ChatBackground::setTestingDefaultTheme() {
 	saveForRevert();
 	set(Data::details::TestingDefaultWallPaper());
 	setTile(false);
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
 }
 
 void ChatBackground::keepApplied(const Object &object, bool write) {
@@ -1013,7 +1098,7 @@ void ChatBackground::keepApplied(const Object &object, bool write) {
 		}
 	} else if (Data::details::IsTestingThemeWallPaper(_paper)) {
 		setPaper(Data::ThemeWallPaper());
-		_themeImage = validateBackgroundImage(base::duplicate(_original));
+		_themeImage = postprocessBackgroundImage(base::duplicate(_original));
 		_themeTile = tile();
 		if (write) {
 			writeNewBackgroundSettings();
@@ -1026,7 +1111,7 @@ void ChatBackground::keepApplied(const Object &object, bool write) {
 			writeNewBackgroundSettings();
 		}
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 }
 
 bool ChatBackground::isNonDefaultThemeOrBackground() {
@@ -1067,7 +1152,15 @@ void ChatBackground::revert() {
 		// Apply current background image so that service bg colors are recounted.
 		set(_paper, std::move(_original));
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::RevertingTheme, tile() });
+}
+
+void ChatBackground::appliedEditedPalette() {
+	_updates.fire({ BackgroundUpdate::Type::ApplyingEdit, tile() });
+}
+
+void ChatBackground::downloadingStarted(bool tile) {
+	_updates.fire({ BackgroundUpdate::Type::Start, tile });
 }
 
 void ChatBackground::setNightModeValue(bool nightMode) {
@@ -1224,7 +1317,7 @@ bool ApplyEditedPalette(const QByteArray &content) {
 		return false;
 	}
 	style::main_palette::apply(out.palette);
-	Background()->notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingEdit, Background()->tile()), true);
+	Background()->appliedEditedPalette();
 	return true;
 }
 
@@ -1366,7 +1459,6 @@ QColor CountAverageColor(const QImage &image) {
 	Expects(image.format() == QImage::Format_ARGB32_Premultiplied);
 
 	uint64 components[3] = { 0 };
-	uint64 componentsScroll[3] = { 0 };
 	const auto w = image.width();
 	const auto h = image.height();
 	const auto size = w * h;
@@ -1394,7 +1486,7 @@ QColor AdjustedColor(QColor original, QColor background) {
 	).toRgb();
 }
 
-QImage ProcessBackgroundImage(QImage image) {
+QImage PreprocessBackgroundImage(QImage image) {
 	constexpr auto kMaxSize = 2960;
 
 	if (image.format() != QImage::Format_ARGB32_Premultiplied) {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_media_prepare.h"
 
+#include "editor/photo_editor_common.h"
 #include "platform/platform_file_utilities.h"
 #include "storage/localimageloader.h"
 #include "core/mime_type.h"
@@ -25,6 +26,8 @@ using Ui::PreparedFileInformation;
 using Ui::PreparedFile;
 using Ui::PreparedList;
 
+using Image = PreparedFileInformation::Image;
+
 bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 	for (const auto &extension : extensions) {
 		const auto ext = file.right(extension.size());
@@ -36,7 +39,7 @@ bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 }
 
 bool ValidPhotoForAlbum(
-		const PreparedFileInformation::Image &image,
+		const Image &image,
 		const QString &mime) {
 	if (image.animated
 		|| Core::IsMimeSticker(mime)
@@ -81,6 +84,27 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 }
 
 } // namespace
+
+bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
+	if (data->urls().size() > 1) {
+		return false;
+	} else if (data->hasImage()) {
+		return true;
+	}
+
+	if (data->hasUrls()) {
+		const auto url = data->urls().front();
+		if (url.isLocalFile()) {
+			using namespace Core;
+			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
+			const auto filename = info.fileName();
+			return FileIsImage(filename, MimeTypeForFile(info).name())
+				&& HasExtensionFrom(filename, Ui::ExtensionsForCompression());
+		}
+	}
+
+	return false;
+}
 
 bool ValidateEditMediaDragData(
 		not_null<const QMimeData*> data,
@@ -170,7 +194,6 @@ PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth) {
 PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
-	const auto extensionsToCompress = Ui::ExtensionsForCompression();
 	for (const auto &file : files) {
 		const auto fileinfo = QFileInfo(file);
 		const auto filesize = fileinfo.size();
@@ -262,19 +285,12 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 		Assert(file.information != nullptr);
 	}
 
-	using Image = PreparedFileInformation::Image;
 	using Video = PreparedFileInformation::Video;
 	using Song = PreparedFileInformation::Song;
 	if (const auto image = std::get_if<Image>(
 			&file.information->media)) {
 		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
-			file.shownDimensions = PrepareShownDimensions(image->data);
-			file.preview = Images::prepareOpaque(image->data.scaledToWidth(
-				std::min(previewWidth, style::ConvertScale(image->data.width()))
-					* cIntRetinaFactor(),
-				Qt::SmoothTransformation));
-			Assert(!file.preview.isNull());
-			file.preview.setDevicePixelRatio(cRetinaFactor());
+			UpdateImageDetails(file, previewWidth);
 			file.type = PreparedFile::Type::Photo;
 		} else if (Core::IsMimeSticker(file.information->filemime)) {
 			file.type = PreparedFile::Type::None;
@@ -294,6 +310,38 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 	} else if (const auto song = std::get_if<Song>(&file.information->media)) {
 		file.type = PreparedFile::Type::Music;
 	}
+}
+
+void UpdateImageDetails(PreparedFile &file, int previewWidth) {
+	const auto image = std::get_if<Image>(&file.information->media);
+	if (!image) {
+		return;
+	}
+	const auto &preview = image->modifications
+		? Editor::ImageModified(image->data, image->modifications)
+		: image->data;
+	file.shownDimensions = PrepareShownDimensions(preview);
+	file.preview = Images::prepareOpaque(preview.scaledToWidth(
+		std::min(previewWidth, style::ConvertScale(preview.width()))
+			* cIntRetinaFactor(),
+		Qt::SmoothTransformation));
+	Assert(!file.preview.isNull());
+	file.preview.setDevicePixelRatio(cRetinaFactor());
+}
+
+bool ApplyModifications(const PreparedList &list) {
+	auto applied = false;
+	for (auto &file : list.files) {
+		const auto image = std::get_if<Image>(&file.information->media);
+		if (!image || !image->modifications) {
+			continue;
+		}
+		applied = true;
+		image->data = Editor::ImageModified(
+			std::move(image->data),
+			image->modifications);
+	}
+	return applied;
 }
 
 } // namespace Storage

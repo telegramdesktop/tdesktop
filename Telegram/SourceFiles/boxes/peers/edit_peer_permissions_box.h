@@ -27,7 +27,7 @@ public:
 		not_null<PeerData*> peer);
 
 	struct Result {
-		MTPDchatBannedRights::Flags rights;
+		ChatRestrictions rights;
 		int slowmodeSeconds = 0;
 	};
 
@@ -59,17 +59,17 @@ struct EditFlagsControl {
 	rpl::producer<Flags> changes;
 };
 
-EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
+EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
 	QWidget *parent,
 	rpl::producer<QString> header,
-	MTPDchatBannedRights::Flags restrictions,
-	std::map<MTPDchatBannedRights::Flags, QString> disabledMessages);
+	ChatRestrictions restrictions,
+	std::map<ChatRestrictions, QString> disabledMessages);
 
-EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
+EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
 	QWidget *parent,
 	rpl::producer<QString> header,
-	MTPDchatAdminRights::Flags rights,
-	std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
+	ChatAdminRights rights,
+	std::map<ChatAdminRights, QString> disabledMessages,
 	bool isGroup,
 	bool anyoneCanAddMembers);
 

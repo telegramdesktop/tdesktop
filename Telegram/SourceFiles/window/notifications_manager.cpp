@@ -363,7 +363,6 @@ void System::showNext() {
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
 	bool alert = false;
-	int32 now = base::unixtime::now();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto peer = i->first->peer;

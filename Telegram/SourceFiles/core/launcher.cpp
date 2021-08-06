@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "ui/main_queue_processor.h"
-#include "ui/ui_utility.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
@@ -334,7 +333,6 @@ int Launcher::exec() {
 
 	// Must be started before Sandbox is created.
 	Platform::start();
-	Ui::DisableCustomScaling();
 
 	auto result = executeApplication();
 

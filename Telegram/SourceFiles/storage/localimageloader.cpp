@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
+#include "editor/scene/scene.h" // Editor::Scene::attachedStickers
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "mtproto/facade.h"
@@ -950,6 +951,16 @@ void FileLoadTask::process(Args &&args) {
 			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 		_type = SendMediaType::File;
+	}
+
+	if (_information) {
+		if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
+				&_information->media)) {
+			if (image->modifications.paint) {
+				_result->attachedStickers =
+					image->modifications.paint->attachedStickers();
+			}
+		}
 	}
 
 	_result->type = _type;

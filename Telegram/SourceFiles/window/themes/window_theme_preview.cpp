@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_theme_preview.h"
 
-#include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
 #include "ui/text/text_options.h"
@@ -32,7 +31,7 @@ QString fillLetters(const QString &name) {
 	auto ch = name.constData(), end = ch + name.size();
 	while (ch != end) {
 		auto emojiLength = 0;
-		if (auto emoji = Ui::Emoji::Find(ch, end, &emojiLength)) {
+		if (Ui::Emoji::Find(ch, end, &emojiLength)) {
 			ch += emojiLength;
 		} else if (ch->isHighSurrogate()) {
 			++ch;
@@ -244,10 +243,8 @@ void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wa
 	auto skipBlock = computeSkipBlock(status, date);
 
 	auto width = st::msgFileMinWidth;
-	auto tleft = 0, tright = 0;
 	const auto &st = st::msgFileLayout;
-	tleft = st.padding.left() + st.thumbSize + st.padding.right();
-	tright = st.padding.left();
+	auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
 	accumulate_max(width, tleft + st::normalFont->width(wavestatus) + skipBlock.width() + st::msgPadding.right());
 	accumulate_min(width, st::msgMaxWidth);
 
@@ -419,7 +416,7 @@ void Generator::paintHistoryBackground() {
 	if (background.isNull()) {
 		const auto fakePaper = Data::WallPaper(_current.backgroundId);
 		if (Data::IsThemeWallPaper(fakePaper)) {
-			background.load(qsl(":/gui/art/bg.jpg"));
+			background.load(qsl(":/gui/art/background.jpg"));
 			tiled = false;
 		} else {
 			background = std::move(_current.backgroundImage);
@@ -773,10 +770,8 @@ void Generator::paintBubble(const Bubble &bubble) {
 	} else if (!bubble.waveform.isEmpty()) {
 		const auto &st = st::msgFileLayout;
 		auto nameleft = x + st.padding.left() + st.thumbSize + st.padding.right();
-		auto nametop = y + st.nameTop;
 		auto nameright = st.padding.left();
 		auto statustop = y + st.statusTop;
-		auto bottom = y + st.padding.top() + st.thumbSize + st.padding.bottom();
 
 		auto inner = style::rtlrect(x + st.padding.left(), y + st.padding.top(), st.thumbSize, st.thumbSize, _rect.width());
 		_p->setPen(Qt::NoPen);

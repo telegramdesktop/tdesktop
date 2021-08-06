@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
-#include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -718,11 +717,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 	const auto localGuard = _lifetime.make_state<base::has_weak_ptr>();
 
-	base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
-		return update.paletteChanged();
-	}) | rpl::start_with_next([=] {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
 		crl::on_main(&(*localGuard), [=] {
 			updateOnlineColor();
 			if (const auto f = _session->data().folderLoaded(ArchiveId)) {

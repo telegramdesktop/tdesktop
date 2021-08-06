@@ -18,7 +18,6 @@ namespace {
 constexpr int kTypingDotsCount = 3;
 constexpr int kRecordArcsCount = 4;
 constexpr int kUploadArrowsCount = 3;
-constexpr int kSpeakingPartsCount = 3;
 constexpr auto kSpeakingDuration = 3200;
 constexpr auto kSpeakingFadeDuration = 400;
 

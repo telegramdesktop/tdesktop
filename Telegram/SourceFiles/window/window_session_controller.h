@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
+#include "ui/layers/layer_widget.h"
 #include "window/window_adaptive.h"
 
 class PhotoData;
@@ -250,6 +251,11 @@ public:
 		return _selectingPeer;
 	}
 
+	QPointer<Ui::BoxContent> show(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
+		anim::type animated = anim::type::normal);
+
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;
 	void takeTabbedSelectorOwnershipFrom(not_null<QWidget*> parent);
@@ -321,6 +327,14 @@ public:
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
+	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
+	void cancelUploadLayer(not_null<HistoryItem*> item);
+
+	void showLayer(
+		std::unique_ptr<Ui::LayerWidget> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
+
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);
@@ -340,6 +354,13 @@ public:
 
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
+
+	void openPhoto(not_null<PhotoData*> photo, FullMsgId contextId);
+	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
+	void openDocument(
+		not_null<DocumentData*> document,
+		FullMsgId contextId,
+		bool showInMediaView = false);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,

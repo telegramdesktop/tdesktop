@@ -26,13 +26,6 @@ public:
 private:
 	explicit EventFilter(not_null<MainWindow*> window);
 
-	bool customWindowFrameEvent(
-		HWND hWnd,
-		UINT msg,
-		WPARAM wParam,
-		LPARAM lParam,
-		LRESULT *result);
-
 	not_null<MainWindow*> _window;
 
 };

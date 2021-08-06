@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "calls/calls_call.h"
+#include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
+#include "ui/gl/gl_window.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -24,12 +26,13 @@ class CloudImageView;
 namespace Ui {
 class IconButton;
 class CallButton;
+class LayerManager;
 class FlatLabel;
 template <typename Widget>
 class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
-class Window;
+class RpWindow;
 namespace GL {
 enum class Backend;
 } // namespace GL
@@ -49,7 +52,7 @@ class Userpic;
 class SignalBars;
 class VideoBubble;
 
-class Panel final {
+class Panel final : private Group::Ui::DesktopCapture::ChooseSourceDelegate {
 public:
 	Panel(not_null<Call*> call);
 	~Panel();
@@ -59,6 +62,18 @@ public:
 	void minimize();
 	void replaceCall(not_null<Call*> call);
 	void closeBeforeDestroy();
+
+	QWidget *chooseSourceParent() override;
+	QString chooseSourceActiveDeviceId() override;
+	bool chooseSourceActiveWithAudio() override;
+	bool chooseSourceWithAudioSupported() override;
+	rpl::lifetime &chooseSourceInstanceLifetime() override;
+	void chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) override;
+	void chooseSourceStop() override;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	class Incoming;
@@ -70,7 +85,7 @@ private:
 		Redial,
 	};
 
-	std::unique_ptr<Ui::Window> createWindow();
+	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	void paint(QRect clip);
@@ -106,8 +121,8 @@ private:
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
-	Ui::GL::Backend _backend = Ui::GL::Backend();
-	const std::unique_ptr<Ui::Window> _window;
+	Ui::GL::Window _window;
+	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	std::unique_ptr<Incoming> _incoming;
 
 #ifndef Q_OS_MAC
@@ -126,6 +141,7 @@ private:
 	bool _outgoingPreviewInBody = false;
 	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
+	object_ptr<Ui::CallButton> _screencast;
 	object_ptr<Ui::CallButton> _camera;
 	object_ptr<Ui::CallButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;

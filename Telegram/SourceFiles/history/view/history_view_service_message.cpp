@@ -16,10 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "ui/text/text_options.h"
+#include "ui/ui_utility.h"
 #include "mainwidget.h"
-#include "layout.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -43,6 +42,15 @@ enum CornerHorizontalSide {
 
 class ServiceMessageStyleData : public Data::AbstractStructure {
 public:
+	ServiceMessageStyleData() {
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			for (auto &corner : corners) {
+				corner = QPixmap();
+			}
+		}, _lifetime);
+	}
+
 	// circle[CircleMask value]
 	QImage circle[2];
 
@@ -50,6 +58,10 @@ public:
 	QPixmap corners[8];
 
 	base::flat_map<std::pair<int, uint32>, QPixmap> overridenCorners;
+
+private:
+	rpl::lifetime _lifetime;
+
 };
 Data::GlobalStructurePointer<ServiceMessageStyleData> serviceMessageStyle;
 
@@ -115,7 +127,7 @@ QPixmap circleCorner(int corner, const style::color &bg) {
 			bg,
 			part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		currentCorner = App::pixmapFromImageInPlace(std::move(result));
+		currentCorner = Ui::PixmapFromImage(std::move(result));
 	}
 	return currentCorner;
 }
@@ -136,7 +148,7 @@ int paintBubbleSide(
 		CornerVerticalSide side,
 		const style::color &bg) {
 	if (style == SideStyle::Rounded) {
-		const auto corner = (NormalMask * MaskMultiplier) | side;
+		const auto corner = (int(NormalMask) * MaskMultiplier) | side;
 		auto left = circleCorner(corner | CornerLeft, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x, y, left);
@@ -155,7 +167,7 @@ int paintBubbleSide(
 		return cornerHeight;
 	} else if (style == SideStyle::Inverted) {
 		// CornerLeft and CornerRight are inverted for SideStyle::Inverted sprites.
-		const auto corner = (InvertedMask * MaskMultiplier) | side;
+		const auto corner = (int(InvertedMask) * MaskMultiplier) | side;
 		auto left = circleCorner(corner | CornerRight, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x - leftWidth, y, left);
@@ -420,14 +432,6 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Ui::Text::String &text
 	return lineWidths;
 }
 
-void serviceColorsUpdated() {
-	if (serviceMessageStyle) {
-		for (auto &corner : serviceMessageStyle->corners) {
-			corner = QPixmap();
-		}
-	}
-}
-
 Service::Service(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryService*> data,
@@ -581,7 +585,6 @@ void Service::draw(
 }
 
 PointState Service::pointState(QPoint point) const {
-	const auto item = message();
 	const auto media = this->media();
 
 	auto g = countGeometry();
@@ -705,7 +708,6 @@ void EmptyPainter::paint(Painter &p, int width, int height) {
 	)->maxWidth();
 
 	const auto &font = st::serviceTextStyle.font;
-	const auto margin = st::msgMargin.left();
 	const auto maxBubbleWidth = width - 2 * st::historyGroupAboutMargin;
 	const auto padding = st::historyGroupAboutPadding;
 	const auto bubbleWidth = std::min(

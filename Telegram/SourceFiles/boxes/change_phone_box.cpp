@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/special_fields.h"
 #include "boxes/confirm_phone_box.h"
@@ -21,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "mtproto/sender.h"
 #include "apiwrap.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -235,7 +235,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(const MTP::Error &error, const QS
 			tr::lng_change_phone_occupied(
 				tr::now,
 				lt_phone,
-				App::formatPhone(phoneNumber)),
+				Ui::FormatPhone(phoneNumber)),
 			tr::lng_box_ok(tr::now)));
 	} else {
 		showError(Lang::Hard::ServerError());
@@ -271,7 +271,7 @@ void ChangePhoneBox::EnterCode::prepare() {
 	auto descriptionText = tr::lng_change_phone_code_description(
 		tr::now,
 		lt_phone,
-		Ui::Text::Bold(App::formatPhone(_phone)),
+		Ui::Text::Bold(Ui::FormatPhone(_phone)),
 		Ui::Text::WithEntities);
 	auto description = object_ptr<Ui::FlatLabel>(this, rpl::single(descriptionText), st::changePhoneLabel);
 	description->moveToLeft(st::boxPadding.left(), 0);

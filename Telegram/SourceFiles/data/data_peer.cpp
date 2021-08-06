@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -41,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "facades.h" // Ui::showPeerProfile
-#include "app.h"
 
 namespace {
 
@@ -82,6 +82,79 @@ PeerId FakePeerIdForJustName(const QString &name) {
 	return peerFromUser(name.isEmpty()
 		? 777
 		: base::crc32(name.constData(), name.size() * sizeof(QChar)));
+}
+
+bool UpdateBotCommands(
+		std::vector<BotCommand> &commands,
+		const MTPVector<MTPBotCommand> &data) {
+	const auto &v = data.v;
+	commands.reserve(v.size());
+	auto result = false;
+	auto index = 0;
+	for (const auto &command : v) {
+		command.match([&](const MTPDbotCommand &data) {
+			const auto command = qs(data.vcommand());
+			const auto description = qs(data.vdescription());
+			if (commands.size() <= index) {
+				commands.push_back({
+					.command = command,
+					.description = description,
+				});
+				result = true;
+			} else {
+				auto &entry = commands[index];
+				if (entry.command != command
+					|| entry.description != description) {
+					entry.command = command;
+					entry.description = description;
+					result = true;
+				}
+			}
+			++index;
+		});
+	}
+	if (index < commands.size()) {
+		result = true;
+	}
+	commands.resize(index);
+	return result;
+}
+
+bool UpdateBotCommands(
+		base::flat_map<UserId, std::vector<BotCommand>> &commands,
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data) {
+	return data.v.isEmpty()
+		? commands.remove(botId)
+		: UpdateBotCommands(commands[botId], data);
+}
+
+bool UpdateBotCommands(
+		base::flat_map<UserId, std::vector<BotCommand>> &commands,
+		const MTPVector<MTPBotInfo> &data) {
+	auto result = false;
+	auto filled = base::flat_set<UserId>();
+	filled.reserve(data.v.size());
+	for (const auto &item : data.v) {
+		item.match([&](const MTPDbotInfo &data) {
+			const auto id = UserId(data.vuser_id().v);
+			if (!filled.emplace(id).second) {
+				LOG(("API Error: Two BotInfo for a single bot."));
+				return;
+			} else if (UpdateBotCommands(commands, id, data.vcommands())) {
+				result = true;
+			}
+		});
+	}
+	for (auto i = begin(commands); i != end(commands);) {
+		if (filled.contains(i->first)) {
+			++i;
+		} else {
+			i = commands.erase(i);
+			result = true;
+		}
+	}
+	return result;
 }
 
 } // namespace Data
@@ -181,10 +254,9 @@ void PeerData::updateNameDelayed(
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->removeFlags(
-					MTPDchannel::Flag::f_username);
+				asChannel()->removeFlags(ChannelDataFlag::Username);
 			} else {
-				asChannel()->addFlags(MTPDchannel::Flag::f_username);
+				asChannel()->addFlags(ChannelDataFlag::Username);
 			}
 			flags |= UpdateFlag::Username;
 		}
@@ -348,7 +420,7 @@ QPixmap PeerData::genUserpic(
 		Painter p(&result);
 		paintUserpic(p, view, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 QPixmap PeerData::genUserpicRounded(
@@ -364,7 +436,7 @@ QPixmap PeerData::genUserpicRounded(
 		Painter p(&result);
 		paintUserpicRounded(p, view, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 Data::FileOrigin PeerData::userpicOrigin() const {
@@ -429,14 +501,14 @@ QString PeerData::computeUnavailableReason() const {
 // This is duplicated in CanPinMessagesValue().
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
-		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
+		return user->flags() & UserDataFlag::CanPinMessages;
 	} else if (const auto chat = asChat()) {
 		return chat->amIn()
-			&& !chat->amRestricted(ChatRestriction::f_pin_messages);
+			&& !chat->amRestricted(ChatRestriction::PinMessages);
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
-			? !channel->amRestricted(ChatRestriction::f_pin_messages)
-			: ((channel->adminRights() & ChatAdminRight::f_edit_messages)
+			? !channel->amRestricted(ChatRestriction::PinMessages)
+			: ((channel->adminRights() & ChatAdminRight::EditMessages)
 				|| channel->amCreator());
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
@@ -504,6 +576,22 @@ void PeerData::checkFolder(FolderId folderId) {
 			owner().histories().requestDialogEntry(history);
 		}
 	}
+}
+
+void PeerData::setSettings(const MTPPeerSettings &data) {
+	data.match([&](const MTPDpeerSettings &data) {
+		using Flag = PeerSetting;
+		setSettings((data.is_add_contact() ? Flag::AddContact : Flag())
+			| (data.is_autoarchived() ? Flag::AutoArchived : Flag())
+			| (data.is_block_contact() ? Flag::BlockContact : Flag())
+			//| (data.is_invite_members() ? Flag::InviteMembers : Flag())
+			| (data.is_need_contacts_exception()
+				? Flag::NeedContactsException
+				: Flag())
+			//| (data.is_report_geo() ? Flag::ReportGeo : Flag())
+			| (data.is_report_spam() ? Flag::ReportSpam : Flag())
+			| (data.is_share_contact() ? Flag::ShareContact : Flag()));
+	});
 }
 
 void PeerData::fillNames() {
@@ -782,12 +870,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		ChatRestriction right) const {
 	using Result = Data::RestrictionCheckResult;
 	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
-		if (right == ChatRestriction::f_invite_users) {
-			return chat->adminRights() & ChatAdminRight::f_invite_users;
-		} else if (right == ChatRestriction::f_change_info) {
-			return chat->adminRights() & ChatAdminRight::f_change_info;
-		} else if (right == ChatRestriction::f_pin_messages) {
-			return chat->adminRights() & ChatAdminRight::f_pin_messages;
+		if (right == ChatRestriction::InviteUsers) {
+			return chat->adminRights() & ChatAdminRight::InviteUsers;
+		} else if (right == ChatRestriction::ChangeInfo) {
+			return chat->adminRights() & ChatAdminRight::ChangeInfo;
+		} else if (right == ChatRestriction::PinMessages) {
+			return chat->adminRights() & ChatAdminRight::PinMessages;
 		} else {
 			return chat->hasAdminRights();
 		}
@@ -795,7 +883,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 	if (const auto channel = asChannel()) {
 		const auto defaultRestrictions = channel->defaultRestrictions()
 			| (channel->isPublic()
-				? (ChatRestriction::f_pin_messages | ChatRestriction::f_change_info)
+				? (ChatRestriction::PinMessages | ChatRestriction::ChangeInfo)
 				: ChatRestrictions(0));
 		return (channel->amCreator() || allowByAdminRights(right, channel))
 			? Result::Allowed()
@@ -817,7 +905,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 bool PeerData::amAnonymous() const {
 	return isBroadcast()
 		|| (isChannel()
-			&& (asChannel()->adminRights() & ChatAdminRight::f_anonymous));
+			&& (asChannel()->adminRights() & ChatAdminRight::Anonymous));
 }
 
 bool PeerData::canRevokeFullHistory() const {
@@ -840,7 +928,7 @@ bool PeerData::slowmodeApplied() const {
 	if (const auto channel = asChannel()) {
 		return !channel->amCreator()
 			&& !channel->hasAdminRights()
-			&& (channel->flags() & MTPDchannel::Flag::f_slowmode_enabled);
+			&& (channel->flags() & ChannelDataFlag::SlowmodeEnabled);
 	}
 	return false;
 }
@@ -859,9 +947,9 @@ rpl::producer<bool> PeerData::slowmodeAppliedValue() const {
 
 	auto slowmodeEnabled = channel->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &change) {
-		return (change.diff & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+		return (change.diff & ChannelDataFlag::SlowmodeEnabled) != 0;
 	}) | rpl::map([=](const ChannelData::Flags::Change &change) {
-		return (change.value & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+		return (change.value & ChannelDataFlag::SlowmodeEnabled) != 0;
 	}) | rpl::distinct_until_changed();
 
 	return rpl::combine(
@@ -898,10 +986,10 @@ bool PeerData::canSendPolls() const {
 bool PeerData::canManageGroupCall() const {
 	if (const auto chat = asChat()) {
 		return chat->amCreator()
-			|| (chat->adminRights() & ChatAdminRight::f_manage_call);
+			|| (chat->adminRights() & ChatAdminRight::ManageCall);
 	} else if (const auto group = asChannel()) {
 		return group->amCreator()
-			|| (group->adminRights() & ChatAdminRight::f_manage_call);
+			|| (group->adminRights() & ChatAdminRight::ManageCall);
 	}
 	return false;
 }
@@ -931,11 +1019,11 @@ void PeerData::setIsBlocked(bool is) {
 	if (_blockStatus != status) {
 		_blockStatus = status;
 		if (const auto user = asUser()) {
-			const auto flags = user->fullFlags();
+			const auto flags = user->flags();
 			if (is) {
-				user->setFullFlags(flags | MTPDuserFull::Flag::f_blocked);
+				user->setFlags(flags | UserDataFlag::Blocked);
 			} else {
-				user->setFullFlags(flags & ~MTPDuserFull::Flag::f_blocked);
+				user->setFlags(flags & ~UserDataFlag::Blocked);
 			}
 		}
 		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
@@ -965,17 +1053,17 @@ std::vector<ChatRestrictions> ListOfRestrictions() {
 	using Flag = ChatRestriction;
 
 	return {
-		Flag::f_send_messages,
-		Flag::f_send_media,
-		Flag::f_send_stickers
-		| Flag::f_send_gifs
-		| Flag::f_send_games
-		| Flag::f_send_inline,
-		Flag::f_embed_links,
-		Flag::f_send_polls,
-		Flag::f_invite_users,
-		Flag::f_pin_messages,
-		Flag::f_change_info,
+		Flag::SendMessages,
+		Flag::SendMedia,
+		Flag::SendStickers
+		| Flag::SendGifs
+		| Flag::SendGames
+		| Flag::SendInline,
+		Flag::EmbedLinks,
+		Flag::SendPolls,
+		Flag::InviteUsers,
+		Flag::PinMessages,
+		Flag::ChangeInfo,
 	};
 }
 
@@ -994,23 +1082,23 @@ std::optional<QString> RestrictionError(
 				auto time = restrictedUntilDateTime.toString(cTimeFormat());
 
 				switch (restriction) {
-				case Flag::f_send_polls:
+				case Flag::SendPolls:
 					return tr::lng_restricted_send_polls_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_messages:
+				case Flag::SendMessages:
 					return tr::lng_restricted_send_message_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_media:
+				case Flag::SendMedia:
 					return tr::lng_restricted_send_media_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_stickers:
+				case Flag::SendStickers:
 					return tr::lng_restricted_send_stickers_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_gifs:
+				case Flag::SendGifs:
 					return tr::lng_restricted_send_gifs_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_inline:
-				case Flag::f_send_games:
+				case Flag::SendInline:
+				case Flag::SendGames:
 					return tr::lng_restricted_send_inline_until(
 						tr::now, lt_date, date, lt_time, time);
 				}
@@ -1018,28 +1106,28 @@ std::optional<QString> RestrictionError(
 			}
 		}
 		switch (restriction) {
-		case Flag::f_send_polls:
+		case Flag::SendPolls:
 			return all
 				? tr::lng_restricted_send_polls_all(tr::now)
 				: tr::lng_restricted_send_polls(tr::now);
-		case Flag::f_send_messages:
+		case Flag::SendMessages:
 			return all
 				? tr::lng_restricted_send_message_all(tr::now)
 				: tr::lng_restricted_send_message(tr::now);
-		case Flag::f_send_media:
+		case Flag::SendMedia:
 			return all
 				? tr::lng_restricted_send_media_all(tr::now)
 				: tr::lng_restricted_send_media(tr::now);
-		case Flag::f_send_stickers:
+		case Flag::SendStickers:
 			return all
 				? tr::lng_restricted_send_stickers_all(tr::now)
 				: tr::lng_restricted_send_stickers(tr::now);
-		case Flag::f_send_gifs:
+		case Flag::SendGifs:
 			return all
 				? tr::lng_restricted_send_gifs_all(tr::now)
 				: tr::lng_restricted_send_gifs(tr::now);
-		case Flag::f_send_inline:
-		case Flag::f_send_games:
+		case Flag::SendInline:
+		case Flag::SendGames:
 			return all
 				? tr::lng_restricted_send_inline_all(tr::now)
 				: tr::lng_restricted_send_inline(tr::now);
@@ -1167,9 +1255,15 @@ std::optional<int> ResolvePinnedCount(
 		: std::nullopt;
 }
 
+ChatAdminRights ChatAdminRightsFlags(const MTPChatAdminRights &rights) {
+	return rights.match([](const MTPDchatAdminRights &data) {
+		return ChatAdminRights::from_raw(int32(data.vflags().v));
+	});
+}
+
 ChatRestrictions ChatBannedRightsFlags(const MTPChatBannedRights &rights) {
 	return rights.match([](const MTPDchatBannedRights &data) {
-		return data.vflags().v;
+		return ChatRestrictions::from_raw(int32(data.vflags().v));
 	});
 }
 

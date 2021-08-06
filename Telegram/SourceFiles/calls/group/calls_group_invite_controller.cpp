@@ -106,7 +106,7 @@ std::unique_ptr<PeerListRow> InviteController::createRow(
 	if (!user
 		|| user->isSelf()
 		|| user->isBot()
-		|| (user->flags() & MTPDuser::Flag::f_deleted)) {
+		|| user->isInaccessible()) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);

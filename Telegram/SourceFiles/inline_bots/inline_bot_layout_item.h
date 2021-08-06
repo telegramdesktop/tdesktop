@@ -7,10 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "layout.h"
+#include "layout/layout_item_base.h"
 #include "ui/text/text.h"
 
 class Image;
+
+namespace Ui {
+class PathShiftGradient;
+} // namespace Ui
 
 namespace Data {
 class CloudImageView;
@@ -27,16 +31,23 @@ class ItemBase;
 class PaintContext : public PaintContextBase {
 public:
 	PaintContext(crl::time ms, bool selecting, bool paused, bool lastRow)
-		: PaintContextBase(ms, selecting)
-		, paused(paused)
-		, lastRow(lastRow) {
+	: PaintContextBase(ms, selecting)
+	, paused(paused)
+	, lastRow(lastRow) {
 	}
 	bool paused, lastRow;
+	Ui::PathShiftGradient *pathGradient = nullptr;
 
 };
 
 // this type used as a flag, we dynamic_cast<> to it
 class SendClickHandler : public ClickHandler {
+public:
+	void onClick(ClickContext context) const override {
+	}
+};
+
+class OpenFileClickHandler : public ClickHandler {
 public:
 	void onClick(ClickContext context) const override {
 	}
@@ -65,9 +76,6 @@ public:
 	//}
 
 	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
-
-	virtual void setPosition(int32 position);
-	int32 position() const;
 
 	virtual bool isFullLine() const {
 		return true;
@@ -131,8 +139,7 @@ protected:
 	PhotoData *_photo = nullptr;
 
 	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };
-
-	int _position = 0; // < 0 means removed from layout
+	ClickHandlerPtr _open = ClickHandlerPtr{ new OpenFileClickHandler() };
 
 private:
 	not_null<Context*> _context;

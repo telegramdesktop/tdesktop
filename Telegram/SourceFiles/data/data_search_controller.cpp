@@ -161,7 +161,7 @@ SearchResult ParseSearchResult(
 	for (const auto &message : *messages) {
 		const auto item = peer->owner().addNewMessage(
 			message,
-			MTPDmessage_ClientFlags(),
+			MessageFlags(),
 			addType);
 		if (item) {
 			const auto itemId = item->id;

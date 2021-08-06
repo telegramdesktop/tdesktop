@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
+#include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "media/view/media_view_overlay_widget.h"
+#include "media/view/media_view_open_common.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
@@ -57,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/gl/gl_detection.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
@@ -195,6 +198,7 @@ void Application::run() {
 	ValidateScale();
 
 	if (Local::oldSettingsVersion() < AppVersion) {
+		RegisterUrlScheme();
 		psNewVersion();
 	}
 
@@ -265,7 +269,7 @@ void Application::run() {
 
 	const auto currentGeometry = _window->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->widget()->setGeometry(currentGeometry);
+	_window->widget()->Ui::RpWidget::setGeometry(currentGeometry);
 
 	DEBUG_LOG(("Application Info: showing."));
 	_window->finishFirstShow();
@@ -280,23 +284,29 @@ void Application::run() {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
 
-	if (!Platform::IsMac()
-		&& Ui::Integration::Instance().openglLastCheckFailed()) {
+	if (!Platform::IsMac() && Ui::GL::LastCrashCheckFailed()) {
 		showOpenGLCrashNotification();
 	}
+
+	_window->openInMediaViewRequests(
+	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
+		if (_mediaView) {
+			_mediaView->show(std::move(request));
+		}
+	}, _window->lifetime());
 }
 
 void Application::showOpenGLCrashNotification() {
 	const auto enable = [=] {
 		Ui::GL::ForceDisable(false);
-		Ui::Integration::Instance().openglCheckFinish();
+		Ui::GL::CrashCheckFinish();
 		Core::App().settings().setDisableOpenGL(false);
 		Local::writeSettings();
 		App::restart();
 	};
 	const auto keepDisabled = [=] {
 		Ui::GL::ForceDisable(true);
-		Ui::Integration::Instance().openglCheckFinish();
+		Ui::GL::CrashCheckFinish();
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
@@ -380,58 +390,6 @@ bool Application::hideMediaView() {
 		return true;
 	}
 	return false;
-}
-
-void Application::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
-	const auto photo = link->photo();
-	const auto peer = link->peer();
-	const auto item = photo->owner().message(link->context());
-	return (!item && peer)
-		? showPhoto(photo, peer)
-		: showPhoto(photo, item);
-}
-
-void Application::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showPhoto(photo, item);
-}
-
-void Application::showPhoto(
-		not_null<PhotoData*> photo,
-		not_null<PeerData*> peer) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showPhoto(photo, peer);
-}
-
-void Application::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
-	Expects(_mediaView != nullptr);
-
-	if (cUseExternalVideoPlayer()
-		&& document->isVideoFile()
-		&& !document->filepath().isEmpty()) {
-		File::Launch(document->location(false).fname);
-	} else {
-		_mediaView->showDocument(document, item);
-	}
-}
-
-void Application::showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showTheme(document, cloud);
-}
-
-PeerData *Application::ui_getPeerForMouseAction() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		return _mediaView->ui_getPeerForMouseAction();
-	} else if (const auto m = App::main()) { // multi good
-		return m->ui_getPeerForMouseAction();
-	}
-	return nullptr;
 }
 
 bool Application::eventFilter(QObject *object, QEvent *e) {
@@ -884,7 +842,7 @@ bool Application::passcodeLocked() const {
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
 	if (const auto session = maybeActiveSession()) {
-		session->updates().checkIdleFinish();
+		session->updates().checkIdleFinish(_lastNonIdleTime);
 	}
 }
 
@@ -911,19 +869,21 @@ bool Application::someSessionExists() const {
 	return false;
 }
 
-void Application::checkAutoLock() {
+void Application::checkAutoLock(crl::time lastNonIdleTime) {
 	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
 		return;
+	} else if (!lastNonIdleTime) {
+		lastNonIdleTime = this->lastNonIdleTime();
 	}
 
 	checkLocalTime();
 	const auto now = crl::now();
 	const auto shouldLockInMs = _settings.autoLock() * 1000LL;
-	const auto checkTimeMs = now - lastNonIdleTime();
+	const auto checkTimeMs = now - lastNonIdleTime;
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
@@ -945,7 +905,7 @@ void Application::checkAutoLockIn(crl::time time) {
 void Application::localPasscodeChanged() {
 	_shouldLockAt = 0;
 	_autoLockTimer.cancel();
-	checkAutoLock();
+	checkAutoLock(crl::now());
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
@@ -1161,6 +1121,19 @@ void Application::startShortcuts() {
 			return closeActiveWindow();
 		});
 	}, _lifetime);
+}
+
+void Application::RegisterUrlScheme() {
+	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+		.executable = cExeDir() + cExeName(),
+		.arguments = qsl("-workdir \"%1\"").arg(cWorkingDir()),
+		.protocol = qsl("tg"),
+		.protocolName = qsl("Telegram Link"),
+		.shortAppName = qsl("tdesktop"),
+		.longAppName = QCoreApplication::applicationName(),
+		.displayAppName = AppName.utf16(),
+		.displayAppDescription = AppName.utf16(),
+	});
 }
 
 bool IsAppLaunched() {

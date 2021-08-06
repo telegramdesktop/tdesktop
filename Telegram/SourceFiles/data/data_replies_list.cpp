@@ -30,7 +30,7 @@ constexpr auto kMessagesPerPage = 50;
 		const QString &text) {
 	return history->makeServiceMessage(
 		history->session().data().nextNonHistoryEntryId(),
-		MTPDmessage_ClientFlag::f_fake_history_item,
+		MessageFlag::FakeHistoryItem,
 		date,
 		HistoryService::PreparedText{ text });
 }
@@ -44,7 +44,6 @@ struct RepliesList::Viewer {
 	int limitAfter = 0;
 	int injectedForRoot = 0;
 	base::has_weak_ptr guard;
-	bool stale = true;
 	bool scheduled = false;
 };
 
@@ -65,23 +64,6 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	return rpl::combine(
-		sourceFromServer(aroundId, limitBefore, limitAfter),
-		_history->session().changes().historyFlagsValue(
-			_history,
-			Data::HistoryUpdate::Flag::LocalMessages)
-	) | rpl::filter([=](const MessagesSlice &data, const auto &) {
-		return (data.fullCount.value_or(0) >= 0);
-	}) | rpl::map([=](MessagesSlice &&server, const auto &) {
-		appendLocalMessages(server);
-		return std::move(server);
-	});
-}
-
-rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
-		MessagePosition aroundId,
-		int limitBefore,
-		int limitAfter) {
 	const auto around = aroundId.fullId.msg;
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
@@ -89,15 +71,11 @@ rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 		const auto push = [=] {
 			viewer->scheduled = false;
 			if (buildFromData(viewer)) {
-				viewer->stale = false;
+				appendLocalMessages(viewer->slice);
 				consumer.put_next_copy(viewer->slice);
 			}
 		};
 		const auto pushDelayed = [=] {
-			if (!viewer->stale) {
-				viewer->stale = true;
-				consumer.put_next_copy(MessagesSlice{ .fullCount = -1 });
-			}
 			if (!viewer->scheduled) {
 				viewer->scheduled = true;
 				crl::on_main(&viewer->guard, push);
@@ -114,6 +92,11 @@ rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 		) | rpl::filter([=](const MessageUpdate &update) {
 			return applyUpdate(viewer, update);
 		}) | rpl::start_with_next(pushDelayed, lifetime);
+
+		_history->session().changes().historyUpdates(
+			_history,
+			Data::HistoryUpdate::Flag::LocalMessages
+		) | rpl::start_with_next(pushDelayed, lifetime);
 
 		_partLoaded.events(
 		) | rpl::start_with_next(pushDelayed, lifetime);
@@ -555,7 +538,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto maxId = IdFromMessage(list.front());
 	const auto wasSize = int(_list.size());
 	const auto toFront = (wasSize > 0) && (maxId > _list.front());
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto localFlags = MessageFlags();
 	const auto type = NewMessageType::Existing;
 	auto refreshed = std::vector<MsgId>();
 	if (toFront) {
@@ -563,7 +546,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	}
 	auto skipped = 0;
 	for (const auto &message : list) {
-		if (const auto item = owner.addNewMessage(message, clientFlags, type)) {
+		if (const auto item = owner.addNewMessage(message, localFlags, type)) {
 			if (item->replyToTop() == _rootId) {
 				if (toFront) {
 					refreshed.push_back(item->id);

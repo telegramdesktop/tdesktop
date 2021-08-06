@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h" // ExtractPhonePrefix.
-#include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_participant_box.h"
@@ -159,7 +158,7 @@ void ShowAddParticipantsError(
 				auto box = Box<EditAdminBox>(
 					channel,
 					user,
-					MTP_chatAdminRights(MTP_flags(0)),
+					ChatAdminRightsInfo(),
 					QString());
 				box->setSaveCallback(saveCallback);
 				*weak = Ui::show(std::move(box));
@@ -466,6 +465,7 @@ void GroupInfoBox::prepare() {
 
 	_photo.create(
 		this,
+		&_navigation->parentController()->window(),
 		((_type == Type::Channel)
 			? tr::lng_create_channel_crop
 			: tr::lng_create_group_crop)(tr::now),

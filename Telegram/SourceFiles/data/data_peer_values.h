@@ -64,20 +64,6 @@ inline auto PeerFlagValue(
 		typename PeerType::Flags::Enum flag) {
 	return SingleFlagValue(PeerFlagsValue(peer), flag);
 }
-//
-//inline auto PeerFlagValue(
-//		UserData *user,
-//		MTPDuser_ClientFlag flag) {
-//	return PeerFlagValue(user, static_cast<MTPDuser::Flag>(flag));
-//}
-
-rpl::producer<bool> PeerFlagValue(
-	ChatData *chat,
-	MTPDchat_ClientFlag flag);
-
-rpl::producer<bool> PeerFlagValue(
-	ChannelData *channel,
-	MTPDchannel_ClientFlag flag);
 
 template <
 	typename PeerType,

@@ -9,10 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
-#include "window/window_controller.h"
-#include "core/application.h"
 
-#include <private/qguiapplication_p.h>
+#include <giomm.h>
 
 namespace Platform {
 namespace File {
@@ -20,6 +18,12 @@ namespace internal {
 namespace {
 
 using namespace Platform::Gtk;
+
+struct GtkWidgetDeleter {
+	void operator()(GtkWidget *widget) {
+		gtk_widget_destroy(widget);
+	}
+};
 
 bool Supported() {
 	return (gtk_app_chooser_dialog_new != nullptr)
@@ -31,75 +35,62 @@ bool Supported() {
 		&& (gtk_widget_destroy != nullptr);
 }
 
-class GtkOpenWithDialog : public QWindow {
-public:
-	GtkOpenWithDialog(const QString &filepath);
-	~GtkOpenWithDialog();
+} // namespace
 
-	bool exec();
+class GtkOpenWithDialog::Private {
+public:
+	Private(
+		const QString &parent,
+		const QString &filepath);
 
 private:
-	static void handleResponse(GtkOpenWithDialog *dialog, int responseId);
+	friend class GtkOpenWithDialog;
 
-	GFile *_gfileInstance = nullptr;
-	GtkWidget *_gtkWidget = nullptr;
-	QEventLoop _loop;
-	std::optional<bool> _result;
+	static void handleResponse(Private *dialog, int responseId);
+
+	const Glib::RefPtr<Gio::File> _file;
+	const std::unique_ptr<GtkWidget, GtkWidgetDeleter> _gtkWidget;
+	rpl::event_stream<bool> _responseStream;
 };
 
-GtkOpenWithDialog::GtkOpenWithDialog(const QString &filepath)
-: _gfileInstance(g_file_new_for_path(filepath.toUtf8().constData()))
+GtkOpenWithDialog::Private::Private(
+		const QString &parent,
+		const QString &filepath)
+: _file(Gio::File::create_for_path(filepath.toStdString()))
 , _gtkWidget(gtk_app_chooser_dialog_new(
 		nullptr,
 		GTK_DIALOG_MODAL,
-		_gfileInstance)) {
+		_file->gobj())) {
 	g_signal_connect_swapped(
-		_gtkWidget,
+		_gtkWidget.get(),
 		"response",
 		G_CALLBACK(handleResponse),
 		this);
+
+	gtk_widget_realize(_gtkWidget.get());
+
+	Platform::internal::GdkSetTransientFor(
+		gtk_widget_get_window(_gtkWidget.get()),
+		parent);
+
+	gtk_widget_show(_gtkWidget.get());
 }
 
-GtkOpenWithDialog::~GtkOpenWithDialog() {
-	gtk_widget_destroy(_gtkWidget);
-	g_object_unref(_gfileInstance);
-}
-
-bool GtkOpenWithDialog::exec() {
-	gtk_widget_realize(_gtkWidget);
-
-	if (const auto activeWindow = Core::App().activeWindow()) {
-		Platform::internal::GdkSetTransientFor(
-			gtk_widget_get_window(_gtkWidget),
-			activeWindow->widget()->windowHandle());
-	}
-
-	QGuiApplicationPrivate::showModalWindow(this);
-	gtk_widget_show(_gtkWidget);
-
-	if (!_result.has_value()) {
-		_loop.exec();
-	}
-
-	QGuiApplicationPrivate::hideModalWindow(this);
-	return *_result;
-}
-
-void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId) {
-	GAppInfo *chosenAppInfo = nullptr;
-	dialog->_result = true;
+void GtkOpenWithDialog::Private::handleResponse(Private *dialog, int responseId) {
+	Glib::RefPtr<Gio::AppInfo> chosenAppInfo;
+	bool result = true;
 
 	switch (responseId) {
 	case GTK_RESPONSE_OK:
-		chosenAppInfo = gtk_app_chooser_get_app_info(
-			gtk_app_chooser_cast(dialog->_gtkWidget));
+		chosenAppInfo = Glib::wrap(gtk_app_chooser_get_app_info(
+			GTK_APP_CHOOSER(dialog->_gtkWidget.get())));
 
 		if (chosenAppInfo) {
-			GList *uris = nullptr;
-			uris = g_list_prepend(uris, g_file_get_uri(dialog->_gfileInstance));
-			g_app_info_launch_uris(chosenAppInfo, uris, nullptr, nullptr);
-			g_list_free(uris);
-			g_object_unref(chosenAppInfo);
+			try {
+				chosenAppInfo->launch_uri(dialog->_file->get_uri());
+			} catch (...) {
+			}
+			chosenAppInfo = {};
 		}
 
 		break;
@@ -109,21 +100,33 @@ void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId
 		break;
 
 	default:
-		dialog->_result = false;
+		result = false;
 		break;
 	}
 
-	dialog->_loop.quit();
+	dialog->_responseStream.fire_copy(result);
 }
 
-} // namespace
+GtkOpenWithDialog::GtkOpenWithDialog(
+		const QString &parent,
+		const QString &filepath)
+: _private(std::make_unique<Private>(parent, filepath)) {
+}
 
-bool ShowGtkOpenWithDialog(const QString &filepath) {
+GtkOpenWithDialog::~GtkOpenWithDialog() = default;
+
+rpl::producer<bool> GtkOpenWithDialog::response() {
+	return _private->_responseStream.events();
+}
+
+std::unique_ptr<GtkOpenWithDialog> CreateGtkOpenWithDialog(
+		const QString &parent,
+		const QString &filepath) {
 	if (!Supported()) {
-		return false;
+		return nullptr;
 	}
 
-	return GtkOpenWithDialog(filepath).exec();
+	return std::make_unique<GtkOpenWithDialog>(parent, filepath);
 }
 
 } // namespace internal

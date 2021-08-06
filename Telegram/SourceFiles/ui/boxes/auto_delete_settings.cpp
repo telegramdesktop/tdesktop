@@ -204,15 +204,18 @@ void AutoDeleteSettingsBox(
 		//u"5 seconds"_q, AssertIsDebug()
 		tr::lng_manage_messages_ttl_after1(tr::now),
 		tr::lng_manage_messages_ttl_after2(tr::now),
+		tr::lng_manage_messages_ttl_after3(tr::now),
 	};
 	const auto periodToIndex = [&](TimeId period) {
 		return !period
 			? 0
 			//: (period == 5) AssertIsDebug()
 			//? 1 AssertIsDebug()
-			: (period < 3 * 86400)
+			: (period < 2 * 86400)
 			? 1
-			: 2;
+			: (period < 8 * 86400)
+			? 2
+			: 3;
 	};
 	const auto indexToPeriod = [&](int index) {
 		return !index
@@ -221,12 +224,14 @@ void AutoDeleteSettingsBox(
 			//? 5 AssertIsDebug()
 			: (index == 1)
 			? 86400
-			: 7 * 86400;
+			: (index == 2)
+			? 7 * 86400
+			: 31 * 86400;
 	};
 	const auto sliderCallback = [=](int index) {
 		state->period = indexToPeriod(index);
 	};
-	const auto slider = box->addRow(
+	box->addRow(
 		CreateSliderForTTL(
 			box,
 			options | ranges::to_vector,
@@ -239,7 +244,7 @@ void AutoDeleteSettingsBox(
 			st::boxRowPadding.right(),
 			st::boxMediumSkip });
 
-	const auto description = box->addRow(
+	box->addRow(
 		object_ptr<Ui::DividerLabel>(
 			box,
 			object_ptr<Ui::FlatLabel>(

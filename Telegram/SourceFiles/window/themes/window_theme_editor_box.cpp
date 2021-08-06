@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/special_fields.h"
+#include "ui/ui_utility.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
@@ -169,7 +170,7 @@ void BackgroundSelector::updateThumbnail() {
 		p.drawImage(QRect(0, 0, size, size), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
+	_thumbnail = Ui::PixmapFromImage(std::move(back));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	update();
 }
@@ -251,10 +252,6 @@ void ImportFromFile(
 		tr::lng_theme_editor_menu_import(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
-}
-
-[[nodiscard]] QString BytesToUTF8(QLatin1String string) {
-	return QString::fromUtf8(string.data(), string.size());
 }
 
 // They're duplicated in window_theme.cpp:ChatBackground::ChatBackground.
@@ -489,7 +486,7 @@ Fn<void()> SavePreparedTheme(
 		Fn<void(SaveErrorType,QString)> fail) {
 	Expects(window->account().sessionExists());
 
-	using Storage::UploadedThumbDocument;
+	using Storage::UploadedDocument;
 	struct State {
 		FullMsgId id;
 		bool generating = false;
@@ -572,11 +569,11 @@ Fn<void()> SavePreparedTheme(
 		}).send();
 	};
 
-	const auto uploadTheme = [=](const UploadedThumbDocument &data) {
+	const auto uploadTheme = [=](const UploadedDocument &data) {
 		state->requestId = api->request(MTPaccount_UploadTheme(
 			MTP_flags(MTPaccount_UploadTheme::Flag::f_thumb),
 			data.file,
-			data.thumb,
+			*data.thumb,
 			MTP_string(state->filename),
 			MTP_string("application/x-tgtheme-tdesktop")
 		)).done([=](const MTPDocument &result) {
@@ -598,10 +595,10 @@ Fn<void()> SavePreparedTheme(
 		state->filename = media.filename;
 		state->themeContent = theme;
 
-		session->uploader().thumbDocumentReady(
-		) | rpl::filter([=](const UploadedThumbDocument &data) {
-			return data.fullId == state->id;
-		}) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
+		session->uploader().documentReady(
+		) | rpl::filter([=](const UploadedDocument &data) {
+			return (data.fullId == state->id) && data.thumb.has_value();
+		}) | rpl::start_with_next([=](const UploadedDocument &data) {
 			uploadTheme(data);
 		}, state->lifetime);
 
@@ -700,9 +697,6 @@ void CreateForExistingBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud) {
-	const auto userId = window->account().sessionExists()
-		? window->account().session().userId()
-		: UserId(-1);
 	const auto amCreator = window->account().sessionExists()
 		&& (window->account().session().userId() == cloud.createdBy);
 	box->setTitle(amCreator
@@ -797,7 +791,6 @@ struct CollectedData {
 		: ParseTheme(original);
 
 	const auto background = Background()->createCurrentImage();
-	const auto backgroundIsTiled = Background()->tile();
 	const auto changed = !Data::IsThemeWallPaper(Background()->paper())
 		|| originalParsed.background.isEmpty()
 		|| ColorizerForTheme(original.pathAbsolute);

@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
 constexpr auto kMouseEvents = {
@@ -795,7 +794,8 @@ rpl::producer<> ComposeControls::attachRequests() const {
 		_attachRequests.events()
 	) | rpl::filter([=] {
 		if (isEditingMessage()) {
-			Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+			_window->show(
+				Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 			return false;
 		}
 		return true;
@@ -1015,8 +1015,11 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	_header->visibleChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](bool shown) {
 		updateHeight();
+		if (shown) {
+			raisePanels();
+		}
 	}, _wrap->lifetime());
 
 	sendContentRequests(
@@ -1233,10 +1236,9 @@ void ComposeControls::initAutocomplete() {
 	_field->rawTextEdit()->installEventFilter(_autocomplete.get());
 
 	_window->session().data().botCommandsChanges(
-	) | rpl::filter([=](not_null<UserData*> user) {
-		const auto peer = _history ? _history->peer.get() : nullptr;
-		return peer && (peer == user || !peer->isUser());
-	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return _history && (_history->peer == peer);
+	}) | rpl::start_with_next([=] {
 		if (_autocomplete->clearFilteredBotCommands()) {
 			checkAutocomplete();
 		}
@@ -1264,7 +1266,7 @@ void ComposeControls::updateStickersByEmoji() {
 	const auto emoji = [&] {
 		const auto errorForStickers = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_stickers);
+			ChatRestriction::SendStickers);
 		if (!isEditingMessage() && !errorForStickers) {
 			const auto &text = _field->getTextWithTags().text;
 			auto length = 0;
@@ -1297,7 +1299,7 @@ void ComposeControls::updateFieldPlaceholder() {
 				return session().data().notifySilentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
-			} else if (channel->adminRights() & ChatAdminRight::f_anonymous) {
+			} else if (channel->adminRights() & ChatAdminRight::Anonymous) {
 				return tr::lng_send_anonymous_ph();
 			} else {
 				return tr::lng_message_ph();
@@ -1652,10 +1654,10 @@ void ComposeControls::initVoiceRecordBar() {
 		const auto error = _history
 			? Data::RestrictionError(
 				_history->peer,
-				ChatRestriction::f_send_media)
+				ChatRestriction::SendMedia)
 			: std::nullopt;
 		if (error) {
-			Ui::show(Box<InformBox>(*error));
+			_window->show(Box<InformBox>(*error));
 			return true;
 		} else if (_showSlowmodeError && _showSlowmodeError()) {
 			return true;
@@ -1954,7 +1956,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	if (_voiceRecordBar->isActive()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+		_window->show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
 
@@ -2171,7 +2173,7 @@ void ComposeControls::initWebpageProcess() {
 
 	const auto checkPreview = crl::guard(_wrap.get(), [=] {
 		const auto previewRestricted = peer
-			&& peer->amRestricted(ChatRestriction::f_embed_links);
+			&& peer->amRestricted(ChatRestriction::EmbedLinks);
 		if (_previewState != Data::PreviewState::Allowed
 			|| previewRestricted) {
 			_previewCancel();
@@ -2393,7 +2395,16 @@ void ComposeControls::applyInlineBotQuery(
 				_currentDialogsEntryState);
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::ResultSelected result) {
-				_inlineResultChosen.fire_copy(result);
+				if (result.open) {
+					const auto request = result.result->openRequest();
+					if (const auto photo = request.photo()) {
+						_window->openPhoto(photo, FullMsgId());
+					} else if (const auto document = request.document()) {
+						_window->openDocument(document, FullMsgId());
+					}
+				} else {
+					_inlineResultChosen.fire_copy(result);
+				}
 			});
 			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
 			_inlineResults->requesting(

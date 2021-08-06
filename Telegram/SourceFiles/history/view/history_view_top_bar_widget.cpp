@@ -117,7 +117,7 @@ TopBarWidget::TopBarWidget(
 		_search->setForceRippled(searchInActiveChat, animated);
 	}, lifetime());
 
-	controller->adaptive().changed(
+	controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());

@@ -1,3 +1,99 @@
+2.9.1 (30.07.21)
+
+- Fix requesting screencast rights on macOS.
+
+2.9 (30.07.21)
+
+- Enable auto-delete in your chats to remove messages after 1 month (also 1 day or 1 week).
+- Quickly find all GIFs from a chat using the new GIF section in Shared Media.
+- Reset your Two-Step Verification password even if you forgot your old password and don't have a recovery email.
+- To do this, you must be logged into your account. The reset takes 7 days and can be cancelled from any of your devices.
+- Enjoy a new app icon and default background.
+
+2.8.13 beta (23.07.21)
+
+- Fix crash in messages animation.
+- Save GIFs from context menu in channel comments.
+
+2.8.12 beta (20.07.21)
+
+- Change the default chat background.
+- Add GIFs overview section in chats.
+- Add a simple new messages animation.
+- Use modern Telegram application icon.
+- Use Direct3D 11 by default on Windows.
+- Fix Direct3D acceleration on basic Windows 7 setup.
+
+2.8.11 (17.07.21)
+
+- Check shader compilation / linking before using ANGLE.
+
+2.8.10 (16.07.21)
+
+- Fix media loading.
+
+2.8.9 (16.07.21)
+
+- Fix GIF caption edit.
+- Fix version on Windows without SetDefaultDllDirectories.
+- Fix fonts on Linux.
+
+2.8.8 (15.07.21)
+
+- Added an image editor. Crop photos or highlight parts of screenshots before sending.
+
+2.8.7 beta (08.07.21)
+
+- (wasn't deployed)
+
+2.8.6 beta (06.07.21)
+
+- Added a simple image editor. Crop photos or highlight parts of screenshots before sending.
+- Use Direct3D 9 backend in ANGLE by default (Windows).
+- Fix "Show in Finder" not focusing the Finder window (macOS).
+- Use GTK from a child process (Linux).
+
+2.8.5 beta (02.07.21)
+
+- Use ANGLE for OpenGL over DirectX 9 / DirectX 11 (Windows).
+- Use GTK from a child process (Linux).
+
+2.8.4 (01.07.21)
+
+- Crash fixes in WebView on Windows.
+
+2.8.3 (28.06.21)
+
+- Fix crashes in OpenSSL on macOS.
+
+2.8.2 (27.06.21)
+
+- Attempt to fix random crashes on macOS.
+
+2.8.1 (26.06.21)
+
+- Fix crash in audio player volume slider.
+
+2.8 (24.06.21)
+
+- Start video conferences from Voice Chats in any group.
+- Share your screen or video from your camera with up to 30 participants (limit to be increased soon).
+- Talk without video with an unlimited number of participants.
+- Create voice chats from the info page of any group where you are an admin.
+- Group video calls are supported natively on all devices, including iPads and laptops.
+
+2.7.10 beta (22.06.21)
+
+- Added ability to mix together bold, italic and other formatting.
+- Fix voice chats and video calls OpenGL with some drivers on Windows.
+- Several bug fixes.
+
+2.7.9 beta (17.06.21)
+
+- Added "Enable noise suppression" option to group calls Settings.
+- Fix media viewer with Retina + Non-Retina dual monitor setup on macOS.
+- Several bug and crash fixes.
+
 2.7.8 beta (11.06.21)
 
 - Crash fixes.

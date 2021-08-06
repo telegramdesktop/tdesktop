@@ -38,6 +38,7 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		base::Platform::SystemMediaControls::PlaybackStatus;
 	using Command = base::Platform::SystemMediaControls::Command;
 
+	_controls->setServiceName(qsl("org.mpris.MediaPlayer2.tdesktop"));
 	_controls->setApplicationName(AppName.utf16());
 	const auto inited = _controls->init(controller->widget());
 	if (!inited) {

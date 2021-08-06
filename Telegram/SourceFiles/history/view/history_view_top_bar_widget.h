@@ -35,7 +35,7 @@ namespace HistoryView {
 
 class SendActionPainter;
 
-class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
+class TopBarWidget final : public Ui::RpWidget {
 public:
 	struct SelectedState {
 		bool textSelected = false;

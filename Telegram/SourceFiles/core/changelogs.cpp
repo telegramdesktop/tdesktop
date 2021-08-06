@@ -22,132 +22,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		2004006,
-		"- Fix image compression option when sending files with drag-n-drop.\n"
-
-		"- Fix caption text selection in media albums.\n"
-
-		"- Fix drafts display in personal chats in the chats list.\n"
-
-		"- Bug fixes and other minor improvements.\n"
-	},
-	{
-		2004008,
-		"- Upgrade several third party libraries to latest versions.\n"
-	},
-	{
-		2004010,
-		"- Use inline bots and sticker by emoji suggestions in channel comments.\n"
-
-		"- Lock voice message recording, listen to your voice message before sending.\n"
-	},
-	{
-		2004011,
-		"- Improve locked voice message recording.\n"
-
-		"- Fix main window closing to tray on Windows.\n"
-
-		"- Fix crash in bot command sending.\n"
-
-		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
-	},
-	{
-		2004012,
-		"- Voice chats in groups. (alpha version)\n"
-	},
-	{
-		2004014,
-		"- Create voice chats in legacy groups.\n"
-
-		"- Fix sticker pack opening.\n"
-
-		"- Fix group status display.\n"
-
-		"- Fix group members display.\n"
-	},
-	{
-		2004015,
-		"- Improve design of voice chats.\n"
-
-		"- Fix sending of voice messages as replies.\n"
-
-		"- Fix 'Open With' menu position in macOS.\n"
-
-		"- Fix freeze on secondary screen disconnect.\n"
-	},
-	{
-		2005002,
-		"- Fix possible crash in video calls.\n"
-
-		"- Fix possible crash in connecting to voice chats.\n"
-
-		"- Use different audio module code on Windows in calls.\n"
-	},
-	{
-		2005003,
-		"- Allow using mouse buttons in Push-to-Talk shortcut.\n"
-
-		"- Fix blurred thumbnails in Shared Links section.\n"
-	},
-	{
-		2005004,
-		"- Implement new audio module code for calls and voice chats.\n"
-
-		"- Allow retracting votes from polls in comments to channel posts.\n"
-
-		"- Show small voice chat button for empty voice chats.\n"
-
-		"- Fix media viewer updating when screen resolution is changed.\n"
-	},
-	{
-		2005005,
-		"- Fix recording of audio in voice chats.\n"
-
-		"- Fix media viewer zoom and crashing.\n"
-	},
-	{
-		2005006,
-		"- Press Up arrow to edit your last sent comment.\n"
-
-		"- Add more information to date tooltips "
-		"in Recent Actions and channel comments.\n"
-
-		"- Bug and crash fixes.\n"
-	},
-	{
-		2006002,
-		"- Fix text disappearing because of cloud drafts sync.\n"
-	},
-	{
-		2006003,
-		"- Fix audio device selection in voice chats.\n"
-
-		"- Fix blinking self profile photo "
-		"in case the profile photo privacy is used.\n"
-
-		"- Fix voice chat admin menu on macOS.\n"
-	},
-	{
-		2006004,
-		"- Fix freeze in voice chats.\n"
-
-		"- Make default interface scale 110% on macOS Retina screens.\n"
-	},
-	{
-		2006005,
-		"- Improvements and fixes in new voice chat features.\n"
-	},
-	{
-		2006007,
-		"- Improve voice chat participants list updating.\n"
-	},
-	{
-		2006008,
-		"- Fix connecting and getting allowed to speak on voice chats.\n"
-
-		"- MPRIS support on Linux.\n"
-	},
-	{
 		2007005,
 		"- Add \"Voice chats\" filter in \"Recent actions\" for channels.\n"
 
@@ -172,6 +46,47 @@ std::map<int, const char*> BetaLogs() {
 		"- Fixed memory not being freed on Linux.\n"
 
 		"- Several crash fixes.\n"
+	},
+	{
+		2007009,
+		"- Added \"Enable noise suppression\" option to group calls Settings.\n"
+
+		"- Fix media viewer with Retina + Non-Retina dual monitor setup on macOS.\n"
+
+		"- Several bug and crash fixes.\n"
+	},
+	{
+		2007010,
+		"- Added ability to mix together bold, italic and other formatting.\n"
+
+		"- Fix voice chats and video calls OpenGL with some drivers on Windows.\n"
+
+		"- Several bug fixes.\n"
+	},
+	{
+		2008006,
+		"- Added a simple image editor. "
+		"Crop photos or highlight parts of screenshots before sending.\n"
+
+		"- Use Direct3D 9 backend in ANGLE by default (Windows).\n"
+
+		"- Fix \"Show in Finder\" not focusing the Finder window (macOS).\n"
+
+		"- Use GTK from a child process (Linux).\n"
+	},
+	{
+		2008012,
+		"- Change the default chat background.\n"
+
+		"- Add GIFs overview section in chats.\n"
+
+		"- Add a simple new messages animation.\n"
+
+		"- Use modern Telegram application icon.\n"
+
+		"- Use Direct3D 11 by default on Windows.\n"
+
+		"- Fix Direct3D acceleration on basic Windows 7 setup.\n"
 	},
 	};
 };

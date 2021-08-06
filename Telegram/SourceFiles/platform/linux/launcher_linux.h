@@ -15,9 +15,13 @@ class Launcher : public Core::Launcher {
 public:
 	Launcher(int argc, char *argv[]);
 
+	int exec() override;
+
 private:
 	void initHook() override;
 	bool launchUpdater(UpdaterLaunch action) override;
+
+	std::vector<std::string> _arguments;
 
 };
 

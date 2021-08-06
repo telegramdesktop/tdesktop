@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_location_manager.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_service_message.h"
+#include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "platform/platform_notifications_manager.h"
@@ -39,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "numbers.h"
 #include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_overview.h"
@@ -71,44 +69,8 @@ HistoryView::Element *hoveredItem = nullptr,
 
 namespace App {
 
-	QString formatPhone(QString phone) {
-		if (phone.isEmpty()) return QString();
-		if (phone.at(0) == '0') return phone;
-
-		QString number = phone;
-		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch) {
-			if (ch->unicode() < '0' || ch->unicode() > '9') {
-				number = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
-			}
-		}
-		QVector<int> groups = phoneNumberParse(number);
-		if (groups.isEmpty()) return '+' + number;
-
-		QString result;
-		result.reserve(number.size() + groups.size() + 1);
-		result.append('+');
-		int32 sum = 0;
-		for (int32 i = 0, l = groups.size(); i < l; ++i) {
-			result.append(number.midRef(sum, groups.at(i)));
-			sum += groups.at(i);
-			if (sum < number.size()) result.append(' ');
-		}
-		if (sum < number.size()) result.append(number.midRef(sum));
-		return result;
-	}
-
 	void initMedia() {
 		Ui::StartCachedCorners();
-
-		using Update = Window::Theme::BackgroundUpdate;
-		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
-			if (update.paletteChanged()) {
-				if (const auto m = App::main()) { // multi good
-					m->updateScrollColors();
-				}
-				HistoryView::serviceColorsUpdated();
-			}
-		});
 	}
 
 	void deinitMedia() {
@@ -280,10 +242,6 @@ namespace App {
 			*content = imageBytes;
 		}
 		return result;
-	}
-
-	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
 	}
 
 }

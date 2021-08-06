@@ -153,11 +153,15 @@ PanelController::~PanelController() {
 	if (_saveSettingsTimer.isActive()) {
 		saveSettings();
 	}
-	_panel->destroyLayer();
+	if (_panel) {
+		_panel->destroyLayer();
+	}
 }
 
 void PanelController::activatePanel() {
-	_panel->showAndActivate();
+	if (_panel) {
+		_panel->showAndActivate();
+	}
 }
 
 void PanelController::createPanel() {

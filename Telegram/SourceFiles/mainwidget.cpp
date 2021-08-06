@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_document_resolver.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
@@ -34,13 +35,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/window_connecting_widget.h"
@@ -67,7 +69,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
-#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirm_box.h"
@@ -108,7 +109,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
-#include "app.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -242,7 +242,6 @@ MainWidget::MainWidget(
 , _cacheBackgroundTimer([=] { cacheBackground(); })
 , _viewsIncrementTimer([=] { viewsIncrement(); })
 , _changelogs(Core::Changelogs::Create(&controller->session())) {
-	updateScrollColors();
 	setupConnectingWidget();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
@@ -347,11 +346,13 @@ MainWidget::MainWidget(
 	QCoreApplication::instance()->installEventFilter(this);
 
 	using Update = Window::Theme::BackgroundUpdate;
-	subscribe(Window::Theme::Background(), [this](const Update &update) {
-		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
+	Window::Theme::Background()->updates(
+	) | rpl::start_with_next([=](const Update &update) {
+		if (update.type == Update::Type::New
+			|| update.type == Update::Type::Changed) {
 			clearCachedBackground();
 		}
-	});
+	}, lifetime());
 
 	subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
 		if (over) {
@@ -380,7 +381,7 @@ MainWidget::MainWidget(
 		}
 	});
 
-	_controller->adaptive().changed(
+	_controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		handleAdaptiveLayoutUpdate();
 	}, lifetime());
@@ -510,6 +511,11 @@ void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 	}
 }
 
+void MainWidget::floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) {
+	_controller->showPeerHistoryAtItem(item);
+}
+
 bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
 
@@ -565,14 +571,6 @@ bool MainWidget::shareUrl(
 	return true;
 }
 
-void MainWidget::replyToItem(not_null<HistoryItem*> item) {
-	if ((!_mainSection || !_mainSection->replyToMessage(item))
-		&& (_history->peer() == item->history()->peer
-			|| _history->peer() == item->history()->peer->migrateTo())) {
-		_history->replyToMessage(item);
-	}
-}
-
 bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	Expects(peerId != 0);
 
@@ -605,7 +603,7 @@ bool MainWidget::sendPaths(PeerId peerId) {
 		return false;
 	} else if (const auto error = Data::RestrictionError(
 			peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::show(Box<InformBox>(*error));
 		return false;
 	}
@@ -744,36 +742,6 @@ void MainWidget::showSendPathsLayer() {
 	}
 }
 
-void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
-	const auto itemId = item->fullId();
-	session().uploader().pause(itemId);
-	const auto stopUpload = [=] {
-		Ui::hideLayer();
-		auto &data = session().data();
-		if (const auto item = data.message(itemId)) {
-			if (!item->isEditingMedia()) {
-				const auto history = item->history();
-				item->destroy();
-				history->requestChatListMessage();
-			} else {
-				item->returnSavedMedia();
-				session().uploader().cancel(item->fullId());
-			}
-			data.sendHistoryChangeNotifications();
-		}
-		session().uploader().unpause();
-	};
-	const auto continueUpload = [=] {
-		session().uploader().unpause();
-	};
-	Ui::show(Box<ConfirmBox>(
-		tr::lng_selected_cancel_sure_this(tr::now),
-		tr::lng_selected_upload_stop(tr::now),
-		tr::lng_continue(tr::now),
-		stopUpload,
-		continueUpload));
-}
-
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	if (!photo) return;
 	Ui::show(Box<ConfirmBox>(tr::lng_delete_photo_sure(tr::now), tr::lng_box_delete(tr::now), crl::guard(this, [=] {
@@ -822,10 +790,6 @@ void MainWidget::cacheBackground() {
 		result.setDevicePixelRatio(cRetinaFactor());
 		{
 			QPainter p(&result);
-			auto left = 0;
-			auto top = 0;
-			auto right = _willCacheFor.width();
-			auto bottom = _willCacheFor.height();
 			auto w = bg.width() / cRetinaFactor();
 			auto h = bg.height() / cRetinaFactor();
 			auto sx = 0;
@@ -840,7 +804,7 @@ void MainWidget::cacheBackground() {
 		}
 		_cachedX = 0;
 		_cachedY = 0;
-		_cachedBackground = App::pixmapFromImageInPlace(std::move(result));
+		_cachedBackground = Ui::PixmapFromImage(std::move(result));
 	} else {
 		auto &bg = Window::Theme::Background()->pixmap();
 
@@ -848,7 +812,12 @@ void MainWidget::cacheBackground() {
 		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
 		_cachedX = to.x();
 		_cachedY = to.y();
-		_cachedBackground = App::pixmapFromImageInPlace(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_cachedBackground = Ui::PixmapFromImage(
+			bg.toImage().copy(from).scaled(
+				to.width() * cIntRetinaFactor(),
+				to.height() * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation));
 		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
 	}
 	_cachedFor = _willCacheFor;
@@ -858,12 +827,17 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 	return _history->highlightStartTime(item);
 }
 
-void MainWidget::sendBotCommand(
-		not_null<PeerData*> peer,
-		UserData *bot,
-		const QString &cmd,
-		MsgId replyTo) {
-	_history->sendBotCommand(peer, bot, cmd, replyTo);
+void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
+	const auto type = _mainSection
+		? _mainSection->sendBotCommand(request)
+		: Window::SectionActionResult::Fallback;
+	if (type == Window::SectionActionResult::Fallback) {
+		ui_showPeerHistory(
+			request.peer->id,
+			SectionShow::Way::ClearStack,
+			ShowAtTheEndMsgId);
+		_history->sendBotCommand(request);
+	}
 }
 
 void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
@@ -938,6 +912,10 @@ void MainWidget::createPlayer() {
 			[this] { playerHeightUpdated(); },
 			_player->lifetime());
 		_player->entity()->setCloseCallback([=] { closeBothPlayers(); });
+		_player->entity()->setShowItemCallback([=](
+				not_null<const HistoryItem*> item) {
+			_controller->showPeerHistoryAtItem(item);
+		});
 		_playerVolume.create(this, _controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		orderWidgets();
@@ -1193,10 +1171,6 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 	return QPixmap();
 }
 
-void MainWidget::updateScrollColors() {
-	_history->updateScrollColors();
-}
-
 void MainWidget::setChatBackground(
 		const Data::WallPaper &background,
 		QImage &&image) {
@@ -1217,8 +1191,7 @@ void MainWidget::setChatBackground(
 	checkChatBackground();
 
 	const auto tile = Data::IsLegacy1DefaultWallPaper(background);
-	using Update = Window::Theme::BackgroundUpdate;
-	Window::Theme::Background()->notify(Update(Update::Type::Start, tile));
+	Window::Theme::Background()->downloadingStarted(tile);
 }
 
 bool MainWidget::isReadyChatBackground(
@@ -1289,7 +1262,7 @@ void MainWidget::checkChatBackground() {
 	};
 	_background->generating = Data::ReadImageAsync(
 		media.get(),
-		Window::Theme::ProcessBackgroundImage,
+		Window::Theme::PreprocessBackgroundImage,
 		generateCallback);
 }
 
@@ -1444,6 +1417,9 @@ void MainWidget::showChooseReportMessages(
 		peer->id,
 		SectionShow::Way::Forward,
 		ShowForChooseMessagesMsgId);
+	Ui::ShowMultilineToast({
+		.text = { tr::lng_report_please_select_messages(tr::now) },
+	});
 }
 
 void MainWidget::clearChooseReportMessages() {
@@ -1633,10 +1609,6 @@ void MainWidget::ui_showPeerHistory(
 	floatPlayerCheckVisibility();
 }
 
-PeerData *MainWidget::ui_getPeerForMouseAction() {
-	return _history->ui_getPeerForMouseAction();
-}
-
 PeerData *MainWidget::peer() {
 	return _history->peer();
 }
@@ -1704,7 +1676,6 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 		result.withTopBarShadow = false;
 	}
 	floatPlayerHideAll();
-	auto sectionTop = getThirdSectionTop();
 	result.oldContentCache = _thirdSection->grabForShowAnimation(result);
 	floatPlayerShowVisible();
 	return result;

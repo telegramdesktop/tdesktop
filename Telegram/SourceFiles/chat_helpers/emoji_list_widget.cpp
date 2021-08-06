@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
+#include "layout/layout_position.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
 #include "main/main_session.h"
@@ -553,7 +554,12 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 					auto index = i * _columnCount + j;
 					if (index >= info.count) break;
 
-					auto selected = (!_picker->isHidden() && info.section * MatrixRowShift + index == _pickerSel) || (info.section * MatrixRowShift + index == _selected);
+					const auto selectedIndex = Layout::PositionToIndex(
+						info.section,
+						index);
+					auto selected = (selectedIndex == _selected)
+						|| (!_picker->isHidden()
+							&& selectedIndex == _pickerSel);
 
 					auto w = QPoint(_rowsLeft + j * _singleSize.width(), info.rowsTop + i * _singleSize.height());
 					if (selected) {
@@ -593,8 +599,7 @@ void EmojiListWidget::mousePressEvent(QMouseEvent *e) {
 	_pressedSel = _selected;
 
 	if (_selected >= 0) {
-		auto section = (_selected / MatrixRowShift);
-		auto sel = _selected % MatrixRowShift;
+		const auto &[section, sel] = Layout::IndexToPosition(_selected);
 		if (section < kEmojiSectionCount
 			&& sel < _emoji[section].size()
 			&& _emoji[section][sel]->hasVariants()) {
@@ -619,8 +624,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		if (_picker->rect().contains(_picker->mapFromGlobal(_lastMousePos))) {
 			return _picker->handleMouseRelease(QCursor::pos());
 		} else if (_pickerSel >= 0) {
-			auto section = (_pickerSel / MatrixRowShift);
-			auto sel = _pickerSel % MatrixRowShift;
+			const auto &[section, sel] = Layout::IndexToPosition(_pickerSel);
 			if (section < kEmojiSectionCount
 				&& sel < _emoji[section].size()
 				&& _emoji[section][sel]->hasVariants()) {
@@ -642,12 +646,11 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 	if (_selected < 0 || _selected != pressed) return;
 
-	if (_selected >= kEmojiSectionCount * MatrixRowShift) {
+	if (_selected >= Layout::PositionToIndex(kEmojiSectionCount, 0)) {
 		return;
 	}
 
-	auto section = (_selected / MatrixRowShift);
-	auto sel = _selected % MatrixRowShift;
+	const auto &[section, sel] = Layout::IndexToPosition(_selected);
 	if (sel < _emoji[section].size()) {
 		auto emoji = _emoji[section][sel];
 		if (emoji->hasVariants() && !_picker->isHidden()) return;
@@ -664,8 +667,7 @@ void EmojiListWidget::selectEmoji(EmojiPtr emoji) {
 void EmojiListWidget::showPicker() {
 	if (_pickerSel < 0) return;
 
-	auto section = (_pickerSel / MatrixRowShift);
-	auto sel = _pickerSel % MatrixRowShift;
+	const auto &[section, sel] = Layout::IndexToPosition(_pickerSel);
 	if (section < kEmojiSectionCount && sel < _emoji[section].size() && _emoji[section][sel]->hasVariants()) {
 		_picker->showEmoji(_emoji[section][sel]);
 
@@ -708,8 +710,7 @@ void EmojiListWidget::colorChosen(EmojiPtr emoji) {
 		Core::App().settings().saveEmojiVariant(emoji);
 	}
 	if (_pickerSel >= 0) {
-		auto section = (_pickerSel / MatrixRowShift);
-		auto sel = _pickerSel % MatrixRowShift;
+		const auto &[section, sel] = Layout::IndexToPosition(_pickerSel);
 		if (section >= 0 && section < kEmojiSectionCount) {
 			_emoji[section][sel] = emoji;
 			rtlupdate(emojiRect(section, sel));
@@ -756,8 +757,7 @@ Ui::Emoji::Section EmojiListWidget::currentSection(int yOffset) const {
 
 QString EmojiListWidget::tooltipText() const {
 	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
-	const auto section = (_selected / MatrixRowShift);
-	const auto sel = _selected % MatrixRowShift;
+	const auto &[section, sel] = Layout::IndexToPosition(_selected);
 	if (_selected >= 0 && section < kEmojiSectionCount && sel < _emoji[section].size()) {
 		const auto emoji = _emoji[section][sel]->original();
 		const auto text = emoji->text();
@@ -822,7 +822,7 @@ void EmojiListWidget::updateSelected() {
 			if (newSelected >= _emoji[info.section].size()) {
 				newSelected = -1;
 			} else {
-				newSelected += info.section * MatrixRowShift;
+				newSelected += Layout::PositionToIndex(info.section, 0);
 			}
 		}
 	}
@@ -835,8 +835,11 @@ void EmojiListWidget::setSelected(int newSelected) {
 		return;
 	}
 	auto updateSelected = [this]() {
-		if (_selected < 0) return;
-		rtlupdate(emojiRect(_selected / MatrixRowShift, _selected % MatrixRowShift));
+		if (_selected < 0) {
+			return;
+		}
+		const auto &[section, sel] = Layout::IndexToPosition(_selected);
+		rtlupdate(emojiRect(section, sel));
 	};
 	updateSelected();
 	_selected = newSelected;

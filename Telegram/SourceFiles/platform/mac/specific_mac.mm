@@ -112,11 +112,6 @@ void WriteCrashDumpDetails() {
 #endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
-void RegisterCustomScheme(bool force) {
-	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
-	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
-}
-
 // I do check for availability, just not in the exact way clang is content with
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
@@ -196,7 +191,6 @@ void IgnoreApplicationActivationRightNow() {
 } // namespace Platform
 
 void psNewVersion() {
-	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {

@@ -76,10 +76,6 @@ defaultFeedUserpicButton: FeedUserpicButton {
 	innerPart: defaultUserpicButton;
 }
 
-cropPointSize: 10px;
-cropSkip: 13px;
-cropMinSize: 20px;
-
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	minWidth: 320px;
@@ -386,6 +382,7 @@ confirmCaptionArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 158px;
 }
+confirmEditCaptionAreaHeightMax: 78px;
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 confirmMaxHeightSkip: 25px;
@@ -427,33 +424,42 @@ backgroundScroll: ScrollArea(boxScroll) {
 	deltab: 10px;
 }
 
-editMediaButtonSize: 28px;
-editMediaButtonSkip: 8px;
+sendMediaPreviewSize: 308px;
+sendMediaPreviewHeightMax: 1280;
+sendMediaRowSkip: 10px;
+
+editMediaButtonSize: 32px;
+editMediaButtonSkip: 5px;
 editMediaButtonFileSkipRight: 1px;
 editMediaButtonFileSkipTop: 7px;
 
-editMediaButtonIconFile: icon {{ "settings_edit", menuIconFg }};
-editMediaButtonIconPhoto: icon {{ "settings_edit", roundedFg }};
-editMediaButton: IconButton {
+editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
+editMediaButton: IconButton(defaultIconButton) {
 	width: editMediaButtonSize;
 	height: editMediaButtonSize;
 
-	icon: editMediaButtonIconPhoto;
+	icon: editMediaButtonIconFile;
 
 	rippleAreaSize: editMediaButtonSize;
 	ripple: defaultRippleAnimation;
 }
 
+editMediaHintLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: sendMediaPreviewSize;
+}
+
 // SendFilesBox
 
 sendBoxAlbumGroupEditInternalSkip: 8px;
-sendBoxAlbumGroupSkipRight: 6px;
-sendBoxAlbumGroupSkipTop: 6px;
-sendBoxAlbumGroupRadius: 13px;
-sendBoxAlbumGroupHeight: 26px;
+sendBoxAlbumGroupSkipRight: 5px;
+sendBoxAlbumGroupSkipTop: 5px;
+sendBoxAlbumGroupRadius: 4px;
+sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumSmallGroupSize: size(30px, 25px);
 
 sendBoxFileGroupSkipTop: 2px;
-sendBoxFileGroupSkipRight: 8px;
+sendBoxFileGroupSkipRight: 5px;
 sendBoxFileGroupEditInternalSkip: -1px;
 
 sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
@@ -462,16 +468,11 @@ sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 	}
 }
 sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
-sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "history_file_cancel", menuIconFg, point(6px, 6px) }};
+sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
 
-sendBoxAlbumGroupButtonMediaEdit: icon {{ "settings_edit", roundedFg, point(3px, -2px) }};
-sendBoxAlbumGroupButtonMediaDelete: icon {{ "history_file_cancel", roundedFg, point(2px, 5px) }};
-sendBoxAlbumGroupButtonMedia: IconButton {
-	width: sendBoxAlbumGroupHeight;
-	height: sendBoxAlbumGroupHeight;
-
-	icon: sendBoxAlbumGroupButtonMediaEdit;
-}
+sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
+sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
+sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
 
 // End of SendFilesBox
 
@@ -523,6 +524,7 @@ usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
 }
 usernameDefaultFg: windowSubTextFg;
 
+editMediaLabelMargins: margins(0px, 11px, 0px, 0px);
 editMediaCheckboxMargins: margins(0px, 15px, 23px, 15px);
 
 downloadPathSkip: 10px;
@@ -648,10 +650,6 @@ groupStickersField: InputField(defaultMultiSelectSearchField) {
 	heightMin: 32px;
 }
 groupStickersSubTitleHeight: 36px;
-
-sendMediaPreviewSize: 308px;
-sendMediaPreviewHeightMax: 1280;
-sendMediaRowSkip: 10px;
 
 proxyUsePadding: margins(22px, 6px, 22px, 5px);
 proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);

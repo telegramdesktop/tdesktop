@@ -115,7 +115,6 @@ void PinnedTracker::refreshCurrentFromSlice() {
 	const auto i = _migratedPeer
 		? ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj1)
 		: ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj2);
-	const auto empty = _slice.ids.empty();
 	const auto before = int(i - begin(_slice.ids));
 	const auto after = int(end(_slice.ids) - i);
 	const auto haveValidData = (before > 0 || _slice.skippedBefore == 0)

@@ -28,6 +28,8 @@ namespace FileDialog {
 namespace XDP {
 namespace {
 
+using Type = ::FileDialog::internal::Type;
+
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kXDGDesktopPortalFileChooserInterface = "org.freedesktop.portal.FileChooser"_cs;
@@ -174,20 +176,14 @@ public:
 		}
 	}
 
-	bool defaultNameFilterDisables() const;
 	QUrl directory() const;
 	void setDirectory(const QUrl &directory);
 	void selectFile(const QUrl &filename);
 	QList<QUrl> selectedFiles() const;
-	void setFilter();
-	void selectNameFilter(const QString &filter);
-	QString selectedNameFilter() const;
-	void selectMimeTypeFilter(const QString &filter);
-	QString selectedMimeTypeFilter() const;
 
 	int exec() override;
 
-	bool failedToOpen() {
+	bool failedToOpen() const {
 		return _failedToOpen;
 	}
 
@@ -515,10 +511,6 @@ void XDPFileDialog::openPortal() {
 	}
 }
 
-bool XDPFileDialog::defaultNameFilterDisables() const {
-	return false;
-}
-
 void XDPFileDialog::setDirectory(const QUrl &directory) {
 	_directory = directory.path().toStdString();
 }
@@ -542,25 +534,7 @@ QList<QUrl> XDPFileDialog::selectedFiles() const {
 	return files;
 }
 
-void XDPFileDialog::setFilter() {
-}
-
-void XDPFileDialog::selectMimeTypeFilter(const QString &filter) {
-}
-
-QString XDPFileDialog::selectedMimeTypeFilter() const {
-	return QString::fromStdString(_selectedMimeTypeFilter);
-}
-
-void XDPFileDialog::selectNameFilter(const QString &filter) {
-}
-
-QString XDPFileDialog::selectedNameFilter() const {
-	return QString::fromStdString(_selectedNameFilter);
-}
-
 int XDPFileDialog::exec() {
-	bool deleteOnClose = testAttribute(Qt::WA_DeleteOnClose);
 	setAttribute(Qt::WA_DeleteOnClose, false);
 
 	bool wasShowModal = testAttribute(Qt::WA_ShowModal);
@@ -576,20 +550,20 @@ int XDPFileDialog::exec() {
 
 	// HACK we have to avoid returning until we emit
 	// that the dialog was accepted or rejected
-	QEventLoop loop;
+	const auto loop = Glib::MainLoop::create();
 	rpl::lifetime lifetime;
 
 	accepted(
 	) | rpl::start_with_next([&] {
-		loop.quit();
+		loop->quit();
 	}, lifetime);
 
 	rejected(
 	) | rpl::start_with_next([&] {
-		loop.quit();
+		loop->quit();
 	}, lifetime);
 
-	loop.exec();
+	loop->run();
 
 	if (guard.isNull()) {
 		return QDialog::Rejected;
@@ -703,11 +677,6 @@ void Start() {
 	ComputeFileChooserPortalVersion();
 }
 
-bool Use(Type type) {
-	return FileChooserPortalVersion.has_value()
-		&& (type != Type::ReadFolder || *FileChooserPortalVersion >= 3);
-}
-
 std::optional<bool> Get(
 		QPointer<QWidget> parent,
 		QStringList &files,
@@ -716,6 +685,11 @@ std::optional<bool> Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	if (!FileChooserPortalVersion.has_value()
+		|| (type == Type::ReadFolder && *FileChooserPortalVersion < 3)) {
+		return std::nullopt;
+	}
+
 	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
 	if (cDialogLastPath().isEmpty()
 		|| cDialogLastPath().contains(docRegExp)) {

@@ -32,7 +32,8 @@ public:
 		Fn<bool(not_null<const QMimeData*>)> &&dragEnterFilter = nullptr,
 		Fn<void(bool)> &&setAcceptDropsField = nullptr,
 		Fn<void()> &&updateControlsGeometry = nullptr,
-		CallbackComputeState &&computeState = nullptr);
+		CallbackComputeState &&computeState = nullptr,
+		bool hideSubtext = false);
 
 	void setText(const QString &text, const QString &subtext);
 

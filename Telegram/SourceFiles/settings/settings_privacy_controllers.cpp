@@ -31,13 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "settings/settings_privacy_security.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -47,9 +47,7 @@ namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockPeerBoxController
-	: public ChatsListBoxController
-	, private base::Subscriber {
+class BlockPeerBoxController final : public ChatsListBoxController {
 public:
 	explicit BlockPeerBoxController(not_null<Main::Session*> session);
 
@@ -132,19 +130,16 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	Expects(history->peer->isUser());
 
 	using Flag = MTPDmessage::Flag;
-	using FwdFlag = MTPDmessageFwdHeader::Flag;
 	// #TODO common global incrementable id for fake items, like clientMsgId.
 	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 6);
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
-	const auto replyTo = 0;
-	const auto viaBotId = 0;
 	const auto item = MTP_message(
 		MTP_flags(flags),
 		MTP_int(++id),
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(
-			MTP_flags(FwdFlag::f_from_id),
+			MTP_flags(MTPDmessageFwdHeader::Flag::f_from_id),
 			peerToMTP(history->session().userPeerId()),
 			MTPstring(), // from_name
 			MTP_int(base::unixtime::now()),
@@ -170,9 +165,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPVector<MTPRestrictionReason>(),
 		MTPint() // ttl_period
 	).match([&](const MTPDmessage &data) {
-		return history->makeMessage(
-			data,
-			MTPDmessage_ClientFlag::f_fake_history_item);
+		return history->makeMessage(data, MessageFlag::FakeHistoryItem);
 	}, [](auto &&) -> not_null<HistoryMessage*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});
@@ -304,7 +297,7 @@ void BlockedBoxController::BlockNewPeer(
 		});
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
-	Ui::show(
+	window->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }
@@ -334,7 +327,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		if (!user) {
 			return tr::lng_group_status(tr::now);
 		} else if (!user->phone().isEmpty()) {
-			return App::formatPhone(user->phone());
+			return Ui::FormatPhone(user->phone());
 		} else if (!user->username.isEmpty()) {
 			return '@' + user->username;
 		} else if (user->isBot()) {
@@ -515,7 +508,6 @@ void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
 		FnMut<void()> saveCallback) {
 	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
-		const auto session = _session;
 		auto callback = [
 			=,
 			saveCallback = std::move(saveCallback)
@@ -691,7 +683,7 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() 
 
 ForwardsPrivacyController::ForwardsPrivacyController(
 	not_null<Window::SessionController*> controller)
-: SimpleElementDelegate(controller)
+: SimpleElementDelegate(controller, [] {})
 , _controller(controller) {
 }
 
@@ -841,7 +833,6 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 	const auto textWidth = font->width(text);
 	const auto arrowSkip = st::settingsForwardPrivacyArrowSkip;
 	const auto arrowSize = st::settingsForwardPrivacyArrowSize;
-	const auto fullWidth = std::max(textWidth, 2 * arrowSkip);
 	const auto padding = st::settingsForwardPrivacyTooltipPadding;
 	const auto rect = QRect(0, 0, textWidth, font->height).marginsAdded(
 		padding

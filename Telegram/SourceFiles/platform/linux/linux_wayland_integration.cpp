@@ -21,128 +21,73 @@ using namespace KWayland::Client;
 namespace Platform {
 namespace internal {
 
-class WaylandIntegration::Private : public QObject {
-public:
-	Private();
-
-	[[nodiscard]] Registry &registry() {
-		return _registry;
-	}
-
-	[[nodiscard]] XdgExporter *xdgExporter() {
-		return _xdgExporter.get();
-	}
-
-	[[nodiscard]] PlasmaShell *plasmaShell() {
-		return _plasmaShell.get();
-	}
-
-	[[nodiscard]] AppMenuManager *appMenuManager() {
-		return _appMenuManager.get();
-	}
-
-	[[nodiscard]] QEventLoop &interfacesLoop() {
-		return _interfacesLoop;
-	}
-
-	[[nodiscard]] bool interfacesAnnounced() const {
-		return _interfacesAnnounced;
-	}
-
-private:
-	ConnectionThread _connection;
-	ConnectionThread *_applicationConnection = nullptr;
-	Registry _registry;
-	Registry _applicationRegistry;
-	std::unique_ptr<XdgExporter> _xdgExporter;
-	std::unique_ptr<PlasmaShell> _plasmaShell;
-	std::unique_ptr<AppMenuManager> _appMenuManager;
-	QEventLoop _interfacesLoop;
-	bool _interfacesAnnounced = false;
+struct WaylandIntegration::Private {
+	std::unique_ptr<ConnectionThread> connection;
+	Registry registry;
+	std::unique_ptr<XdgExporter> xdgExporter;
+	std::unique_ptr<PlasmaShell> plasmaShell;
+	std::unique_ptr<AppMenuManager> appMenuManager;
 };
-
-WaylandIntegration::Private::Private()
-: _applicationConnection(ConnectionThread::fromApplication(this)) {
-	_applicationRegistry.create(_applicationConnection);
-	_applicationRegistry.setup();
-
-	connect(
-		_applicationConnection,
-		&ConnectionThread::connectionDied,
-		&_applicationRegistry,
-		&Registry::destroy);
-
-	connect(&_connection, &ConnectionThread::connected, [=] {
-		LOG(("Successfully connected to Wayland server at socket: %1")
-			.arg(_connection.socketName()));
-
-		_registry.create(&_connection);
-		_registry.setup();
-	});
-
-	connect(
-		&_connection,
-		&ConnectionThread::connectionDied,
-		&_registry,
-		&Registry::destroy);
-
-	connect(&_registry, &Registry::interfacesAnnounced, [=] {
-		_interfacesAnnounced = true;
-		if (_interfacesLoop.isRunning()) {
-			_interfacesLoop.quit();
-		}
-	});
-
-	connect(
-		&_applicationRegistry,
-		&Registry::exporterUnstableV2Announced,
-		[=](uint name, uint version) {
-			_xdgExporter = std::unique_ptr<XdgExporter>{
-				_applicationRegistry.createXdgExporter(name, version),
-			};
-
-			connect(
-				_applicationConnection,
-				&ConnectionThread::connectionDied,
-				_xdgExporter.get(),
-				&XdgExporter::destroy);
-		});
-
-	connect(
-		&_applicationRegistry,
-		&Registry::plasmaShellAnnounced,
-		[=](uint name, uint version) {
-			_plasmaShell = std::unique_ptr<PlasmaShell>{
-				_applicationRegistry.createPlasmaShell(name, version),
-			};
-
-			connect(
-				_applicationConnection,
-				&ConnectionThread::connectionDied,
-				_plasmaShell.get(),
-				&PlasmaShell::destroy);
-		});
-
-	connect(
-		&_applicationRegistry,
-		&Registry::appMenuAnnounced,
-		[=](uint name, uint version) {
-			_appMenuManager = std::unique_ptr<AppMenuManager>{
-				_applicationRegistry.createAppMenuManager(name, version),
-			};
-
-			connect(
-				_applicationConnection,
-				&ConnectionThread::connectionDied,
-				_appMenuManager.get(),
-				&AppMenuManager::destroy);
-		});
-
-	_connection.initConnection();
-}
 
 WaylandIntegration::WaylandIntegration()
 : _private(std::make_unique<Private>()) {
+	_private->connection = std::unique_ptr<ConnectionThread>{
+		ConnectionThread::fromApplication(),
+	};
+
+	_private->registry.create(_private->connection.get());
+	_private->registry.setup();
+
+	QObject::connect(
+		_private->connection.get(),
+		&ConnectionThread::connectionDied,
+		&_private->registry,
+		&Registry::destroy);
+
+	QObject::connect(
+		&_private->registry,
+		&Registry::exporterUnstableV2Announced,
+		[=](uint name, uint version) {
+			_private->xdgExporter = std::unique_ptr<XdgExporter>{
+				_private->registry.createXdgExporter(name, version),
+			};
+
+			QObject::connect(
+				_private->connection.get(),
+				&ConnectionThread::connectionDied,
+				_private->xdgExporter.get(),
+				&XdgExporter::destroy);
+		});
+
+	QObject::connect(
+		&_private->registry,
+		&Registry::plasmaShellAnnounced,
+		[=](uint name, uint version) {
+			_private->plasmaShell = std::unique_ptr<PlasmaShell>{
+				_private->registry.createPlasmaShell(name, version),
+			};
+
+			QObject::connect(
+				_private->connection.get(),
+				&ConnectionThread::connectionDied,
+				_private->plasmaShell.get(),
+				&PlasmaShell::destroy);
+		});
+
+	QObject::connect(
+		&_private->registry,
+		&Registry::appMenuAnnounced,
+		[=](uint name, uint version) {
+			_private->appMenuManager = std::unique_ptr<AppMenuManager>{
+				_private->registry.createAppMenuManager(name, version),
+			};
+
+			QObject::connect(
+				_private->connection.get(),
+				&ConnectionThread::connectionDied,
+				_private->appMenuManager.get(),
+				&AppMenuManager::destroy);
+		});
 }
 
 WaylandIntegration::~WaylandIntegration() = default;
@@ -153,20 +98,8 @@ WaylandIntegration *WaylandIntegration::Instance() {
 	return &instance;
 }
 
-void WaylandIntegration::waitForInterfaceAnnounce() {
-	Expects(!_private->interfacesLoop().isRunning());
-	if (!_private->interfacesAnnounced()) {
-		_private->interfacesLoop().exec();
-	}
-}
-
-bool WaylandIntegration::supportsXdgDecoration() {
-	return _private->registry().hasInterface(
-		Registry::Interface::XdgDecorationUnstableV1);
-}
-
 QString WaylandIntegration::nativeHandle(QWindow *window) {
-	if (const auto exporter = _private->xdgExporter()) {
+	if (const auto exporter = _private->xdgExporter.get()) {
 		if (const auto surface = Surface::fromWindow(window)) {
 			if (const auto exported = exporter->exportTopLevel(
 				surface,
@@ -186,11 +119,11 @@ QString WaylandIntegration::nativeHandle(QWindow *window) {
 }
 
 bool WaylandIntegration::skipTaskbarSupported() {
-	return _private->plasmaShell();
+	return _private->plasmaShell != nullptr;
 }
 
 void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
-	const auto shell = _private->plasmaShell();
+	const auto shell = _private->plasmaShell.get();
 	if (!shell) {
 		return;
 	}
@@ -212,7 +145,7 @@ void WaylandIntegration::registerAppMenu(
 		QWindow *window,
 		const QString &serviceName,
 		const QString &objectPath) {
-	const auto manager = _private->appMenuManager();
+	const auto manager = _private->appMenuManager.get();
 	if (!manager) {
 		return;
 	}

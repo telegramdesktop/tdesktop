@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 1;
+constexpr auto kVersion = 2;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -34,19 +34,14 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
-	if (auto sticker = document->sticker()) {
+	if (const auto sticker = document->sticker()) {
 		stream << document->sticker()->alt;
-		switch (document->sticker()->set.type()) {
-		case mtpc_inputStickerSetID: {
+		if (document->sticker()->set.id) {
 			stream << qint32(StickerSetTypeID);
-		} break;
-		case mtpc_inputStickerSetShortName: {
+		} else if (!document->sticker()->set.shortName.isEmpty()) {
 			stream << qint32(StickerSetTypeShortName);
-		} break;
-		case mtpc_inputStickerSetEmpty:
-		default: {
+		} else {
 			stream << qint32(StickerSetTypeEmpty);
-		} break;
 		}
 	} else {
 		stream << qint32(document->getDuration());
@@ -54,7 +49,10 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());
-	stream << qint32(document->videoThumbnailByteSize());
+	stream
+		<< qint32(document->videoThumbnailByteSize())
+		<< qint32(document->inlineThumbnailIsPath() ? 1 : 0)
+		<< document->inlineThumbnailBytes();
 }
 
 DocumentData *Document::readFromStreamHelper(
@@ -98,6 +96,7 @@ DocumentData *Document::readFromStreamHelper(
 		} else if (info) {
 			if (info->setId == Data::Stickers::DefaultSetId
 				|| info->setId == Data::Stickers::CloudRecentSetId
+				|| info->setId == Data::Stickers::CloudRecentAttachedSetId
 				|| info->setId == Data::Stickers::FavedSetId
 				|| info->setId == Data::Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
@@ -124,11 +123,16 @@ DocumentData *Document::readFromStreamHelper(
 	}
 	std::optional<ImageLocation> videoThumb;
 	qint32 thumbnailByteSize = 0, videoThumbnailByteSize = 0;
+	qint32 inlineThumbnailIsPath = 0;
+	QByteArray inlineThumbnailBytes;
 	const auto thumb = readImageLocation(streamAppVersion, stream);
 	if (version >= 1) {
 		stream >> thumbnailByteSize;
 		videoThumb = readImageLocation(streamAppVersion, stream);
 		stream >> videoThumbnailByteSize;
+		if (version >= 2) {
+			stream >> inlineThumbnailIsPath >> inlineThumbnailBytes;
+		}
 	} else {
 		videoThumb = ImageLocation();
 	}
@@ -164,7 +168,10 @@ DocumentData *Document::readFromStreamHelper(
 		date,
 		attributes,
 		mime,
-		QByteArray(),
+		InlineImageLocation{
+			inlineThumbnailBytes,
+			(inlineThumbnailIsPath == 1),
+		},
 		ImageWithLocation{
 			.location = *thumb,
 			.bytesCount = thumbnailByteSize
@@ -195,8 +202,10 @@ DocumentData *Document::readFromStream(
 int Document::sizeInStream(DocumentData *document) {
 	int result = 0;
 
-	// id + access + date + version
-	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32);
+	// id + access + date
+	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32);
+	// file_reference + version tag + version
+	result += bytearraySize(document->_fileReference) + sizeof(qint32) * 2;
 	// + namelen + name + mimelen + mime + dc + size
 	result += stringSize(document->filename()) + stringSize(document->mimeString()) + sizeof(qint32) + sizeof(qint32);
 	// + width + height
@@ -213,6 +222,11 @@ int Document::sizeInStream(DocumentData *document) {
 	}
 	// + thumb loc
 	result += Serialize::imageLocationSize(document->thumbnailLocation());
+	result += sizeof(qint32); // thumbnail_byte_size
+	result += Serialize::imageLocationSize(document->videoThumbnailLocation());
+	result += sizeof(qint32); // video_thumbnail_byte_size
+
+	result += sizeof(qint32) + Serialize::bytearraySize(document->inlineThumbnailBytes());
 
 	return result;
 }

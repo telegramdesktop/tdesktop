@@ -126,11 +126,13 @@ private:
 
 	mutable QPixmap _hiddenUserpicPlaceholder;
 
+	rpl::lifetime _lifetime;
+
 };
 
 namespace internal {
 
-class Widget : public Ui::RpWidget, protected base::Subscriber {
+class Widget : public Ui::RpWidget {
 public:
 	enum class Direction {
 		Up,
@@ -232,7 +234,9 @@ public:
 	bool unlinkItem(HistoryItem *del);
 	bool unlinkHistory(History *history = nullptr);
 	bool unlinkSession(not_null<Main::Session*> session);
-	bool checkLastInput(bool hasReplyingNotifications);
+	bool checkLastInput(
+		bool hasReplyingNotifications,
+		std::optional<crl::time> lastInputTime);
 
 protected:
 	void enterEventHook(QEvent *e) override;

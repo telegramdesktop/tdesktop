@@ -98,7 +98,7 @@ void LoadAndApplyThumbnail(
 	};
 
 	document->updateThumbnails(
-		QByteArray(),
+		InlineImageLocation(),
 		imageWithLocation,
 		ImageWithLocation{ .location = ImageLocation() });
 

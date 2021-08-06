@@ -68,9 +68,9 @@ bool ShowStickerSet(
 		return false;
 	}
 	Core::App().hideMediaView();
-	Ui::show(Box<StickerSetBox>(
+	controller->show(Box<StickerSetBox>(
 		controller,
-		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
+		StickerSetIdentifier{ .shortName = match->captured(1) }));
 	return true;
 }
 
@@ -84,6 +84,7 @@ bool ShowTheme(
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	Core::App().hideMediaView();
 	controller->session().data().cloudThemes().resolve(
+		&controller->window(),
 		match->captured(1),
 		fromMessageId);
 	return true;
@@ -368,7 +369,7 @@ bool ResolveSettings(
 	}
 	if (section == qstr("devices")) {
 		controller->session().api().authorizations().reload();
-		Ui::show(Box<SessionsBox>(&controller->session()));
+		controller->show(Box<SessionsBox>(&controller->session()));
 		return true;
 	} else if (section == qstr("language")) {
 		ShowLanguagesBox();
@@ -401,12 +402,12 @@ bool HandleUnknown(
 				Core::UpdateApplication();
 				close();
 			};
-			Ui::show(Box<ConfirmBox>(
+			controller->show(Box<ConfirmBox>(
 				text,
 				tr::lng_menu_update(tr::now),
 				callback));
 		} else {
-			Ui::show(Box<InformBox>(text));
+			controller->show(Box<InformBox>(text));
 		}
 	});
 	controller->session().api().requestDeepLinkInfo(request, callback);
@@ -437,9 +438,7 @@ bool OpenMediaTimestamp(
 			documentId,
 			time * crl::time(1000));
 		if (document->isVideoFile()) {
-			Core::App().showDocument(
-				document,
-				session->data().message(itemId));
+			controller->openDocument(document, itemId, true);
 		} else if (document->isSong() || document->isVoiceMessage()) {
 			Media::Player::instance()->play({ document, itemId });
 		}

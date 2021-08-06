@@ -302,8 +302,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	if (upload) {
 		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->size,
 			_lumaSize,
 			yuv->y.stride,
@@ -314,8 +314,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->u.stride,
@@ -325,8 +325,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 3);
 	if (upload) {
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->v.stride,
@@ -355,8 +355,8 @@ void Pip::RendererGL::paintTransformedStaticContent(
 		const auto stride = image.bytesPerLine() / 4;
 		const auto data = image.constBits();
 		uploadTexture(
-			GL_RGBA,
-			GL_RGBA,
+			Ui::GL::kFormatRGBA,
+			Ui::GL::kFormatRGBA,
 			image.size(),
 			_rgbaSize,
 			stride,
@@ -635,7 +635,7 @@ void Pip::RendererGL::validateControls() {
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;
-	for (const auto meta : metas) {
+	for (const auto &meta : metas) {
 		Assert(meta.icon->size() == meta.iconOver->size());
 		maxWidth = std::max(meta.icon->width(), maxWidth);
 		fullHeight += 2 * meta.icon->height();
@@ -656,7 +656,7 @@ void Pip::RendererGL::validateControls() {
 				icon->size() * _factor);
 			height += icon->height();
 		};
-		for (const auto meta : metas) {
+		for (const auto &meta : metas) {
 			paint(meta.icon);
 			paint(meta.iconOver);
 		}

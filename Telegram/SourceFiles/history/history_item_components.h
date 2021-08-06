@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 struct WebPageData;
+class VoiceSeekClickHandler;
 
 namespace Data {
 class Session;
@@ -224,18 +225,20 @@ struct HistoryMessageMarkupButton {
 
 };
 
-struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
+struct HistoryMessageReplyMarkup
+	: public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
 	using Button = HistoryMessageMarkupButton;
 
 	HistoryMessageReplyMarkup() = default;
-	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) : flags(f) {
+	HistoryMessageReplyMarkup(ReplyMarkupFlags flags) : flags(flags) {
 	}
 
 	void create(const MTPReplyMarkup &markup);
 	void create(const HistoryMessageReplyMarkup &markup);
 
 	std::vector<std::vector<Button>> rows;
-	MTPDreplyKeyboardMarkup::Flags flags = 0;
+	ReplyMarkupFlags flags = 0;
+	QString placeholder;
 
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
@@ -244,7 +247,7 @@ private:
 
 };
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+class ReplyMarkupClickHandler : public ClickHandler {
 public:
 	ReplyMarkupClickHandler(
 		not_null<Data::Session*> owner,
@@ -276,8 +279,7 @@ public:
 		_itemId = msgId;
 	}
 
-protected:
-	void onClickImpl() const override;
+	void onClick(ClickContext context) const override;
 
 private:
 	const not_null<Data::Session*> _owner;

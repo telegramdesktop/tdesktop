@@ -48,11 +48,13 @@ void EditGroupCallTitleBox(
 	box->setFocusCallback([=] {
 		input->setFocusFast();
 	});
-	box->addButton(tr::lng_settings_save(), [=] {
+	const auto submit = [=] {
 		const auto result = input->getLastText().trimmed();
 		box->closeBox();
 		done(result);
-	});
+	};
+	QObject::connect(input, &Ui::InputField::submitted, submit);
+	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -76,11 +78,13 @@ void StartGroupCallRecordingBox(
 	box->setFocusCallback([=] {
 		input->setFocusFast();
 	});
-	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
+	const auto submit = [=] {
 		const auto result = input->getLastText().trimmed();
 		box->closeBox();
 		done(result);
-	});
+	};
+	QObject::connect(input, &Ui::InputField::submitted, submit);
+	box->addButton(tr::lng_group_call_recording_start_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -103,34 +107,6 @@ void StopGroupCallRecordingBox(
 		done(QString());
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-[[nodiscard]] auto ToDurationFrom(TimeId startDate) {
-	return [=] {
-		const auto now = base::unixtime::now();
-		const auto elapsed = std::max(now - startDate, 0);
-		const auto hours = elapsed / 3600;
-		const auto minutes = (elapsed % 3600) / 60;
-		const auto seconds = (elapsed % 60);
-		return hours
-			? QString("%1:%2:%3"
-			).arg(hours
-			).arg(minutes, 2, 10, QChar('0')
-			).arg(seconds, 2, 10, QChar('0'))
-			: QString("%1:%2"
-			).arg(minutes
-			).arg(seconds, 2, 10, QChar('0'));
-	};
-}
-
-[[nodiscard]] rpl::producer<QString> ToRecordDuration(TimeId startDate) {
-	return !startDate
-		? (rpl::single(QString()) | rpl::type_erased())
-		: rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::timer_each(
-			crl::time(1000)
-		)) | rpl::map(ToDurationFrom(startDate));
 }
 
 class JoinAsAction final : public Ui::Menu::ItemBase {
@@ -447,7 +423,6 @@ void RecordingAction::prepare(rpl::producer<QString> text) {
 	std::move(text) | rpl::start_with_next([=](QString text) {
 		const auto &padding = _st.itemPadding;
 		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
-		const auto textWidth = _text.maxWidth();
 		_textWidth = w - padding.left() - padding.right();
 		update();
 	}, lifetime());

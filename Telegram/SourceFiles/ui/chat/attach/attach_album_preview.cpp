@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Ui {
 namespace {
 
@@ -25,7 +27,8 @@ AlbumPreview::AlbumPreview(
 	gsl::span<Ui::PreparedFile> items,
 	SendFilesWay way)
 : RpWidget(parent)
-, _sendWay(way) {
+, _sendWay(way)
+, _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
 	prepareThumbs(items);
 	updateSize();
@@ -368,6 +371,13 @@ void AlbumPreview::changeThumbByIndex(int index) {
 	_thumbChanged.fire(std::move(index));
 }
 
+void AlbumPreview::modifyThumbByIndex(int index) {
+	if (index < 0) {
+		return;
+	}
+	_thumbModified.fire(std::move(index));
+}
+
 void AlbumPreview::thumbButtonsCallback(
 		not_null<AlbumThumbnail*> thumb,
 		AttachButtonType type) {
@@ -377,6 +387,10 @@ void AlbumPreview::thumbButtonsCallback(
 	case AttachButtonType::None: return;
 	case AttachButtonType::Edit: changeThumbByIndex(index); break;
 	case AttachButtonType::Delete: deleteThumbByIndex(index); break;
+	case AttachButtonType::Modify:
+		cancelDrag();
+		modifyThumbByIndex(index);
+		break;
 	}
 }
 
@@ -387,17 +401,21 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	const auto position = e->pos();
 	cancelDrag();
 	if (const auto thumb = findThumb(position)) {
-		if (thumb->buttonsContainPoint(e->pos())) {
-			thumbButtonsCallback(thumb, thumb->buttonTypeFromPoint(e->pos()));
+		_draggedStartPosition = position;
+		_pressedThumb = thumb;
+		_pressedButtonType = thumb->buttonTypeFromPoint(position);
+
+		const auto isAlbum = _sendWay.sendImagesAsPhotos()
+			&& _sendWay.groupFiles();
+		if (!isAlbum) {
 			return;
 		}
-		_paintedAbove = _suggestedThumb = _draggedThumb = thumb;
-		_draggedStartPosition = position;
-		_shrinkAnimation.start(
-			[=] { update(); },
-			0.,
-			1.,
-			AlbumThumbnail::kShrinkDuration);
+
+		if (_pressedButtonType == AttachButtonType::None) {
+			switchToDrag();
+		} else if (_pressedButtonType == AttachButtonType::Modify) {
+			_dragTimer.callOnce(QApplication::startDragTime());
+		}
 	}
 }
 
@@ -405,6 +423,10 @@ void AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
 	if (!_sendWay.sendImagesAsPhotos()) {
 		applyCursor(style::cur_default);
 		return;
+	}
+	if (_dragTimer.isActive()) {
+		_dragTimer.cancel();
+		switchToDrag();
 	}
 	const auto isAlbum = _sendWay.sendImagesAsPhotos()
 		&& _sendWay.groupFiles();
@@ -416,7 +438,7 @@ void AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
 	} else {
 		const auto thumb = findThumb(e->pos());
 		const auto regularCursor = isAlbum
-			? style::cur_sizeall
+			? style::cur_pointer
 			: style::cur_default;
 		const auto cursor = thumb
 			? (thumb->buttonsContainPoint(e->pos())
@@ -488,7 +510,32 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 		_draggedThumb = nullptr;
 		_suggestedThumb = nullptr;
 		update();
+	} else if (const auto thumb = base::take(_pressedThumb)) {
+		const auto was = _pressedButtonType;
+		const auto now = thumb->buttonTypeFromPoint(e->pos());
+		if (was == now) {
+			thumbButtonsCallback(thumb, now);
+		}
 	}
+	_pressedButtonType = AttachButtonType::None;
+}
+
+void AlbumPreview::switchToDrag() {
+	_paintedAbove
+		= _suggestedThumb
+		= _draggedThumb
+		= base::take(_pressedThumb);
+	_shrinkAnimation.start(
+		[=] { update(); },
+		0.,
+		1.,
+		AlbumThumbnail::kShrinkDuration);
+	applyCursor(style::cur_sizeall);
+	update();
+}
+
+rpl::producer<int> AlbumPreview::thumbModified() const {
+	return _thumbModified.events();
 }
 
 } // namespace Ui

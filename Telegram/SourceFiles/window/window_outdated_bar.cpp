@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
+#ifdef DESKTOP_APP_SPECIAL_TARGET
 constexpr auto kMinimalSkip = 7;
 constexpr auto kSoonSkip = 30;
 constexpr auto kNowSkip = 90;
@@ -145,6 +146,7 @@ void Closed() {
 		reinterpret_cast<const char*>(&value),
 		sizeof(qint32)));
 }
+#endif // DESKTOP_APP_SPECIAL_TARGET
 
 } // namespace
 

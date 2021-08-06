@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_schedule_box.h"
-#include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -42,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 
-class ShareBox::Inner final : public Ui::RpWidget, private base::Subscriber {
+class ShareBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent, const Descriptor &descriptor);
 
@@ -598,11 +597,10 @@ ShareBox::Inner::Inner(QWidget *parent, const Descriptor &descriptor)
 		update();
 	}, lifetime());
 
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			invalidateCache();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		invalidateCache();
+	}, lifetime());
 }
 
 void ShareBox::Inner::invalidateCache() {
@@ -1113,7 +1111,6 @@ QString AppendShareGameScoreUrl(
 		? session->data().channelLoaded(fullId.channel)
 		: static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = uint64(channel ? channel->access : 0);
-	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
 	shareHashDataInts[0] = session->userId().bare;
 	shareHashDataInts[1] = fullId.channel.bare;
 	shareHashDataInts[2] = fullId.msg;

@@ -45,7 +45,10 @@ inline bool operator!=(const FilterValue &a, const FilterValue &b) {
 
 class Widget final : public Window::SectionWidget {
 public:
-	Widget(QWidget *parent, not_null<Window::SessionController*> controller, not_null<ChannelData*> channel);
+	Widget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<ChannelData*> channel);
 
 	not_null<ChannelData*> channel() const;
 	Dialogs::RowDescriptor activeChat() const override;

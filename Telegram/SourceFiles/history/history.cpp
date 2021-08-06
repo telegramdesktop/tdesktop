@@ -54,7 +54,6 @@ namespace {
 
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(2);
-constexpr auto kSendingDraftTime = TimeId(-1);
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
@@ -350,7 +349,7 @@ void History::setForwardDraft(MessageIdsList &&items) {
 
 HistoryItem *History::createItem(
 		const MTPMessage &message,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags localFlags,
 		bool detachExistingItem) {
 	const auto messageId = IdFromMessage(message);
 	if (!messageId) {
@@ -363,17 +362,17 @@ HistoryItem *History::createItem(
 		}
 		return result;
 	}
-	return HistoryItem::Create(this, message, clientFlags);
+	return HistoryItem::Create(this, message, localFlags);
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
 	result.reserve(data.size());
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto localFlags = MessageFlags();
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto detachExistingItem = true;
-		const auto item = createItem(*--i, clientFlags, detachExistingItem);
+		const auto item = createItem(*--i, localFlags, detachExistingItem);
 		if (item) {
 			result.emplace_back(item);
 		}
@@ -383,10 +382,10 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 
 HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags localFlags,
 		NewMessageType type) {
 	const auto detachExistingItem = (type == NewMessageType::Unread);
-	const auto item = createItem(msg, clientFlags, detachExistingItem);
+	const auto item = createItem(msg, localFlags, detachExistingItem);
 	if (!item) {
 		return nullptr;
 	}
@@ -516,8 +515,35 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		TimeId date,
+		PeerId from,
+		const QString &postAuthor,
+		const TextWithEntities &text,
+		const MTPMessageMedia &media,
+		const MTPReplyMarkup &markup,
+		uint64 groupedId) {
+	return addNewItem(
+		makeMessage(
+			id,
+			flags,
+			replyTo,
+			viaBotId,
+			date,
+			from,
+			postAuthor,
+			text,
+			media,
+			markup,
+			groupedId),
+		true);
+}
+
+not_null<HistoryItem*> History::addNewLocalMessage(
+		MsgId id,
+		MessageFlags flags,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -526,7 +552,6 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		makeMessage(
 			id,
 			flags,
-			clientFlags,
 			date,
 			from,
 			postAuthor,
@@ -536,8 +561,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -550,7 +574,6 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		makeMessage(
 			id,
 			flags,
-			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -564,8 +587,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -578,7 +600,6 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		makeMessage(
 			id,
 			flags,
-			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -592,8 +613,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -605,7 +625,6 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		makeMessage(
 			id,
 			flags,
-			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -697,10 +716,10 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 
 	auto added = false;
 	if (messages) {
-		const auto clientFlags = MTPDmessage_ClientFlags();
+		const auto localFlags = MessageFlags();
 		const auto type = NewMessageType::Existing;
 		for (const auto &message : *messages) {
-			if (const auto item = addNewMessage(message, clientFlags, type)) {
+			if (const auto item = addNewMessage(message, localFlags, type)) {
 				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;
@@ -782,7 +801,7 @@ not_null<HistoryItem*> History::addNewToBack(
 		}
 		if (item->definesReplyKeyboard()) {
 			auto markupFlags = item->replyKeyboardFlags();
-			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective)
+			if (!(markupFlags & ReplyMarkupFlag::Selective)
 				|| item->mentionsMe()) {
 				auto getMarkupSenders = [this]() -> base::flat_set<not_null<PeerData*>>* {
 					if (auto chat = peer->asChat()) {
@@ -795,7 +814,8 @@ not_null<HistoryItem*> History::addNewToBack(
 				if (auto markupSenders = getMarkupSenders()) {
 					markupSenders->insert(item->from());
 				}
-				if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) { // zero markup means replyKeyboardHide
+				if (markupFlags & ReplyMarkupFlag::None) {
+					// None markup means replyKeyboardHide.
 					if (lastKeyboardFrom == item->from()->id
 						|| (!lastKeyboardInited
 							&& !peer->isChat()
@@ -980,7 +1000,7 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionChatMigrateTo &data) {
 		if (const auto chat = peer->asChat()) {
-			chat->addFlags(MTPDchat::Flag::f_deactivated);
+			chat->addFlags(ChatDataFlag::Deactivated);
 			if (const auto channel = owner().channelLoaded(
 					data.vchannel_id().v)) {
 				Data::ApplyMigration(chat, channel);
@@ -988,7 +1008,7 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionChannelMigrateFrom &data) {
 		if (const auto channel = peer->asChannel()) {
-			channel->addFlags(MTPDchannel::Flag::f_megagroup);
+			channel->addFlags(ChannelDataFlag::Megagroup);
 			if (const auto chat = owner().chatLoaded(data.vchat_id().v)) {
 				Data::ApplyMigration(chat, channel);
 			}
@@ -1073,16 +1093,16 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	item->contributeToSlowmode();
 	if (item->showNotification()) {
 		_notifications.push_back(item);
-		owner().notifyUnreadItemAdded(item);
-		const auto stillShow = item->showNotification();
-		if (stillShow) {
-			Core::App().notifications().schedule(item);
-			if (!item->out() && item->unread()) {
-				if (unreadCountKnown()) {
-					setUnreadCount(unreadCount() + 1);
-				} else {
-					owner().histories().requestDialogEntry(this);
-				}
+	}
+	owner().notifyNewItemAdded(item);
+	const auto stillShow = item->showNotification(); // Could be read already.
+	if (stillShow) {
+		Core::App().notifications().schedule(item);
+		if (!item->out() && item->unread()) {
+			if (unreadCountKnown()) {
+				setUnreadCount(unreadCount() + 1);
+			} else {
+				owner().histories().requestDialogEntry(this);
 			}
 		}
 	} else if (item->out()) {
@@ -1223,7 +1243,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 }
 
 void History::addNewerSlice(const QVector<MTPMessage> &slice) {
-	bool wasEmpty = isEmpty(), wasLoadedAtBottom = loadedAtBottom();
+	bool wasLoadedAtBottom = loadedAtBottom();
 
 	if (slice.isEmpty()) {
 		_loadedAtBottom = true;
@@ -1295,13 +1315,13 @@ void History::addItemsToLists(
 		if (item->author()->id) {
 			if (markupSenders) { // chats with bots
 				if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) {
-					auto markupFlags = item->replyKeyboardFlags();
-					if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
+					const auto markupFlags = item->replyKeyboardFlags();
+					if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
 						bool wasKeyboardHide = markupSenders->contains(item->author());
 						if (!wasKeyboardHide) {
 							markupSenders->insert(item->author());
 						}
-						if (!(markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero)) {
+						if (!(markupFlags & ReplyMarkupFlag::None)) {
 							if (!lastKeyboardInited) {
 								bool botNotInChat = false;
 								if (peer->isChat()) {
@@ -1322,9 +1342,9 @@ void History::addItemsToLists(
 					}
 				}
 			} else if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) { // conversations with bots
-				MTPDreplyKeyboardMarkup::Flags markupFlags = item->replyKeyboardFlags();
-				if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
-					if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) {
+				const auto markupFlags = item->replyKeyboardFlags();
+				if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
+					if (markupFlags & ReplyMarkupFlag::None) {
 						clearLastKeyboard();
 					} else {
 						lastKeyboardInited = true;
@@ -1758,7 +1778,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (isPinnedDialog(FilterId())) {
 		owner().setChatPinned(this, FilterId(), false);
 	}
-	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
 	if (wasInList) {
@@ -2045,7 +2064,6 @@ void History::finishBuildingFrontBlock() {
 	if (const auto block = base::take(_buildingFrontBlock)->block) {
 		if (blocks.size() > 1) {
 			// ... item, item, item, last ], [ first, item, item ...
-			const auto last = block->messages.back().get();
 			const auto first = blocks[1]->messages.front().get();
 
 			// we've added a new front block, so previous item for
@@ -2354,7 +2372,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 	}
 	const auto item = owner().addNewMessage(
 		*other,
-		MTPDmessage_ClientFlags(),
+		MessageFlags(),
 		NewMessageType::Existing);
 	if (!item || item->isGroupMigrate()) {
 		// Not better than the last one.
@@ -2568,7 +2586,7 @@ bool History::clearUnreadOnClientSide() const {
 		return false;
 	}
 	if (const auto user = peer->asUser()) {
-		if (user->flags() & MTPDuser::Flag::f_deleted) {
+		if (user->isInaccessible()) {
 			return true;
 		}
 	}
@@ -2787,9 +2805,8 @@ HistoryService *History::insertJoinedMessage() {
 		return nullptr;
 	}
 
-	const auto flags = MTPDmessage::Flags();
 	const auto inviteDate = peer->asChannel()->inviteDate;
-	_joinedMessage = GenerateJoinedMessage(this, inviteDate, inviter, flags);
+	_joinedMessage = GenerateJoinedMessage(this, inviteDate, inviter);
 	insertLocalMessage(_joinedMessage);
 	return _joinedMessage;
 }

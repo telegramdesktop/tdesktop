@@ -21,6 +21,7 @@ class CloudImageView;
 } // namespace Data
 
 namespace Window {
+class Controller;
 class SessionController;
 } // namespace Window
 
@@ -68,6 +69,13 @@ public:
 
 	UserpicButton(
 		QWidget *parent,
+		not_null<::Window::Controller*> window,
+		not_null<PeerData*> peer,
+		Role role,
+		const style::UserpicButton &st);
+	UserpicButton(
+		QWidget *parent,
+		not_null<::Window::Controller*> window,
 		const QString &cropTitle,
 		Role role,
 		const style::UserpicButton &st);
@@ -85,6 +93,8 @@ public:
 
 	void switchChangePhotoOverlay(bool enabled);
 	void showSavedMessagesOnSelf(bool enabled);
+
+	rpl::producer<> uploadPhotoRequests() const;
 
 	QImage takeResultImage() {
 		return std::move(_result);
@@ -128,11 +138,11 @@ private:
 	void grabOldUserpic();
 	void setClickHandlerByRole();
 	void openPeerPhoto();
-	void changePhotoLazy();
-	void uploadNewPeerPhoto();
+	void changePhotoLocally(bool requestToUpload = false);
 
 	const style::UserpicButton &_st;
 	::Window::SessionController *_controller = nullptr;
+	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _cropTitle;
@@ -153,6 +163,8 @@ private:
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Ui::Animations::Simple _changeOverlayShown;
+
+	rpl::event_stream<> _uploadPhotoRequests;
 
 };
 

@@ -58,7 +58,6 @@ using Database = Storage::Cache::Database;
 
 QString _basePath, _userBasePath, _userDbPath;
 
-bool _started = false;
 TaskQueue *_localLoader = nullptr;
 
 QByteArray _settingsSalt;
@@ -82,7 +81,6 @@ bool _useGlobalBackgroundKeys = false;
 bool _backgroundCanWrite = true;
 
 int32 _oldSettingsVersion = 0;
-bool _settingsRewritten = false;
 bool _settingsRewriteNeeded = false;
 bool _settingsWriteAllowed = false;
 
@@ -91,10 +89,6 @@ enum class WriteMapWhen {
 	Fast,
 	Soon,
 };
-
-bool _working() {
-	return !_basePath.isEmpty();
-}
 
 bool CheckStreamStatus(QDataStream &stream) {
 	if (stream.status() != QDataStream::Ok) {
@@ -688,9 +682,10 @@ bool readBackground() {
 	const auto isOldEmptyImage = (bg.stream.status() != QDataStream::Ok);
 	if (isOldEmptyImage
 		|| Data::IsLegacy1DefaultWallPaper(*paper)
+		|| (Data::IsLegacy2DefaultWallPaper(*paper) && bg.version < 2008012)
 		|| Data::IsDefaultWallPaper(*paper)) {
 		_backgroundCanWrite = false;
-		if (isOldEmptyImage || bg.version < 8005) {
+		if (isOldEmptyImage || bg.version < 2008012) {
 			Window::Theme::Background()->set(Data::DefaultWallPaper());
 			Window::Theme::Background()->setTile(false);
 		} else {

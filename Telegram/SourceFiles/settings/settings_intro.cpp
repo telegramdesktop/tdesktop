@@ -49,7 +49,6 @@ protected:
 private:
 	void updateControlsGeometry(int newWidth);
 	Ui::RpWidget *pushButton(base::unique_qptr<Ui::RpWidget> button);
-	void removeButton(not_null<Ui::RpWidget*> button);
 
 	const style::InfoTopBar &_st;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
@@ -65,7 +64,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	AddDivider(result);
 	AddSkip(result);
 	SetupLanguageButton(result, false);
-	SetupConnectionType(&window->account(), result);
+	SetupConnectionType(window, &window->account(), result);
 	AddSkip(result);
 	if (HasUpdate()) {
 		AddDivider(result);
@@ -89,7 +88,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	}
 	AddDivider(result);
 	AddSkip(result);
-	SetupInterfaceScale(result, false);
+	SetupInterfaceScale(window, result, false);
 	SetupDefaultThemes(window, result);
 	AddSkip(result);
 
@@ -134,12 +133,6 @@ Ui::RpWidget *TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
 		updateControlsGeometry(width());
 	}, lifetime());
 	return weak;
-}
-
-void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
-	_buttons.erase(
-		std::remove(_buttons.begin(), _buttons.end(), button),
-		_buttons.end());
 }
 
 int TopBar::resizeGetHeight(int newWidth) {
@@ -252,7 +245,6 @@ void IntroWidget::updateControlsGeometry() {
 	_topShadow->moveToLeft(0, _topBar->height());
 	_wrap->setGeometry(contentGeometry());
 
-	auto newScrollTop = _scroll->scrollTop();
 	auto scrollGeometry = _wrap->rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
@@ -547,4 +539,4 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-} // namespace Info
+} // namespace Settings

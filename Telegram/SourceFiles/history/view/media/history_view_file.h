@@ -11,9 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 
+class FileClickHandler;
+
 namespace HistoryView {
 
-class File : public Media {
+class File : public Media, public base::has_weak_ptr {
 public:
 	File(
 		not_null<Element*> parent,
@@ -22,19 +24,17 @@ public:
 	, _realParent(realParent) {
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return p == _openl || p == _savel || p == _cancell;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return p == _openl || p == _savel || p == _cancell;
-	}
+	[[nodiscard]] bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const override;
+	[[nodiscard]] bool dragItemByHandler(
+		const ClickHandlerPtr &p) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
-	bool allowsFastShare() const override {
+	[[nodiscard]] bool allowsFastShare() const override {
 		return true;
 	}
 

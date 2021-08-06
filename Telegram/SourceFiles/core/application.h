@@ -143,14 +143,6 @@ public:
 	// Media view interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
-	void showPhoto(not_null<const PhotoOpenClickHandler*> link);
-	void showPhoto(not_null<PhotoData*> photo, HistoryItem *item);
-	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> item);
-	void showDocument(not_null<DocumentData*> document, HistoryItem *item);
-	void showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud);
-	[[nodiscard]] PeerData *ui_getPeerForMouseAction();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
 	[[nodiscard]] QImage logo() const {
@@ -252,7 +244,7 @@ public:
 	rpl::producer<bool> passcodeLockChanges() const;
 	rpl::producer<bool> passcodeLockValue() const;
 
-	void checkAutoLock();
+	void checkAutoLock(crl::time lastNonIdleTime = 0);
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
 
@@ -283,6 +275,8 @@ public:
 	// Global runtime variables.
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;
+
+	static void RegisterUrlScheme();
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;

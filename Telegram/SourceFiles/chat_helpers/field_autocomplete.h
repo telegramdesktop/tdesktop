@@ -136,8 +136,10 @@ private:
 
 	struct BotCommandRow {
 		not_null<UserData*> user;
-		not_null<const BotCommand*> command;
+		QString command;
+		QString description;
 		std::shared_ptr<Data::CloudImageView> userpic;
+		Ui::Text::String descriptionText;
 	};
 
 	using HashtagRows = std::vector<QString>;

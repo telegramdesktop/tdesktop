@@ -42,7 +42,7 @@
     <file alias="js/script.js">../../export_html/js/script.js</file>
   </qresource>
   <qresource prefix="/gui">
-    <file alias="art/bg.jpg">../../art/bg.jpg</file>
+    <file alias="art/background.jpg">../../art/background.jpg</file>
     <file alias="art/bg_initial.jpg">../../art/bg_initial.jpg</file>
     <file alias="art/logo_256.png">../../art/logo_256.png</file>
     <file alias="art/logo_256_no_margin.png">../../art/logo_256_no_margin.png</file>

@@ -128,10 +128,7 @@ PinnedWidget::PinnedWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->adaptive().changed()
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
@@ -547,7 +544,6 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto channelId = peerToChannel(_history->peer->id);
 	const auto messageId = aroundId.fullId.msg
 		? aroundId.fullId.msg
 		: (ServerMaxMsgId - 1);

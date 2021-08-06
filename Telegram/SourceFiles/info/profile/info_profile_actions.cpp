@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h" // MainWindow::controller.
 #include "main/main_session.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_info.h"
@@ -189,9 +190,46 @@ DetailsFiller::DetailsFiller(
 , _wrap(_parent) {
 }
 
+template <typename T>
+bool SetClickContext(
+		const ClickHandlerPtr &handler,
+		const ClickContext &context) {
+	if (const auto casted = std::dynamic_pointer_cast<T>(handler)) {
+		casted->T::onClick(context);
+		return true;
+	}
+	return false;
+}
+
 object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
 	auto tracker = Ui::MultiSlideTracker();
+
+	// Fill context for a mention / hashtag / bot command link.
+	const auto infoClickFilter = [=,
+		peer = _peer.get(),
+		window = _controller->parentController()](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		const auto context = ClickContext{
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(window.get()),
+				.peer = peer,
+			})
+		};
+		if (SetClickContext<BotCommandClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<MentionClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<HashtagClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<CashtagClickHandler>(handler, context)) {
+			return false;
+		}
+		return true;
+	};
+
 	auto addInfoLineGeneric = [&](
 			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
@@ -203,6 +241,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			textSt,
 			st::infoProfileLabeledPadding);
 		tracker.track(result->add(std::move(line.wrap)));
+
+		line.text->setClickHandlerFilter(infoClickFilter);
 		return line.text;
 	};
 	auto addInfoLine = [&](
@@ -458,7 +498,6 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
-	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_profile_invite_to_group(),
@@ -515,10 +554,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		if (!user->isBot()) {
 			return QString();
 		}
-		for_const (auto &data, user->botInfo->commands) {
-			auto isSame = data.command.compare(
+		for (const auto &data : user->botInfo->commands) {
+			const auto isSame = !data.command.compare(
 				command,
-				Qt::CaseInsensitive) == 0;
+				Qt::CaseInsensitive);
 			if (isSame) {
 				return data.command;
 			}
@@ -533,12 +572,19 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 			return !findBotCommand(command).isEmpty();
 		});
 	};
-	auto sendBotCommand = [=](const QString &command) {
-		auto original = findBotCommand(command);
-		if (!original.isEmpty()) {
-			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
-			App::sendBotCommand(user, user, '/' + original);
+	auto sendBotCommand = [=, window = _controller->parentController()](
+			const QString &command) {
+		const auto original = findBotCommand(command);
+		if (original.isEmpty()) {
+			return;
 		}
+		BotCommandClickHandler('/' + original).onClick(ClickContext{
+			Qt::LeftButton,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(window.get()),
+				.peer = user,
+			})
+		});
 	};
 	auto addBotCommand = [=](
 			rpl::producer<QString> text,
@@ -767,9 +813,9 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 
 	auto membersShown = rpl::combine(
 		MembersCountValue(channel),
-		Data::PeerFullFlagValue(
+		Data::PeerFlagValue(
 			channel,
-			MTPDchannelFull::Flag::f_can_view_participants),
+			ChannelDataFlag::CanViewParticipants),
 			(_1 > 0) && _2);
 	auto membersText = tr::lng_chat_status_subscribers(
 		lt_count_decimal,

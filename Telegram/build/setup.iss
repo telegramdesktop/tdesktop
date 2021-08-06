@@ -21,6 +21,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\Telegram.exe
 Compression=lzma
 SolidCompression=yes
@@ -35,9 +36,13 @@ DisableProgramGroupPage=no
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+#define ArchModulesFolder "x64"
 #else
 OutputBaseFilename=tsetup.{#MyAppVersionFull}
+#define ArchModulesFolder "x86"
 #endif
+
+#define ModulesFolder "modules\" + ArchModulesFolder
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -57,6 +62,7 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 [Files]
 Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll"; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
@@ -77,6 +83,7 @@ Type: filesandordirs; Name: "{app}\tupdates"
 Type: filesandordirs; Name: "{app}\tdata"
 Type: filesandordirs; Name: "{app}\tcache"
 Type: filesandordirs; Name: "{app}\tdumps"
+Type: filesandordirs; Name: "{app}\modules"
 Type: dirifempty; Name: "{app}"
 Type: files; Name: "{userappdata}\{#MyAppName}\data"
 Type: files; Name: "{userappdata}\{#MyAppName}\data_config"
@@ -86,6 +93,7 @@ Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tupdates"
 Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tdata"
 Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tcache"
 Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tdumps"
+Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\modules"
 Type: dirifempty; Name: "{userappdata}\{#MyAppName}"
 
 [Code]

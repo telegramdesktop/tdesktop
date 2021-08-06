@@ -75,14 +75,6 @@ bool finished = true;
 QMargins simpleMargins, margins;
 HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
 
-class _PsInitializer {
-public:
-	_PsInitializer() {
-		Dlls::start();
-	}
-};
-_PsInitializer _psInitializer;
-
 BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
 	uint64 &processId(*(uint64*)lParam);
 
@@ -104,7 +96,51 @@ BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
 	return TRUE;
 }
 
+void DeleteMyModules() {
+	constexpr auto kMaxPathLong = 32767;
+	auto exePath = std::array<WCHAR, kMaxPathLong + 1>{ 0 };
+	const auto exeLength = GetModuleFileName(
+		nullptr,
+		exePath.data(),
+		kMaxPathLong + 1);
+	if (!exeLength || exeLength >= kMaxPathLong + 1) {
+		return;
+	}
+	const auto exe = std::wstring(exePath.data());
+	const auto last1 = exe.find_last_of('\\');
+	const auto last2 = exe.find_last_of('/');
+	const auto last = std::max(
+		(last1 == std::wstring::npos) ? -1 : int(last1),
+		(last2 == std::wstring::npos) ? -1 : int(last2));
+	if (last < 0) {
+		return;
+	}
+	const auto modules = exe.substr(0, last + 1) + L"modules";
+	const auto deleteOne = [&](const wchar_t *name, const wchar_t *arch) {
+		const auto path = modules + L'\\' + arch + L'\\' + name;
+		DeleteFile(path.c_str());
+	};
+	const auto deleteBoth = [&](const wchar_t *name) {
+		deleteOne(name, L"x86");
+		deleteOne(name, L"x64");
+	};
+	const auto removeOne = [&](const std::wstring &name) {
+		const auto path = modules + L'\\' + name;
+		RemoveDirectory(path.c_str());
+	};
+	const auto removeBoth = [&](const std::wstring &name) {
+		removeOne(L"x86\\" + name);
+		removeOne(L"x64\\" + name);
+	};
+	deleteBoth(L"d3d\\d3dcompiler_47.dll");
+
+	removeBoth(L"d3d");
+	removeOne(L"x86");
+	removeOne(L"x64");
+	RemoveDirectory(modules.c_str());
 }
+
+} // namespace
 
 void psActivateProcess(uint64 pid) {
 	if (pid) {
@@ -141,6 +177,7 @@ void psDoCleanup() {
 		psAutoStart(false, true);
 		psSendToMenu(false, true);
 		AppUserModelId::cleanupShortcut();
+		DeleteMyModules();
 	} catch (...) {
 	}
 }
@@ -239,12 +276,12 @@ void StartOpenSSL() {
 
 void start() {
 	StartOpenSSL();
+	Dlls::CheckLoadedModules();
 }
 
 } // namespace ThirdParty
 
 void start() {
-	Dlls::init();
 }
 
 void finish() {
@@ -381,49 +418,6 @@ namespace {
 
 namespace Platform {
 
-void RegisterCustomScheme(bool force) {
-	if (cExeName().isEmpty()) {
-		return;
-	}
-	DEBUG_LOG(("App Info: Checking custom scheme 'tg'..."));
-
-	HKEY rkey;
-	QString exe = QDir::toNativeSeparators(cExeDir() + cExeName());
-
-	// Legacy URI scheme registration
-	if (!_psOpenRegKey(L"Software\\Classes\\tg", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"URL Protocol", QString())) return;
-	if (!_psSetKeyValue(rkey, 0, qsl("URL:Telegram Link"))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\DefaultIcon", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl(",1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-
-	// URI scheme registration as Default Program - Windows Vista and above
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\DefaultIcon", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl(",1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell\\open", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell\\open\\command", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"ApplicationName", qsl("Telegram Desktop"))) return;
-	if (!_psSetKeyValue(rkey, L"ApplicationDescription", qsl("Telegram Desktop"))) return;
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities\\UrlAssociations", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"tg", qsl("tdesktop.tg"))) return;
-
-	if (!_psOpenRegKey(L"Software\\RegisteredApplications", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"Telegram Desktop", qsl("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
-}
-
 PermissionStatus GetPermissionStatus(PermissionType type) {
 	if (type==PermissionType::Microphone) {
 		PermissionStatus result=PermissionStatus::Granted;
@@ -476,14 +470,18 @@ bool OpenSystemSettings(SystemSettingsType type) {
 } // namespace Platform
 
 void psNewVersion() {
-	Platform::RegisterCustomScheme();
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
 	}
-	if (Local::oldSettingsVersion() > 0 && Local::oldSettingsVersion() < 10021) {
+	if (Local::oldSettingsVersion() > 0
+		&& Local::oldSettingsVersion() < 2008012) {
 		// Reset icons cache, because we've changed the application icon.
 		if (Dlls::SHChangeNotify) {
-			Dlls::SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+			Dlls::SHChangeNotify(
+				SHCNE_ASSOCCHANGED,
+				SHCNF_IDLIST,
+				nullptr,
+				nullptr);
 		}
 	}
 }

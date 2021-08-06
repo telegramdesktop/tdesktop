@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
@@ -22,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
-#include "app.h"
 
 namespace Info {
 namespace Profile {
@@ -82,7 +82,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 		user,
 		UpdateFlag::PhoneNumber
 	) | rpl::map([=] {
-		return App::formatPhone(user->phone());
+		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
 }
 
@@ -380,13 +380,13 @@ template <typename Flag, typename Peer>
 rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 	return Data::PeerFlagsValue(
 		peer,
-		Flag::f_verified | Flag::f_scam | Flag::f_fake
+		Flag::Verified | Flag::Scam | Flag::Fake
 	) | rpl::map([=](base::flags<Flag> value) {
-		return (value & Flag::f_verified)
+		return (value & Flag::Verified)
 			? Badge::Verified
-			: (value & Flag::f_scam)
+			: (value & Flag::Scam)
 			? Badge::Scam
-			: (value & Flag::f_fake)
+			: (value & Flag::Fake)
 			? Badge::Fake
 			: Badge::None;
 	});
@@ -394,9 +394,9 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 
 rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		return BadgeValueFromFlags<MTPDuser::Flag>(user);
+		return BadgeValueFromFlags<UserDataFlag>(user);
 	} else if (const auto channel = peer->asChannel()) {
-		return BadgeValueFromFlags<MTPDchannel::Flag>(channel);
+		return BadgeValueFromFlags<ChannelDataFlag>(channel);
 	}
 	return rpl::single(Badge::None);
 }

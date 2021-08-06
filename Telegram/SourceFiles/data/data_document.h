@@ -62,7 +62,7 @@ struct StickerData : public DocumentAdditionalData {
 
 	bool animated = false;
 	QString alt;
-	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
+	StickerSetIdentifier set;
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -171,12 +171,15 @@ public:
 	[[nodiscard]] int videoThumbnailByteSize() const;
 
 	void updateThumbnails(
-		const QByteArray &inlineThumbnailBytes,
+		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail);
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
+	}
+	[[nodiscard]] bool inlineThumbnailIsPath() const {
+		return (_flags & Flag::InlineThumbnailIsPath);
 	}
 	void clearInlineThumbnailBytes() {
 		_inlineThumbnailBytes = QByteArray();
@@ -257,6 +260,7 @@ private:
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
 		HasAttachedStickers = 0x40,
+		InlineThumbnailIsPath = 0x80,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
@@ -327,103 +331,6 @@ private:
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
-class DocumentClickHandler : public FileClickHandler {
-public:
-	DocumentClickHandler(
-		not_null<DocumentData*> document,
-		FullMsgId context = FullMsgId());
-
-	[[nodiscard]] not_null<DocumentData*> document() const {
-		return _document;
-	}
-
-private:
-	const not_null<DocumentData*> _document;
-
-};
-
-class DocumentSaveClickHandler : public DocumentClickHandler {
-public:
-	enum class Mode {
-		ToCacheOrFile,
-		ToFile,
-		ToNewFile,
-	};
-	using DocumentClickHandler::DocumentClickHandler;
-	static void Save(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document,
-		Mode mode = Mode::ToCacheOrFile);
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class DocumentOpenClickHandler : public DocumentClickHandler {
-public:
-	using DocumentClickHandler::DocumentClickHandler;
-	static void Open(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document,
-		HistoryItem *context);
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class DocumentCancelClickHandler : public DocumentClickHandler {
-public:
-	using DocumentClickHandler::DocumentClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class DocumentOpenWithClickHandler : public DocumentClickHandler {
-public:
-	using DocumentClickHandler::DocumentClickHandler;
-	static void Open(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document);
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class VoiceSeekClickHandler : public DocumentOpenClickHandler {
-public:
-	using DocumentOpenClickHandler::DocumentOpenClickHandler;
-
-protected:
-	void onClickImpl() const override {
-	}
-
-};
-
-class DocumentWrappedClickHandler : public DocumentClickHandler {
-public:
-	DocumentWrappedClickHandler(
-		ClickHandlerPtr wrapped,
-		not_null<DocumentData*> document,
-		FullMsgId context = FullMsgId())
-	: DocumentClickHandler(document, context)
-	, _wrapped(wrapped) {
-	}
-
-protected:
-	void onClickImpl() const override {
-		_wrapped->onClick({ Qt::LeftButton });
-	}
-
-private:
-	ClickHandlerPtr _wrapped;
-
-};
-
 QString FileNameForSave(
 	not_null<Main::Session*> session,
 	const QString &title,
@@ -438,16 +345,3 @@ QString DocumentFileNameForSave(
 	bool forceSavingAs = false,
 	const QString &already = QString(),
 	const QDir &dir = QDir());
-
-namespace Data {
-
-[[nodiscard]] QString FileExtension(const QString &filepath);
-[[nodiscard]] bool IsValidMediaFile(const QString &filepath);
-[[nodiscard]] bool IsExecutableName(const QString &filepath);
-[[nodiscard]] bool IsIpRevealingName(const QString &filepath);
-base::binary_guard ReadImageAsync(
-	not_null<Data::DocumentMedia*> media,
-	FnMut<QImage(QImage)> postprocess,
-	FnMut<void(QImage&&)> done);
-
-} // namespace Data

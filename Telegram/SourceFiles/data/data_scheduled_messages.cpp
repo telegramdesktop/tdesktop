@@ -158,6 +158,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 		not_null<HistoryItem*> local) {
 	Expects(local->isSending());
 	Expects(local->isScheduled());
+
 	if (HasScheduledDate(local)) {
 		LOG(("Error: trying to put to history a new local message, "
 			"that has scheduled date."));
@@ -175,17 +176,19 @@ void ScheduledMessages::sendNowSimpleMessage(
 	auto action = Api::SendAction(history);
 	action.replyTo = local->replyToId();
 	const auto replyHeader = NewMessageReplyHeader(action);
-	auto flags = NewMessageFlags(history->peer)
-		| MTPDmessage::Flag::f_entities
+	const auto localFlags = NewMessageFlags(history->peer)
+		| MessageFlag::LocalHistoryEntry;
+	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| (local->replyToId()
 			? MTPDmessage::Flag::f_reply_to
 			: MTPDmessage::Flag(0))
 		| (update.vttl_period()
 			? MTPDmessage::Flag::f_ttl_period
+			: MTPDmessage::Flag(0))
+		| ((localFlags & MessageFlag::Outgoing)
+			? MTPDmessage::Flag::f_out
 			: MTPDmessage::Flag(0));
-	auto clientFlags = NewMessageClientFlags()
-		| MTPDmessage_ClientFlag::f_local_history_entry;
 	const auto views = 1;
 	const auto forwards = 0;
 	history->addNewMessage(
@@ -213,7 +216,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 			//MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(update.vttl_period().value_or_empty())),
-		clientFlags,
+		localFlags,
 		NewMessageType::Unread);
 
 	local->destroy();
@@ -459,7 +462,7 @@ HistoryItem *ScheduledMessages::append(
 
 	const auto item = _session->data().addNewMessage(
 		PrepareMessage(message, history->nextNonHistoryEntryId()),
-		MTPDmessage_ClientFlags(),
+		MessageFlags(), // localFlags
 		NewMessageType::Existing);
 	if (!item || item->history() != history) {
 		LOG(("API Error: Bad data received in scheduled messages."));

@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
 #include "ui/text/text_options.h"
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {

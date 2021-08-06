@@ -25,7 +25,7 @@ namespace Window {
 
 class SessionController;
 
-class MediaPreviewWidget : public Ui::RpWidget, private base::Subscriber {
+class MediaPreviewWidget final : public Ui::RpWidget {
 public:
 	MediaPreviewWidget(
 		QWidget *parent,

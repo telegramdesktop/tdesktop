@@ -271,8 +271,6 @@ void CloudListCheck::paintWithColors(
 	p.setBrush(_colors->sent);
 	p.drawRoundedRect(style::rtlrect(sent, outerWidth), radius, radius);
 
-	const auto skip = st::settingsThemeRadioBottom / 2;
-
 	const auto radio = _radio.getSize();
 	_radio.paint(
 		p,
@@ -342,9 +340,9 @@ void CloudList::setup() {
 	auto themeChanges = rpl::single(BackgroundUpdate(
 		BackgroundUpdate::Type::ApplyingTheme,
 		Background()->tile()
-	)) | rpl::then(base::ObservableViewer(
-		*Background()
-	)) | rpl::filter([](const BackgroundUpdate &update) {
+	)) | rpl::then(
+		Background()->updates()
+	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	});
 
@@ -524,7 +522,9 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 		} else if (cloud.documentId) {
 			_window->session().data().cloudThemes().applyFromDocument(cloud);
 		} else {
-			_window->session().data().cloudThemes().showPreview(cloud);
+			_window->session().data().cloudThemes().showPreview(
+				&_window->window(),
+				cloud);
 		}
 	});
 	auto &element = *_elements.insert(
@@ -706,7 +706,6 @@ void CloudList::updateGeometry() {
 }
 
 int CloudList::resizeGetHeight(int newWidth) {
-	const auto desired = st::settingsThemePreviewSize.width();
 	const auto minSkip = st::settingsThemeMinSkip;
 	const auto single = std::min(
 		st::settingsThemePreviewSize.width(),

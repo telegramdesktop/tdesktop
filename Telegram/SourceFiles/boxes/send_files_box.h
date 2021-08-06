@@ -35,6 +35,7 @@ struct GroupMediaLayout;
 class EmojiButton;
 class AlbumPreview;
 class VerticalLayout;
+class FlatLabel;
 } // namespace Ui
 
 namespace Window {
@@ -102,6 +103,7 @@ private:
 
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
+		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 
 		void setSendWay(Ui::SendFilesWay way);
 		void applyAlbumOrder();
@@ -183,6 +185,7 @@ private:
 
 	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
 	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	object_ptr<Ui::FlatLabel> _hintLabel = { nullptr };
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;

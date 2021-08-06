@@ -58,15 +58,6 @@ namespace {
 
 namespace App {
 
-void sendBotCommand(
-		not_null<PeerData*> peer,
-		UserData *bot,
-		const QString &cmd, MsgId replyTo) {
-	if (const auto m = CheckMainWidget(&peer->session())) {
-		m->sendBotCommand(peer, bot, cmd, replyTo);
-	}
-}
-
 void hideSingleUseKeyboard(not_null<const HistoryItem*> message) {
 	if (const auto m = CheckMainWidget(&message->history()->session())) {
 		m->hideSingleUseKeyboard(message->history()->peer, message->id);
@@ -81,6 +72,7 @@ bool insertBotCommand(const QString &cmd) {
 }
 
 void activateBotCommand(
+		Window::SessionController *sessionController,
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
@@ -98,12 +90,15 @@ void activateBotCommand(
 	case ButtonType::Default: {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
-		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
-		sendBotCommand(
-			msg->history()->peer,
-			msg->fromOriginal()->asUser(),
-			QString(button->text),
-			replyTo);
+		if (sessionController) {
+			MsgId replyTo = (msg->id > 0) ? msg->id : 0;
+			sessionController->content()->sendBotCommand({
+				.peer = msg->history()->peer,
+				.command = QString(button->text),
+				.context = msg->fullId(),
+				.replyTo = replyTo,
+			});
+		}
 	} break;
 
 	case ButtonType::Callback:
@@ -215,24 +210,6 @@ void activateBotCommand(
 	}
 }
 
-void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	const auto m = inPeer
-		? CheckMainWidget(&inPeer->session())
-		: App::main(); // multi good
-	if (m) {
-		if (m->controller()->openedFolder().current()) {
-			m->controller()->closeFolder();
-		}
-		Ui::hideSettingsAndLayer();
-		Core::App().hideMediaView();
-		m->searchMessages(
-			tag + ' ',
-			(inPeer && !inPeer->isUser())
-			? inPeer->owner().history(inPeer).get()
-			: Dialogs::Key());
-	}
-}
-
 } // namespace App
 
 namespace Ui {
@@ -269,10 +246,6 @@ void showChatsList(not_null<Main::Session*> session) {
 	}
 }
 
-void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
-	showPeerHistory(item->history()->peer, item->id);
-}
-
 void showPeerHistory(not_null<const History*> history, MsgId msgId) {
 	showPeerHistory(history->peer, msgId);
 }
@@ -284,10 +257,6 @@ void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
 			::Window::SectionShow::Way::ClearStack,
 			msgId);
 	}
-}
-
-PeerData *getPeerForMouseAction() {
-	return Core::App().ui_getPeerForMouseAction();
 }
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {

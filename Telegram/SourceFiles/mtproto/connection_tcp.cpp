@@ -35,7 +35,6 @@ public:
 	virtual uint32 id() const = 0;
 	virtual bool supportsArbitraryLength() const = 0;
 
-	virtual bool requiresExtendedPadding() const = 0;
 	virtual void prepareKey(bytes::span key, bytes::const_span source) = 0;
 	virtual bytes::span finalizePacket(mtpBuffer &buffer) = 0;
 
@@ -58,7 +57,6 @@ public:
 	uint32 id() const override;
 	bool supportsArbitraryLength() const override;
 
-	bool requiresExtendedPadding() const override;
 	void prepareKey(bytes::span key, bytes::const_span source) override;
 	bytes::span finalizePacket(mtpBuffer &buffer) override;
 
@@ -72,10 +70,6 @@ uint32 TcpConnection::Protocol::Version0::id() const {
 }
 
 bool TcpConnection::Protocol::Version0::supportsArbitraryLength() const {
-	return false;
-}
-
-bool TcpConnection::Protocol::Version0::requiresExtendedPadding() const {
 	return false;
 }
 
@@ -142,7 +136,6 @@ class TcpConnection::Protocol::Version1 : public Version0 {
 public:
 	explicit Version1(bytes::vector &&secret);
 
-	bool requiresExtendedPadding() const override;
 	void prepareKey(bytes::span key, bytes::const_span source) override;
 
 private:
@@ -152,10 +145,6 @@ private:
 
 TcpConnection::Protocol::Version1::Version1(bytes::vector &&secret)
 : _secret(std::move(secret)) {
-}
-
-bool TcpConnection::Protocol::Version1::requiresExtendedPadding() const {
-	return true;
 }
 
 void TcpConnection::Protocol::Version1::prepareKey(
@@ -423,12 +412,6 @@ void TcpConnection::socketDisconnected() {
 	if (_status == Status::Waiting || _status == Status::Ready) {
 		disconnected();
 	}
-}
-
-bool TcpConnection::requiresExtendedPadding() const {
-	Expects(_protocol != nullptr);
-
-	return _protocol->requiresExtendedPadding();
 }
 
 void TcpConnection::sendData(mtpBuffer &&buffer) {

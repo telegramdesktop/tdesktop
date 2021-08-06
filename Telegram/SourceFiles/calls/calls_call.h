@@ -77,7 +77,7 @@ public:
 			Fn<void()> onSuccess,
 			bool video) = 0;
 
-		virtual auto callGetVideoCapture()
+		virtual auto callGetVideoCapture(const QString &deviceId)
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 
 		virtual ~Delegate() = default;
@@ -174,7 +174,6 @@ public:
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
-	void switchVideoOutgoing();
 	void answer();
 	void hangup();
 	void redial();
@@ -185,9 +184,21 @@ public:
 	QString getDebugLog() const;
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
-	void setCurrentVideoDevice(const QString &deviceId);
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
+
+	void setCurrentCameraDevice(const QString &deviceId);
+	[[nodiscard]] QString videoDeviceId() const {
+		return _videoCaptureDeviceId;
+	}
+
+	[[nodiscard]] bool isSharingVideo() const;
+	[[nodiscard]] bool isSharingCamera() const;
+	[[nodiscard]] bool isSharingScreen() const;
+	[[nodiscard]] QString cameraSharingDeviceId() const;
+	[[nodiscard]] QString screenSharingDeviceId() const;
+	void toggleCameraSharing(bool enabled);
+	void toggleScreenSharing(std::optional<QString> uniqueId);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -268,6 +279,8 @@ private:
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
+	QString _videoCaptureDeviceId;
+	bool _videoCaptureIsScreencast = false;
 	const std::unique_ptr<Webrtc::VideoTrack> _videoIncoming;
 	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 

@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
+struct ChatRestrictionsInfo;
+
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -108,6 +110,14 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) override;
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
+	void elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView = false) override;
+	void elementCancelUpload(const FullMsgId &context) override;
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
@@ -121,6 +131,8 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	void elementReplyTo(const FullMsgId &to) override;
 
 	~InnerWidget();
 
@@ -187,8 +199,8 @@ private:
 	void copySelectedText();
 	TextForMimeData getSelectedText() const;
 	void suggestRestrictUser(not_null<UserData*> user);
-	void restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights);
-	void restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights);
+	void restrictUser(not_null<UserData*> user, ChatRestrictionsInfo oldRights, ChatRestrictionsInfo newRights);
+	void restrictUserDone(not_null<UserData*> user, ChatRestrictionsInfo rights);
 
 	void requestAdmins();
 	void checkPreloadMore();
@@ -239,6 +251,8 @@ private:
 	const not_null<ChannelData*> _channel;
 	const not_null<History*> _history;
 	MTP::Sender _api;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;

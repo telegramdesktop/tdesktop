@@ -70,6 +70,7 @@ QByteArray SessionSettings::serialize() const {
 		}
 		stream << qint32(_dialogsFiltersEnabled ? 1 : 0);
 		stream << qint32(_supportAllSilent ? 1 : 0);
+		stream << qint32(_photoEditorHintShowsCount);
 	}
 	return result;
 }
@@ -129,6 +130,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
 	qint32 dialogsFiltersEnabled = _dialogsFiltersEnabled ? 1 : 0;
 	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
+	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -327,6 +329,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> supportAllSilent;
 	}
+	if (!stream.atEnd()) {
+		stream >> photoEditorHintShowsCount;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -369,6 +374,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_hiddenPinnedMessages = std::move(hiddenPinnedMessages);
 	_dialogsFiltersEnabled = (dialogsFiltersEnabled == 1);
 	_supportAllSilent = (supportAllSilent == 1);
+	_photoEditorHintShowsCount = std::move(photoEditorHintShowsCount);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -505,6 +511,16 @@ bool SessionSettings::skipArchiveInSearch() const {
 
 rpl::producer<bool> SessionSettings::skipArchiveInSearchChanges() const {
 	return _skipArchiveInSearch.changes();
+}
+
+bool SessionSettings::photoEditorHintShown() const {
+	return _photoEditorHintShowsCount < kPhotoEditorHintMaxShowsCount;
+}
+
+void SessionSettings::incrementPhotoEditorHintShown() {
+	if (photoEditorHintShown()) {
+		_photoEditorHintShowsCount++;
+	}
 }
 
 } // namespace Main

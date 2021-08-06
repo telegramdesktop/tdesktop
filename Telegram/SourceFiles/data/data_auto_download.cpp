@@ -283,7 +283,6 @@ bool Should(
 	if (document->sticker()) {
 		return true;
 	}
-	const auto size = document->size;
 	return Should(data, Source::User, document)
 		|| Should(data, Source::Group, document)
 		|| Should(data, Source::Channel, document);

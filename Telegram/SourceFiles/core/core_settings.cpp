@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/serialize_common.h"
-#include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "ui/gl/gl_detection.h"
+#include "calls/group/calls_group_common.h"
 #include "facades.h"
 
 namespace Core {
@@ -94,23 +94,37 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 5
 		+ Serialize::stringSize(_downloadPath.current())
 		+ Serialize::bytearraySize(_downloadPathBookmark)
-		+ sizeof(qint32) * 12
+		+ sizeof(qint32) * 9
 		+ Serialize::stringSize(_callOutputDeviceId)
 		+ Serialize::stringSize(_callInputDeviceId)
-		+ Serialize::stringSize(_callVideoInputDeviceId)
-		+ sizeof(qint32) * 5
-		+ Serialize::bytearraySize(proxy);
+		+ sizeof(qint32) * 5;
 	for (const auto &[key, value] : _soundOverrides) {
 		size += Serialize::stringSize(key) + Serialize::stringSize(value);
 	}
+	size += sizeof(qint32) * 13
+		+ Serialize::bytearraySize(_videoPipGeometry)
+		+ sizeof(qint32)
+		+ (_dictionariesEnabled.current().size() * sizeof(quint64))
+		+ sizeof(qint32) * 12
+		+ Serialize::stringSize(_callVideoInputDeviceId)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(_groupCallPushToTalkShortcut)
+		+ sizeof(qint64)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(windowPosition)
+		+ sizeof(qint32);
 	for (const auto &[id, rating] : recentEmojiPreloadData) {
 		size += Serialize::stringSize(id) + sizeof(quint16);
 	}
+	size += sizeof(qint32);
 	for (const auto &[id, variant] : _emojiVariants) {
 		size += Serialize::stringSize(id) + sizeof(quint8);
 	}
-	size += Serialize::bytearraySize(_videoPipGeometry);
-	size += Serialize::bytearraySize(windowPosition);
+	size += sizeof(qint32) * 3
+		+ Serialize::bytearraySize(proxy)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(_photoEditorBrush)
+		+ sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -198,10 +212,14 @@ QByteArray Settings::serialize() const {
 			stream << id << quint8(variant);
 		}
 		stream
+			<< qint32(0) // Old Disable OpenGL
+			<< qint32(0) // Old Noise Suppression
+			<< qint32(_workMode.current())
+			<< proxy
+			<< qint32(_hiddenGroupCallTooltips.value())
 			<< qint32(_disableOpenGL ? 1 : 0)
-			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
-			<< _workMode.current()
-			<< proxy;
+			<< _photoEditorBrush
+			<< qint32(_groupCallNoiseSuppression ? 1 : 0);
 	}
 	return result;
 }
@@ -281,6 +299,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 groupCallNoiseSuppression = _groupCallNoiseSuppression ? 1 : 0;
 	qint32 workMode = static_cast<qint32>(_workMode.current());
 	QByteArray proxy;
+	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
+	QByteArray photoEditorBrush = _photoEditorBrush;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -410,16 +430,30 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		}
 	}
 	if (!stream.atEnd()) {
-		stream >> disableOpenGL;
+		qint32 disableOpenGLOld;
+		stream >> disableOpenGLOld;
 	}
 	if (!stream.atEnd()) {
-		stream >> groupCallNoiseSuppression;
+		qint32 groupCallNoiseSuppressionOld;
+		stream >> groupCallNoiseSuppressionOld;
 	}
 	if (!stream.atEnd()) {
 		stream >> workMode;
 	}
 	if (!stream.atEnd()) {
 		stream >> proxy;
+	}
+	if (!stream.atEnd()) {
+		stream >> hiddenGroupCallTooltips;
+	}
+	if (!stream.atEnd()) {
+		stream >> disableOpenGL;
+	}
+	if (!stream.atEnd()) {
+		stream >> photoEditorBrush;
+	}
+	if (!stream.atEnd()) {
+		stream >> groupCallNoiseSuppression;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -531,7 +565,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_disableOpenGL = (disableOpenGL == 1);
 	if (!Platform::IsMac()) {
 		Ui::GL::ForceDisable(_disableOpenGL
-			|| Ui::Integration::Instance().openglLastCheckFailed());
+			|| Ui::GL::LastCrashCheckFailed());
 	}
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
 	const auto uncheckedWorkMode = static_cast<WorkMode>(workMode);
@@ -540,6 +574,17 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case WorkMode::TrayOnly:
 	case WorkMode::WindowOnly: _workMode = uncheckedWorkMode; break;
 	}
+	_hiddenGroupCallTooltips = [&] {
+		using Tooltip = Calls::Group::StickedTooltip;
+		return Tooltip(0)
+			| ((hiddenGroupCallTooltips & int(Tooltip::Camera))
+				? Tooltip::Camera
+				: Tooltip(0))
+			| ((hiddenGroupCallTooltips & int(Tooltip::Microphone))
+				? Tooltip::Microphone
+				: Tooltip(0));
+	}();
+	_photoEditorBrush = photoEditorBrush;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -763,7 +808,7 @@ void Settings::resetOnLastLogout() {
 	_groupCallPushToTalkShortcut = QByteArray();
 	_groupCallPushToTalkDelay = 20;
 
-	_groupCallNoiseSuppression = true;
+	_groupCallNoiseSuppression = false;
 
 	//_themesAccentColors = Window::Theme::AccentColors();
 
@@ -795,6 +840,7 @@ void Settings::resetOnLastLogout() {
 	_notifyFromAll = true;
 	_tabbedReplacedWithInfo = false; // per-window
 	_systemDarkModeEnabled = false;
+	_hiddenGroupCallTooltips = 0;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();

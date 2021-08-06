@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/special_fields.h"
 #include "boxes/abstract_box.h"
@@ -24,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"
 
@@ -102,7 +102,7 @@ void VerifyBox::setupControls(
 		0,
 		st::boxPadding.right(),
 		st::boxPadding.bottom());
-	const auto description = _content->add(
+	_content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content,
 			text,
@@ -123,7 +123,7 @@ void VerifyBox::setupControls(
 				QString(),
 				st::passportVerifyErrorLabel)),
 		small);
-	const auto waiter = _content->add(
+	_content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content,
 			std::move(call),
@@ -401,7 +401,7 @@ object_ptr<Ui::BoxContent> VerifyPhoneBox(
 		tr::lng_passport_confirm_phone(
 			tr::now,
 			lt_phone,
-			App::formatPhone(phone)),
+			Ui::FormatPhone(phone)),
 		codeLength,
 		submit,
 		nullptr,

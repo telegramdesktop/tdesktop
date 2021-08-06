@@ -30,6 +30,7 @@ set(style_files
     media/view/media_view.style
     overview/overview.style
     window/window.style
+    editor/editor.style
 )
 
 set(dependent_style_files
@@ -46,7 +47,7 @@ target_precompile_headers(td_ui PRIVATE ${src_loc}/ui/ui_pch.h)
 nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
-    
+
     calls/group/ui/calls_group_scheduled_labels.cpp
     calls/group/ui/calls_group_scheduled_labels.h
     calls/group/ui/desktop_capture_choose_source.cpp
@@ -59,6 +60,15 @@ PRIVATE
 
     data/data_countries.cpp
     data/data_countries.h
+
+    layout/abstract_layout_item.cpp
+    layout/abstract_layout_item.h
+    layout/layout_mosaic.cpp
+    layout/layout_mosaic.h
+    layout/layout_position.cpp
+    layout/layout_position.h
+    layout/layout_selection.cpp
+    layout/layout_selection.h
 
     media/clip/media_clip_check_streaming.cpp
     media/clip/media_clip_check_streaming.h
@@ -105,10 +115,17 @@ PRIVATE
     ui/boxes/report_box.h
     ui/boxes/single_choice_box.cpp
     ui/boxes/single_choice_box.h
-    ui/chat/attach/attach_album_thumbnail.cpp
-    ui/chat/attach/attach_album_thumbnail.h
+    ui/chat/attach/attach_abstract_single_file_preview.cpp
+    ui/chat/attach/attach_abstract_single_file_preview.h
+    ui/chat/attach/attach_abstract_single_media_preview.cpp
+    ui/chat/attach/attach_abstract_single_media_preview.h
+    ui/chat/attach/attach_abstract_single_preview.h
     ui/chat/attach/attach_album_preview.cpp
     ui/chat/attach/attach_album_preview.h
+    ui/chat/attach/attach_album_thumbnail.cpp
+    ui/chat/attach/attach_album_thumbnail.h
+    ui/chat/attach/attach_controls.cpp
+    ui/chat/attach/attach_controls.h
     ui/chat/attach/attach_extensions.cpp
     ui/chat/attach/attach_extensions.h
     ui/chat/attach/attach_prepare.cpp

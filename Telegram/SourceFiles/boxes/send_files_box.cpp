@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/send_context_menu.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "confirm_box.h"
+#include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
@@ -64,10 +66,6 @@ using Ui::SendFilesWay;
 
 inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
-}
-
-inline bool IsSingleItem(const Ui::PreparedList &list) {
-	return list.files.size() == 1;
 }
 
 void FileDialogCallback(
@@ -184,6 +182,22 @@ rpl::producer<int> SendFilesBox::Block::itemReplaceRequest() const {
 	} else {
 		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
 		return single->editRequests() | rpl::map([from] { return from; });
+	}
+}
+
+rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	const auto from = _from;
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbModified() | rpl::map(_1 + from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->modifyRequests() | rpl::map_to(from);
+	} else {
+		return rpl::never<int>();
 	}
 }
 
@@ -525,7 +539,6 @@ void SendFilesBox::pushBlock(int from, int till) {
 		return controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	};
-	const auto index = int(_blocks.size());
 	_blocks.emplace_back(
 		_inner.data(),
 		&_list.files,
@@ -601,6 +614,16 @@ void SendFilesBox::pushBlock(int from, int till) {
 			FileDialog::AllOrImagesFilter(),
 			crl::guard(this, callback));
 	}, widget->lifetime());
+
+	block.itemModifyRequest(
+	) | rpl::start_with_next([=, controller = _controller](int index) {
+		Editor::OpenWithPreparedFile(
+			this,
+			controller,
+			&_list.files[index],
+			st::sendMediaPreviewSize,
+			[=] { refreshAllAfterChanges(from); });
+	}, widget->lifetime());
 }
 
 void SendFilesBox::refreshControls() {
@@ -640,6 +663,11 @@ void SendFilesBox::setupSendWayControls() {
 		sendWay.setSendImagesAsPhotos(_sendImagesAsPhotos->checked());
 		_sendWay = sendWay;
 	}, lifetime());
+
+	_hintLabel.create(
+		this,
+		tr::lng_edit_photo_editor_hint(tr::now),
+		st::editMediaHintLabel);
 }
 
 void SendFilesBox::updateSendWayControlsVisibility() {
@@ -647,6 +675,11 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 	_groupFiles->setVisible(_list.hasGroupOption(onlyOne));
 	_sendImagesAsPhotos->setVisible(
 		_list.hasSendImagesAsPhotosOption(onlyOne));
+
+	_hintLabel->setVisible(
+		_controller->session().settings().photoEditorHintShown()
+			? _list.hasSendImagesAsPhotosOption(false)
+			: false);
 }
 
 void SendFilesBox::setupCaption() {
@@ -850,14 +883,15 @@ void SendFilesBox::updateBoxSize() {
 	if (_caption) {
 		footerHeight += st::boxPhotoCaptionSkip + _caption->height();
 	}
-	const auto pointers = {
-		_groupFiles.data(),
-		_sendImagesAsPhotos.data(),
-	};
-	for (auto pointer : pointers) {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
+		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
+	} };
+	for (const auto &pair : pairs) {
+		const auto pointer = pair.first;
 		if (pointer && !pointer->isHidden()) {
-			footerHeight += st::boxPhotoCompressedSkip
-				+ pointer->heightNoMargins();
+			footerHeight += pair.second + pointer->heightNoMargins();
 		}
 	}
 	_footerHeight = footerHeight;
@@ -916,16 +950,18 @@ void SendFilesBox::updateControlsGeometry() {
 			_emojiToggle->update();
 		}
 	}
-	const auto pointers = {
-		_groupFiles.data(),
-		_sendImagesAsPhotos.data(),
-	};
-	for (const auto pointer : ranges::views::reverse(pointers)) {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
+		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
+		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+	} };
+	for (const auto &pair : ranges::views::reverse(pairs)) {
+		const auto pointer = pair.first;
 		if (pointer && !pointer->isHidden()) {
 			pointer->moveToLeft(
 				st::boxPhotoPadding.left(),
 				bottom - pointer->heightNoMargins());
-			bottom -= st::boxPhotoCompressedSkip + pointer->heightNoMargins();
+			bottom -= pair.second + pointer->heightNoMargins();
 		}
 	}
 	_scroll->resize(width(), bottom - _titleHeight.current());
@@ -976,6 +1012,12 @@ void SendFilesBox::send(
 	for (auto &block : _blocks) {
 		block.applyAlbumOrder();
 	}
+
+	if (Storage::ApplyModifications(_list)) {
+		_controller->session().settings().incrementPhotoEditorHintShown();
+		_controller->session().saveSettings();
+	}
+
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = (_caption && !_caption->isHidden())
@@ -1002,7 +1044,7 @@ void SendFilesBox::sendScheduled() {
 		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	Ui::show(
+	_controller->show(
 		HistoryView::PrepareScheduleBox(this, type, callback),
 		Ui::LayerOption::KeepOther);
 }

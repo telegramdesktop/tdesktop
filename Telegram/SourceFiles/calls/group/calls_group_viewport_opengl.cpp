@@ -282,8 +282,6 @@ vec4 background() {
 	const auto scaled = InterpolateScaledSize(unscaled, size, expandRatio);
 	const auto left = (size.width() - scaled.width()) / 2;
 	const auto top = (size.height() - scaled.height()) / 2;
-	const auto right = left + scaled.width();
-	const auto bottom = top + scaled.height();
 	auto dleft = float(left) / scaled.width();
 	auto dright = float(size.width() - left) / scaled.width();
 	auto dtop = float(top) / scaled.height();
@@ -439,7 +437,7 @@ void Viewport::RendererGL::paint(
 	validateDatas();
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
-		if (!tile->shown()) {
+		if (!tile->visible()) {
 			index++;
 			continue;
 		}
@@ -511,7 +509,6 @@ void Viewport::RendererGL::paintTile(
 	const auto fullNameShift = st.namePosition.y() + st::normalFont->height;
 	const auto nameShift = anim::interpolate(fullNameShift, 0, shown);
 	const auto row = tile->row();
-	const auto style = row->computeIconState(MembersRowStyle::Video);
 
 	validateOutlineAnimation(tile, tileData);
 	validatePausedAnimation(tile, tileData);
@@ -976,8 +973,8 @@ void Viewport::RendererGL::bindFrame(
 			const auto data = image.constBits();
 			uploadTexture(
 				f,
-				GL_RGBA,
-				GL_RGBA,
+				Ui::GL::kFormatRGBA,
+				Ui::GL::kFormatRGBA,
 				image.size(),
 				tileData.rgbaSize,
 				stride,
@@ -995,8 +992,8 @@ void Viewport::RendererGL::bindFrame(
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->size,
 				tileData.textureSize,
 				yuv->y.stride,
@@ -1009,8 +1006,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->u.stride,
@@ -1021,8 +1018,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->v.stride,
@@ -1335,7 +1332,6 @@ void Viewport::RendererGL::validateDatas() {
 		}
 		for (const auto &request : requests) {
 			const auto i = request.index;
-			const auto index = _tileDataIndices[i];
 			const auto &data = _tileData[_tileDataIndices[i]];
 			if (data.nameRect.isEmpty()) {
 				continue;
@@ -1370,16 +1366,31 @@ void Viewport::RendererGL::validateNoiseTexture(
 	}
 	_noiseTexture.ensureCreated(f, GL_NEAREST, GL_REPEAT);
 	_noiseTexture.bind(f, 0);
+
+	// Rendering to GL_ALPHA is not supported.
 	f.glTexImage2D(
 		GL_TEXTURE_2D,
 		0,
-		GL_RED,
+		GL_R8,
 		kNoiseTextureSize,
 		kNoiseTextureSize,
 		0,
 		GL_RED,
 		GL_UNSIGNED_BYTE,
 		nullptr);
+	if (f.glGetError() != GL_NO_ERROR) {
+		// Direct3D 9 doesn't support GL_R8 textures.
+		f.glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGB,
+			kNoiseTextureSize,
+			kNoiseTextureSize,
+			0,
+			GL_RGB,
+			GL_UNSIGNED_BYTE,
+			nullptr);
+	}
 
 	_noiseFramebuffer.ensureCreated(f);
 	_noiseFramebuffer.bind(f, 0);
@@ -1460,6 +1471,5 @@ void Viewport::RendererGL::validatePausedAnimation(
 		paused ? 1. : 0.,
 		st::fadeWrapDuration);
 }
-
 
 } // namespace Calls::Group

@@ -62,7 +62,7 @@ enum class WidgetState {
 	Filtered,
 };
 
-class InnerWidget final : public Ui::RpWidget, private base::Subscriber {
+class InnerWidget final : public Ui::RpWidget {
 	Q_OBJECT
 
 public:

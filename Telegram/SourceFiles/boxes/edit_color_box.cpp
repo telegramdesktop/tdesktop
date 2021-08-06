@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
 #include "base/platform/base_platform_info.h"
-#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_media_view.h"
 
@@ -423,7 +422,7 @@ void EditColorBox::Slider::generatePixmap() {
 		if (!isHorizontal()) {
 			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
 		}
-		_pixmap = App::pixmapFromImageInPlace(std::move(image));
+		_pixmap = Ui::PixmapFromImage(std::move(image));
 	} else if (_type == Type::Opacity) {
 		auto color = anim::shifted(QColor(255, 255, 255, 255));
 		auto transparent = anim::shifted(QColor(255, 255, 255, 0));
@@ -459,7 +458,7 @@ void EditColorBox::Slider::generatePixmap() {
 		if (!isHorizontal()) {
 			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
 		}
-		_pixmap = App::pixmapFromImageInPlace(std::move(image));
+		_pixmap = Ui::PixmapFromImage(std::move(image));
 	}
 }
 
@@ -530,7 +529,7 @@ void EditColorBox::Slider::setLightnessLimits(int min, int max) {
 }
 
 void EditColorBox::Slider::updatePixmapFromMask() {
-	_pixmap = App::pixmapFromImageInPlace(style::colorizeImage(_mask, _color));
+	_pixmap = Ui::PixmapFromImage(style::colorizeImage(_mask, _color));
 }
 
 void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {

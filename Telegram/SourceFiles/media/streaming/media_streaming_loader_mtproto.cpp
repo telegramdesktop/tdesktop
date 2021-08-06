@@ -14,11 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 namespace Streaming {
-namespace {
-
-constexpr auto kMaxConcurrentRequests = 4;
-
-} // namespace
 
 LoaderMtproto::LoaderMtproto(
 	not_null<Storage::DownloadManagerMtproto*> owner,

@@ -45,6 +45,14 @@ QByteArray StickersSetThumbnailView::content() const {
 	return _content;
 }
 
+StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
+	using Flag = StickersSetFlag;
+	return (data.is_archived() ? Flag::Archived : Flag())
+		| (data.is_official() ? Flag::Official : Flag())
+		| (data.is_masks() ? Flag::Masks : Flag())
+		| (data.vinstalled_date() ? Flag::Installed : Flag());
+}
+
 StickersSet::StickersSet(
 	not_null<Data::Session*> owner,
 	uint64 id,
@@ -53,7 +61,7 @@ StickersSet::StickersSet(
 	const QString &shortName,
 	int count,
 	int32 hash,
-	MTPDstickerSet::Flags flags,
+	StickersSetFlags flags,
 	TimeId installDate)
 : id(id)
 , access(access)
@@ -78,6 +86,13 @@ MTPInputStickerSet StickersSet::mtpInput() const {
 	return (id && access)
 		? MTP_inputStickerSetID(MTP_long(id), MTP_long(access))
 		: MTP_inputStickerSetShortName(MTP_string(shortName));
+}
+
+StickerSetIdentifier StickersSet::identifier() const {
+	return StickerSetIdentifier{
+		.id = id,
+		.accessHash = access,
+	};
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {
@@ -152,6 +167,27 @@ std::shared_ptr<StickersSetThumbnailView> StickersSet::createThumbnailView() {
 
 std::shared_ptr<StickersSetThumbnailView> StickersSet::activeThumbnailView() {
 	return _thumbnailView.lock();
+}
+
+MTPInputStickerSet InputStickerSet(StickerSetIdentifier id) {
+	return !id
+		? MTP_inputStickerSetEmpty()
+		: id.id
+		? MTP_inputStickerSetID(MTP_long(id.id), MTP_long(id.accessHash))
+		: MTP_inputStickerSetShortName(MTP_string(id.shortName));
+}
+
+StickerSetIdentifier FromInputSet(const MTPInputStickerSet &id) {
+	return id.match([](const MTPDinputStickerSetID &data) {
+		return StickerSetIdentifier{
+			.id = data.vid().v,
+			.accessHash = data.vaccess_hash().v,
+		};
+	}, [](const MTPDinputStickerSetShortName &data) {
+		return StickerSetIdentifier{ .shortName = qs(data.vshort_name()) };
+	}, [](const auto &) {
+		return StickerSetIdentifier();
+	});
 }
 
 } // namespace Stickers

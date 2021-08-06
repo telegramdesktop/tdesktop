@@ -30,8 +30,8 @@ WarningWidget::WarningWidget(QWidget *parent)
 , _secondsLeft(kWaitBeforeRevertMs / 1000)
 , _keepChanges(this, tr::lng_theme_keep_changes(), st::defaultBoxButton)
 , _revert(this, tr::lng_theme_revert(), st::defaultBoxButton) {
-	_keepChanges->setClickedCallback([] { Window::Theme::KeepApplied(); });
-	_revert->setClickedCallback([] { Window::Theme::Revert(); });
+	_keepChanges->setClickedCallback([] { KeepApplied(); });
+	_revert->setClickedCallback([] { Revert(); });
 	updateText();
 }
 

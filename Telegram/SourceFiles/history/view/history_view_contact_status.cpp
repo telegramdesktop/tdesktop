@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -26,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peers/edit_contact_box.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 
@@ -40,15 +40,14 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	} else if (!(*settings)) {
 		return true;
 	}
-	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		if (user->isBlocked()) {
 			return true;
 		} else if (user->isContact()
-			&& !((*settings) & Setting::f_share_contact)) {
+			&& !((*settings) & PeerSetting::ShareContact)) {
 			return true;
 		}
-	} else if (!((*settings) & Setting::f_report_spam)) {
+	} else if (!((*settings) & PeerSetting::ReportSpam)) {
 		return true;
 	}
 	return false;
@@ -231,43 +230,34 @@ void ContactStatus::setupWidgets(not_null<Ui::RpWidget*> parent) {
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
 	using SettingsChange = PeerData::Settings::Change;
-	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
-		using FullFlagsChange = UserData::FullFlags::Change;
-		using Flag = MTPDuser::Flag;
-		using FullFlag = MTPDuserFull::Flag;
+		using Flag = UserDataFlag;
 
-		auto isContactChanges = user->flagsValue(
+		auto changes = user->flagsValue(
 		) | rpl::filter([](FlagsChange flags) {
 			return flags.diff
-				& (Flag::f_contact | Flag::f_mutual_contact);
-		});
-		auto isBlockedChanges = user->fullFlagsValue(
-		) | rpl::filter([](FullFlagsChange full) {
-			return full.diff & FullFlag::f_blocked;
+				& (Flag::Contact | Flag::MutualContact | Flag::Blocked);
 		});
 		return rpl::combine(
-			std::move(isContactChanges),
-			std::move(isBlockedChanges),
+			std::move(changes),
 			user->settingsValue()
 		) | rpl::map([=](
 				FlagsChange flags,
-				FullFlagsChange full,
 				SettingsChange settings) {
-			if (full.value & FullFlag::f_blocked) {
+			if (flags.value & Flag::Blocked) {
 				return State::None;
 			} else if (user->isContact()) {
-				if (settings.value & Setting::f_share_contact) {
+				if (settings.value & PeerSetting::ShareContact) {
 					return State::SharePhoneNumber;
 				} else {
 					return State::None;
 				}
-			} else if (settings.value & Setting::f_autoarchived) {
+			} else if (settings.value & PeerSetting::AutoArchived) {
 				return State::UnarchiveOrBlock;
-			} else if (settings.value & Setting::f_block_contact) {
+			} else if (settings.value & PeerSetting::BlockContact) {
 				return State::AddOrBlock;
-			} else if (settings.value & Setting::f_add_contact) {
+			} else if (settings.value & PeerSetting::AddContact) {
 				return State::Add;
 			} else {
 				return State::None;
@@ -277,9 +267,9 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 
 	return peer->settingsValue(
 	) | rpl::map([=](SettingsChange settings) {
-		return (settings.value & Setting::f_autoarchived)
+		return (settings.value & PeerSetting::AutoArchived)
 			? State::UnarchiveOrReport
-			: (settings.value & Setting::f_report_spam)
+			: (settings.value & PeerSetting::ReportSpam)
 			? State::ReportSpam
 			: State::None;
 	});
@@ -355,7 +345,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				tr::now,
 				lt_phone,
 				Ui::Text::WithEntities(
-					App::formatPhone(user->session().user()->phone())),
+					Ui::FormatPhone(user->session().user()->phone())),
 				lt_user,
 				Ui::Text::Bold(user->name),
 				Ui::Text::WithEntities),
@@ -370,10 +360,9 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
 		peer->owner().resetNotifySettingsToDefault(peer);
 		if (const auto settings = peer->settings()) {
-			using Flag = MTPDpeerSettings::Flag;
-			const auto flags = Flag::f_autoarchived
-				| Flag::f_block_contact
-				| Flag::f_report_spam;
+			const auto flags = PeerSetting::AutoArchived
+				| PeerSetting::BlockContact
+				| PeerSetting::ReportSpam;
 			peer->setSettings(*settings & ~flags);
 		}
 	}, _bar.lifetime());

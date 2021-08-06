@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_changes.h"
+#include "editor/photo_editor_layer_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -269,6 +270,13 @@ Cover::Cover(
 
 	initViewers(std::move(title));
 	setupChildGeometry();
+
+	_userpic->uploadPhotoRequests(
+	) | rpl::start_with_next([=] {
+		_peer->session().api().uploadPeerPhoto(
+			_peer,
+			_userpic->takeResultImage());
+	}, _userpic->lifetime());
 }
 
 void Cover::setupChildGeometry() {

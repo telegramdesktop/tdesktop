@@ -42,48 +42,48 @@ if [ ! -f "$ReleasePath/$BinaryName" ]; then
 Error "$BinaryName not found!"
 fi
 
-# BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.1[6-9] | wc -l`
-# if [ "$BadCount" != "0" ]; then
-#   Error "Bad GLIBC usages found: $BadCount"
-# fi
+BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.1[8-9] | wc -l`
+if [ "$BadCount" != "0" ]; then
+  Error "Bad GLIBC usages found: $BadCount"
+fi
 
-# BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.2[0-9] | wc -l`
-# if [ "$BadCount" != "0" ]; then
-#   Error "Bad GLIBC usages found: $BadCount"
-# fi
+BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.2[0-9] | wc -l`
+if [ "$BadCount" != "0" ]; then
+  Error "Bad GLIBC usages found: $BadCount"
+fi
 
 BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GCC usages found: $BadCount"
+  Error "Bad GCC usages found: $BadCount"
 fi
 
 BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GCC usages found: $BadCount"
+  Error "Bad GCC usages found: $BadCount"
 fi
 
 if [ ! -f "$ReleasePath/Updater" ]; then
-Error "Updater not found!"
+  Error "Updater not found!"
 fi
 
-BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[6-9] | wc -l`
+BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[8-9] | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GLIBC usages found: $BadCount"
+  Error "Bad GLIBC usages found: $BadCount"
 fi
 
 BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.2[0-9] | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GLIBC usages found: $BadCount"
+  Error "Bad GLIBC usages found: $BadCount"
 fi
 
 BadCount=`objdump -T $ReleasePath/Updater | grep GCC_4\.[3-9] | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GCC usages found: $BadCount"
+  Error "Bad GCC usages found: $BadCount"
 fi
 
 BadCount=`objdump -T $ReleasePath/Updater | grep GCC_[5-9]\. | wc -l`
 if [ "$BadCount" != "0" ]; then
-Error "Bad GCC usages found: $BadCount"
+  Error "Bad GCC usages found: $BadCount"
 fi
 
 rm -rf "$ReleasePath/root"

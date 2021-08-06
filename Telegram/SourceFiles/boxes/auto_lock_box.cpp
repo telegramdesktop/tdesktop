@@ -45,6 +45,6 @@ void AutoLockBox::durationChanged(int seconds) {
 	Core::App().settings().setAutoLock(seconds);
 	Core::App().saveSettingsDelayed();
 
-	Core::App().checkAutoLock();
+	Core::App().checkAutoLock(crl::now());
 	closeBox();
 }

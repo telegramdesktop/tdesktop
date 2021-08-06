@@ -120,8 +120,12 @@ public:
 		_dialogsFiltersEnabled = value;
 	}
 
+	[[nodiscard]] bool photoEditorHintShown() const;
+	void incrementPhotoEditorHintShown();
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
+	static constexpr auto kPhotoEditorHintMaxShowsCount = 10;
 
 	ChatHelpers::SelectorTab _selectorTab; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;
@@ -133,6 +137,7 @@ private:
 	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
 	base::flat_map<PeerId, MsgId> _hiddenPinnedMessages;
 	bool _dialogsFiltersEnabled = false;
+	int _photoEditorHintShowsCount = 0;
 
 	Support::SwitchSettings _supportSwitch;
 	bool _supportFixChatsOrder = true;

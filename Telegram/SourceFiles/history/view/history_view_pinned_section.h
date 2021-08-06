@@ -66,6 +66,11 @@ public:
 		const QRect &geometry,
 		not_null<PinnedMemento*> memento);
 
+	Window::SectionActionResult sendBotCommand(
+			Bot::SendCommandRequest request) override {
+		return Window::SectionActionResult::Fallback;
+	}
+
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;

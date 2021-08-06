@@ -25,6 +25,7 @@ class LinkButton;
 class PopupMenu;
 class RippleAnimation;
 class BoxContent;
+class PathShiftGradient;
 } // namespace Ui
 
 namespace Lottie {
@@ -42,13 +43,12 @@ namespace ChatHelpers {
 
 struct StickerIcon;
 
-class StickersListWidget
-	: public TabbedSelector::Inner
-	, private base::Subscriber {
+class StickersListWidget final : public TabbedSelector::Inner {
 public:
 	StickersListWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		bool masks = false);
 
 	Main::Session &session() const;
 
@@ -86,6 +86,8 @@ public:
 	void fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		SendMenu::Type type) override;
+
+	bool mySetsEmpty() const;
 
 	~StickersListWidget();
 
@@ -188,7 +190,7 @@ private:
 		Set(
 			uint64 id,
 			Data::StickersSet *set,
-			MTPDstickerSet::Flags flags,
+			Data::StickersSetFlags flags,
 			const QString &title,
 			const QString &shortName,
 			int count,
@@ -200,7 +202,7 @@ private:
 
 		uint64 id = 0;
 		Data::StickersSet *set = nullptr;
-		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
+		Data::StickersSetFlags flags;
 		QString title;
 		QString shortName;
 		std::vector<Sticker> stickers;
@@ -214,7 +216,7 @@ private:
 	};
 	struct FeaturedSet {
 		uint64 id = 0;
-		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
+		Data::StickersSetFlags flags;
 		std::vector<Sticker> stickers;
 	};
 
@@ -299,6 +301,9 @@ private:
 	void refreshMegagroupSetGeometry();
 	QRect megagroupSetButtonRectFinal() const;
 
+	const Data::StickersSetsOrder &defaultSetsOrder() const;
+	Data::StickersSetsOrder &defaultSetsOrderRef();
+
 	enum class AppendSkip {
 		None,
 		Archived,
@@ -348,6 +353,7 @@ private:
 	int _officialOffset = 0;
 
 	Section _section = Section::Stickers;
+	const bool _isMasks;
 
 	bool _displayingSet = false;
 	uint64 _removingSetId = 0;
@@ -360,6 +366,8 @@ private:
 	OverState _selected;
 	OverState _pressed;
 	QPoint _lastMousePosition;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	Ui::Text::String _megagroupSetAbout;
 	QString _megagroupSetButtonText;

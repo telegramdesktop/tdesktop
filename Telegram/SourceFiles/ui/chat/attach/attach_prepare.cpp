@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "ui/rp_widget.h"
+#include "ui/widgets/popup_menu.h"
+
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image_prepare.h"
 #include "ui/ui_utility.h"

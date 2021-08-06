@@ -1,0 +1,94 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "window/window.style";
+using "ui/widgets/widgets.style";
+using "ui/chat/chat.style";
+
+// photoEditorControlsBottomSkip * 2 + photoEditorControlsCenterSkip + photoEditorButtonBarHeight * 2
+photoEditorControlsHeight: 146px;
+
+photoEditorControlsBottomSkip: 20px;
+photoEditorControlsCenterSkip: 6px;
+
+photoEditorContentMargins: margins(
+	photoEditorControlsBottomSkip,
+	photoEditorControlsBottomSkip,
+	photoEditorControlsBottomSkip,
+	photoEditorControlsHeight);
+
+photoEditorBarAnimationDuration: 200;
+
+photoEditorButtonIconFg: mediaviewPipControlsFg;
+photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
+
+photoEditorButtonIconFgActive: lightButtonFg;
+photoEditorButtonIconFgInactive: mediaviewPipPlaybackInactive;
+
+photoEditorButtonBarHeight: 50px;
+photoEditorButtonBarWidth: windowMinWidth;
+photoEditorButtonBarPadding: margins(2px, 0px, 2px, 0px);
+photoEditorTextButtonPadding: margins(22px, 0px, 22px, 0px);
+
+photoEditorRotateButton: IconButton(defaultIconButton) {
+	width: photoEditorButtonBarHeight;
+	height: photoEditorButtonBarHeight;
+
+	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+photoEditorFlipButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/flip", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/flip", photoEditorButtonIconFgOver }};
+}
+photoEditorFlipIconActive: icon {{ "photo_editor/flip", photoEditorButtonIconFgActive }};
+
+photoEditorPaintModeButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/paint", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/paint", photoEditorButtonIconFgOver }};
+}
+photoEditorPaintIconActive: icon {{ "photo_editor/paint", photoEditorButtonIconFgActive }};
+
+photoEditorUndoButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/undo", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/undo", photoEditorButtonIconFgOver }};
+}
+
+photoEditorRedoButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
+}
+
+photoEditorStickersButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "settings_stickers", photoEditorButtonIconFg }};
+	iconOver: icon {{ "settings_stickers", photoEditorButtonIconFgOver }};
+}
+photoEditorStickersIconActive: icon {{ "settings_stickers", photoEditorButtonIconFgActive }};
+
+photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
+photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
+
+photoEditorColorPickerWidth: 250px;
+photoEditorColorPickerLineHeight: 10px;
+photoEditorColorPickerCanvasHeight: 300px;
+photoEditorColorPickerCircleSize: 24px;
+photoEditorColorPickerCircleBigSize: 50px;
+
+photoEditorColorPickerCircleSkip: 50px;
+
+photoEditorCropPointSize: 10px;
+photoEditorCropMinSize: 20px;
+
+photoEditorItemHandleSize: 10px;

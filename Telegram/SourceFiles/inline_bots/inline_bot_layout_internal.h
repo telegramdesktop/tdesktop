@@ -246,19 +246,6 @@ private:
 
 };
 
-class OpenFileClickHandler : public LeftButtonClickHandler {
-public:
-	OpenFileClickHandler(not_null<Result*> result) : _result(result) {
-	}
-
-protected:
-	void onClickImpl() const override;
-
-private:
-	not_null<Result*> _result;
-
-};
-
 class CancelFileClickHandler : public LeftButtonClickHandler {
 public:
 	CancelFileClickHandler(not_null<Result*> result) : _result(result) {
@@ -328,7 +315,7 @@ private:
 	mutable std::unique_ptr<AnimationData> _animation;
 
 	Ui::Text::String _title, _description;
-	ClickHandlerPtr _open, _cancel;
+	ClickHandlerPtr _cancel;
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played
