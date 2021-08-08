@@ -177,7 +177,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout f7b17cd
+    git checkout ec51cc6
     mkdir out
     cd out
     mkdir Debug
