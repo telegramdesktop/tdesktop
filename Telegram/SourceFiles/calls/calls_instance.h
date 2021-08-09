@@ -76,7 +76,8 @@ public:
 	bool minimizeCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	[[nodiscard]] auto getVideoCapture(
-		std::optional<QString> deviceId = std::nullopt)
+		std::optional<QString> deviceId = std::nullopt,
+		bool isScreenCapture = false)
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 

@@ -77,8 +77,10 @@ public:
 			Fn<void()> onSuccess,
 			bool video) = 0;
 
-		virtual auto callGetVideoCapture(const QString &deviceId)
-			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
+		virtual auto callGetVideoCapture(
+			const QString &deviceId,
+			bool isScreenCapture)
+		-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 
 		virtual ~Delegate() = default;
 

@@ -177,18 +177,10 @@ PRIVATE
 )
 
 if (WIN32)
-    target_compile_definitions(lib_tgcalls
-    PRIVATE
-        WEBRTC_WIN
-    )
 elseif (APPLE)
     target_compile_options(lib_tgcalls
     PRIVATE
         -fobjc-arc
-    )
-    target_compile_definitions(lib_tgcalls
-    PRIVATE
-        WEBRTC_MAC
     )
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
         platform/darwin/DesktopCaptureSourceView.h
@@ -211,11 +203,6 @@ elseif (APPLE)
         platform/tdesktop/VideoCapturerTrackSource.h
         platform/tdesktop/VideoCameraCapturer.cpp
         platform/tdesktop/VideoCameraCapturer.h
-    )
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_compile_definitions(lib_tgcalls
-    PRIVATE
-        WEBRTC_LINUX
     )
 endif()
 

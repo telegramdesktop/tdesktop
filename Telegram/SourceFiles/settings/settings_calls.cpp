@@ -124,7 +124,9 @@ void Calls::setupContent() {
 					call->setCurrentCameraDevice(deviceId);
 				}
 				if (*capturerOwner) {
-					(*capturerOwner)->switchToDevice(deviceId.toStdString());
+					(*capturerOwner)->switchToDevice(
+						deviceId.toStdString(),
+						false);
 				}
 			});
 			_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
@@ -179,7 +181,8 @@ void Calls::setupContent() {
 				return;
 			}
 			*capturerOwner = Core::App().calls().getVideoCapture(
-				Core::App().settings().callVideoInputDeviceId());
+				Core::App().settings().callVideoInputDeviceId(),
+				false);
 			(*capturerOwner)->setPreferredAspectRatio(0.);
 			track->setState(VideoState::Active);
 			(*capturerOwner)->setState(tgcalls::VideoState::Active);
