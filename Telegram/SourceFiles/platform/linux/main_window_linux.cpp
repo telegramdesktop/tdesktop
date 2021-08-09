@@ -925,6 +925,7 @@ void MainWindow::psSetupTrayIcon() {
 				this);
 
 			_private->sniTrayIcon->setTitle(AppName.utf16());
+			_private->sniTrayIcon->setCategory(qsl("Communications"));
 			_private->sniTrayIcon->setContextMenu(trayIconMenu);
 			_private->setSNITrayIcon(counter, muted);
 
