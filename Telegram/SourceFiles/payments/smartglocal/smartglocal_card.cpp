@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "smartglocal/smartglocal_card.h"
 
+#include <QtCore/QRegularExpression>
+
 namespace SmartGlocal {
 
 Card::Card(

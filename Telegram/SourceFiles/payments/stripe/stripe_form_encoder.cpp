@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QStringList>
 #include <QUrl>
+#include <vector>
 
 namespace Stripe {
 

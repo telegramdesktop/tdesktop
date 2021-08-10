@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QString>
 #include <map>
+#include <memory>
 
 namespace Stripe {
 
