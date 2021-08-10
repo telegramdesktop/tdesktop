@@ -25,8 +25,6 @@ public:
 
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
-	[[nodiscard]] QImage getImageFromClipboard() const;
-
 	static QString AllowedBackends();
 
 	static int Exec(

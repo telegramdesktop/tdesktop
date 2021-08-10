@@ -32,10 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qguiapplication_p.h>
 #include <giomm.h>
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
 namespace Platform {
 namespace internal {
 
@@ -49,7 +45,6 @@ constexpr auto kBaseService = "org.telegram.desktop.BaseGtkIntegration-%1"_cs;
 constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 constexpr auto kObjectPath = "/org/telegram/desktop/GtkIntegration"_cs;
 constexpr auto kInterface = "org.telegram.desktop.GtkIntegration"_cs;
-constexpr auto kGifcShmId = "tdesktop-gtk-gifc"_cs;
 
 constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
 	<interface name='org.telegram.desktop.GtkIntegration'>
@@ -60,73 +55,13 @@ constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
 			<arg type='s' name='parent' direction='in'/>
 			<arg type='s' name='filepath' direction='in'/>
 		</method>
-		<method name='GetImageFromClipboard'>
-			<arg type='h' name='shm-descriptor' direction='out'/>
-			<arg type='i' name='shm-size' direction='out'/>
-		</method>
 		<signal name='OpenWithDialogResponse'>
 			<arg type='b' name='result' direction='out'/>
 		</signal>
 	</interface>
 </node>)INTROSPECTION"_cs;
 
-struct GtkSelectionDataDeleter {
-	void operator()(GtkSelectionData *gsel) {
-		if (gsel) {
-			gtk_selection_data_free(gsel);
-		}
-	}
-};
-
-using GtkSelectionDataPointer = std::unique_ptr<GtkSelectionData, GtkSelectionDataDeleter>;
-
 Glib::ustring ServiceName;
-
-bool GetImageFromClipboardSupported() {
-	return (gtk_clipboard_get != nullptr)
-		&& (gtk_clipboard_wait_for_contents != nullptr)
-		&& (gtk_selection_data_get_data != nullptr)
-		&& (gtk_selection_data_get_length != nullptr)
-		&& (gtk_selection_data_free != nullptr)
-		&& (gdk_atom_intern != nullptr);
-}
-
-std::vector<uchar> GetImageFromClipboard() {
-	if (!GetImageFromClipboardSupported()) {
-		return {};
-	}
-
-	const auto clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-	if (!clipboard) {
-		return {};
-	}
-
-	static const auto supportedFormats = {
-		gdk_atom_intern("image/png", true),
-		gdk_atom_intern("image/jpeg", true),
-		gdk_atom_intern("image/gif", true),
-		gdk_atom_intern("image/bmp", true),
-	};
-
-	const auto gsel = [&]() -> GtkSelectionDataPointer {
-		for (const auto &format : supportedFormats) {
-			if (auto result = GtkSelectionDataPointer(
-				gtk_clipboard_wait_for_contents(clipboard, format))
-				; result && gtk_selection_data_get_length(result.get()) > 0) {
-				return result;
-			}
-		}
-		return nullptr;
-	}();
-
-	if (!gsel) {
-		return {};
-	}
-
-	const auto data = gtk_selection_data_get_data(gsel.get());
-	const auto length = gtk_selection_data_get_length(gsel.get());
-	return std::vector<uchar>(data, data + length);
-}
 
 } // namespace
 
@@ -226,57 +161,6 @@ void GtkIntegration::Private::handleMethodCall(
 				invocation->return_value({});
 				return;
 			}
-		} else if (method_name == "GetImageFromClipboard") {
-			const auto image = GetImageFromClipboard();
-			if (!image.empty()) {
-				const auto fd = shm_open(
-					kGifcShmId.utf8().constData(),
-					O_RDWR | O_CREAT,
-					S_IRUSR | S_IWUSR);
-
-				if (fd == -1) {
-					throw std::exception();
-				}
-
-				const auto fdGuard = gsl::finally([&] {
-					close(fd);
-					shm_unlink(kGifcShmId.utf8().constData());
-				});
-
-				if (ftruncate(fd, image.size())) {
-					throw std::exception();
-				}
-
-				const auto mapped = mmap(
-					nullptr,
-					image.size(),
-					PROT_WRITE,
-					MAP_SHARED,
-					fd,
-					0);
-
-				if (mapped == MAP_FAILED) {
-					throw std::exception();
-				}
-
-				const auto mappedGuard = gsl::finally([&] {
-					munmap(mapped, image.size());
-				});
-
-				memcpy(mapped, image.data(), image.size());
-
-				const auto fdList = Gio::UnixFDList::create();
-				fdList->append(fd);
-
-				invocation->return_value(
-					Glib::VariantContainerBase::create_tuple({
-						Glib::wrap(g_variant_new_handle(0)),
-						Glib::Variant<int>::create(image.size()),
-					}),
-					fdList);
-
-				return;
-			}
 		}
 	} catch (...) {
 	}
@@ -350,17 +234,10 @@ void GtkIntegration::load(const QString &allowedBackends) {
 	LOAD_GTK_SYMBOL(lib, gtk_widget_get_window);
 	LOAD_GTK_SYMBOL(lib, gtk_widget_realize);
 	LOAD_GTK_SYMBOL(lib, gtk_widget_destroy);
-	LOAD_GTK_SYMBOL(lib, gtk_clipboard_get);
-	LOAD_GTK_SYMBOL(lib, gtk_clipboard_wait_for_contents);
-	LOAD_GTK_SYMBOL(lib, gtk_selection_data_get_data);
-	LOAD_GTK_SYMBOL(lib, gtk_selection_data_get_length);
-	LOAD_GTK_SYMBOL(lib, gtk_selection_data_free);
 
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_dialog_new);
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_app_info);
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_type);
-
-	LOAD_GTK_SYMBOL(lib, gdk_atom_intern);
 
 	GdkHelperLoad(lib);
 	Loaded = true;
@@ -506,69 +383,6 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 	QGuiApplicationPrivate::hideModalWindow(&window);
 
 	return result;
-}
-
-QImage GtkIntegration::getImageFromClipboard() const {
-	if (_private->remoting) {
-		if (!_private->dbusConnection) {
-			return {};
-		}
-
-		try {
-			Glib::RefPtr<Gio::UnixFDList> outFdList;
-
-			const auto loop = Glib::MainLoop::create();
-			Glib::VariantContainerBase reply;
-			_private->dbusConnection->call(
-				std::string(kObjectPath),
-				std::string(kInterface),
-				"GetImageFromClipboard",
-				{},
-				[&](const Glib::RefPtr<Gio::AsyncResult> &result) {
-					try {
-						reply = _private->dbusConnection->call_finish(
-							result,
-							outFdList);
-					} catch (...) {
-					}
-					loop->quit();
-				},
-				ServiceName);
-
-			loop->run();
-
-			if (!reply) {
-				return {};
-			}
-
-			const auto dataSize = base::Platform::GlibVariantCast<int>(
-				reply.get_child(1));
-
-			const auto mapped = mmap(
-				nullptr,
-				dataSize,
-				PROT_READ,
-				MAP_SHARED,
-				outFdList->get(0),
-				0);
-
-			if (mapped == MAP_FAILED) {
-				return {};
-			}
-
-			std::vector<uchar> result(dataSize);
-			memcpy(result.data(), mapped, result.size());
-			munmap(mapped, result.size());
-
-			return QImage::fromData(result.data(), result.size());
-		} catch (...) {
-		}
-
-		return {};
-	}
-
-	const auto result = GetImageFromClipboard();
-	return QImage::fromData(result.data(), result.size());
 }
 
 QString GtkIntegration::AllowedBackends() {

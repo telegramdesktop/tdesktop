@@ -19,10 +19,6 @@ namespace Platform {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline QImage GetImageFromClipboard() {
-	return {};
-}
-
 inline bool TrayIconSupported() {
 	return true;
 }

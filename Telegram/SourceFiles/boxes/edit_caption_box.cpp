@@ -67,10 +67,7 @@ auto ListFromMimeData(not_null<const QMimeData*> data) {
 	if (result.error == Error::None) {
 		return result;
 	} else if (data->hasImage()) {
-		auto image = Platform::GetImageFromClipboard();
-		if (image.isNull()) {
-			image = qvariant_cast<QImage>(data->imageData());
-		}
+		auto image = qvariant_cast<QImage>(data->imageData());
 		if (!image.isNull()) {
 			return Storage::PrepareMediaFromImage(
 				std::move(image),

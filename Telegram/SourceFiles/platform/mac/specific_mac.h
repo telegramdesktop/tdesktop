@@ -18,10 +18,6 @@ namespace Platform {
 
 [[nodiscard]] bool IsDarkMenuBar();
 
-inline QImage GetImageFromClipboard() {
-	return {};
-}
-
 inline bool AutostartSupported() {
 	return false;
 }
