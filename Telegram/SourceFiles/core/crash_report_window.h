@@ -91,6 +91,7 @@ private:
 
 };
 
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 class LastCrashedWindow : public PreLaunchWindow {
 
 public:
@@ -216,3 +217,4 @@ private:
 	rpl::event_stream<MTP::ProxyData> _saveRequests;
 
 };
+#endif  // !DESKTOP_APP_DISABLE_CRASH_REPORTS

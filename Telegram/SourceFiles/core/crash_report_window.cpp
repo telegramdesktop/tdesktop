@@ -220,6 +220,7 @@ void NotStartedWindow::resizeEvent(QResizeEvent *e) {
 	_close.setGeometry(width() - padding - _close.width(), height() - padding - _close.height(), _close.width(), _close.height());
 }
 
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 LastCrashedWindow::UpdaterData::UpdaterData(QWidget *buttonParent)
 : check(buttonParent)
 , skip(buttonParent, false) {
@@ -1179,3 +1180,4 @@ void NetworkSettingsWindow::updateControls() {
 		setGeometry(_parent->x() + (_parent->width() - w) / 2, _parent->y() + (_parent->height() - h) / 2, w, h);
 	}
 }
+#endif  // !DESKTOP_APP_DISABLE_CRASH_REPORTS
