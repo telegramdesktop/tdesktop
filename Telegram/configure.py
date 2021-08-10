@@ -22,8 +22,9 @@ def error(message):
     print('[ERROR] ' + message)
     finish(1)
 
-if sys.platform == 'win32' and 'COMSPEC' not in os.environ:
-    error('COMSPEC environment variable is not set.')
+if sys.platform == 'win32':
+    if 'COMSPEC' not in os.environ:
+        error('COMSPEC environment variable is not set.')
 
 executePath = os.getcwd()
 scriptPath = os.path.dirname(os.path.realpath(__file__))
