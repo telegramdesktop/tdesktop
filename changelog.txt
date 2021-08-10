@@ -1,3 +1,9 @@
+2.9.2 (10.08.21)
+
+- Fix crashes and bugs in scheduled messages.
+- Fix file sending after a call or voice chat on Windows.
+- Fix main window title glitches on Windows 7.
+
 2.9.1 (30.07.21)
 
 - Fix requesting screencast rights on macOS.
