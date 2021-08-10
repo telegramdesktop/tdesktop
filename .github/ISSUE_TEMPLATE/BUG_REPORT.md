@@ -25,7 +25,7 @@ Tell us what happens instead
 
 **Version of Telegram Desktop:**
 
-**Installation source (Linux Only)** - the official website / GitHub releases / flatpak / snap / distribution package:
+**Installation source (Linux Only)** — the official website / GitHub releases / flatpak / snap / distribution package:
 
 **Used theme**:
 
