@@ -33,10 +33,6 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 	return false;
 }
 
-QImage GtkIntegration::getImageFromClipboard() const {
-	return {};
-}
-
 QString GtkIntegration::AllowedBackends() {
 	return {};
 }

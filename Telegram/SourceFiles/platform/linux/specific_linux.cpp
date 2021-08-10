@@ -513,14 +513,6 @@ QString GetIconName() {
 	return Result;
 }
 
-QImage GetImageFromClipboard() {
-	if (const auto integration = GtkIntegration::Instance()) {
-		return integration->getImageFromClipboard();
-	}
-
-	return {};
-}
-
 std::optional<bool> IsDarkMode() {
 	return Core::App().settings().systemDarkMode();
 }

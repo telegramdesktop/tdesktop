@@ -37,7 +37,6 @@ void IgnoreApplicationActivationRightNow();
 bool AutostartSupported();
 bool TrayIconSupported();
 bool SkipTaskbarSupported();
-[[nodiscard]] QImage GetImageFromClipboard();
 void WriteCrashDumpDetails();
 
 [[nodiscard]] std::optional<bool> IsDarkMode();

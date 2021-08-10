@@ -1298,8 +1298,6 @@ else()
         if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
             target_link_libraries(Telegram PRIVATE X11)
         endif()
-
-        target_link_libraries(Telegram PRIVATE rt)
     endif()
 endif()
 
