@@ -109,6 +109,8 @@ PRIVATE
     platform/darwin/GLVideoViewMac.mm
     platform/darwin/objc_video_encoder_factory.h
     platform/darwin/objc_video_encoder_factory.mm
+    platform/darwin/objc_video_decoder_factory.h
+    platform/darwin/objc_video_decoder_factory.mm
     platform/darwin/TGCMIOCapturer.h
     platform/darwin/TGCMIOCapturer.m
     platform/darwin/TGCMIODevice.h
