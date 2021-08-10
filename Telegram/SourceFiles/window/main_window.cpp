@@ -299,7 +299,7 @@ void MainWindow::init() {
 	}
 	refreshTitleWidget();
 
-	initSize();
+	initGeometry();
 	updateUnreadCounter();
 }
 
@@ -426,13 +426,7 @@ void MainWindow::recountGeometryConstraints() {
 	fixOrder();
 }
 
-void MainWindow::initSize() {
-	updateMinimumSize();
-
-	if (initSizeFromSystem()) {
-		return;
-	}
-
+Core::WindowPosition MainWindow::positionFromSettings() const {
 	auto position = Core::App().settings().windowPosition();
 	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 "
 		"(scale %5%, maximized %6)")
@@ -443,16 +437,20 @@ void MainWindow::initSize() {
 		.arg(position.scale)
 		.arg(Logs::b(position.maximized)));
 
-	if (position.scale != 0) {
-		const auto scaleFactor = cScale() / float64(position.scale);
-		position.x *= scaleFactor;
-		position.y *= scaleFactor;
-		position.w *= scaleFactor;
-		position.h *= scaleFactor;
+	if (!position.scale) {
+		return position;
 	}
+	const auto scaleFactor = cScale() / float64(position.scale);
+	position.x *= scaleFactor;
+	position.y *= scaleFactor;
+	position.w *= scaleFactor;
+	position.h *= scaleFactor;
+	return position;
+}
 
+QRect MainWindow::countInitialGeometry(Core::WindowPosition position) {
 	const auto primaryScreen = QGuiApplication::primaryScreen();
-	const auto available = primaryScreen
+	const auto primaryAvailable = primaryScreen
 		? primaryScreen->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 	const auto initialWidth = Core::Settings::ThirdColumnByDefault()
@@ -461,72 +459,119 @@ void MainWindow::initSize() {
 	const auto initialHeight = Core::Settings::ThirdColumnByDefault()
 		? st::windowBigDefaultHeight
 		: st::windowDefaultHeight;
-	auto geometry = QRect(
-		available.x() + std::max(
-			(available.width() - initialWidth) / 2,
+	const auto initial = QRect(
+		primaryAvailable.x() + std::max(
+			(primaryAvailable.width() - initialWidth) / 2,
 			0),
-		available.y() + std::max(
-			(available.height() - initialHeight) / 2,
+		primaryAvailable.y() + std::max(
+			(primaryAvailable.height() - initialHeight) / 2,
 			0),
 		initialWidth,
 		initialHeight);
-	if (position.w && position.h) {
-		for (auto screen : QGuiApplication::screens()) {
+	if (!position.w || !position.h) {
+		return initial;
+	}
+	const auto screen = [&]() -> QScreen* {
+		for (const auto screen : QGuiApplication::screens()) {
 			if (position.moncrc == screenNameChecksum(screen->name())) {
-				auto screenGeometry = screen->geometry();
-				auto availableGeometry = screen->availableGeometry();
-				DEBUG_LOG(("Window Pos: Screen found, screen geometry: %1, %2, %3, %4").arg(screenGeometry.x()).arg(screenGeometry.y()).arg(screenGeometry.width()).arg(screenGeometry.height()));
-
-				const auto x = availableGeometry.x() - screenGeometry.x();
-				const auto y = availableGeometry.y() - screenGeometry.y();
-				const auto w = availableGeometry.width();
-				const auto h = availableGeometry.height();
-				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-					if (position.x < x) position.x = x;
-					if (position.y < y) position.y = y;
-					if (position.w > w) position.w = w;
-					if (position.h > h) position.h = h;
-					const auto rightPoint = position.x + position.w;
-					const auto screenRightPoint = x + w;
-					if (rightPoint > screenRightPoint) {
-						const auto distance = rightPoint - screenRightPoint;
-						const auto newXPos = position.x - distance;
-						if (newXPos >= x) {
-							position.x = newXPos;
-						} else {
-							position.x = x;
-							const auto newRightPoint = position.x + position.w;
-							const auto newDistance = newRightPoint - screenRightPoint;
-							position.w -= newDistance;
-						}
-					}
-					const auto bottomPoint = position.y + position.h;
-					const auto screenBottomPoint = y + h;
-					if (bottomPoint > screenBottomPoint) {
-						const auto distance = bottomPoint - screenBottomPoint;
-						const auto newYPos = position.y - distance;
-						if (newYPos >= y) {
-							position.y = newYPos;
-						} else {
-							position.y = y;
-							const auto newBottomPoint = position.y + position.h;
-							const auto newDistance = newBottomPoint - screenBottomPoint;
-							position.h -= newDistance;
-						}
-					}
-					position.x += screenGeometry.x();
-					position.y += screenGeometry.y();
-					if (position.x + st::windowMinWidth <= screenGeometry.x() + screenGeometry.width() &&
-						position.y + st::windowMinHeight <= screenGeometry.y() + screenGeometry.height()) {
-						DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4").arg(position.x).arg(position.y).arg(position.w).arg(position.h));
-						geometry = QRect(position.x, position.y, position.w, position.h);
-					}
-				}
-				break;
+				return screen;
 			}
 		}
+		return nullptr;
+	}();
+	if (!screen) {
+		return initial;
 	}
-	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
+	const auto frame = [&] {
+		if (!Core::App().settings().nativeWindowFrame()) {
+			return QMargins();
+		}
+		const auto inner = geometry();
+		const auto outer = frameGeometry();
+		return QMargins(
+			inner.x() - outer.x(),
+			inner.y() - outer.y(),
+			outer.x() + outer.width() - inner.x() - inner.width(),
+			outer.y() + outer.height() - inner.y() - inner.height());
+	}();
+
+	const auto screenGeometry = screen->geometry();
+	const auto availableGeometry = screen->availableGeometry();
+	const auto spaceForInner = availableGeometry.marginsRemoved(
+		frame);
+	DEBUG_LOG(("Window Pos: "
+		"Screen found, screen geometry: %1, %2, %3, %4"
+		).arg(screenGeometry.x()
+		).arg(screenGeometry.y()
+		).arg(screenGeometry.width()
+		).arg(screenGeometry.height()));
+
+	const auto x = spaceForInner.x() - screenGeometry.x();
+	const auto y = spaceForInner.y() - screenGeometry.y();
+	const auto w = spaceForInner.width();
+	const auto h = spaceForInner.height();
+	if (w < st::windowMinWidth || h < st::windowMinHeight) {
+		return initial;
+	}
+	if (position.x < x) position.x = x;
+	if (position.y < y) position.y = y;
+	if (position.w > w) position.w = w;
+	if (position.h > h) position.h = h;
+	const auto rightPoint = position.x + position.w;
+	const auto screenRightPoint = x + w;
+	if (rightPoint > screenRightPoint) {
+		const auto distance = rightPoint - screenRightPoint;
+		const auto newXPos = position.x - distance;
+		if (newXPos >= x) {
+			position.x = newXPos;
+		} else {
+			position.x = x;
+			const auto newRightPoint = position.x + position.w;
+			const auto newDistance = newRightPoint - screenRightPoint;
+			position.w -= newDistance;
+		}
+	}
+	const auto bottomPoint = position.y + position.h;
+	const auto screenBottomPoint = y + h;
+	if (bottomPoint > screenBottomPoint) {
+		const auto distance = bottomPoint - screenBottomPoint;
+		const auto newYPos = position.y - distance;
+		if (newYPos >= y) {
+			position.y = newYPos;
+		} else {
+			position.y = y;
+			const auto newBottomPoint = position.y + position.h;
+			const auto newDistance = newBottomPoint - screenBottomPoint;
+			position.h -= newDistance;
+		}
+	}
+	position.x += screenGeometry.x();
+	position.y += screenGeometry.y();
+	if ((position.x + st::windowMinWidth
+		> screenGeometry.x() + screenGeometry.width())
+		|| (position.y + st::windowMinHeight
+			> screenGeometry.y() + screenGeometry.height())) {
+		return initial;
+	}
+	DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4"
+		).arg(position.x
+		).arg(position.y
+		).arg(position.w
+		).arg(position.h));
+	return QRect(position.x, position.y, position.w, position.h);
+}
+
+void MainWindow::initGeometry() {
+	updateMinimumSize();
+	if (initGeometryFromSystem()) {
+		return;
+	}
+	const auto geometry = countInitialGeometry(positionFromSettings());
+	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
+		).arg(geometry.x()
+		).arg(geometry.y()
+		).arg(geometry.width()
+		).arg(geometry.height()));
 	setGeometry(geometry);
 }
 

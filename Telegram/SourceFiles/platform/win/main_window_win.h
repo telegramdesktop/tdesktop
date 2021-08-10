@@ -65,7 +65,7 @@ protected:
 
 	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 
-	bool initSizeFromSystem() override;
+	bool initGeometryFromSystem() override;
 
 	QRect computeDesktopRect() const override;
 

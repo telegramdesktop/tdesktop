@@ -287,7 +287,7 @@ bool MainWindow::hasTabletView() const {
 	return (mode == ViewManagement::UserInteractionMode_Touch);
 }
 
-bool MainWindow::initSizeFromSystem() {
+bool MainWindow::initGeometryFromSystem() {
 	if (!hasTabletView()) {
 		return false;
 	}

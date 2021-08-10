@@ -24,6 +24,10 @@ class BoxContent;
 class PlainShadow;
 } // namespace Ui
 
+namespace Core {
+struct WindowPosition;
+} // namespace Core
+
 namespace Window {
 
 class Controller;
@@ -166,7 +170,7 @@ protected:
 	virtual void createGlobalMenu() {
 	}
 
-	virtual bool initSizeFromSystem() {
+	virtual bool initGeometryFromSystem() {
 		return false;
 	}
 
@@ -185,7 +189,10 @@ private:
 	void refreshTitleWidget();
 	void updateMinimumSize();
 	void updatePalette();
-	void initSize();
+
+	[[nodiscard]] Core::WindowPosition positionFromSettings() const;
+	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
+	void initGeometry();
 
 	bool computeIsActive() const;
 
