@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_card_validator.h"
 
 #include <QtCore/QDate>
+#include <QtCore/QRegularExpression>
 
 namespace Stripe {
 namespace {

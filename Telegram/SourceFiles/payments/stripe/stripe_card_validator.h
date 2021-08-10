@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "stripe/stripe_card.h"
+#include <vector>
 
 namespace Stripe {
 
