@@ -155,6 +155,8 @@ public:
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;
 	[[nodiscard]] bool isPatternWallPaper() const;
+	[[nodiscard]] bool isPatternWallPaperPNG() const;
+	[[nodiscard]] bool isPatternWallPaperSVG() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	[[nodiscard]] bool thumbnailLoading() const;

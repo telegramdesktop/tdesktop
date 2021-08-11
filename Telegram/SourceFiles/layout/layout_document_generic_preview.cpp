@@ -35,9 +35,7 @@ DocumentGenericPreview DocumentGenericPreview::Create(
 			: document->filename())
 		: tr::lng_message_empty(tr::now)).toLower();
 	auto lastDot = name.lastIndexOf('.');
-	const auto mime = document
-		? document->mimeString().toLower()
-		: QString();
+	const auto mime = document ? document->mimeString() : QString();
 	if (name.endsWith(qstr(".doc")) ||
 		name.endsWith(qstr(".docx")) ||
 		name.endsWith(qstr(".txt")) ||

@@ -411,7 +411,7 @@ void DocumentData::setattributes(
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
-		&& _mimeString == qstr("application/x-tgsticker")) {
+		&& hasMimeType(qstr("application/x-tgsticker"))) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
 		sticker()->animated = true;
@@ -442,9 +442,8 @@ bool DocumentData::checkWallPaperProperties() {
 		|| !dimensions.height()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension
 		|| dimensions.height() > Storage::kMaxWallPaperDimension
-		|| size > Storage::kMaxWallPaperInMemory
-		|| mimeString() == qstr("application/x-tgwallpattern")) {
-		return false; // #TODO themes support svg patterns
+		|| size > Storage::kMaxWallPaperInMemory) {
+		return false;
 	}
 	type = WallPaperDocument;
 	return true;
@@ -487,7 +486,16 @@ bool DocumentData::isWallPaper() const {
 }
 
 bool DocumentData::isPatternWallPaper() const {
+	return isWallPaper()
+		&& (isPatternWallPaperPNG() || isPatternWallPaperSVG());
+}
+
+bool DocumentData::isPatternWallPaperPNG() const {
 	return isWallPaper() && hasMimeType(qstr("image/png"));
+}
+
+bool DocumentData::isPatternWallPaperSVG() const {
+	return isWallPaper() && hasMimeType(qstr("application/x-tgwallpattern"));
 }
 
 bool DocumentData::hasThumbnail() const {
@@ -661,9 +669,9 @@ bool DocumentData::saveToCache() const {
 		&& ((type == StickerDocument)
 			|| isAnimation()
 			|| isVoiceMessage()
-			|| (type == WallPaperDocument)
+			|| isWallPaper()
 			|| isTheme()
-			|| (mimeString() == qstr("image/png")
+			|| (hasMimeType(qstr("image/png"))
 				&& _filename.startsWith("image_")));
 }
 
@@ -1233,11 +1241,12 @@ QString DocumentData::mimeString() const {
 }
 
 bool DocumentData::hasMimeType(QLatin1String mime) const {
-	return !_mimeString.compare(mime, Qt::CaseInsensitive);
+	return (_mimeString == mime);
 }
 
 void DocumentData::setMimeString(const QString &mime) {
 	_mimeString = mime;
+	_mimeString = std::move(_mimeString).toLower();
 }
 
 MediaKey DocumentData::mediaKey() const {
@@ -1263,7 +1272,7 @@ uint8 DocumentData::cacheTag() const {
 		return Data::kVideoMessageCacheTag;
 	} else if (isAnimation()) {
 		return Data::kAnimationCacheTag;
-	} else if (type == WallPaperDocument) {
+	} else if (isWallPaper()) {
 		return Data::kImageCacheTag;
 	}
 	return 0;
@@ -1298,14 +1307,9 @@ bool DocumentData::isGifv() const {
 }
 
 bool DocumentData::isTheme() const {
-	return
-		_mimeString == qstr("application/x-tgtheme-tdesktop")
-		|| _filename.endsWith(
-			qstr(".tdesktop-theme"),
-			Qt::CaseInsensitive)
-		|| _filename.endsWith(
-			qstr(".tdesktop-palette"),
-			Qt::CaseInsensitive);
+	return hasMimeType(qstr("application/x-tgtheme-tdesktop"))
+		|| _filename.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
+		|| _filename.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive);
 }
 
 bool DocumentData::isSong() const {

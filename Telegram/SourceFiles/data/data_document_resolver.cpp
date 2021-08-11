@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
+constexpr auto kMaxWallpaperSize = 3072;
+
 void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
 		const QString &name,
@@ -173,27 +175,38 @@ bool IsIpRevealingName(const QString &filepath) {
 	);
 }
 
+[[nodiscard]] QImage ReadImage(
+		const QString &path,
+		const QByteArray &content,
+		bool gzipSvg) {
+	return Images::Read({
+		.path = path,
+		.content = content,
+		.maxSize = QSize(kMaxWallpaperSize, kMaxWallpaperSize),
+		.gzipSvg = gzipSvg,
+	}).image;
+}
+
 base::binary_guard ReadImageAsync(
 		not_null<Data::DocumentMedia*> media,
 		FnMut<QImage(QImage)> postprocess,
 		FnMut<void(QImage&&)> done) {
 	auto result = base::binary_guard();
+	const auto gzipSvg = media->owner()->isPatternWallPaperSVG();
 	crl::async([
+		gzipSvg,
 		bytes = media->bytes(),
 		path = media->owner()->filepath(),
 		postprocess = std::move(postprocess),
 		guard = result.make_guard(),
 		callback = std::move(done)
 	]() mutable {
-		auto read = Images::Read({
-			.path = path,
-			.content = bytes,
-		});
+		auto image = ReadImage(path, bytes, gzipSvg);
 		if (postprocess) {
-			read.image = postprocess(std::move(read.image));
+			image = postprocess(std::move(image));
 		}
 		crl::on_main(std::move(guard), [
-			image = std::move(read.image),
+			image = std::move(image),
 			callback = std::move(callback)
 		]() mutable {
 			callback(std::move(image));

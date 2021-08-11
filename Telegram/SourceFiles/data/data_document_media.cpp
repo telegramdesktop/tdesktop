@@ -39,6 +39,8 @@ enum class FileType {
 	Video,
 	AnimatedSticker,
 	WallPaper,
+	WallPatternPNG,
+	WallPatternSVG,
 	Theme,
 };
 
@@ -60,6 +62,15 @@ enum class FileType {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
 	} else if (type == FileType::Theme) {
 		return Window::Theme::GeneratePreview(data, path);
+	} else if (type == FileType::WallPatternSVG) {
+		return Images::Read({
+			.path = path,
+			.content = std::move(data),
+			.maxSize = QSize(
+				kWallPaperThumbnailLimit,
+				kWallPaperThumbnailLimit),
+			.gzipSvg = true,
+		}).image;
 	}
 	auto buffer = QBuffer(&data);
 	auto file = QFile(path);
@@ -390,7 +401,11 @@ void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
 void DocumentMedia::GenerateGoodThumbnail(
 		not_null<DocumentData*> document,
 		QByteArray data) {
-	const auto type = document->isWallPaper()
+	const auto type = document->isPatternWallPaperSVG()
+		? FileType::WallPatternSVG
+		: document->isPatternWallPaperPNG()
+		? FileType::WallPatternPNG
+		: document->isWallPaper()
 		? FileType::WallPaper
 		: document->isTheme()
 		? FileType::Theme
@@ -415,7 +430,8 @@ void DocumentMedia::GenerateGoodThumbnail(
 			auto buffer = QBuffer(&bytes);
 			const auto format = (type == FileType::AnimatedSticker)
 				? "WEBP"
-				: (type == FileType::WallPaper && result.hasAlphaChannel())
+				: (type == FileType::WallPatternPNG
+					|| type == FileType::WallPatternSVG)
 				? "PNG"
 				: "JPG";
 			result.save(&buffer, format, kGoodThumbQuality);
