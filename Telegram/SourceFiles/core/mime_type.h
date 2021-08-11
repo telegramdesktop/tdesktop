@@ -22,6 +22,7 @@ public:
 		TDesktopPalette,
 		WebP,
 		Tgs,
+		Tgv,
 	};
 
 	explicit MimeType(const QMimeType &type);

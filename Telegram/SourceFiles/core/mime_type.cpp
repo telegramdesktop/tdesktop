@@ -21,6 +21,7 @@ QStringList MimeType::globPatterns() const {
 	switch (_type) {
 	case Known::WebP: return QStringList(u"*.webp"_q);
 	case Known::Tgs: return QStringList(u"*.tgs"_q);
+	case Known::Tgv: return QStringList(u"*.tgv"_q);
 	case Known::TDesktopTheme: return QStringList(u"*.tdesktop-theme"_q);
 	case Known::TDesktopPalette: return QStringList(u"*.tdesktop-palette"_q);
 	default: break;
@@ -32,6 +33,7 @@ QString MimeType::filterString() const {
 	switch (_type) {
 	case Known::WebP: return u"WebP image (*.webp)"_q;
 	case Known::Tgs: return u"Telegram sticker (*.tgs)"_q;
+	case Known::Tgv: return u"Wallpaper pattern (*.tgv)"_q;
 	case Known::TDesktopTheme: return u"Theme files (*.tdesktop-theme)"_q;
 	case Known::TDesktopPalette: return u"Palette files (*.tdesktop-palette)"_q;
 	default: break;
@@ -43,6 +45,7 @@ QString MimeType::name() const {
 	switch (_type) {
 	case Known::WebP: return u"image/webp"_q;
 	case Known::Tgs: return u"application/x-tgsticker"_q;
+	case Known::Tgv: return u"application/x-tgwallpattern"_q;
 	case Known::TDesktopTheme: return u"application/x-tdesktop-theme"_q;
 	case Known::TDesktopPalette: return u"application/x-tdesktop-palette"_q;
 	default: break;
@@ -55,6 +58,8 @@ MimeType MimeTypeForName(const QString &mime) {
 		return MimeType(MimeType::Known::WebP);
 	} else if (mime == qstr("application/x-tgsticker")) {
 		return MimeType(MimeType::Known::Tgs);
+	} else if (mime == qstr("application/x-tgwallpattern")) {
+		return MimeType(MimeType::Known::Tgv);
 	} else if (mime == qstr("application/x-tdesktop-theme")
 		|| mime == qstr("application/x-tgtheme-tdesktop")) {
 		return MimeType(MimeType::Known::TDesktopTheme);
@@ -72,6 +77,8 @@ MimeType MimeTypeForFile(const QFileInfo &file) {
 		return MimeType(MimeType::Known::WebP);
 	} else if (path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::Tgs);
+	} else if (path.endsWith(qstr(".tgv"))) {
+		return MimeType(MimeType::Known::Tgv);
 	} else if (path.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::TDesktopTheme);
 	} else if (path.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
