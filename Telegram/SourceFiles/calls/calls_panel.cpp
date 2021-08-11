@@ -77,6 +77,9 @@ Panel::Panel(not_null<Call*> call)
 , _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute)
 , _name(widget(), st::callName)
 , _status(widget(), st::callStatus) {
+	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	_layerBg->setHideByBackgroundClick(true);
+
 	_decline->setDuration(st::callPanelDuration);
 	_decline->entity()->setText(tr::lng_call_decline());
 	_cancel->setDuration(st::callPanelDuration);
@@ -158,9 +161,13 @@ void Panel::initWindow() {
 				_answerHangupRedial->height()).contains(widgetPoint)
 			|| (!_outgoingPreviewInBody
 				&& _outgoingVideoBubble->geometry().contains(widgetPoint));
-		return inControls
-			? Flag::None
-			: (Flag::Move | Flag::FullScreen);
+		if (inControls) {
+			return Flag::None | Flag(0);
+		}
+		const auto shown = _layerBg->topShownLayer();
+		return (!shown || !shown->geometry().contains(widgetPoint))
+			? (Flag::Move | Flag::FullScreen)
+			: Flag::None;
 	});
 
 	// Don't do that, it looks awful :(
