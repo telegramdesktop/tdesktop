@@ -70,11 +70,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cUseFreeType()) {
 		pushArgument(qsl("-freetype"));
 	}
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (Core::UpdaterDisabled()) {
-		pushArgument(qsl("-externalupdater"));
-	}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	if (customWorkingDir()) {
 		pushArgument(qsl("-workdir"));
 		pushArgument('"' + cWorkingDir() + '"');

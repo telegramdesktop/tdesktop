@@ -343,7 +343,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, freetype = false, externalupdater = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, freetype = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -359,8 +359,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				startintray = true;
 			} else if (equal(args[i], L"-freetype")) {
 				freetype = true;
-			} else if (equal(args[i], L"-externalupdater")) {
-				externalupdater = true;
 			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
 				writeLog(std::wstring(L"Argument: ") + args[i]);
 				writeprotected = true;
@@ -431,7 +429,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
 	if (freetype) targs += L" -freetype";
-	if (externalupdater) targs += L" -externalupdater";
 	if (!customWorkingDir.empty()) {
 		targs += L" -workdir \"" + customWorkingDir + L"\"";
 	}

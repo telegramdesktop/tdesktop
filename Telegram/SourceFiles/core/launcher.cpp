@@ -458,7 +458,6 @@ void Launcher::processArguments() {
 		{ "-fixprevious"    , KeyFormat::NoValues },
 		{ "-cleanup"        , KeyFormat::NoValues },
 		{ "-noupdate"       , KeyFormat::NoValues },
-		{ "-externalupdater", KeyFormat::NoValues },
 		{ "-tosettings"     , KeyFormat::NoValues },
 		{ "-startintray"    , KeyFormat::NoValues },
 		{ "-sendpath"       , KeyFormat::AllLeftValues },
@@ -489,9 +488,6 @@ void Launcher::processArguments() {
 		}
 	}
 
-	if (parseResult.contains("-externalupdater")) {
-		SetUpdaterDisabledAtStartup();
-	}
 	gUseFreeType = parseResult.contains("-freetype");
 	gDebugMode = parseResult.contains("-debug");
 	gManyInstance = parseResult.contains("-many");
