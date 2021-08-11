@@ -169,7 +169,7 @@ if (NOT TGVOIP_FOUND)
             -Wno-error=sequence-point
             -Wno-error=unused-result
         )
-        if (build_linux32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
+        if (CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
             target_compile_options(lib_tgvoip_bundled_options INTERFACE -msse2)
         endif()
         target_link_libraries(lib_tgvoip_bundled

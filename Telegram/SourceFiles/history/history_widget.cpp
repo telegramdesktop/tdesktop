@@ -6263,11 +6263,7 @@ void HistoryWidget::updatePreview() {
 				st::msgNameStyle,
 				tr::lng_preview_loading(tr::now),
 				Ui::NameTextOptions());
-#ifndef OS_MAC_OLD
 			auto linkText = _previewLinks.splitRef(' ').at(0).toString();
-#else // OS_MAC_OLD
-			auto linkText = _previewLinks.split(' ').at(0);
-#endif // OS_MAC_OLD
 			_previewDescription.setText(
 				st::messageTextStyle,
 				TextUtilities::Clean(linkText),

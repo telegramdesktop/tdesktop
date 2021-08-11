@@ -177,11 +177,7 @@ uint32 ParseOccupationTag(History *history) {
 		return 0;
 	}
 	const auto &text = draft->textWithTags.text;
-#ifndef OS_MAC_OLD
 	const auto parts = text.splitRef(';');
-#else // OS_MAC_OLD
-	const auto parts = text.split(';');
-#endif // OS_MAC_OLD
 	auto valid = false;
 	auto result = uint32();
 	for (const auto &part : parts) {
@@ -207,11 +203,7 @@ QString ParseOccupationName(History *history) {
 		return QString();
 	}
 	const auto &text = draft->textWithTags.text;
-#ifndef OS_MAC_OLD
 	const auto parts = text.splitRef(';');
-#else // OS_MAC_OLD
-	const auto parts = text.split(';');
-#endif // OS_MAC_OLD
 	auto valid = false;
 	auto result = QString();
 	for (const auto &part : parts) {
@@ -222,11 +214,7 @@ QString ParseOccupationName(History *history) {
 				return 0;
 			}
 		} else if (part.startsWith(qstr("n:"))) {
-#ifndef OS_MAC_OLD
 			result = part.mid(2).toString();
-#else // OS_MAC_OLD
-			result = part.mid(2);
-#endif // OS_MAC_OLD
 		}
 	}
 	return valid ? result : QString();
@@ -241,11 +229,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 		return 0;
 	}
 	const auto &text = draft->textWithTags.text;
-#ifndef OS_MAC_OLD
 	const auto parts = text.splitRef(';');
-#else // OS_MAC_OLD
-	const auto parts = text.split(';');
-#endif // OS_MAC_OLD
 	auto valid = false;
 	auto result = TimeId();
 	for (const auto &part : parts) {

@@ -496,11 +496,7 @@ int main(int argc, char *argv[])
 #elif defined Q_OS_MAC
 	QString outName(QString("tmacupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_UNIX
-#ifndef _LP64
-	QString outName(QString("tlinux32upd%1").arg(AlphaVersion ? AlphaVersion : version));
-#else
 	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
-#endif
 #else
 #error Unknown platform!
 #endif

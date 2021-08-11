@@ -95,9 +95,7 @@ void AboutBox::showVersionHistory() {
 			url += qsl("win64/%1.zip");
 		} else if (Platform::IsMac()) {
 			url += qsl("mac/%1.zip");
-		} else if (Platform::IsLinux32Bit()) {
-			url += qsl("linux32/%1.tar.xz");
-		} else if (Platform::IsLinux64Bit()) {
+		} else if (Platform::IsLinux()) {
 			url += qsl("linux/%1.tar.xz");
 		} else {
 			Unexpected("Platform value.");

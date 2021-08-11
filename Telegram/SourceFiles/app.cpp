@@ -49,10 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 #include <QtGui/QFontDatabase>
 
-#ifdef OS_MAC_OLD
-#include <libexif/exif-data.h>
-#endif // OS_MAC_OLD
-
 namespace {
 
 constexpr auto kImageAreaLimit = 12'032 * 9'024;
@@ -180,9 +176,7 @@ namespace App {
 		}
 		{
 			QImageReader reader(&buffer, *format);
-#ifndef OS_MAC_OLD
 			reader.setAutoTransform(true);
-#endif // OS_MAC_OLD
 			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
 			if (!reader.canRead()) {
 				return QImage();
@@ -201,30 +195,7 @@ namespace App {
 		}
 		buffer.seek(0);
 		auto fmt = QString::fromUtf8(*format).toLower();
-		if (fmt == "jpg" || fmt == "jpeg") {
-#ifdef OS_MAC_OLD
-			if (auto exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size())) {
-				auto byteOrder = exif_data_get_byte_order(exifData);
-				if (auto exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION)) {
-					auto orientationFix = [exifEntry, byteOrder] {
-						auto orientation = exif_get_short(exifEntry->data, byteOrder);
-						switch (orientation) {
-						case 2: return QTransform(-1, 0, 0, 1, 0, 0);
-						case 3: return QTransform(-1, 0, 0, -1, 0, 0);
-						case 4: return QTransform(1, 0, 0, -1, 0, 0);
-						case 5: return QTransform(0, -1, -1, 0, 0, 0);
-						case 6: return QTransform(0, 1, -1, 0, 0, 0);
-						case 7: return QTransform(0, 1, 1, 0, 0, 0);
-						case 8: return QTransform(0, -1, 1, 0, 0, 0);
-						}
-						return QTransform();
-					};
-					result = result.transformed(orientationFix());
-				}
-				exif_data_free(exifData);
-			}
-#endif // OS_MAC_OLD
-		} else if (opaque) {
+		if (opaque) {
 			result = Images::prepareOpaque(std::move(result));
 		}
 		return result;

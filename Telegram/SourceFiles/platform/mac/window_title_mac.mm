@@ -54,7 +54,6 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 
 	auto useSystemFont = false;
 	QFont font;
-#ifndef OS_MAC_OLD
 	QStringList families = { qsl(".SF NS Text"), qsl("Helvetica Neue") };
 	for (auto family : families) {
 		font.setFamily(family);
@@ -63,7 +62,6 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 			break;
 		}
 	}
-#endif // OS_MAC_OLD
 
 	if (useSystemFont) {
 		font.setPixelSize((titleHeight * 15) / 24);

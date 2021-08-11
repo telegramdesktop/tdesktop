@@ -23,10 +23,8 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 void Launcher::initHook() {
-#ifndef OS_MAC_OLD
 	// macOS Retina display support is working fine, others are not.
 	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, false);
-#endif // OS_MAC_OLD
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

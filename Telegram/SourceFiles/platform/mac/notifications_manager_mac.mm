@@ -154,7 +154,7 @@ bool SkipFlashBounceForCustom() {
 }
 
 bool Supported() {
-	return Platform::IsMac10_8OrGreater();
+	return true;
 }
 
 bool Enforced() {

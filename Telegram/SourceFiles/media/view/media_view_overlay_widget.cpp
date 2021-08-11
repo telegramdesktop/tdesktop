@@ -434,14 +434,14 @@ OverlayWidget::OverlayWidget()
 	updateGeometry();
 	updateControlsGeometry();
 
-#if defined Q_OS_MAC && !defined OS_OSX
+#ifdef Q_OS_MAC
 	TouchBar::SetupMediaViewTouchBar(
 		_widget->winId(),
 		static_cast<PlaybackControls::Delegate*>(this),
 		_touchbarTrackState.events(),
 		_touchbarDisplay.events(),
 		_touchbarFullscreenToggled.events());
-#endif // Q_OS_MAC && !OS_OSX
+#endif // Q_OS_MAC
 
 	using namespace rpl::mappers;
 	rpl::combine(

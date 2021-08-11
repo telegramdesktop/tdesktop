@@ -286,10 +286,7 @@ void Launcher::init() {
 	initQtMessageLogging();
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
-
-#ifndef OS_MAC_OLD
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
-#endif // OS_MAC_OLD
 
 	// fallback session management is useless for tdesktop since it doesn't have
 	// any "are you sure you want to close this window?" dialogs

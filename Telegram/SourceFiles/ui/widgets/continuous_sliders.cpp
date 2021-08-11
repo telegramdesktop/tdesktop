@@ -110,11 +110,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	if (_mouseDown || !moveByWheel()) {
 		return;
 	}
-#ifdef OS_MAC_OLD
-	constexpr auto step = 120;
-#else // OS_MAC_OLD
 	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
-#endif // OS_MAC_OLD
 	constexpr auto coef = 1. / (step * 10.);
 
 	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
