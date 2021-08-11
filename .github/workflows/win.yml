@@ -52,28 +52,34 @@ jobs:
           - ""
     env:
       SDK: "10.0.18362.0"
-      VC: "call vcvars32.bat && cd Libraries"
       GIT: "https://github.com"
-      QT: "5_15_2"
       QT_VER: "5.15.2"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "2"
+      MANUAL_CACHING: "0"
       DOC_PATH: "docs/building-win.md"
       AUTO_CACHING: "1"
 
     defaults:
       run:
         shell: cmd
+        working-directory: Libraries
 
     steps:
       - name: Get repository name.
         shell: bash
+        working-directory: ${{ github.workspace }}
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - uses: ilammy/msvc-dev-cmd@v1.9.0
+        name: x86 Native Tools Command Prompt.
+        with:
+          arch: win32
 
       - name: Set up environment paths.
         shell: bash
+        working-directory: ${{ github.workspace }}
         run: |
           echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
           echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
@@ -83,6 +89,8 @@ jobs:
           echo "Convert unix path to win path."
           p=`pwd | sed 's#^/[d]#d:#g' |sed 's#/#\\\\#g'`
           echo "LibrariesPath=$p" >> $GITHUB_ENV
+
+          echo "QT=${QT_VER//./_}" >> $GITHUB_ENV
 
       - name: Save msbuild version.
         run: |
@@ -97,6 +105,7 @@ jobs:
 
       - name: Generate cache key.
         shell: bash
+        working-directory: ${{ github.workspace }}
         run: |
           curl -o $LibrariesPath/tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
           curl -o $LibrariesPath/tg_angle-version.json https://api.github.com/repos/desktop-app/tg_angle/git/refs/heads/master
@@ -108,7 +117,10 @@ jobs:
           echo "CACHE_KEY=`md5sum CACHE_KEY.txt | awk '{ print $1 }'`" >> $GITHUB_ENV
 
       - name: Choco installs.
-        run: choco install --no-progress -y nasm yasm jom ninja
+        run: |
+          choco install --allow-empty-checksums --no-progress -y yasm
+          choco install --no-progress -y nasm jom ninja
+          python -m pip install pywin32
 
       - name: NuGet sources.
         run: |
@@ -117,6 +129,7 @@ jobs:
 
       - name: Patches.
         shell: bash
+        working-directory: ${{ github.workspace }}
         run: |
           echo "Find necessary commit from doc."
           checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
@@ -139,8 +152,6 @@ jobs:
 
       - name: LZMA.
         run: |
-          %VC%
-
           git clone %GIT%/telegramdesktop/lzma.git
           cd lzma
           cd C\Util\LzmaLib
@@ -155,8 +166,6 @@ jobs:
       - name: OpenSSL.
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone %GIT%/openssl/openssl.git openssl_%OPENSSL_VER%
           cd openssl_%OPENSSL_VER%
           git checkout OpenSSL_%OPENSSL_VER%-stable
@@ -180,8 +189,6 @@ jobs:
 
       - name: Zlib.
         run: |
-          %VC%
-
           git clone %GIT%/telegramdesktop/zlib.git
           cd zlib
           git checkout tdesktop
@@ -191,8 +198,6 @@ jobs:
       - name: MozJPEG.
         shell: cmd
         run: |
-          %VC%
-
           git clone -b v4.0.1-rc2 %GIT%/mozilla/mozjpeg.git
           cd mozjpeg
           cmake . ^
@@ -211,8 +216,6 @@ jobs:
       - name: OpenAL Soft.
         if: steps.cache-openal.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone -b openal-soft-1.21.0 --depth=1 %GIT%/kcat/openal-soft.git
           cd openal-soft\build
           cmake .. ^
@@ -236,8 +239,6 @@ jobs:
           GYP_MSVS_VERSION: 2019
         if: steps.cache-breakpad.outputs.cache-hit != 'true'
         run: |
-          cd %LibrariesPath%
-
           git clone %GIT%/telegramdesktop/gyp.git
           cd gyp
           SET PATH=%PY2%;%cd%;%PATH%
@@ -271,8 +272,6 @@ jobs:
       - name: Opus.
         if: steps.cache-opus.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone %GIT%/telegramdesktop/opus.git
           cd opus
           git checkout tdesktop
@@ -281,10 +280,7 @@ jobs:
           msbuild -m opus.sln /property:Configuration=Release /property:Platform="Win32"
 
       - name: Rnnoise.
-        shell: cmd
         run: |
-          %VC%
-
           git clone %GIT%/desktop-app/rnnoise.git
           mkdir rnnoise\out
           cd rnnoise\out
@@ -300,7 +296,6 @@ jobs:
       - name: FFmpeg.
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
-          %VC%
           choco install --no-progress -y msys2
 
           git clone %GIT%/FFmpeg/FFmpeg.git ffmpeg
@@ -321,8 +316,6 @@ jobs:
       - name: Angle.
         if: steps.cache-angle.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone --recursive %GIT%/desktop-app/tg_angle.git
           mkdir tg_angle\out\Debug
           cd tg_angle\out\Debug
@@ -348,8 +341,6 @@ jobs:
       - name: Configure Qt 5.15.2.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone git://code.qt.io/qt/qt5.git qt_%QT%
           cd qt_%QT%
           perl init-repository --module-subset=qtbase,qtimageformats
@@ -401,7 +392,6 @@ jobs:
       - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
-          %VC%
           cd qt_%QT%
 
           jom -j%NUMBER_OF_PROCESSORS%
@@ -419,8 +409,6 @@ jobs:
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |
-          %VC%
-
           git clone --recursive %GIT%/desktop-app/tg_owt.git
           mkdir tg_owt\out\Debug
           cd tg_owt\out\Debug
@@ -457,10 +445,12 @@ jobs:
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
 
       - name: Free up some disk space.
+        working-directory: ${{ github.workspace }}
         run: del /S *.pdb
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
+        working-directory: ${{ github.workspace }}
         run: |
           cd %REPO_NAME%\Telegram
 
@@ -478,6 +468,7 @@ jobs:
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
+        working-directory: ${{ github.workspace }}
         run: |
           cd %REPO_NAME%\out\Debug
           mkdir artifact
