@@ -9,25 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Ui {
 class Radiobutton;
 } // namespace Ui
 
 class AutoLockBox : public Ui::BoxContent {
 public:
-	AutoLockBox(QWidget*, not_null<Main::Session*> session);
+	AutoLockBox(QWidget*);
 
 protected:
 	void prepare() override;
 
 private:
 	void durationChanged(int seconds);
-
-	const not_null<Main::Session*> _session;
 
 	std::vector<object_ptr<Ui::Radiobutton>> _options;
 

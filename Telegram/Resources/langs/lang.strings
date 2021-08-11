@@ -577,6 +577,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_autolock_minutes#other" = "{count} minutes";
 "lng_passcode_autolock_hours#one" = "{count} hour";
 "lng_passcode_autolock_hours#other" = "{count} hours";
+"lng_passcode_autolock_hours_minutes" = "{hours_count}h {minutes_count}m";
 "lng_passcode_enter_old" = "Enter current passcode";
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";

@@ -965,3 +965,11 @@ scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
 boxAttentionDividerLabel: FlatLabel(boxDividerLabel) {
 	textFg: boxTextFgError;
 }
+
+autolockDateField: InputField(scheduleDateField) {
+	heightMin: 22px;
+}
+autolockTimeField: InputField(scheduleTimeField) {
+	heightMin: 20px;
+}
+autolockTimeWidth: 52px;

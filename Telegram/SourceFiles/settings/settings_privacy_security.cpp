@@ -292,15 +292,25 @@ void SetupLocalPasscode(
 		rpl::empty_value()
 	) | rpl::map([] {
 		const auto autolock = Core::App().settings().autoLock();
-		return (autolock % 3600)
+		const auto hours = autolock / 3600;
+		const auto minutes = (autolock - (hours * 3600)) / 60;
+
+		return (hours && minutes)
+			? tr::lng_passcode_autolock_hours_minutes(
+				tr::now,
+				lt_hours_count,
+				QString::number(hours),
+				lt_minutes_count,
+				QString::number(minutes))
+			: minutes
 			? tr::lng_passcode_autolock_minutes(
 				tr::now,
 				lt_count,
-				autolock / 60)
+				minutes)
 			: tr::lng_passcode_autolock_hours(
 				tr::now,
 				lt_count,
-				autolock / 3600);
+				hours);
 	});
 
 	AddButtonWithLabel(
@@ -309,8 +319,7 @@ void SetupLocalPasscode(
 		std::move(value),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto box = controller->show(
-			Box<AutoLockBox>(&controller->session()));
+		const auto box = controller->show(Box<AutoLockBox>());
 		box->boxClosing(
 		) | rpl::start_to_stream(*autoLockBoxClosing, box->lifetime());
 	});
