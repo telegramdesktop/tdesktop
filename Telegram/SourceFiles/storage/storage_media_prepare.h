@@ -50,6 +50,6 @@ enum class MimeDataState {
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
 void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
 
-[[nodiscard]] bool ApplyModifications(const Ui::PreparedList &list);
+[[nodiscard]] bool ApplyModifications(Ui::PreparedList &list);
 
 } // namespace Storage

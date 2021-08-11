@@ -328,7 +328,7 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 	file.preview.setDevicePixelRatio(cRetinaFactor());
 }
 
-bool ApplyModifications(const PreparedList &list) {
+bool ApplyModifications(PreparedList &list) {
 	auto applied = false;
 	for (auto &file : list.files) {
 		const auto image = std::get_if<Image>(&file.information->media);
@@ -336,6 +336,9 @@ bool ApplyModifications(const PreparedList &list) {
 			continue;
 		}
 		applied = true;
+		if (!file.path.isEmpty()) {
+			file.path = QString();
+		}
 		image->data = Editor::ImageModified(
 			std::move(image->data),
 			image->modifications);
