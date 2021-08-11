@@ -48,7 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
-#include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h" // UniqueDesktopCaptureSource.

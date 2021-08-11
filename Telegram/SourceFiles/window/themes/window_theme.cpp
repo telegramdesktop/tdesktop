@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
@@ -323,7 +322,10 @@ bool LoadTheme(
 				LOG(("Theme Error: bad background image size in the theme file."));
 				return false;
 			}
-			auto background = App::readImage(backgroundContent);
+			auto background = Images::Read({
+				.content = backgroundContent,
+				.forceOpaque = true,
+			}).image;
 			if (background.isNull()) {
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;

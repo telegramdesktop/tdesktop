@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_layer_widget.h"
 
-#include "app.h" // readImage
 #include "boxes/confirm_box.h" // InformBox
 #include "editor/photo_editor.h"
 #include "storage/storage_media_prepare.h"
@@ -80,9 +79,11 @@ void PrepareProfilePhoto(
 			return;
 		}
 
-		auto image = result.remoteContent.isEmpty()
-			? App::readImage(result.paths.front())
-			: App::readImage(result.remoteContent);
+		auto image = Images::Read({
+			.path = result.paths.isEmpty() ? QString() : result.paths.front(),
+			.content = result.remoteContent,
+			.forceOpaque = true,
+		}).image;
 		if (image.isNull()
 			|| (image.width() > (10 * image.height()))
 			|| (image.height() > (10 * image.width()))) {

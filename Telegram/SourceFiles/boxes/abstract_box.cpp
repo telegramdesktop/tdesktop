@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "app.h"
 
 namespace Ui {
 namespace internal {

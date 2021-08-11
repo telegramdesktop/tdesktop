@@ -7,44 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "app.h"
 
-#include "lang/lang_keys.h"
-#include "boxes/confirm_box.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
-#include "data/data_abstract_structure.h"
-#include "data/data_media_types.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
-#include "history/history.h"
-#include "history/history_location_manager.h"
-#include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
-#include "media/audio/media_audio.h"
-#include "ui/image/image.h"
-#include "ui/cached_round_corners.h"
-#include "inline_bots/inline_bot_layout_item.h"
-#include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "window/notifications_manager.h"
-#include "window/window_controller.h"
-#include "platform/platform_notifications_manager.h"
-#include "storage/file_upload.h"
-#include "storage/localstorage.h"
-#include "storage/storage_facade.h"
-#include "storage/storage_shared_media.h"
 #include "mainwindow.h"
-#include "mainwidget.h"
-#include "apiwrap.h"
-#include "main/main_session.h"
-#include "styles/style_boxes.h"
-#include "styles/style_overview.h"
-#include "styles/style_media_view.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_chat.h"
-#include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QFontDatabase>
@@ -64,15 +31,6 @@ HistoryView::Element *hoveredItem = nullptr,
 } // namespace
 
 namespace App {
-
-	void initMedia() {
-		Ui::StartCachedCorners();
-	}
-
-	void deinitMedia() {
-		Ui::FinishCachedCorners();
-		Data::clearGlobalStructures();
-	}
 
 	void hoveredItem(HistoryView::Element *item) {
 		::hoveredItem = item;
@@ -162,57 +120,6 @@ namespace App {
 			cSetRestartingToSettings(true);
 		}
 		App::quit();
-	}
-
-	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
-		if (data.isEmpty()) {
-			return QImage();
-		}
-		QByteArray tmpFormat;
-		QImage result;
-		QBuffer buffer(&data);
-		if (!format) {
-			format = &tmpFormat;
-		}
-		{
-			QImageReader reader(&buffer, *format);
-			reader.setAutoTransform(true);
-			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
-			if (!reader.canRead()) {
-				return QImage();
-			}
-			const auto imageSize = reader.size();
-			if (imageSize.width() * imageSize.height() > kImageAreaLimit) {
-				return QImage();
-			}
-			QByteArray fmt = reader.format();
-			if (!fmt.isEmpty()) *format = fmt;
-			if (!reader.read(&result)) {
-				return QImage();
-			}
-			fmt = reader.format();
-			if (!fmt.isEmpty()) *format = fmt;
-		}
-		buffer.seek(0);
-		auto fmt = QString::fromUtf8(*format).toLower();
-		if (opaque) {
-			result = Images::prepareOpaque(std::move(result));
-		}
-		return result;
-	}
-
-	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
-		QFile f(file);
-		if (f.size() > kImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
-			if (animated) *animated = false;
-			return QImage();
-		}
-		auto imageBytes = f.readAll();
-		auto result = readImage(imageBytes, format, opaque, animated);
-		if (content && !result.isNull()) {
-			*content = imageBytes;
-		}
-		return result;
 	}
 
 }

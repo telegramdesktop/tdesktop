@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
-#include "app.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>
@@ -464,11 +463,11 @@ void DocumentMedia::ReadOrGenerateThumbnail(
 			});
 		} else if (active) {
 			crl::async([=] {
-				const auto image = App::readImage(value, nullptr, false);
-				crl::on_main(guard, [=] {
+				auto image = Images::Read({ .content = value }).image;
+				crl::on_main(guard, [=, image = std::move(image)]() mutable {
 					document->setGoodThumbnailChecked(true);
 					if (const auto active = document->activeMediaView()) {
-						active->setGoodThumbnail(image);
+						active->setGoodThumbnail(std::move(image));
 					}
 				});
 			});

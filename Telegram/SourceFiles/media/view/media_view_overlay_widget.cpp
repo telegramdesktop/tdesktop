@@ -70,7 +70,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 
@@ -149,24 +148,16 @@ QWidget *PipDelegate::pipParentWidget() {
 		: result;
 }
 
-[[nodiscard]] QImage PrepareStaticImage(QImage image) {
-	if (image.width() > kMaxDisplayImageSize
-		|| image.height() > kMaxDisplayImageSize) {
-		image = image.scaled(
+[[nodiscard]] QImage PrepareStaticImage(Images::ReadArgs &&args) {
+	auto read = Images::Read(std::move(args));
+	return (read.image.width() > kMaxDisplayImageSize
+		|| read.image.height() > kMaxDisplayImageSize)
+		? read.image.scaled(
 			kMaxDisplayImageSize,
 			kMaxDisplayImageSize,
 			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
-	}
-	return image;
-}
-
-[[nodiscard]] QImage PrepareStaticImage(const QString &path) {
-	return PrepareStaticImage(App::readImage(path, nullptr, false));
-}
-
-[[nodiscard]] QImage PrepareStaticImage(const QByteArray &bytes) {
-	return PrepareStaticImage(App::readImage(bytes, nullptr, false));
+			Qt::SmoothTransformation)
+		: read.image;
 }
 
 [[nodiscard]] bool IsSemitransparent(const QImage &image) {
@@ -1181,7 +1172,8 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 	}
 	const auto ready = _document && _documentMedia->loaded();
 	const auto streamVideo = ready && _documentMedia->canBePlayed();
-	const auto tryOpenImage = ready && (_document->size < App::kImageSizeLimit);
+	const auto tryOpenImage = ready
+		&& (_document->size < Images::kReadBytesLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
 		_streamingStartPaused = false;
 		if (streamVideo) {
@@ -2415,14 +2407,16 @@ void OverlayWidget::displayDocument(
 				_document->saveFromDataSilent();
 				auto &location = _document->location(true);
 				if (location.accessEnable()) {
-					const auto &path = location.name();
-					if (QImageReader(path).canRead()) {
-						setStaticContent(PrepareStaticImage(path));
+					setStaticContent(PrepareStaticImage({
+						.path = location.name(),
+					}));
+					if (!_staticContent.isNull()) {
 						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}
-				} else if (!_documentMedia->bytes().isEmpty()) {
-					setStaticContent(
-						PrepareStaticImage(_documentMedia->bytes()));
+				} else {
+					setStaticContent(PrepareStaticImage({
+						.content = _documentMedia->bytes(),
+					}));
 					if (!_staticContent.isNull()) {
 						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}

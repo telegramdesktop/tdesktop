@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "facades.h" // Ui::showPeerHistory
-#include "app.h"
 #include "styles/style_boxes.h"
 
 namespace {

@@ -1614,16 +1614,14 @@ public:
 					const auto coverBytes = QByteArray(
 						(const char*)packet.data,
 						packet.size);
-					auto format = QByteArray();
-					auto animated = false;
-					_cover = App::readImage(
-						coverBytes,
-						&format,
-						true,
-						&animated);
-					if (!_cover.isNull()) {
+					auto read = Images::Read({
+						.content = coverBytes,
+						.forceOpaque = true,
+					});
+					if (!read.image.isNull()) {
+						_cover = std::move(read.image);
 						_coverBytes = coverBytes;
-						_coverFormat = format;
+						_coverFormat = read.format;
 					}
 				}
 			} else if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {

@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
-#include "app.h"
 
 #include <QtGui/QGuiApplication>
 

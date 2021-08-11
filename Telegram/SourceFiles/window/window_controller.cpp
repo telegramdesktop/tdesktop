@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"
-#include "app.h"
 #include "styles/style_layers.h"
 
 #include <QtGui/QWindow>

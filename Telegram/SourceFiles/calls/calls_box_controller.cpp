@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "base/unixtime.h"
 #include "api/api_updates.h"
-#include "app.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h" // st::boxLabel.
 #include "styles/style_calls.h"

@@ -197,23 +197,32 @@ void ThemeDocument::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
-	_dataMedia->goodThumbnailWanted();
+	if (checkGoodThumbnail()) {
+		_dataMedia->goodThumbnailWanted();
+	}
 	_dataMedia->thumbnailWanted(_realParent->fullId());
 	_parent->history()->owner().registerHeavyViewPart(_parent);
 }
 
+bool ThemeDocument::checkGoodThumbnail() const {
+	return !_data->hasThumbnail() || !_data->isPatternWallPaper();
+}
+
 void ThemeDocument::validateThumbnail() const {
-	if (_thumbnailGood > 0) {
-		return;
-	}
-	ensureDataMediaCreated();
-	if (const auto good = _dataMedia->goodThumbnail()) {
-		prepareThumbnailFrom(good, 1);
-		return;
+	if (checkGoodThumbnail()) {
+		if (_thumbnailGood > 0) {
+			return;
+		}
+		ensureDataMediaCreated();
+		if (const auto good = _dataMedia->goodThumbnail()) {
+			prepareThumbnailFrom(good, 1);
+			return;
+		}
 	}
 	if (_thumbnailGood >= 0) {
 		return;
 	}
+	ensureDataMediaCreated();
 	if (const auto normal = _dataMedia->thumbnail()) {
 		prepareThumbnailFrom(normal, 0);
 	} else if (_thumbnail.isNull()) {

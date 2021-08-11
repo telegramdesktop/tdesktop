@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "app.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
@@ -642,25 +641,25 @@ bool FileLoadTask::CheckForImage(
 		const QString &filepath,
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
-	auto animated = false;
-	auto image = [&] {
+	auto read = [&] {
 		if (filepath.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
 			auto image = Lottie::ReadThumbnail(
 				Lottie::ReadContent(content, filepath));
-			if (!image.isNull()) {
-				animated = true;
+			const auto success = !image.isNull();
+			if (success) {
 				result->filemime = qstr("application/x-tgsticker");
 			}
-			return image;
+			return Images::ReadResult{
+				.image = std::move(image),
+				.animated = success,
+			};
 		}
-		if (!content.isEmpty()) {
-			return App::readImage(content, nullptr, false, &animated);
-		} else if (!filepath.isEmpty()) {
-			return App::readImage(filepath, nullptr, false, &animated);
-		}
-		return QImage();
+		return Images::Read({
+			.path = filepath,
+			.content = content,
+		});
 	}();
-	return FillImageInformation(std::move(image), animated, result);
+	return FillImageInformation(std::move(read.image), read.animated, result);
 }
 
 bool FileLoadTask::FillImageInformation(

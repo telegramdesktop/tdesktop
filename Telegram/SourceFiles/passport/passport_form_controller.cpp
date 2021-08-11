@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/file_upload.h"
 #include "storage/file_download_mtproto.h"
-#include "app.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
@@ -75,9 +74,12 @@ std::map<QString, QString> GetTexts(const ValueMap &map) {
 }
 
 QImage ReadImage(bytes::const_span buffer) {
-	return App::readImage(QByteArray::fromRawData(
-		reinterpret_cast<const char*>(buffer.data()),
-		buffer.size()));
+	return Images::Read({
+		.content = QByteArray::fromRawData(
+			reinterpret_cast<const char*>(buffer.data()),
+			buffer.size()),
+		.forceOpaque = true,
+	}).image;
 }
 
 Value::Type ConvertType(const MTPSecureValueType &type) {
@@ -1777,9 +1779,7 @@ void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 			return;
 		}
 		file->downloadOffset = file->size;
-		file->image = App::readImage(QByteArray::fromRawData(
-			reinterpret_cast<const char*>(decrypted.data()),
-			decrypted.size()));
+		file->image = ReadImage(gsl::make_span(decrypted));
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.image = file->image;
 			fileInEdit->fields.downloadOffset = file->downloadOffset;

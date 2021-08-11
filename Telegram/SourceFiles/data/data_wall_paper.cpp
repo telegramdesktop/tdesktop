@@ -331,6 +331,15 @@ std::optional<WallPaper> WallPaper::Create(
 	if (!document->checkWallPaperProperties()) {
 		return std::nullopt;
 	}
+	const auto unsupported = data.vsettings()
+		&& data.vsettings()->match([&](const MTPDwallPaperSettings &data) {
+			return data.vsecond_background_color()
+				|| data.vthird_background_color()
+				|| data.vfourth_background_color(); // #TODO themes gradients
+		});
+	if (unsupported) {
+		return std::nullopt;
+	}
 	auto result = WallPaper(data.vid().v);
 	result._accessHash = data.vaccess_hash().v;
 	result._ownerId = session->userId();

@@ -14,7 +14,6 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "ui/special_buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 

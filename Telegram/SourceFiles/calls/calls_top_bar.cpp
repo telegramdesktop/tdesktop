@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
-#include "app.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h" // style::GroupCallUserpics
 #include "styles/style_layers.h"

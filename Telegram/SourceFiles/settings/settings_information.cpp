@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 

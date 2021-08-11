@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
-#include "app.h"
 
 namespace Data {
 
@@ -28,7 +27,7 @@ not_null<StickersSet*> StickersSetThumbnailView::owner() const {
 void StickersSetThumbnailView::set(
 		not_null<Main::Session*> session,
 		QByteArray content) {
-	auto image = App::readImage(content, nullptr, false);
+	auto image = Images::Read({ .content = content }).image;
 	if (image.isNull()) {
 		_content = std::move(content);
 	} else {

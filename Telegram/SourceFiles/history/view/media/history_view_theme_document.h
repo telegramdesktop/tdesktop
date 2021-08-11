@@ -61,6 +61,7 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	void fillPatternFieldsFrom(const QString &url);
+	[[nodiscard]] bool checkGoodThumbnail() const;
 	void validateThumbnail() const;
 	void prepareThumbnailFrom(not_null<Image*> image, int good) const;
 	void ensureDataMediaCreated() const;

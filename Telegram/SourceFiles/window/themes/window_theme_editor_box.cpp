@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
@@ -186,15 +185,14 @@ void BackgroundSelector::chooseBackgroundFromFile() {
 			}
 		}
 		if (!content.isEmpty()) {
-			auto format = QByteArray();
-			auto image = App::readImage(content, &format);
-			if (!image.isNull()
-				&& (format == "jpeg"
-					|| format == "jpg"
-					|| format == "png")) {
-				_background = image;
+			auto read = Images::Read({ .content = content });
+			if (!read.image.isNull()
+				&& (read.format == "jpeg"
+					|| read.format == "jpg"
+					|| read.format == "png")) {
+				_background = std::move(read.image);
 				_parsed.background = content;
-				_parsed.isPng = (format == "png");
+				_parsed.isPng = (read.format == "png");
 				const auto phrase = _parsed.isPng
 					? tr::lng_theme_editor_read_from_png
 					: tr::lng_theme_editor_read_from_jpg;

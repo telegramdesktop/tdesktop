@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_document_resolver.h"
 
-#include "app.h"
 #include "facades.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/confirm_box.h"
@@ -186,22 +185,15 @@ base::binary_guard ReadImageAsync(
 		guard = result.make_guard(),
 		callback = std::move(done)
 	]() mutable {
-		auto format = QByteArray();
-		if (bytes.isEmpty()) {
-			QFile f(path);
-			if (f.size() <= App::kImageSizeLimit
-				&& f.open(QIODevice::ReadOnly)) {
-				bytes = f.readAll();
-			}
-		}
-		auto image = bytes.isEmpty()
-			? QImage()
-			: App::readImage(bytes, &format, false, nullptr);
+		auto read = Images::Read({
+			.path = path,
+			.content = bytes,
+		});
 		if (postprocess) {
-			image = postprocess(std::move(image));
+			read.image = postprocess(std::move(read.image));
 		}
 		crl::on_main(std::move(guard), [
-			image = std::move(image),
+			image = std::move(read.image),
 			callback = std::move(callback)
 		]() mutable {
 			callback(std::move(image));
@@ -231,7 +223,7 @@ void ResolveDocument(
 
 	const auto media = document->createMediaView();
 	const auto openImageInApp = [&] {
-		if (document->size >= App::kImageSizeLimit) {
+		if (document->size >= Images::kReadBytesLimit) {
 			return false;
 		}
 		const auto &location = document->location(true);

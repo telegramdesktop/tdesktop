@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "ui/ui_utility.h"
-#include "app.h"
 
 using namespace Images;
 
@@ -26,17 +25,6 @@ namespace {
 
 [[nodiscard]] uint64 SinglePixKey(Options options) {
 	return PixKey(0, 0, options);
-}
-
-[[nodiscard]] QByteArray ReadContent(const QString &path) {
-	auto file = QFile(path);
-	const auto good = (file.size() <= App::kImageSizeLimit)
-		&& file.open(QIODevice::ReadOnly);
-	return good ? file.readAll() : QByteArray();
-}
-
-[[nodiscard]] QImage ReadImage(const QByteArray &content) {
-	return App::readImage(content, nullptr, false, nullptr);
 }
 
 } // namespace
@@ -91,7 +79,7 @@ QByteArray ExpandInlineBytes(const QByteArray &bytes) {
 }
 
 QImage FromInlineBytes(const QByteArray &bytes) {
-	return App::readImage(ExpandInlineBytes(bytes));
+	return Read({ .content = ExpandInlineBytes(bytes) }).image;
 }
 
 // Thanks TDLib for code.
@@ -297,10 +285,12 @@ QPainterPath PathFromInlineBytes(const QByteArray &bytes) {
 
 } // namespace Images
 
-Image::Image(const QString &path) : Image(ReadContent(path)) {
+Image::Image(const QString &path)
+: Image(Read({ .path = path }).image) {
 }
 
-Image::Image(const QByteArray &content) : Image(ReadImage(content)) {
+Image::Image(const QByteArray &content)
+: Image(Read({ .content = content }).image) {
 }
 
 Image::Image(QImage &&data)

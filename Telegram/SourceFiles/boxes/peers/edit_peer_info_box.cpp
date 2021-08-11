@@ -47,7 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
-#include "app.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
 #include "facades.h"

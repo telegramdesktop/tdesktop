@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/call_delayed.h"
 #include "apiwrap.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 #include <QtCore/QBuffer>

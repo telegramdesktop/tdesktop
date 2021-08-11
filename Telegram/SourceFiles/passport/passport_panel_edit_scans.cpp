@@ -18,12 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/text_options.h"
+#include "ui/image/image_prepare.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/file_upload.h" // For Storage::kUseBigFilesFrom.
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
@@ -39,7 +39,12 @@ constexpr auto kJpegQuality = 89;
 static_assert(kMaxSize <= Storage::kUseBigFilesFrom);
 
 std::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
-	auto image = App::readImage(base::take(bytes));
+	auto read = Images::Read({
+		.content = base::take(bytes),
+		.forceOpaque = true,
+	});
+
+	auto &image = read.image;
 	if (image.isNull()) {
 		return ReadScanError::CantReadImage;
 	} else if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
@@ -858,7 +863,7 @@ void EditScans::ChooseScan(
 
 			auto content = [&] {
 				QFile f(file);
-				if (f.size() > App::kImageSizeLimit) {
+				if (f.size() > Images::kReadBytesLimit) {
 					guardedError(ReadScanError::FileTooLarge);
 					return QByteArray();
 				} else if (!f.open(QIODevice::ReadOnly)) {

@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_types.h"
-
 namespace HistoryView {
 class Element;
 } // namespace HistoryView
@@ -26,9 +24,6 @@ namespace App {
 	HistoryView::Element *mousedItem();
 	void clearMousedItems();
 
-	void initMedia();
-	void deinitMedia();
-
 	enum LaunchState {
 		Launched = 0,
 		QuitRequested = 1,
@@ -39,9 +34,5 @@ namespace App {
 	LaunchState launchState();
 	void setLaunchState(LaunchState state);
 	void restart();
-
-	constexpr auto kImageSizeLimit = 64 * 1024 * 1024; // Open images up to 64mb jpg/png/gif
-	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
-	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
 
 };
