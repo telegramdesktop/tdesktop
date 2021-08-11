@@ -1,3 +1,7 @@
+2.9.3 (11.08.21)
+
+- Fix requesting screencast rights on macOS (again).
+
 2.9.2 (10.08.21)
 
 - Fix crashes and bugs in scheduled messages.
