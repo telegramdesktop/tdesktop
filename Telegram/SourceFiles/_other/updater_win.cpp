@@ -343,7 +343,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, testmode = false, freetype = false, externalupdater = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, freetype = false, externalupdater = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -357,8 +357,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				openLog();
 			} else if (equal(args[i], L"-startintray")) {
 				startintray = true;
-			} else if (equal(args[i], L"-testmode")) {
-				testmode = true;
 			} else if (equal(args[i], L"-freetype")) {
 				freetype = true;
 			} else if (equal(args[i], L"-externalupdater")) {
@@ -432,7 +430,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	if (autostart) targs += L" -autostart";
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
-	if (testmode) targs += L" -testmode";
 	if (freetype) targs += L" -freetype";
 	if (externalupdater) targs += L" -externalupdater";
 	if (!customWorkingDir.empty()) {
