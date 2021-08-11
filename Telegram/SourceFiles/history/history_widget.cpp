@@ -6970,6 +6970,10 @@ void HistoryWidget::synteticScrollToY(int y) {
 
 HistoryWidget::~HistoryWidget() {
 	if (_history) {
+		// Saving a draft on account switching.
+		saveFieldToHistoryLocalDraft();
+		session().api().saveDraftToCloudDelayed(_history);
+
 		clearAllLoadRequests();
 	}
 	setTabbedPanel(nullptr);
