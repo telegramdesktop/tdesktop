@@ -194,7 +194,6 @@ void MainWindow::Private::initTouchBar(
 		NSWindow *window,
 		not_null<Window::Controller*> controller,
 		rpl::producer<bool> canApplyMarkdown) {
-#ifndef OS_OSX
 	if (!IsMac10_13OrGreater()) {
 		return;
 	}
@@ -208,7 +207,6 @@ void MainWindow::Private::initTouchBar(
 			controller:controller
 			domain:(&Core::App().domain())] autorelease]
 		waitUntilDone:true];
-#endif
 }
 
 bool MainWindow::Private::clipboardHasText() {
@@ -227,11 +225,7 @@ MainWindow::Private::~Private() {
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , _private(std::make_unique<Private>(this)) {
-
-#ifndef OS_MAC_OLD
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
-#endif // !OS_MAC_OLD
-
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 }
 

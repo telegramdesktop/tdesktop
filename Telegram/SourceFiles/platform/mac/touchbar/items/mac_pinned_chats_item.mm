@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/items/mac_pinned_chats_item.h"
 
-#ifndef OS_OSX
-
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "base/timer.h"
@@ -882,5 +880,3 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 }
 
 @end // @@implementation PinnedDialogsPanel
-
-#endif // OS_OSX

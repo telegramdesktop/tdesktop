@@ -118,10 +118,7 @@ InnerWidget::InnerWidget(
 })
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
-
-#ifndef OS_MAC_OLD // Qt 5.3.2 build is working with glitches otherwise.
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
-#endif // OS_MAC_OLD
 
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();

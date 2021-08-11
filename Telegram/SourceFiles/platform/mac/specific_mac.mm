@@ -116,7 +116,6 @@ void WriteCrashDumpDetails() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 PermissionStatus GetPermissionStatus(PermissionType type) {
-#ifndef OS_MAC_OLD
 	switch (type) {
 	case PermissionType::Microphone:
 	case PermissionType::Camera:
@@ -136,12 +135,10 @@ PermissionStatus GetPermissionStatus(PermissionType type) {
 		}
 		break;
 	}
-#endif // OS_MAC_OLD
 	return PermissionStatus::Granted;
 }
 
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
-#ifndef OS_MAC_OLD
 	switch (type) {
 	case PermissionType::Microphone:
 	case PermissionType::Camera:
@@ -157,13 +154,11 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 		}
 		break;
 	}
-#endif // OS_MAC_OLD
 	resultCallback(PermissionStatus::Granted);
 }
 #pragma clang diagnostic pop // -Wunguarded-availability
 
 void OpenSystemSettingsForPermission(PermissionType type) {
-#ifndef OS_MAC_OLD
 	switch (type) {
 	case PermissionType::Microphone:
 		[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
@@ -172,7 +167,6 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 		[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"]];
 		break;
 	}
-#endif // OS_MAC_OLD
 }
 
 bool OpenSystemSettings(SystemSettingsType type) {

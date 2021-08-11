@@ -199,11 +199,7 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 }
 
 QString ItemBase::getResultThumbLetter() const {
-#ifndef OS_MAC_OLD
 	auto parts = _result->_url.splitRef('/');
-#else // OS_MAC_OLD
-	auto parts = _result->_url.split('/');
-#endif // OS_MAC_OLD
 	if (!parts.isEmpty()) {
 		auto domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others

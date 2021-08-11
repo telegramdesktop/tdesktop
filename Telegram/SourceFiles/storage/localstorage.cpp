@@ -735,9 +735,7 @@ bool readBackground() {
 	} else {
 		auto buffer = QBuffer(&imageData);
 		auto reader = QImageReader(&buffer);
-#ifndef OS_MAC_OLD
 		reader.setAutoTransform(true);
-#endif // OS_MAC_OLD
 		if (!reader.read(&image)) {
 			image = QImage();
 		}

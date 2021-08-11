@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/items/mac_formatter_item.h"
 
-#ifndef OS_OSX
-
 #include "base/platform/mac/base_utilities_mac.h"
 #include "lang/lang_keys.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
@@ -138,5 +136,3 @@ void SendKeyEvent(int command) {
 }
 
 @end // @implementation TextFormatPopover
-
-#endif // OS_OSX

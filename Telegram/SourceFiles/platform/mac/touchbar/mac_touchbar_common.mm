@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 
-#ifndef OS_OSX
-
 #include "base/platform/mac/base_utilities_mac.h"
 
 #import <AppKit/NSTextField.h>
@@ -29,5 +27,3 @@ NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size) {
 }
 
 } // namespace TouchBar
-
-#endif // OS_OSX

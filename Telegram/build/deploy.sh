@@ -47,17 +47,12 @@ fi
 echo ""
 HomePath="$FullScriptPath/.."
 DeployMac="0"
-DeployOsx="0"
 DeployWin="0"
 DeployWin64="0"
 DeployLinux="0"
-DeployLinux32="0"
 if [ "$DeployTarget" == "mac" ]; then
   DeployMac="1"
   echo "Deploying version $AppVersionStrFull for macOS.."
-elif [ "$DeployTarget" == "osx" ]; then
-  DeployOsx="1"
-  echo "Deploying version $AppVersionStrFull for OS X 10.10 and 10.11.."
 elif [ "$DeployTarget" == "win" ]; then
   DeployWin="1"
   echo "Deploying version $AppVersionStrFull for Windows 32 bit.."
@@ -67,9 +62,6 @@ elif [ "$DeployTarget" == "win64" ]; then
 elif [ "$DeployTarget" == "linux" ]; then
   DeployLinux="1"
   echo "Deploying version $AppVersionStrFull for Linux 64 bit.."
-elif [ "$DeployTarget" == "linux32" ]; then
-  DeployLinux32="1"
-  echo "Deploying version $AppVersionStrFull for Linux 32 bit.."
 else
   DeployMac="1"
   DeployWin="1"
@@ -88,10 +80,6 @@ MacDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tmac"
 MacUpdateFile="tmacupd$AppVersion"
 MacSetupFile="tsetup.$AppVersionStrFull.dmg"
 MacRemoteFolder="tmac"
-OsxDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tosx"
-OsxUpdateFile="tosxupd$AppVersion"
-OsxSetupFile="tsetup-osx.$AppVersionStrFull.dmg"
-OsxRemoteFolder="tosx"
 WinDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tsetup"
 WinUpdateFile="tupdate$AppVersion"
 WinSetupFile="tsetup.$AppVersionStrFull.exe"
@@ -106,10 +94,6 @@ LinuxDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tlinux"
 LinuxUpdateFile="tlinuxupd$AppVersion"
 LinuxSetupFile="tsetup.$AppVersionStrFull.tar.xz"
 LinuxRemoteFolder="tlinux"
-Linux32DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tlinux32"
-Linux32UpdateFile="tlinux32upd$AppVersion"
-Linux32SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
-Linux32RemoteFolder="tlinux32"
 DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
 
 if [ "$AlphaVersion" != "0" ]; then
@@ -117,12 +101,8 @@ if [ "$AlphaVersion" != "0" ]; then
     AlphaFilePath="$WinDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "win64" ]; then
     AlphaFilePath="$Win64DeployPath/$AlphaKeyFile"
-  elif [ "$DeployTarget" == "osx" ]; then
-    AlphaFilePath="$OsxDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "linux" ]; then
     AlphaFilePath="$LinuxDeployPath/$AlphaKeyFile"
-  elif [ "$DeployTarget" == "linux32" ]; then
-    AlphaFilePath="$Linux32DeployPath/$AlphaKeyFile"
   else
     AlphaFilePath="$MacDeployPath/$AlphaKeyFile"
   fi
@@ -136,16 +116,12 @@ if [ "$AlphaVersion" != "0" ]; then
 
   MacUpdateFile="${MacUpdateFile}_${AlphaSignature}"
   MacSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
-  OsxUpdateFile="${OsxUpdateFile}_${AlphaSignature}"
-  OsxSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   WinUpdateFile="${WinUpdateFile}_${AlphaSignature}"
   WinPortableFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   Win64UpdateFile="${Win64UpdateFile}_${AlphaSignature}"
   Win64PortableFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   LinuxUpdateFile="${LinuxUpdateFile}_${AlphaSignature}"
   LinuxSetupFile="talpha${AlphaVersion}_${AlphaSignature}.tar.xz"
-  Linux32UpdateFile="${Linux32UpdateFile}_${AlphaSignature}"
-  Linux32SetupFile="talpha${AlphaVersion}_${AlphaSignature}.tar.xz"
 fi
 
 if [ "$DeployMac" == "1" ]; then
@@ -154,14 +130,6 @@ if [ "$DeployMac" == "1" ]; then
   fi
   if [ ! -f "$MacDeployPath/$MacSetupFile" ]; then
     Error "$MacDeployPath/$MacSetupFile not found!"
-  fi
-fi
-if [ "$DeployOsx" == "1" ]; then
-  if [ ! -f "$OsxDeployPath/$OsxUpdateFile" ]; then
-    Error "$OsxUpdateFile not found!"
-  fi
-  if [ ! -f "$OsxDeployPath/$OsxSetupFile" ]; then
-    Error "$OsxSetupFile not found!"
   fi
 fi
 if [ "$DeployWin" == "1" ]; then
@@ -198,23 +166,12 @@ if [ "$DeployLinux" == "1" ]; then
     Error "$LinuxDeployPath/$LinuxSetupFile not found!"
   fi
 fi
-if [ "$DeployLinux32" == "1" ]; then
-  if [ ! -f "$Linux32DeployPath/$Linux32UpdateFile" ]; then
-    Error "$Linux32DeployPath/$Linux32UpdateFile not found!"
-  fi
-  if [ ! -f "$Linux32DeployPath/$Linux32SetupFile" ]; then
-    Error "$Linux32DeployPath/$Linux32SetupFile not found!"
-  fi
-fi
 
 $FullScriptPath/../../../DesktopPrivate/mount.sh
 
 declare -a Files
 if [ "$DeployMac" == "1" ]; then
   Files+=("tmac/$MacUpdateFile" "tmac/$MacSetupFile")
-fi
-if [ "$DeployOsx" == "1" ]; then
-  Files+=("tosx/$OsxUpdateFile" "tosx/$OsxSetupFile")
 fi
 if [ "$DeployWin" == "1" ]; then
   Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
@@ -230,9 +187,6 @@ if [ "$DeployWin64" == "1" ]; then
 fi
 if [ "$DeployLinux" == "1" ]; then
   Files+=("tlinux/$LinuxUpdateFile" "tlinux/$LinuxSetupFile")
-fi
-if [ "$DeployLinux32" == "1" ]; then
-  Files+=("tlinux32/$Linux32UpdateFile" "tlinux32/$Linux32SetupFile")
 fi
 cd $DeployPath
 rsync -avR --progress ${Files[@]} "$FullScriptPath/../../../DesktopPrivate/remote/files"

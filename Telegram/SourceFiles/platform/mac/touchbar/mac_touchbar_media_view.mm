@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
 
-#ifndef OS_OSX
-
 #include "media/audio/media_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "platform/mac/touchbar/mac_touchbar_controls.h"
@@ -194,5 +192,3 @@ void SetupMediaViewTouchBar(
 }
 
 } // namespace TouchBar
-
-#endif // OS_OSX

@@ -379,9 +379,7 @@ bool InitializeFromCache(
 	if (!cache.background.isEmpty()) {
 		QDataStream stream(cache.background);
 		QImageReader reader(stream.device());
-#ifndef OS_MAC_OLD
 		reader.setAutoTransform(true);
-#endif // OS_MAC_OLD
 		if (!reader.read(&background) || background.isNull()) {
 			return false;
 		}

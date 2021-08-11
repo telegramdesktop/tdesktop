@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifndef OS_OSX
-
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_overlay_widget.h"
 
@@ -22,5 +20,3 @@ void SetupMediaViewTouchBar(
 	rpl::producer<bool> fullscreenToggled);
 
 } // namespace TouchBar
-
-#endif // OS_OSX

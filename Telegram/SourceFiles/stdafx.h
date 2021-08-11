@@ -73,10 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QFontInfo>
 
 #include <QtWidgets/QWidget>
-
-#ifndef OS_MAC_OLD
 #include <QtWidgets/QOpenGLWidget>
-#endif // OS_MAC_OLD
 
 // Fix Google Breakpad build for Mac App Store and Linux version
 #ifdef Q_OS_UNIX

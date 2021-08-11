@@ -1168,11 +1168,7 @@ void MainMenu::initResetScaleButton() {
 		return rpl::single(
 			screen->availableGeometry()
 		) | rpl::then(
-#ifdef OS_MAC_OLD
-			base::qt_signal_producer(screen, &QScreen::virtualGeometryChanged)
-#else // OS_MAC_OLD
 			base::qt_signal_producer(screen, &QScreen::availableGeometryChanged)
-#endif // OS_MAC_OLD
 		);
 	}) | rpl::flatten_latest(
 	) | rpl::map([](QRect available) {

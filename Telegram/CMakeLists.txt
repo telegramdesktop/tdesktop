@@ -1317,10 +1317,6 @@ if (build_macstore)
         COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
         COMMAND cp -a ${libs_loc}/breakpad/src/client/mac/build/Release/Breakpad.framework $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework
     )
-elseif (build_osx)
-    set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:DebugOsx>")
-    set(bundle_entitlements "Telegram.entitlements")
-    set(output_name "Telegram")
 else()
     set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
     set(bundle_entitlements "Telegram.entitlements")

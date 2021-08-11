@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
 
-#ifndef OS_OSX
-
 #include "apiwrap.h" // ApiWrap::updateStickers()
 #include "core/application.h"
 #include "data/data_peer.h" // PeerData::canWrite()
@@ -179,5 +177,3 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 }
 
 @end // @implementation RootTouchBar
-
-#endif // OS_OSX
