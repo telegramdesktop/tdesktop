@@ -343,10 +343,11 @@ jobs:
         run: |
           git clone git://code.qt.io/qt/qt5.git qt_%QT%
           cd qt_%QT%
-          perl init-repository --module-subset=qtbase,qtimageformats
+          perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
           git checkout v%QT_VER%
           git submodule update qtbase
           git submodule update qtimageformats
+          git submodule update qtsvg
           cd qtbase
           for /r %%i in (..\..\patches\qtbase_%QT%\*) do git apply %%i
           cd ..

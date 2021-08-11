@@ -449,10 +449,11 @@ jobs:
 
           git clone git://code.qt.io/qt/qt5.git qt_$QT
           cd qt_$QT
-          perl init-repository --module-subset=qtbase,qtimageformats
+          perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
           git checkout v5.15.2
           git submodule update qtbase
           git submodule update qtimageformats
+          git submodule update qtsvg
           cd qtbase
           find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply
           cd ..

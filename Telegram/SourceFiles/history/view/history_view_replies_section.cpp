@@ -557,7 +557,6 @@ void RepliesWidget::chooseAttach() {
 		}
 
 		if (!result.remoteContent.isEmpty()) {
-			auto animated = false;
 			auto read = Images::Read({
 				.content = result.remoteContent,
 			});
