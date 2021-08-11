@@ -61,9 +61,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (Logs::DebugEnabled()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cUseFreeType()) [args addObject:@"-freetype"];
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		if (Core::UpdaterDisabled()) [args addObject:@"-externalupdater"];
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 		if (cDataFile() != qsl("data")) {
 			[args addObject:@"-key"];
 			[args addObject:Q2NSString(cDataFile())];

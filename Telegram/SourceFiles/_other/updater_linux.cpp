@@ -384,7 +384,6 @@ int main(int argc, char *argv[]) {
 	bool writeprotected = false;
 	bool tosettings = false;
 	bool startintray = false;
-	bool externalupdater = false;
 	bool customWorkingDir = false;
 
 	char *key = 0;
@@ -398,8 +397,6 @@ int main(int argc, char *argv[]) {
 			debug = _debug = true;
 		} else if (equal(argv[i], "-startintray")) {
 			startintray = true;
-		} else if (equal(argv[i], "-externalupdater")) {
-			externalupdater = true;
 		} else if (equal(argv[i], "-tosettings")) {
 			tosettings = true;
 		} else if (equal(argv[i], "-workdir_custom")) {
@@ -500,7 +497,6 @@ int main(int argc, char *argv[]) {
 	if (autostart) push("-autostart");
 	if (debug) push("-debug");
 	if (startintray) push("-startintray");
-	if (externalupdater) push("-externalupdater");
 	if (tosettings) push("-tosettings");
 	if (key) {
 		push("-key");
