@@ -231,7 +231,10 @@ bool ShowWallPaper(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	if (!params.value("gradient").isEmpty()) {
+	const auto bg = params.value("bg_color");
+	if (!params.value("gradient").isEmpty()
+		|| bg.contains('~')
+		|| bg.contains('-')) {
 		Ui::show(Box<InformBox>(
 			tr::lng_background_gradient_unsupported(tr::now)));
 		return false;

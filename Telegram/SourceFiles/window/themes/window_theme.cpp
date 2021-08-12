@@ -752,7 +752,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 					Qt::SmoothTransformation);
 			}
 		} else if (Data::IsDefaultWallPaper(_paper)
-			|| (!_paper.backgroundColor() && image.isNull())) {
+			|| (_paper.backgroundColors().empty() && image.isNull())) {
 			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
 			image.load(qsl(":/gui/art/background.jpg"));
 		}

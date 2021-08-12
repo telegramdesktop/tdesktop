@@ -740,7 +740,7 @@ bool readBackground() {
 			image = QImage();
 		}
 	}
-	if (!image.isNull() || paper->backgroundColor()) {
+	if (!image.isNull() || !paper->backgroundColors().empty()) {
 		_backgroundCanWrite = false;
 		Window::Theme::Background()->set(*paper, std::move(image));
 		_backgroundCanWrite = true;

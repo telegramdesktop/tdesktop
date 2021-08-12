@@ -1213,7 +1213,7 @@ void MainWidget::setReadyChatBackground(
 
 	const auto resetToDefault = image.isNull()
 		&& !background.document()
-		&& !background.backgroundColor()
+		&& background.backgroundColors().empty()
 		&& !Data::IsLegacy1DefaultWallPaper(background);
 	const auto ready = resetToDefault
 		? Data::DefaultWallPaper()

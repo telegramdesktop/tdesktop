@@ -768,7 +768,7 @@ bool BackgroundPreviewBox::Start(
 		not_null<Window::SessionController*> controller,
 		const QString &slug,
 		const QMap<QString, QString> &params) {
-	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
+	if (const auto paper = Data::WallPaper::FromColorsSlug(slug)) {
 		controller->show(Box<BackgroundPreviewBox>(
 			controller,
 			paper->withUrlParams(params)));

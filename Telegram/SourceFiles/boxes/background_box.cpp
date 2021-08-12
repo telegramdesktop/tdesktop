@@ -255,7 +255,7 @@ void BackgroundBox::Inner::updatePapers() {
 
 	_papers = _session->data().wallpapers(
 	) | ranges::views::filter([](const Data::WallPaper &paper) {
-		return !paper.isPattern() || paper.backgroundColor().has_value();
+		return !paper.isPattern() || !paper.backgroundColors().empty();
 	}) | ranges::views::transform([](const Data::WallPaper &paper) {
 		return Paper{ paper };
 	}) | ranges::to_vector;
@@ -336,6 +336,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		: paper.dataMedia->thumbnail();
 	auto original = thumbnail->original();
 	if (paper.data.isPattern()) {
+		// #TODO themes gradients
 		const auto color = *paper.data.backgroundColor();
 		original = Data::PreparePatternImage(
 			std::move(original),
