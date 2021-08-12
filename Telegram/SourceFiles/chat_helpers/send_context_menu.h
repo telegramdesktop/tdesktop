@@ -50,4 +50,8 @@ void SetupMenuAndShortcuts(
 	Fn<void()> silent,
 	Fn<void()> schedule);
 
+void SetupUnreadMentionsMenu(
+	not_null<Ui::RpWidget*> button,
+	Fn<PeerData*()> currentPeer);
+
 } // namespace SendMenu

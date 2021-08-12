@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
+#include "data/data_peer.h"
+#include "main/main_session.h"
+#include "apiwrap.h"
 
 #include <QtWidgets/QApplication>
 
@@ -131,6 +134,47 @@ void SetupMenuAndShortcuts(
 			return true;
 		}));
 	}, button->lifetime());
+}
+
+void SetupUnreadMentionsMenu(
+		not_null<Ui::RpWidget*> button,
+		Fn<PeerData*()> currentPeer) {
+	struct State {
+		base::unique_qptr<Ui::PopupMenu> menu;
+		base::flat_set<not_null<PeerData*>> sentForPeers;
+	};
+	const auto state = std::make_shared<State>();
+	const auto showMenu = [=] {
+		const auto peer = currentPeer();
+		if (!peer) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(button);
+		const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
+		state->menu->addAction(text, [=] {
+			if (!state->sentForPeers.emplace(peer).second) {
+				return;
+			}
+			peer->session().api().request(MTPmessages_ReadMentions(
+				peer->input
+			)).done([=](const MTPmessages_AffectedHistory &result) {
+				state->sentForPeers.remove(peer);
+				peer->session().api().applyAffectedHistory(peer, result);
+			}).fail([=](const MTP::Error &error) {
+				state->sentForPeers.remove(peer);
+			}).send();
+		});
+		state->menu->popup(QCursor::pos());
+	};
+
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			showMenu();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+
 }
 
 } // namespace SendMenu

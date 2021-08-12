@@ -309,7 +309,9 @@ HistoryWidget::HistoryWidget(
 
 	_historyDown->installEventFilter(this);
 	_unreadMentions->installEventFilter(this);
-	setupUnreadMentionsButtonContextMenu(_unreadMentions.data());
+	SendMenu::SetupUnreadMentionsMenu(_unreadMentions.data(), [=] {
+		return _history ? _history->peer.get() : nullptr;
+	});
 
 	InitMessageField(controller, _field);
 
@@ -6963,42 +6965,6 @@ void HistoryWidget::synteticScrollToY(int y) {
 		_scroll->scrollToY(y);
 	}
 	_synteticScrollEvent = false;
-}
-
-void HistoryWidget::setupUnreadMentionsButtonContextMenu(
-		not_null<Ui::RpWidget*> button) {
-	struct State {
-		base::unique_qptr<Ui::PopupMenu> menu;
-		base::flat_set<not_null<PeerData*>> sentForPeers;
-	};
-	const auto state = std::make_shared<State>();
-	const auto showMenu = [=] {
-		state->menu = base::make_unique_q<Ui::PopupMenu>(button);
-		const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
-		const auto peer = _history->peer;
-		state->menu->addAction(text, [=] {
-			if (!state->sentForPeers.emplace(peer).second) {
-				return;
-			}
-			peer->session().api().request(MTPmessages_ReadMentions(
-				peer->input
-			)).done([=](const MTPmessages_AffectedHistory &result) {
-				state->sentForPeers.remove(peer);
-				peer->session().api().applyAffectedHistory(peer, result);
-			}).fail([=](const MTP::Error &error) {
-				state->sentForPeers.remove(peer);
-			}).send();
-		});
-		state->menu->popup(QCursor::pos());
-	};
-
-	base::install_event_filter(button, [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::ContextMenu) {
-			showMenu();
-			return base::EventFilterResult::Cancel;
-		}
-		return base::EventFilterResult::Continue;
-	});
 }
 
 HistoryWidget::~HistoryWidget() {
