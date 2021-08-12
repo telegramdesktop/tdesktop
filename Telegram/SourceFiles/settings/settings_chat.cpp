@@ -551,41 +551,39 @@ void BackgroundRow::radialAnimationCallback(crl::time now) {
 }
 
 void BackgroundRow::updateImage() {
-	int32 size = st::settingsBackgroundThumb * cIntRetinaFactor();
-	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
+	const auto size = st::settingsBackgroundThumb;
+	const auto fullsize = size * cIntRetinaFactor();
+	QImage back(fullsize, fullsize, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
 
-		if (const auto color = Window::Theme::Background()->colorForFill()) {
-			p.fillRect(
-				0,
-				0,
-				st::settingsBackgroundThumb,
-				st::settingsBackgroundThumb,
-				*color);
+		const auto background = Window::Theme::Background();
+		if (const auto color = background->colorForFill()) {
+			p.fillRect(0, 0, size, size, *color);
 		} else {
-			const auto &pix = Window::Theme::Background()->pixmap();
-			const auto sx = (pix.width() > pix.height())
-				? ((pix.width() - pix.height()) / 2)
-				: 0;
-			const auto sy = (pix.height() > pix.width())
-				? ((pix.height() - pix.width()) / 2)
-				: 0;
-			const auto s = (pix.width() > pix.height())
-				? pix.height()
-				: pix.width();
-			p.drawPixmap(
-				0,
-				0,
-				st::settingsBackgroundThumb,
-				st::settingsBackgroundThumb,
-				pix,
-				sx,
-				sy,
-				s,
-				s);
+			const auto gradient = background->gradientForFill();
+			const auto patternOpacity = background->paper().patternOpacity();
+			if (!gradient.isNull()) {
+				auto hq = PainterHighQualityEnabler(p);
+				p.drawImage(QRect(0, 0, size, size), gradient);
+				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+				p.setOpacity(patternOpacity);
+			}
+			const auto &pix = background->pixmap();
+			if (!pix.isNull()) {
+				const auto sx = (pix.width() > pix.height())
+					? ((pix.width() - pix.height()) / 2)
+					: 0;
+				const auto sy = (pix.height() > pix.width())
+					? ((pix.height() - pix.width()) / 2)
+					: 0;
+				const auto s = (pix.width() > pix.height())
+					? pix.height()
+					: pix.width();
+				p.drawPixmap(0, 0, size, size, pix, sx, sy, s, s);
+			}
 		}
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);

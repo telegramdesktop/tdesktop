@@ -46,6 +46,8 @@ public:
 	[[nodiscard]] bool isLocal() const;
 	[[nodiscard]] bool isBlurred() const;
 	[[nodiscard]] int patternIntensity() const;
+	[[nodiscard]] float64 patternOpacity() const;
+	[[nodiscard]] int gradientRotation() const;
 	[[nodiscard]] bool hasShareUrl() const;
 	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 
@@ -120,13 +122,16 @@ private:
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);
 
-QColor PatternColor(QColor background);
-QImage PreparePatternImage(
+[[nodiscard]] QImage PreparePatternImage(
 	QImage image,
-	QColor bg,
-	QColor fg,
-	int intensity);
-QImage PrepareBlurredBackground(QImage image);
+	const std::vector<QColor> &bg,
+	int rotation,
+	float64 opacity);
+[[nodiscard]] QImage PrepareBlurredBackground(QImage image);
+[[nodiscard]] QImage GenerateDitheredGradient(
+	const std::vector<QColor> &colors,
+	int rotation);
+[[nodiscard]] QImage GenerateDitheredGradient(const WallPaper &paper);
 
 namespace details {
 

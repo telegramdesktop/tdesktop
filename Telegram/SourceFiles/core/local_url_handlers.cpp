@@ -232,17 +232,20 @@ bool ShowWallPaper(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto bg = params.value("bg_color");
-	if (!params.value("gradient").isEmpty()
-		|| bg.contains('~')
-		|| bg.contains('-')) {
+	const auto color = params.value("color");
+	const auto gradient = params.value("gradient");
+	if (gradient.contains('~') || bg.contains('~')) {
 		Ui::show(Box<InformBox>(
 			tr::lng_background_gradient_unsupported(tr::now)));
 		return false;
 	}
-	const auto color = params.value("color");
 	return BackgroundPreviewBox::Start(
 		controller,
-		(color.isEmpty() ? params.value(qsl("slug")) : color),
+		(!color.isEmpty()
+			? color
+			: !gradient.isEmpty()
+			? gradient
+			: params.value(qsl("slug"))),
 		params);
 }
 

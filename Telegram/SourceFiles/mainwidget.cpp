@@ -781,24 +781,39 @@ bool MainWidget::selectingPeer() const {
 }
 
 void MainWidget::cacheBackground() {
-	if (Window::Theme::Background()->colorForFill()) {
+	const auto background = Window::Theme::Background();
+	if (background->colorForFill()) {
 		return;
-	} else if (Window::Theme::Background()->tile()) {
-		auto &bg = Window::Theme::Background()->pixmapForTiled();
-
-		auto result = QImage(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
+	}
+	const auto gradient = background->gradientForFill();
+	const auto patternOpacity = background->paper().patternOpacity();
+	const auto &bg = background->pixmap();
+	if (background->tile() || bg.isNull()) {
+		auto result = gradient.isNull()
+			? QImage(
+				_willCacheFor.size() * cIntRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied)
+			: gradient.scaled(
+				_willCacheFor.size() * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(cRetinaFactor());
-		{
+		if (!bg.isNull()) {
 			QPainter p(&result);
-			auto w = bg.width() / cRetinaFactor();
-			auto h = bg.height() / cRetinaFactor();
+			if (!gradient.isNull()) {
+				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+				p.setOpacity(patternOpacity);
+			}
+			const auto &tiled = background->pixmapForTiled();
+			auto w = tiled.width() / cRetinaFactor();
+			auto h = tiled.height() / cRetinaFactor();
 			auto sx = 0;
 			auto sy = 0;
 			auto cx = qCeil(_willCacheFor.width() / w);
 			auto cy = qCeil(_willCacheFor.height() / h);
 			for (int i = sx; i < cx; ++i) {
 				for (int j = sy; j < cy; ++j) {
-					p.drawPixmap(QPointF(i * w, j * h), bg);
+					p.drawPixmap(QPointF(i * w, j * h), tiled);
 				}
 			}
 		}
@@ -806,18 +821,30 @@ void MainWidget::cacheBackground() {
 		_cachedY = 0;
 		_cachedBackground = Ui::PixmapFromImage(std::move(result));
 	} else {
-		auto &bg = Window::Theme::Background()->pixmap();
-
 		QRect to, from;
 		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
+		auto image = bg.toImage().copy(from).scaled(
+			to.width() * cIntRetinaFactor(),
+			to.height() * cIntRetinaFactor(),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		auto result = gradient.isNull()
+			? std::move(image)
+			: gradient.scaled(
+				image.size(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (!gradient.isNull()) {
+			QPainter p(&result);
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
+			p.drawImage(QRect(QPoint(), to.size()), image);
+		}
+		image = QImage();
 		_cachedX = to.x();
 		_cachedY = to.y();
-		_cachedBackground = Ui::PixmapFromImage(
-			bg.toImage().copy(from).scaled(
-				to.width() * cIntRetinaFactor(),
-				to.height() * cIntRetinaFactor(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation));
+		_cachedBackground = Ui::PixmapFromImage(std::move(result));
 		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
 	}
 	_cachedFor = _willCacheFor;

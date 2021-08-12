@@ -87,9 +87,10 @@ constexpr auto kMinDiffIntensity = 0.25;
 
 [[nodiscard]] bool IsFilledCover() {
 	const auto background = Window::Theme::Background();
+	return false; AssertIsDebug();
 	return background->tile()
 		|| background->colorForFill().has_value()
-		|| background->isMonoColorImage()
+		|| !background->gradientForFill().isNull()
 		|| background->paper().isPattern()
 		|| Data::IsLegacy1DefaultWallPaper(background->paper());
 }

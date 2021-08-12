@@ -164,7 +164,7 @@ public:
 	void appliedEditedPalette();
 	void downloadingStarted(bool tile);
 
-	[[nodiscard]] Data::WallPaper paper() const {
+	[[nodiscard]] const Data::WallPaper &paper() const {
 		return _paper;
 	}
 	[[nodiscard]] WallPaperId id() const {
@@ -177,11 +177,12 @@ public:
 		return _pixmapForTiled;
 	}
 	[[nodiscard]] std::optional<QColor> colorForFill() const;
+	[[nodiscard]] QImage gradientForFill() const;
 	[[nodiscard]] QImage createCurrentImage() const;
 	[[nodiscard]] bool tile() const;
 	[[nodiscard]] bool tileDay() const;
 	[[nodiscard]] bool tileNight() const;
-	[[nodiscard]] bool isMonoColorImage() const;
+	[[nodiscard]] std::optional<QColor> imageMonoColor() const;
 	[[nodiscard]] bool nightModeChangeAllowed() const;
 
 private:
@@ -195,7 +196,7 @@ private:
 	[[nodiscard]] bool started() const;
 	void initialRead();
 	void saveForRevert();
-	void setPreparedImage(QImage original, QImage prepared);
+	void setPrepared(QImage original, QImage prepared, QImage gradient);
 	void preparePixmaps(QImage image);
 	void writeNewBackgroundSettings();
 	void setPaper(const Data::WallPaper &paper);
@@ -236,6 +237,7 @@ private:
 	rpl::event_stream<BackgroundUpdate> _updates;
 	Data::WallPaper _paper = Data::details::UninitializedWallPaper();
 	std::optional<QColor> _paperColor;
+	QImage _gradient;
 	QImage _original;
 	QPixmap _pixmap;
 	QPixmap _pixmapForTiled;
@@ -245,7 +247,7 @@ private:
 	std::optional<bool> _localStoredTileDayValue;
 	std::optional<bool> _localStoredTileNightValue;
 
-	bool _isMonoColorImage = false;
+	std::optional<QColor> _imageMonoColor;
 
 	Object _themeObject;
 	QImage _themeImage;

@@ -59,10 +59,10 @@ void ThemeDocument::fillPatternFieldsFrom(const QString &url) {
 	const auto params = qthelp::url_parse_params(
 		paramsString,
 		qthelp::UrlParamNameTransform::ToLower);
-	const auto kDefaultBackground = QColor(213, 223, 233);
 	const auto paper = Data::DefaultWallPaper().withUrlParams(params);
-	_intensity = paper.patternIntensity();
-	_background = paper.backgroundColor().value_or(kDefaultBackground);
+	_background = paper.backgroundColors();
+	_patternOpacity = paper.patternOpacity();
+	_gradientRotation = paper.gradientRotation();
 }
 
 QSize ThemeDocument::countOptimalSize() {
@@ -262,8 +262,8 @@ void ThemeDocument::prepareThumbnailFrom(
 		original = Data::PreparePatternImage(
 			std::move(original),
 			_background,
-			Data::PatternColor(_background),
-			_intensity);
+			_gradientRotation,
+			_patternOpacity);
 	}
 	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;

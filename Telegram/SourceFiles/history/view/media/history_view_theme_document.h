@@ -74,8 +74,9 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 	// For wallpaper documents.
-	QColor _background;
-	int _intensity = 0;
+	std::vector<QColor> _background;
+	float64 _patternOpacity = 0.;
+	int _gradientRotation = 0;
 
 };
 

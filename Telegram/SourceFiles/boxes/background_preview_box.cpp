@@ -379,13 +379,17 @@ QImage ColorizePattern(QImage image, QColor color) {
 
 QImage PrepareScaledFromFull(
 		const QImage &image,
-		std::optional<QColor> patternBackground,
+		const std::vector<QColor> &patternBackground,
+		int gradientRotation,
+		float64 patternOpacity,
 		Images::Option blur = Images::Option(0)) {
 	auto result = PrepareScaledNonPattern(image, blur);
-	if (patternBackground) {
-		result = ColorizePattern(
+	if (!patternBackground.empty()) {
+		result = Data::PreparePatternImage(
 			std::move(result),
-			Data::PatternColor(*patternBackground));
+			patternBackground,
+			gradientRotation,
+			patternOpacity);
 	}
 	return std::move(result).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
@@ -433,7 +437,7 @@ void BackgroundPreviewBox::prepare() {
 	if (_paper.hasShareUrl()) {
 		addLeftButton(tr::lng_background_share(), [=] { share(); });
 	}
-	updateServiceBg(_paper.backgroundColor());
+	updateServiceBg(_paper.backgroundColors());
 
 	_paper.loadDocument();
 	const auto document = _paper.document();
@@ -669,7 +673,9 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 	}
 	auto scaled = PrepareScaledFromFull(
 		thumbnail->original(),
-		patternBackgroundColor(),
+		patternBackgroundColors(),
+		_paper.gradientRotation(),
+		_paper.patternOpacity(),
 		_paper.document() ? Images::Option::Blurred : Images::Option(0));
 	auto blurred = (_paper.document() || _paper.isPattern())
 		? QImage()
@@ -683,7 +689,7 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 void BackgroundPreviewBox::setScaledFromImage(
 		QImage &&image,
 		QImage &&blurred) {
-	updateServiceBg(Window::Theme::CountAverageColor(image));
+	updateServiceBg({ Window::Theme::CountAverageColor(image) });
 	if (!_full.isNull()) {
 		startFadeInFrom(std::move(_scaled));
 	}
@@ -710,16 +716,26 @@ void BackgroundPreviewBox::checkBlurAnimationStart() {
 	startFadeInFrom(_paper.isBlurred() ? _scaled : _blurred);
 }
 
-void BackgroundPreviewBox::updateServiceBg(std::optional<QColor> background) {
-	if (background) {
-		_serviceBg = Window::Theme::AdjustedColor(
-			st::msgServiceBg->c,
-			*background);
+void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
+	const auto count = int(bg.size());
+	if (!count) {
+		return;
 	}
+	auto red = 0, green = 0, blue = 0;
+	for (const auto &color : bg) {
+		red += color.red();
+		green += color.green();
+		blue += color.blue();
+	}
+	_serviceBg = Window::Theme::AdjustedColor(
+		st::msgServiceBg->c,
+		QColor(red / count, green / count, blue / count));
 }
 
-std::optional<QColor> BackgroundPreviewBox::patternBackgroundColor() const {
-	return _paper.isPattern() ? _paper.backgroundColor() : std::nullopt;
+std::vector<QColor> BackgroundPreviewBox::patternBackgroundColors() const {
+	return _paper.isPattern()
+		? _paper.backgroundColors()
+		: std::vector<QColor>();
 }
 
 void BackgroundPreviewBox::checkLoadedDocument() {
@@ -737,15 +753,21 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		crl::async([
 			this,
 			image = std::move(image),
-			patternBackground = patternBackgroundColor(),
+			patternBackground = patternBackgroundColors(),
+			gradientRotation = _paper.gradientRotation(),
+			patternOpacity = _paper.patternOpacity(),
 			guard = _generating.make_guard()
 		]() mutable {
-			auto scaled = PrepareScaledFromFull(image, patternBackground);
-			auto blurred = patternBackground
-				? QImage()
-				: PrepareScaledNonPattern(
+			auto scaled = PrepareScaledFromFull(
+				image,
+				patternBackground,
+				gradientRotation,
+				patternOpacity);
+			auto blurred = patternBackground.empty()
+				? PrepareScaledNonPattern(
 					Data::PrepareBlurredBackground(image),
-					Images::Option(0));
+					Images::Option(0))
+				: QImage();
 			crl::on_main(std::move(guard), [
 				this,
 				image = std::move(image),
