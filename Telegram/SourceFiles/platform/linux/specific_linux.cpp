@@ -780,6 +780,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
+	LOG(("Icon theme: %1").arg(QIcon::themeName()));
+	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
 	GtkIntegration::Autorestart(GtkIntegration::Type::Base);
 	GtkIntegration::Autorestart(GtkIntegration::Type::TDesktop);
 
