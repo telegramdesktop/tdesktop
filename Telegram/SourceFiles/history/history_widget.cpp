@@ -309,6 +309,7 @@ HistoryWidget::HistoryWidget(
 
 	_historyDown->installEventFilter(this);
 	_unreadMentions->installEventFilter(this);
+	setupUnreadMentionsButtonContextMenu(_unreadMentions.data());
 
 	InitMessageField(controller, _field);
 
@@ -6964,25 +6965,36 @@ void HistoryWidget::synteticScrollToY(int y) {
 	_synteticScrollEvent = false;
 }
 
-void HistoryWidget::setupUnreadMentionsButtonContextMenu(not_null<Ui::RpWidget*> button) {
-	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+void HistoryWidget::setupUnreadMentionsButtonContextMenu(
+		not_null<Ui::RpWidget*> button) {
+	struct State {
+		base::unique_qptr<Ui::PopupMenu> menu;
+		base::flat_set<not_null<PeerData*>> sentForPeers;
+	};
+	const auto state = std::make_shared<State>();
 	const auto showMenu = [=] {
-		*menu = base::make_unique_q<Ui::PopupMenu>(button);
-		(*menu)->addAction(tr::lng_context_mark_read_mentions_all(tr::now), [=] {
-			if (_history) {
-				// You must add checks for peer and peer->input validity here and everywhere else in code as well
-				// Store it somewhere in vector for each chat, if we don't have internet connection check if request already exists in vector,
-				// you can either drop and replace or simply put it inside if
-				// Delete this comments when you end
-				_history->session().api().request(MTPmessages_ReadMentions(_history->peer->input)).send();
+		state->menu = base::make_unique_q<Ui::PopupMenu>(button);
+		const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
+		const auto peer = _history->peer;
+		state->menu->addAction(text, [=] {
+			if (!state->sentForPeers.emplace(peer).second) {
+				return;
 			}
+			peer->session().api().request(MTPmessages_ReadMentions(
+				peer->input
+			)).done([=](const MTPmessages_AffectedHistory &result) {
+				state->sentForPeers.remove(peer);
+				peer->session().api().applyAffectedHistory(peer, result);
+			}).fail([=](const MTP::Error &error) {
+				state->sentForPeers.remove(peer);
+			}).send();
 		});
-		(*menu)->popup(QCursor::pos());
-		return true;
+		state->menu->popup(QCursor::pos());
 	};
 
 	base::install_event_filter(button, [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::ContextMenu && showMenu()) {
+		if (e->type() == QEvent::ContextMenu) {
+			showMenu();
 			return base::EventFilterResult::Cancel;
 		}
 		return base::EventFilterResult::Continue;
