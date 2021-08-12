@@ -297,12 +297,12 @@ for file in files:
     print('Warning: file not found ' + file['local'])
     continue
 
-  upload_url = expand(release_data['upload_url'], {'name': file['remote'], 'label': file['label']}) + '&access_token=' + access_token
+  upload_url = expand(release_data['upload_url'], {'name': file['remote'], 'label': file['label']})
 
   content = upload_in_chunks(file_path, 10)
 
   print('Uploading: ' + file['remote'] + ' (' + str(round(len(content) / 10000) / 100.) + ' MB)')
-  r = requests.post(upload_url, headers={"Content-Type": file['mime']}, data=IterableToFileAdapter(content))
+  r = requests.post(upload_url, headers={'Content-Type': file['mime'], 'Authorization': 'token ' + access_token}, data=IterableToFileAdapter(content))
 
   checkResponseCode(r, 201)
 
