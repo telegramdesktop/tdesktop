@@ -320,6 +320,7 @@ void ThemeDocument::prepareThumbnailFrom(
 			_background,
 			_gradientRotation,
 			_patternOpacity);
+		original.setDevicePixelRatio(cRetinaFactor());
 	}
 	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;
