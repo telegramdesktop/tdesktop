@@ -463,6 +463,7 @@ private:
 
 	CachedBackground _cachedBackground;
 	QRect _willCacheForArea;
+	crl::time _lastAreaChangeTime = 0;
 	base::Timer _cacheBackgroundTimer;
 
 	rpl::lifetime _lifetime;

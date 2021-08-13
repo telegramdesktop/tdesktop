@@ -64,13 +64,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
+#include <QtGui/QGuiApplication>
+
 namespace Window {
 namespace {
 
 constexpr auto kMaxChatEntryHistorySize = 50;
-
-// Cache background scaled image after 3s.
-constexpr auto kCacheBackgroundTimeout = 3000;
+constexpr auto kCacheBackgroundTimeout = 3 * crl::time(1000);
+constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 
 } // namespace
 
@@ -1324,7 +1325,8 @@ CachedBackground SessionController::cachedBackground(QRect area) {
 	}
 	if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
 		_willCacheForArea = area;
-		_cacheBackgroundTimer.callOnce(kCacheBackgroundTimeout);
+		_lastAreaChangeTime = crl::now();
+		_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
 	}
 	return {};
 }
@@ -1332,6 +1334,12 @@ CachedBackground SessionController::cachedBackground(QRect area) {
 void SessionController::cacheBackground() {
 	const auto background = Window::Theme::Background();
 	if (background->colorForFill()) {
+		return;
+	}
+	const auto now = crl::now();
+	if (now - _lastAreaChangeTime < kCacheBackgroundTimeout
+		&& QGuiApplication::mouseButtons() != 0) {
+		_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
 		return;
 	}
 	const auto gradient = background->gradientForFill();
