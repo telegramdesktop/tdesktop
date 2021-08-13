@@ -29,11 +29,7 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git
-
-WORKDIR patches
-RUN git checkout 87a2e9ee07
-WORKDIR ..
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 3ffe48e
 
 FROM builder AS extra-cmake-modules
 

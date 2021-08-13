@@ -788,7 +788,6 @@ void start() {
 
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->load(GtkIntegration::AllowedBackends());
-		integration->initializeSettings();
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
