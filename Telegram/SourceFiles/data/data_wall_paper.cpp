@@ -127,11 +127,12 @@ constexpr auto kVersion = 1;
 	if (!count || count > kMaxColors || view.size() != count * 7 - 1) {
 		return {};
 	}
-	const auto separator = QChar(count > 2 ? '~' : '-');
 	auto result = std::vector<QColor>();
 	result.reserve(count);
 	for (auto i = 0; i != count; ++i) {
-		if (i + 1 < count && view[i * 7 + 6] != separator) {
+		if (i + 1 < count
+			&& view[i * 7 + 6] != '~'
+			&& (count > 2 || view[i * 7 + 6] != '-')) {
 			return {};
 		} else if (const auto parsed = ColorFromString(view.mid(i * 7, 6))) {
 			result.push_back(*parsed);
@@ -268,6 +269,9 @@ QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 			params.push_back("intensity=" + QString::number(_intensity));
 		}
 	}
+	if (_rotation && backgroundColors().size() == 2) {
+		params.push_back("rotation=" + QString::number(_rotation));
+	}
 	auto mode = QStringList();
 	if (_blurred) {
 		mode.push_back("blur");
@@ -354,6 +358,12 @@ WallPaper WallPaper::withUrlParams(
 	}
 	if (result._backgroundColors.empty()) {
 		result._backgroundColors = ColorsFromString(params.value("bg_color"));
+	}
+	if (result._backgroundColors.empty()) {
+		result._backgroundColors = ColorsFromString(params.value("gradient"));
+	}
+	if (result._backgroundColors.empty()) {
+		result._backgroundColors = ColorsFromString(params.value("color"));
 	}
 	if (const auto string = params.value("intensity"); !string.isEmpty()) {
 		auto ok = false;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/format_values.h"
 #include "data/data_document.h"
+#include "data/data_wall_paper.h"
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
@@ -78,7 +79,7 @@ std::unique_ptr<Media> CreateAttach(
 			return std::make_unique<ThemeDocument>(
 				parent,
 				document,
-				webpageUrl);
+				ThemeDocument::ParamsFromUrl(webpageUrl));
 		}
 		return std::make_unique<Document>(parent, parent->data(), document);
 	} else if (photo) {
@@ -86,6 +87,8 @@ std::unique_ptr<Media> CreateAttach(
 			parent,
 			parent->data(),
 			photo);
+	} else if (const auto params = ThemeDocument::ParamsFromUrl(webpageUrl)) {
+		return std::make_unique<ThemeDocument>(parent, nullptr, params);
 	}
 	return nullptr;
 }

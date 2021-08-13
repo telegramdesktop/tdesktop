@@ -58,9 +58,15 @@ void File::setLinks(
 
 void File::refreshParentId(not_null<HistoryItem*> realParent) {
 	const auto contextId = realParent->fullId();
-	_openl->setMessageId(contextId);
-	_savel->setMessageId(contextId);
-	_cancell->setMessageId(contextId);
+	if (_openl) {
+		_openl->setMessageId(contextId);
+	}
+	if (_savel) {
+		_savel->setMessageId(contextId);
+	}
+	if (_cancell) {
+		_cancell->setMessageId(contextId);
+	}
 }
 
 void File::setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const {

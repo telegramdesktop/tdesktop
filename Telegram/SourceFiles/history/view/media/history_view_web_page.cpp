@@ -16,12 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "layout/layout_selection.h" // FullSelection
 #include "data/data_session.h"
+#include "data/data_wall_paper.h"
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
 #include "data/data_photo.h"
@@ -707,6 +709,8 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 		} else {
 			return _openl;
 		}
+	} else if (ThemeDocument::ParamsFromUrl(_data->url).has_value()) {
+		return _openl;
 	}
 	return link;
 }
