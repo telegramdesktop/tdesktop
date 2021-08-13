@@ -993,13 +993,13 @@ void MainMenu::refreshBackground() {
 	QRect to, from;
 	Window::Theme::ComputeBackgroundRects(fill, pixmap.size(), to, from);
 
-	auto backgroundImage = paper.isPattern()
-		? Data::PreparePatternImage(
+	auto backgroundImage = !paper.backgroundColors().empty()
+		? Data::GenerateWallPaper(
 			fill.size() * cIntRetinaFactor(),
-			[&](QPainter &p) { p.drawPixmap(to, pixmap, from); },
 			paper.backgroundColors(),
 			paper.gradientRotation(),
-			paper.patternOpacity())
+			paper.patternOpacity(),
+			[&](QPainter &p) { p.drawPixmap(to, pixmap, from); })
 		: QImage(
 			fill.size() * cIntRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);

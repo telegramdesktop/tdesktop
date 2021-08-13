@@ -419,10 +419,22 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	if (_media) {
 		_media->thumbnailWanted(_paper.fileOrigin());
 	}
+	generateBackground();
 	_controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+}
+
+void BackgroundPreviewBox::generateBackground() {
+	if (_paper.backgroundColors().empty()) {
+		return;
+	}
+	_generated = Ui::PixmapFromImage(Data::GenerateWallPaper(
+		QSize(st::boxWideWidth, st::boxWideWidth) * cIntRetinaFactor(),
+		_paper.backgroundColors(),
+		_paper.gradientRotation()));
+	_generated.setDevicePixelRatio(cRetinaFactor());
 }
 
 not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
@@ -525,21 +537,23 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto ms = crl::now();
-	const auto color = _paper.backgroundColor();
-	if (color) {
-		p.fillRect(e->rect(), *color);
+	if (_scaled.isNull()) {
+		setScaledFromThumb();
 	}
-	if (!color || _paper.isPattern()) {
-		if (!_scaled.isNull() || setScaledFromThumb()) {
-			paintImage(p);
-			paintRadial(p);
-		} else if (!color) {
-			p.fillRect(e->rect(), st::boxBg);
-			return;
-		} else {
-			// Progress of pattern loading.
-			paintRadial(p);
-		}
+	if (!_generated.isNull()
+		&& (_scaled.isNull()
+			|| (_fadeOutThumbnail.isNull() && _fadeIn.animating()))) {
+		p.drawPixmap(0, 0, _generated);
+	}
+	if (!_scaled.isNull()) {
+		paintImage(p);
+		paintRadial(p);
+	} else if (_generated.isNull()) {
+		p.fillRect(e->rect(), st::boxBg);
+		return;
+	} else {
+		// Progress of pattern loading.
+		paintRadial(p);
 	}
 	paintTexts(p, ms);
 }
@@ -655,7 +669,10 @@ void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 	checkLoadedDocument();
 }
 
-bool BackgroundPreviewBox::setScaledFromThumb() {
+void BackgroundPreviewBox::setScaledFromThumb() {
+	if (!_scaled.isNull()) {
+		return;
+	}
 	const auto localThumbnail = _paper.localThumbnail();
 	const auto thumbnail = localThumbnail
 		? localThumbnail
@@ -663,9 +680,9 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 		? _media->thumbnail()
 		: nullptr;
 	if (!thumbnail) {
-		return false;
+		return;
 	} else if (_paper.isPattern() && _paper.document() != nullptr) {
-		return false;
+		return;
 	}
 	auto scaled = PrepareScaledFromFull(
 		thumbnail->original(),
@@ -679,7 +696,6 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 			Data::PrepareBlurredBackground(thumbnail->original()),
 			Images::Option(0));
 	setScaledFromImage(std::move(scaled), std::move(blurred));
-	return true;
 }
 
 void BackgroundPreviewBox::setScaledFromImage(

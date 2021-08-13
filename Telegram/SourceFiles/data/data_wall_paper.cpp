@@ -755,26 +755,31 @@ bool IsCloudWallPaper(const WallPaper &paper) {
 	p.fillRect(0, 0, width, height, QBrush(std::move(gradient)));
 	p.end();
 
-	return image;
+	return Images::DitherImage(std::move(image));
 }
 
-QImage PreparePatternImage(
+QImage GenerateWallPaper(
 		QSize size,
-		Fn<void(QPainter&)> drawPattern,
 		const std::vector<QColor> &bg,
-		int rotation,
-		float64 opacity) {
+		int gradientRotation,
+		float64 patternOpacity,
+		Fn<void(QPainter&)> drawPattern) {
 	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
 	if (bg.size() < 2) {
 		result.fill(bg.empty() ? DefaultBackgroundColor() : bg.front());
 	} else {
-		result = FillDitheredGradient(std::move(result), bg, rotation);
+		result = FillDitheredGradient(
+			std::move(result),
+			bg,
+			gradientRotation);
 	}
-	auto p = QPainter(&result);
-	p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-	p.setOpacity(opacity);
-	drawPattern(p);
-	p.end();
+	if (drawPattern) {
+		auto p = QPainter(&result);
+		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+		p.setOpacity(patternOpacity);
+		drawPattern(p);
+		p.end();
+	}
 
 	return result;
 }
@@ -782,11 +787,16 @@ QImage PreparePatternImage(
 QImage PreparePatternImage(
 		QImage pattern,
 		const std::vector<QColor> &bg,
-		int rotation,
-		float64 opacity) {
-	auto result = PreparePatternImage(pattern.size(), [&](QPainter &p) {
-		p.drawImage(QRect(QPoint(), pattern.size()), pattern);
-	}, bg, rotation, opacity);
+		int gradientRotation,
+		float64 patternOpacity) {
+	auto result = GenerateWallPaper(
+		pattern.size(),
+		bg,
+		gradientRotation,
+		patternOpacity,
+		[&](QPainter &p) {
+			p.drawImage(QRect(QPoint(), pattern.size()), pattern);
+		});
 
 	pattern = QImage();
 	return result;

@@ -326,8 +326,18 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 				paper.dataMedia = document->createMediaView();
 				paper.dataMedia->thumbnailWanted(paper.data.fileOrigin());
 			}
-		}
-		if (!paper.dataMedia || !paper.dataMedia->thumbnail()) {
+			if (!paper.dataMedia->thumbnail()) {
+				return;
+			}
+		} else if (!paper.data.backgroundColors().empty()) {
+			paper.thumbnail = Ui::PixmapFromImage(
+				Data::GenerateWallPaper(
+					st::backgroundSize * cIntRetinaFactor(),
+					paper.data.backgroundColors(),
+					paper.data.gradientRotation()));
+			paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
+			return;
+		} else {
 			return;
 		}
 	}
