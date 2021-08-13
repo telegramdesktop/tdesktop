@@ -1494,27 +1494,31 @@ QImage PreprocessBackgroundImage(QImage image) {
 	return image;
 }
 
-void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from) {
-	if (uint64(imageSize.width()) * wholeFill.height() > uint64(imageSize.height()) * wholeFill.width()) {
-		float64 pxsize = wholeFill.height() / float64(imageSize.height());
-		int takewidth = qCeil(wholeFill.width() / pxsize);
+BackgroundRects ComputeBackgroundRects(QSize fillSize, QSize imageSize) {
+	if (uint64(imageSize.width()) * fillSize.height() > uint64(imageSize.height()) * fillSize.width()) {
+		float64 pxsize = fillSize.height() / float64(imageSize.height());
+		int takewidth = qCeil(fillSize.width() / pxsize);
 		if (takewidth > imageSize.width()) {
 			takewidth = imageSize.width();
 		} else if ((imageSize.width() % 2) != (takewidth % 2)) {
 			++takewidth;
 		}
-		to = QRect(int((wholeFill.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), wholeFill.height());
-		from = QRect((imageSize.width() - takewidth) / 2, 0, takewidth, imageSize.height());
+		return {
+			.from = QRect((imageSize.width() - takewidth) / 2, 0, takewidth, imageSize.height()),
+			.to = QRect(int((fillSize.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), fillSize.height()),
+		};
 	} else {
-		float64 pxsize = wholeFill.width() / float64(imageSize.width());
-		int takeheight = qCeil(wholeFill.height() / pxsize);
+		float64 pxsize = fillSize.width() / float64(imageSize.width());
+		int takeheight = qCeil(fillSize.height() / pxsize);
 		if (takeheight > imageSize.height()) {
 			takeheight = imageSize.height();
 		} else if ((imageSize.height() % 2) != (takeheight % 2)) {
 			++takeheight;
 		}
-		to = QRect(0, int((wholeFill.height() - takeheight * pxsize) / 2.), wholeFill.width(), qCeil(takeheight * pxsize));
-		from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight);
+		return {
+			.from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight),
+			.to = QRect(0, int((fillSize.height() - takeheight * pxsize) / 2.), fillSize.width(), qCeil(takeheight * pxsize)),
+		};
 	}
 }
 

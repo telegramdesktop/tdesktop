@@ -984,24 +984,24 @@ void MainMenu::refreshMenu() {
 }
 
 void MainMenu::refreshBackground() {
-	const auto fill = QRect(0, 0, st::mainMenuWidth, st::mainMenuCoverHeight);
+	const auto fill = QSize(st::mainMenuWidth, st::mainMenuCoverHeight);
 	const auto intensityText = IntensityOfColor(st::mainMenuCoverFg->c);
 	const auto background = Window::Theme::Background();
 	const auto &paper = background->paper();
 	const auto &pixmap = background->pixmap();
 
 	QRect to, from;
-	Window::Theme::ComputeBackgroundRects(fill, pixmap.size(), to, from);
+	const auto rects = Window::Theme::ComputeBackgroundRects(fill, pixmap.size());
 
 	auto backgroundImage = !paper.backgroundColors().empty()
 		? Data::GenerateWallPaper(
-			fill.size() * cIntRetinaFactor(),
+			fill * cIntRetinaFactor(),
 			paper.backgroundColors(),
 			paper.gradientRotation(),
 			paper.patternOpacity(),
 			[&](QPainter &p) { p.drawPixmap(to, pixmap, from); })
 		: QImage(
-			fill.size() * cIntRetinaFactor(),
+			fill * cIntRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);
 	QPainter p(&backgroundImage);
 
@@ -1019,7 +1019,7 @@ void MainMenu::refreshBackground() {
 	// Solid color.
 	if (const auto color = background->colorForFill()) {
 		const auto intensity = IntensityOfColor(*color);
-		p.fillRect(fill, *color);
+		p.fillRect(QRect(QPoint(), fill), *color);
 		if (std::abs(intensity - intensityText) < kMinDiffIntensity) {
 			drawShadow(p);
 		}

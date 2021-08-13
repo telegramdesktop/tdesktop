@@ -1318,17 +1318,15 @@ void SessionController::openDocument(
 		session().data().message(contextId));
 }
 
-CachedBackground SessionController::cachedBackground(QRect area) {
-	if (!_cachedBackground.pixmap.isNull()
-		&& area == _cachedBackground.area) {
-		return _cachedBackground;
+CachedBackground SessionController::cachedBackground(QSize area) {
+	if (_cachedBackground.area != area) {
+		if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
+			_willCacheForArea = area;
+			_lastAreaChangeTime = crl::now();
+			_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
+		}
 	}
-	if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
-		_willCacheForArea = area;
-		_lastAreaChangeTime = crl::now();
-		_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
-	}
-	return {};
+	return _cachedBackground;
 }
 
 void SessionController::cacheBackground() {
@@ -1348,10 +1346,10 @@ void SessionController::cacheBackground() {
 	if (background->tile() || bg.isNull()) {
 		auto result = gradient.isNull()
 			? QImage(
-				_willCacheForArea.size() * cIntRetinaFactor(),
+				_willCacheForArea * cIntRetinaFactor(),
 				QImage::Format_ARGB32_Premultiplied)
 			: gradient.scaled(
-				_willCacheForArea.size() * cIntRetinaFactor(),
+				_willCacheForArea * cIntRetinaFactor(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(cRetinaFactor());
@@ -1379,15 +1377,12 @@ void SessionController::cacheBackground() {
 			.area = _willCacheForArea,
 		};
 	} else {
-		QRect to, from;
-		Window::Theme::ComputeBackgroundRects(
+		const auto rects = Window::Theme::ComputeBackgroundRects(
 			_willCacheForArea,
-			bg.size(),
-			to,
-			from);
-		auto image = bg.toImage().copy(from).scaled(
-			to.width() * cIntRetinaFactor(),
-			to.height() * cIntRetinaFactor(),
+			bg.size());
+		auto image = bg.toImage().copy(rects.from).scaled(
+			rects.to.width() * cIntRetinaFactor(),
+			rects.to.height() * cIntRetinaFactor(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		auto result = gradient.isNull()
@@ -1401,15 +1396,18 @@ void SessionController::cacheBackground() {
 			QPainter p(&result);
 			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 			p.setOpacity(patternOpacity);
-			p.drawImage(QRect(QPoint(), to.size()), image);
+			p.drawImage(QRect(QPoint(), rects.to.size()), image);
 		}
 		image = QImage();
 		_cachedBackground = {
 			.pixmap = Ui::PixmapFromImage(std::move(result)),
 			.area = _willCacheForArea,
-			.x = to.x(),
-			.y = to.y(),
+			.x = rects.to.x(),
+			.y = rects.to.y(),
 		};
+	}
+	if (!gradient.isNull()) {
+		content()->update();
 	}
 }
 

@@ -270,7 +270,13 @@ private:
 
 [[nodiscard]] ChatBackground *Background();
 
-void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
+struct BackgroundRects {
+	QRect from;
+	QRect to;
+};
+[[nodiscard]] BackgroundRects ComputeBackgroundRects(
+	QSize fillSize,
+	QSize imageSize);
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback);
 

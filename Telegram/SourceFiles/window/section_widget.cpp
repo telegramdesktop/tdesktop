@@ -91,36 +91,61 @@ void SectionWidget::PaintBackground(
 	Painter p(widget);
 
 	const auto background = Window::Theme::Background();
-	auto fill = QRect(0, 0, widget->width(), controller->content()->height());
+	const auto fullHeight = controller->content()->height();
 	if (const auto color = background->colorForFill()) {
-		p.fillRect(fill, *color);
-		return;
-	}
-	auto fromy = controller->content()->backgroundFromY();
-	auto cached = controller->cachedBackground(fill);
-	if (!cached.pixmap.isNull()) {
-		p.drawPixmap(cached.x, fromy + cached.y, cached.pixmap);
+		p.fillRect(clip, *color);
 		return;
 	}
 	const auto gradient = background->gradientForFill();
+	const auto fill = QSize(widget->width(), fullHeight);
+	auto fromy = controller->content()->backgroundFromY();
+	auto cached = controller->cachedBackground(fill);
+	const auto goodCache = (cached.area == fill);
+	const auto useCached = goodCache || !gradient.isNull();
+	if (!cached.pixmap.isNull()) {
+		const auto to = QRect(
+			QPoint(cached.x, fromy + cached.y),
+			cached.pixmap.size() / cIntRetinaFactor());
+		if (goodCache) {
+			p.drawPixmap(to, cached.pixmap);
+		} else {
+			const auto sx = fill.width() / float64(cached.area.width());
+			const auto sy = fill.height() / float64(cached.area.height());
+			const auto round = [](float64 value) -> int {
+				return (value >= 0.)
+					? int(std::ceil(value))
+					: int(std::floor(value));
+			};
+			const auto sto = QPoint(round(to.x() * sx), round(to.y() * sy));
+			p.drawPixmap(
+				sto.x(),
+				sto.y(),
+				round((to.x() + to.width()) * sx) - sto.x(),
+				round((to.y() + to.height()) * sy) - sto.y(),
+				cached.pixmap);
+		}
+		return;
+	}
 	const auto patternOpacity = background->paper().patternOpacity();
 	const auto &bg = background->pixmap();
 	if (!bg.isNull() && !background->tile()) {
 		auto hq = PainterHighQualityEnabler(p);
-		QRect to, from;
-		Window::Theme::ComputeBackgroundRects(fill, bg.size(), to, from);
+		const auto rects = Window::Theme::ComputeBackgroundRects(
+			fill,
+			bg.size());
 		if (!gradient.isNull()) {
-			p.drawImage(to, gradient);
+			p.drawImage(rects.to, gradient);
 			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 			p.setOpacity(patternOpacity);
 		}
+		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
-		p.drawPixmap(to, bg, from);
+		p.drawPixmap(to, bg, rects.from);
 		return;
 	}
 	if (!gradient.isNull()) {
 		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(fill, gradient);
+		p.drawImage(QRect(QPoint(0, fromy), fill), gradient);
 		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 		p.setOpacity(patternOpacity);
 	}

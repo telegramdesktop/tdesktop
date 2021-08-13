@@ -455,12 +455,12 @@ void Generator::paintHistoryBackground() {
 	} else {
 		PainterHighQualityEnabler hq(*_p);
 
-		auto fill = QRect(_topBar.x(), _topBar.y(), _topBar.width(), _body.height());
-		QRect to, from;
-		ComputeBackgroundRects(fill, background.size(), to, from);
+		auto fill = QSize(_topBar.width(), _body.height());
+		const auto rects = ComputeBackgroundRects(fill, background.size());
+		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
 		to.moveTopLeft(to.topLeft() + _history.topLeft());
-		_p->drawImage(to, background, from);
+		_p->drawImage(to, background, rects.from);
 	}
 	_p->setClipping(false);
 }

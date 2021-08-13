@@ -58,7 +58,7 @@ class FiltersMenu;
 
 struct CachedBackground {
 	QPixmap pixmap;
-	QRect area;
+	QSize area;
 	int x = 0;
 	int y = 0;
 };
@@ -400,7 +400,7 @@ public:
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
-	[[nodiscard]] CachedBackground cachedBackground(QRect area);
+	[[nodiscard]] CachedBackground cachedBackground(QSize area);
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -462,7 +462,7 @@ private:
 	rpl::event_stream<> _filtersMenuChanged;
 
 	CachedBackground _cachedBackground;
-	QRect _willCacheForArea;
+	QSize _willCacheForArea;
 	crl::time _lastAreaChangeTime = 0;
 	base::Timer _cacheBackgroundTimer;
 
