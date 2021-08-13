@@ -24,7 +24,7 @@ SectionWidget::SectionWidget(
 	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
-: Window::SectionWidget(parent, window)
+: Window::SectionWidget(parent, window, PaintedBackground::Custom)
 , _content(this, window, wrap, memento) {
 	init();
 }
@@ -34,7 +34,7 @@ SectionWidget::SectionWidget(
 	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<MoveMemento*> memento)
-: Window::SectionWidget(parent, window)
+: Window::SectionWidget(parent, window, PaintedBackground::Custom)
 , _content(memento->takeContent(this, wrap)) {
 	init();
 }

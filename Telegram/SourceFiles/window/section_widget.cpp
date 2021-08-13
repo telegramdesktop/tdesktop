@@ -18,14 +18,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
+AbstractSectionWidget::AbstractSectionWidget(
+	QWidget *parent,
+	not_null<SessionController*> controller,
+	PaintedBackground paintedBackground)
+: RpWidget(parent)
+, _controller(controller) {
+	if (paintedBackground == PaintedBackground::Section) {
+		controller->repaintBackgroundRequests(
+		) | rpl::start_with_next([=] {
+			update();
+		}, lifetime());
+	}
+}
+
 Main::Session &AbstractSectionWidget::session() const {
 	return _controller->session();
 }
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: AbstractSectionWidget(parent, controller) {
+	not_null<Window::SessionController*> controller,
+	PaintedBackground paintedBackground)
+: AbstractSectionWidget(parent, controller, paintedBackground) {
 }
 
 void SectionWidget::setGeometryWithTopMoved(
@@ -99,18 +114,16 @@ void SectionWidget::PaintBackground(
 	const auto gradient = background->gradientForFill();
 	const auto fill = QSize(widget->width(), fullHeight);
 	auto fromy = controller->content()->backgroundFromY();
-	auto cached = controller->cachedBackground(fill);
-	const auto goodCache = (cached.area == fill);
-	const auto useCached = goodCache || !gradient.isNull();
-	if (!cached.pixmap.isNull()) {
+	auto state = controller->backgroundState(fill);
+	const auto paintCache = [&](const CachedBackground &cache) {
 		const auto to = QRect(
-			QPoint(cached.x, fromy + cached.y),
-			cached.pixmap.size() / cIntRetinaFactor());
-		if (goodCache) {
-			p.drawPixmap(to, cached.pixmap);
+			QPoint(cache.x, fromy + cache.y),
+			cache.pixmap.size() / cIntRetinaFactor());
+		if (cache.area == fill) {
+			p.drawPixmap(to, cache.pixmap);
 		} else {
-			const auto sx = fill.width() / float64(cached.area.width());
-			const auto sy = fill.height() / float64(cached.area.height());
+			const auto sx = fill.width() / float64(cache.area.width());
+			const auto sy = fill.height() / float64(cache.area.height());
 			const auto round = [](float64 value) -> int {
 				return (value >= 0.)
 					? int(std::ceil(value))
@@ -122,17 +135,27 @@ void SectionWidget::PaintBackground(
 				sto.y(),
 				round((to.x() + to.width()) * sx) - sto.x(),
 				round((to.y() + to.height()) * sy) - sto.y(),
-				cached.pixmap);
+				cache.pixmap);
 		}
+	};
+	const auto goodNow = !state.now.pixmap.isNull()
+		&& (state.now.area == fill);
+	const auto useCache = goodNow || !gradient.isNull();
+	if (useCache) {
+		if (state.shown < 1. && !gradient.isNull()) {
+			paintCache(state.was);
+			p.setOpacity(state.shown);
+		}
+		paintCache(state.now);
 		return;
 	}
 	const auto patternOpacity = background->paper().patternOpacity();
-	const auto &bg = background->pixmap();
-	if (!bg.isNull() && !background->tile()) {
-		auto hq = PainterHighQualityEnabler(p);
+	const auto &prepared = background->prepared();
+	if (!prepared.isNull() && !background->tile()) {
+		const auto hq = PainterHighQualityEnabler(p);
 		const auto rects = Window::Theme::ComputeBackgroundRects(
 			fill,
-			bg.size());
+			prepared.size());
 		if (!gradient.isNull()) {
 			p.drawImage(rects.to, gradient);
 			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
@@ -140,17 +163,17 @@ void SectionWidget::PaintBackground(
 		}
 		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
-		p.drawPixmap(to, bg, rects.from);
+		p.drawImage(to, prepared, rects.from);
 		return;
 	}
 	if (!gradient.isNull()) {
-		auto hq = PainterHighQualityEnabler(p);
+		const auto hq = PainterHighQualityEnabler(p);
 		p.drawImage(QRect(QPoint(0, fromy), fill), gradient);
 		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 		p.setOpacity(patternOpacity);
 	}
-	if (!bg.isNull()) {
-		auto &tiled = background->pixmapForTiled();
+	if (!prepared.isNull()) {
+		const auto &tiled = background->preparedForTiled();
 		auto left = clip.left();
 		auto top = clip.top();
 		auto right = clip.left() + clip.width();
@@ -163,7 +186,7 @@ void SectionWidget::PaintBackground(
 		auto cy = qCeil((bottom - fromy) / h);
 		for (auto i = sx; i < cx; ++i) {
 			for (auto j = sy; j < cy; ++j) {
-				p.drawPixmap(QPointF(i * w, fromy + j * h), tiled);
+				p.drawImage(QPointF(i * w, fromy + j * h), tiled);
 			}
 		}
 	}

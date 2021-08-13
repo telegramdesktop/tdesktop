@@ -571,18 +571,21 @@ void BackgroundRow::updateImage() {
 				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 				p.setOpacity(patternOpacity);
 			}
-			const auto &pix = background->pixmap();
-			if (!pix.isNull()) {
-				const auto sx = (pix.width() > pix.height())
-					? ((pix.width() - pix.height()) / 2)
+			const auto &prepared = background->prepared();
+			if (!prepared.isNull()) {
+				const auto sx = (prepared.width() > prepared.height())
+					? ((prepared.width() - prepared.height()) / 2)
 					: 0;
-				const auto sy = (pix.height() > pix.width())
-					? ((pix.height() - pix.width()) / 2)
+				const auto sy = (prepared.height() > prepared.width())
+					? ((prepared.height() - prepared.width()) / 2)
 					: 0;
-				const auto s = (pix.width() > pix.height())
-					? pix.height()
-					: pix.width();
-				p.drawPixmap(0, 0, size, size, pix, sx, sy, s, s);
+				const auto s = (prepared.width() > prepared.height())
+					? prepared.height()
+					: prepared.width();
+				p.drawImage(
+					QRect(0, 0, size, size),
+					prepared,
+					QRect(sx, sy, s, s));
 			}
 		}
 	}

@@ -170,11 +170,11 @@ public:
 	[[nodiscard]] WallPaperId id() const {
 		return _paper.id();
 	}
-	[[nodiscard]] const QPixmap &pixmap() const {
-		return _pixmap;
+	[[nodiscard]] const QImage &prepared() const {
+		return _prepared;
 	}
-	[[nodiscard]] const QPixmap &pixmapForTiled() const {
-		return _pixmapForTiled;
+	[[nodiscard]] const QImage &preparedForTiled() const {
+		return _preparedForTiled;
 	}
 	[[nodiscard]] std::optional<QColor> colorForFill() const;
 	[[nodiscard]] QImage gradientForFill() const;
@@ -197,7 +197,7 @@ private:
 	void initialRead();
 	void saveForRevert();
 	void setPrepared(QImage original, QImage prepared, QImage gradient);
-	void preparePixmaps(QImage image);
+	void prepareImageForTiled();
 	void writeNewBackgroundSettings();
 	void setPaper(const Data::WallPaper &paper);
 
@@ -239,8 +239,8 @@ private:
 	std::optional<QColor> _paperColor;
 	QImage _gradient;
 	QImage _original;
-	QPixmap _pixmap;
-	QPixmap _pixmapForTiled;
+	QImage _prepared;
+	QImage _preparedForTiled;
 	bool _nightMode = false;
 	bool _tileDayValue = false;
 	bool _tileNightValue = true;

@@ -40,12 +40,14 @@ class AbstractSectionWidget
 	, public Media::Player::FloatSectionDelegate
 	, protected base::Subscriber {
 public:
+	enum class PaintedBackground {
+		Section,
+		Custom,
+	};
 	AbstractSectionWidget(
 		QWidget *parent,
-		not_null<SessionController*> controller)
-	: RpWidget(parent)
-	, _controller(controller) {
-	}
+		not_null<SessionController*> controller,
+		PaintedBackground paintedBackground);
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<SessionController*> controller() const {
@@ -84,7 +86,8 @@ class SectionWidget : public AbstractSectionWidget {
 public:
 	SectionWidget(
 		QWidget *parent,
-		not_null<SessionController*> controller);
+		not_null<SessionController*> controller,
+		PaintedBackground paintedBackground);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};

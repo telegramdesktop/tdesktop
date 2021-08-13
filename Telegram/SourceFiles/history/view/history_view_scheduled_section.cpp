@@ -90,7 +90,7 @@ ScheduledWidget::ScheduledWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history)
-: Window::SectionWidget(parent, controller)
+: Window::SectionWidget(parent, controller, PaintedBackground::Section)
 , _history(history)
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)

@@ -988,10 +988,11 @@ void MainMenu::refreshBackground() {
 	const auto intensityText = IntensityOfColor(st::mainMenuCoverFg->c);
 	const auto background = Window::Theme::Background();
 	const auto &paper = background->paper();
-	const auto &pixmap = background->pixmap();
+	const auto &prepared = background->prepared();
 
-	QRect to, from;
-	const auto rects = Window::Theme::ComputeBackgroundRects(fill, pixmap.size());
+	const auto rects = Window::Theme::ComputeBackgroundRects(
+		fill,
+		prepared.size());
 
 	auto backgroundImage = !paper.backgroundColors().empty()
 		? Data::GenerateWallPaper(
@@ -999,7 +1000,7 @@ void MainMenu::refreshBackground() {
 			paper.backgroundColors(),
 			paper.gradientRotation(),
 			paper.patternOpacity(),
-			[&](QPainter &p) { p.drawPixmap(to, pixmap, from); })
+			[&](QPainter &p) { p.drawImage(rects.to, prepared, rects.from); })
 		: QImage(
 			fill * cIntRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);
@@ -1029,7 +1030,7 @@ void MainMenu::refreshBackground() {
 
 	// Background image.
 	if (!paper.isPattern()) {
-		p.drawPixmap(to, pixmap, from);
+		p.drawImage(rects.to, prepared, rects.from);
 	}
 
 	// Cut off the part of the background that is under text.

@@ -26,7 +26,7 @@ object_ptr<Window::SectionWidget> TabbedMemento::createWidget(
 TabbedSection::TabbedSection(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Window::SectionWidget(parent, controller)
+: Window::SectionWidget(parent, controller, PaintedBackground::Custom)
 , _selector(controller->tabbedSelector()) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(0);

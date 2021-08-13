@@ -730,8 +730,8 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 	Assert(colorForFill()
 		|| !_gradient.isNull()
 		|| (!_original.isNull()
-			&& !_pixmap.isNull()
-			&& !_pixmapForTiled.isNull()));
+			&& !_prepared.isNull()
+			&& !_preparedForTiled.isNull()));
 
 	_updates.fire({ BackgroundUpdate::Type::New, tile() }); // delayed?
 	if (needResetAdjustable) {
@@ -763,46 +763,42 @@ void ChatBackground::setPrepared(
 	}
 
 	_original = std::move(original);
+	_prepared = std::move(prepared);
 	_gradient = std::move(gradient);
-	preparePixmaps(std::move(prepared));
+	_imageMonoColor = _gradient.isNull()
+		? CalculateImageMonoColor(_prepared)
+		: std::nullopt;
+	prepareImageForTiled();
 }
 
-void ChatBackground::preparePixmaps(QImage image) {
-	const auto width = image.width();
-	const auto height = image.height();
+void ChatBackground::prepareImageForTiled() {
+	const auto width = _prepared.width();
+	const auto height = _prepared.height();
 	const auto isSmallForTiled = (width > 0 && height > 0)
 		&& (width < kMinimumTiledSize || height < kMinimumTiledSize);
-	if (isSmallForTiled) {
-		const auto repeatTimesX = qCeil(kMinimumTiledSize / (1. * width));
-		const auto repeatTimesY = qCeil(kMinimumTiledSize / (1. * height));
-		auto imageForTiled = QImage(
-			width * repeatTimesX,
-			height * repeatTimesY,
-			QImage::Format_ARGB32_Premultiplied);
-		imageForTiled.setDevicePixelRatio(image.devicePixelRatio());
-		auto imageForTiledBytes = imageForTiled.bits();
-		auto bytesInLine = width * sizeof(uint32);
-		for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
-			auto imageBytes = image.constBits();
-			for (auto y = 0; y != height; ++y) {
-				for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
-					memcpy(imageForTiledBytes, imageBytes, bytesInLine);
-					imageForTiledBytes += bytesInLine;
-				}
-				imageBytes += image.bytesPerLine();
-				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
-			}
-		}
-		_pixmapForTiled = Ui::PixmapFromImage(std::move(imageForTiled));
-	}
-	_imageMonoColor = _gradient.isNull()
-		? CalculateImageMonoColor(image)
-		: std::nullopt;
-	_pixmap = image.isNull()
-		? QPixmap()
-		: Ui::PixmapFromImage(std::move(image));
 	if (!isSmallForTiled) {
-		_pixmapForTiled = _pixmap;
+		_preparedForTiled = _prepared;
+		return;
+	}
+	const auto repeatTimesX = qCeil(kMinimumTiledSize / (1. * width));
+	const auto repeatTimesY = qCeil(kMinimumTiledSize / (1. * height));
+	_preparedForTiled = QImage(
+		width * repeatTimesX,
+		height * repeatTimesY,
+		QImage::Format_ARGB32_Premultiplied);
+	_preparedForTiled.setDevicePixelRatio(_prepared.devicePixelRatio());
+	auto imageForTiledBytes = _preparedForTiled.bits();
+	auto bytesInLine = width * sizeof(uint32);
+	for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
+		auto imageBytes = _prepared.constBits();
+		for (auto y = 0; y != height; ++y) {
+			for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
+				memcpy(imageForTiledBytes, imageBytes, bytesInLine);
+				imageForTiledBytes += bytesInLine;
+			}
+			imageBytes += _prepared.bytesPerLine();
+			imageForTiledBytes += _preparedForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
+		}
 	}
 }
 
@@ -868,7 +864,7 @@ void ChatBackground::adjustPaletteUsingColor(QColor color) {
 }
 
 std::optional<QColor> ChatBackground::colorForFill() const {
-	return !_pixmap.isNull()
+	return !_prepared.isNull()
 		? imageMonoColor()
 		: !_gradient.isNull()
 		? std::nullopt
@@ -888,13 +884,12 @@ QImage ChatBackground::createCurrentImage() const {
 		result.fill(*fill);
 		return result;
 	} else if (_gradient.isNull()) {
-		return pixmap().toImage();
-	} else if (pixmap().isNull()) {
+		return _prepared;
+	} else if (_prepared.isNull()) {
 		return _gradient;
 	}
-	const auto &pattern = pixmap();
 	auto result = _gradient.scaled(
-		pattern.size(),
+		_prepared.size(),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 	result.setDevicePixelRatio(1.);
@@ -902,7 +897,7 @@ QImage ChatBackground::createCurrentImage() const {
 		auto p = QPainter(&result);
 		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 		p.setOpacity(paper().patternOpacity());
-		p.drawPixmap(QRect(QPoint(), pattern.size()), pattern);
+		p.drawImage(QRect(QPoint(), _prepared.size()), _prepared);
 	}
 	return result;
 }
@@ -1044,7 +1039,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 			saveForRevert();
 			set(
 				Data::details::TestingEditorWallPaper(),
-				std::move(_pixmap).toImage());
+				base::take(_prepared));
 		}
 	} else if (switchToThemeBackground) {
 		saveForRevert();

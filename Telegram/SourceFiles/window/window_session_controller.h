@@ -7,13 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/variable.h>
 #include "base/flags.h"
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
-#include "ui/effects/animation_value.h"
+#include "ui/effects/animations.h"
 #include "ui/layers/layer_widget.h"
 #include "window/window_adaptive.h"
 
@@ -61,6 +60,12 @@ struct CachedBackground {
 	QSize area;
 	int x = 0;
 	int y = 0;
+};
+
+struct BackgroundState {
+	CachedBackground was;
+	CachedBackground now;
+	float64 shown = 1.;
 };
 
 enum class GifPauseReason {
@@ -232,7 +237,6 @@ private:
 	MsgId _showingRepliesRootId = 0;
 	mtpRequestId _showingRepliesRequestId = 0;
 
-
 };
 
 class SessionController : public SessionNavigation {
@@ -296,11 +300,11 @@ public:
 	void floatPlayerAreaUpdated();
 
 	struct ColumnLayout {
-		int bodyWidth;
-		int dialogsWidth;
-		int chatWidth;
-		int thirdWidth;
-		Adaptive::WindowLayout windowLayout;
+		int bodyWidth = 0;
+		int dialogsWidth = 0;
+		int chatWidth = 0;
+		int thirdWidth = 0;
+		Adaptive::WindowLayout windowLayout = Adaptive::WindowLayout();
 	};
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
@@ -400,7 +404,8 @@ public:
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
-	[[nodiscard]] CachedBackground cachedBackground(QSize area);
+	[[nodiscard]] const BackgroundState &backgroundState(QSize area);
+	[[nodiscard]] rpl::producer<> repaintBackgroundRequests() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -433,6 +438,7 @@ private:
 
 	void cacheBackground();
 	void clearCachedBackground();
+	void setCachedBackground(CachedBackground &&cached);
 
 	const not_null<Controller*> _window;
 
@@ -461,10 +467,12 @@ private:
 
 	rpl::event_stream<> _filtersMenuChanged;
 
-	CachedBackground _cachedBackground;
+	BackgroundState _backgroundState;
+	Ui::Animations::Simple _backgroundFade;
 	QSize _willCacheForArea;
 	crl::time _lastAreaChangeTime = 0;
 	base::Timer _cacheBackgroundTimer;
+	rpl::event_stream<> _repaintBackgroundRequests;
 
 	rpl::lifetime _lifetime;
 

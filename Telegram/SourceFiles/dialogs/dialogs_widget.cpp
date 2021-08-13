@@ -164,7 +164,7 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 Widget::Widget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-	: Window::AbstractSectionWidget(parent, controller)
+: Window::AbstractSectionWidget(parent, controller, PaintedBackground::Custom)
 , _api(&controller->session().mtp())
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)

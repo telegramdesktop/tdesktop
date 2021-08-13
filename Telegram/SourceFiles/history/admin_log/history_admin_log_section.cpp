@@ -275,11 +275,14 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel)
-: Window::SectionWidget(parent, controller)
+: Window::SectionWidget(parent, controller, PaintedBackground::Section)
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
-, _whatIsThis(this, tr::lng_admin_log_about(tr::now).toUpper(), st::historyComposeButton) {
+, _whatIsThis(
+		this,
+		tr::lng_admin_log_about(tr::now).toUpper(),
+		st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->showFilterRequests(
@@ -301,6 +304,11 @@ Widget::Widget(
 	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
+	}, lifetime());
+
+	controller->repaintBackgroundRequests(
+	) | rpl::start_with_next([=] {
+		update();
 	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));

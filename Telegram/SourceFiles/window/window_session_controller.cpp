@@ -72,6 +72,7 @@ namespace {
 constexpr auto kMaxChatEntryHistorySize = 50;
 constexpr auto kCacheBackgroundTimeout = 3 * crl::time(1000);
 constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
+constexpr auto kBackgroundFadeDuration = crl::time(200);
 
 } // namespace
 
@@ -1318,15 +1319,16 @@ void SessionController::openDocument(
 		session().data().message(contextId));
 }
 
-CachedBackground SessionController::cachedBackground(QSize area) {
-	if (_cachedBackground.area != area) {
+const BackgroundState &SessionController::backgroundState(QSize area) {
+	_backgroundState.shown = _backgroundFade.value(1.);
+	if (_backgroundState.now.area != area) {
 		if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
 			_willCacheForArea = area;
 			_lastAreaChangeTime = crl::now();
 			_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
 		}
 	}
-	return _cachedBackground;
+	return _backgroundState;
 }
 
 void SessionController::cacheBackground() {
@@ -1342,8 +1344,8 @@ void SessionController::cacheBackground() {
 	}
 	const auto gradient = background->gradientForFill();
 	const auto patternOpacity = background->paper().patternOpacity();
-	const auto &bg = background->pixmap();
-	if (background->tile() || bg.isNull()) {
+	const auto &prepared = background->prepared();
+	if (background->tile() || prepared.isNull()) {
 		auto result = gradient.isNull()
 			? QImage(
 				_willCacheForArea * cIntRetinaFactor(),
@@ -1353,34 +1355,34 @@ void SessionController::cacheBackground() {
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(cRetinaFactor());
-		if (!bg.isNull()) {
+		if (!prepared.isNull()) {
 			QPainter p(&result);
 			if (!gradient.isNull()) {
 				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 				p.setOpacity(patternOpacity);
 			}
-			const auto &tiled = background->pixmapForTiled();
-			auto w = tiled.width() / cRetinaFactor();
-			auto h = tiled.height() / cRetinaFactor();
+			const auto &tiled = background->preparedForTiled();
+			const auto w = tiled.width() / cRetinaFactor();
+			const auto h = tiled.height() / cRetinaFactor();
 			auto sx = 0;
 			auto sy = 0;
-			auto cx = qCeil(_willCacheForArea.width() / w);
-			auto cy = qCeil(_willCacheForArea.height() / h);
+			const auto cx = qCeil(_willCacheForArea.width() / w);
+			const auto cy = qCeil(_willCacheForArea.height() / h);
 			for (int i = sx; i < cx; ++i) {
 				for (int j = sy; j < cy; ++j) {
-					p.drawPixmap(QPointF(i * w, j * h), tiled);
+					p.drawImage(QPointF(i * w, j * h), tiled);
 				}
 			}
 		}
-		_cachedBackground = CachedBackground{
+		setCachedBackground({
 			.pixmap = Ui::PixmapFromImage(std::move(result)),
 			.area = _willCacheForArea,
-		};
+		});
 	} else {
 		const auto rects = Window::Theme::ComputeBackgroundRects(
 			_willCacheForArea,
-			bg.size());
-		auto image = bg.toImage().copy(rects.from).scaled(
+			prepared.size());
+		auto image = prepared.copy(rects.from).scaled(
 			rects.to.width() * cIntRetinaFactor(),
 			rects.to.height() * cIntRetinaFactor(),
 			Qt::IgnoreAspectRatio,
@@ -1399,21 +1401,51 @@ void SessionController::cacheBackground() {
 			p.drawImage(QRect(QPoint(), rects.to.size()), image);
 		}
 		image = QImage();
-		_cachedBackground = {
+		setCachedBackground({
 			.pixmap = Ui::PixmapFromImage(std::move(result)),
 			.area = _willCacheForArea,
 			.x = rects.to.x(),
 			.y = rects.to.y(),
-		};
-	}
-	if (!gradient.isNull()) {
-		content()->update();
+		});
 	}
 }
 
+void SessionController::setCachedBackground(CachedBackground &&cached) {
+	const auto background = Window::Theme::Background();
+	if (background->gradientForFill().isNull()
+		|| _backgroundState.now.pixmap.isNull()) {
+		_backgroundFade.stop();
+		_backgroundState.shown = 1.;
+		_backgroundState.now = std::move(cached);
+		return;
+	}
+	// #TODO themes compose several transitions.
+	_backgroundState.was = std::move(_backgroundState.now);
+	_backgroundState.now = std::move(cached);
+	_backgroundState.shown = 0.;
+	const auto callback = [=] {
+		if (!_backgroundFade.animating()) {
+			_backgroundState.was = {};
+			_backgroundState.shown = 1.;
+		}
+		_repaintBackgroundRequests.fire({});
+	};
+	_backgroundFade.start(
+		callback,
+		0.,
+		1.,
+		kBackgroundFadeDuration);
+}
+
 void SessionController::clearCachedBackground() {
-	_cachedBackground = {};
+	_backgroundState = {};
+	_backgroundFade.stop();
 	_cacheBackgroundTimer.cancel();
+	_repaintBackgroundRequests.fire({});
+}
+
+rpl::producer<> SessionController::repaintBackgroundRequests() const {
+	return _repaintBackgroundRequests.events();
 }
 
 SessionController::~SessionController() {

@@ -146,7 +146,7 @@ RepliesWidget::RepliesWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history,
 	MsgId rootId)
-: Window::SectionWidget(parent, controller)
+: Window::SectionWidget(parent, controller, PaintedBackground::Section)
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
