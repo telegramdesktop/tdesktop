@@ -56,6 +56,13 @@ class SectionMemento;
 class Controller;
 class FiltersMenu;
 
+struct CachedBackground {
+	QPixmap pixmap;
+	QRect area;
+	int x = 0;
+	int y = 0;
+};
+
 enum class GifPauseReason {
 	Any           = 0,
 	InlineResults = (1 << 0),
@@ -393,6 +400,8 @@ public:
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
+	[[nodiscard]] CachedBackground cachedBackground(QRect area);
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -422,6 +431,9 @@ private:
 
 	void checkInvitePeek();
 
+	void cacheBackground();
+	void clearCachedBackground();
+
 	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
@@ -448,6 +460,10 @@ private:
 	rpl::variable<Data::Folder*> _openedFolder;
 
 	rpl::event_stream<> _filtersMenuChanged;
+
+	CachedBackground _cachedBackground;
+	QRect _willCacheForArea;
+	base::Timer _cacheBackgroundTimer;
 
 	rpl::lifetime _lifetime;
 

@@ -7,14 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mainwidget.h"
 
-#include <rpl/combine.h>
-#include <rpl/merge.h>
-#include <rpl/flatten_latest.h>
 #include "api/api_updates.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
+#include "data/data_wall_paper.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
@@ -121,9 +119,6 @@ namespace {
 
 // Send channel views each second.
 constexpr auto kSendViewsTimeout = crl::time(1000);
-
-// Cache background scaled image after 3s.
-constexpr auto kCacheBackgroundTimeout = 3000;
 
 } // namespace
 
@@ -239,7 +234,6 @@ MainWidget::MainWidget(
 , _dialogs(this, _controller)
 , _history(this, _controller)
 , _playerPlaylist(this, _controller)
-, _cacheBackgroundTimer([=] { cacheBackground(); })
 , _viewsIncrementTimer([=] { viewsIncrement(); })
 , _changelogs(Core::Changelogs::Create(&controller->session())) {
 	setupConnectingWidget();
@@ -344,15 +338,6 @@ MainWidget::MainWidget(
 	}, lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
-
-	using Update = Window::Theme::BackgroundUpdate;
-	Window::Theme::Background()->updates(
-	) | rpl::start_with_next([=](const Update &update) {
-		if (update.type == Update::Type::New
-			|| update.type == Update::Type::Changed) {
-			clearCachedBackground();
-		}
-	}, lifetime());
 
 	subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
 		if (over) {
@@ -780,76 +765,6 @@ bool MainWidget::selectingPeer() const {
 	return _hider ? true : false;
 }
 
-void MainWidget::cacheBackground() {
-	const auto background = Window::Theme::Background();
-	if (background->colorForFill()) {
-		return;
-	}
-	const auto gradient = background->gradientForFill();
-	const auto patternOpacity = background->paper().patternOpacity();
-	const auto &bg = background->pixmap();
-	if (background->tile() || bg.isNull()) {
-		auto result = gradient.isNull()
-			? QImage(
-				_willCacheFor.size() * cIntRetinaFactor(),
-				QImage::Format_ARGB32_Premultiplied)
-			: gradient.scaled(
-				_willCacheFor.size() * cIntRetinaFactor(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		result.setDevicePixelRatio(cRetinaFactor());
-		if (!bg.isNull()) {
-			QPainter p(&result);
-			if (!gradient.isNull()) {
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(patternOpacity);
-			}
-			const auto &tiled = background->pixmapForTiled();
-			auto w = tiled.width() / cRetinaFactor();
-			auto h = tiled.height() / cRetinaFactor();
-			auto sx = 0;
-			auto sy = 0;
-			auto cx = qCeil(_willCacheFor.width() / w);
-			auto cy = qCeil(_willCacheFor.height() / h);
-			for (int i = sx; i < cx; ++i) {
-				for (int j = sy; j < cy; ++j) {
-					p.drawPixmap(QPointF(i * w, j * h), tiled);
-				}
-			}
-		}
-		_cachedX = 0;
-		_cachedY = 0;
-		_cachedBackground = Ui::PixmapFromImage(std::move(result));
-	} else {
-		QRect to, from;
-		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
-		auto image = bg.toImage().copy(from).scaled(
-			to.width() * cIntRetinaFactor(),
-			to.height() * cIntRetinaFactor(),
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-		auto result = gradient.isNull()
-			? std::move(image)
-			: gradient.scaled(
-				image.size(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		result.setDevicePixelRatio(cRetinaFactor());
-		if (!gradient.isNull()) {
-			QPainter p(&result);
-			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-			p.setOpacity(patternOpacity);
-			p.drawImage(QRect(QPoint(), to.size()), image);
-		}
-		image = QImage();
-		_cachedX = to.x();
-		_cachedY = to.y();
-		_cachedBackground = Ui::PixmapFromImage(std::move(result));
-		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
-	}
-	_cachedFor = _willCacheFor;
-}
-
 crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
 	return _history->highlightStartTime(item);
 }
@@ -1177,25 +1092,6 @@ void MainWidget::dialogsCancelled() {
 		clearHider(_hider);
 	}
 	_history->activate();
-}
-
-void MainWidget::clearCachedBackground() {
-	_cachedBackground = QPixmap();
-	_cacheBackgroundTimer.cancel();
-	update();
-}
-
-QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
-	if (!_cachedBackground.isNull() && forRect == _cachedFor) {
-		x = _cachedX;
-		y = _cachedY;
-		return _cachedBackground;
-	}
-	if (_willCacheFor != forRect || !_cacheBackgroundTimer.isActive()) {
-		_willCacheFor = forRect;
-		_cacheBackgroundTimer.callOnce(kCacheBackgroundTimeout);
-	}
-	return QPixmap();
 }
 
 void MainWidget::setChatBackground(

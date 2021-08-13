@@ -185,8 +185,6 @@ public:
 
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 
-	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
-
 	void setChatBackground(
 		const Data::WallPaper &background,
 		QImage &&image = QImage());
@@ -299,9 +297,6 @@ private:
 	void showAll();
 	void clearHider(not_null<Window::HistoryHider*> instance);
 
-	void cacheBackground();
-	void clearCachedBackground();
-
 	[[nodiscard]] auto floatPlayerDelegate()
 		-> not_null<Media::Player::FloatDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
@@ -388,12 +383,6 @@ private:
 	int _callTopBarHeight = 0;
 	int _exportTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
-
-	QPixmap _cachedBackground;
-	QRect _cachedFor, _willCacheFor;
-	int _cachedX = 0;
-	int _cachedY = 0;
-	base::Timer _cacheBackgroundTimer;
 
 	PhotoData *_deletingPhoto = nullptr;
 

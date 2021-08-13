@@ -97,51 +97,50 @@ void SectionWidget::PaintBackground(
 		return;
 	}
 	auto fromy = controller->content()->backgroundFromY();
-	auto x = 0, y = 0;
-	auto cached = controller->content()->cachedBackground(fill, x, y);
-	if (cached.isNull()) {
-		const auto gradient = background->gradientForFill();
-		const auto patternOpacity = background->paper().patternOpacity();
-		const auto &bg = background->pixmap();
-		if (background->tile() || bg.isNull()) {
-			if (!gradient.isNull()) {
-				auto hq = PainterHighQualityEnabler(p);
-				p.drawImage(fill, gradient);
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(patternOpacity);
-			}
-			if (!bg.isNull()) {
-				auto &tiled = background->pixmapForTiled();
-				auto left = clip.left();
-				auto top = clip.top();
-				auto right = clip.left() + clip.width();
-				auto bottom = clip.top() + clip.height();
-				auto w = tiled.width() / cRetinaFactor();
-				auto h = tiled.height() / cRetinaFactor();
-				auto sx = qFloor(left / w);
-				auto sy = qFloor((top - fromy) / h);
-				auto cx = qCeil(right / w);
-				auto cy = qCeil((bottom - fromy) / h);
-				for (auto i = sx; i < cx; ++i) {
-					for (auto j = sy; j < cy; ++j) {
-						p.drawPixmap(QPointF(i * w, fromy + j * h), tiled);
-					}
-				}
-			}
-		} else {
-			auto hq = PainterHighQualityEnabler(p);
-			QRect to, from;
-			Window::Theme::ComputeBackgroundRects(fill, bg.size(), to, from);
-			if (!gradient.isNull()) {
-				p.drawImage(to, gradient);
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(patternOpacity);
-			}
-			to.moveTop(to.top() + fromy);
-			p.drawPixmap(to, bg, from);
+	auto cached = controller->cachedBackground(fill);
+	if (!cached.pixmap.isNull()) {
+		p.drawPixmap(cached.x, fromy + cached.y, cached.pixmap);
+		return;
+	}
+	const auto gradient = background->gradientForFill();
+	const auto patternOpacity = background->paper().patternOpacity();
+	const auto &bg = background->pixmap();
+	if (!bg.isNull() && !background->tile()) {
+		auto hq = PainterHighQualityEnabler(p);
+		QRect to, from;
+		Window::Theme::ComputeBackgroundRects(fill, bg.size(), to, from);
+		if (!gradient.isNull()) {
+			p.drawImage(to, gradient);
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
 		}
-	} else {
-		p.drawPixmap(x, fromy + y, cached);
+		to.moveTop(to.top() + fromy);
+		p.drawPixmap(to, bg, from);
+		return;
+	}
+	if (!gradient.isNull()) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(fill, gradient);
+		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+		p.setOpacity(patternOpacity);
+	}
+	if (!bg.isNull()) {
+		auto &tiled = background->pixmapForTiled();
+		auto left = clip.left();
+		auto top = clip.top();
+		auto right = clip.left() + clip.width();
+		auto bottom = clip.top() + clip.height();
+		auto w = tiled.width() / cRetinaFactor();
+		auto h = tiled.height() / cRetinaFactor();
+		auto sx = qFloor(left / w);
+		auto sy = qFloor((top - fromy) / h);
+		auto cx = qCeil(right / w);
+		auto cy = qCeil((bottom - fromy) / h);
+		for (auto i = sx; i < cx; ++i) {
+			for (auto j = sy; j < cy; ++j) {
+				p.drawPixmap(QPointF(i * w, fromy + j * h), tiled);
+			}
+		}
 	}
 }
 

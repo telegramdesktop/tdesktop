@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
 #include "facades.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
@@ -67,6 +68,9 @@ namespace Window {
 namespace {
 
 constexpr auto kMaxChatEntryHistorySize = 50;
+
+// Cache background scaled image after 3s.
+constexpr auto kCacheBackgroundTimeout = 3000;
 
 } // namespace
 
@@ -463,7 +467,8 @@ SessionController::SessionController(
 	std::make_unique<ChatHelpers::TabbedSelector>(
 		_window->widget(),
 		this))
-, _invitePeekTimer([=] { checkInvitePeek(); }) {
+, _invitePeekTimer([=] { checkInvitePeek(); })
+, _cacheBackgroundTimer([=] { cacheBackground(); }) {
 	init();
 
 	if (Media::Player::instance()->pauseGifByRoundVideo()) {
@@ -505,6 +510,15 @@ SessionController::SessionController(
 			}
 		}));
 	}, _lifetime);
+
+	using Update = Window::Theme::BackgroundUpdate;
+	Window::Theme::Background()->updates(
+	) | rpl::start_with_next([=](const Update &update) {
+		if (update.type == Update::Type::New
+			|| update.type == Update::Type::Changed) {
+			clearCachedBackground();
+		}
+	}, lifetime());
 
 	session->addWindow(this);
 }
@@ -1301,6 +1315,99 @@ void SessionController::openDocument(
 		this,
 		document,
 		session().data().message(contextId));
+}
+
+CachedBackground SessionController::cachedBackground(QRect area) {
+	if (!_cachedBackground.pixmap.isNull()
+		&& area == _cachedBackground.area) {
+		return _cachedBackground;
+	}
+	if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
+		_willCacheForArea = area;
+		_cacheBackgroundTimer.callOnce(kCacheBackgroundTimeout);
+	}
+	return {};
+}
+
+void SessionController::cacheBackground() {
+	const auto background = Window::Theme::Background();
+	if (background->colorForFill()) {
+		return;
+	}
+	const auto gradient = background->gradientForFill();
+	const auto patternOpacity = background->paper().patternOpacity();
+	const auto &bg = background->pixmap();
+	if (background->tile() || bg.isNull()) {
+		auto result = gradient.isNull()
+			? QImage(
+				_willCacheForArea.size() * cIntRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied)
+			: gradient.scaled(
+				_willCacheForArea.size() * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (!bg.isNull()) {
+			QPainter p(&result);
+			if (!gradient.isNull()) {
+				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+				p.setOpacity(patternOpacity);
+			}
+			const auto &tiled = background->pixmapForTiled();
+			auto w = tiled.width() / cRetinaFactor();
+			auto h = tiled.height() / cRetinaFactor();
+			auto sx = 0;
+			auto sy = 0;
+			auto cx = qCeil(_willCacheForArea.width() / w);
+			auto cy = qCeil(_willCacheForArea.height() / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, j * h), tiled);
+				}
+			}
+		}
+		_cachedBackground = CachedBackground{
+			.pixmap = Ui::PixmapFromImage(std::move(result)),
+			.area = _willCacheForArea,
+		};
+	} else {
+		QRect to, from;
+		Window::Theme::ComputeBackgroundRects(
+			_willCacheForArea,
+			bg.size(),
+			to,
+			from);
+		auto image = bg.toImage().copy(from).scaled(
+			to.width() * cIntRetinaFactor(),
+			to.height() * cIntRetinaFactor(),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		auto result = gradient.isNull()
+			? std::move(image)
+			: gradient.scaled(
+				image.size(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (!gradient.isNull()) {
+			QPainter p(&result);
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
+			p.drawImage(QRect(QPoint(), to.size()), image);
+		}
+		image = QImage();
+		_cachedBackground = {
+			.pixmap = Ui::PixmapFromImage(std::move(result)),
+			.area = _willCacheForArea,
+			.x = to.x(),
+			.y = to.y(),
+		};
+	}
+}
+
+void SessionController::clearCachedBackground() {
+	_cachedBackground = {};
+	_cacheBackgroundTimer.cancel();
 }
 
 SessionController::~SessionController() {
