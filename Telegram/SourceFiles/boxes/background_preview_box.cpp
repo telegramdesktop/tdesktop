@@ -547,10 +547,6 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 void BackgroundPreviewBox::paintImage(Painter &p) {
 	Expects(!_scaled.isNull());
 
-	const auto master = _paper.isPattern()
-		? std::clamp(_paper.patternIntensity() / 100., 0., 1.)
-		: 1.;
-
 	const auto factor = cIntRetinaFactor();
 	const auto size = st::boxWideWidth;
 	const auto from = QRect(
@@ -567,7 +563,7 @@ void BackgroundPreviewBox::paintImage(Painter &p) {
 	const auto &pixmap = (!_blurred.isNull() && _paper.isBlurred())
 		? _blurred
 		: _scaled;
-	p.setOpacity(master * fade);
+	p.setOpacity(fade);
 	p.drawPixmap(rect(), pixmap, from);
 	checkBlurAnimationStart();
 }

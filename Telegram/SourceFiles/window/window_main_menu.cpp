@@ -87,7 +87,6 @@ constexpr auto kMinDiffIntensity = 0.25;
 
 [[nodiscard]] bool IsFilledCover() {
 	const auto background = Window::Theme::Background();
-	return false; AssertIsDebug();
 	return background->tile()
 		|| background->colorForFill().has_value()
 		|| !background->gradientForFill().isNull()
@@ -985,12 +984,25 @@ void MainMenu::refreshMenu() {
 }
 
 void MainMenu::refreshBackground() {
-	const auto fill = QRect(0, 0, width(), st::mainMenuCoverHeight);
+	const auto fill = QRect(0, 0, st::mainMenuWidth, st::mainMenuCoverHeight);
 	const auto intensityText = IntensityOfColor(st::mainMenuCoverFg->c);
-	QImage backgroundImage(
-		st::mainMenuWidth * cIntRetinaFactor(),
-		st::mainMenuCoverHeight * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
+	const auto background = Window::Theme::Background();
+	const auto &paper = background->paper();
+	const auto &pixmap = background->pixmap();
+
+	QRect to, from;
+	Window::Theme::ComputeBackgroundRects(fill, pixmap.size(), to, from);
+
+	auto backgroundImage = paper.isPattern()
+		? Data::PreparePatternImage(
+			fill.size() * cIntRetinaFactor(),
+			[&](QPainter &p) { p.drawPixmap(to, pixmap, from); },
+			paper.backgroundColors(),
+			paper.gradientRotation(),
+			paper.patternOpacity())
+		: QImage(
+			fill.size() * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
 	QPainter p(&backgroundImage);
 
 	const auto drawShadow = [](QPainter &p) {
@@ -1005,7 +1017,7 @@ void MainMenu::refreshBackground() {
 	};
 
 	// Solid color.
-	if (const auto color = Window::Theme::Background()->colorForFill()) {
+	if (const auto color = background->colorForFill()) {
 		const auto intensity = IntensityOfColor(*color);
 		p.fillRect(fill, *color);
 		if (std::abs(intensity - intensityText) < kMinDiffIntensity) {
@@ -1016,9 +1028,9 @@ void MainMenu::refreshBackground() {
 	}
 
 	// Background image.
-	const auto &pixmap = Window::Theme::Background()->pixmap();
-	QRect to, from;
-	Window::Theme::ComputeBackgroundRects(fill, pixmap.size(), to, from);
+	if (!paper.isPattern()) {
+		p.drawPixmap(to, pixmap, from);
+	}
 
 	// Cut off the part of the background that is under text.
 	const QRect underText(
@@ -1029,8 +1041,6 @@ void MainMenu::refreshBackground() {
 				_controller->session().user()->nameText().toString()),
 			st::normalFont->width(_phoneText)),
 		st::semiboldFont->height * 2);
-
-	p.drawPixmap(to, pixmap, from);
 	if (IsShadowShown(backgroundImage, underText, intensityText)) {
 		drawShadow(p);
 	}

@@ -123,7 +123,13 @@ private:
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);
 
 [[nodiscard]] QImage PreparePatternImage(
-	QImage image,
+	QSize size,
+	Fn<void(QPainter&)> drawPattern,
+	const std::vector<QColor> &bg,
+	int rotation,
+	float64 opacity);
+[[nodiscard]] QImage PreparePatternImage(
+	QImage pattern,
 	const std::vector<QColor> &bg,
 	int rotation,
 	float64 opacity);

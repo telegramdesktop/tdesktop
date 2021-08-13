@@ -55,6 +55,10 @@ constexpr auto kVersion = 1;
 			int(serialized & 0xFFU)));
 }
 
+[[nodiscard]] QColor DefaultBackgroundColor() {
+	return QColor(213, 223, 233);
+}
+
 [[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
 		const tl::conditional<MTPint> &mtp) {
 	return mtp ? MaybeColorFromSerialized(mtp->v) : std::nullopt;
@@ -460,7 +464,7 @@ std::optional<WallPaper> WallPaper::Create(
 		});
 	}
 	if (result.isPattern() && result.backgroundColors().empty()) {
-		return std::nullopt;
+		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -489,7 +493,7 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 		});
 	}
 	if (result.backgroundColors().empty()) {
-		return std::nullopt;
+		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -625,7 +629,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	result._intensity = intensity;
 	result._rotation = rotation;
 	if (result.isPattern() && result.backgroundColors().empty()) {
-		return std::nullopt;
+		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -643,7 +647,7 @@ std::optional<WallPaper> WallPaper::FromLegacySerialized(
 		result._backgroundColors.push_back(*color);
 	}
 	if (result.isPattern() && result.backgroundColors().empty()) {
-		return std::nullopt;
+		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -755,28 +759,36 @@ bool IsCloudWallPaper(const WallPaper &paper) {
 }
 
 QImage PreparePatternImage(
-		QImage image,
+		QSize size,
+		Fn<void(QPainter&)> drawPattern,
 		const std::vector<QColor> &bg,
 		int rotation,
 		float64 opacity) {
-	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
-		image = std::move(image).convertToFormat(
-			QImage::Format_ARGB32_Premultiplied);
-	}
-
-	auto result = QImage(image.size(), QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
 	if (bg.size() < 2) {
-		result.fill(bg.empty() ? QColor(213, 223, 233) : bg.front());
+		result.fill(bg.empty() ? DefaultBackgroundColor() : bg.front());
 	} else {
 		result = FillDitheredGradient(std::move(result), bg, rotation);
 	}
 	auto p = QPainter(&result);
 	p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 	p.setOpacity(opacity);
-	p.drawImage(QRect(QPoint(), image.size()), image);
+	drawPattern(p);
 	p.end();
 
-	image = QImage();
+	return result;
+}
+
+QImage PreparePatternImage(
+		QImage pattern,
+		const std::vector<QColor> &bg,
+		int rotation,
+		float64 opacity) {
+	auto result = PreparePatternImage(pattern.size(), [&](QPainter &p) {
+		p.drawImage(QRect(QPoint(), pattern.size()), pattern);
+	}, bg, rotation, opacity);
+
+	pattern = QImage();
 	return result;
 }
 
