@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/time_input.h"
+#include "ui/ui_utility.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -77,7 +78,7 @@ void AutoLockBox::prepare() {
 			+ st.textPosition.x();
 		const auto textTop = st.margin.top() + st.textPosition.y();
 
-		const auto timeInput = CreateChild<Ui::TimeInput>(
+		const auto timeInput = Ui::CreateChild<Ui::TimeInput>(
 			this,
 			(group->value() == kCustom)
 				? TimeString(currentTime)
