@@ -102,49 +102,53 @@ void StartPendingReset(
 		not_null<Ui::BoxContent*> context,
 		Fn<void()> close) {
 	const auto weak = Ui::MakeWeak(context.get());
-	session->api().request(MTPaccount_ResetPassword(
-	)).done([=](const MTPaccount_ResetPasswordResult &result) {
-		session->api().cloudPassword().applyPendingReset(result);
-		result.match([&](const MTPDaccount_resetPasswordOk &data) {
-		}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
-		}, [&](const MTPDaccount_resetPasswordFailedWait &data) {
-			constexpr auto kMinute = 60;
-			constexpr auto kHour = 3600;
-			constexpr auto kDay = 86400;
-			const auto left = std::max(
-				data.vretry_date().v - base::unixtime::now(),
-				kMinute);
-			const auto days = (left / kDay);
-			const auto hours = (left / kHour);
-			const auto minutes = (left / kMinute);
-			const auto duration = days
-				? tr::lng_group_call_duration_days(tr::now, lt_count, days)
-				: hours
-				? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
-				: tr::lng_group_call_duration_minutes(
-					tr::now,
-					lt_count,
-					minutes);
-			if (const auto strong = weak.data()) {
-				strong->getDelegate()->show(Box<InformBox>(
-					tr::lng_cloud_password_reset_later(
-						tr::now,
-						lt_duration,
-						duration)));
+	auto lifetime = std::make_shared<rpl::lifetime>();
+
+	auto finish = [=](const QString &message) mutable {
+		if (const auto strong = weak.data()) {
+			if (!message.isEmpty()) {
+				strong->getDelegate()->show(Box<InformBox>(message));
 			}
-		});
-		if (const auto strong = weak.data()) {
 			strong->closeBox();
 		}
 		close();
-	}).fail([=](const MTP::Error &error) {
-		if (const auto strong = weak.data()) {
-			strong->getDelegate()->show(
-				Box<InformBox>("Error: " + error.type()));
-			strong->closeBox();
+		if (lifetime) {
+			base::take(lifetime)->destroy();
 		}
-		close();
-	}).send();
+	};
+
+	session->api().cloudPassword().resetPassword(
+	) | rpl::start_with_next_error_done([=](
+			Api::CloudPassword::ResetRetryDate retryDate) {
+		constexpr auto kMinute = 60;
+		constexpr auto kHour = 3600;
+		constexpr auto kDay = 86400;
+		const auto left = std::max(
+			retryDate - base::unixtime::now(),
+			kMinute);
+		const auto days = (left / kDay);
+		const auto hours = (left / kHour);
+		const auto minutes = (left / kMinute);
+		const auto duration = days
+			? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+			: hours
+			? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+			: tr::lng_group_call_duration_minutes(
+				tr::now,
+				lt_count,
+				minutes);
+		if (const auto strong = weak.data()) {
+			strong->getDelegate()->show(Box<InformBox>(
+				tr::lng_cloud_password_reset_later(
+					tr::now,
+					lt_duration,
+					duration)));
+		}
+	}, [=](const QString &error) mutable {
+		finish("Error: " + error);
+	}, [=]() mutable {
+		finish({});
+	}, *lifetime);
 }
 
 } // namespace

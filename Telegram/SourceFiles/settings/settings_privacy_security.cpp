@@ -558,7 +558,7 @@ void SetupCloudPassword(
 	) | rpl::map([](TimeId time) {
 		return time != 0;
 	}));
-	const auto sent = std::make_shared<mtpRequestId>(0);
+	const auto sent = std::make_shared<bool>(false);
 	reset->entity()->addClickHandler([=] {
 		const auto api = &session->api();
 		const auto state = api->cloudPassword().stateCurrent();
@@ -566,23 +566,23 @@ void SetupCloudPassword(
 		if (!date || *sent) {
 			return;
 		} else if (base::unixtime::now() >= date) {
-			*sent = api->request(MTPaccount_ResetPassword(
-			)).done([=](const MTPaccount_ResetPasswordResult &result) {
-				*sent = 0;
-				api->cloudPassword().applyPendingReset(result);
-			}).fail([=](const MTP::Error &error) {
-				*sent = 0;
-			}).send();
+			*sent = true;
+			api->cloudPassword().resetPassword(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				*sent = false;
+			}, [=] {
+				*sent = false;
+			}, container->lifetime());
 		} else {
 			const auto cancel = [=] {
 				Ui::hideLayer();
-				*sent = api->request(MTPaccount_DeclinePasswordReset(
-				)).done([=] {
-					*sent = 0;
-					api->cloudPassword().reload();
-				}).fail([=](const MTP::Error &error) {
-					*sent = 0;
-				}).send();
+				*sent = true;
+				api->cloudPassword().cancelResetPassword(
+				) | rpl::start_with_error_done([=](const QString &error) {
+					*sent = false;
+				}, [=] {
+					*sent = false;
+				}, container->lifetime());
 			};
 			Ui::show(Box<ConfirmBox>(
 				tr::lng_cloud_password_reset_cancel_sure(tr::now),

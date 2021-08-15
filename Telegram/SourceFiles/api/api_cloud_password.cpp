@@ -41,24 +41,6 @@ void CloudPassword::reload() {
 	}).send();
 }
 
-void CloudPassword::applyPendingReset(
-		const MTPaccount_ResetPasswordResult &data) {
-	if (!_state) {
-		reload();
-		return;
-	}
-	data.match([&](const MTPDaccount_resetPasswordOk &data) {
-		reload();
-	}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
-		const auto until = data.vuntil_date().v;
-		if (_state->pendingResetDate != until) {
-			_state->pendingResetDate = until;
-			_stateChanges.fire_copy(*_state);
-		}
-	}, [&](const MTPDaccount_resetPasswordFailedWait &data) {
-	});
-}
-
 void CloudPassword::clearUnconfirmedPassword() {
 	_requestId = _api.request(MTPaccount_CancelPasswordEmail(
 	)).done([=](const MTPBool &result) {
@@ -81,6 +63,50 @@ auto CloudPassword::stateCurrent() const
 	return _state
 		? base::make_optional(*_state)
 		: std::nullopt;
+}
+
+auto CloudPassword::resetPassword()
+-> rpl::producer<CloudPassword::ResetRetryDate, QString> {
+	return [=](auto consumer) {
+		_api.request(MTPaccount_ResetPassword(
+		)).done([=](const MTPaccount_ResetPasswordResult &result) {
+			result.match([&](const MTPDaccount_resetPasswordOk &data) {
+				reload();
+			}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
+				if (!_state) {
+					reload();
+					return;
+				}
+				const auto until = data.vuntil_date().v;
+				if (_state->pendingResetDate != until) {
+					_state->pendingResetDate = until;
+					_stateChanges.fire_copy(*_state);
+				}
+			}, [&](const MTPDaccount_resetPasswordFailedWait &data) {
+				consumer.put_next_copy(data.vretry_date().v);
+			});
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
+auto CloudPassword::cancelResetPassword()
+-> rpl::producer<rpl::no_value, QString> {
+	return [=](auto consumer) {
+		_api.request(MTPaccount_DeclinePasswordReset(
+		)).done([=] {
+			reload();
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return rpl::lifetime();
+	};
 }
 
 } // namespace Api

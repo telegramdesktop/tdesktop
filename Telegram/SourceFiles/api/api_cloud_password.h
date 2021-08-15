@@ -23,13 +23,16 @@ namespace Api {
 
 class CloudPassword final {
 public:
+	using ResetRetryDate = int;
 	explicit CloudPassword(not_null<ApiWrap*> api);
 
 	void reload();
-	void applyPendingReset(const MTPaccount_ResetPasswordResult &data);
 	void clearUnconfirmedPassword();
 	rpl::producer<Core::CloudPasswordState> state() const;
 	std::optional<Core::CloudPasswordState> stateCurrent() const;
+
+	rpl::producer<ResetRetryDate, QString> resetPassword();
+	rpl::producer<rpl::no_value, QString> cancelResetPassword();
 
 private:
 	MTP::Sender _api;
