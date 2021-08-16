@@ -74,6 +74,83 @@ constexpr auto kCacheBackgroundTimeout = 3 * crl::time(1000);
 constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kBackgroundFadeDuration = crl::time(200);
 
+[[nodiscard]] CacheBackgroundResult CacheBackground(
+		const CacheBackgroundRequest &request) {
+	const auto gradient = request.gradient.isNull()
+		? QImage()
+		: request.recreateGradient
+		? Images::GenerateGradient(
+			request.gradient.size(),
+			request.gradientColors,
+			request.gradientRotation)
+		: request.gradient;
+	if (request.tile || request.prepared.isNull()) {
+		auto result = gradient.isNull()
+			? QImage(
+				request.area * cIntRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied)
+			: gradient.scaled(
+				request.area * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (!request.prepared.isNull()) {
+			QPainter p(&result);
+			if (!gradient.isNull()) {
+				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+				p.setOpacity(request.patternOpacity);
+			}
+			const auto &tiled = request.preparedForTiled;
+			const auto w = tiled.width() / cRetinaFactor();
+			const auto h = tiled.height() / cRetinaFactor();
+			auto sx = 0;
+			auto sy = 0;
+			const auto cx = qCeil(request.area.width() / w);
+			const auto cy = qCeil(request.area.height() / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawImage(QPointF(i * w, j * h), tiled);
+				}
+			}
+		}
+		return {
+			.image = std::move(result),
+			.gradient = gradient,
+			.area = request.area,
+		};
+	} else {
+		const auto rects = Window::Theme::ComputeBackgroundRects(
+			request.area,
+			request.prepared.size());
+		auto image = request.prepared.copy(rects.from).scaled(
+			rects.to.width() * cIntRetinaFactor(),
+			rects.to.height() * cIntRetinaFactor(),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		auto result = gradient.isNull()
+			? std::move(image)
+			: gradient.scaled(
+				image.size(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (!gradient.isNull()) {
+			QPainter p(&result);
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(request.patternOpacity);
+			p.drawImage(QRect(QPoint(), rects.to.size()), image);
+		}
+		image = QImage();
+		return {
+			.image = std::move(result),
+			.gradient = gradient,
+			.area = request.area,
+			.x = rects.to.x(),
+			.y = rects.to.y(),
+		};
+	}
+}
+
 } // namespace
 
 void ActivateWindow(not_null<SessionController*> controller) {
@@ -458,6 +535,32 @@ void SessionNavigation::showPollResults(
 		FullMsgId contextId,
 		const SectionShow &params) {
 	showSection(std::make_shared<Info::Memento>(poll, contextId), params);
+}
+
+bool operator==(
+		const CacheBackgroundRequest &a,
+		const CacheBackgroundRequest &b) {
+	return (a.prepared.cacheKey() == b.prepared.cacheKey())
+		&& (a.area == b.area)
+		&& (a.gradientRotation == b.gradientRotation)
+		&& (a.tile == b.tile)
+		&& (a.recreateGradient == b.recreateGradient)
+		&& (a.gradient.cacheKey() == b.gradient.cacheKey())
+		&& (a.gradientProgress == b.gradientProgress)
+		&& (a.patternOpacity == b.patternOpacity);
+}
+
+bool operator!=(
+		const CacheBackgroundRequest &a,
+		const CacheBackgroundRequest &b) {
+	return !(a == b);
+}
+
+CachedBackground::CachedBackground(CacheBackgroundResult &&result)
+: pixmap(Ui::PixmapFromImage(std::move(result.image)))
+, area(result.area)
+, x(result.x)
+, y(result.y) {
 }
 
 SessionController::SessionController(
@@ -1328,95 +1431,123 @@ const BackgroundState &SessionController::backgroundState(QSize area) {
 			_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
 		}
 	}
+	generateNextBackgroundRotation();
 	return _backgroundState;
 }
 
-void SessionController::cacheBackground() {
-	const auto background = Window::Theme::Background();
-	if (background->colorForFill()) {
+bool SessionController::readyForBackgroundRotation() const {
+	return !anim::Disabled()
+		&& !_backgroundFade.animating()
+		&& !_cacheBackgroundTimer.isActive()
+		&& !_backgroundState.now.pixmap.isNull();
+}
+
+void SessionController::generateNextBackgroundRotation() {
+	if (_backgroundCachingRequest
+		|| !_backgroundNext.image.isNull()
+		|| !readyForBackgroundRotation()) {
 		return;
 	}
+	const auto background = Window::Theme::Background();
+	if (background->paper().backgroundColors().size() < 3) {
+		return;
+	}
+	const auto request = currentCacheRequest(_backgroundState.now.area, 45);
+	if (!request) {
+		return;
+	}
+	cacheBackgroundAsync(request, [=](CacheBackgroundResult &&result) {
+		const auto forRequest = base::take(_backgroundCachingRequest);
+		if (!readyForBackgroundRotation()) {
+			return;
+		}
+		const auto request = currentCacheRequest(
+			_backgroundState.now.area,
+			45);
+		if (forRequest == request) {
+			_backgroundAddRotation = (_backgroundAddRotation + 45) % 360;
+			_backgroundNext = std::move(result);
+		}
+	});
+}
+
+auto SessionController::currentCacheRequest(QSize area, int addRotation) const
+-> CacheBackgroundRequest {
+	const auto background = Window::Theme::Background();
+	if (background->colorForFill()) {
+		return {};
+	}
+	const auto rotation = background->paper().gradientRotation();
+	const auto gradient = background->gradientForFill();
+	return {
+		.prepared = background->prepared(),
+		.preparedForTiled = background->preparedForTiled(),
+		.area = area,
+		.gradientRotation = (rotation
+			+ _backgroundAddRotation
+			+ addRotation) % 360,
+		.tile = background->tile(),
+		.recreateGradient = (addRotation != 0),
+		.gradient = gradient,
+		.gradientColors = (gradient.isNull()
+			? std::vector<QColor>()
+			: background->paper().backgroundColors()),
+		.gradientProgress = 1.,
+		.patternOpacity = background->paper().patternOpacity(),
+	};
+}
+
+void SessionController::cacheBackground() {
 	const auto now = crl::now();
 	if (now - _lastAreaChangeTime < kCacheBackgroundTimeout
 		&& QGuiApplication::mouseButtons() != 0) {
 		_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
 		return;
 	}
-	const auto gradient = background->gradientForFill();
-	const auto patternOpacity = background->paper().patternOpacity();
-	const auto &prepared = background->prepared();
-	if (background->tile() || prepared.isNull()) {
-		auto result = gradient.isNull()
-			? QImage(
-				_willCacheForArea * cIntRetinaFactor(),
-				QImage::Format_ARGB32_Premultiplied)
-			: gradient.scaled(
-				_willCacheForArea * cIntRetinaFactor(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		result.setDevicePixelRatio(cRetinaFactor());
-		if (!prepared.isNull()) {
-			QPainter p(&result);
-			if (!gradient.isNull()) {
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(patternOpacity);
-			}
-			const auto &tiled = background->preparedForTiled();
-			const auto w = tiled.width() / cRetinaFactor();
-			const auto h = tiled.height() / cRetinaFactor();
-			auto sx = 0;
-			auto sy = 0;
-			const auto cx = qCeil(_willCacheForArea.width() / w);
-			const auto cy = qCeil(_willCacheForArea.height() / h);
-			for (int i = sx; i < cx; ++i) {
-				for (int j = sy; j < cy; ++j) {
-					p.drawImage(QPointF(i * w, j * h), tiled);
-				}
-			}
+	cacheBackgroundNow();
+}
+
+void SessionController::cacheBackgroundNow() {
+	if (!_backgroundCachingRequest) {
+		if (const auto request = currentCacheRequest(_willCacheForArea)) {
+			cacheBackgroundAsync(request);
 		}
-		setCachedBackground({
-			.pixmap = Ui::PixmapFromImage(std::move(result)),
-			.area = _willCacheForArea,
-		});
-	} else {
-		const auto rects = Window::Theme::ComputeBackgroundRects(
-			_willCacheForArea,
-			prepared.size());
-		auto image = prepared.copy(rects.from).scaled(
-			rects.to.width() * cIntRetinaFactor(),
-			rects.to.height() * cIntRetinaFactor(),
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-		auto result = gradient.isNull()
-			? std::move(image)
-			: gradient.scaled(
-				image.size(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		result.setDevicePixelRatio(cRetinaFactor());
-		if (!gradient.isNull()) {
-			QPainter p(&result);
-			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-			p.setOpacity(patternOpacity);
-			p.drawImage(QRect(QPoint(), rects.to.size()), image);
-		}
-		image = QImage();
-		setCachedBackground({
-			.pixmap = Ui::PixmapFromImage(std::move(result)),
-			.area = _willCacheForArea,
-			.x = rects.to.x(),
-			.y = rects.to.y(),
-		});
 	}
 }
 
-void SessionController::setCachedBackground(CachedBackground &&cached) {
+void SessionController::cacheBackgroundAsync(
+		const CacheBackgroundRequest &request,
+		Fn<void(CacheBackgroundResult&&)> done) {
+	_backgroundCachingRequest = request;
+	const auto weak = base::make_weak(this);
+	crl::async([=] {
+		if (!weak) {
+			return;
+		}
+		crl::on_main(weak, [=, result = CacheBackground(request)]() mutable {
+			if (done) {
+				done(std::move(result));
+			} else if (const auto request = currentCacheRequest(
+					_willCacheForArea)) {
+				if (_backgroundCachingRequest != request) {
+					cacheBackgroundAsync(request);
+				} else {
+					_backgroundCachingRequest = {};
+					setCachedBackground(std::move(result));
+				}
+			}
+		});
+	});
+}
+
+void SessionController::setCachedBackground(CacheBackgroundResult &&cached) {
 	const auto background = Window::Theme::Background();
 	if (background->gradientForFill().isNull()
 		|| _backgroundState.now.pixmap.isNull()) {
 		_backgroundFade.stop();
 		_backgroundState.shown = 1.;
 		_backgroundState.now = std::move(cached);
+		_backgroundNext = {};
 		return;
 	}
 	// #TODO themes compose several transitions.
@@ -1439,6 +1570,8 @@ void SessionController::setCachedBackground(CachedBackground &&cached) {
 
 void SessionController::clearCachedBackground() {
 	_backgroundState = {};
+	_backgroundAddRotation = 0;
+	_backgroundNext = {};
 	_backgroundFade.stop();
 	_cacheBackgroundTimer.cancel();
 	_repaintBackgroundRequests.fire({});
@@ -1446,6 +1579,14 @@ void SessionController::clearCachedBackground() {
 
 rpl::producer<> SessionController::repaintBackgroundRequests() const {
 	return _repaintBackgroundRequests.events();
+}
+
+void SessionController::rotateComplexGradientBackground() {
+	if (!_backgroundFade.animating() && !_backgroundNext.image.isNull()) {
+		Window::Theme::Background()->recacheGradientForFill(
+			std::move(_backgroundNext.gradient));
+		setCachedBackground(base::take(_backgroundNext));
+	}
 }
 
 SessionController::~SessionController() {

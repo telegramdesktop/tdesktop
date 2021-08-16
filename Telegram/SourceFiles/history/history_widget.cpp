@@ -4929,6 +4929,9 @@ void HistoryWidget::startItemRevealAnimations() {
 							1.,
 							HistoryView::ListWidget::kItemRevealDuration,
 							anim::easeOutCirc);
+						if (item->out()) {
+							controller()->rotateComplexGradientBackground();
+						}
 					}
 				}
 			}

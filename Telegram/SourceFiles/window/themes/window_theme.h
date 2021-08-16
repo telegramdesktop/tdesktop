@@ -178,6 +178,7 @@ public:
 	}
 	[[nodiscard]] std::optional<QColor> colorForFill() const;
 	[[nodiscard]] QImage gradientForFill() const;
+	void recacheGradientForFill(QImage gradient);
 	[[nodiscard]] QImage createCurrentImage() const;
 	[[nodiscard]] bool tile() const;
 	[[nodiscard]] bool tileDay() const;

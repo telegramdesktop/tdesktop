@@ -875,6 +875,12 @@ QImage ChatBackground::gradientForFill() const {
 	return _gradient;
 }
 
+void ChatBackground::recacheGradientForFill(QImage gradient) {
+	if (_gradient.size() == gradient.size()) {
+		_gradient = std::move(gradient);
+	}
+}
+
 QImage ChatBackground::createCurrentImage() const {
 	if (const auto fill = colorForFill()) {
 		auto result = QImage(
