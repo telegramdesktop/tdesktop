@@ -234,11 +234,6 @@ bool ShowWallPaper(
 	const auto bg = params.value("bg_color");
 	const auto color = params.value("color");
 	const auto gradient = params.value("gradient");
-	if (gradient.contains('~') || bg.contains('~')) {
-		Ui::show(Box<InformBox>(
-			tr::lng_background_gradient_unsupported(tr::now)));
-		return false;
-	}
 	return BackgroundPreviewBox::Start(
 		controller,
 		(!color.isEmpty()

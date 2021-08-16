@@ -138,9 +138,9 @@ void SectionWidget::PaintBackground(
 				cache.pixmap);
 		}
 	};
-	const auto goodNow = !state.now.pixmap.isNull()
-		&& (state.now.area == fill);
-	const auto useCache = goodNow || !gradient.isNull();
+	const auto hasNow = !state.now.pixmap.isNull();
+	const auto goodNow = hasNow && (state.now.area == fill);
+	const auto useCache = goodNow || (hasNow && !gradient.isNull());
 	if (useCache) {
 		if (state.shown < 1. && !gradient.isNull()) {
 			paintCache(state.was);

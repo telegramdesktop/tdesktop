@@ -121,7 +121,7 @@ constexpr auto kVersion = 1;
 }
 
 [[nodiscard]] std::vector<QColor> ColorsFromString(const QString &string) {
-	constexpr auto kMaxColors = 2; // #TODO themes gradients replace to 4
+	constexpr auto kMaxColors = 4;
 	const auto view = QStringView(string);
 	const auto count = int(view.size() / 6);
 	if (!count || count > kMaxColors || view.size() != count * 7 - 1) {
@@ -247,7 +247,8 @@ float64 WallPaper::patternOpacity() const {
 }
 
 int WallPaper::gradientRotation() const {
-	return _rotation;
+	// In case of complex gradients rotation value is dynamic.
+	return (_backgroundColors.size() < 3) ? _rotation : 0;
 }
 
 bool WallPaper::hasShareUrl() const {
@@ -442,14 +443,6 @@ std::optional<WallPaper> WallPaper::Create(
 	if (!document->checkWallPaperProperties()) {
 		return std::nullopt;
 	}
-	const auto unsupported = data.vsettings()
-		&& data.vsettings()->match([&](const MTPDwallPaperSettings &data) {
-			return data.vthird_background_color()
-				|| data.vfourth_background_color(); // #TODO themes gradients
-		});
-	if (unsupported) {
-		return std::nullopt;
-	}
 	auto result = WallPaper(data.vid().v);
 	result._accessHash = data.vaccess_hash().v;
 	result._ownerId = session->userId();
@@ -480,14 +473,6 @@ std::optional<WallPaper> WallPaper::Create(
 }
 
 std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
-	const auto unsupported = data.vsettings()
-		&& data.vsettings()->match([&](const MTPDwallPaperSettings &data) {
-			return data.vthird_background_color()
-				|| data.vfourth_background_color(); // #TODO themes gradients
-		});
-	if (unsupported) {
-		return std::nullopt;
-	}
 	auto result = WallPaper(data.vid().v);
 	result._flags = (data.is_dark() ? WallPaperFlag::Dark : WallPaperFlag(0))
 		| (data.is_default() ? WallPaperFlag::Default : WallPaperFlag(0));
@@ -581,8 +566,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 			>> slug
 			>> blurred
 			>> backgroundColorsCount;
-		// #TODO themes gradients replace with 4
-		if (backgroundColorsCount < 0 || backgroundColorsCount > 2) {
+		if (backgroundColorsCount < 0 || backgroundColorsCount > 4) {
 			return std::nullopt;
 		}
 		backgroundColors.reserve(backgroundColorsCount);
@@ -729,59 +713,17 @@ bool IsCloudWallPaper(const WallPaper &paper) {
 		&& !details::IsTestingEditorWallPaper(paper);
 }
 
-[[nodiscard]] QImage FillDitheredGradient(
-		QImage image,
-		const std::vector<QColor> &colors,
-		int rotation) {
-	Expects(colors.size() > 1);
-
-	image.setDevicePixelRatio(1.);
-	const auto width = image.width();
-	const auto height = image.height();
-	if (!width || !height) {
-		return image;
-	}
-
-	auto p = QPainter(&image);
-	const auto [start, finalStop] = [&]() -> std::pair<QPoint, QPoint> {
-		const auto type = std::clamp(rotation, 0, 315) / 45;
-		switch (type) {
-		case 0: return { { 0, 0 }, { 0, height } };
-		case 1: return { { width, 0 }, { 0, height } };
-		case 2: return { { width, 0 }, { 0, 0 } };
-		case 3: return { { width, height }, { 0, 0 } };
-		case 4: return { { 0, height }, { 0, 0 } };
-		case 5: return { { 0, height }, { width, 0 } };
-		case 6: return { { 0, 0 }, { width, 0 } };
-		case 7: return { { 0, 0 }, { width, height } };
-		}
-		Unexpected("Rotation value in GenerateDitheredGradient.");
-	}();
-	auto gradient = QLinearGradient(start, finalStop);
-	gradient.setStops(QGradientStops{
-		{ 0.0, colors[0] },
-		{ 1.0, colors[1] }
-	});
-	p.fillRect(0, 0, width, height, QBrush(std::move(gradient)));
-	p.end();
-
-	return Images::DitherImage(std::move(image));
-}
-
 QImage GenerateWallPaper(
 		QSize size,
 		const std::vector<QColor> &bg,
 		int gradientRotation,
 		float64 patternOpacity,
 		Fn<void(QPainter&)> drawPattern) {
-	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
-	if (bg.size() < 2) {
-		result.fill(bg.empty() ? DefaultBackgroundColor() : bg.front());
-	} else {
-		result = FillDitheredGradient(
-			std::move(result),
-			bg,
-			gradientRotation);
+	auto result = bg.empty()
+		? Images::GenerateGradient(size, { DefaultBackgroundColor() })
+		: Images::GenerateGradient(size, bg, gradientRotation);
+	if (bg.size() > 1) {
+		result = Images::DitherImage(std::move(result));
 	}
 	if (drawPattern) {
 		auto p = QPainter(&result);
@@ -829,10 +771,15 @@ QImage GenerateDitheredGradient(
 		const std::vector<QColor> &colors,
 		int rotation) {
 	constexpr auto kSize = 512;
-	return FillDitheredGradient(
-		QImage(kSize, kSize, QImage::Format_ARGB32_Premultiplied),
-		colors,
-		rotation);
+	const auto size = QSize(kSize, kSize);
+	if (colors.empty()) {
+		return Images::GenerateGradient(size, { DefaultBackgroundColor() });
+	}
+	auto result = Images::GenerateGradient(size, colors, rotation);
+	if (colors.size() > 1) {
+		result = Images::DitherImage(std::move(result));
+	}
+	return result;
 }
 
 QImage GenerateDitheredGradient(const Data::WallPaper &paper) {
