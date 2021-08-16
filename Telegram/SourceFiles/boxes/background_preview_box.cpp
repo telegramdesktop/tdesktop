@@ -379,15 +379,16 @@ QImage ColorizePattern(QImage image, QColor color) {
 
 QImage PrepareScaledFromFull(
 		const QImage &image,
-		const std::vector<QColor> &patternBackground,
+		bool isPattern,
+		const std::vector<QColor> &background,
 		int gradientRotation,
 		float64 patternOpacity,
 		Images::Option blur = Images::Option(0)) {
 	auto result = PrepareScaledNonPattern(image, blur);
-	if (!patternBackground.empty()) {
+	if (isPattern) {
 		result = Data::PreparePatternImage(
 			std::move(result),
-			patternBackground,
+			background,
 			gradientRotation,
 			patternOpacity);
 	}
@@ -686,7 +687,8 @@ void BackgroundPreviewBox::setScaledFromThumb() {
 	}
 	auto scaled = PrepareScaledFromFull(
 		thumbnail->original(),
-		patternBackgroundColors(),
+		_paper.isPattern(),
+		_paper.backgroundColors(),
 		_paper.gradientRotation(),
 		_paper.patternOpacity(),
 		_paper.document() ? Images::Option::Blurred : Images::Option(0));
@@ -744,12 +746,6 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 		QColor(red / count, green / count, blue / count));
 }
 
-std::vector<QColor> BackgroundPreviewBox::patternBackgroundColors() const {
-	return _paper.isPattern()
-		? _paper.backgroundColors()
-		: std::vector<QColor>();
-}
-
 void BackgroundPreviewBox::checkLoadedDocument() {
 	const auto document = _paper.document();
 	if (!_full.isNull()
@@ -765,17 +761,19 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		crl::async([
 			this,
 			image = std::move(image),
-			patternBackground = patternBackgroundColors(),
+			isPattern = _paper.isPattern(),
+			background = _paper.backgroundColors(),
 			gradientRotation = _paper.gradientRotation(),
 			patternOpacity = _paper.patternOpacity(),
 			guard = _generating.make_guard()
 		]() mutable {
 			auto scaled = PrepareScaledFromFull(
 				image,
-				patternBackground,
+				isPattern,
+				background,
 				gradientRotation,
 				patternOpacity);
-			auto blurred = patternBackground.empty()
+			auto blurred = !isPattern
 				? PrepareScaledNonPattern(
 					Data::PrepareBlurredBackground(image),
 					Images::Option(0))

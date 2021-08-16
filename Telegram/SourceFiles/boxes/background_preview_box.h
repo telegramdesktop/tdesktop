@@ -61,7 +61,6 @@ private:
 	void setScaledFromThumb();
 	void setScaledFromImage(QImage &&image, QImage &&blurred);
 	void updateServiceBg(const std::vector<QColor> &bg);
-	std::vector<QColor> patternBackgroundColors() const;
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p);
 	void paintTexts(Painter &p, crl::time ms);

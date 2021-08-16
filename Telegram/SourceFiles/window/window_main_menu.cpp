@@ -994,7 +994,7 @@ void MainMenu::refreshBackground() {
 		fill,
 		prepared.size());
 
-	auto backgroundImage = !paper.backgroundColors().empty()
+	auto backgroundImage = paper.isPattern()
 		? Data::GenerateWallPaper(
 			fill * cIntRetinaFactor(),
 			paper.backgroundColors(),

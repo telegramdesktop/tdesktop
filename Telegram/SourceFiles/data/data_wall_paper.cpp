@@ -466,9 +466,6 @@ std::optional<WallPaper> WallPaper::Create(
 			}
 		});
 	}
-	if (result.isPattern() && result.backgroundColors().empty()) {
-		result._backgroundColors.push_back(DefaultBackgroundColor());
-	}
 	return result;
 }
 
@@ -486,9 +483,6 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 				result._rotation = rotation->v;
 			}
 		});
-	}
-	if (result.backgroundColors().empty()) {
-		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -622,9 +616,6 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	result._backgroundColors = std::move(backgroundColors);
 	result._intensity = intensity;
 	result._rotation = rotation;
-	if (result.isPattern() && result.backgroundColors().empty()) {
-		result._backgroundColors.push_back(DefaultBackgroundColor());
-	}
 	return result;
 }
 
@@ -639,9 +630,6 @@ std::optional<WallPaper> WallPaper::FromLegacySerialized(
 	result._slug = slug;
 	if (const auto color = ColorFromString(slug)) {
 		result._backgroundColors.push_back(*color);
-	}
-	if (result.isPattern() && result.backgroundColors().empty()) {
-		result._backgroundColors.push_back(DefaultBackgroundColor());
 	}
 	return result;
 }
@@ -783,6 +771,9 @@ QImage GenerateDitheredGradient(
 }
 
 QImage GenerateDitheredGradient(const Data::WallPaper &paper) {
+	if (paper.backgroundColors().empty()) {
+		return GenerateDitheredGradient({ DefaultBackgroundColor() }, 0);
+	}
 	return GenerateDitheredGradient(
 		paper.backgroundColors(),
 		paper.gradientRotation());
