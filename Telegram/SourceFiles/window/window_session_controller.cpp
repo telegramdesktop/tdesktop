@@ -1425,7 +1425,9 @@ void SessionController::openDocument(
 const BackgroundState &SessionController::backgroundState(QSize area) {
 	_backgroundState.shown = _backgroundFade.value(1.);
 	if (_backgroundState.now.area != area) {
-		if (_willCacheForArea != area || !_cacheBackgroundTimer.isActive()) {
+		if (_willCacheForArea != area
+			|| (!_cacheBackgroundTimer.isActive()
+				&& !_backgroundCachingRequest)) {
 			_willCacheForArea = area;
 			_lastAreaChangeTime = crl::now();
 			_cacheBackgroundTimer.callOnce(kCacheBackgroundFastTimeout);
@@ -1452,7 +1454,10 @@ void SessionController::generateNextBackgroundRotation() {
 	if (background->paper().backgroundColors().size() < 3) {
 		return;
 	}
-	const auto request = currentCacheRequest(_backgroundState.now.area, 45);
+	constexpr auto kAddRotation = 315;
+	const auto request = currentCacheRequest(
+		_backgroundState.now.area,
+		kAddRotation);
 	if (!request) {
 		return;
 	}
@@ -1463,9 +1468,10 @@ void SessionController::generateNextBackgroundRotation() {
 		}
 		const auto request = currentCacheRequest(
 			_backgroundState.now.area,
-			45);
+			kAddRotation);
 		if (forRequest == request) {
-			_backgroundAddRotation = (_backgroundAddRotation + 45) % 360;
+			_backgroundAddRotation
+				= (_backgroundAddRotation + kAddRotation) % 360;
 			_backgroundNext = std::move(result);
 		}
 	});
@@ -1541,13 +1547,14 @@ void SessionController::cacheBackgroundAsync(
 }
 
 void SessionController::setCachedBackground(CacheBackgroundResult &&cached) {
+	_backgroundNext = {};
+
 	const auto background = Window::Theme::Background();
 	if (background->gradientForFill().isNull()
 		|| _backgroundState.now.pixmap.isNull()) {
 		_backgroundFade.stop();
 		_backgroundState.shown = 1.;
 		_backgroundState.now = std::move(cached);
-		_backgroundNext = {};
 		return;
 	}
 	// #TODO themes compose several transitions.
