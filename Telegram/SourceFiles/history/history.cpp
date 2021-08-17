@@ -1631,7 +1631,16 @@ void History::setUnreadCount(int newUnreadCount) {
 	const auto notifier = unreadStateChangeNotifier(true);
 	_unreadCount = newUnreadCount;
 
-	if (newUnreadCount == 1) {
+	const auto lastOutgoing = [&] {
+		const auto last = lastMessage();
+		return last
+			&& IsServerMsgId(last->id)
+			&& loadedAtBottom()
+			&& !isEmpty()
+			&& blocks.back()->messages.back()->data() == last
+			&& last->out();
+	}();
+	if (newUnreadCount == 1 && !lastOutgoing) {
 		if (loadedAtBottom()) {
 			_firstUnreadView = !isEmpty()
 				? blocks.back()->messages.back().get()
