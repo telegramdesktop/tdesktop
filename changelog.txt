@@ -1,3 +1,7 @@
+2.9.4 beta (17.08.21)
+
+- Choose one from dozens of new gorgeous animated backgrounds in Chat Settings > Chat background.
+
 2.9.3 (11.08.21)
 
 - Fix requesting screencast rights on macOS (again).

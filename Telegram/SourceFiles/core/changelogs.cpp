@@ -88,6 +88,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix Direct3D acceleration on basic Windows 7 setup.\n"
 	},
+	{
+		2009004,
+		"- Choose one from dozens of new gorgeous animated backgrounds in Chat Settings > Chat background."
+	},
 	};
 };
 

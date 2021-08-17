@@ -1,7 +1,7 @@
-AppVersion         2009003
+AppVersion         2009004
 AppVersionStrMajor 2.9
-AppVersionStrSmall 2.9.3
-AppVersionStr      2.9.3
-BetaChannel        0
+AppVersionStrSmall 2.9.4
+AppVersionStr      2.9.4
+BetaChannel        1
 AlphaVersion       0
-AppVersionOriginal 2.9.3
+AppVersionOriginal 2.9.4.beta
