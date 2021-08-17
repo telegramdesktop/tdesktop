@@ -2086,7 +2086,7 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::show(Box<InformBox>(tr::lng_signin_password_removed(tr::now)));
+		Ui::show(Box<InformBox>(tr::lng_cloud_password_updated(tr::now)));
 	}
 	if (isOneColumn()) {
 		_sideShadow->hide();

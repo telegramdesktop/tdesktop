@@ -210,7 +210,8 @@ protected:
 private:
 	void submit();
 	void codeChanged();
-	void checkSubmitDone(const QString &code, const MTPBool &result);
+	void proceedToClear();
+	void proceedToChange(const QString &code);
 	void checkSubmitFail(const MTP::Error &error);
 	void setError(const QString &error);
 

@@ -877,8 +877,12 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 			MTP_string(_cloudFields.fromRecoveryCode),
 			settings
 		)).done([=](const MTPauth_Authorization &result) {
-
+			recoverPasswordDone(newPasswordBytes, result);
 		}).fail([=](const MTP::Error &error) {
+			if (MTP::IsFloodError(error)) {
+				_newError = tr::lng_flood_error(tr::now);
+				update();
+			}
 			setPasswordFail(newPasswordBytes, email, error);
 		}).handleFloodErrors().send();
 	}
@@ -1239,13 +1243,27 @@ void RecoverBox::submit() {
 	}
 
 	const auto send = crl::guard(this, [=] {
-		_submitRequest = _api.request(MTPauth_CheckRecoveryPassword(
-			MTP_string(code)
-		)).done([=](const MTPBool &result) {
-			checkSubmitDone(code, result);
-		}).fail([=](const MTP::Error &error) {
-			checkSubmitFail(error);
-		}).handleFloodErrors().send();
+		if (_cloudFields.turningOff) {
+			// From "Disable cloud password".
+			_submitRequest = _api.request(MTPauth_RecoverPassword(
+				MTP_flags(0),
+				MTP_string(code),
+				MTPaccount_PasswordInputSettings()
+			)).done([=](const MTPauth_Authorization &result) {
+				proceedToClear();
+			}).fail([=](const MTP::Error &error) {
+				checkSubmitFail(error);
+			}).handleFloodErrors().send();
+		} else {
+			// From "Change cloud password".
+			_submitRequest = _api.request(MTPauth_CheckRecoveryPassword(
+				MTP_string(code)
+			)).done([=](const MTPBool &result) {
+				proceedToChange(code);
+			}).fail([=](const MTP::Error &error) {
+				checkSubmitFail(error);
+			}).handleFloodErrors().send();
+		}
 	});
 	if (_cloudFields.notEmptyPassport) {
 		const auto confirmed = [=](Fn<void()> &&close) {
@@ -1273,7 +1291,16 @@ void RecoverBox::codeChanged() {
 	setError(QString());
 }
 
-void RecoverBox::checkSubmitDone(const QString &code, const MTPBool &result) {
+void RecoverBox::proceedToClear() {
+	_submitRequest = 0;
+	_newPasswordSet.fire({});
+	getDelegate()->show(
+		Box<InformBox>(tr::lng_cloud_password_removed(tr::now)),
+		Ui::LayerOption::CloseOther);
+}
+
+void RecoverBox::proceedToChange(const QString &code) {
+	Expects(!_cloudFields.turningOff);
 	_submitRequest = 0;
 
 	auto fields = _cloudFields;
@@ -1281,7 +1308,6 @@ void RecoverBox::checkSubmitDone(const QString &code, const MTPBool &result) {
 	fields.hasRecovery = false;
 	// we could've been turning off, no need to force new password then
 	// like if (_cloudFields.turningOff) { just RecoverPassword else Check }
-	fields.turningOff = ???
 	fields.curRequest = {};
 	auto box = Box<PasscodeBox>(_session, fields);
 
