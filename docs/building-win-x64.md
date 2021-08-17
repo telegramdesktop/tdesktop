@@ -203,10 +203,8 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd qtbase
     for /r %i in (..\..\patches\qtbase_5_15_2\*) do git apply %i
     cd ..
-    mkdir build
-    cd build
 
-    ..\configure ^
+    configure ^
         -prefix "%LibrariesPath%\Qt-5.15.2" ^
         -debug-and-release ^
         -force-debug-info ^
