@@ -331,52 +331,6 @@ QImage PrepareScaledNonPattern(
 		size);
 }
 
-QImage ColorizePattern(QImage image, QColor color) {
-	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
-		image = std::move(image).convertToFormat(
-			QImage::Format_ARGB32_Premultiplied);
-	}
-	// Similar to style::colorizeImage.
-	// But style::colorizeImage takes pattern with all pixels having the
-	// same components value, from (0, 0, 0, 0) to (255, 255, 255, 255).
-	//
-	// While in patterns we have different value ranges, usually they are
-	// from (0, 0, 0, 0) to (0, 0, 0, 255), so we should use only 'alpha'.
-
-	const auto width = image.width();
-	const auto height = image.height();
-	const auto pattern = anim::shifted(color);
-
-	constexpr auto resultIntsPerPixel = 1;
-	const auto resultIntsPerLine = (image.bytesPerLine() >> 2);
-	const auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
-	auto resultInts = reinterpret_cast<uint32*>(image.bits());
-	Assert(resultIntsAdded >= 0);
-	Assert(image.depth() == static_cast<int>((resultIntsPerPixel * sizeof(uint32)) << 3));
-	Assert(image.bytesPerLine() == (resultIntsPerLine << 2));
-
-	const auto maskBytesPerPixel = (image.depth() >> 3);
-	const auto maskBytesPerLine = image.bytesPerLine();
-	const auto maskBytesAdded = maskBytesPerLine - width * maskBytesPerPixel;
-
-	// We want to read the last byte of four available.
-	// This is the difference with style::colorizeImage.
-	auto maskBytes = image.constBits() + (maskBytesPerPixel - 1);
-	Assert(maskBytesAdded >= 0);
-	Assert(image.depth() == (maskBytesPerPixel << 3));
-	for (auto y = 0; y != height; ++y) {
-		for (auto x = 0; x != width; ++x) {
-			auto maskOpacity = static_cast<anim::ShiftedMultiplier>(*maskBytes) + 1;
-			*resultInts = anim::unshifted(pattern * maskOpacity);
-			maskBytes += maskBytesPerPixel;
-			resultInts += resultIntsPerPixel;
-		}
-		maskBytes += maskBytesAdded;
-		resultInts += resultIntsAdded;
-	}
-	return image;
-}
-
 QImage PrepareScaledFromFull(
 		const QImage &image,
 		bool isPattern,
