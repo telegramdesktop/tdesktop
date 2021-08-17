@@ -553,7 +553,10 @@ void BackgroundRow::radialAnimationCallback(crl::time now) {
 void BackgroundRow::updateImage() {
 	const auto size = st::settingsBackgroundThumb;
 	const auto fullsize = size * cIntRetinaFactor();
-	QImage back(fullsize, fullsize, QImage::Format_ARGB32_Premultiplied);
+
+	// We use Format_RGB32 so that DestinationIn shows black, not transparent.
+	// Then we'll convert to Format_ARGB32_Premultiplied for round corners.
+	auto back = QImage(fullsize, fullsize, QImage::Format_RGB32);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&back);
@@ -568,8 +571,13 @@ void BackgroundRow::updateImage() {
 			if (!gradient.isNull()) {
 				auto hq = PainterHighQualityEnabler(p);
 				p.drawImage(QRect(0, 0, size, size), gradient);
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(patternOpacity);
+				if (patternOpacity >= 0.) {
+					p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+					p.setOpacity(patternOpacity);
+				} else {
+					p.setCompositionMode(
+						QPainter::CompositionMode_DestinationIn);
+				}
 			}
 			const auto &prepared = background->prepared();
 			if (!prepared.isNull()) {
@@ -587,8 +595,18 @@ void BackgroundRow::updateImage() {
 					prepared,
 					QRect(sx, sy, s, s));
 			}
+			if (!gradient.isNull()
+				&& !prepared.isNull()
+				&& patternOpacity < 0.
+				&& patternOpacity > -1.) {
+				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+				p.setOpacity(patternOpacity);
+				p.fillRect(QRect(0, 0, size, size), Qt::black);
+			}
 		}
 	}
+	back = std::move(back).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = Ui::PixmapFromImage(std::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());

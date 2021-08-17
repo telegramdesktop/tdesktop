@@ -369,7 +369,7 @@ WallPaper WallPaper::withUrlParams(
 	if (const auto string = params.value("intensity"); !string.isEmpty()) {
 		auto ok = false;
 		const auto intensity = string.toInt(&ok);
-		if (ok && base::in_range(intensity, 0, 101)) {
+		if (ok && base::in_range(intensity, -100, 101)) {
 			result._intensity = intensity;
 		}
 	}
@@ -604,7 +604,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	}
 	if (stream.status() != QDataStream::Ok) {
 		return std::nullopt;
-	} else if (intensity < 0 || intensity > 100) {
+	} else if (intensity < -100 || intensity > 100) {
 		return std::nullopt;
 	}
 	auto result = WallPaper(id);
@@ -710,18 +710,27 @@ QImage GenerateWallPaper(
 	auto result = bg.empty()
 		? Images::GenerateGradient(size, { DefaultBackgroundColor() })
 		: Images::GenerateGradient(size, bg, gradientRotation);
-	if (bg.size() > 1) {
+	if (bg.size() > 1 && (!drawPattern || patternOpacity >= 0.)) {
 		result = Images::DitherImage(std::move(result));
 	}
 	if (drawPattern) {
 		auto p = QPainter(&result);
-		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-		p.setOpacity(patternOpacity);
+		if (patternOpacity >= 0.) {
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
+		} else {
+			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		}
 		drawPattern(p);
-		p.end();
+		if (patternOpacity < 0. && patternOpacity > -1.) {
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			p.setOpacity(1. + patternOpacity);
+			p.fillRect(QRect{ QPoint(), size }, Qt::black);
+		}
 	}
 
-	return result;
+	return std::move(result).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
 }
 
 QImage PreparePatternImage(

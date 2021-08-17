@@ -140,7 +140,7 @@ void SectionWidget::PaintBackground(
 	};
 	const auto hasNow = !state.now.pixmap.isNull();
 	const auto goodNow = hasNow && (state.now.area == fill);
-	const auto useCache = goodNow || (hasNow && !gradient.isNull());
+	const auto useCache = goodNow || !gradient.isNull();
 	if (useCache) {
 		if (state.shown < 1. && !gradient.isNull()) {
 			paintCache(state.was);
@@ -156,21 +156,10 @@ void SectionWidget::PaintBackground(
 		const auto rects = Window::Theme::ComputeBackgroundRects(
 			fill,
 			prepared.size());
-		if (!gradient.isNull()) {
-			p.drawImage(rects.to, gradient);
-			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-			p.setOpacity(patternOpacity);
-		}
 		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
 		p.drawImage(to, prepared, rects.from);
 		return;
-	}
-	if (!gradient.isNull()) {
-		const auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(QRect(QPoint(0, fromy), fill), gradient);
-		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-		p.setOpacity(patternOpacity);
 	}
 	if (!prepared.isNull()) {
 		const auto &tiled = background->preparedForTiled();

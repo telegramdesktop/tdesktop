@@ -73,8 +73,9 @@ std::optional<QColor> CalculateImageMonoColor(const QImage &image) {
 }
 
 [[nodiscard]] bool GoodImageFormatAndSize(const QImage &image) {
-	return (image.format() == QImage::Format_ARGB32_Premultiplied)
-		&& !image.size().isEmpty();
+	return !image.size().isEmpty()
+		&& (image.format() == QImage::Format_ARGB32_Premultiplied
+			|| image.format() == QImage::Format_RGB32);
 }
 
 QByteArray readThemeContent(const QString &path) {
@@ -901,9 +902,19 @@ QImage ChatBackground::createCurrentImage() const {
 	result.setDevicePixelRatio(1.);
 	{
 		auto p = QPainter(&result);
-		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-		p.setOpacity(paper().patternOpacity());
+		const auto patternOpacity = paper().patternOpacity();
+		if (patternOpacity >= 0.) {
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
+		} else {
+			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		}
 		p.drawImage(QRect(QPoint(), _prepared.size()), _prepared);
+		if (patternOpacity < 0. && patternOpacity > -1.) {
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			p.setOpacity(1. + patternOpacity);
+			p.fillRect(QRect(QPoint(), _prepared.size()), Qt::black);
+		}
 	}
 	return result;
 }
@@ -1439,7 +1450,8 @@ QString EditingPalettePath() {
 }
 
 QColor CountAverageColor(const QImage &image) {
-	Expects(image.format() == QImage::Format_ARGB32_Premultiplied);
+	Expects(image.format() == QImage::Format_ARGB32_Premultiplied
+		|| image.format() == QImage::Format_RGB32);
 
 	uint64 components[3] = { 0 };
 	const auto w = image.width();

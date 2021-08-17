@@ -279,7 +279,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 	});
 }
 
-AdminLog::OwnedItem GenerateTextItem(
+[[nodiscard]] AdminLog::OwnedItem GenerateTextItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const QString &text,
@@ -308,7 +308,7 @@ AdminLog::OwnedItem GenerateTextItem(
 	return AdminLog::OwnedItem(delegate, item);
 }
 
-QImage PrepareScaledNonPattern(
+[[nodiscard]] QImage PrepareScaledNonPattern(
 		const QImage &image,
 		Images::Option blur) {
 	const auto size = st::boxWideWidth;
@@ -331,7 +331,7 @@ QImage PrepareScaledNonPattern(
 		size);
 }
 
-QImage PrepareScaledFromFull(
+[[nodiscard]] QImage PrepareScaledFromFull(
 		const QImage &image,
 		bool isPattern,
 		const std::vector<QColor> &background,
@@ -348,6 +348,12 @@ QImage PrepareScaledFromFull(
 	}
 	return std::move(result).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
+}
+
+[[nodiscard]] QImage BlackImage(QSize size) {
+	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::black);
+	return result;
 }
 
 } // namespace
@@ -385,10 +391,14 @@ void BackgroundPreviewBox::generateBackground() {
 	if (_paper.backgroundColors().empty()) {
 		return;
 	}
-	_generated = Ui::PixmapFromImage(Data::GenerateWallPaper(
-		QSize(st::boxWideWidth, st::boxWideWidth) * cIntRetinaFactor(),
-		_paper.backgroundColors(),
-		_paper.gradientRotation()));
+	const auto size = QSize(st::boxWideWidth, st::boxWideWidth)
+		* cIntRetinaFactor();
+	_generated = Ui::PixmapFromImage((_paper.patternOpacity() >= 0.)
+		? Data::GenerateWallPaper(
+			size,
+			_paper.backgroundColors(),
+			_paper.gradientRotation())
+		: BlackImage(size));
 	_generated.setDevicePixelRatio(cRetinaFactor());
 }
 

@@ -97,8 +97,13 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 		if (!request.prepared.isNull()) {
 			QPainter p(&result);
 			if (!gradient.isNull()) {
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(request.patternOpacity);
+				if (request.patternOpacity >= 0.) {
+					p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+					p.setOpacity(request.patternOpacity);
+				} else {
+					p.setCompositionMode(
+						QPainter::CompositionMode_DestinationIn);
+				}
 			}
 			const auto &tiled = request.preparedForTiled;
 			const auto w = tiled.width() / cRetinaFactor();
@@ -112,9 +117,17 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 					p.drawImage(QPointF(i * w, j * h), tiled);
 				}
 			}
+			if (!gradient.isNull()
+				&& request.patternOpacity < 0.
+				&& request.patternOpacity > -1.) {
+				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+				p.setOpacity(1. + request.patternOpacity);
+				p.fillRect(QRect(QPoint(), request.area), Qt::black);
+			}
 		}
 		return {
-			.image = std::move(result),
+			.image = std::move(result).convertToFormat(
+				QImage::Format_ARGB32_Premultiplied),
 			.gradient = gradient,
 			.area = request.area,
 		};
@@ -136,13 +149,23 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 		result.setDevicePixelRatio(cRetinaFactor());
 		if (!gradient.isNull()) {
 			QPainter p(&result);
-			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-			p.setOpacity(request.patternOpacity);
+			if (request.patternOpacity >= 0.) {
+				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+				p.setOpacity(request.patternOpacity);
+			} else {
+				p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+			}
 			p.drawImage(QRect(QPoint(), rects.to.size()), image);
+			if (request.patternOpacity < 0. && request.patternOpacity > -1.) {
+				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+				p.setOpacity(1. + request.patternOpacity);
+				p.fillRect(QRect(QPoint(), rects.to.size()), Qt::black);
+			}
 		}
 		image = QImage();
 		return {
-			.image = std::move(result),
+			.image = std::move(result).convertToFormat(
+				QImage::Format_ARGB32_Premultiplied),
 			.gradient = gradient,
 			.area = request.area,
 			.x = rects.to.x(),
@@ -1424,7 +1447,13 @@ void SessionController::openDocument(
 
 const BackgroundState &SessionController::backgroundState(QSize area) {
 	_backgroundState.shown = _backgroundFade.value(1.);
-	if (_backgroundState.now.area != area) {
+	if (_backgroundState.now.pixmap.isNull()
+		&& !Window::Theme::Background()->gradientForFill().isNull()) {
+		// We don't support direct painting of patterned gradients.
+		// So we need to sync-generate cache image here.
+		setCachedBackground(CacheBackground(currentCacheRequest(area)));
+		_cacheBackgroundTimer.cancel();
+	} else if (_backgroundState.now.area != area) {
 		if (_willCacheForArea != area
 			|| (!_cacheBackgroundTimer.isActive()
 				&& !_backgroundCachingRequest)) {
