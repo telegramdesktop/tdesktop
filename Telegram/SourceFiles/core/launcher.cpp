@@ -424,13 +424,22 @@ void Launcher::initQtMessageLogging() {
 			QtMsgType type,
 			const QMessageLogContext &context,
 			const QString &msg) {
+		const auto InvokeOriginal = [&] {
+#ifndef _DEBUG
+			if (Logs::DebugEnabled()) {
+				return;
+			}
+#endif // _DEBUG
+			if (OriginalMessageHandler) {
+				OriginalMessageHandler(type, context, msg);
+			}
+		};
+		InvokeOriginal();
 		if (Logs::DebugEnabled() || !Logs::started()) {
 			if (!Logs::WritingEntry()) {
 				// Sometimes Qt logs something inside our own logging.
 				LOG((msg));
 			}
-		} else if (OriginalMessageHandler) {
-			OriginalMessageHandler(type, context, msg);
 		}
 	});
 }
