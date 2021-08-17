@@ -437,12 +437,14 @@ void PasscodeBox::recoverPasswordDone(
 	_setRequest = 0;
 	const auto weak = Ui::MakeWeak(this);
 	_newAuthorization.fire_copy(result);
-	_newPasswordSet.fire_copy(newPasswordBytes);
 	if (weak) {
-		getDelegate()->show(Box<InformBox>(
-			tr::lng_cloud_password_updated(tr::now)));
+		_newPasswordSet.fire_copy(newPasswordBytes);
 		if (weak) {
-			closeBox();
+			getDelegate()->show(Box<InformBox>(
+				tr::lng_cloud_password_updated(tr::now)));
+			if (weak) {
+				closeBox();
+			}
 		}
 	}
 }
