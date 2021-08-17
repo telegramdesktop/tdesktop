@@ -1444,6 +1444,9 @@ void ListWidget::startItemRevealAnimations() {
 					1.,
 					kItemRevealDuration,
 					anim::easeOutCirc);
+				if (view->data()->out()) {
+					controller()->rotateComplexGradientBackground();
+				}
 			}
 		}
 	}
