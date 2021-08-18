@@ -112,6 +112,11 @@ ConfirmInviteBox::ConfirmInviteBox(
 			? tr::lng_channel_invite_private(tr::now)
 			: (!_participants.empty() && _participants.size() < count)
 			? tr::lng_group_invite_members(tr::now, lt_count, count)
+			: (count > 0 && _isChannel)
+			? tr::lng_chat_status_subscribers(
+				tr::now,
+				lt_count_decimal,
+				count)
 			: (count > 0)
 			? tr::lng_chat_status_members(tr::now, lt_count_decimal, count)
 			: _isChannel
