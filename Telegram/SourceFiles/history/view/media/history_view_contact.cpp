@@ -177,7 +177,8 @@ void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 	const auto nametop = st.nameTop - topMinus;
 	const auto nameright = st.padding.left();
 	const auto statustop = st.statusTop - topMinus;
-	const auto linktop = st.linkTop - topMinus;
+	const auto linkshift = st::msgDateFont->height / 2;
+	const auto linktop = st.linkTop - topMinus - linkshift;
 	if (_userId) {
 		QRect rthumb(style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, paintw));
 		if (_contact) {
@@ -222,7 +223,8 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 		const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
 		const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 		const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
-		const auto linktop = st.linkTop - topMinus;
+		const auto linkshift = st::msgDateFont->height / 2;
+		const auto linktop = st.linkTop - topMinus - linkshift;
 		if (style::rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, width()).contains(point)) {
 			result.link = _linkl;
 			return result;
