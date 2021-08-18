@@ -602,9 +602,11 @@ HistoryMessage::HistoryMessage(
 	if (const auto fwdViaBot = original->viaBot()) {
 		config.viaBotId = peerToUser(fwdViaBot->id);
 	} else if (originalMedia && originalMedia->game()) {
-		if (const auto user = original->history()->peer->asUser()) {
-			if (user->isBot()) {
-				config.viaBotId = peerToUser(user->id);
+		if (const auto sender = original->senderOriginal()) {
+			if (const auto user = sender->asUser()) {
+				if (user->isBot()) {
+					config.viaBotId = peerToUser(user->id);
+				}
 			}
 		}
 	}
