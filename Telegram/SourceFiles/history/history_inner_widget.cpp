@@ -3168,6 +3168,10 @@ void HistoryInner::addToSelection(
 		not_null<HistoryItem*> item) const {
 	const auto i = toItems->find(item);
 	if (i == toItems->cend()) {
+		if (toItems->size() == 1
+			&& toItems->begin()->second != FullSelection) {
+			toItems->clear();
+		}
 		toItems->emplace(item, FullSelection);
 	} else if (i->second != FullSelection) {
 		i->second = FullSelection;
