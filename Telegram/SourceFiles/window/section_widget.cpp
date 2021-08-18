@@ -149,7 +149,6 @@ void SectionWidget::PaintBackground(
 		paintCache(state.now);
 		return;
 	}
-	const auto patternOpacity = background->paper().patternOpacity();
 	const auto &prepared = background->prepared();
 	if (!prepared.isNull() && !background->tile()) {
 		const auto hq = PainterHighQualityEnabler(p);
