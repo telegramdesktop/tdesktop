@@ -246,7 +246,20 @@ private:
 		not_null<Row*> row,
 		const std::optional<Data::GroupCallParticipant> &was,
 		const Data::GroupCallParticipant *participant);
+	void updateRowInSoundingMap(
+		not_null<Row*> row,
+		bool wasSounding,
+		uint32 wasSsrc,
+		uint32 wasAdditionalSsrc,
+		const Data::GroupCallParticipant *participant);
+	void updateRowInSoundingMap(
+		not_null<Row*> row,
+		bool wasSounding,
+		uint32 wasSsrc,
+		bool nowSounding,
+		uint32 nowSsrc);
 	void removeRow(not_null<Row*> row);
+	void removeRowFromSoundingMap(not_null<Row*> row);
 	void updateRowLevel(not_null<Row*> row, float level);
 	void checkRowPosition(not_null<Row*> row);
 	[[nodiscard]] bool needToReorder(not_null<Row*> row) const;
@@ -804,14 +817,50 @@ void Members::Controller::updateRow(
 		: 0;
 	row->setSkipLevelUpdate(_skipRowLevelUpdate);
 	row->updateState(participant);
+
+	const auto wasNoSounding = _soundingRowBySsrc.empty();
+	updateRowInSoundingMap(
+		row,
+		wasSounding,
+		wasSsrc,
+		wasAdditionalSsrc,
+		participant);
+	const auto nowNoSounding = _soundingRowBySsrc.empty();
+	if (wasNoSounding && !nowNoSounding) {
+		_soundingAnimation.start();
+	} else if (nowNoSounding && !wasNoSounding) {
+		_soundingAnimation.stop();
+	}
+
+	delegate()->peerListUpdateRow(row);
+}
+
+void Members::Controller::updateRowInSoundingMap(
+		not_null<Row*> row,
+		bool wasSounding,
+		uint32 wasSsrc,
+		uint32 wasAdditionalSsrc,
+		const Data::GroupCallParticipant *participant) {
 	const auto nowSounding = row->sounding();
 	const auto nowSsrc = participant ? participant->ssrc : 0;
 	const auto nowAdditionalSsrc = participant
 		? GetAdditionalAudioSsrc(participant->videoParams)
 		: 0;
+	updateRowInSoundingMap(row, wasSounding, wasSsrc, nowSounding, nowSsrc);
+	updateRowInSoundingMap(
+		row,
+		wasSounding,
+		wasAdditionalSsrc,
+		nowSounding,
+		nowAdditionalSsrc);
+}
 
-	const auto wasNoSounding = _soundingRowBySsrc.empty();
-
+void Members::Controller::updateRowInSoundingMap(
+		not_null<Row*> row,
+		bool wasSounding,
+		uint32 wasSsrc,
+		bool nowSounding,
+		uint32 nowSsrc) {
 	if (wasSsrc == nowSsrc) {
 		if (nowSsrc && nowSounding != wasSounding) {
 			if (nowSounding) {
@@ -826,32 +875,14 @@ void Members::Controller::updateRow(
 			_soundingRowBySsrc.emplace(nowSsrc, row);
 		}
 	}
-	if (wasAdditionalSsrc == nowAdditionalSsrc) {
-		if (nowAdditionalSsrc && nowSounding != wasSounding) {
-			if (nowSounding) {
-				_soundingRowBySsrc.emplace(nowAdditionalSsrc, row);
-			} else {
-				_soundingRowBySsrc.remove(nowAdditionalSsrc);
-			}
-		}
-	} else {
-		_soundingRowBySsrc.remove(wasAdditionalSsrc);
-		if (nowSounding && nowAdditionalSsrc) {
-			_soundingRowBySsrc.emplace(nowAdditionalSsrc, row);
-		}
-	}
-
-	const auto nowNoSounding = _soundingRowBySsrc.empty();
-	if (wasNoSounding && !nowNoSounding) {
-		_soundingAnimation.start();
-	} else if (nowNoSounding && !wasNoSounding) {
-		_soundingAnimation.stop();
-	}
-
-	delegate()->peerListUpdateRow(row);
 }
 
 void Members::Controller::removeRow(not_null<Row*> row) {
+	removeRowFromSoundingMap(row);
+	delegate()->peerListRemoveRow(row);
+}
+
+void Members::Controller::removeRowFromSoundingMap(not_null<Row*> row) {
 	// There may be 0, 1 or 2 entries for a row.
 	for (auto i = begin(_soundingRowBySsrc); i != end(_soundingRowBySsrc);) {
 		if (i->second == row) {
@@ -860,7 +891,6 @@ void Members::Controller::removeRow(not_null<Row*> row) {
 			++i;
 		}
 	}
-	delegate()->peerListRemoveRow(row);
 }
 
 void Members::Controller::updateRowLevel(
@@ -944,18 +974,22 @@ void Members::Controller::prepareRows(not_null<Data::GroupCall*> real) {
 	auto changed = false;
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
-		auto row = delegate()->peerListRowAt(i);
-		auto participantPeer = row->peer();
-		if (isMe(participantPeer)) {
+		const auto row = static_cast<Row*>(
+			delegate()->peerListRowAt(i).get());
+		removeRowFromSoundingMap(row);
+		const auto participantPeer = row->peer();
+		const auto me = isMe(participantPeer);
+		if (me) {
 			foundMe = true;
-			++i;
-			continue;
 		}
-		if (real->participantByPeer(participantPeer)) {
+		if (const auto found = real->participantByPeer(participantPeer)) {
+			updateRowInSoundingMap(row, false, 0, 0, found);
+			++i;
+		} else if (me) {
 			++i;
 		} else {
 			changed = true;
-			removeRow(static_cast<Row*>(row.get()));
+			removeRow(row);
 			--count;
 		}
 	}
