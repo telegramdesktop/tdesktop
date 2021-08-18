@@ -200,6 +200,9 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (NSMenu *) applicationDockMenu:(NSApplication *)sender {
+	if (!Core::IsAppLaunched()) {
+		return nil;
+	}
 	RpMenu* dockMenu = [[[RpMenu alloc] initWithTitle: @""] autorelease];
 	[dockMenu setAutoenablesItems:false];
 
