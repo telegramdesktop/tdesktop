@@ -4518,9 +4518,10 @@ void OverlayWidget::applyHideWindowWorkaround() {
 		_hideWorkaround->show();
 		_hideWorkaround->paintRequest(
 		) | rpl::start_with_next([=] {
-			QPainter(_hideWorkaround.get()).fillRect(_hideWorkaround->rect(), QColor(0, 1, 0, 1));
-			crl::on_main(_hideWorkaround.get(), [=] {
-				_hideWorkaround.reset();
+			const auto workaround = _hideWorkaround.release();
+			QPainter(workaround).fillRect(workaround->rect(), QColor(0, 1, 0, 1));
+			crl::on_main(workaround, [=] {
+				delete workaround;
 			});
 		}, _hideWorkaround->lifetime());
 		_hideWorkaround->update();
