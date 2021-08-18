@@ -950,10 +950,6 @@ QMargins Document::bubbleMargins() const {
 	return QMargins(padding.left(), padding.top(), padding.left(), padding.bottom());
 }
 
-bool Document::hideForwardedFrom() const {
-	return _data->isSong();
-}
-
 QSize Document::sizeForGroupingOptimal(int maxWidth) const {
 	const auto thumbed = Get<HistoryDocumentThumbed>();
 	const auto &st = (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);

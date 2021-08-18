@@ -562,8 +562,14 @@ HistoryMessage::HistoryMessage(
 
 	auto config = CreateConfig();
 
-	if (original->Has<HistoryMessageForwarded>() || !original->history()->peer->isSelf()) {
-		// Server doesn't add "fwd_from" to non-forwarded messages from chat with yourself.
+	const auto originalMedia = original->media();
+	const auto dropForwardInfo = (originalMedia
+		&& originalMedia->dropForwardedInfo())
+		|| (original->history()->peer->isSelf()
+			&& !history->peer->isSelf()
+			&& !original->Has<HistoryMessageForwarded>()
+			&& (!originalMedia || !originalMedia->forceForwardedInfo()));
+	if (!dropForwardInfo) {
 		config.originalDate = original->dateOriginal();
 		if (const auto info = original->hiddenForwardedInfo()) {
 			config.senderNameOriginal = info->name;
@@ -595,6 +601,12 @@ HistoryMessage::HistoryMessage(
 	}
 	if (const auto fwdViaBot = original->viaBot()) {
 		config.viaBotId = peerToUser(fwdViaBot->id);
+	} else if (originalMedia && originalMedia->game()) {
+		if (const auto user = original->history()->peer->asUser()) {
+			if (user->isBot()) {
+				config.viaBotId = peerToUser(user->id);
+			}
+		}
 	}
 	const auto fwdViewsCount = original->viewsCount();
 	if (fwdViewsCount > 0) {

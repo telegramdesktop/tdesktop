@@ -202,9 +202,6 @@ public:
 	[[nodiscard]] virtual QMargins bubbleMargins() const {
 		return QMargins();
 	}
-	[[nodiscard]] virtual bool hideForwardedFrom() const {
-		return false;
-	}
 
 	[[nodiscard]] virtual bool overrideEditedDate() const {
 		return false;

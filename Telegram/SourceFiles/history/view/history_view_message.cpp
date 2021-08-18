@@ -2128,10 +2128,8 @@ bool Message::displayForwardedFrom() const {
 				return false;
 			}
 		}
-		const auto media = this->media();
-		return !media
-			|| !media->isDisplayed()
-			|| !media->hideForwardedFrom();
+		const auto media = item->media();
+		return !media || !media->dropForwardedInfo();
 	}
 	return false;
 }

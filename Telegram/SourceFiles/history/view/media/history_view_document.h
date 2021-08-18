@@ -60,7 +60,6 @@ public:
 		return false;
 	}
 	QMargins bubbleMargins() const override;
-	bool hideForwardedFrom() const override;
 
 	QSize sizeForGroupingOptimal(int maxWidth) const override;
 	QSize sizeForGrouping(int width) const override;

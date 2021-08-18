@@ -695,10 +695,6 @@ bool GroupedMedia::needsBubble() const {
 	return _needBubble;
 }
 
-bool GroupedMedia::hideForwardedFrom() const {
-	return main()->hideForwardedFrom();
-}
-
 bool GroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty() || _mode == Mode::Column) {
 		return true;

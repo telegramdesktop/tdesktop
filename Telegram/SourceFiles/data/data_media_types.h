@@ -102,6 +102,8 @@ public:
 	virtual bool allowsEditMedia() const;
 	virtual bool allowsRevoke(TimeId now) const;
 	virtual bool forwardedBecomesUnread() const;
+	virtual bool dropForwardedInfo() const;
+	virtual bool forceForwardedInfo() const;
 	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
@@ -191,6 +193,7 @@ public:
 	bool allowsEditCaption() const override;
 	bool allowsEditMedia() const override;
 	bool forwardedBecomesUnread() const override;
+	bool dropForwardedInfo() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
@@ -352,6 +355,7 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
+	bool dropForwardedInfo() const override;
 
 	bool consumeMessageText(const TextWithEntities &text) override;
 	TextWithEntities consumedMessageText() const override;
@@ -442,6 +446,8 @@ public:
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
+	bool forceForwardedInfo() const override;
+
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
