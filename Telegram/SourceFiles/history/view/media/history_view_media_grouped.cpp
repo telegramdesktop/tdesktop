@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/text/text_options.h"
 #include "layout/layout_selection.h"
 #include "styles/style_chat.h"
@@ -509,8 +510,8 @@ TextForMimeData GroupedMedia::selectedText(
 
 auto GroupedMedia::getBubbleSelectionIntervals(
 	TextSelection selection) const
--> std::vector<BubbleSelectionInterval> {
-	auto result = std::vector<BubbleSelectionInterval>();
+-> std::vector<Ui::BubbleSelectionInterval> {
+	auto result = std::vector<Ui::BubbleSelectionInterval>();
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		if (!IsGroupItemSelection(selection, i)) {
@@ -528,7 +529,7 @@ auto GroupedMedia::getBubbleSelectionIntervals(
 			const auto newHeight = std::max(
 				last.top + last.height - newTop,
 				geometry.top() + geometry.height() - newTop);
-			last = BubbleSelectionInterval{ newTop, newHeight };
+			last = Ui::BubbleSelectionInterval{ newTop, newHeight };
 		}
 	}
 	const auto groupPadding = groupedPadding();

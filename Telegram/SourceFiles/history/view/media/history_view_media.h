@@ -29,6 +29,10 @@ class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
+namespace Ui {
+struct BubbleSelectionInterval;
+} // namespace Ui
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -43,11 +47,6 @@ enum class MediaInBubbleState {
 	Top,
 	Middle,
 	Bottom,
-};
-
-struct BubbleSelectionInterval {
-	int top = 0;
-	int height = 0;
 };
 
 [[nodiscard]] QString DocumentTimestampLinkBase(
@@ -125,9 +124,7 @@ public:
 
 	[[nodiscard]] virtual auto getBubbleSelectionIntervals(
 		TextSelection selection) const
-	-> std::vector<BubbleSelectionInterval> {
-		return {};
-	}
+	-> std::vector<Ui::BubbleSelectionInterval>;
 
 	// if we press and drag this link should we drag the item
 	[[nodiscard]] virtual bool dragItemByHandler(

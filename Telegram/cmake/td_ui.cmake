@@ -142,6 +142,8 @@ PRIVATE
     ui/chat/group_call_userpics.h
     ui/chat/message_bar.cpp
     ui/chat/message_bar.h
+    ui/chat/message_bubble.cpp
+    ui/chat/message_bubble.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
     ui/controls/call_mute_button.cpp

@@ -895,9 +895,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto clip = e->rect();
-
 	if (_items.empty() && _upLoaded && _downLoaded) {
 		paintEmpty(p);
 	} else {
@@ -914,16 +912,26 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			return this->itemTop(elem) < bottom;
 		});
 		if (from != end) {
+			auto viewport = QRect(); // #TODO bubbles
 			auto top = itemTop(from->get());
+			auto context = HistoryView::PaintContext{
+				.bubblesPattern = nullptr,
+				.viewport = viewport.translated(0, -top),
+				.clip = clip.translated(0, -top),
+				.now = crl::now(),
+			};
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
 				const auto view = i->get();
-				const auto selection = (view == _selectedItem)
+				context.selection = (view == _selectedItem)
 					? _selectedText
 					: TextSelection();
-				view->draw(p, clip.translated(0, -top), selection, ms);
-				auto height = view->height();
+				view->draw(p, context);
+
+				const auto height = view->height();
 				top += height;
+				context.viewport.translate(0, -height);
+				context.clip.translate(0, -height);
 				p.translate(0, height);
 			}
 			p.translate(0, -top);

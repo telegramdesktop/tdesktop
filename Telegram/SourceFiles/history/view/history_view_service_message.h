@@ -23,11 +23,7 @@ public:
 	int marginTop() const override;
 	int marginBottom() const override;
 	bool isHidden() const override;
-	void draw(
-		Painter &p,
-		QRect clip,
-		TextSelection selection,
-		crl::time ms) const override;
+	void draw(Painter &p, const PaintContext &context) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,
@@ -49,17 +45,6 @@ private:
 };
 
 int WideChatWidth();
-
-struct PaintContext {
-	PaintContext(crl::time ms, const QRect &clip, TextSelection selection)
-		: ms(ms)
-		, clip(clip)
-		, selection(selection) {
-	}
-	crl::time ms;
-	const QRect &clip;
-	TextSelection selection;
-};
 
 class ServiceMessagePainter {
 public:

@@ -57,7 +57,7 @@ public:
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
-	std::vector<BubbleSelectionInterval> getBubbleSelectionIntervals(
+	std::vector<Ui::BubbleSelectionInterval> getBubbleSelectionIntervals(
 		TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(

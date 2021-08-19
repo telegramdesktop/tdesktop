@@ -106,13 +106,12 @@ void SectionWidget::PaintBackground(
 	Painter p(widget);
 
 	const auto background = Window::Theme::Background();
-	const auto fullHeight = controller->content()->height();
 	if (const auto color = background->colorForFill()) {
 		p.fillRect(clip, *color);
 		return;
 	}
 	const auto gradient = background->gradientForFill();
-	const auto fill = QSize(widget->width(), fullHeight);
+	const auto fill = QSize(widget->width(), controller->content()->height());
 	auto fromy = controller->content()->backgroundFromY();
 	auto state = controller->backgroundState(fill);
 	const auto paintCache = [&](const CachedBackground &cache) {
@@ -150,7 +149,26 @@ void SectionWidget::PaintBackground(
 		return;
 	}
 	const auto &prepared = background->prepared();
-	if (!prepared.isNull() && !background->tile()) {
+	if (prepared.isNull()) {
+		return;
+	} else if (background->tile()) {
+		const auto &tiled = background->preparedForTiled();
+		const auto left = clip.left();
+		const auto top = clip.top();
+		const auto right = clip.left() + clip.width();
+		const auto bottom = clip.top() + clip.height();
+		const auto w = tiled.width() / cRetinaFactor();
+		const auto h = tiled.height() / cRetinaFactor();
+		const auto sx = qFloor(left / w);
+		const auto sy = qFloor((top - fromy) / h);
+		const auto cx = qCeil(right / w);
+		const auto cy = qCeil((bottom - fromy) / h);
+		for (auto i = sx; i < cx; ++i) {
+			for (auto j = sy; j < cy; ++j) {
+				p.drawImage(QPointF(i * w, fromy + j * h), tiled);
+			}
+		}
+	} else {
 		const auto hq = PainterHighQualityEnabler(p);
 		const auto rects = Window::Theme::ComputeBackgroundRects(
 			fill,
@@ -158,25 +176,6 @@ void SectionWidget::PaintBackground(
 		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
 		p.drawImage(to, prepared, rects.from);
-		return;
-	}
-	if (!prepared.isNull()) {
-		const auto &tiled = background->preparedForTiled();
-		auto left = clip.left();
-		auto top = clip.top();
-		auto right = clip.left() + clip.width();
-		auto bottom = clip.top() + clip.height();
-		auto w = tiled.width() / cRetinaFactor();
-		auto h = tiled.height() / cRetinaFactor();
-		auto sx = qFloor(left / w);
-		auto sy = qFloor((top - fromy) / h);
-		auto cx = qCeil(right / w);
-		auto cy = qCeil((bottom - fromy) / h);
-		for (auto i = sx; i < cx; ++i) {
-			for (auto j = sy; j < cy; ++j) {
-				p.drawImage(QPointF(i * w, fromy + j * h), tiled);
-			}
-		}
 	}
 }
 

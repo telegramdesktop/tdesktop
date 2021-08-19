@@ -24,6 +24,7 @@ class SessionController;
 
 namespace Ui {
 class PathShiftGradient;
+struct BubblePattern;
 } // namespace Ui
 
 namespace HistoryView {
@@ -191,6 +192,14 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct PaintContext {
+	const Ui::BubblePattern *bubblesPattern = nullptr;
+	QRect viewport;
+	QRect clip;
+	TextSelection selection;
+	crl::time now = 0;
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -261,11 +270,7 @@ public:
 	bool displayDate() const;
 	bool isInOneDayWithPrevious() const;
 
-	virtual void draw(
-		Painter &p,
-		QRect clip,
-		TextSelection selection,
-		crl::time ms) const = 0;
+	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;
 	[[nodiscard]] virtual TextState textState(
 		QPoint point,

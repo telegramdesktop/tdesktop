@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
@@ -63,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
+#include "styles/style_chat.h" // st::historyMessageRadius
 
 #include <QtGui/QGuiApplication>
 
@@ -1445,6 +1447,49 @@ void SessionController::openDocument(
 		session().data().message(contextId));
 }
 
+void SessionController::setBubblesBackground(QImage image) {
+	_bubblesBackgroundPrepared = std::move(image);
+	if (!_bubblesBackground.area.isEmpty()) {
+		_bubblesBackground = CacheBackground({
+			.prepared = _bubblesBackgroundPrepared,
+			.area = _bubblesBackground.area,
+		});
+	}
+	if (!_bubblesBackgroundPattern) {
+		_bubblesBackgroundPattern = Ui::PrepareBubblePattern();
+	}
+	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
+	_repaintBackgroundRequests.fire({});
+}
+
+HistoryView::PaintContext SessionController::bubblesContext(
+		BubblesContextArgs &&args) {
+	const auto visibleAreaTopLocal = content()->mapFromGlobal(
+		QPoint(0, args.visibleAreaTopGlobal)).y();
+	const auto viewport = QRect(
+		0,
+		args.visibleAreaTop - visibleAreaTopLocal,
+		args.visibleAreaWidth,
+		content()->height());
+	_bubblesBackground.area = viewport.size();
+	//if (!_bubblesBackgroundPrepared.isNull()
+	//	&& _bubblesBackground.area != viewport.size()
+	//	&& !viewport.isEmpty()) {
+	//	// #TODO bubbles delayed caching
+	//	_bubblesBackground = CacheBackground({
+	//		.prepared = _bubblesBackgroundPrepared,
+	//		.area = viewport.size(),
+	//	});
+	//	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
+	//}
+	return {
+		.bubblesPattern = _bubblesBackgroundPattern.get(),
+		.viewport = viewport.translated(0, -args.initialShift),
+		.clip = args.clip.translated(0, -args.initialShift),
+		.now = crl::now(),
+	};
+}
+
 const BackgroundState &SessionController::backgroundState(QSize area) {
 	_backgroundState.shown = _backgroundFade.value(1.);
 	if (_backgroundState.now.pixmap.isNull()
@@ -1580,7 +1625,8 @@ void SessionController::setCachedBackground(CacheBackgroundResult &&cached) {
 
 	const auto background = Window::Theme::Background();
 	if (background->gradientForFill().isNull()
-		|| _backgroundState.now.pixmap.isNull()) {
+		|| _backgroundState.now.pixmap.isNull()
+		|| anim::Disabled()) {
 		_backgroundFade.stop();
 		_backgroundState.shown = 1.;
 		_backgroundState.now = std::move(cached);

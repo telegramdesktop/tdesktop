@@ -589,11 +589,18 @@ QRect BackgroundPreviewBox::radialRect() const {
 void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	const auto height1 = _text1->height();
 	const auto height2 = _text2->height();
+	const auto context = HistoryView::PaintContext{
+		.bubblesPattern = nullptr, // #TODO bubbles
+		.viewport = rect(),
+		.clip = rect(),
+		.selection = TextSelection(),
+		.now = ms,
+	};
 	p.translate(0, textsTop());
 	paintDate(p);
-	_text1->draw(p, rect(), TextSelection(), ms);
+	_text1->draw(p, context);
 	p.translate(0, height1);
-	_text2->draw(p, rect(), TextSelection(), ms);
+	_text2->draw(p, context);
 	p.translate(0, height2);
 }
 
