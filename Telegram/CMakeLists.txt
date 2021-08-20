@@ -1432,10 +1432,6 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         endif()
     endif()
 
-    if (LINUX)
-        target_link_options(Updater PRIVATE -static-libstdc++)
-    endif()
-
     if (DESKTOP_APP_SPECIAL_TARGET)
         add_executable(Packer)
         init_target(Packer)
