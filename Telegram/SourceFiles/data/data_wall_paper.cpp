@@ -366,6 +366,9 @@ WallPaper WallPaper::withUrlParams(
 	if (result._backgroundColors.empty()) {
 		result._backgroundColors = ColorsFromString(params.value("color"));
 	}
+	if (result._backgroundColors.empty()) {
+		result._backgroundColors = ColorsFromString(params.value("slug"));
+	}
 	if (const auto string = params.value("intensity"); !string.isEmpty()) {
 		auto ok = false;
 		const auto intensity = string.toInt(&ok);
