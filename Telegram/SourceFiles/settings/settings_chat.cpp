@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
+#include "styles/style_window.h"
 
 namespace Settings {
 namespace {
@@ -581,26 +582,28 @@ void BackgroundRow::updateImage() {
 			}
 			const auto &prepared = background->prepared();
 			if (!prepared.isNull()) {
-				const auto sx = (prepared.width() > prepared.height())
-					? ((prepared.width() - prepared.height()) / 2)
-					: 0;
-				const auto sy = (prepared.height() > prepared.width())
-					? ((prepared.height() - prepared.width()) / 2)
-					: 0;
-				const auto s = (prepared.width() > prepared.height())
-					? prepared.height()
-					: prepared.width();
+				const auto pattern = background->paper().isPattern();
+				const auto w = prepared.width();
+				const auto h = prepared.height();
+				const auto use = [&] {
+					if (!pattern) {
+						return std::min(w, h);
+					}
+					const auto scaledw = w * st::windowMinHeight / h;
+					const auto result = (w * size) / scaledw;
+					return std::min({ result, w, h });
+				}();
 				p.drawImage(
 					QRect(0, 0, size, size),
 					prepared,
-					QRect(sx, sy, s, s));
+					QRect((w - use) / 2, (h - use) / 2, use, use));
 			}
 			if (!gradient.isNull()
 				&& !prepared.isNull()
 				&& patternOpacity < 0.
 				&& patternOpacity > -1.) {
 				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-				p.setOpacity(patternOpacity);
+				p.setOpacity(1. + patternOpacity);
 				p.fillRect(QRect(0, 0, size, size), Qt::black);
 			}
 		}
