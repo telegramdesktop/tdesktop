@@ -954,13 +954,16 @@ void SetupChatBackground(
 
 	AddSkip(container, st::settingsTileSkip);
 
+	const auto background = Window::Theme::Background();
 	const auto tile = inner->add(
-		object_ptr<Ui::Checkbox>(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			inner,
-			tr::lng_settings_bg_tile(tr::now),
-			Window::Theme::Background()->tile(),
-			st::settingsCheckbox),
-		st::settingsSendTypePadding);
+			object_ptr<Ui::Checkbox>(
+				inner,
+				tr::lng_settings_bg_tile(tr::now),
+				background->tile(),
+				st::settingsCheckbox),
+			st::settingsSendTypePadding));
 	const auto adaptive = inner->add(
 		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			inner,
@@ -971,19 +974,26 @@ void SetupChatBackground(
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
 
-	tile->checkedChanges(
-	) | rpl::start_with_next([](bool checked) {
-		Window::Theme::Background()->setTile(checked);
+	tile->entity()->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		background->setTile(checked);
 	}, tile->lifetime());
 
+	const auto shown = [=] {
+		return !background->prepared().isNull()
+			&& !background->colorForFill()
+			&& background->gradientForFill().isNull();
+	};
+	tile->toggle(shown(), anim::type::instant);
+
 	using Update = const Window::Theme::BackgroundUpdate;
-	Window::Theme::Background()->updates(
+	background->updates(
 	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::Changed);
-	}) | rpl::map([] {
-		return Window::Theme::Background()->tile();
-	}) | rpl::start_with_next([=](bool tiled) {
-		tile->setChecked(tiled);
+		return (update.type == Update::Type::Changed)
+			|| (update.type == Update::Type::New);
+	}) | rpl::start_with_next([=] {
+		tile->entity()->setChecked(background->tile());
+		tile->toggle(shown(), anim::type::instant);
 	}, tile->lifetime());
 
 	adaptive->toggleOn(controller->adaptive().chatLayoutValue(
