@@ -275,6 +275,7 @@ void VideoTrackObject::readFrames() {
 		return;
 	}
 	auto time = trackTime().trackTime;
+	Assert(1 && time >= kTimeUnknown / 2); // Debugging a crash.
 	while (true) {
 		const auto result = readEnoughFrames(time);
 		v::match(result, [&](FrameResult result) {
@@ -285,6 +286,7 @@ void VideoTrackObject::readFrames() {
 				const auto duration = computeDuration();
 				Assert(duration != kDurationUnavailable);
 				time -= duration;
+				Assert(2 && time >= kTimeUnknown / 2); // Debugging a crash.
 			}
 		}, [&](Shared::PrepareNextCheck delay) {
 			Expects(delay == kTimeUnknown || delay > 0);
@@ -531,6 +533,8 @@ void VideoTrackObject::setSpeed(float64 speed) {
 	}
 	if (_syncTimePoint.valid()) {
 		_syncTimePoint = trackTime();
+		// Debugging a crash.
+		Assert(3 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
 	}
 	_options.speed = speed;
 }
@@ -618,6 +622,8 @@ bool VideoTrackObject::processFirstFrame() {
 	if (frame.isNull()) {
 		return false;
 	}
+	// Debugging a crash.
+	Assert(4 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
 	callReady();
 	queueReadFrames();
@@ -641,6 +647,8 @@ bool VideoTrackObject::fillStateFromFrame() {
 		return false;
 	}
 	_syncTimePoint.trackTime = position;
+	// Debugging a crash.
+	Assert(5 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
 	return true;
 }
 
@@ -667,6 +675,9 @@ void VideoTrackObject::callReady() {
 }
 
 TimePoint VideoTrackObject::trackTime() const {
+	// Debugging a crash.
+	Assert(7 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+
 	auto result = TimePoint();
 	result.worldTime = (_pausedTime != kTimeUnknown)
 		? _pausedTime
@@ -682,6 +693,8 @@ TimePoint VideoTrackObject::trackTime() const {
 		const auto point = mixer->getExternalSyncTimePoint(_audioId);
 		if (point && point.worldTime > _resumedTime) {
 			_syncTimePoint = point;
+			// Debugging a crash.
+			Assert(6 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
 		}
 	}
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
