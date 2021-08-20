@@ -86,7 +86,7 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 			request.gradientColors,
 			request.gradientRotation)
 		: request.gradient;
-	if (request.tile || request.prepared.isNull()) {
+	if (request.isPattern || request.tile || request.prepared.isNull()) {
 		auto result = gradient.isNull()
 			? QImage(
 				request.area * cIntRetinaFactor(),
@@ -107,16 +107,25 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 						QPainter::CompositionMode_DestinationIn);
 				}
 			}
-			const auto &tiled = request.preparedForTiled;
+			const auto tiled = request.isPattern
+				? request.prepared.scaled(
+					request.area.height() * cIntRetinaFactor(),
+					request.area.height() * cIntRetinaFactor(),
+					Qt::KeepAspectRatio,
+					Qt::SmoothTransformation)
+				: request.preparedForTiled;
 			const auto w = tiled.width() / cRetinaFactor();
 			const auto h = tiled.height() / cRetinaFactor();
-			auto sx = 0;
-			auto sy = 0;
 			const auto cx = qCeil(request.area.width() / w);
 			const auto cy = qCeil(request.area.height() / h);
-			for (int i = sx; i < cx; ++i) {
-				for (int j = sy; j < cy; ++j) {
-					p.drawImage(QPointF(i * w, j * h), tiled);
+			const auto rows = cy;
+			const auto cols = request.isPattern ? (((cx / 2) * 2) + 1) : cx;
+			const auto xshift = request.isPattern
+				? (request.area.width() - cols * w) / 2
+				: 0;
+			for (auto y = 0; y != rows; ++y) {
+				for (auto x = 0; x != cols; ++x) {
+					p.drawImage(QPointF(xshift + x * w, y * h), tiled);
 				}
 			}
 			if (!gradient.isNull()
@@ -137,34 +146,12 @@ constexpr auto kBackgroundFadeDuration = crl::time(200);
 		const auto rects = Window::Theme::ComputeBackgroundRects(
 			request.area,
 			request.prepared.size());
-		auto image = request.prepared.copy(rects.from).scaled(
+		auto result = request.prepared.copy(rects.from).scaled(
 			rects.to.width() * cIntRetinaFactor(),
 			rects.to.height() * cIntRetinaFactor(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
-		auto result = gradient.isNull()
-			? std::move(image)
-			: gradient.scaled(
-				image.size(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(cRetinaFactor());
-		if (!gradient.isNull()) {
-			QPainter p(&result);
-			if (request.patternOpacity >= 0.) {
-				p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-				p.setOpacity(request.patternOpacity);
-			} else {
-				p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-			}
-			p.drawImage(QRect(QPoint(), rects.to.size()), image);
-			if (request.patternOpacity < 0. && request.patternOpacity > -1.) {
-				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-				p.setOpacity(1. + request.patternOpacity);
-				p.fillRect(QRect(QPoint(), rects.to.size()), Qt::black);
-			}
-		}
-		image = QImage();
 		return {
 			.image = std::move(result).convertToFormat(
 				QImage::Format_ARGB32_Premultiplied),
@@ -1567,6 +1554,7 @@ auto SessionController::currentCacheRequest(QSize area, int addRotation) const
 			+ _backgroundAddRotation
 			+ addRotation) % 360,
 		.tile = background->tile(),
+		.isPattern = background->paper().isPattern(),
 		.recreateGradient = (addRotation != 0),
 		.gradient = gradient,
 		.gradientColors = (gradient.isNull()

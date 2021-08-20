@@ -66,6 +66,7 @@ struct CacheBackgroundRequest {
 	QSize area;
 	int gradientRotation = 0;
 	bool tile = false;
+	bool isPattern = false;
 	bool recreateGradient = false;
 	QImage gradient;
 	std::vector<QColor> gradientColors;
