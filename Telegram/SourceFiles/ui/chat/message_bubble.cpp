@@ -79,6 +79,8 @@ void PaintBubbleGeneric(
 }
 
 void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
+	const auto opacity = st::msgOutBg->c.alphaF();
+	const auto shadowOpacity = opacity * st::msgOutShadow->c.alphaF();
 	const auto pattern = args.pattern;
 	const auto sh = (args.skip & RectPart::Bottom)
 		? nullptr
@@ -103,9 +105,9 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 	};
 	const auto fillSh = [&](const QRect &rect) {
 		if (!(args.skip & RectPart::Bottom)) {
-			p.setOpacity(st::msgOutShadow->c.alphaF());
+			p.setOpacity(shadowOpacity);
 			fillBg(rect);
-			p.setOpacity(1.);
+			p.setOpacity(opacity);
 		}
 	};
 	const auto fillPattern = [&](
@@ -213,7 +215,9 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 		fillPattern(position.x(), position.y(), tail, pattern->tailCache);
 		return tail.width() / int(tail.devicePixelRatio());
 	};
+	p.setOpacity(opacity);
 	PaintBubbleGeneric(args, fillBg, fillSh, fillRounded, paintTail);
+	p.setOpacity(1.);
 }
 
 void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
