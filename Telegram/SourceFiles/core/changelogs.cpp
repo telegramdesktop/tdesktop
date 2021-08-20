@@ -90,7 +90,18 @@ std::map<int, const char*> BetaLogs() {
 	},
 	{
 		2009004,
-		"- Choose one from dozens of new gorgeous animated backgrounds in Chat Settings > Chat background."
+		"- Choose one from dozens of new gorgeous animated backgrounds"
+		" in Chat Settings > Chat background.\n"
+	},
+	{
+		2009005,
+		"- Tile chat background patterns horizontally.\n"
+
+		"- Fix a rare crash in spellchecker on Windows.\n"
+
+		"- Fix animated chat backgrounds in Saved Messages.\n"
+
+		"- Fix \"Sorry, group is inaccessible\" message in scheduled voice chats.\n",
 	},
 	};
 };

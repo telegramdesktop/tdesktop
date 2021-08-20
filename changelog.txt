@@ -1,3 +1,10 @@
+2.9.5 beta (20.08.21)
+
+- Tile chat background patterns horizontally.
+- Fix a rare crash in spellchecker on Windows.
+- Fix animated chat backgrounds in Saved Messages.
+- Fix "Sorry, group is inaccessible" message in scheduled voice chats.
+
 2.9.4 beta (17.08.21)
 
 - Choose one from dozens of new gorgeous animated backgrounds in Chat Settings > Chat background.
