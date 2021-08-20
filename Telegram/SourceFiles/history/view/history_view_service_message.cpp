@@ -561,7 +561,9 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		height -= st::msgServiceMargin.top() + media->height();
 		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		media->draw(p, clip.translated(-left, -top), TextSelection(), context.now);
+		auto mediaContext = context.translated(-left, -top);
+		mediaContext.selection = TextSelection();
+		media->draw(p, mediaContext);
 		p.translate(-left, -top);
 	}
 

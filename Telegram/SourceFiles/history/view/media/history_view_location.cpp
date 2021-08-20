@@ -148,12 +148,12 @@ TextSelection Location::fromDescriptionSelection(
 	return ShiftItemSelection(selection, _title);
 }
 
-void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void Location::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
 	auto outbg = _parent->hasOutLayout();
-	bool selected = (selection == FullSelection);
+	bool selected = (context.selection == FullSelection);
 
 	if (bubble) {
 		if (!_title.isEmpty() || !_description.isEmpty()) {
@@ -166,12 +166,12 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 
 		if (!_title.isEmpty()) {
 			p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
-			_title.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 2, style::al_left, 0, -1, 0, false, selection);
+			_title.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 2, style::al_left, 0, -1, 0, false, context.selection);
 			painty += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
 			p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
-			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(selection));
+			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(context.selection));
 			painty += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {

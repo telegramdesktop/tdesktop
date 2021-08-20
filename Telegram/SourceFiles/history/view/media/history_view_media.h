@@ -40,6 +40,7 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
+struct PaintContext;
 class Element;
 
 enum class MediaInBubbleState {
@@ -85,11 +86,7 @@ public:
 	}
 	virtual void drawHighlight(Painter &p, int top) const {
 	}
-	virtual void draw(
-		Painter &p,
-		const QRect &r,
-		TextSelection selection,
-		crl::time ms) const = 0;
+	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const;
 	[[nodiscard]] virtual TextState textState(
 		QPoint point,
@@ -170,9 +167,7 @@ public:
 	}
 	virtual void drawGrouped(
 			Painter &p,
-			const QRect &clip,
-			TextSelection selection,
-			crl::time ms,
+			const PaintContext &context,
 			const QRect &geometry,
 			RectParts sides,
 			RectParts corners,
@@ -298,6 +293,8 @@ protected:
 
 	virtual void playAnimation(bool autoplay) {
 	}
+
+	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
 
 	const not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;

@@ -448,12 +448,12 @@ void WebPage::unloadHeavyPart() {
 	_photoMedia = nullptr;
 }
 
-void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void WebPage::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
 	auto outbg = _parent->hasOutLayout();
-	bool selected = (selection == FullSelection);
+	bool selected = (context.selection == FullSelection);
 
 	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
 	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
@@ -512,7 +512,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		if (_siteName.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, selection);
+		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += lineHeight;
 	}
 	if (_titleLines) {
@@ -521,7 +521,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(selection));
+		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
@@ -531,10 +531,10 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 			endskip = _parent->skipBlockWidth();
 		}
 		if (_descriptionLines > 0) {
-			_description.drawLeftElided(p, padding.left(), tshift, paintw, width(), _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(selection));
+			_description.drawLeftElided(p, padding.left(), tshift, paintw, width(), _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(context.selection));
 			tshift += _descriptionLines * lineHeight;
 		} else {
-			_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(selection));
+			_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(context.selection));
 			tshift += _description.countHeight(paintw);
 		}
 	}
@@ -548,8 +548,9 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 
 		p.translate(attachLeft, attachTop);
 
-		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
-		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
+		auto attachContext = context.translated(-attachLeft, -attachTop);
+		attachContext.selection = selected ? FullSelection : TextSelection { 0, 0 };
+		_attach->draw(p, attachContext);
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 

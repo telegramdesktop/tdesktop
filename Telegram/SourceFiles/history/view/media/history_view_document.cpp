@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/text/format_song_document_name.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
 #include "layout/layout_selection.h" // FullSelection
@@ -325,19 +326,14 @@ QSize Document::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void Document::draw(
-		Painter &p,
-		const QRect &r,
-		TextSelection selection,
-		crl::time ms) const {
-	draw(p, width(), selection, ms, LayoutMode::Full);
+void Document::draw(Painter &p, const PaintContext &context) const {
+	draw(p, width(), context, LayoutMode::Full);
 }
 
 void Document::draw(
 		Painter &p,
 		int width,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		LayoutMode mode) const {
 	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
@@ -349,7 +345,7 @@ void Document::draw(
 		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
-	bool selected = (selection == FullSelection);
+	bool selected = (context.selection == FullSelection);
 
 	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 	auto outbg = _parent->hasOutLayout();
@@ -507,19 +503,33 @@ void Document::draw(
 			}
 			return nullptr;
 		}();
-		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
-			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+
+		const auto paintContent = [&](Painter &q) {
+			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+				PaintInterpolatedIcon(q, *icon, *previous, radialOpacity, inner);
+			} else {
+				icon->paintInCenter(q, inner);
+			}
+
+			if (radial && !cornerDownload) {
+				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+				auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
+				_animation->radial.draw(q, rinner, st::msgFileRadialLine, fg);
+			}
+		};
+		if (_data->isSongWithCover() || !usesBubblePattern(context)) {
+			paintContent(p);
 		} else {
-			icon->paintInCenter(p, inner);
+			Ui::PaintPatternBubblePart(
+				p,
+				context.viewport,
+				context.bubblesPattern->pixmap,
+				inner,
+				paintContent,
+				_iconCache);
 		}
 
-		if (radial && !cornerDownload) {
-			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, fg);
-		}
-
-		drawCornerDownload(p, selected, mode);
+		drawCornerDownload(p, context, mode);
 	}
 	auto namewidth = width - nameleft - nameright;
 	auto statuswidth = namewidth;
@@ -595,7 +605,7 @@ void Document::draw(
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
+		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, context.selection);
 	}
 }
 
@@ -625,7 +635,10 @@ bool Document::downloadInCorner() const {
 		&& IsServerMsgId(_realParent->id);
 }
 
-void Document::drawCornerDownload(Painter &p, bool selected, LayoutMode mode) const {
+void Document::drawCornerDownload(
+		Painter &p,
+		const PaintContext &context,
+		LayoutMode mode) const {
 	if (dataLoaded()
 		|| _data->loadedInMediaCache()
 		|| !downloadInCorner()) {
@@ -633,6 +646,7 @@ void Document::drawCornerDownload(Painter &p, bool selected, LayoutMode mode) co
 	}
 	auto outbg = _parent->hasOutLayout();
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+	const auto selected = (context.selection == FullSelection);
 	const auto thumbed = false;
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
@@ -640,11 +654,16 @@ void Document::drawCornerDownload(Painter &p, bool selected, LayoutMode mode) co
 	const auto shift = st::historyAudioDownloadShift;
 	const auto size = st::historyAudioDownloadSize;
 	const auto inner = style::rtlrect(st.padding.left() + shift, st.padding.top() - topMinus + shift, size, size, width());
-	auto pen = (selected
-		? (outbg ? st::msgOutBgSelected : st::msgInBgSelected)
-		: (outbg ? st::msgOutBg : st::msgInBg))->p;
-	pen.setWidth(st::lineWidth);
-	p.setPen(pen);
+	const auto bubblePattern = usesBubblePattern(context);
+	if (bubblePattern) {
+		p.setPen(Qt::NoPen);
+	} else {
+		auto pen = (selected
+			? (outbg ? st::msgOutBgSelected : st::msgInBgSelected)
+			: (outbg ? st::msgOutBg : st::msgInBg))->p;
+		pen.setWidth(st::lineWidth);
+		p.setPen(pen);
+	}
 	if (selected) {
 		p.setBrush(outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected);
 	} else {
@@ -660,11 +679,34 @@ void Document::drawCornerDownload(Painter &p, bool selected, LayoutMode mode) co
 		}
 		return &(outbg ? (selected ? st::historyAudioOutDownloadSelected : st::historyAudioOutDownload) : (selected ? st::historyAudioInDownloadSelected : st::historyAudioInDownload));
 	}();
-	icon->paintInCenter(p, inner);
-	if (_animation && _animation->radial.animating()) {
-		const auto rinner = inner.marginsRemoved(QMargins(st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine));
-		auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
-		_animation->radial.draw(p, rinner, st::historyAudioRadialLine, fg);
+	const auto paintContent = [&](Painter &q) {
+		if (bubblePattern) {
+			auto hq = PainterHighQualityEnabler(q);
+			auto pen = st::msgOutBg->p;
+			pen.setWidth(st::lineWidth);
+			q.setPen(pen);
+			q.setBrush(Qt::NoBrush);
+			q.drawEllipse(inner);
+		}
+		icon->paintInCenter(q, inner);
+		if (_animation && _animation->radial.animating()) {
+			const auto rinner = inner.marginsRemoved(QMargins(st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine));
+			auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
+			_animation->radial.draw(q, rinner, st::historyAudioRadialLine, fg);
+		}
+	};
+	if (bubblePattern) {
+		const auto add = st::lineWidth * 2;
+		const auto target = inner.marginsAdded({ add, add, add, add });
+		Ui::PaintPatternBubblePart(
+			p,
+			context.viewport,
+			context.bubblesPattern->pixmap,
+			target,
+			paintContent,
+			_cornerDownloadCache);
+	} else {
+		paintContent(p);
 	}
 }
 
@@ -978,9 +1020,7 @@ QSize Document::sizeForGrouping(int width) const {
 
 void Document::drawGrouped(
 		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
@@ -991,8 +1031,7 @@ void Document::drawGrouped(
 	draw(
 		p,
 		geometry.width(),
-		selection,
-		ms,
+		context.translated(-geometry.topLeft()),
 		LayoutMode::Grouped);
 	p.translate(-geometry.topLeft());
 }

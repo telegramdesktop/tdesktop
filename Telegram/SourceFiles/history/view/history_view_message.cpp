@@ -594,25 +594,22 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 
 			p.translate(mediaLeft, mediaTop);
-			media->draw(
-				p,
-				context.clip.translated(-mediaLeft, -mediaTop),
-				skipTextSelection(context.selection), context.now);
+			auto mediaContext = context.translated(-mediaLeft, -mediaTop);
+			mediaContext.selection = skipTextSelection(context.selection);
+			media->draw(p, mediaContext);
 			p.translate(-mediaLeft, -mediaTop);
 		}
 		if (entry) {
 			auto entryLeft = inner.left();
 			auto entryTop = trect.y() + trect.height();
 			p.translate(entryLeft, entryTop);
-			auto entrySelection = skipTextSelection(context.selection);
+			auto entryContext = context.translated(-entryLeft, -entryTop);
+			entryContext.selection = skipTextSelection(context.selection);
 			if (mediaDisplayed) {
-				entrySelection = media->skipSelection(entrySelection);
+				entryContext.selection = media->skipSelection(
+					entryContext.selection);
 			}
-			entry->draw(
-				p,
-				context.clip.translated(-entryLeft, -entryTop),
-				entrySelection,
-				context.now);
+			entry->draw(p, entryContext);
 			p.translate(-entryLeft, -entryTop);
 		}
 		const auto needDrawInfo = entry
@@ -652,11 +649,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else if (media && media->isDisplayed()) {
 		p.translate(g.topLeft());
-		media->draw(
-			p,
-			context.clip.translated(-g.topLeft()),
-			skipTextSelection(context.selection),
-			context.now);
+		auto mediaContext = context.translated(-g.topLeft());
+		mediaContext.selection = skipTextSelection(context.selection);
+		media->draw(p, mediaContext);
 		p.translate(-g.topLeft());
 	}
 

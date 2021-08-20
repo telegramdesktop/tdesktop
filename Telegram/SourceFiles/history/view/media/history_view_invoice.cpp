@@ -199,12 +199,12 @@ void Invoice::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
-void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void Invoice::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
 	auto outbg = _parent->hasOutLayout();
-	bool selected = (selection == FullSelection);
+	bool selected = (context.selection == FullSelection);
 
 	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
 
@@ -226,14 +226,14 @@ void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleHeight / lineHeight, style::al_left, 0, -1, endskip, false, selection);
+		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleHeight / lineHeight, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += _titleHeight;
 
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 	}
 	if (_descriptionHeight) {
 		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
-		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(selection));
+		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(context.selection));
 		tshift += _descriptionHeight;
 	}
 	if (_attach) {
@@ -244,10 +244,11 @@ void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
-		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
+		auto attachContext = context.translated(-attachLeft, -attachTop);
+		attachContext.selection = selected ? FullSelection : TextSelection { 0, 0 };
 
 		p.translate(attachLeft, attachTop);
-		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
+		_attach->draw(p, attachContext);
 		auto pixwidth = _attach->width();
 
 		auto available = _status.maxWidth();

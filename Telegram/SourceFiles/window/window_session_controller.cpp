@@ -1484,8 +1484,8 @@ HistoryView::PaintContext SessionController::bubblesContext(
 	//}
 	return {
 		.bubblesPattern = _bubblesBackgroundPattern.get(),
-		.viewport = viewport.translated(0, -args.initialShift),
-		.clip = args.clip.translated(0, -args.initialShift),
+		.viewport = viewport,
+		.clip = args.clip,
 		.now = crl::now(),
 	};
 }

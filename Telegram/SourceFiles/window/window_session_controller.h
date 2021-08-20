@@ -454,7 +454,6 @@ public:
 		int visibleAreaTopGlobal = 0;
 		int visibleAreaWidth = 0;
 		QRect clip;
-		int initialShift = 0;
 	};
 	[[nodiscard]] HistoryView::PaintContext bubblesContext(
 		BubblesContextArgs &&args);

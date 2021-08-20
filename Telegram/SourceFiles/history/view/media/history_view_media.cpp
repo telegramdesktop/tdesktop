@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_shared_media.h"
+#include "layout/layout_selection.h"
 #include "data/data_document.h"
 #include "ui/item_text_options.h"
 #include "ui/chat/message_bubble.h"
@@ -173,6 +174,13 @@ auto Media::getBubbleSelectionIntervals(
 	return {};
 }
 
+bool Media::usesBubblePattern(const PaintContext &context) const {
+	return (context.selection != FullSelection)
+		&& _parent->hasOutLayout()
+		&& context.bubblesPattern
+		&& !context.viewport.isEmpty()
+		&& !context.bubblesPattern->pixmap.size().isEmpty();
+}
 
 PointState Media::pointState(QPoint point) const {
 	return QRect(0, 0, width(), height()).contains(point)

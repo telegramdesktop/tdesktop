@@ -72,12 +72,12 @@ QSize Call::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
-void Call::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void Call::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
 	auto outbg = _parent->hasOutLayout();
-	auto selected = (selection == FullSelection);
+	auto selected = (context.selection == FullSelection);
 
 	accumulate_min(paintw, maxWidth());
 

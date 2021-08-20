@@ -49,4 +49,26 @@ struct ComplexBubble {
 void PaintBubble(Painter &p, const SimpleBubble &args);
 void PaintBubble(Painter &p, const ComplexBubble &args);
 
+void PaintPatternBubblePart(
+	QPainter &p,
+	const QRect &viewport,
+	const QPixmap &pixmap,
+	const QRect &target);
+
+void PaintPatternBubblePart(
+	QPainter &p,
+	const QRect &viewport,
+	const QPixmap &pixmap,
+	const QRect &target,
+	const QImage &mask,
+	QImage &cache);
+
+void PaintPatternBubblePart(
+	QPainter &p,
+	const QRect &viewport,
+	const QPixmap &pixmap,
+	const QRect &target,
+	Fn<void(Painter&)> paintContent,
+	QImage &cache);
+
 } // namespace Ui

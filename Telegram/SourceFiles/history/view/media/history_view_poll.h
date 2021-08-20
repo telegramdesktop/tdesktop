@@ -30,7 +30,7 @@ public:
 		not_null<PollData*> poll);
 	~Poll();
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -107,7 +107,7 @@ private:
 		Painter &p,
 		int left,
 		int top,
-		TextSelection selection) const;
+		const PaintContext &context) const;
 	void paintCloseByTimer(
 		Painter &p,
 		int right,
@@ -213,6 +213,7 @@ private:
 	mutable std::unique_ptr<Ui::FireworksAnimation> _fireworksAnimation;
 	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
+	mutable QImage _userpicCircleCache;
 
 	mutable std::unique_ptr<CloseInformation> _close;
 

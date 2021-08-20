@@ -32,11 +32,7 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void drawHighlight(Painter &p, int top) const override;
-	void draw(
-		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms) const override;
+	void draw(Painter &p, const PaintContext &context) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,

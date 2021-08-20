@@ -93,10 +93,11 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 		const auto fill = rect.intersected(args.patternViewport);
 		if (!fill.isEmpty()) {
 			p.setClipRect(fill);
-			// #TODO bubbles optimizes
-			const auto to = args.patternViewport;
-			const auto from = QRect(QPoint(), pattern->pixmap.size());
-			p.drawPixmap(to, pattern->pixmap, from);
+			PaintPatternBubblePart(
+				p,
+				args.patternViewport,
+				pattern->pixmap,
+				fill);
 			p.setClipping(false);
 		}
 	};
@@ -112,26 +113,13 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 			int y,
 			const QImage &mask,
 			QImage &cache) {
-		Expects(mask.bytesPerLine() == mask.width() * 4);
-		Expects(mask.format() == QImage::Format_ARGB32_Premultiplied);
-
-		if (cache.size() != mask.size()) {
-			cache = QImage(
-				mask.size(),
-				QImage::Format_ARGB32_Premultiplied);
-		}
-		cache.setDevicePixelRatio(mask.devicePixelRatio());
-		Assert(cache.bytesPerLine() == cache.width() * 4);
-		memcpy(cache.bits(), mask.constBits(), mask.sizeInBytes());
-
-		auto q = QPainter(&cache);
-		q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		const auto to = args.patternViewport.translated(-x, -y);
-		const auto from = QRect(QPoint(), pattern->pixmap.size());
-		q.drawPixmap(to, pattern->pixmap, from);
-		q.end();
-
-		p.drawImage(x, y, cache);
+		PaintPatternBubblePart(
+			p,
+			args.patternViewport,
+			pattern->pixmap,
+			QRect(QPoint(x, y), mask.size() / int(mask.devicePixelRatio())),
+			mask,
+			cache);
 	};
 	const auto fillCorner = [&](int x, int y, int index) {
 		fillPattern(
@@ -363,6 +351,74 @@ void PaintBubble(Painter &p, const ComplexBubble &args) {
 			false,
 			RectPart::Top);
 	}
+}
+
+void PaintPatternBubblePart(
+		QPainter &p,
+		const QRect &viewport,
+		const QPixmap &pixmap,
+		const QRect &target) {
+	// #TODO bubbles optimizes
+	const auto to = viewport;
+	const auto from = QRect(QPoint(), pixmap.size());
+	p.drawPixmap(to, pixmap, from);
+}
+
+void PaintPatternBubblePart(
+		QPainter &p,
+		const QRect &viewport,
+		const QPixmap &pixmap,
+		const QRect &target,
+		const QImage &mask,
+		QImage &cache) {
+	Expects(mask.bytesPerLine() == mask.width() * 4);
+	Expects(mask.format() == QImage::Format_ARGB32_Premultiplied);
+
+	if (cache.size() != mask.size()) {
+		cache = QImage(
+			mask.size(),
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	cache.setDevicePixelRatio(mask.devicePixelRatio());
+	Assert(cache.bytesPerLine() == cache.width() * 4);
+	memcpy(cache.bits(), mask.constBits(), mask.sizeInBytes());
+
+	auto q = QPainter(&cache);
+	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	PaintPatternBubblePart(
+		q,
+		viewport.translated(-target.topLeft()),
+		pixmap,
+		QRect(QPoint(), cache.size() / int(cache.devicePixelRatio())));
+	q.end();
+
+	p.drawImage(target, cache);
+}
+
+void PaintPatternBubblePart(
+		QPainter &p,
+		const QRect &viewport,
+		const QPixmap &pixmap,
+		const QRect &target,
+		Fn<void(Painter&)> paintContent,
+		QImage &cache) {
+	Expects(paintContent != nullptr);
+
+	if (cache.size() != target.size() * style::DevicePixelRatio()) {
+		cache = QImage(
+			target.size() * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(style::DevicePixelRatio());
+	}
+	cache.fill(Qt::transparent);
+	auto q = Painter(&cache);
+	q.translate(-target.topLeft());
+	paintContent(q);
+	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	PaintPatternBubblePart(q, viewport, pixmap, target);
+	q.end();
+
+	p.drawImage(target, cache);
 }
 
 } // namespace Ui

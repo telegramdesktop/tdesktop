@@ -150,7 +150,7 @@ QSize ThemeDocument::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	ensureDataMediaCreated();
@@ -158,7 +158,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	if (_data) {
 		_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	}
-	auto selected = (selection == FullSelection);
+	auto selected = (context.selection == FullSelection);
 	auto loaded = dataLoaded();
 	auto displayLoading = _data && _data->displayLoading();
 

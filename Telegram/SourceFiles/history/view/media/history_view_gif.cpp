@@ -276,14 +276,14 @@ bool Gif::autoplayEnabled() const {
 		_data);
 }
 
-void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
 	const auto displayLoading = item->isSending() || _data->displayLoading();
-	const auto selected = (selection == FullSelection);
+	const auto selected = (context.selection == FullSelection);
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed();
@@ -613,7 +613,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 	if (!isRound && !_caption.isEmpty()) {
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
+		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
@@ -896,9 +896,7 @@ QSize Gif::sizeForGrouping(int width) const {
 
 void Gif::drawGrouped(
 		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
@@ -909,7 +907,7 @@ void Gif::drawGrouped(
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
 	const auto displayLoading = (item->id < 0) || _data->displayLoading();
-	const auto selected = (selection == FullSelection);
+	const auto selected = (context.selection == FullSelection);
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();

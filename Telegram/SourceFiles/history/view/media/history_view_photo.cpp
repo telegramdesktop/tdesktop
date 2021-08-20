@@ -223,12 +223,12 @@ QSize Photo::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
-	auto selected = (selection == FullSelection);
+	auto selected = (context.selection == FullSelection);
 	auto loaded = _dataMedia->loaded();
 	auto displayLoading = _data->displayLoading();
 
@@ -330,7 +330,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 	if (!_caption.isEmpty()) {
 		auto outbg = _parent->hasOutLayout();
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
+		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
@@ -489,9 +489,7 @@ QSize Photo::sizeForGrouping(int width) const {
 
 void Photo::drawGrouped(
 		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
@@ -503,7 +501,7 @@ void Photo::drawGrouped(
 
 	validateGroupedCache(geometry, corners, cacheKey, cache);
 
-	const auto selected = (selection == FullSelection);
+	const auto selected = (context.selection == FullSelection);
 	const auto loaded = _dataMedia->loaded();
 	const auto displayLoading = _data->displayLoading();
 	const auto bubble = _parent->hasBubble();

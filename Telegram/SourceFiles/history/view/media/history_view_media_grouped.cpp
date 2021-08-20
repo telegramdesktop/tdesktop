@@ -281,21 +281,19 @@ void GroupedMedia::drawHighlight(Painter &p, int top) const {
 	}
 }
 
-void GroupedMedia::draw(
-		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms) const {
+void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	auto wasCache = false;
 	auto nowCache = false;
 	const auto groupPadding = groupedPadding();
+	auto selection = context.selection;
 	const auto fullSelection = (selection == FullSelection);
 	const auto textSelection = (_mode == Mode::Column)
 		&& !fullSelection
 		&& !IsSubGroupSelection(selection);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
-		const auto partSelection = fullSelection
+		auto partContext = context;
+		partContext.selection = fullSelection
 			? FullSelection
 			: textSelection
 			? selection
@@ -313,9 +311,7 @@ void GroupedMedia::draw(
 		}
 		part.content->drawGrouped(
 			p,
-			clip,
-			partSelection,
-			ms,
+			partContext,
 			part.geometry.translated(0, groupPadding.top()),
 			part.sides,
 			cornersFromSides(part.sides),

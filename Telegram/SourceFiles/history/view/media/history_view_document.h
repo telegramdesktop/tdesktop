@@ -34,7 +34,7 @@ public:
 		not_null<DocumentData*> document);
 	~Document();
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 
@@ -65,9 +65,7 @@ public:
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
-		const QRect &clip,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
@@ -109,8 +107,7 @@ private:
 	void draw(
 		Painter &p,
 		int width,
-		TextSelection selection,
-		crl::time ms,
+		const PaintContext &context,
 		LayoutMode mode) const;
 	[[nodiscard]] TextState textState(
 		QPoint point,
@@ -131,7 +128,10 @@ private:
 	bool updateStatusText() const; // returns showPause
 
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerDownload(Painter &p, bool selected, LayoutMode mode) const;
+	void drawCornerDownload(
+		Painter &p,
+		const PaintContext &context,
+		LayoutMode mode) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
 		StateRequest request,
@@ -139,6 +139,8 @@ private:
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable QImage _iconCache;
+	mutable QImage _cornerDownloadCache;
 
 };
 
