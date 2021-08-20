@@ -983,9 +983,8 @@ void SetupChatBackground(
 	}, tile->lifetime());
 
 	const auto shown = [=] {
-		return !background->prepared().isNull()
-			&& !background->colorForFill()
-			&& background->gradientForFill().isNull();
+		return !background->paper().isPattern()
+			&& !background->colorForFill();
 	};
 	tile->toggle(shown(), anim::type::instant);
 

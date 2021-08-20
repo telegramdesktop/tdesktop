@@ -151,6 +151,17 @@ void SectionWidget::PaintBackground(
 	const auto &prepared = background->prepared();
 	if (prepared.isNull()) {
 		return;
+	} else if (background->paper().isPattern()) {
+		const auto w = prepared.width() * fill.height() / prepared.height();
+		const auto cx = qCeil(fill.width() / float64(w));
+		const auto cols = (cx / 2) * 2 + 1;
+		const auto xshift = (fill.width() - w * cols) / 2;
+		for (auto i = 0; i != cols; ++i) {
+			p.drawImage(
+				QRect(xshift + i * w, 0, w, fill.height()),
+				prepared,
+				QRect(QPoint(), prepared.size()));
+		}
 	} else if (background->tile()) {
 		const auto &tiled = background->preparedForTiled();
 		const auto left = clip.left();
