@@ -1,3 +1,7 @@
+2.9.6 beta (21.08.21)
+
+- Debugging a video playback crash in 32 bit Windows version.
+
 2.9.5 beta (20.08.21)
 
 - Tile chat background patterns horizontally.
