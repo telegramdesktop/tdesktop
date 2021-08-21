@@ -140,6 +140,8 @@ private:
 
 	[[nodiscard]] TimePoint trackTime() const;
 
+	void debugAssertKnownTime(int step, crl::time time) const;
+
 	const crl::weak_on_queue<VideoTrackObject> _weak;
 	PlaybackOptions _options;
 
@@ -270,12 +272,40 @@ void VideoTrackObject::queueReadFrames(crl::time delay) {
 	}
 }
 
+void VideoTrackObject::debugAssertKnownTime(int step, crl::time time) const {
+	if (time < kTimeUnknown / 2) {
+		CrashReports::SetAnnotation("DebugStep", QString::number(step));
+		CrashReports::SetAnnotation("CheckedValue", QString::number(time));
+		CrashReports::SetAnnotation(
+			"_syncTimePoint.trackTime",
+			QString::number(_syncTimePoint.trackTime));
+		CrashReports::SetAnnotation(
+			"_syncTimePoint.worldTime",
+			QString::number(_syncTimePoint.worldTime));
+		CrashReports::SetAnnotation(
+			"_pausedTime",
+			QString::number(_pausedTime));
+		CrashReports::SetAnnotation(
+			"_resumedTime",
+			QString::number(_resumedTime));
+		if (!_shared) {
+			CrashReports::SetAnnotation("_shared", "NULL");
+		} else {
+			CrashReports::SetAnnotation(
+				"_shared->initialized",
+				_shared->initialized() ? "true" : "false");
+		}
+		CrashReports::SetAnnotation("Now", QString::number(crl::now()));
+		Unexpected("Bad time value.");
+	}
+}
+
 void VideoTrackObject::readFrames() {
 	if (interrupted()) {
 		return;
 	}
 	auto time = trackTime().trackTime;
-	Assert(1 && time >= kTimeUnknown / 2); // Debugging a crash.
+	debugAssertKnownTime(1, time);
 	while (true) {
 		const auto result = readEnoughFrames(time);
 		v::match(result, [&](FrameResult result) {
@@ -286,7 +316,7 @@ void VideoTrackObject::readFrames() {
 				const auto duration = computeDuration();
 				Assert(duration != kDurationUnavailable);
 				time -= duration;
-				Assert(2 && time >= kTimeUnknown / 2); // Debugging a crash.
+				debugAssertKnownTime(2, time);
 			}
 		}, [&](Shared::PrepareNextCheck delay) {
 			Expects(delay == kTimeUnknown || delay > 0);
@@ -533,8 +563,7 @@ void VideoTrackObject::setSpeed(float64 speed) {
 	}
 	if (_syncTimePoint.valid()) {
 		_syncTimePoint = trackTime();
-		// Debugging a crash.
-		Assert(3 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+		debugAssertKnownTime(3, _syncTimePoint.trackTime);
 	}
 	_options.speed = speed;
 }
@@ -622,8 +651,7 @@ bool VideoTrackObject::processFirstFrame() {
 	if (frame.isNull()) {
 		return false;
 	}
-	// Debugging a crash.
-	Assert(4 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+	debugAssertKnownTime(4, _syncTimePoint.trackTime);
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
 	callReady();
 	queueReadFrames();
@@ -647,8 +675,7 @@ bool VideoTrackObject::fillStateFromFrame() {
 		return false;
 	}
 	_syncTimePoint.trackTime = position;
-	// Debugging a crash.
-	Assert(5 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+	debugAssertKnownTime(5, _syncTimePoint.trackTime);
 	return true;
 }
 
@@ -675,8 +702,7 @@ void VideoTrackObject::callReady() {
 }
 
 TimePoint VideoTrackObject::trackTime() const {
-	// Debugging a crash.
-	Assert(7 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+	debugAssertKnownTime(7, _syncTimePoint.trackTime);
 
 	auto result = TimePoint();
 	result.worldTime = (_pausedTime != kTimeUnknown)
@@ -686,6 +712,8 @@ TimePoint VideoTrackObject::trackTime() const {
 		result.trackTime = _syncTimePoint.trackTime;
 		return result;
 	}
+	debugAssertKnownTime(8, _syncTimePoint.worldTime);
+	debugAssertKnownTime(9, result.worldTime);
 
 	Assert(_resumedTime != kTimeUnknown);
 	if (_options.syncVideoByAudio && _audioId.externalPlayId()) {
@@ -693,13 +721,14 @@ TimePoint VideoTrackObject::trackTime() const {
 		const auto point = mixer->getExternalSyncTimePoint(_audioId);
 		if (point && point.worldTime > _resumedTime) {
 			_syncTimePoint = point;
-			// Debugging a crash.
-			Assert(6 && _syncTimePoint.trackTime >= kTimeUnknown / 2);
+			debugAssertKnownTime(6, _syncTimePoint.trackTime);
+			debugAssertKnownTime(10, _syncTimePoint.worldTime);
 		}
 	}
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
 	result.trackTime = _syncTimePoint.trackTime
 		+ crl::time(std::round(adjust * _options.speed));
+	debugAssertKnownTime(11, result.trackTime);
 	return result;
 }
 
