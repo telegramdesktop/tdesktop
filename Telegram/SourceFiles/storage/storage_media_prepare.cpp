@@ -291,7 +291,8 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
 			UpdateImageDetails(file, previewWidth);
 			file.type = PreparedFile::Type::Photo;
-		} else if (Core::IsMimeSticker(file.information->filemime)) {
+		} else if (Core::IsMimeSticker(file.information->filemime)
+				|| image->animated) {
 			file.type = PreparedFile::Type::None;
 		}
 	} else if (const auto video = std::get_if<Video>(
