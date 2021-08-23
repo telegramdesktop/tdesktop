@@ -1094,7 +1094,7 @@ void ComposeControls::initKeyHandler() {
 			return;
 		}
 		if (key == Qt::Key_Up && !hasModifiers) {
-			if (!isEditingMessage()) {
+			if (!isEditingMessage() && _field->empty()) {
 				_editLastMessageRequests.fire(std::move(keyEvent));
 				return;
 			}
