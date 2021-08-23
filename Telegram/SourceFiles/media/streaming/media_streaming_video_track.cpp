@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 
 #include "zlib.h"
+#include <cfenv>
 
 extern "C" {
 extern int __isa_available;
@@ -825,6 +826,8 @@ void VideoTrackObject::callReady() {
 }
 
 TimePoint VideoTrackObject::trackTime() const {
+	const auto errors1 = std::fetestexcept(FE_ALL_EXCEPT);
+
 	debugAssertKnownTime(7, _syncTimePoint.trackTime);
 
 	auto result = TimePoint();
@@ -852,7 +855,28 @@ TimePoint VideoTrackObject::trackTime() const {
 	}
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
 	const auto adjustSpeed = adjust * _options.speed;
-	const auto roundAdjustSpeed = std::round(adjustSpeed);
+	const auto errors2 = std::fetestexcept(FE_ALL_EXCEPT);
+	auto roundAdjustSpeed = std::round(adjustSpeed);
+	if (std::isnan(roundAdjustSpeed)) {
+		TO_LOG(("NAN1,errors1:%1,errors2:%2,errors:%3").arg(errors1).arg(errors2).arg(std::fetestexcept(FE_ALL_EXCEPT)));
+		roundAdjustSpeed = std::round(adjustSpeed);
+		if (!std::isnan(roundAdjustSpeed)) {
+			TO_LOG(("WELL2,adjust:%1,rounded:%2").arg(adjustSpeed).arg(roundAdjustSpeed));
+			debugAssertKnownTime(-1, kTimeUnknown);
+		} else {
+			TO_LOG(("NAN2,adjust:%1").arg(adjustSpeed));
+		}
+		std::feclearexcept(FE_ALL_EXCEPT);
+		const auto errors3 = std::fetestexcept(FE_ALL_EXCEPT);
+		roundAdjustSpeed = std::round(adjustSpeed);
+		if (!std::isnan(roundAdjustSpeed)) {
+			TO_LOG(("WELL3,adjust:%1,rounded:%2").arg(adjustSpeed).arg(roundAdjustSpeed));
+			debugAssertKnownTime(-2, kTimeUnknown);
+		} else {
+			TO_LOG(("NAN3,adjust:%1,errors3:%2,errors:%3").arg(adjustSpeed).arg(errors3).arg(std::fetestexcept(FE_ALL_EXCEPT)));
+		}
+		TO_LOG(("qRound:%1,qRound64:%2").arg(qRound(adjustSpeed)).arg(qRound64(adjustSpeed)));
+	}
 	auto timeRoundAdjustSpeed = crl::time(roundAdjustSpeed);
 	const auto fpuErrorHappened = [](crl::time value) {
 		return uint64(value) == 0x8000'0000'0000'0000ULL
