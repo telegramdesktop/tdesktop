@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/concurrent_timer.h"
 #include "core/crash_reports.h"
 
+#include "zlib.h"
+
+#define TO_LOG(x) debugLog(QString x)
+
 namespace Media {
 namespace Streaming {
 namespace {
@@ -141,6 +145,7 @@ private:
 	[[nodiscard]] TimePoint trackTime() const;
 
 	void debugAssertKnownTime(int step, crl::time time) const;
+	void debugLog(const QString &entry) const;
 
 	const crl::weak_on_queue<VideoTrackObject> _weak;
 	PlaybackOptions _options;
@@ -169,6 +174,8 @@ private:
 	// For initial frame skipping for an exact seek.
 	FFmpeg::FramePointer _initialSkippingFrame;
 
+	mutable QStringList _debugLog;
+
 };
 
 VideoTrackObject::VideoTrackObject(
@@ -190,6 +197,17 @@ VideoTrackObject::VideoTrackObject(
 	Expects(_stream.duration > 1);
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
+
+	TO_LOG(("created,speed:%1,mode:%2,position:%3,sync:%4,"
+		"loop:%5,wait:%6,duration:%7,initialized:%8"
+		).arg(options.speed
+		).arg(int(options.mode)
+		).arg(options.position
+		).arg(options.syncVideoByAudio ? "true" : "false"
+		).arg(options.loop ? "true" : "false"
+		).arg(options.waitForMarkAsShown ? "true" : "false"
+		).arg(_stream.duration
+		).arg(_shared->initialized() ? "true" : "false"));
 }
 
 rpl::producer<> VideoTrackObject::checkNextFrame() const {
@@ -211,9 +229,11 @@ void VideoTrackObject::process(std::vector<FFmpeg::Packet> &&packets) {
 		return;
 	}
 	if (packets.front().empty()) {
+		TO_LOG(("process,packets:%1,till_end").arg(packets.size()));
 		Assert(packets.size() == 1);
 		_readTillEnd = true;
 	} else if (!_readTillEnd) {
+		TO_LOG(("process,packets:%1,till:%2").arg(packets.size()).arg(durationByPacket(packets.back())));
 		//for (const auto &packet : packets) {
 		//	// Maybe it is enough to count by list.back()?.. hope so.
 		//	accumulate_max(
@@ -232,6 +252,7 @@ void VideoTrackObject::process(std::vector<FFmpeg::Packet> &&packets) {
 	}
 	for (auto i = begin(packets), e = end(packets); i != e; ++i) {
 		if (_shared->initialized()) {
+			TO_LOG(("queueing_packets,count:%1").arg(e - i));
 			_stream.queue.insert(
 				end(_stream.queue),
 				std::make_move_iterator(i),
@@ -239,6 +260,7 @@ void VideoTrackObject::process(std::vector<FFmpeg::Packet> &&packets) {
 			queueReadFrames();
 			break;
 		} else if (!tryReadFirstFrame(std::move(*i))) {
+			TO_LOG(("fail_read_first_frame"));
 			fail(Error::InvalidData);
 			break;
 		}
@@ -262,13 +284,18 @@ int VideoTrackObject::durationByPacket(const FFmpeg::Packet &packet) {
 
 void VideoTrackObject::queueReadFrames(crl::time delay) {
 	if (delay > 0) {
+		TO_LOG(("queue_with_delay:%1").arg(delay));
 		_readFramesTimer.callOnce(delay);
 	} else if (!_queued) {
+		TO_LOG(("queue_without_delay"));
 		_queued = true;
 		_weak.with([](VideoTrackObject &that) {
+			that.TO_LOG(("unqueued_without_delay"));
 			that._queued = false;
 			that.readFrames();
 		});
+	} else {
+		TO_LOG(("queued_already"));
 	}
 }
 
@@ -296,8 +323,57 @@ void VideoTrackObject::debugAssertKnownTime(int step, crl::time time) const {
 				_shared->initialized() ? "true" : "false");
 		}
 		CrashReports::SetAnnotation("Now", QString::number(crl::now()));
+
+		const auto log = _debugLog.join('\n').toUtf8();
+		const auto compressed = [&] {
+			auto result = QByteArray(log.size() + 1024, char(0));
+			z_stream stream;
+			stream.zalloc = nullptr;
+			stream.zfree = nullptr;
+			stream.opaque = nullptr;
+			stream.avail_in = log.size();
+			stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(log.data()));
+			stream.avail_out = result.size();
+			stream.next_out = reinterpret_cast<Bytef*>(result.data());
+			int res = deflateInit2(&stream, Z_BEST_COMPRESSION, Z_DEFLATED, -MAX_WBITS, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+			if (res != Z_OK) {
+				CrashReports::SetAnnotation("Log", "deflatInit2:" + QString::number(res));
+				return QByteArray();
+			}
+			{
+				const auto guard = gsl::finally([&] { deflateEnd(&stream); });
+				int res = deflate(&stream, Z_FINISH);
+				if (res != Z_OK && res != Z_STREAM_END) {
+					CrashReports::SetAnnotation("Log", "deflate:" + QString::number(res));
+					return QByteArray();
+				} else if (!stream.avail_out) {
+					CrashReports::SetAnnotation("Log", "deflate:no_avail_out");
+					return QByteArray();
+				}
+			}
+			result.resize(result.size() - stream.avail_out);
+			return result;
+		}();
+		if (!compressed.isEmpty()) {
+			CrashReports::SetAnnotation("Log", QString::fromUtf8(compressed.toBase64()));
+		}
+
 		Unexpected("Bad time value.");
 	}
+}
+
+void VideoTrackObject::debugLog(const QString &entry) const {
+	constexpr auto kMaxEntries = 2048;
+	if (_debugLog.size() >= kMaxEntries) {
+		return;
+	} else if (_debugLog.size() == kMaxEntries - 1) {
+		_debugLog.push_back("...");
+		return;
+	}
+	_debugLog.push_back("stp.worldTime:"
+		+ QString::number(_syncTimePoint.worldTime)
+		+ ";stp.trackTime:" + QString::number(_syncTimePoint.trackTime)
+		+ ";" + entry);
 }
 
 void VideoTrackObject::readFrames() {
@@ -305,6 +381,7 @@ void VideoTrackObject::readFrames() {
 		return;
 	}
 	auto time = trackTime().trackTime;
+	TO_LOG(("reading_frames,time:%1").arg(time));
 	debugAssertKnownTime(1, time);
 	while (true) {
 		const auto result = readEnoughFrames(time);
@@ -334,6 +411,7 @@ void VideoTrackObject::readFrames() {
 
 auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 -> ReadEnoughState {
+	TO_LOG(("reading_enough_frames,time:%1").arg(trackTime));
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
 	return v::match(state, [&](Shared::PrepareFrame frame)
@@ -341,13 +419,16 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 		while (true) {
 			const auto result = readFrame(frame);
 			if (result != FrameResult::Done) {
+				TO_LOG(("read_enough_state,frame_result:%1").arg(int(result)));
 				return result;
 			} else if (!dropStaleFrames
 				|| !VideoTrack::IsStale(frame, trackTime)) {
+				TO_LOG(("read_enough_state,null"));
 				return v::null;
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
+		TO_LOG(("read_enough_state,delay:%1").arg(delay));
 		Expects(delay == kTimeUnknown || delay > 0); // Debugging crash.
 
 		return delay;
@@ -359,6 +440,7 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 bool VideoTrackObject::loopAround() {
 	const auto duration = computeDuration();
 	if (duration == kDurationUnavailable) {
+		TO_LOG(("loop_around,error_duration_unavailable"));
 		LOG(("Streaming Error: "
 			"Couldn't find out the real video stream duration."));
 		return false;
@@ -366,6 +448,7 @@ bool VideoTrackObject::loopAround() {
 	avcodec_flush_buffers(_stream.codec.get());
 	_loopingShift += duration;
 	_readTillEnd = false;
+	TO_LOG(("loop_around,duration:%1,shift:%2").arg(duration).arg(_loopingShift));
 	return true;
 }
 
@@ -383,31 +466,38 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
 			if (!_options.loop) {
+				TO_LOG(("read_frame,error_eof"));
 				frame->position = kFinishedPosition;
 				frame->displayed = kTimeUnknown;
 				return FrameResult::Finished;
 			} else if (loopAround()) {
+				TO_LOG(("read_frame,error_looped"));
 				return FrameResult::Looped;
 			} else {
+				TO_LOG(("read_frame,error_bad_data"));
 				fail(Error::InvalidData);
 				return FrameResult::Error;
 			}
 		} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
+			TO_LOG(("read_frame,error_bad_data:%1,till_end:%2").arg(error.code()).arg(_readTillEnd ? "true" : "false"));
 			fail(Error::InvalidData);
 			return FrameResult::Error;
 		}
+		TO_LOG(("read_frame,error_again"));
 		Assert(_stream.queue.empty());
 		_waitingForData.fire({});
 		return FrameResult::Waiting;
 	}
 	const auto position = currentFramePosition();
 	if (position == kTimeUnknown) {
+		TO_LOG(("read_frame,error_current_position:%1").arg(position));
 		fail(Error::InvalidData);
 		return FrameResult::Error;
 	}
 	std::swap(frame->decoded, _stream.frame);
 	frame->position = position;
 	frame->displayed = kTimeUnknown;
+	TO_LOG(("read_frame,current_position:%1").arg(position));
 	return FrameResult::Done;
 }
 
@@ -506,11 +596,14 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		return;
 	}
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
+	const auto time = trackTime();
+	TO_LOG(("present_frame_check,world:%1,track:%2").arg(time.worldTime).arg(time.trackTime));
 	const auto presented = _shared->presentFrame(
 		this,
-		trackTime(),
+		time,
 		_options.speed,
 		dropStaleFrames);
+	TO_LOG(("present_frame_check,add:%1,position:%2,next:%3").arg(presented.addedWorldTimeDelay).arg(presented.displayPosition).arg(presented.nextCheckDelay));
 	addTimelineDelay(presented.addedWorldTimeDelay);
 	if (presented.displayPosition == kFinishedPosition) {
 		interrupt();
@@ -528,6 +621,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 void VideoTrackObject::pause(crl::time time) {
 	Expects(_syncTimePoint.valid());
 
+	TO_LOG(("pause,time:%1,paused:%2").arg(time).arg(_pausedTime));
 	if (interrupted()) {
 		return;
 	} else if (_pausedTime == kTimeUnknown) {
@@ -537,6 +631,8 @@ void VideoTrackObject::pause(crl::time time) {
 
 void VideoTrackObject::resume(crl::time time) {
 	Expects(_syncTimePoint.trackTime != kTimeUnknown);
+
+	TO_LOG(("resume,time:%1,paused:%2,resumed:%3").arg(time).arg(_pausedTime).arg(_resumedTime));
 
 	if (interrupted()) {
 		return;
@@ -558,11 +654,14 @@ void VideoTrackObject::resume(crl::time time) {
 }
 
 void VideoTrackObject::setSpeed(float64 speed) {
+	TO_LOG(("set_speed,speed:%1").arg(speed));
 	if (interrupted()) {
 		return;
 	}
 	if (_syncTimePoint.valid()) {
-		_syncTimePoint = trackTime();
+		const auto time = trackTime();
+		TO_LOG(("set_speed_changing_time,world:%1,track:%2").arg(time.worldTime).arg(time.trackTime));
+		_syncTimePoint = time;
 		debugAssertKnownTime(3, _syncTimePoint.trackTime);
 	}
 	_options.speed = speed;
@@ -572,17 +671,23 @@ void VideoTrackObject::setWaitForMarkAsShown(bool wait) {
 	if (interrupted()) {
 		return;
 	}
+	TO_LOG(("set_wait_for_mark,wait:%1").arg(wait ? "true" : "false"));
 	_options.waitForMarkAsShown = wait;
 }
 
 bool VideoTrackObject::interrupted() const {
-	return (_shared == nullptr);
+	if (_shared == nullptr) {
+		TO_LOG(("interruped_true"));
+		return true;
+	}
+	return false;
 }
 
 void VideoTrackObject::frameShown() {
 	if (interrupted()) {
 		return;
 	}
+	TO_LOG(("frame_shown"));
 	queueReadFrames();
 }
 
@@ -592,6 +697,7 @@ void VideoTrackObject::addTimelineDelay(crl::time delayed) {
 	if (!delayed) {
 		return;
 	}
+	TO_LOG(("adding_delay:%1").arg(delayed));
 	_syncTimePoint.worldTime += delayed;
 }
 
@@ -607,26 +713,34 @@ void VideoTrackObject::removeFrameRequest(const Instance *instance) {
 
 bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
+		TO_LOG(("try_read_first_frame_process_failed"));
 		return false;
 	}
+	TO_LOG(("try_read_first_frame"));
 	while (true) {
 		if (const auto error = ReadNextFrame(_stream)) {
 			if (error.code() == AVERROR_EOF) {
 				if (!_initialSkippingFrame) {
+					TO_LOG(("try_read_first_frame_eof_bad"));
 					return false;
 				}
 				// Return the last valid frame if we seek too far.
 				_stream.frame = std::move(_initialSkippingFrame);
+				TO_LOG(("try_read_first_frame_eof_to_initial"));
 				return processFirstFrame();
 			} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
+				TO_LOG(("try_read_first_frame_error,end:%1").arg(_readTillEnd ? "true" : "false"));
 				return false;
 			} else {
 				// Waiting for more packets.
+				TO_LOG(("try_read_first_frame_waiting"));
 				return true;
 			}
 		} else if (!fillStateFromFrame()) {
+			TO_LOG(("try_read_first_frame_bad_state"));
 			return false;
 		} else if (_syncTimePoint.trackTime >= _options.position) {
+			TO_LOG(("try_read_first_frame_process"));
 			return processFirstFrame();
 		}
 
@@ -652,6 +766,7 @@ bool VideoTrackObject::processFirstFrame() {
 		return false;
 	}
 	debugAssertKnownTime(4, _syncTimePoint.trackTime);
+	TO_LOG(("process_first_frame"));
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
 	callReady();
 	queueReadFrames();
@@ -672,8 +787,10 @@ crl::time VideoTrackObject::currentFramePosition() const {
 bool VideoTrackObject::fillStateFromFrame() {
 	const auto position = currentFramePosition();
 	if (position == kTimeUnknown) {
+		TO_LOG(("fill_state_from_frame_bad"));
 		return false;
 	}
+	TO_LOG(("fill_state_from_frame,position:%1").arg(position));
 	_syncTimePoint.trackTime = position;
 	debugAssertKnownTime(5, _syncTimePoint.trackTime);
 	return true;
@@ -698,6 +815,7 @@ void VideoTrackObject::callReady() {
 	data.state.receivedTill = _readTillEnd
 		? _stream.duration
 		: _syncTimePoint.trackTime;
+	TO_LOG(("call_ready,till:%1").arg(data.state.receivedTill));
 	base::take(_ready)({ data });
 }
 
@@ -710,6 +828,7 @@ TimePoint VideoTrackObject::trackTime() const {
 		: crl::now();
 	if (!_syncTimePoint) {
 		result.trackTime = _syncTimePoint.trackTime;
+		TO_LOG(("track_time,paused:%1,result_world:%2").arg(_pausedTime).arg(result.worldTime));
 		return result;
 	}
 	debugAssertKnownTime(8, _syncTimePoint.worldTime);
@@ -720,6 +839,7 @@ TimePoint VideoTrackObject::trackTime() const {
 		const auto mixer = Media::Player::mixer();
 		const auto point = mixer->getExternalSyncTimePoint(_audioId);
 		if (point && point.worldTime > _resumedTime) {
+			TO_LOG(("track_time_sync,world:%1,track:%2,resumed:%3").arg(point.worldTime).arg(point.trackTime).arg(_resumedTime));
 			_syncTimePoint = point;
 			debugAssertKnownTime(6, _syncTimePoint.trackTime);
 			debugAssertKnownTime(10, _syncTimePoint.worldTime);
@@ -728,6 +848,14 @@ TimePoint VideoTrackObject::trackTime() const {
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
 	result.trackTime = _syncTimePoint.trackTime
 		+ crl::time(std::round(adjust * _options.speed));
+	TO_LOG(("track_time_adjusted,world:%1,adjust:%2,speed:%3,delta:%4,rounded:%5,casted:%6,final:%7"
+		).arg(result.worldTime
+		).arg(adjust
+		).arg(_options.speed
+		).arg(adjust * _options.speed
+		).arg(std::round(adjust * _options.speed)
+		).arg(crl::time(std::round(adjust * _options.speed))
+		).arg(result.trackTime));
 	debugAssertKnownTime(11, result.trackTime);
 	return result;
 }
@@ -1027,7 +1155,6 @@ VideoTrack::FrameWithIndex VideoTrack::Shared::frameForPaintWithIndex() {
 		.frame = frame,
 		.index = (_counterCycle * 2 * kFramesCount) + index,
 	};
-
 }
 
 VideoTrack::VideoTrack(

@@ -30,10 +30,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "api/api_updates.h"
 
+#include "zlib.h"
+
 namespace Settings {
 namespace {
 
 using SessionController = Window::SessionController;
+
+[[nodiscard]] QByteArray UnpackRawGzip(const QByteArray &bytes) {
+	z_stream stream;
+	stream.zalloc = nullptr;
+	stream.zfree = nullptr;
+	stream.opaque = nullptr;
+	stream.avail_in = 0;
+	stream.next_in = nullptr;
+	int res = inflateInit2(&stream, -MAX_WBITS);
+	if (res != Z_OK) {
+		return QByteArray();
+	}
+	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
+
+	auto result = QByteArray(1024 * 1024, char(0));
+	stream.avail_in = bytes.size();
+	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(bytes.data()));
+	stream.avail_out = 0;
+	while (!stream.avail_out) {
+		stream.avail_out = result.size();
+		stream.next_out = reinterpret_cast<Bytef*>(result.data());
+		int res = inflate(&stream, Z_NO_FLUSH);
+		if (res != Z_OK && res != Z_STREAM_END) {
+			return QByteArray();
+		} else if (!stream.avail_out) {
+			return QByteArray();
+		}
+	}
+	result.resize(result.size() - stream.avail_out);
+	return result;
+}
 
 auto GenerateCodes() {
 	auto codes = std::map<QString, Fn<void(SessionController*)>>();
@@ -196,6 +229,50 @@ auto GenerateCodes() {
 		Core::App().settings().clearSoundOverrides();
 		Core::App().saveSettingsDelayed();
 		Ui::show(Box<InformBox>("All sound overrides were reset."));
+	});
+	codes.emplace(qsl("unpacklog"), [](SessionController *window) {
+		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open crash log file", "Crash dump (*.txt)", [=](const FileDialog::OpenResult &result) {
+			if (result.paths.isEmpty()) {
+				return;
+			}
+			auto f = QFile(result.paths.front());
+			if (!f.open(QIODevice::ReadOnly)) {
+				Ui::Toast::Show("Could not open log :(");
+				return;
+			}
+			const auto all = f.readAll();
+			const auto log = all.indexOf("Log: ");
+			if (log < 0) {
+				Ui::Toast::Show("Could not find log :(");
+				return;
+			}
+			const auto base = all.mid(log + 5);
+			const auto end = base.indexOf('\n');
+			if (end <= 0) {
+				Ui::Toast::Show("Could not find log end :(");
+				return;
+			}
+			const auto based = QByteArray::fromBase64(base.mid(0, end));
+			const auto uncompressed = UnpackRawGzip(based);
+			if (uncompressed.isEmpty()) {
+				Ui::Toast::Show("Could not unpack log :(");
+				return;
+			}
+			FileDialog::GetWritePath(Core::App().getFileDialogParent(), "Save detailed log", "Crash dump (*.txt)", QString(), [=](QString &&result) {
+				if (result.isEmpty()) {
+					return;
+				}
+				auto f = QFile(result);
+				if (!f.open(QIODevice::WriteOnly)) {
+					Ui::Toast::Show("Could not open details :(");
+				} else if (f.write(uncompressed) != uncompressed.size()) {
+					Ui::Toast::Show("Could not write details :(");
+				} else {
+					f.close();
+					Ui::Toast::Show("Done!");
+				}
+			});
+		});
 	});
 
 	return codes;
