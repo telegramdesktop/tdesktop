@@ -1,3 +1,7 @@
+2.9.7 beta (23.08.21)
+
+- Still debugging a video playback crash in 32 bit Windows version.
+
 2.9.6 beta (21.08.21)
 
 - Debugging a video playback crash in 32 bit Windows version.
