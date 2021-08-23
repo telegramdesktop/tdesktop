@@ -281,7 +281,8 @@ void ConfirmBox::confirmed() {
 			}
 		} else if (const auto callbackPtr = std::get_if<2>(confirmed)) {
 			if (auto callback = base::take(*callbackPtr)) {
-				callback([=] { closeBox(); });
+				const auto weak = Ui::MakeWeak(this);
+				callback(crl::guard(weak, [=] { closeBox(); }));
 			}
 		}
 	}
