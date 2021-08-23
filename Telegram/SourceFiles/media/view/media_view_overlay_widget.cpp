@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/ui_integration.h"
+#include "core/crash_reports.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
@@ -294,6 +295,8 @@ OverlayWidget::OverlayWidget()
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
 , _dropdown(_widget, st::mediaviewDropdownMenu) {
+	CrashReports::SetAnnotation("OpenGL Renderer", "[not-initialized]");
+
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();

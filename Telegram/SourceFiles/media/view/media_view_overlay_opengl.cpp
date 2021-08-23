@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
+#include "core/crash_reports.h"
 #include "styles/style_media_view.h"
 
 namespace Media::View {
@@ -119,6 +120,12 @@ void OverlayWidget::RendererGL::init(
 			FragmentSampleARGB32Texture(),
 			FragmentGlobalOpacity(),
 		}));
+
+	const auto renderer = reinterpret_cast<const char*>(
+		f.glGetString(GL_RENDERER));
+	CrashReports::SetAnnotation(
+		"OpenGL Renderer",
+		renderer ? renderer : "[nullptr]");
 }
 
 void OverlayWidget::RendererGL::deinit(
