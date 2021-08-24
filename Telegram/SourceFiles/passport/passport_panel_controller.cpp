@@ -54,6 +54,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 					langDateTimeFull(
 						base::unixtime::parse(file.fields.date)));
 			}
+			Unexpected("LoadStatus value in CollectScanInfo.");
 		} else if (file.uploadData) {
 			switch (file.uploadData->status.status()) {
 			case LoadStatus::Status::Failed:
@@ -69,6 +70,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 					langDateTimeFull(
 						base::unixtime::parse(file.fields.date)));
 			}
+			Unexpected("LoadStatus value in CollectScanInfo.");
 		} else {
 			return Ui::FormatDownloadText(0, file.fields.size);
 		}
