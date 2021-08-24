@@ -46,125 +46,6 @@ constexpr auto kUserpicBlurRadius = 8;
 
 using Row = MembersRow;
 
-[[nodiscard]] int VideoParticipantsLimit(not_null<Main::Session*> session) {
-	return int(session->account().appConfig().get<double>(
-		"groupcall_video_participants_max",
-		30.));
-}
-
-void SetupVideoPlaceholder(
-		not_null<Ui::RpWidget*> widget,
-		not_null<PeerData*> chat,
-		int limit) {
-	struct State {
-		QImage blurred;
-		QImage rounded;
-		InMemoryKey key = {};
-		std::shared_ptr<Data::CloudImageView> view;
-		qint64 blurredCacheKey = 0;
-	};
-	const auto state = widget->lifetime().make_state<State>();
-	const auto refreshBlurred = [=] {
-		const auto key = chat->userpicUniqueKey(state->view);
-		if (state->key == key && !state->blurred.isNull()) {
-			return;
-		}
-		constexpr auto size = kUserpicSizeForBlur;
-		state->key = key;
-		state->blurred = QImage(
-			QSize(size, size),
-			QImage::Format_ARGB32_Premultiplied);
-		{
-			auto p = Painter(&state->blurred);
-			auto hq = PainterHighQualityEnabler(p);
-			chat->paintUserpicSquare(p, state->view, 0, 0, size);
-		}
-		state->blurred = Images::BlurLargeImage(
-			std::move(state->blurred),
-			kUserpicBlurRadius);
-		widget->update();
-	};
-	const auto refreshRounded = [=](QSize size) {
-		refreshBlurred();
-		const auto key = state->blurred.cacheKey();
-		if (state->rounded.size() == size && state->blurredCacheKey == key) {
-			return;
-		}
-		state->blurredCacheKey = key;
-		state->rounded = Images::prepare(
-			state->blurred,
-			size.width(),
-			size.width(), // Square
-			Images::Option::Smooth,
-			size.width(),
-			size.height());
-		{
-			auto p = QPainter(&state->rounded);
-			p.fillRect(
-				0,
-				0,
-				size.width(),
-				size.height(),
-				QColor(0, 0, 0, Viewport::kShadowMaxAlpha));
-		}
-		state->rounded = Images::prepare(
-			std::move(state->rounded),
-			size.width(),
-			size.height(),
-			(Images::Option::RoundedLarge | Images::Option::RoundedAll),
-			size.width(),
-			size.height());
-	};
-	chat->loadUserpic();
-	refreshBlurred();
-
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		const auto size = QSize(
-			widget->width(),
-			widget->height() - st::groupCallVideoSmallSkip);
-		refreshRounded(size * cIntRetinaFactor());
-
-		auto p = QPainter(widget);
-		const auto inner = QRect(QPoint(), size);
-		p.drawImage(inner, state->rounded);
-		st::groupCallPaused.paint(
-			p,
-			(size.width() - st::groupCallPaused.width()) / 2,
-			st::groupCallVideoPlaceholderIconTop,
-			size.width());
-
-		const auto skip = st::groupCallVideoLargeSkip;
-		p.setPen(st::groupCallVideoTextFg);
-		const auto text = QRect(
-			skip,
-			st::groupCallVideoPlaceholderTextTop,
-			(size.width() - 2 * skip),
-			size.height() - st::groupCallVideoPlaceholderTextTop);
-		p.setFont(st::semiboldFont);
-		p.drawText(
-			text,
-			tr::lng_group_call_limit(tr::now, lt_count, int(limit)),
-			style::al_top);
-	}, widget->lifetime());
-}
-
-void SetupVideoAboutLimit(
-		not_null<Ui::RpWidget*> widget,
-		not_null<Main::Session*> session,
-		int limit) {
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		widget.get(),
-		tr::lng_group_call_over_limit(lt_count, rpl::single(limit * 1.)),
-		st::groupCallVideoLimitLabel);
-	widget->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		label->resizeToWidth(width);
-		label->moveToLeft(0, st::normalFont->height / 3);
-		widget->resize(width, label->height() + st::normalFont->height);
-	}, label->lifetime());
-}
-
 } // namespace
 
 class Members::Controller final
@@ -1658,8 +1539,6 @@ Members::Members(
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
 , _videoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get())))
-, _videoPlaceholder(std::make_unique<Ui::RpWidget>(_videoWrap.get()))
-, _videoAboutLimit(std::make_unique<Ui::RpWidget>(_videoWrap.get()))
 , _viewport(
 	std::make_unique<Viewport>(
 		_videoWrap.get(),
@@ -1897,61 +1776,9 @@ void Members::trackViewportGeometry() {
 	_scroll->scrollTopValue(
 	) | rpl::skip(1) | rpl::start_with_next(move, _viewport->lifetime());
 
-	const auto videoLimit = VideoParticipantsLimit(&_call->peer()->session());
-	rpl::combine(
-		_layout->widthValue(),
-		_call->hasNotShownVideoValue()
-	) | rpl::start_with_next([=](int width, bool has) {
-		const auto height = has ? st::groupCallVideoPlaceholderHeight : 0;
-		_videoPlaceholder->setGeometry(0, 0, width, height);
-	}, _videoPlaceholder->lifetime());
-
-	SetupVideoPlaceholder(_videoPlaceholder.get(), _call->peer(), videoLimit);
-
-	_layout->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_videoAboutLimit->resizeToWidth(width);
-	}, _videoAboutLimit->lifetime());
-
-	using namespace rpl::mappers;
-	auto aboutLimitRelevant = fullCountValue(
-	) | rpl::map(
-		_1 > videoLimit
-	) | rpl::distinct_until_changed();
-	auto aboutLimitShown = rpl::combine(
-		std::move(aboutLimitRelevant),
-		_call->canManageValue(),
-		_1 && _2);
-
-	SetupVideoAboutLimit(
-		_videoAboutLimit.get(),
-		&_call->peer()->session(),
-		videoLimit);
-
-	rpl::combine(
-		_videoPlaceholder->heightValue(),
-		_viewport->fullHeightValue(),
-		_videoAboutLimit->heightValue(),
-		std::move(aboutLimitShown)
-	) | rpl::start_with_next([=](
-			int placeholder,
-			int viewport,
-			int aboutLimit,
-			bool aboutLimitShown) {
-		if (placeholder > 0 || viewport <= 0 || !aboutLimitShown) {
-			aboutLimitShown = false;
-		}
-
-		// This call may update _videoAboutLimit->height() :(
-		_videoAboutLimit->setVisible(aboutLimitShown);
-
-		_videoAboutLimit->move(0, viewport);
-		_videoWrap->resize(
-			_videoWrap->width(),
-			std::max(
-				placeholder,
-				(viewport
-					+ (aboutLimitShown ? _videoAboutLimit->height() : 0))));
+	_viewport->fullHeightValue(
+	) | rpl::start_with_next([=](int viewport) {
+		_videoWrap->resize(_videoWrap->width(), viewport);
 		if (viewport > 0) {
 			move();
 			resize();

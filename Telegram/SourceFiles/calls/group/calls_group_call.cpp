@@ -885,9 +885,6 @@ void GroupCall::setState(State state) {
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
-		if (!videoIsWorking()) {
-			refreshHasNotShownVideo();
-		}
 	}
 
 	if (false
@@ -1099,9 +1096,6 @@ void GroupCall::markEndpointActive(
 		bool active,
 		bool paused) {
 	if (!endpoint) {
-		return;
-	} else if (active && !videoIsWorking()) {
-		refreshHasNotShownVideo();
 		return;
 	}
 	const auto i = _activeVideoTracks.find(endpoint);
@@ -2618,22 +2612,6 @@ void GroupCall::updateRequestedVideoChannelsDelayed() {
 	});
 }
 
-void GroupCall::refreshHasNotShownVideo() {
-	if (!_joinState.ssrc || hasNotShownVideo()) {
-		return;
-	}
-	const auto real = lookupReal();
-	Assert(real != nullptr);
-
-	const auto hasVideo = [&](const Data::GroupCallParticipant &data) {
-		return (data.peer != _joinAs)
-			&& (!GetCameraEndpoint(data.videoParams).empty()
-				|| !GetScreenEndpoint(data.videoParams).empty());
-	};
-	_hasNotShownVideo = _joinState.ssrc
-		&& ranges::any_of(real->participants(), hasVideo);
-}
-
 void GroupCall::fillActiveVideoEndpoints() {
 	const auto real = lookupReal();
 	Assert(real != nullptr);
@@ -2641,9 +2619,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 	const auto me = real->participantByPeer(_joinAs);
 	if (me && me->videoJoined) {
 		_videoIsWorking = true;
-		_hasNotShownVideo = false;
 	} else {
-		refreshHasNotShownVideo();
 		_videoIsWorking = false;
 		toggleVideo(false);
 		toggleScreenSharing(std::nullopt);
@@ -2671,30 +2647,28 @@ void GroupCall::fillActiveVideoEndpoints() {
 		}
 	};
 	using Type = VideoEndpointType;
-	if (_videoIsWorking.current()) {
-		for (const auto &participant : real->participants()) {
-			const auto camera = GetCameraEndpoint(participant.videoParams);
-			if (camera != _cameraEndpoint
-				&& camera != _screenEndpoint
-				&& participant.peer != _joinAs) {
-				const auto paused = IsCameraPaused(participant.videoParams);
-				feedOne({ Type::Camera, participant.peer, camera }, paused);
-			}
-			const auto screen = GetScreenEndpoint(participant.videoParams);
-			if (screen != _cameraEndpoint
-				&& screen != _screenEndpoint
-				&& participant.peer != _joinAs) {
-				const auto paused = IsScreenPaused(participant.videoParams);
-				feedOne({ Type::Screen, participant.peer, screen }, paused);
-			}
+	for (const auto &participant : real->participants()) {
+		const auto camera = GetCameraEndpoint(participant.videoParams);
+		if (camera != _cameraEndpoint
+			&& camera != _screenEndpoint
+			&& participant.peer != _joinAs) {
+			const auto paused = IsCameraPaused(participant.videoParams);
+			feedOne({ Type::Camera, participant.peer, camera }, paused);
 		}
-		feedOne(
-			{ Type::Camera, _joinAs, cameraSharingEndpoint() },
-			isCameraPaused());
-		feedOne(
-			{ Type::Screen, _joinAs, screenSharingEndpoint() },
-			isScreenPaused());
+		const auto screen = GetScreenEndpoint(participant.videoParams);
+		if (screen != _cameraEndpoint
+			&& screen != _screenEndpoint
+			&& participant.peer != _joinAs) {
+			const auto paused = IsScreenPaused(participant.videoParams);
+			feedOne({ Type::Screen, participant.peer, screen }, paused);
+		}
 	}
+	feedOne(
+		{ Type::Camera, _joinAs, cameraSharingEndpoint() },
+		isCameraPaused());
+	feedOne(
+		{ Type::Screen, _joinAs, screenSharingEndpoint() },
+		isScreenPaused());
 	if (large && !largeFound) {
 		setVideoEndpointLarge({});
 	}
