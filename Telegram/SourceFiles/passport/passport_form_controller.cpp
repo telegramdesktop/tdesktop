@@ -1745,7 +1745,7 @@ void FormController::loadFile(File &file) {
 		return;
 	}
 
-	const auto key = FileKey{ file.id, file.dcId };
+	const auto key = FileKey{ file.id };
 	const auto i = _fileLoaders.find(key);
 	if (i != _fileLoaders.end()) {
 		return;
@@ -2466,14 +2466,14 @@ EditFile *FormController::findEditFile(const FullMsgId &fullId) {
 
 EditFile *FormController::findEditFile(const FileKey &key) {
 	return findEditFileByCondition([&](const EditFile &file) {
-		return (file.fields.dcId == key.dcId && file.fields.id == key.id);
+		return (file.fields.id == key.id);
 	});
 }
 
 auto FormController::findFile(const FileKey &key)
 -> std::pair<Value*, File*> {
 	const auto found = [&](const File &file) {
-		return (file.dcId == key.dcId) && (file.id == key.id);
+		return (file.id == key.id);
 	};
 	for (auto &pair : _form.values) {
 		auto &value = pair.second;

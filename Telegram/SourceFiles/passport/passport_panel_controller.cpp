@@ -75,7 +75,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 	}();
 	return {
 		file.type,
-		FileKey{ file.fields.id, file.fields.dcId },
+		FileKey{ file.fields.id },
 		!file.fields.error.isEmpty() ? file.fields.error : status,
 		file.fields.image,
 		file.deleted,

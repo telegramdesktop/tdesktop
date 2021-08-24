@@ -336,16 +336,15 @@ struct PasswordSettings {
 
 struct FileKey {
 	uint64 id = 0;
-	int32 dcId = 0;
 
 	inline bool operator==(const FileKey &other) const {
-		return (id == other.id) && (dcId == other.dcId);
+		return (id == other.id);
 	}
 	inline bool operator!=(const FileKey &other) const {
 		return !(*this == other);
 	}
 	inline bool operator<(const FileKey &other) const {
-		return (id < other.id) || ((id == other.id) && (dcId < other.dcId));
+		return (id < other.id);
 	}
 	inline bool operator>(const FileKey &other) const {
 		return (other < *this);
