@@ -1,3 +1,7 @@
+2.9.12 beta (24.08.21)
+
+- Disable floating point exceptions in 32 bit Windows version.
+
 2.9.11 beta (24.08.21)
 
 - Resolve (again) a video playback crash in 32 bit Windows version.
