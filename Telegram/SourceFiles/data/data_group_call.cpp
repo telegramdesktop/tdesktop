@@ -496,8 +496,9 @@ void GroupCall::reload() {
 	}
 	_reloadByQueuedUpdatesTimer.cancel();
 
+	const auto limit = 3;
 	_reloadRequestId = api().request(
-		MTPphone_GetGroupCall(input())
+		MTPphone_GetGroupCall(input(), MTP_int(limit))
 	).done([=](const MTPphone_GroupCall &result) {
 		if (requestParticipantsAfterReload(result)) {
 			_savedFull = result;

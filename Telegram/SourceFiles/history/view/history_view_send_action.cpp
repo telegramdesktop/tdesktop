@@ -106,6 +106,8 @@ bool SendActionPainter::updateNeedsAnimating(
 			user,
 			now + kStatusShowClientsideSpeaking);
 	}, [&](const MTPDsendMessageHistoryImportAction &) {
+	}, [&](const MTPDsendMessageChooseStickerAction &) {
+		// #TODO send_action
 	}, [&](const MTPDsendMessageCancelAction &) {
 		Unexpected("CancelAction here.");
 	});

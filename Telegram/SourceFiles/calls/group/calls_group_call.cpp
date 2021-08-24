@@ -126,10 +126,18 @@ using JoinClientFields = std::variant<
 
 class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
 public:
+	using Quality = tgcalls::VideoChannelDescription::Quality;
 	LoadPartTask(
 		base::weak_ptr<GroupCall> call,
 		int64 time,
 		int64 period,
+		Fn<void(tgcalls::BroadcastPart&&)> done);
+	LoadPartTask(
+		base::weak_ptr<GroupCall> call,
+		int64 time,
+		int64 period,
+		int32 videoChannel,
+		Quality videoQuality,
 		Fn<void(tgcalls::BroadcastPart&&)> done);
 
 	[[nodiscard]] int64 time() const {
@@ -137,6 +145,12 @@ public:
 	}
 	[[nodiscard]] int32 scale() const {
 		return _scale;
+	}
+	[[nodiscard]] int32 videoChannel() const {
+		return _videoChannel;
+	}
+	[[nodiscard]] Quality videoQuality() const {
+		return _videoQuality;
 	}
 
 	void done(tgcalls::BroadcastPart &&part);
@@ -146,6 +160,8 @@ private:
 	const base::weak_ptr<GroupCall> _call;
 	const int64 _time = 0;
 	const int32 _scale = 0;
+	const int32 _videoChannel = 0;
+	const Quality _videoQuality = {};
 	Fn<void(tgcalls::BroadcastPart &&)> _done;
 	QMutex _mutex;
 
@@ -379,7 +395,17 @@ GroupCall::LoadPartTask::LoadPartTask(
 	base::weak_ptr<GroupCall> call,
 	int64 time,
 	int64 period,
-	Fn<void(tgcalls::BroadcastPart &&)> done)
+	Fn<void(tgcalls::BroadcastPart&&)> done)
+: LoadPartTask(std::move(call), time, period, 0, {}, std::move(done)) {
+}
+
+GroupCall::LoadPartTask::LoadPartTask(
+	base::weak_ptr<GroupCall> call,
+	int64 time,
+	int64 period,
+	int32 videoChannel,
+	tgcalls::VideoChannelDescription::Quality videoQuality,
+	Fn<void(tgcalls::BroadcastPart&&)> done)
 : _call(std::move(call))
 , _time(time ? time : (base::unixtime::now() * int64(1000)))
 , _scale([&] {
@@ -391,6 +417,8 @@ GroupCall::LoadPartTask::LoadPartTask(
 	}
 	Unexpected("Period in LoadPartTask.");
 }())
+, _videoChannel(videoChannel)
+, _videoQuality(videoQuality)
 , _done(std::move(done)) {
 }
 
@@ -2190,7 +2218,8 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 		MTP_flags((enabled ? Flag::f_start : Flag(0))
 			| (title.isEmpty() ? Flag(0) : Flag::f_title)),
 		inputCall(),
-		MTP_string(title)
+		MTP_string(title),
+		MTPBool() // video_portrait
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		_recordingStoppedByMe = false;
@@ -2234,7 +2263,7 @@ bool GroupCall::tryCreateController() {
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
 		.videoCapture = _cameraCapture,
-		.requestBroadcastPart = [=, call = base::make_weak(this)](
+		.requestAudioBroadcastPart = [=, call = base::make_weak(this)](
 				int64_t time,
 				int64_t period,
 				std::function<void(tgcalls::BroadcastPart &&)> done) {
@@ -2242,6 +2271,24 @@ bool GroupCall::tryCreateController() {
 				call,
 				time,
 				period,
+				std::move(done));
+			crl::on_main(weak, [=]() mutable {
+				broadcastPartStart(std::move(result));
+			});
+			return result;
+		},
+		.requestVideoBroadcastPart = [=, call = base::make_weak(this)](
+				int64_t time,
+				int64_t period,
+				int32_t channel,
+				tgcalls::VideoChannelDescription::Quality quality,
+				std::function<void(tgcalls::BroadcastPart &&)> done) {
+			auto result = std::make_shared<LoadPartTask>(
+				call,
+				time,
+				period,
+				channel,
+				quality,
 				std::move(done));
 			crl::on_main(weak, [=]() mutable {
 				broadcastPartStart(std::move(result));
@@ -2326,17 +2373,30 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 	const auto raw = task.get();
 	const auto time = raw->time();
 	const auto scale = raw->scale();
+	const auto videoChannel = raw->videoChannel();
+	const auto videoQuality = raw->videoQuality();
 	const auto finish = [=](tgcalls::BroadcastPart &&part) {
 		raw->done(std::move(part));
 		_broadcastParts.erase(raw);
 	};
 	using Status = tgcalls::BroadcastPart::Status;
+	using Quality = tgcalls::VideoChannelDescription::Quality;
+	using Flag = MTPDinputGroupCallStream::Flag;
 	const auto requestId = _api.request(MTPupload_GetFile(
 		MTP_flags(0),
 		MTP_inputGroupCallStream(
+			MTP_flags(videoChannel
+				? (Flag::f_video_channel | Flag::f_video_quality)
+				: Flag(0)),
 			inputCall(),
 			MTP_long(time),
-			MTP_int(scale)),
+			MTP_int(scale),
+			MTP_int(videoChannel),
+			MTP_int((videoQuality == Quality::Full)
+				? 2
+				: (videoQuality == Quality::Medium)
+				? 1
+				: 0)),
 		MTP_int(0),
 		MTP_int(128 * 1024)
 	)).done([=](
@@ -2350,7 +2410,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 				.timestampMilliseconds = time,
 				.responseTimestamp = TimestampFromMsgId(response.outerMsgId),
 				.status = Status::Success,
-				.oggData = std::move(bytes),
+				.data = std::move(bytes),
 			});
 		}, [&](const MTPDupload_fileCdnRedirect &data) {
 			LOG(("Voice Chat Stream Error: fileCdnRedirect received."));

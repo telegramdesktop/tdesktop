@@ -174,6 +174,8 @@ StorageFileLocation::StorageFileLocation(
 		});
 		_volumeId = data.vtime_ms().v;
 		_localId = data.vscale().v;
+		_sizeLetter = uint8(data.vvideo_channel().value_or_empty() & 0x3F)
+			| uint8((data.vvideo_quality().value_or_empty() & 0x03) << 6);
 	});
 }
 
@@ -265,9 +267,15 @@ MTPInputFileLocation StorageFileLocation::tl(UserId self) const {
 
 	case Type::GroupCallStream:
 		return MTP_inputGroupCallStream(
+			MTP_flags((_sizeLetter != 0)
+				? (MTPDinputGroupCallStream::Flag::f_video_channel
+					| MTPDinputGroupCallStream::Flag::f_video_quality)
+				: MTPDinputGroupCallStream::Flag(0)),
 			MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash)),
 			MTP_long(_volumeId),
-			MTP_int(_localId));
+			MTP_int(_localId),
+			MTP_int(_sizeLetter & 0x3F),
+			MTP_int((_sizeLetter >> 6) & 0x03));
 
 	}
 	Unexpected("Type in StorageFileLocation::tl.");
@@ -479,7 +487,8 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 			(shifted
 				| sliced
 				| (uint32(_localId) << 16)
-				| (_volumeId << 20)),
+				| (_volumeId << 20)
+				| (uint64(_sizeLetter) << 56)),
 			_id };
 	}
 	return Key();
@@ -607,7 +616,8 @@ bool operator==(const StorageFileLocation &a, const StorageFileLocation &b) {
 	case Type::GroupCallStream:
 		return (a._dcId == b._dcId)
 			&& (a._id == b._id)
-			&& (a._localId == b._localId);
+			&& (a._localId == b._localId)
+			&& (a._sizeLetter == b._sizeLetter);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }
@@ -661,8 +671,8 @@ bool operator<(const StorageFileLocation &a, const StorageFileLocation &b) {
 			< std::tie(b._id, b._localId, b._volumeId, b._dcId);
 
 	case Type::GroupCallStream:
-		return std::tie(a._id, a._localId, a._dcId)
-			< std::tie(b._id, b._localId, b._dcId);
+		return std::tie(a._id, a._localId, a._dcId, a._sizeLetter)
+			< std::tie(b._id, b._localId, b._dcId, b._sizeLetter);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }

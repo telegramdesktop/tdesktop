@@ -484,6 +484,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareSetMessagesTTL(data);
 	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
 		return prepareCallScheduledText(data.vschedule_date().v);
+	}, [&](const MTPDmessageActionSetChatTheme &data) {
+		return PreparedText{ tr::lng_message_empty(tr::now) }; // #TODO themes
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

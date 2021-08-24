@@ -320,8 +320,9 @@ void SessionNavigation::showPeerByLinkResolved(
 				return;
 			}
 			const auto id = call->id();
+			const auto limit = 3;
 			_resolveRequestId = _session->api().request(
-				MTPphone_GetGroupCall(call->input())
+				MTPphone_GetGroupCall(call->input(), MTP_int(limit))
 			).done([=](const MTPphone_GroupCall &result) {
 				if (const auto now = peer->groupCall()
 					; now && now->id() == id) {
