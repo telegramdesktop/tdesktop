@@ -13,9 +13,7 @@ namespace Core {
 
 class Launcher {
 public:
-	Launcher(
-		int argc,
-		char *argv[]);
+	Launcher(int argc, char *argv[]);
 
 	static std::unique_ptr<Launcher> Create(int argc, char *argv[]);
 

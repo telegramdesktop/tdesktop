@@ -412,7 +412,9 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 
 	_reader->startStreaming();
 	_context.emplace(delegate, _reader.get());
+
 	_thread = std::thread([=, context = &*_context] {
+		crl::toggle_fp_exceptions(true);
 		context->start(position);
 		while (!context->finished()) {
 			context->readNextPacket();

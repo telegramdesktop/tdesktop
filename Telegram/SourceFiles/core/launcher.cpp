@@ -270,12 +270,12 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
 }
 
-Launcher::Launcher(
-	int argc,
-	char *argv[])
+Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
 , _argv(argv)
 , _baseIntegration(_argc, _argv) {
+	crl::toggle_fp_exceptions(true);
+
 	base::Integration::Set(&_baseIntegration);
 }
 
