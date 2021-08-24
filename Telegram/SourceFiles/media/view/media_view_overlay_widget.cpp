@@ -4517,17 +4517,20 @@ void OverlayWidget::applyHideWindowWorkaround() {
 	// So on next paint we force full backing store repaint.
 	if (_opengl && !isHidden() && !_hideWorkaround) {
 		_hideWorkaround = std::make_unique<Ui::RpWidget>(_widget);
-		_hideWorkaround->setGeometry(_widget->rect());
-		_hideWorkaround->show();
-		_hideWorkaround->paintRequest(
+		const auto raw = _hideWorkaround.get();
+		raw->setGeometry(_widget->rect());
+		raw->show();
+		raw->paintRequest(
 		) | rpl::start_with_next([=] {
-			const auto workaround = _hideWorkaround.release();
-			QPainter(workaround).fillRect(workaround->rect(), QColor(0, 1, 0, 1));
-			crl::on_main(workaround, [=] {
-				delete workaround;
+			if (_hideWorkaround.get() == raw) {
+				_hideWorkaround.release();
+			}
+			QPainter(raw).fillRect(raw->rect(), QColor(0, 1, 0, 1));
+			crl::on_main(raw, [=] {
+				delete raw;
 			});
-		}, _hideWorkaround->lifetime());
-		_hideWorkaround->update();
+		}, raw->lifetime());
+		raw->update();
 
 		if (Platform::IsWindows()) {
 			Ui::Platform::UpdateOverlayed(_widget);
