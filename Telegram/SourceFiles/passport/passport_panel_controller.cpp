@@ -40,13 +40,14 @@ const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 ScanInfo CollectScanInfo(const EditFile &file) {
 	const auto status = [&] {
 		if (file.fields.accessHash) {
-			if (file.fields.downloadOffset < 0) {
+			switch (file.fields.downloadStatus.status()) {
+			case LoadStatus::Status::Failed:
 				return tr::lng_attach_failed(tr::now);
-			} else if (file.fields.downloadOffset < file.fields.size) {
+			case LoadStatus::Status::InProgress:
 				return Ui::FormatDownloadText(
-					file.fields.downloadOffset,
+					file.fields.downloadStatus.offset(),
 					file.fields.size);
-			} else {
+			case LoadStatus::Status::Done:
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,
@@ -54,13 +55,14 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 						base::unixtime::parse(file.fields.date)));
 			}
 		} else if (file.uploadData) {
-			if (file.uploadData->offset < 0) {
+			switch (file.uploadData->status.status()) {
+			case LoadStatus::Status::Failed:
 				return tr::lng_attach_failed(tr::now);
-			} else if (file.uploadData->fullId) {
+			case LoadStatus::Status::InProgress:
 				return Ui::FormatDownloadText(
-					file.uploadData->offset,
+					file.uploadData->status.offset(),
 					file.uploadData->bytes.size());
-			} else {
+			case LoadStatus::Status::Done:
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,

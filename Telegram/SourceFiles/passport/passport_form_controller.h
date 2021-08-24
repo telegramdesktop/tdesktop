@@ -64,6 +64,35 @@ struct FormRequest {
 
 };
 
+class LoadStatus final {
+public:
+	enum class Status {
+		Done,
+		InProgress,
+		Failed,
+	};
+
+	LoadStatus() = default;
+
+	void set(Status status, int offset = 0) {
+		if (!offset) {
+			offset = _offset;
+		}
+		_offset = (status == Status::InProgress) ? offset : 0;
+		_status = status;
+	}
+
+	int offset() const {
+		return _offset;
+	}
+	Status status() const {
+		return _status;
+	}
+private:
+	int _offset = 0;
+	Status _status = Status::Done;
+};
+
 struct UploadScanData {
 	FullMsgId fullId;
 	uint64 fileId = 0;
@@ -72,7 +101,7 @@ struct UploadScanData {
 	bytes::vector hash;
 	bytes::vector bytes;
 
-	int offset = 0;
+	LoadStatus status;
 };
 
 class UploadScanDataPointer {
@@ -115,7 +144,7 @@ struct File {
 	bytes::vector secret;
 	bytes::vector encryptedSecret;
 
-	int downloadOffset = 0;
+	LoadStatus downloadStatus;
 	QImage image;
 	QString error;
 };
