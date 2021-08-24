@@ -880,86 +880,7 @@ TimePoint VideoTrackObject::trackTime() const {
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
 	const auto adjustSpeed = adjust * _options.speed;
 	const auto roundAdjustSpeed = SafeRound(adjustSpeed);
-	auto timeRoundAdjustSpeed = crl::time(roundAdjustSpeed);
-	const auto fpuErrorHappened = [](crl::time value) {
-		return uint64(value) == 0x8000'0000'0000'0000ULL
-			|| uint64(value) == 0x8000'0000ULL
-			|| uint64(value) == 0xFFFF'FFFF'FFFF'FFFFULL
-			|| uint64(value) == 0xFFFF'FFFFULL;
-	};
-	if (roundAdjustSpeed > -1000'000'000.
-		&& roundAdjustSpeed < 1000'000'000.
-		&& fpuErrorHappened(timeRoundAdjustSpeed)) {
-		TO_LOG(("BAD1,round:%1").arg(roundAdjustSpeed));
-		timeRoundAdjustSpeed = crl::time(roundAdjustSpeed);
-		if (!fpuErrorHappened(timeRoundAdjustSpeed)) {
-			TO_LOG(("GOOD2,round:%1,result:%2").arg(roundAdjustSpeed).arg(timeRoundAdjustSpeed));
-			debugAssertKnownTime(-1, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD2,round:%1").arg(roundAdjustSpeed));
-		}
-		const auto floatRoundAdjustSpeed = float(roundAdjustSpeed);
-		timeRoundAdjustSpeed = crl::time(floatRoundAdjustSpeed);
-		if (!fpuErrorHappened(timeRoundAdjustSpeed)) {
-			TO_LOG(("GOOD3,round:%1,result:%2").arg(floatRoundAdjustSpeed).arg(timeRoundAdjustSpeed));
-			debugAssertKnownTime(-2, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD3,round:%1").arg(floatRoundAdjustSpeed));
-		}
-		const auto intRoundAdjustSpeet = int(roundAdjustSpeed);
-		timeRoundAdjustSpeed = crl::time(intRoundAdjustSpeet);
-		if (!fpuErrorHappened(timeRoundAdjustSpeed)) {
-			TO_LOG(("GOOD4,int:%1,result:%2").arg(intRoundAdjustSpeet).arg(timeRoundAdjustSpeed));
-			debugAssertKnownTime(-3, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD4,int:%1").arg(intRoundAdjustSpeet));
-		}
-		const auto intFloatRoundAdjustSpeed = int(floatRoundAdjustSpeed);
-		timeRoundAdjustSpeed = crl::time(intFloatRoundAdjustSpeed);
-		if (!fpuErrorHappened(timeRoundAdjustSpeed)) {
-			TO_LOG(("GOOD5,int:%1,result:%2").arg(intFloatRoundAdjustSpeed).arg(timeRoundAdjustSpeed));
-			debugAssertKnownTime(-4, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD5,int:%1").arg(intFloatRoundAdjustSpeed));
-		}
-		const auto uint64RoundAdjustSpeed = uint64((roundAdjustSpeed >= 0.)
-			? roundAdjustSpeed
-			: -roundAdjustSpeed);
-		if (!fpuErrorHappened(uint64RoundAdjustSpeed)) {
-			TO_LOG(("GOOD6,round:%1,uint:%2").arg(roundAdjustSpeed).arg(uint64RoundAdjustSpeed));
-			debugAssertKnownTime(-5, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD6,uint:%1").arg(uint64RoundAdjustSpeed));
-		}
-		const auto uint64FloatRoundAdjustSpeed = uint64((floatRoundAdjustSpeed >= 0.)
-			? floatRoundAdjustSpeed
-			: -floatRoundAdjustSpeed);
-		if (!fpuErrorHappened(uint64FloatRoundAdjustSpeed)) {
-			TO_LOG(("GOOD7,round:%1,uint:%2").arg(floatRoundAdjustSpeed).arg(uint64FloatRoundAdjustSpeed));
-			debugAssertKnownTime(-6, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD7,uint:%1").arg(uint64FloatRoundAdjustSpeed));
-		}
-		const auto uint32RoundAdjustSpeed = uint32((roundAdjustSpeed >= 0.)
-			? roundAdjustSpeed
-			: -roundAdjustSpeed);
-		if (!fpuErrorHappened(uint32RoundAdjustSpeed)) {
-			TO_LOG(("GOOD8,round:%1,uint:%2").arg(roundAdjustSpeed).arg(uint32RoundAdjustSpeed));
-			debugAssertKnownTime(-7, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD8,uint:%1").arg(uint32RoundAdjustSpeed));
-		}
-		const auto uint32FloatRoundAdjustSpeed = uint32((floatRoundAdjustSpeed >= 0.)
-			? floatRoundAdjustSpeed
-			: -floatRoundAdjustSpeed);
-		if (!fpuErrorHappened(uint32FloatRoundAdjustSpeed)) {
-			TO_LOG(("GOOD9,round:%1,uint:%2").arg(floatRoundAdjustSpeed).arg(uint32FloatRoundAdjustSpeed));
-			debugAssertKnownTime(-8, kTimeUnknown);
-		} else {
-			TO_LOG(("BAD9,uint:%1").arg(uint32FloatRoundAdjustSpeed));
-		}
-		debugAssertKnownTime(-9, kTimeUnknown);
-	}
+	const auto timeRoundAdjustSpeed = crl::time(roundAdjustSpeed);
 	const auto trackTime = _syncTimePoint.trackTime + timeRoundAdjustSpeed;
 	TO_LOG(("track_time_adjusted,world:%1,adjust:%2,speed:%3,delta:%4,rounded:%5,casted:%6,final:%7"
 		).arg(result.worldTime
@@ -968,7 +889,7 @@ TimePoint VideoTrackObject::trackTime() const {
 		).arg(adjustSpeed
 		).arg(roundAdjustSpeed
 		).arg(timeRoundAdjustSpeed
-		).arg(result.trackTime));
+		).arg(trackTime));
 	result.trackTime = trackTime;
 	debugAssertKnownTime(11, result.trackTime);
 	return result;
