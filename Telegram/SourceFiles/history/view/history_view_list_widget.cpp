@@ -1623,6 +1623,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
+			context.selection = itemRenderSelection(view);
 			view->draw(p, context);
 			const auto height = view->height();
 			top += height;
