@@ -65,6 +65,14 @@ CloudTheme CloudTheme::Parse(
 		}
 		return {};
 	};
+	const auto outgoingAccentColor = [&]() -> std::optional<QColor> {
+		if (const auto settings = data.vsettings()) {
+			return settings->match([&](const MTPDthemeSettings &data) {
+				return MaybeColorFromSerialized(data.voutbox_accent_color());
+			});
+		}
+		return {};
+	};
 	const auto basedOnDark = [&] {
 		if (const auto settings = data.vsettings()) {
 			return settings->match([&](const MTPDthemeSettings &data) {
@@ -92,6 +100,9 @@ CloudTheme CloudTheme::Parse(
 		.usersCount = data.vinstalls_count().value_or_empty(),
 		.paper = parseSettings ? paper() : std::nullopt,
 		.accentColor = parseSettings ? accentColor() : std::nullopt,
+		.outgoingAccentColor = (parseSettings
+			? outgoingAccentColor()
+			: std::nullopt),
 		.outgoingMessagesColors = (parseSettings
 			? outgoingMessagesColors()
 			: std::vector<QColor>()),
@@ -323,7 +334,7 @@ void CloudThemes::refresh() {
 	}
 	_refreshRequestId = _session->api().request(MTPaccount_GetThemes(
 		MTP_string(Format()),
-		MTP_int(_hash)
+		MTP_long(_hash)
 	)).done([=](const MTPaccount_Themes &result) {
 		_refreshRequestId = 0;
 		result.match([&](const MTPDaccount_themes &data) {

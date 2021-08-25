@@ -1104,7 +1104,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 						MTP_int(0),
 						MTP_int(0),
 						MTPVector<MTPPeer>(), // recent_repliers
-						MTP_int(peerToChannel(linked->id).bare),
+						MTP_long(peerToChannel(linked->id).bare),
 						MTP_int(0), // max_id
 						MTP_int(0))); // read_max_id
 				}

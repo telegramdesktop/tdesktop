@@ -36,7 +36,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		return result;
 	};
 	const auto collectInputChats = [](const auto &peers) {
-		auto result = QVector<MTPint>(); // #TODO ids
+		auto result = QVector<MTPlong>();
 		result.reserve(peers.size());
 		for (const auto peer : peers) {
 			if (!peer->isUser()) {
@@ -59,7 +59,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		if (!chats.empty()) {
 			result.push_back(
 				MTP_inputPrivacyValueAllowChatParticipants(
-					MTP_vector<MTPint>(chats)));
+					MTP_vector<MTPlong>(chats)));
 		}
 	}
 	if (!rule.ignoreNever) {
@@ -73,7 +73,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		if (!chats.empty()) {
 			result.push_back(
 				MTP_inputPrivacyValueDisallowChatParticipants(
-					MTP_vector<MTPint>(chats)));
+					MTP_vector<MTPlong>(chats)));
 		}
 	}
 	result.push_back([&] {

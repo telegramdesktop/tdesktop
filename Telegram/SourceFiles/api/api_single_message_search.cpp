@@ -142,7 +142,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 	_requestId = _session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
-			MTP_inputChannel(MTP_int(channelId.bare), MTP_long(0))) // #TODO ids
+			MTP_inputChannel(MTP_long(channelId.bare), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
 			const auto peer = _session->data().processChats(data.vchats());

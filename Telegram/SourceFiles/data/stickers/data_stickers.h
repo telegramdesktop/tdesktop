@@ -171,25 +171,25 @@ public:
 
 	void applyArchivedResult(
 		const MTPDmessages_stickerSetInstallResultArchive &d);
-	bool applyArchivedResultFake(); // For testing.
 	void installLocally(uint64 setId);
 	void undoInstallLocally(uint64 setId);
 	bool isFaved(not_null<const DocumentData*> document);
 	void setFaved(not_null<DocumentData*> document, bool faved);
 
-	void setsReceived(const QVector<MTPStickerSet> &data, int32 hash);
+	void setsReceived(const QVector<MTPStickerSet> &data, uint64 hash);
+	void masksReceived(const QVector<MTPStickerSet> &data, uint64 hash);
 	void specialSetReceived(
 		uint64 setId,
 		const QString &setTitle,
 		const QVector<MTPDocument> &items,
-		int32 hash,
+		uint64 hash,
 		const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>(),
 		const QVector<MTPint> &usageDates = QVector<MTPint>());
 	void featuredSetsReceived(
 		const QVector<MTPStickerSetCovered> &list,
 		const QVector<MTPlong> &unread,
-		int32 hash);
-	void gifsReceived(const QVector<MTPDocument> &items, int32 hash);
+		uint64 hash);
+	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 
 	std::vector<not_null<DocumentData*>> getListByEmoji(
 		not_null<EmojiPtr> emoji,
@@ -228,6 +228,10 @@ private:
 		StickersPack &&pack,
 		const std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
+	void setsOrMasksReceived(
+		const QVector<MTPStickerSet> &data,
+		uint64 hash,
+		bool masks);
 
 	const not_null<Session*> _owner;
 	rpl::event_stream<> _updated;

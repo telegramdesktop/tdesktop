@@ -208,7 +208,7 @@ void SessionNavigation::resolveChannelById(
 	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
-			MTP_inputChannel(MTP_int(channelId.bare), MTP_long(0))) // #TODO ids
+			MTP_inputChannel(MTP_long(channelId.bare), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
 			const auto peer = _session->data().processChats(data.vchats());
@@ -266,7 +266,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				return;
 			}
 			const auto id = call->id();
-			const auto limit = 3;
+			const auto limit = 5;
 			_resolveRequestId = _session->api().request(
 				MTPphone_GetGroupCall(call->input(), MTP_int(limit))
 			).done([=](const MTPphone_GroupCall &result) {

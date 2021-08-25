@@ -1234,7 +1234,7 @@ void ShareGameScoreByHash(
 				MTP_vector<MTPInputChannel>(
 					1,
 					MTP_inputChannel(
-						MTP_int(channelId.bare), // #TODO ids
+						MTP_long(channelId.bare),
 						MTP_long(channelAccessHash)))
 			)).done([=](const MTPmessages_Chats &result) {
 				result.match([&](const auto &data) {

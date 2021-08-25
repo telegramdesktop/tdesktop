@@ -659,7 +659,7 @@ public:
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
-	int32 wallpapersHash() const;
+	uint64 wallpapersHash() const;
 
 	void clearLocalStorage();
 
@@ -793,7 +793,7 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date);
 
-	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
+	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 
 	void checkPollsClosings();
 
@@ -944,7 +944,7 @@ private:
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
 
 	std::vector<WallPaper> _wallpapers;
-	int32 _wallpapersHash = 0;
+	uint64 _wallpapersHash = 0;
 
 	Groups _groups;
 	std::unique_ptr<ChatFilters> _chatsFilters;

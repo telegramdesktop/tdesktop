@@ -853,14 +853,14 @@ bool Widget::onSearchMessages(bool searchCache) {
 						: MTP_inputPeerEmpty()),
 					MTPint(), // top_msg_id
 					MTP_inputMessagesFilterEmpty(),
-					MTP_int(0),
-					MTP_int(0),
-					MTP_int(0),
-					MTP_int(0),
+					MTP_int(0), // min_date
+					MTP_int(0), // max_date
+					MTP_int(0), // offset_id
+					MTP_int(0), // add_offset
 					MTP_int(SearchPerPage),
-					MTP_int(0),
-					MTP_int(0),
-					MTP_int(0)
+					MTP_int(0), // max_id
+					MTP_int(0), // min_id
+					MTP_long(0) // hash
 				)).done([=](const MTPmessages_Messages &result) {
 					_searchInHistoryRequest = 0;
 					searchReceived(type, result, _searchRequest);
@@ -1011,14 +1011,14 @@ void Widget::onSearchMore() {
 						: MTP_inputPeerEmpty()),
 					MTPint(), // top_msg_id
 					MTP_inputMessagesFilterEmpty(),
-					MTP_int(0),
-					MTP_int(0),
+					MTP_int(0), // min_date
+					MTP_int(0), // max_date
 					MTP_int(offsetId),
-					MTP_int(0),
+					MTP_int(0), // add_offset
 					MTP_int(SearchPerPage),
-					MTP_int(0),
-					MTP_int(0),
-					MTP_int(0)
+					MTP_int(0), // max_id
+					MTP_int(0), // min_id
+					MTP_long(0) // hash
 				)).done([=](const MTPmessages_Messages &result) {
 					searchReceived(type, result, _searchRequest);
 					_searchInHistoryRequest = 0;
@@ -1084,14 +1084,14 @@ void Widget::onSearchMore() {
 					: MTP_inputPeerEmpty()),
 				MTPint(), // top_msg_id
 				MTP_inputMessagesFilterEmpty(),
-				MTP_int(0),
-				MTP_int(0),
+				MTP_int(0), // min_date
+				MTP_int(0), // max_date
 				MTP_int(offsetMigratedId),
-				MTP_int(0),
+				MTP_int(0), // add_offset
 				MTP_int(SearchPerPage),
-				MTP_int(0),
-				MTP_int(0),
-				MTP_int(0)
+				MTP_int(0), // max_id
+				MTP_int(0), // min_id
+				MTP_long(0) // hash
 			)).done([=](const MTPmessages_Messages &result) {
 				searchReceived(type, result, _searchRequest);
 				_searchInHistoryRequest = 0;

@@ -439,7 +439,7 @@ void RepliesList::loadAround(MsgId id) {
 			MTP_int(kMessagesPerPage), // limit
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
-			MTP_int(0) // hash
+			MTP_long(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_beforeId = 0;
 			_loadingAround = std::nullopt;
@@ -495,7 +495,7 @@ void RepliesList::loadBefore() {
 			MTP_int(kMessagesPerPage), // limit
 			MTP_int(0), // min_id
 			MTP_int(0), // max_id
-			MTP_int(0) // hash
+			MTP_long(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_beforeId = 0;
 			finish();
@@ -539,7 +539,7 @@ void RepliesList::loadAfter() {
 			MTP_int(kMessagesPerPage), // limit
 			MTP_int(0), // min_id
 			MTP_int(0), // max_id
-			MTP_int(0) // hash
+			MTP_long(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_afterId = 0;
 			finish();

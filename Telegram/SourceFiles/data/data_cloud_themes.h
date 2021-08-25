@@ -35,6 +35,7 @@ struct CloudTheme {
 
 	std::optional<WallPaper> paper;
 	std::optional<QColor> accentColor;
+	std::optional<QColor> outgoingAccentColor;
 	std::vector<QColor> outgoingMessagesColors;
 	bool basedOnDark = false;
 
@@ -118,7 +119,7 @@ private:
 	void parseChatThemes(const QVector<MTPChatTheme> &list);
 
 	const not_null<Main::Session*> _session;
-	int32 _hash = 0;
+	uint64 _hash = 0;
 	mtpRequestId _refreshRequestId = 0;
 	mtpRequestId _resolveRequestId = 0;
 	std::vector<CloudTheme> _list;

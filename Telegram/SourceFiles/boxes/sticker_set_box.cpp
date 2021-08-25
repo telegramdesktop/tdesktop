@@ -125,10 +125,10 @@ private:
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;
 	uint64 _setId = 0;
-	uint64 _setAccess = 0;
+	uint64 _setAccessHash = 0;
+	uint64 _setHash = 0;
 	QString _setTitle, _setShortName;
 	int _setCount = 0;
-	int32 _setHash = 0;
 	Data::StickersSetFlags _setFlags;
 	TimeId _setInstallDate = TimeId(0);
 	ImageWithLocation _setThumbnail;
@@ -350,7 +350,7 @@ StickerSetBox::Inner::Inner(
 , _controller(controller)
 , _api(&_controller->session().mtp())
 , _setId(set.id)
-, _setAccess(set.accessHash)
+, _setAccessHash(set.accessHash)
 , _setShortName(set.shortName)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
@@ -419,9 +419,9 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				set);
 			_setShortName = qs(set.vshort_name());
 			_setId = set.vid().v;
-			_setAccess = set.vaccess_hash().v;
-			_setCount = set.vcount().v;
+			_setAccessHash = set.vaccess_hash().v;
 			_setHash = set.vhash().v;
+			_setCount = set.vcount().v;
 			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
 			_setThumbnail = [&] {
@@ -513,11 +513,11 @@ void StickerSetBox::Inner::installDone(
 			std::make_unique<StickersSet>(
 				&_controller->session().data(),
 				_setId,
-				_setAccess,
+				_setAccessHash,
+				_setHash,
 				_setTitle,
 				_setShortName,
 				_setCount,
-				_setHash,
 				_setFlags,
 				_setInstallDate)).first;
 	} else {
@@ -590,7 +590,7 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		if (index >= 0 && index < _pack.size() && index != _previewShown) {
 			_previewShown = index;
 			_controller->widget()->showMediaPreview(
-				Data::FileOriginStickerSet(_setId, _setAccess),
+				Data::FileOriginStickerSet(_setId, _setAccessHash),
 				_pack[_previewShown]);
 		}
 	}
@@ -651,7 +651,7 @@ void StickerSetBox::Inner::showPreview() {
 	if (index >= 0 && index < _pack.size()) {
 		_previewShown = index;
 		_controller->widget()->showMediaPreview(
-			Data::FileOriginStickerSet(_setId, _setAccess),
+			Data::FileOriginStickerSet(_setId, _setAccessHash),
 			_pack[_previewShown]);
 	}
 }

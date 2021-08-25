@@ -426,7 +426,7 @@ private:
 
 	struct StickersByEmoji {
 		std::vector<not_null<DocumentData*>> list;
-		int32 hash = 0;
+		uint64 hash = 0;
 		crl::time received = 0;
 	};
 
@@ -490,9 +490,10 @@ private:
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	void requestStickers(TimeId now, bool masks = false);
+	void requestStickers(TimeId now);
+	void requestMasks(TimeId now);
 	void requestRecentStickers(TimeId now, bool attached = false);
-	void requestRecentStickersWithHash(int32 hash, bool attached = false);
+	void requestRecentStickersWithHash(uint64 hash, bool attached = false);
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);

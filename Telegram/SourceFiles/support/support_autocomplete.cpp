@@ -320,7 +320,7 @@ AdminLog::OwnedItem GenerateContactItem(
 			MTP_string(data.firstName),
 			MTP_string(data.lastName),
 			MTP_string(), // vcard
-			MTP_int(0)), // user_id
+			MTP_long(0)), // user_id
 		MTPReplyMarkup(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);

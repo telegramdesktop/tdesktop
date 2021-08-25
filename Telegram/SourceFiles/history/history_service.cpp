@@ -618,7 +618,7 @@ bool HistoryService::updateDependent(bool force) {
 }
 
 HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
-		const QVector<MTPint> &users,
+		const QVector<MTPlong> &users,
 		uint64 linkCallId) {
 	const auto owner = &history()->owner();
 	auto chatText = tr::lng_action_invite_user_chat(tr::now);

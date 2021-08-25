@@ -369,19 +369,6 @@ public:
 	}
 	void setAvailableMinId(MsgId availableMinId);
 
-	enum class UpdateStatus {
-		Good,
-		TooOld,
-		Skipped,
-	};
-	int version() const {
-		return _version;
-	}
-	void setVersion(int version) {
-		_version = version;
-	}
-	UpdateStatus applyUpdateVersion(int version);
-
 	[[nodiscard]] ChatData *getMigrateFromChat() const;
 	void setMigrateFromChat(ChatData *chat);
 
@@ -440,7 +427,6 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
-	int _version = 0;
 
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;

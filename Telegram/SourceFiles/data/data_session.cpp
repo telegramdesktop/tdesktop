@@ -712,9 +712,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setAccessHash(
 				data.vaccess_hash().value_or(channel->access));
 			channel->date = data.vdate().v;
-			if (channel->version() < data.vversion().v) {
-				channel->setVersion(data.vversion().v);
-			}
 			if (const auto restriction = data.vrestriction_reason()) {
 				channel->setUnavailableReasons(
 					ExtractUnavailableReasons(restriction->v));
@@ -854,12 +851,6 @@ void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
 			if (const auto chat = chatLoaded(data.vid().v)) {
 				if (data.vversion().v < chat->version()) {
 					chat->setVersion(data.vversion().v);
-				}
-			}
-		}, [&](const MTPDchannel &data) {
-			if (const auto channel = channelLoaded(data.vid().v)) {
-				if (data.vversion().v < channel->version()) {
-					channel->setVersion(data.vversion().v);
 				}
 			}
 		}, [](const auto &) {
@@ -3921,7 +3912,7 @@ void Session::serviceNotification(
 				| MTPDuser::Flag::f_phone
 				| MTPDuser::Flag::f_status
 				| MTPDuser::Flag::f_verified),
-			MTP_int(peerToUser(PeerData::kServiceNotificationsId).bare), // #TODO ids
+			MTP_long(peerToUser(PeerData::kServiceNotificationsId).bare),
 			MTPlong(), // access_hash
 			MTP_string("Telegram"),
 			MTPstring(), // last_name
@@ -3962,7 +3953,7 @@ void Session::insertCheckedServiceNotification(
 				peerToMTP(PeerData::kServiceNotificationsId),
 				peerToMTP(PeerData::kServiceNotificationsId),
 				MTPMessageFwdHeader(),
-				MTPint(), // via_bot_id
+				MTPlong(), // via_bot_id
 				MTPMessageReplyHeader(),
 				MTP_int(date),
 				MTP_string(sending.text),
@@ -4031,7 +4022,7 @@ bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 	});
 }
 
-void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
+void Session::setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash) {
 	_wallpapersHash = hash;
 
 	_wallpapers.clear();
@@ -4080,7 +4071,7 @@ const std::vector<WallPaper> &Session::wallpapers() const {
 	return _wallpapers;
 }
 
-int32 Session::wallpapersHash() const {
+uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 

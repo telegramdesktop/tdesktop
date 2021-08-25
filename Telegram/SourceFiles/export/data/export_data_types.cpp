@@ -714,20 +714,20 @@ Chat ParseChat(const MTPChat &data) {
 	data.match([&](const MTPDchat &data) {
 		result.bareId = data.vid().v;
 		result.title = ParseString(data.vtitle());
-		result.input = MTP_inputPeerChat(MTP_int(result.bareId)); // #TODO ids
+		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 		if (const auto migratedTo = data.vmigrated_to()) {
 			result.migratedToChannelId = migratedTo->match(
 			[](const MTPDinputChannel &data) {
 				return data.vchannel_id().v;
-			}, [](auto&&) { return 0; });
+			}, [](auto&&) { return BareId(); });
 		}
 	}, [&](const MTPDchatEmpty &data) {
 		result.bareId = data.vid().v;
-		result.input = MTP_inputPeerChat(MTP_int(result.bareId)); // #TODO ids
+		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 	}, [&](const MTPDchatForbidden &data) {
 		result.bareId = data.vid().v;
 		result.title = ParseString(data.vtitle());
-		result.input = MTP_inputPeerChat(MTP_int(result.bareId)); // #TODO ids
+		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 	}, [&](const MTPDchannel &data) {
 		result.bareId = data.vid().v;
 		result.isBroadcast = data.is_broadcast();
@@ -737,15 +737,15 @@ Chat ParseChat(const MTPChat &data) {
 			result.username = ParseString(*username);
 		}
 		result.input = MTP_inputPeerChannel(
-			MTP_int(result.bareId), // #TODO ids
+			MTP_long(result.bareId),
 			MTP_long(data.vaccess_hash().value_or_empty()));
 	}, [&](const MTPDchannelForbidden &data) {
 		result.bareId = data.vid().v;
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
 		result.title = ParseString(data.vtitle());
-		result.input = MTP_inputPeerChannel( // #TODO ids
-			MTP_int(result.bareId),
+		result.input = MTP_inputPeerChannel(
+			MTP_long(result.bareId),
 			data.vaccess_hash());
 	});
 	return result;
@@ -831,11 +831,11 @@ std::map<PeerId, Peer> ParsePeersLists(
 }
 
 User EmptyUser(UserId userId) {
-	return ParseUser(MTP_userEmpty(MTP_int(userId.bare))); // #TODO ids
+	return ParseUser(MTP_userEmpty(MTP_long(userId.bare)));
 }
 
 Chat EmptyChat(ChatId chatId) {
-	return ParseChat(MTP_chatEmpty(MTP_int(chatId.bare))); // #TODO ids
+	return ParseChat(MTP_chatEmpty(MTP_long(chatId.bare)));
 }
 
 Peer EmptyPeer(PeerId peerId) {

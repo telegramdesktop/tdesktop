@@ -25,7 +25,7 @@ MTPpeer peerToMTP(PeerId id) {
 	} else if (peerIsChannel(id)) {
 		return MTP_peerChannel(peerToBareMTPInt(id));
 	}
-	return MTP_peerUser(MTP_int(0));
+	return MTP_peerUser(MTP_long(0));
 }
 
 PeerId DeserializePeerId(quint64 serialized) {

@@ -79,7 +79,7 @@ private:
 		const base::flat_set<not_null<HistoryItem*>> &clear);
 	void sort(List &list);
 	void remove(not_null<const HistoryItem*> item);
-	[[nodiscard]] int32 countListHash(const List &list) const;
+	[[nodiscard]] uint64 countListHash(const List &list) const;
 	void clearOldRequests();
 
 	const not_null<Main::Session*> _session;

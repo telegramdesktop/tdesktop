@@ -25,7 +25,7 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChat(MTP_int(peerToChat(id).bare)) {
+, inputChat(MTP_long(peerToChat(id).bare)) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
 		if (change.diff & ChatDataFlag::CallNotEmpty) {

@@ -97,7 +97,7 @@ MTPMessage PrepareLogMessage(
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
-			MTP_int(data.vvia_bot_id().value_or_empty()),
+			MTP_long(data.vvia_bot_id().value_or_empty()),
 			MTPMessageReplyHeader(),
 			MTP_int(newDate),
 			data.vmessage(),
@@ -1076,6 +1076,12 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	auto createChangeTheme = [&](const MTPDchannelAdminLogEventActionChangeTheme &data) {
+		const auto was = qs(data.vprev_value());
+		const auto now = qs(data.vnew_value());
+		// #TODO themes
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -1140,6 +1146,8 @@ void GenerateItems(
 		createParticipantVolume(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeHistoryTTL &data) {
 		createChangeHistoryTTL(data);
+	}, [&](const MTPDchannelAdminLogEventActionChangeTheme &data) {
+		createChangeTheme(data);
 	});
 }
 

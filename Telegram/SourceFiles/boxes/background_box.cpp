@@ -224,7 +224,7 @@ BackgroundBox::Inner::Inner(
 
 void BackgroundBox::Inner::requestPapers() {
 	_api.request(MTPaccount_GetWallPapers(
-		MTP_int(_session->data().wallpapersHash())
+		MTP_long(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
 		if (_session->data().updateWallpapers(result)) {
 			updatePapers();

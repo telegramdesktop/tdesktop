@@ -66,11 +66,11 @@ public:
 	StickersSet(
 		not_null<Data::Session*> owner,
 		uint64 id,
-		uint64 access,
+		uint64 accessHash,
+		uint64 hash,
 		const QString &title,
 		const QString &shortName,
 		int count,
-		int32 hash,
 		StickersSetFlags flags,
 		TimeId installDate);
 
@@ -93,10 +93,10 @@ public:
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> activeThumbnailView();
 
 	uint64 id = 0;
-	uint64 access = 0;
+	uint64 accessHash = 0;
+	uint64 hash = 0;
 	QString title, shortName;
 	int count = 0;
-	int32 hash = 0;
 	StickersSetFlags flags;
 	TimeId installDate = 0;
 	StickersPack covers;

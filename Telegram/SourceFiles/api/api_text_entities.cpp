@@ -116,7 +116,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 				if (session && fields.userId == session->userId().bare) {
 					return MTP_inputUserSelf();
 				} else if (fields.userId) {
-					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));
+					return MTP_inputUser(MTP_long(fields.userId), MTP_long(fields.accessHash));
 				}
 				return MTP_inputUserEmpty();
 			}(entity.data());

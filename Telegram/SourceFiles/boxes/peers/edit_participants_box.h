@@ -111,7 +111,7 @@ public:
 private:
 	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
 	UserData *applyAdmin(const MTPDchannelParticipantAdmin &data);
-	UserData *applyRegular(MTPint userId);
+	UserData *applyRegular(MTPlong userId);
 	PeerData *applyBanned(const MTPDchannelParticipantBanned &data);
 	void fillFromChat(not_null<ChatData*> chat);
 	void fillFromChannel(not_null<ChannelData*> channel);

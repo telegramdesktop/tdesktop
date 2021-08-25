@@ -102,7 +102,7 @@ SendDataCommon::SentMessageFields SendContact::getSentMessageFields() const {
 		MTP_string(_firstName),
 		MTP_string(_lastName),
 		MTP_string(), // vcard
-		MTP_int(0)) }; // user_id
+		MTP_long(0)) }; // user_id
 }
 
 QString SendContact::getLayoutDescription(const Result *owner) const {

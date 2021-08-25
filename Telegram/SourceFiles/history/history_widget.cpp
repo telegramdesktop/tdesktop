@@ -2795,10 +2795,10 @@ void HistoryWidget::firstLoadMessages() {
 		}
 	}
 
-	auto offsetDate = 0;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
+	const auto offsetDate = 0;
+	const auto maxId = 0;
+	const auto minId = 0;
+	const auto historyHash = uint64(0);
 
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
@@ -2812,7 +2812,7 @@ void HistoryWidget::firstLoadMessages() {
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)
+			MTP_long(historyHash)
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _firstLoadRequest);
 			finish();
@@ -2836,20 +2836,20 @@ void HistoryWidget::loadMessages() {
 		&& (_history->isEmpty()
 			|| _history->loadedAtTop()
 			|| (!_migrated->isEmpty() && !_migrated->loadedAtBottom()));
-	auto from = loadMigrated ? _migrated : _history;
+	const auto from = loadMigrated ? _migrated : _history;
 	if (from->loadedAtTop()) {
 		return;
 	}
 
-	auto offsetId = from->minMsgId();
-	auto addOffset = 0;
-	auto loadCount = offsetId
+	const auto offsetId = from->minMsgId();
+	const auto addOffset = 0;
+	const auto loadCount = offsetId
 		? kMessagesPerPage
 		: kMessagesPerPageFirst;
-	auto offsetDate = 0;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
+	const auto offsetDate = 0;
+	const auto maxId = 0;
+	const auto minId = 0;
+	const auto historyHash = uint64(0);
 
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
@@ -2863,7 +2863,7 @@ void HistoryWidget::loadMessages() {
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)
+			MTP_long(historyHash)
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _preloadRequest);
 			finish();
@@ -2889,7 +2889,7 @@ void HistoryWidget::loadMessagesDown() {
 		return;
 	}
 
-	auto loadCount = kMessagesPerPage;
+	const auto loadCount = kMessagesPerPage;
 	auto addOffset = -loadCount;
 	auto offsetId = from->maxMsgId();
 	if (!offsetId) {
@@ -2897,10 +2897,10 @@ void HistoryWidget::loadMessagesDown() {
 		++offsetId;
 		++addOffset;
 	}
-	auto offsetDate = 0;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
+	const auto offsetDate = 0;
+	const auto maxId = 0;
+	const auto minId = 0;
+	const auto historyHash = uint64(0);
 
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
@@ -2914,7 +2914,7 @@ void HistoryWidget::loadMessagesDown() {
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)
+			MTP_long(historyHash)
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _preloadDownRequest);
 			finish();
@@ -2961,10 +2961,10 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 			offsetId = -_delayedShowAtMsgId;
 		}
 	}
-	auto offsetDate = 0;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
+	const auto offsetDate = 0;
+	const auto maxId = 0;
+	const auto minId = 0;
+	const auto historyHash = uint64(0);
 
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
@@ -2978,7 +2978,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)
+			MTP_long(historyHash)
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _delayedShowAtRequest);
 			finish();

@@ -309,18 +309,18 @@ void BoxController::loadMoreRows() {
 	_loadRequestId = _api.request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
-		MTP_string(),
+		MTP_string(), // q
 		MTP_inputPeerEmpty(),
 		MTPint(), // top_msg_id
 		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
-		MTP_int(0),
-		MTP_int(0),
+		MTP_int(0), // min_date
+		MTP_int(0), // max_date
 		MTP_int(_offsetId),
-		MTP_int(0),
+		MTP_int(0), // add_offset
 		MTP_int(_offsetId ? kFirstPageCount : kPerPageCount),
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0)
+		MTP_int(0), // max_id
+		MTP_int(0), // min_id
+		MTP_long(0) // hash
 	)).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;
 

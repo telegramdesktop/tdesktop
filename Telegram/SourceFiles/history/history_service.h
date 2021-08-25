@@ -161,7 +161,7 @@ private:
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
 	PreparedText prepareInvitedToCallText(
-		const QVector<MTPint> &users,
+		const QVector<MTPlong> &users,
 		uint64 linkCallId);
 	PreparedText prepareCallScheduledText(
 		TimeId scheduleDate);

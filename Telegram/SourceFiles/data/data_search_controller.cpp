@@ -83,7 +83,7 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
-	const auto hash = int32(0);
+	const auto hash = uint64(0);
 
 	return MTPmessages_Search(
 		MTP_flags(0),
@@ -92,14 +92,14 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 		MTP_inputPeerEmpty(),
 		MTPint(), // top_msg_id
 		filter,
-		MTP_int(0),
-		MTP_int(0),
+		MTP_int(0), // min_date
+		MTP_int(0), // max_date
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(maxId),
 		MTP_int(minId),
-		MTP_int(hash));
+		MTP_long(hash));
 }
 
 SearchResult ParseSearchResult(

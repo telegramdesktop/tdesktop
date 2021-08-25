@@ -96,9 +96,9 @@ void ListController::loadMoreRows() {
 	}
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
 		_user->inputUser,
-		MTP_int(peerIsChat(_preloadGroupId)
+		MTP_long(peerIsChat(_preloadGroupId)
 			? peerToChat(_preloadGroupId).bare
-			: peerToChannel(_preloadGroupId).bare), // #TODO ids
+			: peerToChannel(_preloadGroupId).bare),
 		MTP_int(kCommonGroupsPerPage)
 	)).done([this](const MTPmessages_Chats &result) {
 		_preloadRequestId = 0;

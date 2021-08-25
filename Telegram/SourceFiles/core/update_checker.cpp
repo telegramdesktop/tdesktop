@@ -945,7 +945,7 @@ void MtpChecker::start() {
 				MTP_int(1),  // limit
 				MTP_int(0),  // max_id
 				MTP_int(0),  // min_id
-				MTP_int(0)), // hash
+				MTP_long(0)), // hash
 			[=](const MTPmessages_Messages &result) { gotMessage(result); },
 			failHandler());
 	}, [=] { fail(); });

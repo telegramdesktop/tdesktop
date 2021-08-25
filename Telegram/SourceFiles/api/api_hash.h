@@ -13,40 +13,49 @@ class Session;
 
 namespace Api {
 
-[[nodiscard]] int32 CountStickersHash(
+[[nodiscard]] uint64 CountStickersHash(
 	not_null<Main::Session*> session,
 	bool checkOutdatedInfo = false);
-[[nodiscard]] int32 CountRecentStickersHash(
+[[nodiscard]] uint64 CountMasksHash(
+	not_null<Main::Session*> session,
+	bool checkOutdatedInfo = false);
+[[nodiscard]] uint64 CountRecentStickersHash(
 	not_null<Main::Session*> session,
 	bool attached = false);
-[[nodiscard]] int32 CountFavedStickersHash(not_null<Main::Session*> session);
-[[nodiscard]] int32 CountFeaturedStickersHash(
+[[nodiscard]] uint64 CountFavedStickersHash(not_null<Main::Session*> session);
+[[nodiscard]] uint64 CountFeaturedStickersHash(
 	not_null<Main::Session*> session);
-[[nodiscard]] int32 CountSavedGifsHash(not_null<Main::Session*> session);
+[[nodiscard]] uint64 CountSavedGifsHash(not_null<Main::Session*> session);
 
-[[nodiscard]] inline uint32 HashInit() {
+[[nodiscard]] inline uint64 HashInit() {
 	return 0;
 }
 
-inline void HashUpdate(uint32 &already, uint32 value) {
-	already = (already * 20261) + uint32(value);
+inline void HashUpdate(uint64 &already, uint64 value) {
+	already ^= (already >> 21);
+	already ^= (already << 35);
+	already ^= (already >> 4);
+	already += value;
 }
 
-inline void HashUpdate(uint32 &already, int32 value) {
-	HashUpdate(already, uint32(value));
+inline void HashUpdate(uint64 &already, int64 value) {
+	HashUpdate(already, uint64(value));
 }
 
-inline void HashUpdate(uint32 &already, uint64 value) {
-	HashUpdate(already, uint32(value >> 32));
-	HashUpdate(already, uint32(value & 0xFFFFFFFFULL));
+inline void HashUpdate(uint64 &already, uint32 value) {
+	HashUpdate(already, uint64(value));
 }
 
-[[nodiscard]] inline int32 HashFinalize(uint32 already) {
-	return int32(already & 0x7FFFFFFF);
+inline void HashUpdate(uint64 &already, int32 value) {
+	HashUpdate(already, int64(value));
+}
+
+[[nodiscard]] inline uint64 HashFinalize(uint64 already) {
+	return already;
 }
 
 template <typename IntRange>
-[[nodiscard]] inline int32 CountHash(IntRange &&range) {
+[[nodiscard]] inline uint64 CountHash(IntRange &&range) {
 	auto result = HashInit();
 	for (const auto value : range) {
 		HashUpdate(result, value);

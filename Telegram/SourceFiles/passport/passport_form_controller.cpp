@@ -752,7 +752,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		bytes::make_span(_request.publicKey.toUtf8()));
 
 	_submitRequestId = _api.request(MTPaccount_AcceptAuthorization(
-		MTP_int(_request.botId.bare), // #TODO ids
+		MTP_long(_request.botId.bare),
 		MTP_string(_request.scope),
 		MTP_string(_request.publicKey),
 		MTP_vector<MTPSecureValueHash>(prepared.hashes),
@@ -2302,7 +2302,7 @@ void FormController::requestForm() {
 		return;
 	}
 	_formRequestId = _api.request(MTPaccount_GetAuthorizationForm(
-		MTP_int(_request.botId.bare), // #TODO ids
+		MTP_long(_request.botId.bare),
 		MTP_string(_request.scope),
 		MTP_string(_request.publicKey)
 	)).done([=](const MTPaccount_AuthorizationForm &result) {

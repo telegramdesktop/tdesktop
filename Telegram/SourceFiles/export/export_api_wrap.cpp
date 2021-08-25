@@ -515,7 +515,7 @@ void ApiWrap::requestDialogsCount() {
 	const auto offsetId = 0;
 	const auto offsetPeer = MTP_inputPeerEmpty();
 	const auto limit = 1;
-	const auto hash = 0;
+	const auto hash = uint64(0);
 	splitRequest(_startProcess->splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTPint(), // folder_id
@@ -523,7 +523,7 @@ void ApiWrap::requestDialogsCount() {
 		MTP_int(offsetId),
 		offsetPeer,
 		MTP_int(limit),
-		MTP_int(hash)
+		MTP_long(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
 		Expects(_settings != nullptr);
 		Expects(_startProcess != nullptr);
@@ -879,7 +879,7 @@ void ApiWrap::requestTopPeersSlice() {
 			| Flag::f_phone_calls),
 		MTP_int(_contactsProcess->topPeersOffset),
 		MTP_int(kTopPeerSliceLimit),
-		MTP_int(0) // hash
+		MTP_long(0) // hash
 	)).done([=](const MTPcontacts_TopPeers &result) {
 		Expects(_contactsProcess != nullptr);
 
@@ -1071,7 +1071,7 @@ void ApiWrap::requestSinglePeerDialog() {
 		requestUser(MTP_inputUser(data.vuser_id(), data.vaccess_hash()));
 	}, [&](const MTPDinputPeerChat &data) {
 		mainRequest(MTPmessages_GetChats(
-			MTP_vector<MTPint>(1, data.vchat_id())
+			MTP_vector<MTPlong>(1, data.vchat_id())
 		)).done(std::move(doneSinglePeer)).send();
 	}, [&](const MTPDinputPeerChannel &data) {
 		mainRequest(MTPchannels_GetChannels(
@@ -1108,12 +1108,12 @@ mtpRequestId ApiWrap::requestSinglePeerMigrated(
 			const auto migratedChatId = data.vfull_chat().match([&](
 					const MTPDchannelFull &data) {
 				return data.vmigrated_from_chat_id().value_or_empty();
-			}, [](auto &&other) {
+			}, [](auto &&other) -> BareId {
 				return 0;
 			});
 			return migratedChatId
 				? Data::ParseDialogsInfo(
-					MTP_inputPeerChat(MTP_int(migratedChatId)),
+					MTP_inputPeerChat(MTP_long(migratedChatId)),
 					MTP_messages_chats(data.vchats()))
 				: Data::DialogsInfo();
 		});
@@ -1169,7 +1169,7 @@ void ApiWrap::requestDialogsSlice() {
 	}
 
 	const auto splitIndex = _dialogsProcess->splitIndexPlusOne - 1;
-	const auto hash = 0;
+	const auto hash = uint64(0);
 	splitRequest(splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTPint(), // folder_id
@@ -1177,7 +1177,7 @@ void ApiWrap::requestDialogsSlice() {
 		MTP_int(_dialogsProcess->offsetId),
 		_dialogsProcess->offsetPeer,
 		MTP_int(kChatsSliceLimit),
-		MTP_int(hash)
+		MTP_long(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
 		if (result.type() == mtpc_messages_dialogsNotModified) {
 			error("Unexpected dialogsNotModified received.");
@@ -1429,7 +1429,7 @@ void ApiWrap::requestChatMessages(
 			MTP_int(limit),
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
-			MTP_int(0) // hash
+			MTP_long(0) // hash
 		)).done(doneHandler).send();
 	} else {
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
@@ -1440,7 +1440,7 @@ void ApiWrap::requestChatMessages(
 			MTP_int(limit),
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
-			MTP_int(0)  // hash
+			MTP_long(0)  // hash
 		)).fail([=](const MTP::Error &error) {
 			Expects(_chatProcess != nullptr);
 

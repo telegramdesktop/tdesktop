@@ -162,7 +162,7 @@ void Account::createSession(
 	createSession(
 		MTP_user(
 			MTP_flags(flags),
-			MTP_int(base::take(_sessionUserId).bare), // #TODO ids
+			MTP_long(base::take(_sessionUserId).bare),
 			MTPlong(), // access_hash
 			MTPstring(), // first_name
 			MTPstring(), // last_name

@@ -434,7 +434,7 @@ void StickersBox::showAttachedStickers() {
 					|| (set->flags & SetFlag::NotLoaded)) {
 					session().api().scheduleStickerSetRequest(
 						set->id,
-						set->access);
+						set->accessHash);
 				}
 			}
 		}
@@ -503,7 +503,7 @@ void StickersBox::getArchivedDone(
 					|| (set->flags & SetFlag::NotLoaded)) {
 					session().api().scheduleStickerSetRequest(
 						set->id,
-						set->access);
+						set->accessHash);
 				}
 			}
 		}
@@ -905,7 +905,9 @@ void StickersBox::requestArchivedSets() {
 			const auto set = it->second.get();
 			if (set->stickers.isEmpty()
 				&& (set->flags & SetFlag::NotLoaded)) {
-				session().api().scheduleStickerSetRequest(setId, set->access);
+				session().api().scheduleStickerSetRequest(
+					setId,
+					set->accessHash);
 			}
 		}
 	}
@@ -1323,7 +1325,7 @@ void StickersBox::Inner::paintRowThumbnail(
 		int left) {
 	const auto origin = Data::FileOriginStickerSet(
 		row->set->id,
-		row->set->access);
+		row->set->accessHash);
 	if (row->set->hasThumbnail()) {
 		if (!row->thumbnailMedia) {
 			row->thumbnailMedia = row->set->createThumbnailView();
@@ -2026,14 +2028,17 @@ void StickersBox::Inner::rebuild(bool masks) {
 
 		if (set->stickers.isEmpty()
 			|| (set->flags & SetFlag::NotLoaded)) {
-			session().api().scheduleStickerSetRequest(set->id, set->access);
+			session().api().scheduleStickerSetRequest(
+				set->id,
+				set->accessHash);
 		}
 	}
 	session().api().requestStickerSets();
 	updateSize();
 }
 
-void StickersBox::Inner::setMegagroupSelectedSet(const StickerSetIdentifier &set) {
+void StickersBox::Inner::setMegagroupSelectedSet(
+		const StickerSetIdentifier &set) {
 	_megagroupSetInput = set;
 	rebuild(false);
 	_scrollsToY.fire(0);

@@ -25,9 +25,7 @@ struct ChatIdType {
 	//}
 	constexpr ChatIdType(BareId value) noexcept : bare(value) {
 	}
-	constexpr ChatIdType(int32 value) noexcept : bare(value) { // #TODO ids remove
-	}
-	constexpr ChatIdType(MTPint value) noexcept : bare(value.v) { // #TODO ids
+	constexpr ChatIdType(MTPlong value) noexcept : bare(value.v) {
 	}
 
 	[[nodiscard]] constexpr explicit operator bool() const noexcept {
@@ -263,7 +261,7 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 	return channelId;
 }
 
-[[nodiscard]] inline constexpr PeerId peerFromUser(MTPint userId) noexcept { // #TODO ids
+[[nodiscard]] inline constexpr PeerId peerFromUser(MTPlong userId) noexcept {
 	return peerFromUser(userId.v);
 }
 
@@ -288,8 +286,8 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 	return id.to<ChannelId>();
 }
 
-[[nodiscard]] inline MTPint peerToBareMTPInt(PeerId id) { // #TODO ids
-	return MTP_int(id.value & PeerId::kChatTypeMask);
+[[nodiscard]] inline MTPlong peerToBareMTPInt(PeerId id) {
+	return MTP_long(id.value & PeerId::kChatTypeMask);
 }
 
 [[nodiscard]] PeerId peerFromMTP(const MTPPeer &peer);

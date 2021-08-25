@@ -328,7 +328,7 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&peer->session(),
 		MTP_updateGroupCall(
-			MTP_int(peer->isChat()
+			MTP_long(peer->isChat()
 				? peerToChat(peer->id).bare
 				: peerToChannel(peer->id).bare),
 			MTP_groupCallDiscarded(
@@ -847,12 +847,12 @@ void GroupCall::requestUnknownParticipants() {
 	for (const auto &[participantPeerId, when] : participantPeerIds) {
 		if (const auto userId = peerToUser(participantPeerId)) {
 			peerInputs.push_back(
-				MTP_inputPeerUser(MTP_int(userId.bare), MTP_long(0))); // #TODO ids
+				MTP_inputPeerUser(MTP_long(userId.bare), MTP_long(0)));
 		} else if (const auto chatId = peerToChat(participantPeerId)) {
-			peerInputs.push_back(MTP_inputPeerChat(MTP_int(chatId.bare))); // #TODO ids
+			peerInputs.push_back(MTP_inputPeerChat(MTP_long(chatId.bare)));
 		} else if (const auto channelId = peerToChannel(participantPeerId)) {
 			peerInputs.push_back(
-				MTP_inputPeerChannel(MTP_int(channelId.bare), MTP_long(0))); // #TODO ids
+				MTP_inputPeerChannel(MTP_long(channelId.bare), MTP_long(0)));
 		}
 	}
 	_unknownParticipantPeersRequestId = api().request(

@@ -165,7 +165,7 @@ public:
 	}
 
 	// Still public data members.
-	const MTPint inputChat;
+	const MTPlong inputChat;
 
 	int count = 0;
 	TimeId date = 0;

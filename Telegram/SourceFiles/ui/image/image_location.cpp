@@ -49,12 +49,12 @@ MTPInputPeer GenerateInputPeer(
 		return MTP_inputPeerUserFromMessage(
 			GenerateInputPeer(id, accessHash, 0, 0, self),
 			MTP_int(inMessageId),
-			MTP_int(peerToUser(inMessagePeerId).bare)); // #TODO ids
+			MTP_long(peerToUser(inMessagePeerId).bare));
 	} else if (inMessageId && peerIsChannel(inMessagePeerId)) {
 		return MTP_inputPeerChannelFromMessage(
 			GenerateInputPeer(id, accessHash, 0, 0, self),
 			MTP_int(inMessageId),
-			MTP_int(peerToChannel(inMessagePeerId).bare)); // #TODO ids
+			MTP_long(peerToChannel(inMessagePeerId).bare));
 	} else if (!id) {
 		return MTP_inputPeerEmpty();
 	} else if (id == peerFromUser(self)) {

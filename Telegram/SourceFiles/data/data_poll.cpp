@@ -141,12 +141,12 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				recent->v,
 				ranges::equal_to(),
 				bareProj,
-				&MTPint::v); // #TODO ids
+				&MTPlong::v);
 			if (recentChanged) {
 				changed = true;
 				recentVoters = ranges::views::all(
 					recent->v
-				) | ranges::views::transform([&](MTPint userId) {
+				) | ranges::views::transform([&](MTPlong userId) {
 					const auto user = _owner->user(userId.v);
 					return user->isMinimalLoaded() ? user.get() : nullptr;
 				}) | ranges::views::filter([](UserData *user) {

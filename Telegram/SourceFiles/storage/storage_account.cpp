@@ -42,7 +42,7 @@ using Database = Cache::Database;
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 
 constexpr auto kStickersVersionTag = quint32(-1);
-constexpr auto kStickersSerializeVersion = 1;
+constexpr auto kStickersSerializeVersion = 2;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
@@ -1550,11 +1550,11 @@ void Account::writeStickerSet(
 	const auto writeInfo = [&](int count) {
 		stream
 			<< quint64(set.id)
-			<< quint64(set.access)
+			<< quint64(set.accessHash)
+			<< quint64(set.hash)
 			<< set.title
 			<< set.shortName
 			<< qint32(count)
-			<< qint32(set.hash)
 			<< qint32(set.flags)
 			<< qint32(set.installDate);
 		Serialize::writeImageLocation(stream, set.thumbnailLocation());
@@ -1625,11 +1625,11 @@ void Account::writeStickerSets(
 			continue;
 		}
 
-		// id + access + title + shortName + stickersCount + hash + flags + installDate
-		size += sizeof(quint64) * 2
+		// id + accessHash + hash + title + shortName + stickersCount + flags + installDate
+		size += sizeof(quint64) * 3
 			+ Serialize::stringSize(raw->title)
 			+ Serialize::stringSize(raw->shortName)
-			+ sizeof(qint32) * 4
+			+ sizeof(qint32) * 3
 			+ Serialize::imageLocationSize(raw->thumbnailLocation());
 		if (raw->flags & SetFlag::NotLoaded) {
 			continue;
@@ -1724,22 +1724,21 @@ void Account::readStickerSets(
 		return failed();
 	}
 	for (auto i = 0; i != count; ++i) {
-		quint64 setId = 0, setAccess = 0;
+		quint64 setId = 0, setAccessHash = 0, setHash = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
 		qint32 setInstallDate = 0;
-		qint32 setHash = 0;
 		Data::StickersSetFlags setFlags = 0;
 		qint32 setFlagsValue = 0;
 		ImageLocation setThumbnail;
 
 		stickers.stream
 			>> setId
-			>> setAccess
+			>> setAccessHash
+			>> setHash
 			>> setTitle
 			>> setShortName
 			>> scnt
-			>> setHash
 			>> setFlagsValue
 			>> setInstallDate;
 		const auto thumbnail = Serialize::readImageLocation(
@@ -1754,34 +1753,7 @@ void Account::readStickerSets(
 			setThumbnail = *thumbnail;
 		}
 
-		if (stickers.version >= 2008007) {
-			setFlags = Data::StickersSetFlags::from_raw(setFlagsValue);
-		} else {
-			using Saved = MTPDstickerSet::Flag;
-			using Flag = SetFlag;
-			struct Conversion {
-				Saved saved;
-				Flag flag;
-			};
-			const auto conversions = {
-				Conversion{ Saved::f_archived, Flag::Archived },
-				Conversion{ Saved::f_installed_date, Flag::Installed },
-				Conversion{ Saved::f_masks, Flag::Masks },
-				Conversion{ Saved::f_official, Flag::Official },
-				Conversion{ Saved(1U << 30), Flag::NotLoaded },
-				Conversion{ Saved(1U << 29), Flag::Featured },
-				Conversion{ Saved(1U << 28), Flag::Unread },
-				Conversion{ Saved(1U << 27), Flag::Special },
-			};
-			auto flagsSet = Flag() | 0;
-			for (const auto &conversion : conversions) {
-				if (setFlagsValue & int(conversion.saved)) {
-					flagsSet |= conversion.flag;
-				}
-			}
-			setFlags = flagsSet;
-		}
-
+		setFlags = Data::StickersSetFlags::from_raw(setFlagsValue);
 		if (setId == Data::Stickers::DefaultSetId) {
 			setTitle = tr::lng_stickers_default_set(tr::now);
 			setFlags |= SetFlag::Official | SetFlag::Special;
@@ -1806,11 +1778,11 @@ void Account::readStickerSets(
 			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
 				&_owner->session().data(),
 				setId,
-				setAccess,
+				setAccessHash,
+				setHash,
 				setTitle,
 				setShortName,
 				0,
-				setHash,
 				setFlags,
 				setInstallDate)).first;
 			it->second->setThumbnail(
@@ -1832,7 +1804,10 @@ void Account::readStickerSets(
 			set->count = 0;
 		}
 
-		Serialize::Document::StickerSetInfo info(setId, setAccess, setShortName);
+		Serialize::Document::StickerSetInfo info(
+			setId,
+			setAccessHash,
+			setShortName);
 		base::flat_set<DocumentId> read;
 		for (int32 j = 0; j < scnt; ++j) {
 			auto document = Serialize::Document::readStickerFromStream(
@@ -2095,11 +2070,11 @@ void Account::importOldRecentStickers() {
 		std::make_unique<Data::StickersSet>(
 			&_owner->session().data(),
 			Data::Stickers::DefaultSetId,
-			uint64(0),
+			uint64(0), // accessHash
+			uint64(0), // hash
 			tr::lng_stickers_default_set(tr::now),
 			QString(),
 			0, // count
-			0, // hash
 			(SetFlag::Official | SetFlag::Installed | SetFlag::Special),
 			kDefaultStickerInstallDate)).first->second.get();
 	const auto custom = sets.emplace(
@@ -2107,11 +2082,11 @@ void Account::importOldRecentStickers() {
 		std::make_unique<Data::StickersSet>(
 			&_owner->session().data(),
 			Data::Stickers::CustomSetId,
-			uint64(0),
+			uint64(0), // accessHash
+			uint64(0), // hash
 			qsl("Custom stickers"),
 			QString(),
 			0, // count
-			0, // hash
 			(SetFlag::Installed | SetFlag::Special),
 			kDefaultStickerInstallDate)).first->second.get();
 
@@ -2607,13 +2582,13 @@ Export::Settings Account::readExportSettings() {
 		switch (singlePeerType) {
 		case kSinglePeerTypeUser:
 			return MTP_inputPeerUser(
-				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerBareId),
 				MTP_long(singlePeerAccessHash));
 		case kSinglePeerTypeChat:
-			return MTP_inputPeerChat(MTP_int(singlePeerBareId));
+			return MTP_inputPeerChat(MTP_long(singlePeerBareId));
 		case kSinglePeerTypeChannel:
 			return MTP_inputPeerChannel(
-				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerBareId),
 				MTP_long(singlePeerAccessHash));
 		case kSinglePeerTypeSelf:
 			return MTP_inputPeerSelf();

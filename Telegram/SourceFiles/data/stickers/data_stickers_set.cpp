@@ -55,19 +55,19 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 StickersSet::StickersSet(
 	not_null<Data::Session*> owner,
 	uint64 id,
-	uint64 access,
+	uint64 accessHash,
+	uint64 hash,
 	const QString &title,
 	const QString &shortName,
 	int count,
-	int32 hash,
 	StickersSetFlags flags,
 	TimeId installDate)
 : id(id)
-, access(access)
+, accessHash(accessHash)
+, hash(hash)
 , title(title)
 , shortName(shortName)
 , count(count)
-, hash(hash)
 , flags(flags)
 , installDate(installDate)
 , _owner(owner) {
@@ -82,15 +82,15 @@ Main::Session &StickersSet::session() const {
 }
 
 MTPInputStickerSet StickersSet::mtpInput() const {
-	return (id && access)
-		? MTP_inputStickerSetID(MTP_long(id), MTP_long(access))
+	return (id && accessHash)
+		? MTP_inputStickerSetID(MTP_long(id), MTP_long(accessHash))
 		: MTP_inputStickerSetShortName(MTP_string(shortName));
 }
 
 StickerSetIdentifier StickersSet::identifier() const {
 	return StickerSetIdentifier{
 		.id = id,
-		.accessHash = access,
+		.accessHash = accessHash,
 	};
 }
 
@@ -139,7 +139,7 @@ void StickersSet::loadThumbnail() {
 	Data::LoadCloudFile(
 		&_owner->session(),
 		_thumbnail,
-		Data::FileOriginStickerSet(id, access),
+		Data::FileOriginStickerSet(id, accessHash),
 		LoadFromCloudOrLocal,
 		autoLoading,
 		Data::kImageCacheTag,

@@ -438,7 +438,7 @@ void SendConfirmedFile(
 			peerToMTP(messageFromId),
 			peerToMTP(file->to.peer),
 			MTPMessageFwdHeader(),
-			MTPint(),
+			MTPlong(), // via_bot_id
 			replyHeader,
 			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
 			MTP_string(caption.text),

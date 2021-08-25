@@ -151,7 +151,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTPPeer(), // saved_from_peer
 			MTPint(), // saved_from_msg_id
 			MTPstring()), // psa_type
-		MTPint(), // via_bot_id
+		MTPlong(), // via_bot_id
 		MTPMessageReplyHeader(),
 		MTP_int(base::unixtime::now()), // date
 		MTP_string(text),

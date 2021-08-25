@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-[[nodiscard]] int32 CountDocumentVectorHash(
+[[nodiscard]] uint64 CountDocumentVectorHash(
 		const QVector<DocumentData*> vector) {
 	auto result = HashInit();
 	for (const auto document : vector) {
@@ -24,7 +24,7 @@ namespace {
 	return HashFinalize(result);
 }
 
-[[nodiscard]] int32 CountSpecialStickerSetHash(
+[[nodiscard]] uint64 CountSpecialStickerSetHash(
 		not_null<Main::Session*> session,
 		uint64 setId) {
 	const auto &sets = session->data().stickers().sets();
@@ -35,16 +35,14 @@ namespace {
 	return 0;
 }
 
-} // namespace
-
-int32 CountStickersHash(
+[[nodiscard]] uint64 CountStickersOrderHash(
 		not_null<Main::Session*> session,
+		const Data::StickersSetsOrder &order,
 		bool checkOutdatedInfo) {
 	using Flag = Data::StickersSetFlag;
 	auto result = HashInit();
 	bool foundOutdated = false;
 	const auto &sets = session->data().stickers().sets();
-	const auto &order = session->data().stickers().setsOrder();
 	for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
 		auto it = sets.find(*i);
 		if (it != sets.cend()) {
@@ -62,7 +60,27 @@ int32 CountStickersHash(
 		: 0;
 }
 
-int32 CountRecentStickersHash(
+} // namespace
+
+uint64 CountStickersHash(
+		not_null<Main::Session*> session,
+		bool checkOutdatedInfo) {
+	return CountStickersOrderHash(
+		session,
+		session->data().stickers().setsOrder(),
+		checkOutdatedInfo);
+}
+
+uint64 CountMasksHash(
+		not_null<Main::Session*> session,
+		bool checkOutdatedInfo) {
+	return CountStickersOrderHash(
+		session,
+		session->data().stickers().maskSetsOrder(),
+		checkOutdatedInfo);
+}
+
+uint64 CountRecentStickersHash(
 		not_null<Main::Session*> session,
 		bool attached) {
 	return CountSpecialStickerSetHash(
@@ -72,11 +90,11 @@ int32 CountRecentStickersHash(
 			: Data::Stickers::CloudRecentSetId);
 }
 
-int32 CountFavedStickersHash(not_null<Main::Session*> session) {
+uint64 CountFavedStickersHash(not_null<Main::Session*> session) {
 	return CountSpecialStickerSetHash(session, Data::Stickers::FavedSetId);
 }
 
-int32 CountFeaturedStickersHash(not_null<Main::Session*> session) {
+uint64 CountFeaturedStickersHash(not_null<Main::Session*> session) {
 	auto result = HashInit();
 	const auto &sets = session->data().stickers().sets();
 	const auto &featured = session->data().stickers().featuredSetsOrder();
@@ -92,7 +110,7 @@ int32 CountFeaturedStickersHash(not_null<Main::Session*> session) {
 	return HashFinalize(result);
 }
 
-int32 CountSavedGifsHash(not_null<Main::Session*> session) {
+uint64 CountSavedGifsHash(not_null<Main::Session*> session) {
 	return CountDocumentVectorHash(session->data().stickers().savedGifs());
 }
 

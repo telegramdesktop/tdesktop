@@ -57,7 +57,7 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
-			MTP_int(data.vvia_bot_id().value_or_empty()),
+			MTP_long(data.vvia_bot_id().value_or_empty()),
 			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
 			data.vdate(),
 			data.vmessage(),
@@ -198,7 +198,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 			peerToMTP(_session->userPeerId()),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
-			MTPint(),
+			MTPlong(), // via_bot_id
 			replyHeader,
 			update.vdate(),
 			MTP_string(local->originalText().text),
@@ -379,11 +379,13 @@ void ScheduledMessages::request(not_null<History*> history) {
 		return;
 	}
 	const auto i = _data.find(history);
-	const auto hash = (i != end(_data)) ? countListHash(i->second) : 0;
+	const auto hash = (i != end(_data))
+		? countListHash(i->second)
+		: uint64(0);
 	request.requestId = _session->api().request(
 		MTPmessages_GetScheduledHistory(
 			history->peer->input,
-			MTP_int(hash))
+			MTP_long(hash))
 	).done([=](const MTPmessages_Messages &result) {
 		parse(history, result);
 	}).fail([=](const MTP::Error &error) {
@@ -533,7 +535,7 @@ void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
 	_updates.fire_copy(history);
 }
 
-int32 ScheduledMessages::countListHash(const List &list) const {
+uint64 ScheduledMessages::countListHash(const List &list) const {
 	using namespace Api;
 
 	auto hash = HashInit();
@@ -548,7 +550,7 @@ int32 ScheduledMessages::countListHash(const List &list) const {
 		if (const auto edited = item->Get<HistoryMessageEdited>()) {
 			HashUpdate(hash, edited->date);
 		} else {
-			HashUpdate(hash, int32(0));
+			HashUpdate(hash, TimeId(0));
 		}
 		HashUpdate(hash, item->date());
 	}
