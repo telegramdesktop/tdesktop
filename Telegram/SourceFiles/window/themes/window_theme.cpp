@@ -711,6 +711,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 					std::move(prepared),
 					QImage());
 			} else {
+				image = postprocessBackgroundImage(std::move(image));
 				setPrepared(
 					image,
 					image,
