@@ -52,12 +52,10 @@ jobs:
       MIN_MAC: "-mmacosx-version-min=10.12"
       UNGUARDED: "-Werror=unguarded-availability-new"
       GIT: "https://github.com"
-      PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
       XZ: "xz-5.2.5"
       QT: "5_15_2"
       OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.2"
       LIBICONV_VER: "libiconv-1.16"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -88,7 +86,6 @@ jobs:
 
           xcodebuild -version > CACHE_KEY.txt
           echo $MIN_MAC >> CACHE_KEY.txt
-          echo $PREFIX >> CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
           echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
           if [ "$AUTO_CACHING" == "1" ]; then
@@ -99,9 +96,11 @@ jobs:
 
           echo "$PWD/Libraries/depot_tools" >> $GITHUB_PATH
 
-          mkdir -p Libraries/macos
-          cd Libraries/macos
+          mkdir -p Libraries
+          cd Libraries
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
+          echo "PREFIX=`pwd`/local" >> $GITHUB_ENV
+          echo "QT_PREFIX=`pwd`/local/Qt-5.15.2" >> $GITHUB_ENV
 
           curl -o tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
 
@@ -123,7 +122,7 @@ jobs:
           cd $XZ
           CFLAGS="$MIN_MAC" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Zlib.
         run: |
@@ -133,7 +132,7 @@ jobs:
           cd zlib
           CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: MozJPEG.
         run: |
@@ -147,7 +146,7 @@ jobs:
           -DWITH_JPEG8=ON \
           -DPNG_SUPPORTED=OFF
           cmake --build build -j$(nproc)
-          sudo cmake --install build
+          cmake --install build
 
       - name: OpenSSL cache.
         id: cache-openssl
@@ -178,7 +177,7 @@ jobs:
           }
           copyLib libssl
           copyLib libcrypto
-          sudo cp -R include/. $SSL_DIR/include/
+          cp -R include/. $SSL_DIR/include/
 
       - name: Opus cache.
         id: cache-opus
@@ -197,11 +196,11 @@ jobs:
           ./autogen.sh
           CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
           make -j$(nproc)
-          sudo make DESTDIR="$LibrariesPath/opus-cache" install
+          make DESTDIR="$LibrariesPath/opus-cache" install
       - name: Opus install.
         run: |
           cd $LibrariesPath
-          sudo cp -R opus-cache/. /
+          cp -R opus-cache/. /
 
       - name: Rnnoise.
         run: |
@@ -229,11 +228,11 @@ jobs:
           cd $LIBICONV_VER
           CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --enable-static --prefix=$PREFIX
           make -j$(nproc)
-          sudo make DESTDIR="$LibrariesPath/libiconv-cache" install
+          make DESTDIR="$LibrariesPath/libiconv-cache" install
       - name: Libiconv install.
         run: |
           cd $LibrariesPath
-          sudo cp -R libiconv-cache/. /
+          cp -R libiconv-cache/. /
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -356,7 +355,7 @@ jobs:
           --enable-muxer=opus
 
           make -j$(nproc)
-          sudo make install
+          make install
       - name: FFmpeg install.
         run: |
           cd $LibrariesPath
@@ -371,8 +370,8 @@ jobs:
           copyLib libswscale
           copyLib libavutil
 
-          sudo cp -R ffmpeg-cache/. $PREFIX
-          sudo cp -R ffmpeg-cache/include/. ffmpeg/
+          cp -R ffmpeg-cache/. $PREFIX
+          cp -R ffmpeg-cache/include/. ffmpeg/
 
       - name: OpenAL Soft.
         run: |
@@ -388,7 +387,7 @@ jobs:
           -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET ..
 
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Crashpad cache.
         id: cache-crashpad
@@ -440,8 +439,8 @@ jobs:
         run: |
           cd $LibrariesPath
           mv qt-cache Qt-5.15.2
-          sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.15.2 "$(dirname "$QT_PREFIX")"/
+          mkdir -p $QT_PREFIX
+          mv -f Qt-5.15.2 "$(dirname "$QT_PREFIX")"/
       - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
@@ -476,7 +475,7 @@ jobs:
           ZLIB_LIBS="$PREFIX/lib/libz.a"
 
           make -j$(nproc)
-          sudo make install
+          make install
 
           make clean
           cp -r $QT_PREFIX $LibrariesPath/qt-cache

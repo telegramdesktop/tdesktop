@@ -8,7 +8,7 @@ Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.12
 
-    cd Libraries/macos
+    cd Libraries
 
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
