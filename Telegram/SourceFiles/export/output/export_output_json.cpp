@@ -517,6 +517,12 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("group_call_scheduled");
 		push("schedule_date", data.date);
+	}, [&](const ActionSetChatTheme &data) {
+		pushActor();
+		pushAction("edit_chat_theme");
+		if (!data.emoji.isEmpty()) {
+			push("emoticon", data.emoji.toUtf8());
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

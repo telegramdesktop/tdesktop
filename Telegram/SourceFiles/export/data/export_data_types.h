@@ -475,6 +475,10 @@ struct ActionGroupCallScheduled {
 	TimeId date = 0;
 };
 
+struct ActionSetChatTheme {
+	QString emoji;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -503,7 +507,8 @@ struct ServiceAction {
 		ActionGroupCall,
 		ActionInviteToGroupCall,
 		ActionSetMessagesTTL,
-		ActionGroupCallScheduled> content;
+		ActionGroupCallScheduled,
+		ActionSetChatTheme> content;
 };
 
 ServiceAction ParseServiceAction(

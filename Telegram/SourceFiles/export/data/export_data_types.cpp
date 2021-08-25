@@ -1124,7 +1124,9 @@ ServiceAction ParseServiceAction(
 			.date = data.vschedule_date().v,
 		};
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
-		// #TODO themes
+		result.content = ActionSetChatTheme{
+			.emoji = qs(data.vemoticon()),
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

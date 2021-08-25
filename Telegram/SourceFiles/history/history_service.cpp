@@ -427,6 +427,31 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSetChatTheme = [this](const MTPDmessageActionSetChatTheme &action) {
+		auto result = PreparedText{};
+		const auto text = qs(action.vemoticon());
+		if (!text.isEmpty()) {
+			if (isPost()) {
+				result.text = tr::lng_action_theme_changed_channel(tr::now, lt_emoji, text);
+			} else if (_from->isSelf()) {
+				result.text = tr::lng_action_you_theme_changed(tr::now, lt_emoji, text);
+			} else {
+				result.links.push_back(fromLink());
+				result.text = tr::lng_action_theme_changed(tr::now, lt_from, fromLinkText(), lt_emoji, text);
+			}
+		} else {
+			if (isPost()) {
+				result.text = tr::lng_action_theme_disabled_channel(tr::now);
+			} else if (_from->isSelf()) {
+				result.text = tr::lng_action_you_theme_disabled(tr::now);
+			} else {
+				result.links.push_back(fromLink());
+				result.text = tr::lng_action_theme_disabled(tr::now, lt_from, fromLinkText());
+			}
+		}
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -485,7 +510,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
 		return prepareCallScheduledText(data.vschedule_date().v);
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
-		return PreparedText{ tr::lng_message_empty(tr::now) }; // #TODO themes
+		return prepareSetChatTheme(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

@@ -1095,8 +1095,17 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionGroupCallScheduled &data) {
 		const auto dateText = FormatDateTime(data.date);
 		return isChannel
-			? "Voice chat scheduled for " + dateText
+			? ("Voice chat scheduled for " + dateText)
 			: (serviceFrom + " scheduled a voice chat for " + dateText);
+	}, [&](const ActionSetChatTheme &data) {
+		if (data.emoji.isEmpty()) {
+			return isChannel
+				? "Channel theme was disabled"
+				: (serviceFrom + " disabled chat theme");
+		}
+		return isChannel
+			? ("Channel theme was changed to " + data.emoji).toUtf8()
+			: (serviceFrom + " changed chat theme to " + data.emoji).toUtf8();
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
