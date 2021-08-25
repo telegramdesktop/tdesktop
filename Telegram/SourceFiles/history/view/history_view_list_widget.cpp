@@ -1602,7 +1602,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		width(),
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
-	auto ms = crl::now();
 	auto clip = e->rect();
 
 	auto from = std::lower_bound(begin(_items), end(_items), clip.top(), [this](auto &elem, int top) {
