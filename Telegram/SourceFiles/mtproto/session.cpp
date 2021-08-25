@@ -204,16 +204,15 @@ void Session::watchDcOptionsChanges() {
 		});
 	}, _lifetime);
 
-	if (_instance->dcOptions().dcType(_shiftedDcId) == DcType::Cdn) {
-		_instance->dcOptions().cdnConfigChanged(
-		) | rpl::filter([=] {
-			return (_private != nullptr);
-		}) | rpl::start_with_next([=] {
-			InvokeQueued(_private, [captured = _private] {
-				captured->cdnConfigChanged();
-			});
-		}, _lifetime);
-	}
+	_instance->dcOptions().cdnConfigChanged(
+	) | rpl::filter([=] {
+		return (_private != nullptr)
+			&& (_instance->dcOptions().dcType(_shiftedDcId) == DcType::Cdn);
+	}) | rpl::start_with_next([=] {
+		InvokeQueued(_private, [captured = _private] {
+			captured->cdnConfigChanged();
+		});
+	}, _lifetime);
 }
 
 void Session::start() {
