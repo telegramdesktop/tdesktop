@@ -15,20 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/base_platform_info.h"
 
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
-#include "webview/platform/linux/webview_linux_webkit2gtk.h"
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
-
 #include <QtCore/QProcess>
 
-#include <giomm.h>
+#include <glibmm.h>
 
 namespace Platform {
 namespace internal {
 namespace {
 
 constexpr auto kBaseService = "org.telegram.desktop.BaseGtkIntegration-%1"_cs;
-constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 
 using BaseGtkIntegration = base::Platform::GtkIntegration;
 
@@ -42,31 +37,8 @@ QString GtkIntegration::AllowedBackends() {
 			: QString();
 }
 
-int GtkIntegration::Exec(
-		Type type,
-		const QString &parentDBusName,
-		const QString &serviceName) {
-	Glib::init();
-	Gio::init();
-
-	if (type == Type::Base) {
-		BaseGtkIntegration::SetServiceName(serviceName);
-		if (const auto integration = BaseGtkIntegration::Instance()) {
-			return integration->exec(parentDBusName);
-		}
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
-	} else if (type == Type::Webview) {
-		Webview::WebKit2Gtk::SetServiceName(serviceName.toStdString());
-		return Webview::WebKit2Gtk::Exec(parentDBusName.toStdString());
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
-	}
-
-	return 1;
-}
-
 void GtkIntegration::Start(Type type) {
-	if (type != Type::Base
-		&& type != Type::Webview) {
+	if (type != Type::Base) {
 		return;
 	}
 
@@ -74,16 +46,7 @@ void GtkIntegration::Start(Type type) {
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 
-	if (type == Type::Base) {
-		BaseGtkIntegration::SetServiceName(kBaseService.utf16().arg(h));
-	} else if (type == Type::Webview) {
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
-		Webview::WebKit2Gtk::SetServiceName(
-			kWebviewService.utf16().arg(h).arg("%1").toStdString());
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
-
-		return;
-	}
+	BaseGtkIntegration::SetServiceName(kBaseService.utf16().arg(h));
 
 	const auto dbusName = [] {
 		try {
