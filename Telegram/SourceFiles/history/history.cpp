@@ -1061,6 +1061,8 @@ void History::applyServiceChanges(
 				}
 			}
 		}
+	}, [&](const MTPDmessageActionSetChatTheme &data) {
+		peer->setThemeEmoji(qs(data.vemoticon()));
 	}, [](const auto &) {
 	});
 }

@@ -887,6 +887,7 @@ void ApplyChannelUpdate(
 			session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
 		}
 	}
+	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->fullUpdated();
 
 	if (canViewAdmins != channel->canViewAdmins()

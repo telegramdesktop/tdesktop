@@ -139,6 +139,13 @@ private:
 	int rotation);
 [[nodiscard]] QImage GenerateDitheredGradient(const WallPaper &paper);
 
+[[nodiscard]] QColor ColorFromSerialized(quint32 serialized);
+[[nodiscard]] QColor ColorFromSerialized(MTPint serialized);
+[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
+	quint32 serialized);
+[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
+	const tl::conditional<MTPint> &mtp);
+
 namespace details {
 
 [[nodiscard]] WallPaper UninitializedWallPaper();

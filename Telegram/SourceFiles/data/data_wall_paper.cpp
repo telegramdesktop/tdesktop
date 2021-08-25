@@ -45,23 +45,8 @@ constexpr auto kVersion = 1;
 	return color ? SerializeColor(*color) : quint32(-1);
 }
 
-[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
-		quint32 serialized) {
-	return (serialized == quint32(-1))
-		? std::nullopt
-		: std::make_optional(QColor(
-			int((serialized >> 16) & 0xFFU),
-			int((serialized >> 8) & 0xFFU),
-			int(serialized & 0xFFU)));
-}
-
 [[nodiscard]] QColor DefaultBackgroundColor() {
 	return QColor(213, 223, 233);
-}
-
-[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
-		const tl::conditional<MTPint> &mtp) {
-	return mtp ? MaybeColorFromSerialized(mtp->v) : std::nullopt;
 }
 
 [[nodiscard]] std::vector<QColor> ColorsFromMTP(
@@ -789,6 +774,29 @@ QImage GenerateDitheredGradient(const Data::WallPaper &paper) {
 	return GenerateDitheredGradient(
 		paper.backgroundColors(),
 		paper.gradientRotation());
+}
+
+QColor ColorFromSerialized(quint32 serialized) {
+	return QColor(
+		int((serialized >> 16) & 0xFFU),
+		int((serialized >> 8) & 0xFFU),
+		int(serialized & 0xFFU));
+}
+
+QColor ColorFromSerialized(MTPint serialized) {
+	return ColorFromSerialized(serialized.v);
+}
+
+std::optional<QColor> MaybeColorFromSerialized(
+		quint32 serialized) {
+	return (serialized == quint32(-1))
+		? std::nullopt
+		: std::make_optional(ColorFromSerialized(serialized));
+}
+
+std::optional<QColor> MaybeColorFromSerialized(
+		const tl::conditional<MTPint> &mtp) {
+	return mtp ? std::make_optional(ColorFromSerialized(*mtp)) : std::nullopt;
 }
 
 namespace details {

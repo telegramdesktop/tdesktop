@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_cloud_themes.h"
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "lang/lang_keys.h"
@@ -1010,6 +1011,17 @@ PeerId PeerData::groupCallDefaultJoinAs() const {
 		return group->groupCallDefaultJoinAs();
 	}
 	return 0;
+}
+
+void PeerData::setThemeEmoji(const QString &emoji) {
+	_themeEmoji = emoji;
+	if (!emoji.isEmpty() && !owner().cloudThemes().themeForEmoji(emoji)) {
+		owner().cloudThemes().refreshChatThemes();
+	}
+}
+
+const QString &PeerData::themeEmoji() const {
+	return _themeEmoji;
 }
 
 void PeerData::setIsBlocked(bool is) {

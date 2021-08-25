@@ -225,6 +225,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setAbout(qs(update.vabout().value_or_empty()));
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
 	user->checkFolder(update.vfolder_id().value_or_empty());
+	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	user->fullUpdated();
 }
 

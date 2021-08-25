@@ -470,6 +470,9 @@ public:
 	[[nodiscard]] Data::GroupCall *groupCall() const;
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
+	void setThemeEmoji(const QString &emoji);
+	[[nodiscard]] const QString &themeEmoji() const;
+
 	const PeerId id;
 	QString name;
 	MTPinputPeer input = MTP_inputPeerEmpty();
@@ -515,6 +518,7 @@ private:
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 
 	QString _about;
+	QString _themeEmoji;
 
 };
 

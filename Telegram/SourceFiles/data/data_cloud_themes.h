@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_wall_paper.h"
 
 class DocumentData;
 
@@ -31,10 +32,24 @@ struct CloudTheme {
 	DocumentId documentId = 0;
 	UserId createdBy = 0;
 	int usersCount = 0;
+	std::optional<WallPaper> paper;
+	std::optional<QColor> accentColor;
+	std::vector<QColor> outgoingMessagesColors;
 
 	static CloudTheme Parse(
 		not_null<Main::Session*> session,
-		const MTPDtheme &data);
+		const MTPDtheme &data,
+		bool parseSettings = false);
+	static CloudTheme Parse(
+		not_null<Main::Session*> session,
+		const MTPTheme &data,
+		bool parseSettings = false);
+};
+
+struct ChatTheme {
+	QString emoji;
+	CloudTheme light;
+	CloudTheme dark;
 };
 
 class CloudThemes final {
@@ -48,6 +63,12 @@ public:
 	[[nodiscard]] const std::vector<CloudTheme> &list() const;
 	void savedFromEditor(const CloudTheme &data);
 	void remove(uint64 cloudThemeId);
+
+	void refreshChatThemes();
+	[[nodiscard]] const std::vector<ChatTheme> &chatThemes() const;
+	[[nodiscard]] rpl::producer<> chatThemesUpdated() const;
+	[[nodiscard]] std::optional<ChatTheme> themeForEmoji(
+		const QString &emoji) const;
 
 	void applyUpdate(const MTPTheme &theme);
 
@@ -90,12 +111,19 @@ private:
 		Fn<void(std::shared_ptr<Data::DocumentMedia>)> callback);
 	void invokeForLoaded(LoadingDocument &value);
 
+	void parseChatThemes(const QVector<MTPChatTheme> &list);
+
 	const not_null<Main::Session*> _session;
 	int32 _hash = 0;
-	mtpRequestId _refreshRquestId = 0;
+	mtpRequestId _refreshRequestId = 0;
 	mtpRequestId _resolveRequestId = 0;
 	std::vector<CloudTheme> _list;
 	rpl::event_stream<> _updates;
+
+	int32 _chatThemesHash = 0;
+	mtpRequestId _chatThemesRequestId = 0;
+	std::vector<ChatTheme> _chatThemes;
+	rpl::event_stream<> _chatThemesUpdates;
 
 	base::Timer _reloadCurrentTimer;
 	LoadingDocument _updatingFrom;
