@@ -409,7 +409,7 @@ void Widget::appendStep(Step *step) {
 	step->setGeometry(rect());
 	step->setGoCallback([=](Step *step, StackAction action, Animate animate) {
 		if (action == StackAction::Back) {
-			historyMove(action, animate);
+			backRequested();
 		} else {
 			moveToStep(step, action, animate);
 		}
