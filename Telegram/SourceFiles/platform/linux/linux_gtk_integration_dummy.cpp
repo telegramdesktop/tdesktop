@@ -14,13 +14,6 @@ QString GtkIntegration::AllowedBackends() {
 	return {};
 }
 
-int GtkIntegration::Exec(
-		Type type,
-		const QString &parentDBusName,
-		const QString &serviceName) {
-	return 1;
-}
-
 void GtkIntegration::Start(Type type) {
 }
 

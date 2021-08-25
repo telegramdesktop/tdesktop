@@ -14,15 +14,9 @@ class GtkIntegration {
 public:
 	enum class Type {
 		Base,
-		Webview,
 	};
 
 	static QString AllowedBackends();
-
-	static int Exec(
-		Type type,
-		const QString &parentDBusName,
-		const QString &serviceName);
 
 	static void Start(Type type);
 

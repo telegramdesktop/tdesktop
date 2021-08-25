@@ -35,6 +35,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
+#include "webview/platform/linux/webview_linux_webkit2gtk.h"
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QStyle>
 #include <QtWidgets/QDesktopWidget>
@@ -75,6 +79,7 @@ constexpr auto kDarkColorLimit = 192;
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
+constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -645,14 +650,19 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
-	Glib::init();
-	Gio::init();
-
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
 
 	GtkIntegration::Start(GtkIntegration::Type::Base);
-	GtkIntegration::Start(GtkIntegration::Type::Webview);
+
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
+	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+	char h[33] = { 0 };
+	hashMd5Hex(d.constData(), d.size(), h);
+
+	Webview::WebKit2Gtk::SetServiceName(
+		kWebviewService.utf16().arg(h).arg("%1").toStdString());
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
