@@ -854,14 +854,9 @@ PRIVATE
     payments/payments_form.h
     platform/linux/linux_desktop_environment.cpp
     platform/linux/linux_desktop_environment.h
-    platform/linux/linux_gdk_helper.cpp
-    platform/linux/linux_gdk_helper.h
     platform/linux/linux_gtk_integration_dummy.cpp
-    platform/linux/linux_gtk_integration_p.h
     platform/linux/linux_gtk_integration.cpp
     platform/linux/linux_gtk_integration.h
-    platform/linux/linux_gtk_open_with_dialog.cpp
-    platform/linux/linux_gtk_open_with_dialog.h
     platform/linux/linux_wayland_integration_dummy.cpp
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
@@ -1166,12 +1161,7 @@ endif()
 
 if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
-        platform/linux/linux_gdk_helper.cpp
-        platform/linux/linux_gdk_helper.h
-        platform/linux/linux_gtk_integration_p.h
         platform/linux/linux_gtk_integration.cpp
-        platform/linux/linux_gtk_open_with_dialog.cpp
-        platform/linux/linux_gtk_open_with_dialog.h
     )
 else()
     remove_target_sources(Telegram ${src_loc}
@@ -1287,17 +1277,6 @@ else()
             desktop-app::lib_waylandshells
             desktop-app::external_kwayland
         )
-    endif()
-
-    if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
-        find_package(PkgConfig REQUIRED)
-
-        pkg_check_modules(GTK REQUIRED gtk+-3.0)
-        target_include_directories(Telegram SYSTEM PRIVATE ${GTK_INCLUDE_DIRS})
-
-        if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
-            target_link_libraries(Telegram PRIVATE X11)
-        endif()
     endif()
 endif()
 

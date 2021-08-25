@@ -653,7 +653,6 @@ void start() {
 
 	GtkIntegration::Start(GtkIntegration::Type::Base);
 	GtkIntegration::Start(GtkIntegration::Type::Webview);
-	GtkIntegration::Start(GtkIntegration::Type::TDesktop);
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
@@ -784,13 +783,8 @@ void start() {
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
 	GtkIntegration::Autorestart(GtkIntegration::Type::Base);
-	GtkIntegration::Autorestart(GtkIntegration::Type::TDesktop);
 
 	if (const auto integration = BaseGtkIntegration::Instance()) {
-		integration->load(GtkIntegration::AllowedBackends());
-	}
-
-	if (const auto integration = GtkIntegration::Instance()) {
 		integration->load(GtkIntegration::AllowedBackends());
 	}
 

@@ -64,11 +64,6 @@ int Launcher::exec() {
 				GtkIntegration::Type::Webview,
 				QString::fromStdString(*(i + 1)),
 				QString::fromStdString(*(i + 2)));
-		} else if (*i == "-gtkintegration" && std::distance(i, e) > 2) {
-			return GtkIntegration::Exec(
-				GtkIntegration::Type::TDesktop,
-				QString::fromStdString(*(i + 1)),
-				QString::fromStdString(*(i + 2)));
 		}
 	}
 
