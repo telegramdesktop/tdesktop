@@ -15,15 +15,7 @@ public:
 	enum class Type {
 		Base,
 		Webview,
-		TDesktop,
 	};
-
-	static GtkIntegration *Instance();
-
-	void load(const QString &allowedBackends);
-	int exec(const QString &parentDBusName);
-
-	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
 	static QString AllowedBackends();
 
@@ -35,13 +27,6 @@ public:
 	static void Start(Type type);
 
 	static void Autorestart(Type type);
-
-private:
-	GtkIntegration();
-	~GtkIntegration();
-
-	class Private;
-	const std::unique_ptr<Private> _private;
 };
 
 } // namespace internal

@@ -10,29 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace internal {
 
-class GtkIntegration::Private {
-};
-
-GtkIntegration::GtkIntegration() {
-}
-
-GtkIntegration::~GtkIntegration() = default;
-
-GtkIntegration *GtkIntegration::Instance() {
-	return nullptr;
-}
-
-void GtkIntegration::load(const QString &allowedBackends) {
-}
-
-int GtkIntegration::exec(const QString &parentDBusName) {
-	return 1;
-}
-
-bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
-	return false;
-}
-
 QString GtkIntegration::AllowedBackends() {
 	return {};
 }

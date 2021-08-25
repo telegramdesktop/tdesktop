@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/file_utilities_linux.h"
 
-#include "platform/linux/linux_gtk_integration.h"
-#include "platform/linux/specific_linux.h"
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_xdp_file_dialog.h"
 #include "platform/linux/linux_xdp_open_with_dialog.h"
@@ -20,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <glibmm.h>
 #include <giomm.h>
-
-using Platform::internal::GtkIntegration;
 
 namespace Platform {
 namespace File {
@@ -52,14 +47,6 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		return true;
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	if (InFlatpak() || InSnap()) {
-		return false;
-	}
-
-	if (const auto integration = GtkIntegration::Instance()) {
-		return integration->showOpenWithDialog(filepath);
-	}
 
 	return false;
 }
