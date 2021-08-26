@@ -565,6 +565,7 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBg);
 
 	const auto context = HistoryView::PaintContext{
+		.st = style::main_palette::get(),
 		.bubblesPattern = nullptr, // #TODO bubbles
 		.viewport = rect(),
 		.clip = rect(),

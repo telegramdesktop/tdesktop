@@ -57,7 +57,7 @@ struct PeerUpdate {
 		Notifications     = (1U << 4),
 		Migration         = (1U << 5),
 		UnavailableReason = (1U << 6),
-		PinnedMessages    = (1U << 7),
+		ChatThemeEmoji    = (1U << 7),
 		IsBlocked         = (1U << 8),
 		MessagesTTL       = (1U << 9),
 
@@ -118,8 +118,9 @@ struct HistoryUpdate {
 		BotKeyboard    = (1U << 11),
 		CloudDraft     = (1U << 12),
 		LocalDraftSet  = (1U << 13),
+		PinnedMessages = (1U << 14),
 
-		LastUsedBit    = (1U << 13),
+		LastUsedBit    = (1U << 14),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

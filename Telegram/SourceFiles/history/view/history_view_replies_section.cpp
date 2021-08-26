@@ -146,7 +146,7 @@ RepliesWidget::RepliesWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history,
 	MsgId rootId)
-: Window::SectionWidget(parent, controller, PaintedBackground::Section)
+: Window::SectionWidget(parent, controller, history->peer)
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
@@ -1511,7 +1511,11 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	const auto aboveHeight = _topBar->height();
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
-	SectionWidget::PaintBackground(controller(), this, bg);
+	SectionWidget::PaintBackground(
+		controller(),
+		controller()->defaultChatTheme().get(), // #TODO themes
+		this,
+		bg);
 }
 
 void RepliesWidget::onScroll() {

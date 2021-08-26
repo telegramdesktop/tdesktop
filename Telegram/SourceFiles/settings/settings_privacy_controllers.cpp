@@ -706,11 +706,17 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	widget->paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
-		Window::SectionWidget::PaintBackground(_controller, widget, rect);
+		// #TODO themes
+		Window::SectionWidget::PaintBackground(
+			_controller,
+			_controller->defaultChatTheme().get(), // #TODO themes
+			widget,
+			rect);
 
 		Painter p(widget);
 		const auto context = HistoryView::PaintContext{
-			.bubblesPattern = nullptr, // #TODO bubbles
+			.st = style::main_palette::get(),
+			.bubblesPattern = nullptr,
 			.viewport = widget->rect(),
 			.clip = widget->rect(),
 			.now = crl::now(),

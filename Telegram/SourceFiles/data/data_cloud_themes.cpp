@@ -37,10 +37,9 @@ CloudTheme CloudTheme::Parse(
 	const auto document = data.vdocument();
 	const auto paper = [&]() -> std::optional<WallPaper> {
 		if (const auto settings = data.vsettings()) {
-			settings->match([&](const MTPDthemeSettings &data) {
+			return settings->match([&](const MTPDthemeSettings &data) {
 				return data.vwallpaper()
-					? std::make_optional(
-						WallPaper::Create(session, *data.vwallpaper()))
+					? WallPaper::Create(session, *data.vwallpaper())
 					: std::nullopt;
 			});
 		}
@@ -61,11 +60,26 @@ CloudTheme CloudTheme::Parse(
 	};
 	const auto accentColor = [&]() -> std::optional<QColor> {
 		if (const auto settings = data.vsettings()) {
-			settings->match([&](const MTPDthemeSettings &data) {
+			return settings->match([&](const MTPDthemeSettings &data) {
 				return ColorFromSerialized(data.vaccent_color().v);
 			});
 		}
 		return {};
+	};
+	const auto basedOnDark = [&] {
+		if (const auto settings = data.vsettings()) {
+			return settings->match([&](const MTPDthemeSettings &data) {
+				return data.vbase_theme().match([](
+						const MTPDbaseThemeNight &) {
+					return true;
+				}, [](const MTPDbaseThemeTinted &) {
+					return true;
+				}, [](const auto &) {
+					return false;
+				});
+			});
+		}
+		return false;
 	};
 	return {
 		.id = data.vid().v,
@@ -82,6 +96,7 @@ CloudTheme CloudTheme::Parse(
 		.outgoingMessagesColors = (parseSettings
 			? outgoingMessagesColors()
 			: std::vector<QColor>()),
+		.basedOnDark = parseSettings && basedOnDark(),
 	};
 }
 
@@ -366,6 +381,24 @@ std::optional<ChatTheme> CloudThemes::themeForEmoji(
 	}
 	const auto i = ranges::find(_chatThemes, emoji, &ChatTheme::emoji);
 	return (i != end(_chatThemes)) ? std::make_optional(*i) : std::nullopt;
+}
+
+rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
+		const QString &emoji) {
+	if (emoji.isEmpty()) {
+		return rpl::single<std::optional<ChatTheme>>(std::nullopt);
+	} else if (auto result = themeForEmoji(emoji)) {
+		return rpl::single(std::move(result));
+	}
+	refreshChatThemes();
+	return rpl::single<std::optional<ChatTheme>>(
+		std::nullopt
+	) | rpl::then(chatThemesUpdated(
+	) | rpl::map([=] {
+		return themeForEmoji(emoji);
+	}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
+		return theme.has_value();
+	}) | rpl::take(1));
 }
 
 void CloudThemes::parseChatThemes(const QVector<MTPChatTheme> &list) {

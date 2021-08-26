@@ -615,7 +615,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto item = view->data();
 
 			auto top = mtop + block->y() + view->y();
-			auto context = _controller->bubblesContext({
+			auto context = _controller->preparePaintContext({
+				.theme = _controller->defaultChatTheme().get(), // #TODO themes
 				.visibleAreaTop = _visibleAreaTop,
 				.visibleAreaTopGlobal = visibleAreaTopGlobal,
 				.clip = clip,
@@ -663,7 +664,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto item = view->data();
 			auto readTill = (HistoryItem*)nullptr;
 			auto top = htop + block->y() + view->y();
-			auto context = _controller->bubblesContext({
+			auto context = _controller->preparePaintContext({
+				.theme = _controller->defaultChatTheme().get(), // #TODO themes
 				.visibleAreaTop = _visibleAreaTop,
 				.visibleAreaTopGlobal = visibleAreaTopGlobal,
 				.visibleAreaWidth = width(),

@@ -32,9 +32,11 @@ struct CloudTheme {
 	DocumentId documentId = 0;
 	UserId createdBy = 0;
 	int usersCount = 0;
+
 	std::optional<WallPaper> paper;
 	std::optional<QColor> accentColor;
 	std::vector<QColor> outgoingMessagesColors;
+	bool basedOnDark = false;
 
 	static CloudTheme Parse(
 		not_null<Main::Session*> session,
@@ -69,6 +71,8 @@ public:
 	[[nodiscard]] rpl::producer<> chatThemesUpdated() const;
 	[[nodiscard]] std::optional<ChatTheme> themeForEmoji(
 		const QString &emoji) const;
+	[[nodiscard]] rpl::producer<std::optional<ChatTheme>> themeForEmojiValue(
+		const QString &emoji);
 
 	void applyUpdate(const MTPTheme &theme);
 

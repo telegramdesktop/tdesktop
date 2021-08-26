@@ -915,6 +915,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto viewport = QRect(); // #TODO bubbles
 			auto top = itemTop(from->get());
 			auto context = HistoryView::PaintContext{
+				.st = style::main_palette::get(),
 				.bubblesPattern = nullptr,
 				.viewport = viewport.translated(0, -top),
 				.clip = clip.translated(0, -top),

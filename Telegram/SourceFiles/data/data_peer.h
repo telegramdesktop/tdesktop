@@ -406,9 +406,6 @@ public:
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
 
-	[[nodiscard]] bool hasPinnedMessages() const;
-	void setHasPinnedMessages(bool has);
-
 	[[nodiscard]] bool canExportChatHistory() const;
 
 	// Returns true if about text was changed.
@@ -511,7 +508,6 @@ private:
 	crl::time _lastFullUpdate = 0;
 
 	TimeId _ttlPeriod = 0;
-	bool _hasPinnedMessages = false;
 
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;

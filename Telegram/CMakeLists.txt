@@ -1100,6 +1100,8 @@ PRIVATE
     window/window_slide_animation.cpp
     window/window_slide_animation.h
     window/window_top_bar_wrap.h
+    window/themes/window_chat_theme.cpp
+    window/themes/window_chat_theme.h
     window/themes/window_theme.cpp
     window/themes/window_theme.h
     window/themes/window_theme_editor.cpp

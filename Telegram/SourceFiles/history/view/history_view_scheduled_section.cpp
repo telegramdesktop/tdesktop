@@ -90,7 +90,7 @@ ScheduledWidget::ScheduledWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history)
-: Window::SectionWidget(parent, controller, PaintedBackground::Section)
+: Window::SectionWidget(parent, controller, history->peer)
 , _history(history)
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
@@ -996,7 +996,11 @@ void ScheduledWidget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(controller(), this, e->rect());
+	SectionWidget::PaintBackground(
+		controller(),
+		controller()->defaultChatTheme().get(), // #TODO themes
+		this,
+		e->rect());
 }
 
 void ScheduledWidget::onScroll() {

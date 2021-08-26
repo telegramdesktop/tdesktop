@@ -364,7 +364,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));
-		history()->peer->setHasPinnedMessages(true);
+		history()->setHasPinnedMessages(true);
 	} else {
 		_flags &= ~MessageFlag::Pinned;
 		history()->session().storage().remove(Storage::SharedMediaRemoveOne(
@@ -553,7 +553,7 @@ void HistoryItem::indexAsNewItem() {
 				types,
 				id));
 			if (types.test(Storage::SharedMediaType::Pinned)) {
-				_history->peer->setHasPinnedMessages(true);
+				_history->setHasPinnedMessages(true);
 			}
 		}
 	}

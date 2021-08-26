@@ -35,7 +35,6 @@ public:
 	void setLocalImageAsThumbnail(std::shared_ptr<Image> image);
 
 	[[nodiscard]] WallPaperId id() const;
-	[[nodiscard]] std::optional<QColor> backgroundColor() const;
 	[[nodiscard]] const std::vector<QColor> backgroundColors() const;
 	[[nodiscard]] DocumentData *document() const;
 	[[nodiscard]] Image *localThumbnail() const;

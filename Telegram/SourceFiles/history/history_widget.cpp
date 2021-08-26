@@ -116,6 +116,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
+#include "window/themes/window_chat_theme.h"
 #include "inline_bots/inline_results_widget.h"
 #include "info/profile/info_profile_values.h" // SharedMediaCountValue.
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -166,12 +167,24 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 		crl::time(1000) * 8);
 }
 
+[[nodiscard]] rpl::producer<PeerData*> ActivePeerValue(
+		not_null<Window::SessionController*> controller) {
+	return controller->activeChatValue(
+	) | rpl::map([](const Dialogs::Key &key) {
+		const auto history = key.history();
+		return history ? history->peer.get() : nullptr;
+	});
+}
+
 } // namespace
 
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Window::AbstractSectionWidget(parent, controller, PaintedBackground::Section)
+: Window::AbstractSectionWidget(
+	parent,
+	controller,
+	ActivePeerValue(controller))
 , _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
@@ -432,11 +445,6 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	controller->repaintBackgroundRequests(
-	) | rpl::start_with_next([=] {
-		update();
-	}, lifetime());
-
 	session().data().newItemAdded(
 	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		newItemAdded(item);
@@ -504,40 +512,52 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
 	session().changes().historyUpdates(
-		Data::HistoryUpdate::Flag::MessageSent
-		| Data::HistoryUpdate::Flag::ForwardDraft
-		| Data::HistoryUpdate::Flag::BotKeyboard
-		| Data::HistoryUpdate::Flag::CloudDraft
-		| Data::HistoryUpdate::Flag::UnreadMentions
-		| Data::HistoryUpdate::Flag::UnreadView
-		| Data::HistoryUpdate::Flag::TopPromoted
-		| Data::HistoryUpdate::Flag::LocalMessages
+		HistoryUpdateFlag::MessageSent
+		| HistoryUpdateFlag::ForwardDraft
+		| HistoryUpdateFlag::BotKeyboard
+		| HistoryUpdateFlag::CloudDraft
+		| HistoryUpdateFlag::UnreadMentions
+		| HistoryUpdateFlag::UnreadView
+		| HistoryUpdateFlag::TopPromoted
+		| HistoryUpdateFlag::LocalMessages
+		| HistoryUpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
+		if (_migrated && update.history.get() == _migrated) {
+			if (_pinnedTracker
+				&& (update.flags & HistoryUpdateFlag::PinnedMessages)) {
+				checkPinnedBarState();
+			}
+		}
 		return (_history == update.history.get());
 	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
-		if (update.flags & Data::HistoryUpdate::Flag::MessageSent) {
+		const auto flags = update.flags;
+		if (flags & HistoryUpdateFlag::MessageSent) {
 			synteticScrollToY(_scroll->scrollTopMax());
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::ForwardDraft) {
+		if (flags & HistoryUpdateFlag::ForwardDraft) {
 			updateForwarding();
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::BotKeyboard) {
+		if (flags & HistoryUpdateFlag::BotKeyboard) {
 			updateBotKeyboard(update.history);
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::CloudDraft) {
+		if (flags & HistoryUpdateFlag::CloudDraft) {
 			applyCloudDraft(update.history);
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::LocalMessages) {
+		if (flags & HistoryUpdateFlag::LocalMessages) {
 			updateSendButtonType();
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::UnreadMentions) {
+		if (flags & HistoryUpdateFlag::UnreadMentions) {
 			updateUnreadMentionsVisibility();
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::UnreadView) {
+		if (flags & HistoryUpdateFlag::UnreadView) {
 			unreadCountUpdated();
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::TopPromoted) {
+		if (_pinnedTracker && (flags & HistoryUpdateFlag::PinnedMessages)) {
+			checkPinnedBarState();
+		}
+		if (flags & HistoryUpdateFlag::TopPromoted) {
 			updateHistoryGeometry();
 			updateControlsVisibility();
 			updateControlsGeometry();
@@ -545,25 +565,27 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	using MessageUpdateFlag = Data::MessageUpdate::Flag;
 	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::Destroyed
-		| Data::MessageUpdate::Flag::Edited
-		| Data::MessageUpdate::Flag::ReplyMarkup
-		| Data::MessageUpdate::Flag::BotCallbackSent
+		MessageUpdateFlag::Destroyed
+		| MessageUpdateFlag::Edited
+		| MessageUpdateFlag::ReplyMarkup
+		| MessageUpdateFlag::BotCallbackSent
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
+		const auto flags = update.flags;
+		if (flags & MessageUpdateFlag::Destroyed) {
 			itemRemoved(update.item);
 			return;
 		}
-		if (update.flags & Data::MessageUpdate::Flag::Edited) {
+		if (flags & MessageUpdateFlag::Edited) {
 			itemEdited(update.item);
 		}
-		if (update.flags & Data::MessageUpdate::Flag::ReplyMarkup) {
+		if (flags & MessageUpdateFlag::ReplyMarkup) {
 			if (_keyboard->forMsgId() == update.item->fullId()) {
 				updateBotKeyboard(update.item->history(), true);
 			}
 		}
-		if (update.flags & Data::MessageUpdate::Flag::BotCallbackSent) {
+		if (flags & MessageUpdateFlag::BotCallbackSent) {
 			botCallbackSent(update.item);
 		}
 	}, lifetime());
@@ -574,45 +596,38 @@ HistoryWidget::HistoryWidget(
 		}
 	});
 
-	using UpdateFlag = Data::PeerUpdate::Flag;
+	using PeerUpdateFlag = Data::PeerUpdate::Flag;
 	session().changes().peerUpdates(
-		UpdateFlag::Rights
-		| UpdateFlag::Migration
-		| UpdateFlag::UnavailableReason
-		| UpdateFlag::IsBlocked
-		| UpdateFlag::Admins
-		| UpdateFlag::Members
-		| UpdateFlag::OnlineStatus
-		| UpdateFlag::Notifications
-		| UpdateFlag::ChannelAmIn
-		| UpdateFlag::ChannelLinkedChat
-		| UpdateFlag::Slowmode
-		| UpdateFlag::BotStartToken
-		| UpdateFlag::PinnedMessages
-		| UpdateFlag::MessagesTTL
+		PeerUpdateFlag::Rights
+		| PeerUpdateFlag::Migration
+		| PeerUpdateFlag::UnavailableReason
+		| PeerUpdateFlag::IsBlocked
+		| PeerUpdateFlag::Admins
+		| PeerUpdateFlag::Members
+		| PeerUpdateFlag::OnlineStatus
+		| PeerUpdateFlag::Notifications
+		| PeerUpdateFlag::ChannelAmIn
+		| PeerUpdateFlag::ChannelLinkedChat
+		| PeerUpdateFlag::Slowmode
+		| PeerUpdateFlag::BotStartToken
+		| PeerUpdateFlag::MessagesTTL
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
-		if (_migrated && update.peer.get() == _migrated->peer) {
-			if (_pinnedTracker
-				&& (update.flags & UpdateFlag::PinnedMessages)) {
-				checkPinnedBarState();
-			}
-		}
 		return (update.peer.get() == _peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
 		return update.flags;
 	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
-		if (flags & UpdateFlag::Rights) {
+		if (flags & PeerUpdateFlag::Rights) {
 			checkPreview();
 			updateStickersByEmoji();
 			updateFieldPlaceholder();
 		}
-		if (flags & UpdateFlag::Migration) {
+		if (flags & PeerUpdateFlag::Migration) {
 			handlePeerMigration();
 		}
-		if (flags & UpdateFlag::Notifications) {
+		if (flags & PeerUpdateFlag::Notifications) {
 			updateNotifyControls();
 		}
-		if (flags & UpdateFlag::UnavailableReason) {
+		if (flags & PeerUpdateFlag::UnavailableReason) {
 			const auto unavailable = _peer->computeUnavailableReason();
 			if (!unavailable.isEmpty()) {
 				controller->showBackFromStack();
@@ -620,26 +635,23 @@ HistoryWidget::HistoryWidget(
 				return;
 			}
 		}
-		if (flags & UpdateFlag::BotStartToken) {
+		if (flags & PeerUpdateFlag::BotStartToken) {
 			updateControlsVisibility();
 			updateControlsGeometry();
 		}
-		if (flags & UpdateFlag::Slowmode) {
+		if (flags & PeerUpdateFlag::Slowmode) {
 			updateSendButtonType();
 		}
-		if (flags & (UpdateFlag::IsBlocked
-			| UpdateFlag::Admins
-			| UpdateFlag::Members
-			| UpdateFlag::OnlineStatus
-			| UpdateFlag::Rights
-			| UpdateFlag::ChannelAmIn
-			| UpdateFlag::ChannelLinkedChat)) {
+		if (flags & (PeerUpdateFlag::IsBlocked
+			| PeerUpdateFlag::Admins
+			| PeerUpdateFlag::Members
+			| PeerUpdateFlag::OnlineStatus
+			| PeerUpdateFlag::Rights
+			| PeerUpdateFlag::ChannelAmIn
+			| PeerUpdateFlag::ChannelLinkedChat)) {
 			handlePeerUpdate();
 		}
-		if (_pinnedTracker && (flags & UpdateFlag::PinnedMessages)) {
-			checkPinnedBarState();
-		}
-		if (flags & UpdateFlag::MessagesTTL) {
+		if (flags & PeerUpdateFlag::MessagesTTL) {
 			checkMessagesTTL();
 		}
 	}, lifetime());
@@ -4930,7 +4942,7 @@ void HistoryWidget::startItemRevealAnimations() {
 							HistoryView::ListWidget::kItemRevealDuration,
 							anim::easeOutCirc);
 						if (item->out() || _history->peer->isSelf()) {
-							controller()->rotateComplexGradientBackground();
+							controller()->defaultChatTheme()->rotateComplexGradientBackground(); // #TODO themes
 						}
 					}
 				}
@@ -6874,7 +6886,11 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		updateListSize();
 	}
 
-	Window::SectionWidget::PaintBackground(controller(), this, e->rect());
+	Window::SectionWidget::PaintBackground(
+		controller(),
+		controller()->defaultChatTheme().get(), // #TODO themes
+		this,
+		e->rect());
 
 	Painter p(this);
 	const auto clip = e->rect();

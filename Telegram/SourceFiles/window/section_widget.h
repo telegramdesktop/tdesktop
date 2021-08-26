@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "window/window_section_common.h"
 
+class PeerData;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -21,6 +23,10 @@ class Session;
 namespace Ui {
 class LayerWidget;
 } // namespace Ui
+
+namespace Window::Theme {
+class ChatTheme;
+} // namespace Window::Theme
 
 namespace Window {
 
@@ -40,14 +46,10 @@ class AbstractSectionWidget
 	, public Media::Player::FloatSectionDelegate
 	, protected base::Subscriber {
 public:
-	enum class PaintedBackground {
-		Section,
-		Custom,
-	};
 	AbstractSectionWidget(
 		QWidget *parent,
 		not_null<SessionController*> controller,
-		PaintedBackground paintedBackground);
+		rpl::producer<PeerData*> peerForBackground);
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<SessionController*> controller() const {
@@ -87,7 +89,11 @@ public:
 	SectionWidget(
 		QWidget *parent,
 		not_null<SessionController*> controller,
-		PaintedBackground paintedBackground);
+		rpl::producer<PeerData*> peerForBackground = nullptr);
+	SectionWidget(
+		QWidget *parent,
+		not_null<SessionController*> controller,
+		not_null<PeerData*> peerForBackground);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};
@@ -158,6 +164,7 @@ public:
 
 	static void PaintBackground(
 		not_null<SessionController*> controller,
+		not_null<Window::Theme::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip);
 

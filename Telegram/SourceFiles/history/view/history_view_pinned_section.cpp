@@ -90,7 +90,7 @@ PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history)
-: Window::SectionWidget(parent, controller, PaintedBackground::Section)
+: Window::SectionWidget(parent, controller, history->peer)
 , _history(history->migrateToOrMe())
 , _migratedPeer(_history->peer->migrateFrom())
 , _topBar(this, controller)
@@ -457,7 +457,11 @@ void PinnedWidget::paintEvent(QPaintEvent *e) {
 	const auto aboveHeight = _topBar->height();
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
-	SectionWidget::PaintBackground(controller(), this, bg);
+	SectionWidget::PaintBackground(
+		controller(),
+		controller()->defaultChatTheme().get(), // #TODO themes
+		this,
+		bg);
 }
 
 void PinnedWidget::onScroll() {

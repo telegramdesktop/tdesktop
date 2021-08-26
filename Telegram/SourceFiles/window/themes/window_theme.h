@@ -78,6 +78,7 @@ void KeepFromEditor(
 QString NightThemePath();
 [[nodiscard]] bool IsNightMode();
 void SetNightModeValue(bool nightMode);
+[[nodiscard]] rpl::producer<bool> IsNightModeValue();
 void ToggleNightMode();
 void ToggleNightMode(const QString &themePath);
 void ToggleNightModeWithConfirmation(

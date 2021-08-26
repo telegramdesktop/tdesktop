@@ -9,27 +9,101 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwidget.h"
 #include "ui/ui_utility.h"
+#include "data/data_peer.h"
+#include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_cloud_themes.h"
+#include "main/main_session.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
-#include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_chat_theme.h"
 
 #include <rpl/range.h>
 
 namespace Window {
+namespace {
+
+[[nodiscard]] rpl::producer<QString> PeerThemeEmojiValue(
+		not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::ChatThemeEmoji
+	) | rpl::map([=] {
+		return peer->themeEmoji();
+	});
+}
+
+[[nodiscard]] auto MaybeChatThemeDataValueFromPeer(
+	not_null<PeerData*> peer)
+-> rpl::producer<std::optional<Data::ChatTheme>> {
+	return PeerThemeEmojiValue(
+		peer
+	) | rpl::map([=](const QString &emoji)
+	-> rpl::producer<std::optional<Data::ChatTheme>> {
+		return peer->owner().cloudThemes().themeForEmojiValue(emoji);
+	}) | rpl::flatten_latest();
+}
+
+[[nodiscard]] auto MaybeCloudThemeValueFromPeer(
+	not_null<PeerData*> peer)
+-> rpl::producer<std::optional<Data::CloudTheme>> {
+	return rpl::combine(
+		MaybeChatThemeDataValueFromPeer(peer),
+		Theme::IsNightModeValue()
+	) | rpl::map([](std::optional<Data::ChatTheme> theme, bool night) {
+		return !theme
+			? std::nullopt
+			: night
+			? std::make_optional(std::move(theme->dark))
+			: std::make_optional(std::move(theme->light));
+	});
+}
+
+[[nodiscard]] auto ChatThemeValueFromPeer(
+	not_null<SessionController*> controller,
+	not_null<PeerData*> peer)
+-> rpl::producer<std::shared_ptr<Theme::ChatTheme>> {
+	return MaybeCloudThemeValueFromPeer(
+		peer
+	) | rpl::map([=](std::optional<Data::CloudTheme> theme)
+	-> rpl::producer<std::shared_ptr<Theme::ChatTheme>> {
+		if (!theme) {
+			return rpl::single(controller->defaultChatTheme());
+		}
+		return controller->cachedChatThemeValue(*theme);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed();
+}
+
+} // namespace
 
 AbstractSectionWidget::AbstractSectionWidget(
 	QWidget *parent,
 	not_null<SessionController*> controller,
-	PaintedBackground paintedBackground)
+	rpl::producer<PeerData*> peerForBackground)
 : RpWidget(parent)
 , _controller(controller) {
-	if (paintedBackground == PaintedBackground::Section) {
-		controller->repaintBackgroundRequests(
-		) | rpl::start_with_next([=] {
-			update();
-		}, lifetime());
-	}
+	std::move(
+		peerForBackground
+	) | rpl::map([=](PeerData *peer) -> rpl::producer<> {
+		if (!peer) {
+			return rpl::never<>();
+		}
+		return ChatThemeValueFromPeer(
+			controller,
+			peer
+		) | rpl::map([](const std::shared_ptr<Theme::ChatTheme> &theme) {
+			return rpl::single(
+				rpl::empty_value()
+			) | rpl::then(
+				theme->repaintBackgroundRequests()
+			);
+		}) | rpl::flatten_latest();
+	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 Main::Session &AbstractSectionWidget::session() const {
@@ -39,8 +113,18 @@ Main::Session &AbstractSectionWidget::session() const {
 SectionWidget::SectionWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	PaintedBackground paintedBackground)
-: AbstractSectionWidget(parent, controller, paintedBackground) {
+	rpl::producer<PeerData*> peerForBackground)
+: AbstractSectionWidget(parent, controller, std::move(peerForBackground)) {
+}
+
+SectionWidget::SectionWidget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peerForBackground)
+: AbstractSectionWidget(
+	parent,
+	controller,
+	rpl::single(peerForBackground.get())) {
 }
 
 void SectionWidget::setGeometryWithTopMoved(
@@ -101,6 +185,7 @@ QPixmap SectionWidget::grabForShowAnimation(
 
 void SectionWidget::PaintBackground(
 		not_null<Window::SessionController*> controller,
+		not_null<Window::Theme::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip) {
 	Painter p(widget);
@@ -113,8 +198,8 @@ void SectionWidget::PaintBackground(
 	const auto gradient = background->gradientForFill();
 	const auto fill = QSize(widget->width(), controller->content()->height());
 	auto fromy = controller->content()->backgroundFromY();
-	auto state = controller->backgroundState(fill);
-	const auto paintCache = [&](const CachedBackground &cache) {
+	auto state = theme->backgroundState(fill);
+	const auto paintCache = [&](const Theme::CachedBackground &cache) {
 		const auto to = QRect(
 			QPoint(cache.x, fromy + cache.y),
 			cache.pixmap.size() / cIntRetinaFactor());

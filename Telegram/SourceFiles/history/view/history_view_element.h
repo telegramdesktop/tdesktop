@@ -193,6 +193,7 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 };
 
 struct PaintContext {
+	not_null<const style::palette*> st;
 	const Ui::BubblePattern *bubblesPattern = nullptr;
 	QRect viewport;
 	QRect clip;

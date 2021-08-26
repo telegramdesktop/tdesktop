@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "window/themes/window_chat_theme.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/popup_menu.h"
@@ -1445,7 +1446,7 @@ void ListWidget::startItemRevealAnimations() {
 					kItemRevealDuration,
 					anim::easeOutCirc);
 				if (view->data()->out()) {
-					controller()->rotateComplexGradientBackground();
+					controller()->defaultChatTheme()->rotateComplexGradientBackground(); // #TODO themes
 				}
 			}
 		}
@@ -1614,6 +1615,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		auto viewport = QRect(); // #TODO bubbles
 		auto top = itemTop(from->get());
 		auto context = HistoryView::PaintContext{
+			.st = style::main_palette::get(),
 			.bubblesPattern = nullptr,
 			.viewport = viewport.translated(0, -top),
 			.clip = clip.translated(0, -top),

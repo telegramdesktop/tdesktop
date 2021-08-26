@@ -181,12 +181,6 @@ WallPaperId WallPaper::id() const {
 	return _id;
 }
 
-std::optional<QColor> WallPaper::backgroundColor() const {
-	return _backgroundColors.empty()
-		? std::nullopt
-		: std::make_optional(_backgroundColors.front());
-}
-
 const std::vector<QColor> WallPaper::backgroundColors() const {
 	return _backgroundColors;
 }

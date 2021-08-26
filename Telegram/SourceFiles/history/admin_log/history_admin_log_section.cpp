@@ -275,7 +275,7 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel)
-: Window::SectionWidget(parent, controller, PaintedBackground::Section)
+: Window::SectionWidget(parent, controller, rpl::single<PeerData*>(channel))
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
@@ -304,11 +304,6 @@ Widget::Widget(
 	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
-	}, lifetime());
-
-	controller->repaintBackgroundRequests(
-	) | rpl::start_with_next([=] {
-		update();
 	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
@@ -475,7 +470,11 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(controller(), this, e->rect());
+	SectionWidget::PaintBackground(
+		controller(),
+		controller()->defaultChatTheme().get(), // #TODO themes
+		this,
+		e->rect());
 }
 
 void Widget::onScroll() {

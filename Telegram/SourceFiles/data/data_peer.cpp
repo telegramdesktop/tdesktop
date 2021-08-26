@@ -528,15 +528,6 @@ bool PeerData::canEditMessagesIndefinitely() const {
 	Unexpected("Peer type in PeerData::canEditMessagesIndefinitely.");
 }
 
-bool PeerData::hasPinnedMessages() const {
-	return _hasPinnedMessages;
-}
-
-void PeerData::setHasPinnedMessages(bool has) {
-	_hasPinnedMessages = has;
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessages);
-}
-
 bool PeerData::canExportChatHistory() const {
 	if (isRepliesChat()) {
 		return false;
@@ -1014,10 +1005,14 @@ PeerId PeerData::groupCallDefaultJoinAs() const {
 }
 
 void PeerData::setThemeEmoji(const QString &emoji) {
+	if (_themeEmoji == emoji) {
+		return;
+	}
 	_themeEmoji = emoji;
 	if (!emoji.isEmpty() && !owner().cloudThemes().themeForEmoji(emoji)) {
 		owner().cloudThemes().refreshChatThemes();
 	}
+	session().changes().peerUpdated(this, UpdateFlag::ChatThemeEmoji);
 }
 
 const QString &PeerData::themeEmoji() const {
@@ -1166,7 +1161,7 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));
-	peer->setHasPinnedMessages(true);
+	peer->owner().history(peer)->setHasPinnedMessages(true);
 }
 
 FullMsgId ResolveTopPinnedId(

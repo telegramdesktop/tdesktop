@@ -3505,7 +3505,7 @@ void ApiWrap::sharedMediaDone(
 		parsed.fullCount
 	));
 	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
-		peer->setHasPinnedMessages(true);
+		peer->owner().history(peer)->setHasPinnedMessages(true);
 	}
 }
 

@@ -31,19 +31,21 @@ PinnedTracker::PinnedTracker(not_null<History*> history)
 : _history(history->migrateToOrMe())
 , _migratedPeer(_history->peer->migrateFrom()) {
 	using namespace rpl::mappers;
-	const auto has = [&](PeerData *peer) -> rpl::producer<bool> {
+	const auto has = [&](History *history) -> rpl::producer<bool> {
 		auto &changes = _history->session().changes();
-		const auto flag = Data::PeerUpdate::Flag::PinnedMessages;
-		if (!peer) {
+		const auto flag = Data::HistoryUpdate::Flag::PinnedMessages;
+		if (!history) {
 			return rpl::single(false);
 		}
-		return changes.peerFlagsValue(peer, flag) | rpl::map([=] {
-			return peer->hasPinnedMessages();
+		return changes.historyFlagsValue(history, flag) | rpl::map([=] {
+			return history->hasPinnedMessages();
 		});
 	};
 	rpl::combine(
-		has(_history->peer),
-		has(_migratedPeer),
+		has(_history),
+		has(_migratedPeer
+			? _history->owner().history(_migratedPeer).get()
+			: nullptr),
 		_1 || _2
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool has) {
@@ -97,9 +99,10 @@ void PinnedTracker::refreshViewer() {
 		}
 		refreshCurrentFromSlice();
 		if (_slice.fullCount == 0) {
-			_history->peer->setHasPinnedMessages(false);
+			_history->setHasPinnedMessages(false);
 			if (_migratedPeer) {
-				_migratedPeer->setHasPinnedMessages(false);
+				const auto to = _history->owner().history(_migratedPeer);
+				to->setHasPinnedMessages(false);
 			}
 		}
 	}, _dataLifetime);

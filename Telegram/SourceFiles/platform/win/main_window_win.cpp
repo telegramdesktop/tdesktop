@@ -137,23 +137,9 @@ void MainWindow::setupNativeWindowFrame() {
 		Core::App().settings().nativeWindowFrameChanges()
 	);
 
-	using BackgroundUpdate = Window::Theme::BackgroundUpdate;
-	auto themeChanges = Window::Theme::Background()->updates(
-	) | rpl::filter([=](const BackgroundUpdate &update) {
-		return update.type == BackgroundUpdate::Type::ApplyingTheme;
-	}) | rpl::to_empty;
-
-	auto nightMode = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		std::move(themeChanges)
-	) | rpl::map([=] {
-		return Window::Theme::IsNightMode();
-	}) | rpl::distinct_until_changed();
-
 	rpl::combine(
 		std::move(nativeFrame),
-		std::move(nightMode)
+		Window::Theme::IsNightModeValue()
 	) | rpl::skip(1) | rpl::start_with_next([=](bool native, bool night) {
 		validateWindowTheme(native, night);
 	}, lifetime());

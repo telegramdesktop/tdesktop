@@ -412,6 +412,9 @@ public:
 	void setInboxReadTill(MsgId upTo);
 	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;
 
+	[[nodiscard]] bool hasPinnedMessages() const;
+	void setHasPinnedMessages(bool has);
+
 	// Still public data.
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
 
@@ -581,6 +584,7 @@ private:
 
 	bool _unreadMark = false;
 	bool _fakeUnreadWhileOpened = false;
+	bool _hasPinnedMessages = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

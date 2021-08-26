@@ -868,9 +868,9 @@ void ChatBackground::adjustPaletteUsingColor(QColor color) {
 std::optional<QColor> ChatBackground::colorForFill() const {
 	return !_prepared.isNull()
 		? imageMonoColor()
-		: !_gradient.isNull()
+		: (!_gradient.isNull() || _paper.backgroundColors().empty())
 		? std::nullopt
-		: _paper.backgroundColor();
+		: std::make_optional(_paper.backgroundColors().front());
 }
 
 QImage ChatBackground::gradientForFill() const {
@@ -1388,6 +1388,21 @@ bool IsNonDefaultBackground() {
 
 bool IsNightMode() {
 	return GlobalBackground ? Background()->nightMode() : false;
+}
+
+rpl::producer<bool> IsNightModeValue() {
+	auto changes = Background()->updates(
+	) | rpl::filter([=](const BackgroundUpdate &update) {
+		return update.type == BackgroundUpdate::Type::ApplyingTheme;
+	}) | rpl::to_empty;
+
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		std::move(changes)
+	) | rpl::map([=] {
+		return IsNightMode();
+	}) | rpl::distinct_until_changed();
 }
 
 void SetNightModeValue(bool nightMode) {
