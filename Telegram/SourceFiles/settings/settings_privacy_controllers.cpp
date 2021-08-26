@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "calls/calls_instance.h"
 #include "base/unixtime.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"

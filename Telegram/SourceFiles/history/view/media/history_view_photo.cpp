@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/image/image.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
 #include "data/data_session.h"

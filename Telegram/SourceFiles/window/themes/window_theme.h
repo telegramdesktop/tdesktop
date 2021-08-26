@@ -25,6 +25,7 @@ inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
 struct ParsedTheme;
+struct Colorizer;
 
 [[nodiscard]] bool IsEmbeddedTheme(const QString &path);
 
@@ -90,11 +91,18 @@ void Revert();
 
 [[nodiscard]] QString EditingPalettePath();
 
+// NB! This method looks to Core::App().settings() to get colorizer by 'file'.
 bool LoadFromFile(
-	const QString &file,
+	const QString &path,
 	not_null<Instance*> out,
 	Cached *outCache,
-	not_null<QByteArray*> outContent);
+	QByteArray *outContent);
+bool LoadFromFile(
+	const QString &path,
+	not_null<Instance*> out,
+	Cached *outCache,
+	QByteArray *outContent,
+	const Colorizer &colorizer);
 bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
@@ -271,14 +279,6 @@ private:
 };
 
 [[nodiscard]] ChatBackground *Background();
-
-struct BackgroundRects {
-	QRect from;
-	QRect to;
-};
-[[nodiscard]] BackgroundRects ComputeBackgroundRects(
-	QSize fillSize,
-	QSize imageSize);
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback);
 

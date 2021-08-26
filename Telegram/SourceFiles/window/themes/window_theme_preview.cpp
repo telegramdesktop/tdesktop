@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/image/image_prepare.h"
 #include "ui/emoji_config.h"
+#include "ui/chat/chat_theme.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
@@ -456,7 +457,9 @@ void Generator::paintHistoryBackground() {
 		PainterHighQualityEnabler hq(*_p);
 
 		auto fill = QSize(_topBar.width(), _body.height());
-		const auto rects = ComputeBackgroundRects(fill, background.size());
+		const auto rects = Ui::ComputeChatBackgroundRects(
+			fill,
+			background.size());
 		auto to = rects.to;
 		to.moveTop(to.top() + fromy);
 		to.moveTopLeft(to.topLeft() + _history.topLeft());

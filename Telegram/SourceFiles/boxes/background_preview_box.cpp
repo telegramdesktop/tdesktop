@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "window/themes/window_theme.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"

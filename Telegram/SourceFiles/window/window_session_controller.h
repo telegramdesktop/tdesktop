@@ -25,10 +25,6 @@ namespace Adaptive {
 enum class WindowLayout;
 } // namespace Adaptive
 
-namespace HistoryView {
-struct PaintContext;
-} // namespace HistoryView
-
 namespace ChatHelpers {
 class TabbedSelector;
 } // namespace ChatHelpers
@@ -49,11 +45,9 @@ class FormController;
 namespace Ui {
 class LayerWidget;
 enum class ReportReason;
-} // namespace Ui
-
-namespace Window::Theme {
 class ChatTheme;
-} // namespace Window::Theme
+struct ChatPaintContext;
+} // namespace Ui
 
 namespace Data {
 struct CloudTheme;
@@ -403,21 +397,21 @@ public:
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
 	[[nodiscard]] auto defaultChatTheme() const
-	-> const std::shared_ptr<Theme::ChatTheme> & {
+	-> const std::shared_ptr<Ui::ChatTheme> & {
 		return _defaultChatTheme;
 	}
 	[[nodiscard]] auto cachedChatThemeValue(
 		const Data::CloudTheme &data)
-	-> rpl::producer<std::shared_ptr<Theme::ChatTheme>>;
+	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
 
 	struct PaintContextArgs {
-		not_null<Theme::ChatTheme*> theme;
+		not_null<Ui::ChatTheme*> theme;
 		int visibleAreaTop = 0;
 		int visibleAreaTopGlobal = 0;
 		int visibleAreaWidth = 0;
 		QRect clip;
 	};
-	[[nodiscard]] HistoryView::PaintContext preparePaintContext(
+	[[nodiscard]] Ui::ChatPaintContext preparePaintContext(
 		PaintContextArgs &&args);
 
 	rpl::lifetime &lifetime() {
@@ -449,6 +443,7 @@ private:
 
 	void checkInvitePeek();
 
+	void pushDefaultChatBackground();
 	void cacheChatTheme(const Data::CloudTheme &data);
 
 	const not_null<Controller*> _window;
@@ -478,11 +473,9 @@ private:
 
 	rpl::event_stream<> _filtersMenuChanged;
 
-	std::shared_ptr<Theme::ChatTheme> _defaultChatTheme;
-	base::flat_map<
-		uint64,
-		std::shared_ptr<Theme::ChatTheme>> _customChatThemes;
-	rpl::event_stream<std::shared_ptr<Theme::ChatTheme>> _cachedThemesStream;
+	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
+	base::flat_map<uint64, std::shared_ptr<Ui::ChatTheme>> _customChatThemes;
+	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 
 	rpl::lifetime _lifetime;
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "core/local_url_handlers.h"
 #include "ui/text/format_values.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
 #include "layout/layout_selection.h" // FullSelection

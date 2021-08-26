@@ -31,6 +31,7 @@ struct ColorReplacements;
 
 namespace Ui {
 struct BubbleSelectionInterval;
+struct ChatPaintContext;
 } // namespace Ui
 
 namespace HistoryView {
@@ -40,8 +41,9 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
-struct PaintContext;
 class Element;
+
+using PaintContext = Ui::ChatPaintContext;
 
 enum class MediaInBubbleState {
 	None,

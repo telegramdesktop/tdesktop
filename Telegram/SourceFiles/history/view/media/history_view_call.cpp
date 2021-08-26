@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_call.h"
 
 #include "lang/lang_keys.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/text/format_values.h"
 #include "layout/layout_selection.h" // FullSelection
 #include "history/history.h"

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwidget.h"
 #include "ui/ui_utility.h"
+#include "ui/chat/chat_theme.h"
 #include "data/data_peer.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -18,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
-#include "window/themes/window_chat_theme.h"
 
 #include <rpl/range.h>
 
@@ -64,11 +64,11 @@ namespace {
 [[nodiscard]] auto ChatThemeValueFromPeer(
 	not_null<SessionController*> controller,
 	not_null<PeerData*> peer)
--> rpl::producer<std::shared_ptr<Theme::ChatTheme>> {
+-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
 	return MaybeCloudThemeValueFromPeer(
 		peer
 	) | rpl::map([=](std::optional<Data::CloudTheme> theme)
-	-> rpl::producer<std::shared_ptr<Theme::ChatTheme>> {
+	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
 		if (!theme) {
 			return rpl::single(controller->defaultChatTheme());
 		}
@@ -94,7 +94,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 		return ChatThemeValueFromPeer(
 			controller,
 			peer
-		) | rpl::map([](const std::shared_ptr<Theme::ChatTheme> &theme) {
+		) | rpl::map([](const std::shared_ptr<Ui::ChatTheme> &theme) {
 			return rpl::single(
 				rpl::empty_value()
 			) | rpl::then(
@@ -185,21 +185,21 @@ QPixmap SectionWidget::grabForShowAnimation(
 
 void SectionWidget::PaintBackground(
 		not_null<Window::SessionController*> controller,
-		not_null<Window::Theme::ChatTheme*> theme,
+		not_null<Ui::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip) {
 	Painter p(widget);
 
-	const auto background = Window::Theme::Background();
-	if (const auto color = background->colorForFill()) {
-		p.fillRect(clip, *color);
+	const auto &background = theme->background();
+	if (background.colorForFill) {
+		p.fillRect(clip, *background.colorForFill);
 		return;
 	}
-	const auto gradient = background->gradientForFill();
+	const auto &gradient = background.gradientForFill;
 	const auto fill = QSize(widget->width(), controller->content()->height());
 	auto fromy = controller->content()->backgroundFromY();
 	auto state = theme->backgroundState(fill);
-	const auto paintCache = [&](const Theme::CachedBackground &cache) {
+	const auto paintCache = [&](const Ui::CachedBackground &cache) {
 		const auto to = QRect(
 			QPoint(cache.x, fromy + cache.y),
 			cache.pixmap.size() / cIntRetinaFactor());
@@ -233,10 +233,10 @@ void SectionWidget::PaintBackground(
 		paintCache(state.now);
 		return;
 	}
-	const auto &prepared = background->prepared();
+	const auto &prepared = background.prepared;
 	if (prepared.isNull()) {
 		return;
-	} else if (background->paper().isPattern()) {
+	} else if (background.isPattern) {
 		const auto w = prepared.width() * fill.height() / prepared.height();
 		const auto cx = qCeil(fill.width() / float64(w));
 		const auto cols = (cx / 2) * 2 + 1;
@@ -247,8 +247,8 @@ void SectionWidget::PaintBackground(
 				prepared,
 				QRect(QPoint(), prepared.size()));
 		}
-	} else if (background->tile()) {
-		const auto &tiled = background->preparedForTiled();
+	} else if (background.tile) {
+		const auto &tiled = background.preparedForTiled;
 		const auto left = clip.left();
 		const auto top = clip.top();
 		const auto right = clip.left() + clip.width();
@@ -266,7 +266,7 @@ void SectionWidget::PaintBackground(
 		}
 	} else {
 		const auto hq = PainterHighQualityEnabler(p);
-		const auto rects = Window::Theme::ComputeBackgroundRects(
+		const auto rects = Ui::ComputeChatBackgroundRects(
 			fill,
 			prepared.size());
 		auto to = rects.to;

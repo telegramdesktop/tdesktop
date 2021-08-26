@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/layout_selection.h"
 #include "data/data_document.h"
 #include "ui/item_text_options.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/chat/message_bubble.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"

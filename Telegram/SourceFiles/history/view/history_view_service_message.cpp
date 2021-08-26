@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"

@@ -22,11 +22,8 @@ class Session;
 
 namespace Ui {
 class LayerWidget;
-} // namespace Ui
-
-namespace Window::Theme {
 class ChatTheme;
-} // namespace Window::Theme
+} // namespace Ui
 
 namespace Window {
 
@@ -164,7 +161,7 @@ public:
 
 	static void PaintBackground(
 		not_null<SessionController*> controller,
-		not_null<Window::Theme::ChatTheme*> theme,
+		not_null<Ui::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip);
 

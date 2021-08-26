@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu.h"
@@ -990,7 +991,7 @@ void MainMenu::refreshBackground() {
 	const auto &paper = background->paper();
 	const auto &prepared = background->prepared();
 
-	const auto rects = Window::Theme::ComputeBackgroundRects(
+	const auto rects = Ui::ComputeChatBackgroundRects(
 		fill,
 		prepared.size());
 

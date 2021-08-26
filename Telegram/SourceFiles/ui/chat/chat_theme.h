@@ -11,35 +11,59 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 
-namespace Data {
-struct CloudTheme;
-} // namespace Data
-
-namespace HistoryView {
-struct PaintContext;
-} // namespace HistoryView
-
 namespace Ui {
+
 struct BubblePattern;
-} // namespace Ui
 
-namespace Window::Theme {
+struct ChatPaintContext {
+	not_null<const style::palette*> st;
+	const BubblePattern *bubblesPattern = nullptr;
+	QRect viewport;
+	QRect clip;
+	TextSelection selection;
+	crl::time now = 0;
 
-struct CacheBackgroundRequest {
+	void translate(int x, int y) {
+		viewport.translate(x, y);
+		clip.translate(x, y);
+	}
+	void translate(QPoint point) {
+		translate(point.x(), point.y());
+	}
+	[[nodiscard]] ChatPaintContext translated(int x, int y) const {
+		auto result = *this;
+		result.translate(x, y);
+		return result;
+	}
+	[[nodiscard]] ChatPaintContext translated(QPoint point) const {
+		return translated(point.x(), point.y());
+	}
+};
+
+struct ChatThemeBackground {
 	QImage prepared;
 	QImage preparedForTiled;
-	QSize area;
-	int gradientRotation = 0;
-	bool tile = false;
-	bool isPattern = false;
-	bool recreateGradient = false;
-	QImage gradient;
-	std::vector<QColor> gradientColors;
-	float64 gradientProgress = 1.;
+	QImage gradientForFill;
+	std::optional<QColor> colorForFill;
+	std::vector<QColor> colors;
 	float64 patternOpacity = 1.;
+	int gradientRotation = 0;
+	bool isPattern = false;
+	bool tile = false;
+};
+
+bool operator==(const ChatThemeBackground &a, const ChatThemeBackground &b);
+bool operator!=(const ChatThemeBackground &a, const ChatThemeBackground &b);
+
+struct CacheBackgroundRequest {
+	ChatThemeBackground background;
+	QSize area;
+	int gradientRotationAdd = 0;
+	float64 gradientProgress = 1.;
 
 	explicit operator bool() const {
-		return !prepared.isNull() || !gradient.isNull();
+		return !background.prepared.isNull()
+			|| !background.gradientForFill.isNull();
 	}
 };
 
@@ -74,38 +98,35 @@ struct BackgroundState {
 	float64 shown = 1.;
 };
 
-struct ChatThemeBackground {
-	QImage prepared;
-	QImage gradientForFill;
-	std::optional<QColor> colorForFill;
-};
-
 struct ChatThemeDescriptor {
+	uint64 id = 0;
 	Fn<void(style::palette&)> preparePalette;
 	Fn<ChatThemeBackground()> prepareBackground;
-	std::vector<QColor> backgroundColors;
 };
 
 class ChatTheme final : public base::has_weak_ptr {
 public:
 	ChatTheme();
 
-	// Runs from background thread.
-	ChatTheme(const Data::CloudTheme &theme);
+	// Expected to be invoked on a background thread. Invokes callbacks there.
+	ChatTheme(ChatThemeDescriptor &&descriptor);
 
 	[[nodiscard]] uint64 key() const;
 	[[nodiscard]] not_null<const style::palette*> palette() const {
 		return _palette.get();
 	}
 
-	void setBackground(ChatThemeBackground);
+	void setBackground(ChatThemeBackground &&background);
+	const ChatThemeBackground &background() const {
+		return _mutableBackground;
+	}
 
 	void setBubblesBackground(QImage image);
-	const Ui::BubblePattern *bubblesBackgroundPattern() const {
+	const BubblePattern *bubblesBackgroundPattern() const {
 		return _bubblesBackgroundPattern.get();
 	}
 
-	[[nodiscard]] HistoryView::PaintContext preparePaintContext(
+	[[nodiscard]] ChatPaintContext preparePaintContext(
 		QRect viewport,
 		QRect clip);
 	[[nodiscard]] const BackgroundState &backgroundState(QSize area);
@@ -118,7 +139,6 @@ private:
 	void cacheBackgroundAsync(
 		const CacheBackgroundRequest &request,
 		Fn<void(CacheBackgroundResult&&)> done = nullptr);
-	void clearCachedBackground();
 	void setCachedBackground(CacheBackgroundResult &&cached);
 	[[nodiscard]] CacheBackgroundRequest currentCacheRequest(
 		QSize area,
@@ -128,8 +148,9 @@ private:
 
 	uint64 _id = 0;
 	std::unique_ptr<style::palette> _palette;
+	ChatThemeBackground _mutableBackground;
 	BackgroundState _backgroundState;
-	Ui::Animations::Simple _backgroundFade;
+	Animations::Simple _backgroundFade;
 	CacheBackgroundRequest _backgroundCachingRequest;
 	CacheBackgroundResult _backgroundNext;
 	int _backgroundAddRotation = 0;
@@ -138,7 +159,7 @@ private:
 	std::optional<base::Timer> _cacheBackgroundTimer;
 	CachedBackground _bubblesBackground;
 	QImage _bubblesBackgroundPrepared;
-	std::unique_ptr<Ui::BubblePattern> _bubblesBackgroundPattern;
+	std::unique_ptr<BubblePattern> _bubblesBackgroundPattern;
 
 	rpl::event_stream<> _repaintBackgroundRequests;
 
@@ -146,4 +167,12 @@ private:
 
 };
 
-} // namespace Window::Theme
+struct ChatBackgroundRects {
+	QRect from;
+	QRect to;
+};
+[[nodiscard]] ChatBackgroundRects ComputeChatBackgroundRects(
+	QSize fillSize,
+	QSize imageSize);
+
+} // namespace Ui

@@ -1448,10 +1448,22 @@ bool LoadFromFile(
 		const QString &path,
 		not_null<Instance*> out,
 		Cached *outCache,
-		not_null<QByteArray*> outContent) {
-	*outContent = readThemeContent(path);
+		QByteArray *outContent) {
 	const auto colorizer = ColorizerForTheme(path);
-	return LoadTheme(*outContent, colorizer, std::nullopt, outCache, out);
+	return LoadFromFile(path, out, outCache, outContent, colorizer);
+}
+
+bool LoadFromFile(
+		const QString &path,
+		not_null<Instance*> out,
+		Cached *outCache,
+		QByteArray *outContent,
+		const Colorizer &colorizer) {
+	const auto content = readThemeContent(path);
+	if (outContent) {
+		*outContent = content;
+	}
+	return LoadTheme(content, colorizer, std::nullopt, outCache, out);
 }
 
 bool LoadFromContent(
@@ -1521,34 +1533,6 @@ QImage PreprocessBackgroundImage(QImage image) {
 			Qt::SmoothTransformation);
 	}
 	return image;
-}
-
-BackgroundRects ComputeBackgroundRects(QSize fillSize, QSize imageSize) {
-	if (uint64(imageSize.width()) * fillSize.height() > uint64(imageSize.height()) * fillSize.width()) {
-		float64 pxsize = fillSize.height() / float64(imageSize.height());
-		int takewidth = qCeil(fillSize.width() / pxsize);
-		if (takewidth > imageSize.width()) {
-			takewidth = imageSize.width();
-		} else if ((imageSize.width() % 2) != (takewidth % 2)) {
-			++takewidth;
-		}
-		return {
-			.from = QRect((imageSize.width() - takewidth) / 2, 0, takewidth, imageSize.height()),
-			.to = QRect(int((fillSize.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), fillSize.height()),
-		};
-	} else {
-		float64 pxsize = fillSize.width() / float64(imageSize.width());
-		int takeheight = qCeil(fillSize.height() / pxsize);
-		if (takeheight > imageSize.height()) {
-			takeheight = imageSize.height();
-		} else if ((imageSize.height() % 2) != (takeheight % 2)) {
-			++takeheight;
-		}
-		return {
-			.from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight),
-			.to = QRect(0, int((fillSize.height() - takeheight * pxsize) / 2.), fillSize.width(), qCeil(takeheight * pxsize)),
-		};
-	}
 }
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback) {

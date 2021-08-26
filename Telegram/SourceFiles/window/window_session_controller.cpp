@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/main_window.h"
 #include "window/window_filters_menu.h"
-#include "window/themes/window_chat_theme.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "history/history.h"
@@ -43,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
@@ -468,8 +468,17 @@ SessionController::SessionController(
 		_window->widget(),
 		this))
 , _invitePeekTimer([=] { checkInvitePeek(); })
-, _defaultChatTheme(std::make_shared<Theme::ChatTheme>()) {
+, _defaultChatTheme(std::make_shared<Ui::ChatTheme>()) {
 	init();
+
+	pushDefaultChatBackground();
+	Theme::Background()->updates(
+	) | rpl::start_with_next([=](const Theme::BackgroundUpdate &update) {
+		if (update.type == Theme::BackgroundUpdate::Type::New
+			|| update.type == Theme::BackgroundUpdate::Type::Changed) {
+			pushDefaultChatBackground();
+		}
+	}, _lifetime);
 
 	if (Media::Player::instance()->pauseGifByRoundVideo()) {
 		enableGifPauseReason(GifPauseReason::RoundPlaying);
@@ -1310,7 +1319,7 @@ void SessionController::openDocument(
 
 auto SessionController::cachedChatThemeValue(
 	const Data::CloudTheme &data)
--> rpl::producer<std::shared_ptr<Theme::ChatTheme>> {
+-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
 	const auto key = data.id;
 	if (!key || !data.paper || data.paper->backgroundColors().empty()) {
 		return rpl::single(_defaultChatTheme);
@@ -1326,23 +1335,75 @@ auto SessionController::cachedChatThemeValue(
 	return rpl::single(
 		_defaultChatTheme
 	) | rpl::then(_cachedThemesStream.events(
-	) | rpl::filter([=](const std::shared_ptr<Theme::ChatTheme> &theme) {
+	) | rpl::filter([=](const std::shared_ptr<Ui::ChatTheme> &theme) {
 		return (theme->key() == key);
 	}) | rpl::take(1));
+}
+
+void SessionController::pushDefaultChatBackground() {
+	const auto background = Theme::Background();
+	const auto &paper = background->paper();
+	_defaultChatTheme->setBackground({
+		.prepared = background->prepared(),
+		.preparedForTiled = background->preparedForTiled(),
+		.gradientForFill = background->gradientForFill(),
+		.colorForFill = background->colorForFill(),
+		.colors = paper.backgroundColors(),
+		.patternOpacity = paper.patternOpacity(),
+		.gradientRotation = paper.gradientRotation(),
+		.isPattern = paper.isPattern(),
+		.tile = background->tile(),
+	});
 }
 
 void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 	Expects(data.id != 0);
 
+	using namespace Theme;
+
 	const auto key = data.id;
+	const auto dark = data.basedOnDark;
+	const auto accent = data.accentColor;
 	if (data.paper) {
 		const auto document = data.paper->document();
 
 	}
-	crl::async([this, data, weak = base::make_weak(this)] {
+	const auto preparePalette = [=](style::palette &palette) {
+		if (dark) {
+			const auto &embedded = Theme::EmbeddedThemes();
+			const auto i = ranges::find(
+				embedded,
+				EmbeddedType::Night,
+				&EmbeddedScheme::type);
+			Assert(i != end(embedded));
+
+			auto instance = Instance();
+			const auto loaded = LoadFromFile(
+				i->path,
+				&instance,
+				nullptr,
+				nullptr,
+				accent ? ColorizerFrom(*i, *accent) : Colorizer());
+			Assert(loaded);
+			palette = instance.palette;
+		} else {
+			// #TODO themes apply accent color to classic theme
+		}
+	};
+	const auto prepareBackground = [] {
+		return Ui::ChatThemeBackground{
+
+		};
+	};
+	auto descriptor = Ui::ChatThemeDescriptor{
+		.id = key,
+		.preparePalette = preparePalette,
+		.prepareBackground = prepareBackground,
+	};
+	crl::async([this, descriptor = std::move(descriptor), weak = base::make_weak(this)] {
 		crl::on_main(weak, [
 			this,
-			result = std::make_shared<Theme::ChatTheme>(data)
+			result = std::make_shared<Ui::ChatTheme>(std::move(descriptor))
 		]() mutable {
 			_customChatThemes.emplace(result->key(), result);
 			_cachedThemesStream.fire(std::move(result));

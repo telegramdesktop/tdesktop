@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_options.h"
 #include "data/data_session.h"
