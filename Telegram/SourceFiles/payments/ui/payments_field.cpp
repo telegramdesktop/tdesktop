@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
 #include "ui/special_fields.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
 #include "styles/style_payments.h"
@@ -189,7 +189,7 @@ struct SimpleFieldState {
 
 [[nodiscard]] QString Parse(const FieldConfig &config) {
 	if (config.type == FieldType::Country) {
-		return Data::CountryNameByISO2(config.value);
+		return Countries::CountryNameByISO2(config.value);
 	} else if (config.type == FieldType::Money) {
 		const auto amount = config.value.toLongLong();
 		if (!amount) {
@@ -490,7 +490,7 @@ void Field::setupCountry() {
 	QObject::connect(_masked, &MaskedInputField::focused, [=] {
 		setFocus();
 
-		const auto name = Data::CountryNameByISO2(_countryIso2);
+		const auto name = Countries::CountryNameByISO2(_countryIso2);
 		const auto country = !name.isEmpty()
 			? _countryIso2
 			: !_config.defaultCountry.isEmpty()
@@ -503,7 +503,7 @@ void Field::setupCountry() {
 		raw->countryChosen(
 		) | rpl::start_with_next([=](QString iso2) {
 			_countryIso2 = iso2;
-			_masked->setText(Data::CountryNameByISO2(iso2));
+			_masked->setText(Countries::CountryNameByISO2(iso2));
 			_masked->hideError();
 			raw->closeBox();
 			if (!iso2.isEmpty()) {

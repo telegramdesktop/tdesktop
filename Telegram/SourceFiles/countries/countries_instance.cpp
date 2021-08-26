@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 
-namespace Data {
+namespace Countries {
 namespace {
 
 const std::array<CountryInfo, 231> List = { {
@@ -292,10 +292,10 @@ QString CountryNameByISO2(const QString &iso) {
 }
 
 QString CountryISO2ByPhone(const QString &phone) {
-	const auto &byCode = Data::CountriesByCode();
-	const auto code = Data::ValidPhoneCode(phone);
+	const auto &byCode = CountriesByCode();
+	const auto code = ValidPhoneCode(phone);
 	const auto i = byCode.find(code);
 	return (i != byCode.cend()) ? QString::fromUtf8((*i)->iso2) : QString();
 }
 
-} // namespace Data
+} // namespace Countries

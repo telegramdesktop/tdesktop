@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #pragma once
 
-namespace Data {
+namespace Countries {
 
 struct CountryInfo {
 	const char *name = nullptr;
@@ -26,4 +26,4 @@ struct CountryInfo {
 [[nodiscard]] QString CountryNameByISO2(const QString &iso);
 [[nodiscard]] QString CountryISO2ByPhone(const QString &phone);
 
-} // namespace Data
+} // namespace Countries

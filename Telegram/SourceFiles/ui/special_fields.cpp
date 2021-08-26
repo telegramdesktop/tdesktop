@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_fields.h"
 
 #include "lang/lang_keys.h"
-#include "data/data_countries.h" // Data::ValidPhoneCode
+#include "countries/countries_instance.h" // Countries::ValidPhoneCode
 #include "numbers.h"
 
 #include <QtCore/QRegularExpression>
@@ -83,7 +83,7 @@ void CountryCodeInput::correctValue(
 		}
 	}
 	if (!addToNumber.isEmpty()) {
-		auto validCode = Data::ValidPhoneCode(newText.mid(1));
+		auto validCode = Countries::ValidPhoneCode(newText.mid(1));
 		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
 		newText = '+' + validCode;
 	}

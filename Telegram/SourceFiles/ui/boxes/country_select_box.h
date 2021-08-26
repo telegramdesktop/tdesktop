@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
-namespace Data {
+namespace Countries {
 struct CountryInfo;
-} // namespace Data
+} // namespace Countries
 
 namespace Ui {
 

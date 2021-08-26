@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "history/history_item.h"
 #include "history/history_service.h" // HistoryServicePayment.
 #include "stripe/stripe_api_client.h"
@@ -465,7 +465,7 @@ QString Form::defaultPhone() const {
 }
 
 QString Form::defaultCountry() const {
-	return Data::CountryISO2ByPhone(defaultPhone());
+	return Countries::CountryISO2ByPhone(defaultPhone());
 }
 
 void Form::fillPaymentMethodInformation() {

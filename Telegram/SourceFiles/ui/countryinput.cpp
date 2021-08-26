@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/boxes/country_select_box.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "base/qt_adapters.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -114,7 +114,7 @@ void CountryInput::onChooseCode(const QString &code) {
 	Ui::hideLayer();
 	_chosenIso = QString();
 	if (code.length()) {
-		const auto &byCode = Data::CountriesByCode();
+		const auto &byCode = Countries::CountriesByCode();
 		const auto i = byCode.constFind(code);
 		if (i != byCode.cend()) {
 			const auto info = *i;
@@ -132,7 +132,7 @@ void CountryInput::onChooseCode(const QString &code) {
 bool CountryInput::chooseCountry(const QString &iso) {
 	Ui::hideLayer();
 
-	const auto &byISO2 = Data::CountriesByISO2();
+	const auto &byISO2 = Countries::CountriesByISO2();
 	const auto i = byISO2.constFind(iso);
 	const auto info = (i != byISO2.cend()) ? (*i) : nullptr;
 

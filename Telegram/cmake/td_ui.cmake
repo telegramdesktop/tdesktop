@@ -58,8 +58,8 @@ PRIVATE
     core/mime_type.cpp
     core/mime_type.h
 
-    data/data_countries.cpp
-    data/data_countries.h
+    countries/countries_instance.cpp
+    countries/countries_instance.h
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "base/qt_adapters.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -64,7 +64,7 @@ private:
 	void updateSelectedRow();
 	void updateRow(int index);
 	void setPressed(int pressed);
-	const std::vector<not_null<const Data::CountryInfo*>> &current() const;
+	const std::vector<not_null<const Countries::CountryInfo*>> &current() const;
 
 	Type _type = Type::Phones;
 	int _rowHeight = 0;
@@ -76,8 +76,8 @@ private:
 
 	std::vector<std::unique_ptr<RippleAnimation>> _ripples;
 
-	std::vector<not_null<const Data::CountryInfo*>> _list;
-	std::vector<not_null<const Data::CountryInfo*>> _filtered;
+	std::vector<not_null<const Countries::CountryInfo*>> _list;
+	std::vector<not_null<const Countries::CountryInfo*>> _filtered;
 	base::flat_map<QChar, std::vector<int>> _byLetter;
 	std::vector<std::vector<QString>> _namesList;
 
@@ -174,7 +174,7 @@ CountrySelectBox::Inner::Inner(
 , _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto &byISO2 = Data::CountriesByISO2();
+	const auto &byISO2 = Countries::CountriesByISO2();
 
 	if (byISO2.contains(iso)) {
 		LastValidISO = iso;
@@ -188,7 +188,7 @@ CountrySelectBox::Inner::Inner(
 	if (lastValid) {
 		_list.emplace_back(lastValid);
 	}
-	for (const auto &entry : Data::Countries()) {
+	for (const auto &entry : Countries::Countries()) {
 		if (&entry != lastValid) {
 			_list.emplace_back(&entry);
 		}
@@ -424,7 +424,7 @@ void CountrySelectBox::Inner::updateSelected(QPoint localPos) {
 }
 
 auto CountrySelectBox::Inner::current() const
--> const std::vector<not_null<const Data::CountryInfo*>> & {
+-> const std::vector<not_null<const Countries::CountryInfo*>> & {
 	return _filter.isEmpty() ? _list : _filtered;
 }
 

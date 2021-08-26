@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_user.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
@@ -54,7 +54,7 @@ using namespace ::Intro::details;
 	if (const auto parent
 		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 		if (const auto session = parent->maybeSession()) {
-			const auto iso = ::Data::CountryISO2ByPhone(
+			const auto iso = Countries::CountryISO2ByPhone(
 				session->user()->phone());
 			if (!iso.isEmpty()) {
 				return iso;

@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/countryinput.h"
 #include "ui/text/format_values.h"
 #include "core/update_checker.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "styles/style_layers.h"
 
 namespace Passport {
@@ -123,7 +123,7 @@ EditDocumentScheme GetDocumentScheme(
 	using ValueClass = Scheme::ValueClass;
 	const auto DontFormat = nullptr;
 	const auto CountryFormat = [](const QString &value) {
-		const auto result = Data::CountryNameByISO2(value);
+		const auto result = Countries::CountryNameByISO2(value);
 		return result.isEmpty() ? value : result;
 	};
 	const auto GenderFormat = [](const QString &value) {
@@ -322,7 +322,7 @@ EditDocumentScheme GetDocumentScheme(
 				if (!language.isEmpty()) {
 					return tr::lng_passport_native_name_language_about(tr::now);
 				}
-				const auto name = Data::CountryNameByISO2(countryCode);
+				const auto name = Countries::CountryNameByISO2(countryCode);
 				Assert(!name.isEmpty());
 				return tr::lng_passport_native_name_about(
 					tr::now,

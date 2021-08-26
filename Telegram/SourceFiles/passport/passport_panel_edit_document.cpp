@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "data/data_countries.h"
+#include "countries/countries_instance.h"
 #include "data/data_user.h" // ->bot()->session()
 #include "main/main_session.h" // ->session().user()
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
@@ -520,7 +520,7 @@ void PanelEditDocument::createDetailsRow(
 			object_ptr<Ui::BoxContent> box) {
 		controller->show(std::move(box));
 	};
-	const auto isoByPhone = Data::CountryISO2ByPhone(
+	const auto isoByPhone = Countries::CountryISO2ByPhone(
 		_controller->bot()->session().user()->phone());
 
 	const auto [it, ok] = _details.emplace(
