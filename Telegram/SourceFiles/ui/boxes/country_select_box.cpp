@@ -195,10 +195,10 @@ CountrySelectBox::Inner::Inner(
 	}
 	auto index = 0;
 	for (const auto info : _list) {
-		auto full = QString::fromUtf8(info->name)
+		auto full = info->name
 			+ ' '
-			+ (info->alternativeName
-				? QString::fromUtf8(info->alternativeName)
+			+ (!info->alternativeName.isEmpty()
+				? info->alternativeName
 				: QString());
 		const auto namesList = std::move(full).toLower().split(
 			QRegularExpression("[\\s\\-]"),
@@ -259,7 +259,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 		auto code = QString("+") + list[i]->code;
 		auto codeWidth = st::countryRowCodeFont->width(code);
 
-		auto name = QString::fromUtf8(list[i]->name);
+		auto name = list[i]->name;
 		auto nameWidth = st::countryRowNameFont->width(name);
 		auto availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::boxScroll.width;
 		if (nameWidth > availWidth) {

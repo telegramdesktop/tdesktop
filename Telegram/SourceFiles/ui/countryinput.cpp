@@ -119,7 +119,7 @@ void CountryInput::onChooseCode(const QString &code) {
 		if (i != byCode.cend()) {
 			const auto info = *i;
 			_chosenIso = LastValidISO = info->iso2;
-			setText(QString::fromUtf8(info->name));
+			setText(info->name);
 		} else {
 			setText(tr::lng_bad_country_code(tr::now));
 		}
@@ -139,7 +139,7 @@ bool CountryInput::chooseCountry(const QString &iso) {
 	_chosenIso = QString();
 	if (info) {
 		_chosenIso = LastValidISO = info->iso2;
-		setText(QString::fromUtf8(info->name));
+		setText(info->name);
 		codeChanged(info->code);
 		update();
 		return true;

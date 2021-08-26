@@ -297,18 +297,14 @@ QString CountriesInstance::validPhoneCode(QString fullCode) {
 QString CountriesInstance::countryNameByISO2(const QString &iso) {
 	const auto &listByISO2 = byISO2();
 	const auto i = listByISO2.constFind(iso);
-	return (i != listByISO2.cend())
-		? QString::fromUtf8((*i)->name)
-		: QString();
+	return (i != listByISO2.cend()) ? (*i)->name : QString();
 }
 
 QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
 	const auto &listByCode = byCode();
 	const auto code = validPhoneCode(phone);
 	const auto i = listByCode.find(code);
-	return (i != listByCode.cend())
-		? QString::fromUtf8((*i)->iso2)
-		: QString();
+	return (i != listByCode.cend()) ? (*i)->iso2 : QString();
 }
 
 CountriesInstance &Instance() {

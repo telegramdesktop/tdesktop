@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Countries {
 
 struct Info {
-	const char *name = nullptr;
-	const char *iso2 = nullptr;
-	const char *code = nullptr;
-	const char *alternativeName = nullptr;
+	QString name;
+	QString iso2;
+	QString code;
+	QString alternativeName;
 };
 
 class CountriesInstance final {
