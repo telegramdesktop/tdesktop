@@ -248,14 +248,24 @@ const std::array<Info, 231> FallbackList = { {
 
 } // namespace
 
-const std::array<Info, 231> &CountriesInstance::list() {
-	return FallbackList;
+CountriesInstance::CountriesInstance() {
+}
+
+const std::vector<Info> &CountriesInstance::list() {
+	if (_list.empty()) {
+		_list = (FallbackList | ranges::to_vector);
+	}
+	return _list;
+}
+
+void CountriesInstance::setList(std::vector<Info> &&infos) {
+	_list = std::move(infos);
 }
 
 const CountriesInstance::Map &CountriesInstance::byCode() {
 	if (_byCode.empty()) {
-		_byCode.reserve(FallbackList.size());
-		for (const auto &entry : FallbackList) {
+		_byCode.reserve(list().size());
+		for (const auto &entry : list()) {
 			_byCode.insert(entry.code, &entry);
 		}
 	}
@@ -264,8 +274,8 @@ const CountriesInstance::Map &CountriesInstance::byCode() {
 
 const CountriesInstance::Map &CountriesInstance::byISO2() {
 	if (_byISO2.empty()) {
-		_byISO2.reserve(FallbackList.size());
-		for (const auto &entry : FallbackList) {
+		_byISO2.reserve(list().size());
+		for (const auto &entry : list()) {
 			_byISO2.insert(entry.iso2, &entry);
 		}
 	}

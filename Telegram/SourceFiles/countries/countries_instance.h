@@ -21,8 +21,9 @@ class CountriesInstance final {
 public:
 	using Map = QHash<QString, const Info *>;
 
-	CountriesInstance() = default;
-	[[nodiscard]] const std::array<Info, 231> &list();
+	CountriesInstance();
+	[[nodiscard]] const std::vector<Info> &list();
+	void setList(std::vector<Info> &&infos);
 
 	[[nodiscard]] const Map &byCode();
 	[[nodiscard]] const Map &byISO2();
@@ -32,6 +33,8 @@ public:
 	[[nodiscard]] QString countryISO2ByPhone(const QString &phone);
 
 private:
+	std::vector<Info> _list;
+
 	Map _byCode;
 	Map _byISO2;
 
