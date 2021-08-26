@@ -10,17 +10,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Countries {
 
-struct CountryInfo {
+struct Info {
 	const char *name = nullptr;
 	const char *iso2 = nullptr;
 	const char *code = nullptr;
 	const char *alternativeName = nullptr;
 };
 
-[[nodiscard]] const std::array<CountryInfo, 231> &Countries();
+[[nodiscard]] const std::array<Info, 231> &List();
 
-[[nodiscard]] const QHash<QString, const CountryInfo *> &CountriesByCode();
-[[nodiscard]] const QHash<QString, const CountryInfo *> &CountriesByISO2();
+[[nodiscard]] const QHash<QString, const Info *> &InfoByCode();
+[[nodiscard]] const QHash<QString, const Info *> &InfoByISO2();
 
 [[nodiscard]] QString ValidPhoneCode(QString fullCode);
 [[nodiscard]] QString CountryNameByISO2(const QString &iso);

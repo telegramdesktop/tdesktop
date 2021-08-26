@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Countries {
 namespace {
 
-const std::array<CountryInfo, 231> List = { {
+const std::array<Info, 231> FallbackList = { {
 	{ "Afghanistan", "AF", "93" },
 	{ "Albania", "AL", "355" },
 	{ "Algeria", "DZ", "213" },
@@ -244,29 +244,29 @@ const std::array<CountryInfo, 231> List = { {
 	{ "Zimbabwe", "ZW", "263" },
 } };
 
-QHash<QString, const CountryInfo *> ByCode;
-QHash<QString, const CountryInfo *> ByISO2;
+QHash<QString, const Info *> ByCode;
+QHash<QString, const Info *> ByISO2;
 
 } // namespace
 
-const std::array<CountryInfo, 231> &Countries() {
-	return List;
+const std::array<Info, 231> &List() {
+	return FallbackList;
 }
 
-const QHash<QString, const CountryInfo *> &CountriesByCode() {
+const QHash<QString, const Info *> &InfoByCode() {
 	if (ByCode.isEmpty()) {
-		ByCode.reserve(List.size());
-		for (const auto &entry : List) {
+		ByCode.reserve(FallbackList.size());
+		for (const auto &entry : FallbackList) {
 			ByCode.insert(entry.code, &entry);
 		}
 	}
 	return ByCode;
 }
 
-const QHash<QString, const CountryInfo *> &CountriesByISO2() {
+const QHash<QString, const Info *> &InfoByISO2() {
 	if (ByISO2.isEmpty()) {
-		ByISO2.reserve(List.size());
-		for (const auto &entry : List) {
+		ByISO2.reserve(FallbackList.size());
+		for (const auto &entry : FallbackList) {
 			ByISO2.insert(entry.iso2, &entry);
 		}
 	}
@@ -274,7 +274,7 @@ const QHash<QString, const CountryInfo *> &CountriesByISO2() {
 }
 
 QString ValidPhoneCode(QString fullCode) {
-	const auto &byCode = CountriesByCode();
+	const auto &byCode = InfoByCode();
 	while (fullCode.length()) {
 		const auto i = byCode.constFind(fullCode);
 		if (i != byCode.cend()) {
@@ -286,13 +286,13 @@ QString ValidPhoneCode(QString fullCode) {
 }
 
 QString CountryNameByISO2(const QString &iso) {
-	const auto &byISO2 = CountriesByISO2();
+	const auto &byISO2 = InfoByISO2();
 	const auto i = byISO2.constFind(iso);
 	return (i != byISO2.cend()) ? QString::fromUtf8((*i)->name) : QString();
 }
 
 QString CountryISO2ByPhone(const QString &phone) {
-	const auto &byCode = CountriesByCode();
+	const auto &byCode = InfoByCode();
 	const auto code = ValidPhoneCode(phone);
 	const auto i = byCode.find(code);
 	return (i != byCode.cend()) ? QString::fromUtf8((*i)->iso2) : QString();

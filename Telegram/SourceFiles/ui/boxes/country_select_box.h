@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 namespace Countries {
-struct CountryInfo;
+struct Info;
 } // namespace Countries
 
 namespace Ui {
