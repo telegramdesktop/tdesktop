@@ -123,7 +123,7 @@ EditDocumentScheme GetDocumentScheme(
 	using ValueClass = Scheme::ValueClass;
 	const auto DontFormat = nullptr;
 	const auto CountryFormat = [](const QString &value) {
-		const auto result = Countries::CountryNameByISO2(value);
+		const auto result = Countries::Instance().countryNameByISO2(value);
 		return result.isEmpty() ? value : result;
 	};
 	const auto GenderFormat = [](const QString &value) {
@@ -322,7 +322,8 @@ EditDocumentScheme GetDocumentScheme(
 				if (!language.isEmpty()) {
 					return tr::lng_passport_native_name_language_about(tr::now);
 				}
-				const auto name = Countries::CountryNameByISO2(countryCode);
+				const auto name = Countries::Instance().countryNameByISO2(
+					countryCode);
 				Assert(!name.isEmpty());
 				return tr::lng_passport_native_name_about(
 					tr::now,

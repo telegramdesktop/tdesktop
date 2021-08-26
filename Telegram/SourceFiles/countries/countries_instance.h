@@ -17,13 +17,26 @@ struct Info {
 	const char *alternativeName = nullptr;
 };
 
-[[nodiscard]] const std::array<Info, 231> &List();
+class CountriesInstance final {
+public:
+	using Map = QHash<QString, const Info *>;
 
-[[nodiscard]] const QHash<QString, const Info *> &InfoByCode();
-[[nodiscard]] const QHash<QString, const Info *> &InfoByISO2();
+	CountriesInstance() = default;
+	[[nodiscard]] const std::array<Info, 231> &list();
 
-[[nodiscard]] QString ValidPhoneCode(QString fullCode);
-[[nodiscard]] QString CountryNameByISO2(const QString &iso);
-[[nodiscard]] QString CountryISO2ByPhone(const QString &phone);
+	[[nodiscard]] const Map &byCode();
+	[[nodiscard]] const Map &byISO2();
+
+	[[nodiscard]] QString validPhoneCode(QString fullCode);
+	[[nodiscard]] QString countryNameByISO2(const QString &iso);
+	[[nodiscard]] QString countryISO2ByPhone(const QString &phone);
+
+private:
+	Map _byCode;
+	Map _byISO2;
+
+};
+
+CountriesInstance &Instance();
 
 } // namespace Countries

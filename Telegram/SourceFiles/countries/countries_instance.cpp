@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Countries {
 namespace {
 
+auto SingleInstance = CountriesInstance();
+
 const std::array<Info, 231> FallbackList = { {
 	{ "Afghanistan", "AF", "93" },
 	{ "Albania", "AL", "355" },
@@ -244,40 +246,37 @@ const std::array<Info, 231> FallbackList = { {
 	{ "Zimbabwe", "ZW", "263" },
 } };
 
-QHash<QString, const Info *> ByCode;
-QHash<QString, const Info *> ByISO2;
-
 } // namespace
 
-const std::array<Info, 231> &List() {
+const std::array<Info, 231> &CountriesInstance::list() {
 	return FallbackList;
 }
 
-const QHash<QString, const Info *> &InfoByCode() {
-	if (ByCode.isEmpty()) {
-		ByCode.reserve(FallbackList.size());
+const CountriesInstance::Map &CountriesInstance::byCode() {
+	if (_byCode.empty()) {
+		_byCode.reserve(FallbackList.size());
 		for (const auto &entry : FallbackList) {
-			ByCode.insert(entry.code, &entry);
+			_byCode.insert(entry.code, &entry);
 		}
 	}
-	return ByCode;
+	return _byCode;
 }
 
-const QHash<QString, const Info *> &InfoByISO2() {
-	if (ByISO2.isEmpty()) {
-		ByISO2.reserve(FallbackList.size());
+const CountriesInstance::Map &CountriesInstance::byISO2() {
+	if (_byISO2.empty()) {
+		_byISO2.reserve(FallbackList.size());
 		for (const auto &entry : FallbackList) {
-			ByISO2.insert(entry.iso2, &entry);
+			_byISO2.insert(entry.iso2, &entry);
 		}
 	}
-	return ByISO2;
+	return _byISO2;
 }
 
-QString ValidPhoneCode(QString fullCode) {
-	const auto &byCode = InfoByCode();
+QString CountriesInstance::validPhoneCode(QString fullCode) {
+	const auto &listByCode = byCode();
 	while (fullCode.length()) {
-		const auto i = byCode.constFind(fullCode);
-		if (i != byCode.cend()) {
+		const auto i = listByCode.constFind(fullCode);
+		if (i != listByCode.cend()) {
 			return (*i)->code;
 		}
 		fullCode.chop(1);
@@ -285,17 +284,25 @@ QString ValidPhoneCode(QString fullCode) {
 	return QString();
 }
 
-QString CountryNameByISO2(const QString &iso) {
-	const auto &byISO2 = InfoByISO2();
-	const auto i = byISO2.constFind(iso);
-	return (i != byISO2.cend()) ? QString::fromUtf8((*i)->name) : QString();
+QString CountriesInstance::countryNameByISO2(const QString &iso) {
+	const auto &listByISO2 = byISO2();
+	const auto i = listByISO2.constFind(iso);
+	return (i != listByISO2.cend())
+		? QString::fromUtf8((*i)->name)
+		: QString();
 }
 
-QString CountryISO2ByPhone(const QString &phone) {
-	const auto &byCode = InfoByCode();
-	const auto code = ValidPhoneCode(phone);
-	const auto i = byCode.find(code);
-	return (i != byCode.cend()) ? QString::fromUtf8((*i)->iso2) : QString();
+QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
+	const auto &listByCode = byCode();
+	const auto code = validPhoneCode(phone);
+	const auto i = listByCode.find(code);
+	return (i != listByCode.cend())
+		? QString::fromUtf8((*i)->iso2)
+		: QString();
+}
+
+CountriesInstance &Instance() {
+	return SingleInstance;
 }
 
 } // namespace Countries

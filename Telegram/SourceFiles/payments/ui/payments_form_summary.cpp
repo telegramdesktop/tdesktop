@@ -508,7 +508,7 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 		push(_information.shippingAddress.address2);
 		push(_information.shippingAddress.city);
 		push(_information.shippingAddress.state);
-		push(Countries::CountryNameByISO2(
+		push(Countries::Instance().countryNameByISO2(
 			_information.shippingAddress.countryIso2));
 		push(_information.shippingAddress.postcode);
 		add(

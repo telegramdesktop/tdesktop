@@ -83,7 +83,7 @@ void CountryCodeInput::correctValue(
 		}
 	}
 	if (!addToNumber.isEmpty()) {
-		auto validCode = Countries::ValidPhoneCode(newText.mid(1));
+		auto validCode = Countries::Instance().validPhoneCode(newText.mid(1));
 		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
 		newText = '+' + validCode;
 	}

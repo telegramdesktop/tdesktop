@@ -304,7 +304,7 @@ void AbstractTextRow<Input>::finishInnerAnimating() {
 }
 
 QString CountryString(const QString &code) {
-	const auto name = Countries::CountryNameByISO2(code);
+	const auto name = Countries::Instance().countryNameByISO2(code);
 	return name.isEmpty() ? tr::lng_passport_country_choose(tr::now) : name;
 }
 
@@ -383,7 +383,7 @@ void CountryRow::errorAnimationCallback() {
 
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
-	const auto name = Countries::CountryNameByISO2(top);
+	const auto name = Countries::Instance().countryNameByISO2(top);
 	const auto country = !name.isEmpty()
 		? top
 		: !_defaultCountry.isEmpty()

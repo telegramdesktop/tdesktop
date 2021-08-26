@@ -54,7 +54,7 @@ using namespace ::Intro::details;
 	if (const auto parent
 		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 		if (const auto session = parent->maybeSession()) {
-			const auto iso = Countries::CountryISO2ByPhone(
+			const auto iso = Countries::Instance().countryISO2ByPhone(
 				session->user()->phone());
 			if (!iso.isEmpty()) {
 				return iso;

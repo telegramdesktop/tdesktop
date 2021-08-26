@@ -520,7 +520,7 @@ void PanelEditDocument::createDetailsRow(
 			object_ptr<Ui::BoxContent> box) {
 		controller->show(std::move(box));
 	};
-	const auto isoByPhone = Countries::CountryISO2ByPhone(
+	const auto isoByPhone = Countries::Instance().countryISO2ByPhone(
 		_controller->bot()->session().user()->phone());
 
 	const auto [it, ok] = _details.emplace(

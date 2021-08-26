@@ -114,7 +114,7 @@ void CountryInput::onChooseCode(const QString &code) {
 	Ui::hideLayer();
 	_chosenIso = QString();
 	if (code.length()) {
-		const auto &byCode = Countries::InfoByCode();
+		const auto &byCode = Countries::Instance().byCode();
 		const auto i = byCode.constFind(code);
 		if (i != byCode.cend()) {
 			const auto info = *i;
@@ -132,7 +132,7 @@ void CountryInput::onChooseCode(const QString &code) {
 bool CountryInput::chooseCountry(const QString &iso) {
 	Ui::hideLayer();
 
-	const auto &byISO2 = Countries::InfoByISO2();
+	const auto &byISO2 = Countries::Instance().byISO2();
 	const auto i = byISO2.constFind(iso);
 	const auto info = (i != byISO2.cend()) ? (*i) : nullptr;
 

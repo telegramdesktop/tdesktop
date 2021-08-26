@@ -174,7 +174,7 @@ CountrySelectBox::Inner::Inner(
 , _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto &byISO2 = Countries::InfoByISO2();
+	const auto &byISO2 = Countries::Instance().byISO2();
 
 	if (byISO2.contains(iso)) {
 		LastValidISO = iso;
@@ -188,7 +188,7 @@ CountrySelectBox::Inner::Inner(
 	if (lastValid) {
 		_list.emplace_back(lastValid);
 	}
-	for (const auto &entry : Countries::List()) {
+	for (const auto &entry : Countries::Instance().list()) {
 		if (&entry != lastValid) {
 			_list.emplace_back(&entry);
 		}

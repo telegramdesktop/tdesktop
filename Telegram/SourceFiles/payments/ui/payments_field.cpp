@@ -189,7 +189,7 @@ struct SimpleFieldState {
 
 [[nodiscard]] QString Parse(const FieldConfig &config) {
 	if (config.type == FieldType::Country) {
-		return Countries::CountryNameByISO2(config.value);
+		return Countries::Instance().countryNameByISO2(config.value);
 	} else if (config.type == FieldType::Money) {
 		const auto amount = config.value.toLongLong();
 		if (!amount) {
@@ -490,7 +490,8 @@ void Field::setupCountry() {
 	QObject::connect(_masked, &MaskedInputField::focused, [=] {
 		setFocus();
 
-		const auto name = Countries::CountryNameByISO2(_countryIso2);
+		const auto name = Countries::Instance().countryNameByISO2(
+			_countryIso2);
 		const auto country = !name.isEmpty()
 			? _countryIso2
 			: !_config.defaultCountry.isEmpty()
@@ -503,7 +504,7 @@ void Field::setupCountry() {
 		raw->countryChosen(
 		) | rpl::start_with_next([=](QString iso2) {
 			_countryIso2 = iso2;
-			_masked->setText(Countries::CountryNameByISO2(iso2));
+			_masked->setText(Countries::Instance().countryNameByISO2(iso2));
 			_masked->hideError();
 			raw->closeBox();
 			if (!iso2.isEmpty()) {

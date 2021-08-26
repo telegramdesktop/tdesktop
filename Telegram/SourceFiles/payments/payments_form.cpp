@@ -465,7 +465,7 @@ QString Form::defaultPhone() const {
 }
 
 QString Form::defaultCountry() const {
-	return Countries::CountryISO2ByPhone(defaultPhone());
+	return Countries::Instance().countryISO2ByPhone(defaultPhone());
 }
 
 void Form::fillPaymentMethodInformation() {
