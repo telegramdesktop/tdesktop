@@ -307,6 +307,81 @@ QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
 	return (i != listByCode.cend()) ? (*i)->iso2 : QString();
 }
 
+FormatResult CountriesInstance::format(FormatArgs args) {
+	// Ported from TDLib.
+	const auto &phoneNumber = args.phone;
+
+	const Info *bestCountryPtr = nullptr;
+	const CallingCodeInfo *bestCallingCodePtr = nullptr;
+	auto bestLength = size_t(0);
+	auto isPrefix = false;
+	for (const auto &country : list()) {
+		for (auto &callingCode : country.codes) {
+			if (phoneNumber.startsWith(callingCode.callingCode)) {
+				const auto codeSize = callingCode.callingCode.size();
+				for (const auto &prefix : callingCode.prefixes) {
+					if (prefix.startsWith(phoneNumber.midRef(codeSize))) {
+						isPrefix = true;
+					}
+					if ((codeSize + prefix.size()) > bestLength &&
+							phoneNumber.midRef(codeSize).startsWith(prefix)) {
+						bestCountryPtr = &country;
+						bestCallingCodePtr = &callingCode;
+						bestLength = codeSize + prefix.size();
+					}
+				}
+			}
+			if (callingCode.callingCode.startsWith(phoneNumber)) {
+				isPrefix = true;
+			}
+		}
+	}
+	if (bestCountryPtr == nullptr) {
+		return FormatResult{ .formatted = phoneNumber };
+	}
+
+	const auto formattedPart = phoneNumber.mid(
+		bestCallingCodePtr->callingCode.size());
+	auto formattedResult = formattedPart;
+	auto maxMatchedDigits = size_t(0);
+	for (auto &pattern : bestCallingCodePtr->patterns) {
+		auto result = QString();
+		auto currentPatternPos = int(0);
+		auto isFailedMatch = false;
+		auto matchedDigits = size_t(0);
+		for (const auto &c : formattedPart) {
+			while ((currentPatternPos < pattern.size())
+				&& (pattern[currentPatternPos] != 'X')
+				&& !pattern[currentPatternPos].isDigit()) {
+				result += pattern[currentPatternPos++];
+			}
+			if (currentPatternPos == pattern.size()) {
+				result += ' ';
+			}
+			if ((currentPatternPos >= pattern.size())
+				|| (pattern[currentPatternPos] == 'X')) {
+				result += c;
+				currentPatternPos++;
+			} else {
+				if (c == pattern[currentPatternPos]) {
+					matchedDigits++;
+					result += c;
+					currentPatternPos++;
+				} else {
+					isFailedMatch = true;
+					break;
+				}
+			}
+		}
+		if (!isFailedMatch && matchedDigits >= maxMatchedDigits) {
+			maxMatchedDigits = matchedDigits;
+			formattedResult = std::move(result);
+		}
+	}
+
+	return FormatResult{ .formatted = formattedResult };
+}
+
 CountriesInstance &Instance() {
 	return SingleInstance;
 }

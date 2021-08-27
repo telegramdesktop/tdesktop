@@ -25,6 +25,14 @@ struct Info {
 	bool isHidden = false;
 };
 
+struct FormatResult {
+	QString formatted;
+};
+
+struct FormatArgs {
+	QString phone;
+};
+
 class CountriesInstance final {
 public:
 	using Map = QHash<QString, const Info *>;
@@ -39,6 +47,8 @@ public:
 	[[nodiscard]] QString validPhoneCode(QString fullCode);
 	[[nodiscard]] QString countryNameByISO2(const QString &iso);
 	[[nodiscard]] QString countryISO2ByPhone(const QString &phone);
+
+	[[nodiscard]] FormatResult format(FormatArgs args);
 
 private:
 	std::vector<Info> _list;
