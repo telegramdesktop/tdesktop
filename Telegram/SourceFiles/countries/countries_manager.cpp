@@ -19,11 +19,130 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Countries {
 namespace {
 
+struct FileData {
+	int hash = 0;
+	std::vector<Info> infos;
+};
+
 auto ProcessAlternativeName(Info &&info) {
 	if (info.name == u"USA"_q) {
 		info.alternativeName = u"United States of America"_q;
 	}
 	return std::move(info);
+}
+
+[[nodiscard]] QByteArray SerializeCodeInfo(const CallingCodeInfo &info) {
+	auto result = QByteArray();
+	auto stream = QDataStream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_3);
+	stream
+		<< info.callingCode
+		<< int(info.prefixes.size())
+		<< int(info.patterns.size());
+	for (const auto &prefix : info.prefixes) {
+		stream << prefix;
+	}
+	for (const auto &pattern : info.patterns) {
+		stream << pattern;
+	}
+	stream.device()->close();
+
+	return result;
+}
+
+[[nodiscard]] CallingCodeInfo DeserializeCodeInfo(const QByteArray &data) {
+	auto stream = QDataStream(data);
+	auto result = CallingCodeInfo();
+	auto prefixesCount = qint32(0);
+	auto patternsCount = qint32(0);
+	stream
+		>> result.callingCode
+		>> prefixesCount
+		>> patternsCount;
+	for (auto i = 0; i < prefixesCount; i++) {
+		auto prefix = QString();
+		stream >> prefix;
+		result.prefixes.push_back(std::move(prefix));
+	}
+	for (auto i = 0; i < patternsCount; i++) {
+		auto pattern = QString();
+		stream >> pattern;
+		result.patterns.push_back(std::move(pattern));
+	}
+	return (stream.status() != QDataStream::Ok)
+		? CallingCodeInfo()
+		: result;
+}
+
+[[nodiscard]] QByteArray SerializeInfo(const Info &info) {
+	auto result = QByteArray();
+	auto stream = QDataStream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_3);
+	stream
+		<< info.name
+		<< info.iso2
+		<< info.code
+		<< info.alternativeName
+		<< info.isHidden
+		<< int(info.codes.size());
+	for (const auto &code : info.codes) {
+		stream << SerializeCodeInfo(code);
+	}
+	stream.device()->close();
+
+	return result;
+}
+
+[[nodiscard]] Info DeserializeInfo(const QByteArray &data) {
+	auto stream = QDataStream(data);
+	auto result = Info();
+	auto codesCount = qint32(0);
+	stream
+		>> result.name
+		>> result.iso2
+		>> result.code
+		>> result.alternativeName
+		>> result.isHidden
+		>> codesCount;
+	for (auto i = 0; i < codesCount; i++) {
+		auto code = QByteArray();
+		stream >> code;
+		result.codes.push_back(DeserializeCodeInfo(code));
+	}
+	return (stream.status() != QDataStream::Ok)
+		? Info()
+		: result;
+}
+
+[[nodiscard]] QByteArray Serialize(const FileData &data) {
+	auto result = QByteArray();
+	auto stream = QDataStream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_3);
+	stream
+		<< data.hash
+		<< int(data.infos.size());
+	for (const auto &info : data.infos) {
+		stream << SerializeInfo(info);
+	}
+	stream.device()->close();
+
+	return result;
+}
+
+[[nodiscard]] FileData Deserialize(const QByteArray &data) {
+	auto stream = QDataStream(data);
+	auto hash = int(0);
+	auto infosCount = qint32(0);
+	auto infos = std::vector<Info>();
+	stream >> hash >> infosCount;
+	for (auto i = 0; i < infosCount; i++) {
+		auto info = QByteArray();
+		stream >> info;
+		infos.push_back(DeserializeInfo(info));
+	}
+	return (stream.status() != QDataStream::Ok)
+		? FileData()
+		: FileData{ .hash = hash, .infos = std::move(infos) };
 }
 
 } // namespace
@@ -52,39 +171,27 @@ Manager::Manager(not_null<Main::Domain*> domain)
 
 void Manager::read() {
 	auto file = QFile(_path);
-	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+	if (!file.open(QIODevice::ReadOnly)) {
 		return;
 	}
 
-	_hash = QString(file.readLine()).toInt();
+	auto stream = QDataStream(&file);
+	auto data = QByteArray();
+	stream >> data;
+	auto fileData = Deserialize(data);
 
-	auto infos = std::vector<Info>();
-	while (!file.atEnd()) {
-		const auto parts = QString(file.readLine()).split(";");
-		if (parts.size() != 3) {
-			continue;
-		}
-		infos.push_back(ProcessAlternativeName({
-			.name = parts.at(0),
-			.iso2 = parts.at(1),
-			.code = parts.at(2),
-		}));
-	}
-	Instance().setList(std::move(infos));
+	_hash = fileData.hash;
+	Instance().setList(base::take(fileData.infos));
 }
 
 void Manager::write() const {
 	auto file = QFile(_path);
-	if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+	if (!file.open(QIODevice::WriteOnly)) {
 		return;
 	}
 
-	auto s = QTextStream(&file);
-	s << QString::number(_hash) << "\n";
-
-	for (const auto &info : Instance().list()) {
-		s << info.name << ";" << info.iso2 << ";" << info.code << "\n";
-	}
+	auto stream = QDataStream(&file);
+	stream << Serialize({ .hash = _hash, .infos = Instance().list() });
 }
 
 void Manager::request() {
