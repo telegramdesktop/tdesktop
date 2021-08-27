@@ -345,6 +345,8 @@ PRIVATE
     core/utils.cpp
     core/utils.h
     core/version.h
+    countries/countries_manager.cpp
+    countries/countries_manager.h
     data/stickers/data_stickers_set.cpp
     data/stickers/data_stickers_set.h
     data/stickers/data_stickers.cpp

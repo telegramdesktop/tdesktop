@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "calls/calls_instance.h"
+#include "countries/countries_manager.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
@@ -320,6 +321,14 @@ void Application::run() {
 			_mediaView->show(std::move(request));
 		}
 	}, _window->lifetime());
+
+	{
+		const auto countries = std::make_shared<Countries::Manager>(
+			_domain.get());
+		countries->lifetime().add([=] {
+			[[maybe_unused]] const auto countriesCopy = countries;
+		});
+	}
 }
 
 void Application::showOpenGLCrashNotification() {
