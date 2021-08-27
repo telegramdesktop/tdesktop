@@ -343,8 +343,27 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 		return FormatResult{ .formatted = phoneNumber };
 	}
 
-	const auto formattedPart = phoneNumber.mid(
-		bestCallingCodePtr->callingCode.size());
+	const auto codeSize = int(bestCallingCodePtr->callingCode.size());
+
+	if (args.onlyGroups && args.incomplete) {
+		auto groups = args.skipCode
+			? QVector<int>()
+			: QVector<int>{ codeSize };
+		auto groupSize = 0;
+		for (const auto &c : bestCallingCodePtr->patterns.front()) {
+			if (c == ' ') {
+				groups.push_back(base::take(groupSize));
+			} else {
+				groupSize++;
+			}
+		}
+		if (groupSize) {
+			groups.push_back(base::take(groupSize));
+		}
+		return FormatResult{ .groups = std::move(groups) };
+	}
+
+	const auto formattedPart = phoneNumber.mid(codeSize);
 	auto formattedResult = formattedPart;
 	auto groups = QVector<int>();
 	auto maxMatchedDigits = size_t(0);
@@ -408,7 +427,7 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 
 	if (!args.skipCode) {
 		if (args.onlyGroups) {
-			groups.push_front(bestCallingCodePtr->callingCode.size());
+			groups.push_front(codeSize);
 		} else {
 			formattedResult = '+'
 				+ bestCallingCodePtr->callingCode

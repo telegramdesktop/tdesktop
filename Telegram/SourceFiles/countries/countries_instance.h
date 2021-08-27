@@ -34,6 +34,7 @@ struct FormatArgs {
 	QString phone;
 	bool onlyGroups = false;
 	bool skipCode = false;
+	bool incomplete = false;
 };
 
 class CountriesInstance final {

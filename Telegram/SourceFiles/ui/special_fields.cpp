@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "countries/countries_instance.h" // Countries::ValidPhoneCode
-#include "numbers.h"
 
 #include <QtCore/QRegularExpression>
 
@@ -205,7 +204,11 @@ void PhonePartInput::addedToNumber(const QString &added) {
 }
 
 void PhonePartInput::chooseCode(const QString &code) {
-	_pattern = phoneNumberParse(code);
+	_pattern = Countries::Instance().format({
+		.phone = code,
+		.onlyGroups = true,
+		.incomplete = true,
+	}).groups;
 	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
 		_pattern.pop_front();
 	} else {
@@ -284,7 +287,10 @@ void UsernameInput::correctValue(
 }
 
 QString ExtractPhonePrefix(const QString &phone) {
-	const auto pattern = phoneNumberParse(phone);
+	const auto pattern = Countries::Instance().format({
+		.phone = phone,
+		.onlyGroups = true,
+	}).groups;
 	if (!pattern.isEmpty()) {
 		return phone.mid(0, pattern[0]);
 	}
@@ -343,7 +349,11 @@ void PhoneInput::correctValue(
 		int &nowCursor) {
 	auto digits = now;
 	digits.replace(QRegularExpression("[^\\d]"), QString());
-	_pattern = phoneNumberParse(digits);
+	_pattern = Countries::Instance().format({
+		.phone = digits,
+		.onlyGroups = true,
+		.incomplete = true,
+	}).groups;
 
 	QString newPlaceholder;
 	if (_pattern.isEmpty()) {
