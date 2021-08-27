@@ -90,6 +90,17 @@ void Manager::write() const {
 void Manager::request() {
 	Expects(_api);
 
+	const auto convertMTP = [](const auto &vector, bool force = false) {
+		if (!vector) {
+			return std::vector<QString>(force ? 1 : 0);
+		}
+		return ranges::views::all(
+			vector->v
+		) | ranges::views::transform([](const MTPstring &s) -> QString {
+			return s.v;
+		}) | ranges::to_vector;
+	};
+
 	_api->request(MTPhelp_GetCountriesList(
 		MTP_string(),
 		MTP_int(_hash)
@@ -102,16 +113,28 @@ void Manager::request() {
 			for (const auto &country : data.vcountries().v) {
 
 				const auto &countryData = country.c_help_country();
+				if (countryData.is_hidden()) {
+					continue;
+				}
 				const auto &first = countryData.vcountry_codes().v.front()
 					.c_help_countryCode();
 
-				const auto name = countryData.vdefault_name().v;
-
-				infos.push_back(ProcessAlternativeName({
-					.name = name,
+				auto info = Info(ProcessAlternativeName({
+					.name = countryData.vdefault_name().v,
 					.iso2 = countryData.viso2().v,
 					.code = first.vcountry_code().v,
+					.isHidden = countryData.is_hidden(),
 				}));
+				for (const auto &code : countryData.vcountry_codes().v) {
+					const auto &codeData = code.c_help_countryCode();
+					info.codes.push_back(CallingCodeInfo{
+						.callingCode = codeData.vcountry_code().v,
+						.prefixes = convertMTP(codeData.vprefixes(), true),
+						.patterns = convertMTP(codeData.vpatterns()),
+					});
+				}
+
+				infos.push_back(std::move(info));
 			}
 
 			Instance().setList(std::move(infos));

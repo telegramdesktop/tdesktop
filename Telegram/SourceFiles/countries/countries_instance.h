@@ -10,11 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Countries {
 
+struct CallingCodeInfo {
+	QString callingCode;
+	std::vector<QString> prefixes;
+	std::vector<QString> patterns;
+};
+
 struct Info {
 	QString name;
 	QString iso2;
 	QString code;
 	QString alternativeName;
+	std::vector<CallingCodeInfo> codes;
+	bool isHidden = false;
 };
 
 class CountriesInstance final {
