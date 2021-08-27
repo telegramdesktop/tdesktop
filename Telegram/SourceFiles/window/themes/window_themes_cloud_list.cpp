@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
@@ -185,7 +186,7 @@ void CloudListCheck::ensureContrast() {
 		QImage::Format_ARGB32_Premultiplied);
 	const auto active = style::internal::EnsureContrast(
 		_colors->radiobuttonActive,
-		CountAverageColor(image));
+		Ui::CountAverageColor(image));
 	_colors->radiobuttonInactive = _colors->radiobuttonActive = QColor(
 		active.red(),
 		active.green(),

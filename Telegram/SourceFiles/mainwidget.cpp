@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/stickers/data_stickers.h"
 #include "api/api_text_entities.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -1183,9 +1184,9 @@ void MainWidget::checkChatBackground() {
 			: background->data;
 		setReadyChatBackground(ready, std::move(image));
 	};
-	_background->generating = Data::ReadImageAsync(
+	_background->generating = Data::ReadBackgroundImageAsync(
 		media.get(),
-		Window::Theme::PreprocessBackgroundImage,
+		Ui::PreprocessBackgroundImage,
 		generateCallback);
 }
 

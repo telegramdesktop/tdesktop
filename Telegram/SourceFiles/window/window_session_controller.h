@@ -47,6 +47,7 @@ class LayerWidget;
 enum class ReportReason;
 class ChatTheme;
 struct ChatPaintContext;
+struct ChatThemeBackground;
 } // namespace Ui
 
 namespace Data {
@@ -419,6 +420,8 @@ public:
 	}
 
 private:
+	struct CachedTheme;
+
 	void init();
 	void initSupportMode();
 	void refreshFiltersMenu();
@@ -445,6 +448,11 @@ private:
 
 	void pushDefaultChatBackground();
 	void cacheChatTheme(const Data::CloudTheme &data);
+	void cacheChatThemeDone(std::shared_ptr<Ui::ChatTheme> result);
+	void updateCustomThemeBackground(CachedTheme &theme);
+	[[nodiscard]] Fn<Ui::ChatThemeBackground()> backgroundGenerator(
+		CachedTheme &theme,
+		bool generateGradient = true);
 
 	const not_null<Controller*> _window;
 
@@ -474,7 +482,7 @@ private:
 	rpl::event_stream<> _filtersMenuChanged;
 
 	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
-	base::flat_map<uint64, std::shared_ptr<Ui::ChatTheme>> _customChatThemes;
+	base::flat_map<uint64, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 
 	rpl::lifetime _lifetime;

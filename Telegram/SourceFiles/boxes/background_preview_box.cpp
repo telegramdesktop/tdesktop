@@ -341,7 +341,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 		Images::Option blur = Images::Option(0)) {
 	auto result = PrepareScaledNonPattern(image, blur);
 	if (isPattern) {
-		result = Data::PreparePatternImage(
+		result = Ui::PreparePatternImage(
 			std::move(result),
 			background,
 			gradientRotation,
@@ -395,7 +395,7 @@ void BackgroundPreviewBox::generateBackground() {
 	const auto size = QSize(st::boxWideWidth, st::boxWideWidth)
 		* cIntRetinaFactor();
 	_generated = Ui::PixmapFromImage((_paper.patternOpacity() >= 0.)
-		? Data::GenerateWallPaper(
+		? Ui::GenerateBackgroundImage(
 			size,
 			_paper.backgroundColors(),
 			_paper.gradientRotation())
@@ -668,7 +668,7 @@ void BackgroundPreviewBox::setScaledFromThumb() {
 	auto blurred = (_paper.document() || _paper.isPattern())
 		? QImage()
 		: PrepareScaledNonPattern(
-			Data::PrepareBlurredBackground(thumbnail->original()),
+			Ui::PrepareBlurredBackground(thumbnail->original()),
 			Images::Option(0));
 	setScaledFromImage(std::move(scaled), std::move(blurred));
 }
@@ -676,7 +676,7 @@ void BackgroundPreviewBox::setScaledFromThumb() {
 void BackgroundPreviewBox::setScaledFromImage(
 		QImage &&image,
 		QImage &&blurred) {
-	updateServiceBg({ Window::Theme::CountAverageColor(image) });
+	updateServiceBg({ Ui::CountAverageColor(image) });
 	if (!_full.isNull()) {
 		startFadeInFrom(std::move(_scaled));
 	}
@@ -714,7 +714,7 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 		green += color.green();
 		blue += color.blue();
 	}
-	_serviceBg = Window::Theme::AdjustedColor(
+	_serviceBg = Ui::ThemeAdjustedColor(
 		st::msgServiceBg->c,
 		QColor(red / count, green / count, blue / count));
 }
@@ -748,7 +748,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 				patternOpacity);
 			auto blurred = !isPattern
 				? PrepareScaledNonPattern(
-					Data::PrepareBlurredBackground(image),
+					Ui::PrepareBlurredBackground(image),
 					Images::Option(0))
 				: QImage();
 			crl::on_main(std::move(guard), [
@@ -763,9 +763,9 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 			});
 		});
 	};
-	_generating = Data::ReadImageAsync(
+	_generating = Data::ReadBackgroundImageAsync(
 		_media.get(),
-		Window::Theme::PreprocessBackgroundImage,
+		Ui::PreprocessBackgroundImage,
 		generateCallback);
 }
 

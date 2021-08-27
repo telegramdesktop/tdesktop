@@ -279,7 +279,7 @@ void ThemeDocument::validateThumbnail() const {
 }
 
 void ThemeDocument::generateThumbnail() const {
-	_thumbnail = Ui::PixmapFromImage(Data::GenerateWallPaper(
+	_thumbnail = Ui::PixmapFromImage(Ui::GenerateBackgroundImage(
 		QSize(_pixw, _pixh) * cIntRetinaFactor(),
 		_background,
 		_gradientRotation,
@@ -316,7 +316,7 @@ void ThemeDocument::prepareThumbnailFrom(
 		_pixw,
 		_pixh);
 	if (isPattern) {
-		original = Data::PreparePatternImage(
+		original = Ui::PreparePatternImage(
 			std::move(original),
 			_background,
 			_gradientRotation,

@@ -18,6 +18,10 @@ namespace Window {
 class Controller;
 } // namespace Window
 
+namespace Ui {
+struct ChatThemeBackground;
+} // namespace Ui
+
 namespace Window {
 namespace Theme {
 
@@ -107,9 +111,6 @@ bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
 	Cached *outCache);
-[[nodiscard]] QColor CountAverageColor(const QImage &image);
-[[nodiscard]] QColor AdjustedColor(QColor original, QColor background);
-[[nodiscard]] QImage PreprocessBackgroundImage(QImage image);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -280,7 +281,9 @@ private:
 
 [[nodiscard]] ChatBackground *Background();
 
-bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback);
+bool ReadPaletteValues(
+	const QByteArray &content,
+	Fn<bool(QLatin1String name, QLatin1String value)> callback);
 
 } // namespace Theme
 } // namespace Window

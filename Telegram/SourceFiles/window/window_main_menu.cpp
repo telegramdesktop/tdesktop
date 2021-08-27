@@ -996,7 +996,7 @@ void MainMenu::refreshBackground() {
 		prepared.size());
 
 	auto backgroundImage = paper.isPattern()
-		? Data::GenerateWallPaper(
+		? Ui::GenerateBackgroundImage(
 			fill * cIntRetinaFactor(),
 			paper.backgroundColors(),
 			paper.gradientRotation(),

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "media/player/media_player_instance.h"
 #include "platform/platform_file_utilities.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
 
@@ -32,8 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
-
-constexpr auto kMaxWallpaperSize = 3072;
 
 void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
@@ -175,19 +174,7 @@ bool IsIpRevealingName(const QString &filepath) {
 	);
 }
 
-[[nodiscard]] QImage ReadImage(
-		const QString &path,
-		const QByteArray &content,
-		bool gzipSvg) {
-	return Images::Read({
-		.path = path,
-		.content = content,
-		.maxSize = QSize(kMaxWallpaperSize, kMaxWallpaperSize),
-		.gzipSvg = gzipSvg,
-	}).image;
-}
-
-base::binary_guard ReadImageAsync(
+base::binary_guard ReadBackgroundImageAsync(
 		not_null<Data::DocumentMedia*> media,
 		FnMut<QImage(QImage)> postprocess,
 		FnMut<void(QImage&&)> done) {
@@ -201,7 +188,7 @@ base::binary_guard ReadImageAsync(
 		guard = result.make_guard(),
 		callback = std::move(done)
 	]() mutable {
-		auto image = ReadImage(path, bytes, gzipSvg);
+		auto image = Ui::ReadBackgroundImage(path, bytes, gzipSvg);
 		if (postprocess) {
 			image = postprocess(std::move(image));
 		}

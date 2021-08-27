@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "storage/serialize_common.h"
+#include "ui/chat/chat_theme.h"
 #include "core/application.h"
 #include "main/main_session.h"
 
@@ -43,10 +44,6 @@ constexpr auto kVersion = 1;
 
 [[nodiscard]] quint32 SerializeMaybeColor(std::optional<QColor> color) {
 	return color ? SerializeColor(*color) : quint32(-1);
-}
-
-[[nodiscard]] QColor DefaultBackgroundColor() {
-	return QColor(213, 223, 233);
 }
 
 [[nodiscard]] std::vector<QColor> ColorsFromMTP(
@@ -683,89 +680,8 @@ bool IsCloudWallPaper(const WallPaper &paper) {
 		&& !details::IsTestingEditorWallPaper(paper);
 }
 
-QImage GenerateWallPaper(
-		QSize size,
-		const std::vector<QColor> &bg,
-		int gradientRotation,
-		float64 patternOpacity,
-		Fn<void(QPainter&)> drawPattern) {
-	auto result = bg.empty()
-		? Images::GenerateGradient(size, { DefaultBackgroundColor() })
-		: Images::GenerateGradient(size, bg, gradientRotation);
-	if (bg.size() > 1 && (!drawPattern || patternOpacity >= 0.)) {
-		result = Images::DitherImage(std::move(result));
-	}
-	if (drawPattern) {
-		auto p = QPainter(&result);
-		if (patternOpacity >= 0.) {
-			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-			p.setOpacity(patternOpacity);
-		} else {
-			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-		}
-		drawPattern(p);
-		if (patternOpacity < 0. && patternOpacity > -1.) {
-			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			p.setOpacity(1. + patternOpacity);
-			p.fillRect(QRect{ QPoint(), size }, Qt::black);
-		}
-	}
-
-	return std::move(result).convertToFormat(
-		QImage::Format_ARGB32_Premultiplied);
-}
-
-QImage PreparePatternImage(
-		QImage pattern,
-		const std::vector<QColor> &bg,
-		int gradientRotation,
-		float64 patternOpacity) {
-	auto result = GenerateWallPaper(
-		pattern.size(),
-		bg,
-		gradientRotation,
-		patternOpacity,
-		[&](QPainter &p) {
-			p.drawImage(QRect(QPoint(), pattern.size()), pattern);
-		});
-
-	pattern = QImage();
-	return result;
-}
-
-QImage PrepareBlurredBackground(QImage image) {
-	constexpr auto kSize = 900;
-	constexpr auto kRadius = 24;
-	if (image.width() > kSize || image.height() > kSize) {
-		image = image.scaled(
-			kSize,
-			kSize,
-			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
-	}
-	return Images::BlurLargeImage(image, kRadius);
-}
-
-QImage GenerateDitheredGradient(
-		const std::vector<QColor> &colors,
-		int rotation) {
-	constexpr auto kSize = 512;
-	const auto size = QSize(kSize, kSize);
-	if (colors.empty()) {
-		return Images::GenerateGradient(size, { DefaultBackgroundColor() });
-	}
-	auto result = Images::GenerateGradient(size, colors, rotation);
-	if (colors.size() > 1) {
-		result = Images::DitherImage(std::move(result));
-	}
-	return result;
-}
-
 QImage GenerateDitheredGradient(const Data::WallPaper &paper) {
-	if (paper.backgroundColors().empty()) {
-		return GenerateDitheredGradient({ DefaultBackgroundColor() }, 0);
-	}
-	return GenerateDitheredGradient(
+	return Ui::GenerateDitheredGradient(
 		paper.backgroundColors(),
 		paper.gradientRotation());
 }

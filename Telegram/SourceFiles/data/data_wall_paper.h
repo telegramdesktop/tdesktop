@@ -121,21 +121,6 @@ private:
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);
 
-[[nodiscard]] QImage GenerateWallPaper(
-	QSize size,
-	const std::vector<QColor> &bg,
-	int gradientRotation,
-	float64 patternOpacity = 1.,
-	Fn<void(QPainter&)> drawPattern = nullptr);
-[[nodiscard]] QImage PreparePatternImage(
-	QImage pattern,
-	const std::vector<QColor> &bg,
-	int gradientRotation,
-	float64 patternOpacity);
-[[nodiscard]] QImage PrepareBlurredBackground(QImage image);
-[[nodiscard]] QImage GenerateDitheredGradient(
-	const std::vector<QColor> &colors,
-	int rotation);
 [[nodiscard]] QImage GenerateDitheredGradient(const WallPaper &paper);
 
 [[nodiscard]] QColor ColorFromSerialized(quint32 serialized);

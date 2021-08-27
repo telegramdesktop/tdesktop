@@ -21,6 +21,12 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 constexpr auto kCacheBackgroundTimeout = 3 * crl::time(1000);
 constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kBackgroundFadeDuration = crl::time(200);
+constexpr auto kMinimumTiledSize = 512;
+constexpr auto kMaxSize = 2960;
+
+[[nodiscard]] QColor DefaultBackgroundColor() {
+	return QColor(213, 223, 233);
+}
 
 [[nodiscard]] CacheBackgroundResult CacheBackground(
 		const CacheBackgroundRequest &request) {
@@ -141,7 +147,7 @@ bool operator!=(
 }
 
 CachedBackground::CachedBackground(CacheBackgroundResult &&result)
-: pixmap(Ui::PixmapFromImage(std::move(result.image)))
+: pixmap(PixmapFromImage(std::move(result.image)))
 , area(result.area)
 , x(result.x)
 , y(result.y) {
@@ -169,6 +175,18 @@ void ChatTheme::setBackground(ChatThemeBackground &&background) {
 	_repaintBackgroundRequests.fire({});
 }
 
+void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
+	_mutableBackground.prepared = std::move(background.prepared);
+	_mutableBackground.preparedForTiled = std::move(
+		background.preparedForTiled);
+	if (!_backgroundState.now.pixmap.isNull()) {
+		if (_cacheBackgroundTimer) {
+			_cacheBackgroundTimer->cancel();
+		}
+		cacheBackgroundNow();
+	}
+}
+
 uint64 ChatTheme::key() const {
 	return _id;
 }
@@ -184,7 +202,7 @@ void ChatTheme::setBubblesBackground(QImage image) {
 		});
 	}
 	if (!_bubblesBackgroundPattern) {
-		_bubblesBackgroundPattern = Ui::PrepareBubblePattern();
+		_bubblesBackgroundPattern = PrepareBubblePattern();
 	}
 	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
 	_repaintBackgroundRequests.fire({});
@@ -425,6 +443,246 @@ ChatBackgroundRects ComputeChatBackgroundRects(
 				int(std::ceil(takeheight * pxsize))),
 		};
 	}
+}
+
+QColor CountAverageColor(const QImage &image) {
+	Expects(image.format() == QImage::Format_ARGB32_Premultiplied
+		|| image.format() == QImage::Format_RGB32);
+
+	uint64 components[3] = { 0 };
+	const auto w = image.width();
+	const auto h = image.height();
+	const auto size = w * h;
+	if (const auto pix = image.constBits()) {
+		for (auto i = 0, l = size * 4; i != l; i += 4) {
+			components[2] += pix[i + 0];
+			components[1] += pix[i + 1];
+			components[0] += pix[i + 2];
+		}
+	}
+	if (size) {
+		for (auto i = 0; i != 3; ++i) {
+			components[i] /= size;
+		}
+	}
+	return QColor(components[0], components[1], components[2]);
+}
+
+QColor ThemeAdjustedColor(QColor original, QColor background) {
+	return QColor::fromHslF(
+		background.hslHueF(),
+		background.hslSaturationF(),
+		original.lightnessF(),
+		original.alphaF()
+	).toRgb();
+}
+
+QImage PreprocessBackgroundImage(QImage image) {
+	if (image.isNull()) {
+		return image;
+	}
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	if (image.width() > 40 * image.height()) {
+		const auto width = 40 * image.height();
+		const auto height = image.height();
+		image = image.copy((image.width() - width) / 2, 0, width, height);
+	} else if (image.height() > 40 * image.width()) {
+		const auto width = image.width();
+		const auto height = 40 * image.width();
+		image = image.copy(0, (image.height() - height) / 2, width, height);
+	}
+	if (image.width() > kMaxSize || image.height() > kMaxSize) {
+		image = image.scaled(
+			kMaxSize,
+			kMaxSize,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return image;
+}
+
+std::optional<QColor> CalculateImageMonoColor(const QImage &image) {
+	Expects(image.bytesPerLine() == 4 * image.width());
+
+	if (image.isNull()) {
+		return std::nullopt;
+	}
+	const auto bits = reinterpret_cast<const uint32*>(image.constBits());
+	const auto first = bits[0];
+	for (auto i = 0; i < image.width() * image.height(); i++) {
+		if (first != bits[i]) {
+			return std::nullopt;
+		}
+	}
+	return image.pixelColor(QPoint());
+}
+
+QImage PrepareImageForTiled(const QImage &prepared) {
+	const auto width = prepared.width();
+	const auto height = prepared.height();
+	const auto isSmallForTiled = (width > 0 && height > 0)
+		&& (width < kMinimumTiledSize || height < kMinimumTiledSize);
+	if (!isSmallForTiled) {
+		return prepared;
+	}
+	const auto repeatTimesX = (kMinimumTiledSize + width - 1) / width;
+	const auto repeatTimesY = (kMinimumTiledSize + height - 1) / height;
+	auto result = QImage(
+		width * repeatTimesX,
+		height * repeatTimesY,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(prepared.devicePixelRatio());
+	auto imageForTiledBytes = result.bits();
+	auto bytesInLine = width * sizeof(uint32);
+	for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
+		auto imageBytes = prepared.constBits();
+		for (auto y = 0; y != height; ++y) {
+			for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
+				memcpy(imageForTiledBytes, imageBytes, bytesInLine);
+				imageForTiledBytes += bytesInLine;
+			}
+			imageBytes += prepared.bytesPerLine();
+			imageForTiledBytes += result.bytesPerLine() - (repeatTimesX * bytesInLine);
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] QImage ReadBackgroundImage(
+		const QString &path,
+		const QByteArray &content,
+		bool gzipSvg) {
+	return Images::Read({
+		.path = path,
+		.content = content,
+		.maxSize = QSize(kMaxSize, kMaxSize),
+		.gzipSvg = gzipSvg,
+	}).image;
+}
+
+QImage GenerateBackgroundImage(
+		QSize size,
+		const std::vector<QColor> &bg,
+		int gradientRotation,
+		float64 patternOpacity,
+		Fn<void(QPainter&)> drawPattern) {
+	auto result = bg.empty()
+		? Images::GenerateGradient(size, { DefaultBackgroundColor() })
+		: Images::GenerateGradient(size, bg, gradientRotation);
+	if (bg.size() > 1 && (!drawPattern || patternOpacity >= 0.)) {
+		result = Images::DitherImage(std::move(result));
+	}
+	if (drawPattern) {
+		auto p = QPainter(&result);
+		if (patternOpacity >= 0.) {
+			p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+			p.setOpacity(patternOpacity);
+		} else {
+			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		}
+		drawPattern(p);
+		if (patternOpacity < 0. && patternOpacity > -1.) {
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			p.setOpacity(1. + patternOpacity);
+			p.fillRect(QRect{ QPoint(), size }, Qt::black);
+		}
+	}
+
+	return std::move(result).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+}
+
+QImage PreparePatternImage(
+		QImage pattern,
+		const std::vector<QColor> &bg,
+		int gradientRotation,
+		float64 patternOpacity) {
+	auto result = GenerateBackgroundImage(
+		pattern.size(),
+		bg,
+		gradientRotation,
+		patternOpacity,
+		[&](QPainter &p) {
+			p.drawImage(QRect(QPoint(), pattern.size()), pattern);
+		});
+
+	pattern = QImage();
+	return result;
+}
+
+QImage PrepareBlurredBackground(QImage image) {
+	constexpr auto kSize = 900;
+	constexpr auto kRadius = 24;
+	if (image.width() > kSize || image.height() > kSize) {
+		image = image.scaled(
+			kSize,
+			kSize,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return Images::BlurLargeImage(image, kRadius);
+}
+
+QImage GenerateDitheredGradient(
+		const std::vector<QColor> &colors,
+		int rotation) {
+	constexpr auto kSize = 512;
+	const auto size = QSize(kSize, kSize);
+	if (colors.empty()) {
+		return Images::GenerateGradient(size, { DefaultBackgroundColor() });
+	}
+	auto result = Images::GenerateGradient(size, colors, rotation);
+	if (colors.size() > 1) {
+		result = Images::DitherImage(std::move(result));
+	}
+	return result;
+}
+
+ChatThemeBackground PrepareBackgroundImage(
+		const QString &path,
+		const QByteArray &bytes,
+		bool gzipSvg,
+		const std::vector<QColor> &colors,
+		bool isPattern,
+		float64 patternOpacity,
+		bool isBlurred) {
+	auto prepared = (isPattern || colors.empty())
+		? PreprocessBackgroundImage(ReadBackgroundImage(path, bytes, gzipSvg))
+		: QImage();
+	if (isPattern && !prepared.isNull()) {
+		if (colors.size() < 2) {
+			const auto gradientRotation = 0; // No gradient here.
+			prepared = PreparePatternImage(
+				std::move(prepared),
+				colors,
+				gradientRotation,
+				patternOpacity);
+		}
+		prepared.setDevicePixelRatio(style::DevicePixelRatio());
+	} else if (colors.empty()) {
+		prepared.setDevicePixelRatio(style::DevicePixelRatio());
+	}
+	const auto imageMonoColor = (colors.size() < 2)
+		? CalculateImageMonoColor(prepared)
+		: std::nullopt;
+	if (!prepared.isNull() && !isPattern && isBlurred) {
+		prepared = PrepareBlurredBackground(std::move(prepared));
+	}
+	return ChatThemeBackground{
+		.prepared = prepared,
+		.preparedForTiled = PrepareImageForTiled(prepared),
+		.colorForFill = (!prepared.isNull()
+			? imageMonoColor
+			: (colors.size() > 1 || colors.empty())
+			? std::nullopt
+			: std::make_optional(colors.front())),
+		.colors = colors,
+		.patternOpacity = patternOpacity,
+		.isPattern = isPattern,
+	};
 }
 
 } // namespace Window::Theme

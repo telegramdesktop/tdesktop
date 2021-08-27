@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -331,7 +332,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 			}
 		} else if (!paper.data.backgroundColors().empty()) {
 			paper.thumbnail = Ui::PixmapFromImage(
-				Data::GenerateWallPaper(
+				Ui::GenerateBackgroundImage(
 					st::backgroundSize * cIntRetinaFactor(),
 					paper.data.backgroundColors(),
 					paper.data.gradientRotation()));
@@ -346,7 +347,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		: paper.dataMedia->thumbnail();
 	auto original = thumbnail->original();
 	if (paper.data.isPattern()) {
-		original = Data::PreparePatternImage(
+		original = Ui::PreparePatternImage(
 			std::move(original),
 			paper.data.backgroundColors(),
 			paper.data.gradientRotation(),

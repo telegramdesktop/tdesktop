@@ -24,7 +24,7 @@ class DocumentMedia;
 // [[nodiscard]] bool IsValidMediaFile(const QString &filepath);
 [[nodiscard]] bool IsExecutableName(const QString &filepath);
 [[nodiscard]] bool IsIpRevealingName(const QString &filepath);
-base::binary_guard ReadImageAsync(
+base::binary_guard ReadBackgroundImageAsync(
 	not_null<Data::DocumentMedia*> media,
 	FnMut<QImage(QImage)> postprocess,
 	FnMut<void(QImage&&)> done);

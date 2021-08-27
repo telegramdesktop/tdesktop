@@ -117,6 +117,7 @@ public:
 	}
 
 	void setBackground(ChatThemeBackground &&background);
+	void updateBackgroundImageFrom(ChatThemeBackground &&background);
 	const ChatThemeBackground &background() const {
 		return _mutableBackground;
 	}
@@ -174,5 +175,41 @@ struct ChatBackgroundRects {
 [[nodiscard]] ChatBackgroundRects ComputeChatBackgroundRects(
 	QSize fillSize,
 	QSize imageSize);
+
+[[nodiscard]] QColor CountAverageColor(const QImage &image);
+[[nodiscard]] QColor ThemeAdjustedColor(QColor original, QColor background);
+[[nodiscard]] QImage PreprocessBackgroundImage(QImage image);
+[[nodiscard]] std::optional<QColor> CalculateImageMonoColor(
+	const QImage &image);
+[[nodiscard]] QImage PrepareImageForTiled(const QImage &prepared);
+
+[[nodiscard]] QImage ReadBackgroundImage(
+	const QString &path,
+	const QByteArray &content,
+	bool gzipSvg);
+[[nodiscard]] QImage GenerateBackgroundImage(
+	QSize size,
+	const std::vector<QColor> &bg,
+	int gradientRotation,
+	float64 patternOpacity = 1.,
+	Fn<void(QPainter&)> drawPattern = nullptr);
+[[nodiscard]] QImage PreparePatternImage(
+	QImage pattern,
+	const std::vector<QColor> &bg,
+	int gradientRotation,
+	float64 patternOpacity);
+[[nodiscard]] QImage PrepareBlurredBackground(QImage image);
+[[nodiscard]] QImage GenerateDitheredGradient(
+	const std::vector<QColor> &colors,
+	int rotation);
+
+[[nodiscard]] ChatThemeBackground PrepareBackgroundImage(
+	const QString &path,
+	const QByteArray &bytes,
+	bool gzipSvg,
+	const std::vector<QColor> &colors,
+	bool isPattern,
+	float64 patternOpacity,
+	bool isBlurred);
 
 } // namespace Ui
