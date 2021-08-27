@@ -2619,13 +2619,14 @@ void Session::photoApplyFields(
 		}
 		const auto area = [](const MTPVideoSize &size) {
 			return size.match([](const MTPDvideoSize &data) {
-				return data.vw().v * data.vh().v;
+				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
 			});
 		};
-		return *ranges::max_element(
+		const auto result = *ranges::max_element(
 			sizes->v,
 			std::greater<>(),
 			area);
+		return (area(result) > 0) ? std::make_optional(result) : std::nullopt;
 	};
 	const auto useProgressive = (progressive != sizes.end());
 	const auto large = useProgressive
