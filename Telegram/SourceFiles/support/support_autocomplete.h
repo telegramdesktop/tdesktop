@@ -24,6 +24,7 @@ class SessionController;
 namespace Ui {
 class ScrollArea;
 class InputField;
+class ChatStyle;
 } // namespace Ui
 
 namespace Support {
@@ -83,6 +84,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	AdminLog::OwnedItem _comment;
 	AdminLog::OwnedItem _contact;
 	Fn<void(Qt::KeyboardModifiers)> _submit;

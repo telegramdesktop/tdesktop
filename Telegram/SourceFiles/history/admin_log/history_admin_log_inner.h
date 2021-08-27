@@ -58,6 +58,9 @@ public:
 		not_null<ChannelData*> channel);
 
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
+		return _theme.get();
+	}
 
 	[[nodiscard]] rpl::producer<> showSearchSignal() const;
 	[[nodiscard]] rpl::producer<int> scrollToSignal() const;
@@ -253,6 +256,7 @@ private:
 	MTP::Sender _api;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;

@@ -21,6 +21,7 @@ class Session;
 
 namespace Ui {
 class PopupMenu;
+class ChatTheme;
 } // namespace Ui
 
 namespace Window {
@@ -91,6 +92,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) = 0;
 	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
+	virtual not_null<Ui::ChatTheme*> listChatTheme() = 0;
 
 };
 

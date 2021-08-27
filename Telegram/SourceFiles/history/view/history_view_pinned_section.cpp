@@ -101,6 +101,14 @@ PinnedWidget::PinnedWidget(
 	QString(),
 	st::historyComposeButton))
 , _scrollDown(_scroll.get(), st::historyToDown) {
+	Window::ChatThemeValueFromPeer(
+		controller,
+		history->peer
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		_theme = std::move(theme);
+		controller->setChatStyleTheme(_theme);
+	}, lifetime());
+
 	_topBar->setActiveChat(
 		TopBarWidget::ActiveChat{
 			.key = _history,
@@ -457,11 +465,7 @@ void PinnedWidget::paintEvent(QPaintEvent *e) {
 	const auto aboveHeight = _topBar->height();
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
-	SectionWidget::PaintBackground(
-		controller(),
-		controller()->defaultChatTheme().get(), // #TODO themes
-		this,
-		bg);
+	SectionWidget::PaintBackground(controller(), _theme.get(), this, bg);
 }
 
 void PinnedWidget::onScroll() {
@@ -652,6 +656,10 @@ void PinnedWidget::listSendBotCommand(
 }
 
 void PinnedWidget::listHandleViaClick(not_null<UserData*> bot) {
+}
+
+not_null<Ui::ChatTheme*> PinnedWidget::listChatTheme() {
+	return _theme.get();
 }
 
 void PinnedWidget::confirmDeleteSelected() {

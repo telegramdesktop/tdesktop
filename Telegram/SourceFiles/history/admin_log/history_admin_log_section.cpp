@@ -470,11 +470,8 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(
-		controller(),
-		controller()->defaultChatTheme().get(), // #TODO themes
-		this,
-		e->rect());
+	const auto clip = e->rect();
+	SectionWidget::PaintBackground(controller(), _inner->theme(), this, clip);
 }
 
 void Widget::onScroll() {

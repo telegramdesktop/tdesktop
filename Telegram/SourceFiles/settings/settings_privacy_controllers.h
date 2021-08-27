@@ -16,6 +16,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Ui {
+class ChatStyle;
+} // namespace Ui
+
 namespace Settings {
 
 class BlockedBoxController : public PeerListController {
@@ -193,6 +197,7 @@ private:
 		Option value);
 
 	const not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 
 };
 

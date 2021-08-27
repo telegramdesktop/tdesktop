@@ -143,6 +143,11 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 
+protected:
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
+		return _controller;
+	}
+
 private:
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;

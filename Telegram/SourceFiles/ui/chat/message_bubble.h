@@ -13,6 +13,9 @@ class Painter;
 
 namespace Ui {
 
+class ChatTheme;
+class ChatStyle;
+
 struct BubbleSelectionInterval {
 	int top = 0;
 	int height = 0;
@@ -28,9 +31,11 @@ struct BubblePattern {
 	mutable QImage tailCache;
 };
 
-[[nodiscard]] std::unique_ptr<BubblePattern> PrepareBubblePattern();
+[[nodiscard]] std::unique_ptr<BubblePattern> PrepareBubblePattern(
+	not_null<const style::palette*> st);
 
 struct SimpleBubble {
+	not_null<const ChatStyle*> st;
 	QRect geometry;
 	const BubblePattern *pattern = nullptr;
 	QRect patternViewport;

@@ -163,6 +163,14 @@ HistoryInner::HistoryInner(
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
 	Instance = this;
 
+	Window::ChatThemeValueFromPeer(
+		controller,
+		_peer
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		_theme = std::move(theme);
+		controller->setChatStyleTheme(_theme);
+	}, lifetime());
+
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -617,7 +625,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 			auto top = mtop + block->y() + view->y();
 			auto context = _controller->preparePaintContext({
-				.theme = _controller->defaultChatTheme().get(), // #TODO themes
+				.theme = _theme.get(),
 				.visibleAreaTop = _visibleAreaTop,
 				.visibleAreaTopGlobal = visibleAreaTopGlobal,
 				.clip = clip,
@@ -666,7 +674,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto readTill = (HistoryItem*)nullptr;
 			auto top = htop + block->y() + view->y();
 			auto context = _controller->preparePaintContext({
-				.theme = _controller->defaultChatTheme().get(), // #TODO themes
+				.theme = _theme.get(),
 				.visibleAreaTop = _visibleAreaTop,
 				.visibleAreaTopGlobal = visibleAreaTopGlobal,
 				.visibleAreaWidth = width(),

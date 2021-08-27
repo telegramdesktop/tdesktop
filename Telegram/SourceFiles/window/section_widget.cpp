@@ -61,22 +61,6 @@ namespace {
 	});
 }
 
-[[nodiscard]] auto ChatThemeValueFromPeer(
-	not_null<SessionController*> controller,
-	not_null<PeerData*> peer)
--> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
-	return MaybeCloudThemeValueFromPeer(
-		peer
-	) | rpl::map([=](std::optional<Data::CloudTheme> theme)
-	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
-		if (!theme) {
-			return rpl::single(controller->defaultChatTheme());
-		}
-		return controller->cachedChatThemeValue(*theme);
-	}) | rpl::flatten_latest(
-	) | rpl::distinct_until_changed();
-}
-
 } // namespace
 
 AbstractSectionWidget::AbstractSectionWidget(
@@ -297,5 +281,21 @@ rpl::producer<int> SectionWidget::desiredHeight() const {
 }
 
 SectionWidget::~SectionWidget() = default;
+
+auto ChatThemeValueFromPeer(
+	not_null<SessionController*> controller,
+	not_null<PeerData*> peer)
+-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
+	return MaybeCloudThemeValueFromPeer(
+		peer
+	) | rpl::map([=](std::optional<Data::CloudTheme> theme)
+	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
+		if (!theme) {
+			return rpl::single(controller->defaultChatTheme());
+		}
+		return controller->cachedChatThemeValue(*theme);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed();
+}
 
 } // namespace Window

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_autocomplete.h"
 
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_layers.h"
@@ -502,9 +504,11 @@ ConfirmContactBox::ConfirmContactBox(
 	const Contact &data,
 	Fn<void(Qt::KeyboardModifiers)> submit)
 : SimpleElementDelegate(controller, [=] { update(); })
+, _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {
+	_chatStyle->apply(controller->defaultChatTheme().get());
 }
 
 void ConfirmContactBox::prepare() {
@@ -565,13 +569,11 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::boxBg);
 
-	const auto context = HistoryView::PaintContext{
-		.st = style::main_palette::get(),
-		.bubblesPattern = nullptr, // #TODO bubbles
-		.viewport = rect(),
-		.clip = rect(),
-		.now = crl::now(),
-	};
+	const auto theme = controller()->defaultChatTheme().get();
+	const auto context = theme->preparePaintContext(
+		_chatStyle.get(),
+		rect(),
+		rect());
 	p.translate(st::boxPadding.left(), 0);
 	if (_comment) {
 		_comment->draw(p, context);

@@ -78,12 +78,12 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 		return result;
 	}
 	const auto errors = std::fetestexcept(FE_ALL_EXCEPT);
-	LOG(("Streaming Error: Got NAN in std::round(%1), fe: %2."
-		).arg(value
-		).arg(errors));
 	if (const auto result = std::round(value); !std::isnan(result)) {
 		return result;
 	}
+	LOG(("Streaming Error: Got second NAN in std::round(%1), fe: %2."
+		).arg(value
+		).arg(errors));
 	std::feclearexcept(FE_ALL_EXCEPT);
 	if (const auto result = std::round(value); !std::isnan(result)) {
 		return result;

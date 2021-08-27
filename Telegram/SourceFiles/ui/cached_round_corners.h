@@ -15,10 +15,11 @@ enum class ImageRoundRadius;
 
 namespace Ui {
 
-enum CachedRoundCorners : int {
-	SmallMaskCorners = 0x00, // for images
-	LargeMaskCorners,
+struct CornersPixmaps {
+	QPixmap p[4];
+};
 
+enum CachedRoundCorners : int {
 	BoxCorners,
 	MenuCorners,
 	BotKbOverCorners,
@@ -68,6 +69,16 @@ void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color 
 inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
 	return FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 }
+
+[[nodiscard]] CornersPixmaps PrepareCornerPixmaps(
+	int32 radius,
+	style::color bg,
+	const style::color *sh);
+[[nodiscard]] CornersPixmaps PrepareCornerPixmaps(
+	ImageRoundRadius radius,
+	style::color bg,
+	const style::color *sh);
+void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
 
 void StartCachedCorners();
 void FinishCachedCorners();

@@ -559,6 +559,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			p,
 			Ui::ComplexBubble{
 				.simple = Ui::SimpleBubble{
+					.st = context.st,
 					.geometry = g,
 					.pattern = context.bubblesPattern,
 					.patternViewport = context.viewport,

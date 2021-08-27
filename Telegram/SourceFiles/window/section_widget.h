@@ -203,4 +203,9 @@ private:
 
 };
 
+[[nodiscard]] auto ChatThemeValueFromPeer(
+	not_null<SessionController*> controller,
+	not_null<PeerData*> peer)
+-> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
+
 } // namespace Window

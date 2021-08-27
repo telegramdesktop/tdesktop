@@ -102,6 +102,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
+	not_null<Ui::ChatTheme*> listChatTheme() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -145,6 +146,7 @@ private:
 	void refreshClearButtonText();
 
 	const not_null<History*> _history;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 	PeerData *_migratedPeer = nullptr;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;

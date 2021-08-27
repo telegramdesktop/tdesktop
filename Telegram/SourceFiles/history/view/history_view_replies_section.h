@@ -137,6 +137,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
+	not_null<Ui::ChatTheme*> listChatTheme() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -250,6 +251,7 @@ private:
 
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 	HistoryItem *_root = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;

@@ -118,6 +118,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
+	not_null<Ui::ChatTheme*> listChatTheme() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -206,6 +207,7 @@ private:
 		Api::SendOptions options);
 
 	const not_null<History*> _history;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;

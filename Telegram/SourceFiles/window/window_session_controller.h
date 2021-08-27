@@ -45,6 +45,7 @@ class FormController;
 namespace Ui {
 class LayerWidget;
 enum class ReportReason;
+class ChatStyle;
 class ChatTheme;
 struct ChatPaintContext;
 struct ChatThemeBackground;
@@ -404,6 +405,7 @@ public:
 	[[nodiscard]] auto cachedChatThemeValue(
 		const Data::CloudTheme &data)
 	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
+	void setChatStyleTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
 
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;
@@ -484,6 +486,8 @@ private:
 	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
 	base::flat_map<uint64, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
+	std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 
 	rpl::lifetime _lifetime;
 

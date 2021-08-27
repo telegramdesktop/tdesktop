@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
-#include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
 #include "storage/storage_media_prepare.h"
@@ -101,6 +100,14 @@ ScheduledWidget::ScheduledWidget(
 	ComposeControls::Mode::Scheduled,
 	SendMenu::Type::Disabled))
 , _scrollDown(_scroll, st::historyToDown) {
+	Window::ChatThemeValueFromPeer(
+		controller,
+		history->peer
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		_theme = std::move(theme);
+		controller->setChatStyleTheme(_theme);
+	}, lifetime());
+
 	const auto state = Dialogs::EntryState{
 		.key = _history,
 		.section = Dialogs::EntryState::Section::Scheduled,
@@ -996,11 +1003,8 @@ void ScheduledWidget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(
-		controller(),
-		controller()->defaultChatTheme().get(), // #TODO themes
-		this,
-		e->rect());
+	const auto clip = e->rect();
+	SectionWidget::PaintBackground(controller(), _theme.get(), this, clip);
 }
 
 void ScheduledWidget::onScroll() {
@@ -1202,6 +1206,10 @@ void ScheduledWidget::listSendBotCommand(
 
 void ScheduledWidget::listHandleViaClick(not_null<UserData*> bot) {
 	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
+not_null<Ui::ChatTheme*> ScheduledWidget::listChatTheme() {
+	return _theme.get();
 }
 
 void ScheduledWidget::confirmSendNowSelected() {

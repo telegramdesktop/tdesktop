@@ -30,6 +30,8 @@ constexpr auto kMaxSize = 2960;
 
 [[nodiscard]] CacheBackgroundResult CacheBackground(
 		const CacheBackgroundRequest &request) {
+	Expects(!request.area.isEmpty());
+
 	const auto gradient = request.background.gradientForFill.isNull()
 		? QImage()
 		: (request.gradientRotationAdd != 0)
@@ -69,12 +71,14 @@ constexpr auto kMaxSize = 2960;
 					Qt::KeepAspectRatio,
 					Qt::SmoothTransformation)
 				: request.background.preparedForTiled;
-			const auto w = tiled.width() / style::DevicePixelRatio();
-			const auto h = tiled.height() / style::DevicePixelRatio();
+			const auto w = tiled.width() / float(style::DevicePixelRatio());
+			const auto h = tiled.height() / float(style::DevicePixelRatio());
 			const auto cx = int(std::ceil(request.area.width() / w));
 			const auto cy = int(std::ceil(request.area.height() / h));
 			const auto rows = cy;
-			const auto cols = request.background.isPattern ? (((cx / 2) * 2) + 1) : cx;
+			const auto cols = request.background.isPattern
+				? (((cx / 2) * 2) + 1)
+				: cx;
 			const auto xshift = request.background.isPattern
 				? (request.area.width() - cols * w) / 2
 				: 0;
@@ -202,13 +206,14 @@ void ChatTheme::setBubblesBackground(QImage image) {
 		});
 	}
 	if (!_bubblesBackgroundPattern) {
-		_bubblesBackgroundPattern = PrepareBubblePattern();
+		_bubblesBackgroundPattern = PrepareBubblePattern(palette());
 	}
 	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
 	_repaintBackgroundRequests.fire({});
 }
 
 ChatPaintContext ChatTheme::preparePaintContext(
+		not_null<const ChatStyle*> st,
 		QRect viewport,
 		QRect clip) {
 	_bubblesBackground.area = viewport.size();
@@ -223,7 +228,7 @@ ChatPaintContext ChatTheme::preparePaintContext(
 	//	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
 	//}
 	return {
-		.st = _palette ? _palette.get() : style::main_palette::get(),
+		.st = st,
 		.bubblesPattern = _bubblesBackgroundPattern.get(),
 		.viewport = viewport,
 		.clip = clip,
@@ -240,6 +245,7 @@ const BackgroundState &ChatTheme::backgroundState(QSize area) {
 		&& !background().gradientForFill.isNull()) {
 		// We don't support direct painting of patterned gradients.
 		// So we need to sync-generate cache image here.
+		_willCacheForArea = area;
 		setCachedBackground(CacheBackground(currentCacheRequest(area)));
 		_cacheBackgroundTimer->cancel();
 	} else if (_backgroundState.now.area != area) {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "window/themes/window_theme.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"
@@ -365,6 +366,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	const Data::WallPaper &paper)
 : SimpleElementDelegate(controller, [=] { update(); })
 , _controller(controller)
+, _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _text1(GenerateTextItem(
 	delegate(),
 	_controller->session().data().history(PeerData::kServiceNotificationsId),
@@ -378,6 +380,8 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _paper(paper)
 , _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
+	_chatStyle->apply(controller->defaultChatTheme().get());
+
 	if (_media) {
 		_media->thumbnailWanted(_paper.fileOrigin());
 	}
@@ -590,14 +594,10 @@ QRect BackgroundPreviewBox::radialRect() const {
 void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	const auto height1 = _text1->height();
 	const auto height2 = _text2->height();
-	const auto context = HistoryView::PaintContext{
-		.st = style::main_palette::get(),
-		.bubblesPattern = nullptr, // #TODO bubbles
-		.viewport = rect(),
-		.clip = rect(),
-		.selection = TextSelection(),
-		.now = ms,
-	};
+	const auto context = _controller->defaultChatTheme()->preparePaintContext(
+		_chatStyle.get(),
+		rect(),
+		rect());
 	p.translate(0, textsTop());
 	paintDate(p);
 	_text1->draw(p, context);

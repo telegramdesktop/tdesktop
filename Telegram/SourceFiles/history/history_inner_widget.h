@@ -34,6 +34,7 @@ class SessionController;
 } // namespace Window
 
 namespace Ui {
+class ChatTheme;
 class PopupMenu;
 enum class ReportReason;
 class PathShiftGradient;
@@ -55,7 +56,10 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<History*> history);
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
+		return _theme.get();
+	}
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -344,6 +348,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 
 	History *_migrated = nullptr;
 	int _contentWidth = 0;

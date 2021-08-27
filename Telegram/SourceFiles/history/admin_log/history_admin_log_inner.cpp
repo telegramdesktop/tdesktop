@@ -242,6 +242,14 @@ InnerWidget::InnerWidget(
 		st::historyAdminLogEmptyWidth
 		- st::historyAdminLogEmptyPadding.left()
 		- st::historyAdminLogEmptyPadding.left()) {
+	Window::ChatThemeValueFromPeer(
+		controller,
+		channel
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		_theme = std::move(theme);
+		controller->setChatStyleTheme(_theme);
+	}, lifetime());
+
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([=] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
@@ -915,13 +923,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (from != end) {
 			auto viewport = QRect(); // #TODO bubbles
 			auto top = itemTop(from->get());
-			auto context = HistoryView::PaintContext{
-				.st = style::main_palette::get(),
-				.bubblesPattern = nullptr,
-				.viewport = viewport.translated(0, -top),
-				.clip = clip.translated(0, -top),
-				.now = crl::now(),
-			};
+			auto context = _controller->preparePaintContext({
+				.theme = _theme.get(),
+				.visibleAreaTop = _visibleTop,
+				.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+				.clip = clip,
+			}).translated(0, -top);
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
 				const auto view = i->get();

@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
@@ -79,6 +80,7 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 		std::optional<QColor> accent) {
 	return [=](style::palette &palette) {
 		using namespace Theme;
+		palette.finalize();
 		if (dark) {
 			const auto &embedded = EmbeddedThemes();
 			const auto i = ranges::find(
@@ -506,8 +508,12 @@ SessionController::SessionController(
 		_window->widget(),
 		this))
 , _invitePeekTimer([=] { checkInvitePeek(); })
-, _defaultChatTheme(std::make_shared<Ui::ChatTheme>()) {
+, _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>()) {
 	init();
+
+	_chatStyleTheme = _defaultChatTheme;
+	_chatStyle->apply(_defaultChatTheme.get());
 
 	pushDefaultChatBackground();
 	Theme::Background()->updates(
@@ -1378,6 +1384,15 @@ auto SessionController::cachedChatThemeValue(
 	}) | rpl::take(1));
 }
 
+void SessionController::setChatStyleTheme(
+		const std::shared_ptr<Ui::ChatTheme> &theme) {
+	if (_chatStyleTheme.lock() == theme) {
+		return;
+	}
+	_chatStyleTheme = theme;
+	_chatStyle->apply(theme.get());
+}
+
 void SessionController::pushDefaultChatBackground() {
 	const auto background = Theme::Background();
 	const auto &paper = background->paper();
@@ -1520,7 +1535,10 @@ HistoryView::PaintContext SessionController::preparePaintContext(
 		args.visibleAreaTop - visibleAreaTopLocal,
 		args.visibleAreaWidth,
 		content()->height());
-	return args.theme->preparePaintContext(viewport, args.clip);
+	return args.theme->preparePaintContext(
+		_chatStyle.get(),
+		viewport,
+		args.clip);
 }
 
 SessionController::~SessionController() {

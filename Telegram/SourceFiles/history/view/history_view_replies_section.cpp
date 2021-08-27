@@ -162,6 +162,14 @@ RepliesWidget::RepliesWidget(
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
 , _scrollDown(_scroll.get(), st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
+	Window::ChatThemeValueFromPeer(
+		controller,
+		history->peer
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		_theme = std::move(theme);
+		controller->setChatStyleTheme(_theme);
+	}, lifetime());
+
 	setupRoot();
 	setupRootView();
 
@@ -1511,11 +1519,7 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	const auto aboveHeight = _topBar->height();
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
-	SectionWidget::PaintBackground(
-		controller(),
-		controller()->defaultChatTheme().get(), // #TODO themes
-		this,
-		bg);
+	SectionWidget::PaintBackground(controller(), _theme.get(), this, bg);
 }
 
 void RepliesWidget::onScroll() {
@@ -1784,6 +1788,10 @@ void RepliesWidget::listSendBotCommand(
 
 void RepliesWidget::listHandleViaClick(not_null<UserData*> bot) {
 	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
+not_null<Ui::ChatTheme*> RepliesWidget::listChatTheme() {
+	return _theme.get();
 }
 
 void RepliesWidget::confirmDeleteSelected() {

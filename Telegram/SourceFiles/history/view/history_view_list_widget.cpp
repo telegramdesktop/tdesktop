@@ -1446,7 +1446,7 @@ void ListWidget::startItemRevealAnimations() {
 					kItemRevealDuration,
 					anim::easeOutCirc);
 				if (view->data()->out()) {
-					controller()->defaultChatTheme()->rotateComplexGradientBackground(); // #TODO themes
+					_delegate->listChatTheme()->rotateComplexGradientBackground();
 				}
 			}
 		}
@@ -1611,16 +1611,16 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto to = std::lower_bound(begin(_items), end(_items), clip.top() + clip.height(), [this](auto &elem, int bottom) {
 		return this->itemTop(elem) < bottom;
 	});
+
 	if (from != end(_items)) {
 		auto viewport = QRect(); // #TODO bubbles
 		auto top = itemTop(from->get());
-		auto context = HistoryView::PaintContext{
-			.st = style::main_palette::get(),
-			.bubblesPattern = nullptr,
-			.viewport = viewport.translated(0, -top),
-			.clip = clip.translated(0, -top),
-			.now = crl::now(),
-		};
+		auto context = controller()->preparePaintContext({
+			.theme = _delegate->listChatTheme(),
+			.visibleAreaTop = _visibleTop,
+			.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+			.clip = clip,
+		}).translated(0, -top);
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;

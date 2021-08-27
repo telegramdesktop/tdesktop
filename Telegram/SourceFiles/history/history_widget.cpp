@@ -4942,7 +4942,7 @@ void HistoryWidget::startItemRevealAnimations() {
 							HistoryView::ListWidget::kItemRevealDuration,
 							anim::easeOutCirc);
 						if (item->out() || _history->peer->isSelf()) {
-							controller()->defaultChatTheme()->rotateComplexGradientBackground(); // #TODO themes
+							_list->theme()->rotateComplexGradientBackground();
 						}
 					}
 				}
@@ -6888,7 +6888,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 
 	Window::SectionWidget::PaintBackground(
 		controller(),
-		controller()->defaultChatTheme().get(), // #TODO themes
+		_list ? _list->theme().get() : controller()->defaultChatTheme().get(),
 		this,
 		e->rect());
 

@@ -25,6 +25,7 @@ class SessionController;
 
 namespace Ui {
 class Checkbox;
+class ChatStyle;
 } // namespace Ui
 
 class BackgroundPreviewBox
@@ -71,6 +72,7 @@ private:
 	void checkBlurAnimationStart();
 
 	const not_null<Window::SessionController*> _controller;
+	std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
 	Data::WallPaper _paper;

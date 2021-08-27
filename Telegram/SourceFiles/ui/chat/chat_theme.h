@@ -13,10 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+class ChatStyle;
 struct BubblePattern;
 
 struct ChatPaintContext {
-	not_null<const style::palette*> st;
+	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
 	QRect viewport;
 	QRect clip;
@@ -112,22 +113,23 @@ public:
 	ChatTheme(ChatThemeDescriptor &&descriptor);
 
 	[[nodiscard]] uint64 key() const;
-	[[nodiscard]] not_null<const style::palette*> palette() const {
+	[[nodiscard]] const style::palette *palette() const {
 		return _palette.get();
 	}
 
 	void setBackground(ChatThemeBackground &&background);
 	void updateBackgroundImageFrom(ChatThemeBackground &&background);
-	const ChatThemeBackground &background() const {
+	[[nodiscard]] const ChatThemeBackground &background() const {
 		return _mutableBackground;
 	}
 
 	void setBubblesBackground(QImage image);
-	const BubblePattern *bubblesBackgroundPattern() const {
+	[[nodiscard]] const BubblePattern *bubblesBackgroundPattern() const {
 		return _bubblesBackgroundPattern.get();
 	}
 
 	[[nodiscard]] ChatPaintContext preparePaintContext(
+		not_null<const ChatStyle*> st,
 		QRect viewport,
 		QRect clip);
 	[[nodiscard]] const BackgroundState &backgroundState(QSize area);

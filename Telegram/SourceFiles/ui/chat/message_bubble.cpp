@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/cached_round_corners.h"
 #include "ui/image/image_prepare.h"
+#include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
 
 namespace Ui {
@@ -79,12 +80,10 @@ void PaintBubbleGeneric(
 }
 
 void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
-	const auto opacity = st::msgOutBg->c.alphaF();
-	const auto shadowOpacity = opacity * st::msgOutShadow->c.alphaF();
+	const auto opacity = args.st->msgOutBg()->c.alphaF();
+	const auto shadowOpacity = opacity * args.st->msgOutShadow()->c.alphaF();
 	const auto pattern = args.pattern;
-	const auto sh = (args.skip & RectPart::Bottom)
-		? nullptr
-		: &st::msgOutShadow;
+	const auto sh = !(args.skip & RectPart::Bottom);
 	const auto &tail = (args.tailSide == RectPart::Right)
 		? pattern->tailRight
 		: pattern->tailLeft;
@@ -221,30 +220,14 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 }
 
 void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
-	const auto &bg = args.selected
-		? (args.outbg ? st::msgOutBgSelected : st::msgInBgSelected)
-		: (args.outbg ? st::msgOutBg : st::msgInBg);
+	const auto &st = args.st->messageStyle(args.outbg, args.selected);
+	const auto &bg = st.msgBg;
 	const auto sh = (args.skip & RectPart::Bottom)
 		? nullptr
-		: args.selected
-		? &(args.outbg ? st::msgOutShadowSelected : st::msgInShadowSelected)
-		: &(args.outbg ? st::msgOutShadow : st::msgInShadow);
-	const auto corners = args.selected
-		? (args.outbg
-			? MessageOutSelectedCorners
-			: MessageInSelectedCorners)
-		: (args.outbg ? MessageOutCorners : MessageInCorners);
+		: &st.msgShadow;
 	const auto &tail = (args.tailSide == RectPart::Right)
-		? (args.selected
-			? st::historyBubbleTailOutRightSelected
-			: st::historyBubbleTailOutRight)
-		: args.selected
-		? (args.outbg
-			? st::historyBubbleTailOutLeftSelected
-			: st::historyBubbleTailInLeftSelected)
-		: (args.outbg
-			? st::historyBubbleTailOutLeft
-			: st::historyBubbleTailInLeft);
+		? st.tailRight
+		: st.tailLeft;
 	const auto tailShift = (args.tailSide == RectPart::Right)
 		? QPoint(0, tail.height())
 		: QPoint(tail.width(), tail.height());
@@ -253,7 +236,7 @@ void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
 	}, [&](const QRect &rect) {
 		p.fillRect(rect, *sh);
 	}, [&](const QRect &rect, RectParts parts) {
-		Ui::FillRoundRect(p, rect, bg, corners, sh, parts);
+		Ui::FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, st.corners, sh, parts);
 	}, [&](const QPoint &bottomPosition) {
 		tail.paint(p, bottomPosition - tailShift, args.outerWidth);
 		return tail.width();
@@ -262,7 +245,8 @@ void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
 
 } // namespace
 
-std::unique_ptr<BubblePattern> PrepareBubblePattern() {
+std::unique_ptr<BubblePattern> PrepareBubblePattern(
+		not_null<const style::palette*> st) {
 	auto result = std::make_unique<Ui::BubblePattern>();
 	result->corners = Images::CornersMask(st::historyMessageRadius);
 	const auto addShadow = [&](QImage &bottomCorner) {
@@ -274,7 +258,7 @@ std::unique_ptr<BubblePattern> PrepareBubblePattern() {
 		result.fill(Qt::transparent);
 		result.setDevicePixelRatio(bottomCorner.devicePixelRatio());
 		auto p = QPainter(&result);
-		p.setOpacity(st::msgInShadow->c.alphaF());
+		p.setOpacity(st->msgInShadow()->c.alphaF());
 		p.drawImage(0, st::msgShadow, bottomCorner);
 		p.setOpacity(1.);
 		p.drawImage(0, 0, bottomCorner);
