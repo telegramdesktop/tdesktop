@@ -309,6 +309,9 @@ QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
 
 FormatResult CountriesInstance::format(FormatArgs args) {
 	// Ported from TDLib.
+	if (args.phone.isEmpty()) {
+		return FormatResult();
+	}
 	const auto &phoneNumber = args.phone;
 
 	const Info *bestCountryPtr = nullptr;
@@ -343,43 +346,83 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 	const auto formattedPart = phoneNumber.mid(
 		bestCallingCodePtr->callingCode.size());
 	auto formattedResult = formattedPart;
+	auto groups = QVector<int>();
 	auto maxMatchedDigits = size_t(0);
 	for (auto &pattern : bestCallingCodePtr->patterns) {
+		auto resultGroups = QVector<int>();
 		auto result = QString();
 		auto currentPatternPos = int(0);
 		auto isFailedMatch = false;
 		auto matchedDigits = size_t(0);
+		auto groupSize = 0;
 		for (const auto &c : formattedPart) {
 			while ((currentPatternPos < pattern.size())
 				&& (pattern[currentPatternPos] != 'X')
 				&& !pattern[currentPatternPos].isDigit()) {
-				result += pattern[currentPatternPos++];
+				if (args.onlyGroups) {
+					resultGroups.push_back(groupSize);
+					groupSize = 0;
+				} else {
+					result += pattern[currentPatternPos];
+				}
+				currentPatternPos++;
 			}
-			if (currentPatternPos == pattern.size()) {
+			if (!args.onlyGroups && (currentPatternPos == pattern.size())) {
 				result += ' ';
 			}
 			if ((currentPatternPos >= pattern.size())
 				|| (pattern[currentPatternPos] == 'X')) {
-				result += c;
 				currentPatternPos++;
+				if (args.onlyGroups) {
+					groupSize++;
+				} else {
+					result += c;
+				}
 			} else {
 				if (c == pattern[currentPatternPos]) {
 					matchedDigits++;
-					result += c;
 					currentPatternPos++;
+					if (args.onlyGroups) {
+						groupSize++;
+					} else {
+						result += c;
+					}
 				} else {
 					isFailedMatch = true;
 					break;
 				}
 			}
 		}
+		if (groupSize) {
+			resultGroups.push_back(groupSize);
+		}
 		if (!isFailedMatch && matchedDigits >= maxMatchedDigits) {
 			maxMatchedDigits = matchedDigits;
-			formattedResult = std::move(result);
+			if (args.onlyGroups) {
+				groups = std::move(resultGroups);
+			} else {
+				formattedResult = std::move(result);
+			}
 		}
 	}
 
-	return FormatResult{ .formatted = formattedResult };
+	if (!args.skipCode) {
+		if (args.onlyGroups) {
+			groups.push_front(bestCallingCodePtr->callingCode.size());
+		} else {
+			formattedResult = '+'
+				+ bestCallingCodePtr->callingCode
+				+ ' '
+				+ std::move(formattedResult);
+		}
+	}
+
+	return FormatResult{
+		.formatted = (args.onlyGroups
+			? QString()
+			: std::move(formattedResult)),
+		.groups = std::move(groups),
+	};
 }
 
 CountriesInstance &Instance() {

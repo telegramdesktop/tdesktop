@@ -27,10 +27,13 @@ struct Info {
 
 struct FormatResult {
 	QString formatted;
+	QVector<int> groups;
 };
 
 struct FormatArgs {
 	QString phone;
+	bool onlyGroups = false;
+	bool skipCode = false;
 };
 
 class CountriesInstance final {
