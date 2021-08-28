@@ -156,7 +156,6 @@ private:
 	Animations::Simple _backgroundFade;
 	CacheBackgroundRequest _backgroundCachingRequest;
 	CacheBackgroundResult _backgroundNext;
-	int _backgroundAddRotation = 0;
 	QSize _willCacheForArea;
 	crl::time _lastAreaChangeTime = 0;
 	std::optional<base::Timer> _cacheBackgroundTimer;

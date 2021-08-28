@@ -1432,7 +1432,7 @@ void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 		this,
 		descriptor = std::move(descriptor),
 		weak = base::make_weak(this)
-	]{
+	]() mutable {
 		crl::on_main(weak,[
 			this,
 			result = std::make_shared<Ui::ChatTheme>(std::move(descriptor))
