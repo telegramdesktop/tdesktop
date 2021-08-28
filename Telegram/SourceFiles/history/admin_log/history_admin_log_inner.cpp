@@ -921,7 +921,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			return this->itemTop(elem) < bottom;
 		});
 		if (from != end) {
-			auto viewport = QRect(); // #TODO bubbles
 			auto top = itemTop(from->get());
 			auto context = _controller->preparePaintContext({
 				.theme = _theme.get(),

@@ -33,7 +33,6 @@ CloudTheme CloudTheme::Parse(
 		not_null<Main::Session*> session,
 		const MTPDtheme &data,
 		bool parseSettings) {
-	constexpr auto size = sizeof(CloudTheme);
 	const auto document = data.vdocument();
 	const auto paper = [&]() -> std::optional<WallPaper> {
 		if (const auto settings = data.vsettings()) {

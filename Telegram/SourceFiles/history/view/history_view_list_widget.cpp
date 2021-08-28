@@ -1613,7 +1613,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	});
 
 	if (from != end(_items)) {
-		auto viewport = QRect(); // #TODO bubbles
 		auto top = itemTop(from->get());
 		auto context = controller()->preparePaintContext({
 			.theme = _delegate->listChatTheme(),
