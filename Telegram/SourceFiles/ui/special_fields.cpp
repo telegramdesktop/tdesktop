@@ -231,6 +231,8 @@ void PhonePartInput::chooseCode(const QString &code) {
 	correctValue(wasText, wasCursor, newText, newCursor);
 
 	startPlaceholderAnimation();
+
+	update();
 }
 
 UsernameInput::UsernameInput(
