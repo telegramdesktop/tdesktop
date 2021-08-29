@@ -41,7 +41,6 @@ set(dependent_style_files
 )
 
 generate_styles(td_ui ${src_loc} "${style_files}" "${dependent_style_files}")
-generate_numbers(td_ui ${res_loc}/numbers.txt)
 
 target_precompile_headers(td_ui PRIVATE ${src_loc}/ui/ui_pch.h)
 nice_target_sources(td_ui ${src_loc}
