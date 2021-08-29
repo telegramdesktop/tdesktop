@@ -19,7 +19,6 @@ struct CallingCodeInfo {
 struct Info {
 	QString name;
 	QString iso2;
-	QString code;
 	QString alternativeName;
 	std::vector<CallingCodeInfo> codes;
 	bool isHidden = false;

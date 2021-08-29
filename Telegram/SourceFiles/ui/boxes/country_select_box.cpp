@@ -256,7 +256,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			}
 		}
 
-		auto code = QString("+") + list[i]->code;
+		auto code = QString("+") + list[i]->codes.front().callingCode;
 		auto codeWidth = st::countryRowCodeFont->width(code);
 
 		auto name = list[i]->name;

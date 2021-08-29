@@ -81,7 +81,6 @@ auto ProcessAlternativeName(Info &&info) {
 	stream
 		<< info.name
 		<< info.iso2
-		<< info.code
 		<< info.alternativeName
 		<< info.isHidden
 		<< int(info.codes.size());
@@ -100,7 +99,6 @@ auto ProcessAlternativeName(Info &&info) {
 	stream
 		>> result.name
 		>> result.iso2
-		>> result.code
 		>> result.alternativeName
 		>> result.isHidden
 		>> codesCount;
@@ -223,13 +221,10 @@ void Manager::request() {
 				if (countryData.is_hidden()) {
 					continue;
 				}
-				const auto &first = countryData.vcountry_codes().v.front()
-					.c_help_countryCode();
 
 				auto info = Info(ProcessAlternativeName({
 					.name = countryData.vdefault_name().v,
 					.iso2 = countryData.viso2().v,
-					.code = first.vcountry_code().v,
 					.isHidden = countryData.is_hidden(),
 				}));
 				for (const auto &code : countryData.vcountry_codes().v) {

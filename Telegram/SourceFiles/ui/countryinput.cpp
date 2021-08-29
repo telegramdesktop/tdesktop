@@ -140,7 +140,7 @@ bool CountryInput::chooseCountry(const QString &iso) {
 	if (info) {
 		_chosenIso = LastValidISO = info->iso2;
 		setText(info->name);
-		codeChanged(info->code);
+		codeChanged(info->codes.front().callingCode);
 		update();
 		return true;
 	}
