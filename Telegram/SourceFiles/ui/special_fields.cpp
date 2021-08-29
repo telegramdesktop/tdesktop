@@ -288,17 +288,6 @@ void UsernameInput::correctValue(
 	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
-QString ExtractPhonePrefix(const QString &phone) {
-	const auto pattern = Countries::Instance().format({
-		.phone = phone,
-		.onlyGroups = true,
-	}).groups;
-	if (!pattern.isEmpty()) {
-		return phone.mid(0, pattern[0]);
-	}
-	return QString();
-}
-
 PhoneInput::PhoneInput(
 	QWidget *parent,
 	const style::InputField &st,

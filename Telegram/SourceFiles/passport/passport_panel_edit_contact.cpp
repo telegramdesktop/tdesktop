@@ -21,8 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/special_fields.h"
 #include "boxes/abstract_box.h"
-#include "boxes/confirm_phone_box.h"
 #include "data/data_user.h"
+#include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "styles/style_passport.h"
@@ -278,7 +278,7 @@ void PanelEditContact::setupControls(
 			wrap.data(),
 			fieldStyle,
 			std::move(fieldPlaceholder),
-			Ui::ExtractPhonePrefix(
+			Countries::ExtractPhoneCode(
 				_controller->bot()->session().user()->phone()),
 			data);
 	} else {

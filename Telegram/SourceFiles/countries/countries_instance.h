@@ -27,6 +27,7 @@ struct Info {
 struct FormatResult {
 	QString formatted;
 	QVector<int> groups;
+	QString code;
 };
 
 struct FormatArgs {
@@ -34,6 +35,7 @@ struct FormatArgs {
 	bool onlyGroups = false;
 	bool skipCode = false;
 	bool incomplete = false;
+	bool onlyCode = false;
 };
 
 class CountriesInstance final {
@@ -62,5 +64,7 @@ private:
 };
 
 CountriesInstance &Instance();
+
+[[nodiscard]] QString ExtractPhoneCode(const QString &phone);
 
 } // namespace Countries

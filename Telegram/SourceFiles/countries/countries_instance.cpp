@@ -344,6 +344,9 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 	if (bestCountryPtr == nullptr) {
 		return FormatResult{ .formatted = phoneNumber };
 	}
+	if (args.onlyCode) {
+		return FormatResult{ .code = bestCallingCodePtr->callingCode };
+	}
 
 	const auto codeSize = int(bestCallingCodePtr->callingCode.size());
 
@@ -448,6 +451,10 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 
 CountriesInstance &Instance() {
 	return SingleInstance;
+}
+
+QString ExtractPhoneCode(const QString &phone) {
+	return Instance().format({ .phone = phone, .onlyCode = true }).code;
 }
 
 } // namespace Countries

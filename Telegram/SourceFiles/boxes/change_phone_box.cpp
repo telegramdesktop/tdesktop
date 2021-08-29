@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_fields.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
+#include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -151,7 +152,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 		this,
 		st::defaultInputField,
 		tr::lng_change_phone_new_title(),
-		Ui::ExtractPhonePrefix(_session->user()->phone()),
+		Countries::ExtractPhoneCode(_session->user()->phone()),
 		phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
