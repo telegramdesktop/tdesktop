@@ -30,6 +30,7 @@ enum class SendProgressType {
 	UploadFile,
 	ChooseLocation,
 	ChooseContact,
+	ChooseSticker,
 	PlayGame,
 	Speaking,
 };

@@ -55,6 +55,9 @@ public:
 	virtual ~Impl() = default;
 
 protected:
+	[[nodiscard]] int period() const {
+		return _period;
+	}
 	[[nodiscard]] crl::time started() const {
 		return _started;
 	}
@@ -401,6 +404,134 @@ void SpeakingAnimation::PaintFrame(
 	drawRoundedRect(left, sideSize);
 }
 
+class ChooseStickerAnimation : public SendActionAnimation::Impl {
+public:
+	ChooseStickerAnimation()
+	: Impl(st::historySendActionChooseStickerDuration)
+	, _eye({
+		.outWidth = float64(st::historySendActionChooseStickerEyeWidth),
+		.outHeight = float64(st::historySendActionChooseStickerEyeHeight),
+		.step = float64(st::historySendActionChooseStickerEyeStep),
+		.inLeftOffset = style::ConvertScale(1.5),
+		.inRightOffset = -style::ConvertScale(2.5)
+			+ st::historySendActionChooseStickerEyeWidth,
+		.outXOffset = style::ConvertScale(1.5),
+		.outStrokeWidth = style::ConvertScale(0.8 * 1.3),
+		.inStrokeWidth = style::ConvertScale(1.2 * 1.3),
+		.inSize = style::ConvertScale(2.),
+		.minProgress = 0.3,
+		.outHeightOffset = 1.5,
+	}) {
+	}
+
+	static const MetaData kMeta;
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<ChooseStickerAnimation>();
+	}
+	const MetaData *metaData() const override {
+		return &kMeta;
+	}
+
+	int width() const override {
+		return st::historySendActionChooseStickerPosition.x()
+			+ 2 * (_eye.outWidth + _eye.step)
+			+ _eye.step;
+	}
+
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
+private:
+	const struct {
+		const float64 outWidth;
+		const float64 outHeight;
+		const float64 step;
+		const float64 inLeftOffset;
+		const float64 inRightOffset;
+		const float64 outXOffset;
+		const float64 outStrokeWidth;
+		const float64 inStrokeWidth;
+		const float64 inSize;
+		const float64 minProgress;
+		const float64 outHeightOffset;
+	} _eye;
+
+};
+
+const ChooseStickerAnimation::MetaData ChooseStickerAnimation::kMeta = {
+	0,
+	&ChooseStickerAnimation::create,
+};
+
+void ChooseStickerAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
+	PainterHighQualityEnabler hq(p);
+	const auto frameMs = frameTime(now);
+	auto pen = color->p;
+	pen.setJoinStyle(Qt::RoundJoin);
+	pen.setCapStyle(Qt::RoundCap);
+
+	const auto half = float64(period() / 2);
+	const auto increment = (frameMs < half) ? true : false;
+	// A double-progress within a period half.
+	const auto progress = (frameMs / (half / 2)) - (increment ? 0 : 2);
+
+	const auto animationProgress = std::min(progress, 1.);
+
+	const auto k = _eye.minProgress;
+	const auto pIn = anim::easeInCirc(1, std::min(animationProgress / k, 1.));
+	const auto pInRev = 1. - pIn;
+	const auto pOut = anim::easeOutCirc(1., (animationProgress < k)
+		? 0.
+		: (animationProgress - k) / (1. - k));
+
+	const auto inX = _eye.inLeftOffset * (increment ? pIn : pInRev)
+		+ _eye.inRightOffset * (increment ? pInRev : pIn);
+	const auto inY = (_eye.outHeight - _eye.inSize) / 2.;
+
+	const auto outLeft = _eye.outXOffset
+		* (increment
+			? (1. - anim::easeOutCirc(1., progress / 2.))
+			: anim::easeOutQuint(1., progress / 2.));
+
+	const auto outScaleOffset = (pIn - pOut) * _eye.outHeightOffset;
+	const auto top = st::historySendActionChooseStickerPosition.y() + y;
+	const auto left = st::historySendActionChooseStickerPosition.x()
+		+ x
+		+ outLeft;
+
+	for (auto i = 0; i < 2; i++) {
+		const auto currentLeft = left + (_eye.outWidth + _eye.step) * i;
+
+		pen.setWidthF(_eye.outStrokeWidth);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(QRectF(
+			currentLeft,
+			top + outScaleOffset,
+			_eye.outWidth,
+			_eye.outHeight - outScaleOffset));
+
+		pen.setWidthF(_eye.inStrokeWidth);
+		p.setPen(pen);
+		p.setBrush(color->b);
+		p.drawEllipse(QRectF(
+			currentLeft + inX,
+			top + inY,
+			_eye.inSize,
+			_eye.inSize));
+	}
+}
+
 void CreateImplementationsMap() {
 	if (Implementations) {
 		return;
@@ -426,6 +557,9 @@ void CreateImplementationsMap() {
 		Implementations->insert(type, &UploadAnimation::kMeta);
 	}
 	Implementations->insert(Type::Speaking, &SpeakingAnimation::kMeta);
+	Implementations->insert(
+		Type::ChooseSticker,
+		&ChooseStickerAnimation::kMeta);
 }
 
 } // namespace

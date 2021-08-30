@@ -30,6 +30,7 @@ constexpr auto kStatusShowClientsideUploadPhoto = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsideUploadFile = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsideChooseLocation = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsideChooseContact = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideChooseSticker = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsidePlayGame = 10 * crl::time(1000);
 constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 
@@ -107,7 +108,9 @@ bool SendActionPainter::updateNeedsAnimating(
 			now + kStatusShowClientsideSpeaking);
 	}, [&](const MTPDsendMessageHistoryImportAction &) {
 	}, [&](const MTPDsendMessageChooseStickerAction &) {
-		// #TODO send_action
+		emplaceAction(
+			Type::ChooseSticker,
+			kStatusShowClientsideChooseSticker);
 	}, [&](const MTPDsendMessageCancelAction &) {
 		Unexpected("CancelAction here.");
 	});
@@ -230,6 +233,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 				case Type::UploadFile: return name.isEmpty() ? tr::lng_send_action_upload_file(tr::now) : tr::lng_user_action_upload_file(tr::now, lt_user, name);
 				case Type::ChooseLocation:
 				case Type::ChooseContact: return name.isEmpty() ? tr::lng_typing(tr::now) : tr::lng_user_typing(tr::now, lt_user, name);
+				case Type::ChooseSticker: return name.isEmpty() ? tr::lng_send_action_choose_sticker(tr::now) : tr::lng_user_action_choose_sticker(tr::now, lt_user, name);
 				default: break;
 				};
 				return QString();
