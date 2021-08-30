@@ -171,6 +171,7 @@ InnerWidget::InnerWidget(
 			const Data::Session::SendActionAnimationUpdate &update) {
 		using RowPainter = Layout::RowPainter;
 		const auto updateRect = RowPainter::sendActionAnimationRect(
+			update.left,
 			update.width,
 			update.height,
 			width(),

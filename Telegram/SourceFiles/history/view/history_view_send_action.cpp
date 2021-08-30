@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
+#include "lang/lang_instance.h" // Instance::supportChoosingStickerReplacement
 #include "lang/lang_keys.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text_options.h"
@@ -39,6 +40,7 @@ constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 SendActionPainter::SendActionPainter(not_null<History*> history)
 : _history(history)
 , _weak(&_history->session())
+, _st(st::dialogsTextStyle)
 , _sendActionText(st::dialogsTextWidthMin) {
 }
 
@@ -130,16 +132,29 @@ bool SendActionPainter::paint(
 		style::color color,
 		crl::time ms) {
 	if (_sendActionAnimation) {
+		const auto animationWidth = _sendActionAnimation.width();
+		const auto extraAnimationWidth = _animationLeft
+			? animationWidth * 2
+			: 0;
+		const auto left =
+			(availableWidth < _animationLeft + extraAnimationWidth)
+				? 0
+				: _animationLeft;
 		_sendActionAnimation.paint(
 			p,
 			color,
-			x,
+			left + x,
 			y + st::normalFont->ascent,
 			outerWidth,
 			ms);
-		auto animationWidth = _sendActionAnimation.width();
-		x += animationWidth;
-		availableWidth -= animationWidth;
+		// availableWidth should be the same
+		// if an animation is in the middle of text.
+		if (!left) {
+			x += animationWidth;
+			availableWidth -= _animationLeft
+				? extraAnimationWidth
+				: animationWidth;
+		}
 		p.setPen(color);
 		_sendActionText.drawElided(p, x, y, availableWidth);
 		return true;
@@ -270,6 +285,30 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 					_history->peer->isUser() ? QString() : user->firstName);
 				if (!newTypingString.isEmpty()) {
 					_sendActionAnimation.start(action.type);
+
+					// Add an animation to the middle of text.
+					using namespace Lang;
+					if (GetInstance().supportChoosingStickerReplacement()
+							&& (action.type == Type::ChooseSticker)) {
+
+						const auto index = newTypingString.lastIndexOf(
+							Lang::kChoosingStickerReplacement.utf8());
+						_animationLeft = (index == -1)
+							? 0
+							: _st.font->width(newTypingString, 0, index);
+
+						if (!_spacesCount) {
+							_spacesCount = std::ceil(
+								_sendActionAnimation.width()
+									/ _st.font->spacew);
+						}
+						newTypingString = newTypingString.replace(
+							Lang::kChoosingStickerReplacement.utf8(),
+							QString().fill(' ', _spacesCount));
+					} else {
+						_animationLeft = 0;
+					}
+
 					break;
 				}
 			}
@@ -327,6 +366,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 		|| (sendActionResult && !anim::Disabled())) {
 		_history->peer->owner().updateSendActionAnimation({
 			_history,
+			_animationLeft,
 			_sendActionAnimation.width(),
 			st::normalFont->height,
 			(force || sendActionChanged)

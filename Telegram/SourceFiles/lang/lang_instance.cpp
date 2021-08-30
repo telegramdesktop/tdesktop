@@ -303,6 +303,7 @@ void Instance::reset(const Language &data) {
 		_values[i] = GetOriginalValue(ushort(i));
 	}
 	ranges::fill(_nonDefaultSet, 0);
+	updateSupportChoosingStickerReplacement();
 
 	_idChanges.fire_copy(_id);
 }
@@ -548,6 +549,7 @@ void Instance::fillFromSerialized(
 		applyValue(nonDefaultStrings[i], nonDefaultStrings[i + 1]);
 	}
 	updatePluralRules();
+	updateSupportChoosingStickerReplacement();
 
 	_idChanges.fire_copy(_id);
 }
@@ -572,6 +574,7 @@ void Instance::fillFromCustomContent(
 	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
 	_name = _nativeName = QString();
 	loadFromCustomContent(absolutePath, relativePath, content);
+	updateSupportChoosingStickerReplacement();
 
 	_idChanges.fire_copy(_id);
 }
@@ -600,6 +603,20 @@ bool Instance::loadFromCustomFile(const QString &filePath) {
 		return true;
 	}
 	return false;
+}
+
+void Instance::updateSupportChoosingStickerReplacement() {
+	// A language changing in the runtime is not supported.
+	const auto phrase = tr::lng_send_action_choose_sticker(tr::now);
+	const auto first = phrase.indexOf(kChoosingStickerReplacement.utf8());
+	const auto last = phrase.lastIndexOf(kChoosingStickerReplacement.utf8());
+	_supportChoosingStickerReplacement = (first == last)
+		? (first != -1)
+		: false;
+}
+
+bool Instance::supportChoosingStickerReplacement() const {
+	return _supportChoosingStickerReplacement;
 }
 
 // SetCallback takes two QByteArrays: key, value.

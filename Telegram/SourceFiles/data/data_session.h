@@ -405,6 +405,7 @@ public:
 
 	struct SendActionAnimationUpdate {
 		not_null<History*> history;
+		int left = 0;
 		int width = 0;
 		int height = 0;
 		bool textUpdated = false;

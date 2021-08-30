@@ -54,6 +54,7 @@ public:
 private:
 	const not_null<History*> _history;
 	const base::weak_ptr<Main::Session> _weak;
+	const style::TextStyle &_st;
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, crl::time> _speaking;
 	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;
@@ -61,6 +62,9 @@ private:
 	Ui::Text::String _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
 	Ui::SendActionAnimation _speakingAnimation;
+
+	int _animationLeft = 0;
+	int _spacesCount = 0;
 
 };
 

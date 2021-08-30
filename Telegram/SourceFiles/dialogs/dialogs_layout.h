@@ -39,6 +39,7 @@ public:
 		crl::time ms,
 		bool displayUnreadInfo);
 	static QRect sendActionAnimationRect(
+		int animationLeft,
 		int animationWidth,
 		int animationHeight,
 		int fullWidth,
