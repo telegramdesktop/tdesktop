@@ -585,6 +585,7 @@ void ListWidget::restoreScrollState() {
 	} else if (_overrideInitialScroll
 		&& base::take(_overrideInitialScroll)()) {
 		_scrollTopState = ScrollTopState();
+		_scrollInited = true;
 		return;
 	}
 	if (!_scrollTopState.item) {
