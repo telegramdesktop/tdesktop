@@ -1560,6 +1560,14 @@ void ComposeControls::initTabbedSelector() {
 	) | rpl::start_with_next([=] {
 		selector->showMenuWithType(sendMenuType());
 	}, wrap->lifetime());
+
+	selector->choosingStickerUpdated(
+	) | rpl::start_with_next([=](ChatHelpers::TabbedSelector::Action action) {
+		_sendActionUpdates.fire({
+			.type = Api::SendProgressType::ChooseSticker,
+			.cancel = (action == ChatHelpers::TabbedSelector::Action::Cancel),
+		});
+	}, wrap->lifetime());
 }
 
 void ComposeControls::initSendButton() {

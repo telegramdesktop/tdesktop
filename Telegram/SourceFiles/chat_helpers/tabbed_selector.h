@@ -67,6 +67,10 @@ public:
 		EmojiOnly,
 		MediaEditor,
 	};
+	enum class Action {
+		Update,
+		Cancel,
+	};
 
 	TabbedSelector(
 		QWidget *parent,
@@ -85,6 +89,7 @@ public:
 	rpl::producer<> checkForHide() const;
 	rpl::producer<> slideFinished() const;
 	rpl::producer<> contextMenuRequested() const;
+	rpl::producer<Action> choosingStickerUpdated() const;
 
 	void setRoundRadius(int radius);
 	void refreshStickers();

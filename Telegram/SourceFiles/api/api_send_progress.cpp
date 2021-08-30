@@ -129,6 +129,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		case Type::ChooseContact: return MTP_sendMessageChooseContactAction();
 		case Type::PlayGame: return MTP_sendMessageGamePlayAction();
 		case Type::Speaking: return MTP_speakingInGroupCallAction();
+		case Type::ChooseSticker: return MTP_sendMessageChooseStickerAction();
 		default: return MTP_sendMessageTypingAction();
 		}
 	}();

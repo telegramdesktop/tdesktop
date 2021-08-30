@@ -240,11 +240,18 @@ RepliesWidget::RepliesWidget(
 
 	_composeControls->sendActionUpdates(
 	) | rpl::start_with_next([=](ComposeControls::SendActionUpdate &&data) {
-		session().sendProgressManager().update(
-			_history,
-			_rootId,
-			data.type,
-			data.progress);
+		if (!data.cancel) {
+			session().sendProgressManager().update(
+				_history,
+				_rootId,
+				data.type,
+				data.progress);
+		} else {
+			session().sendProgressManager().cancel(
+				_history,
+				_rootId,
+				data.type);
+		}
 	}, lifetime());
 
 	using MessageUpdateFlag = Data::MessageUpdate::Flag;

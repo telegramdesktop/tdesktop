@@ -30,6 +30,7 @@ struct VoiceToSend {
 struct SendActionUpdate {
 	Api::SendProgressType type = Api::SendProgressType();
 	int progress = 0;
+	bool cancel = false;
 };
 
 struct SetHistoryArgs {

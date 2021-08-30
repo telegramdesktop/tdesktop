@@ -55,6 +55,7 @@ public:
 	rpl::producer<TabbedSelector::FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<> checkForHide() const;
+	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
 	void refreshRecent() override;
 	void preloadImages() override;
@@ -392,6 +393,7 @@ private:
 	rpl::event_stream<TabbedSelector::FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<> _checkForHide;
+	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 
 };
 

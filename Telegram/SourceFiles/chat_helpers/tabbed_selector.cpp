@@ -479,6 +479,13 @@ auto TabbedSelector::inlineResultChosen() const
 	return hasGifsTab() ? gifs()->inlineResultChosen() : nullptr;
 }
 
+auto TabbedSelector::choosingStickerUpdated() const
+-> rpl::producer<TabbedSelector::Action>{
+	return hasStickersTab()
+		? stickers()->choosingUpdated()
+		: rpl::never<Action>();
+}
+
 rpl::producer<> TabbedSelector::cancelled() const {
 	return hasGifsTab() ? gifs()->cancelRequests() : nullptr;
 }

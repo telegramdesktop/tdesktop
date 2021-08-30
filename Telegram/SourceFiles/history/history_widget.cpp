@@ -904,6 +904,19 @@ void HistoryWidget::initTabbedSelector() {
 	) | filter | rpl::start_with_next([=] {
 		selector->showMenuWithType(sendMenuType());
 	}, lifetime());
+
+	selector->choosingStickerUpdated(
+	) | rpl::start_with_next([=](const Selector::Action &data) {
+		if (!_history) {
+			return;
+		}
+		const auto type = Api::SendProgressType::ChooseSticker;
+		if (data != Selector::Action::Cancel) {
+			session().sendProgressManager().update(_history, type);
+		} else {
+			session().sendProgressManager().cancel(_history, type);
+		}
+	}, lifetime());
 }
 
 void HistoryWidget::supportInitAutocomplete() {
