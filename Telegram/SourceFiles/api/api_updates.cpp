@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_send_action.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -1017,7 +1018,7 @@ void Updates::handleSendActionUpdate(
 	const auto when = requestingDifference()
 		? 0
 		: base::unixtime::now();
-	session().data().registerSendAction(
+	session().data().sendActionManager().registerFor(
 		history,
 		rootId,
 		from->asUser(),

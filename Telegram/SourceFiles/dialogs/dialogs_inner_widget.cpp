@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_send_action.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -166,9 +167,9 @@ InnerWidget::InnerWidget(
 		}
 	}, lifetime());
 
-	session().data().sendActionAnimationUpdated(
+	session().data().sendActionManager().animationUpdated(
 	) | rpl::start_with_next([=](
-			const Data::Session::SendActionAnimationUpdate &update) {
+			const Data::SendActionManager::AnimationUpdate &update) {
 		using RowPainter = Layout::RowPainter;
 		const auto updateRect = RowPainter::sendActionAnimationRect(
 			update.left,
@@ -182,7 +183,7 @@ InnerWidget::InnerWidget(
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	}, lifetime());
 
-	session().data().speakingAnimationUpdated(
+	session().data().sendActionManager().speakingAnimationUpdated(
 	) | rpl::start_with_next([=](not_null<History*> history) {
 		updateDialogRowCornerStatus(history);
 	}, lifetime());

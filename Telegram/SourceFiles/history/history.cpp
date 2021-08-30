@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_send_action.h"
 #include "data/data_folder.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
@@ -1088,7 +1089,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
 		if (from == item->author()) {
 			_sendActionPainter.clear(from);
-			owner().repliesSendActionPaintersClear(this, from);
+			owner().sendActionManager().repliesPaintersClear(this, from);
 		}
 		from->madeAction(item->date());
 	}

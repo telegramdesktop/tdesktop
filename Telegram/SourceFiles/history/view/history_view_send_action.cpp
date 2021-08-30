@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_send_action.h"
 
 #include "data/data_user.h"
+#include "data/data_send_action.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -368,7 +369,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	if (force
 		|| sendActionChanged
 		|| (sendActionResult && !anim::Disabled())) {
-		_history->peer->owner().updateSendActionAnimation({
+		_history->peer->owner().sendActionManager().updateAnimation({
 			_history,
 			_animationLeft,
 			_sendActionAnimation.width(),
@@ -379,7 +380,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	if (force
 		|| speakingChanged
 		|| (speakingResult && !anim::Disabled())) {
-		_history->peer->owner().updateSpeakingAnimation({
+		_history->peer->owner().sendActionManager().updateSpeakingAnimation({
 			_history
 		});
 	}

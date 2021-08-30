@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_replies_list.h"
 #include "data/data_changes.h"
+#include "data/data_send_action.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -151,7 +152,9 @@ RepliesWidget::RepliesWidget(
 , _rootId(rootId)
 , _root(lookupRoot())
 , _areComments(computeAreComments())
-, _sendAction(history->owner().repliesSendActionPainter(history, rootId))
+, _sendAction(history->owner().sendActionManager().repliesPainter(
+	history,
+	rootId))
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
@@ -303,7 +306,9 @@ RepliesWidget::~RepliesWidget() {
 		sendReadTillRequest();
 	}
 	base::take(_sendAction);
-	_history->owner().repliesSendActionPainterRemoved(_history, _rootId);
+	_history->owner().sendActionManager().repliesPainterRemoved(
+		_history,
+		_rootId);
 }
 
 void RepliesWidget::orderWidgets() {

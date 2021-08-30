@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_send_action.h"
 #include "base/unixtime.h"
 #include "support/support_helper.h"
 #include "apiwrap.h"
@@ -124,8 +125,8 @@ TopBarWidget::TopBarWidget(
 
 	refreshUnreadBadge();
 	{
-		using AnimationUpdate = Data::Session::SendActionAnimationUpdate;
-		session().data().sendActionAnimationUpdated(
+		using AnimationUpdate = Data::SendActionManager::AnimationUpdate;
+		session().data().sendActionManager().animationUpdated(
 		) | rpl::filter([=](const AnimationUpdate &update) {
 			return (update.history == _activeChat.key.history());
 		}) | rpl::start_with_next([=] {

@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
-#include "history/view/history_view_send_action.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
@@ -53,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_send_action.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
@@ -229,15 +229,13 @@ Session::Session(not_null<Main::Session*> session)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
-, _sendActionsAnimation([=](crl::time now) {
-	return sendActionsAnimationCallback(now);
-})
 , _pollsClosingTimer([=] { checkPollsClosings(); })
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _cloudThemes(std::make_unique<CloudThemes>(session))
+, _sendActionManager(std::make_unique<SendActionManager>())
 , _streaming(std::make_unique<Streaming>(this))
 , _mediaRotation(std::make_unique<MediaRotation>())
 , _histories(std::make_unique<Histories>(this))
@@ -278,7 +276,7 @@ void Session::clear() {
 	// Optimization: clear notifications before destroying items.
 	Core::App().notifications().clearFromSession(_session);
 
-	_sendActions.clear();
+	_sendActionManager->clear();
 
 	_histories->unloadAll();
 	_scheduledMessages = nullptr;
@@ -998,117 +996,6 @@ void Session::cancelForwarding(not_null<History*> history) {
 	session().changes().historyUpdated(
 		history,
 		Data::HistoryUpdate::Flag::ForwardDraft);
-}
-
-HistoryView::SendActionPainter *Session::lookupSendActionPainter(
-		not_null<History*> history,
-		MsgId rootId) {
-	if (!rootId) {
-		return history->sendActionPainter();
-	}
-	const auto i = _sendActionPainters.find(history);
-	if (i == end(_sendActionPainters)) {
-		return nullptr;
-	}
-	const auto j = i->second.find(rootId);
-	if (j == end(i->second)) {
-		return nullptr;
-	}
-	const auto result = j->second.lock();
-	if (!result) {
-		i->second.erase(j);
-		if (i->second.empty()) {
-			_sendActionPainters.erase(i);
-		}
-		return nullptr;
-	}
-	crl::on_main([copy = result] {
-	});
-	return result.get();
-}
-
-void Session::registerSendAction(
-		not_null<History*> history,
-		MsgId rootId,
-		not_null<UserData*> user,
-		const MTPSendMessageAction &action,
-		TimeId when) {
-	if (history->peer->isSelf()) {
-		return;
-	}
-	const auto sendAction = lookupSendActionPainter(history, rootId);
-	if (!sendAction) {
-		return;
-	}
-	if (sendAction->updateNeedsAnimating(user, action)) {
-		user->madeAction(when);
-
-		if (!_sendActions.contains(std::pair{ history, rootId })) {
-			_sendActions.emplace(std::pair{ history, rootId }, crl::now());
-			_sendActionsAnimation.start();
-		}
-	}
-}
-
-auto Session::repliesSendActionPainter(
-	not_null<History*> history,
-	MsgId rootId)
--> std::shared_ptr<SendActionPainter> {
-	auto &weak = _sendActionPainters[history][rootId];
-	if (auto strong = weak.lock()) {
-		return strong;
-	}
-	auto result = std::make_shared<SendActionPainter>(history);
-	weak = result;
-	return result;
-}
-
-void Session::repliesSendActionPainterRemoved(
-		not_null<History*> history,
-		MsgId rootId) {
-	const auto i = _sendActionPainters.find(history);
-	if (i == end(_sendActionPainters)) {
-		return;
-	}
-	const auto j = i->second.find(rootId);
-	if (j == end(i->second) || j->second.lock()) {
-		return;
-	}
-	i->second.erase(j);
-	if (i->second.empty()) {
-		_sendActionPainters.erase(i);
-	}
-}
-
-void Session::repliesSendActionPaintersClear(
-		not_null<History*> history,
-		not_null<UserData*> user) {
-	auto &map = _sendActionPainters[history];
-	for (auto i = map.begin(); i != map.end();) {
-		if (auto strong = i->second.lock()) {
-			strong->clear(user);
-			++i;
-		} else {
-			i = map.erase(i);
-		}
-	}
-	if (map.empty()) {
-		_sendActionPainters.erase(history);
-	}
-}
-
-bool Session::sendActionsAnimationCallback(crl::time now) {
-	for (auto i = begin(_sendActions); i != end(_sendActions);) {
-		const auto sendAction = lookupSendActionPainter(
-			i->first.first,
-			i->first.second);
-		if (sendAction && sendAction->updateNeedsAnimating(now)) {
-			++i;
-		} else {
-			i = _sendActions.erase(i);
-		}
-	}
-	return !_sendActions.empty();
 }
 
 bool Session::chatsListLoaded(Data::Folder *folder) {
@@ -2299,25 +2186,6 @@ HistoryItem *Session::addNewMessage(
 		CheckForSwitchInlineButton(result);
 	}
 	return result;
-}
-
-auto Session::sendActionAnimationUpdated() const
--> rpl::producer<SendActionAnimationUpdate> {
-	return _sendActionAnimationUpdate.events();
-}
-
-void Session::updateSendActionAnimation(
-		SendActionAnimationUpdate &&update) {
-	_sendActionAnimationUpdate.fire(std::move(update));
-}
-
-auto Session::speakingAnimationUpdated() const
--> rpl::producer<not_null<History*>> {
-	return _speakingAnimationUpdate.events();
-}
-
-void Session::updateSpeakingAnimation(not_null<History*> history) {
-	_speakingAnimationUpdate.fire_copy(history);
 }
 
 int Session::unreadBadge() const {
