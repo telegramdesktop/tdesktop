@@ -146,12 +146,6 @@ public:
 	void setDownloadPathBookmark(const QByteArray &value) {
 		_downloadPathBookmark = value;
 	}
-	[[nodiscard]] bool voiceMsgPlaybackDoubled() const {
-		return _voiceMsgPlaybackDoubled;
-	}
-	void setVoiceMsgPlaybackDoubled(bool value) {
-		_voiceMsgPlaybackDoubled = value;
-	}
 	[[nodiscard]] bool soundNotify() const {
 		return _soundNotify;
 	}
@@ -427,6 +421,12 @@ public:
 	void setVideoPlaybackSpeed(float64 speed) {
 		_videoPlaybackSpeed = speed;
 	}
+	[[nodiscard]] float64 voicePlaybackSpeed() const {
+		return _voicePlaybackSpeed;
+	}
+	void setVoicePlaybackSpeed(float64 speed) {
+		_voicePlaybackSpeed = speed;
+	}
 	[[nodiscard]] QByteArray videoPipGeometry() const {
 		return _videoPipGeometry;
 	}
@@ -633,7 +633,6 @@ private:
 	bool _askDownloadPath = false;
 	rpl::variable<QString> _downloadPath;
 	QByteArray _downloadPathBookmark;
-	bool _voiceMsgPlaybackDoubled = false;
 	bool _soundNotify = true;
 	bool _desktopNotify = true;
 	bool _flashBounceNotify = true;
@@ -670,6 +669,7 @@ private:
 	bool _suggestStickersByEmoji = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
 	rpl::variable<float64> _videoPlaybackSpeed = 1.;
+	float64 _voicePlaybackSpeed = 1.;
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;

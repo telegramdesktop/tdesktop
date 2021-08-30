@@ -140,7 +140,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_askDownloadPath ? 1 : 0)
 			<< _downloadPath.current()
 			<< _downloadPathBookmark
-			<< qint32(_voiceMsgPlaybackDoubled ? 1 : 0)
+			<< qint32(0) // Old double voice playback speed.
 			<< qint32(_soundNotify ? 1 : 0)
 			<< qint32(_desktopNotify ? 1 : 0)
 			<< qint32(_flashBounceNotify ? 1 : 0)
@@ -219,7 +219,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_hiddenGroupCallTooltips.value())
 			<< qint32(_disableOpenGL ? 1 : 0)
 			<< _photoEditorBrush
-			<< qint32(_groupCallNoiseSuppression ? 1 : 0);
+			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
+			<< qint32(_voicePlaybackSpeed * 100);
 	}
 	return result;
 }
@@ -240,7 +241,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 askDownloadPath = _askDownloadPath ? 1 : 0;
 	QString downloadPath = _downloadPath.current();
 	QByteArray downloadPathBookmark = _downloadPathBookmark;
-	qint32 voiceMsgPlaybackDoubled = _voiceMsgPlaybackDoubled ? 1 : 0;
+	qint32 oldVoiceMsgPlaybackDoubled = 0;
 	qint32 soundNotify = _soundNotify ? 1 : 0;
 	qint32 desktopNotify = _desktopNotify ? 1 : 0;
 	qint32 flashBounceNotify = _flashBounceNotify ? 1 : 0;
@@ -271,6 +272,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 suggestStickersByEmoji = _suggestStickersByEmoji ? 1 : 0;
 	qint32 spellcheckerEnabled = _spellcheckerEnabled.current() ? 1 : 0;
 	qint32 videoPlaybackSpeed = Core::Settings::SerializePlaybackSpeed(_videoPlaybackSpeed.current());
+	qint32 voicePlaybackSpeed = _voicePlaybackSpeed * 100;
 	QByteArray videoPipGeometry = _videoPipGeometry;
 	qint32 dictionariesEnabledCount = 0;
 	std::vector<int> dictionariesEnabled;
@@ -312,7 +314,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> askDownloadPath
 			>> downloadPath
 			>> downloadPathBookmark
-			>> voiceMsgPlaybackDoubled
+			>> oldVoiceMsgPlaybackDoubled
 			>> soundNotify
 			>> desktopNotify
 			>> flashBounceNotify
@@ -455,6 +457,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> groupCallNoiseSuppression;
 	}
+	if (!stream.atEnd()) {
+		stream >> voicePlaybackSpeed;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -471,7 +476,6 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_askDownloadPath = (askDownloadPath == 1);
 	_downloadPath = downloadPath;
 	_downloadPathBookmark = downloadPathBookmark;
-	_voiceMsgPlaybackDoubled = (voiceMsgPlaybackDoubled == 1);
 	_soundNotify = (soundNotify == 1);
 	_desktopNotify = (desktopNotify == 1);
 	_flashBounceNotify = (flashBounceNotify == 1);
@@ -525,6 +529,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_suggestStickersByEmoji = (suggestStickersByEmoji == 1);
 	_spellcheckerEnabled = (spellcheckerEnabled == 1);
 	_videoPlaybackSpeed = DeserializePlaybackSpeed(videoPlaybackSpeed);
+	_voicePlaybackSpeed = oldVoiceMsgPlaybackDoubled
+		? 2.0
+		: voicePlaybackSpeed / 100.;
 	_videoPipGeometry = (videoPipGeometry);
 	_dictionariesEnabled = std::move(dictionariesEnabled);
 	_autoDownloadDictionaries = (autoDownloadDictionaries == 1);
@@ -782,7 +789,6 @@ void Settings::resetOnLastLogout() {
 	_downloadPath = QString();
 	_downloadPathBookmark = QByteArray();
 
-	_voiceMsgPlaybackDoubled = false;
 	_soundNotify = true;
 	_desktopNotify = true;
 	_flashBounceNotify = true;
@@ -826,6 +832,7 @@ void Settings::resetOnLastLogout() {
 	_suggestStickersByEmoji = true;
 	_spellcheckerEnabled = true;
 	_videoPlaybackSpeed = 1.;
+	_voicePlaybackSpeed = 1.;
 	//_videoPipGeometry = QByteArray();
 	_dictionariesEnabled = std::vector<int>();
 	_autoDownloadDictionaries = true;

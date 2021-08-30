@@ -148,8 +148,9 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
-		const auto doubled = !Core::App().settings().voiceMsgPlaybackDoubled();
-		Core::App().settings().setVoiceMsgPlaybackDoubled(doubled);
+		const auto doubled = (Core::App().settings().voicePlaybackSpeed()
+			== 2.);
+		Core::App().settings().setVoicePlaybackSpeed(doubled ? 1. : 2.);
 		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
 		Core::App().saveSettingsDelayed();
@@ -396,8 +397,8 @@ void Widget::updateRepeatTrackIcon() {
 }
 
 void Widget::updatePlaybackSpeedIcon() {
-	const auto doubled = Core::App().settings().voiceMsgPlaybackDoubled();
-	const auto isDefaultSpeed = !doubled;
+	const auto speed = Core::App().settings().voicePlaybackSpeed();
+	const auto isDefaultSpeed = (speed == 1.);
 	_playbackSpeed->setIconOverride(
 		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
 		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIconOver : nullptr);

@@ -1112,7 +1112,9 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setVoiceMsgPlaybackDoubled(v == 2);
+		if (v == 2) {
+			Core::App().settings().setVoicePlaybackSpeed(2.);
+		}
 		context.legacyRead = true;
 	} break;
 

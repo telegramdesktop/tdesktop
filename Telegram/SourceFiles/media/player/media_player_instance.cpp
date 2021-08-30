@@ -36,8 +36,6 @@ namespace {
 
 Instance *SingleInstance = nullptr;
 
-constexpr auto kVoicePlaybackSpeedMultiplier = 1.7;
-
 // Preload X message ids before and after current.
 constexpr auto kIdsLimit = 32;
 
@@ -45,6 +43,10 @@ constexpr auto kIdsLimit = 32;
 constexpr auto kIdsPreloadAfter = 28;
 
 constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
+
+auto VoicePlaybackSpeed() {
+	return std::clamp(Core::App().settings().voicePlaybackSpeed(), 0.6, 1.7);
+}
 
 } // namespace
 
@@ -518,9 +520,8 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 		? Streaming::Mode::Both
 		: Streaming::Mode::Audio;
 	result.speed = (document
-		&& (document->isVoiceMessage() || document->isVideoMessage())
-		&& Core::App().settings().voiceMsgPlaybackDoubled())
-		? kVoicePlaybackSpeedMultiplier
+		&& (document->isVoiceMessage() || document->isVideoMessage()))
+		? VoicePlaybackSpeed()
 		: 1.;
 	result.audioId = audioId;
 	if (position >= 0) {
@@ -678,9 +679,7 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 void Instance::updateVoicePlaybackSpeed() {
 	if (const auto data = getData(AudioMsgId::Type::Voice)) {
 		if (const auto streamed = data->streamed.get()) {
-			streamed->instance.setSpeed(Core::App().settings().voiceMsgPlaybackDoubled()
-				? kVoicePlaybackSpeedMultiplier
-				: 1.);
+			streamed->instance.setSpeed(VoicePlaybackSpeed());
 		}
 	}
 }
