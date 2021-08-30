@@ -47,8 +47,7 @@ elif officialTarget in ['win64', 'uwp64']:
 if officialTarget != '':
     officialApiIdFile = scriptPath + '/../../DesktopPrivate/custom_api_id.h'
     if not os.path.isfile(officialApiIdFile):
-        print("[ERROR] DesktopPrivate/custom_api_id.h not found.")
-        finish(1)
+        error("DesktopPrivate/custom_api_id.h not found.")
     with open(officialApiIdFile, 'r') as f:
         for line in f:
             apiIdMatch = re.search(r'ApiId\s+=\s+(\d+)', line)
