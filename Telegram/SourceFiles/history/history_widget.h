@@ -558,6 +558,11 @@ private:
 		TextUpdateEvents events = 0,
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
+	void unregisterDraftSources();
+	void registerDraftSource();
+	void setHistory(History *history);
+	void setEditMsgId(MsgId msgId);
+
 	HistoryItem *getItemFromHistoryOrMigrated(MsgId genericMsgId) const;
 	void animatedScrollToItem(MsgId msgId);
 	void animatedScrollToY(int scrollTo, HistoryItem *attachTo = nullptr);

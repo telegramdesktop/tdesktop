@@ -270,6 +270,9 @@ private:
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void saveFieldToHistoryLocalDraft();
 
+	void unregisterDraftSources();
+	void registerDraftSource();
+
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;

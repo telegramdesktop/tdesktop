@@ -1440,14 +1440,7 @@ void HistoryWidget::saveCloudDraft() {
 void HistoryWidget::writeDraftTexts() {
 	Expects(_history != nullptr);
 
-	session().local().writeDrafts(
-		_history,
-		_editMsgId ? Data::DraftKey::LocalEdit() : Data::DraftKey::Local(),
-		Storage::MessageDraft{
-			_editMsgId ? _editMsgId : _replyToId,
-			_field->getTextWithTags(),
-			_previewState,
-		});
+	session().local().writeDrafts(_history);
 	if (_migrated) {
 		_migrated->clearDrafts();
 		session().local().writeDrafts(_migrated);
@@ -1457,10 +1450,7 @@ void HistoryWidget::writeDraftTexts() {
 void HistoryWidget::writeDraftCursors() {
 	Expects(_history != nullptr);
 
-	session().local().writeDraftCursors(
-		_history,
-		_editMsgId ? Data::DraftKey::LocalEdit() : Data::DraftKey::Local(),
-		MessageCursor(_field));
+	session().local().writeDraftCursors(_history);
 	if (_migrated) {
 		_migrated->clearDrafts();
 		session().local().writeDraftCursors(_migrated);
@@ -1691,7 +1681,8 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		clearFieldText(0, fieldHistoryAction);
 		_field->setFocus();
 		_replyEditMsg = nullptr;
-		_editMsgId = _replyToId = 0;
+		_replyToId = 0;
+		setEditMsgId(0);
 		if (fieldWillBeHiddenAfterEdit) {
 			updateControlsVisibility();
 			updateControlsGeometry();
@@ -1715,11 +1706,11 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 
 	_replyEditMsg = nullptr;
 	if (const auto editDraft = _history->localEditDraft()) {
-		_editMsgId = editDraft->msgId;
+		setEditMsgId(editDraft->msgId);
 		_replyToId = 0;
 	} else {
-		_editMsgId = 0;
 		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
+		setEditMsgId(0);
 	}
 	updateCmdStartShown();
 	updateControlsVisibility();
@@ -1875,7 +1866,7 @@ void HistoryWidget::showHistory(
 		_scrollToAnimation.stop();
 
 		clearAllLoadRequests();
-		_history = _migrated = nullptr;
+		setHistory(nullptr);
 		_list = nullptr;
 		_peer = nullptr;
 		_channel = NoChannel;
@@ -1944,8 +1935,7 @@ void HistoryWidget::showHistory(
 	_itemsRevealHeight = 0;
 
 	if (_peer) {
-		_history = _peer->owner().history(_peer);
-		_migrated = _history->migrateFrom();
+		setHistory(_peer->owner().history(_peer));
 		if (_migrated
 			&& !_migrated->isEmpty()
 			&& (!_history->loadedAtTop() || !_migrated->loadedAtBottom())) {
@@ -2070,6 +2060,56 @@ void HistoryWidget::showHistory(
 	controller()->floatPlayerAreaUpdated();
 
 	crl::on_main(this, [=] { controller()->widget()->setInnerFocus(); });
+}
+
+void HistoryWidget::setHistory(History *history) {
+	if (_history == history) {
+		return;
+	}
+	unregisterDraftSources();
+	_history = history;
+	_migrated = _history ? _history->migrateFrom() : nullptr;
+	registerDraftSource();
+}
+
+void HistoryWidget::unregisterDraftSources() {
+	if (!_history) {
+		return;
+	}
+	session().local().unregisterDraftSource(
+		_history,
+		Data::DraftKey::Local());
+	session().local().unregisterDraftSource(
+		_history,
+		Data::DraftKey::LocalEdit());
+}
+
+void HistoryWidget::registerDraftSource() {
+	if (!_history) {
+		return;
+	}
+	const auto editMsgId = _editMsgId;
+	const auto draft = [=] {
+		return Storage::MessageDraft{
+			editMsgId ? editMsgId : _replyToId,
+			_field->getTextWithTags(),
+			_previewState,
+		};
+	};
+	auto draftSource = Storage::MessageDraftSource{
+		.draft = draft,
+		.cursor = [=] { return MessageCursor(_field); },
+	};
+	session().local().registerDraftSource(
+		_history,
+		editMsgId ? Data::DraftKey::LocalEdit() : Data::DraftKey::Local(),
+		std::move(draftSource));
+}
+
+void HistoryWidget::setEditMsgId(MsgId msgId) {
+	unregisterDraftSources();
+	_editMsgId = msgId;
+	registerDraftSource();
 }
 
 void HistoryWidget::clearDelayedShowAt() {
@@ -6122,7 +6162,7 @@ void HistoryWidget::cancelEdit() {
 	}
 
 	_replyEditMsg = nullptr;
-	_editMsgId = 0;
+	setEditMsgId(0);
 	_history->clearLocalEditDraft();
 	applyDraft();
 
@@ -6998,6 +7038,7 @@ HistoryWidget::~HistoryWidget() {
 		session().api().saveDraftToCloudDelayed(_history);
 
 		clearAllLoadRequests();
+		unregisterDraftSources();
 	}
 	setTabbedPanel(nullptr);
 }
