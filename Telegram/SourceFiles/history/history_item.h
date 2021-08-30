@@ -223,7 +223,9 @@ public:
 	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
 		return MsgId(0);
 	}
-	virtual void setRepliesInboxReadTill(MsgId readTillId) {
+	virtual void setRepliesInboxReadTill(
+		MsgId readTillId,
+		std::optional<int> unreadCount) {
 	}
 	[[nodiscard]] virtual MsgId computeRepliesInboxReadTillFull() const {
 		return MsgId(0);
@@ -316,7 +318,10 @@ public:
 	}
 	virtual void clearReplies() {
 	}
-	virtual void changeRepliesCount(int delta, PeerId replier) {
+	virtual void changeRepliesCount(
+		int delta,
+		PeerId replier,
+		std::optional<bool> unread) {
 	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}

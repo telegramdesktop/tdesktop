@@ -198,6 +198,7 @@ private:
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
 	[[nodiscard]] bool computeAreComments() const;
+	[[nodiscard]] std::optional<int> computeUnreadCount() const;
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -208,6 +209,8 @@ private:
 	void recountChatWidth();
 	void replyToMessage(FullMsgId itemId);
 	void refreshTopBarActiveChat();
+	void refreshUnreadCountBadge();
+	void reloadUnreadCountIfNeeded();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -276,13 +279,13 @@ private:
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
 
-	Data::MessagesSlice _lastSlice;
 	bool _choosingAttach = false;
 
 	base::Timer _readRequestTimer;
 	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
 
+	mtpRequestId _reloadUnreadCountRequestId = 0;
 	bool _loaded = false;
 
 };

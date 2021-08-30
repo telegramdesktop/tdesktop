@@ -399,7 +399,8 @@ void SessionNavigation::showRepliesForMessage(
 					item->setRepliesMaxId(maxId->v);
 				}
 				item->setRepliesInboxReadTill(
-					data.vread_inbox_max_id().value_or_empty());
+					data.vread_inbox_max_id().value_or_empty(),
+					data.vunread_count().v);
 				item->setRepliesOutboxReadTill(
 					data.vread_outbox_max_id().value_or_empty());
 				const auto post = _session->data().message(channelId, rootId);
@@ -409,7 +410,8 @@ void SessionNavigation::showRepliesForMessage(
 						post->setRepliesMaxId(maxId->v);
 					}
 					post->setRepliesInboxReadTill(
-						data.vread_inbox_max_id().value_or_empty());
+						data.vread_inbox_max_id().value_or_empty(),
+						data.vunread_count().v);
 					post->setRepliesOutboxReadTill(
 						data.vread_outbox_max_id().value_or_empty());
 				}

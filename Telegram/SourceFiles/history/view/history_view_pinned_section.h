@@ -160,7 +160,6 @@ private:
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
 
-	Data::MessagesSlice _lastSlice;
 	int _messagesCount = -1;
 
 };

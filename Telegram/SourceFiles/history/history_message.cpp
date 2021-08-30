@@ -816,15 +816,29 @@ MsgId HistoryMessage::repliesInboxReadTill() const {
 	return 0;
 }
 
-void HistoryMessage::setRepliesInboxReadTill(MsgId readTillId) {
+void HistoryMessage::setRepliesInboxReadTill(
+		MsgId readTillId,
+		std::optional<int> unreadCount) {
 	if (const auto views = Get<HistoryMessageViews>()) {
 		const auto newReadTillId = std::max(readTillId, 1);
-		if (newReadTillId > views->repliesInboxReadTillId) {
+		const auto ignore = (newReadTillId < views->repliesInboxReadTillId);
+		if (ignore) {
+			return;
+		}
+		const auto changed = (newReadTillId > views->repliesInboxReadTillId);
+		if (changed) {
 			const auto wasUnread = repliesAreComments() && areRepliesUnread();
 			views->repliesInboxReadTillId = newReadTillId;
 			if (wasUnread && !areRepliesUnread()) {
 				history()->owner().requestItemRepaint(this);
 			}
+		}
+		const auto wasUnreadCount = (views->repliesUnreadCount >= 0)
+			? std::make_optional(views->repliesUnreadCount)
+			: std::nullopt;
+		if (unreadCount != wasUnreadCount
+			&& (changed || unreadCount.has_value())) {
+			setUnreadRepliesCount(views, unreadCount.value_or(-1));
 		}
 	}
 }
@@ -1808,10 +1822,27 @@ void HistoryMessage::refreshRepliesText(
 	}
 }
 
-void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
+void HistoryMessage::changeRepliesCount(
+		int delta,
+		PeerId replier,
+		std::optional<bool> unread) {
 	const auto views = Get<HistoryMessageViews>();
 	const auto limit = HistoryMessageViews::kMaxRecentRepliers;
-	if (!views || views->replies.count < 0) {
+	if (!views) {
+		return;
+	}
+
+	// Update unread count.
+	if (!unread) {
+		setUnreadRepliesCount(views, -1);
+	} else if (views->repliesUnreadCount >= 0 && *unread) {
+		setUnreadRepliesCount(
+			views,
+			std::max(views->repliesUnreadCount + delta, 0));
+	}
+
+	// Update full count.
+	if (views->replies.count < 0) {
 		return;
 	}
 	views->replies.count = std::max(views->replies.count + delta, 0);
@@ -1828,6 +1859,19 @@ void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
 		}
 	}
 	refreshRepliesText(views);
+}
+
+void HistoryMessage::setUnreadRepliesCount(
+		not_null<HistoryMessageViews*> views,
+		int count) {
+	// Track unread count in discussion forwards, not in the channel posts.
+	if (views->repliesUnreadCount == count || views->commentsMegagroupId) {
+		return;
+	}
+	views->repliesUnreadCount = count;
+	history()->session().changes().messageUpdated(
+		this,
+		Data::MessageUpdate::Flag::RepliesUnreadCount);
 }
 
 void HistoryMessage::setReplyToTop(MsgId replyToTop) {
@@ -1877,19 +1921,23 @@ void HistoryMessage::changeReplyToTopCounter(
 	if (!top) {
 		return;
 	}
-	const auto changeFor = [&](not_null<HistoryItem*> item) {
-		if (const auto from = displayFrom()) {
-			item->changeRepliesCount(delta, from->id);
-			return;
-		}
-		item->changeRepliesCount(delta, PeerId());
-	};
+	auto unread = out() ? std::make_optional(false) : std::nullopt;
 	if (const auto views = top->Get<HistoryMessageViews>()) {
 		if (views->commentsMegagroupId) {
 			// This is a post in channel, we don't track its replies.
 			return;
 		}
+		if (views->repliesInboxReadTillId > 0) {
+			unread = !out() && (id > views->repliesInboxReadTillId);
+		}
 	}
+	const auto changeFor = [&](not_null<HistoryItem*> item) {
+		if (const auto from = displayFrom()) {
+			item->changeRepliesCount(delta, from->id, unread);
+		} else {
+			item->changeRepliesCount(delta, PeerId(), unread);
+		}
+	};
 	changeFor(top);
 	if (const auto original = top->lookupDiscussionPostOriginal()) {
 		changeFor(original);

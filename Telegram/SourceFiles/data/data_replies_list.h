@@ -31,6 +31,11 @@ public:
 
 	[[nodiscard]] rpl::producer<int> fullCount() const;
 
+	[[nodiscard]] std::optional<int> fullUnreadCountAfter(
+		MsgId readTillId,
+		MsgId wasReadTillId,
+		std::optional<int> wasUnreadCountAfter) const;
+
 private:
 	struct Viewer;
 

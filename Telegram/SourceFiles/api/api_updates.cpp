@@ -2094,17 +2094,18 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto msgId = d.vtop_msg_id().v;
 		const auto readTillId = d.vread_max_id().v;
 		const auto item = session().data().message(channelId, msgId);
+		const auto unreadCount = std::nullopt;
 		if (item) {
-			item->setRepliesInboxReadTill(readTillId);
+			item->setRepliesInboxReadTill(readTillId, unreadCount);
 			if (const auto post = item->lookupDiscussionPostOriginal()) {
-				post->setRepliesInboxReadTill(readTillId);
+				post->setRepliesInboxReadTill(readTillId, unreadCount);
 			}
 		}
 		if (const auto broadcastId = d.vbroadcast_id()) {
 			if (const auto post = session().data().message(
 					broadcastId->v,
 					d.vbroadcast_post()->v)) {
-				post->setRepliesInboxReadTill(readTillId);
+				post->setRepliesInboxReadTill(readTillId, unreadCount);
 			}
 		}
 	} break;

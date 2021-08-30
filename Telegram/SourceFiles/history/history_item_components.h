@@ -49,6 +49,7 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	MsgId repliesInboxReadTillId = 0;
 	MsgId repliesOutboxReadTillId = 0;
 	MsgId repliesMaxId = 0;
+	int repliesUnreadCount = -1; // unknown
 	ChannelId commentsMegagroupId = 0;
 	MsgId commentsRootId = 0;
 };

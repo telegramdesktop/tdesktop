@@ -247,16 +247,24 @@ RepliesWidget::RepliesWidget(
 			data.progress);
 	}, lifetime());
 
+	using MessageUpdateFlag = Data::MessageUpdate::Flag;
 	_history->session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::Destroyed
+		MessageUpdateFlag::Destroyed
+		| MessageUpdateFlag::RepliesUnreadCount
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		if (update.item == _root) {
-			_root = nullptr;
-			updatePinnedVisibility();
-			controller->showBackFromStack();
-		}
-		while (update.item == _replyReturn) {
-			calculateNextReplyReturn();
+		if (update.flags & MessageUpdateFlag::Destroyed) {
+			if (update.item == _root) {
+				_root = nullptr;
+				updatePinnedVisibility();
+				controller->showBackFromStack();
+			}
+			while (update.item == _replyReturn) {
+				calculateNextReplyReturn();
+			}
+			return;
+		} else if ((update.item == _root)
+			&& (update.flags & MessageUpdateFlag::RepliesUnreadCount)) {
+			refreshUnreadCountBadge();
 		}
 	}, lifetime());
 
@@ -302,12 +310,15 @@ void RepliesWidget::sendReadTillRequest() {
 	_readRequestPending = false;
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
+
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_root->history()->peer->input,
 		MTP_int(_root->id),
 		MTP_int(_root->computeRepliesInboxReadTillFull())
-	)).done([=](const MTPBool &) {
-	}).send();
+	)).done(crl::guard(this, [=](const MTPBool &) {
+		_readRequestId = 0;
+		reloadUnreadCountIfNeeded();
+	})).send();
 }
 
 void RepliesWidget::setupRoot() {
@@ -317,6 +328,7 @@ void RepliesWidget::setupRoot() {
 			_root = lookupRoot();
 			if (_root) {
 				_areComments = computeAreComments();
+				refreshUnreadCountBadge();
 				if (_readRequestPending) {
 					sendReadTillRequest();
 				}
@@ -368,6 +380,19 @@ HistoryItem *RepliesWidget::lookupRoot() const {
 
 bool RepliesWidget::computeAreComments() const {
 	return _root && _root->isDiscussionPost();
+}
+
+std::optional<int> RepliesWidget::computeUnreadCount() const {
+	if (!_root) {
+		return std::nullopt;
+	}
+	const auto views = _root->Get<HistoryMessageViews>();
+	if (!views) {
+		return std::nullopt;
+	}
+	return (views->repliesUnreadCount >= 0)
+		? std::make_optional(views->repliesUnreadCount)
+		: std::nullopt;
 }
 
 void RepliesWidget::setupComposeControls() {
@@ -1143,6 +1168,7 @@ void RepliesWidget::setupScrollDownButton() {
 	_scrollDown->setClickedCallback([=] {
 		scrollDownClicked();
 	});
+	refreshUnreadCountBadge();
 	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::Wheel) {
 			return base::EventFilterResult::Continue;
@@ -1152,6 +1178,56 @@ void RepliesWidget::setupScrollDownButton() {
 			: base::EventFilterResult::Continue;
 	});
 	updateScrollDownVisibility();
+}
+
+void RepliesWidget::refreshUnreadCountBadge() {
+	if (!_root) {
+		return;
+	} else if (const auto count = computeUnreadCount()) {
+		_scrollDown->setUnreadCount(*count);
+	} else if (!_readRequestPending
+		&& !_readRequestTimer.isActive()
+		&& !_readRequestId) {
+		reloadUnreadCountIfNeeded();
+	}
+}
+
+void RepliesWidget::reloadUnreadCountIfNeeded() {
+	const auto views = _root ? _root->Get<HistoryMessageViews>() : nullptr;
+	if (!views || views->repliesUnreadCount >= 0) {
+		return;
+	} else if (views->repliesInboxReadTillId
+		< _root->computeRepliesInboxReadTillFull()) {
+		_readRequestTimer.callOnce(0);
+	} else if (!_reloadUnreadCountRequestId) {
+		const auto session = &_history->session();
+		const auto fullId = _root->fullId();
+		const auto apply = [session, fullId](int readTill, int unreadCount) {
+			if (const auto root = session->data().message(fullId)) {
+				root->setRepliesInboxReadTill(readTill, unreadCount);
+				if (const auto post = root->lookupDiscussionPostOriginal()) {
+					post->setRepliesInboxReadTill(readTill, unreadCount);
+				}
+			}
+		};
+		const auto weak = Ui::MakeWeak(this);
+		_reloadUnreadCountRequestId = session->api().request(
+			MTPmessages_GetDiscussionMessage(
+				_history->peer->input,
+				MTP_int(_rootId))
+		).done([=](const MTPmessages_DiscussionMessage &result) {
+			if (weak) {
+				_reloadUnreadCountRequestId = 0;
+			}
+			result.match([&](const MTPDmessages_discussionMessage &data) {
+				session->data().processUsers(data.vusers());
+				session->data().processChats(data.vchats());
+				apply(
+					data.vread_inbox_max_id().value_or_empty(),
+					data.vunread_count().v);
+			});
+		}).send();
+	}
 }
 
 void RepliesWidget::scrollDownClicked() {
@@ -1692,11 +1768,21 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	}
 	const auto was = _root->computeRepliesInboxReadTillFull();
 	const auto now = item->id;
-	const auto fast = item->out();
-	if (was < now) {
-		_root->setRepliesInboxReadTill(now);
+	if (now < was) {
+		return;
+	}
+	const auto views = _root->Get<HistoryMessageViews>();
+	const auto wasReadTillId = views ? views->repliesInboxReadTillId : 0;
+	const auto wasUnreadCount = views ? views->repliesUnreadCount : -1;
+	const auto unreadCount = _replies->fullUnreadCountAfter(
+		now,
+		wasReadTillId,
+		wasUnreadCount);
+	const auto fast = item->out() || !unreadCount.has_value();
+	if (was < now || (fast && now == was)) {
+		_root->setRepliesInboxReadTill(now, unreadCount);
 		if (const auto post = _root->lookupDiscussionPostOriginal()) {
-			post->setRepliesInboxReadTill(now);
+			post->setRepliesInboxReadTill(now, unreadCount);
 		}
 		if (!_readRequestTimer.isActive()) {
 			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
