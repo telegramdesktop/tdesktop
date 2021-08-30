@@ -2855,6 +2855,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_menu_flip" = "Flip";
 "lng_photo_editor_menu_duplicate" = "Duplicate";
 
+"lng_voice_speed_slow" = "Slow";
+"lng_voice_speed_normal" = "Normal";
+"lng_voice_speed_fast" = "Fast";
+"lng_voice_speed_very_fast" = "Very fast";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

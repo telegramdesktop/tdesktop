@@ -77,9 +77,9 @@ mediaPlayerSpeedButton: IconButton {
 	height: 30px;
 
 	icon: icon {
-		{ "voice2x", mediaPlayerActiveFg, point(8px, 11px) }
+		{ "voice_speed/voice_speed2", mediaPlayerActiveFg }
 	};
-	iconPosition: point(0px, 0px);
+	iconPosition: point(3px, 10px);
 
 	rippleAreaPosition: point(3px, 5px);
 	rippleAreaSize: 25px;
@@ -88,15 +88,38 @@ mediaPlayerSpeedButton: IconButton {
 	}
 }
 mediaPlayerSpeedDisabledIcon: icon {
-	{ "voice2x", menuIconFg, point(8px, 11px)}
+	{ "voice_speed/voice_speed2", menuIconFg }
 };
 mediaPlayerSpeedDisabledIconOver: icon {
-	{ "voice2x", menuIconFgOver, point(8px, 11px)}
+	{ "voice_speed/voice_speed2", menuIconFgOver }
+};
+mediaPlayerSpeedSlowIcon: icon {
+	{ "voice_speed/voice_speed0.5", mediaPlayerActiveFg }
+};
+mediaPlayerSpeedSlowDisabledIcon: icon {
+	{ "voice_speed/voice_speed0.5", menuIconFg }
+};
+mediaPlayerSpeedSlowDisabledIconOver: icon {
+	{ "voice_speed/voice_speed0.5", menuIconFgOver }
+};
+mediaPlayerSpeedFastIcon: icon {
+	{ "voice_speed/voice_speed1.5", mediaPlayerActiveFg }
+};
+mediaPlayerSpeedFastDisabledIcon: icon {
+	{ "voice_speed/voice_speed1.5", menuIconFg }
+};
+mediaPlayerSpeedFastDisabledIconOver: icon {
+	{ "voice_speed/voice_speed1.5", menuIconFgOver }
 };
 mediaPlayerSpeedDisabledRippleBg: windowBgOver;
-mediaPlayerSpeedInactiveIcon: icon {
-	{ "voice2x", mediaPlayerInactiveFg, point(8px, 11px)}
-};
+
+mediaPlayerPopupMenu: PopupMenu(defaultPopupMenu) {
+	menu: Menu(defaultMenu) {
+		itemIconPosition: point(6px, 5px);
+		itemPadding: margins(34px, 8px, 17px, 7px);
+	}
+}
+mediaPlayerMenuCheck: icon {{ "player_check", mediaPlayerActiveFg }};
 
 mediaPlayerVolumeIcon0: icon {
 	{ "player_volume0", mediaPlayerActiveFg },
