@@ -67,9 +67,13 @@ bool SendActionPainter::updateNeedsAnimating(
 	}, [&](const MTPDsendMessageRecordRoundAction &) {
 		emplaceAction(Type::RecordRound, kStatusShowClientsideRecordRound);
 	}, [&](const MTPDsendMessageGeoLocationAction &) {
-		emplaceAction(Type::ChooseLocation, kStatusShowClientsideChooseLocation);
+		emplaceAction(
+			Type::ChooseLocation,
+			kStatusShowClientsideChooseLocation);
 	}, [&](const MTPDsendMessageChooseContactAction &) {
-		emplaceAction(Type::ChooseContact, kStatusShowClientsideChooseContact);
+		emplaceAction(
+			Type::ChooseContact,
+			kStatusShowClientsideChooseContact);
 	}, [&](const MTPDsendMessageUploadVideoAction &data) {
 		emplaceAction(
 			Type::UploadVideo,
@@ -221,19 +225,41 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 		} else if (!_sendActions.empty()) {
 			// Handles all actions except game playing.
 			using Type = Api::SendProgressType;
-			auto sendActionString = [](Type type, const QString &name) -> QString {
+			const auto sendActionString = [](
+					Type type,
+					const QString &name) -> QString {
 				switch (type) {
-				case Type::RecordVideo: return name.isEmpty() ? tr::lng_send_action_record_video(tr::now) : tr::lng_user_action_record_video(tr::now, lt_user, name);
-				case Type::UploadVideo: return name.isEmpty() ? tr::lng_send_action_upload_video(tr::now) : tr::lng_user_action_upload_video(tr::now, lt_user, name);
-				case Type::RecordVoice: return name.isEmpty() ? tr::lng_send_action_record_audio(tr::now) : tr::lng_user_action_record_audio(tr::now, lt_user, name);
-				case Type::UploadVoice: return name.isEmpty() ? tr::lng_send_action_upload_audio(tr::now) : tr::lng_user_action_upload_audio(tr::now, lt_user, name);
-				case Type::RecordRound: return name.isEmpty() ? tr::lng_send_action_record_round(tr::now) : tr::lng_user_action_record_round(tr::now, lt_user, name);
-				case Type::UploadRound: return name.isEmpty() ? tr::lng_send_action_upload_round(tr::now) : tr::lng_user_action_upload_round(tr::now, lt_user, name);
-				case Type::UploadPhoto: return name.isEmpty() ? tr::lng_send_action_upload_photo(tr::now) : tr::lng_user_action_upload_photo(tr::now, lt_user, name);
-				case Type::UploadFile: return name.isEmpty() ? tr::lng_send_action_upload_file(tr::now) : tr::lng_user_action_upload_file(tr::now, lt_user, name);
+				case Type::RecordVideo: return name.isEmpty()
+					? tr::lng_send_action_record_video({})
+					: tr::lng_user_action_record_video({}, lt_user, name);
+				case Type::UploadVideo: return name.isEmpty()
+					? tr::lng_send_action_upload_video({})
+					: tr::lng_user_action_upload_video({}, lt_user, name);
+				case Type::RecordVoice: return name.isEmpty()
+					? tr::lng_send_action_record_audio({})
+					: tr::lng_user_action_record_audio({}, lt_user, name);
+				case Type::UploadVoice: return name.isEmpty()
+					? tr::lng_send_action_upload_audio({})
+					: tr::lng_user_action_upload_audio({}, lt_user, name);
+				case Type::RecordRound: return name.isEmpty()
+					? tr::lng_send_action_record_round({})
+					: tr::lng_user_action_record_round({}, lt_user, name);
+				case Type::UploadRound: return name.isEmpty()
+					? tr::lng_send_action_upload_round({})
+					: tr::lng_user_action_upload_round({}, lt_user, name);
+				case Type::UploadPhoto: return name.isEmpty()
+					? tr::lng_send_action_upload_photo({})
+					: tr::lng_user_action_upload_photo({}, lt_user, name);
+				case Type::UploadFile: return name.isEmpty()
+					? tr::lng_send_action_upload_file({})
+					: tr::lng_user_action_upload_file({}, lt_user, name);
 				case Type::ChooseLocation:
-				case Type::ChooseContact: return name.isEmpty() ? tr::lng_typing(tr::now) : tr::lng_user_typing(tr::now, lt_user, name);
-				case Type::ChooseSticker: return name.isEmpty() ? tr::lng_send_action_choose_sticker(tr::now) : tr::lng_user_action_choose_sticker(tr::now, lt_user, name);
+				case Type::ChooseContact: return name.isEmpty()
+					? tr::lng_typing({})
+					: tr::lng_user_typing({}, lt_user, name);
+				case Type::ChooseSticker: return name.isEmpty()
+					? tr::lng_send_action_choose_sticker({})
+					: tr::lng_user_action_choose_sticker({}, lt_user, name);
 				default: break;
 				};
 				return QString();

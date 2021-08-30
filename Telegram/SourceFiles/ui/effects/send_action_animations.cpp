@@ -62,7 +62,9 @@ protected:
 		return _started;
 	}
 	[[nodiscard]] int frameTime(crl::time now) const {
-		return anim::Disabled() ? 0 : (std::max(now - _started, crl::time(0)) % _period);
+		return anim::Disabled()
+			? 0
+			: (std::max(now - _started, crl::time(0)) % _period);
 	}
 
 private:
@@ -73,7 +75,9 @@ private:
 
 namespace {
 
-using ImplementationsMap = QMap<Api::SendProgressType, const SendActionAnimation::Impl::MetaData*>;
+using ImplementationsMap = QMap<
+	Api::SendProgressType,
+	const SendActionAnimation::Impl::MetaData*>;
 NeverFreedPointer<ImplementationsMap> Implementations;
 
 class TypingAnimation : public SendActionAnimation::Impl {
@@ -90,34 +94,64 @@ public:
 	}
 
 	int width() const override {
-		return st::historySendActionTypingPosition.x() + kTypingDotsCount * st::historySendActionTypingDelta;
+		return st::historySendActionTypingPosition.x()
+			+ kTypingDotsCount * st::historySendActionTypingDelta;
 	}
 
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) override;
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
 
 };
 
-const TypingAnimation::MetaData TypingAnimation::kMeta = { 0, &TypingAnimation::create };
+const TypingAnimation::MetaData TypingAnimation::kMeta = {
+	0,
+	&TypingAnimation::create,
+};
 
-void TypingAnimation::paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) {
+void TypingAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 	auto frameMs = frameTime(now);
-	auto position = QPointF(x + 0.5, y - 0.5) + st::historySendActionTypingPosition;
+	auto position = QPointF(x + 0.5, y - 0.5)
+		+ st::historySendActionTypingPosition;
 	for (auto i = 0; i != kTypingDotsCount; ++i) {
-		auto r = st::historySendActionTypingSmallNumerator / st::historySendActionTypingDenominator;
+		auto r = st::historySendActionTypingSmallNumerator
+			/ st::historySendActionTypingDenominator;
 		if (frameMs < 2 * st::historySendActionTypingHalfPeriod) {
-			auto delta = (st::historySendActionTypingLargeNumerator - st::historySendActionTypingSmallNumerator) / st::historySendActionTypingDenominator;
+			const auto delta = (st::historySendActionTypingLargeNumerator
+					- st::historySendActionTypingSmallNumerator)
+				/ st::historySendActionTypingDenominator;
 			if (frameMs < st::historySendActionTypingHalfPeriod) {
-				r += delta * anim::easeOutCirc(1., float64(frameMs) / st::historySendActionTypingHalfPeriod);
+				r += delta
+					* anim::easeOutCirc(
+						1.,
+						float64(frameMs)
+							/ st::historySendActionTypingHalfPeriod);
 			} else {
-				r += delta * (1. - anim::easeOutCirc(1., float64(frameMs - st::historySendActionTypingHalfPeriod) / st::historySendActionTypingHalfPeriod));
+				r += delta
+					* (1. - anim::easeOutCirc(
+						1.,
+						float64(frameMs
+								- st::historySendActionTypingHalfPeriod)
+							/ st::historySendActionTypingHalfPeriod));
 			}
 		}
 		p.drawEllipse(position, r, r);
 		position.setX(position.x() + st::historySendActionTypingDelta);
-		frameMs = (frameMs + st::historySendActionTypingDuration - st::historySendActionTypingDeltaTime) % st::historySendActionTypingDuration;
+		frameMs = (frameMs + period() - st::historySendActionTypingDeltaTime)
+			% period();
 	}
 }
 
@@ -135,29 +169,51 @@ public:
 	}
 
 	int width() const override {
-		return st::historySendActionRecordPosition.x() + (kRecordArcsCount + 1) * st::historySendActionRecordDelta;
+		return st::historySendActionRecordPosition.x()
+			+ (kRecordArcsCount + 1) * st::historySendActionRecordDelta;
 	}
 
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) override;
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
 
 };
 
-const RecordAnimation::MetaData RecordAnimation::kMeta = { 0, &RecordAnimation::create };
+const RecordAnimation::MetaData RecordAnimation::kMeta = {
+	0,
+	&RecordAnimation::create,
+};
 
-void RecordAnimation::paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) {
+void RecordAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
 	PainterHighQualityEnabler hq(p);
 	const auto frameMs = frameTime(now);
 	auto pen = color->p;
-	pen.setWidth(st::historySendActionRecordStrokeNumerator / st::historySendActionRecordDenominator);
+	pen.setWidth(st::historySendActionRecordStrokeNumerator
+		/ st::historySendActionRecordDenominator);
 	pen.setJoinStyle(Qt::RoundJoin);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.setBrush(Qt::NoBrush);
-	auto progress = frameMs / float64(st::historySendActionRecordDuration);
-	auto size = st::historySendActionRecordPosition.x() + st::historySendActionRecordDelta * progress;
+	auto progress = frameMs / float64(period());
+	auto size = st::historySendActionRecordPosition.x()
+		+ st::historySendActionRecordDelta * progress;
 	y += st::historySendActionRecordPosition.y();
 	for (auto i = 0; i != kRecordArcsCount; ++i) {
-		p.setOpacity((i == 0) ? progress : (i == kRecordArcsCount - 1) ? (1. - progress) : 1.);
+		p.setOpacity((i == 0)
+			? progress
+			: (i == kRecordArcsCount - 1)
+			? (1. - progress)
+			: 1.);
 		auto rect = QRectF(x - size, y - size, 2 * size, 2 * size);
 		p.drawArc(rect, -FullArcLength / 24, FullArcLength / 12);
 		size += st::historySendActionRecordDelta;
@@ -179,33 +235,64 @@ public:
 	}
 
 	int width() const override {
-		return st::historySendActionUploadPosition.x() + (kUploadArrowsCount + 1) * st::historySendActionUploadDelta;
+		return st::historySendActionUploadPosition.x()
+			+ (kUploadArrowsCount + 1) * st::historySendActionUploadDelta;
 	}
 
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) override;
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
 
 };
 
-const UploadAnimation::MetaData UploadAnimation::kMeta = { 0, &UploadAnimation::create };
+const UploadAnimation::MetaData UploadAnimation::kMeta = {
+	0,
+	&UploadAnimation::create,
+};
 
-void UploadAnimation::paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) {
+void UploadAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
 	PainterHighQualityEnabler hq(p);
 	const auto frameMs = frameTime(now);
 	auto pen = color->p;
-	pen.setWidth(st::historySendActionUploadStrokeNumerator / st::historySendActionUploadDenominator);
+	pen.setWidth(st::historySendActionUploadStrokeNumerator
+		/ st::historySendActionUploadDenominator);
 	pen.setJoinStyle(Qt::RoundJoin);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.setBrush(Qt::NoBrush);
-	auto progress = frameMs / float64(st::historySendActionUploadDuration);
-	auto position = QPointF(x + st::historySendActionUploadDelta * progress, y) + st::historySendActionUploadPosition;
+	auto progress = frameMs / float64(period());
+	auto position = st::historySendActionUploadPosition
+		+ QPointF(x + st::historySendActionUploadDelta * progress, y);
 	auto path = QPainterPath();
-	path.moveTo(0., -st::historySendActionUploadSizeNumerator / st::historySendActionUploadDenominator);
-	path.lineTo(st::historySendActionUploadSizeNumerator / st::historySendActionUploadDenominator, 0.);
-	path.lineTo(0., st::historySendActionUploadSizeNumerator / st::historySendActionUploadDenominator);
+	path.moveTo(
+		0.,
+		-st::historySendActionUploadSizeNumerator
+			/ st::historySendActionUploadDenominator);
+	path.lineTo(
+		st::historySendActionUploadSizeNumerator
+			/ st::historySendActionUploadDenominator,
+		0.);
+	path.lineTo(
+		0.,
+		st::historySendActionUploadSizeNumerator
+			/ st::historySendActionUploadDenominator);
 	p.translate(position);
 	for (auto i = 0; i != kUploadArrowsCount; ++i) {
-		p.setOpacity((i == 0) ? progress : (i == kUploadArrowsCount - 1) ? (1. - progress) : 1.);
+		p.setOpacity((i == 0)
+			? progress
+			: (i == kUploadArrowsCount - 1)
+			? (1. - progress)
+			: 1.);
 		p.drawPath(path);
 		position.setX(position.x() + st::historySendActionUploadDelta);
 		p.translate(st::historySendActionUploadDelta, 0);
@@ -570,7 +657,8 @@ SendActionAnimation::~SendActionAnimation() = default;
 
 bool SendActionAnimation::Impl::supports(Type type) const {
 	CreateImplementationsMap();
-	return Implementations->value(type, &TypingAnimation::kMeta) == metaData();
+	return Implementations->value(type, &TypingAnimation::kMeta)
+		== metaData();
 }
 
 void SendActionAnimation::start(Type type) {
@@ -593,13 +681,24 @@ int SendActionAnimation::width() const {
 	return _impl ? _impl->width() : 0;
 }
 
-void SendActionAnimation::paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time ms) const {
+void SendActionAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time ms) const {
 	if (_impl) {
 		_impl->paint(p, color, x, y, outerWidth, ms);
 	}
 }
 
-void SendActionAnimation::PaintSpeakingIdle(Painter &p, style::color color, int x, int y, int outerWidth) {
+void SendActionAnimation::PaintSpeakingIdle(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth) {
 	SpeakingAnimation::PaintIdle(p, color, x, y, outerWidth);
 }
 

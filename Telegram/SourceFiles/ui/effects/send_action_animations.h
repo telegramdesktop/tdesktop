@@ -25,13 +25,24 @@ public:
 	void tryToFinish();
 
 	int width() const;
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time ms) const;
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time ms) const;
 
 	explicit operator bool() const {
 		return _impl != nullptr;
 	}
 
-	static void PaintSpeakingIdle(Painter &p, style::color color, int x, int y, int outerWidth);
+	static void PaintSpeakingIdle(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth);
 
 private:
 	[[nodiscard]] static std::unique_ptr<Impl> CreateByType(Type type);
