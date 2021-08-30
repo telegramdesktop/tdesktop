@@ -280,22 +280,24 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 				return QString();
 			};
 			for (const auto &[user, action] : _sendActions) {
+				const auto isNamed = !_history->peer->isUser();
 				newTypingString = sendActionString(
 					action.type,
-					_history->peer->isUser() ? QString() : user->firstName);
+					isNamed ? user->firstName : QString());
 				if (!newTypingString.isEmpty()) {
 					_sendActionAnimation.start(action.type);
 
 					// Add an animation to the middle of text.
-					using namespace Lang;
-					if (GetInstance().supportChoosingStickerReplacement()
+					const auto &lang = Lang::GetInstance();
+					if (lang.supportChoosingStickerReplacement()
 							&& (action.type == Type::ChooseSticker)) {
-
-						const auto index = newTypingString.lastIndexOf(
-							Lang::kChoosingStickerReplacement.utf8());
-						_animationLeft = (index == -1)
-							? 0
-							: _st.font->width(newTypingString, 0, index);
+						const auto index = newTypingString.size()
+							- lang.rightIndexChoosingStickerReplacement(
+								isNamed);
+						_animationLeft = _st.font->width(
+							newTypingString,
+							0,
+							index);
 
 						if (!_spacesCount) {
 							_spacesCount = std::ceil(
@@ -303,8 +305,10 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 									/ _st.font->spacew);
 						}
 						newTypingString = newTypingString.replace(
-							Lang::kChoosingStickerReplacement.utf8(),
-							QString().fill(' ', _spacesCount));
+							index,
+							Lang::kChoosingStickerReplacement.utf8().size(),
+							QString().fill(' ', _spacesCount).constData(),
+							_spacesCount);
 					} else {
 						_animationLeft = 0;
 					}

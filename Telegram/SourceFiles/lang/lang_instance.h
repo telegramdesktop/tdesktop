@@ -77,6 +77,7 @@ public:
 	void fillFromSerialized(const QByteArray &data, int dataAppVersion);
 
 	bool supportChoosingStickerReplacement() const;
+	int rightIndexChoosingStickerReplacement(bool named) const;
 
 	void applyDifference(
 		Pack pack,
@@ -124,7 +125,7 @@ private:
 		const QString &relativePath,
 		const QByteArray &content);
 	void updatePluralRules();
-	void updateSupportChoosingStickerReplacement();
+	void updateChoosingStickerReplacement();
 
 	Instance *_derived = nullptr;
 
@@ -137,7 +138,11 @@ private:
 	int _version = 0;
 	rpl::event_stream<> _updated;
 
-	bool _supportChoosingStickerReplacement;
+	struct {
+		bool support = false;
+		int rightIndex = 0;
+		int rightIndexNamed = 0;
+	} _choosingStickerReplacement;
 
 	mutable QString _systemLanguage;
 
