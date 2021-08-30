@@ -83,39 +83,25 @@ PhoneWidget::PhoneWidget(
 }
 
 void PhoneWidget::setupQrLogin() {
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		account().appConfig().refreshed()
-	) | rpl::map([=] {
-		const auto result = account().appConfig().get<QString>(
-			"qr_login_code",
-			"[not-set]");
-		DEBUG_LOG(("PhoneWidget.qr_login_code: %1").arg(result));
-		return result;
-	}) | rpl::filter([](const QString &value) {
-		return (value != "disabled");
-	}) | rpl::take(1) | rpl::start_with_next([=] {
-		const auto qrLogin = Ui::CreateChild<Ui::LinkButton>(
-			this,
-			tr::lng_phone_to_qr(tr::now));
-		qrLogin->show();
+	const auto qrLogin = Ui::CreateChild<Ui::LinkButton>(
+		this,
+		tr::lng_phone_to_qr(tr::now));
+	qrLogin->show();
 
-		DEBUG_LOG(("PhoneWidget.qrLogin link created and shown."));
+	DEBUG_LOG(("PhoneWidget.qrLogin link created and shown."));
 
-		rpl::combine(
-			sizeValue(),
-			qrLogin->widthValue()
-		) | rpl::start_with_next([=](QSize size, int qrLoginWidth) {
-			qrLogin->moveToLeft(
-				(size.width() - qrLoginWidth) / 2,
-				contentTop() + st::introQrLoginLinkTop);
-		}, qrLogin->lifetime());
+	rpl::combine(
+		sizeValue(),
+		qrLogin->widthValue()
+	) | rpl::start_with_next([=](QSize size, int qrLoginWidth) {
+		qrLogin->moveToLeft(
+			(size.width() - qrLoginWidth) / 2,
+			contentTop() + st::introQrLoginLinkTop);
+	}, qrLogin->lifetime());
 
-		qrLogin->setClickedCallback([=] {
-			goReplace<QrWidget>(Animate::Forward);
-		});
-	}, lifetime());
+	qrLogin->setClickedCallback([=] {
+		goReplace<QrWidget>(Animate::Forward);
+	});
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {

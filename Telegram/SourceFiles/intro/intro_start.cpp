@@ -31,15 +31,7 @@ StartWidget::StartWidget(
 
 void StartWidget::submit() {
 	account().destroyStaleAuthorizationKeys();
-	const auto qrLogin = account().appConfig().get<QString>(
-		"qr_login_code",
-		"[not-set]");
-	DEBUG_LOG(("qr_login_code: %1").arg(qrLogin));
-	if (qrLogin == "primary") {
-		goNext<QrWidget>();
-	} else {
-		goNext<PhoneWidget>();
-	}
+	goNext<QrWidget>();
 }
 
 rpl::producer<QString> StartWidget::nextButtonText() const {
