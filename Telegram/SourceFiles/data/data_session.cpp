@@ -2360,6 +2360,23 @@ void Session::notifyUnreadBadgeChanged() {
 	_unreadBadgeChanges.fire({});
 }
 
+std::optional<int> Session::countUnreadRepliesLocally(
+		not_null<HistoryItem*> root,
+		MsgId afterId) const {
+	auto result = std::optional<int>();
+	_unreadRepliesCountRequests.fire({
+		.root = root,
+		.afterId = afterId,
+		.result = &result,
+	});
+	return result;
+}
+
+auto Session::unreadRepliesCountRequests() const
+-> rpl::producer<UnreadRepliesCountRequest> {
+	return _unreadRepliesCountRequests.events();
+}
+
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
 	const auto all = Core::App().settings().includeMutedCounter();
 	return std::max(state.marks - (all ? 0 : state.marksMuted), 0)

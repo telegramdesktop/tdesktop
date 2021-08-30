@@ -173,6 +173,8 @@ private:
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
+	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
+		MsgId afterId) const;
 
 	void setupScrollDownButton();
 	void scrollDownClicked();

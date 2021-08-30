@@ -430,10 +430,22 @@ public:
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
 	[[nodiscard]] int unreadBadgeIgnoreOne(const Dialogs::Key &key) const;
-	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const;
+	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(
+		const Dialogs::Key &key) const;
 	[[nodiscard]] int unreadOnlyMutedBadge() const;
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 	void notifyUnreadBadgeChanged();
+
+	[[nodiscard]] std::optional<int> countUnreadRepliesLocally(
+		not_null<HistoryItem*> root,
+		MsgId afterId) const;
+	struct UnreadRepliesCountRequest {
+		not_null<HistoryItem*> root;
+		MsgId afterId = 0;
+		not_null<std::optional<int>*> result;
+	};
+	[[nodiscard]] auto unreadRepliesCountRequests() const
+		-> rpl::producer<UnreadRepliesCountRequest>;
 
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
@@ -855,6 +867,7 @@ private:
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 	rpl::event_stream<> _unreadBadgeChanges;
+	rpl::event_stream<UnreadRepliesCountRequest> _unreadRepliesCountRequests;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;

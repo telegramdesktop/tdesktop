@@ -2094,7 +2094,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto msgId = d.vtop_msg_id().v;
 		const auto readTillId = d.vread_max_id().v;
 		const auto item = session().data().message(channelId, msgId);
-		const auto unreadCount = std::nullopt;
+		const auto unreadCount = item
+			? session().data().countUnreadRepliesLocally(item, readTillId)
+			: std::nullopt;
 		if (item) {
 			item->setRepliesInboxReadTill(readTillId, unreadCount);
 			if (const auto post = item->lookupDiscussionPostOriginal()) {

@@ -275,6 +275,17 @@ RepliesWidget::RepliesWidget(
 		_inner->update();
 	}, lifetime());
 
+	_history->session().data().unreadRepliesCountRequests(
+	) | rpl::filter([=](
+			const Data::Session::UnreadRepliesCountRequest &request) {
+		return (request.root.get() == _root);
+	}) | rpl::start_with_next([=](
+			const Data::Session::UnreadRepliesCountRequest &request) {
+		if (const auto result = computeUnreadCountLocally(request.afterId)) {
+			*request.result = result;
+		}
+	}, lifetime());
+
 	setupScrollDownButton();
 	setupComposeControls();
 	orderWidgets();
@@ -1762,6 +1773,20 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
+std::optional<int> RepliesWidget::computeUnreadCountLocally(
+		MsgId afterId) const {
+	const auto views = _root ? _root->Get<HistoryMessageViews>() : nullptr;
+	if (!views) {
+		return std::nullopt;
+	}
+	const auto wasReadTillId = views->repliesInboxReadTillId;
+	const auto wasUnreadCount = views->repliesUnreadCount;
+	return _replies->fullUnreadCountAfter(
+		afterId,
+		wasReadTillId,
+		wasUnreadCount);
+}
+
 void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	if (!_root) {
 		return;
@@ -1771,13 +1796,7 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	if (now < was) {
 		return;
 	}
-	const auto views = _root->Get<HistoryMessageViews>();
-	const auto wasReadTillId = views ? views->repliesInboxReadTillId : 0;
-	const auto wasUnreadCount = views ? views->repliesUnreadCount : -1;
-	const auto unreadCount = _replies->fullUnreadCountAfter(
-		now,
-		wasReadTillId,
-		wasUnreadCount);
+	const auto unreadCount = computeUnreadCountLocally(now);
 	const auto fast = item->out() || !unreadCount.has_value();
 	if (was < now || (fast && now == was)) {
 		_root->setRepliesInboxReadTill(now, unreadCount);
