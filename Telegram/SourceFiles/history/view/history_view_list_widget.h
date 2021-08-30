@@ -53,6 +53,7 @@ struct SelectedItem {
 
 struct MessagesBar {
 	Element *element = nullptr;
+	bool hidden = false;
 	bool focus = false;
 };
 

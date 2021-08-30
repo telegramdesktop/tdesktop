@@ -563,10 +563,12 @@ void ListWidget::checkUnreadBarCreation() {
 		if (auto data = _delegate->listMessagesBar(_items); data.bar.element) {
 			_bar = std::move(data.bar);
 			_barText = std::move(data.text);
-			_bar.element->createUnreadBar(_barText.value());
-			const auto i = ranges::find(_items, not_null{ _bar.element });
-			Assert(i != end(_items));
-			refreshAttachmentsAtIndex(i - begin(_items));
+			if (!_bar.hidden) {
+				_bar.element->createUnreadBar(_barText.value());
+				const auto i = ranges::find(_items, not_null{ _bar.element });
+				Assert(i != end(_items));
+				refreshAttachmentsAtIndex(i - begin(_items));
+			}
 		}
 	}
 }
@@ -586,7 +588,7 @@ void ListWidget::restoreScrollState() {
 		return;
 	}
 	if (!_scrollTopState.item) {
-		if (!_bar.element || !_bar.focus || _scrollInited) {
+		if (!_bar.element || _bar.hidden || !_bar.focus || _scrollInited) {
 			return;
 		}
 		_scrollInited = true;

@@ -1722,22 +1722,20 @@ MessagesBarData RepliesWidget::listMessagesBar(
 		return {};
 	}
 	const auto till = _root->computeRepliesInboxReadTillFull();
-	if (till < 2) {
-		return {};
-	}
+	const auto hidden = (till < 2);
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
 		if (IsServerMsgId(item->id) && item->id > till) {
 			if (item->out() || !item->replyToId()) {
 				readTill(item);
 			} else {
-				return MessagesBarData{
-					// Designated initializers here crash MSVC 16.7.3.
-					MessagesBar{
+				return {
+					.bar = {
 						.element = elements[i],
+						.hidden = hidden,
 						.focus = true,
 					},
-					tr::lng_unread_bar_some(),
+					.text = tr::lng_unread_bar_some(),
 				};
 			}
 		}
