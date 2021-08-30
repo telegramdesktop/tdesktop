@@ -83,6 +83,13 @@ public:
 	}
 	[[nodiscard]] rpl::producer<not_null<MTP::Instance*>> mtpValue() const;
 
+	// Each time the main session changes a new copy of the pointer is fired.
+	// This allows to resend the requests that were not requiring auth, and
+	// which could be forgotten without calling .done() or .fail() because
+	// of the main dc changing.
+	[[nodiscard]] auto mtpMainSessionValue() const
+		-> rpl::producer<not_null<MTP::Instance*>>;
+
 	// Set from legacy storage.
 	void setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key);
 

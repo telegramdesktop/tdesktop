@@ -241,6 +241,12 @@ rpl::producer<not_null<MTP::Instance*>> Account::mtpValue() const {
 	});
 }
 
+rpl::producer<not_null<MTP::Instance*>> Account::mtpMainSessionValue() const {
+	return mtpValue() | rpl::map([=](not_null<MTP::Instance*> instance) {
+		return instance->mainDcIdValue() | rpl::map_to(instance);
+	}) | rpl::flatten_latest();
+}
+
 rpl::producer<MTPUpdates> Account::mtpUpdates() const {
 	return _mtpUpdates.events();
 }

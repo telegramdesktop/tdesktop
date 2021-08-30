@@ -19,7 +19,7 @@ constexpr auto kRefreshTimeout = 3600 * crl::time(1000);
 } // namespace
 
 AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
-	account->mtpValue(
+	account->mtpMainSessionValue(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		refresh();

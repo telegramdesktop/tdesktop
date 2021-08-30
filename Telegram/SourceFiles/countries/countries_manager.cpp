@@ -153,15 +153,11 @@ Manager::Manager(not_null<Main::Domain*> domain)
 		if (!account) {
 			_api.reset();
 		}
-		return rpl::combine(
-			account
-				? account->appConfig().refreshed() | rpl::map_to(true)
-				: rpl::never<>() | rpl::map_to(false),
-			account
-				? account->mtpValue()
-				: rpl::never<not_null<MTP::Instance*>>());
+		return account
+				? account->mtpMainSessionValue()
+				: rpl::never<not_null<MTP::Instance*>>();
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](bool, not_null<MTP::Instance*> instance) {
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		request();
 	}, _lifetime);
@@ -193,7 +189,7 @@ void Manager::write() const {
 }
 
 void Manager::request() {
-	Expects(_api);
+	Expects(_api.has_value());
 
 	const auto convertMTP = [](const auto &vector, bool force = false) {
 		if (!vector) {
@@ -202,7 +198,7 @@ void Manager::request() {
 		return ranges::views::all(
 			vector->v
 		) | ranges::views::transform([](const MTPstring &s) -> QString {
-			return s.v;
+			return qs(s);
 		}) | ranges::to_vector;
 	};
 

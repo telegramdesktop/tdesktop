@@ -65,6 +65,7 @@ public:
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
 	[[nodiscard]] DcId mainDcId() const;
+	[[nodiscard]] rpl::producer<DcId> mainDcIdValue() const;
 	[[nodiscard]] QString systemLangCode() const;
 	[[nodiscard]] QString cloudLangCode() const;
 	[[nodiscard]] QString langPackName() const;

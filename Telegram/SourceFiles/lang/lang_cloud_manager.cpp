@@ -164,7 +164,7 @@ CloudManager::CloudManager(Instance &langpack)
 			_api.reset();
 		}
 		return account
-			? account->mtpValue()
+			? account->mtpMainSessionValue()
 			: rpl::never<not_null<MTP::Instance*>>();
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
