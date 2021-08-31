@@ -741,6 +741,14 @@ void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 		} else if (!_derived->_nonDefaultSet[key]) {
 			_derived->_values[key] = std::move(value);
 		}
+		if (key == tr::lng_send_action_choose_sticker.base
+			|| key == tr::lng_user_action_choose_sticker.base) {
+			if (!_derived) {
+				updateChoosingStickerReplacement();
+			} else {
+				_derived->updateChoosingStickerReplacement();
+			}
+		}
 	});
 }
 
@@ -770,6 +778,14 @@ void Instance::resetValue(const QByteArray &key) {
 				: GetOriginalValue(keyIndex);
 		} else if (!_derived->_nonDefaultSet[keyIndex]) {
 			_derived->_values[keyIndex] = GetOriginalValue(keyIndex);
+		}
+		if (keyIndex == tr::lng_send_action_choose_sticker.base
+			|| keyIndex == tr::lng_user_action_choose_sticker.base) {
+			if (!_derived) {
+				updateChoosingStickerReplacement();
+			} else {
+				_derived->updateChoosingStickerReplacement();
+			}
 		}
 	}
 }
