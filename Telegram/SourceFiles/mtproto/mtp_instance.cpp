@@ -71,6 +71,7 @@ public:
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
+	[[nodiscard]] bool hasMainDcId() const;
 	[[nodiscard]] DcId mainDcId() const;
 	[[nodiscard]] rpl::producer<DcId> mainDcIdValue() const;
 
@@ -357,13 +358,13 @@ void Instance::Private::start() {
 		for (const auto &[shiftedDcId, dc] : _dcenters) {
 			startSession(shiftedDcId);
 		}
-	} else if (mainDcId() != Fields::kNoneMainDc) {
+	} else if (hasMainDcId()) {
 		_mainSession = startSession(mainDcId());
 	}
 
 	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
 
-	Assert((mainDcId() == Fields::kNoneMainDc) == isKeysDestroyer());
+	Assert(!hasMainDcId() == isKeysDestroyer());
 	requestConfig();
 }
 
@@ -474,8 +475,12 @@ void Instance::Private::setMainDcId(DcId mainDcId) {
 	_writeKeysRequests.fire({});
 }
 
+bool Instance::Private::hasMainDcId() const {
+	return (_mainDcId.current() != Fields::kNoneMainDc);
+}
+
 DcId Instance::Private::mainDcId() const {
-	Expects(_mainDcId.current() != Fields::kNoneMainDc);
+	Expects(hasMainDcId());
 
 	return _mainDcId.current();
 }
@@ -557,7 +562,7 @@ void Instance::Private::requestConfigIfExpired() {
 }
 
 void Instance::Private::requestCDNConfig() {
-	if (_cdnConfigLoadRequestId || mainDcId() == Fields::kNoneMainDc) {
+	if (_cdnConfigLoadRequestId || !hasMainDcId()) {
 		return;
 	}
 	_cdnConfigLoadRequestId = request(
@@ -696,6 +701,8 @@ void Instance::Private::logout(Fn<void()> done) {
 }
 
 void Instance::Private::logoutGuestDcs() {
+	Expects(!isKeysDestroyer());
+
 	auto dcIds = std::vector<DcId>();
 	dcIds.reserve(_keysForWrite.size());
 	for (const auto &key : _keysForWrite) {
@@ -1463,7 +1470,7 @@ bool Instance::Private::onErrorDefault(
 			LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
 		}
 		auto newdc = BareDcId(qAbs(dcWithShift));
-		if (!newdc || newdc == mainDcId()) {
+		if (!newdc || !hasMainDcId() || newdc == mainDcId()) {
 			if (!badGuestDc && _globalFailHandler) {
 				_globalFailHandler(error, response); // auth failed in main dc
 			}
