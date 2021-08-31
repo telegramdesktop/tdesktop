@@ -221,6 +221,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	const auto wasSpeakingAnimation = !!_speakingAnimation;
 	if (force || sendActionChanged || speakingChanged) {
 		QString newTypingString;
+		auto animationLeft = 0;
 		auto typingCount = _typing.size();
 		if (typingCount > 2) {
 			newTypingString = tr::lng_many_typing(tr::now, lt_count, typingCount);
@@ -295,7 +296,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 						const auto index = newTypingString.size()
 							- lang.rightIndexChoosingStickerReplacement(
 								isNamed);
-						_animationLeft = _st.font->width(
+						animationLeft = _st.font->width(
 							newTypingString,
 							0,
 							index);
@@ -310,8 +311,6 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 							Lang::kChoosingStickerReplacement.utf8().size(),
 							QString().fill(' ', _spacesCount).constData(),
 							_spacesCount);
-					} else {
-						_animationLeft = 0;
 					}
 
 					break;
@@ -355,6 +354,9 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 				st::dialogsTextStyle,
 				_sendActionString,
 				Ui::NameTextOptions());
+		}
+		if (_animationLeft != animationLeft) {
+			_animationLeft = animationLeft;
 		}
 		if (_speaking.empty()) {
 			_speakingAnimation.tryToFinish();
