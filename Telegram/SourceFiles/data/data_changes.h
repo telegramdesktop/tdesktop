@@ -17,6 +17,10 @@ namespace Dialogs {
 class Entry;
 } // namespace Dialogs
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
 namespace details {

@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "ui/chat/attach/attach_prepare.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 constexpr auto kFileSizeLimit = 2000 * 1024 * 1024; // Load files up to 2000MB
 
 enum class SendMediaType {

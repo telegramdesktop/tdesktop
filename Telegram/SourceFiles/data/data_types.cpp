@@ -7,11 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_types.h"
 
-#include "data/data_session.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
-#include "main/main_session.h"
 
 namespace Data {
 namespace {

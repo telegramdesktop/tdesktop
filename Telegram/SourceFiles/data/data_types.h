@@ -28,10 +28,6 @@ namespace Ui {
 class InputField;
 } // namespace Ui
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Images {
 enum class Option;
 using Options = base::flags<Option>;

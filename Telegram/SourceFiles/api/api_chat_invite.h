@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class UserData;
 class ChannelData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window

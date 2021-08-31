@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class History;
 class PhotoData;
 class DocumentData;

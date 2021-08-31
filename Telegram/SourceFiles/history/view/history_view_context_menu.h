@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class PopupMenu;
 enum class ReportReason;

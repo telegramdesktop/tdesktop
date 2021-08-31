@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
