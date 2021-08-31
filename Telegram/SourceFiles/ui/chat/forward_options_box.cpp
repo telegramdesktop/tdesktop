@@ -37,9 +37,7 @@ void ForwardOptionsBox(
 			box.get(),
 			(count == 1
 				? tr::lng_forward_about()
-				: tr::lng_forward_about_many(
-					lt_count,
-					rpl::single(count) | tr::to_count())),
+				: tr::lng_forward_many_about()),
 			st::boxLabel),
 		st::boxRowPadding);
 	const auto checkboxPadding = style::margins(

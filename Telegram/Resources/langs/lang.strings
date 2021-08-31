@@ -2511,13 +2511,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_date_input_month" = "Month";
 "lng_date_input_year" = "Year";
 
-"lng_forward_header" = "Forward message";
 "lng_forward_title" = "Forward Message";
 "lng_forward_many_title#one" = "Forward {count} Message";
 "lng_forward_many_title#other" = "Forward {count} Messages";
-"lng_forward_about" = "You can remove the sender's name from this message as if it was sent by you.";
-"lng_forward_about_many#one" = "You can remove senders' name from {count} forwarded message as if it was sent by you.";
-"lng_forward_about_many#other" = "You can remove senders' names from {count} forwarded messages as if they were sent by you.";
+"lng_forward_about" = "You can remove the sender's name so that this message will look like it was sent by you.";
+"lng_forward_many_about" = "You can remove the senders’ names so that these messages will look like they were sent by you.";
 "lng_forward_show_sender" = "Show sender's name";
 "lng_forward_show_senders" = "Show senders' names";
 "lng_forward_show_caption" = "Show caption";
