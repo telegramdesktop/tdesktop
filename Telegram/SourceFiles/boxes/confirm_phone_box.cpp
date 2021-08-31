@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
-#include "numbers.h"
 #include "lang/lang_keys.h"
 #include "mtproto/facade.h"
 #include "styles/style_layers.h"
