@@ -126,6 +126,7 @@ void ScheduleGroupCallBox(
 		copy.scheduleDate = date;
 		done(std::move(copy));
 	};
+	const auto livestream = info.peer->isBroadcast();
 	const auto duration = box->lifetime().make_state<
 		rpl::variable<QString>>();
 	auto description = (info.peer->isBroadcast()
@@ -151,7 +152,9 @@ void ScheduleGroupCallBox(
 	).addSecs(60 * 60 * (now.time().minute() < 30 ? 1 : 2));
 
 	auto descriptor = Ui::ChooseDateTimeBox(box, {
-		.title = tr::lng_group_call_schedule_title(),
+		.title = (livestream
+			? tr::lng_group_call_schedule_title_channel()
+			: tr::lng_group_call_schedule_title()),
 		.submit = tr::lng_schedule_button(),
 		.done = send,
 		.min = min,
@@ -194,11 +197,16 @@ void ChooseJoinAsBox(
 		JoinInfo info,
 		Fn<void(JoinInfo)> done) {
 	box->setWidth(st::groupCallJoinAsWidth);
+	const auto livestream = info.peer->isBroadcast();
 	box->setTitle([&] {
 		switch (context) {
-		case Context::Create: return tr::lng_group_call_start_as_header();
+		case Context::Create: return livestream
+			? tr::lng_group_call_start_as_header_channel()
+			: tr::lng_group_call_start_as_header();
 		case Context::Join:
-		case Context::JoinWithConfirm: return tr::lng_group_call_join_as_header();
+		case Context::JoinWithConfirm: return livestream
+			? tr::lng_group_call_join_as_header_channel()
+			: tr::lng_group_call_join_as_header();
 		case Context::Switch: return tr::lng_group_call_display_as_header();
 		}
 		Unexpected("Context in ChooseJoinAsBox.");
@@ -243,7 +251,9 @@ void ChooseJoinAsBox(
 			box,
 			tr::lng_group_call_or_schedule(
 				lt_link,
-				tr::lng_group_call_schedule(makeLink),
+				(livestream
+					? tr::lng_group_call_schedule_channel
+					: tr::lng_group_call_schedule)(makeLink),
 				Ui::Text::WithEntities),
 			labelSt));
 		label->setClickHandlerFilter([=](const auto&...) {
@@ -276,8 +286,7 @@ void ChooseJoinAsBox(
 	const auto anonymouseAdmin = channel
 		&& ((channel->isMegagroup() && channel->amAnonymous())
 			|| (channel->isBroadcast()
-				&& (channel->amCreator()
-					|| channel->hasAdminRights())));
+				&& (channel->amCreator() || channel->hasAdminRights())));
 	if (anonymouseAdmin && !joinAsAlreadyUsed) {
 		return { tr::lng_group_call_join_sure_personal(tr::now) };
 	} else if (context != ChooseJoinAsProcess::Context::JoinWithConfirm) {
@@ -286,7 +295,9 @@ void ChooseJoinAsBox(
 	const auto name = !existing->title().isEmpty()
 		? existing->title()
 		: peer->name;
-	return tr::lng_group_call_join_confirm(
+	return (peer->isBroadcast()
+		? tr::lng_group_call_join_confirm_channel
+		: tr::lng_group_call_join_confirm)(
 		tr::now,
 		lt_chat,
 		Ui::Text::Bold(name),
@@ -402,6 +413,7 @@ void ChooseJoinAsProcess::start(
 				finish(info);
 				return;
 			}
+			const auto livestream = peer->isBroadcast();
 			const auto creating = !peer->groupCall();
 			if (creating) {
 				confirmation
@@ -409,7 +421,9 @@ void ChooseJoinAsProcess::start(
 					.append(tr::lng_group_call_or_schedule(
 					tr::now,
 					lt_link,
-					Ui::Text::Link(tr::lng_group_call_schedule(tr::now)),
+					Ui::Text::Link((livestream
+						? tr::lng_group_call_schedule_channel
+						: tr::lng_group_call_schedule)(tr::now)),
 					Ui::Text::WithEntities));
 			}
 			const auto guard = base::make_weak(&_request->guard);

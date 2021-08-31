@@ -248,6 +248,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		auto lifetime = rpl::lifetime();
 		auto state = lifetime.make_state<State>();
 		state->current.shown = true;
+		state->current.livestream = call->peer()->isBroadcast();
 
 		const auto pushNext = [=] {
 			if (state->scheduled) {

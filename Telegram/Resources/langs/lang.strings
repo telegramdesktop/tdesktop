@@ -1141,10 +1141,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_invite_users_and_one" = "{accumulated}, {user}";
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
 "lng_action_group_call_started_group" = "{from} started a voice chat";
-"lng_action_group_call_started_channel" = "Voice chat started";
+"lng_action_group_call_started_channel" = "Live stream started";
 "lng_action_group_call_scheduled_group" = "{from} scheduled a voice chat for {date}";
-"lng_action_group_call_scheduled_channel" = "Voice chat scheduled for {date}";
-"lng_action_group_call_finished" = "Voice chat finished ({duration})";
+"lng_action_group_call_scheduled_channel" = "Live stream scheduled for {date}";
+"lng_action_group_call_finished" = "Live stream finished ({duration})";
 "lng_action_group_call_finished_group" = "{from} ended the voice chat ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
@@ -2004,6 +2004,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_bar_hangup" = "End call";
 "lng_call_leave_to_other_sure" = "Do you want to end your active call and join a voice chat in this group?";
+"lng_call_leave_to_other_sure_channel" = "Do you want to end your active call and join a live stream in this channel?";
 
 "lng_call_box_title" = "Calls";
 "lng_call_box_about" = "You haven't made any Telegram calls yet.";
@@ -2045,6 +2046,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_microphone_off" = "{user}'s microphone is off";
 
 "lng_group_call_title" = "Voice Chat";
+"lng_group_call_title_channel" = "Live Stream";
 "lng_group_call_active" = "speaking";
 "lng_group_call_inactive" = "listening";
 "lng_group_call_raised_hand_status" = "wants to speak";
@@ -2068,13 +2070,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
+"lng_group_call_leave_title_channel" = "Leave live stream";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
+"lng_group_call_leave_sure_channel" = "Are you sure you want to leave this live stream?";
 "lng_group_call_close" = "Close";
 "lng_group_call_close_sure" = "Voice chat is scheduled. You can abort it or just close this panel.";
+"lng_group_call_close_sure_channel" = "Live stream is scheduled. You can abort it or just close this panel.";
 "lng_group_call_also_cancel" = "Abort voice chat";
+"lng_group_call_also_cancel_channel" = "Abort live stream";
 "lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
+"lng_group_call_leave_to_other_sure_channel" = "Do you want to leave your active voice chat and join a live stream in this channel?";
+"lng_group_call_leave_channel_to_other_sure" = "Do you want to leave your active live stream and join a voice chat in this group?";
+"lng_group_call_leave_channel_to_other_sure_channel" = "Do you want to leave your active live stream and join a live stream in this channel?";
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
-"lng_group_call_create_sure_channel" = "Are you sure you want to start a voice chat in this channel as your personal account?";
+"lng_group_call_create_sure_channel" = "Are you sure you want to start a live stream in this channel as your personal account?";
 "lng_group_call_join_sure_personal" = "Are you sure you want to join this voice chat as your personal account?";
 "lng_group_call_muted_no_camera" = "You can't turn on video while you're muted by admin.";
 "lng_group_call_muted_no_screen" = "You can't share your screen while you're muted by admin.";
@@ -2089,6 +2098,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_tooltip_force_muted" = "Muted by admin. Click if you want to speak.";
 "lng_group_call_tooltip_raised_hand" = "You asked to speak. We let the speakers know.";
 "lng_group_call_also_end" = "End voice chat";
+"lng_group_call_also_end_channel" = "End live stream";
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite" = "Invite Member";
 "lng_group_call_invited_status" = "invited";
@@ -2111,24 +2121,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_ptt_delay" = "Push to Talk release delay: {delay}";
 "lng_group_call_share" = "Share Invite Link";
 "lng_group_call_noise_suppression" = "Enable Noise Suppression";
-"lng_group_call_over_limit#one" = "The voice chat is over {count} member.\nNew participants only have access to audio stream.";
-"lng_group_call_over_limit#other" = "The voice chat is over {count} members.\nNew participants only have access to audio stream.";
 "lng_group_call_video_paused" = "Video is paused";
 "lng_group_call_share_speaker" = "Users with this link can speak";
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";
 "lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
+"lng_group_call_end_channel" = "End Live Stream";
 "lng_group_call_cancel" = "Abort Voice Chat";
+"lng_group_call_cancel_channel" = "Abort Live Stream";
 "lng_group_call_join" = "Join";
 "lng_group_call_join_confirm" = "Do you want to join the voice chat {chat}?";
+"lng_group_call_join_confirm_channel" = "Do you want to join the live stream {chat}?";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
 "lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
 "lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
 "lng_group_call_no_members" = "click to join";
 "lng_group_call_members#one" = "{count} participant";
 "lng_group_call_members#other" = "{count} participants";
-"lng_group_call_no_anonymous" = "Sorry, anonymous group admins can't join voice chats.";
-"lng_group_call_too_many" = "Sorry, there are too many members in this voice chat. Please try again later.";
 "lng_group_call_context_mute" = "Mute";
 "lng_group_call_context_unmute" = "Allow to speak";
 "lng_group_call_context_remove_hand" = "Cancel request to speak";
@@ -2140,6 +2149,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_unpin_screen" = "Unpin screencast";
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
+"lng_group_call_remove_channel_from_channel" = "Remove {channel} from the live stream?";
 "lng_group_call_duration_days#one" = "{count} day";
 "lng_group_call_duration_days#other" = "{count} days";
 "lng_group_call_duration_hours#one" = "{count} hour";
@@ -2156,18 +2166,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_mac_settings" = "Open Settings";
 
 "lng_group_call_start_as_header" = "Start Voice Chat as...";
+"lng_group_call_start_as_header_channel" = "Start Live Stream as...";
 "lng_group_call_join_as_header" = "Join Voice Chat as...";
+"lng_group_call_join_as_header_channel" = "Join Live Stream as...";
 "lng_group_call_display_as_header" = "Display me as...";
 "lng_group_call_join_as_about" = "Choose whether you want to be displayed as your personal account or as your channel.";
 "lng_group_call_or_schedule" = "You can also {link}.";
 "lng_group_call_schedule" = "schedule a voice chat";
+"lng_group_call_schedule_channel" = "schedule a live stream";
 "lng_group_call_schedule_title" = "Schedule Voice Chat";
+"lng_group_call_schedule_title_channel" = "Schedule Live Stream";
 "lng_group_call_schedule_notified_group" = "The members of the group will be notified that the voice chat will start in {duration}.";
-"lng_group_call_schedule_notified_channel" = "The subscribers of the channel will be notified that the voice chat will start in {duration}.";
+"lng_group_call_schedule_notified_channel" = "The subscribers of the channel will be notified that the live stream will start in {duration}.";
 "lng_group_call_scheduled_status" = "Scheduled";
 "lng_group_call_scheduled_title" = "Scheduled Voice Chat";
+"lng_group_call_scheduled_title_channel" = "Scheduled Live Stream";
 "lng_group_call_starts_short" = "Starts {when}";
 "lng_group_call_starts" = "Voice Chat starts {when}";
+"lng_group_call_starts_channel" = "Live Stream starts {when}";
 "lng_group_call_starts_today" = "today at {time}";
 "lng_group_call_starts_tomorrow" = "tomorrow at {time}";
 "lng_group_call_starts_date" = "{date} at {time}";
@@ -2178,16 +2194,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_starts_short_date" = "{date}, {time}";
 "lng_group_call_start_now" = "Start Now";
 "lng_group_call_start_now_sure" = "Are you sure you want to start the voice chat now?";
+"lng_group_call_start_now_sure_channel" = "Are you sure you want to start the live stream now?";
 "lng_group_call_set_reminder" = "Set Reminder";
 "lng_group_call_cancel_reminder" = "Cancel Reminder";
 "lng_group_call_join_as_personal" = "personal account";
 "lng_group_call_edit_title" = "Edit voice chat title";
-"lng_group_call_switch_done" = "Members of this voice chat will now see you as **{user}**";
-"lng_group_call_edit_title_header" = "Voice chat title";
+"lng_group_call_edit_title_channel" = "Edit live stream title";
 "lng_group_call_recording_start" = "Start recording";
 "lng_group_call_recording_stop" = "Stop recording";
 "lng_group_call_recording_started" = "Voice chat recording started.";
+"lng_group_call_recording_started_channel" = "Live stream recording started.";
 "lng_group_call_recording_stopped" = "Voice chat recording stopped.";
+"lng_group_call_recording_stopped_channel" = "Live stream recording stopped.";
 "lng_group_call_recording_saved" = "Audio saved to Saved Messages.";
 "lng_group_call_pinned_camera_me" = "Your video is pinned.";
 "lng_group_call_pinned_screen_me" = "Your screencast is pinned.";
@@ -2203,18 +2221,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_recording_start_field" = "Recording Title";
 "lng_group_call_recording_start_button" = "Start";
 "lng_group_call_is_recorded" = "Voice chat is being recorded.";
+"lng_group_call_is_recorded_channel" = "Live stream is being recorded.";
 "lng_group_call_can_speak_here" = "You can now speak.";
 "lng_group_call_can_speak" = "You can now speak in {chat}.";
 "lng_group_call_title_changed" = "Voice chat title changed to {title}";
+"lng_group_call_title_changed_channel" = "Live stream title changed to {title}";
 "lng_group_call_join_as_changed" = "Members of this voice chat will now see you as {name}";
+"lng_group_call_join_as_changed_channel" = "Members of this live stream will now see you as {name}";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
-//"lng_player_cant_stream" = "This file can't be played before it is fully downloaded.\n\nWould you like to download it?";
-//"lng_player_download" = "Download";
 
 "lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";
@@ -2270,6 +2289,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";
 "lng_rights_channel_delete" = "Delete messages of others";
+"lng_rights_channel_manage_calls" = "Manage live streams";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
 "lng_rights_group_invite_link" = "Invite users via link";
@@ -2359,6 +2379,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_messages_edited" = "Edited messages";
 "lng_admin_log_filter_messages_pinned" = "Pinned messages";
 "lng_admin_log_filter_voice_chats" = "Voice chat";
+"lng_admin_log_filter_voice_chats_channel" = "Live stream";
 "lng_admin_log_filter_invite_links" = "Invite links";
 "lng_admin_log_filter_members_removed" = "Leaving members";
 "lng_admin_log_filter_all_admins" = "All users and admins";
@@ -2431,12 +2452,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_changed_slow_mode" = "{from} changed slow mode to {duration}";
 "lng_admin_log_removed_slow_mode" = "{from} disabled slow mode";
 "lng_admin_log_started_group_call" = "{from} started a new voice chat";
+"lng_admin_log_started_group_call_channel" = "{from} started a new live stream";
 "lng_admin_log_discarded_group_call" = "{from} discarded a voice chat";
+"lng_admin_log_discarded_group_call_channel" = "{from} discarded a live stream";
 "lng_admin_log_muted_participant" = "{from} muted {user} in a voice chat";
+"lng_admin_log_muted_participant_channel" = "{from} muted {user} in a live stream";
 "lng_admin_log_unmuted_participant" = "{from} unmuted {user} in a voice chat";
+"lng_admin_log_unmuted_participant_channel" = "{from} unmuted {user} in a live stream";
 "lng_admin_log_allowed_unmute_self" = "{from} allowed new voice chat members to speak";
+"lng_admin_log_allowed_unmute_self_channel" = "{from} allowed new live stream members to speak";
 "lng_admin_log_disallowed_unmute_self" = "{from} started muting new voice chat members";
+"lng_admin_log_disallowed_unmute_self_channel" = "{from} started muting new live stream members";
 "lng_admin_log_participant_volume" = "{from} changed voice chat volume for {user} to {percent}";
+"lng_admin_log_participant_volume_channel" = "{from} changed live stream volume for {user} to {percent}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
@@ -2461,6 +2489,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_invite_link" = "Invite users via link";
 "lng_admin_log_admin_pin_messages" = "Pin messages";
 "lng_admin_log_admin_manage_calls" = "Manage voice chats";
+"lng_admin_log_admin_manage_calls_channel" = "Manage live streams";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 
 "lng_terms_signup" = "By signing up,\nyou agree to the {link}.";

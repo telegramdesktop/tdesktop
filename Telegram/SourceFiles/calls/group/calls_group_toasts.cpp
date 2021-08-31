@@ -49,7 +49,9 @@ void Toasts::setupJoinAsChanged() {
 			return (state == State::Joined);
 		}) | rpl::take(1);
 	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
-		_panel->showToast(tr::lng_group_call_join_as_changed(
+		_panel->showToast((_call->peer()->isBroadcast()
+			? tr::lng_group_call_join_as_changed_channel
+			: tr::lng_group_call_join_as_changed)(
 			tr::now,
 			lt_name,
 			Ui::Text::Bold(_call->joinAs()->name),
@@ -67,7 +69,9 @@ void Toasts::setupTitleChanged() {
 			? peer->name
 			: peer->groupCall()->title();
 	}) | rpl::start_with_next([=](const QString &title) {
-		_panel->showToast(tr::lng_group_call_title_changed(
+		_panel->showToast((_call->peer()->isBroadcast()
+			? tr::lng_group_call_title_changed_channel
+			: tr::lng_group_call_title_changed)(
 			tr::now,
 			lt_title,
 			Ui::Text::Bold(title),

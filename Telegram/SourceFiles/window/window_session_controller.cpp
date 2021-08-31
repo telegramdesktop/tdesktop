@@ -1066,17 +1066,26 @@ void SessionController::startOrJoinGroupCall(
 		// Do you want to leave your active voice chat
 		// to join a voice chat in this group?
 		askConfirmation(
-			tr::lng_call_leave_to_other_sure(tr::now),
+			(peer->isBroadcast()
+				? tr::lng_call_leave_to_other_sure_channel
+				: tr::lng_call_leave_to_other_sure)(tr::now),
 			tr::lng_call_bar_hangup(tr::now));
 	} else if (confirm != GroupCallJoinConfirm::None
 		&& calls.inGroupCall()) {
-		if (calls.currentGroupCall()->peer() == peer) {
+		const auto now = calls.currentGroupCall()->peer();
+		if (now == peer) {
 			calls.activateCurrentCall(joinHash);
 		} else if (calls.currentGroupCall()->scheduleDate()) {
 			calls.startOrJoinGroupCall(peer, joinHash);
 		} else {
 			askConfirmation(
-				tr::lng_group_call_leave_to_other_sure(tr::now),
+				((peer->isBroadcast() && now->isBroadcast())
+					? tr::lng_group_call_leave_channel_to_other_sure_channel
+					: now->isBroadcast()
+					? tr::lng_group_call_leave_channel_to_other_sure
+					: peer->isBroadcast()
+					? tr::lng_group_call_leave_to_other_sure_channel
+					: tr::lng_group_call_leave_to_other_sure)(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
 	} else {

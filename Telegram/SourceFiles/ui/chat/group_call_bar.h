@@ -26,6 +26,7 @@ struct GroupCallBarContent {
 	TimeId scheduleDate = 0;
 	int count = 0;
 	bool shown = false;
+	bool livestream = false;
 	std::vector<GroupCallUser> users;
 };
 

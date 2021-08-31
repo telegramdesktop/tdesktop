@@ -37,8 +37,11 @@ void EditGroupCallTitleBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &placeholder,
 		const QString &title,
+		bool livestream,
 		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_edit_title());
+	box->setTitle(livestream
+		? tr::lng_group_call_edit_title_channel()
+		: tr::lng_group_call_edit_title());
 	const auto input = box->addRow(object_ptr<Ui::InputField>(
 		box,
 		st::groupCallField,
@@ -492,25 +495,36 @@ void LeaveBox(
 		not_null<GroupCall*> call,
 		bool discardChecked,
 		BoxContext context) {
+	const auto livestream = call->peer()->isBroadcast();
 	const auto scheduled = (call->scheduleDate() != 0);
 	if (!scheduled) {
-		box->setTitle(tr::lng_group_call_leave_title());
+		box->setTitle(livestream
+			? tr::lng_group_call_leave_title_channel()
+			: tr::lng_group_call_leave_title());
 	}
 	const auto inCall = (context == BoxContext::GroupCallPanel);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box.get(),
 			(scheduled
-				? tr::lng_group_call_close_sure()
-				: tr::lng_group_call_leave_sure()),
+				? (livestream
+					? tr::lng_group_call_close_sure_channel()
+					: tr::lng_group_call_close_sure())
+				: (livestream
+					? tr::lng_group_call_leave_sure_channel()
+					: tr::lng_group_call_leave_sure())),
 			(inCall ? st::groupCallBoxLabel : st::boxLabel)),
 		scheduled ? st::boxPadding : st::boxRowPadding);
 	const auto discard = call->peer()->canManageGroupCall()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			(scheduled
-				? tr::lng_group_call_also_cancel()
-				: tr::lng_group_call_also_end()),
+				? (livestream
+					? tr::lng_group_call_also_cancel_channel()
+					: tr::lng_group_call_also_cancel())
+				: (livestream
+					? tr::lng_group_call_also_end_channel()
+					: tr::lng_group_call_also_end())),
 			discardChecked,
 			(inCall ? st::groupCallCheckbox : st::defaultBoxCheckbox),
 			(inCall ? st::groupCallCheck : st::defaultCheck)),
@@ -592,7 +606,11 @@ void FillMenu(
 		menu->addSeparator();
 	}
 	if (addEditTitle) {
-		menu->addAction(tr::lng_group_call_edit_title(tr::now), [=] {
+		const auto livestream = call->peer()->isBroadcast();
+		const auto text = (livestream
+			? tr::lng_group_call_edit_title_channel
+			: tr::lng_group_call_edit_title)(tr::now);
+		menu->addAction(text, [=] {
 			const auto done = [=](const QString &title) {
 				if (const auto strong = weak.get()) {
 					strong->changeTitle(title);
@@ -603,6 +621,7 @@ void FillMenu(
 					EditGroupCallTitleBox,
 					peer->name,
 					real->title(),
+					livestream,
 					done));
 			}
 		});
@@ -666,15 +685,18 @@ void FillMenu(
 				BoxContext::GroupCallPanel));
 		}
 	};
+	const auto livestream = real->peer()->isBroadcast();
 	menu->addAction(MakeAttentionAction(
 		menu->menu(),
-		(real->scheduleDate()
-			? (call->canManage()
-				? tr::lng_group_call_cancel(tr::now)
-				: tr::lng_group_call_leave(tr::now))
-			: (call->canManage()
-				? tr::lng_group_call_end(tr::now)
-				: tr::lng_group_call_leave(tr::now))),
+		(!call->canManage()
+			? tr::lng_group_call_leave
+			: real->scheduleDate()
+			? (livestream
+				? tr::lng_group_call_cancel_channel
+				: tr::lng_group_call_cancel)
+			: (livestream
+				? tr::lng_group_call_end_channel
+				: tr::lng_group_call_end))(tr::now),
 		finish));
 }
 
