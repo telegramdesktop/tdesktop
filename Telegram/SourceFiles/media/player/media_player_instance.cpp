@@ -519,8 +519,7 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 	result.mode = (document && document->isVideoMessage())
 		? Streaming::Mode::Both
 		: Streaming::Mode::Audio;
-	result.speed = (document
-		&& (document->isVoiceMessage() || document->isVideoMessage()))
+	result.speed = audioId.changeablePlaybackSpeed()
 		? VoicePlaybackSpeed()
 		: 1.;
 	result.audioId = audioId;
@@ -677,7 +676,10 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 }
 
 void Instance::updateVoicePlaybackSpeed() {
-	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+	if (const auto data = getData(getActiveType())) {
+		if (!data->current.changeablePlaybackSpeed()) {
+			return;
+		}
 		if (const auto streamed = data->streamed.get()) {
 			streamed->instance.setSpeed(VoicePlaybackSpeed());
 		}

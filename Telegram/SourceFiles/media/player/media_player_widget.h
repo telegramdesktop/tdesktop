@@ -75,6 +75,8 @@ private:
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
 	void updateRepeatTrackIcon();
+	void updateControlsVisibility();
+	void updateControlsGeometry();
 	void updatePlaybackSpeedIcon();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();

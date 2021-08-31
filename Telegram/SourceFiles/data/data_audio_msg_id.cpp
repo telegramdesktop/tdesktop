@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 
+namespace {
+
+constexpr auto kMinLengthForChangeablePlaybackSpeed = 20 * TimeId(60); // 20 minutes.
+
+} // namespace
+
 AudioMsgId::AudioMsgId() {
 }
 
@@ -18,7 +24,10 @@ AudioMsgId::AudioMsgId(
 	uint32 externalPlayId)
 : _audio(audio)
 , _contextId(msgId)
-, _externalPlayId(externalPlayId) {
+, _externalPlayId(externalPlayId)
+, _changeablePlaybackSpeed(_audio->isVoiceMessage()
+	|| _audio->isVideoMessage()
+	|| (_audio->getDuration() >= kMinLengthForChangeablePlaybackSpeed)) {
 	setTypeFromAudio();
 }
 
@@ -60,6 +69,10 @@ FullMsgId AudioMsgId::contextId() const {
 
 uint32 AudioMsgId::externalPlayId() const {
 	return _externalPlayId;
+}
+
+bool AudioMsgId::changeablePlaybackSpeed() const {
+	return _changeablePlaybackSpeed;
 }
 
 AudioMsgId::operator bool() const {

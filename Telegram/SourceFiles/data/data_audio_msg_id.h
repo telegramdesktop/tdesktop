@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
-class AudioMsgId {
+class AudioMsgId final {
 public:
 	enum class Type {
 		Unknown,
@@ -31,6 +31,7 @@ public:
 	[[nodiscard]] DocumentData *audio() const;
 	[[nodiscard]] FullMsgId contextId() const;
 	[[nodiscard]] uint32 externalPlayId() const;
+	[[nodiscard]] bool changeablePlaybackSpeed() const;
 	[[nodiscard]] explicit operator bool() const;
 
 	bool operator<(const AudioMsgId &other) const;
@@ -44,5 +45,6 @@ private:
 	Type _type = Type::Unknown;
 	FullMsgId _contextId;
 	uint32 _externalPlayId = 0;
+	bool _changeablePlaybackSpeed = false;
 
 };
