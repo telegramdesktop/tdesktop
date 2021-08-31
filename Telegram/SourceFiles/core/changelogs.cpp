@@ -101,7 +101,12 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix animated chat backgrounds in Saved Messages.\n"
 
-		"- Fix \"Sorry, group is inaccessible\" message in scheduled voice chats.\n",
+		"- Fix \"Sorry, group is inaccessible\" message "
+		"in scheduled voice chats.\n",
+	},
+	{
+		2009013,
+		"- See unread comments count when scrolling discussions in channels."
 	},
 	};
 };
