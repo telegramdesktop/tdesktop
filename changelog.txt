@@ -1,6 +1,10 @@
+2.9.14 beta (31.08.21)
+
+- Fix crash in authorization after logout.
+
 2.9.13 beta (31.08.21)
 
-- 
+- See unread comments count when scrolling discussions in channels.
 
 2.9.12 beta (24.08.21)
 
