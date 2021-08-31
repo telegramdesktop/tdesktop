@@ -1236,6 +1236,15 @@ void ComposeControls::initAutocomplete() {
 		});
 	}, _autocomplete->lifetime());
 
+	_autocomplete->choosingProcesses(
+	) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
+		if (type == FieldAutocomplete::Type::Stickers) {
+			_sendActionUpdates.fire({
+				.type = Api::SendProgressType::ChooseSticker,
+			});
+		}
+	}, _autocomplete->lifetime());
+
 	_autocomplete->setSendMenuType([=] { return sendMenuType(); });
 
 	//_autocomplete->setModerateKeyActivateCallback([=](int key) {

@@ -360,6 +360,18 @@ HistoryWidget::HistoryWidget(
 			: _keyboard->moderateKeyActivate(key);
 	});
 
+	_fieldAutocomplete->choosingProcesses(
+	) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
+		if (!_history) {
+			return;
+		}
+		if (type == FieldAutocomplete::Type::Stickers) {
+			session().sendProgressManager().update(
+				_history,
+				Api::SendProgressType::ChooseSticker);
+		}
+	}, lifetime());
+
 	_fieldAutocomplete->setSendMenuType([=] { return sendMenuType(); });
 
 	if (_supportAutocomplete) {

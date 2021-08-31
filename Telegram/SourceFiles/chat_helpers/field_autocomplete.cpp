@@ -199,6 +199,11 @@ auto FieldAutocomplete::stickerChosen() const
 	return _inner->stickerChosen();
 }
 
+auto FieldAutocomplete::choosingProcesses() const
+-> rpl::producer<FieldAutocomplete::Type> {
+	return _scroll->scrollTopChanges() | rpl::map([=] { return _type; });
+}
+
 FieldAutocomplete::~FieldAutocomplete() = default;
 
 void FieldAutocomplete::paintEvent(QPaintEvent *e) {
