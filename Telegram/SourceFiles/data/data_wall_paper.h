@@ -90,6 +90,7 @@ public:
 		qint32 legacyId);
 	[[nodiscard]] static std::optional<WallPaper> FromColorsSlug(
 		const QString &slug);
+	[[nodiscard]] static WallPaper ConstructDefault();
 
 private:
 	static constexpr auto kDefaultIntensity = 50;
@@ -117,6 +118,8 @@ private:
 [[nodiscard]] WallPaper Legacy1DefaultWallPaper();
 [[nodiscard]] bool IsLegacy1DefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] bool IsLegacy2DefaultWallPaper(const WallPaper &paper);
+[[nodiscard]] bool IsLegacy3DefaultWallPaper(const WallPaper &paper);
+[[nodiscard]] bool IsLegacy4DefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] WallPaper DefaultWallPaper();
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);

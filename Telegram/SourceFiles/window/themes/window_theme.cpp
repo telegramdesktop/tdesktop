@@ -59,6 +59,13 @@ inline bool AreTestingTheme() {
 	return !GlobalApplying.paletteForRevert.isEmpty();
 }
 
+[[nodiscard]] QImage ReadDefaultImage() {
+	return Ui::ReadBackgroundImage(
+		u":/gui/art/background.tgv"_q,
+		QByteArray(),
+		true);
+}
+
 [[nodiscard]] bool GoodImageFormatAndSize(const QImage &image) {
 	return !image.size().isEmpty()
 		&& (image.format() == QImage::Format_ARGB32_Premultiplied
@@ -432,8 +439,7 @@ bool InitializeFromSaved(Saved &&saved) {
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	image.setDevicePixelRatio(cRetinaFactor());
-	if (Data::IsDefaultWallPaper(paper)
-		|| Data::details::IsTestingDefaultWallPaper(paper)) {
+	if (Data::IsLegacy3DefaultWallPaper(paper)) {
 		return Images::DitherImage(std::move(image));
 	}
 	return image;
@@ -659,13 +665,11 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		|| Data::details::IsTestingEditorWallPaper(_paper)) {
 		if (Data::details::IsTestingDefaultWallPaper(_paper)
 			|| image.isNull()) {
-			image.load(qsl(":/gui/art/background.jpg"));
+			image = ReadDefaultImage();
 			setPaper(Data::details::TestingDefaultWallPaper());
 		}
-		image = postprocessBackgroundImage(std::move(image));
-		setPrepared(image, image, QImage());
+		setPreparedAfterPaper(std::move(image));
 	} else {
-		const auto &bgColors = _paper.backgroundColors();
 		if (Data::IsLegacy1DefaultWallPaper(_paper)) {
 			image.load(qsl(":/gui/art/bg_initial.jpg"));
 			const auto scale = cScale() * cIntRetinaFactor();
@@ -675,9 +679,9 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 					Qt::SmoothTransformation);
 			}
 		} else if (Data::IsDefaultWallPaper(_paper)
-			|| (bgColors.empty() && image.isNull())) {
+			|| (_paper.backgroundColors().empty() && image.isNull())) {
 			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
-			image.load(qsl(":/gui/art/background.jpg"));
+			image = ReadDefaultImage();
 		}
 		Local::writeBackground(
 			_paper,
@@ -685,36 +689,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 				|| Data::IsLegacy1DefaultWallPaper(_paper))
 				? QImage()
 				: image));
-		if (_paper.isPattern() && !image.isNull()) {
-			if (bgColors.size() < 2) {
-				auto prepared = postprocessBackgroundImage(
-					Ui::PreparePatternImage(
-						image,
-						bgColors,
-						_paper.gradientRotation(),
-						_paper.patternOpacity()));
-				setPrepared(
-					std::move(image),
-					std::move(prepared),
-					QImage());
-			} else {
-				image = postprocessBackgroundImage(std::move(image));
-				setPrepared(
-					image,
-					image,
-					Data::GenerateDitheredGradient(_paper));
-			}
-		} else if (bgColors.size() == 1) {
-			setPrepared(QImage(), QImage(), QImage());
-		} else if (!bgColors.empty()) {
-			setPrepared(
-				QImage(),
-				QImage(),
-				Data::GenerateDitheredGradient(_paper));
-		} else {
-			image = postprocessBackgroundImage(std::move(image));
-			setPrepared(image, image, QImage());
-		}
+		setPreparedAfterPaper(std::move(image));
 	}
 	Assert(colorForFill()
 		|| !_gradient.isNull()
@@ -728,6 +703,40 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 	}
 	checkUploadWallPaper();
+}
+
+void ChatBackground::setPreparedAfterPaper(QImage image) {
+	const auto &bgColors = _paper.backgroundColors();
+	if (_paper.isPattern() && !image.isNull()) {
+		if (bgColors.size() < 2) {
+			auto prepared = postprocessBackgroundImage(
+				Ui::PreparePatternImage(
+					image,
+					bgColors,
+					_paper.gradientRotation(),
+					_paper.patternOpacity()));
+			setPrepared(
+				std::move(image),
+				std::move(prepared),
+				QImage());
+		} else {
+			image = postprocessBackgroundImage(std::move(image));
+			setPrepared(
+				image,
+				image,
+				Data::GenerateDitheredGradient(_paper));
+		}
+	} else if (bgColors.size() == 1) {
+		setPrepared(QImage(), QImage(), QImage());
+	} else if (!bgColors.empty()) {
+		setPrepared(
+			QImage(),
+			QImage(),
+			Data::GenerateDitheredGradient(_paper));
+	} else {
+		image = postprocessBackgroundImage(std::move(image));
+		setPrepared(image, image, QImage());
+	}
 }
 
 void ChatBackground::setPrepared(

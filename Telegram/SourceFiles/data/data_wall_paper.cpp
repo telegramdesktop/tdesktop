@@ -30,7 +30,9 @@ constexpr auto kThemeBackground = FromLegacyBackgroundId(-2);
 constexpr auto kCustomBackground = FromLegacyBackgroundId(-1);
 constexpr auto kLegacy1DefaultBackground = FromLegacyBackgroundId(0);
 constexpr auto kLegacy2DefaultBackground = 5947530738516623361;
-constexpr auto kDefaultBackground = 5778236420632084488;
+constexpr auto kLegacy3DefaultBackground = 5778236420632084488;
+constexpr auto kLegacy4DefaultBackground = 5945087215657811969;
+constexpr auto kDefaultBackground = 5933856211186221059;
 constexpr auto kIncorrectDefaultBackground = FromLegacyBackgroundId(105);
 
 constexpr auto kVersionTag = qint32(0x7FFFFFFF);
@@ -388,13 +390,16 @@ WallPaper WallPaper::withBackgroundColors(std::vector<QColor> colors) const {
 WallPaper WallPaper::withParamsFrom(const WallPaper &other) const {
 	auto result = *this;
 	result._blurred = other._blurred;
-	if (!other._backgroundColors.empty() || ColorsFromString(_slug).empty()) {
+	if (!other._backgroundColors.empty()) {
 		result._backgroundColors = other._backgroundColors;
 		if (!ColorsFromString(_slug).empty()) {
 			result._slug = StringFromColors(result._backgroundColors);
 		}
 	}
 	result._intensity = other._intensity;
+	if (other.isPattern()) {
+		result._flags |= WallPaperFlag::Pattern;
+	}
 	return result;
 }
 
@@ -632,6 +637,19 @@ std::optional<WallPaper> WallPaper::FromColorsSlug(const QString &slug) {
 	return result;
 }
 
+WallPaper WallPaper::ConstructDefault() {
+	auto result = WallPaper(
+		kDefaultBackground
+	).withPatternIntensity(50).withBackgroundColors({
+		QColor(219, 221, 187),
+		QColor(107, 165, 135),
+		QColor(213, 216, 141),
+		QColor(136, 184, 132),
+	});
+	result._flags |= WallPaperFlag::Default | WallPaperFlag::Pattern;
+	return result;
+}
+
 WallPaper ThemeWallPaper() {
 	return WallPaper(kThemeBackground);
 }
@@ -661,8 +679,16 @@ bool IsLegacy2DefaultWallPaper(const WallPaper &paper) {
 		|| (paper.id() == kIncorrectDefaultBackground);
 }
 
+bool IsLegacy3DefaultWallPaper(const WallPaper &paper) {
+	return (paper.id() == kLegacy3DefaultBackground);
+}
+
+bool IsLegacy4DefaultWallPaper(const WallPaper &paper) {
+	return (paper.id() == kLegacy4DefaultBackground);
+}
+
 WallPaper DefaultWallPaper() {
-	return WallPaper(kDefaultBackground);
+	return WallPaper::ConstructDefault();
 }
 
 bool IsDefaultWallPaper(const WallPaper &paper) {
@@ -728,7 +754,9 @@ bool IsTestingThemeWallPaper(const WallPaper &paper) {
 }
 
 WallPaper TestingDefaultWallPaper() {
-	return WallPaper(kTestingDefaultBackground);
+	return WallPaper(
+		kTestingDefaultBackground
+	).withParamsFrom(DefaultWallPaper());
 }
 
 bool IsTestingDefaultWallPaper(const WallPaper &paper) {

@@ -4054,10 +4054,18 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 		ranges::rotate(begin(_wallpapers), legacy2, legacy2 + 1);
 	}
 
+	// Put the legacy3 (static gradient) wallpaper to the front of the list.
+	const auto legacy3 = ranges::find_if(
+		_wallpapers,
+		Data::IsLegacy3DefaultWallPaper);
+	if (legacy3 != end(_wallpapers)) {
+		ranges::rotate(begin(_wallpapers), legacy3, legacy3 + 1);
+	}
+
 	if (ranges::none_of(_wallpapers, Data::IsDefaultWallPaper)) {
 		_wallpapers.push_back(Data::DefaultWallPaper());
 		_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
-			u":/gui/art/background.jpg"_q));
+			u":/gui/art/bg_thumbnail.png"_q));
 	}
 }
 

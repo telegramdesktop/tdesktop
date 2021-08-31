@@ -207,6 +207,7 @@ private:
 	[[nodiscard]] bool started() const;
 	void initialRead();
 	void saveForRevert();
+	void setPreparedAfterPaper(QImage image);
 	void setPrepared(QImage original, QImage prepared, QImage gradient);
 	void prepareImageForTiled();
 	void writeNewBackgroundSettings();
