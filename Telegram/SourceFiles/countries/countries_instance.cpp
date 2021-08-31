@@ -319,7 +319,7 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 	const Info *bestCountryPtr = nullptr;
 	const CallingCodeInfo *bestCallingCodePtr = nullptr;
 	auto bestLength = size_t(0);
-	auto isPrefix = false;
+	[[maybe_unused]] auto isPrefix = false;
 	for (const auto &country : list()) {
 		for (auto &callingCode : country.codes) {
 			if (phoneNumber.startsWith(callingCode.callingCode)) {
