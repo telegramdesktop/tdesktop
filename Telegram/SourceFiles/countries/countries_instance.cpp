@@ -355,6 +355,9 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 			? QVector<int>()
 			: QVector<int>{ codeSize };
 		auto groupSize = 0;
+		if (bestCallingCodePtr->patterns.empty()) {
+			return FormatResult{ .groups = std::move(groups) };
+		}
 		for (const auto &c : bestCallingCodePtr->patterns.front()) {
 			if (c == ' ') {
 				groups.push_back(base::take(groupSize));
