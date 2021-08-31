@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_audio_msg_id.h"
 #include "data/data_shared_media.h"
 
 class AudioMsgId;

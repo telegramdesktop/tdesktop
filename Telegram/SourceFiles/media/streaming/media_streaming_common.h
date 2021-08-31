@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_audio_msg_id.h"
 #include "ui/rect_part.h"
 
 enum class ImageRoundRadius;

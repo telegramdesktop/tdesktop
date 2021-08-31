@@ -192,8 +192,6 @@ struct WebPageData;
 struct GameData;
 struct PollData;
 
-class AudioMsgId;
-
 using PhotoId = uint64;
 using VideoId = uint64;
 using AudioId = uint64;
@@ -245,78 +243,6 @@ inline constexpr auto kStickerSideSize = 512;
 [[nodiscard]] bool GoodStickerDimensions(int width, int height);
 
 using MediaKey = QPair<uint64, uint64>;
-
-class AudioMsgId {
-public:
-	enum class Type {
-		Unknown,
-		Voice,
-		Song,
-		Video,
-	};
-
-	AudioMsgId() = default;
-	AudioMsgId(
-		not_null<DocumentData*> audio,
-		FullMsgId msgId,
-		uint32 externalPlayId = 0)
-	: _audio(audio)
-	, _contextId(msgId)
-	, _externalPlayId(externalPlayId) {
-		setTypeFromAudio();
-	}
-
-	[[nodiscard]] static uint32 CreateExternalPlayId();
-	[[nodiscard]] static AudioMsgId ForVideo();
-
-	[[nodiscard]] Type type() const {
-		return _type;
-	}
-	[[nodiscard]] DocumentData *audio() const {
-		return _audio;
-	}
-	[[nodiscard]] FullMsgId contextId() const {
-		return _contextId;
-	}
-	[[nodiscard]] uint32 externalPlayId() const {
-		return _externalPlayId;
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return (_audio != nullptr) || (_externalPlayId != 0);
-	}
-
-private:
-	void setTypeFromAudio();
-
-	DocumentData *_audio = nullptr;
-	Type _type = Type::Unknown;
-	FullMsgId _contextId;
-	uint32 _externalPlayId = 0;
-
-};
-
-inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	if (quintptr(a.audio()) < quintptr(b.audio())) {
-		return true;
-	} else if (quintptr(b.audio()) < quintptr(a.audio())) {
-		return false;
-	} else if (a.contextId() < b.contextId()) {
-		return true;
-	} else if (b.contextId() < a.contextId()) {
-		return false;
-	}
-	return (a.externalPlayId() < b.externalPlayId());
-}
-
-inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return (a.audio() == b.audio())
-		&& (a.contextId() == b.contextId())
-		&& (a.externalPlayId() == b.externalPlayId());
-}
-
-inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
-	return !(a == b);
-}
 
 struct MessageCursor {
 	MessageCursor() = default;

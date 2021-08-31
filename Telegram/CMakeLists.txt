@@ -354,6 +354,8 @@ PRIVATE
     data/data_abstract_sparse_ids.h
     data/data_abstract_structure.cpp
     data/data_abstract_structure.h
+    data/data_audio_msg_id.cpp
+    data/data_audio_msg_id.h
     data/data_auto_download.cpp
     data/data_auto_download.h
     data/data_chat.cpp

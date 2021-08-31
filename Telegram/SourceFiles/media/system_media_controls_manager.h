@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_audio_msg_id.h"
+
 namespace base::Platform {
 class SystemMediaControls;
 } // namespace base::Platform
