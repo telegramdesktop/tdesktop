@@ -3580,9 +3580,11 @@ void ApiWrap::sendAction(const SendAction &action) {
 
 void ApiWrap::finishForwarding(const SendAction &action) {
 	const auto history = action.history;
-	auto toForward = history->validateForwardDraft();
-	if (!toForward.empty()) {
-		const auto error = GetErrorTextForSending(history->peer, toForward);
+	auto toForward = history->resolveForwardDraft();
+	if (!toForward.items.empty()) {
+		const auto error = GetErrorTextForSending(
+			history->peer,
+			toForward.items);
 		if (!error.isEmpty()) {
 			return;
 		}
@@ -3600,10 +3602,10 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 }
 
 void ApiWrap::forwardMessages(
-		HistoryItemsList &&items,
+		Data::ResolvedForwardDraft &&draft,
 		const SendAction &action,
 		FnMut<void()> &&successCallback) {
-	Expects(!items.empty());
+	Expects(!draft.items.empty());
 
 	auto &histories = _session->data().histories();
 
@@ -3618,8 +3620,10 @@ void ApiWrap::forwardMessages(
 		shared->callback = std::move(successCallback);
 	}
 
-	const auto count = int(items.size());
-	const auto genClientSideMessage = action.generateLocal && (count < 2);
+	const auto count = int(draft.items.size());
+	const auto genClientSideMessage = action.generateLocal
+		&& (count < 2)
+		&& (draft.options == Data::ForwardOptions::PreserveInfo);
 	const auto history = action.history;
 	const auto peer = history->peer;
 
@@ -3640,8 +3644,14 @@ void ApiWrap::forwardMessages(
 	} else {
 		flags |= MessageFlag::LocalHistoryEntry;
 	}
+	if (draft.options != Data::ForwardOptions::PreserveInfo) {
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_author;
+	}
+	if (draft.options == Data::ForwardOptions::NoNamesAndCaptions) {
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_media_captions;
+	}
 
-	auto forwardFrom = items.front()->history()->peer;
+	auto forwardFrom = draft.items.front()->history()->peer;
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
 	auto localIds = std::shared_ptr<base::flat_map<uint64, FullMsgId>>();
@@ -3688,7 +3698,7 @@ void ApiWrap::forwardMessages(
 
 	ids.reserve(count);
 	randomIds.reserve(count);
-	for (const auto item : items) {
+	for (const auto item : draft.items) {
 		const auto randomId = openssl::RandomValue<uint64>();
 		if (genClientSideMessage) {
 			if (const auto message = item->toHistoryMessage()) {

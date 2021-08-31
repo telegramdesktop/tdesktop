@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
+#include "ui/chat/forward_options_box.h"
 #include "ui/chat/message_bar.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image.h"
@@ -3285,7 +3286,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (_canSendMessages) {
 		const auto error = GetErrorTextForSending(
 			_peer,
-			_toForward,
+			_toForward.items,
 			message.textWithTags,
 			options.scheduled);
 		if (!error.isEmpty()) {
@@ -3819,7 +3820,7 @@ QRect HistoryWidget::floatPlayerAvailableRect() {
 }
 
 bool HistoryWidget::readyToForward() const {
-	return _canSendMessages && !_toForward.empty();
+	return _canSendMessages && !_toForward.items.empty();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -4741,11 +4742,11 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		toggleKeyboard();
 		_kbReplyTo = nullptr;
 	}
-	auto found = ranges::find(_toForward, item);
-	if (found != _toForward.end()) {
-		_toForward.erase(found);
+	auto found = ranges::find(_toForward.items, item);
+	if (found != _toForward.items.end()) {
+		_toForward.items.erase(found);
 		updateForwardingTexts();
-		if (_toForward.empty()) {
+		if (_toForward.items.empty()) {
 			updateControlsVisibility();
 			updateControlsGeometry();
 		}
@@ -5316,14 +5317,63 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		updateField();
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
-			const auto items = std::move(_toForward);
-			session().data().cancelForwarding(_history);
-			auto list = ranges::views::all(
-				items
-			) | ranges::views::transform(
-				&HistoryItem::fullId
-			) | ranges::to_vector;
-			Window::ShowForwardMessagesBox(controller(), std::move(list));
+			using Options = Data::ForwardOptions;
+			const auto now = _toForward.options;
+			const auto count = _toForward.items.size();
+			const auto dropNames = (now != Options::PreserveInfo);
+			const auto hasCaptions = [&] {
+				for (const auto item : _toForward.items) {
+					if (const auto media = item->media()) {
+						if (!item->originalText().text.isEmpty()
+							&& (media->photo() || media->document())
+							&& !media->webpage()) {
+							return true;
+						}
+					}
+				}
+				return false;
+			}();
+			const auto dropCaptions = (now == Options::NoNamesAndCaptions);
+			const auto weak = Ui::MakeWeak(this);
+			const auto changeRecipient = crl::guard(weak, [=] {
+				if (_toForward.items.empty()) {
+					return;
+				}
+				const auto draft = std::move(_toForward);
+				session().data().cancelForwarding(_history);
+				auto list = session().data().itemsToIds(draft.items);
+				Window::ShowForwardMessagesBox(controller(), {
+					.ids = session().data().itemsToIds(draft.items),
+					.options = draft.options,
+				});
+			});
+			const auto optionsChanged = crl::guard(weak, [=](
+					Ui::ForwardOptions options) {
+				const auto newOptions = (options.hasCaptions
+					&& options.dropCaptions)
+					? Options::NoNamesAndCaptions
+					: options.dropNames
+					? Options::NoSenderNames
+					: Options::PreserveInfo;
+				if (_history && _toForward.options != newOptions) {
+					_toForward.options = newOptions;
+					_history->setForwardDraft({
+						.ids = session().data().itemsToIds(_toForward.items),
+						.options = newOptions,
+					});
+					updateField();
+				}
+			});
+			controller()->show(Box(
+				Ui::ForwardOptionsBox,
+				count,
+				Ui::ForwardOptions{
+					.dropNames = dropNames,
+					.hasCaptions = hasCaptions,
+					.dropCaptions = dropCaptions,
+				},
+				optionsChanged,
+				changeRecipient));
 		} else {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
@@ -5964,7 +6014,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 					crl::guard(this, [=] {
 						controller()->content()->setForwardDraft(
 							_peer->id,
-							{ 1, itemId });
+							{ .ids = { 1, itemId } });
 					})));
 		}
 		return;
@@ -6617,10 +6667,10 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 
 void HistoryWidget::updateForwarding() {
 	if (_history) {
-		_toForward = _history->validateForwardDraft();
+		_toForward = _history->resolveForwardDraft();
 		updateForwardingTexts();
 	} else {
-		_toForward.clear();
+		_toForward = {};
 	}
 	updateControlsVisibility();
 	updateControlsGeometry();
@@ -6629,13 +6679,17 @@ void HistoryWidget::updateForwarding() {
 void HistoryWidget::updateForwardingTexts() {
 	int32 version = 0;
 	QString from, text;
-	if (const auto count = int(_toForward.size())) {
+	const auto keepNames = (_toForward.options
+		== Data::ForwardOptions::PreserveInfo);
+	const auto keepCaptions = (_toForward.options
+		!= Data::ForwardOptions::NoNamesAndCaptions);
+	if (const auto count = int(_toForward.items.size())) {
 		auto insertedPeers = base::flat_set<not_null<PeerData*>>();
 		auto insertedNames = base::flat_set<QString>();
 		auto fullname = QString();
 		auto names = std::vector<QString>();
-		names.reserve(_toForward.size());
-		for (const auto item : _toForward) {
+		names.reserve(_toForward.items.size());
+		for (const auto item : _toForward.items) {
 			if (const auto from = item->senderOriginal()) {
 				if (!insertedPeers.contains(from)) {
 					insertedPeers.emplace(from);
@@ -6654,7 +6708,9 @@ void HistoryWidget::updateForwardingTexts() {
 				Unexpected("Corrupt forwarded information in message.");
 			}
 		}
-		if (names.size() > 2) {
+		if (!keepNames) {
+			from = tr::lng_forward_sender_names_removed(tr::now);
+		} else if (names.size() > 2) {
 			from = tr::lng_forwarding_from(tr::now, lt_count, names.size() - 1, lt_user, names[0]);
 		} else if (names.size() < 2) {
 			from = fullname;
@@ -6663,7 +6719,9 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 
 		if (count < 2) {
-			text = _toForward.front()->inReplyText();
+			text = _toForward.items.front()->inDialogsText(keepCaptions
+				? HistoryItem::DrawInDialog::WithoutSender
+				: HistoryItem::DrawInDialog::WithoutSenderAndCaption);
 		} else {
 			text = textcmdLink(1, tr::lng_forward_messages(tr::now, lt_count, count));
 		}
@@ -6673,19 +6731,25 @@ void HistoryWidget::updateForwardingTexts() {
 		st::messageTextStyle,
 		text,
 		Ui::DialogTextOptions());
-	_toForwardNameVersion = version;
+	_toForwardNameVersion = keepNames ? version : keepCaptions ? -1 : -2;
 }
 
 void HistoryWidget::checkForwardingInfo() {
-	if (!_toForward.empty()) {
-		auto version = 0;
-		for (const auto item : _toForward) {
-			if (const auto from = item->senderOriginal()) {
-				version += from->nameVersion;
-			} else if (const auto info = item->hiddenForwardedInfo()) {
-				++version;
-			} else {
-				Unexpected("Corrupt forwarded information in message.");
+	if (!_toForward.items.empty()) {
+		const auto keepNames = (_toForward.options
+			== Data::ForwardOptions::PreserveInfo);
+		const auto keepCaptions = (_toForward.options
+			!= Data::ForwardOptions::NoNamesAndCaptions);
+		auto version = keepNames ? 0 : keepCaptions ? -1 : -2;
+		if (keepNames) {
+			for (const auto item : _toForward.items) {
+				if (const auto from = item->senderOriginal()) {
+					version += from->nameVersion;
+				} else if (const auto info = item->hiddenForwardedInfo()) {
+					++version;
+				} else {
+					Unexpected("Corrupt forwarded information in message.");
+				}
 			}
 		}
 		if (version != _toForwardNameVersion) {
@@ -6772,9 +6836,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		auto forwardLeft = st::historyReplySkip;
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
-			const auto firstItem = _toForward.front();
+			const auto firstItem = _toForward.items.front();
 			const auto firstMedia = firstItem->media();
-			const auto preview = (_toForward.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
+			const auto preview = (_toForward.items.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
 				? firstMedia->replyPreview()
 				: nullptr;
 			if (preview) {

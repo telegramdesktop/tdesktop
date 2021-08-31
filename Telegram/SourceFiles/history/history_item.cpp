@@ -936,20 +936,19 @@ QString HistoryItem::notificationText() const {
 }
 
 QString HistoryItem::inDialogsText(DrawInDialog way) const {
-	auto getText = [this]() {
+	const auto plainText = [&] {
 		if (_media) {
 			if (_groupId) {
 				return textcmdLink(1, TextUtilities::Clean(tr::lng_in_dlg_album(tr::now)));
 			}
-			return _media->chatListText();
+			return _media->chatListText(way);
 		} else if (!emptyText()) {
 			return TextUtilities::Clean(_text.toString());
 		}
 		return QString();
-	};
-	const auto plainText = getText();
+	}();
 	const auto sender = [&]() -> PeerData* {
-		if (isPost() || isEmpty() || (way == DrawInDialog::WithoutSender)) {
+		if (isPost() || isEmpty() || (way != DrawInDialog::Normal)) {
 			return nullptr;
 		} else if (!_history->peer->isUser() || out()) {
 			return displayFrom();

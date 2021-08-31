@@ -963,27 +963,29 @@ void BlockSenderFromRepliesBox(
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
-		MessageIdsList &&items,
+		Data::ForwardDraft &&draft,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	auto callback = [
-		ids = std::move(items),
+		draft = std::move(draft),
 		callback = std::move(successCallback),
 		weak,
 		navigation
 	](not_null<PeerData*> peer) mutable {
+		const auto content = navigation->parentController()->content();
 		if (peer->isSelf()) {
-			auto items = peer->owner().idsToItems(ids);
-			if (!items.empty()) {
+			const auto history = peer->owner().history(peer);
+			auto resolved = history->resolveForwardDraft(draft);
+			if (!resolved.items.empty()) {
 				const auto api = &peer->session().api();
 				auto action = Api::SendAction(peer->owner().history(peer));
 				action.clearDraft = false;
 				action.generateLocal = false;
-				api->forwardMessages(std::move(items), action, [] {
+				api->forwardMessages(std::move(resolved), action, [] {
 					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}
-		} else if (!navigation->parentController()->content()->setForwardDraft(peer->id, std::move(ids))) {
+		} else if (!content->setForwardDraft(peer->id, std::move(draft))) {
 			return;
 		}
 		if (const auto strong = *weak) {
@@ -1004,6 +1006,16 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 			std::move(callback)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
+}
+
+QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		MessageIdsList &&items,
+		FnMut<void()> &&successCallback) {
+	return ShowForwardMessagesBox(
+		navigation,
+		Data::ForwardDraft{ .ids = std::move(items) },
+		std::move(successCallback));
 }
 
 QPointer<Ui::RpWidget> ShowSendNowMessagesBox(

@@ -27,6 +27,7 @@ namespace HistoryView {
 enum class Context : char;
 class Element;
 class Media;
+enum class DrawInDialog;
 } // namespace HistoryView
 
 namespace Data {
@@ -72,6 +73,8 @@ public:
 
 	not_null<HistoryItem*> parent() const;
 
+	using DrawInDialog = HistoryView::DrawInDialog;
+
 	virtual std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) = 0;
 
 	virtual DocumentData *document() const;
@@ -92,7 +95,7 @@ public:
 	virtual bool replyPreviewLoaded() const;
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	virtual QString chatListText() const;
+	virtual QString chatListText(DrawInDialog way) const;
 	virtual QString notificationText() const = 0;
 	virtual QString pinnedTextSubstring() const = 0;
 	virtual TextForMimeData clipboardText() const = 0;
@@ -148,7 +151,7 @@ public:
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
 	bool replyPreviewLoaded() const override;
-	QString chatListText() const override;
+	QString chatListText(DrawInDialog way) const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
@@ -186,7 +189,7 @@ public:
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
 	bool replyPreviewLoaded() const override;
-	QString chatListText() const override;
+	QString chatListText(DrawInDialog way) const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
@@ -252,7 +255,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	Data::CloudImage *location() const override;
-	QString chatListText() const override;
+	QString chatListText(DrawInDialog way) const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
@@ -320,7 +323,7 @@ public:
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
 	bool replyPreviewLoaded() const override;
-	QString chatListText() const override;
+	QString chatListText(DrawInDialog way) const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;

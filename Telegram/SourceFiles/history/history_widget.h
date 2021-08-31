@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_drag_area.h"
+#include "history/history.h"
 #include "ui/widgets/tooltip.h"
 #include "mainwidget.h"
 #include "chat_helpers/bot_command.h"
@@ -607,7 +608,7 @@ private:
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
 
-	HistoryItemsList _toForward;
+	Data::ResolvedForwardDraft _toForward;
 	Ui::Text::String _toForwardFrom, _toForwardText;
 	int _toForwardNameVersion = 0;
 

@@ -2511,6 +2511,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_date_input_month" = "Month";
 "lng_date_input_year" = "Year";
 
+"lng_forward_header" = "Forward message";
+"lng_forward_title" = "Forward Message";
+"lng_forward_many_title#one" = "Forward {count} Message";
+"lng_forward_many_title#other" = "Forward {count} Messages";
+"lng_forward_about" = "You can remove the sender's name from this message as if it was sent by you.";
+"lng_forward_about_many#one" = "You can remove senders' name from {count} forwarded message as if it was sent by you.";
+"lng_forward_about_many#other" = "You can remove senders' names from {count} forwarded messages as if they were sent by you.";
+"lng_forward_show_sender" = "Show sender's name";
+"lng_forward_show_senders" = "Show senders' names";
+"lng_forward_show_caption" = "Show caption";
+"lng_forward_show_captions" = "Show captions";
+"lng_forward_change_recipient" = "Change recipient";
+"lng_forward_sender_names_removed" = "Sender names removed";
+
 "lng_passport_title" = "Telegram passport";
 "lng_passport_request1" = "{bot} requests access to your personal data";
 "lng_passport_request2" = "to sign you up for their services";

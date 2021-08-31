@@ -336,16 +336,27 @@ void History::draftSavedToCloud() {
 	session().local().writeDrafts(this);
 }
 
-HistoryItemsList History::validateForwardDraft() {
-	auto result = owner().idsToItems(_forwardDraft);
-	if (result.size() != _forwardDraft.size()) {
-		setForwardDraft(owner().itemsToIds(result));
+Data::ResolvedForwardDraft History::resolveForwardDraft(
+		const Data::ForwardDraft &draft) const {
+	return Data::ResolvedForwardDraft{
+		.items = owner().idsToItems(draft.ids),
+		.options = draft.options,
+	};
+}
+
+Data::ResolvedForwardDraft History::resolveForwardDraft() {
+	auto result = resolveForwardDraft(_forwardDraft);
+	if (result.items.size() != _forwardDraft.ids.size()) {
+		setForwardDraft({
+			.ids = owner().itemsToIds(result.items),
+			.options = result.options,
+		});
 	}
 	return result;
 }
 
-void History::setForwardDraft(MessageIdsList &&items) {
-	_forwardDraft = std::move(items);
+void History::setForwardDraft(Data::ForwardDraft &&draft) {
+	_forwardDraft = std::move(draft);
 }
 
 HistoryItem *History::createItem(

@@ -201,7 +201,7 @@ bool Media::canBeGrouped() const {
 	return false;
 }
 
-QString Media::chatListText() const {
+QString Media::chatListText(DrawInDialog way) const {
 	auto result = notificationText();
 	return result.isEmpty()
 		? QString()
@@ -341,10 +341,11 @@ QString MediaPhoto::notificationText() const {
 		parent()->originalText().text);
 }
 
-QString MediaPhoto::chatListText() const {
-	return WithCaptionDialogsText(
-		tr::lng_in_dlg_photo(tr::now),
-		parent()->originalText().text);
+QString MediaPhoto::chatListText(DrawInDialog way) const {
+	const auto caption = (way == DrawInDialog::WithoutSenderAndCaption)
+		? QString()
+		: parent()->originalText().text;
+	return WithCaptionDialogsText(tr::lng_in_dlg_photo(tr::now), caption);
 }
 
 QString MediaPhoto::pinnedTextSubstring() const {
@@ -510,9 +511,9 @@ bool MediaFile::replyPreviewLoaded() const {
 	return _document->replyPreviewLoaded();
 }
 
-QString MediaFile::chatListText() const {
+QString MediaFile::chatListText(DrawInDialog way) const {
 	if (const auto sticker = _document->sticker()) {
-		return Media::chatListText();
+		return Media::chatListText(way);
 	}
 	const auto type = [&] {
 		using namespace Ui::Text;
@@ -532,7 +533,10 @@ QString MediaFile::chatListText() const {
 		}
 		return tr::lng_in_dlg_file(tr::now);
 	}();
-	return WithCaptionDialogsText(type, parent()->originalText().text);
+	const auto caption = (way == DrawInDialog::WithoutSenderAndCaption)
+		? QString()
+		: parent()->originalText().text;
+	return WithCaptionDialogsText(type, caption);
 }
 
 QString MediaFile::notificationText() const {
@@ -851,7 +855,7 @@ Data::CloudImage *MediaLocation::location() const {
 	return _location;
 }
 
-QString MediaLocation::chatListText() const {
+QString MediaLocation::chatListText(DrawInDialog way) const {
 	return WithCaptionDialogsText(tr::lng_maps_point(tr::now), _title);
 }
 
@@ -1045,7 +1049,7 @@ bool MediaWebPage::replyPreviewLoaded() const {
 	return true;
 }
 
-QString MediaWebPage::chatListText() const {
+QString MediaWebPage::chatListText(DrawInDialog way) const {
 	return notificationText();
 }
 

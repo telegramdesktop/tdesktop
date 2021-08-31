@@ -39,6 +39,7 @@ class Session;
 
 namespace Data {
 class WallPaper;
+struct ForwardDraft;
 } // namespace Data
 
 namespace Dialogs {
@@ -159,12 +160,12 @@ public:
 
 	int32 dlgsWidth() const;
 
-	void showForwardLayer(MessageIdsList &&items);
+	void showForwardLayer(Data::ForwardDraft &&draft);
 	void showSendPathsLayer();
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
-	bool setForwardDraft(PeerId peer, MessageIdsList &&items);
+	bool setForwardDraft(PeerId peer, Data::ForwardDraft &&draft);
 	bool shareUrl(
 		PeerId peerId,
 		const QString &url,

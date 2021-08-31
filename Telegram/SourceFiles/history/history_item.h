@@ -52,6 +52,11 @@ enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
+enum class DrawInDialog {
+	Normal,
+	WithoutSender,
+	WithoutSenderAndCaption,
+};
 } // namespace HistoryView
 
 struct HiddenSenderInfo;
@@ -291,10 +296,7 @@ public:
 	}
 	[[nodiscard]] virtual QString notificationText() const;
 
-	enum class DrawInDialog {
-		Normal,
-		WithoutSender,
-	};
+	using DrawInDialog = HistoryView::DrawInDialog;
 
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"

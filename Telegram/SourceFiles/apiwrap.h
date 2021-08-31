@@ -29,6 +29,7 @@ class Session;
 namespace Data {
 struct UpdatedFileReferences;
 class WallPaper;
+struct ResolvedForwardDraft;
 } // namespace Data
 
 namespace InlineBots {
@@ -319,7 +320,7 @@ public:
 	void sendAction(const SendAction &action);
 	void finishForwarding(const SendAction &action);
 	void forwardMessages(
-		HistoryItemsList &&items,
+		Data::ResolvedForwardDraft &&draft,
 		const SendAction &action,
 		FnMut<void()> &&successCallback = nullptr);
 	void shareContact(
