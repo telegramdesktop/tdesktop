@@ -260,6 +260,8 @@ const std::vector<Info> &CountriesInstance::list() {
 
 void CountriesInstance::setList(std::vector<Info> &&infos) {
 	_list = std::move(infos);
+	_byCode.clear();
+	_byISO2.clear();
 }
 
 const CountriesInstance::Map &CountriesInstance::byCode() {
