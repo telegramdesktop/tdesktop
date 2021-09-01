@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "windows_quiethours_h.h"
 
+#include <QtCore/QOperatingSystemVersion>
+
 #include <Shobjidl.h>
 #include <shellapi.h>
 
@@ -261,21 +263,13 @@ DWORD QuietHoursValue = 0;
 
 [[nodiscard]] bool UseQuietHoursRegistryEntry() {
 	static const bool result = [] {
-		// Taken from QSysInfo.
-		OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
-		if (const auto library = GetModuleHandle(L"ntdll.dll")) {
-			using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
-			const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
-				GetProcAddress(library, "RtlGetVersion"));
-			if (RtlGetVersion) {
-				RtlGetVersion(&result);
-			}
-		}
+		const auto version = QOperatingSystemVersion::current();
+
 		// At build 17134 (Redstone 4) the "Quiet hours" was replaced
 		// by "Focus assist" and it looks like it doesn't use registry.
-		return (result.dwMajorVersion == 10
-			&& result.dwMinorVersion == 0
-			&& result.dwBuildNumber < 17134);
+		return (version.majorVersion() == 10)
+			&& (version.minorVersion() == 0)
+			&& (version.microVersion() < 17134);
 	}();
 	return result;
 }
