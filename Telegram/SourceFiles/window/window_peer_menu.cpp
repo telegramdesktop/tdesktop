@@ -162,7 +162,7 @@ void AddChatMembers(
 }
 
 bool PinnedLimitReached(Dialogs::Key key, FilterId filterId) {
-	Expects(key.entry()->folderKnown());
+	Expects(filterId != 0 || key.entry()->folderKnown());
 
 	const auto entry = key.entry();
 	const auto owner = &entry->owner();
