@@ -73,7 +73,11 @@ AbstractSectionWidget::AbstractSectionWidget(
 		peerForBackground
 	) | rpl::map([=](PeerData *peer) -> rpl::producer<> {
 		if (!peer) {
-			return rpl::never<>();
+			return rpl::single(
+				rpl::empty_value()
+			) | rpl::then(
+				controller->defaultChatTheme()->repaintBackgroundRequests()
+			);
 		}
 		return ChatThemeValueFromPeer(
 			controller,
