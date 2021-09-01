@@ -1902,14 +1902,17 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 void StickersBox::Inner::rebuildMegagroupSet() {
 	Expects(_megagroupSet != nullptr);
 
-	if (!_megagroupSetInput.id) {
+	const auto clearCurrent = [&] {
 		if (_megagroupSelectedSet) {
 			_megagroupSetField->setText(QString());
 			_megagroupSetField->finishAnimating();
 		}
-		_megagroupSelectedSet.reset();
+		_megagroupSelectedSet = nullptr;
 		_megagroupSelectedRemove.destroy();
 		_megagroupSelectedShadow.destroy();
+	};
+	if (!_megagroupSetInput.id) {
+		clearCurrent();
 		return;
 	}
 	auto setId = _megagroupSetInput.id;
@@ -1917,6 +1920,10 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	auto it = sets.find(setId);
 	if (it == sets.cend()
 		|| (it->second->flags & SetFlag::NotLoaded)) {
+		// It may have been in sets and stored in _megagroupSelectedSet
+		// already, but then removed from sets. We need to clear the stored
+		// pointer, otherwise we may crash in paint event while loading.
+		clearCurrent();
 		session().api().scheduleStickerSetRequest(
 			_megagroupSetInput.id,
 			_megagroupSetInput.accessHash);
