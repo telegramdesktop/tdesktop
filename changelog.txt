@@ -1,3 +1,7 @@
+3.0.1 (01.09.21)
+
+- Crash fixes.
+
 3.0 (31.08.21)
 
 - Broadcast video and share your screen to an unlimited number of viewers.
