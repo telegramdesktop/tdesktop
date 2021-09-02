@@ -29,7 +29,7 @@ namespace {
 // max 512kb uploaded at the same time in each session
 constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024;
 
-constexpr auto kDocumentMaxPartsCount = 3000;
+constexpr auto kDocumentMaxPartsCount = 4000;
 
 // 32kb for tiny document ( < 1mb )
 constexpr auto kDocumentUploadPartSize0 = 32 * 1024;
