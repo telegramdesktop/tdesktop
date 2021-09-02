@@ -29,6 +29,15 @@ using Data::PhotoSize;
 using Data::PhotoSizeIndex;
 using Data::kPhotoSizeCount;
 
+[[nodiscard]] QImage ValidatePhotoImage(
+		QImage image,
+		const Data::CloudFile &file) {
+	return (v::is<WebFileLocation>(file.location.file().data)
+		&& image.format() == QImage::Format_ARGB32)
+		? Images::prepareOpaque(std::move(image))
+		: image;
+}
+
 } // namespace
 
 PhotoData::PhotoData(not_null<Data::Session*> owner, PhotoId id)
@@ -296,7 +305,10 @@ void PhotoData::load(
 			}
 		}
 		if (const auto active = activeMediaView()) {
-			active->set(validSize, goodFor, std::move(result));
+			active->set(
+				validSize,
+				goodFor,
+				ValidatePhotoImage(std::move(result), _images[valid]));
 		}
 		if (validSize == PhotoSize::Large && goodFor == validSize) {
 			_owner->photoLoadDone(this);
@@ -355,15 +367,21 @@ void PhotoData::updateImages(
 		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
 	const auto update = [&](PhotoSize size, const ImageWithLocation &data) {
+		const auto index = PhotoSizeIndex(size);
 		Data::UpdateCloudFile(
-			_images[PhotoSizeIndex(size)],
+			_images[index],
 			data,
 			owner().cache(),
 			Data::kImageCacheTag,
 			[=](Data::FileOrigin origin) { load(size, origin); },
 			[=](QImage preloaded) {
 				if (const auto media = activeMediaView()) {
-					media->set(size, size, data.preloaded);
+					media->set(
+						size,
+						size,
+						ValidatePhotoImage(
+							std::move(preloaded),
+							_images[index]));
 				}
 			});
 	};

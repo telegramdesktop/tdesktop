@@ -129,7 +129,7 @@ std::unique_ptr<Result> Result::Create(
 		if (!result->_photo && !result->_document && imageThumb) {
 			result->_thumbnail.update(result->_session, ImageWithLocation{
 				.location = Images::FromWebDocument(*data.vthumb())
-				});
+			});
 		}
 		return &data.vsend_message();
 	}, [&](const MTPDbotInlineMediaResult &data) {
