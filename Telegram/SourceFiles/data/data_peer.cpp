@@ -1005,7 +1005,7 @@ PeerId PeerData::groupCallDefaultJoinAs() const {
 }
 
 void PeerData::setThemeEmoji(const QString &emoji) {
-	if (true || _themeEmoji == emoji) {
+	if (_themeEmoji == emoji) {
 		return;
 	}
 	_themeEmoji = emoji;

@@ -753,6 +753,7 @@ std::optional<QSize> Element::rightActionSize() const {
 
 void Element::drawRightAction(
 	Painter &p,
+	const PaintContext &context,
 	int left,
 	int top,
 	int outerWidth) const {
@@ -897,10 +898,10 @@ Element *Element::nextDisplayedInBlocks() const {
 
 void Element::drawInfo(
 	Painter &p,
+	const PaintContext &context,
 	int right,
 	int bottom,
 	int width,
-	bool selected,
 	InfoDisplayType type) const {
 }
 

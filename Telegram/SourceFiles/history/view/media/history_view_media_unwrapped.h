@@ -116,7 +116,7 @@ private:
 	void drawSurrounding(
 		Painter &p,
 		const QRect &inner,
-		bool selected,
+		const PaintContext &context,
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;

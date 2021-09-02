@@ -20,9 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/text/format_values.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
-#include "layout/layout_selection.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_wall_paper.h"
 #include "data/data_media_types.h"
@@ -453,11 +452,12 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	auto outbg = _parent->hasOutLayout();
-	bool selected = (context.selection == FullSelection);
+	const auto st = context.st;
+	const auto stm = context.messageStyle();
+	const auto selected = context.selected();
 
-	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
-	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+	const auto &barfg = stm->msgReplyBarColor;
+	const auto &semibold = stm->msgServiceFg;
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -517,7 +517,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += lineHeight;
 	}
 	if (_titleLines) {
-		p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
+		p.setPen(stm->webPageTitleFg);
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -526,7 +526,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		p.setPen(stm->webPageDescriptionFg);
 		auto endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -549,9 +549,10 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 		p.translate(attachLeft, attachTop);
 
-		auto attachContext = context.translated(-attachLeft, -attachTop);
-		attachContext.selection = selected ? FullSelection : TextSelection { 0, 0 };
-		_attach->draw(p, attachContext);
+		_attach->draw(p, context.translated(
+			-attachLeft,
+			-attachTop
+		).withSelection(selected ? FullSelection : TextSelection()));
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
@@ -572,7 +573,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				auto dateW = pixwidth - dateX - st::msgDateImgDelta;
 				auto dateH = pixheight - dateY - st::msgDateImgDelta;
 
-				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 
 				p.setFont(st::msgDateFont);
 				p.setPen(st::msgDateImgFg);
@@ -584,7 +585,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 		if (!attachAdditionalInfoText.isEmpty()) {
 			p.setFont(st::msgDateFont);
-			p.setPen(selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg));
+			p.setPen(stm->msgDateFg);
 			p.drawTextLeft(st::msgPadding.left(), bar.y() + bar.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
 		}
 	}

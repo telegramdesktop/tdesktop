@@ -29,21 +29,26 @@ public:
 
 	int buttonRadius() const override;
 
-	void startPaint(Painter &p) const override;
+	void startPaint(Painter &p, const Ui::ChatStyle *st) const override;
 	const style::TextStyle &textStyle() const override;
 	void repaint(not_null<const HistoryItem*> item) const override;
 
 protected:
 	void paintButtonBg(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const override;
 	void paintButtonIcon(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		int outerWidth,
 		HistoryMessageMarkupButton::Type type) const override;
-	void paintButtonLoading(Painter &p, const QRect &rect) const override;
+	void paintButtonLoading(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		const QRect &rect) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
 
 private:
@@ -57,7 +62,7 @@ Style::Style(
 : ReplyKeyboard::Style(st), _parent(parent) {
 }
 
-void Style::startPaint(Painter &p) const {
+void Style::startPaint(Painter &p, const Ui::ChatStyle *st) const {
 	p.setPen(st::botKbColor);
 	p.setFont(st::botKbStyle.font);
 }
@@ -76,6 +81,7 @@ int Style::buttonRadius() const {
 
 void Style::paintButtonBg(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const {
 	Ui::FillRoundRect(p, rect, st::botKbBg, Ui::BotKeyboardCorners);
@@ -83,13 +89,17 @@ void Style::paintButtonBg(
 
 void Style::paintButtonIcon(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		int outerWidth,
 		HistoryMessageMarkupButton::Type type) const {
 	// Buttons with icons should not appear here.
 }
 
-void Style::paintButtonLoading(Painter &p, const QRect &rect) const {
+void Style::paintButtonLoading(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		const QRect &rect) const {
 	// Buttons with loading progress should not appear here.
 }
 
@@ -120,7 +130,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat));
+		_impl->paint(p, nullptr, width(), clip.translated(-x, -st::botKbScroll.deltat));
 	}
 }
 

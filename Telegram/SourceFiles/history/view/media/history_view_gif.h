@@ -165,7 +165,10 @@ private:
 	[[nodiscard]] QSize sizeForAspectRatio() const;
 
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerStatus(Painter &p, bool selected, QPoint position) const;
+	void drawCornerStatus(
+		Painter &p,
+		const PaintContext &context,
+		QPoint position) const;
 	[[nodiscard]] TextState cornerStatusTextState(
 		QPoint point,
 		StateRequest request,

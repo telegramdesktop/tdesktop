@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/text/text_options.h"
 #include "layout/layout_selection.h"
@@ -293,14 +293,13 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		&& !IsSubGroupSelection(selection);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
-		auto partContext = context;
-		partContext.selection = fullSelection
+		const auto partContext = context.withSelection(fullSelection
 			? FullSelection
 			: textSelection
 			? selection
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
-			: TextSelection();
+			: TextSelection());
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
 		}
@@ -342,12 +341,18 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, width(), selected, InfoDisplayType::Image);
+			_parent->drawInfo(
+				p,
+				context,
+				fullRight,
+				fullBottom,
+				width(),
+				InfoDisplayType::Image);
 		}
 		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
-			_parent->drawRightAction(p, fastShareLeft, fastShareTop, width());
+			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, width());
 		}
 	}
 }

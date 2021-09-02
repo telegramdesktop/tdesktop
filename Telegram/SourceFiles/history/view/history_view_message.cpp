@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/history_view_group_call_tracker.h" // UserpicInRow.
 #include "history/history.h"
-#include "ui/chat/chat_theme.h"
 #include "ui/effects/ripple_animation.h"
 #include "base/unixtime.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "layout/layout_selection.h"
 
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
@@ -57,23 +56,38 @@ public:
 
 	int buttonRadius() const override;
 
-	void startPaint(Painter &p) const override;
+	void startPaint(
+		Painter &p,
+		const Ui::ChatStyle *st) const override;
 	const style::TextStyle &textStyle() const override;
 	void repaint(not_null<const HistoryItem*> item) const override;
 
 protected:
 	void paintButtonBg(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const override;
-	void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageMarkupButton::Type type) const override;
-	void paintButtonLoading(Painter &p, const QRect &rect) const override;
+	void paintButtonIcon(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		const QRect &rect,
+		int outerWidth,
+		HistoryMessageMarkupButton::Type type) const override;
+	void paintButtonLoading(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		const QRect &rect) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
 
 };
 
-void KeyboardStyle::startPaint(Painter &p) const {
-	p.setPen(st::msgServiceFg);
+void KeyboardStyle::startPaint(
+		Painter &p,
+		const Ui::ChatStyle *st) const {
+	Expects(st != nullptr);
+
+	p.setPen(st->msgServiceFg());
 }
 
 const style::TextStyle &KeyboardStyle::textStyle() const {
@@ -90,41 +104,52 @@ int KeyboardStyle::buttonRadius() const {
 
 void KeyboardStyle::paintButtonBg(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const {
-	Ui::FillRoundRect(p, rect, st::msgServiceBg, Ui::StickerCorners);
+	Expects(st != nullptr);
+
+	Ui::FillRoundRect(p, rect, st->msgServiceBg(), st->msgServiceBgCorners());
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
-		Ui::FillRoundRect(p, rect, st::msgBotKbOverBgAdd, Ui::BotKbOverCorners);
+		Ui::FillRoundRect(p, rect, st->msgBotKbOverBgAdd(), st->msgBotKbOverBgAddCorners());
 		p.setOpacity(o);
 	}
 }
 
 void KeyboardStyle::paintButtonIcon(
 		Painter &p,
+		const Ui::ChatStyle *st,
 		const QRect &rect,
 		int outerWidth,
 		HistoryMessageMarkupButton::Type type) const {
+	Expects(st != nullptr);
+
 	using Type = HistoryMessageMarkupButton::Type;
-	const auto getIcon = [](Type type) -> const style::icon* {
+	const auto icon = [&]() -> const style::icon* {
 		switch (type) {
 		case Type::Url:
-		case Type::Auth: return &st::msgBotKbUrlIcon;
-		case Type::Buy: return &st::msgBotKbPaymentIcon;
+		case Type::Auth: return &st->msgBotKbUrlIcon();
+		case Type::Buy: return &st->msgBotKbPaymentIcon();
 		case Type::SwitchInlineSame:
-		case Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
+		case Type::SwitchInline: return &st->msgBotKbSwitchPmIcon();
 		}
 		return nullptr;
-	};
-	if (const auto icon = getIcon(type)) {
+	}();
+	if (icon) {
 		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
 	}
 }
 
-void KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
-	auto icon = &st::historySendingInvertedIcon;
-	icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon->height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
+void KeyboardStyle::paintButtonLoading(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		const QRect &rect) const {
+	Expects(st != nullptr);
+
+	const auto &icon = st->historySendingInvertedIcon();
+	icon.paint(p, rect.x() + rect.width() - icon.width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon.height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
 }
 
 int KeyboardStyle::minButtonWidth(
@@ -151,29 +176,32 @@ QString FastReplyText() {
 	return tr::lng_fast_reply(tr::now);
 }
 
-style::color FromNameFg(PeerId peerId, bool selected) {
-	if (selected) {
+style::color FromNameFg(
+		const Ui::ChatPaintContext &context,
+		PeerId peerId) {
+	const auto st = context.st;
+	if (context.selected()) {
 		const style::color colors[] = {
-			st::historyPeer1NameFgSelected,
-			st::historyPeer2NameFgSelected,
-			st::historyPeer3NameFgSelected,
-			st::historyPeer4NameFgSelected,
-			st::historyPeer5NameFgSelected,
-			st::historyPeer6NameFgSelected,
-			st::historyPeer7NameFgSelected,
-			st::historyPeer8NameFgSelected,
+			st->historyPeer1NameFgSelected(),
+			st->historyPeer2NameFgSelected(),
+			st->historyPeer3NameFgSelected(),
+			st->historyPeer4NameFgSelected(),
+			st->historyPeer5NameFgSelected(),
+			st->historyPeer6NameFgSelected(),
+			st->historyPeer7NameFgSelected(),
+			st->historyPeer8NameFgSelected(),
 		};
 		return colors[Data::PeerColorIndex(peerId)];
 	} else {
 		const style::color colors[] = {
-			st::historyPeer1NameFg,
-			st::historyPeer2NameFg,
-			st::historyPeer3NameFg,
-			st::historyPeer4NameFg,
-			st::historyPeer5NameFg,
-			st::historyPeer6NameFg,
-			st::historyPeer7NameFg,
-			st::historyPeer8NameFg,
+			st->historyPeer1NameFg(),
+			st->historyPeer2NameFg(),
+			st->historyPeer3NameFg(),
+			st->historyPeer4NameFg(),
+			st->historyPeer5NameFg(),
+			st->historyPeer6NameFg(),
+			st->historyPeer7NameFg(),
+			st->historyPeer8NameFg(),
 		};
 		return colors[Data::PeerColorIndex(peerId)];
 	}
@@ -459,9 +487,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto item = message();
 	const auto media = this->media();
 
-	const auto outbg = hasOutLayout();
+	const auto stm = context.messageStyle();
 	const auto bubble = drawBubble();
-	const auto selected = (context.selection == FullSelection);
 
 	auto dateh = 0;
 	if (const auto date = Get<DateBadge>()) {
@@ -487,7 +514,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 	auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-	auto mediaSelectionIntervals = (!selected && mediaDisplayed)
+	auto mediaSelectionIntervals = (!context.selected() && mediaDisplayed)
 		? media->getBubbleSelectionIntervals(context.selection)
 		: std::vector<Ui::BubbleSelectionInterval>();
 	auto localMediaTop = 0;
@@ -524,9 +551,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(-g.center());
 	}
 
-	p.setTextPalette(selected
-		? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected)
-		: (outbg ? st::outTextPalette : st::inTextPalette));
+	p.setTextPalette(stm->textPalette);
 
 	auto keyboard = item->inlineReplyKeyboard();
 	if (keyboard) {
@@ -534,7 +559,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		g.setHeight(g.height() - keyboardHeight);
 		auto keyboardPosition = QPoint(g.left(), g.top() + g.height() + st::msgBotKbButton.margin);
 		p.translate(keyboardPosition);
-		keyboard->paint(p, g.width(), context.clip.translated(-keyboardPosition));
+		keyboard->paint(p, context.st, g.width(), context.clip.translated(-keyboardPosition));
 		p.translate(-keyboardPosition);
 	}
 
@@ -552,7 +577,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				&& data()->isDiscussionPost());
 		const auto displayTail = skipTail
 			? RectPart::None
-			: (outbg && !delegate()->elementIsChatWide())
+			: (context.outbg && !delegate()->elementIsChatWide())
 			? RectPart::Right
 			: RectPart::Left;
 		Ui::PaintBubble(
@@ -564,15 +589,15 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					.pattern = context.bubblesPattern,
 					.patternViewport = context.viewport,
 					.outerWidth = width(),
-					.selected = selected,
-					.outbg = outbg,
+					.selected = context.selected(),
+					.outbg = context.outbg,
 					.tailSide = displayTail,
 				},
 				.selection = mediaSelectionIntervals,
 			});
 
 		auto inner = g;
-		paintCommentsButton(p, inner, selected);
+		paintCommentsButton(p, inner, context);
 
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
@@ -581,24 +606,25 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
-			paintFromName(p, trect, selected);
-			paintForwardedInfo(p, trect, selected);
-			paintReplyInfo(p, trect, selected);
-			paintViaBotIdInfo(p, trect, selected);
+			paintFromName(p, trect, context);
+			paintForwardedInfo(p, trect, context);
+			paintReplyInfo(p, trect, context);
+			paintViaBotIdInfo(p, trect, context);
 		}
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
 		}
-		paintText(p, trect, context.selection);
+		paintText(p, trect, context);
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
 			auto mediaLeft = inner.left();
 			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 
 			p.translate(mediaLeft, mediaTop);
-			auto mediaContext = context.translated(-mediaLeft, -mediaTop);
-			mediaContext.selection = skipTextSelection(context.selection);
-			media->draw(p, mediaContext);
+			media->draw(p, context.translated(
+				-mediaLeft,
+				-mediaTop
+			).withSelection(context.selection));
 			p.translate(-mediaLeft, -mediaTop);
 		}
 		if (entry) {
@@ -620,19 +646,23 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				? !media->customInfoLayout()
 				: true);
 		if (needDrawInfo) {
-			const auto bottomSelected = selected
+			const auto bottomSelected = context.selected()
 				|| (!mediaSelectionIntervals.empty()
 					&& (mediaSelectionIntervals.back().top
 						+ mediaSelectionIntervals.back().height
 						>= inner.y() + inner.height()));
-			drawInfo(p, inner.left() + inner.width(), inner.top() + inner.height(), 2 * inner.left() + inner.width(), bottomSelected, InfoDisplayType::Default);
+			drawInfo(
+				p,
+				context.withSelection(
+					bottomSelected ? FullSelection : TextSelection()),
+				inner.left() + inner.width(),
+				inner.top() + inner.height(),
+				2 * inner.left() + inner.width(),
+				InfoDisplayType::Default);
 			if (g != inner) {
 				const auto o = p.opacity();
 				p.setOpacity(0.3);
-				const auto color = bottomSelected
-					? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
-					: (outbg ? st::msgOutDateFg : st::msgInDateFg);
-				p.fillRect(inner.left(), inner.top() + inner.height() - st::lineWidth, inner.width(), st::lineWidth, color);
+				p.fillRect(inner.left(), inner.top() + inner.height() - st::lineWidth, inner.width(), st::lineWidth, stm->msgDateFg);
 				p.setOpacity(o);
 			}
 		}
@@ -643,7 +673,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
 			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
-			drawRightAction(p, fastShareLeft, fastShareTop, width());
+			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
 		}
 
 		if (media) {
@@ -651,9 +681,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else if (media && media->isDisplayed()) {
 		p.translate(g.topLeft());
-		auto mediaContext = context.translated(-g.topLeft());
-		mediaContext.selection = skipTextSelection(context.selection);
-		media->draw(p, mediaContext);
+		media->draw(p, context.translated(
+			-g.topLeft()
+		).withSelection(skipTextSelection(context.selection)));
 		p.translate(-g.topLeft());
 	}
 
@@ -673,7 +703,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 void Message::paintCommentsButton(
 		Painter &p,
 		QRect &g,
-		bool selected) const {
+		const PaintContext &context) const {
 	if (!data()->repliesAreComments() && !data()->externalReply()) {
 		return;
 	}
@@ -681,7 +711,7 @@ void Message::paintCommentsButton(
 		_comments = std::make_unique<CommentsButton>();
 		history()->owner().registerHeavyViewPart(const_cast<Message*>(this));
 	}
-	const auto outbg = hasOutLayout();
+	const auto stm = context.messageStyle();
 	const auto views = data()->Get<HistoryMessageViews>();
 
 	g.setHeight(g.height() - st::historyCommentsButtonHeight);
@@ -702,18 +732,14 @@ void Message::paintCommentsButton(
 	width -= st::historyCommentsSkipLeft
 		+ st::historyCommentsSkipRight;
 
-	const auto &open = outbg
-		? (selected ? st::historyCommentsOpenOutSelected : st::historyCommentsOpenOut)
-		: (selected ? st::historyCommentsOpenInSelected : st::historyCommentsOpenIn);
+	const auto &open = stm->historyCommentsOpen;
 	open.paint(p,
 		left + width - open.width(),
 		top + (st::historyCommentsButtonHeight - open.height()) / 2,
 		width);
 
 	if (!views || views->recentRepliers.empty()) {
-		const auto &icon = outbg
-			? (selected ? st::historyCommentsOutSelected : st::historyCommentsOut)
-			: (selected ? st::historyCommentsInSelected : st::historyCommentsIn);
+		const auto &icon = stm->historyComments;
 		icon.paint(
 			p,
 			left,
@@ -771,7 +797,7 @@ void Message::paintCommentsButton(
 	}
 
 	left += st::historyCommentsSkipText;
-	p.setPen(outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg));
+	p.setPen(stm->msgFileThumbLinkFg);
 	p.setFont(st::semiboldFont);
 
 	const auto textTop = top + (st::historyCommentsButtonHeight - st::semiboldFont->height) / 2;
@@ -784,7 +810,7 @@ void Message::paintCommentsButton(
 
 	if (views && data()->areRepliesUnread()) {
 		p.setPen(Qt::NoPen);
-		p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
+		p.setBrush(stm->msgFileBg);
 
 		{
 			PainterHighQualityEnabler hq(p);
@@ -796,7 +822,7 @@ void Message::paintCommentsButton(
 void Message::paintFromName(
 		Painter &p,
 		QRect &trect,
-		bool selected) const {
+		const PaintContext &context) const {
 	const auto item = message();
 	if (!displayFromName()) {
 		return;
@@ -816,20 +842,18 @@ void Message::paintFromName(
 	}
 
 	p.setFont(st::msgNameFont);
-	const auto outbg = hasOutLayout();
+	const auto stm = context.messageStyle();
+
 	const auto nameText = [&]() -> const Ui::Text::String * {
 		const auto from = item->displayFrom();
-		if (outbg) {
-			p.setPen(selected ? st::msgOutServiceFgSelected : st::msgOutServiceFg);
-			return &from->nameText();
-		} else if (item->isPost()) {
-			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
+		if (context.outbg || item->isPost()) {
+			p.setPen(stm->msgServiceFg);
 			return &from->nameText();
 		} else if (from) {
-			p.setPen(FromNameFg(from->id, selected));
+			p.setPen(FromNameFg(context, from->id));
 			return &from->nameText();
 		} else if (const auto info = item->hiddenForwardedInfo()) {
-			p.setPen(FromNameFg(info->colorPeerId, selected));
+			p.setPen(FromNameFg(context, info->colorPeerId));
 			return &info->nameText;
 		} else {
 			Unexpected("Corrupt forwarded information in message.");
@@ -842,16 +866,14 @@ void Message::paintFromName(
 
 	auto via = item->Get<HistoryMessageVia>();
 	if (via && !displayForwardedFrom() && availableWidth > 0) {
-		p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
+		p.setPen(stm->msgServiceFg);
 		p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->text);
 		auto skipWidth = via->width + st::msgServiceFont->spacew;
 		availableLeft += skipWidth;
 		availableWidth -= skipWidth;
 	}
 	if (rightWidth) {
-		p.setPen(outbg
-			? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg)
-			: (selected ? st::msgInDateFgSelected : st::msgInDateFg));
+		p.setPen(stm->msgDateFg);
 		p.setFont(ClickHandler::showAsActive(_fastReplyLink)
 			? st::msgFont->underline()
 			: st::msgFont);
@@ -871,10 +893,16 @@ void Message::paintFromName(
 	trect.setY(trect.y() + st::msgNameFont->height);
 }
 
-void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const {
+void Message::paintForwardedInfo(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const {
 	if (displayForwardedFrom()) {
 		const auto item = message();
 		const auto outbg = hasOutLayout();
+		const auto selected = context.selected();
+		const auto st = context.st;
+		const auto stm = context.messageStyle();
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
 
 		const auto &serviceFont = st::msgServiceFont;
@@ -890,26 +918,14 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 		const auto countedHeight = forwarded->text.countHeight(useWidth);
 		const auto breakEverywhere = (countedHeight > 2 * serviceFont->height);
 		p.setPen(!forwarded->psaType.isEmpty()
-			? st::boxTextFgGood
-			: selected
-			? (outbg
-				? st::msgOutServiceFgSelected
-				: st::msgInServiceFgSelected)
-			: (outbg
-				? st::msgOutServiceFg
-				: st::msgInServiceFg));
+			? st->boxTextFgGood()
+			: stm->msgServiceFg);
 		p.setFont(serviceFont);
 		p.setTextPalette(!forwarded->psaType.isEmpty()
-			? st::historyPsaForwardPalette
-			: selected
-			? (outbg
-				? st::outFwdTextPaletteSelected
-				: st::inFwdTextPaletteSelected)
-			: (outbg
-				? st::outFwdTextPalette
-				: st::inFwdTextPalette));
+			? st->historyPsaForwardPalette()
+			: stm->fwdTextPalette);
 		forwarded->text.drawElided(p, trect.x(), trect.y(), useWidth, 2, style::al_left, 0, -1, 0, breakEverywhere);
-		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
+		p.setTextPalette(stm->textPalette);
 
 		if (!forwarded->psaType.isEmpty()) {
 			const auto entry = Get<PsaTooltipState>();
@@ -917,11 +933,7 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 			const auto shown = entry->buttonVisibleAnimation.value(
 				entry->buttonVisible ? 1. : 0.);
 			if (shown > 0) {
-				const auto &icon = selected
-					? (outbg
-						? st::historyPsaIconOutSelected
-						: st::historyPsaIconInSelected)
-					: (outbg ? st::historyPsaIconOut : st::historyPsaIconIn);
+				const auto &icon = stm->historyPsaIcon;
 				const auto position = fits
 					? st::historyPsaIconPosition1
 					: st::historyPsaIconPosition2;
@@ -944,44 +956,45 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 	}
 }
 
-void Message::paintReplyInfo(Painter &p, QRect &trect, bool selected) const {
-	if (auto reply = displayedReply()) {
+void Message::paintReplyInfo(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const {
+	if (const auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-
-		auto flags = HistoryMessageReply::PaintFlag::InBubble | 0;
-		if (selected) {
-			flags |= HistoryMessageReply::PaintFlag::Selected;
-		}
-		reply->paint(p, this, trect.x(), trect.y(), trect.width(), flags);
-
+		reply->paint(p, this, context, trect.x(), trect.y(), trect.width(), true);
 		trect.setY(trect.y() + h);
 	}
 }
 
-void Message::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const {
+void Message::paintViaBotIdInfo(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const {
 	const auto item = message();
 	if (!displayFromName() && !displayForwardedFrom()) {
 		if (auto via = item->Get<HistoryMessageVia>()) {
-			const auto outbg = hasOutLayout();
+			const auto stm = context.messageStyle();
 			p.setFont(st::msgServiceNameFont);
-			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
+			p.setPen(stm->msgServiceFg);
 			p.drawTextLeft(trect.left(), trect.top(), width(), via->text);
 			trect.setY(trect.y() + st::msgServiceNameFont->height);
 		}
 	}
 }
 
-void Message::paintText(Painter &p, QRect &trect, TextSelection selection) const {
+void Message::paintText(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const {
 	if (!hasVisibleText()) {
 		return;
 	}
 	const auto item = message();
-
-	const auto outbg = hasOutLayout();
-	auto selected = (selection == FullSelection);
-	p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+	const auto stm = context.messageStyle();
+	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
-	item->_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selection);
+	item->_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, context.selection);
 }
 
 PointState Message::pointState(QPoint point) const {
@@ -1666,14 +1679,15 @@ TextSelection Message::adjustSelection(
 
 void Message::drawInfo(
 		Painter &p,
+		const PaintContext &context,
 		int right,
 		int bottom,
 		int width,
-		bool selected,
 		InfoDisplayType type) const {
 	p.setFont(st::msgDateFont);
 
-	bool outbg = hasOutLayout();
+	const auto stm = context.messageStyle();
+	const auto st = context.st;
 	bool invertedsprites = (type == InfoDisplayType::Image)
 		|| (type == InfoDisplayType::Background);
 	int32 infoRight = right, infoBottom = bottom;
@@ -1681,23 +1695,22 @@ void Message::drawInfo(
 	case InfoDisplayType::Default:
 		infoRight -= st::msgPadding.right() - st::msgDateDelta.x();
 		infoBottom -= st::msgPadding.bottom() - st::msgDateDelta.y();
-		p.setPen(selected
-			? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
-			: (outbg ? st::msgOutDateFg : st::msgInDateFg));
+		p.setPen(stm->msgDateFg);
 	break;
 	case InfoDisplayType::Image:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
-		p.setPen(st::msgDateImgFg);
+		p.setPen(st->msgDateImgFg());
 	break;
 	case InfoDisplayType::Background:
 		infoRight -= st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgPadding.y();
-		p.setPen(st::msgServiceFg);
+		p.setPen(st->msgServiceFg());
 	break;
 	}
 
 	const auto item = message();
+	const auto selected = context.selected();
 	auto infoW = infoWidth();
 	if (rtl()) infoRight = width - infoRight + infoW;
 
@@ -1705,10 +1718,10 @@ void Message::drawInfo(
 	auto dateY = infoBottom - st::msgDateFont->height;
 	if (type == InfoDisplayType::Image) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 	} else if (type == InfoDisplayType::Background) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? Ui::StickerSelectedCorners : Ui::StickerCorners);
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
 	}
 	dateX += timeLeft();
 
@@ -1728,101 +1741,70 @@ void Message::drawInfo(
 		const auto textTop = infoBottom - st::msgDateFont->descent;
 		if (views->replies.count > 0
 			&& !views->commentsMegagroupId
-			&& context() != Context::Replies) {
-			auto icon = [&] {
-				if (item->id > 0) {
-					if (outbg) {
-						return &(invertedsprites
-							? st::historyRepliesInvertedIcon
-							: selected
-							? st::historyRepliesOutSelectedIcon
-							: st::historyRepliesOutIcon);
-					}
-					return &(invertedsprites
-						? st::historyRepliesInvertedIcon
-						: selected
-						? st::historyRepliesInSelectedIcon
-						: st::historyRepliesInIcon);
-				}
-				return &(invertedsprites
-					? st::historyViewsSendingInvertedIcon
-					: st::historyViewsSendingIcon);
-			}();
+			&& this->context() != Context::Replies) {
+			const auto &icon = (item->id > 0)
+				? (invertedsprites
+					? st->historyRepliesInvertedIcon()
+					: stm->historyRepliesIcon)
+				: (invertedsprites
+					? st->historyViewsSendingInvertedIcon()
+					: st->historyViewsSendingIcon());
 			if (item->id > 0) {
-				icon->paint(p, left, viewIconTop, width);
+				icon.paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->replies.text);
-			} else if (!outbg && views->views.count < 0) { // sending outbg icon will be painted below
+			} else if (!context.outbg && views->views.count < 0) { // sending outbg icon will be painted below
 				auto iconSkip = st::historyViewsSpace + views->replies.textWidth;
-				icon->paint(p, left + iconSkip, viewIconTop, width);
+				icon.paint(p, left + iconSkip, viewIconTop, width);
 			}
 			left += st::historyViewsSpace
 				+ views->replies.textWidth
 				+ st::historyViewsWidth;
 		}
 		if (views->views.count >= 0) {
-			auto icon = [&] {
-				if (item->id > 0) {
-					if (outbg) {
-						return &(invertedsprites
-							? st::historyViewsInvertedIcon
-							: selected
-							? st::historyViewsOutSelectedIcon
-							: st::historyViewsOutIcon);
-					}
-					return &(invertedsprites
-						? st::historyViewsInvertedIcon
-						: selected
-						? st::historyViewsInSelectedIcon
-						: st::historyViewsInIcon);
-				}
-				return &(invertedsprites
-					? st::historyViewsSendingInvertedIcon
-					: st::historyViewsSendingIcon);
-			}();
+			const auto &icon = (item->id > 0)
+				? (invertedsprites
+					? st->historyViewsInvertedIcon()
+					: stm->historyViewsIcon)
+				: (invertedsprites
+					? st->historyViewsSendingInvertedIcon()
+					: st->historyViewsSendingIcon());
 			if (item->id > 0) {
-				icon->paint(p, left, viewIconTop, width);
+				icon.paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->views.text);
-			} else if (!outbg) { // sending outbg icon will be painted below
+			} else if (!context.outbg) { // sending outbg icon will be painted below
 				auto iconSkip = st::historyViewsSpace + views->views.textWidth;
-				icon->paint(p, left + iconSkip, viewIconTop, width);
+				icon.paint(p, left + iconSkip, viewIconTop, width);
 			}
 			left += st::historyViewsSpace
 				+ views->views.textWidth
 				+ st::historyViewsWidth;
 		}
-	} else if (item->id < 0 && item->history()->peer->isSelf() && !outbg) {
-		auto icon = &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
-		icon->paint(p, left, viewIconTop, width);
+	} else if (item->id < 0 && item->history()->peer->isSelf() && !context.outbg) {
+		const auto &icon = invertedsprites
+			? st->historyViewsSendingInvertedIcon()
+			: st->historyViewsSendingIcon();
+		icon.paint(p, left, viewIconTop, width);
 	}
 	if (displayPinIcon()) {
-		const auto icon = [&] {
-			if (outbg) {
-				return &(invertedsprites
-					? st::historyPinInvertedIcon
-					: selected
-					? st::historyPinOutSelectedIcon
-					: st::historyPinOutIcon);
-			}
-			return &(invertedsprites
-				? st::historyPinInvertedIcon
-				: selected
-				? st::historyPinInSelectedIcon
-				: st::historyPinInIcon);
-		}();
-		icon->paint(p, left, pinIconTop, width);
+		const auto &icon = invertedsprites
+				? st->historyPinInvertedIcon()
+				: stm->historyPinIcon;
+		icon.paint(p, left, pinIconTop, width);
 		left += st::historyPinWidth;
 	}
-	if (outbg) {
-		auto icon = [&] {
-			if (item->id > 0) {
-				if (delegate()->elementShownUnread(this)) {
-					return &(invertedsprites ? st::historySentInvertedIcon : (selected ? st::historySentSelectedIcon : st::historySentIcon));
-				}
-				return &(invertedsprites ? st::historyReceivedInvertedIcon : (selected ? st::historyReceivedSelectedIcon : st::historyReceivedIcon));
-			}
-			return &(invertedsprites ? st::historySendingInvertedIcon : st::historySendingIcon);
-		}();
-		icon->paint(p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, width);
+	if (context.outbg) {
+		const auto &icon = (item->id <= 0)
+			? (invertedsprites
+				? st->historySendingInvertedIcon()
+				: st->historySendingIcon())
+			: delegate()->elementShownUnread(this)
+			? (invertedsprites
+					? st->historySentInvertedIcon()
+					: stm->historySentIcon)
+			: (invertedsprites
+					? st->historyReceivedInvertedIcon()
+					: stm->historyReceivedIcon);
+		icon.paint(p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, width);
 	}
 }
 
@@ -2195,12 +2177,14 @@ bool Message::displayGoToOriginal() const {
 
 void Message::drawRightAction(
 		Painter &p,
+		const PaintContext &context,
 		int left,
 		int top,
 		int outerWidth) const {
 	const auto size = rightActionSize();
+	const auto st = context.st;
 	p.setPen(Qt::NoPen);
-	p.setBrush(st::msgServiceBg);
+	p.setBrush(st->msgServiceBg());
 	{
 		PainterHighQualityEnabler hq(p);
 		const auto rect = style::rtlrect(
@@ -2217,7 +2201,7 @@ void Message::drawRightAction(
 		}
 	}
 	if (displayRightActionComments()) {
-		const auto &icon = st::historyFastCommentsIcon;
+		const auto &icon = st->historyFastCommentsIcon();
 		icon.paint(
 			p,
 			left + (size->width() - icon.width()) / 2,
@@ -2226,7 +2210,7 @@ void Message::drawRightAction(
 		const auto views = data()->Get<HistoryMessageViews>();
 		Assert(views != nullptr);
 		if (views->repliesSmall.textWidth > 0) {
-			p.setPen(st::msgServiceFg);
+			p.setPen(st->msgServiceFg());
 			p.setFont(st::semiboldFont);
 			p.drawTextLeft(
 				left + (size->width() - views->repliesSmall.textWidth) / 2,
@@ -2237,8 +2221,8 @@ void Message::drawRightAction(
 		}
 	} else {
 		const auto &icon = (displayFastShare() && !isPinnedContext())
-			? st::historyFastShareIcon
-			: st::historyGoToOriginalIcon;
+			? st->historyFastShareIcon()
+			: st->historyGoToOriginalIcon();
 		icon.paintInCenter(p, { left, top, size->width(), size->height() });
 	}
 }

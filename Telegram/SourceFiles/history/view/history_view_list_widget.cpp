@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/inactive_press.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
@@ -1626,6 +1627,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
+			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
 			view->draw(p, context);
 			const auto height = view->height();

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -931,6 +932,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
 				const auto view = i->get();
+				context.outbg = view->hasOutLayout();
 				context.selection = (view == _selectedItem)
 					? _selectedText
 					: TextSelection();

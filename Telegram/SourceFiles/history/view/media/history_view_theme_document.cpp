@@ -20,10 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "core/local_url_handlers.h"
 #include "ui/text/format_values.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
-#include "layout/layout_selection.h" // FullSelection
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -159,6 +159,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	if (_data) {
 		_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	}
+	const auto st = context.st;
 	auto selected = (context.selection == FullSelection);
 	auto loaded = dataLoaded();
 	auto displayLoading = _data && _data->displayLoading();
@@ -187,7 +188,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 		auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 		p.setFont(st::normalFont);
 		p.setPen(st::msgDateImgFg);
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());

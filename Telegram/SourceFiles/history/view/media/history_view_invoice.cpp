@@ -8,13 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_invoice.h"
 
 #include "lang/lang_keys.h"
-#include "layout/layout_selection.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/item_text_options.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "data/data_media_types.h"
@@ -204,10 +203,13 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	auto outbg = _parent->hasOutLayout();
-	bool selected = (context.selection == FullSelection);
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = context.selected();
+	const auto st = context.st;
 
-	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+	auto &semibold = selected
+		? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected)
+		: (outbg ? st->msgOutServiceFg() : st->msgInServiceFg());
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -245,11 +247,11 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
-		auto attachContext = context.translated(-attachLeft, -attachTop);
-		attachContext.selection = selected ? FullSelection : TextSelection { 0, 0 };
-
 		p.translate(attachLeft, attachTop);
-		_attach->draw(p, attachContext);
+		_attach->draw(p, context.translated(
+			-attachLeft,
+			-attachTop
+		).withSelection(selected ? FullSelection : TextSelection()));
 		auto pixwidth = _attach->width();
 
 		auto available = _status.maxWidth();
@@ -258,7 +260,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		auto statusX = st::msgDateImgDelta;
 		auto statusY = st::msgDateImgDelta;
 
-		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
 #include "ui/chat/message_bubble.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/timer.h"
 #include "main/main_session.h"
-#include "layout/layout_selection.h" // FullSelection
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
@@ -742,8 +741,8 @@ void Poll::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(regular);
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
 	paintRecentVoters(p, padding.left() + _subtitle.maxWidth(), tshift, context);
-	paintCloseByTimer(p, padding.left() + paintw, tshift, context.selection);
-	paintShowSolution(p, padding.left() + paintw, tshift, context.selection);
+	paintCloseByTimer(p, padding.left() + paintw, tshift, context);
+	paintShowSolution(p, padding.left() + paintw, tshift, context);
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
@@ -775,14 +774,14 @@ void Poll::draw(Painter &p, const PaintContext &context) const {
 			tshift,
 			paintw,
 			width(),
-			context.selection);
+			context);
 		tshift += height;
 	}
 	if (!inlineFooter()) {
-		paintBottom(p, padding.left(), tshift, paintw, context.selection);
+		paintBottom(p, padding.left(), tshift, paintw, context);
 	} else if (!_totalVotesLabel.isEmpty()) {
 		tshift += st::msgPadding.bottom();
-		paintInlineFooter(p, padding.left(), tshift, paintw, context.selection);
+		paintInlineFooter(p, padding.left(), tshift, paintw, context);
 	}
 }
 
@@ -791,8 +790,8 @@ void Poll::paintInlineFooter(
 		int left,
 		int top,
 		int paintw,
-		TextSelection selection) const {
-	const auto selected = (selection == FullSelection);
+		const PaintContext &context) const {
+	const auto selected = context.selected();
 	const auto outbg = _parent->hasOutLayout();
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 	p.setPen(regular);
@@ -811,9 +810,9 @@ void Poll::paintBottom(
 		int left,
 		int top,
 		int paintw,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	const auto stringtop = top + st::msgPadding.bottom() + st::historyPollBottomButtonTop;
-	const auto selected = (selection == FullSelection);
+	const auto selected = context.selected();
 	const auto outbg = _parent->hasOutLayout();
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 	if (showVotersCount()) {
@@ -921,7 +920,7 @@ void Poll::paintCloseByTimer(
 		Painter &p,
 		int right,
 		int top,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	if (!canVote() || _poll->closeDate <= 0 || _poll->closePeriod <= 0) {
 		_close = nullptr;
 		return;
@@ -949,7 +948,7 @@ void Poll::paintCloseByTimer(
 	}
 	const auto time = Ui::FormatDurationText(int(std::ceil(left / 1000.)));
 	const auto outbg = _parent->hasOutLayout();
-	const auto selected = (selection == FullSelection);
+	const auto selected = context.selected();
 	const auto &icon = selected
 		? (outbg
 			? st::historyQuizTimerOutSelected
@@ -995,7 +994,7 @@ void Poll::paintShowSolution(
 		Painter &p,
 		int right,
 		int top,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	const auto shown = _solutionButtonAnimation.value(
 		_solutionButtonVisible ? 1. : 0.);
 	if (!shown) {
@@ -1006,7 +1005,7 @@ void Poll::paintShowSolution(
 			crl::guard(this, [=] { showSolution(); }));
 	}
 	const auto outbg = _parent->hasOutLayout();
-	const auto &icon = (selection == FullSelection)
+	const auto &icon = context.selected()
 		? (outbg
 			? st::historyQuizExplainOutSelected
 			: st::historyQuizExplainInSelected)
@@ -1033,7 +1032,7 @@ int Poll::paintAnswer(
 		int top,
 		int width,
 		int outerWidth,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	const auto height = countAnswerHeight(answer, width);
 	const auto outbg = _parent->hasOutLayout();
 	const auto aleft = left + st::historyPollAnswerPadding.left();
@@ -1054,7 +1053,7 @@ int Poll::paintAnswer(
 		const auto opacity = animation->opacity.current();
 		if (opacity < 1.) {
 			p.setOpacity(1. - opacity);
-			paintRadio(p, answer, left, top, selection);
+			paintRadio(p, answer, left, top, context);
 		}
 		if (opacity > 0.) {
 			const auto percent = QString::number(
@@ -1069,7 +1068,7 @@ int Poll::paintAnswer(
 				left,
 				top,
 				outerWidth,
-				selection);
+				context);
 			p.setOpacity(sqrt(opacity));
 			paintFilling(
 				p,
@@ -1080,11 +1079,11 @@ int Poll::paintAnswer(
 				top,
 				width,
 				height,
-				selection);
+				context);
 			p.setOpacity(1.);
 		}
 	} else if (!showVotes()) {
-		paintRadio(p, answer, left, top, selection);
+		paintRadio(p, answer, left, top, context);
 	} else {
 		paintPercent(
 			p,
@@ -1093,7 +1092,7 @@ int Poll::paintAnswer(
 			left,
 			top,
 			outerWidth,
-			selection);
+			context);
 		paintFilling(
 			p,
 			answer.chosen,
@@ -1103,7 +1102,7 @@ int Poll::paintAnswer(
 			top,
 			width,
 			height,
-			selection);
+			context);
 	}
 
 	top += st::historyPollAnswerPadding.top();
@@ -1118,14 +1117,15 @@ void Poll::paintRadio(
 		const Answer &answer,
 		int left,
 		int top,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	top += st::historyPollAnswerPadding.top();
 
 	const auto outbg = _parent->hasOutLayout();
-	const auto selected = (selection == FullSelection);
+	const auto selected = context.selected();
+	const auto st = context.st;
 
 	PainterHighQualityEnabler hq(p);
-	const auto &st = st::historyPollRadio;
+	const auto &radio = st::historyPollRadio;
 	const auto over = ClickHandler::showAsActive(answer.handler);
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 
@@ -1137,15 +1137,19 @@ void Poll::paintRadio(
 		p.setOpacity(o * (over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity));
 	}
 
-	const auto rect = QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.));
+	const auto rect = QRectF(left, top, radio.diameter, radio.diameter).marginsRemoved(QMarginsF(radio.thickness / 2., radio.thickness / 2., radio.thickness / 2., radio.thickness / 2.));
 	if (_sendingAnimation && _sendingAnimation->option == answer.option) {
-		const auto &active = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+		const auto &active = selected
+			? (outbg
+				? st::msgOutServiceFgSelected
+				: st::msgInServiceFgSelected)
+			: (outbg ? st->msgOutServiceFg() : st->msgInServiceFg());
 		if (anim::Disabled()) {
-			anim::DrawStaticLoading(p, rect, st.thickness, active);
+			anim::DrawStaticLoading(p, rect, radio.thickness, active);
 		} else {
 			const auto state = _sendingAnimation->animation.computeState();
 			auto pen = anim::pen(regular, active, state.shown);
-			pen.setWidth(st.thickness);
+			pen.setWidth(radio.thickness);
 			pen.setCapStyle(Qt::RoundCap);
 			p.setPen(pen);
 			p.drawArc(
@@ -1156,21 +1160,21 @@ void Poll::paintRadio(
 	} else {
 		if (checkmark < 1.) {
 			auto pen = regular->p;
-			pen.setWidth(st.thickness);
+			pen.setWidth(radio.thickness);
 			p.setPen(pen);
 			p.drawEllipse(rect);
 		}
 		if (checkmark > 0.) {
-			const auto removeFull = (st.diameter / 2 - st.thickness);
+			const auto removeFull = (radio.diameter / 2 - radio.thickness);
 			const auto removeNow = removeFull * (1. - checkmark);
 			const auto color = outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg);
 			auto pen = color->p;
-			pen.setWidth(st.thickness);
+			pen.setWidth(radio.thickness);
 			p.setPen(pen);
 			p.setBrush(color);
 			p.drawEllipse(rect.marginsRemoved({ removeNow, removeNow, removeNow, removeNow }));
 			const auto &icon = outbg ? (selected ? st::historyPollOutChosenSelected : st::historyPollOutChosen) : (selected ? st::historyPollInChosenSelected : st::historyPollInChosen);
-			icon.paint(p, left + (st.diameter - icon.width()) / 2, top + (st.diameter - icon.height()) / 2, width());
+			icon.paint(p, left + (radio.diameter - icon.width()) / 2, top + (radio.diameter - icon.height()) / 2, width());
 		}
 	}
 
@@ -1184,7 +1188,7 @@ void Poll::paintPercent(
 		int left,
 		int top,
 		int outerWidth,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	const auto outbg = _parent->hasOutLayout();
 	const auto aleft = left + st::historyPollAnswerPadding.left();
 
@@ -1205,10 +1209,10 @@ void Poll::paintFilling(
 		int top,
 		int width,
 		int height,
-		TextSelection selection) const {
+		const PaintContext &context) const {
 	const auto bottom = top + height;
 	const auto outbg = _parent->hasOutLayout();
-	const auto selected = (selection == FullSelection);
+	const auto selected = context.selected();
 	const auto aleft = left + st::historyPollAnswerPadding.left();
 	const auto awidth = width
 		- st::historyPollAnswerPadding.left()

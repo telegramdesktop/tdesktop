@@ -14,6 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 struct WebPageData;
 class VoiceSeekClickHandler;
 
+namespace Ui {
+struct ChatPaintContext;
+class ChatStyle;
+} // namespace Ui
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -141,19 +146,14 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void resize(int width) const;
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
 
-	enum class PaintFlag {
-		InBubble = (1 << 0),
-		Selected = (1 << 1),
-	};
-	using PaintFlags = base::flags<PaintFlag>;
-	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };
 	void paint(
 		Painter &p,
 		not_null<const HistoryView::Element*> holder,
+		const Ui::ChatPaintContext &context,
 		int x,
 		int y,
 		int w,
-		PaintFlags flags) const;
+		bool inBubble) const;
 
 	[[nodiscard]] PeerId replyToPeer() const {
 		return replyToPeerId;
@@ -304,7 +304,9 @@ public:
 		Style(const style::BotKeyboardButton &st) : _st(&st) {
 		}
 
-		virtual void startPaint(Painter &p) const = 0;
+		virtual void startPaint(
+			Painter &p,
+			const Ui::ChatStyle *st) const = 0;
 		virtual const style::TextStyle &textStyle() const = 0;
 
 		int buttonSkip() const;
@@ -319,15 +321,18 @@ public:
 	protected:
 		virtual void paintButtonBg(
 			Painter &p,
+			const Ui::ChatStyle *st,
 			const QRect &rect,
 			float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(
 			Painter &p,
+			const Ui::ChatStyle *st,
 			const QRect &rect,
 			int outerWidth,
 			HistoryMessageMarkupButton::Type type) const = 0;
 		virtual void paintButtonLoading(
 			Painter &p,
+			const Ui::ChatStyle *st,
 			const QRect &rect) const = 0;
 		virtual int minButtonWidth(
 			HistoryMessageMarkupButton::Type type) const = 0;
@@ -335,7 +340,11 @@ public:
 	private:
 		const style::BotKeyboardButton *_st;
 
-		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
+		void paintButton(
+			Painter &p,
+			const Ui::ChatStyle *st,
+			int outerWidth,
+			const ReplyKeyboard::Button &button) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -354,7 +363,11 @@ public:
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, int outerWidth, const QRect &clip) const;
+	void paint(
+		Painter &p,
+		const Ui::ChatStyle *st,
+		int outerWidth,
+		const QRect &clip) const;
 	ClickHandlerPtr getLink(QPoint point) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);

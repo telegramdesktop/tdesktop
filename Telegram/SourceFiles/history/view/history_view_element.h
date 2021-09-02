@@ -278,10 +278,10 @@ public:
 	virtual void updatePressed(QPoint point) = 0;
 	virtual void drawInfo(
 		Painter &p,
+		const PaintContext &context,
 		int right,
 		int bottom,
 		int width,
-		bool selected,
 		InfoDisplayType type) const;
 	virtual bool pointInTime(
 		int right,
@@ -320,6 +320,7 @@ public:
 	virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
+		const PaintContext &context,
 		int left,
 		int top,
 		int outerWidth) const;

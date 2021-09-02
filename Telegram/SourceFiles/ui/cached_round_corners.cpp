@@ -75,13 +75,9 @@ void CreateMaskCorners() {
 void CreatePaletteCorners() {
 	PrepareCorners(MenuCorners, st::roundRadiusSmall, st::menuBg);
 	PrepareCorners(BoxCorners, st::boxRadius, st::boxBg);
-	PrepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBgAdd);
-	PrepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
-	PrepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 	PrepareCorners(SelectedOverlaySmallCorners, st::roundRadiusSmall, st::msgSelectOverlay);
 	PrepareCorners(SelectedOverlayLargeCorners, st::historyMessageRadius, st::msgSelectOverlay);
 	PrepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
-	PrepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
 	PrepareCorners(OverviewVideoCorners, st::overviewVideoStatusRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoSelectedCorners, st::overviewVideoStatusRadius, st::msgDateImgBgSelected);
 	PrepareCorners(InShadowCorners, st::historyMessageRadius, st::msgInShadow);

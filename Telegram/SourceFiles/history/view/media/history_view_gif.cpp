@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
@@ -37,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
-#include "layout/layout_selection.h" // FullSelection
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -284,6 +283,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
 	const auto displayLoading = item->isSending() || _data->displayLoading();
+	const auto st = context.st;
+	const auto stm = context.messageStyle();
 	const auto selected = (context.selection == FullSelection);
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
@@ -545,7 +546,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (!isRound) {
-		drawCornerStatus(p, selected, QPoint());
+		drawCornerStatus(p, context, QPoint());
 	}
 
 	if (!inWebPage && isRound) {
@@ -557,7 +558,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (mediaUnread) {
 			statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
 		}
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? Ui::StickerSelectedCorners : Ui::StickerCorners);
+		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
 		p.setFont(st::normalFont);
 		p.setPen(st::msgServiceFg);
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
@@ -588,7 +589,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			int recty = painty;
 			if (rtl()) rectx = width() - rectx - rectw;
 
-			Ui::FillRoundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? Ui::StickerSelectedCorners : Ui::StickerCorners);
+			Ui::FillRoundRect(p, rectx, recty, rectw, recth, selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
 			p.setPen(st::msgServiceFg);
 			rectx += st::msgReplyPadding.left();
 			rectw = innerw;
@@ -604,11 +605,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				recty += skip;
 			}
 			if (reply) {
-				HistoryMessageReply::PaintFlags flags = 0;
-				if (selected) {
-					flags |= HistoryMessageReply::PaintFlag::Selected;
-				}
-				reply->paint(p, _parent, rectx, recty, rectw, flags);
+				reply->paint(p, _parent, context, rectx, recty, rectw, false);
 			}
 		}
 	}
@@ -635,7 +632,15 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 		if (isRound || needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, isRound ? InfoDisplayType::Background : InfoDisplayType::Image);
+			_parent->drawInfo(
+				p,
+				context,
+				fullRight,
+				fullBottom,
+				2 * paintx + paintw,
+				(isRound
+					? InfoDisplayType::Background
+					: InfoDisplayType::Image));
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -644,7 +649,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
 				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
 			}
-			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
+			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
 }
@@ -660,11 +665,16 @@ void Gif::validateVideoThumbnail() const {
 		: info.thumbnail);
 }
 
-void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
+void Gif::drawCornerStatus(
+		Painter &p,
+		const PaintContext &context,
+		QPoint position) const {
 	if (!needCornerStatusDisplay()) {
 		return;
 	}
 	const auto own = activeOwnStreamed();
+	const auto st = context.st;
+	const auto selected = context.selected();
 	const auto text = (own && !own->frozenStatusText.isEmpty())
 		? own->frozenStatusText
 		: _statusText;
@@ -681,7 +691,7 @@ void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
 	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto around = style::rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
 	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
-	Ui::FillRoundRect(p, around, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+	Ui::FillRoundRect(p, around, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX + addLeft, statusTextTop, width(), text, statusW - 2 * padding.x());
@@ -1088,7 +1098,7 @@ void Gif::drawGrouped(
 		}
 	}
 	if (fullFeatured) {
-		drawCornerStatus(p, selected, geometry.topLeft());
+		drawCornerStatus(p, context, geometry.topLeft());
 	}
 }
 

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
@@ -562,9 +562,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		height -= st::msgServiceMargin.top() + media->height();
 		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		auto mediaContext = context.translated(-left, -top);
-		mediaContext.selection = TextSelection();
-		media->draw(p, mediaContext);
+		media->draw(p, context.translated(-left, -top).withSelection({}));
 		p.translate(-left, -top);
 	}
 

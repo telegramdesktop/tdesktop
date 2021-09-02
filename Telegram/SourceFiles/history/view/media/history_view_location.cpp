@@ -7,14 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_location.h"
 
-#include "layout/layout_selection.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
@@ -210,11 +209,17 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	if (_parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = height();
-		_parent->drawInfo(p, fullRight, fullBottom, paintx * 2 + paintw, selected, InfoDisplayType::Image);
+		_parent->drawInfo(
+			p,
+			context,
+			fullRight,
+			fullBottom,
+			paintx * 2 + paintw,
+			InfoDisplayType::Image);
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
-			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
+			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
 }

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
@@ -632,6 +633,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			}).translated(0, -top);
 			p.translate(0, top);
 			if (context.clip.y() < view->height()) while (top < drawToY) {
+				context.outbg = view->hasOutLayout();
 				context.selection = itemRenderSelection(
 					view,
 					selfromy - mtop,
@@ -686,6 +688,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			while (top < drawToY) {
 				const auto height = view->height();
 				if (context.clip.y() < height && hdrawtop < top + height) {
+					context.outbg = view->hasOutLayout();
 					context.selection = itemRenderSelection(
 						view,
 						selfromy - htop,

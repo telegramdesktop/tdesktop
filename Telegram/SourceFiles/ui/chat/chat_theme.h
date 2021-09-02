@@ -18,32 +18,8 @@ class palette;
 namespace Ui {
 
 class ChatStyle;
+struct ChatPaintContext;
 struct BubblePattern;
-
-struct ChatPaintContext {
-	not_null<const ChatStyle*> st;
-	const BubblePattern *bubblesPattern = nullptr;
-	QRect viewport;
-	QRect clip;
-	TextSelection selection;
-	crl::time now = 0;
-
-	void translate(int x, int y) {
-		viewport.translate(x, y);
-		clip.translate(x, y);
-	}
-	void translate(QPoint point) {
-		translate(point.x(), point.y());
-	}
-	[[nodiscard]] ChatPaintContext translated(int x, int y) const {
-		auto result = *this;
-		result.translate(x, y);
-		return result;
-	}
-	[[nodiscard]] ChatPaintContext translated(QPoint point) const {
-		return translated(point.x(), point.y());
-	}
-};
 
 struct ChatThemeBackground {
 	QImage prepared;

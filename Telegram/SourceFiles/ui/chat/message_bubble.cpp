@@ -236,7 +236,7 @@ void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
 	}, [&](const QRect &rect) {
 		p.fillRect(rect, *sh);
 	}, [&](const QRect &rect, RectParts parts) {
-		Ui::FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, st.corners, sh, parts);
+		Ui::FillRoundRect(p, rect, bg, st.corners, sh, parts);
 	}, [&](const QPoint &bottomPosition) {
 		tail.paint(p, bottomPosition - tailShift, args.outerWidth);
 		return tail.width();

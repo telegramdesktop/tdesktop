@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_game.h"
 
 #include "lang/lang_keys.h"
-#include "layout/layout_selection.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
@@ -16,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "ui/item_text_options.h"
 #include "ui/cached_round_corners.h"
-#include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_game.h"
@@ -203,11 +202,16 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	auto outbg = _parent->hasOutLayout();
-	bool selected = (context.selection == FullSelection);
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = context.selected();
+	const auto st = context.st;
 
-	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
-	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+	const auto &barfg = selected
+		? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor)
+		: (outbg ? st->msgOutReplyBarColor() : st->msgInReplyBarColor());
+	const auto &semibold = selected
+		? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected)
+		: (outbg ? st->msgOutServiceFg() : st->msgInServiceFg());
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -248,11 +252,11 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
-		auto attachContext = context.translated(-attachLeft, -attachTop);
-		attachContext.selection = selected ? FullSelection : TextSelection { 0, 0 };
-
 		p.translate(attachLeft, attachTop);
-		_attach->draw(p, attachContext);
+		_attach->draw(p, context.translated(
+			-attachLeft,
+			-attachTop
+		).withSelection(selected ? FullSelection : TextSelection()));
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
@@ -261,7 +265,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		auto gameX = pixwidth - st::msgDateImgDelta - gameW;
 		auto gameY = pixheight - st::msgDateImgDelta - gameH;
 
-		Ui::FillRoundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
+		Ui::FillRoundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);
