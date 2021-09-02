@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/style/style_palette_colorizer.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
@@ -95,7 +96,7 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 				&instance,
 				nullptr,
 				nullptr,
-				accent ? ColorizerFrom(*i, *accent) : Colorizer());
+				accent ? ColorizerFrom(*i, *accent) : style::colorizer());
 			Assert(loaded);
 			palette = instance.palette;
 		} else {

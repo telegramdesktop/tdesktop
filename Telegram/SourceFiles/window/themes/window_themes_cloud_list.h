@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/binary_guard.h"
 
+namespace style {
+struct colorizer;
+} // namespace style
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -24,7 +28,6 @@ class SessionController;
 namespace Theme {
 
 struct EmbeddedScheme;
-struct Colorizer;
 
 struct CloudListColors {
 	QImage background;
@@ -37,7 +40,7 @@ struct CloudListColors {
 [[nodiscard]] CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme);
 [[nodiscard]] CloudListColors ColorsFromScheme(
 	const EmbeddedScheme &scheme,
-	const Colorizer &colorizer);
+	const style::colorizer &colorizer);
 
 class CloudListCheck final : public Ui::AbstractCheckView {
 public:

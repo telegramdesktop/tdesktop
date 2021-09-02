@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "ui/style/style_core_palette.h"
 
+namespace style {
+struct colorizer;
+} // namespace style
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -30,7 +34,6 @@ inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
 struct ParsedTheme;
-struct Colorizer;
 
 [[nodiscard]] bool IsEmbeddedTheme(const QString &path);
 
@@ -107,7 +110,7 @@ bool LoadFromFile(
 	not_null<Instance*> out,
 	Cached *outCache,
 	QByteArray *outContent,
-	const Colorizer &colorizer);
+	const style::colorizer &colorizer);
 bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,

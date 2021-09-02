@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QImage;
 
+namespace style {
+struct colorizer;
+} // namespace style
+
 namespace Window {
 namespace Theme {
 
@@ -47,42 +51,14 @@ private:
 
 };
 
-struct Colorizer {
-	struct Color {
-		int hue = 0;
-		int saturation = 0;
-		int value = 0;
-	};
-	int hueThreshold = 0;
-	int lightnessMin = 0;
-	int lightnessMax = 255;
-	Color was;
-	Color now;
-	base::flat_set<QLatin1String> ignoreKeys;
-	base::flat_map<QLatin1String, std::pair<Color, Color>> keepContrast;
-
-	explicit operator bool() const {
-		return (hueThreshold > 0);
-	}
-};
-
-[[nodiscard]] Colorizer ColorizerFrom(
+[[nodiscard]] style::colorizer ColorizerFrom(
 	const EmbeddedScheme &scheme,
 	const QColor &color);
-[[nodiscard]] Colorizer ColorizerForTheme(const QString &absolutePath);
+[[nodiscard]] style::colorizer ColorizerForTheme(const QString &absolutePath);
 
-void Colorize(uchar &r, uchar &g, uchar &b, const Colorizer &colorizer);
 void Colorize(
-	QLatin1String name,
-	uchar &r,
-	uchar &g,
-	uchar &b,
-	const Colorizer &colorizer);
-void Colorize(QImage &image, const Colorizer &colorizer);
-void Colorize(EmbeddedScheme &scheme, const Colorizer &colorizer);
-[[nodiscard]] QByteArray Colorize(
-	QLatin1String hexColor,
-	const Colorizer &colorizer);
+	EmbeddedScheme &scheme,
+	const style::colorizer &colorizer);
 
 [[nodiscard]] std::vector<EmbeddedScheme> EmbeddedThemes();
 [[nodiscard]] std::vector<QColor> DefaultAccentColors(EmbeddedType type);

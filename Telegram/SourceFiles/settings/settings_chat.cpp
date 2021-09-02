@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_extensions.h"
 #include "ui/layers/generic_box.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/style/style_palette_colorizer.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"

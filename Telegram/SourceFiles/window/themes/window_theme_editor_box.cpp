@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
+#include "ui/style/style_palette_colorizer.h"
 #include "ui/special_fields.h"
 #include "ui/ui_utility.h"
 #include "main/main_account.h"

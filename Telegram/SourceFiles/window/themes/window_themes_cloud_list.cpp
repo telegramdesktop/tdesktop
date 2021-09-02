@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
+#include "ui/style/style_palette_colorizer.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -135,7 +136,7 @@ CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
 
 CloudListColors ColorsFromScheme(
 		const EmbeddedScheme &scheme,
-		const Colorizer &colorizer) {
+		const style::colorizer &colorizer) {
 	if (!colorizer) {
 		return ColorsFromScheme(scheme);
 	}

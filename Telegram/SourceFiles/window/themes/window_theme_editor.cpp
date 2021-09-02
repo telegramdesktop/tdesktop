@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/toast/toast.h"
+#include "ui/style/style_palette_colorizer.h"
 #include "ui/image/image_prepare.h"
 #include "ui/ui_utility.h"
 #include "base/parse_helper.h"
@@ -156,7 +157,7 @@ bool isValidColorValue(QLatin1String value) {
 
 [[nodiscard]] QByteArray ColorizeInContent(
 		QByteArray content,
-		const Colorizer &colorizer) {
+		const style::colorizer &colorizer) {
 	auto validNames = OrderedSet<QLatin1String>();
 	content.detach();
 	auto start = content.constBegin(), data = start, end = data + content.size();
@@ -176,7 +177,7 @@ bool isValidColorValue(QLatin1String value) {
 			return "error";
 		}
 		if (isValidColorValue(value)) {
-			const auto colorized = Colorize(value, colorizer);
+			const auto colorized = style::colorize(value, colorizer);
 			Assert(colorized.size() == value.size());
 			memcpy(
 				content.data() + (data - start) - value.size(),
@@ -809,7 +810,7 @@ void Editor::importTheme() {
 
 QByteArray Editor::ColorizeInContent(
 		QByteArray content,
-		const Colorizer &colorizer) {
+		const style::colorizer &colorizer) {
 	return Window::Theme::ColorizeInContent(content, colorizer);
 }
 

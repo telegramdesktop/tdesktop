@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ui/style/style_palette_colorizer.h"
 
 namespace Window {
 namespace Theme {
 namespace {
 
 constexpr auto kMaxAccentColors = 3;
-constexpr auto kEnoughLightnessForContrast = 64;
 
 const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("boxTextFgGood"),
@@ -69,44 +69,24 @@ const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("mediaviewFileBlueCornerFg"),
 } };
 
-QColor qColor(std::string_view hex) {
-	Expects(hex.size() == 6);
-
-	const auto component = [](char a, char b) {
-		const auto convert = [](char ch) {
-			Expects((ch >= '0' && ch <= '9')
-				|| (ch >= 'A' && ch <= 'F')
-				|| (ch >= 'a' && ch <= 'f'));
-
-			return (ch >= '0' && ch <= '9')
-				? int(ch - '0')
-				: int(ch - ((ch >= 'A' && ch <= 'F') ? 'A' : 'a') + 10);
-		};
-		return convert(a) * 16 + convert(b);
-	};
-
-	return QColor(
-		component(hex[0], hex[1]),
-		component(hex[2], hex[3]),
-		component(hex[4], hex[5]));
-};
-
-Colorizer::Color cColor(std::string_view hex) {
-	const auto q = qColor(hex);
+style::colorizer::Color cColor(std::string_view hex) {
+	const auto q = style::ColorFromHex(hex);
 	auto hue = int();
 	auto saturation = int();
 	auto value = int();
 	q.getHsv(&hue, &saturation, &value);
-	return Colorizer::Color{ hue, saturation, value };
+	return style::colorizer::Color{ hue, saturation, value };
 }
 
 } // namespace
 
-Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
-	using Color = Colorizer::Color;
+style::colorizer ColorizerFrom(
+		const EmbeddedScheme &scheme,
+		const QColor &color) {
+	using Color = style::colorizer::Color;
 	using Pair = std::pair<Color, Color>;
 
-	auto result = Colorizer();
+	auto result = style::colorizer();
 	result.ignoreKeys = kColorizeIgnoredKeys;
 	result.hueThreshold = 15;
 	scheme.accentColor.getHsv(
@@ -168,9 +148,9 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 	return result;
 }
 
-Colorizer ColorizerForTheme(const QString &absolutePath) {
+style::colorizer ColorizerForTheme(const QString &absolutePath) {
 	if (absolutePath.isEmpty() || !IsEmbeddedTheme(absolutePath)) {
-		return Colorizer();
+		return {};
 	}
 	const auto schemes = EmbeddedThemes();
 	const auto i = ranges::find(
@@ -178,150 +158,16 @@ Colorizer ColorizerForTheme(const QString &absolutePath) {
 		absolutePath,
 		&EmbeddedScheme::path);
 	if (i == end(schemes)) {
-		return Colorizer();
+		return {};
 	}
 	const auto &colors = Core::App().settings().themesAccentColors();
 	if (const auto accent = colors.get(i->type)) {
 		return ColorizerFrom(*i, *accent);
 	}
-	return Colorizer();
+	return {};
 }
 
-[[nodiscard]] std::optional<Colorizer::Color> Colorize(
-		const Colorizer::Color &color,
-		const Colorizer &colorizer) {
-	const auto changeColor = std::abs(color.hue - colorizer.was.hue)
-		< colorizer.hueThreshold;
-	if (!changeColor) {
-		return std::nullopt;
-	}
-	const auto nowHue = color.hue + (colorizer.now.hue - colorizer.was.hue);
-	const auto nowSaturation = ((color.saturation > colorizer.was.saturation)
-		&& (colorizer.now.saturation > colorizer.was.saturation))
-		? (((colorizer.now.saturation * (255 - colorizer.was.saturation))
-			+ ((color.saturation - colorizer.was.saturation)
-				* (255 - colorizer.now.saturation)))
-			/ (255 - colorizer.was.saturation))
-		: ((color.saturation != colorizer.was.saturation)
-			&& (colorizer.was.saturation != 0))
-		? ((color.saturation * colorizer.now.saturation)
-			/ colorizer.was.saturation)
-		: colorizer.now.saturation;
-	const auto nowValue = (color.value > colorizer.was.value)
-		? (((colorizer.now.value * (255 - colorizer.was.value))
-			+ ((color.value - colorizer.was.value)
-				* (255 - colorizer.now.value)))
-			/ (255 - colorizer.was.value))
-		: (color.value < colorizer.was.value)
-		? ((color.value * colorizer.now.value)
-			/ colorizer.was.value)
-		: colorizer.now.value;
-	return Colorizer::Color{
-		((nowHue + 360) % 360),
-		nowSaturation,
-		nowValue
-	};
-}
-
-[[nodiscard]] std::optional<QColor> Colorize(
-		const QColor &color,
-		const Colorizer &colorizer) {
-	auto hue = 0;
-	auto saturation = 0;
-	auto lightness = 0;
-	color.getHsv(&hue, &saturation, &lightness);
-	const auto result = Colorize(
-		Colorizer::Color{ hue, saturation, lightness },
-		colorizer);
-	if (!result) {
-		return std::nullopt;
-	}
-	const auto &fields = *result;
-	return QColor::fromHsv(fields.hue, fields.saturation, fields.value);
-}
-
-void FillColorizeResult(uchar &r, uchar &g, uchar &b, const QColor &color) {
-	auto nowR = 0;
-	auto nowG = 0;
-	auto nowB = 0;
-	color.getRgb(&nowR, &nowG, &nowB);
-	r = uchar(nowR);
-	g = uchar(nowG);
-	b = uchar(nowB);
-}
-
-void Colorize(uchar &r, uchar &g, uchar &b, const Colorizer &colorizer) {
-	const auto changed = Colorize(QColor(int(r), int(g), int(b)), colorizer);
-	if (changed) {
-		FillColorizeResult(r, g, b, *changed);
-	}
-}
-
-void Colorize(
-		QLatin1String name,
-		uchar &r,
-		uchar &g,
-		uchar &b,
-		const Colorizer &colorizer) {
-	if (colorizer.ignoreKeys.contains(name)) {
-		return;
-	}
-
-	const auto i = colorizer.keepContrast.find(name);
-	if (i == end(colorizer.keepContrast)) {
-		Colorize(r, g, b, colorizer);
-		return;
-	}
-	const auto check = i->second.first;
-	const auto rgb = QColor(int(r), int(g), int(b));
-	const auto changed = Colorize(rgb, colorizer);
-	const auto checked = Colorize(check, colorizer).value_or(check);
-	const auto lightness = [](QColor hsv) {
-		return hsv.value() - (hsv.value() * hsv.saturation()) / 511;
-	};
-	const auto changedLightness = lightness(changed.value_or(rgb).toHsv());
-	const auto checkedLightness = lightness(
-		QColor::fromHsv(checked.hue, checked.saturation, checked.value));
-	const auto delta = std::abs(changedLightness - checkedLightness);
-	if (delta >= kEnoughLightnessForContrast) {
-		if (changed) {
-			FillColorizeResult(r, g, b, *changed);
-		}
-		return;
-	}
-	const auto replace = i->second.second;
-	const auto result = Colorize(replace, colorizer).value_or(replace);
-	FillColorizeResult(
-		r,
-		g,
-		b,
-		QColor::fromHsv(result.hue, result.saturation, result.value));
-}
-
-void Colorize(uint32 &pixel, const Colorizer &colorizer) {
-	const auto chars = reinterpret_cast<uchar*>(&pixel);
-	Colorize(
-		chars[2],
-		chars[1],
-		chars[0],
-		colorizer);
-}
-
-void Colorize(QImage &image, const Colorizer &colorizer) {
-	image = std::move(image).convertToFormat(QImage::Format_ARGB32);
-	const auto bytes = image.bits();
-	const auto bytesPerLine = image.bytesPerLine();
-	for (auto line = 0; line != image.height(); ++line) {
-		const auto ints = reinterpret_cast<uint32*>(
-			bytes + line * bytesPerLine);
-		const auto end = ints + image.width();
-		for (auto p = ints; p != end; ++p) {
-			Colorize(*p, colorizer);
-		}
-	}
-}
-
-void Colorize(EmbeddedScheme &scheme, const Colorizer &colorizer) {
+void Colorize(EmbeddedScheme &scheme, const style::colorizer &colorizer) {
 	const auto colors = {
 		&EmbeddedScheme::background,
 		&EmbeddedScheme::sent,
@@ -330,45 +176,16 @@ void Colorize(EmbeddedScheme &scheme, const Colorizer &colorizer) {
 		&EmbeddedScheme::radiobuttonInactive
 	};
 	for (const auto color : colors) {
-		if (const auto changed = Colorize(scheme.*color, colorizer)) {
+		if (const auto changed = style::colorize(scheme.*color, colorizer)) {
 			scheme.*color = changed->toRgb();
 		}
 	}
 }
 
-QByteArray Colorize(
-		QLatin1String hexColor,
-		const Colorizer &colorizer) {
-	Expects(hexColor.size() == 7 || hexColor.size() == 9);
-
-	auto color = qColor(std::string_view(hexColor.data() + 1, 6));
-	const auto changed = Colorize(color, colorizer).value_or(color).toRgb();
-
-	auto result = QByteArray();
-	result.reserve(hexColor.size());
-	result.append(hexColor.data()[0]);
-	const auto addHex = [&](int code) {
-		if (code >= 0 && code < 10) {
-			result.append('0' + code);
-		} else if (code >= 10 && code < 16) {
-			result.append('a' + (code - 10));
-		}
-	};
-	const auto addValue = [&](int code) {
-		addHex(code / 16);
-		addHex(code % 16);
-	};
-	addValue(changed.red());
-	addValue(changed.green());
-	addValue(changed.blue());
-	if (hexColor.size() == 9) {
-		result.append(hexColor.data()[7]);
-		result.append(hexColor.data()[8]);
-	}
-	return result;
-}
-
 std::vector<EmbeddedScheme> EmbeddedThemes() {
+	const auto qColor = [](auto hex) {
+		return style::ColorFromHex(hex);
+	};
 	return {
 		EmbeddedScheme{
 			EmbeddedType::Default,
@@ -417,6 +234,9 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 }
 
 std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
+	const auto qColor = [](auto hex) {
+		return style::ColorFromHex(hex);
+	};
 	switch (type) {
 	case EmbeddedType::DayBlue:
 		return {

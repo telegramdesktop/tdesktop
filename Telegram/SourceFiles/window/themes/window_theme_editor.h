@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct colorizer;
+} // namespace style
+
 namespace Ui {
 class FlatButton;
 class ScrollArea;
@@ -26,8 +30,6 @@ namespace Window {
 class Controller;
 
 namespace Theme {
-
-struct Colorizer;
 
 struct ParsedTheme {
 	QByteArray palette;
@@ -54,7 +56,7 @@ public:
 
 	[[nodiscard]] static QByteArray ColorizeInContent(
 		QByteArray content,
-		const Colorizer &colorizer);
+		const style::colorizer &colorizer);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
