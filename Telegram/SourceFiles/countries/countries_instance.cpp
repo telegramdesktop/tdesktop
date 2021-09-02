@@ -262,6 +262,7 @@ void CountriesInstance::setList(std::vector<Info> &&infos) {
 	_list = std::move(infos);
 	_byCode.clear();
 	_byISO2.clear();
+	_updated.fire({});
 }
 
 const CountriesInstance::Map &CountriesInstance::byCode() {
@@ -452,6 +453,10 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 			: std::move(formattedResult)),
 		.groups = std::move(groups),
 	};
+}
+
+rpl::producer<> CountriesInstance::updated() const {
+	return _updated.events();
 }
 
 CountriesInstance &Instance() {

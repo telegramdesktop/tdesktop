@@ -26,7 +26,7 @@ QString LastValidISO;
 
 } // namespace
 
-class CountrySelectBox::Inner : public TWidget {
+class CountrySelectBox::Inner : public RpWidget {
 public:
 	Inner(QWidget *parent, const QString &iso, Type type);
 	~Inner();
@@ -57,6 +57,7 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	void init();
 	void updateSelected() {
 		updateSelected(mapFromGlobal(QCursor::pos()));
 	}
@@ -179,7 +180,7 @@ CountrySelectBox::Inner::Inner(
 	QWidget *parent,
 	const QString &iso,
 	Type type)
-: TWidget(parent)
+: RpWidget(parent)
 , _type(type)
 , _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -189,6 +190,23 @@ CountrySelectBox::Inner::Inner(
 	if (byISO2.contains(iso)) {
 		LastValidISO = iso;
 	}
+
+	rpl::single(
+	) | rpl::then(
+		Countries::Instance().updated()
+	) | rpl::start_with_next([=] {
+		_mustScrollTo.fire(ScrollToRequest(0, 0));
+		_list.clear();
+		_namesList.clear();
+		init();
+		const auto filter = _filter;
+		_filter = u"a"_q;
+		updateFilter(filter);
+	}, lifetime());
+}
+
+void CountrySelectBox::Inner::init() {
+	const auto &byISO2 = Countries::Instance().byISO2();
 
 	const auto extractEntries = [&](const Countries::Info &info) {
 		for (const auto &code : info.codes) {
@@ -241,9 +259,6 @@ CountrySelectBox::Inner::Inner(
 		}
 		++index;
 	}
-
-	_filter = u"a"_q;
-	updateFilter();
 }
 
 void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {

@@ -55,11 +55,15 @@ public:
 
 	[[nodiscard]] FormatResult format(FormatArgs args);
 
+	[[nodiscard]] rpl::producer<> updated() const;
+
 private:
 	std::vector<Info> _list;
 
 	Map _byCode;
 	Map _byISO2;
+
+	rpl::event_stream<> _updated;
 
 };
 
