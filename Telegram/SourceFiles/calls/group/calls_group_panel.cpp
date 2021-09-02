@@ -781,10 +781,14 @@ void Panel::setupMembers() {
 
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
-		if (_peer->isBroadcast() && _peer->asChannel()->hasUsername()) {
-			_callShareLinkCallback();
-		} else {
+		if (!_peer->isBroadcast()
+			&& _peer->canWrite()
+			&& _call->joinAs()->isSelf()) {
 			addMembers();
+		} else if (const auto channel = _peer->asChannel()) {
+			if (channel->hasUsername()) {
+				_callShareLinkCallback();
+			}
 		}
 	}, _callLifetime);
 

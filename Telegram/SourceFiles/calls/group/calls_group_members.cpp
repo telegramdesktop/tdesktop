@@ -1605,30 +1605,47 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
 	const auto peer = call->peer();
-	if (const auto channel = peer->asBroadcast()) {
-		_canAddMembers = rpl::single(
+	const auto canAddByPeer = [=](not_null<PeerData*> peer) {
+		if (peer->isBroadcast()) {
+			return rpl::single(false) | rpl::type_erased();
+		}
+		return rpl::combine(
+			Data::CanWriteValue(peer.get()),
+			_call->joinAsValue()
+		) | rpl::map([=](bool can, not_null<PeerData*> joinAs) {
+			return can && joinAs->isSelf();
+		});
+	};
+	const auto canInviteByLinkByPeer = [=](not_null<PeerData*> peer) {
+		const auto channel = peer->asChannel();
+		if (!channel) {
+			return rpl::single(false) | rpl::type_erased();
+		}
+		return rpl::single(
 			false
 		) | rpl::then(_call->real(
 		) | rpl::map([=] {
 			return Data::PeerFlagValue(
 				channel,
 				ChannelDataFlag::Username);
-		}) | rpl::flatten_latest());
-	} else {
-		_canAddMembers = Data::CanWriteValue(peer.get());
-		SubscribeToMigration(
-			peer,
-			lifetime(),
-			[=](not_null<ChannelData*> channel) {
-				_canAddMembers = Data::CanWriteValue(channel.get());
-			});
-	}
+		}) | rpl::flatten_latest()) | rpl::type_erased();
+	};
+	_canAddMembers = canAddByPeer(peer);
+	_canInviteByLink = canInviteByLinkByPeer(peer);
+	SubscribeToMigration(
+		peer,
+		lifetime(),
+		[=](not_null<ChannelData*> channel) {
+			_canAddMembers = canAddByPeer(channel);
+			_canInviteByLink = canInviteByLinkByPeer(channel);
+		});
 
 	rpl::combine(
 		_canAddMembers.value(),
+		_canInviteByLink.value(),
 		_mode.value()
-	) | rpl::start_with_next([=](bool can, PanelMode mode) {
-		if (!can) {
+	) | rpl::start_with_next([=](bool add, bool invite, PanelMode mode) {
+		if (!add && !invite) {
 			if (const auto old = _addMemberButton.current()) {
 				delete old;
 				_addMemberButton = nullptr;

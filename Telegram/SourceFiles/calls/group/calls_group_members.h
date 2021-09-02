@@ -108,6 +108,7 @@ private:
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 
+	rpl::variable<bool> _canInviteByLink;
 	rpl::variable<bool> _canAddMembers;
 
 };
