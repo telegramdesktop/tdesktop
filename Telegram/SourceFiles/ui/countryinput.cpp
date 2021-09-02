@@ -35,7 +35,11 @@ CountryInput::CountryInput(QWidget *parent, const style::InputField &st)
 	//auto metrics = QFontMetrics(placeholderFont);
 	auto placeholder = QString();// metrics.elidedText(tr::lng_country_fake_ph(tr::now), Qt::ElideRight, availableWidth);
 	if (!placeholder.isNull()) {
-		_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, placeholder);
+		_placeholderPath.addText(
+			0,
+			QFontMetrics(placeholderFont).ascent(),
+			placeholderFont,
+			placeholder);
 	}
 }
 
@@ -47,10 +51,21 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 		p.fillRect(r, _st.textBg);
 	}
 	if (_st.border) {
-		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
+		p.fillRect(
+			0,
+			height() - _st.border,
+			width(),
+			_st.border,
+			_st.borderFg);
 	}
 
-	st::introCountryIcon.paint(p, width() - st::introCountryIcon.width() - st::introCountryIconPosition.x(), st::introCountryIconPosition.y(), width());
+	st::introCountryIcon.paint(
+		p,
+		width()
+			- st::introCountryIcon.width()
+			- st::introCountryIconPosition.x(),
+		st::introCountryIconPosition.y(),
+		width());
 
 	p.setFont(_st.font);
 	p.setPen(_st.textFg);
@@ -60,15 +75,27 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 		p.save();
 		p.setClipRect(r);
 
-		auto placeholderTop = anim::interpolate(0, _st.placeholderShift, placeholderShiftDegree);
+		const auto placeholderTop = anim::interpolate(
+			0,
+			_st.placeholderShift,
+			placeholderShiftDegree);
 
-		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+		auto r = QRect(rect() - (_st.textMargins + _st.placeholderMargins));
 		r.moveTop(r.top() + placeholderTop);
-		if (rtl()) r.moveLeft(width() - r.left() - r.width());
+		if (rtl()) {
+			r.moveLeft(width() - r.left() - r.width());
+		}
 
-		auto placeholderScale = 1. - (1. - _st.placeholderScale) * placeholderShiftDegree;
-		auto placeholderFg = anim::color(_st.placeholderFg, _st.placeholderFgActive, 0.);
-		placeholderFg = anim::color(placeholderFg, _st.placeholderFgError, 0.);
+		const auto placeholderScale = 1.
+			- (1. - _st.placeholderScale) * placeholderShiftDegree;
+		auto placeholderFg = anim::color(
+			_st.placeholderFg,
+			_st.placeholderFgActive,
+			0.);
+		placeholderFg = anim::color(
+			placeholderFg,
+			_st.placeholderFgError,
+			0.);
 
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
@@ -170,10 +197,16 @@ void CountryInput::chooseCountry(
 		int codeIndex) {
 	_chosenIso = LastValidISO = info->iso2;
 	setText(info->name);
-	codeChanged(info->codes[codeIndex].callingCode);
+	_codeChanged.fire_copy(info->codes[codeIndex].callingCode);
 	update();
 }
 
+rpl::producer<QString> CountryInput::codeChanged() const {
+	return _codeChanged.events();
+}
+
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->elided(newText, width() - _st.textMargins.left() - _st.textMargins.right());
+	_text = _st.font->elided(
+		newText,
+		width() - _st.textMargins.left() - _st.textMargins.right());
 }

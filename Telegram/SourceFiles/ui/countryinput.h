@@ -24,7 +24,6 @@ class RippleAnimation;
 } // namespace Ui
 
 class CountryInput : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	CountryInput(QWidget *parent, const style::InputField &st);
@@ -34,11 +33,9 @@ public:
 	}
 	bool chooseCountry(const QString &country);
 
-public Q_SLOTS:
 	void onChooseCode(const QString &code);
 
-Q_SIGNALS:
-	void codeChanged(const QString &code);
+	rpl::producer<QString> codeChanged() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -56,5 +53,7 @@ private:
 	QString _text;
 	QString _chosenIso;
 	QPainterPath _placeholderPath;
+
+	rpl::event_stream<QString> _codeChanged;
 
 };
