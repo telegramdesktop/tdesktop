@@ -1036,7 +1036,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 }
 
 void ChatBackground::setTestingDefaultTheme() {
-	style::main_palette::reset();
+	style::main_palette::reset(ColorizerForTheme(QString()));
 	saveAdjustableColors();
 
 	saveForRevert();

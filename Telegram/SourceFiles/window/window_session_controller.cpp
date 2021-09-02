@@ -81,26 +81,30 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 		std::optional<QColor> accent) {
 	return [=](style::palette &palette) {
 		using namespace Theme;
-		palette.finalize();
-		if (dark) {
-			const auto &embedded = EmbeddedThemes();
-			const auto i = ranges::find(
-				embedded,
-				EmbeddedType::Night,
-				&EmbeddedScheme::type);
-			Assert(i != end(embedded));
+		const auto &embedded = EmbeddedThemes();
+		const auto i = ranges::find(
+			embedded,
+			dark ? EmbeddedType::Night : EmbeddedType::Default,
+			&EmbeddedScheme::type);
+		Assert(i != end(embedded));
+		const auto colorizer = accent
+			? ColorizerFrom(*i, *accent)
+			: style::colorizer();
 
+		if (dark) {
 			auto instance = Instance();
 			const auto loaded = LoadFromFile(
 				i->path,
 				&instance,
 				nullptr,
 				nullptr,
-				accent ? ColorizerFrom(*i, *accent) : style::colorizer());
+				colorizer);
 			Assert(loaded);
+
+			palette.finalize();
 			palette = instance.palette;
 		} else {
-			// #TODO themes apply accent color to classic theme
+			palette.finalize(colorizer);
 		}
 	};
 }

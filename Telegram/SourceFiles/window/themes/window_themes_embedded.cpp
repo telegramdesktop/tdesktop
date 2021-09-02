@@ -98,6 +98,9 @@ style::colorizer ColorizerFrom(
 		&result.now.saturation,
 		&result.now.value);
 	switch (scheme.type) {
+	case EmbeddedType::Default:
+		result.lightnessMax = 160;
+		break;
 	case EmbeddedType::DayBlue:
 		result.lightnessMax = 160;
 		break;
@@ -149,7 +152,7 @@ style::colorizer ColorizerFrom(
 }
 
 style::colorizer ColorizerForTheme(const QString &absolutePath) {
-	if (absolutePath.isEmpty() || !IsEmbeddedTheme(absolutePath)) {
+	if (!IsEmbeddedTheme(absolutePath)) {
 		return {};
 	}
 	const auto schemes = EmbeddedThemes();
@@ -195,7 +198,8 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("eaffdc"),
 			qColor("ffffff"),
 			tr::lng_settings_theme_classic,
-			QString()
+			QString(),
+			qColor("40a7e3")
 		},
 		EmbeddedScheme{
 			EmbeddedType::DayBlue,
@@ -250,7 +254,16 @@ std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 			qColor("dea922"),
 		};
 	case EmbeddedType::Default:
-		return {};
+		return {
+			qColor("45bce7"),
+			qColor("52b440"),
+			qColor("d46c99"),
+			qColor("df8a49"),
+			qColor("9978c8"),
+			qColor("c55245"),
+			qColor("687b98"),
+			qColor("dea922"),
+		};
 	case EmbeddedType::Night:
 		return {
 			qColor("58bfe8"),
@@ -323,6 +336,7 @@ bool AccentColors::setFromSerialized(const QByteArray &serialized) {
 		const auto color = Serialize::readColor(stream);
 		const auto uncheckedType = static_cast<EmbeddedType>(type);
 		switch (uncheckedType) {
+		case EmbeddedType::Default:
 		case EmbeddedType::DayBlue:
 		case EmbeddedType::Night:
 		case EmbeddedType::NightGreen:
