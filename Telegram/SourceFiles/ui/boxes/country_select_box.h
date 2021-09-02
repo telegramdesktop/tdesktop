@@ -25,11 +25,18 @@ public:
 		Phones,
 		Countries,
 	};
+	struct Entry {
+		QString country;
+		QString iso2;
+		QString code;
+		QString alternativeName;
+	};
 
 	CountrySelectBox(QWidget*);
 	CountrySelectBox(QWidget*, const QString &iso, Type type);
 
 	[[nodiscard]] rpl::producer<QString> countryChosen() const;
+	[[nodiscard]] rpl::producer<Entry> entryChosen() const;
 
 protected:
 	void prepare() override;

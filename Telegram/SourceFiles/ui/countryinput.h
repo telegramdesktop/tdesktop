@@ -14,6 +14,10 @@ namespace Data {
 struct Info;
 } // namespace Data
 
+namespace Countries {
+struct Info;
+} // namespace Countries
+
 namespace Ui {
 class MultiSelect;
 class RippleAnimation;
@@ -44,6 +48,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	void chooseCountry(not_null<const Countries::Info*> info, int codeIndex);
 	void setText(const QString &newText);
 
 	const style::InputField &_st;

@@ -92,10 +92,33 @@ void CountryInput::mouseMoveEvent(QMouseEvent *e) {
 void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
-		auto box = Ui::show(Box<Ui::CountrySelectBox>());
-		box->countryChosen(
-		) | rpl::start_with_next([=](QString iso) {
-			chooseCountry(iso);
+		const auto box = Ui::show(Box<Ui::CountrySelectBox>());
+		box->entryChosen(
+		) | rpl::start_with_next([=](
+				const Ui::CountrySelectBox::Entry &entry) {
+			if (box) {
+				box->closeBox();
+			}
+
+			const auto &list = Countries::Instance().list();
+			auto index = 0;
+			const auto infoIt = ranges::find(
+				list,
+				entry.iso2,
+				&Countries::Info::iso2);
+			if (infoIt == end(list)) {
+				return;
+			}
+			const auto info = *infoIt;
+			const auto it = ranges::find(
+				info.codes,
+				entry.code,
+				&Countries::CallingCodeInfo::callingCode);
+			if (it != end(info.codes)) {
+				chooseCountry(
+					&info,
+					std::distance(begin(info.codes), it));
+			}
 		}, lifetime());
 	}
 }
@@ -130,21 +153,25 @@ void CountryInput::onChooseCode(const QString &code) {
 }
 
 bool CountryInput::chooseCountry(const QString &iso) {
-	Ui::hideLayer();
-
 	const auto &byISO2 = Countries::Instance().byISO2();
 	const auto i = byISO2.constFind(iso);
 	const auto info = (i != byISO2.cend()) ? (*i) : nullptr;
 
 	_chosenIso = QString();
 	if (info) {
-		_chosenIso = LastValidISO = info->iso2;
-		setText(info->name);
-		codeChanged(info->codes.front().callingCode);
-		update();
+		chooseCountry(info, 0);
 		return true;
 	}
 	return false;
+}
+
+void CountryInput::chooseCountry(
+		not_null<const Countries::Info*> info,
+		int codeIndex) {
+	_chosenIso = LastValidISO = info->iso2;
+	setText(info->name);
+	codeChanged(info->codes[codeIndex].callingCode);
+	update();
 }
 
 void CountryInput::setText(const QString &newText) {
