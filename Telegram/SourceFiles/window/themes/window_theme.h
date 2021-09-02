@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_wall_paper.h"
 #include "data/data_cloud_themes.h"
+#include "ui/style/style_core_palette.h"
 
 namespace Main {
 class Session;

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 
+namespace style {
+class palette;
+} // namespace style
+
 namespace Ui {
 
 class ChatStyle;
@@ -111,6 +115,8 @@ public:
 
 	// Expected to be invoked on a background thread. Invokes callbacks there.
 	ChatTheme(ChatThemeDescriptor &&descriptor);
+
+	~ChatTheme();
 
 	[[nodiscard]] uint64 key() const;
 	[[nodiscard]] const style::palette *palette() const {

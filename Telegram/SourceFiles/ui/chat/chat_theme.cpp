@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/ui_utility.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/style/style_core_palette.h"
 
 #include <crl/crl_async.h>
 #include <QtGui/QGuiApplication>
@@ -167,6 +168,8 @@ ChatTheme::ChatTheme(ChatThemeDescriptor &&descriptor)
 	descriptor.preparePalette(*_palette);
 	setBackground(descriptor.prepareBackground());
 }
+
+ChatTheme::~ChatTheme() = default;
 
 void ChatTheme::setBackground(ChatThemeBackground &&background) {
 	_mutableBackground = std::move(background);
