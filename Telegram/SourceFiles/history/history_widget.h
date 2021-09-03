@@ -154,7 +154,7 @@ public:
 	QRect historyRect() const;
 
 	void updateFieldPlaceholder();
-	void updateStickersByEmoji();
+	bool updateStickersByEmoji();
 
 	bool confirmSendingFiles(const QStringList &files);
 	bool confirmSendingFiles(not_null<const QMimeData*> data);

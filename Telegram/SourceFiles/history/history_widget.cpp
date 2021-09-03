@@ -1359,9 +1359,9 @@ void HistoryWidget::orderWidgets() {
 	_attachDragAreas.photo->raise();
 }
 
-void HistoryWidget::updateStickersByEmoji() {
+bool HistoryWidget::updateStickersByEmoji() {
 	if (!_peer) {
-		return;
+		return false;
 	}
 	const auto emoji = [&] {
 		const auto errorForStickers = Data::RestrictionError(
@@ -1379,23 +1379,24 @@ void HistoryWidget::updateStickersByEmoji() {
 		return EmojiPtr(nullptr);
 	}();
 	_fieldAutocomplete->showStickers(emoji);
+	return (emoji != nullptr);
 }
 
 void HistoryWidget::fieldChanged() {
+	const auto typing = (_history
+		&& !_inlineBot
+		&& !_editMsgId
+		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
+
 	InvokeQueued(this, [=] {
 		updateInlineBotQuery();
-		updateStickersByEmoji();
-	});
-
-	if (_history) {
-		if (!_inlineBot
-			&& !_editMsgId
-			&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
+		const auto choosingSticker = updateStickersByEmoji();
+		if (!choosingSticker && typing) {
 			session().sendProgressManager().update(
 				_history,
 				Api::SendProgressType::Typing);
 		}
-	}
+	});
 
 	updateSendButtonType();
 	if (!HasSendText(_field)) {

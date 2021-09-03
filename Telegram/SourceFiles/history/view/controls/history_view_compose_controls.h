@@ -221,7 +221,7 @@ private:
 
 	void orderControls();
 	void checkAutocomplete();
-	void updateStickersByEmoji();
+	bool updateStickersByEmoji();
 	void updateFieldPlaceholder();
 	void updateSilentBroadcast();
 	void editMessage(not_null<HistoryItem*> item);

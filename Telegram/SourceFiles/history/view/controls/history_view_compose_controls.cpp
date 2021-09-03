@@ -1279,9 +1279,9 @@ void ComposeControls::initAutocomplete() {
 	_autocomplete->hideFast();
 }
 
-void ComposeControls::updateStickersByEmoji() {
+bool ComposeControls::updateStickersByEmoji() {
 	if (!_history) {
-		return;
+		return false;
 	}
 	const auto emoji = [&] {
 		const auto errorForStickers = Data::RestrictionError(
@@ -1299,6 +1299,7 @@ void ComposeControls::updateStickersByEmoji() {
 		return EmojiPtr(nullptr);
 	}();
 	_autocomplete->showStickers(emoji);
+	return (emoji != nullptr);
 }
 
 void ComposeControls::updateFieldPlaceholder() {
@@ -1343,11 +1344,9 @@ void ComposeControls::updateSilentBroadcast() {
 }
 
 void ComposeControls::fieldChanged() {
-	if (!_inlineBot
+	const auto typing = (!_inlineBot
 		&& !_header->isEditingMessage()
-		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
-		_sendActionUpdates.fire({ Api::SendProgressType::Typing });
-	}
+		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
 		_previewState = Data::PreviewState::Allowed;
@@ -1358,7 +1357,10 @@ void ComposeControls::fieldChanged() {
 	}
 	InvokeQueued(_autocomplete.get(), [=] {
 		updateInlineBotQuery();
-		updateStickersByEmoji();
+		const auto choosingSticker = updateStickersByEmoji();
+		if (!choosingSticker && typing) {
+			_sendActionUpdates.fire({ Api::SendProgressType::Typing });
+		}
 	});
 
 	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
