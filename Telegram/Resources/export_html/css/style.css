@@ -291,6 +291,8 @@ div.selected {
 .default .text {
     word-wrap: break-word;
     line-height: 150%;
+    unicode-bidi: plaintext;
+    text-align: start;
 }
 .default .reply_to,
 .default .media_wrap {
