@@ -109,7 +109,8 @@ void KeyboardStyle::paintButtonBg(
 		float64 howMuchOver) const {
 	Expects(st != nullptr);
 
-	Ui::FillRoundRect(p, rect, st->msgServiceBg(), st->msgServiceBgCorners());
+	const auto sti = &st->imageStyle(false);
+	Ui::FillRoundRect(p, rect, sti->msgServiceBg, sti->msgServiceBgCorners);
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
@@ -1691,8 +1692,9 @@ void Message::drawInfo(
 		InfoDisplayType type) const {
 	p.setFont(st::msgDateFont);
 
-	const auto stm = context.messageStyle();
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 	bool invertedsprites = (type == InfoDisplayType::Image)
 		|| (type == InfoDisplayType::Background);
 	int32 infoRight = right, infoBottom = bottom;
@@ -1723,10 +1725,10 @@ void Message::drawInfo(
 	auto dateY = infoBottom - st::msgDateFont->height;
 	if (type == InfoDisplayType::Image) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 	} else if (type == InfoDisplayType::Background) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, sti->msgServiceBg, sti->msgServiceBgCorners);
 	}
 	dateX += timeLeft();
 

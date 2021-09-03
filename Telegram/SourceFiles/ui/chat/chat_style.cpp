@@ -31,6 +31,10 @@ not_null<const MessageStyle*> ChatPaintContext::messageStyle() const {
 	return &st->messageStyle(outbg, selected());
 }
 
+not_null<const MessageImageStyle*> ChatPaintContext::imageStyle() const {
+	return &st->imageStyle(selected());
+}
+
 int HistoryServiceMsgRadius() {
 	static const auto result = [] {
 		const auto minMessageHeight = st::msgServicePadding.top()
@@ -115,17 +119,47 @@ ChatStyle::ChatStyle() {
 		st::msgFileOutBg,
 		st::msgFileOutBgSelected);
 	make(
+		&MessageStyle::msgReplyBarColor,
+		st::msgInReplyBarColor,
+		st::msgInReplyBarSelColor,
+		st::msgOutReplyBarColor,
+		st::msgOutReplyBarSelColor);
+	make(
+		&MessageStyle::msgWaveformActive,
+		st::msgWaveformInActive,
+		st::msgWaveformInActiveSelected,
+		st::msgWaveformOutActive,
+		st::msgWaveformOutActiveSelected);
+	make(
+		&MessageStyle::msgWaveformInactive,
+		st::msgWaveformInInactive,
+		st::msgWaveformInInactiveSelected,
+		st::msgWaveformOutInactive,
+		st::msgWaveformOutInactiveSelected);
+	make(
 		&MessageStyle::historyTextFg,
 		st::historyTextInFg,
 		st::historyTextInFgSelected,
 		st::historyTextOutFg,
 		st::historyTextOutFgSelected);
 	make(
-		&MessageStyle::msgReplyBarColor,
-		st::msgInReplyBarColor,
-		st::msgInReplyBarSelColor,
-		st::msgOutReplyBarColor,
-		st::msgOutReplyBarSelColor);
+		&MessageStyle::historyFileNameFg,
+		st::historyFileNameInFg,
+		st::historyFileNameInFgSelected,
+		st::historyFileNameOutFg,
+		st::historyFileNameOutFgSelected);
+	make(
+		&MessageStyle::historyFileRadialFg,
+		st::historyFileInRadialFg,
+		st::historyFileInRadialFgSelected,
+		st::historyFileOutRadialFg,
+		st::historyFileOutRadialFgSelected);
+	make(
+		&MessageStyle::mediaFg,
+		st::mediaInFg,
+		st::mediaInFgSelected,
+		st::mediaOutFg,
+		st::mediaOutFgSelected);
 	make(
 		&MessageStyle::webPageTitleFg,
 		st::webPageTitleInFg,
@@ -143,6 +177,12 @@ ChatStyle::ChatStyle() {
 		st::inTextPalette,
 		st::inTextPaletteSelected,
 		st::outTextPalette,
+		st::outTextPaletteSelected);
+	make(
+		&MessageStyle::semiboldPalette,
+		st::inSemiboldPalette,
+		st::inTextPaletteSelected,
+		st::outSemiboldPalette,
 		st::outTextPaletteSelected);
 	make(
 		&MessageStyle::fwdTextPalette,
@@ -216,6 +256,132 @@ ChatStyle::ChatStyle() {
 		st::historyCommentsInSelected,
 		st::historyCommentsOut,
 		st::historyCommentsOutSelected);
+	make(
+		&MessageStyle::historyCallArrow,
+		st::historyCallArrowIn,
+		st::historyCallArrowInSelected,
+		st::historyCallArrowOut,
+		st::historyCallArrowOutSelected);
+	make(
+		&MessageStyle::historyCallArrowMissed,
+		st::historyCallArrowMissedIn,
+		st::historyCallArrowMissedInSelected,
+		st::historyCallArrowMissedIn,
+		st::historyCallArrowMissedInSelected);
+	make(
+		&MessageStyle::historyCallIcon,
+		st::historyCallInIcon,
+		st::historyCallInIconSelected,
+		st::historyCallOutIcon,
+		st::historyCallOutIconSelected);
+	make(
+		&MessageStyle::historyCallCameraIcon,
+		st::historyCallCameraInIcon,
+		st::historyCallCameraInIconSelected,
+		st::historyCallCameraOutIcon,
+		st::historyCallCameraOutIconSelected);
+	make(
+		&MessageStyle::historyFilePlay,
+		st::historyFileInPlay,
+		st::historyFileInPlaySelected,
+		st::historyFileOutPlay,
+		st::historyFileOutPlaySelected);
+	make(
+		&MessageStyle::historyFileWaiting,
+		st::historyFileInWaiting,
+		st::historyFileInWaitingSelected,
+		st::historyFileOutWaiting,
+		st::historyFileOutWaitingSelected);
+	make(
+		&MessageStyle::historyFileDownload,
+		st::historyFileInDownload,
+		st::historyFileInDownloadSelected,
+		st::historyFileOutDownload,
+		st::historyFileOutDownloadSelected);
+	make(
+		&MessageStyle::historyFileCancel,
+		st::historyFileInCancel,
+		st::historyFileInCancelSelected,
+		st::historyFileOutCancel,
+		st::historyFileOutCancelSelected);
+	make(
+		&MessageStyle::historyFilePause,
+		st::historyFileInPause,
+		st::historyFileInPauseSelected,
+		st::historyFileOutPause,
+		st::historyFileOutPauseSelected);
+	make(
+		&MessageStyle::historyFileImage,
+		st::historyFileInImage,
+		st::historyFileInImageSelected,
+		st::historyFileOutImage,
+		st::historyFileOutImageSelected);
+	make(
+		&MessageStyle::historyFileDocument,
+		st::historyFileInDocument,
+		st::historyFileInDocumentSelected,
+		st::historyFileOutDocument,
+		st::historyFileOutDocumentSelected);
+	make(
+		&MessageStyle::historyAudioDownload,
+		st::historyAudioInDownload,
+		st::historyAudioInDownloadSelected,
+		st::historyAudioOutDownload,
+		st::historyAudioOutDownloadSelected);
+	make(
+		&MessageStyle::historyAudioCancel,
+		st::historyAudioInCancel,
+		st::historyAudioInCancelSelected,
+		st::historyAudioOutCancel,
+		st::historyAudioOutCancelSelected);
+	make(
+		&MessageImageStyle::msgDateImgBg,
+		st::msgDateImgBg,
+		st::msgDateImgBgSelected);
+	make(
+		&MessageImageStyle::msgServiceBg,
+		st::msgServiceBg,
+		st::msgServiceBgSelected);
+	make(
+		&MessageImageStyle::msgShadow,
+		st::msgInShadow,
+		st::msgInShadowSelected);
+	make(
+		&MessageImageStyle::historyFileThumbRadialFg,
+		st::historyFileThumbRadialFg,
+		st::historyFileThumbRadialFgSelected);
+	make(
+		&MessageImageStyle::historyFileThumbPlay,
+		st::historyFileThumbPlay,
+		st::historyFileThumbPlaySelected);
+	make(
+		&MessageImageStyle::historyFileThumbWaiting,
+		st::historyFileThumbWaiting,
+		st::historyFileThumbWaitingSelected);
+	make(
+		&MessageImageStyle::historyFileThumbDownload,
+		st::historyFileThumbDownload,
+		st::historyFileThumbDownloadSelected);
+	make(
+		&MessageImageStyle::historyFileThumbCancel,
+		st::historyFileThumbCancel,
+		st::historyFileThumbCancelSelected);
+	make(
+		&MessageImageStyle::historyFileThumbPause,
+		st::historyFileThumbPause,
+		st::historyFileThumbPauseSelected);
+	make(
+		&MessageImageStyle::historyVideoDownload,
+		st::historyVideoDownload,
+		st::historyVideoDownloadSelected);
+	make(
+		&MessageImageStyle::historyVideoCancel,
+		st::historyVideoCancel,
+		st::historyVideoCancelSelected);
+	make(
+		&MessageImageStyle::historyVideoMessageMute,
+		st::historyVideoMessageMute,
+		st::historyVideoMessageMuteSelected);
 }
 
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
@@ -239,13 +405,14 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	for (auto &style : _messageStyles) {
 		style.corners = {};
 	}
+	for (auto &style : _imageStyles) {
+		style.msgDateImgBgCorners = {};
+		style.msgServiceBgCorners = {};
+		style.msgShadowCorners = {};
+	}
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
-	_msgServiceBgCorners = {};
-	_msgServiceBgSelectedCorners = {};
 	_msgBotKbOverBgAddCorners = {};
-	_msgDateImgBgCorners = {};
-	_msgDateImgBgSelectedCorners = {};
 }
 
 const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
@@ -286,17 +453,21 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	return result;
 }
 
-const CornersPixmaps &ChatStyle::msgServiceBgCorners() const {
-	EnsureCorners(_msgServiceBgCorners, st::dateRadius, msgServiceBg());
-	return _msgServiceBgCorners;
-}
-
-const CornersPixmaps &ChatStyle::msgServiceBgSelectedCorners() const {
+const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
+	auto &result = imageStyleRaw(selected);
 	EnsureCorners(
-		_msgServiceBgSelectedCorners,
+		result.msgDateImgBgCorners,
 		st::dateRadius,
-		msgServiceBgSelected());
-	return _msgServiceBgSelectedCorners;
+		result.msgDateImgBg);
+	EnsureCorners(
+		result.msgServiceBgCorners,
+		st::dateRadius,
+		result.msgServiceBg);
+	EnsureCorners(
+		result.msgShadowCorners,
+		st::historyMessageRadius,
+		result.msgShadow);
+	return result;
 }
 
 const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
@@ -307,24 +478,36 @@ const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
 	return _msgBotKbOverBgAddCorners;
 }
 
-const CornersPixmaps &ChatStyle::msgDateImgBgCorners() const {
-	EnsureCorners(
-		_msgDateImgBgCorners,
-		st::dateRadius,
-		msgDateImgBg());
-	return _msgDateImgBgCorners;
-}
-
-const CornersPixmaps &ChatStyle::msgDateImgBgSelectedCorners() const {
-	EnsureCorners(
-		_msgDateImgBgSelectedCorners,
-		st::dateRadius,
-		msgDateImgBgSelected());
-	return _msgDateImgBgSelectedCorners;
-}
-
 MessageStyle &ChatStyle::messageStyleRaw(bool outbg, bool selected) const {
 	return _messageStyles[(outbg ? 2 : 0) + (selected ? 1 : 0)];
+}
+
+MessageStyle &ChatStyle::messageIn() {
+	return messageStyleRaw(false, false);
+}
+
+MessageStyle &ChatStyle::messageInSelected() {
+	return messageStyleRaw(false, true);
+}
+
+MessageStyle &ChatStyle::messageOut() {
+	return messageStyleRaw(true, false);
+}
+
+MessageStyle &ChatStyle::messageOutSelected() {
+	return messageStyleRaw(true, true);
+}
+
+MessageImageStyle &ChatStyle::imageStyleRaw(bool selected) const {
+	return _imageStyles[selected ? 1 : 0];
+}
+
+MessageImageStyle &ChatStyle::image() {
+	return imageStyleRaw(false);
+}
+
+MessageImageStyle &ChatStyle::imageSelected() {
+	return imageStyleRaw(true);
 }
 
 void ChatStyle::make(style::color &my, const style::color &original) {
@@ -347,22 +530,6 @@ void ChatStyle::make(
 	make(my.selectOverlay, original.selectOverlay);
 }
 
-MessageStyle &ChatStyle::messageIn() {
-	return messageStyleRaw(false, false);
-}
-
-MessageStyle &ChatStyle::messageInSelected() {
-	return messageStyleRaw(false, true);
-}
-
-MessageStyle &ChatStyle::messageOut() {
-	return messageStyleRaw(true, false);
-}
-
-MessageStyle &ChatStyle::messageOutSelected() {
-	return messageStyleRaw(true, true);
-}
-
 template <typename Type>
 void ChatStyle::make(
 		Type MessageStyle::*my,
@@ -374,6 +541,15 @@ void ChatStyle::make(
 	make(messageInSelected().*my, originalInSelected);
 	make(messageOut().*my, originalOut);
 	make(messageOutSelected().*my, originalOutSelected);
+}
+
+template <typename Type>
+void ChatStyle::make(
+		Type MessageImageStyle::*my,
+		const Type &original,
+		const Type &originalSelected) {
+	make(image().*my, original);
+	make(imageSelected().*my, originalSelected);
 }
 
 } // namespace Ui

@@ -131,8 +131,8 @@ private:
 	void streamingReady(::Media::Streaming::Information &&info);
 	void paintUserpicFrame(
 		Painter &p,
-		QPoint photoPosition,
-		bool selected) const;
+		const PaintContext &context,
+		QPoint photoPosition) const;
 
 	not_null<PhotoData*> _data;
 	int _serviceWidth = 0;

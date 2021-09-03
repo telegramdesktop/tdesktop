@@ -77,8 +77,7 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	auto outbg = _parent->hasOutLayout();
-	auto selected = (context.selection == FullSelection);
+	const auto stm = context.messageStyle();
 
 	accumulate_min(paintw, maxWidth());
 
@@ -90,27 +89,25 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	statustop = st::historyCallStatusTop - topMinus;
 
 	p.setFont(st::semiboldFont);
-	p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
+	p.setPen(stm->historyFileNameFg);
 	p.drawTextLeft(nameleft, nametop, paintw, _text);
 
 	auto statusleft = nameleft;
-	auto missed = (_reason == FinishReason::Missed || _reason == FinishReason::Busy);
-	auto &arrow = outbg ? (selected ? st::historyCallArrowOutSelected : st::historyCallArrowOut) : missed ? (selected ? st::historyCallArrowMissedInSelected : st::historyCallArrowMissedIn) : (selected ? st::historyCallArrowInSelected : st::historyCallArrowIn);
+	auto missed = (_reason == FinishReason::Missed)
+		|| (_reason == FinishReason::Busy);
+	const auto &arrow = missed
+		? stm->historyCallArrowMissed
+		: stm->historyCallArrow;
 	arrow.paint(p, statusleft + st::historyCallArrowPosition.x(), statustop + st::historyCallArrowPosition.y(), paintw);
 	statusleft += arrow.width() + st::historyCallStatusSkip;
 
-	auto &statusFg = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
 	p.setFont(st::normalFont);
-	p.setPen(statusFg);
+	p.setPen(stm->mediaFg);
 	p.drawTextLeft(statusleft, statustop, paintw, _status);
 
 	const auto &icon = _video
-		? (outbg
-			? (selected ? st::historyCallCameraOutIconSelected : st::historyCallCameraOutIcon)
-			: (selected ? st::historyCallCameraInIconSelected : st::historyCallCameraInIcon))
-		: (outbg
-			? (selected ? st::historyCallOutIconSelected : st::historyCallOutIcon)
-			: (selected ? st::historyCallInIconSelected : st::historyCallInIcon));
+		? stm->historyCallCameraIcon
+		: stm->historyCallIcon;
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }
 

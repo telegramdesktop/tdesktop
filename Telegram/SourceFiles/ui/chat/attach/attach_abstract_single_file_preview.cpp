@@ -114,7 +114,7 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 		auto &icon = _data.fileIsAudio
 			? (_data.fileThumb.isNull()
 				? st::historyFileInPlay
-				: st::historyFileSongPlay)
+				: st::historyFileThumbPlay)
 			: _data.fileIsImage
 			? st::historyFileInImage
 			: st::historyFileInDocument;

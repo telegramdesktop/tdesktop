@@ -152,8 +152,8 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
-	auto outbg = _parent->hasOutLayout();
-	bool selected = (context.selection == FullSelection);
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 
 	if (bubble) {
 		if (!_title.isEmpty() || !_description.isEmpty()) {
@@ -165,12 +165,12 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		auto textw = width() - st::msgPadding.left() - st::msgPadding.right();
 
 		if (!_title.isEmpty()) {
-			p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
+			p.setPen(stm->webPageTitleFg);
 			_title.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 2, style::al_left, 0, -1, 0, false, context.selection);
 			painty += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+			p.setPen(stm->webPageDescriptionFg);
 			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(context.selection));
 			painty += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}
@@ -179,7 +179,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		}
 		painth -= painty;
 	} else {
-		Ui::FillRoundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? Ui::InSelectedShadowCorners : Ui::InShadowCorners);
+		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
 	}
 
 	auto roundRadius = ImageRoundRadius::Large;
@@ -202,7 +202,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	};
 	paintMarker(st::historyMapPoint);
 	paintMarker(st::historyMapPointInner);
-	if (selected) {
+	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 

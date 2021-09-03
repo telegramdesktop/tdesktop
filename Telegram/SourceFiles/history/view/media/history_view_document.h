@@ -106,8 +106,8 @@ private:
 
 	void draw(
 		Painter &p,
-		int width,
 		const PaintContext &context,
+		int width,
 		LayoutMode mode) const;
 	[[nodiscard]] TextState textState(
 		QPoint point,
@@ -146,6 +146,7 @@ private:
 
 bool DrawThumbnailAsSongCover(
 	Painter &p,
+	const style::color &colored,
 	const std::shared_ptr<Data::DocumentMedia> &dataMedia,
 	const QRect &rect,
 	const bool selected = false);

@@ -32,15 +32,11 @@ enum CachedRoundCorners : int {
 	EmojiHoverCorners,
 	StickerHoverCorners,
 	BotKeyboardCorners,
-	PhotoSelectOverlayCorners,
 
 	Doc1Corners,
 	Doc2Corners,
 	Doc3Corners,
 	Doc4Corners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
 
 	MessageInCorners, // with shadow
 
@@ -74,6 +70,10 @@ inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, ImageR
 void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
 inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	return FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, corner, shadow, parts);
+}
+void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full);
+inline void FillRoundShadow(Painter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full) {
+	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corner, parts);
 }
 
 void StartCachedCorners();

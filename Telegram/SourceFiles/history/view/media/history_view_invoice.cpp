@@ -203,13 +203,11 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	const auto outbg = _parent->hasOutLayout();
-	const auto selected = context.selected();
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 
-	auto &semibold = selected
-		? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected)
-		: (outbg ? st->msgOutServiceFg() : st->msgInServiceFg());
+	auto &semibold = stm->msgServiceFg;
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -223,7 +221,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 	auto lineHeight = unitedLineHeight();
 	if (_titleHeight) {
 		p.setPen(semibold);
-		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outSemiboldPalette : st::inSemiboldPalette));
+		p.setTextPalette(stm->semiboldPalette);
 
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {
@@ -232,10 +230,10 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleHeight / lineHeight, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += _titleHeight;
 
-		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
+		p.setTextPalette(stm->textPalette);
 	}
 	if (_descriptionHeight) {
-		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		p.setPen(stm->webPageDescriptionFg);
 		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(context.selection));
 		tshift += _descriptionHeight;
 	}
@@ -251,7 +249,9 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		_attach->draw(p, context.translated(
 			-attachLeft,
 			-attachTop
-		).withSelection(selected ? FullSelection : TextSelection()));
+		).withSelection(context.selected()
+			? FullSelection
+			: TextSelection()));
 		auto pixwidth = _attach->width();
 
 		auto available = _status.maxWidth();
@@ -260,7 +260,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		auto statusX = st::msgDateImgDelta;
 		auto statusY = st::msgDateImgDelta;
 
-		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);
@@ -268,7 +268,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 
 		p.translate(-attachLeft, -attachTop);
 	} else {
-		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		p.setPen(stm->webPageDescriptionFg);
 		_status.drawLeft(p, padding.left(), tshift + st::mediaInBubbleSkip, paintw, width());
 	}
 }

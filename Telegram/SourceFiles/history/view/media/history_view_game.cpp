@@ -202,16 +202,12 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	const auto outbg = _parent->hasOutLayout();
-	const auto selected = context.selected();
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 
-	const auto &barfg = selected
-		? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor)
-		: (outbg ? st->msgOutReplyBarColor() : st->msgInReplyBarColor());
-	const auto &semibold = selected
-		? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected)
-		: (outbg ? st->msgOutServiceFg() : st->msgInServiceFg());
+	const auto &barfg = stm->msgReplyBarColor;
+	const auto &semibold = stm->msgServiceFg;
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -236,7 +232,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		p.setPen(stm->webPageDescriptionFg);
 		auto endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -256,7 +252,9 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		_attach->draw(p, context.translated(
 			-attachLeft,
 			-attachTop
-		).withSelection(selected ? FullSelection : TextSelection()));
+		).withSelection(context.selected()
+			? FullSelection
+			: TextSelection()));
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
@@ -265,7 +263,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		auto gameX = pixwidth - st::msgDateImgDelta - gameW;
 		auto gameY = pixheight - st::msgDateImgDelta - gameH;
 
-		Ui::FillRoundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+		Ui::FillRoundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);

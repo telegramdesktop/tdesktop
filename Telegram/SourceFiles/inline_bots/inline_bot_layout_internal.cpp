@@ -874,7 +874,11 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	p.setPen(Qt::NoPen);
 
 	const auto coverDrawn = _document->isSongWithCover()
-		&& HistoryView::DrawThumbnailAsSongCover(p, _documentMedia, inner);
+		&& HistoryView::DrawThumbnailAsSongCover(
+			p,
+			st::songCoverOverlayFg,
+			_documentMedia,
+			inner);
 	if (!coverDrawn) {
 		PainterHighQualityEnabler hq(p);
 		if (isThumbAnimation()) {
@@ -903,7 +907,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		} else if (_document->isImage()) {
 			return &st::historyFileInImage;
 		} else if (_document->isSongWithCover()) {
-			return &st::historyFileSongPlay;
+			return &st::historyFileThumbPlay;
 		} else if (_document->isVoiceMessage()
 			|| _document->isAudioFile()) {
 			return &st::historyFileInPlay;

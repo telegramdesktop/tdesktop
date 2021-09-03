@@ -80,14 +80,11 @@ void CreatePaletteCorners() {
 	PrepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoCorners, st::overviewVideoStatusRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoSelectedCorners, st::overviewVideoStatusRadius, st::msgDateImgBgSelected);
-	PrepareCorners(InShadowCorners, st::historyMessageRadius, st::msgInShadow);
-	PrepareCorners(InSelectedShadowCorners, st::historyMessageRadius, st::msgInShadowSelected);
 	PrepareCorners(ForwardCorners, st::historyMessageRadius, st::historyForwardChooseBg);
 	PrepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
 	PrepareCorners(EmojiHoverCorners, st::roundRadiusSmall, st::emojiPanHover);
 	PrepareCorners(StickerHoverCorners, st::roundRadiusSmall, st::emojiPanHover);
 	PrepareCorners(BotKeyboardCorners, st::roundRadiusSmall, st::botKbBg);
-	PrepareCorners(PhotoSelectOverlayCorners, st::roundRadiusSmall, st::overviewPhotoSelectOverlay);
 
 	PrepareCorners(Doc1Corners, st::roundRadiusSmall, st::msgFile1Bg);
 	PrepareCorners(Doc2Corners, st::roundRadiusSmall, st::msgFile2Bg);
@@ -207,7 +204,10 @@ void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color 
 }
 
 void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts) {
-	auto &corner = Corners[index];
+	FillRoundShadow(p, x, y, w, h, shadow, Corners[index], parts);
+}
+
+void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts) {
 	auto cornerWidth = corner.p[0].width() / style::DevicePixelRatio();
 	auto cornerHeight = corner.p[0].height() / style::DevicePixelRatio();
 	if (parts & RectPart::Bottom) {

@@ -1022,7 +1022,12 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			using namespace HistoryView;
 			const auto coverDrawn = _data->isSongWithCover()
-				&& DrawThumbnailAsSongCover(p, _dataMedia, inner, selected);
+				&& DrawThumbnailAsSongCover(
+					p,
+					st::songCoverOverlayFg,
+					_dataMedia,
+					inner,
+					selected);
 			if (!coverDrawn) {
 				if (selected) {
 					p.setBrush(st::msgFileInBgSelected);

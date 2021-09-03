@@ -158,8 +158,7 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width();
 
-	auto outbg = _parent->hasOutLayout();
-	bool selected = (context.selection == FullSelection);
+	const auto stm = context.messageStyle();
 
 	accumulate_min(paintw, maxWidth());
 
@@ -182,7 +181,7 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 		} else {
 			_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
 		}
-		if (selected) {
+		if (context.selected()) {
 			PainterHighQualityEnabler hq(p);
 			p.setBrush(p.textPalette().selectOverlay);
 			p.setPen(Qt::NoPen);
@@ -191,7 +190,7 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 
 		bool over = ClickHandler::showAsActive(_linkl);
 		p.setFont(over ? st::semiboldFont->underline() : st::semiboldFont);
-		p.setPen(outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg));
+		p.setPen(stm->msgFileThumbLinkFg);
 		p.drawTextLeft(nameleft, linktop, paintw, _link, _linkw);
 	} else {
 		_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
@@ -199,12 +198,11 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 	const auto namewidth = paintw - nameleft - nameright;
 
 	p.setFont(st::semiboldFont);
-	p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
+	p.setPen(stm->historyFileNameFg);
 	_name.drawLeftElided(p, nameleft, nametop, namewidth, paintw);
 
-	auto &status = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
 	p.setFont(st::normalFont);
-	p.setPen(status);
+	p.setPen(stm->mediaFg);
 	p.drawTextLeft(nameleft, statustop, paintw, _phone);
 }
 

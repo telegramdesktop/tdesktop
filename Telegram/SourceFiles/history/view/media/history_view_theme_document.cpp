@@ -160,7 +160,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 		_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	}
 	const auto st = context.st;
-	auto selected = (context.selection == FullSelection);
+	const auto sti = context.imageStyle();
 	auto loaded = dataLoaded();
 	auto displayLoading = _data && _data->displayLoading();
 
@@ -179,7 +179,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	auto roundCorners = RectPart::AllCorners;
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
-	if (selected) {
+	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
@@ -188,7 +188,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 		auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 		p.setFont(st::normalFont);
 		p.setPen(st::msgDateImgFg);
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
@@ -199,14 +199,14 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 			const auto innerSize = st::msgFileLayout.thumbSize;
 			QRect inner(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 			p.setPen(Qt::NoPen);
-			if (selected) {
-				p.setBrush(st::msgDateImgBgSelected);
+			if (context.selected()) {
+				p.setBrush(st->msgDateImgBgSelected());
 			} else if (isThumbAnimation()) {
 				auto over = _animation->a_thumbOver.value(1.);
-				p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
+				p.setBrush(anim::brush(st->msgDateImgBg(), st->msgDateImgBgOver(), over));
 			} else {
 				auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _openl);
-				p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+				p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
 			}
 
 			p.setOpacity(radialOpacity * p.opacity());
@@ -217,19 +217,14 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 			}
 
 			p.setOpacity(radialOpacity);
-			auto icon = ([radial, this, selected]() -> const style::icon* {
-				if (radial || _data->loading()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-				}
-				return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-			})();
-			if (icon) {
-				icon->paintInCenter(p, inner);
-			}
+			const auto &icon = (radial || _data->loading())
+				? sti->historyFileThumbCancel
+				: sti->historyFileThumbDownload;
+			icon.paintInCenter(p, inner);
 			p.setOpacity(1);
 			if (radial) {
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
+				_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 			}
 		}
 	}

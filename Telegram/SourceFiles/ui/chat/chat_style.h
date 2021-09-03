@@ -25,11 +25,17 @@ struct MessageStyle {
 	style::color msgDateFg;
 	style::color msgFileThumbLinkFg;
 	style::color msgFileBg;
-	style::color historyTextFg;
 	style::color msgReplyBarColor;
+	style::color msgWaveformActive;
+	style::color msgWaveformInactive;
+	style::color historyTextFg;
+	style::color historyFileNameFg;
+	style::color historyFileRadialFg;
+	style::color mediaFg;
 	style::color webPageTitleFg;
 	style::color webPageDescriptionFg;
 	style::TextPalette textPalette;
+	style::TextPalette semiboldPalette;
 	style::TextPalette fwdTextPalette;
 	style::TextPalette replyTextPalette;
 	style::icon tailLeft = { Qt::Uninitialized };
@@ -42,6 +48,37 @@ struct MessageStyle {
 	style::icon historyPsaIcon = { Qt::Uninitialized };
 	style::icon historyCommentsOpen = { Qt::Uninitialized };
 	style::icon historyComments = { Qt::Uninitialized };
+	style::icon historyCallArrow = { Qt::Uninitialized };
+	style::icon historyCallArrowMissed = { Qt::Uninitialized };
+	style::icon historyCallIcon = { Qt::Uninitialized };
+	style::icon historyCallCameraIcon = { Qt::Uninitialized };
+	style::icon historyFilePlay = { Qt::Uninitialized };
+	style::icon historyFileWaiting = { Qt::Uninitialized };
+	style::icon historyFileDownload = { Qt::Uninitialized };
+	style::icon historyFileCancel = { Qt::Uninitialized };
+	style::icon historyFilePause = { Qt::Uninitialized };
+	style::icon historyFileImage = { Qt::Uninitialized };
+	style::icon historyFileDocument = { Qt::Uninitialized };
+	style::icon historyAudioDownload = { Qt::Uninitialized };
+	style::icon historyAudioCancel = { Qt::Uninitialized };
+};
+
+struct MessageImageStyle {
+	CornersPixmaps msgDateImgBgCorners;
+	CornersPixmaps msgServiceBgCorners;
+	CornersPixmaps msgShadowCorners;
+	style::color msgServiceBg;
+	style::color msgDateImgBg;
+	style::color msgShadow;
+	style::color historyFileThumbRadialFg;
+	style::icon historyFileThumbPlay = { Qt::Uninitialized };
+	style::icon historyFileThumbWaiting = { Qt::Uninitialized };
+	style::icon historyFileThumbDownload = { Qt::Uninitialized };
+	style::icon historyFileThumbCancel = { Qt::Uninitialized };
+	style::icon historyFileThumbPause = { Qt::Uninitialized };
+	style::icon historyVideoDownload = { Qt::Uninitialized };
+	style::icon historyVideoCancel = { Qt::Uninitialized };
+	style::icon historyVideoMessageMute = { Qt::Uninitialized };
 };
 
 struct ChatPaintContext {
@@ -65,6 +102,7 @@ struct ChatPaintContext {
 		return (selection == FullSelection);
 	}
 	[[nodiscard]] not_null<const MessageStyle*> messageStyle() const;
+	[[nodiscard]] not_null<const MessageImageStyle*> imageStyle() const;
 
 	[[nodiscard]] ChatPaintContext translated(int x, int y) const {
 		auto result = *this;
@@ -99,12 +137,9 @@ public:
 	[[nodiscard]] const MessageStyle &messageStyle(
 		bool outbg,
 		bool selected) const;
+	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
 
-	[[nodiscard]] const CornersPixmaps &msgServiceBgCorners() const;
-	[[nodiscard]] const CornersPixmaps &msgServiceBgSelectedCorners() const;
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCorners() const;
-	[[nodiscard]] const CornersPixmaps &msgDateImgBgCorners() const;
-	[[nodiscard]] const CornersPixmaps &msgDateImgBgSelectedCorners() const;
 
 	[[nodiscard]] const style::TextPalette &historyPsaForwardPalette() const {
 		return _historyPsaForwardPalette;
@@ -176,6 +211,10 @@ private:
 	[[nodiscard]] MessageStyle &messageOut();
 	[[nodiscard]] MessageStyle &messageOutSelected();
 
+	[[nodiscard]] MessageImageStyle &imageStyleRaw(bool selected) const;
+	[[nodiscard]] MessageImageStyle &image();
+	[[nodiscard]] MessageImageStyle &imageSelected();
+
 	template <typename Type>
 	void make(
 		Type MessageStyle::*my,
@@ -184,16 +223,19 @@ private:
 		const Type &originalOut,
 		const Type &originalOutSelected);
 
+	template <typename Type>
+	void make(
+		Type MessageImageStyle::*my,
+		const Type &original,
+		const Type &originalSelected);
+
 	mutable CornersPixmaps _serviceBgCornersNormal;
 	mutable CornersPixmaps _serviceBgCornersInverted;
 
 	mutable std::array<MessageStyle, 4> _messageStyles;
+	mutable std::array<MessageImageStyle, 2> _imageStyles;
 
-	mutable CornersPixmaps _msgServiceBgCorners;
-	mutable CornersPixmaps _msgServiceBgSelectedCorners;
 	mutable CornersPixmaps _msgBotKbOverBgAddCorners;
-	mutable CornersPixmaps _msgDateImgBgCorners;
-	mutable CornersPixmaps _msgDateImgBgSelectedCorners;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;

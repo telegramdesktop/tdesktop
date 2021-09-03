@@ -453,6 +453,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto paintw = width();
 
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
 
@@ -573,7 +574,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				auto dateW = pixwidth - dateX - st::msgDateImgDelta;
 				auto dateH = pixheight - dateY - st::msgDateImgDelta;
 
-				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
 				p.setFont(st::msgDateFont);
 				p.setPen(st::msgDateImgFg);

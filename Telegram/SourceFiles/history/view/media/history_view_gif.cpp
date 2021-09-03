@@ -284,6 +284,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto loaded = dataLoaded();
 	const auto displayLoading = item->isSending() || _data->displayLoading();
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 	const auto selected = (context.selection == FullSelection);
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
@@ -346,7 +347,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 	} else if (!isRound) {
-		Ui::FillRoundShadow(p, 0, 0, paintw, height(), selected ? st::msgInShadowSelected : st::msgInShadow, selected ? Ui::InSelectedShadowCorners : Ui::InShadowCorners);
+		Ui::FillRoundShadow(p, 0, 0, paintw, height(), sti->msgShadow, sti->msgShadowCorners);
 	}
 
 	auto usex = 0, usew = paintw;
@@ -479,14 +480,14 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
 		if (selected) {
-			p.setBrush(st::msgDateImgBgSelected);
+			p.setBrush(st->msgDateImgBgSelected());
 		} else if (isThumbAnimation()) {
 			auto over = _animation->a_thumbOver.value(1.);
-			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.setBrush(anim::brush(st->msgDateImgBg(), st->msgDateImgBgOver(), over));
 		} else {
 			const auto over = ClickHandler::showAsActive(
 				(_data->loading() || _data->uploading()) ? _cancell : _savel);
-			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+			p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
 		}
 		p.setOpacity(radialOpacity * p.opacity());
 
@@ -539,7 +540,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (displayMute) {
 		auto muteRect = style::rtlrect(rthumb.x() + (rthumb.width() - st::historyVideoMessageMuteSize) / 2, rthumb.y() + st::msgDateImgDelta, st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, width());
 		p.setPen(Qt::NoPen);
-		p.setBrush(selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
+		p.setBrush(sti->msgDateImgBg);
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(muteRect);
 		(selected ? st::historyVideoMessageMuteSelected : st::historyVideoMessageMute).paintInCenter(p, muteRect);
@@ -558,7 +559,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (mediaUnread) {
 			statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
 		}
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
+		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgServiceBg, sti->msgServiceBgCorners);
 		p.setFont(st::normalFont);
 		p.setPen(st::msgServiceFg);
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
@@ -589,12 +590,12 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			int recty = painty;
 			if (rtl()) rectx = width() - rectx - rectw;
 
-			Ui::FillRoundRect(p, rectx, recty, rectw, recth, selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
+			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
 			p.setPen(st::msgServiceFg);
 			rectx += st::msgReplyPadding.left();
 			rectw = innerw;
 			if (forwarded) {
-				p.setTextPalette(st::serviceTextPalette);
+				p.setTextPalette(st->serviceTextPalette());
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
 				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
 				p.restoreTextPalette();
@@ -674,7 +675,8 @@ void Gif::drawCornerStatus(
 	}
 	const auto own = activeOwnStreamed();
 	const auto st = context.st;
-	const auto selected = context.selected();
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 	const auto text = (own && !own->frozenStatusText.isEmpty())
 		? own->frozenStatusText
 		: _statusText;
@@ -691,7 +693,7 @@ void Gif::drawCornerStatus(
 	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto around = style::rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
 	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
-	Ui::FillRoundRect(p, around, selected ? st->msgDateImgBgSelected() : st->msgDateImgBg(), selected ? st->msgDateImgBgSelectedCorners() : st->msgDateImgBgCorners());
+	Ui::FillRoundRect(p, around, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX + addLeft, statusTextTop, width(), text, statusW - 2 * padding.x());
@@ -699,21 +701,16 @@ void Gif::drawCornerStatus(
 		const auto downloadTextTop = statusY + st::normalFont->height + (2 * (statusH - 2 * st::normalFont->height) / 3)  - padding.y();
 		p.drawTextLeft(statusX + addLeft, downloadTextTop, width(), _downloadSize, statusW - 2 * padding.x());
 		const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
-		const auto icon = [&]() -> const style::icon * {
-			if (_data->loading()) {
-				return &(selected ? st::historyVideoCancelSelected : st::historyVideoCancel);
-			}
-			return &(selected ? st::historyVideoDownloadSelected : st::historyVideoDownload);
-		}();
-		if (icon) {
-			icon->paintInCenter(p, inner);
-		}
+		const auto &icon = _data->loading()
+			? sti->historyVideoCancel
+			: sti->historyVideoDownload;
+		icon.paintInCenter(p, inner);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine)));
-			_animation->radial.draw(p, rinner, st::historyVideoRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
+			_animation->radial.draw(p, rinner, st::historyVideoRadialLine, sti->historyFileThumbRadialFg);
 		}
 	} else if (cornerMute) {
-		(selected ? st::historyVideoMessageMuteSelected : st::historyVideoMessageMute).paint(p, statusX - padding.x() - padding.y() + statusW - addRight, statusY - padding.y() + (statusH - st::historyVideoMessageMute.height()) / 2, width());
+		sti->historyVideoMessageMute.paint(p, statusX - padding.x() - padding.y() + statusW - addRight, statusY - padding.y() + (statusH - st::historyVideoMessageMute.height()) / 2, width());
 	}
 }
 
@@ -918,7 +915,8 @@ void Gif::drawGrouped(
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
 	const auto displayLoading = (item->id < 0) || _data->displayLoading();
-	const auto selected = (context.selection == FullSelection);
+	const auto st = context.st;
+	const auto sti = context.imageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
@@ -997,13 +995,13 @@ void Gif::drawGrouped(
 		p.drawPixmap(geometry, *cache);
 	}
 
-	const auto overlayOpacity = selected
+	const auto overlayOpacity = context.selected()
 		? (1. - highlightOpacity)
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
 		Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
-		if (!selected) {
+		if (!context.selected()) {
 			Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
 		}
 		p.setOpacity(1.);
@@ -1026,15 +1024,15 @@ void Gif::drawGrouped(
 			radialSize,
 			radialSize);
 		p.setPen(Qt::NoPen);
-		if (selected) {
-			p.setBrush(st::msgDateImgBgSelected);
+		if (context.selected()) {
+			p.setBrush(st->msgDateImgBgSelected());
 		} else if (isThumbAnimation()) {
 			auto over = _animation->a_thumbOver.value(1.);
-			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.setBrush(anim::brush(st->msgDateImgBg(), st->msgDateImgBgOver(), over));
 		} else {
 			auto over = ClickHandler::showAsActive(
 				(_data->loading() || _data->uploading()) ? _cancell : _savel);
-			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+			p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
 		}
 		p.setOpacity(radialOpacity * p.opacity());
 
@@ -1046,25 +1044,22 @@ void Gif::drawGrouped(
 		p.setOpacity(radialOpacity);
 		const auto icon = [&]() -> const style::icon * {
 			if (_data->waitingForAlbum()) {
-				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
+				return &sti->historyFileThumbWaiting;
 			} else if (streamingMode && !_data->uploading()) {
 				return nullptr;
 			} else if ((loaded || canBePlayed) && (!radial || cornerDownload)) {
-				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
+				return &sti->historyFileThumbPlay;
 			} else if (radial || _data->loading()) {
 				if (!item->isSending() || _data->uploading()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+					return &sti->historyFileThumbCancel;
 				}
 				return nullptr;
 			}
-			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
+			return &sti->historyFileThumbDownload;
 		}();
-		const auto previous = [&]() -> const style::icon* {
-			if (_data->waitingForAlbum()) {
-				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-			}
-			return nullptr;
-		}();
+		const auto previous = _data->waitingForAlbum()
+			? &sti->historyFileThumbCancel
+			: nullptr;
 		if (icon) {
 			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 				PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
@@ -1076,9 +1071,6 @@ void Gif::drawGrouped(
 		if (radial) {
 			const auto line = st::historyGroupRadialLine;
 			const auto rinner = inner.marginsRemoved({ line, line, line, line });
-			const auto fg = selected
-				? st::historyFileThumbRadialFgSelected
-				: st::historyFileThumbRadialFg;
 			if (streamedForWaiting && !_data->uploading()) {
 				Ui::InfiniteRadialAnimation::Draw(
 					p,
@@ -1086,14 +1078,14 @@ void Gif::drawGrouped(
 					rinner.topLeft(),
 					rinner.size(),
 					width(),
-					fg,
+					sti->historyFileThumbRadialFg,
 					st::msgFileRadialLine);
 			} else if (!cornerDownload) {
 				_animation->radial.draw(
 					p,
 					rinner,
 					st::msgFileRadialLine,
-					fg);
+					sti->historyFileThumbRadialFg);
 			}
 		}
 	}

@@ -180,8 +180,8 @@ void UnwrappedMedia::drawSurrounding(
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const {
-	const auto selected = context.selected();
 	const auto st = context.st;
+	const auto sti = context.imageStyle();
 	const auto rightAligned = _parent->hasOutLayout()
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto rightActionSize = _parent->rightActionSize();
@@ -204,12 +204,12 @@ void UnwrappedMedia::drawSurrounding(
 		int recty = 0;
 		if (rtl()) rectx = width() - rectx - rectw;
 
-		Ui::FillRoundRect(p, rectx, recty, rectw, recth, selected ? st->msgServiceBgSelected() : st->msgServiceBg(), selected ? st->msgServiceBgSelectedCorners() : st->msgServiceBgCorners());
+		Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
 		p.setPen(st::msgServiceFg);
 		rectx += st::msgReplyPadding.left();
 		rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 		if (forwarded) {
-			p.setTextPalette(st::serviceTextPalette);
+			p.setTextPalette(st->serviceTextPalette());
 			forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
 			p.restoreTextPalette();
 		} else if (via) {

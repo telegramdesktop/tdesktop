@@ -93,6 +93,7 @@ void ItemSingleFilePreview::preparePreview(not_null<DocumentData*> document) {
 
 				HistoryView::DrawThumbnailAsSongCover(
 					p,
+					st::songCoverOverlayFg,
 					_documentMedia,
 					QRect(QPoint(), size));
 				data.fileThumb = std::move(thumb);

@@ -68,10 +68,9 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 
 void PaintWaveform(
 		Painter &p,
+		const PaintContext &context,
 		const VoiceData *voiceData,
 		int availableWidth,
-		bool selected,
-		bool outbg,
 		float64 progress) {
 	const auto wf = [&]() -> const VoiceWaveform* {
 		if (!voiceData) {
@@ -84,22 +83,11 @@ void PaintWaveform(
 		}
 		return &voiceData->waveform;
 	}();
+	const auto stm = context.messageStyle();
 
 	// Rescale waveform by going in waveform.size * bar_count 1D grid.
-	const auto active = outbg
-		? (selected
-			? st::msgWaveformOutActiveSelected
-			: st::msgWaveformOutActive)
-		: (selected
-			? st::msgWaveformInActiveSelected
-			: st::msgWaveformInActive);
-	const auto inactive = outbg
-		? (selected
-			? st::msgWaveformOutInactiveSelected
-			: st::msgWaveformOutInactive)
-		: (selected
-			? st::msgWaveformInInactiveSelected
-			: st::msgWaveformInInactive);
+	const auto active = stm->msgWaveformActive;
+	const auto inactive = stm->msgWaveformInactive;
 	const auto wfSize = wf
 		? wf->size()
 		: ::Media::Player::kWaveformSamplesCount;
@@ -327,13 +315,13 @@ QSize Document::countCurrentSize(int newWidth) {
 }
 
 void Document::draw(Painter &p, const PaintContext &context) const {
-	draw(p, width(), context, LayoutMode::Full);
+	draw(p, context, width(), LayoutMode::Full);
 }
 
 void Document::draw(
 		Painter &p,
-		int width,
 		const PaintContext &context,
+		int width,
 		LayoutMode mode) const {
 	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
@@ -345,10 +333,10 @@ void Document::draw(
 		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
-	bool selected = (context.selection == FullSelection);
+	const auto sti = context.imageStyle();
+	const auto stm = context.messageStyle();
 
 	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
-	auto outbg = _parent->hasOutLayout();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -384,7 +372,7 @@ void Document::draw(
 			thumb = blurred->pixBlurredSingle(thumbed->_thumbw, 0, st.thumbSize, st.thumbSize, roundRadius);
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
-		if (selected) {
+		if (context.selected()) {
 			auto overlayCorners = inWebPage ? Ui::SelectedOverlaySmallCorners : Ui::SelectedOverlayLargeCorners;
 			Ui::FillRoundRect(p, rthumb, p.textPalette().selectOverlay, overlayCorners);
 		}
@@ -392,11 +380,7 @@ void Document::draw(
 		if (radial || (!loaded && !_data->loading()) || _data->waitingForAlbum()) {
 			const auto backOpacity = (loaded && !_data->uploading()) ? radialOpacity : 1.;
 			p.setPen(Qt::NoPen);
-			if (selected) {
-				p.setBrush(st::msgDateImgBgSelected);
-			} else {
-				p.setBrush(st::msgDateImgBg);
-			}
+			p.setBrush(sti->msgDateImgBg);
 			p.setOpacity(backOpacity * p.opacity());
 
 			{
@@ -404,30 +388,24 @@ void Document::draw(
 				p.drawEllipse(inner);
 			}
 
-			const auto icon = [&] {
-				if (_data->waitingForAlbum()) {
-					return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
-				} else if (radial || _data->loading()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-				}
-				return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-			}();
-			const auto previous = [&]() -> const style::icon* {
-				if (_data->waitingForAlbum()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-				}
-				return nullptr;
-			}();
+			const auto &icon = _data->waitingForAlbum()
+				? sti->historyFileThumbWaiting
+				: (radial || _data->loading())
+				? sti->historyFileThumbCancel
+				: sti->historyFileThumbDownload;
+			const auto previous = _data->waitingForAlbum()
+				? &sti->historyFileThumbCancel
+				: nullptr;
 			p.setOpacity(backOpacity);
 			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
-				PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+				PaintInterpolatedIcon(p, icon, *previous, radialOpacity, inner);
 			} else {
-				icon->paintInCenter(p, inner);
+				icon.paintInCenter(p, inner);
 			}
 			p.setOpacity(1.);
 			if (radial) {
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
+				_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 			}
 		}
 
@@ -439,82 +417,67 @@ void Document::draw(
 				: thumbed->_linksavel;
 			bool over = ClickHandler::showAsActive(lnk);
 			p.setFont(over ? st::semiboldFont->underline() : st::semiboldFont);
-			p.setPen(outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg));
+			p.setPen(stm->msgFileThumbLinkFg);
 			p.drawTextLeft(nameleft, linktop, width, thumbed->_link, thumbed->_linkw);
 		}
 	} else {
 		p.setPen(Qt::NoPen);
 
 		const auto coverDrawn = _data->isSongWithCover()
-			&& DrawThumbnailAsSongCover(p, _dataMedia, inner, selected);
+			&& DrawThumbnailAsSongCover(
+				p,
+				context.st->songCoverOverlayFg(),
+				_dataMedia,
+				inner,
+				context.selected());
 		if (!coverDrawn) {
 			PainterHighQualityEnabler hq(p);
-			p.setBrush(selected
-				? (outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected)
-				: (outbg ? st::msgFileOutBg : st::msgFileInBg));
+			p.setBrush(stm->msgFileBg);
 			p.drawEllipse(inner);
 		}
 
-		const auto icon = [&] {
+		const auto &icon = [&]() -> const style::icon& {
 			if (_data->waitingForAlbum()) {
-				if (_data->isSongWithCover()) {
-					return &(selected
-						? st::historyFileSongWaitingSelected
-						: st::historyFileSongWaiting);
-				}
-				return &(outbg ? (selected ? st::historyFileOutWaitingSelected : st::historyFileOutWaiting) : (selected ? st::historyFileInWaitingSelected : st::historyFileInWaiting));
-			} else if (!cornerDownload && (_data->loading() || _data->uploading())) {
-				if (_data->isSongWithCover()) {
-					return &(selected
-						? st::historyFileSongCancelSelected
-						: st::historyFileSongCancel);
-				}
-				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
+				return _data->isSongWithCover()
+					? sti->historyFileThumbWaiting
+					: stm->historyFileWaiting;
+			} else if (!cornerDownload
+				&& (_data->loading() || _data->uploading())) {
+				return _data->isSongWithCover()
+					? sti->historyFileThumbCancel
+					: stm->historyFileCancel;
 			} else if (showPause) {
-				if (_data->isSongWithCover()) {
-					return &(selected
-						? st::historyFileSongPauseSelected
-						: st::historyFileSongPause);
-				}
-				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
+				return _data->isSongWithCover()
+					? sti->historyFileThumbPause
+					: stm->historyFilePause;
 			} else if (loaded || _dataMedia->canBePlayed()) {
-				if (_dataMedia->canBePlayed()) {
-					if (_data->isSongWithCover()) {
-						return &(selected
-							? st::historyFileSongPlaySelected
-							: st::historyFileSongPlay);
-					}
-					return &(outbg ? (selected ? st::historyFileOutPlaySelected : st::historyFileOutPlay) : (selected ? st::historyFileInPlaySelected : st::historyFileInPlay));
-				} else if (_data->isImage()) {
-					return &(outbg ? (selected ? st::historyFileOutImageSelected : st::historyFileOutImage) : (selected ? st::historyFileInImageSelected : st::historyFileInImage));
-				}
-				return &(outbg ? (selected ? st::historyFileOutDocumentSelected : st::historyFileOutDocument) : (selected ? st::historyFileInDocumentSelected : st::historyFileInDocument));
+				return _dataMedia->canBePlayed()
+					? (_data->isSongWithCover()
+						? sti->historyFileThumbPlay
+						: stm->historyFilePlay)
+					: _data->isImage()
+					? stm->historyFileImage
+					: stm->historyFileDocument;
+			} else {
+				return _data->isSongWithCover()
+					? sti->historyFileThumbDownload
+					: stm->historyFileDownload;
 			}
-			if (_data->isSongWithCover()) {
-				return &(selected
-					? st::historyFileSongDownloadSelected
-					: st::historyFileSongDownload);
-			}
-			return &(outbg ? (selected ? st::historyFileOutDownloadSelected : st::historyFileOutDownload) : (selected ? st::historyFileInDownloadSelected : st::historyFileInDownload));
 		}();
-		const auto previous = [&]() -> const style::icon* {
-			if (_data->waitingForAlbum()) {
-				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
-			}
-			return nullptr;
-		}();
+		const auto previous = _data->waitingForAlbum()
+			? &stm->historyFileCancel
+			: nullptr;
 
 		const auto paintContent = [&](Painter &q) {
 			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
-				PaintInterpolatedIcon(q, *icon, *previous, radialOpacity, inner);
+				PaintInterpolatedIcon(q, icon, *previous, radialOpacity, inner);
 			} else {
-				icon->paintInCenter(q, inner);
+				icon.paintInCenter(q, inner);
 			}
 
 			if (radial && !cornerDownload) {
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-				auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
-				_animation->radial.draw(q, rinner, st::msgFileRadialLine, fg);
+				_animation->radial.draw(q, rinner, st::msgFileRadialLine, stm->historyFileRadialFg);
 			}
 		};
 		if (_data->isSongWithCover() || !usesBubblePattern(context)) {
@@ -547,7 +510,7 @@ void Document::draw(
 		}
 
 		const auto progress = [&] {
-			if (!outbg
+			if (!context.outbg
 				&& !voice->_playback
 				&& _realParent->hasUnreadMediaFlag()) {
 				return 1.;
@@ -568,15 +531,14 @@ void Document::draw(
 		p.save();
 		p.translate(nameleft, st.padding.top() - topMinus);
 		PaintWaveform(p,
+			context,
 			_data->voice(),
 			namewidth + st::msgWaveformSkip,
-			selected,
-			outbg,
 			progress);
 		p.restore();
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
-		p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
+		p.setPen(stm->historyFileNameFg);
 		if (namewidth < named->_namew) {
 			p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(named->_name, namewidth, Qt::ElideMiddle));
 		} else {
@@ -585,16 +547,15 @@ void Document::draw(
 	}
 
 	auto statusText = voiceStatusOverride.isEmpty() ? _statusText : voiceStatusOverride;
-	auto status = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
 	p.setFont(st::normalFont);
-	p.setPen(status);
+	p.setPen(stm->mediaFg);
 	p.drawTextLeft(nameleft, statustop, width, statusText);
 
 	if (_realParent->hasUnreadMediaFlag()) {
 		auto w = st::normalFont->width(statusText);
 		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= statuswidth) {
 			p.setPen(Qt::NoPen);
-			p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
+			p.setBrush(stm->msgFileBg);
 
 			{
 				PainterHighQualityEnabler hq(p);
@@ -604,7 +565,7 @@ void Document::draw(
 	}
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+		p.setPen(stm->historyTextFg);
 		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, context.selection);
 	}
 }
@@ -644,9 +605,8 @@ void Document::drawCornerDownload(
 		|| !downloadInCorner()) {
 		return;
 	}
-	auto outbg = _parent->hasOutLayout();
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
-	const auto selected = (context.selection == FullSelection);
+	const auto stm = context.messageStyle();
 	const auto thumbed = false;
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
@@ -658,41 +618,31 @@ void Document::drawCornerDownload(
 	if (bubblePattern) {
 		p.setPen(Qt::NoPen);
 	} else {
-		auto pen = (selected
-			? (outbg ? st::msgOutBgSelected : st::msgInBgSelected)
-			: (outbg ? st::msgOutBg : st::msgInBg))->p;
+		auto pen = stm->msgBg->p;
 		pen.setWidth(st::lineWidth);
 		p.setPen(pen);
 	}
-	if (selected) {
-		p.setBrush(outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected);
-	} else {
-		p.setBrush(outbg ? st::msgFileOutBg : st::msgFileInBg);
-	}
+	p.setBrush(stm->msgFileBg);
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(inner);
 	}
-	const auto icon = [&] {
-		if (_data->loading()) {
-			return &(outbg ? (selected ? st::historyAudioOutCancelSelected : st::historyAudioOutCancel) : (selected ? st::historyAudioInCancelSelected : st::historyAudioInCancel));
-		}
-		return &(outbg ? (selected ? st::historyAudioOutDownloadSelected : st::historyAudioOutDownload) : (selected ? st::historyAudioInDownloadSelected : st::historyAudioInDownload));
-	}();
+	const auto &icon = _data->loading()
+		? stm->historyAudioCancel
+		: stm->historyAudioDownload;
 	const auto paintContent = [&](Painter &q) {
 		if (bubblePattern) {
 			auto hq = PainterHighQualityEnabler(q);
-			auto pen = st::msgOutBg->p;
+			auto pen = stm->msgBg->p;
 			pen.setWidth(st::lineWidth);
 			q.setPen(pen);
 			q.setBrush(Qt::NoBrush);
 			q.drawEllipse(inner);
 		}
-		icon->paintInCenter(q, inner);
+		icon.paintInCenter(q, inner);
 		if (_animation && _animation->radial.animating()) {
 			const auto rinner = inner.marginsRemoved(QMargins(st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine));
-			auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
-			_animation->radial.draw(q, rinner, st::historyAudioRadialLine, fg);
+			_animation->radial.draw(q, rinner, st::historyAudioRadialLine, stm->historyFileRadialFg);
 		}
 	};
 	if (bubblePattern) {
@@ -1030,8 +980,8 @@ void Document::drawGrouped(
 	p.translate(geometry.topLeft());
 	draw(
 		p,
-		geometry.width(),
 		context.translated(-geometry.topLeft()),
+		geometry.width(),
 		LayoutMode::Grouped);
 	p.translate(-geometry.topLeft());
 }
@@ -1147,6 +1097,7 @@ Ui::Text::String Document::createCaption() {
 
 bool DrawThumbnailAsSongCover(
 		Painter &p,
+		const style::color &colored,
 		const std::shared_ptr<Data::DocumentMedia> &dataMedia,
 		const QRect &rect,
 		const bool selected) {
@@ -1160,7 +1111,6 @@ bool DrawThumbnailAsSongCover(
 	const auto oh = rect.height();
 	const auto r = ImageRoundRadius::Ellipse;
 	const auto c = RectPart::AllCorners;
-	const auto color = &st::songCoverOverlayFg;
 	const auto aspectRatio = Qt::KeepAspectRatioByExpanding;
 
 	const auto scaled = [&](not_null<Image*> image) -> std::pair<int, int> {
@@ -1170,10 +1120,10 @@ bool DrawThumbnailAsSongCover(
 
 	if (const auto normal = dataMedia->thumbnail()) {
 		const auto &[w, h] = scaled(normal);
-		cover = normal->pixSingle(w, h, ow, oh, r, c, color);
+		cover = normal->pixSingle(w, h, ow, oh, r, c, &colored);
 	} else if (const auto blurred = dataMedia->thumbnailInline()) {
 		const auto &[w, h] = scaled(blurred);
-		cover = blurred->pixBlurredSingle(w, h, ow, oh, r, c, color);
+		cover = blurred->pixBlurredSingle(w, h, ow, oh, r, c, &colored);
 	} else {
 		return false;
 	}
