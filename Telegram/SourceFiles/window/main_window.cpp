@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "base/crc32hash.h"
-#include "base/call_delayed.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/shadow.h"
 #include "ui/ui_utility.h"
@@ -324,7 +323,7 @@ void MainWindow::handleActiveChanged() {
 	if (isActiveWindow()) {
 		Core::App().checkMediaViewActivation();
 	}
-	base::call_delayed(1, this, [this] {
+	InvokeQueued(this, [=] {
 		handleActiveChangedHook();
 	});
 }
@@ -343,7 +342,7 @@ void MainWindow::handleVisibleChanged(bool visible) {
 }
 
 void MainWindow::showFromTray() {
-	base::call_delayed(1, this, [this] {
+	InvokeQueued(this, [=] {
 		updateGlobalMenu();
 	});
 	activate();
