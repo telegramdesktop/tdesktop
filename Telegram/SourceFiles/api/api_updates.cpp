@@ -1510,7 +1510,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			return;
 		}
 		auto possiblyReadMentions = base::flat_set<MsgId>();
-		for_const (auto &msgId, d.vmessages().v) {
+		for (const auto &msgId : d.vmessages().v) {
 			if (auto item = session().data().message(channel, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();

@@ -2258,7 +2258,7 @@ void Account::readInstalledMasks() {
 }
 
 void Account::writeSavedGifs() {
-	auto &saved = _owner->session().data().stickers().savedGifs();
+	const auto &saved = _owner->session().data().stickers().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			ClearKey(_savedGifsKey, _basePath);
@@ -2267,7 +2267,7 @@ void Account::writeSavedGifs() {
 		}
 	} else {
 		quint32 size = sizeof(quint32); // count
-		for_const (auto gif, saved) {
+		for (const auto gif : saved) {
 			size += Serialize::Document::sizeInStream(gif);
 		}
 
@@ -2277,7 +2277,7 @@ void Account::writeSavedGifs() {
 		}
 		EncryptedDescriptor data(size);
 		data.stream << quint32(saved.size());
-		for_const (auto gif, saved) {
+		for (const auto gif : saved) {
 			Serialize::Document::writeToStream(data.stream, gif);
 		}
 		FileWriteDescriptor file(_savedGifsKey, _basePath);

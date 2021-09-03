@@ -32,12 +32,6 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 
 } // namespace base
 
-// using for_const instead of plain range-based for loop to ensure usage of const_iterator
-// it is important for the copy-on-write Qt containers
-// if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
-// while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
-#define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
-
 static const int32 ScrollMax = INT_MAX;
 
 extern uint64 _SharedMemoryLocation[];

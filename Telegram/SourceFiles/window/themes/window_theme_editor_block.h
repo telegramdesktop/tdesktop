@@ -144,8 +144,8 @@ private:
 	QMap<QString, int> _indices;
 
 	QString _searchQuery;
-	QVector<int> _searchResults;
-	QMap<QChar, OrderedSet<int>> _searchIndex;
+	std::vector<int> _searchResults;
+	base::flat_map<QChar, base::flat_set<int>> _searchIndex;
 
 	int _selected = -1;
 	int _pressed = -1;

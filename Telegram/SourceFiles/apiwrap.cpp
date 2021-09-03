@@ -500,74 +500,98 @@ void ApiWrap::sendMessageFail(
 	}
 }
 
-void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback) {
-	auto &req = (channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
+void ApiWrap::requestMessageData(
+		ChannelData *channel,
+		MsgId msgId,
+		RequestMessageDataCallback callback) {
+	auto &requests = channel
+		? _channelMessageDataRequests[channel][msgId]
+		: _messageDataRequests[msgId];
 	if (callback) {
-		req.callbacks.append(callback);
+		requests.callbacks.push_back(callback);
 	}
-	if (!req.requestId) _messageDataResolveDelayed.call();
+	if (!requests.requestId) {
+		_messageDataResolveDelayed.call();
+	}
 }
 
-QVector<MTPInputMessage> ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
+QVector<MTPInputMessage> ApiWrap::collectMessageIds(
+		const MessageDataRequests &requests) {
 	auto result = QVector<MTPInputMessage>();
 	result.reserve(requests.size());
-	for (auto i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
-		if (i.value().requestId > 0) continue;
-		result.push_back(MTP_inputMessageID(MTP_int(i.key())));
+	for (const auto &[msgId, request] : requests) {
+		if (request.requestId > 0) {
+			continue;
+		}
+		result.push_back(MTP_inputMessageID(MTP_int(msgId)));
 	}
 	return result;
 }
 
-ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting) {
+auto ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting)
+-> MessageDataRequests* {
 	if (channel) {
 		auto i = _channelMessageDataRequests.find(channel);
-		if (i == _channelMessageDataRequests.cend()) {
+		if (i == end(_channelMessageDataRequests)) {
 			if (onlyExisting) {
 				return nullptr;
 			}
-			i = _channelMessageDataRequests.insert(channel, MessageDataRequests());
+			i = _channelMessageDataRequests.emplace(
+				channel,
+				MessageDataRequests()).first;
 		}
-		return &i.value();
+		return &i->second;
 	}
 	return &_messageDataRequests;
 }
 
 void ApiWrap::resolveMessageDatas() {
-	if (_messageDataRequests.isEmpty() && _channelMessageDataRequests.isEmpty()) return;
+	if (_messageDataRequests.empty() && _channelMessageDataRequests.empty()) {
+		return;
+	}
 
-	auto ids = collectMessageIds(_messageDataRequests);
+	const auto ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
-		auto requestId = request(MTPmessages_GetMessages(
+		const auto requestId = request(MTPmessages_GetMessages(
 			MTP_vector<MTPInputMessage>(ids)
-		)).done([this](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		)).done([=](
+				const MTPmessages_Messages &result,
+				mtpRequestId requestId) {
 			gotMessageDatas(nullptr, result, requestId);
-		}).fail([this](const MTP::Error &error, mtpRequestId requestId) {
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			finalizeMessageDataRequest(nullptr, requestId);
 		}).afterDelay(kSmallDelayMs).send();
-		for (auto &request : _messageDataRequests) {
-			if (request.requestId > 0) continue;
+
+		for (auto &[msgId, request] : _messageDataRequests) {
+			if (request.requestId > 0) {
+				continue;
+			}
 			request.requestId = requestId;
 		}
 	}
 	for (auto j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
-		if (j->isEmpty()) {
+		if (j->second.empty()) {
 			j = _channelMessageDataRequests.erase(j);
 			continue;
 		}
-		auto ids = collectMessageIds(j.value());
+		const auto ids = collectMessageIds(j->second);
 		if (!ids.isEmpty()) {
-			auto channel = j.key();
-			auto requestId = request(MTPchannels_GetMessages(
-				j.key()->inputChannel,
+			const auto channel = j->first;
+			const auto requestId = request(MTPchannels_GetMessages(
+				channel->inputChannel,
 				MTP_vector<MTPInputMessage>(ids)
-			)).done([=](const MTPmessages_Messages &result, mtpRequestId requestId) {
+			)).done([=](
+					const MTPmessages_Messages &result,
+					mtpRequestId requestId) {
 				gotMessageDatas(channel, result, requestId);
 			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				finalizeMessageDataRequest(channel, requestId);
 			}).afterDelay(kSmallDelayMs).send();
 
-			for (auto &request : *j) {
-				if (request.requestId > 0) continue;
+			for (auto &[msgId, request] : j->second) {
+				if (request.requestId > 0) {
+					continue;
+				}
 				request.requestId = requestId;
 			}
 		}
@@ -612,16 +636,16 @@ void ApiWrap::finalizeMessageDataRequest(
 	auto requests = messageDataRequests(channel, true);
 	if (requests) {
 		for (auto i = requests->begin(); i != requests->cend();) {
-			if (i.value().requestId == requestId) {
-				for_const (auto &callback, i.value().callbacks) {
-					callback(channel, i.key());
+			if (i->second.requestId == requestId) {
+				for (const auto &callback : i->second.callbacks) {
+					callback(channel, i->first);
 				}
 				i = requests->erase(i);
 			} else {
 				++i;
 			}
 		}
-		if (channel && requests->isEmpty()) {
+		if (channel && requests->empty()) {
 			_channelMessageDataRequests.remove(channel);
 		}
 	}

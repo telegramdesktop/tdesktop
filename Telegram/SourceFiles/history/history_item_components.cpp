@@ -549,7 +549,7 @@ void ReplyKeyboard::resize(int width, int height) {
 		int widthForText = widthForButtons;
 		int widthOfText = 0;
 		int maxMinButtonWidth = 0;
-		for_const (auto &button, row) {
+		for (const auto &button : row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
 			int minButtonWidth = _st->minButtonWidth(button.type);
 			widthForText -= minButtonWidth;
@@ -559,7 +559,7 @@ void ReplyKeyboard::resize(int width, int height) {
 		bool enough = (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
 
 		float64 x = 0;
-		for (Button &button : row) {
+		for (auto &button : row) {
 			int buttonw = qMax(button.text.maxWidth(), 1);
 			float64 textw = buttonw, minw = _st->minButtonWidth(button.type);
 			float64 w = textw;
@@ -587,10 +587,10 @@ void ReplyKeyboard::resize(int width, int height) {
 }
 
 bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st) const {
-	for_const (auto &row, _rows) {
+	for (const auto &row : _rows) {
 		int s = row.size();
 		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
-		for_const (auto &button, row) {
+		for (const auto &button : row) {
 			widthLeft -= qMax(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
 				if (row.size() > 3) {
@@ -662,8 +662,8 @@ void ReplyKeyboard::paint(
 ClickHandlerPtr ReplyKeyboard::getLink(QPoint point) const {
 	Assert(_width > 0);
 
-	for_const (auto &row, _rows) {
-		for_const (auto &button, row) {
+	for (const auto &row : _rows) {
+		for (const auto &button : row) {
 			QRect rect(button.rect);
 
 			// just ignore the buttons that didn't layout well

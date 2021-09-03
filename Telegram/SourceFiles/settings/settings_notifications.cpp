@@ -98,7 +98,7 @@ private:
 
 	int _oldCount;
 
-	QVector<SampleWidget*> _cornerSamples[4];
+	std::vector<SampleWidget*> _cornerSamples[4];
 
 };
 
@@ -350,7 +350,8 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 		if (corner == _overCorner) {
 			return;
 		}
-		for_const (auto widget, _cornerSamples[static_cast<int>(_overCorner)]) {
+		const auto index = static_cast<int>(_overCorner);
+		for (const auto widget : _cornerSamples[index]) {
 			widget->hideFast();
 		}
 	} else {
@@ -362,7 +363,7 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 	_overCorner = corner;
 
 	auto &samples = _cornerSamples[static_cast<int>(_overCorner)];
-	auto samplesAlready = samples.size();
+	auto samplesAlready = int(samples.size());
 	auto samplesNeeded = _oldCount;
 	auto samplesLeave = qMin(samplesAlready, samplesNeeded);
 	for (int i = 0; i != samplesLeave; ++i) {
@@ -394,8 +395,8 @@ void NotificationsCount::clearOverCorner() {
 		Core::App().notifications().notifySettingsChanged(
 			ChangeType::DemoIsHidden);
 
-		for_const (const auto &samples, _cornerSamples) {
-			for_const (const auto widget, samples) {
+		for (const auto &samples : _cornerSamples) {
+			for (const auto widget : samples) {
 				widget->hideFast();
 			}
 		}
@@ -426,8 +427,8 @@ void NotificationsCount::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 NotificationsCount::~NotificationsCount() {
-	for_const (auto &samples, _cornerSamples) {
-		for_const (auto widget, samples) {
+	for (const auto &samples : _cornerSamples) {
+		for (const auto widget : samples) {
 			widget->detach();
 		}
 	}

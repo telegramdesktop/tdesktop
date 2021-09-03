@@ -55,11 +55,11 @@ public:
 		fillSearchIndex();
 	}
 
-	const OrderedSet<QString> &searchWords() const {
+	const base::flat_set<QString> &searchWords() const {
 		return _searchWords;
 	}
 	bool searchWordsContain(const QString &needle) const {
-		for_const (auto &word, _searchWords) {
+		for (const auto &word : _searchWords) {
 			if (word.startsWith(needle)) {
 				return true;
 			}
@@ -67,7 +67,7 @@ public:
 		return false;
 	}
 
-	const OrderedSet<QChar> &searchStartChars() const {
+	const base::flat_set<QChar> &searchStartChars() const {
 		return _searchStartChars;
 	}
 
@@ -106,8 +106,8 @@ private:
 	QString _valueString;
 	Ui::Text::String _description = { st::windowMinWidth / 2 };
 
-	OrderedSet<QString> _searchWords;
-	OrderedSet<QChar> _searchStartChars;
+	base::flat_set<QString> _searchWords;
+	base::flat_set<QChar> _searchStartChars;
 
 	int _top = 0;
 	int _height = 0;
@@ -154,11 +154,16 @@ void EditorBlock::Row::fillValueString() {
 void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
 	_searchStartChars.clear();
-	auto toIndex = _name + ' ' + _copyOf + ' ' + TextUtilities::RemoveAccents(_description.toString()) + ' ' + _valueString;
-	auto words = toIndex.toLower().split(SearchSplitter, base::QStringSkipEmptyParts);
-	for_const (auto &word, words) {
-		_searchWords.insert(word);
-		_searchStartChars.insert(word[0]);
+	const auto toIndex = _name
+		+ ' ' + _copyOf
+		+ ' ' + TextUtilities::RemoveAccents(_description.toString())
+		+ ' ' + _valueString;
+	const auto words = toIndex.toLower().split(
+		SearchSplitter,
+		base::QStringSkipEmptyParts);
+	for (const auto &word : words) {
+		_searchWords.emplace(word);
+		_searchStartChars.emplace(word[0]);
 	}
 }
 
@@ -252,7 +257,7 @@ void EditorBlock::addToSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for_const (auto ch, row.searchStartChars()) {
+	for (const auto ch : row.searchStartChars()) {
 		_searchIndex[ch].insert(index);
 	}
 
@@ -264,12 +269,12 @@ void EditorBlock::removeFromSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for_const (auto ch, row.searchStartChars()) {
-		auto it = _searchIndex.find(ch);
-		if (it != _searchIndex.cend()) {
-			it->remove(index);
-			if (it->isEmpty()) {
-				_searchIndex.erase(it);
+	for (const auto ch : row.searchStartChars()) {
+		const auto i = _searchIndex.find(ch);
+		if (i != end(_searchIndex)) {
+			i->second.remove(index);
+			if (i->second.empty()) {
+				_searchIndex.erase(i);
 			}
 		}
 	}
@@ -339,7 +344,9 @@ void EditorBlock::scrollToSelected() {
 }
 
 void EditorBlock::searchByQuery(QString query) {
-	auto words = TextUtilities::PrepareSearchWords(query, &SearchSplitter);
+	const auto words = TextUtilities::PrepareSearchWords(
+		query,
+		&SearchSplitter);
 	query = words.isEmpty() ? QString() : words.join(' ');
 	if (_searchQuery != query) {
 		setSelected(-1);
@@ -348,28 +355,28 @@ void EditorBlock::searchByQuery(QString query) {
 		_searchQuery = query;
 		_searchResults.clear();
 
-		auto toFilter = OrderedSet<int>();
-		for_const (auto &word, words) {
+		auto toFilter = (base::flat_set<int>*)nullptr;
+		for (const auto &word : words) {
 			if (word.isEmpty()) continue;
 
-			auto testToFilter = _searchIndex.value(word[0]);
-			if (testToFilter.isEmpty()) {
-				toFilter.clear();
+			const auto i = _searchIndex.find(word[0]);
+			if (i == end(_searchIndex) || i->second.empty()) {
+				toFilter = nullptr;
 				break;
-			} else if (toFilter.isEmpty() || testToFilter.size() < toFilter.size()) {
-				toFilter = testToFilter;
+			} else if (!toFilter || i->second.size() < toFilter->size()) {
+				toFilter = &i->second;
 			}
 		}
-		if (!toFilter.isEmpty()) {
-			auto allWordsFound = [&words](const Row &row) {
-				for_const (auto &word, words) {
+		if (toFilter) {
+			const auto allWordsFound = [&](const Row &row) {
+				for (const auto &word : words) {
 					if (!row.searchWordsContain(word)) {
 						return false;
 					}
 				}
 				return true;
 			};
-			for_const (auto index, toFilter) {
+			for (const auto index : *toFilter) {
 				if (allWordsFound(_data[index])) {
 					_searchResults.push_back(index);
 				}
@@ -423,7 +430,7 @@ void EditorBlock::sortByDistance(const QColor &to) {
 template <typename Callback>
 void EditorBlock::enumerateRows(Callback callback) {
 	if (isSearch()) {
-		for_const (auto index, _searchResults) {
+		for (const auto index : _searchResults) {
 			if (!callback(_data[index])) {
 				break;
 			}
@@ -440,7 +447,7 @@ void EditorBlock::enumerateRows(Callback callback) {
 template <typename Callback>
 void EditorBlock::enumerateRows(Callback callback) const {
 	if (isSearch()) {
-		for_const (auto index, _searchResults) {
+		for (const auto index : _searchResults) {
 			if (!callback(_data[index])) {
 				break;
 			}

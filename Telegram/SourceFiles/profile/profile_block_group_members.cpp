@@ -233,7 +233,7 @@ void GroupMembersWidget::sortMembers() {
 void GroupMembersWidget::updateOnlineCount() {
 	bool onlyMe = true;
 	int newOnlineCount = 0;
-	for_const (auto item, items()) {
+	for (const auto item : items()) {
 		auto member = getMember(item);
 		auto user = member->user();
 		auto isOnline = !user->isBot() && Data::OnlineTextActive(member->onlineTill, _now);
@@ -433,7 +433,7 @@ void GroupMembersWidget::updateOnlineDisplay() {
 		_now = base::unixtime::now();
 
 		bool changed = false;
-		for_const (auto item, items()) {
+		for (const auto item : items()) {
 			if (!item->statusHasOnlineColor) {
 				if (!item->peer->isSelf()) {
 					continue;

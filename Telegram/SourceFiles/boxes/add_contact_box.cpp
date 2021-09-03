@@ -1452,7 +1452,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 void RevokePublicLinkBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.translate(0, _rowsTop);
-	for_const (auto &row, _rows) {
+	for (const auto &row : _rows) {
 		paintChat(p, row, (row.peer == _selected));
 		p.translate(0, _rowHeight);
 	}

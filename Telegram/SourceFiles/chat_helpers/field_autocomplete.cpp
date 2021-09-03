@@ -379,9 +379,12 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 
 		bool listAllSuggestions = _filter.isEmpty();
 		if (_addInlineBots) {
-			for_const (auto user, cRecentInlineBots()) {
-				if (user->isInaccessible()) continue;
-				if (!listAllSuggestions && filterNotPassedByUsername(user)) continue;
+			for (const auto user : cRecentInlineBots()) {
+				if (user->isInaccessible()
+					|| (!listAllSuggestions
+						&& filterNotPassedByUsername(user))) {
+					continue;
+				}
 				mrows.push_back({ user });
 				++recentInlineBots;
 			}

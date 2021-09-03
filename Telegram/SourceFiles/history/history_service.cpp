@@ -951,7 +951,7 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 		prepared.text,
 		Ui::ItemTextServiceOptions());
 	auto linkIndex = 0;
-	for_const (auto &link, prepared.links) {
+	for (const auto &link : prepared.links) {
 		// Link indices start with 1.
 		_text.setLink(++linkIndex, link);
 	}

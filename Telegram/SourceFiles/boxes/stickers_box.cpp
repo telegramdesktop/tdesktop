@@ -470,7 +470,7 @@ void StickersBox::getArchivedDone(
 
 	auto addedSet = false;
 	auto changedSets = false;
-	for_const (const auto &stickerSet, stickers.vsets().v) {
+	for (const auto &stickerSet : stickers.vsets().v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
@@ -2291,7 +2291,7 @@ int StickersBox::Inner::getRowIndex(uint64 setId) const {
 }
 
 void StickersBox::Inner::setFullOrder(const StickersSetsOrder &order) {
-	for_const (auto setId, order) {
+	for (const auto setId : order) {
 		auto index = getRowIndex(setId);
 		if (index >= 0) {
 			auto row = std::move(_rows[index]);

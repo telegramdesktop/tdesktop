@@ -98,7 +98,7 @@ QPixmap Manager::hiddenUserpicPlaceholder() const {
 }
 
 bool Manager::hasReplyingNotification() const {
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		if (notification->isReplying()) {
 			return true;
 		}
@@ -110,7 +110,7 @@ void Manager::settingsChanged(ChangeType change) {
 	if (change == ChangeType::Corner) {
 		auto startPosition = notificationStartPosition();
 		auto shiftDirection = notificationShiftDirection();
-		for_const (auto &notification, _notifications) {
+		for (const auto &notification : _notifications) {
 			notification->updatePosition(startPosition, shiftDirection);
 		}
 		if (_hideAll) {
@@ -142,7 +142,7 @@ void Manager::settingsChanged(ChangeType change) {
 }
 
 void Manager::demoMasterOpacityCallback() {
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		notification->updateOpacity();
 	}
 	if (_hideAll) {
@@ -173,7 +173,7 @@ void Manager::checkLastInput() {
 void Manager::startAllHiding() {
 	if (!hasReplyingNotification()) {
 		int notHidingCount = 0;
-		for_const (auto &notification, _notifications) {
+		for (const auto &notification : _notifications) {
 			if (notification->isShowing()) {
 				++notHidingCount;
 			} else {
@@ -188,7 +188,7 @@ void Manager::startAllHiding() {
 }
 
 void Manager::stopAllHiding() {
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		notification->stopHiding();
 	}
 	if (_hideAll) {
@@ -400,7 +400,7 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 	}), _queuedNotifications.cend());
 
 	auto showNext = false;
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		if (notification->unlinkItem(item)) {
 			showNext = true;
 		}
@@ -424,7 +424,7 @@ bool Manager::doSkipFlashBounce() const {
 }
 
 void Manager::doUpdateAll() {
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		notification->updateNotifyDisplay();
 	}
 }

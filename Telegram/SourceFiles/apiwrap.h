@@ -416,11 +416,12 @@ public:
 
 private:
 	struct MessageDataRequest {
-		using Callbacks = QList<RequestMessageDataCallback>;
+		using Callbacks = std::vector<RequestMessageDataCallback>;
+
 		mtpRequestId requestId = 0;
 		Callbacks callbacks;
 	};
-	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
+	using MessageDataRequests = base::flat_map<MsgId, MessageDataRequest>;
 	using SharedMediaType = Storage::SharedMediaType;
 
 	struct StickersByEmoji {
@@ -460,8 +461,11 @@ private:
 		ChannelData *channel,
 		mtpRequestId requestId);
 
-	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
-	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
+	[[nodiscard]] QVector<MTPInputMessage> collectMessageIds(
+		const MessageDataRequests &requests);
+	[[nodiscard]] MessageDataRequests *messageDataRequests(
+		ChannelData *channel,
+		bool onlyExisting = false);
 
 	void gotChatFull(
 		not_null<PeerData*> peer,
@@ -580,7 +584,9 @@ private:
 	base::flat_map<QString, int> _modifyRequests;
 
 	MessageDataRequests _messageDataRequests;
-	QMap<ChannelData*, MessageDataRequests> _channelMessageDataRequests;
+	base::flat_map<
+		ChannelData*,
+		MessageDataRequests> _channelMessageDataRequests;
 	SingleQueuedInvokation _messageDataResolveDelayed;
 
 	using PeerRequests = QMap<PeerData*, mtpRequestId>;

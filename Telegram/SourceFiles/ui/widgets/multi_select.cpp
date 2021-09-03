@@ -188,7 +188,7 @@ QRect MultiSelect::Item::paintArea(int outerWidth) const {
 		return rect();
 	}
 	auto yMin = 0, yMax = 0;
-	for_const (auto &copy, _copies) {
+	for (const auto &copy : _copies) {
 		accumulate_max(yMax, copy.y);
 		if (yMin) {
 			accumulate_min(yMin, copy.y);
@@ -671,7 +671,7 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto itemTop = 0;
 	auto widthLeft = newWidth;
 	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
-	for_const (auto &item, _items) {
+	for (const auto &item : _items) {
 		auto itemWidth = item->getWidth();
 		Assert(itemWidth <= newWidth);
 		if (itemWidth > widthLeft) {
@@ -721,7 +721,7 @@ void MultiSelect::Inner::finishHeightAnimation() {
 }
 
 void MultiSelect::Inner::setItemText(uint64 itemId, const QString &text) {
-	for_const (auto &item, _items) {
+	for (const auto &item : _items) {
 		if (item->id() == itemId) {
 			item->setText(text);
 			updateItemsGeometry();
@@ -783,7 +783,7 @@ int MultiSelect::Inner::getItemsCount() const {
 QVector<uint64> MultiSelect::Inner::getItems() const {
 	auto result = QVector<uint64>();
 	result.reserve(_items.size());
-	for_const (auto &item, _items) {
+	for (const auto &item : _items) {
 		result.push_back(item->id());
 	}
 	return result;
