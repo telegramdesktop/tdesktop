@@ -18,12 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 
-namespace {
-
-QString LastValidISO;
-
-} // namespace
-
 CountryInput::CountryInput(QWidget *parent, const style::InputField &st)
 : RpWidget(parent)
 , _st(st)
@@ -168,7 +162,7 @@ void CountryInput::onChooseCode(const QString &code) {
 		const auto i = byCode.constFind(code);
 		if (i != byCode.cend()) {
 			const auto info = *i;
-			_chosenIso = LastValidISO = info->iso2;
+			_chosenIso = info->iso2;
 			setText(info->name);
 		} else {
 			setText(tr::lng_bad_country_code(tr::now));
@@ -195,7 +189,7 @@ bool CountryInput::chooseCountry(const QString &iso) {
 void CountryInput::chooseCountry(
 		not_null<const Countries::Info*> info,
 		int codeIndex) {
-	_chosenIso = LastValidISO = info->iso2;
+	_chosenIso = info->iso2;
 	setText(info->name);
 	_codeChanged.fire_copy(info->codes[codeIndex].callingCode);
 	update();
