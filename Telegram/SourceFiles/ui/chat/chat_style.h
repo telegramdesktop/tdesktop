@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class ImageRoundRadius;
 
+namespace style {
+struct TwoIconButton;
+} // namespace style
+
 namespace Ui {
 
 class ChatTheme;
@@ -136,6 +140,13 @@ public:
 
 	void apply(not_null<ChatTheme*> theme);
 
+	template <typename Type>
+	[[nodiscard]] Type value(const Type &original) const {
+		auto my = Type();
+		make(my, original);
+		return my;
+	}
+
 	[[nodiscard]] const CornersPixmaps &serviceBgCornersNormal() const;
 	[[nodiscard]] const CornersPixmaps &serviceBgCornersInverted() const;
 
@@ -224,9 +235,14 @@ public:
 private:
 	void assignPalette(not_null<const style::palette*> palette);
 
-	void make(style::color &my, const style::color &original);
-	void make(style::icon &my, const style::icon &original);
-	void make(style::TextPalette &my, const style::TextPalette &original);
+	void make(style::color &my, const style::color &original) const;
+	void make(style::icon &my, const style::icon &original) const;
+	void make(
+		style::TextPalette &my,
+		const style::TextPalette &original) const;
+	void make(
+		style::TwoIconButton &my,
+		const style::TwoIconButton &original) const;
 
 	[[nodiscard]] MessageStyle &messageStyleRaw(
 		bool outbg,

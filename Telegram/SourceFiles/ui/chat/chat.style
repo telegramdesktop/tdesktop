@@ -461,9 +461,7 @@ msgBotKbButton: BotKeyboardButton {
 	padding: 10px;
 	height: 36px;
 	textTop: 8px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: msgBotKbRippleBg;
-	}
+	ripple: defaultRippleAnimation;
 }
 
 botKbDuration: 200;
@@ -737,12 +735,6 @@ historyPollDuration: 300;
 historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 2px;
 	size: size(18px, 18px);
-}
-historyPollRippleIn: RippleAnimation(defaultRippleAnimation) {
-	color: msgWaveformInInactive;
-}
-historyPollRippleOut: RippleAnimation(defaultRippleAnimation) {
-	color: msgWaveformOutInactive;
 }
 historyPollRippleOpacity: 0.3;
 historyPollRecentVotersSkip: 4px;

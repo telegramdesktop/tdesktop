@@ -806,7 +806,9 @@ void Poll::paintBottom(
 		int top,
 		int paintw,
 		const PaintContext &context) const {
-	const auto stringtop = top + st::msgPadding.bottom() + st::historyPollBottomButtonTop;
+	const auto stringtop = top
+		+ st::msgPadding.bottom()
+		+ st::historyPollBottomButtonTop;
 	const auto stm = context.messageStyle();
 	if (showVotersCount()) {
 		p.setPen(stm->msgDateFg);
@@ -820,7 +822,12 @@ void Poll::paintBottom(
 		if (_linkRipple) {
 			const auto linkHeight = bottomButtonHeight();
 			p.setOpacity(st::historyPollRippleOpacity);
-			_linkRipple->paint(p, left - st::msgPadding.left(), height() - linkHeight, width());
+			_linkRipple->paint(
+				p,
+				left - st::msgPadding.left(),
+				height() - linkHeight,
+				width(),
+				&stm->msgWaveformInactive->c);
 			if (_linkRipple->empty()) {
 				_linkRipple.reset();
 			}
@@ -832,7 +839,12 @@ void Poll::paintBottom(
 			? tr::lng_polls_view_results(tr::now, Ui::Text::Upper)
 			: tr::lng_polls_submit_votes(tr::now, Ui::Text::Upper);
 		const auto stringw = st::semiboldFont->width(string);
-		p.drawTextLeft(left + (paintw - stringw) / 2, stringtop, width(), string, stringw);
+		p.drawTextLeft(
+			left + (paintw - stringw) / 2,
+			stringtop,
+			width(),
+			string,
+			stringw);
 	}
 }
 
@@ -1018,7 +1030,12 @@ int Poll::paintAnswer(
 
 	if (answer.ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
-		answer.ripple->paint(p, left - st::msgPadding.left(), top, outerWidth);
+		answer.ripple->paint(
+			p,
+			left - st::msgPadding.left(),
+			top,
+			outerWidth,
+			&stm->msgWaveformInactive->c);
 		if (answer.ripple->empty()) {
 			answer.ripple.reset();
 		}
@@ -1445,9 +1462,7 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 				outerWidth,
 				countAnswerHeight(answer, innerWidth)));
 			answer.ripple = std::make_unique<Ui::RippleAnimation>(
-				(_parent->hasOutLayout()
-					? st::historyPollRippleOut
-					: st::historyPollRippleIn),
+				st::defaultRippleAnimation,
 				std::move(mask),
 				[=] { history()->owner().requestViewRepaint(_parent); });
 		}
@@ -1510,9 +1525,7 @@ void Poll::toggleLinkRipple(bool pressed) {
 					drawMask)
 				: Ui::RippleAnimation::rectMask({ linkWidth, linkHeight });
 			_linkRipple = std::make_unique<Ui::RippleAnimation>(
-				(_parent->hasOutLayout()
-					? st::historyPollRippleOut
-					: st::historyPollRippleIn),
+				st::defaultRippleAnimation,
 				std::move(mask),
 				[=] { history()->owner().requestViewRepaint(_parent); });
 		}

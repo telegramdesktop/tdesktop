@@ -803,7 +803,8 @@ void ReplyKeyboard::Style::paintButton(
 	const QRect &rect = button.rect;
 	paintButtonBg(p, st, rect, button.howMuchOver);
 	if (button.ripple) {
-		button.ripple->paint(p, rect.x(), rect.y(), outerWidth);
+		const auto color = st ? &st->msgBotKbRippleBg()->c : nullptr;
+		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, color);
 		if (button.ripple->empty()) {
 			button.ripple.reset();
 		}

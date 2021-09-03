@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {
@@ -596,17 +597,17 @@ MessageImageStyle &ChatStyle::imageSelected() {
 	return imageStyleRaw(true);
 }
 
-void ChatStyle::make(style::color &my, const style::color &original) {
+void ChatStyle::make(style::color &my, const style::color &original) const {
 	my = _colors[style::main_palette::indexOfColor(original)];
 }
 
-void ChatStyle::make(style::icon &my, const style::icon &original) {
+void ChatStyle::make(style::icon &my, const style::icon &original) const {
 	my = original.withPalette(*this);
 }
 
 void ChatStyle::make(
 		style::TextPalette &my,
-		const style::TextPalette &original) {
+		const style::TextPalette &original) const {
 	make(my.linkFg, original.linkFg);
 	make(my.monoFg, original.monoFg);
 	make(my.selectBg, original.selectBg);
@@ -614,6 +615,17 @@ void ChatStyle::make(
 	make(my.selectLinkFg, original.selectLinkFg);
 	make(my.selectMonoFg, original.selectMonoFg);
 	make(my.selectOverlay, original.selectOverlay);
+}
+
+void ChatStyle::make(
+		style::TwoIconButton &my,
+		const style::TwoIconButton &original) const {
+	my = original;
+	make(my.iconBelow, original.iconBelow);
+	make(my.iconAbove, original.iconAbove);
+	make(my.iconBelowOver, original.iconBelowOver);
+	make(my.iconAboveOver, original.iconAboveOver);
+	make(my.ripple.color, original.ripple.color);
 }
 
 template <typename Type>

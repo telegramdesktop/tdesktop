@@ -180,6 +180,11 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 } // namespace
 
+struct HistoryWidget::CustomStyles {
+	style::TwoIconButton historyToDown;
+	style::TwoIconButton historyUnreadMentions;
+};
+
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -187,6 +192,7 @@ HistoryWidget::HistoryWidget(
 	parent,
 	controller,
 	ActivePeerValue(controller))
+, _styles(MakeCustomStyles(controller))
 , _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
@@ -195,8 +201,8 @@ HistoryWidget::HistoryWidget(
 , _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
 , _updateHistoryItems([=] { updateHistoryItemsByTimer(); })
-, _historyDown(_scroll, st::historyToDown)
-, _unreadMentions(_scroll, st::historyUnreadMentions)
+, _historyDown(_scroll, _styles->historyToDown)
+, _unreadMentions(_scroll, _styles->historyUnreadMentions)
 , _fieldAutocomplete(this, controller)
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
@@ -3982,6 +3988,17 @@ bool HistoryWidget::updateCmdStartShown() {
 
 bool HistoryWidget::kbWasHidden() const {
 	return _history && (_keyboard->forMsgId() == FullMsgId(_history->channelId(), _history->lastKeyboardHiddenId));
+}
+
+auto HistoryWidget::MakeCustomStyles(
+	not_null<Window::SessionController*> controller)
+-> std::unique_ptr<CustomStyles> {
+	const auto st = controller->chatStyle();
+
+	auto result = std::make_unique<CustomStyles>();
+	result->historyToDown = st->value(st::historyToDown);
+	result->historyUnreadMentions = st->value(st::historyUnreadMentions);
+	return result;
 }
 
 void HistoryWidget::toggleKeyboard(bool manual) {

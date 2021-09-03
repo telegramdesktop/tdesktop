@@ -300,6 +300,7 @@ protected:
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
+	struct CustomStyles;
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -602,6 +603,11 @@ private:
 	void refreshScheduledToggle();
 
 	bool kbWasHidden() const;
+
+	[[nodiscard]] static std::unique_ptr<CustomStyles> MakeCustomStyles(
+		not_null<Window::SessionController*> controller);
+
+	const std::unique_ptr<CustomStyles> _styles;
 
 	MTP::Sender _api;
 	MsgId _replyToId = 0;

@@ -727,7 +727,8 @@ void Message::paintCommentsButton(
 
 	if (_comments->ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
-		_comments->ripple->paint(p, left, top, width);
+		const auto colorOverride = &stm->msgWaveformInactive->c;
+		_comments->ripple->paint(p, left, top, width, colorOverride);
 		if (_comments->ripple->empty()) {
 			_comments->ripple.reset();
 		}
@@ -1098,9 +1099,7 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 				false,
 				drawMask);
 			_comments->ripple = std::make_unique<Ui::RippleAnimation>(
-				(hasOutLayout()
-					? st::historyPollRippleOut
-					: st::historyPollRippleIn),
+				st::defaultRippleAnimation,
 				std::move(mask),
 				[=] { history()->owner().requestViewRepaint(this); });
 		}
