@@ -498,7 +498,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		auto unreadbarh = bar->height();
 		if (context.clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
 			p.translate(0, dateh);
-			bar->paint(p, 0, width(), delegate()->elementIsChatWide());
+			bar->paint(
+				p,
+				context,
+				0,
+				width(),
+				delegate()->elementIsChatWide());
 			p.translate(0, -dateh);
 		}
 	}
@@ -537,9 +542,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (customHighlight) {
-		media->drawHighlight(p, localMediaTop);
+		media->drawHighlight(p, context, localMediaTop);
 	} else {
-		paintHighlight(p, g.height());
+		paintHighlight(p, context, g.height());
 	}
 
 	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();

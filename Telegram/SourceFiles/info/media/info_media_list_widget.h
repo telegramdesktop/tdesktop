@@ -90,6 +90,7 @@ public:
 
 private:
 	struct Context;
+	struct DateBadge;
 	class Section;
 	using CursorState = HistoryView::CursorState;
 	using TextState = HistoryView::TextState;
@@ -331,15 +332,7 @@ private:
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
-	struct DateBadge {
-		SingleQueuedInvokation check;
-		base::Timer hideTimer;
-		Ui::Animations::Simple opacity;
-		bool goodType = false;
-		bool shown = false;
-		QString text;
-		QRect rect;
-	} _dateBadge;
+	const std::unique_ptr<DateBadge> _dateBadge;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;

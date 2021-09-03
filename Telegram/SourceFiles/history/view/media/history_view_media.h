@@ -86,7 +86,10 @@ public:
 	}
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
-	virtual void drawHighlight(Painter &p, int top) const {
+	virtual void drawHighlight(
+		Painter &p,
+		const PaintContext &context,
+		int top) const {
 	}
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const;

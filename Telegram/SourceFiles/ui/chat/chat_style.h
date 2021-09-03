@@ -83,11 +83,18 @@ struct ChatPaintContext {
 
 };
 
+[[nodiscard]] int HistoryServiceMsgRadius();
+[[nodiscard]] int HistoryServiceMsgInvertedRadius();
+[[nodiscard]] int HistoryServiceMsgInvertedShrink();
+
 class ChatStyle final : public style::palette {
 public:
 	ChatStyle();
 
 	void apply(not_null<ChatTheme*> theme);
+
+	[[nodiscard]] const CornersPixmaps &serviceBgCornersNormal() const;
+	[[nodiscard]] const CornersPixmaps &serviceBgCornersInverted() const;
 
 	[[nodiscard]] const MessageStyle &messageStyle(
 		bool outbg,
@@ -104,6 +111,9 @@ public:
 	}
 	[[nodiscard]] const style::TextPalette &imgReplyTextPalette() const {
 		return _imgReplyTextPalette;
+	}
+	[[nodiscard]] const style::TextPalette &serviceTextPalette() const {
+		return _serviceTextPalette;
 	}
 	[[nodiscard]] const style::icon &historyRepliesInvertedIcon() const {
 		return _historyRepliesInvertedIcon;
@@ -174,6 +184,9 @@ private:
 		const Type &originalOut,
 		const Type &originalOutSelected);
 
+	mutable CornersPixmaps _serviceBgCornersNormal;
+	mutable CornersPixmaps _serviceBgCornersInverted;
+
 	mutable std::array<MessageStyle, 4> _messageStyles;
 
 	mutable CornersPixmaps _msgServiceBgCorners;
@@ -184,6 +197,7 @@ private:
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;
+	style::TextPalette _serviceTextPalette;
 	style::icon _historyRepliesInvertedIcon = { Qt::Uninitialized };
 	style::icon _historyViewsInvertedIcon = { Qt::Uninitialized };
 	style::icon _historyViewsSendingIcon = { Qt::Uninitialized };

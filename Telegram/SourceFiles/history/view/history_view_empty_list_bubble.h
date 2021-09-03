@@ -9,14 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace HistoryView {
+namespace Ui {
+class ChatStyle;
+} // namespace Ui
 
-class ListWidget;
+namespace HistoryView {
 
 class EmptyListBubbleWidget : public Ui::RpWidget {
 public:
 	EmptyListBubbleWidget(
-		not_null<ListWidget*> parent,
+		not_null<Ui::RpWidget*> parent,
+		not_null<const Ui::ChatStyle*> st,
 		const style::margins &padding);
 
 	void setText(const TextWithEntities &textWithEntities);
@@ -29,6 +32,7 @@ private:
 	void updateGeometry(const QSize &size);
 
 	const style::margins &_padding;
+	const not_null<const Ui::ChatStyle*> _st;
 	Ui::Text::String _text;
 	int _innerWidth = 0;
 	int _forceWidth = 0;

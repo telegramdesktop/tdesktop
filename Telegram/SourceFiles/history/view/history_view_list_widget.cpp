@@ -256,7 +256,10 @@ ListWidget::ListWidget(
 , _controller(controller)
 , _context(_delegate->listContext())
 , _itemAverageHeight(itemMinimalHeight())
-, _pathGradient(MakePathShiftGradient([=] { update(); }))
+, _pathGradient(
+	MakePathShiftGradient(
+		controller->chatStyle(),
+		[=] { update(); }))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect())
@@ -1700,11 +1703,14 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 					int width = view->width();
 					if (const auto date = view->Get<HistoryView::DateBadge>()) {
-						date->paint(p, dateY, width, _isChatWide);
+						date->paint(p, context.st, dateY, width, _isChatWide);
 					} else {
-						ServiceMessagePainter::paintDate(
+						ServiceMessagePainter::PaintDate(
 							p,
-							ItemDateText(view->data(), IsItemScheduledUntilOnline(view->data())),
+							context.st,
+							ItemDateText(
+								view->data(),
+								IsItemScheduledUntilOnline(view->data())),
 							dateY,
 							width,
 							_isChatWide);

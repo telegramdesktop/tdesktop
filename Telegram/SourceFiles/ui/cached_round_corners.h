@@ -43,9 +43,6 @@ enum CachedRoundCorners : int {
 	InSelectedShadowCorners,
 
 	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
 
 	RoundCornersCount
 };

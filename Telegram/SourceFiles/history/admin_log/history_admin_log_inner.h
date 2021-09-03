@@ -36,6 +36,7 @@ enum class PointState : char;
 
 namespace Ui {
 class PopupMenu;
+class ChatStyle;
 } // namespace Ui
 
 namespace Window {
@@ -213,7 +214,7 @@ private:
 	void updateSize();
 	void updateMinMaxIds();
 	void updateEmptyText();
-	void paintEmpty(Painter &p);
+	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
 	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);

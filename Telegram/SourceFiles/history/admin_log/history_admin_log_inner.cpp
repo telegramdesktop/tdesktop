@@ -237,7 +237,10 @@ InnerWidget::InnerWidget(
 , _channel(channel)
 , _history(channel->owner().history(channel))
 , _api(&_channel->session().mtp())
-, _pathGradient(HistoryView::MakePathShiftGradient([=] { update(); }))
+, _pathGradient(
+	HistoryView::MakePathShiftGradient(
+		controller->chatStyle(),
+		[=] { update(); }))
 , _scrollDateCheck([=] { scrollDateCheck(); })
 , _emptyText(
 		st::historyAdminLogEmptyWidth
@@ -906,8 +909,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
+	auto context = _controller->preparePaintContext({
+		.theme = _theme.get(),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+		.clip = clip,
+	});
 	if (_items.empty() && _upLoaded && _downLoaded) {
-		paintEmpty(p);
+		paintEmpty(p, context.st);
 	} else {
 		_pathGradient->startFrame(
 			0,
@@ -923,12 +932,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		});
 		if (from != end) {
 			auto top = itemTop(from->get());
-			auto context = _controller->preparePaintContext({
-				.theme = _theme.get(),
-				.visibleAreaTop = _visibleTop,
-				.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-				.clip = clip,
-			}).translated(0, -top);
+			context.translate(0, -top);
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
 				const auto view = i->get();
@@ -1000,10 +1004,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						const auto chatWide =
 							_controller->adaptive().isChatWide();
 						if (const auto date = view->Get<HistoryView::DateBadge>()) {
-							date->paint(p, dateY, width, chatWide);
+							date->paint(p, context.st, dateY, width, chatWide);
 						} else {
-							HistoryView::ServiceMessagePainter::paintDate(
+							HistoryView::ServiceMessagePainter::PaintDate(
 								p,
+								context.st,
 								view->dateTime(),
 								dateY,
 								width,
@@ -1043,19 +1048,14 @@ auto InnerWidget::viewForItem(const HistoryItem *item) -> Element* {
 	return nullptr;
 }
 
-void InnerWidget::paintEmpty(Painter &p) {
+void InnerWidget::paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st) {
 	auto rectWidth = st::historyAdminLogEmptyWidth;
 	auto innerWidth = rectWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.right();
 	auto rectHeight = st::historyAdminLogEmptyPadding.top() + _emptyText.countHeight(innerWidth) + st::historyAdminLogEmptyPadding.bottom();
 	auto rect = QRect((width() - rectWidth) / 2, (height() - rectHeight) / 3, rectWidth, rectHeight);
-	HistoryView::ServiceMessagePainter::paintBubble(
-		p,
-		rect.x(),
-		rect.y(),
-		rect.width(),
-		rect.height());
+	HistoryView::ServiceMessagePainter::PaintBubble(p, st, rect);
 
-	p.setPen(st::msgServiceFg);
+	p.setPen(st->msgServiceFg());
 	_emptyText.draw(p, rect.x() + st::historyAdminLogEmptyPadding.left(), rect.y() + st::historyAdminLogEmptyPadding.top(), innerWidth, style::al_top);
 }
 

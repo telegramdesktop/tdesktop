@@ -95,9 +95,6 @@ void CreatePaletteCorners() {
 	PrepareCorners(Doc4Corners, st::roundRadiusSmall, st::msgFile4Bg);
 
 	PrepareCorners(MessageInCorners, st::historyMessageRadius, st::msgInBg, &st::msgInShadow);
-	PrepareCorners(MessageInSelectedCorners, st::historyMessageRadius, st::msgInBgSelected, &st::msgInShadowSelected);
-	PrepareCorners(MessageOutCorners, st::historyMessageRadius, st::msgOutBg, &st::msgOutShadow);
-	PrepareCorners(MessageOutSelectedCorners, st::historyMessageRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 }
 
 } // namespace

@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/controls/delete_message_context_action.h"
+#include "ui/chat/chat_style.h"
+#include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
 #include "lang/lang_keys.h"
@@ -92,6 +94,20 @@ struct ListWidget::Context {
 	not_null<SelectedMap*> selected;
 	not_null<SelectedMap*> dragSelected;
 	DragSelectAction dragSelectAction;
+};
+
+struct ListWidget::DateBadge {
+	DateBadge(Type type, Fn<void()> checkCallback, Fn<void()> hideCallback);
+
+	SingleQueuedInvokation check;
+	base::Timer hideTimer;
+	Ui::Animations::Simple opacity;
+	Ui::CornersPixmaps corners;
+	bool goodType = false;
+	bool shown = false;
+	QString text;
+	int textWidth = 0;
+	QRect rect;
 };
 
 class ListWidget::Section {
@@ -227,6 +243,17 @@ ListWidget::CachedItem &ListWidget::CachedItem::operator=(
 	CachedItem && other) = default;
 
 ListWidget::CachedItem::~CachedItem() = default;
+
+ListWidget::DateBadge::DateBadge(
+	Type type,
+	Fn<void()> checkCallback,
+	Fn<void()> hideCallback)
+: check(std::move(checkCallback))
+, hideTimer(std::move(hideCallback))
+, goodType(type == Type::Photo
+	|| type == Type::Video
+	|| type == Type::GIF) {
+}
 
 bool ListWidget::Section::addItem(not_null<BaseLayout*> item) {
 	if (_items.empty() || belongsHere(item)) {
@@ -664,13 +691,10 @@ ListWidget::ListWidget(
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId))
-, _dateBadge(DateBadge{
-	.check = SingleQueuedInvokation([=] { scrollDateCheck(); }),
-	.hideTimer = base::Timer([=] { scrollDateHide(); }),
-	.goodType = (_type == Type::Photo
-		|| _type == Type::Video
-		|| _type == Type::GIF),
-}) {
+, _dateBadge(std::make_unique<DateBadge>(
+		_type,
+		[=] { scrollDateCheck(); },
+		[=] { scrollDateHide(); })) {
 	setMouseTracking(true);
 	start();
 }
@@ -1204,16 +1228,16 @@ void ListWidget::visibleTopBottomUpdated(
 	checkMoveToOtherViewer();
 	clearHeavyItems();
 
-	if (_dateBadge.goodType) {
+	if (_dateBadge->goodType) {
 		updateDateBadgeFor(_visibleTop);
 		if (!_visibleTop) {
-			if (_dateBadge.shown) {
+			if (_dateBadge->shown) {
 				scrollDateHide();
 			} else {
-				update(_dateBadge.rect);
+				update(_dateBadge->rect);
 			}
 		} else {
-			_dateBadge.check.call();
+			_dateBadge->check.call();
 		}
 	}
 }
@@ -1228,29 +1252,30 @@ void ListWidget::updateDateBadgeFor(int top) {
 		+ st::msgServiceFont->height
 		+ st::msgServicePadding.bottom();
 
-	_dateBadge.text = ItemDateText(layout->getItem(), false);
-	_dateBadge.rect = QRect(0, top, width(), rectHeight);
+	_dateBadge->text = ItemDateText(layout->getItem(), false);
+	_dateBadge->textWidth = st::msgServiceFont->width(_dateBadge->text);
+	_dateBadge->rect = QRect(0, top, width(), rectHeight);
 }
 
 void ListWidget::scrollDateCheck() {
-	if (!_dateBadge.shown) {
+	if (!_dateBadge->shown) {
 		toggleScrollDateShown();
 	}
-	_dateBadge.hideTimer.callOnce(st::infoScrollDateHideTimeout);
+	_dateBadge->hideTimer.callOnce(st::infoScrollDateHideTimeout);
 }
 
 void ListWidget::scrollDateHide() {
-	if (_dateBadge.shown) {
+	if (_dateBadge->shown) {
 		toggleScrollDateShown();
 	}
 }
 
 void ListWidget::toggleScrollDateShown() {
-	_dateBadge.shown = !_dateBadge.shown;
-	_dateBadge.opacity.start(
-		[=] { update(_dateBadge.rect); },
-		_dateBadge.shown ? 0. : 1.,
-		_dateBadge.shown ? 1. : 0.,
+	_dateBadge->shown = !_dateBadge->shown;
+	_dateBadge->opacity.start(
+		[=] { update(_dateBadge->rect); },
+		_dateBadge->shown ? 0. : 1.,
+		_dateBadge->shown ? 1. : 0.,
 		st::infoDateFadeDuration);
 }
 
@@ -1403,19 +1428,27 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		fromSectionIt->paintFloatingHeader(p, _visibleTop, outerWidth);
 	}
 
-	if (_dateBadge.goodType && clip.intersects(_dateBadge.rect)) {
+	if (_dateBadge->goodType && clip.intersects(_dateBadge->rect)) {
 		const auto scrollDateOpacity =
-			_dateBadge.opacity.value(_dateBadge.shown ? 1. : 0.);
+			_dateBadge->opacity.value(_dateBadge->shown ? 1. : 0.);
 		if (scrollDateOpacity > 0.) {
 			p.setOpacity(scrollDateOpacity);
-			HistoryView::ServiceMessagePainter::paintDate(
+			if (_dateBadge->corners.p[0].isNull()) {
+				_dateBadge->corners = Ui::PrepareCornerPixmaps(
+					Ui::HistoryServiceMsgRadius(),
+					st::roundedBg,
+					nullptr);
+			}
+			HistoryView::ServiceMessagePainter::PaintDate(
 				p,
-				_dateBadge.text,
+				st::roundedBg,
+				_dateBadge->corners,
+				st::roundedFg,
+				_dateBadge->text,
+				_dateBadge->textWidth,
 				_visibleTop,
 				outerWidth,
-				false,
-				st::roundedBg,
-				st::roundedFg);
+				false);
 		}
 	}
 }

@@ -35,6 +35,7 @@ class SessionController;
 
 namespace Ui {
 class ChatTheme;
+class ChatStyle;
 class PopupMenu;
 enum class ReportReason;
 class PathShiftGradient;
@@ -246,7 +247,11 @@ private:
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 
-	void paintEmpty(Painter &p, int width, int height);
+	void paintEmpty(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int width,
+		int height);
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;

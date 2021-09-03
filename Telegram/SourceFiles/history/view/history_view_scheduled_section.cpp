@@ -163,6 +163,7 @@ ScheduledWidget::ScheduledWidget(
 	{
 		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
 			_inner,
+			controller->chatStyle(),
 			st::msgServicePadding);
 		const auto emptyText = Ui::Text::Semibold(
 			tr::lng_scheduled_messages_empty(tr::now));

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 
 #include "ui/chat/chat_theme.h"
+#include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
@@ -30,10 +31,36 @@ not_null<const MessageStyle*> ChatPaintContext::messageStyle() const {
 	return &st->messageStyle(outbg, selected());
 }
 
+int HistoryServiceMsgRadius() {
+	static const auto result = [] {
+		const auto minMessageHeight = st::msgServicePadding.top()
+			+ st::msgServiceFont->height
+			+ st::msgServicePadding.bottom();
+		return minMessageHeight / 2;
+	}();
+	return result;
+}
+
+int HistoryServiceMsgInvertedRadius() {
+	static const auto result = [] {
+		const auto minRowHeight = st::msgServiceFont->height;
+		return minRowHeight - HistoryServiceMsgRadius();
+	}();
+	return result;
+}
+
+int HistoryServiceMsgInvertedShrink() {
+	static const auto result = [] {
+		return (HistoryServiceMsgInvertedRadius() * 2) / 3;
+	}();
+	return result;
+}
+
 ChatStyle::ChatStyle() {
 	finalize();
 	make(_historyPsaForwardPalette, st::historyPsaForwardPalette);
 	make(_imgReplyTextPalette, st::imgReplyTextPalette);
+	make(_serviceTextPalette, st::serviceTextPalette);
 	make(_historyRepliesInvertedIcon, st::historyRepliesInvertedIcon);
 	make(_historyViewsInvertedIcon, st::historyViewsInvertedIcon);
 	make(_historyViewsSendingIcon, st::historyViewsSendingIcon);
@@ -212,9 +239,41 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	for (auto &style : _messageStyles) {
 		style.corners = {};
 	}
+	_serviceBgCornersNormal = {};
+	_serviceBgCornersInverted = {};
 	_msgServiceBgCorners = {};
 	_msgServiceBgSelectedCorners = {};
 	_msgBotKbOverBgAddCorners = {};
+	_msgDateImgBgCorners = {};
+	_msgDateImgBgSelectedCorners = {};
+}
+
+const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
+	EnsureCorners(
+		_serviceBgCornersNormal,
+		HistoryServiceMsgRadius(),
+		msgServiceBg());
+	return _serviceBgCornersNormal;
+}
+
+const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
+	if (_serviceBgCornersInverted.p[0].isNull()) {
+		const auto radius = HistoryServiceMsgInvertedRadius();
+		const auto size = radius * style::DevicePixelRatio();
+		auto circle = style::colorizeImage(
+			style::createInvertedCircleMask(radius * 2),
+			msgServiceBg());
+		circle.setDevicePixelRatio(style::DevicePixelRatio());
+		const auto fill = [&](int index, int xoffset, int yoffset) {
+			_serviceBgCornersInverted.p[index] = PixmapFromImage(
+				circle.copy(QRect(xoffset, yoffset, size, size)));
+		};
+		fill(0, 0, 0);
+		fill(1, size, 0);
+		fill(2, size, size);
+		fill(3, 0, size);
+	}
+	return _serviceBgCornersInverted;
 }
 
 const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {

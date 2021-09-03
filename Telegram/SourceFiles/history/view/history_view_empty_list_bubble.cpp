@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_empty_list_bubble.h"
 
-#include "history/view/history_view_list_widget.h"
+#include "ui/chat/chat_style.h"
 #include "history/view/history_view_service_message.h"
 
 namespace HistoryView {
 
 EmptyListBubbleWidget::EmptyListBubbleWidget(
-	not_null<ListWidget*> parent,
+	not_null<Ui::RpWidget*> parent,
+	not_null<const Ui::ChatStyle*> st,
 	const style::margins &padding)
 : RpWidget(parent)
-, _padding(padding) {
-
+, _padding(padding)
+, _st(st) {
 	parent->sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		updateGeometry(s);
@@ -42,14 +43,9 @@ void EmptyListBubbleWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto r = rect();
-	HistoryView::ServiceMessagePainter::paintBubble(
-		p,
-		r.x(),
-		r.y(),
-		r.width(),
-		r.height());
+	HistoryView::ServiceMessagePainter::PaintBubble(p, _st, r);
 
-	p.setPen(st::msgServiceFg);
+	p.setPen(_st->msgServiceFg());
 	_text.draw(
 		p,
 		r.x() + _padding.left(),

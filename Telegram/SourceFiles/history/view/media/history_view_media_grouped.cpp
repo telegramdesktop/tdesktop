@@ -270,7 +270,10 @@ QMargins GroupedMedia::groupedPadding() const {
 		(normal.bottom() - grouped.bottom()) + addToBottom);
 }
 
-void GroupedMedia::drawHighlight(Painter &p, int top) const {
+void GroupedMedia::drawHighlight(
+		Painter &p,
+		const PaintContext &context,
+		int top) const {
 	if (_mode != Mode::Column) {
 		return;
 	}
@@ -278,7 +281,12 @@ void GroupedMedia::drawHighlight(Painter &p, int top) const {
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto rect = part.geometry.translated(0, skip);
-		_parent->paintCustomHighlight(p, rect.y(), rect.height(), part.item);
+		_parent->paintCustomHighlight(
+			p,
+			context,
+			rect.y(),
+			rect.height(),
+			part.item);
 	}
 }
 

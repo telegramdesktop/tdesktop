@@ -416,6 +416,9 @@ public:
 	};
 	[[nodiscard]] Ui::ChatPaintContext preparePaintContext(
 		PaintContextArgs &&args);
+	[[nodiscard]] not_null<const Ui::ChatStyle*> chatStyle() const {
+		return _chatStyle.get();
+	}
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -486,7 +489,7 @@ private:
 	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
 	base::flat_map<uint64, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
-	std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 
 	rpl::lifetime _lifetime;

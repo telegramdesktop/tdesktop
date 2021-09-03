@@ -26,6 +26,7 @@ namespace Ui {
 class PathShiftGradient;
 struct BubblePattern;
 struct ChatPaintContext;
+class ChatStyle;
 } // namespace Ui
 
 namespace HistoryView {
@@ -35,6 +36,8 @@ enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
+
+using PaintContext = Ui::ChatPaintContext;
 
 enum class Context : char {
 	History,
@@ -94,6 +97,7 @@ public:
 };
 
 [[nodiscard]] std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
+	not_null<const Ui::ChatStyle*> st,
 	Fn<void()> update);
 
 class SimpleElementDelegate : public ElementDelegate {
@@ -177,7 +181,12 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 	static int height();
 	static int marginTop();
 
-	void paint(Painter &p, int y, int w, bool chatWide) const;
+	void paint(
+		Painter &p,
+		const PaintContext &context,
+		int y,
+		int w,
+		bool chatWide) const;
 
 	QString text;
 	int width = 0;
@@ -191,14 +200,17 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 	void init(const QString &date);
 
 	int height() const;
-	void paint(Painter &p, int y, int w, bool chatWide) const;
+	void paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide) const;
 
 	QString text;
 	int width = 0;
 
 };
-
-using PaintContext = Ui::ChatPaintContext;
 
 class Element
 	: public Object
@@ -347,6 +359,7 @@ public:
 
 	void paintCustomHighlight(
 		Painter &p,
+		const PaintContext &context,
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const;
@@ -376,6 +389,7 @@ public:
 protected:
 	void paintHighlight(
 		Painter &p,
+		const PaintContext &context,
 		int geometryHeight) const;
 
 	[[nodiscard]] ClickHandlerPtr fromLink() const;
