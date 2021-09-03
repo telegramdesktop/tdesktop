@@ -5367,13 +5367,25 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 				for (const auto item : _toForward.items) {
 					if (const auto media = item->media()) {
 						if (!item->originalText().text.isEmpty()
-							&& (media->photo() || media->document())
-							&& !media->webpage()) {
+							&& media->allowsEditCaption()) {
 							return true;
 						}
 					}
 				}
 				return false;
+			}();
+			const auto hasOnlyForcedForwardedInfo = [&] {
+				if (hasCaptions) {
+					return false;
+				}
+				for (const auto item : _toForward.items) {
+					if (const auto media = item->media()) {
+						if (!media->forceForwardedInfo()) {
+							return false;
+						}
+					}
+				}
+				return true;
 			}();
 			const auto dropCaptions = (now == Options::NoNamesAndCaptions);
 			const auto weak = Ui::MakeWeak(this);
@@ -5389,6 +5401,10 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 					.options = draft.options,
 				});
 			});
+			if (hasOnlyForcedForwardedInfo) {
+				changeRecipient();
+				return;
+			}
 			const auto optionsChanged = crl::guard(weak, [=](
 					Ui::ForwardOptions options) {
 				const auto newOptions = (options.hasCaptions
