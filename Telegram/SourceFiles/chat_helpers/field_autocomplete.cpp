@@ -201,7 +201,20 @@ auto FieldAutocomplete::stickerChosen() const
 
 auto FieldAutocomplete::choosingProcesses() const
 -> rpl::producer<FieldAutocomplete::Type> {
-	return _scroll->scrollTopChanges() | rpl::map([=] { return _type; });
+	return _scroll->scrollTopChanges(
+	) | rpl::filter([](int top) {
+		return top != 0;
+	}) | rpl::map([=] {
+		return !_mrows.empty()
+			? Type::Mentions
+			: !_hrows.empty()
+			? Type::Hashtags
+			: !_brows.empty()
+			? Type::BotCommands
+			: !_srows.empty()
+			? Type::Stickers
+			: _type;
+	});
 }
 
 FieldAutocomplete::~FieldAutocomplete() = default;
