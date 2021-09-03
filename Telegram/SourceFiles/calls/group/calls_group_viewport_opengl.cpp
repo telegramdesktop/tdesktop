@@ -398,7 +398,7 @@ void Viewport::RendererGL::ensureARGB32Program() {
 
 void Viewport::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+		QOpenGLFunctions *f) {
 	_frameBuffer = std::nullopt;
 	_frameVertexShader = nullptr;
 	_imageProgram = std::nullopt;

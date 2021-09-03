@@ -225,7 +225,7 @@ void Pip::RendererGL::init(
 
 void Pip::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+		QOpenGLFunctions *f) {
 	_textures.destroy(f);
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;

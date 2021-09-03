@@ -34,7 +34,7 @@ public:
 
 	void deinit(
 		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) override;
+		QOpenGLFunctions *f) override;
 
 	void paint(
 		not_null<QOpenGLWidget*> widget,

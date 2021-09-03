@@ -130,7 +130,7 @@ void OverlayWidget::RendererGL::init(
 
 void OverlayWidget::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+		QOpenGLFunctions *f) {
 	_textures.destroy(f);
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
