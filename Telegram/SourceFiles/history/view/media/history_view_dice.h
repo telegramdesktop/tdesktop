@@ -22,7 +22,10 @@ public:
 	~Dice();
 
 	QSize size() override;
-	void draw(Painter &p, const QRect &r, bool selected) override;
+	void draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) override;
 
 	ClickHandlerPtr link() override;
 

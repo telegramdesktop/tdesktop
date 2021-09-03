@@ -152,6 +152,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
+	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
@@ -200,8 +201,8 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			rthumb.y() + (rthumb.height() / 2) - icon.height(),
 			width());
 	};
-	paintMarker(st::historyMapPoint);
-	paintMarker(st::historyMapPointInner);
+	paintMarker(st->historyMapPoint());
+	paintMarker(st->historyMapPointInner());
 	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}

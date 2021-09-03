@@ -594,14 +594,18 @@ QRect BackgroundPreviewBox::radialRect() const {
 void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	const auto height1 = _text1->height();
 	const auto height2 = _text2->height();
-	const auto context = _controller->defaultChatTheme()->preparePaintContext(
+	auto context = _controller->defaultChatTheme()->preparePaintContext(
 		_chatStyle.get(),
 		rect(),
 		rect());
 	p.translate(0, textsTop());
 	paintDate(p);
+
+	context.outbg = _text1->hasOutLayout();
 	_text1->draw(p, context);
 	p.translate(0, height1);
+
+	context.outbg = _text2->hasOutLayout();
 	_text2->draw(p, context);
 	p.translate(0, height2);
 }

@@ -719,11 +719,12 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 		Painter p(widget);
 		const auto theme = _controller->defaultChatTheme().get();
-		const auto context = theme->preparePaintContext(
+		auto context = theme->preparePaintContext(
 			_chatStyle.get(),
 			widget->rect(),
 			widget->rect());
 		p.translate(0, padding + view->marginBottom());
+		context.outbg = view->hasOutLayout();
 		view->draw(p, context);
 
 		PaintForwardedTooltip(p, view, *option);

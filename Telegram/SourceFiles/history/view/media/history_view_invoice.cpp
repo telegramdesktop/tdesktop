@@ -263,7 +263,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
 		p.setFont(st::msgDateFont);
-		p.setPen(st::msgDateImgFg);
+		p.setPen(st->msgDateImgFg());
 		_status.drawLeftElided(p, statusX + st::msgDateImgPadding.x(), statusY + st::msgDateImgPadding.y(), available, pixwidth);
 
 		p.translate(-attachLeft, -attachTop);

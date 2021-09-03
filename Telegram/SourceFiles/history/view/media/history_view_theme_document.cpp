@@ -190,7 +190,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 		p.setFont(st::normalFont);
-		p.setPen(st::msgDateImgFg);
+		p.setPen(st->msgDateImgFg());
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		if (radial || (!loaded && !_data->loading())) {
 			const auto radialOpacity = (radial && loaded && !_data->uploading())

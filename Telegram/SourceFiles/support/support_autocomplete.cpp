@@ -570,15 +570,17 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBg);
 
 	const auto theme = controller()->defaultChatTheme().get();
-	const auto context = theme->preparePaintContext(
+	auto context = theme->preparePaintContext(
 		_chatStyle.get(),
 		rect(),
 		rect());
 	p.translate(st::boxPadding.left(), 0);
 	if (_comment) {
+		context.outbg = _comment->hasOutLayout();
 		_comment->draw(p, context);
 		p.translate(0, _comment->height());
 	}
+	context.outbg = _contact->hasOutLayout();
 	_contact->draw(p, context);
 }
 

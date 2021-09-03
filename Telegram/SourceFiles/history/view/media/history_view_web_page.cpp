@@ -563,9 +563,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			&& !_data->document) {
 			if (_attach->isReadyForOpen()) {
 				if (_data->siteName == qstr("YouTube")) {
-					st::youtubeIcon.paint(p, (pixwidth - st::youtubeIcon.width()) / 2, (pixheight - st::youtubeIcon.height()) / 2, width());
+					st->youtubeIcon().paint(p, (pixwidth - st::youtubeIcon.width()) / 2, (pixheight - st::youtubeIcon.height()) / 2, width());
 				} else {
-					st::videoIcon.paint(p, (pixwidth - st::videoIcon.width()) / 2, (pixheight - st::videoIcon.height()) / 2, width());
+					st->videoIcon().paint(p, (pixwidth - st::videoIcon.width()) / 2, (pixheight - st::videoIcon.height()) / 2, width());
 				}
 			}
 			if (_durationWidth) {
@@ -577,7 +577,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
 				p.setFont(st::msgDateFont);
-				p.setPen(st::msgDateImgFg);
+				p.setPen(st->msgDateImgFg());
 				p.drawTextLeft(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y(), pixwidth, _duration);
 			}
 		}

@@ -286,7 +286,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
-	const auto selected = (context.selection == FullSelection);
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed();
@@ -407,7 +406,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (const auto playback = videoPlayback()) {
 			const auto value = playback->value();
 			if (value > 0.) {
-				auto pen = st::historyVideoMessageProgressFg->p;
+				auto pen = st->historyVideoMessageProgressFg()->p;
 				auto was = p.pen();
 				pen.setWidth(st::radialLine);
 				pen.setCapStyle(Qt::RoundCap);
@@ -456,13 +455,13 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 						| RectPart::NoTopBottom
 						| (roundTop ? RectPart::Top : RectPart::None)
 						| (roundBottom ? RectPart::Bottom : RectPart::None);
-					Ui::FillRoundRect(p, rthumb.marginsAdded({ 0, roundTop ? 0 : margin, 0, roundBottom ? 0 : margin }), st::imageBg, roundRadius, parts);
+					Ui::FillRoundRect(p, rthumb.marginsAdded({ 0, roundTop ? 0 : margin, 0, roundBottom ? 0 : margin }), st->imageBg(), roundRadius, parts);
 				}
 			}
 		}
 	}
 
-	if (selected) {
+	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
@@ -479,7 +478,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		const auto innerSize = st::msgFileLayout.thumbSize;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
-		if (selected) {
+		if (context.selected()) {
 			p.setBrush(st->msgDateImgBgSelected());
 		} else if (isThumbAnimation()) {
 			auto over = _animation->a_thumbOver.value(1.);
@@ -501,14 +500,14 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			if (streamingMode && !_data->uploading()) {
 				return nullptr;
 			} else if ((loaded || canBePlayed) && (!radial || cornerDownload)) {
-				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
+				return &sti->historyFileThumbPlay;
 			} else if (radial || _data->loading()) {
 				if (!item->isSending() || _data->uploading()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+					return &sti->historyFileThumbCancel;
 				}
 				return nullptr;
 			}
-			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
+			return &sti->historyFileThumbDownload;
 		}();
 		if (icon) {
 			icon->paintInCenter(p, inner);
@@ -516,9 +515,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		p.setOpacity(1);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			const auto fg = selected
-				? st::historyFileThumbRadialFgSelected
-				: st::historyFileThumbRadialFg;
 			if (streamedForWaiting && !_data->uploading()) {
 				Ui::InfiniteRadialAnimation::Draw(
 					p,
@@ -526,14 +522,14 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					rinner.topLeft(),
 					rinner.size(),
 					width(),
-					fg,
+					sti->historyFileThumbRadialFg,
 					st::msgFileRadialLine);
 			} else if (!cornerDownload) {
 				_animation->radial.draw(
 					p,
 					rinner,
 					st::msgFileRadialLine,
-					fg);
+					sti->historyFileThumbRadialFg);
 			}
 		}
 	}
@@ -543,7 +539,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		p.setBrush(sti->msgDateImgBg);
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(muteRect);
-		(selected ? st::historyVideoMessageMuteSelected : st::historyVideoMessageMute).paintInCenter(p, muteRect);
+		sti->historyVideoMessageMute.paintInCenter(p, muteRect);
 	}
 
 	if (!isRound) {
@@ -561,11 +557,11 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgServiceBg, sti->msgServiceBgCorners);
 		p.setFont(st::normalFont);
-		p.setPen(st::msgServiceFg);
+		p.setPen(st->msgServiceFg());
 		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		if (mediaUnread) {
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::msgServiceFg);
+			p.setBrush(st->msgServiceFg());
 
 			{
 				PainterHighQualityEnabler hq(p);
@@ -591,7 +587,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			if (rtl()) rectx = width() - rectx - rectw;
 
 			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
-			p.setPen(st::msgServiceFg);
+			p.setPen(st->msgServiceFg());
 			rectx += st::msgReplyPadding.left();
 			rectw = innerw;
 			if (forwarded) {
@@ -611,7 +607,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 	if (!isRound && !_caption.isEmpty()) {
-		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+		p.setPen(stm->historyTextFg);
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + usex + usew;
@@ -695,7 +691,7 @@ void Gif::drawCornerStatus(
 	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
 	Ui::FillRoundRect(p, around, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 	p.setFont(st::normalFont);
-	p.setPen(st::msgDateImgFg);
+	p.setPen(st->msgDateImgFg());
 	p.drawTextLeft(statusX + addLeft, statusTextTop, width(), text, statusW - 2 * padding.x());
 	if (cornerDownload) {
 		const auto downloadTextTop = statusY + st::normalFont->height + (2 * (statusH - 2 * st::normalFont->height) / 3)  - padding.y();

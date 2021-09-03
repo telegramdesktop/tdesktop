@@ -61,6 +61,9 @@ struct MessageStyle {
 	style::icon historyFileDocument = { Qt::Uninitialized };
 	style::icon historyAudioDownload = { Qt::Uninitialized };
 	style::icon historyAudioCancel = { Qt::Uninitialized };
+	style::icon historyQuizTimer = { Qt::Uninitialized };
+	style::icon historyQuizExplain = { Qt::Uninitialized };
+	style::icon historyPollChosen = { Qt::Uninitialized };
 };
 
 struct MessageImageStyle {
@@ -195,6 +198,24 @@ public:
 	[[nodiscard]] const style::icon &historyGoToOriginalIcon() const {
 		return _historyGoToOriginalIcon;
 	}
+	[[nodiscard]] const style::icon &historyMapPoint() const {
+		return _historyMapPoint;
+	}
+	[[nodiscard]] const style::icon &historyMapPointInner() const {
+		return _historyMapPointInner;
+	}
+	[[nodiscard]] const style::icon &youtubeIcon() const {
+		return _youtubeIcon;
+	}
+	[[nodiscard]] const style::icon &videoIcon() const {
+		return _videoIcon;
+	}
+	[[nodiscard]] const style::icon &historyPollChoiceRight() const {
+		return _historyPollChoiceRight;
+	}
+	[[nodiscard]] const style::icon &historyPollChoiceWrong() const {
+		return _historyPollChoiceWrong;
+	}
 
 private:
 	void assignPalette(not_null<const style::palette*> palette);
@@ -255,6 +276,12 @@ private:
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };
+	style::icon _historyMapPoint = { Qt::Uninitialized };
+	style::icon _historyMapPointInner = { Qt::Uninitialized };
+	style::icon _youtubeIcon = { Qt::Uninitialized };
+	style::icon _videoIcon = { Qt::Uninitialized };
+	style::icon _historyPollChoiceRight = { Qt::Uninitialized };
+	style::icon _historyPollChoiceWrong = { Qt::Uninitialized };
 
 	rpl::lifetime _defaultPaletteChangeLifetime;
 

@@ -148,7 +148,10 @@ ClickHandlerPtr SlotMachine::link() {
 	return _link;
 }
 
-void SlotMachine::draw(Painter &p, const QRect &r, bool selected) {
+void SlotMachine::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) {
 	resolveStarts(true);
 	resolveEnds(_dice->value());
 
@@ -194,9 +197,9 @@ void SlotMachine::draw(Painter &p, const QRect &r, bool selected) {
 
 	for (auto i = 0; i != 4; ++i) {
 		if (switchedToEnd[i]) {
-			_end[i]->draw(p, r, selected);
+			_end[i]->draw(p, context, r);
 		} else {
-			_start[i]->draw(p, r, selected);
+			_start[i]->draw(p, context, r);
 			if (_end[i]
 				&& _end[i]->readyToDrawLottie()
 				&& _start[i]->atTheEnd()) {
@@ -204,7 +207,7 @@ void SlotMachine::draw(Painter &p, const QRect &r, bool selected) {
 			}
 		}
 	}
-	_pull->draw(p, r, selected);
+	_pull->draw(p, context, r);
 }
 
 } // namespace HistoryView

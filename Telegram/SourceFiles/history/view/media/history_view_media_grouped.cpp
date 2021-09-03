@@ -335,15 +335,14 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	// date
-	const auto selected = (selection == FullSelection);
 	if (!_caption.isEmpty()) {
 		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
-		const auto outbg = _parent->hasOutLayout();
 		const auto captiony = height()
 			- groupPadding.bottom()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
-		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+		const auto stm = context.messageStyle();
+		p.setPen(stm->historyTextFg);
 		_caption.draw(p, st::msgPadding.left(), captiony, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->media() == this) {
 		auto fullRight = width();

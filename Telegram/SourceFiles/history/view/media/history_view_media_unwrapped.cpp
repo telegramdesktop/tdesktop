@@ -137,7 +137,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
-	_content->draw(p, inner, selected);
+	_content->draw(p, context, inner);
 
 	if (!inWebPage) {
 		drawSurrounding(p, inner, context, via, reply, forwarded);
@@ -205,7 +205,7 @@ void UnwrappedMedia::drawSurrounding(
 		if (rtl()) rectx = width() - rectx - rectw;
 
 		Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
-		p.setPen(st::msgServiceFg);
+		p.setPen(st->msgServiceFg());
 		rectx += st::msgReplyPadding.left();
 		rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 		if (forwarded) {

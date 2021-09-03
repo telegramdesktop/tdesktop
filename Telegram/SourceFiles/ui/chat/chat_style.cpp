@@ -82,6 +82,12 @@ ChatStyle::ChatStyle() {
 	make(_historyFastCommentsIcon, st::historyFastCommentsIcon);
 	make(_historyFastShareIcon, st::historyFastShareIcon);
 	make(_historyGoToOriginalIcon, st::historyGoToOriginalIcon);
+	make(_historyMapPoint, st::historyMapPoint);
+	make(_historyMapPointInner, st::historyMapPointInner);
+	make(_youtubeIcon, st::youtubeIcon);
+	make(_videoIcon, st::videoIcon);
+	make(_historyPollChoiceRight, st::historyPollChoiceRight);
+	make(_historyPollChoiceWrong, st::historyPollChoiceWrong);
 	make(
 		&MessageStyle::msgBg,
 		st::msgInBg,
@@ -334,6 +340,24 @@ ChatStyle::ChatStyle() {
 		st::historyAudioInCancelSelected,
 		st::historyAudioOutCancel,
 		st::historyAudioOutCancelSelected);
+	make(
+		&MessageStyle::historyQuizTimer,
+		st::historyQuizTimerIn,
+		st::historyQuizTimerInSelected,
+		st::historyQuizTimerOut,
+		st::historyQuizTimerOutSelected);
+	make(
+		&MessageStyle::historyQuizExplain,
+		st::historyQuizExplainIn,
+		st::historyQuizExplainInSelected,
+		st::historyQuizExplainOut,
+		st::historyQuizExplainOutSelected);
+	make(
+		&MessageStyle::historyPollChosen,
+		st::historyPollInChosen,
+		st::historyPollInChosenSelected,
+		st::historyPollOutChosen,
+		st::historyPollOutChosenSelected);
 	make(
 		&MessageImageStyle::msgDateImgBg,
 		st::msgDateImgBg,

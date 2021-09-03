@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "ui/image/image.h"
+#include "ui/chat/chat_style.h"
 #include "data/data_file_origin.h"
 #include "styles/style_chat.h"
 
@@ -65,7 +66,10 @@ QSize LargeEmoji::size() {
 	return _size;
 }
 
-void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
+void LargeEmoji::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) {
 	auto &&images = NonEmpty(_images);
 	const auto &padding = st::largeEmojiPadding;
 	auto x = r.x() + (r.width() - _size.width()) / 2 + padding.left();
@@ -76,9 +80,8 @@ void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
 		const auto w = size.width();
 		if (const auto &prepared = image->image) {
 			const auto h = size.height();
-			const auto &c = st::msgStickerOverlay;
-			const auto pixmap = selected
-				? prepared->pixColored(c, w, h)
+			const auto pixmap = context.selected()
+				? prepared->pixColored(context.st->msgStickerOverlay(), w, h)
 				: prepared->pix(w, h);
 			p.drawPixmap(x, y, pixmap);
 		} else if (image->load) {

@@ -39,7 +39,10 @@ public:
 
 	void initSize();
 	QSize size() override;
-	void draw(Painter &p, const QRect &r, bool selected) override;
+	void draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) override;
 	ClickHandlerPtr link() override {
 		return _link;
 	}
@@ -83,10 +86,10 @@ public:
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;
-	void paintLottie(Painter &p, const QRect &r, bool selected);
-	bool paintPixmap(Painter &p, const QRect &r, bool selected);
-	void paintPath(Painter &p, const QRect &r, bool selected);
-	[[nodiscard]] QPixmap paintedPixmap(bool selected) const;
+	void paintLottie(Painter &p, const PaintContext &context, const QRect &r);
+	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
+	void paintPath(Painter &p, const PaintContext &context, const QRect &r);
+	[[nodiscard]] QPixmap paintedPixmap(const PaintContext &context) const;
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
