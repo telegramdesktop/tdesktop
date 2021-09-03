@@ -180,7 +180,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
 
 	if (_data) {

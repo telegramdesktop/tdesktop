@@ -905,8 +905,6 @@ void Message::paintForwardedInfo(
 		const PaintContext &context) const {
 	if (displayForwardedFrom()) {
 		const auto item = message();
-		const auto outbg = hasOutLayout();
-		const auto selected = context.selected();
 		const auto st = context.st;
 		const auto stm = context.messageStyle();
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -1717,7 +1715,6 @@ void Message::drawInfo(
 	}
 
 	const auto item = message();
-	const auto selected = context.selected();
 	auto infoW = infoWidth();
 	if (rtl()) infoRight = width - infoRight + infoW;
 

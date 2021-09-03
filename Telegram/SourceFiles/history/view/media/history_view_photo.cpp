@@ -284,7 +284,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}();
 		p.drawPixmap(rthumb.topLeft(), pix);
 		if (context.selected()) {
-			Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
+			Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 		}
 	}
 	if (radial || (!loaded && !_data->loading())) {
@@ -522,9 +522,9 @@ void Photo::drawGrouped(
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
 		const auto roundRadius = ImageRoundRadius::Large;
-		Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+		Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
 		if (!context.selected()) {
-			Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+			Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
 		}
 		p.setOpacity(1.);
 	}

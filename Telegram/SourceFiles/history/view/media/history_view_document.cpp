@@ -373,8 +373,10 @@ void Document::draw(
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (context.selected()) {
-			auto overlayCorners = inWebPage ? Ui::SelectedOverlaySmallCorners : Ui::SelectedOverlayLargeCorners;
-			Ui::FillRoundRect(p, rthumb, p.textPalette().selectOverlay, overlayCorners);
+			const auto st = context.st;
+			Ui::FillRoundRect(p, rthumb, st->msgSelectOverlay(), inWebPage
+				? st->msgSelectOverlayCornersSmall()
+				: st->msgSelectOverlayCornersLarge());
 		}
 
 		if (radial || (!loaded && !_data->loading()) || _data->waitingForAlbum()) {

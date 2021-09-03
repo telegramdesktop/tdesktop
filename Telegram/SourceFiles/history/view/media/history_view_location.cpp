@@ -192,7 +192,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		const auto &pix = thumbnail->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
-		Ui::FillComplexLocationRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexLocationRect(p, st, rthumb, roundRadius, roundCorners);
 	}
 	const auto paintMarker = [&](const style::icon &icon) {
 		icon.paint(
@@ -204,7 +204,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	paintMarker(st->historyMapPoint());
 	paintMarker(st->historyMapPointInner());
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
 
 	if (_parent->media() == this) {

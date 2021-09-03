@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_palette.h"
 #include "layout/layout_selection.h"
 
+enum class ImageRoundRadius;
+
 namespace Ui {
 
 class ChatTheme;
@@ -18,7 +20,7 @@ class ChatStyle;
 struct BubblePattern;
 
 struct MessageStyle {
-	CornersPixmaps corners;
+	CornersPixmaps msgBgCorners;
 	style::color msgBg;
 	style::color msgShadow;
 	style::color msgServiceFg;
@@ -143,6 +145,8 @@ public:
 	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
 
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCorners() const;
+	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersSmall() const;
+	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersLarge() const;
 
 	[[nodiscard]] const style::TextPalette &historyPsaForwardPalette() const {
 		return _historyPsaForwardPalette;
@@ -257,6 +261,8 @@ private:
 	mutable std::array<MessageImageStyle, 2> _imageStyles;
 
 	mutable CornersPixmaps _msgBotKbOverBgAddCorners;
+	mutable CornersPixmaps _msgSelectOverlayCornersSmall;
+	mutable CornersPixmaps _msgSelectOverlayCornersLarge;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;
@@ -286,5 +292,18 @@ private:
 	rpl::lifetime _defaultPaletteChangeLifetime;
 
 };
+
+void FillComplexOverlayRect(
+	Painter &p,
+	not_null<const ChatStyle*> st,
+	QRect rect,
+	ImageRoundRadius radius,
+	RectParts roundCorners);
+void FillComplexLocationRect(
+	Painter &p,
+	not_null<const ChatStyle*> st,
+	QRect rect,
+	ImageRoundRadius radius,
+	RectParts roundCorners);
 
 } // namespace Ui

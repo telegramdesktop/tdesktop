@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 
 #include "ui/chat/chat_theme.h"
+#include "ui/image/image_prepare.h" // ImageRoundRadius
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -22,6 +23,49 @@ void EnsureCorners(
 		const style::color *shadow = nullptr) {
 	if (corners.p[0].isNull()) {
 		corners = Ui::PrepareCornerPixmaps(radius, color, shadow);
+	}
+}
+
+void RectWithCorners(
+		Painter &p,
+		QRect rect,
+		const style::color &bg,
+		const CornersPixmaps &corners,
+		RectParts roundCorners) {
+	const auto parts = RectPart::Top
+		| RectPart::NoTopBottom
+		| RectPart::Bottom
+		| roundCorners;
+	FillRoundRect(p, rect, bg, corners, nullptr, parts);
+	if ((roundCorners & RectPart::AllCorners) != RectPart::AllCorners) {
+		const auto size = corners.p[0].width() / style::DevicePixelRatio();
+		if (!(roundCorners & RectPart::TopLeft)) {
+			p.fillRect(rect.x(), rect.y(), size, size, bg);
+		}
+		if (!(roundCorners & RectPart::TopRight)) {
+			p.fillRect(
+				rect.x() + rect.width() - size,
+				rect.y(),
+				size,
+				size,
+				bg);
+		}
+		if (!(roundCorners & RectPart::BottomLeft)) {
+			p.fillRect(
+				rect.x(),
+				rect.y() + rect.height() - size,
+				size,
+				size,
+				bg);
+		}
+		if (!(roundCorners & RectPart::BottomRight)) {
+			p.fillRect(
+				rect.x() + rect.width() - size,
+				rect.y() + rect.height() - size,
+				size,
+				size,
+				bg);
+		}
 	}
 }
 
@@ -427,7 +471,7 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
 	style::internal::resetIcons();
 	for (auto &style : _messageStyles) {
-		style.corners = {};
+		style.msgBgCorners = {};
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
@@ -437,6 +481,8 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
 	_msgBotKbOverBgAddCorners = {};
+	_msgSelectOverlayCornersSmall = {};
+	_msgSelectOverlayCornersLarge = {};
 }
 
 const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
@@ -470,7 +516,7 @@ const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	auto &result = messageStyleRaw(outbg, selected);
 	EnsureCorners(
-		result.corners,
+		result.msgBgCorners,
 		st::historyMessageRadius,
 		result.msgBg,
 		&result.msgShadow);
@@ -500,6 +546,22 @@ const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
 		st::dateRadius,
 		msgBotKbOverBgAdd());
 	return _msgBotKbOverBgAddCorners;
+}
+
+const CornersPixmaps &ChatStyle::msgSelectOverlayCornersSmall() const {
+	EnsureCorners(
+		_msgSelectOverlayCornersSmall,
+		st::roundRadiusSmall,
+		msgSelectOverlay());
+	return _msgSelectOverlayCornersSmall;
+}
+
+const CornersPixmaps &ChatStyle::msgSelectOverlayCornersLarge() const {
+	EnsureCorners(
+		_msgSelectOverlayCornersLarge,
+		st::historyMessageRadius,
+		msgSelectOverlay());
+	return _msgSelectOverlayCornersLarge;
 }
 
 MessageStyle &ChatStyle::messageStyleRaw(bool outbg, bool selected) const {
@@ -574,6 +636,36 @@ void ChatStyle::make(
 		const Type &originalSelected) {
 	make(image().*my, original);
 	make(imageSelected().*my, originalSelected);
+}
+
+void FillComplexOverlayRect(
+		Painter &p,
+		not_null<const ChatStyle*> st,
+		QRect rect,
+		ImageRoundRadius radius,
+		RectParts roundCorners) {
+	const auto bg = st->msgSelectOverlay();
+	if (radius == ImageRoundRadius::Ellipse) {
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+		p.drawEllipse(rect);
+	} else {
+		const auto &corners = (radius == ImageRoundRadius::Small)
+			? st->msgSelectOverlayCornersSmall()
+			: st->msgSelectOverlayCornersLarge();
+		RectWithCorners(p, rect, bg, corners, roundCorners);
+	}
+}
+
+void FillComplexLocationRect(
+		Painter &p,
+		not_null<const ChatStyle*> st,
+		QRect rect,
+		ImageRoundRadius radius,
+		RectParts roundCorners) {
+	const auto stm = &st->messageStyle(false, false);
+	RectWithCorners(p, rect, stm->msgBg, stm->msgBgCorners, roundCorners);
 }
 
 } // namespace Ui

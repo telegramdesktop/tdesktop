@@ -306,7 +306,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
-	auto outbg = _parent->hasOutLayout();
+	const auto outbg = context.outbg;
 	auto inWebPage = (_parent->media() != this);
 
 	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
@@ -462,7 +462,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
 
 	if (radial
@@ -752,7 +752,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		}
 		painth -= st::mediaCaptionSkip;
 	}
-	auto outbg = _parent->hasOutLayout();
+	const auto outbg = _parent->hasOutLayout();
 	auto inWebPage = (_parent->media() != this);
 	auto isRound = _data->isVideoMessage();
 	auto usew = paintw, usex = 0;
@@ -996,9 +996,9 @@ void Gif::drawGrouped(
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
-		Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+		Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
 		if (!context.selected()) {
-			Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+			Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
 		}
 		p.setOpacity(1.);
 	}

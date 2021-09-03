@@ -22,8 +22,6 @@ struct CornersPixmaps {
 enum CachedRoundCorners : int {
 	BoxCorners,
 	MenuCorners,
-	SelectedOverlaySmallCorners,
-	SelectedOverlayLargeCorners,
 	DateCorners,
 	OverviewVideoCorners,
 	OverviewVideoSelectedCorners,
@@ -38,13 +36,8 @@ enum CachedRoundCorners : int {
 	Doc3Corners,
 	Doc4Corners,
 
-	MessageInCorners, // with shadow
-
 	RoundCornersCount
 };
-
-void FillComplexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
-void FillComplexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 
 void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
 inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {

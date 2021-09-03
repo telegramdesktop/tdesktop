@@ -455,7 +455,6 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
-	const auto selected = context.selected();
 
 	const auto &barfg = stm->msgReplyBarColor;
 	const auto &semibold = stm->msgServiceFg;
@@ -503,8 +502,13 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			pix = blurred->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
-		if (selected) {
-			Ui::FillRoundRect(p, style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()), p.textPalette().selectOverlay, Ui::SelectedOverlaySmallCorners);
+		if (context.selected()) {
+			const auto st = context.st;
+			Ui::FillRoundRect(
+				p,
+				style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()),
+				st->msgSelectOverlay(),
+				st->msgSelectOverlayCornersSmall());
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
@@ -553,7 +557,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		_attach->draw(p, context.translated(
 			-attachLeft,
 			-attachTop
-		).withSelection(selected ? FullSelection : TextSelection()));
+		).withSelection(context.selected()
+			? FullSelection
+			: TextSelection()));
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
