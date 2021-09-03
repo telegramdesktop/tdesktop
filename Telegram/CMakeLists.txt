@@ -860,9 +860,6 @@ PRIVATE
     payments/payments_form.h
     platform/linux/linux_desktop_environment.cpp
     platform/linux/linux_desktop_environment.h
-    platform/linux/linux_gtk_integration_dummy.cpp
-    platform/linux/linux_gtk_integration.cpp
-    platform/linux/linux_gtk_integration.h
     platform/linux/linux_wayland_integration_dummy.cpp
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
@@ -1162,16 +1159,6 @@ if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
 else()
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_wayland_integration_dummy.cpp
-    )
-endif()
-
-if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
-    remove_target_sources(Telegram ${src_loc}
-        platform/linux/linux_gtk_integration.cpp
-    )
-else()
-    remove_target_sources(Telegram ${src_loc}
-        platform/linux/linux_gtk_integration_dummy.cpp
     )
 endif()
 
