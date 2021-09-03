@@ -373,8 +373,8 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 		|| (sendActionResult && !anim::Disabled())) {
 		_history->peer->owner().sendActionManager().updateAnimation({
 			_history,
-			_animationLeft,
-			_sendActionAnimation.width(),
+			0,
+			_sendActionAnimation.width() + _animationLeft,
 			st::normalFont->height,
 			(force || sendActionChanged)
 		});
