@@ -620,7 +620,9 @@ void SettingsBox(
 	if (peer->canManageGroupCall()) {
 		AddButton(
 			layout,
-			tr::lng_group_call_end(),
+			(peer->isBroadcast()
+				? tr::lng_group_call_end_channel()
+				: tr::lng_group_call_end()),
 			st::groupCallSettingsAttentionButton
 		)->addClickHandler([=] {
 			if (const auto call = weakCall.get()) {
