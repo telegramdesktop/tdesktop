@@ -75,6 +75,7 @@ private:
 	public:
 		SpeedController() {
 			setSpeed(Core::App().settings().voicePlaybackSpeed());
+			_speed = Core::App().settings().voicePlaybackSpeed(true);
 		}
 
 		[[nodiscard]] rpl::producer<float64> speedValue() const {

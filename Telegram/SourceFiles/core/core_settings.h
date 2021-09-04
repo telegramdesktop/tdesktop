@@ -421,11 +421,16 @@ public:
 	void setVideoPlaybackSpeed(float64 speed) {
 		_videoPlaybackSpeed = speed;
 	}
-	[[nodiscard]] float64 voicePlaybackSpeed() const {
-		return _voicePlaybackSpeed;
+	[[nodiscard]] float64 voicePlaybackSpeed(
+			bool lastNonDefault = false) const {
+		return (_nonDefaultVoicePlaybackSpeed || lastNonDefault)
+			? _voicePlaybackSpeed
+			: 1.0;
 	}
 	void setVoicePlaybackSpeed(float64 speed) {
-		_voicePlaybackSpeed = speed;
+		if ((_nonDefaultVoicePlaybackSpeed = (speed != 1.0))) {
+			_voicePlaybackSpeed = speed;
+		}
 	}
 	[[nodiscard]] QByteArray videoPipGeometry() const {
 		return _videoPipGeometry;
@@ -669,7 +674,8 @@ private:
 	bool _suggestStickersByEmoji = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
 	rpl::variable<float64> _videoPlaybackSpeed = 1.;
-	float64 _voicePlaybackSpeed = 1.;
+	float64 _voicePlaybackSpeed = 2.;
+	bool _nonDefaultVoicePlaybackSpeed = false;
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
