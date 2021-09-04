@@ -1,0 +1,67 @@
+name: Bug report
+description: Report errors or unexpected behavior.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting issues of Telegram Desktop!
+
+        To make it easier for us to help you please enter detailed information below.
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behaviour
+      placeholder: Tell us what should happen
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behaviour
+      placeholder: Tell us what happens instead
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Operating system
+      description: >
+        Your operating system name, version and desktop environment.
+        Please don't use kernel version (uname), it's useless.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Version of Telegram Desktop
+      description: >
+        Please note we don't support versions from Linux distro repositories.
+        If you need support for these versions, please contact your distro maintainer
+        or your distro bugtracker.
+        Don't use 'latest', specify actual version, that's a reason to close your issue.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Installation source
+      multiple: false
+      options:
+        - Static binary from official website
+        - Microsoft Store
+        - Mac App Store
+        - Flatpak
+        - Snap
+        - Other (unofficial) source
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Logs
+      placeholder: Insert log.txt here (if necessary)
+      render: shell
