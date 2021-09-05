@@ -16,6 +16,7 @@ const QStringList &ImageExtensions() {
 		u".jpeg"_q,
 		u".png"_q,
 		u".gif"_q,
+		u".webp"_q,
 	};
 	return result;
 }
