@@ -125,7 +125,7 @@ public:
 
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
-	static constexpr auto kPhotoEditorHintMaxShowsCount = 10;
+	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
 
 	ChatHelpers::SelectorTab _selectorTab; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;

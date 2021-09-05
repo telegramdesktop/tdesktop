@@ -613,8 +613,14 @@ void SendFilesBox::pushBlock(int from, int till) {
 			crl::guard(this, callback));
 	}, widget->lifetime());
 
+	const auto openedOnce = widget->lifetime().make_state<bool>(false);
 	block.itemModifyRequest(
 	) | rpl::start_with_next([=, controller = _controller](int index) {
+		if (!(*openedOnce)) {
+			controller->session().settings().incrementPhotoEditorHintShown();
+			controller->session().saveSettings();
+		}
+		*openedOnce = true;
 		Editor::OpenWithPreparedFile(
 			this,
 			controller,
@@ -1008,10 +1014,7 @@ void SendFilesBox::send(
 		block.applyAlbumOrder();
 	}
 
-	if (Storage::ApplyModifications(_list)) {
-		_controller->session().settings().incrementPhotoEditorHintShown();
-		_controller->session().saveSettings();
-	}
+	Storage::ApplyModifications(_list);
 
 	_confirmed = true;
 	if (_confirmedCallback) {

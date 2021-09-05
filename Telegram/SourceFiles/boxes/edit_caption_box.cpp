@@ -399,10 +399,20 @@ void EditCaptionBox::setupEditEventHandler() {
 }
 
 void EditCaptionBox::setupPhotoEditorEventHandler() {
+	const auto openedOnce = lifetime().make_state<bool>(false);
 	_photoEditorOpens.events(
 	) | rpl::start_with_next([=, controller = _controller] {
+		const auto increment = [=] {
+			if (*openedOnce) {
+				return;
+			}
+			*openedOnce = true;
+			controller->session().settings().incrementPhotoEditorHintShown();
+			controller->session().saveSettings();
+		};
 		const auto previewWidth = st::sendMediaPreviewSize;
 		if (!_preparedList.files.empty()) {
+			increment();
 			Editor::OpenWithPreparedFile(
 				this,
 				controller,
@@ -414,6 +424,7 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 			if (!large) {
 				return;
 			}
+			increment();
 			auto callback = [=](const Editor::PhotoModifications &mods) {
 				if (!mods || !_photoMedia) {
 					return;
@@ -663,10 +674,7 @@ void EditCaptionBox::save() {
 		action.options = options;
 		action.replaceMediaOf = item->fullId().msg;
 
-		if (Storage::ApplyModifications(_preparedList)) {
-			_controller->session().settings().incrementPhotoEditorHintShown();
-			_controller->session().saveSettings();
-		}
+		Storage::ApplyModifications(_preparedList);
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
