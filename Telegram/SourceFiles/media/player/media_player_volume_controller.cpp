@@ -72,8 +72,8 @@ void VolumeController::setVolume(float64 volume) {
 
 void VolumeController::applyVolumeChange(float64 volume) {
 	if (volume != Core::App().settings().songVolume()) {
+		mixer()->setSongVolume(volume);
 		Core::App().settings().setSongVolume(volume);
-		mixer()->setSongVolume(Core::App().settings().songVolume());
 	}
 }
 
