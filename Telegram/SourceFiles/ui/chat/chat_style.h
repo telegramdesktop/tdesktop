@@ -38,8 +38,6 @@ struct MessageStyle {
 	style::color historyFileNameFg;
 	style::color historyFileRadialFg;
 	style::color mediaFg;
-	style::color webPageTitleFg;
-	style::color webPageDescriptionFg;
 	style::TextPalette textPalette;
 	style::TextPalette semiboldPalette;
 	style::TextPalette fwdTextPalette;

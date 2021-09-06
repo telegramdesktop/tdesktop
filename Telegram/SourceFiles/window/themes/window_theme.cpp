@@ -752,12 +752,11 @@ void ChatBackground::setPrepared(
 		prepared = Ui::PrepareBlurredBackground(std::move(prepared));
 	}
 	if (adjustPaletteRequired()) {
-		if (!gradient.isNull()) {
-			adjustPaletteUsingBackground(gradient);
+		if ((prepared.isNull() || _paper.isPattern())
+			&& !_paper.backgroundColors().empty()) {
+			adjustPaletteUsingColors(_paper.backgroundColors());
 		} else if (!prepared.isNull()) {
 			adjustPaletteUsingBackground(prepared);
-		} else if (!_paper.backgroundColors().empty()) {
-			adjustPaletteUsingColor(_paper.backgroundColors().front());
 		}
 	}
 
@@ -817,6 +816,11 @@ void ChatBackground::clearEditingTheme(ClearEditing clear) {
 
 void ChatBackground::adjustPaletteUsingBackground(const QImage &image) {
 	adjustPaletteUsingColor(Ui::CountAverageColor(image));
+}
+
+void ChatBackground::adjustPaletteUsingColors(
+		const std::vector<QColor> &colors) {
+	adjustPaletteUsingColor(Ui::CountAverageColor(colors));
 }
 
 void ChatBackground::adjustPaletteUsingColor(QColor color) {

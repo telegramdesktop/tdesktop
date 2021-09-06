@@ -212,18 +212,6 @@ ChatStyle::ChatStyle() {
 		st::mediaOutFg,
 		st::mediaOutFgSelected);
 	make(
-		&MessageStyle::webPageTitleFg,
-		st::webPageTitleInFg,
-		st::webPageTitleInFg,
-		st::webPageTitleOutFg,
-		st::webPageTitleOutFg);
-	make(
-		&MessageStyle::webPageDescriptionFg,
-		st::webPageDescriptionInFg,
-		st::webPageDescriptionInFg,
-		st::webPageDescriptionOutFg,
-		st::webPageDescriptionOutFg);
-	make(
 		&MessageStyle::textPalette,
 		st::inTextPalette,
 		st::inTextPaletteSelected,

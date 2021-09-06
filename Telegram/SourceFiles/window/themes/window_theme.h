@@ -219,6 +219,7 @@ private:
 
 	[[nodiscard]] bool adjustPaletteRequired();
 	void adjustPaletteUsingBackground(const QImage &image);
+	void adjustPaletteUsingColors(const std::vector<QColor> &colors);
 	void adjustPaletteUsingColor(QColor color);
 	void restoreAdjustableColors();
 

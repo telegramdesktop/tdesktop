@@ -109,6 +109,14 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 	};
 }
 
+[[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
+		const Data::CloudTheme &theme) {
+	return {
+		.colors = theme.outgoingMessagesColors,
+		.accent = theme.outgoingAccentColor,
+	};
+}
+
 } // namespace
 
 void ActivateWindow(not_null<SessionController*> controller) {
@@ -1442,7 +1450,8 @@ void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 		.preparePalette = PreparePaletteCallback(
 			data.basedOnDark,
 			data.accentColor),
-		.prepareBackground = backgroundGenerator(theme),
+		.backgroundData = backgroundData(theme),
+		.bubblesData = PrepareBubblesData(data),
 	};
 	crl::async([
 		this,
@@ -1500,8 +1509,11 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 	}
 	const auto key = theme.theme->key();
 	const auto weak = base::make_weak(this);
-	crl::async([=, generator = backgroundGenerator(theme, false)] {
-		crl::on_main(weak, [=, result = generator()]() mutable {
+	crl::async([=, data = backgroundData(theme, false)] {
+		crl::on_main(weak, [
+			=,
+			result = Ui::PrepareBackgroundImage(data)
+		]() mutable {
 			const auto i = _customChatThemes.find(key);
 			if (i != end(_customChatThemes)) {
 				i->second.theme->updateBackgroundImageFrom(std::move(result));
@@ -1510,9 +1522,9 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 	});
 }
 
-Fn<Ui::ChatThemeBackground()> SessionController::backgroundGenerator(
+Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		CachedTheme &theme,
-		bool generateGradient) {
+		bool generateGradient) const {
 	const auto &paper = theme.paper;
 	const auto &media = theme.media;
 	const auto paperPath = media ? media->owner()->filepath() : QString();
@@ -1523,22 +1535,16 @@ Fn<Ui::ChatThemeBackground()> SessionController::backgroundGenerator(
 	const auto patternOpacity = paper.patternOpacity();
 	const auto isBlurred = paper.isBlurred();
 	const auto gradientRotation = paper.gradientRotation();
-	return [=] {
-		auto result = Ui::PrepareBackgroundImage(
-			paperPath,
-			paperBytes,
-			gzipSvg,
-			colors,
-			isPattern,
-			patternOpacity,
-			isBlurred);
-		if (generateGradient) {
-			result.gradientForFill = (colors.size() > 1)
-				? Ui::GenerateDitheredGradient(colors, gradientRotation)
-				: QImage();
-			result.gradientRotation = gradientRotation;
-		}
-		return result;
+	return {
+		.path = paperPath,
+		.bytes = paperBytes,
+		.gzipSvg = gzipSvg,
+		.colors = colors,
+		.isPattern = isPattern,
+		.patternOpacity = patternOpacity,
+		.isBlurred = isBlurred,
+		.generateGradient = generateGradient,
+		.gradientRotation = gradientRotation,
 	};
 }
 

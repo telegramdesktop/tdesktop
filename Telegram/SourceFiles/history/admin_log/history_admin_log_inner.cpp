@@ -914,6 +914,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.theme = _theme.get(),
 		.visibleAreaTop = _visibleTop,
 		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+		.visibleAreaWidth = width(),
 		.clip = clip,
 	});
 	if (_items.empty() && _upLoaded && _downLoaded) {

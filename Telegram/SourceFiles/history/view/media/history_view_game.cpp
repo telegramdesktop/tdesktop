@@ -232,7 +232,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(stm->webPageDescriptionFg);
+		p.setPen(stm->historyTextFg);
 		auto endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();

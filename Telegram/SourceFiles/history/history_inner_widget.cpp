@@ -579,6 +579,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		.theme = _theme.get(),
 		.visibleAreaTop = _visibleAreaTop,
 		.visibleAreaTopGlobal = visibleAreaTopGlobal,
+		.visibleAreaWidth = width(),
 		.clip = clip,
 	});
 	_pathGradient->startFrame(

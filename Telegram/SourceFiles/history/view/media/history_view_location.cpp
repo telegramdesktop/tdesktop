@@ -165,13 +165,12 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 
 		auto textw = width() - st::msgPadding.left() - st::msgPadding.right();
 
+		p.setPen(stm->historyTextFg);
 		if (!_title.isEmpty()) {
-			p.setPen(stm->webPageTitleFg);
 			_title.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 2, style::al_left, 0, -1, 0, false, context.selection);
 			painty += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			p.setPen(stm->webPageDescriptionFg);
 			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(context.selection));
 			painty += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}

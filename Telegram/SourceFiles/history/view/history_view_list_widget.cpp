@@ -1625,6 +1625,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			.theme = _delegate->listChatTheme(),
 			.visibleAreaTop = _visibleTop,
 			.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+			.visibleAreaWidth = width(),
 			.clip = clip,
 		}).translated(0, -top);
 		p.translate(0, top);

@@ -521,8 +521,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += lineHeight;
 	}
+	p.setPen(stm->historyTextFg);
 	if (_titleLines) {
-		p.setPen(stm->webPageTitleFg);
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -531,7 +531,6 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(stm->webPageDescriptionFg);
 		auto endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();

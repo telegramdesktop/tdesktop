@@ -233,7 +233,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		p.setTextPalette(stm->textPalette);
 	}
 	if (_descriptionHeight) {
-		p.setPen(stm->webPageDescriptionFg);
+		p.setPen(stm->historyTextFg);
 		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(context.selection));
 		tshift += _descriptionHeight;
 	}
@@ -268,7 +268,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 
 		p.translate(-attachLeft, -attachTop);
 	} else {
-		p.setPen(stm->webPageDescriptionFg);
+		p.setPen(stm->historyTextFg);
 		_status.drawLeft(p, padding.left(), tshift + st::mediaInBubbleSkip, paintw, width());
 	}
 }
