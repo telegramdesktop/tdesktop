@@ -101,6 +101,7 @@ struct ChatThemeDescriptor {
 	Fn<void(style::palette&)> preparePalette;
 	ChatThemeBackgroundData backgroundData;
 	ChatThemeBubblesData bubblesData;
+	bool basedOnDark = false;
 };
 
 class ChatTheme final : public base::has_weak_ptr {

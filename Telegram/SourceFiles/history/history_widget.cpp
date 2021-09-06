@@ -180,11 +180,6 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 } // namespace
 
-struct HistoryWidget::CustomStyles {
-	style::TwoIconButton historyToDown;
-	style::TwoIconButton historyUnreadMentions;
-};
-
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -192,17 +187,23 @@ HistoryWidget::HistoryWidget(
 	parent,
 	controller,
 	ActivePeerValue(controller))
-, _styles(MakeCustomStyles(controller))
 , _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _previewTimer([=] { requestPreview(); })
 , _previewState(Data::PreviewState::Allowed)
 , _topBar(this, controller)
-, _scroll(this, st::historyScroll, false)
+, _scroll(
+	this,
+	controller->chatStyle()->value(lifetime(), st::historyScroll),
+	false)
 , _updateHistoryItems([=] { updateHistoryItemsByTimer(); })
-, _historyDown(_scroll, _styles->historyToDown)
-, _unreadMentions(_scroll, _styles->historyUnreadMentions)
+, _historyDown(
+	_scroll,
+	controller->chatStyle()->value(lifetime(), st::historyToDown))
+, _unreadMentions(
+	_scroll,
+	controller->chatStyle()->value(lifetime(), st::historyUnreadMentions))
 , _fieldAutocomplete(this, controller)
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
@@ -323,7 +324,7 @@ HistoryWidget::HistoryWidget(
 	_scroll->hide();
 	_kbScroll->hide();
 
-	style::PaletteChanged(
+	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
 	}, lifetime());
@@ -3989,17 +3990,6 @@ bool HistoryWidget::updateCmdStartShown() {
 
 bool HistoryWidget::kbWasHidden() const {
 	return _history && (_keyboard->forMsgId() == FullMsgId(_history->channelId(), _history->lastKeyboardHiddenId));
-}
-
-auto HistoryWidget::MakeCustomStyles(
-	not_null<Window::SessionController*> controller)
--> std::unique_ptr<CustomStyles> {
-	const auto st = controller->chatStyle();
-
-	auto result = std::make_unique<CustomStyles>();
-	result->historyToDown = st->value(st::historyToDown);
-	result->historyUnreadMentions = st->value(st::historyUnreadMentions);
-	return result;
 }
 
 void HistoryWidget::toggleKeyboard(bool manual) {

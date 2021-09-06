@@ -1452,6 +1452,7 @@ void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 			data.accentColor),
 		.backgroundData = backgroundData(theme),
 		.bubblesData = PrepareBubblesData(data),
+		.basedOnDark = data.basedOnDark,
 	};
 	crl::async([
 		this,

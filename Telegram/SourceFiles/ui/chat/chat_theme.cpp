@@ -25,6 +25,8 @@ constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kBackgroundFadeDuration = crl::time(200);
 constexpr auto kMinimumTiledSize = 512;
 constexpr auto kMaxSize = 2960;
+constexpr auto kMaxContrastValue = 21.;
+constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 
 [[nodiscard]] QColor DefaultBackgroundColor() {
 	return QColor(213, 223, 233);
@@ -133,6 +135,25 @@ constexpr auto kMaxSize = 2960;
 	return Images::GenerateLinearGradient(QSize(kSize, kSize), data.colors);
 }
 
+// https://stackoverflow.com/a/9733420
+[[nodiscard]] float64 CountContrast(const QColor &a, const QColor &b) {
+	const auto luminance = [](const QColor &c) {
+		const auto map = [](double value) {
+			return (value <= 0.03928)
+				? (value / 12.92)
+				: std::pow((value + 0.055) / 1.055, 2.4);
+		};
+		return map(c.redF()) * 0.2126
+			+ map(c.greenF()) * 0.7152
+			+ map(c.blueF()) * 0.0722;
+	};
+	const auto luminance1 = luminance(a);
+	const auto luminance2 = luminance(b);
+	const auto brightest = std::max(luminance1, luminance2);
+	const auto darkest = std::min(luminance1, luminance2);
+	return (brightest + 0.05) / (darkest + 0.05);
+}
+
 } // namespace
 
 bool operator==(const ChatThemeBackground &a, const ChatThemeBackground &b) {
@@ -201,7 +222,7 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 	}
 	const auto bubblesAccent = descriptor.bubblesData.accent
 		? descriptor.bubblesData.accent
-		: !descriptor.bubblesData.colors.empty()
+		: (!descriptor.bubblesData.colors.empty())
 		? ThemeAdjustedColor(
 			p.msgOutReplyBarColor()->c,
 			CountAverageColor(descriptor.bubblesData.colors))
@@ -229,6 +250,55 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.historyOutIconFg(), by);
 		adjust(p.historyCallArrowOutFg(), by);
 		adjust(p.historyFileOutIconFg(), by);
+	}
+	auto outBgColors = descriptor.bubblesData.colors;
+	if (outBgColors.empty()) {
+		outBgColors.push_back(p.msgOutBg()->c);
+	}
+	const auto colors = {
+		p.msgOutServiceFg(),
+		p.msgOutDateFg(),
+		p.msgFileThumbLinkOutFg(),
+		p.msgFileOutBg(),
+		p.msgOutReplyBarColor(),
+		p.msgWaveformOutActive(),
+		p.historyTextOutFg(),
+		p.mediaOutFg(),
+		p.historyLinkOutFg(),
+		p.msgOutMonoFg(),
+		p.historyOutIconFg(),
+		p.historyCallArrowOutFg(),
+	};
+	const auto minimal = [&](const QColor &with) {
+		auto result = kMaxContrastValue;
+		for (const auto &color : colors) {
+			result = std::min(result, CountContrast(color->c, with));
+		}
+		return result;
+	};
+	const auto withBg = [&](auto &&count) {
+		auto result = kMaxContrastValue;
+		for (const auto &bg : outBgColors) {
+			result = std::min(result, count(bg));
+		}
+		return result;
+	};
+	const auto singleWithBg = [&](const QColor &c) {
+		return withBg([&](const QColor &with) {
+			return CountContrast(c, with);
+		});
+	};
+	if (withBg(minimal) < kMinAcceptableContrast) {
+		const auto white = QColor(255, 255, 255);
+		const auto black = QColor(0, 0, 0);
+		// This one always gives black :)
+		//const auto now = (singleWithBg(white) >= singleWithBg(black))
+		//	? white
+		//	: black;
+		const auto now = descriptor.basedOnDark ? white : black;
+		for (const auto &color : colors) {
+			set(color, now);
+		}
 	}
 }
 

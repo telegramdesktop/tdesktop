@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/item_text_options.h"
+#include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -95,12 +96,22 @@ PinnedWidget::PinnedWidget(
 , _migratedPeer(_history->peer->migrateFrom())
 , _topBar(this, controller)
 , _topBarShadow(this)
-, _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
+, _scroll(std::make_unique<Ui::ScrollArea>(
+	this,
+	controller->chatStyle()->value(lifetime(), st::historyScroll),
+	false))
 , _clearButton(std::make_unique<Ui::FlatButton>(
 	this,
 	QString(),
 	st::historyComposeButton))
-, _scrollDown(_scroll.get(), st::historyToDown) {
+, _scrollDown(
+		_scroll.get(),
+		controller->chatStyle()->value(lifetime(), st::historyToDown)) {
+	controller->chatStyle()->paletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->updateBars();
+	}, _scroll->lifetime());
+
 	Window::ChatThemeValueFromPeer(
 		controller,
 		history->peer

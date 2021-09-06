@@ -15,6 +15,7 @@ enum class ImageRoundRadius;
 
 namespace style {
 struct TwoIconButton;
+struct ScrollArea;
 } // namespace style
 
 namespace Ui {
@@ -138,11 +139,24 @@ public:
 
 	void apply(not_null<ChatTheme*> theme);
 
+	[[nodiscard]] rpl::producer<> paletteChanged() const {
+		return _paletteChanged.events();
+	}
+
 	template <typename Type>
 	[[nodiscard]] Type value(const Type &original) const {
 		auto my = Type();
 		make(my, original);
 		return my;
+	}
+
+	template <typename Type>
+	[[nodiscard]] const Type &value(
+			rpl::lifetime &parentLifetime,
+			const Type &original) const {
+		const auto my = parentLifetime.make_state<Type>();
+		make(*my, original);
+		return *my;
 	}
 
 	[[nodiscard]] const CornersPixmaps &serviceBgCornersNormal() const;
@@ -241,6 +255,9 @@ private:
 	void make(
 		style::TwoIconButton &my,
 		const style::TwoIconButton &original) const;
+	void make(
+		style::ScrollArea &my,
+		const style::ScrollArea &original) const;
 
 	[[nodiscard]] MessageStyle &messageStyleRaw(
 		bool outbg,
@@ -302,6 +319,8 @@ private:
 	style::icon _videoIcon = { Qt::Uninitialized };
 	style::icon _historyPollChoiceRight = { Qt::Uninitialized };
 	style::icon _historyPollChoiceWrong = { Qt::Uninitialized };
+
+	rpl::event_stream<> _paletteChanged;
 
 	rpl::lifetime _defaultPaletteChangeLifetime;
 

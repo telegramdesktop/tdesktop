@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/item_text_options.h"
 #include "ui/toast/toast.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/special_buttons.h"
@@ -91,7 +92,10 @@ ScheduledWidget::ScheduledWidget(
 	not_null<History*> history)
 : Window::SectionWidget(parent, controller, history->peer)
 , _history(history)
-, _scroll(this, st::historyScroll, false)
+, _scroll(
+	this,
+	controller->chatStyle()->value(lifetime(), st::historyScroll),
+	false)
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
@@ -99,7 +103,14 @@ ScheduledWidget::ScheduledWidget(
 	controller,
 	ComposeControls::Mode::Scheduled,
 	SendMenu::Type::Disabled))
-, _scrollDown(_scroll, st::historyToDown) {
+, _scrollDown(
+		_scroll,
+		controller->chatStyle()->value(lifetime(), st::historyToDown)) {
+	controller->chatStyle()->paletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->updateBars();
+	}, _scroll->lifetime());
+
 	Window::ChatThemeValueFromPeer(
 		controller,
 		history->peer

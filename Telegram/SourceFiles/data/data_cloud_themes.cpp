@@ -421,8 +421,6 @@ void CloudThemes::parseChatThemes(const QVector<MTPChatTheme> &list) {
 				.light = CloudTheme::Parse(_session, data.vtheme(), true),
 				.dark = CloudTheme::Parse(_session, data.vdark_theme(), true),
 			});
-			AssertIsDebug();
-			std::swap(_chatThemes.back().light, _chatThemes.back().dark);
 		});
 	}
 }

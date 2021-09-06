@@ -472,6 +472,8 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	_msgBotKbOverBgAddCorners = {};
 	_msgSelectOverlayCornersSmall = {};
 	_msgSelectOverlayCornersLarge = {};
+
+	_paletteChanged.fire({});
 }
 
 const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
@@ -614,6 +616,17 @@ void ChatStyle::make(
 	make(my.iconBelowOver, original.iconBelowOver);
 	make(my.iconAboveOver, original.iconAboveOver);
 	make(my.ripple.color, original.ripple.color);
+}
+
+void ChatStyle::make(
+		style::ScrollArea &my,
+		const style::ScrollArea &original) const {
+	my = original;
+	make(my.bg, original.bg);
+	make(my.bgOver, original.bgOver);
+	make(my.barBg, original.barBg);
+	make(my.barBgOver, original.barBgOver);
+	make(my.shColor, original.shColor);
 }
 
 template <typename Type>

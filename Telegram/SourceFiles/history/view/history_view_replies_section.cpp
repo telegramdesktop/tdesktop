@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "chat_helpers/send_context_menu.h" // SendMenu::Type.
 #include "ui/chat/pinned_bar.h"
+#include "ui/chat/chat_style.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
@@ -162,9 +163,19 @@ RepliesWidget::RepliesWidget(
 	controller,
 	ComposeControls::Mode::Normal,
 	SendMenu::Type::SilentOnly))
-, _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
-, _scrollDown(_scroll.get(), st::historyToDown)
+, _scroll(std::make_unique<Ui::ScrollArea>(
+	this,
+	controller->chatStyle()->value(lifetime(), st::historyScroll),
+	false))
+, _scrollDown(
+	_scroll.get(),
+	controller->chatStyle()->value(lifetime(), st::historyToDown))
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
+	controller->chatStyle()->paletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->updateBars();
+	}, _scroll->lifetime());
+
 	Window::ChatThemeValueFromPeer(
 		controller,
 		history->peer
