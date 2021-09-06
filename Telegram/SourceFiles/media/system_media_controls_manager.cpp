@@ -248,6 +248,9 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_controls->volumeChangeRequests(
 		) | rpl::start_with_next([](float64 volume) {
 			Player::mixer()->setSongVolume(volume);
+			if (volume > 0) {
+				Core::App().settings().setRememberedSongVolume(volume);
+			}
 			Core::App().settings().setSongVolume(volume);
 		}, _lifetime);
 	}
