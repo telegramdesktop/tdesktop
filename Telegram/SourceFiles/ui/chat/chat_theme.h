@@ -184,6 +184,9 @@ struct ChatBackgroundRects {
 
 [[nodiscard]] QColor CountAverageColor(const QImage &image);
 [[nodiscard]] QColor CountAverageColor(const std::vector<QColor> &colors);
+[[nodiscard]] bool IsPatternInverted(
+	const std::vector<QColor> &background,
+	float64 patternOpacity);
 [[nodiscard]] QColor ThemeAdjustedColor(QColor original, QColor background);
 [[nodiscard]] QImage PreprocessBackgroundImage(QImage image);
 [[nodiscard]] std::optional<QColor> CalculateImageMonoColor(
@@ -199,7 +202,8 @@ struct ChatBackgroundRects {
 	const std::vector<QColor> &bg,
 	int gradientRotation,
 	float64 patternOpacity = 1.,
-	Fn<void(QPainter&)> drawPattern = nullptr);
+	Fn<void(QPainter&,bool)> drawPattern = nullptr);
+[[nodiscard]] QImage InvertPatternImage(QImage pattern);
 [[nodiscard]] QImage PreparePatternImage(
 	QImage pattern,
 	const std::vector<QColor> &bg,

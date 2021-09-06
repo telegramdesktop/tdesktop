@@ -722,6 +722,9 @@ void ChatBackground::setPreparedAfterPaper(QImage image) {
 				QImage());
 		} else {
 			image = postprocessBackgroundImage(std::move(image));
+			if (Ui::IsPatternInverted(bgColors, _paper.patternOpacity())) {
+				image = Ui::InvertPatternImage(std::move(image));
+			}
 			setPrepared(
 				image,
 				image,

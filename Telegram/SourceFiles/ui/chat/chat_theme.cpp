@@ -647,6 +647,13 @@ QColor CountAverageColor(const std::vector<QColor> &colors) {
 	return QColor(components[0], components[1], components[2]);
 }
 
+bool IsPatternInverted(
+		const std::vector<QColor> &background,
+		float64 patternOpacity) {
+	return (patternOpacity > 0.)
+		&& (CountAverageColor(background).toHsv().valueF() <= 0.3);
+}
+
 QColor ThemeAdjustedColor(QColor original, QColor background) {
 	return QColor::fromHslF(
 		background.hslHueF(),
@@ -747,7 +754,7 @@ QImage GenerateBackgroundImage(
 		const std::vector<QColor> &bg,
 		int gradientRotation,
 		float64 patternOpacity,
-		Fn<void(QPainter&)> drawPattern) {
+		Fn<void(QPainter&,bool)> drawPattern) {
 	auto result = bg.empty()
 		? Images::GenerateGradient(size, { DefaultBackgroundColor() })
 		: Images::GenerateGradient(size, bg, gradientRotation);
@@ -762,7 +769,7 @@ QImage GenerateBackgroundImage(
 		} else {
 			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 		}
-		drawPattern(p);
+		drawPattern(p, IsPatternInverted(bg, patternOpacity));
 		if (patternOpacity < 0. && patternOpacity > -1.) {
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			p.setOpacity(1. + patternOpacity);
@@ -784,12 +791,32 @@ QImage PreparePatternImage(
 		bg,
 		gradientRotation,
 		patternOpacity,
-		[&](QPainter &p) {
+		[&](QPainter &p, bool inverted) {
+			if (inverted) {
+				pattern = InvertPatternImage(std::move(pattern));
+			}
 			p.drawImage(QRect(QPoint(), pattern.size()), pattern);
 		});
 
 	pattern = QImage();
 	return result;
+}
+
+QImage InvertPatternImage(QImage pattern) {
+	pattern = std::move(pattern).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	const auto w = pattern.bytesPerLine() / 4;
+	auto ints = reinterpret_cast<uint32*>(pattern.bits());
+	for (auto y = 0, h = pattern.height(); y != h; ++y) {
+		for (auto x = 0; x != w; ++x) {
+			const auto value = (*ints >> 24);
+			*ints++ = (value << 24)
+				| (value << 16)
+				| (value << 8)
+				| value;
+		}
+	}
+	return pattern;
 }
 
 QImage PrepareBlurredBackground(QImage image) {
@@ -834,6 +861,8 @@ ChatThemeBackground PrepareBackgroundImage(
 				data.colors,
 				data.gradientRotation,
 				data.patternOpacity);
+		} else if (IsPatternInverted(data.colors, data.patternOpacity)) {
+			prepared = InvertPatternImage(std::move(prepared));
 		}
 		prepared.setDevicePixelRatio(style::DevicePixelRatio());
 	} else if (data.colors.empty()) {
