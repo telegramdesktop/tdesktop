@@ -539,6 +539,7 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 	}
 	updateButtonsStyles();
 	updateButtonsGeometry();
+	raiseControls();
 }
 
 void Panel::hideStickedTooltip(StickedTooltipHide hide) {
@@ -887,6 +888,7 @@ void Panel::raiseControls() {
 		}
 	}
 	_mute->raise();
+	_layerBg->raise();
 	if (_niceTooltip) {
 		_niceTooltip->raise();
 	}
