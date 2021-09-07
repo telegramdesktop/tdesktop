@@ -1113,7 +1113,6 @@ void Poll::paintRadio(
 		const PaintContext &context) const {
 	top += st::historyPollAnswerPadding.top();
 
-	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
 	PainterHighQualityEnabler hq(p);
