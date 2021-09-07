@@ -130,6 +130,8 @@ PRIVATE
     api/api_updates.h
     api/api_user_privacy.cpp
     api/api_user_privacy.h
+    api/api_who_read.cpp
+    api/api_who_read.h
     boxes/filters/edit_filter_box.cpp
     boxes/filters/edit_filter_box.h
     boxes/filters/edit_filter_chats_list.cpp

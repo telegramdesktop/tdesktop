@@ -1704,6 +1704,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_reschedule_selected" = "Reschedule Selected";
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_clear_selection" = "Clear Selection";
+"lng_context_seen_loading" = "Loading...";
+"lng_context_seen_text#one" = "{count} Seen";
+"lng_context_seen_text#other" = "{count} Seen";
+"lng_context_seen_listened#one" = "{count} Listened";
+"lng_context_seen_listened#other" = "{count} Listened";
+
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
 "lng_send_images_selected#one" = "{count} image selected";

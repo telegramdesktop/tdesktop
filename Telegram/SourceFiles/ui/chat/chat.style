@@ -862,3 +862,10 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
+
+seenItemUserpics: GroupCallUserpics {
+	size: 32px;
+	shift: 12px;
+	stroke: 4px;
+	align: align(right);
+}
