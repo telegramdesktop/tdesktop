@@ -1614,7 +1614,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			_call->joinAsValue()
 		) | rpl::map([=](bool can, not_null<PeerData*> joinAs) {
 			return can && joinAs->isSelf();
-		});
+		}) | rpl::type_erased();
 	};
 	const auto canInviteByLinkByPeer = [=](not_null<PeerData*> peer) {
 		const auto channel = peer->asChannel();
