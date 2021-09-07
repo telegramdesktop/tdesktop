@@ -672,7 +672,6 @@ void Gif::drawCornerStatus(
 	const auto own = activeOwnStreamed();
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto stm = context.messageStyle();
 	const auto text = (own && !own->frozenStatusText.isEmpty())
 		? own->frozenStatusText
 		: _statusText;
