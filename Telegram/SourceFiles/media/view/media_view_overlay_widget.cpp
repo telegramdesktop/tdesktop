@@ -737,6 +737,16 @@ void OverlayWidget::checkForSaveLoaded() {
 
 void OverlayWidget::updateControls() {
 	if (_document && documentBubbleShown()) {
+		_docRect = QRect(
+			(width() - st::mediaviewFileSize.width()) / 2,
+			(height() - st::mediaviewFileSize.height()) / 2,
+			st::mediaviewFileSize.width(),
+			st::mediaviewFileSize.height());
+		_docIconRect = QRect(
+			_docRect.x() + st::mediaviewFilePadding,
+			_docRect.y() + st::mediaviewFilePadding,
+			st::mediaviewFileIconSize,
+			st::mediaviewFileIconSize);
 		if (_document->loading()) {
 			_docDownload->hide();
 			_docSaveAs->hide();
@@ -758,6 +768,11 @@ void OverlayWidget::updateControls() {
 		}
 		updateDocSize();
 	} else {
+		_docIconRect = QRect(
+			(width() - st::mediaviewFileIconSize) / 2,
+			(height() - st::mediaviewFileIconSize) / 2,
+			st::mediaviewFileIconSize,
+			st::mediaviewFileIconSize);
 		_docDownload->hide();
 		_docSaveAs->hide();
 		_docCancel->hide();
@@ -2430,7 +2445,6 @@ void OverlayWidget::displayDocument(
 	}
 	refreshCaption(item);
 
-	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	const auto docGeneric = Layout::DocumentGenericPreview::Create(_document);
 	_docExt = docGeneric.ext;
 	_docIconColor = docGeneric.color;
@@ -2478,11 +2492,6 @@ void OverlayWidget::displayDocument(
 			_docName = st::mediaviewFileNameFont->elided(_docName, maxw, Qt::ElideMiddle);
 			_docNameWidth = st::mediaviewFileNameFont->width(_docName);
 		}
-
-		// _docSize is updated in updateControls()
-
-		_docRect = QRect((width() - st::mediaviewFileSize.width()) / 2, (height() - st::mediaviewFileSize.height()) / 2, st::mediaviewFileSize.width(), st::mediaviewFileSize.height());
-		_docIconRect = QRect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else if (_themePreviewShown) {
 		updateThemePreviewGeometry();
 	} else if (!_staticContent.isNull()) {
