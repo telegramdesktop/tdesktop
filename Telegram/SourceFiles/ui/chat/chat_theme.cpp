@@ -32,6 +32,25 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	return QColor(213, 223, 233);
 }
 
+[[nodiscard]] int ComputeRealRotation(const CacheBackgroundRequest &request) {
+	if (request.background.colors.size() < 3) {
+		return request.background.gradientRotation;
+	}
+	const auto doubled = (request.background.gradientRotation
+		+ request.gradientRotationAdd) % 720;
+	return (((doubled % 2) ? (doubled - 45) : doubled) / 2) % 360;
+}
+
+[[nodiscard]] double ComputeRealProgress(
+		const CacheBackgroundRequest &request) {
+	if (request.background.colors.size() < 3) {
+		return 1.;
+	}
+	const auto doubled = (request.background.gradientRotation
+		+ request.gradientRotationAdd) % 720;
+	return (doubled % 2) ? 0.5 : 1.;
+}
+
 [[nodiscard]] CacheBackgroundResult CacheBackground(
 		const CacheBackgroundRequest &request) {
 	Expects(!request.area.isEmpty());
@@ -42,8 +61,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 		? Images::GenerateGradient(
 			request.background.gradientForFill.size(),
 			request.background.colors,
-			(request.background.gradientRotation
-				+ request.gradientRotationAdd) % 360)
+			ComputeRealRotation(request),
+			ComputeRealProgress(request))
 		: request.background.gradientForFill;
 	if (request.background.isPattern
 		|| request.background.tile
@@ -431,10 +450,10 @@ void ChatTheme::generateNextBackgroundRotation() {
 	if (background().colors.size() < 3) {
 		return;
 	}
-	constexpr auto kAddRotation = 315;
+	constexpr auto kAddRotationDoubled = (720 - 45);
 	const auto request = currentCacheRequest(
 		_backgroundState.now.area,
-		kAddRotation);
+		kAddRotationDoubled);
 	if (!request) {
 		return;
 	}
@@ -445,10 +464,11 @@ void ChatTheme::generateNextBackgroundRotation() {
 		}
 		const auto request = currentCacheRequest(
 			_backgroundState.now.area,
-			kAddRotation);
+			kAddRotationDoubled);
 		if (forRequest == request) {
 			_mutableBackground.gradientRotation
-				= (_mutableBackground.gradientRotation + kAddRotation) % 360;
+				= (_mutableBackground.gradientRotation
+					+ kAddRotationDoubled) % 720;
 			_backgroundNext = std::move(result);
 		}
 	});
