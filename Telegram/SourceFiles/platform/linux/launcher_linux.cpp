@@ -30,8 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace {
 
-using BaseGtkIntegration = base::Platform::GtkIntegration;
-
 class Arguments {
 public:
 	void push(QByteArray argument) {
