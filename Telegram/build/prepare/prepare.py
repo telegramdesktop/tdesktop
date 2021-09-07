@@ -53,6 +53,7 @@ pathPrefixes = [
     'ThirdParty\\Ninja',
 ] if win else [
     'ThirdParty/gyp',
+    'ThirdParty/yasm',
     'ThirdParty/depot_tools',
 ]
 pathPrefix = ''
@@ -293,17 +294,11 @@ mac:
 
 stage('yasm', """
 mac:
-    git clone -b macos_padding https://github.com/desktop-app/yasm.git
+    git clone https://github.com/yasm/yasm.git
     cd yasm
+    git checkout 41762bea
     ./autogen.sh
     make $MAKE_THREADS_CNT
-""", 'ThirdParty')
-
-stage('macho_edit', """
-mac:
-    git clone https://github.com/desktop-app/macho_edit.git
-    cd macho_edit
-    xcodebuild build -configuration Release -project macho_edit.xcodeproj -target macho_edit
 """, 'ThirdParty')
 
 stage('lzma', """
@@ -461,16 +456,11 @@ mac:
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
-depends:patches/macos_yasm_wrap.sh
 depends:yasm/yasm
-depends:macho_edit/build/Release/macho_edit
-    cp ../patches/macos_yasm_wrap.sh ./
-
     ./configure --prefix=$USED_PREFIX \
     --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
     --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
     --extra-ldflags="$MIN_VER" \
-    --x86asmexe=`pwd`/macos_yasm_wrap.sh \
     --enable-protocol=file \
     --enable-libopus \
     --disable-programs \
