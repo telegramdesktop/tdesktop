@@ -504,7 +504,6 @@ void Photo::drawGrouped(
 	const auto sti = context.imageStyle();
 	const auto loaded = _dataMedia->loaded();
 	const auto displayLoading = _data->displayLoading();
-	const auto bubble = _parent->hasBubble();
 
 	if (displayLoading) {
 		ensureAnimation();
