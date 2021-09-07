@@ -1314,3 +1314,14 @@ groupCallStickedTooltipClose: IconButton(defaultIconButton) {
 }
 groupCallNiceTooltipTop: 4px;
 groupCallPaused: icon {{ "calls/video_large_paused", groupCallVideoTextFg }};
+
+groupCallRecordingSubLabel: FlatLabel(boxDividerLabel) {
+	margin: margins(0px, 0px, 0px, 0px);
+	textFg: groupCallMemberNotJoinedStatus;
+	align: align(top);
+}
+groupCallRecordingInfoMargins: margins(0px, 22px, 0px, 22px);
+groupCallRecordingSubLabelMargins: margins(8px, 22px, 8px, 22px);
+groupCallRecordingAudioSkip: 23px;
+groupCallRecordingSelectWidth: 2px;
+groupCallRecordingInfoHeight: 204px;

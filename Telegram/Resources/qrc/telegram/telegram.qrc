@@ -62,6 +62,9 @@
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
     <file alias="icons/calls/hands.lottie">../../icons/calls/hands.lottie</file>
     <file alias="icons/calls/voice.lottie">../../icons/calls/voice.lottie</file>
+    <file alias="recording/info_audio.svg">../../art/recording/recording_info_audio.svg</file>
+    <file alias="recording/info_video_landscape.svg">../../art/recording/recording_info_video_landscape.svg</file>
+    <file alias="recording/info_video_portrait.svg">../../art/recording/recording_info_video_portrait.svg</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>../qmime/freedesktop.org.xml</file>

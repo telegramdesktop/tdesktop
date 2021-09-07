@@ -1028,19 +1028,28 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	};
 
 	using namespace rpl::mappers;
+	const auto startedAsVideo = std::make_shared<bool>(real->recordVideo());
 	real->recordStartDateChanges(
 	) | rpl::map(
 		_1 != 0
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool recorded) {
 		const auto livestream = _call->peer()->isBroadcast();
+		const auto isVideo = real->recordVideo();
+		if (recorded) {
+			*startedAsVideo = isVideo;
+		}
 		validateRecordingMark(recorded);
 		showToast((recorded
 			? (livestream
 				? tr::lng_group_call_recording_started_channel
+				: isVideo
+				? tr::lng_group_call_recording_started_video
 				: tr::lng_group_call_recording_started)
 			: _call->recordingStoppedByMe()
-			? tr::lng_group_call_recording_saved
+			? ((*startedAsVideo)
+				? tr::lng_group_call_recording_saved_video
+				: tr::lng_group_call_recording_saved)
 			: (livestream
 				? tr::lng_group_call_recording_stopped_channel
 				: tr::lng_group_call_recording_stopped))(

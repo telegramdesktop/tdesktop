@@ -2184,7 +2184,11 @@ void GroupCall::changeTitle(const QString &title) {
 	}).send();
 }
 
-void GroupCall::toggleRecording(bool enabled, const QString &title) {
+void GroupCall::toggleRecording(
+		bool enabled,
+		const QString &title,
+		bool video,
+		bool videoPortrait) {
 	const auto real = lookupReal();
 	if (!real) {
 		return;
@@ -2201,10 +2205,11 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 	using Flag = MTPphone_ToggleGroupCallRecord::Flag;
 	_api.request(MTPphone_ToggleGroupCallRecord(
 		MTP_flags((enabled ? Flag::f_start : Flag(0))
+			| (video ? Flag::f_video : Flag(0))
 			| (title.isEmpty() ? Flag(0) : Flag::f_title)),
 		inputCall(),
 		MTP_string(title),
-		MTPBool() // video_portrait
+		MTP_bool(videoPortrait)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		_recordingStoppedByMe = false;

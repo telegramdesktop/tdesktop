@@ -98,6 +98,9 @@ public:
 	[[nodiscard]] int unmutedVideoLimit() const {
 		return _unmutedVideoLimit.current();
 	}
+	[[nodiscard]] bool recordVideo() const {
+		return _recordVideo.current();
+	}
 
 	void setPeer(not_null<PeerData*> peer);
 
@@ -214,6 +217,7 @@ private:
 	int _serverParticipantsCount = 0;
 	rpl::variable<int> _fullCount = 0;
 	rpl::variable<int> _unmutedVideoLimit = 0;
+	rpl::variable<bool> _recordVideo = 0;
 	rpl::variable<TimeId> _recordStartDate = 0;
 	rpl::variable<TimeId> _scheduleDate = 0;
 	rpl::variable<bool> _scheduleStartSubscribed = false;

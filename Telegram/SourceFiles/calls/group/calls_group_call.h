@@ -245,7 +245,11 @@ public:
 	void handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCallConnection &data);
 	void changeTitle(const QString &title);
-	void toggleRecording(bool enabled, const QString &title);
+	void toggleRecording(
+		bool enabled,
+		const QString &title,
+		bool video,
+		bool videoPortrait);
 	[[nodiscard]] bool recordingStoppedByMe() const {
 		return _recordingStoppedByMe;
 	}

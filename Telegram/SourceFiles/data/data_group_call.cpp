@@ -389,7 +389,10 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	setServerParticipantsCount(data.vparticipants_count().v);
 	changePeerEmptyCallFlag();
 	_title = qs(data.vtitle().value_or_empty());
-	_recordStartDate = data.vrecord_start_date().value_or_empty();
+	{
+		_recordVideo = data.is_record_video_active();
+		_recordStartDate = data.vrecord_start_date().value_or_empty();
+	}
 	_scheduleDate = data.vschedule_date().value_or_empty();
 	_scheduleStartSubscribed = data.is_schedule_start_subscribed();
 	_unmutedVideoLimit = data.vunmuted_video_limit().v;

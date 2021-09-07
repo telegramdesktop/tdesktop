@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_settings.h"
 #include "calls/group/calls_group_panel.h"
+#include "calls/group/ui/calls_group_recording_box.h"
 #include "data/data_peer.h"
 #include "data/data_group_call.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
@@ -30,87 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 namespace {
-
-constexpr auto kMaxGroupCallLength = 40;
-
-void EditGroupCallTitleBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &placeholder,
-		const QString &title,
-		bool livestream,
-		Fn<void(QString)> done) {
-	box->setTitle(livestream
-		? tr::lng_group_call_edit_title_channel()
-		: tr::lng_group_call_edit_title());
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		rpl::single(placeholder),
-		title));
-	input->setMaxLength(kMaxGroupCallLength);
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	const auto submit = [=] {
-		const auto result = input->getLastText().trimmed();
-		box->closeBox();
-		done(result);
-	};
-	QObject::connect(input, &Ui::InputField::submitted, submit);
-	box->addButton(tr::lng_settings_save(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StartGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &title,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_recording_start());
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_start_sure(),
-			st::groupCallBoxLabel));
-
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		tr::lng_group_call_recording_start_field(),
-		title));
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	const auto submit = [=] {
-		const auto result = input->getLastText().trimmed();
-		box->closeBox();
-		done(result);
-	};
-	QObject::connect(input, &Ui::InputField::submitted, submit);
-	box->addButton(tr::lng_group_call_recording_start_button(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StopGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		Fn<void(QString)> done) {
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_stop_sure(),
-			st::groupCallBoxLabel),
-		style::margins(
-			st::boxRowPadding.left(),
-			st::boxPadding.top(),
-			st::boxRowPadding.right(),
-			st::boxPadding.bottom()));
-
-	box->addButton(tr::lng_box_ok(), [=] {
-		box->closeBox();
-		done(QString());
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
 
 class JoinAsAction final : public Ui::Menu::ItemBase {
 public:
@@ -632,10 +552,15 @@ void FillMenu(
 			if (!real) {
 				return;
 			}
+			const auto type = std::make_shared<RecordingType>();
 			const auto recordStartDate = real->recordStartDate();
 			const auto done = [=](QString title) {
 				if (const auto strong = weak.get()) {
-					strong->toggleRecording(!recordStartDate, title);
+					strong->toggleRecording(
+						!recordStartDate,
+						title,
+						(*type) != RecordingType::AudioOnly,
+						(*type) == RecordingType::VideoPortrait);
 				}
 			};
 			if (recordStartDate) {
@@ -643,10 +568,14 @@ void FillMenu(
 					StopGroupCallRecordingBox,
 					done));
 			} else {
-				showBox(Box(
-					StartGroupCallRecordingBox,
-					real->title(),
-					done));
+				const auto typeDone = [=](RecordingType newType) {
+					*type = newType;
+					showBox(Box(
+						AddTitleGroupCallRecordingBox,
+						real->title(),
+						done));
+				};
+				showBox(Box(StartGroupCallRecordingBox, typeDone));
 			}
 		};
 		menu->addAction(MakeRecordingAction(
