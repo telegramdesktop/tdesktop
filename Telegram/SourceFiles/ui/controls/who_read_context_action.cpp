@@ -41,10 +41,10 @@ private:
 	void paint(Painter &p);
 
 	void updateUserpicsFromContent();
-	void setupSubMenu();
 	void resolveMinWidth();
 	void refreshText();
 	void refreshDimensions();
+	void populateSubmenu();
 
 	const not_null<PopupMenu*> _parentMenu;
 	const not_null<QAction*> _dummyAction;
@@ -81,19 +81,13 @@ Action::Action(
 	rpl::never<bool>(),
 	[=] { update(); }))
 , _st(parentMenu->menu()->st())
-, _height(st::ttlItemPadding.top()
+, _height(_st.itemPadding.top()
 		+ _st.itemStyle.font->height
-		+ st::ttlItemTimerFont->height
-		+ st::ttlItemPadding.bottom()) {
+		+ _st.itemPadding.bottom()) {
 	const auto parent = parentMenu->menu();
 
 	setAcceptBoth(true);
 	initResizeHook(parent->sizeValue());
-	setClickedCallback([=] {
-		if (!_content.participants.empty()) {
-			setupSubMenu();
-		}
-	});
 	resolveMinWidth();
 
 	auto copy = std::move(
@@ -110,7 +104,11 @@ Action::Action(
 	std::move(
 		content
 	) | rpl::start_with_next([=](WhoReadContent &&content) {
+		const auto changed = (_content.participants != content.participants);
 		_content = content;
+		if (changed) {
+			PostponeCall(this, [=] { populateSubmenu(); });
+		}
 		updateUserpicsFromContent();
 		refreshText();
 		refreshDimensions();
@@ -161,8 +159,19 @@ void Action::updateUserpicsFromContent() {
 	_userpics->update(users, true);
 }
 
-void Action::setupSubMenu() {
-
+void Action::populateSubmenu() {
+	if (_content.participants.empty()) {
+		_parentMenu->removeSubmenu(action());
+		return;
+	}
+	const auto submenu = _parentMenu->ensureSubmenu(action());
+	submenu->clearActions();
+	for (const auto &participant : _content.participants) {
+		const auto chosen = [call = _participantChosen, id = participant.id] {
+			call(id);
+		};
+		submenu->addAction(participant.name, chosen);
+	}
 }
 
 void Action::paint(Painter &p) {
@@ -196,7 +205,9 @@ void Action::refreshText() {
 			? tr::lng_context_seen_loading(tr::now)
 			: (count == 1)
 			? _content.participants.front().name
-			: _content.listened
+			: (_content.type == WhoReadType::Watched)
+			? tr::lng_context_seen_watched(tr::now, lt_count, count)
+			: (_content.type == WhoReadType::Listened)
 			? tr::lng_context_seen_listened(tr::now, lt_count, count)
 			: tr::lng_context_seen_text(tr::now, lt_count, count)) },
 		MenuTextOptions);
@@ -249,6 +260,16 @@ void Action::handleKeyPress(not_null<QKeyEvent*> e) {
 }
 
 } // namespace
+
+bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b) {
+	return (a.id == b.id)
+		&& (a.name == b.name)
+		&& (a.userpicKey == b.userpicKey);
+}
+
+bool operator!=(const WhoReadParticipant &a, const WhoReadParticipant &b) {
+	return !(a == b);
+}
 
 base::unique_qptr<Menu::ItemBase> WhoReadContextAction(
 		not_null<PopupMenu*> menu,

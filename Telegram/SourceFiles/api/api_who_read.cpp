@@ -182,6 +182,7 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 		}) | ranges::views::transform([](UserData *user) {
 			return Ui::WhoReadParticipant{
 				.name = user->name,
+				.id = user->id.value,
 			};
 		}) | ranges::to_vector;
 		return Ui::WhoReadContent{

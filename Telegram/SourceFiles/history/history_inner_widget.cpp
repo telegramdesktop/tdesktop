@@ -1587,7 +1587,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto itemId = item->fullId();
 		if (Api::WhoReadExists(item)) {
 			const auto participantChosen = [=](uint64 id) {
-				controller->showPeerInfo(PeerId(UserId(id)));
+				controller->showPeerInfo(PeerId(id));
 			};
 			_menu->addAction(Ui::WhoReadContextAction(
 				_menu.get(),

@@ -23,9 +23,18 @@ struct WhoReadParticipant {
 	uint64 id = 0;
 };
 
+bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b);
+bool operator!=(const WhoReadParticipant &a, const WhoReadParticipant &b);
+
+enum class WhoReadType {
+	Seen,
+	Listened,
+	Watched,
+};
+
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
-	bool listened = false;
+	WhoReadType type = WhoReadType::Seen;
 	bool unknown = false;
 };
 

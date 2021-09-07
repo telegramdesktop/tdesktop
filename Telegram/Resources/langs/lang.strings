@@ -1709,6 +1709,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_text#other" = "{count} Seen";
 "lng_context_seen_listened#one" = "{count} Listened";
 "lng_context_seen_listened#other" = "{count} Listened";
+"lng_context_seen_watched#one" = "{count} Watched";
+"lng_context_seen_watched#other" = "{count} Watched";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
