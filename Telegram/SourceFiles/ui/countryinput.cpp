@@ -122,7 +122,6 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 			}
 
 			const auto &list = Countries::Instance().list();
-			auto index = 0;
 			const auto infoIt = ranges::find(
 				list,
 				entry.iso2,

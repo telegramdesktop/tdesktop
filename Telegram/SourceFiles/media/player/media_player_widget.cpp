@@ -192,7 +192,7 @@ void Widget::SpeedButton::contextMenuEvent(QContextMenuEvent *e) {
 		if (text.isEmpty()) {
 			text = QString::number(speed);
 		}
-		const auto action = _menu->addAction(
+		_menu->addAction(
 			text,
 			[=] { setPlaybackSpeed(speed); },
 			(speed == currentSpeed) ? &st::mediaPlayerMenuCheck : nullptr);

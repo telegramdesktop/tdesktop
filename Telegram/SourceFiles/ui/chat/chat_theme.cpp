@@ -302,11 +302,11 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		}
 		return result;
 	};
-	const auto singleWithBg = [&](const QColor &c) {
-		return withBg([&](const QColor &with) {
-			return CountContrast(c, with);
-		});
-	};
+	//const auto singleWithBg = [&](const QColor &c) {
+	//	return withBg([&](const QColor &with) {
+	//		return CountContrast(c, with);
+	//	});
+	//};
 	if (withBg(minimal) < kMinAcceptableContrast) {
 		const auto white = QColor(255, 255, 255);
 		const auto black = QColor(0, 0, 0);
@@ -875,7 +875,6 @@ ChatThemeBackground PrepareBackgroundImage(
 		: QImage();
 	if (data.isPattern && !prepared.isNull()) {
 		if (data.colors.size() < 2) {
-			const auto gradientRotation = 0; // No gradient here.
 			prepared = PreparePatternImage(
 				std::move(prepared),
 				data.colors,
