@@ -39,11 +39,13 @@ extern "C" {
 #include <openssl/err.h>
 } // extern "C"
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 #if defined Q_OS_WIN && !defined DESKTOP_APP_USE_PACKAGED // use Lzma SDK for win
 #include <LzmaLib.h>
 #else // Q_OS_WIN && !DESKTOP_APP_USE_PACKAGED
 #include <lzma.h>
 #endif // else of Q_OS_WIN && !DESKTOP_APP_USE_PACKAGED
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 #ifdef Q_OS_UNIX
 #include <unistd.h>
@@ -263,6 +265,7 @@ QString ExtractFilename(const QString &url) {
 }
 
 bool UnpackUpdate(const QString &filepath) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	QFile input(filepath);
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
@@ -516,6 +519,9 @@ bool UnpackUpdate(const QString &filepath) {
 	input.remove();
 
 	return true;
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return false;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 template <typename Callback>
