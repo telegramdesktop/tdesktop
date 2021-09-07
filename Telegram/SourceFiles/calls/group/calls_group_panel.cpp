@@ -312,7 +312,7 @@ void Panel::endCall() {
 		_call->hangup();
 		return;
 	}
-	_layerBg->showBox(Box(
+	showBox(Box(
 		LeaveBox,
 		_call,
 		false,
@@ -342,7 +342,7 @@ void Panel::startScheduledNow() {
 			.callback = done,
 		});
 		*box = owned.data();
-		_layerBg->showBox(std::move(owned));
+		showBox(std::move(owned));
 	}
 }
 
@@ -459,7 +459,7 @@ void Panel::refreshLeftButton() {
 		_callShare.destroy();
 		_settings.create(widget(), st::groupCallSettings);
 		_settings->setClickedCallback([=] {
-			_layerBg->showBox(Box(SettingsBox, _call));
+			showBox(Box(SettingsBox, _call));
 		});
 	}
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
@@ -584,7 +584,7 @@ void Panel::hideNiceTooltip() {
 
 void Panel::initShareAction() {
 	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
-		_layerBg->showBox(std::move(next));
+		showBox(std::move(next));
 	};
 	const auto showToastCallback = [=](QString text) {
 		showToast({ text });
@@ -1138,7 +1138,7 @@ void Panel::refreshTopButton() {
 
 void Panel::screenSharingPrivacyRequest() {
 	if (auto box = ScreenSharingPrivacyRequestBox()) {
-		_layerBg->showBox(std::move(box));
+		showBox(std::move(box));
 	}
 }
 
@@ -1188,7 +1188,7 @@ void Panel::chooseShareScreenSource() {
 		.callback = done,
 	});
 	*shared = box.data();
-	_layerBg->showBox(std::move(box));
+	showBox(std::move(box));
 }
 
 void Panel::chooseJoinAs() {
@@ -1197,7 +1197,7 @@ void Panel::chooseJoinAs() {
 		_call->rejoinAs(info);
 	};
 	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
-		_layerBg->showBox(std::move(next));
+		showBox(std::move(next));
 	};
 	const auto showToastCallback = [=](QString text) {
 		showToast({ text });
@@ -1227,7 +1227,7 @@ void Panel::showMainMenu() {
 		wide,
 		[=] { chooseJoinAs(); },
 		[=] { chooseShareScreenSource(); },
-		[=](auto box) { _layerBg->showBox(std::move(box)); });
+		[=](auto box) { showBox(std::move(box)); });
 	if (_menu->empty()) {
 		_wideMenuShown = false;
 		_menu.destroy();
@@ -1292,12 +1292,12 @@ void Panel::addMembers() {
 		showToast(std::move(text));
 	};
 	if (auto box = PrepareInviteBox(_call, showToastCallback)) {
-		_layerBg->showBox(std::move(box));
+		showBox(std::move(box));
 	}
 }
 
 void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
-	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box.get(),
@@ -1326,6 +1326,18 @@ void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
+}
+
+void Panel::showBox(object_ptr<Ui::BoxContent> box) {
+	showBox(std::move(box), Ui::LayerOption::KeepOther, anim::type::normal);
+}
+
+void Panel::showBox(
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
+		anim::type animated) {
+	hideStickedTooltip(StickedTooltipHide::Unavailable);
+	_layerBg->showBox(std::move(box), options, animated);
 }
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
@@ -1666,7 +1678,8 @@ void Panel::showStickedTooltip() {
 	if (!(_stickedTooltipsShown & StickedTooltip::Microphone)
 		&& callReady
 		&& _mute
-		&& !_call->mutedByAdmin()) {
+		&& !_call->mutedByAdmin()
+		&& !_layerBg->topShownLayer()) {
 		if (_stickedTooltipClose) {
 			// Showing already.
 			return;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/flags.h"
 #include "base/object_ptr.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_common.h"
@@ -27,6 +28,9 @@ class GroupCall;
 } // namespace Data
 
 namespace Ui {
+class BoxContent;
+enum class LayerOption;
+using LayerOptions = base::flags<LayerOption>;
 class AbstractButton;
 class ImportantTooltip;
 class DropdownMenu;
@@ -74,6 +78,11 @@ public:
 	[[nodiscard]] bool isActive() const;
 
 	void showToast(TextWithEntities &&text, crl::time duration = 0);
+	void showBox(object_ptr<Ui::BoxContent> box);
+	void showBox(
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
 
 	void minimize();
 	void close();
