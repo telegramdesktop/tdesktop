@@ -659,6 +659,9 @@ void start() {
 	auto backgroundThread = true;
 	mallctl("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
 
+	// Prevent any later calls into setlocale() by Qt
+	QCoreApplicationPrivate::initLocale();
+
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
