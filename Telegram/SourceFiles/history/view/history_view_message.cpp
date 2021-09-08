@@ -630,7 +630,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			media->draw(p, context.translated(
 				-mediaLeft,
 				-mediaTop
-			).withSelection(context.selection));
+			).withSelection(skipTextSelection(context.selection)));
 			p.translate(-mediaLeft, -mediaTop);
 		}
 		if (entry) {
