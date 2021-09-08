@@ -112,6 +112,11 @@ Action::Action(
 		updateUserpicsFromContent();
 		refreshText();
 		refreshDimensions();
+		setPointerCursor(isEnabled());
+		_dummyAction->setEnabled(isEnabled());
+		if (!isEnabled()) {
+			setSelected(false);
+		}
 		update();
 	}, lifetime());
 
@@ -172,6 +177,9 @@ void Action::updateUserpicsFromContent() {
 void Action::populateSubmenu() {
 	if (_content.participants.size() < 2) {
 		_parentMenu->removeSubmenu(action());
+		if (!isEnabled()) {
+			setSelected(false);
+		}
 		return;
 	}
 	const auto submenu = _parentMenu->ensureSubmenu(action());
@@ -186,15 +194,20 @@ void Action::populateSubmenu() {
 }
 
 void Action::paint(Painter &p) {
+	const auto enabled = isEnabled();
 	const auto selected = isSelected();
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
 	}
 	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
-	if (isEnabled()) {
+	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
-	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
+	p.setPen(!enabled
+		? _st.itemFgDisabled
+		: selected
+		? _st.itemFgOver
+		: _st.itemFg);
 	_text.drawLeftElided(
 		p,
 		_st.itemPadding.left(),
@@ -247,7 +260,7 @@ void Action::refreshDimensions() {
 }
 
 bool Action::isEnabled() const {
-	return true;
+	return !_content.participants.empty();
 }
 
 not_null<QAction*> Action::action() const {
