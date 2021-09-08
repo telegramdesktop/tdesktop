@@ -21,17 +21,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "base/unixtime.h"
+#include "base/weak_ptr.h"
 #include "ui/controls/who_read_context_action.h"
 #include "apiwrap.h"
+#include "styles/style_chat.h"
 
 namespace Api {
 namespace {
 
 struct Cached {
-	explicit Cached(UserId unknownFlag)
-	: list(std::vector<UserId>{ unknownFlag }) {
+	explicit Cached(PeerId unknownFlag)
+	: list(std::vector<PeerId>{ unknownFlag }) {
 	}
-	rpl::variable<std::vector<UserId>> list;
+	rpl::variable<std::vector<PeerId>> list;
 	mtpRequestId requestId = 0;
 };
 
@@ -46,9 +48,23 @@ struct Context {
 		}
 		return cached.emplace(
 			item,
-			Cached(item->history()->session().userId())
+			Cached(item->history()->session().userPeerId())
 		).first->second;
 	}
+};
+
+struct Userpic {
+	not_null<PeerData*> peer;
+	mutable std::shared_ptr<Data::CloudImageView> view;
+	mutable InMemoryKey uniqueKey;
+};
+
+struct State {
+	std::vector<Userpic> userpics;
+	Ui::WhoReadContent current;
+	base::has_weak_ptr guard;
+	bool someUserpicsNotLoaded = false;
+	bool scheduled = false;
 };
 
 [[nodiscard]] auto Contexts()
@@ -82,10 +98,10 @@ struct Context {
 }
 
 [[nodiscard]] bool ListUnknown(
-		const std::vector<UserId> &list,
+		const std::vector<PeerId> &list,
 		not_null<HistoryItem*> item) {
 	return (list.size() == 1)
-		&& (list.front() == item->history()->session().userId());
+		&& (list.front() == item->history()->session().userPeerId());
 }
 
 [[nodiscard]] Ui::WhoReadType DetectType(not_null<HistoryItem*> item) {
@@ -101,6 +117,161 @@ struct Context {
 		}
 	}
 	return Ui::WhoReadType::Seen;
+}
+
+[[nodiscard]] rpl::producer<std::vector<PeerId>> WhoReadIds(
+		not_null<HistoryItem*> item,
+		not_null<QWidget*> context) {
+	auto weak = QPointer<QWidget>(context.get());
+	const auto fullId = item->fullId();
+	const auto session = &item->history()->session();
+	return [=](auto consumer) {
+		if (!weak) {
+			return rpl::lifetime();
+		}
+		const auto context = ContextAt(weak.data());
+		if (!context->subscriptions.contains(session)) {
+			session->changes().messageUpdates(
+				Data::MessageUpdate::Flag::Destroyed
+			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+				const auto i = context->cached.find(update.item);
+				if (i == end(context->cached)) {
+					return;
+				}
+				session->api().request(i->second.requestId).cancel();
+				context->cached.erase(i);
+			}, context->subscriptions[session]);
+		}
+		auto &entry = context->cache(item);
+		if (!entry.requestId) {
+			entry.requestId = session->api().request(
+				MTPmessages_GetMessageReadParticipants(
+					item->history()->peer->input,
+					MTP_int(item->id)
+				)
+			).done([=](const MTPVector<MTPlong> &result) {
+				auto &entry = context->cache(item);
+				entry.requestId = 0;
+				auto peers = std::vector<PeerId>();
+				peers.reserve(std::max(result.v.size(), 1));
+				for (const auto &id : result.v) {
+					peers.push_back(UserId(id));
+				}
+				entry.list = std::move(peers);
+			}).fail([=](const MTP::Error &error) {
+				auto &entry = context->cache(item);
+				entry.requestId = 0;
+				if (ListUnknown(entry.list.current(), item)) {
+					entry.list = std::vector<PeerId>();
+				}
+			}).send();
+		}
+		return entry.list.value().start_existing(consumer);
+	};
+}
+
+bool UpdateUserpics(
+		not_null<State*> state,
+		not_null<HistoryItem*> item,
+		const std::vector<PeerId> &ids) {
+	auto &owner = item->history()->owner();
+
+	const auto peers = ranges::views::all(
+		ids
+	) | ranges::views::transform([&](PeerId id) {
+		return owner.peerLoaded(id);
+	}) | ranges::views::filter([](PeerData *peer) {
+		return peer != nullptr;
+	}) | ranges::views::transform([](PeerData *peer) {
+		return not_null(peer);
+	}) | ranges::to_vector;
+
+	const auto same = ranges::equal(
+		state->userpics,
+		peers,
+		ranges::less(),
+		&Userpic::peer);
+	if (same) {
+		return false;
+	}
+	auto &was = state->userpics;
+	auto now = std::vector<Userpic>();
+	for (const auto peer : peers) {
+		if (ranges::contains(now, peer, &Userpic::peer)) {
+			continue;
+		}
+		const auto i = ranges::find(was, peer, &Userpic::peer);
+		if (i != end(was)) {
+			now.push_back(std::move(*i));
+			continue;
+		}
+		now.push_back(Userpic{
+			.peer = peer,
+		});
+		auto &userpic = now.back();
+		userpic.uniqueKey = peer->userpicUniqueKey(userpic.view);
+		peer->loadUserpic();
+	}
+	was = std::move(now);
+	return true;
+}
+
+void RegenerateUserpics(not_null<State*> state, int small, int large) {
+	Expects(state->userpics.size() == state->current.participants.size());
+
+	state->someUserpicsNotLoaded = false;
+	const auto count = int(state->userpics.size());
+	for (auto i = 0; i != count; ++i) {
+		auto &userpic = state->userpics[i];
+		auto &participant = state->current.participants[i];
+		const auto peer = userpic.peer;
+		const auto key = peer->userpicUniqueKey(userpic.view);
+		if (peer->hasUserpic() && peer->useEmptyUserpic(userpic.view)) {
+			state->someUserpicsNotLoaded = true;
+		}
+		if (userpic.uniqueKey == key) {
+			continue;
+		}
+		participant.userpicKey = userpic.uniqueKey = key;
+		participant.userpicLarge = peer->generateUserpicImage(
+			userpic.view,
+			large);
+		if (i < Ui::WhoReadParticipant::kMaxSmallUserpics) {
+			participant.userpicSmall = peer->generateUserpicImage(
+				userpic.view,
+				small);
+		}
+	}
+}
+
+void RegenerateParticipants(not_null<State*> state, int small, int large) {
+	auto old = base::take(state->current.participants);
+	auto &now = state->current.participants;
+	now.reserve(state->userpics.size());
+	for (auto &userpic : state->userpics) {
+		const auto peer = userpic.peer;
+		const auto id = peer->id.value;
+		const auto was = ranges::find(old, id, &Ui::WhoReadParticipant::id);
+		if (was != end(old)) {
+			was->name = peer->name;
+			now.push_back(std::move(*was));
+			continue;
+		}
+		now.push_back({
+			.name = peer->name,
+			.userpicLarge = peer->generateUserpicImage(
+				userpic.view,
+				large),
+			.userpicKey = userpic.uniqueKey,
+			.id = id,
+		});
+		if (now.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
+			now.back().userpicSmall = peer->generateUserpicImage(
+				userpic.view,
+				small);
+		}
+	}
+	RegenerateUserpics(state, small, large);
 }
 
 } // namespace
@@ -144,91 +315,54 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	return true;
 }
 
-rpl::producer<std::vector<UserId>> WhoReadIds(
-		not_null<HistoryItem*> item,
-		not_null<QWidget*> context) {
-	auto weak = QPointer<QWidget>(context.get());
-	const auto fullId = item->fullId();
-	const auto session = &item->history()->session();
-	return [=](auto consumer) {
-		if (!weak) {
-			return rpl::lifetime();
-		}
-		const auto context = ContextAt(weak.data());
-		if (!context->subscriptions.contains(session)) {
-			session->changes().messageUpdates(
-				Data::MessageUpdate::Flag::Destroyed
-			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-				const auto i = context->cached.find(update.item);
-				if (i == end(context->cached)) {
-					return;
-				}
-				session->api().request(i->second.requestId).cancel();
-				context->cached.erase(i);
-			}, context->subscriptions[session]);
-		}
-		auto &entry = context->cache(item);
-		if (!entry.requestId) {
-			const auto makeEmpty = [=] {
-				// Special value that marks a validated empty list.
-				return std::vector<UserId>{
-					item->history()->session().userId()
-				};
-			};
-			entry.requestId = session->api().request(
-				MTPmessages_GetMessageReadParticipants(
-					item->history()->peer->input,
-					MTP_int(item->id)
-				)
-			).done([=](const MTPVector<MTPlong> &result) {
-				auto &entry = context->cache(item);
-				entry.requestId = 0;
-				auto users = std::vector<UserId>();
-				users.reserve(std::max(result.v.size(), 1));
-				for (const auto &id : result.v) {
-					users.push_back(UserId(id));
-				}
-				entry.list = std::move(users);
-			}).fail([=](const MTP::Error &error) {
-				auto &entry = context->cache(item);
-				entry.requestId = 0;
-				if (ListUnknown(entry.list.current(), item)) {
-					entry.list = std::vector<UserId>();
-				}
-			}).send();
-		}
-		return entry.list.value().start_existing(consumer);
-	};
-}
-
 rpl::producer<Ui::WhoReadContent> WhoRead(
 		not_null<HistoryItem*> item,
-		not_null<QWidget*> context) {
-	return WhoReadIds(
-		item,
-		context
-	) | rpl::map([=](const std::vector<UserId> &users) {
-		const auto owner = &item->history()->owner();
-		if (ListUnknown(users, item)) {
-			return Ui::WhoReadContent{ .unknown = true };
-		}
-		auto participants = ranges::views::all(
-			users
-		) | ranges::views::transform([&](UserId id) {
-			return owner->userLoaded(id);
-		}) | ranges::views::filter([](UserData *user) {
-			return user != nullptr;
-		}) | ranges::views::transform([](UserData *user) {
-			return Ui::WhoReadParticipant{
-				.name = user->name,
-				.id = user->id.value,
-			};
-		}) | ranges::to_vector;
-		return Ui::WhoReadContent{
-			.participants = std::move(participants),
-			.type = DetectType(item),
+		not_null<QWidget*> context,
+		const style::WhoRead &st) {
+	const auto small = st.userpics.size;
+	const auto large = st.photoSize;
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		const auto state = lifetime.make_state<State>();
+		const auto pushNext = [=] {
+			consumer.put_next_copy(state->current);
 		};
-	});
+
+		WhoReadIds(
+			item,
+			context
+		) | rpl::start_with_next([=](const std::vector<PeerId> &peers) {
+			if (ListUnknown(peers, item)) {
+				state->userpics.clear();
+				consumer.put_next(Ui::WhoReadContent{ .unknown = true });
+				return;
+			} else if (UpdateUserpics(state, item, peers)) {
+				RegenerateParticipants(state, small, large);
+				pushNext();
+			}
+		}, lifetime);
+
+		item->history()->session().downloaderTaskFinished(
+		) | rpl::filter([=] {
+			return state->someUserpicsNotLoaded && !state->scheduled;
+		}) | rpl::start_with_next([=] {
+			for (const auto &userpic : state->userpics) {
+				if (userpic.peer->userpicUniqueKey(userpic.view)
+					!= userpic.uniqueKey) {
+					state->scheduled = true;
+					crl::on_main(&state->guard, [=] {
+						state->scheduled = false;
+						RegenerateUserpics(state, small, large);
+						pushNext();
+					});
+					return;
+				}
+			}
+		}, lifetime);
+
+		return lifetime;
+	};
 }
 
 } // namespace Api

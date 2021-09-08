@@ -18,9 +18,12 @@ class PopupMenu;
 
 struct WhoReadParticipant {
 	QString name;
-	QImage userpic;
+	QImage userpicSmall;
+	QImage userpicLarge;
 	std::pair<uint64, uint64> userpicKey = {};
 	uint64 id = 0;
+
+	static constexpr auto kMaxSmallUserpics = 3;
 };
 
 bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b);

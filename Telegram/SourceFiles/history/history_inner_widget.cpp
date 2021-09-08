@@ -1591,8 +1591,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			};
 			_menu->addAction(Ui::WhoReadContextAction(
 				_menu.get(),
-				Api::WhoRead(item, this),
+				Api::WhoRead(item, this, st::defaultWhoRead),
 				participantChosen));
+			_menu->addSeparator();
 		}
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {

@@ -17,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kMaxUserpics = 3;
-
 class Action final : public Menu::ItemBase {
 public:
 	Action(
@@ -77,22 +75,18 @@ Action::Action(
 , _dummyAction(new QAction(parentMenu->menu()))
 , _participantChosen(std::move(participantChosen))
 , _userpics(std::make_unique<GroupCallUserpics>(
-	st::historyGroupCallUserpics,
+	st::defaultWhoRead.userpics,
 	rpl::never<bool>(),
 	[=] { update(); }))
 , _st(parentMenu->menu()->st())
-, _height(_st.itemPadding.top()
+, _height(st::defaultWhoRead.itemPadding.top()
 		+ _st.itemStyle.font->height
-		+ _st.itemPadding.bottom()) {
+		+ st::defaultWhoRead.itemPadding.bottom()) {
 	const auto parent = parentMenu->menu();
 
 	setAcceptBoth(true);
 	initResizeHook(parent->sizeValue());
 	resolveMinWidth();
-
-	auto copy = std::move(
-		content
-	) | rpl::start_spawning(lifetime());
 
 	_userpics->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -160,12 +154,12 @@ void Action::updateUserpicsFromContent() {
 	if (!_content.participants.empty()) {
 		const auto count = std::min(
 			int(_content.participants.size()),
-			kMaxUserpics);
+			WhoReadParticipant::kMaxSmallUserpics);
 		users.reserve(count);
 		for (auto i = 0; i != count; ++i) {
 			const auto &participant = _content.participants[i];
 			users.push_back({
-				.userpic = participant.userpic,
+				.userpic = participant.userpicSmall,
 				.userpicKey = participant.userpicKey,
 				.id = participant.id,
 			});
@@ -217,8 +211,8 @@ void Action::paint(Painter &p) {
 	_userpics->paint(
 		p,
 		width() - _st.itemPadding.right(),
-		_st.itemPadding.top(),
-		st::historyGroupCallUserpics.size);
+		(height() - st::defaultWhoRead.userpics.size) / 2,
+		st::defaultWhoRead.userpics.size);
 }
 
 void Action::refreshText() {

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace style {
+struct WhoRead;
+} // namespace style
+
 namespace Ui {
 struct WhoReadContent;
 } // namespace Ui
@@ -20,6 +24,7 @@ namespace Api {
 // The context must be destroyed before the session holding this item.
 [[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoRead(
 	not_null<HistoryItem*> item,
-	not_null<QWidget*> context); // Cache results for this lifetime.
+	not_null<QWidget*> context,
+	const style::WhoRead &st); // Cache results for this lifetime.
 
 } // namespace Api

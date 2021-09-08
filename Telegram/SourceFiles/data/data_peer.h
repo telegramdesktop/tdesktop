@@ -340,18 +340,6 @@ public:
 			int size) const {
 		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
 	}
-	void paintUserpicRounded(
-		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const;
-	void paintUserpicSquare(
-		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const;
 	void loadUserpic();
 	[[nodiscard]] bool hasUserpic() const;
 	[[nodiscard]] std::shared_ptr<Data::CloudImageView> activeUserpicView();
@@ -371,9 +359,13 @@ public:
 	[[nodiscard]] QPixmap genUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const;
-	[[nodiscard]] QPixmap genUserpicRounded(
+	[[nodiscard]] QImage generateUserpicImage(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const;
+	[[nodiscard]] QImage generateUserpicImage(
+		std::shared_ptr<Data::CloudImageView> &view,
+		int size,
+		ImageRoundRadius radius) const;
 	[[nodiscard]] ImageLocation userpicLocation() const {
 		return _userpic.location();
 	}

@@ -71,21 +71,12 @@ void Viewport::RendererSW::validateUserpicFrame(
 	} else if (!data.userpicFrame.isNull()) {
 		return;
 	}
-	auto userpic = QImage(
-		tile->trackOrUserpicSize(),
-		QImage::Format_ARGB32_Premultiplied);
-	userpic.fill(Qt::black);
-	{
-		auto p = Painter(&userpic);
-		tile->row()->peer()->paintUserpicSquare(
-			p,
-			tile->row()->ensureUserpicView(),
-			0,
-			0,
-			userpic.width());
-	}
+	const auto size = tile->trackOrUserpicSize();
 	data.userpicFrame = Images::BlurLargeImage(
-		std::move(userpic),
+		tile->row()->peer()->generateUserpicImage(
+			tile->row()->ensureUserpicView(),
+			size.width(),
+			ImageRoundRadius::None),
 		kBlurRadius);
 }
 

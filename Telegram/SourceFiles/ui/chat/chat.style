@@ -863,9 +863,18 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
-seenItemUserpics: GroupCallUserpics {
-	size: 32px;
-	shift: 12px;
-	stroke: 4px;
-	align: align(right);
+WhoRead {
+	userpics: GroupCallUserpics;
+	photoSize: pixels;
+	itemPadding: margins;
+}
+defaultWhoRead: WhoRead {
+	userpics: GroupCallUserpics {
+		size: 22px;
+		shift: 8px;
+		stroke: 4px;
+		align: align(right);
+	}
+	photoSize: 30px;
+	itemPadding: margins(17px, 8px, 17px, 6px);
 }

@@ -462,19 +462,11 @@ void Viewport::RendererGL::validateUserpicFrame(
 	} else if (!tileData.userpicFrame.isNull()) {
 		return;
 	}
-	tileData.userpicFrame = QImage(
-		tile->trackOrUserpicSize(),
-		QImage::Format_ARGB32_Premultiplied);
-	tileData.userpicFrame.fill(Qt::black);
-	{
-		auto p = Painter(&tileData.userpicFrame);
-		tile->row()->peer()->paintUserpicSquare(
-			p,
-			tile->row()->ensureUserpicView(),
-			0,
-			0,
-			tileData.userpicFrame.width());
-	}
+	const auto size = tile->trackOrUserpicSize();
+	tileData.userpicFrame = tile->row()->peer()->generateUserpicImage(
+		tile->row()->ensureUserpicView(),
+		size.width(),
+		ImageRoundRadius::None);
 }
 
 void Viewport::RendererGL::paintTile(
