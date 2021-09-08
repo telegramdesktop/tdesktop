@@ -15,8 +15,7 @@ RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-
 RUN yum -y install centos-release-scl
 
 RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
-	zlib-devel gtk2-devel gtk3-devel libdrm-devel fontconfig-devel \
-	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
+	fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel libudev-devel \
 	webkitgtk4-devel pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-9-make devtoolset-9-gcc devtoolset-9-gcc-c++ \
@@ -29,7 +28,7 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1e7de78121
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1a51e396bb
 
 FROM builder AS extra-cmake-modules
 
@@ -55,6 +54,17 @@ RUN make DESTDIR="$LibrariesPath/libffi-cache" install
 WORKDIR ..
 RUN rm -rf libffi
 
+FROM builder AS zlib
+RUN git clone -b v1.2.11 --depth=1 $GIT/madler/zlib.git
+
+WORKDIR zlib
+RUN ./configure
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/zlib-cache" install
+
+WORKDIR ..
+RUN rm -rf zlib
+
 FROM builder AS xz
 RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git
 
@@ -65,6 +75,22 @@ RUN DESTDIR="$LibrariesPath/xz-cache" cmake3 --install build
 
 WORKDIR ..
 RUN rm -rf xz
+
+FROM patches AS libepoxy
+RUN git clone -b 1.5.9 --depth=1 $GIT/anholt/libepoxy.git
+
+WORKDIR libepoxy
+RUN git apply ../patches/libepoxy.patch
+RUN meson build \
+	--buildtype=release \
+	--default-library=both \
+	-Dtests=false
+
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/libepoxy-cache" meson install -C build
+
+WORKDIR ..
+RUN rm -rf libepoxy
 
 FROM patches AS libproxy
 RUN git clone -b 0.4.17 --depth=1 $GIT/libproxy/libproxy.git
@@ -330,12 +356,41 @@ RUN DESTDIR="$LibrariesPath/plasma-wayland-protocols-cache" cmake3 --install bui
 WORKDIR ..
 RUN rm -rf plasma-wayland-protocols
 
+FROM builder AS libpciaccess
+RUN git clone -b libpciaccess-0.16 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libpciaccess.git
+
+WORKDIR libpciaccess
+RUN ./autogen.sh --enable-static
+
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libpciaccess-cache" install
+
+WORKDIR ..
+RUN rm -rf libpciaccess
+
+FROM builder AS drm
+COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
+
+RUN git clone -b libdrm-2.4.107 --depth=1 https://gitlab.freedesktop.org/mesa/drm.git
+
+WORKDIR drm
+RUN meson build \
+	--buildtype=release \
+	--default-library=both
+
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/drm-cache" meson install -C build
+
+WORKDIR ..
+RUN rm -rf drm
+
 FROM builder AS libva
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
+COPY --from=drm ${LibrariesPath}/drm-cache /
 
 RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
 
@@ -376,6 +431,7 @@ COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=libXv ${LibrariesPath}/libXv-cache /
+COPY --from=drm ${LibrariesPath}/drm-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 
@@ -599,6 +655,7 @@ RUN rm -rf glibmm
 FROM patches AS qt
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=zlib ${LibrariesPath}/zlib-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
@@ -659,6 +716,7 @@ FROM builder AS kwayland
 
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=zlib ${LibrariesPath}/zlib-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
@@ -678,8 +736,8 @@ RUN git clone -b v5.77.0 --depth=1 $GIT/KDE/kwayland.git
 
 WORKDIR kwayland
 RUN cmake3 -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
-RUN cmake3 --build build -j$(nproc)
-RUN DESTDIR="$LibrariesPath/kwayland-cache" cmake3 --install build
+RUN cmake3 --build build --target KF5WaylandClient -j$(nproc)
+RUN DESTDIR="$LibrariesPath/kwayland-cache" cmake3 --install build/src/client
 
 WORKDIR ..
 RUN rm -rf kwayland
@@ -771,7 +829,9 @@ FROM builder
 
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=zlib ${LibrariesPath}/zlib-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
+COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
@@ -791,6 +851,8 @@ COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=libXdamage ${LibrariesPath}/libXdamage-cache /
 COPY --from=libXcomposite ${LibrariesPath}/libXcomposite-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
+COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
+COPY --from=drm ${LibrariesPath}/drm-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg ffmpeg
