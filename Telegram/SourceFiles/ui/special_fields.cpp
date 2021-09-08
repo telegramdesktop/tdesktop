@@ -158,9 +158,13 @@ void PhonePartInput::correctValue(
 				if (leftInPart) {
 					--leftInPart;
 				} else {
-					newText += ' ';
 					++curPart;
 					inPart = curPart < _pattern.size();
+					// Don't add an extra space to the end.
+					if (inPart) {
+						newText += ' ';
+					}
+
 					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
 
 					++oldPos;
@@ -389,9 +393,12 @@ void PhoneInput::correctValue(
 				if (leftInPart) {
 					--leftInPart;
 				} else {
-					newText += ' ';
 					++curPart;
 					inPart = curPart < _pattern.size();
+					// Don't add an extra space to the end.
+					if (inPart) {
+						newText += ' ';
+					}
 					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
 
 					++oldPos;

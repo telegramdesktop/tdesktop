@@ -397,9 +397,10 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 				}
 				currentPatternPos++;
 			}
-			if (!args.onlyGroups && (currentPatternPos == pattern.size())) {
-				result += ' ';
-			}
+			// Don't add an extra space to the end.
+			// if (!args.onlyGroups && (currentPatternPos == pattern.size())) {
+			// 	result += ' ';
+			// }
 			if ((currentPatternPos >= pattern.size())
 				|| (pattern[currentPatternPos] == 'X')) {
 				currentPatternPos++;
