@@ -124,7 +124,7 @@ void RepliesList::appendLocalMessages(MessagesSlice &slice) {
 			return;
 		}
 		slice.ids.reserve(local.size());
-		for (const auto item : local) {
+		for (const auto &item : local) {
 			if (item->replyToTop() != _rootId) {
 				continue;
 			}
@@ -142,7 +142,7 @@ void RepliesList::appendLocalMessages(MessagesSlice &slice) {
 
 		dates.push_back(message->date());
 	}
-	for (const auto item : local) {
+	for (const auto &item : local) {
 		if (item->replyToTop() != _rootId) {
 			continue;
 		}
@@ -254,7 +254,7 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 	injectRootDivider(root, slice);
 
 	if (const auto group = _history->owner().groups().find(root)) {
-		for (const auto item : ranges::views::reverse(group->items)) {
+		for (const auto &item : ranges::views::reverse(group->items)) {
 			slice->ids.push_back(item->fullId());
 		}
 		viewer->injectedForRoot = group->items.size();

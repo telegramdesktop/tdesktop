@@ -1236,7 +1236,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 
 	if (const auto added = createItems(slice); !added.empty()) {
 		startBuildingFrontBlock(added.size());
-		for (const auto item : added) {
+		for (const auto &item : added) {
 			addItemToBlock(item);
 		}
 		finishBuildingFrontBlock();
@@ -1269,7 +1269,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	if (const auto added = createItems(slice); !added.empty()) {
 		Assert(!isBuildingFrontBlock());
 
-		for (const auto item : added) {
+		for (const auto &item : added) {
 			addItemToBlock(item);
 		}
 
@@ -1315,7 +1315,7 @@ void History::addItemsToLists(
 		// lastParticipants are displayed in Profile as members list.
 		markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 	}
-	for (const auto item : ranges::views::reverse(items)) {
+	for (const auto &item : ranges::views::reverse(items)) {
 		item->addToUnreadMentions(UnreadMentionType::Existing);
 		if (item->from()->id) {
 			if (lastAuthors) { // chats
@@ -1389,7 +1389,7 @@ void History::checkAddAllToUnreadMentions() {
 void History::addToSharedMedia(
 		const std::vector<not_null<HistoryItem*>> &items) {
 	std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
-	for (const auto item : items) {
+	for (const auto &item : items) {
 		if (const auto types = item->sharedMediaTypes()) {
 			for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
 				const auto type = static_cast<Storage::SharedMediaType>(i);
@@ -1459,7 +1459,7 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 
 void History::readClientSideMessages() {
 	auto &histories = owner().histories();
-	for (const auto item : _localMessages) {
+	for (const auto &item : _localMessages) {
 		histories.readClientSideMessage(item);
 	}
 }
@@ -3040,12 +3040,12 @@ void History::clear(ClearType type) {
 	} else {
 		// Leave the 'sending' messages in local messages.
 		auto local = base::flat_set<not_null<HistoryItem*>>();
-		for (const auto item : _localMessages) {
+		for (const auto &item : _localMessages) {
 			if (!item->isSending()) {
 				local.emplace(item);
 			}
 		}
-		for (const auto item : local) {
+		for (const auto &item : local) {
 			item->destroy();
 		}
 		_notifications.clear();

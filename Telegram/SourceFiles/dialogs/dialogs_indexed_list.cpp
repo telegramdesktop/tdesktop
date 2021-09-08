@@ -26,7 +26,7 @@ RowsByLetter IndexedList::addToEnd(Key key) {
 	}
 
 	auto result = RowsByLetter{ _list.addToEnd(key) };
-	for (const auto ch : key.entry()->chatListFirstLetters()) {
+	for (const auto &ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
 			j = _index.emplace(ch, _sortMode, _filterId).first;
@@ -42,7 +42,7 @@ Row *IndexedList::addByName(Key key) {
 	}
 
 	const auto result = _list.addByName(key);
-	for (const auto ch : key.entry()->chatListFirstLetters()) {
+	for (const auto &ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
 			j = _index.emplace(ch, _sortMode, _filterId).first;
@@ -63,7 +63,7 @@ void IndexedList::adjustByDate(const RowsByLetter &links) {
 
 void IndexedList::moveToTop(Key key) {
 	if (_list.moveToTop(key)) {
-		for (const auto ch : key.entry()->chatListFirstLetters()) {
+		for (const auto &ch : key.entry()->chatListFirstLetters()) {
 			if (auto it = _index.find(ch); it != _index.cend()) {
 				it->second.moveToTop(key);
 			}
@@ -121,7 +121,7 @@ void IndexedList::adjustByName(
 
 	auto toRemove = oldLetters;
 	auto toAdd = base::flat_set<QChar>();
-	for (const auto ch : key.entry()->chatListFirstLetters()) {
+	for (const auto &ch : key.entry()->chatListFirstLetters()) {
 		auto j = toRemove.find(ch);
 		if (j == toRemove.cend()) {
 			toAdd.insert(ch);
@@ -158,7 +158,7 @@ void IndexedList::adjustNames(
 
 	auto toRemove = oldLetters;
 	auto toAdd = base::flat_set<QChar>();
-	for (const auto ch : key.entry()->chatListFirstLetters()) {
+	for (const auto &ch : key.entry()->chatListFirstLetters()) {
 		auto j = toRemove.find(ch);
 		if (j == toRemove.cend()) {
 			toAdd.insert(ch);
@@ -188,7 +188,7 @@ void IndexedList::adjustNames(
 
 void IndexedList::del(Key key, Row *replacedBy) {
 	if (_list.del(key, replacedBy)) {
-		for (const auto ch : key.entry()->chatListFirstLetters()) {
+		for (const auto &ch : key.entry()->chatListFirstLetters()) {
 			if (auto it = _index.find(ch); it != _index.cend()) {
 				it->second.del(key, replacedBy);
 			}
@@ -225,7 +225,7 @@ std::vector<not_null<Row*>> IndexedList::filtered(
 		return result;
 	}
 	result.reserve(minimal->size());
-	for (const auto row : *minimal) {
+	for (const auto &row : *minimal) {
 		const auto &nameWords = row->entry()->chatListNameWords();
 		const auto found = [&](const QString &word) {
 			for (const auto &name : nameWords) {

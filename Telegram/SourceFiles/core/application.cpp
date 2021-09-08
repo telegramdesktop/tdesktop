@@ -1032,7 +1032,7 @@ void Application::registerLeaveSubscription(not_null<QWidget*> widget) {
 			const auto check = [=](not_null<QEvent*> e) {
 				if (e->type() == QEvent::Leave) {
 					if (const auto taken = _leaveFilters.take(window)) {
-						for (const auto weak : taken->registered) {
+						for (const auto &weak : taken->registered) {
 							if (const auto widget = weak.data()) {
 								QEvent ev(QEvent::Leave);
 								QCoreApplication::sendEvent(widget, &ev);

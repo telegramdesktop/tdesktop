@@ -257,7 +257,7 @@ void EditorBlock::addToSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchStartChars()) {
 		_searchIndex[ch].insert(index);
 	}
 
@@ -269,7 +269,7 @@ void EditorBlock::removeFromSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchStartChars()) {
 		const auto i = _searchIndex.find(ch);
 		if (i != end(_searchIndex)) {
 			i->second.remove(index);

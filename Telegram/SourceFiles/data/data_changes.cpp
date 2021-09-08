@@ -78,7 +78,7 @@ rpl::producer<UpdateType> Changes::Manager<DataType, UpdateType>::flagsValue(
 
 template <typename DataType, typename UpdateType>
 void Changes::Manager<DataType, UpdateType>::sendNotifications() {
-	for (const auto [data, flags] : base::take(_updates)) {
+	for (const auto &[data, flags] : base::take(_updates)) {
 		_stream.fire({ data, flags });
 	}
 }

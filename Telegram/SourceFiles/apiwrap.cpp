@@ -1295,7 +1295,7 @@ void ApiWrap::markMediaRead(
 		not_null<ChannelData*>,
 		QVector<MTPint>>();
 	markedIds.reserve(items.size());
-	for (const auto item : items) {
+	for (const auto &item : items) {
 		if ((!item->isUnreadMedia() || item->out())
 			&& !item->isUnreadMention()) {
 			continue;
@@ -2400,7 +2400,7 @@ void ApiWrap::applyAffectedMessages(
 void ApiWrap::saveCurrentDraftToCloud() {
 	Core::App().saveCurrentDraftsToHistories();
 
-	for (const auto controller : _session->windows()) {
+	for (const auto &controller : _session->windows()) {
 		if (const auto history = controller->activeChatCurrent().history()) {
 			_session->local().writeDrafts(history);
 
@@ -3415,7 +3415,7 @@ void ApiWrap::addChatParticipants(
 		const std::vector<not_null<UserData*>> &users,
 		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
-		for (const auto user : users) {
+		for (const auto &user : users) {
 			request(MTPmessages_AddChatUser(
 				chat->inputChat,
 				user->inputUser,
@@ -3450,7 +3450,7 @@ void ApiWrap::addChatParticipants(
 				if (callback) callback(false);
 			}).afterDelay(crl::time(5)).send();
 		};
-		for (const auto user : users) {
+		for (const auto &user : users) {
 			list.push_back(user->inputUser);
 			if (list.size() == kMaxUsersPerInvite) {
 				send();

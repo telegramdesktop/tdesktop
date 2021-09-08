@@ -324,7 +324,7 @@ QByteArray SerializeMessage(
 			const std::vector<UserId> &data,
 			const QByteArray &label = "members") {
 		auto list = std::vector<QByteArray>();
-		for (const auto userId : data) {
+		for (const auto &userId : data) {
 			list.push_back(wrapUserName(userId));
 		}
 		pushBare(label, SerializeArray(context, list));

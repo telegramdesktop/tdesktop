@@ -140,7 +140,7 @@ const Group *Groups::find(not_null<const HistoryItem*> item) const {
 }
 
 void Groups::refreshViews(const HistoryItemsList &items) {
-	for (const auto item : items) {
+	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
 	}
 }

@@ -49,7 +49,7 @@ CloudTheme CloudTheme::Parse(
 		if (const auto settings = data.vsettings()) {
 			settings->match([&](const MTPDthemeSettings &data) {
 				if (const auto colors = data.vmessage_colors()) {
-					for (const auto color : colors->v) {
+					for (const auto &color : colors->v) {
 						result.push_back(ColorFromSerialized(color));
 					}
 				}

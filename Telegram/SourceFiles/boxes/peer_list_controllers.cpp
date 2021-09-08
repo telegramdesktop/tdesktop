@@ -288,7 +288,7 @@ void ChatsListBoxController::rebuildRows() {
 	auto wasEmpty = !delegate()->peerListFullRowsCount();
 	auto appendList = [this](auto chats) {
 		auto count = 0;
-		for (const auto row : chats->all()) {
+		for (const auto &row : chats->all()) {
 			if (const auto history = row->history()) {
 				if (appendRow(history)) {
 					++count;
@@ -389,7 +389,7 @@ void ContactsBoxController::prepare() {
 void ContactsBoxController::rebuildRows() {
 	const auto appendList = [&](auto chats) {
 		auto count = 0;
-		for (const auto row : chats->all()) {
+		for (const auto &row : chats->all()) {
 			if (const auto history = row->history()) {
 				if (const auto user = history->peer->asUser()) {
 					if (appendRow(user)) {

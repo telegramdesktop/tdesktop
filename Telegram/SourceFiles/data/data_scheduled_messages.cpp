@@ -495,7 +495,7 @@ void ScheduledMessages::updated(
 		const base::flat_set<not_null<HistoryItem*>> &added,
 		const base::flat_set<not_null<HistoryItem*>> &clear) {
 	if (!clear.empty()) {
-		for (const auto item : clear) {
+		for (const auto &item : clear) {
 			item->destroy();
 		}
 	}

@@ -86,7 +86,7 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 			if (index < 0 || index > 6) {
 				return;
 			}
-			for (const auto id : data.vdocuments().v) {
+			for (const auto &id : data.vdocuments().v) {
 				if (const auto document = documents.take(id.v)) {
 					_map.emplace(index, *document);
 				}

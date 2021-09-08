@@ -28,7 +28,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 	const auto collectInputUsers = [](const auto &peers) {
 		auto result = QVector<MTPInputUser>();
 		result.reserve(peers.size());
-		for (const auto peer : peers) {
+		for (const auto &peer : peers) {
 			if (const auto user = peer->asUser()) {
 				result.push_back(user->inputUser);
 			}
@@ -38,7 +38,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 	const auto collectInputChats = [](const auto &peers) {
 		auto result = QVector<MTPlong>();
 		result.reserve(peers.size());
-		for (const auto peer : peers) {
+		for (const auto &peer : peers) {
 			if (!peer->isUser()) {
 				result.push_back(peerToBareMTPInt(peer->id));
 			}
@@ -112,7 +112,7 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers().v;
 			always.reserve(always.size() + users.size());
-			for (const auto userId : users) {
+			for (const auto &userId : users) {
 				const auto user = owner.user(UserId(userId.v));
 				if (!base::contains(never, user)
 					&& !base::contains(always, user)) {
@@ -140,7 +140,7 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 		}, [&](const MTPDprivacyValueDisallowUsers &data) {
 			const auto &users = data.vusers().v;
 			never.reserve(never.size() + users.size());
-			for (const auto userId : users) {
+			for (const auto &userId : users) {
 				const auto user = owner.user(UserId(userId.v));
 				if (!base::contains(always, user)
 					&& !base::contains(never, user)) {

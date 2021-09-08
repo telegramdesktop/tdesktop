@@ -268,7 +268,7 @@ std::vector<DataError> DeserializeErrors(bytes::const_span json) {
 	}
 	auto array = document.array();
 	auto result = std::vector<DataError>();
-	for (const auto &error : array) {
+	for (const auto error : array) {
 		if (!error.isObject()) {
 			LOG(("API Error: Not an object inside errors JSON."));
 			continue;

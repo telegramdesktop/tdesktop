@@ -2544,7 +2544,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	}
 	for (const auto &required : data.vrequired_types().v) {
 		const auto row = CollectRequestedRow(required);
-		for (const auto requested : row.values) {
+		for (const auto &requested : row.values) {
 			const auto type = requested.type;
 			const auto [i, ok] = _form.values.emplace(type, Value(type));
 			auto &value = i->second;

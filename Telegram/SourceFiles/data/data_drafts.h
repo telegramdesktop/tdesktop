@@ -126,7 +126,7 @@ private:
 using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 
 inline bool draftStringIsEmpty(const QString &text) {
-	for (const auto ch : text) {
+	for (const auto &ch : text) {
 		if (!ch.isSpace()) {
 			return false;
 		}

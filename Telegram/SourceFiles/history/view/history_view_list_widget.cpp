@@ -884,7 +884,7 @@ bool ListWidget::overSelectedItems() const {
 bool ListWidget::isSelectedGroup(
 		const SelectedMap &applyTo,
 		not_null<const Data::Group*> group) const {
-	for (const auto other : group->items) {
+	for (const auto &other : group->items) {
 		if (!applyTo.contains(other->fullId())) {
 			return false;
 		}
@@ -970,7 +970,7 @@ void ListWidget::changeSelectionAsGroup(
 	}
 	auto already = int(applyTo.size());
 	const auto canSelect = [&] {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			if (!isGoodForSelection(applyTo, other, already)) {
 				return false;
 			}
@@ -978,11 +978,11 @@ void ListWidget::changeSelectionAsGroup(
 		return true;
 	}();
 	if (action == SelectAction::Select && canSelect) {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			addToSelection(applyTo, other);
 		}
 	} else {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			removeFromSelection(applyTo, other->fullId());
 		}
 	}
@@ -1440,7 +1440,7 @@ void ListWidget::resizeToWidth(int newWidth, int minHeight) {
 }
 
 void ListWidget::startItemRevealAnimations() {
-	for (const auto view : base::take(_itemRevealPending)) {
+	for (const auto &view : base::take(_itemRevealPending)) {
 		if (const auto height = view->height()) {
 			if (!_itemRevealAnimations.contains(view)) {
 				auto &animation = _itemRevealAnimations[view];
@@ -1731,7 +1731,7 @@ void ListWidget::applyDragSelection() {
 
 void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 	if (_dragSelectAction == DragSelectAction::Selecting) {
-		for (const auto itemId : _dragSelected) {
+		for (const auto &itemId : _dragSelected) {
 			if (applyTo.size() >= MaxSelectedItems) {
 				break;
 			} else if (!applyTo.contains(itemId)) {
@@ -1741,7 +1741,7 @@ void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 			}
 		}
 	} else if (_dragSelectAction == DragSelectAction::Deselecting) {
-		for (const auto itemId : _dragSelected) {
+		for (const auto &itemId : _dragSelected) {
 			removeFromSelection(applyTo, itemId);
 		}
 	}
@@ -2163,12 +2163,12 @@ void ListWidget::updateDragSelection(
 	};
 	const auto changeGroup = [&](not_null<HistoryItem*> item, bool add) {
 		if (const auto group = groups.find(item)) {
-			for (const auto item : group->items) {
+			for (const auto &item : group->items) {
 				if (!_delegate->listIsItemGoodForSelection(item)) {
 					return;
 				}
 			}
-			for (const auto item : group->items) {
+			for (const auto &item : group->items) {
 				changeItem(item, add);
 			}
 		} else if (_delegate->listIsItemGoodForSelection(item)) {

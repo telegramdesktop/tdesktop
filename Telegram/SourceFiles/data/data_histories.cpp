@@ -333,7 +333,7 @@ void Histories::sendDialogRequests() {
 	}
 
 	const auto finalize = [=] {
-		for (const auto history : histories) {
+		for (const auto &history : histories) {
 			const auto state = lookup(history);
 			if (!state || !state->postponedRequestEntry) {
 				dialogEntryApplied(history);
@@ -667,7 +667,7 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 	remove.reserve(ids.size());
 	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
-	for (const auto itemId : ids) {
+	for (const auto &itemId : ids) {
 		if (const auto item = _owner->message(itemId)) {
 			const auto history = item->history();
 			if (item->isScheduled()) {

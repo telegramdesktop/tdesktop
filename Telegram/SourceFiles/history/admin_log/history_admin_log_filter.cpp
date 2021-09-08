@@ -299,7 +299,7 @@ void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {
 }
 
 void FilterBox::Inner::createAdminsCheckboxes(const std::vector<not_null<UserData*>> &admins, const FilterValue &filter) {
-	for (const auto user : admins) {
+	for (const auto &user : admins) {
 		const auto checked = filter.allUsers || base::contains(filter.admins, user);
 		const auto checkbox = addRow(
 			object_ptr<UserCheckbox>(this, user, checked),

@@ -56,7 +56,7 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 		const WebPageCollage &data) {
 	auto result = std::vector<std::unique_ptr<Data::Media>>();
 	result.reserve(data.items.size());
-	for (const auto item : data.items) {
+	for (const auto &item : data.items) {
 		if (const auto document = std::get_if<DocumentData*>(&item)) {
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,

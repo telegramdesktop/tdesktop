@@ -166,7 +166,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 		}
 		set->stickers.push_front(document);
 		if (const auto emojiList = getEmojiListFromSet(document)) {
-			for (const auto emoji : *emojiList) {
+			for (const auto &emoji : *emojiList) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else if (!removedFromEmoji.empty()) {

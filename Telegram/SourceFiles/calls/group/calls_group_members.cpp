@@ -481,7 +481,7 @@ void Members::Controller::toggleVideoEndpointActive(
 
 void Members::Controller::appendInvitedUsers() {
 	if (const auto id = _call->id()) {
-		for (const auto user : _peer->owner().invitedToCallUsers(id)) {
+		for (const auto &user : _peer->owner().invitedToCallUsers(id)) {
 			if (auto row = createInvitedRow(user)) {
 				delegate()->peerListAppendRow(std::move(row));
 			}
@@ -1149,7 +1149,7 @@ void Members::Controller::showRowMenu(
 			return;
 		}
 		auto saved = base::take(_menu);
-		for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
+		for (const auto &peer : base::take(_menuCheckRowsAfterHidden)) {
 			if (const auto row = findRow(peer)) {
 				checkRowPosition(row);
 			}

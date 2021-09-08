@@ -397,7 +397,7 @@ QByteArray PeersMap::wrapUserName(UserId userId) const {
 
 QByteArray PeersMap::wrapUserNames(const std::vector<UserId> &data) const {
 	auto list = std::vector<QByteArray>();
-	for (const auto userId : data) {
+	for (const auto &userId : data) {
 		list.push_back(wrapUserName(userId));
 	}
 	return SerializeList(list);

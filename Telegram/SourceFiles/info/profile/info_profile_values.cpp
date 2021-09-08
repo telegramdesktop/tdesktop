@@ -266,7 +266,7 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 	const auto countOfRestrictions = [](ChatRestrictions restrictions) {
 		auto count = 0;
-		for (const auto f : Data::ListOfRestrictions()) {
+		for (const auto &f : Data::ListOfRestrictions()) {
 			if (restrictions & f) count++;
 		}
 		return int(Data::ListOfRestrictions().size()) - count;

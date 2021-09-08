@@ -388,7 +388,7 @@ void DocumentData::setattributes(
 				0x2066, // LTR Isolate
 				0x2067, // RTL Isolate
 			};
-			for (const auto ch : controls) {
+			for (const auto &ch : controls) {
 				_filename = std::move(_filename).replace(ch, "_");
 			}
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {

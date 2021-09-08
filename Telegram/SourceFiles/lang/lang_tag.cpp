@@ -903,7 +903,7 @@ QString FormatDouble(float64 value) {
 
 int NonZeroPartToInt(QString value) {
 	auto zeros = 0;
-	for (const auto ch : value) {
+	for (const auto &ch : value) {
 		if (ch == '0') {
 			++zeros;
 		} else {
@@ -988,7 +988,7 @@ void UpdatePluralRules(const QString &languageId) {
 	static auto kMap = GeneratePluralRulesMap();
 	auto parent = uint64(0);
 	auto key = uint64(0);
-	for (const auto ch : languageId) {
+	for (const auto &ch : languageId) {
 		const auto converted = ConvertKeyChar(ch.unicode());
 		if (converted == '-' && !parent) {
 			parent = key;

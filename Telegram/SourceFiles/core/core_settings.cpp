@@ -82,7 +82,7 @@ QByteArray Settings::serialize() const {
 	auto recentEmojiPreloadGenerated = std::vector<RecentEmojiId>();
 	if (_recentEmojiPreload.empty()) {
 		recentEmojiPreloadGenerated.reserve(_recentEmoji.size());
-		for (const auto [emoji, rating] : _recentEmoji) {
+		for (const auto &[emoji, rating] : _recentEmoji) {
 			recentEmojiPreloadGenerated.push_back({ emoji->id(), rating });
 		}
 	}
@@ -713,7 +713,7 @@ EmojiPack Settings::recentEmojiSection() const {
 
 	auto result = EmojiPack();
 	result.reserve(recent.size());
-	for (const auto [emoji, rating] : recent) {
+	for (const auto &[emoji, rating] : recent) {
 		result.push_back(emoji);
 	}
 	return result;

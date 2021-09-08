@@ -50,7 +50,7 @@ void Viewport::RendererSW::paintFallback(
 		}
 		paintTile(p, tile.get(), bounding, bg);
 	}
-	for (const auto rect : bg) {
+	for (const auto &rect : bg) {
 		p.fillRect(rect, st::groupCallBg);
 	}
 	for (auto i = _tileData.begin(); i != _tileData.end();) {

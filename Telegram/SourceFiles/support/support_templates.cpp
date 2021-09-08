@@ -41,7 +41,7 @@ bool IsTemplatesFile(const QString &file) {
 QString NormalizeQuestion(const QString &question) {
 	auto result = QString();
 	result.reserve(question.size());
-	for (const auto ch : question) {
+	for (const auto &ch : question) {
 		if (ch.isLetterOrNumber()) {
 			result.append(ch.toLower());
 		}

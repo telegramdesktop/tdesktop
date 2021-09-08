@@ -2090,7 +2090,7 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		wrapItem(group->items.back(), HistoryGroupText(group));
 	};
 
-	for (const auto [item, selection] : selected) {
+	for (const auto &[item, selection] : selected) {
 		if (const auto group = session().data().groups().find(item)) {
 			if (groups.contains(group)) {
 				continue;
@@ -3183,7 +3183,7 @@ bool HistoryInner::isSelected(
 bool HistoryInner::isSelectedGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<const Data::Group*> group) const {
-	for (const auto other : group->items) {
+	for (const auto &other : group->items) {
 		if (!isSelected(toItems, other)) {
 			return false;
 		}
@@ -3272,7 +3272,7 @@ void HistoryInner::changeSelectionAsGroup(
 	}
 	auto total = int(toItems->size());
 	const auto canSelect = [&] {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			if (!goodForSelection(toItems, other, total)) {
 				return false;
 			}
@@ -3280,11 +3280,11 @@ void HistoryInner::changeSelectionAsGroup(
 		return (total <= MaxSelectedItems);
 	}();
 	if (action == SelectAction::Select && canSelect) {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			addToSelection(toItems, other);
 		}
 	} else {
-		for (const auto other : group->items) {
+		for (const auto &other : group->items) {
 			removeFromSelection(toItems, other);
 		}
 	}

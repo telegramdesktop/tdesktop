@@ -233,7 +233,7 @@ void CountrySelectBox::Inner::init() {
 		}
 	}
 	auto index = 0;
-	for (const auto info : _list) {
+	for (const auto &info : _list) {
 		auto full = info.country
 			+ ' '
 			+ (!info.alternativeName.isEmpty()

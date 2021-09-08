@@ -5002,7 +5002,7 @@ void HistoryWidget::revealItemsCallback() {
 }
 
 void HistoryWidget::startItemRevealAnimations() {
-	for (const auto item : base::take(_itemRevealPending)) {
+	for (const auto &item : base::take(_itemRevealPending)) {
 		if (const auto view = item->mainView()) {
 			if (const auto top = _list->itemTop(view); top >= 0) {
 				if (const auto height = view->height()) {

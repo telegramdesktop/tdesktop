@@ -38,7 +38,7 @@ void OverlayWidget::RendererSW::paintBackground() {
 	const auto &bg = _owner->_fullScreenVideo
 		? st::mediaviewVideoBg
 		: st::mediaviewBg;
-	for (const auto rect : region) {
+	for (const auto &rect : region) {
 		_p->fillRect(rect, bg);
 	}
 	_p->setCompositionMode(m);

@@ -382,7 +382,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		const auto callId = CallIdFromInput(action.vcall());
 		const auto owner = &history()->owner();
 		const auto peer = history()->peer;
-		for (const auto id : action.vusers().v) {
+		for (const auto &id : action.vusers().v) {
 			const auto user = owner->user(id.v);
 			if (callId) {
 				owner->registerInvitedToCallUser(callId, peer, user);

@@ -2179,7 +2179,7 @@ void Panel::paint(QRect clip) {
 	Painter p(widget());
 
 	auto region = QRegion(clip);
-	for (const auto rect : region) {
+	for (const auto &rect : region) {
 		p.fillRect(rect, st::groupCallBg);
 	}
 }

@@ -283,7 +283,7 @@ void PeerListsBox::paintEvent(QPaintEvent *e) {
 	const auto &bg = (firstController()->listSt()
 		? *firstController()->listSt()
 		: st::peerListBox).bg;
-	for (const auto rect : e->region()) {
+	for (const auto &rect : e->region()) {
 		p.fillRect(rect, bg);
 	}
 }

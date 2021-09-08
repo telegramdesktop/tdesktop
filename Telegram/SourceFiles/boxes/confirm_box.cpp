@@ -719,7 +719,7 @@ void DeleteMessagesBox::prepare() {
 }
 
 bool DeleteMessagesBox::hasScheduledMessages() const {
-	for (const auto fullId : std::as_const(_ids)) {
+	for (const auto &fullId : _ids) {
 		if (const auto item = _session->data().message(fullId)) {
 			if (item->isScheduled()) {
 				return true;
@@ -731,7 +731,7 @@ bool DeleteMessagesBox::hasScheduledMessages() const {
 
 PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
 	auto result = (PeerData*)nullptr;
-	for (const auto fullId : std::as_const(_ids)) {
+	for (const auto &fullId : _ids) {
 		if (const auto item = _session->data().message(fullId)) {
 			const auto peer = item->history()->peer;
 			if (!result) {
@@ -881,7 +881,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (justClear) {
 			peer->session().api().clearHistory(peer, revoke);
 		} else {
-			for (const auto controller : peer->session().windows()) {
+			for (const auto &controller : peer->session().windows()) {
 				if (controller->activeChatCurrent().peer() == peer) {
 					Ui::showChatsList(&peer->session());
 				}

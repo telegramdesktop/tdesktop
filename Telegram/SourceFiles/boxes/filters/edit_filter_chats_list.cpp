@@ -342,7 +342,7 @@ void EditFilterChatsListController::prepareViewHook() {
 	const auto count = int(_peers.size());
 	const auto rows = std::make_unique<std::optional<ExceptionRow>[]>(count);
 	auto i = 0;
-	for (const auto history : _peers) {
+	for (const auto &history : _peers) {
 		rows[i++].emplace(history);
 	}
 	auto pointers = std::vector<ExceptionRow*>();

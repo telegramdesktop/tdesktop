@@ -773,7 +773,7 @@ void Panel::paint(QRect clip) {
 	if (!_incoming->widget()->isHidden()) {
 		region = region.subtracted(QRegion(_incoming->widget()->geometry()));
 	}
-	for (const auto rect : region) {
+	for (const auto &rect : region) {
 		p.fillRect(rect, st::callBgOpaque);
 	}
 	if (_incoming && _incoming->widget()->isHidden()) {

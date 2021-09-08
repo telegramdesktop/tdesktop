@@ -237,7 +237,7 @@ void AppendRecentStickers(
 			to.emplace_back(PickerScrubberItem(document));
 		}
 	}
-	for (const auto recent : recentPack) {
+	for (const auto &recent : recentPack) {
 		to.emplace_back(PickerScrubberItem(recent.first));
 	}
 }

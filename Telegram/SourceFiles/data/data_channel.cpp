@@ -664,7 +664,7 @@ QString ChannelData::invitePeekHash() const {
 void ChannelData::privateErrorReceived() {
 	if (const auto expires = invitePeekExpires()) {
 		const auto hash = invitePeekHash();
-		for (const auto window : session().windows()) {
+		for (const auto &window : session().windows()) {
 			clearInvitePeek();
 			Api::CheckChatInvite(window, hash, this);
 			return;

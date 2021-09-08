@@ -48,7 +48,7 @@ QByteArray SessionSettings::serialize() const {
 		stream << qint32(kVersionTag) << qint32(kVersion);
 		stream << static_cast<qint32>(_selectorTab);
 		stream << qint32(_groupStickersSectionHidden.size());
-		for (const auto peerId : _groupStickersSectionHidden) {
+		for (const auto &peerId : _groupStickersSectionHidden) {
 			stream << SerializePeerId(peerId);
 		}
 		stream << qint32(_supportSwitch);

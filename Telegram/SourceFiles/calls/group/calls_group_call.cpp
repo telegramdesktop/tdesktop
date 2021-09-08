@@ -3157,7 +3157,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		}).send();
 		slice.clear();
 	};
-	for (const auto user : users) {
+	for (const auto &user : users) {
 		if (!count && slice.empty()) {
 			result = user;
 		}

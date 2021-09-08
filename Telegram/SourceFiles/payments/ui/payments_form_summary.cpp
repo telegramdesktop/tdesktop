@@ -458,7 +458,7 @@ void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
 			}
 			height += buttons[0].widget->height() + skip;
 		};
-		for (const auto button : buttons) {
+		for (const auto &button : buttons) {
 			if (button.minWidth <= left) {
 				left -= button.minWidth + skip;
 				++rowEnd;
