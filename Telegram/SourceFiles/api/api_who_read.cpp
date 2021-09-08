@@ -12,9 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -26,6 +28,9 @@ namespace Api {
 namespace {
 
 struct Cached {
+	explicit Cached(UserId unknownFlag)
+	: list(std::vector<UserId>{ unknownFlag }) {
+	}
 	rpl::variable<std::vector<UserId>> list;
 	mtpRequestId requestId = 0;
 };
@@ -33,6 +38,17 @@ struct Cached {
 struct Context {
 	base::flat_map<not_null<HistoryItem*>, Cached> cached;
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> subscriptions;
+
+	[[nodiscard]] Cached &cache(not_null<HistoryItem*> item) {
+		const auto i = cached.find(item);
+		if (i != end(cached)) {
+			return i->second;
+		}
+		return cached.emplace(
+			item,
+			Cached(item->history()->session().userId())
+		).first->second;
+	}
 };
 
 [[nodiscard]] auto Contexts()
@@ -65,10 +81,39 @@ struct Context {
 	return result;
 }
 
+[[nodiscard]] bool ListUnknown(
+		const std::vector<UserId> &list,
+		not_null<HistoryItem*> item) {
+	return (list.size() == 1)
+		&& (list.front() == item->history()->session().userId());
+}
+
+[[nodiscard]] Ui::WhoReadType DetectType(not_null<HistoryItem*> item) {
+	if (const auto media = item->media()) {
+		if (!media->webpage()) {
+			if (const auto document = media->document()) {
+				if (document->isVoiceMessage()) {
+					return Ui::WhoReadType::Listened;
+				} else if (document->isVideoMessage()) {
+					return Ui::WhoReadType::Watched;
+				}
+			}
+		}
+	}
+	return Ui::WhoReadType::Seen;
+}
+
 } // namespace
 
 bool WhoReadExists(not_null<HistoryItem*> item) {
-	if (!item->out() || item->unread()) {
+	if (!item->out()) {
+		return false;
+	}
+	const auto type = DetectType(item);
+	const auto unseen = (type == Ui::WhoReadType::Seen)
+		? item->unread()
+		: item->isUnreadMedia();
+	if (unseen) {
 		return false;
 	}
 	const auto history = item->history();
@@ -122,38 +167,37 @@ rpl::producer<std::vector<UserId>> WhoReadIds(
 				context->cached.erase(i);
 			}, context->subscriptions[session]);
 		}
-		auto &cache = context->cached[item];
-		if (!cache.requestId) {
+		auto &entry = context->cache(item);
+		if (!entry.requestId) {
 			const auto makeEmpty = [=] {
 				// Special value that marks a validated empty list.
 				return std::vector<UserId>{
 					item->history()->session().userId()
 				};
 			};
-			cache.requestId = session->api().request(
+			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReadParticipants(
 					item->history()->peer->input,
 					MTP_int(item->id)
 				)
 			).done([=](const MTPVector<MTPlong> &result) {
+				auto &entry = context->cache(item);
+				entry.requestId = 0;
 				auto users = std::vector<UserId>();
 				users.reserve(std::max(result.v.size(), 1));
 				for (const auto &id : result.v) {
 					users.push_back(UserId(id));
 				}
-				if (users.empty()) {
-
-				}
-				context->cached[item].list = users.empty()
-					? makeEmpty()
-					: std::move(users);
+				entry.list = std::move(users);
 			}).fail([=](const MTP::Error &error) {
-				if (context->cached[item].list.current().empty()) {
-					context->cached[item].list = makeEmpty();
+				auto &entry = context->cache(item);
+				entry.requestId = 0;
+				if (ListUnknown(entry.list.current(), item)) {
+					entry.list = std::vector<UserId>();
 				}
 			}).send();
 		}
-		return cache.list.value().start_existing(consumer);
+		return entry.list.value().start_existing(consumer);
 	};
 }
 
@@ -165,13 +209,8 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 		context
 	) | rpl::map([=](const std::vector<UserId> &users) {
 		const auto owner = &item->history()->owner();
-		if (users.empty()) {
+		if (ListUnknown(users, item)) {
 			return Ui::WhoReadContent{ .unknown = true };
-		}
-		const auto nobody = (users.size() == 1)
-			&& (users.front() == owner->session().userId());
-		if (nobody) {
-			return Ui::WhoReadContent();
 		}
 		auto participants = ranges::views::all(
 			users
@@ -187,6 +226,7 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 		}) | ranges::to_vector;
 		return Ui::WhoReadContent{
 			.participants = std::move(participants),
+			.type = DetectType(item),
 		};
 	});
 }

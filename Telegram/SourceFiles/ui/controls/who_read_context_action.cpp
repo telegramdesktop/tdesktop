@@ -121,6 +121,15 @@ Action::Action(
 		paint(p);
 	}, lifetime());
 
+	clicks(
+	) | rpl::start_with_next([=] {
+		if (_content.participants.size() == 1) {
+			if (const auto onstack = _participantChosen) {
+				onstack(_content.participants.front().id);
+			}
+		}
+	}, lifetime());
+
 	enableMouseSelecting();
 }
 
@@ -129,9 +138,10 @@ void Action::resolveMinWidth() {
 	const auto width = [&](const QString &text) {
 		return _st.itemStyle.font->width(text);
 	};
-	const auto maxTextWidth = std::max(
+	const auto maxTextWidth = std::max({
 		width(tr::lng_context_seen_text(tr::now, lt_count, 999)),
-		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)));
+		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)),
+		width(tr::lng_context_seen_watched(tr::now, lt_count, 999)) });
 	const auto maxWidth = _st.itemPadding.left()
 		+ maxIconWidth
 		+ maxTextWidth
@@ -160,7 +170,7 @@ void Action::updateUserpicsFromContent() {
 }
 
 void Action::populateSubmenu() {
-	if (_content.participants.empty()) {
+	if (_content.participants.size() < 2) {
 		_parentMenu->removeSubmenu(action());
 		return;
 	}
@@ -172,6 +182,7 @@ void Action::populateSubmenu() {
 		};
 		submenu->addAction(participant.name, chosen);
 	}
+	_parentMenu->checkSubmenuShow();
 }
 
 void Action::paint(Painter &p) {
@@ -206,10 +217,16 @@ void Action::refreshText() {
 			: (count == 1)
 			? _content.participants.front().name
 			: (_content.type == WhoReadType::Watched)
-			? tr::lng_context_seen_watched(tr::now, lt_count, count)
+			? (count
+				? tr::lng_context_seen_watched(tr::now, lt_count, count)
+				: tr::lng_context_seen_watched_none(tr::now))
 			: (_content.type == WhoReadType::Listened)
-			? tr::lng_context_seen_listened(tr::now, lt_count, count)
-			: tr::lng_context_seen_text(tr::now, lt_count, count)) },
+			? (count
+				? tr::lng_context_seen_listened(tr::now, lt_count, count)
+				: tr::lng_context_seen_listened_none(tr::now))
+			: (count
+				? tr::lng_context_seen_text(tr::now, lt_count, count)
+				: tr::lng_context_seen_text_none(tr::now))) },
 		MenuTextOptions);
 }
 
