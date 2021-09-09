@@ -865,7 +865,10 @@ ttlItemTimerFont: font(12px);
 
 WhoRead {
 	userpics: GroupCallUserpics;
+	photoLeft: pixels;
 	photoSize: pixels;
+	photoSkip: pixels;
+	nameLeft: pixels;
 	itemPadding: margins;
 }
 defaultWhoRead: WhoRead {
@@ -875,6 +878,15 @@ defaultWhoRead: WhoRead {
 		stroke: 4px;
 		align: align(right);
 	}
+	photoLeft: 13px;
 	photoSize: 30px;
+	photoSkip: 5px;
+	nameLeft: 57px;
 	itemPadding: margins(17px, 8px, 17px, 6px);
+}
+whoReadMenu: PopupMenu(defaultPopupMenu) {
+	scrollPadding: margins(0px, 6px, 0px, 6px);
+	menu: Menu(defaultMenu) {
+		separatorPadding: margins(0px, 6px, 0px, 8px);
+	}
 }

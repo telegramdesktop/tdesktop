@@ -1564,7 +1564,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	const auto hasWhoReadItem = _dragStateItem
+		&& Api::WhoReadExists(_dragStateItem);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		hasWhoReadItem ? st::whoReadMenu : st::defaultPopupMenu);
 	const auto session = &this->session();
 	const auto controller = _controller;
 	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {
@@ -1585,13 +1589,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		if (Api::WhoReadExists(item)) {
+		if (hasWhoReadItem) {
 			const auto participantChosen = [=](uint64 id) {
 				controller->showPeerInfo(PeerId(id));
 			};
 			_menu->addAction(Ui::WhoReadContextAction(
 				_menu.get(),
-				Api::WhoRead(item, this, st::defaultWhoRead),
+				Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
 				participantChosen));
 			_menu->addSeparator();
 		}

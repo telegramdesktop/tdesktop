@@ -97,6 +97,13 @@ struct State {
 	return result;
 }
 
+[[nodiscard]] QImage GenerateUserpic(Userpic &userpic, int size) {
+	size *= style::DevicePixelRatio();
+	auto result = userpic.peer->generateUserpicImage(userpic.view, size);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	return result;
+}
+
 [[nodiscard]] bool ListUnknown(
 		const std::vector<PeerId> &list,
 		not_null<HistoryItem*> item) {
@@ -233,13 +240,9 @@ void RegenerateUserpics(not_null<State*> state, int small, int large) {
 			continue;
 		}
 		participant.userpicKey = userpic.uniqueKey = key;
-		participant.userpicLarge = peer->generateUserpicImage(
-			userpic.view,
-			large);
+		participant.userpicLarge = GenerateUserpic(userpic, large);
 		if (i < Ui::WhoReadParticipant::kMaxSmallUserpics) {
-			participant.userpicSmall = peer->generateUserpicImage(
-				userpic.view,
-				small);
+			participant.userpicSmall = GenerateUserpic(userpic, small);
 		}
 	}
 }
@@ -259,16 +262,12 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 		}
 		now.push_back({
 			.name = peer->name,
-			.userpicLarge = peer->generateUserpicImage(
-				userpic.view,
-				large),
+			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,
 			.id = id,
 		});
 		if (now.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
-			now.back().userpicSmall = peer->generateUserpicImage(
-				userpic.view,
-				small);
+			now.back().userpicSmall = GenerateUserpic(userpic, small);
 		}
 	}
 	RegenerateUserpics(state, small, large);

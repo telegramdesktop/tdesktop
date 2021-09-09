@@ -17,6 +17,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+struct EntryData {
+	QString text;
+	QImage userpic;
+	Fn<void()> callback;
+};
+
+class EntryAction final : public Menu::ItemBase {
+public:
+	EntryAction(
+		not_null<RpWidget*> parent,
+		const style::Menu &st,
+		EntryData &&data);
+
+	void setData(EntryData &&data);
+
+	not_null<QAction*> action() const override;
+	bool isEnabled() const override;
+
+private:
+	int contentHeight() const override;
+
+	void paint(Painter &&p);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const int _height = 0;
+
+	Text::String _text;
+	int _textWidth = 0;
+	QImage _userpic;
+
+};
+
 class Action final : public Menu::ItemBase {
 public:
 	Action(
@@ -50,6 +83,8 @@ private:
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
 
+	std::vector<not_null<EntryAction*>> _submenuActions;
+
 	Text::String _text;
 	int _textWidth = 0;
 	const int _height = 0;
@@ -66,13 +101,88 @@ TextParseOptions MenuTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
+EntryAction::EntryAction(
+	not_null<RpWidget*> parent,
+	const style::Menu &st,
+	EntryData &&data)
+: ItemBase(parent, st)
+, _dummyAction(CreateChild<QAction>(parent.get()))
+, _st(st)
+, _height(st::defaultWhoRead.photoSkip * 2 + st::defaultWhoRead.photoSize) {
+	setAcceptBoth(true);
+
+	initResizeHook(parent->sizeValue());
+	setData(std::move(data));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		paint(Painter(this));
+	}, lifetime());
+
+	enableMouseSelecting();
+}
+
+not_null<QAction*> EntryAction::action() const {
+	return _dummyAction.get();
+}
+
+bool EntryAction::isEnabled() const {
+	return true;
+}
+
+int EntryAction::contentHeight() const {
+	return _height;
+}
+
+void EntryAction::setData(EntryData &&data) {
+	setClickedCallback(std::move(data.callback));
+	_userpic = std::move(data.userpic);
+	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
+	const auto textWidth = _text.maxWidth();
+	const auto &padding = _st.itemPadding;
+	const auto goodWidth = st::defaultWhoRead.nameLeft
+		+ textWidth
+		+ padding.right();
+	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
+	_textWidth = w - (goodWidth - textWidth);
+	setMinWidth(w);
+	update();
+}
+
+void EntryAction::paint(Painter &&p) {
+	const auto enabled = isEnabled();
+	const auto selected = isSelected();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	if (enabled) {
+		paintRipple(p, 0, 0);
+	}
+	const auto photoSize = st::defaultWhoRead.photoSize;
+	const auto photoTop = (height() - photoSize) / 2;
+	p.drawImage(st::defaultWhoRead.photoLeft, photoTop, _userpic);
+
+	p.setPen(selected
+		? _st.itemFgOver
+		: enabled
+		? _st.itemFg
+		: _st.itemFgDisabled);
+	_text.drawLeftElided(
+		p,
+		st::defaultWhoRead.nameLeft,
+		(height() - _st.itemStyle.font->height) / 2,
+		_textWidth,
+		width());
+}
+
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
 	Fn<void(uint64)> participantChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
 , _parentMenu(parentMenu)
-, _dummyAction(new QAction(parentMenu->menu()))
+, _dummyAction(CreateChild<QAction>(parentMenu->menu().get()))
 , _participantChosen(std::move(participantChosen))
 , _userpics(std::make_unique<GroupCallUserpics>(
 	st::defaultWhoRead.userpics,
@@ -155,9 +265,11 @@ void Action::updateUserpicsFromContent() {
 		const auto count = std::min(
 			int(_content.participants.size()),
 			WhoReadParticipant::kMaxSmallUserpics);
+		const auto factor = style::DevicePixelRatio();
 		users.reserve(count);
 		for (auto i = 0; i != count; ++i) {
-			const auto &participant = _content.participants[i];
+			auto &participant = _content.participants[i];
+			participant.userpicSmall.setDevicePixelRatio(factor);
 			users.push_back({
 				.userpic = participant.userpicSmall,
 				.userpicKey = participant.userpicKey,
@@ -170,19 +282,40 @@ void Action::updateUserpicsFromContent() {
 
 void Action::populateSubmenu() {
 	if (_content.participants.size() < 2) {
+		_submenuActions.clear();
 		_parentMenu->removeSubmenu(action());
 		if (!isEnabled()) {
 			setSelected(false);
 		}
 		return;
 	}
+
 	const auto submenu = _parentMenu->ensureSubmenu(action());
-	submenu->clearActions();
+	if (_submenuActions.size() > _content.participants.size()) {
+		_submenuActions.clear();
+		submenu->clearActions();
+	}
+	auto index = 0;
 	for (const auto &participant : _content.participants) {
 		const auto chosen = [call = _participantChosen, id = participant.id] {
 			call(id);
 		};
-		submenu->addAction(participant.name, chosen);
+		auto data = EntryData{
+			.text = participant.name,
+			.userpic = participant.userpicLarge,
+			.callback = chosen,
+		};
+		if (index < _submenuActions.size()) {
+			_submenuActions[index]->setData(std::move(data));
+		} else {
+			auto item = base::make_unique_q<EntryAction>(
+				submenu->menu(),
+				_st,
+				std::move(data));
+			_submenuActions.push_back(item.get());
+			submenu->addAction(std::move(item));
+		}
+		++index;
 	}
 	_parentMenu->checkSubmenuShow();
 }
@@ -243,13 +376,13 @@ void Action::refreshDimensions() {
 
 	const auto goodWidth = padding.left()
 		+ textWidth
-		+ _userpicsWidth
+		+ (_userpicsWidth ? (_st.itemStyle.font->spacew + _userpicsWidth) : 0)
 		+ padding.right();
 
 	const auto w = std::clamp(
 		goodWidth,
 		_st.widthMin,
-		_st.widthMax);
+		minWidth());
 	_textWidth = w - (goodWidth - textWidth);
 }
 

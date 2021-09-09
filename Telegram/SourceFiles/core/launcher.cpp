@@ -330,7 +330,6 @@ int Launcher::exec() {
 
 	// Must be started before Sandbox is created.
 	Platform::start();
-
 	auto result = executeApplication();
 
 	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
