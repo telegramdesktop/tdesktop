@@ -886,6 +886,7 @@ defaultWhoRead: WhoRead {
 }
 whoReadMenu: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 6px, 0px, 6px);
+	maxHeight: 387px;
 	menu: Menu(defaultMenu) {
 		separatorPadding: margins(0px, 6px, 0px, 8px);
 	}
