@@ -36,6 +36,7 @@ enum class UserDataFlag {
 	PhoneCallsPrivate = (1 << 9),
 	Support = (1 << 10),
 	CanPinMessages = (1 << 11),
+	DiscardMinPhoto = (1 << 12),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -107,6 +108,9 @@ public:
 	[[nodiscard]] bool canWrite() const {
 		// Duplicated in Data::CanWriteValue().
 		return !isInaccessible() && !isRepliesChat();
+	}
+	[[nodiscard]] bool applyMinPhoto() const {
+		return !(flags() & UserDataFlag::DiscardMinPhoto);
 	}
 
 	[[nodiscard]] bool canShareThisContact() const;

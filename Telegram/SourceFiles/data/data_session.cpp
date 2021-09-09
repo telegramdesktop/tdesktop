@@ -415,6 +415,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (!minimal
 				? Flag::Contact
 				| Flag::MutualContact
+				| Flag::DiscardMinPhoto
 				: Flag());
 		const auto flagsSet = (data.is_deleted() ? Flag::Deleted : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
@@ -425,6 +426,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (!minimal
 				? (data.is_contact() ? Flag::Contact : Flag())
 				| (data.is_mutual_contact() ? Flag::MutualContact : Flag())
+				| (data.is_apply_min_photo() ? Flag() : Flag::DiscardMinPhoto)
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
 		if (minimal) {
@@ -510,7 +512,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				: result->nameOrPhone;
 
 			result->setName(fname, lname, pname, uname);
-			if (!minimal || data.is_apply_min_photo()) {
+			if (!minimal || result->applyMinPhoto()) {
 				if (const auto photo = data.vphoto()) {
 					result->setPhoto(*photo);
 				} else {
