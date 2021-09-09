@@ -251,11 +251,11 @@ void Action::resolveMinWidth() {
 		width(tr::lng_context_seen_text(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_watched(tr::now, lt_count, 999)) });
-	const auto maxWidth = _st.itemPadding.left()
+	const auto maxWidth = st::defaultWhoRead.itemPadding.left()
 		+ maxIconWidth
 		+ maxTextWidth
 		+ _userpics->maxWidth()
-		+ _st.itemPadding.right();
+		+ st::defaultWhoRead.itemPadding.right();
 	setMinWidth(maxWidth);
 }
 
@@ -330,6 +330,18 @@ void Action::paint(Painter &p) {
 	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
+	const auto &icon = (_content.type == WhoReadType::Seen)
+		? (!enabled
+			? st::whoReadChecksDisabled
+			: selected
+			? st::whoReadChecksOver
+			: st::whoReadChecks)
+		: (!enabled
+			? st::whoReadPlayedDisabled
+			: selected
+			? st::whoReadPlayedOver
+			: st::whoReadPlayed);
+	icon.paint(p, st::defaultWhoRead.iconPosition, width());
 	p.setPen(!enabled
 		? _st.itemFgDisabled
 		: selected
@@ -337,13 +349,13 @@ void Action::paint(Painter &p) {
 		: _st.itemFg);
 	_text.drawLeftElided(
 		p,
-		_st.itemPadding.left(),
-		_st.itemPadding.top(),
+		st::defaultWhoRead.itemPadding.left(),
+		st::defaultWhoRead.itemPadding.top(),
 		_textWidth,
 		width());
 	_userpics->paint(
 		p,
-		width() - _st.itemPadding.right(),
+		width() - st::defaultWhoRead.itemPadding.right(),
 		(height() - st::defaultWhoRead.userpics.size) / 2,
 		st::defaultWhoRead.userpics.size);
 }
@@ -372,7 +384,7 @@ void Action::refreshText() {
 
 void Action::refreshDimensions() {
 	const auto textWidth = _text.maxWidth();
-	const auto &padding = _st.itemPadding;
+	const auto &padding = st::defaultWhoRead.itemPadding;
 
 	const auto goodWidth = padding.left()
 		+ textWidth

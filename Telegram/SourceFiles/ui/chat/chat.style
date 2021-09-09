@@ -869,6 +869,7 @@ WhoRead {
 	photoSize: pixels;
 	photoSkip: pixels;
 	nameLeft: pixels;
+	iconPosition: point;
 	itemPadding: margins;
 }
 defaultWhoRead: WhoRead {
@@ -882,7 +883,8 @@ defaultWhoRead: WhoRead {
 	photoSize: 30px;
 	photoSkip: 5px;
 	nameLeft: 57px;
-	itemPadding: margins(17px, 8px, 17px, 6px);
+	iconPosition: point(14px, 9px);
+	itemPadding: margins(38px, 8px, 17px, 6px);
 }
 whoReadMenu: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 6px, 0px, 6px);
@@ -891,3 +893,9 @@ whoReadMenu: PopupMenu(defaultPopupMenu) {
 		separatorPadding: margins(0px, 6px, 0px, 8px);
 	}
 }
+whoReadChecks: icon{{ "chat/seen_checks", windowFg }};
+whoReadChecksOver: icon{{ "chat/seen_checks", windowFgOver }};
+whoReadChecksDisabled: icon{{ "chat/seen_checks", menuFgDisabled }};
+whoReadPlayed: icon{{ "chat/seen_played", windowFg }};
+whoReadPlayedOver: icon{{ "chat/seen_played", windowFgOver }};
+whoReadPlayedDisabled: icon {{ "chat/seen_played", menuFgDisabled }};

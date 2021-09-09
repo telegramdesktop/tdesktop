@@ -324,6 +324,20 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 		auto lifetime = rpl::lifetime();
 
 		const auto state = lifetime.make_state<State>();
+		state->current.type = [&] {
+			if (const auto media = item->media()) {
+				if (!media->webpage()) {
+					if (const auto document = media->document()) {
+						if (document->isVoiceMessage()) {
+							return Ui::WhoReadType::Listened;
+						} else if (document->isVideoMessage()) {
+							return Ui::WhoReadType::Watched;
+						}
+					}
+				}
+			}
+			return Ui::WhoReadType::Seen;
+		}();
 		const auto pushNext = [=] {
 			consumer.put_next_copy(state->current);
 		};
@@ -334,7 +348,10 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 		) | rpl::start_with_next([=](const std::vector<PeerId> &peers) {
 			if (ListUnknown(peers, item)) {
 				state->userpics.clear();
-				consumer.put_next(Ui::WhoReadContent{ .unknown = true });
+				consumer.put_next(Ui::WhoReadContent{
+					.type = state->current.type,
+					.unknown = true,
+				});
 				return;
 			} else if (UpdateUserpics(state, item, peers)) {
 				RegenerateParticipants(state, small, large);
