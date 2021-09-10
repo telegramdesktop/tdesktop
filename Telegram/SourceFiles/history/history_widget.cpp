@@ -5374,6 +5374,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 						if (!media->forceForwardedInfo()) {
 							return false;
 						}
+					} else {
+						return false;
 					}
 				}
 				return true;
