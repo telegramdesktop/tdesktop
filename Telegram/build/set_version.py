@@ -34,7 +34,7 @@ for arg in sys.argv:
     versionMajor = match.group(1)
     versionMinor = match.group(2)
     versionPatch = match.group(4) if match.group(4) else '0'
-    if match.group(5) > 0:
+    if len(match.group(5)) > 0:
       if match.group(6) == 'beta':
         versionBeta = True
       else:
@@ -76,7 +76,7 @@ def checkChangelog():
   global scriptPath, versionStr, versionStrSmall
 
   count = 0
-  with open(scriptPath + '/../../changelog.txt', 'r') as f:
+  with open(scriptPath + '/../../changelog.txt', encoding='utf-8') as f:
     for line in f:
       if line.startswith(versionStr + ' ') or line.startswith(versionStrSmall + ' '):
         count = count + 1
