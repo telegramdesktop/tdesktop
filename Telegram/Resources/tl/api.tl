@@ -467,6 +467,8 @@ sendMessageUploadRoundAction#243e1c66 progress:int = SendMessageAction;
 speakingInGroupCallAction#d92c2285 = SendMessageAction;
 sendMessageHistoryImportAction#dbda9246 progress:int = SendMessageAction;
 sendMessageChooseStickerAction#b05ac6b1 = SendMessageAction;
+sendMessageEmojiInteraction#6a3233b6 emoticon:string interaction:DataJSON = SendMessageAction;
+sendMessageEmojiInteractionSeen#b665902e emoticon:string = SendMessageAction;
 
 contacts.found#b3134d9d my_results:Vector<Peer> results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
