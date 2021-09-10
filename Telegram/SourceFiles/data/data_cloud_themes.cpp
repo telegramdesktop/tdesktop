@@ -27,6 +27,8 @@ namespace {
 constexpr auto kFirstReloadTimeout = 10 * crl::time(1000);
 constexpr auto kReloadTimeout = 3600 * crl::time(1000);
 
+bool IsTestingColors/* = false*/;
+
 } // namespace
 
 CloudTheme CloudTheme::Parse(
@@ -395,12 +397,24 @@ std::optional<ChatTheme> CloudThemes::themeForEmoji(
 
 rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
 		const QString &emoji) {
+	const auto testing = TestingColors();
 	if (emoji.isEmpty()) {
 		return rpl::single<std::optional<ChatTheme>>(std::nullopt);
 	} else if (auto result = themeForEmoji(emoji)) {
+		if (testing) {
+			return rpl::single(
+				std::move(result)
+			) | rpl::then(chatThemesUpdated(
+			) | rpl::map([=] {
+				return themeForEmoji(emoji);
+			}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
+				return theme.has_value();
+			}));
+		}
 		return rpl::single(std::move(result));
 	}
 	refreshChatThemes();
+	const auto limit = testing ? (1 << 20) : 1;
 	return rpl::single<std::optional<ChatTheme>>(
 		std::nullopt
 	) | rpl::then(chatThemesUpdated(
@@ -408,7 +422,112 @@ rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
 		return themeForEmoji(emoji);
 	}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
 		return theme.has_value();
-	}) | rpl::take(1));
+	}) | rpl::take(limit));
+}
+
+bool CloudThemes::TestingColors() {
+	return IsTestingColors;
+}
+
+void CloudThemes::SetTestingColors(bool testing) {
+	IsTestingColors = testing;
+}
+
+QString CloudThemes::PrepareTestingLink(const CloudTheme &theme) {
+	const auto hex = [](int value) {
+		return QChar((value < 10) ? ('0' + value) : ('a' + (value - 10)));
+	};
+	const auto hex2 = [&](int value) {
+		return QString() + hex(value / 16) + hex(value % 16);
+	};
+	const auto color = [&](const QColor &color) {
+		return hex2(color.red()) + hex2(color.green()) + hex2(color.blue());
+	};
+	const auto colors = [&](const std::vector<QColor> &colors) {
+		auto list = QStringList();
+		for (const auto &c : colors) {
+			list.push_back(color(c));
+		}
+		return list.join(",");
+	};
+	auto arguments = QStringList();
+	if (theme.basedOnDark) {
+		arguments.push_back("dark=1");
+	}
+	if (theme.accentColor) {
+		arguments.push_back("accent=" + color(*theme.accentColor));
+	}
+	if (theme.paper && !theme.paper->backgroundColors().empty()) {
+		arguments.push_back("bg=" + colors(theme.paper->backgroundColors()));
+	}
+	if (theme.outgoingAccentColor) {
+		arguments.push_back("out_accent" + color(*theme.outgoingAccentColor));
+	}
+	if (!theme.outgoingMessagesColors.empty()) {
+		arguments.push_back("out_bg=" + colors(theme.outgoingMessagesColors));
+	}
+	return arguments.isEmpty()
+		? QString()
+		: ("tg://test_chat_theme?" + arguments.join("&"));
+}
+
+std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
+		const QString &emoji,
+		const QMap<QString, QString> &params) {
+	if (!TestingColors()) {
+		return std::nullopt;
+	}
+	const auto i = ranges::find(_chatThemes, emoji, &ChatTheme::emoji);
+	if (i == end(_chatThemes)) {
+		return std::nullopt;
+	}
+	const auto hex = [](const QString &value) {
+		return (value.size() != 1)
+			? std::nullopt
+			: (value[0] >= 'a' && value[0] <= 'f')
+			? std::make_optional(10 + int(value[0].unicode() - 'a'))
+			: (value[0] >= '0' && value[0] <= '9')
+			? std::make_optional(int(value[0].unicode() - '0'))
+			: std::nullopt;
+	};
+	const auto hex2 = [&](const QString &value) {
+		const auto first = hex(value.mid(0, 1));
+		const auto second = hex(value.mid(1, 1));
+		return (first && second)
+			? std::make_optional((*first) * 16 + (*second))
+			: std::nullopt;
+	};
+	const auto color = [&](const QString &value) {
+		const auto red = hex2(value.mid(0, 2));
+		const auto green = hex2(value.mid(2, 2));
+		const auto blue = hex2(value.mid(4, 2));
+		return (red && green && blue)
+			? std::make_optional(QColor(*red, *green, *blue))
+			: std::nullopt;
+	};
+	const auto colors = [&](const QString &value) {
+		auto list = value.split(",");
+		auto result = std::vector<QColor>();
+		for (const auto &single : list) {
+			if (const auto c = color(single)) {
+				result.push_back(*c);
+			} else {
+				return std::vector<QColor>();
+			}
+		}
+		return (result.size() > 4) ? std::vector<QColor>() : result;
+	};
+
+	auto &applyTo = params["dark"].isEmpty() ? i->light : i->dark;
+	applyTo.accentColor = color(params["accent"]);
+	const auto bg = colors(params["bg"]);
+	applyTo.paper = (applyTo.paper && !bg.empty())
+		? std::make_optional(applyTo.paper->withBackgroundColors(bg))
+		: std::nullopt;
+	applyTo.outgoingAccentColor = color(params["out_accent"]);
+	applyTo.outgoingMessagesColors = colors(params["out_bg"]);
+	_chatThemesUpdates.fire({});
+	return applyTo;
 }
 
 void CloudThemes::parseChatThemes(const QVector<MTPChatTheme> &list) {

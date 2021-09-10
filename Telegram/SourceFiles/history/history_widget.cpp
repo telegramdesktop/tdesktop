@@ -632,6 +632,7 @@ HistoryWidget::HistoryWidget(
 		| PeerUpdateFlag::Slowmode
 		| PeerUpdateFlag::BotStartToken
 		| PeerUpdateFlag::MessagesTTL
+		| PeerUpdateFlag::ChatThemeEmoji
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == _peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -674,6 +675,31 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & PeerUpdateFlag::MessagesTTL) {
 			checkMessagesTTL();
+		}
+		if ((flags & PeerUpdateFlag::ChatThemeEmoji) && _list) {
+			const auto emoji = _peer->themeEmoji();
+			if (Data::CloudThemes::TestingColors() && !emoji.isEmpty()) {
+				_peer->owner().cloudThemes().themeForEmojiValue(
+					emoji
+				) | rpl::filter_optional(
+				) | rpl::take(
+					1
+				) | rpl::start_with_next([=](const Data::ChatTheme &theme) {
+					auto text = QStringList();
+					const auto push = [&](QString label, const auto &theme) {
+						using namespace Data;
+						const auto l = CloudThemes::PrepareTestingLink(theme);
+						if (!l.isEmpty()) {
+							text.push_back(label + ": " + l);
+						}
+					};
+					push("Light", theme.light);
+					push("Dark", theme.dark);
+					if (!text.isEmpty()) {
+						_field->setText(text.join("\n\n"));
+					}
+				}, _list->lifetime());
+			}
 		}
 	}, lifetime());
 

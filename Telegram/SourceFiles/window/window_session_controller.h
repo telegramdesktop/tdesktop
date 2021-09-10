@@ -407,6 +407,7 @@ public:
 		const Data::CloudTheme &data)
 	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
 	void setChatStyleTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
+	void clearCachedChatThemes();
 
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;

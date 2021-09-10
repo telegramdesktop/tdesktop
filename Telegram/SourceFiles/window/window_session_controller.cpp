@@ -1399,13 +1399,14 @@ auto SessionController::cachedChatThemeValue(
 	if (i == end(_customChatThemes)) {
 		cacheChatTheme(data);
 	}
+	const auto limit = Data::CloudThemes::TestingColors() ? (1 << 20) : 1;
 	using namespace rpl::mappers;
 	return rpl::single(
 		_defaultChatTheme
 	) | rpl::then(_cachedThemesStream.events(
 	) | rpl::filter([=](const std::shared_ptr<Ui::ChatTheme> &theme) {
 		return (theme->key() == key);
-	}) | rpl::take(1));
+	}) | rpl::take(limit));
 }
 
 void SessionController::setChatStyleTheme(
@@ -1415,6 +1416,10 @@ void SessionController::setChatStyleTheme(
 	}
 	_chatStyleTheme = theme;
 	_chatStyle->apply(theme.get());
+}
+
+void SessionController::clearCachedChatThemes() {
+	_customChatThemes.clear();
 }
 
 void SessionController::pushDefaultChatBackground() {

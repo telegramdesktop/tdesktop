@@ -75,6 +75,13 @@ public:
 	[[nodiscard]] rpl::producer<std::optional<ChatTheme>> themeForEmojiValue(
 		const QString &emoji);
 
+	[[nodiscard]] static bool TestingColors();
+	[[nodiscard]] static void SetTestingColors(bool testing);
+	[[nodiscard]] static QString PrepareTestingLink(const CloudTheme &theme);
+	[[nodiscard]] std::optional<CloudTheme> updateThemeFromLink(
+		const QString &emoji,
+		const QMap<QString, QString> &params);
+
 	void applyUpdate(const MTPTheme &theme);
 
 	void resolve(

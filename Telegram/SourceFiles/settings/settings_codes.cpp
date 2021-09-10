@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -273,6 +274,11 @@ auto GenerateCodes() {
 				}
 			});
 		});
+	});
+	codes.emplace(qsl("testchatcolors"), [](SessionController *window) {
+		const auto now = !Data::CloudThemes::TestingColors();
+		Data::CloudThemes::SetTestingColors(now);
+		Ui::Toast::Show(now ? "Testing chat theme colors!" : "Not testing..");
 	});
 
 	return codes;
