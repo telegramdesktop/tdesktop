@@ -58,7 +58,7 @@ jobs:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "0"
-      DOC_PATH: "docs/building-win.md"
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
       AUTO_CACHING: "1"
 
     defaults:
@@ -132,23 +132,11 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           echo "Find necessary commit from doc."
-          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$PREPARE_PATH | sed -n 2p)
           cd $LibrariesPath
           git clone $GIT/desktop-app/patches.git
-          cd Patches
+          cd patches
           eval $checkoutCommit
-
-      - name: Find any version of Python 2.
-        shell: bash
-        run: |
-          echo "Find any version of Python 2."
-          p=`ls /c/hostedtoolcache/windows/python | grep "^2" | tail -1`
-          if [ -z "$p" ]; then
-            echo "Python 2 is not found."
-            exit 1
-          fi
-          echo "PY2=C:\\hostedtoolcache\\windows\\Python\\$p\\x64" >> $GITHUB_ENV
-          echo "Found $p."
 
       - name: LZMA.
         run: |
@@ -161,28 +149,27 @@ jobs:
         id: cache-openssl
         uses: actions/cache@v2
         with:
-          path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
+          path: ${{ env.LibrariesPath }}/openssl
           key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
       - name: OpenSSL.
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         run: |
-          git clone %GIT%/openssl/openssl.git openssl_%OPENSSL_VER%
-          cd openssl_%OPENSSL_VER%
-          git checkout OpenSSL_%OPENSSL_VER%-stable
+          git clone -b OpenSSL_%OPENSSL_VER%-stable %GIT%/openssl/openssl.git
+          cd openssl
           perl Configure no-shared no-tests debug-VC-WIN32
           nmake
-          mkdir out32.dbg
-          move libcrypto.lib out32.dbg
-          move libssl.lib out32.dbg
-          move ossl_static.pdb out32.dbg\ossl_static
+          mkdir out.dbg
+          move libcrypto.lib out.dbg
+          move libssl.lib out.dbg
+          move ossl_static.pdb out.dbg\ossl_static
           nmake clean
-          move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
+          move out.dbg\ossl_static out.dbg\ossl_static.pdb
           perl Configure no-shared no-tests VC-WIN32
           nmake
-          mkdir out32
-          move libcrypto.lib out32
-          move libssl.lib out32
-          move ossl_static.pdb out32
+          mkdir out
+          move libcrypto.lib out
+          move libssl.lib out
+          move ossl_static.pdb out
 
           rmdir /S /Q test
           rmdir /S /Q .git
@@ -239,16 +226,17 @@ jobs:
           GYP_MSVS_VERSION: 2019
         if: steps.cache-breakpad.outputs.cache-hit != 'true'
         run: |
-          git clone %GIT%/telegramdesktop/gyp.git
+          git clone https://chromium.googlesource.com/external/gyp
           cd gyp
-          SET PATH=%PY2%;%cd%;%PATH%
-          git checkout tdesktop
+          SET PATH=%cd%;%PATH%
+          git checkout d6c5dd51dc
+          git apply ../patches/gyp.diff
 
           cd %LibrariesPath%
 
-          git clone %GIT%/google/breakpad
+          git clone https://chromium.googlesource.com/breakpad/breakpad
           cd breakpad
-          git checkout a1dbcdcb43
+          git checkout bc8fb886
           git apply ../patches/breakpad.diff
           cd src
           git clone %GIT%/google/googletest testing
@@ -258,10 +246,9 @@ jobs:
           ninja -C out/Debug common crash_generation_client exception_handler
           ninja -C out/Release common crash_generation_client exception_handler
           cd tools\windows\dump_syms
-          call gyp dump_syms.gyp
-
-          call vcvars32.bat
-          msbuild -m dump_syms.vcxproj /property:Configuration=Release
+          call gyp dump_syms.gyp --format=ninja
+          cd ..\..\..
+          ninja -C out/Release dump_syms
 
       - name: Opus cache.
         id: cache-opus
@@ -352,7 +339,7 @@ jobs:
           for /r %%i in (..\..\patches\qtbase_%QT%\*) do git apply %%i
           cd ..
 
-          SET SSL=%LibrariesPath%\openssl_%OPENSSL_VER%
+          SET SSL=%LibrariesPath%\openssl
           SET SSL_LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
 
           SET ANGLE=%LibrariesPath%\tg_angle
@@ -380,8 +367,8 @@ jobs:
           QMAKE_LIBS_EGL_RELEASE="%ANGLE%\out\Release\tg_angle.lib %ZLIB%\ZlibStatReleaseWithoutAsm\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
           -openssl-linked ^
           -I "%SSL%\include" ^
-          OPENSSL_LIBS_DEBUG="%SSL%\out32.dbg\libssl.lib %SSL%\out32.dbg\%SSL_LIBS%" ^
-          OPENSSL_LIBS_RELEASE="%SSL%\out32\libssl.lib %SSL%\out32\%SSL_LIBS%" ^
+          OPENSSL_LIBS_DEBUG="%SSL%\out.dbg\libssl.lib %SSL%\out.dbg\%SSL_LIBS%" ^
+          OPENSSL_LIBS_RELEASE="%SSL%\out\libssl.lib %SSL%\out\%SSL_LIBS%" ^
           -I "%LibrariesPath%\mozjpeg" ^
           LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
           LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib" ^
@@ -418,7 +405,7 @@ jobs:
           -DTG_OWT_SPECIAL_TARGET=win ^
           -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
           -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
-          -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_%OPENSSL_VER%/include ^
+          -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl/include ^
           -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
           -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ^
           ../..
