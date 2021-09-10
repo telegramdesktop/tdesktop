@@ -592,15 +592,20 @@ depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
     git clone https://github.com/google/googletest src/testing
 win:
+    if "%X8664%" equ "x64" (
+        set "FolderPostfix=_x64"
+    ) else (
+        set "FolderPostfix="
+    )
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
-    ninja -C out/Debug common crash_generation_client exception_handler
-    ninja -C out/Release common crash_generation_client exception_handler
+    ninja -C out/Debug%FolderPostfix% common crash_generation_client exception_handler
+    ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=ninja
     cd ..\\..\\..
-    ninja -C out/Release dump_syms
+    ninja -C out/Release%FolderPostfix% dump_syms
 mac:
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
