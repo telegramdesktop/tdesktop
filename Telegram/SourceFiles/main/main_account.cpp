@@ -154,11 +154,6 @@ void Account::createSession(
 		? MTPDuser::Flag()
 		: MTPDuser::Flag::f_phone);
 
-	using ServerUserIdType = decltype(std::declval<MTPDuser>().vid().v);
-	if (ServerUserIdType(id.bare) <= 0) { // #TODO ids remove
-		return;
-	}
-
 	createSession(
 		MTP_user(
 			MTP_flags(flags),
