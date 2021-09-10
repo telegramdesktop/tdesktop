@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/openssl_help.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -24,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_xdp_file_dialog.h"
@@ -46,9 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #include <private/qguiapplication_p.h>
+#include <jemalloc/jemalloc.h>
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
-#include <jemalloc/jemalloc.h>
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -577,23 +580,14 @@ void psActivateProcess(uint64 pid) {
 
 namespace {
 
-QString GetHomeDir() {
-	const auto home = QString::fromStdString(Glib::get_home_dir());
-	if (!home.isEmpty() && !home.endsWith('/')) {
-		return home + '/';
-	}
-
-	return home;
-}
-
 #ifdef __HAIKU__
 void HaikuAutostart(bool start) {
-	const auto home = GetHomeDir();
+	const auto home = QDir::homePath();
 	if (home.isEmpty()) {
 		return;
 	}
 
-	QFile file(home + "config/settings/boot/launch/telegram-desktop");
+	QFile file(home + "/config/settings/boot/launch/telegram-desktop");
 	if (start) {
 		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 			QTextStream out(&file);
@@ -618,9 +612,9 @@ void HaikuAutostart(bool start) {
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
 	// If we find data there, we should still use it.
-	auto home = GetHomeDir();
+	auto home = QDir::homePath();
 	if (!home.isEmpty()) {
-		auto oldPath = home + qsl(".TelegramDesktop/");
+		auto oldPath = home + qsl("/.TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
 		if (QFile::exists(oldSettingsBase + '0')
 			|| QFile::exists(oldSettingsBase + '1')
@@ -671,17 +665,9 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
-
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
-	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
-	char h[33] = { 0 };
-	hashMd5Hex(d.constData(), d.size(), h);
-
-	Webview::WebKit2Gtk::SetServiceName(
-		kWebviewService.utf16().arg(h).arg("%1").toStdString());
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
@@ -695,7 +681,6 @@ void start() {
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// IBus has changed its socket path several times
 	// and each change should be synchronized with Qt.
 	// Moreover, the last time Qt changed the path,
@@ -709,6 +694,15 @@ void start() {
 		qputenv("IBUS_USE_PORTAL", "1");
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
+	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+	char h[33] = { 0 };
+	hashMd5Hex(d.constData(), d.size(), h);
+
+	Webview::WebKit2Gtk::SetServiceName(
+		kWebviewService.utf16().arg(h).arg("%1").toStdString());
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 }
 
 void finish() {

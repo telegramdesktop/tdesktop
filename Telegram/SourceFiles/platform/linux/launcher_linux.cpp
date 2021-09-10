@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -57,8 +59,10 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 int Launcher::exec() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::init();
 	Gio::init();
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
