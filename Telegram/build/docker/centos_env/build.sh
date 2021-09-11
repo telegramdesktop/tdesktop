@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/scl enable llvm-toolset-7.0 -- scl enable devtoolset-9 -- bash
 
 cd Telegram
-scl enable devtoolset-9 -- ./configure.sh "$@"
+./configure.sh "$@"
 
 if [ -n "$DEBUG" ]; then
-	scl enable devtoolset-9 -- cmake3 --build ../out/Debug -j$(nproc)
+	cmake3 --build ../out/Debug -j$(nproc)
 else
-	scl enable devtoolset-9 -- cmake3 --build ../out/Release -j$(nproc)
+	cmake3 --build ../out/Release -j$(nproc)
 fi

@@ -868,6 +868,8 @@ COPY --from=breakpad ${LibrariesPath}/breakpad breakpad
 COPY --from=breakpad ${LibrariesPath}/breakpad-cache /
 COPY --from=webrtc ${LibrariesPath}/tg_owt tg_owt
 
+RUN yum -y install llvm-toolset-7.0 llvm-toolset-7.0-clang-devel llvm-toolset-7.0-llvm-devel
+
 WORKDIR ../tdesktop
 VOLUME [ "/usr/src/tdesktop" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
