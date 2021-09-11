@@ -19,7 +19,8 @@ RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel libudev-devel \
 	webkitgtk4-devel pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-9-make devtoolset-9-gcc devtoolset-9-gcc-c++ \
-	devtoolset-9-binutils
+	devtoolset-9-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
+	llvm-toolset-7.0-llvm-devel
 
 SHELL [ "scl", "enable", "devtoolset-9", "--", "bash", "-c" ]
 RUN ln -s cmake3 /usr/bin/cmake
@@ -28,7 +29,7 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1a51e396bb
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 3e8b68dfdf
 
 FROM builder AS extra-cmake-modules
 
@@ -867,8 +868,6 @@ COPY --from=kwayland ${LibrariesPath}/kwayland-cache /
 COPY --from=breakpad ${LibrariesPath}/breakpad breakpad
 COPY --from=breakpad ${LibrariesPath}/breakpad-cache /
 COPY --from=webrtc ${LibrariesPath}/tg_owt tg_owt
-
-RUN yum -y install llvm-toolset-7.0 llvm-toolset-7.0-clang-devel llvm-toolset-7.0-llvm-devel
 
 WORKDIR ../tdesktop
 VOLUME [ "/usr/src/tdesktop" ]
