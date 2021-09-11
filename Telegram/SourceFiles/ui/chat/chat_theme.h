@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 class palette;
+struct colorizer;
 } // namespace style
 
 namespace Ui {
@@ -150,9 +151,12 @@ private:
 	[[nodiscard]] bool readyForBackgroundRotation() const;
 	void generateNextBackgroundRotation();
 
+	[[nodiscard]] style::colorizer bubblesAccentColorizer(
+		const QColor &accent) const;
 	void adjustPalette(const ChatThemeDescriptor &descriptor);
 	void set(const style::color &my, const QColor &color);
 	void adjust(const style::color &my, const QColor &by);
+	void adjust(const style::color &my, const style::colorizer &by);
 
 	uint64 _id = 0;
 	std::unique_ptr<style::palette> _palette;

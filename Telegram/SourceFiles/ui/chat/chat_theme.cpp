@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/style/style_core_palette.h"
+#include "ui/style/style_palette_colorizer.h"
 
 #include <crl/crl_async.h>
 #include <QtGui/QGuiApplication>
@@ -247,6 +248,7 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 			CountAverageColor(descriptor.bubblesData.colors))
 		: std::optional<QColor>();
 	if (bubblesAccent) {
+		// First set hue/saturation the same for all those colors from accent.
 		const auto by = *bubblesAccent;
 		if (!overrideOutBg) {
 			adjust(p.msgOutBg(), by);
@@ -269,6 +271,18 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.historyOutIconFg(), by);
 		adjust(p.historyCallArrowOutFg(), by);
 		adjust(p.historyFileOutIconFg(), by);
+
+		// After make msgFileOutBg exact accent and adjust some others.
+		const auto colorizer = bubblesAccentColorizer(by);
+		adjust(p.msgOutServiceFg(), colorizer);
+		adjust(p.msgOutDateFg(), colorizer);
+		adjust(p.msgFileThumbLinkOutFg(), colorizer);
+		adjust(p.msgFileOutBg(), colorizer);
+		adjust(p.msgOutReplyBarColor(), colorizer);
+		adjust(p.msgWaveformOutActive(), colorizer);
+		adjust(p.msgWaveformOutInactive(), colorizer);
+		adjust(p.mediaOutFg(), colorizer);
+		adjust(p.historyLinkOutFg(), colorizer);
 	}
 	auto outBgColors = descriptor.bubblesData.colors;
 	if (outBgColors.empty()) {
@@ -321,6 +335,22 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 	}
 }
 
+style::colorizer ChatTheme::bubblesAccentColorizer(
+		const QColor &accent) const {
+	const auto color = [](const QColor &value) {
+		auto hue = 0;
+		auto saturation = 0;
+		auto lightness = 0;
+		value.getHsv(&hue, &saturation, &lightness);
+		return style::colorizer::Color{ hue, saturation, lightness };
+	};
+	return {
+		.hueThreshold = 255,
+		.was = color(_palette->msgFileOutBg()->c),
+		.now = color(accent),
+	};
+}
+
 void ChatTheme::set(const style::color &my, const QColor &color) {
 	auto r = 0, g = 0, b = 0, a = 0;
 	color.getRgb(&r, &g, &b, &a);
@@ -329,6 +359,12 @@ void ChatTheme::set(const style::color &my, const QColor &color) {
 
 void ChatTheme::adjust(const style::color &my, const QColor &by) {
 	set(my, ThemeAdjustedColor(my->c, by));
+}
+
+void ChatTheme::adjust(const style::color &my, const style::colorizer &by) {
+	if (const auto adjusted = style::colorize(my->c, by)) {
+		set(my, *adjusted);
+	}
 }
 
 void ChatTheme::setBackground(ChatThemeBackground &&background) {
