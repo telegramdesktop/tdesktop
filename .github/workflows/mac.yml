@@ -96,7 +96,7 @@ jobs:
 
           echo "$PWD/Libraries/depot_tools" >> $GITHUB_PATH
 
-          mkdir -p Libraries
+          mkdir -p Libraries/local
           cd Libraries
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
           echo "PREFIX=`pwd`/local" >> $GITHUB_ENV
@@ -194,13 +194,13 @@ jobs:
           cd opus
           git checkout v1.3
           ./autogen.sh
-          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
+          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$LibrariesPath/opus-cache
           make -j$(nproc)
-          make DESTDIR="$LibrariesPath/opus-cache" install
+          make install
       - name: Opus install.
         run: |
           cd $LibrariesPath
-          cp -R opus-cache/. /
+          cp -R opus-cache/. local/
 
       - name: Rnnoise.
         run: |
@@ -226,13 +226,13 @@ jobs:
           wget https://ftp.gnu.org/pub/gnu/libiconv/"$LIBICONV_VER".tar.gz
           tar -xvzf "$LIBICONV_VER".tar.gz
           cd $LIBICONV_VER
-          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --enable-static --prefix=$PREFIX
+          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --enable-static --prefix=$LibrariesPath/libiconv-cache
           make -j$(nproc)
-          make DESTDIR="$LibrariesPath/libiconv-cache" install
+          make install
       - name: Libiconv install.
         run: |
           cd $LibrariesPath
-          cp -R libiconv-cache/. /
+          cp -R libiconv-cache/. local/
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -256,7 +256,6 @@ jobs:
           --extra-cflags="$MIN_MAC $UNGUARDED" \
           --extra-cxxflags="$MIN_MAC $UNGUARDED" \
           --extra-ldflags="$MIN_MAC" \
-          --x86asmexe=`pwd`/macos_yasm_wrap.sh \
           --enable-protocol=file \
           --enable-libopus \
           --disable-programs \
