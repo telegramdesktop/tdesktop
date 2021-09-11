@@ -38,6 +38,9 @@ public:
 	bool supports(Type type) const;
 
 	virtual int width() const = 0;
+	virtual int widthNoMargins() const {
+		return width();
+	}
 	virtual void paint(
 		Painter &p,
 		style::color color,
@@ -520,6 +523,10 @@ public:
 	}
 
 	int width() const override {
+		return widthNoMargins() + _eye.step * 2;
+	}
+
+	int widthNoMargins() const override {
 		return st::historySendActionChooseStickerPosition.x()
 			+ 2 * (_eye.outWidth + _eye.step)
 			+ _eye.step;
@@ -679,6 +686,10 @@ void SendActionAnimation::tryToFinish() {
 
 int SendActionAnimation::width() const {
 	return _impl ? _impl->width() : 0;
+}
+
+int SendActionAnimation::widthNoMargins() const {
+	return _impl ? _impl->widthNoMargins() : 0;
 }
 
 void SendActionAnimation::paint(

@@ -309,7 +309,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 							// FontData::spacew for more precise calculation.
 							const auto mf = QFontMetricsF(_st.font->f);
 							_spacesCount = std::round(
-								_sendActionAnimation.width()
+								_sendActionAnimation.widthNoMargins()
 									/ mf.horizontalAdvance(' '));
 						}
 						newTypingString = newTypingString.replace(

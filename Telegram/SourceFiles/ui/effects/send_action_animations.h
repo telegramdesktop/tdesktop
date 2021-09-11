@@ -25,6 +25,7 @@ public:
 	void tryToFinish();
 
 	int width() const;
+	int widthNoMargins() const;
 	void paint(
 		Painter &p,
 		style::color color,
