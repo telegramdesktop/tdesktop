@@ -1,3 +1,7 @@
+3.0.3 beta (12.09.21)
+
+- Try fixing crashes in allocator on Linux.
+
 3.0.2 beta (10.09.21)
 
 - Check who've seen your message in small groups from the context menu.
