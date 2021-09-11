@@ -85,6 +85,7 @@ parts:
     build-environment:
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH
     build-packages:
+      - clang
       - python
       - libasound2-dev
       - libglib2.0-dev
