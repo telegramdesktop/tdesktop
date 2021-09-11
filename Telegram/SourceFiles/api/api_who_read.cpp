@@ -130,7 +130,6 @@ struct State {
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context) {
 	auto weak = QPointer<QWidget>(context.get());
-	const auto fullId = item->fullId();
 	const auto session = &item->history()->session();
 	return [=](auto consumer) {
 		if (!weak) {
