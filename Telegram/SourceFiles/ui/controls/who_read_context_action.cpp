@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/who_read_context_action.h"
 
+#include "base/call_delayed.h";
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
@@ -89,6 +90,7 @@ private:
 	int _textWidth = 0;
 	const int _height = 0;
 	int _userpicsWidth = 0;
+	bool _appeared = false;
 
 	WhoReadContent _content;
 
@@ -193,6 +195,9 @@ Action::Action(
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
 	const auto parent = parentMenu->menu();
+	const auto checkAppeared = [=, now = crl::now()] {
+		_appeared = (crl::now() - now) >= parentMenu->st().duration;
+	};
 
 	setAcceptBoth(true);
 	initResizeHook(parent->sizeValue());
@@ -208,6 +213,7 @@ Action::Action(
 	std::move(
 		content
 	) | rpl::start_with_next([=](WhoReadContent &&content) {
+		checkAppeared();
 		const auto changed = (_content.participants != content.participants);
 		_content = content;
 		if (changed) {
@@ -240,6 +246,11 @@ Action::Action(
 	}, lifetime());
 
 	enableMouseSelecting();
+
+	base::call_delayed(parentMenu->st().duration, this, [=] {
+		checkAppeared();
+		updateUserpicsFromContent();
+	});
 }
 
 void Action::resolveMinWidth() {
@@ -260,6 +271,9 @@ void Action::resolveMinWidth() {
 }
 
 void Action::updateUserpicsFromContent() {
+	if (!_appeared) {
+		return;
+	}
 	auto users = std::vector<GroupCallUser>();
 	if (!_content.participants.empty()) {
 		const auto count = std::min(
@@ -353,11 +367,13 @@ void Action::paint(Painter &p) {
 		st::defaultWhoRead.itemPadding.top(),
 		_textWidth,
 		width());
-	_userpics->paint(
-		p,
-		width() - st::defaultWhoRead.itemPadding.right(),
-		(height() - st::defaultWhoRead.userpics.size) / 2,
-		st::defaultWhoRead.userpics.size);
+	if (_appeared) {
+		_userpics->paint(
+			p,
+			width() - st::defaultWhoRead.itemPadding.right(),
+			(height() - st::defaultWhoRead.userpics.size) / 2,
+			st::defaultWhoRead.userpics.size);
+	}
 }
 
 void Action::refreshText() {
