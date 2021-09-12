@@ -237,6 +237,8 @@ void Sandbox::socketConnected() {
 	}
 	if (!cStartUrl().isEmpty()) {
 		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
+	} else if (cQuit()) {
+		commands += qsl("CMD:quit;");
 	} else {
 		commands += qsl("CMD:show;");
 	}
@@ -302,6 +304,10 @@ void Sandbox::socketError(QLocalSocket::LocalSocketError e) {
 		&& Core::checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Sandbox Info: installing update instead of starting app..."));
+		return App::quit();
+	}
+
+	if (cQuit()) {
 		return App::quit();
 	}
 
@@ -605,6 +611,8 @@ void Sandbox::execExternal(const QString &cmd) {
 		} else if (PreLaunchWindow::instance()) {
 			PreLaunchWindow::instance()->activate();
 		}
+	} else if (cmd == "quit") {
+		App::quit();
 	}
 }
 

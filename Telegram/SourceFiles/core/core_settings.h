@@ -601,6 +601,19 @@ public:
 		_hiddenGroupCallTooltips |= value;
 	}
 
+	void setCloseToTaskbar(bool value) {
+		_closeToTaskbar = value;
+	}
+	[[nodiscard]] bool closeToTaskbar() const {
+		return _closeToTaskbar.current();
+	}
+	[[nodiscard]] rpl::producer<bool> closeToTaskbarValue() const {
+		return _closeToTaskbar.value();
+	}
+	[[nodiscard]] rpl::producer<bool> closeToTaskbarChanges() const {
+		return _closeToTaskbar.changes();
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -700,6 +713,7 @@ private:
 	bool _disableOpenGL = false;
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
 	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
+	rpl::variable<bool> _closeToTaskbar = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

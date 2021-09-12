@@ -213,8 +213,13 @@ bool MainWindow::hideNoQuit() {
 			}
 			return true;
 		}
-	} else if (Platform::IsMac()) {
-		closeWithoutDestroy();
+	}
+	if (Platform::IsMac() || Core::App().settings().closeToTaskbar()) {
+		if (Platform::IsMac()) {
+			closeWithoutDestroy();
+		} else {
+			setWindowState(window()->windowState() | Qt::WindowMinimized);
+		}
 		controller().updateIsActiveBlur();
 		updateGlobalMenu();
 		if (const auto controller = sessionController()) {

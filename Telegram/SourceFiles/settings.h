@@ -77,6 +77,7 @@ DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
 DeclareSetting(bool, DebugMode);
 DeclareReadSetting(bool, ManyInstance);
+DeclareSetting(bool, Quit);
 
 DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(int, ScreenScale);
