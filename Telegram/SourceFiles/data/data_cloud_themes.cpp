@@ -486,6 +486,8 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 			? std::nullopt
 			: (value[0] >= 'a' && value[0] <= 'f')
 			? std::make_optional(10 + int(value[0].unicode() - 'a'))
+			: (value[0] >= 'A' && value[0] <= 'F')
+			? std::make_optional(10 + int(value[0].unicode() - 'A'))
 			: (value[0] >= '0' && value[0] <= '9')
 			? std::make_optional(int(value[0].unicode() - '0'))
 			: std::nullopt;
