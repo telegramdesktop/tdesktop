@@ -464,6 +464,7 @@ void Launcher::processArguments() {
 		{ "-noupdate"       , KeyFormat::NoValues },
 		{ "-tosettings"     , KeyFormat::NoValues },
 		{ "-startintray"    , KeyFormat::NoValues },
+		{ "-quit"           , KeyFormat::NoValues },
 		{ "-sendpath"       , KeyFormat::AllLeftValues },
 		{ "-workdir"        , KeyFormat::OneValue },
 		{ "--"              , KeyFormat::OneValue },
@@ -504,6 +505,7 @@ void Launcher::processArguments() {
 	gNoStartUpdate = parseResult.contains("-noupdate");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
+	gQuit = parseResult.contains("-quit");
 	gSendPaths = parseResult.value("-sendpath", {});
 	gWorkingDir = parseResult.value("-workdir", {}).join(QString());
 	if (!gWorkingDir.isEmpty()) {

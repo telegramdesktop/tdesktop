@@ -315,12 +315,18 @@ bool GenerateDesktopFile(
 
 		fileText = fileText.replace(
 			QRegularExpression(
-				qsl("^Exec=.*$"),
+				qsl("^Exec=telegram-desktop(.*)$"),
 				QRegularExpression::MultilineOption),
-			qsl("Exec=%1 -workdir %2").arg(
+			qsl("Exec=%1 -workdir %2\\1").arg(
 				EscapeShellInLauncher(cExeDir() + cExeName()),
-				EscapeShellInLauncher(cWorkingDir()))
-				+ (args.isEmpty() ? QString() : ' ' + args));
+				EscapeShellInLauncher(cWorkingDir())));
+
+		fileText = fileText.replace(
+			QRegularExpression(
+				qsl("^Exec=(.*) -- %u$"),
+				QRegularExpression::MultilineOption),
+			qsl("Exec=\\1%1").arg(
+				args.isEmpty() ? QString() : ' ' + args));
 
 		target.write(fileText.toUtf8());
 		target.close();
