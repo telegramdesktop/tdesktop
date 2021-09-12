@@ -261,16 +261,17 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.msgOutReplyBarColor(), by);
 		adjust(p.msgWaveformOutActive(), by);
 		adjust(p.msgWaveformOutInactive(), by);
-		adjust(p.historyTextOutFg(), by);
-		adjust(p.historyFileNameOutFg(), by);
-		adjust(p.historyFileOutRadialFg(), by);
+		//adjust(p.historyTextOutFg(), by); // windowFg
+		//adjust(p.historyFileNameOutFg(), by); // historyTextOutFg
+		adjust(p.historyFileOutRadialFg(), by); // historyFileOutIconFg
 		adjust(p.mediaOutFg(), by);
 
 		adjust(p.historyLinkOutFg(), by);
 		adjust(p.msgOutMonoFg(), by);
 		adjust(p.historyOutIconFg(), by);
+		adjust(p.historySendingOutIconFg(), by);
 		adjust(p.historyCallArrowOutFg(), by);
-		adjust(p.historyFileOutIconFg(), by);
+		adjust(p.historyFileOutIconFg(), by); // msgOutBg
 
 		// After make msgFileOutBg exact accent and adjust some others.
 		const auto colorizer = bubblesAccentColorizer(by);
@@ -283,6 +284,9 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.msgWaveformOutInactive(), colorizer);
 		adjust(p.mediaOutFg(), colorizer);
 		adjust(p.historyLinkOutFg(), colorizer);
+		adjust(p.historyOutIconFg(), colorizer);
+		adjust(p.historySendingOutIconFg(), colorizer);
+		adjust(p.historyCallArrowOutFg(), colorizer);
 	}
 	auto outBgColors = descriptor.bubblesData.colors;
 	if (outBgColors.empty()) {
