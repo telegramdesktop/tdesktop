@@ -723,6 +723,10 @@ release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
+    cd ../../../build
+    ./gyp_breakpad
+    cd ../processor
+    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
 
 stage('crashpad', """
