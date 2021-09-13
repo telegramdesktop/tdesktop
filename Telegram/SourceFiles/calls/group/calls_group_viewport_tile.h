@@ -110,12 +110,12 @@ private:
 	QRect _geometry;
 	TileAnimation _animation;
 	rpl::variable<QSize> _trackSize;
-	mutable QSize _userpicSize;
 	QRect _pinOuter;
 	QRect _pinInner;
 	QRect _backOuter;
 	QRect _backInner;
 	Ui::Animations::Simple _topControlsShownAnimation;
+	bool _wasPaused = false;
 	bool _topControlsShown = false;
 	bool _pinned = false;
 	bool _hidden = true;

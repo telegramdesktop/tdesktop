@@ -35,6 +35,14 @@ Viewport::VideoTile::VideoTile(
 	Expects(track.track != nullptr);
 	Expects(track.row != nullptr);
 
+	using namespace rpl::mappers;
+	_track.track->stateValue(
+	) | rpl::filter(
+		_1 == Webrtc::VideoState::Paused
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		_wasPaused = true;
+	}, _lifetime);
+
 	setup(std::move(pinned));
 }
 
@@ -68,11 +76,8 @@ QSize Viewport::VideoTile::PausedVideoSize() {
 QSize Viewport::VideoTile::trackOrUserpicSize() const {
 	if (const auto size = trackSize(); !size.isEmpty()) {
 		return size;
-	} else if (_userpicSize.isEmpty()
-		&& _track.track->state() == Webrtc::VideoState::Paused) {
-		_userpicSize = PausedVideoSize();
 	}
-	return _userpicSize;
+	return _wasPaused ? PausedVideoSize() : QSize();
 }
 
 bool Viewport::VideoTile::screencast() const {
