@@ -618,6 +618,7 @@ bool ReadSetting(
 		stream >> key;
 		if (!CheckStreamStatus(stream)) return false;
 
+		DEBUG_LOG(("Theme: read key legacy: %1").arg(key));
 		context.themeKeyLegacy = key;
 		context.legacyRead = true;
 	} break;
@@ -628,6 +629,10 @@ bool ReadSetting(
 		stream >> keyDay >> keyNight >> nightMode;
 		if (!CheckStreamStatus(stream)) return false;
 
+		DEBUG_LOG(("Theme: read keys (night: %1) day_key: %2, night_key: %3, "
+			).arg(Logs::b(nightMode == 1)
+			).arg(keyDay
+			).arg(keyNight));
 		context.themeKeyDay = keyDay;
 		context.themeKeyNight = keyNight;
 		Window::Theme::SetNightModeValue(nightMode == 1);

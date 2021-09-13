@@ -154,7 +154,6 @@ bool readNameAndValue(const char *&from, const char *end, QLatin1String *outName
 
 enum class SetResult {
 	Ok,
-	Bad,
 	NotFound,
 };
 SetResult setColorSchemeValue(
@@ -202,7 +201,7 @@ SetResult setColorSchemeValue(
 	} else {
 		LOG(("Theme Error: Unexpected internal error."));
 	}
-	return SetResult::Bad;
+	Unexpected("Value after palette.setColor().");
 }
 
 bool loadColorScheme(
@@ -215,9 +214,7 @@ bool loadColorScheme(
 		value = unsupported.value(value, value);
 
 		auto result = setColorSchemeValue(name, value, colorizer, out);
-		if (result == SetResult::Bad) {
-			return false;
-		} else if (result == SetResult::NotFound) {
+		if (result == SetResult::NotFound) {
 			unsupported.insert(name, value);
 		}
 		return true;
@@ -302,6 +299,7 @@ bool LoadTheme(
 			return false;
 		}
 		if (!loadColorScheme(schemeContent, paletteColorizer, out)) {
+			DEBUG_LOG(("Theme: Could not loadColorScheme."));
 			return false;
 		}
 		if (!out) {
@@ -311,6 +309,7 @@ bool LoadTheme(
 		auto backgroundTiled = false;
 		auto backgroundContent = QByteArray();
 		if (!loadBackground(file, &backgroundContent, &backgroundTiled)) {
+			DEBUG_LOG(("Theme: Could not loadBackground."));
 			return false;
 		}
 
@@ -347,6 +346,7 @@ bool LoadTheme(
 	} else {
 		// Looks like it is not a .zip theme.
 		if (!loadColorScheme(editedPalette.value_or(content), paletteColorizer, out)) {
+			DEBUG_LOG(("Theme: Could not loadColorScheme from non-zip."));
 			return false;
 		}
 		if (!out) {
@@ -422,6 +422,7 @@ bool InitializeFromSaved(Saved &&saved) {
 
 	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);
 	if (!LoadTheme(saved.object.content, colorizer, editing, &saved.cache)) {
+		DEBUG_LOG(("Theme: Could not load from saved."));
 		return false;
 	}
 	if (editing) {
@@ -1235,6 +1236,7 @@ bool Initialize(Saved &&saved) {
 		Background()->setThemeObject(saved.object);
 		return true;
 	}
+	DEBUG_LOG(("Theme: Could not initialize from saved."));
 	return false;
 }
 
@@ -1464,6 +1466,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		auto name = QLatin1String("");
 		auto value = QLatin1String("");
 		if (!readNameAndValue(from, end, &name, &value)) {
+			DEBUG_LOG(("Theme: Could not readNameAndValue."));
 			return false;
 		}
 		if (name.size() == 0) { // End of content reached.
