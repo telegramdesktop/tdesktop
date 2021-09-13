@@ -1,3 +1,8 @@
+3.0.4 beta (13.09.21)
+
+- Fix a crash when joining video chat or live broadcast.
+- Add a "Close to Taskbar" option when tray icon is disabled (Windows and Linux).
+
 3.0.3 beta (12.09.21)
 
 - Try fixing crashes in allocator on Linux.

@@ -47,6 +47,13 @@ std::map<int, const char*> BetaLogs() {
 		"from the context menu.\n"
 
 		"- Enable recording with video in live streams and video chats."
+	},
+	{
+		3000004,
+		"- Fix a crash when joining video chat or live broadcast.\n"
+
+		"- Add a \"Close to Taskbar\" option when tray icon is disabled "
+		"(Windows and Linux)."
 	}
 	};
 };
