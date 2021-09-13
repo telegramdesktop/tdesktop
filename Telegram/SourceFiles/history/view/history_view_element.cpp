@@ -67,7 +67,8 @@ std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
 	return std::make_unique<Ui::PathShiftGradient>(
 		st->msgServiceBg(),
 		st->msgServiceBgSelected(),
-		std::move(update));
+		std::move(update),
+		st->paletteChanged());
 }
 
 SimpleElementDelegate::SimpleElementDelegate(
