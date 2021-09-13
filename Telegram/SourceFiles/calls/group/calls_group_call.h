@@ -406,16 +406,6 @@ public:
 private:
 	class LoadPartTask;
 	class MediaChannelDescriptionsTask;
-
-public:
-	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
-	void broadcastPartCancel(not_null<LoadPartTask*> task);
-	void mediaChannelDescriptionsStart(
-		std::shared_ptr<MediaChannelDescriptionsTask> task);
-	void mediaChannelDescriptionsCancel(
-		not_null<MediaChannelDescriptionsTask*> task);
-
-private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
 	using Error = Group::Error;
 	struct SinkPointer;
@@ -463,6 +453,14 @@ private:
 	friend inline constexpr bool is_flag_type(SendUpdateType) {
 		return true;
 	}
+
+	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
+	void broadcastPartCancel(not_null<LoadPartTask*> task);
+	void mediaChannelDescriptionsStart(
+		std::shared_ptr<MediaChannelDescriptionsTask> task);
+	void mediaChannelDescriptionsCancel(
+		not_null<MediaChannelDescriptionsTask*> task);
+	[[nodiscard]] int64 approximateServerTimeInMs() const;
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(
 		not_null<MediaChannelDescriptionsTask*> task,
@@ -571,11 +569,14 @@ private:
 	base::flat_set<
 		std::shared_ptr<
 			MediaChannelDescriptionsTask>,
-		base::pointer_comparator<MediaChannelDescriptionsTask>> _mediaChannelDescriptionses;
+		base::pointer_comparator<
+			MediaChannelDescriptionsTask>> _mediaChannelDescriptionses;
 
 	rpl::variable<not_null<PeerData*>> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
 	QString _joinHash;
+	int64 _serverTimeMs = 0;
+	crl::time _serverTimeMsGotAt = 0;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	rpl::variable<bool> _canManage = false;
