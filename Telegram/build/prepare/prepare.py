@@ -247,7 +247,9 @@ def winFailOnEach(command):
     return result
 
 def run(command):
-    print(command)
+    print('---------------------------------COMMANDS-LIST----------------------------------')
+    print(command, end='')
+    print('--------------------------------------------------------------------------------')
     if win:
         if os.path.exists("command.bat"):
             os.remove("command.bat")
@@ -330,29 +332,34 @@ def runStages():
         if checkResult == 'Good':
             print('SKIPPING')
             continue
-        if checkResult == 'Stale' or checkResult == 'Forced':
+        elif checkResult == 'NotFound':
+            print('NOT FOUND, ', end='')
+        elif checkResult == 'Stale' or checkResult == 'Forced':
             if checkResult == 'Stale':
                 print('CHANGED, ', end='')
-            print('(r)ebuild, rebuild (a)ll, (s)kip, (q)uit?: ', end='', flush=True)
-            while True:
-                ch = b'r' if rebuildStale else getch()
-                if ch == b'q':
-                    finish(0)
-                elif ch == b's':
-                    checkResult = 'Skip'
-                    break
-                elif ch == b'r':
-                    checkResult = 'Rebuild'
-                    break
-                elif ch == b'a':
-                    checkResult = 'Rebuild'
-                    rebuildStale = True
-                    break
+            if rebuildStale:
+                checkResult == 'Rebuild'
+            else:
+                print('(r)ebuild, rebuild (a)ll, (s)kip, (q)uit?: ', end='', flush=True)
+                while True:
+                    ch = b'r' if rebuildStale else getch()
+                    if ch == b'q':
+                        finish(0)
+                    elif ch == b's':
+                        checkResult = 'Skip'
+                        break
+                    elif ch == b'r':
+                        checkResult = 'Rebuild'
+                        break
+                    elif ch == b'a':
+                        checkResult = 'Rebuild'
+                        rebuildStale = True
+                        break
         if checkResult == 'Skip':
             print('SKIPPING')
             continue
         clearCacheKey(stage)
-        print('BUILDING')
+        print('BUILDING:')
         os.chdir(stage['directory'])
         commands = removeDir(stage['name']) + '\n' + stage['commands']
         if not run(commands):
