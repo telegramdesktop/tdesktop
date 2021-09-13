@@ -308,7 +308,11 @@ bool ResolveUsername(
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.startToken = startToken,
-		.voicechatHash = (params.contains(u"voicechat"_q)
+		.voicechatHash = (params.contains(u"livestream"_q)
+			? std::make_optional(params.value(u"livestream"_q))
+			: params.contains(u"videochat"_q)
+			? std::make_optional(params.value(u"videochat"_q))
+			: params.contains(u"voicechat"_q)
 			? std::make_optional(params.value(u"voicechat"_q))
 			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
