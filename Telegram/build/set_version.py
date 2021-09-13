@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 '''
-import sys, os, re, subprocess
+import sys, os, re, subprocess, io
 
 def finish(code):
     global executePath
@@ -76,7 +76,7 @@ def checkChangelog():
   global scriptPath, versionStr, versionStrSmall
 
   count = 0
-  with open(scriptPath + '/../../changelog.txt', encoding='utf-8') as f:
+  with io.open(scriptPath + '/../../changelog.txt', encoding='utf-8') as f:
     for line in f:
       if line.startswith(versionStr + ' ') or line.startswith(versionStrSmall + ' '):
         count = count + 1
