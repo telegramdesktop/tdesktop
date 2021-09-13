@@ -297,7 +297,7 @@ class _GetchWindows:
 
     def __call__(self):
         import msvcrt
-        return msvcrt.getch()
+        return msvcrt.getch().decode('ascii')
 
 getch = _Getch()
 
@@ -342,16 +342,16 @@ def runStages():
             else:
                 print('(r)ebuild, rebuild (a)ll, (s)kip, (q)uit?: ', end='', flush=True)
                 while True:
-                    ch = b'r' if rebuildStale else getch()
-                    if ch == b'q':
+                    ch = 'r' if rebuildStale else getch()
+                    if ch == 'q':
                         finish(0)
-                    elif ch == b's':
+                    elif ch == 's':
                         checkResult = 'Skip'
                         break
-                    elif ch == b'r':
+                    elif ch == 'r':
                         checkResult = 'Rebuild'
                         break
-                    elif ch == b'a':
+                    elif ch == 'a':
                         checkResult = 'Rebuild'
                         rebuildStale = True
                         break
