@@ -694,6 +694,7 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-no-icu \
 	-no-feature-xcb-sm \
 	-no-feature-wayland-server \
+	-no-feature-egl-extension-platform-wayland \
 	-static \
 	-dbus-runtime \
 	-openssl-linked \
