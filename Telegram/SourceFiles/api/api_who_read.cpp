@@ -202,7 +202,7 @@ bool UpdateUserpics(
 	}
 	auto &was = state->userpics;
 	auto now = std::vector<Userpic>();
-	for (const auto peer : peers) {
+	for (const auto &peer : peers) {
 		if (ranges::contains(now, peer, &Userpic::peer)) {
 			continue;
 		}

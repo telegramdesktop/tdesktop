@@ -370,7 +370,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 01779db1de
+    git checkout 1a1d9e6d2c
 """)
 
 stage('depot_tools', """
@@ -379,13 +379,14 @@ mac:
 """, 'ThirdParty')
 
 stage('gyp', """
+win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git checkout d6c5dd51dc
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
-    ./setup.py build
+    python3 -m pip install git+https://github.com/nodejs/gyp-next@v0.10.0
 """, 'ThirdParty')
 
 stage('yasm', """
@@ -748,7 +749,7 @@ depends:patches/mini_chromium.diff
     git checkout d62d6c6556
     cd ../../..
 
-    build/gyp_crashpad.py -Dmac_deployment_target=10.10 
+    python3 build/gyp_crashpad.py -Dmac_deployment_target=10.10
     ninja -C out/Debug base crashpad_util crashpad_client crashpad_handler
 release:
     ninja -C out/Release base crashpad_util crashpad_client crashpad_handler
@@ -873,7 +874,7 @@ win:
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
-    FFMPEG_PATH=$USED_PREFIX/include 
+    FFMPEG_PATH=$USED_PREFIX/include
 common:
     mkdir out
     cd out
