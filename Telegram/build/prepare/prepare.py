@@ -12,8 +12,6 @@ def error(text):
     print('[ERROR] ' + text)
     finish(1)
 
-forcedSections = sys.argv[1:]
-
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
 win32 = win and (os.environ['Platform'] == 'x86')
@@ -36,6 +34,13 @@ rootDir = os.getcwd()
 libsDir = rootDir + dirSep + libsLoc
 thirdPartyDir = rootDir + dirSep + 'ThirdParty'
 usedPrefix = libsDir + dirSep + 'local'
+
+processedArgs = []
+skipReleaseBuilds = False
+for arg in sys.argv[1:]:
+    if arg == 'skip-release':
+        processedArgs.append(arg)
+        skipReleaseBuilds = True
 
 if not os.path.isdir(libsDir + '/' + keysLoc):
     pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
@@ -140,10 +145,12 @@ def checkCacheKey(stage):
     if not 'key' in stage:
         error('Key not set in stage: ' + stage['name'])
     key = keyPath(stage)
-    if stage['name'] in forcedSections or not os.path.exists(key) or not os.path.exists(stage['directory'] + '/' + stage['name']):
-        return False
+    if not os.path.exists(stage['directory'] + '/' + stage['name']):
+        return 'NotFound'
+    if not os.path.exists(key):
+        return 'Stale'
     with open(key, 'r') as file:
-        return (file.read() == stage['key'])
+        return 'Good' if (file.read() == stage['key']) else 'Stale'
 
 def clearCacheKey(stage):
     key = keyPath(stage)
@@ -185,6 +192,11 @@ def filterByPlatform(commands):
                 inscope = True
             # if linux and 'linux' in scopes:
             #     inscope = True
+            if 'release' in scopes:
+                if skipReleaseBuilds:
+                    inscope = False
+                elif len(scopes) == 1:
+                    continue
             skip = inscope if m.group(1) == '!' else not inscope
         elif not skip:
             if m and m.group(2) == 'version':
@@ -250,26 +262,103 @@ def run(command):
     else:
         return subprocess.run("set -e\n" + command, shell=True, env=modifiedEnv).returncode == 0
 
+# Thanks https://stackoverflow.com/a/510364
+class _Getch:
+    """Gets a single character from standard input.  Does not echo to the
+screen."""
+    def __init__(self):
+        try:
+            self.impl = _GetchWindows()
+        except ImportError:
+            self.impl = _GetchUnix()
+
+    def __call__(self): return self.impl()
+
+class _GetchUnix:
+    def __init__(self):
+        import tty, sys
+
+    def __call__(self):
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+class _GetchWindows:
+    def __init__(self):
+        import msvcrt
+
+    def __call__(self):
+        import msvcrt
+        return msvcrt.getch()
+
+getch = _Getch()
+
 def runStages():
+    onlyStages = []
+    rebuildStale = False
+    for arg in sys.argv[1:]:
+        if arg in processedArgs:
+            continue
+        elif arg == 'silent':
+            rebuildStale = True
+            continue
+        found = False
+        for stage in stages:
+            if stage['name'] == arg:
+                onlyStages.append(arg)
+                found = True
+                break
+        if not found:
+            error('Unknown argument: ' + arg)
     count = len(stages)
     index = 0
     for stage in stages:
+        if len(onlyStages) > 0 and not stage['name'] in onlyStages:
+            continue
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
         prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
-        print(prefix + ': ', end = '')
+        print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
-        if checkCacheKey(stage):
+        checkResult = 'Forced' if len(onlyStages) > 0 else checkCacheKey(stage)
+        if checkResult == 'Good':
             print('SKIPPING')
-        else:
-            clearCacheKey(stage)
-            print('BUILDING')
-            os.chdir(stage['directory'])
-            commands = removeDir(stage['name']) + '\n' + stage['commands']
-            if not run(commands):
-                print(prefix + ': FAILED')
-                finish(1)
-            writeCacheKey(stage)
+            continue
+        if checkResult == 'Stale' or checkResult == 'Forced':
+            if checkResult == 'Stale':
+                print('CHANGED, ', end='')
+            print('(r)ebuild, rebuild (a)ll, (s)kip, (q)uit?: ', end='', flush=True)
+            while True:
+                ch = b'r' if rebuildStale else getch()
+                if ch == b'q':
+                    finish(0)
+                elif ch == b's':
+                    checkResult = 'Skip'
+                    break
+                elif ch == b'r':
+                    checkResult = 'Rebuild'
+                    break
+                elif ch == b'a':
+                    checkResult = 'Rebuild'
+                    rebuildStale = True
+                    break
+        if checkResult == 'Skip':
+            print('SKIPPING')
+            continue
+        clearCacheKey(stage)
+        print('BUILDING')
+        os.chdir(stage['directory'])
+        commands = removeDir(stage['name']) + '\n' + stage['commands']
+        if not run(commands):
+            print(prefix + ': FAILED')
+            finish(1)
+        writeCacheKey(stage)
 
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
@@ -306,6 +395,7 @@ win:
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\\C\\Util\\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
+release:
     msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
 """)
 
@@ -326,6 +416,7 @@ stage('zlib', """
 win:
     cd contrib\\vstudio\\vc14
     msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="%X8664%"
+release:
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="%X8664%"
 mac:
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
@@ -344,6 +435,7 @@ win:
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
     cmake --build . --config Debug
+release:
     cmake --build . --config Release
 mac:
     cmake -B build . \\
@@ -368,7 +460,9 @@ win:
     mkdir out.dbg
     move libcrypto.lib out.dbg
     move libssl.lib out.dbg
-    move ossl_static.pdb out.dbg\\ossl_static
+    move ossl_static.pdb out.dbg
+release:
+    move out.dbg\\ossl_static.pdb out.dbg\\ossl_static
     nmake clean
     move out.dbg\\ossl_static out.dbg\\ossl_static.pdb
 win32:
@@ -392,6 +486,7 @@ stage('opus', """
 win:
     cd win32\\VS2015
     msbuild opus.sln /property:Configuration=Debug /property:Platform="%WIN32X64%"
+release:
     msbuild opus.sln /property:Configuration=Release /property:Platform="%WIN32X64%"
 mac:
     ./autogen.sh
@@ -408,12 +503,14 @@ stage('rnnoise', """
 win:
     cmake -A %WIN32X64% ..
     cmake --build . --config Debug
+release:
     cmake --build . --config Release
 !win:
     mkdir Debug
     cd Debug
     cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
     ninja
+release:
     cd ..
     mkdir Release
     cd Release
@@ -573,6 +670,7 @@ win:
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
     msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="%WIN32X64%"
+release:
     msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="%WIN32X64%"
 mac:
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake \
@@ -601,6 +699,7 @@ win:
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
     ninja -C out/Debug%FolderPostfix% common crash_generation_client exception_handler
+release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=ninja
@@ -613,6 +712,7 @@ mac:
     cd ../../..
     cd src/client/mac
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
+release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
@@ -639,6 +739,7 @@ depends:patches/mini_chromium.diff
 
     build/gyp_crashpad.py -Dmac_deployment_target=10.10 
     ninja -C out/Debug base crashpad_util crashpad_client crashpad_handler
+release:
     ninja -C out/Release base crashpad_util crashpad_client crashpad_handler
 """)
 
@@ -656,6 +757,7 @@ win:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
+release:
     cd ..
     mkdir Release
     cd Release
@@ -679,6 +781,10 @@ win:
     for /r %%i in (..\\..\\patches\\qtbase_5_15_2\\*) do git apply %%i
     cd ..
 
+    SET CONFIGURATIONS=-debug-and-release
+release:
+    SET CONFIGURATIONS=-debug
+win:
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -686,7 +792,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib\\contrib\\vstudio\\vc14\\%X8664%
     configure -prefix "%LIBS_DIR%\\Qt-5.15.2" ^
-        -debug-and-release ^
+        %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
         -confirm-license ^
@@ -719,8 +825,12 @@ mac:
     find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
+    CONFIGURATIONS=-debug-and-release
+release:
+    CONFIGURATIONS=-debug
+mac:
     ./configure -prefix "$USED_PREFIX/Qt-5.15.2" \
-        -debug-and-release \
+        $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
         -confirm-license \
@@ -767,6 +877,7 @@ common:
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
+release:
     cd ..
     mkdir Release
     cd Release
