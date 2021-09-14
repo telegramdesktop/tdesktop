@@ -124,6 +124,9 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				QImage::Format_ARGB32_Premultiplied),
 			.gradient = gradient,
 			.area = request.area,
+			.waitingForNegativePattern = (request.background.isPattern
+				&& request.background.prepared.isNull()
+				&& request.background.patternOpacity < 0.)
 		};
 	} else {
 		const auto rects = ComputeChatBackgroundRects(
@@ -206,7 +209,8 @@ CachedBackground::CachedBackground(CacheBackgroundResult &&result)
 : pixmap(PixmapFromImage(std::move(result.image)))
 , area(result.area)
 , x(result.x)
-, y(result.y) {
+, y(result.y)
+, waitingForNegativePattern(result.waitingForNegativePattern) {
 }
 
 ChatTheme::ChatTheme() {

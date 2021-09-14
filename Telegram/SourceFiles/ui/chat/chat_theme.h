@@ -79,6 +79,7 @@ struct CacheBackgroundResult {
 	QSize area;
 	int x = 0;
 	int y = 0;
+	bool waitingForNegativePattern = false;
 };
 
 struct CachedBackground {
@@ -89,6 +90,7 @@ struct CachedBackground {
 	QSize area;
 	int x = 0;
 	int y = 0;
+	bool waitingForNegativePattern = false;
 };
 
 struct BackgroundState {

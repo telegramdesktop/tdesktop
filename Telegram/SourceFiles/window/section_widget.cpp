@@ -191,7 +191,11 @@ void SectionWidget::PaintBackground(
 		const auto to = QRect(
 			QPoint(cache.x, fromy + cache.y),
 			cache.pixmap.size() / cIntRetinaFactor());
-		if (cache.area == fill) {
+		if (cache.waitingForNegativePattern) {
+			// While we wait for pattern being loaded we paint just gradient.
+			// But in case of negative patter opacity we just fill-black.
+			p.fillRect(to, Qt::black);
+		} else if (cache.area == fill) {
 			p.drawPixmap(to, cache.pixmap);
 		} else {
 			const auto sx = fill.width() / float64(cache.area.width());
