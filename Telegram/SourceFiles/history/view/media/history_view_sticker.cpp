@@ -296,9 +296,10 @@ void Sticker::refreshLink() {
 		const auto weak = base::make_weak(this);
 		_link = std::make_shared<LambdaClickHandler>([weak] {
 			const auto that = weak.get();
-			if (!that) {
+			if (!that || !that->_lottieOncePlayed) {
 				return;
 			}
+			that->_parent->delegate()->elementStartInteraction(that->_parent);
 			that->_lottieOncePlayed = false;
 			that->_parent->history()->owner().requestViewRepaint(
 				that->_parent);

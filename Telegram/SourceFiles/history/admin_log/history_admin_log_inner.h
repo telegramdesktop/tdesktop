@@ -137,6 +137,8 @@ public:
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
+	void elementStartInteraction(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 

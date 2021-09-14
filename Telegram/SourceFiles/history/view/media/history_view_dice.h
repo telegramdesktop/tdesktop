@@ -41,9 +41,6 @@ public:
 			_end->unloadHeavyPart();
 		}
 	}
-	bool hidesForwardedInfo() override {
-		return false;
-	}
 
 private:
 	const not_null<Element*> _parent;

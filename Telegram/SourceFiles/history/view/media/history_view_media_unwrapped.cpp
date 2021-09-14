@@ -461,9 +461,7 @@ int UnwrappedMedia::additionalWidth(
 
 auto UnwrappedMedia::getDisplayedForwardedInfo() const
 -> const HistoryMessageForwarded * {
-	return _content->hidesForwardedInfo()
-		? nullptr
-		: _parent->data()->Get<HistoryMessageForwarded>();
+	return _parent->data()->Get<HistoryMessageForwarded>();
 }
 
 } // namespace HistoryView

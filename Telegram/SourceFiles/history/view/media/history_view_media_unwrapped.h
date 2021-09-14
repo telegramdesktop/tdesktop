@@ -47,9 +47,6 @@ public:
 		}
 		virtual void refreshLink() {
 		}
-		[[nodiscard]] virtual bool hidesForwardedInfo() {
-			return true;
-		}
 		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
 			return false;
 		}
@@ -83,9 +80,6 @@ public:
 	}
 	bool customInfoLayout() const override {
 		return true;
-	}
-	bool hidesForwardedInfo() const override {
-		return _content->hidesForwardedInfo();
 	}
 	void stickerClearLoopPlayed() override {
 		_content->stickerClearLoopPlayed();

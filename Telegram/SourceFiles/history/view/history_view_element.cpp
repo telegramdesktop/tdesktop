@@ -177,6 +177,11 @@ auto SimpleElementDelegate::elementPathShiftGradient()
 void SimpleElementDelegate::elementReplyTo(const FullMsgId &to) {
 }
 
+
+void SimpleElementDelegate::elementStartInteraction(
+	not_null<const Element*> view) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -219,24 +224,6 @@ QString DateTooltipText(not_null<Element*> view) {
 			tr::now,
 			lt_date,
 			base::unixtime::parse(forwarded->originalDate).toString(format));
-		if (const auto media = view->media()) {
-			if (media->hidesForwardedInfo()) {
-				const auto from = forwarded->originalSender
-					? forwarded->originalSender->shortName()
-					: forwarded->hiddenSenderInfo->firstName;
-				if (forwarded->imported) {
-					dateText += '\n' + tr::lng_signed_author(
-						tr::now,
-						lt_user,
-						from);
-				} else {
-					dateText += '\n' + tr::lng_forwarded(
-						tr::now,
-						lt_user,
-						from);
-				}
-			}
-		}
 		if (forwarded->imported) {
 			dateText = tr::lng_forwarded_imported(tr::now)
 				+ "\n\n" + dateText;

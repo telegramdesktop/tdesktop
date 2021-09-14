@@ -2689,6 +2689,9 @@ void HistoryInner::elementReplyTo(const FullMsgId &to) {
 	return _widget->replyToMessage(to);
 }
 
+void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3599,6 +3602,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		void elementReplyTo(const FullMsgId &to) override {
 			if (Instance) {
 				Instance->elementReplyTo(to);
+			}
+		}
+		void elementStartInteraction(not_null<const Element*> view) override {
+			if (Instance) {
+				Instance->elementStartInteraction(view);
 			}
 		}
 	};

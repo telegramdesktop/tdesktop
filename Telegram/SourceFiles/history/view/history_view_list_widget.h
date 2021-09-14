@@ -260,6 +260,7 @@ public:
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
+	void elementStartInteraction(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 

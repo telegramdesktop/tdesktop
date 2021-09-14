@@ -1391,6 +1391,9 @@ void ListWidget::elementReplyTo(const FullMsgId &to) {
 	replyToMessageRequestNotify(to);
 }
 
+void ListWidget::elementStartInteraction(not_null<const Element*> view) {
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

@@ -54,9 +54,6 @@ public:
 			}
 		}
 	}
-	bool hidesForwardedInfo() override {
-		return false;
-	}
 
 private:
 	void resolveStarts(bool initSize = false);

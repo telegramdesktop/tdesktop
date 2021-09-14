@@ -30,6 +30,18 @@ namespace {
 
 constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 
+[[nodiscard]] std::optional<int> IndexFromEmoticon(const QString &emoticon) {
+	if (emoticon.size() < 2) {
+		return -1;
+	}
+	const auto first = emoticon[0].unicode();
+	return (first >= '1' && first <= '9')
+		? (first - '1')
+		: (first == 55357 && emoticon[1].unicode() == 56607)
+		? 9
+		: -1;
+}
+
 [[nodiscard]] QSize SingleSize() {
 	const auto single = st::largeEmojiSize;
 	const auto outline = st::largeEmojiOutline;
@@ -207,6 +219,13 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 	return result;
 }
 
+auto EmojiPack::animationsForEmoji(EmojiPtr emoji) const
+-> const base::flat_map<int, not_null<DocumentData*>> & {
+	static const auto empty = base::flat_map<int, not_null<DocumentData*>>();
+	const auto i = _animations.find(emoji);
+	return (i != end(_animations)) ? i->second : empty;
+}
+
 void EmojiPack::refresh() {
 	if (_requestId) {
 		return;
@@ -215,12 +234,30 @@ void EmojiPack::refresh() {
 		MTP_inputStickerSetAnimatedEmoji()
 	)).done([=](const MTPmessages_StickerSet &result) {
 		_requestId = 0;
-		refreshDelayed();
+		refreshAnimations();
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
+		refreshDelayed();
+	}).send();
+}
+
+void EmojiPack::refreshAnimations() {
+	if (_animationsRequestId) {
+		return;
+	}
+	_animationsRequestId = _session->api().request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetAnimatedEmojiAnimations()
+	)).done([=](const MTPmessages_StickerSet &result) {
+		_animationsRequestId = 0;
+		refreshDelayed();
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			applyAnimationsSet(data);
+		});
+	}).fail([=](const MTP::Error &error) {
+		_animationsRequestId = 0;
 		refreshDelayed();
 	}).send();
 }
@@ -249,6 +286,55 @@ void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 	for (const auto &[emoji, document] : was) {
 		refreshItems(emoji);
 	}
+}
+
+void EmojiPack::applyAnimationsSet(const MTPDmessages_stickerSet &data) {
+	const auto stickers = collectStickers(data.vdocuments().v);
+	const auto &packs = data.vpacks().v;
+	const auto indices = collectAnimationsIndices(packs);
+
+	_animations.clear();
+	for (const auto &pack : packs) {
+		pack.match([&](const MTPDstickerPack &data) {
+			const auto emoticon = qs(data.vemoticon());
+			if (IndexFromEmoticon(emoticon).has_value()) {
+				return;
+			}
+			const auto emoji = Ui::Emoji::Find(emoticon);
+			if (!emoji) {
+				return;
+			}
+			for (const auto &id : data.vdocuments().v) {
+				const auto i = indices.find(id.v);
+				if (i == end(indices)) {
+					continue;
+				}
+				const auto j = stickers.find(id.v);
+				if (j == end(stickers)) {
+					continue;
+				}
+				for (const auto index : i->second) {
+					_animations[emoji].emplace(index, j->second);
+				}
+			}
+		});
+	}
+}
+
+auto EmojiPack::collectAnimationsIndices(
+	const QVector<MTPStickerPack> &packs
+) const -> base::flat_map<uint64, base::flat_set<int>> {
+	auto result = base::flat_map<uint64, base::flat_set<int>>();
+	for (const auto &pack : packs) {
+		pack.match([&](const MTPDstickerPack &data) {
+			if (const auto index = IndexFromEmoticon(qs(data.vemoticon()))) {
+				for (const auto &id : data.vdocuments().v) {
+					result[id.v].emplace(*index);
+				}
+			}
+		});
+	}
+	return result;
 }
 
 void EmojiPack::refreshAll() {

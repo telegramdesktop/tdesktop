@@ -67,17 +67,25 @@ public:
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 
+	[[nodiscard]] auto animationsForEmoji(EmojiPtr emoji) const
+		-> const base::flat_map<int, not_null<DocumentData*>> &;
+
 private:
 	class ImageLoader;
 
 	void refresh();
 	void refreshDelayed();
+	void refreshAnimations();
 	void applySet(const MTPDmessages_stickerSet &data);
 	void applyPack(
 		const MTPDstickerPack &data,
 		const base::flat_map<uint64, not_null<DocumentData*>> &map);
-	base::flat_map<uint64, not_null<DocumentData*>> collectStickers(
-		const QVector<MTPDocument> &list) const;
+	void applyAnimationsSet(const MTPDmessages_stickerSet &data);
+	[[nodiscard]] auto collectStickers(const QVector<MTPDocument> &list) const
+		-> base::flat_map<uint64, not_null<DocumentData*>>;
+	[[nodiscard]] auto collectAnimationsIndices(
+		const QVector<MTPStickerPack> &packs) const
+		-> base::flat_map<uint64, base::flat_set<int>>;
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
 	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &list);
@@ -89,6 +97,11 @@ private:
 		base::flat_set<not_null<HistoryItem*>>> _items;
 	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
 	mtpRequestId _requestId = 0;
+
+	base::flat_map<
+		EmojiPtr,
+		base::flat_map<int, not_null<DocumentData*>>> _animations;
+	mtpRequestId _animationsRequestId = 0;
 
 	rpl::lifetime _lifetime;
 
