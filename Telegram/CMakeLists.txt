@@ -285,6 +285,8 @@ PRIVATE
     chat_helpers/bot_command.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
+    chat_helpers/emoji_interactions.cpp
+    chat_helpers/emoji_interactions.h
     chat_helpers/emoji_keywords.cpp
     chat_helpers/emoji_keywords.h
     chat_helpers/emoji_list_widget.cpp

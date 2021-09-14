@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_inner_widget.h"
 
-#include <rpl/merge.h>
 #include "core/file_utilities.h"
 #include "core/crash_reports.h"
 #include "core/click_handler_types.h"
@@ -44,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "history/history_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
@@ -2690,6 +2690,7 @@ void HistoryInner::elementReplyTo(const FullMsgId &to) {
 }
 
 void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
+	_controller->emojiInteractions().start(view);
 }
 
 auto HistoryInner::getSelectionState() const

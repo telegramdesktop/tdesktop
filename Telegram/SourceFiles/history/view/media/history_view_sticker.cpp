@@ -295,14 +295,9 @@ void Sticker::refreshLink() {
 	if (isEmojiSticker()) {
 		const auto weak = base::make_weak(this);
 		_link = std::make_shared<LambdaClickHandler>([weak] {
-			const auto that = weak.get();
-			if (!that || !that->_lottieOncePlayed) {
-				return;
+			if (const auto that = weak.get()) {
+				that->emojiStickerClicked();
 			}
-			that->_parent->delegate()->elementStartInteraction(that->_parent);
-			that->_lottieOncePlayed = false;
-			that->_parent->history()->owner().requestViewRepaint(
-				that->_parent);
 		});
 	} else if (sticker && sticker->set) {
 		_link = std::make_shared<LambdaClickHandler>([document = _data](ClickContext context) {
@@ -326,6 +321,14 @@ void Sticker::refreshLink() {
 			}),
 			_parent->data()->fullId());
 	}
+}
+
+void Sticker::emojiStickerClicked() {
+	if (_lottie) {
+		_parent->delegate()->elementStartInteraction(_parent);
+	}
+	_lottieOncePlayed = false;
+	_parent->history()->owner().requestViewRepaint(_parent);
 }
 
 void Sticker::ensureDataMediaCreated() const {

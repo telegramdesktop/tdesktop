@@ -97,6 +97,7 @@ private:
 	void setupLottie();
 	void lottieCreated();
 	void unloadLottie();
+	void emojiStickerClicked();
 
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _data;

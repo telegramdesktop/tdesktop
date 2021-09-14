@@ -32,14 +32,14 @@ constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 
 [[nodiscard]] std::optional<int> IndexFromEmoticon(const QString &emoticon) {
 	if (emoticon.size() < 2) {
-		return -1;
+		return std::nullopt;
 	}
 	const auto first = emoticon[0].unicode();
 	return (first >= '1' && first <= '9')
-		? (first - '1')
+		? std::make_optional(first - '1')
 		: (first == 55357 && emoticon[1].unicode() == 56607)
-		? 9
-		: -1;
+		? std::make_optional(9)
+		: std::nullopt;
 }
 
 [[nodiscard]] QSize SingleSize() {

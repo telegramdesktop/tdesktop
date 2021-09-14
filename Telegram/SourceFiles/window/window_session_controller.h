@@ -27,6 +27,7 @@ enum class WindowLayout;
 
 namespace ChatHelpers {
 class TabbedSelector;
+class EmojiInteractions;
 } // namespace ChatHelpers
 
 namespace Main {
@@ -247,6 +248,9 @@ public:
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 	[[nodiscard]] Adaptive &adaptive() const;
+	[[nodiscard]] ChatHelpers::EmojiInteractions &emojiInteractions() const {
+		return *_emojiInteractions;
+	}
 
 	// We need access to this from MainWidget::MainWidget, where
 	// we can't call content() yet.
@@ -462,6 +466,7 @@ private:
 		bool generateGradient = true) const;
 
 	const not_null<Controller*> _window;
+	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
 	std::unique_ptr<FiltersMenu> _filters;
