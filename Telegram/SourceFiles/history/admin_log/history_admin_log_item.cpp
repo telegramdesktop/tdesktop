@@ -1076,12 +1076,6 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
-	auto createChangeTheme = [&](const MTPDchannelAdminLogEventActionChangeTheme &data) {
-		const auto was = qs(data.vprev_value());
-		const auto now = qs(data.vnew_value());
-		// #TODO themes
-	};
-
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -1146,8 +1140,6 @@ void GenerateItems(
 		createParticipantVolume(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeHistoryTTL &data) {
 		createChangeHistoryTTL(data);
-	}, [&](const MTPDchannelAdminLogEventActionChangeTheme &data) {
-		createChangeTheme(data);
 	});
 }
 
