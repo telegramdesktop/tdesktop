@@ -224,12 +224,16 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
 		p.setPen(semibold);
+		p.setTextPalette(stm->semiboldPalette);
+
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
 		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += _titleLines * lineHeight;
+
+		p.setTextPalette(stm->textPalette);
 	}
 	if (_descriptionLines) {
 		p.setPen(stm->historyTextFg);

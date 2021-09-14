@@ -514,12 +514,16 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	}
 	if (_siteNameLines) {
 		p.setPen(semibold);
+		p.setTextPalette(stm->semiboldPalette);
+
 		auto endskip = 0;
 		if (_siteName.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
 		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += lineHeight;
+
+		p.setTextPalette(stm->textPalette);
 	}
 	p.setPen(stm->historyTextFg);
 	if (_titleLines) {
