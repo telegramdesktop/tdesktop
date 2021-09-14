@@ -46,7 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #include <private/qguiapplication_p.h>
+
+#ifdef Q_OS_FREEBSD
+#include <malloc_np.h>
+#else // Q_OS_FREEBSD
 #include <jemalloc/jemalloc.h>
+#endif // Q_OS_FREEBSD
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
