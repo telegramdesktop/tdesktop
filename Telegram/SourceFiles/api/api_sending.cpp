@@ -397,6 +397,11 @@ void SendConfirmedFile(
 	} else {
 		flags |= MessageFlag::LocalHistoryEntry;
 	}
+	if (file->type == SendMediaType::Audio) {
+		if (!peer->isChannel() || peer->isMegagroup()) {
+			flags |= MessageFlag::MediaIsUnread;
+		}
+	}
 
 	const auto messageFromId = anonymousPost ? 0 : session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
