@@ -26,12 +26,22 @@ class Element;
 
 namespace ChatHelpers {
 
+struct EmojiInteractionPlayRequest {
+	not_null<HistoryItem*> item;
+	std::shared_ptr<Data::DocumentMedia> media;
+};
+
 class EmojiInteractions final {
 public:
 	explicit EmojiInteractions(not_null<Main::Session*> session);
 	~EmojiInteractions();
 
+	using PlayRequest = EmojiInteractionPlayRequest;
+
 	void start(not_null<const HistoryView::Element*> view);
+	[[nodiscard]] rpl::producer<PlayRequest> playRequests() const {
+		return _playRequests.events();
+	}
 
 private:
 	struct Animation {
@@ -63,6 +73,7 @@ private:
 		not_null<HistoryItem*>,
 		std::vector<Animation>> _animations;
 	base::Timer _checkTimer;
+	rpl::event_stream<PlayRequest> _playRequests;
 
 	bool _waitingForDownload = false;
 	rpl::lifetime _downloadCheckLifetime;

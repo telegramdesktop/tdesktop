@@ -60,11 +60,12 @@ auto LottieFromDocument(
 		Method &&method,
 		not_null<Data::DocumentMedia*> media,
 		uint8 keyShift,
-		QSize box) {
+		QSize box,
+		int cacheAreaLimit) {
 	const auto document = media->owner();
 	const auto data = media->bytes();
 	const auto filepath = document->filepath();
-	if (box.width() * box.height() > kDontCacheLottieAfterArea) {
+	if (box.width() * box.height() > cacheAreaLimit) {
 		// Don't use frame caching for large stickers.
 		return method(
 			Lottie::ReadContent(data, filepath),
@@ -113,9 +114,12 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 			replacements,
 			std::move(renderer));
 	};
+	const auto limit = (sizeTag == StickerLottieSize::EmojiInteraction)
+		? (3 * kDontCacheLottieAfterArea)
+		: kDontCacheLottieAfterArea;
 	const auto tag = replacements ? replacements->tag : uint8(0);
 	const auto keyShift = ((tag << 4) & 0xF0) | (uint8(sizeTag) & 0x0F);
-	return LottieFromDocument(method, media, uint8(keyShift), box);
+	return LottieFromDocument(method, media, uint8(keyShift), box, limit);
 }
 
 not_null<Lottie::Animation*> LottieAnimationFromDocument(
@@ -126,7 +130,8 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 	const auto method = [&](auto &&...args) {
 		return player->append(std::forward<decltype(args)>(args)...);
 	};
-	return LottieFromDocument(method, media, uint8(sizeTag), box);
+	const auto limit = kDontCacheLottieAfterArea;
+	return LottieFromDocument(method, media, uint8(sizeTag), box, limit);
 }
 
 bool HasLottieThumbnail(

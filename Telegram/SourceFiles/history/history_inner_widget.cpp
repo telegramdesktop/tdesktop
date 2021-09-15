@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_emoji_interactions.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
@@ -160,6 +161,8 @@ HistoryInner::HistoryInner(
 , _controller(controller)
 , _peer(history->peer)
 , _history(history)
+, _emojiInteractions(std::make_unique<HistoryView::EmojiInteractions>(
+	&controller->session()))
 , _migrated(history->migrateFrom())
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
@@ -195,6 +198,21 @@ HistoryInner::HistoryInner(
 			update();
 		}
 	}, lifetime());
+
+	using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
+	_controller->emojiInteractions().playRequests(
+	) | rpl::filter([=](const PlayRequest &request) {
+		return (request.item->history() == _history);
+	}) | rpl::start_with_next([=](const PlayRequest &request) {
+		if (const auto view = request.item->mainView()) {
+			_emojiInteractions->play(request, view);
+		}
+	}, lifetime());
+	_emojiInteractions->updateRequests(
+	) | rpl::start_with_next([=](QRect rect) {
+		update(rect.translated(0, _historyPaddingTop));
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
@@ -834,6 +852,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				}
 				return true;
 			});
+			p.setOpacity(1.);
+			p.translate(0, _historyPaddingTop);
+			_emojiInteractions->paint(p);
 		}
 	}
 }
@@ -2357,6 +2378,10 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	const auto till = _visibleAreaBottom + pages * visibleAreaHeight;
 	session().data().unloadHeavyViewParts(ElementDelegate(), from, till);
 	checkHistoryActivation();
+
+	_emojiInteractions->visibleAreaUpdated(
+		_visibleAreaTop - _historyPaddingTop,
+		_visibleAreaBottom - _historyPaddingTop);
 }
 
 bool HistoryInner::displayScrollDate() const {
@@ -2454,7 +2479,12 @@ void HistoryInner::updateSize() {
 		_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 	}
 
-	_historyPaddingTop = newHistoryPaddingTop;
+	if (_historyPaddingTop != newHistoryPaddingTop) {
+		_historyPaddingTop = newHistoryPaddingTop;
+		_emojiInteractions->visibleAreaUpdated(
+			_visibleAreaTop - _historyPaddingTop,
+			_visibleAreaBottom - _historyPaddingTop);
+	}
 
 	int newHeight = _historyPaddingTop + itemsHeight + st::historyPaddingBottom;
 	if (width() != _scroll->width() || height() != newHeight) {

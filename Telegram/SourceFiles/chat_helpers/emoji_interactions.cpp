@@ -100,7 +100,7 @@ void EmojiInteractions::start(not_null<const HistoryView::Element*> view) {
 auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 	auto nearest = kTimeNever;
 	auto waitingForDownload = false;
-	for (auto &[id, animations] : _animations) {
+	for (auto &[item, animations] : _animations) {
 		auto lastStartedAt = crl::time();
 		for (auto &animation : animations) {
 			if (animation.startedAt) {
@@ -111,11 +111,7 @@ auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 				break;
 			} else if (!lastStartedAt || lastStartedAt + kMinDelay <= now) {
 				animation.startedAt = now;
-
-				// #TODO interactions
-				//const auto sticker = std::make_unique<HistoryView::Sticker>(
-				//	view,
-				//	document);
+				_playRequests.fire({ item, animation.media });
 				break;
 			} else {
 				nearest = std::min(nearest, lastStartedAt + kMinDelay);
@@ -174,8 +170,8 @@ void EmojiInteractions::sendAccumulated(
 auto EmojiInteractions::checkAccumulated(crl::time now) -> CheckResult {
 	auto nearest = kTimeNever;
 	for (auto i = begin(_animations); i != end(_animations);) {
-		auto &[id, animations] = *i;
-		sendAccumulated(now, id, animations);
+		auto &[item, animations] = *i;
+		sendAccumulated(now, item, animations);
 		if (animations.empty()) {
 			i = _animations.erase(i);
 			continue;
