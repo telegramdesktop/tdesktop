@@ -26,6 +26,11 @@ namespace {
 
 constexpr auto kSizeMultiplier = 3;
 
+constexpr auto kMaxPlays = 5;
+constexpr auto kMaxPlaysWithSmallDelay = 3;
+constexpr auto kSmallDelay = crl::time(200);
+constexpr auto kDropDelayedAfterDelay = crl::time(2000);
+
 [[nodiscard]] QPoint GenerateRandomShift(QSize emoji) {
 	// Random shift in [-0.08 ... 0.08] of animated emoji size.
 	const auto maxShift = emoji * 2 / 25;
@@ -54,6 +59,17 @@ EmojiInteractions::~EmojiInteractions() = default;
 void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view) {
+	if (_plays.empty()) {
+		play(view, std::move(request.media));
+	} else {
+		_delayed.push_back({ view, request.media, crl::now() });
+		checkDelayed();
+	}
+}
+
+void EmojiInteractions::play(
+		not_null<Element*> view,
+		std::shared_ptr<Data::DocumentMedia> media) {
 	const auto top = view->block()->y() + view->y();
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
@@ -62,7 +78,7 @@ void EmojiInteractions::play(
 		return;
 	}
 	auto lottie = ChatHelpers::LottiePlayerFromDocument(
-		request.media.get(),
+		media.get(),
 		nullptr,
 		ChatHelpers::StickerLottieSize::EmojiInteraction,
 		_emojiSize * kSizeMultiplier * style::DevicePixelRatio(),
@@ -123,7 +139,13 @@ void EmojiInteractions::paint(QPainter &p) {
 			request.colored = st::msgStickerOverlay->c;
 		}
 		const auto frame = play.lottie->frameInfo(request);
-		if (frame.index + 1 == play.lottie->information().framesCount) {
+		play.frame = frame.index;
+		if (!play.framesCount) {
+			const auto &information = play.lottie->information();
+			play.framesCount = information.framesCount;
+			play.frameRate = information.frameRate;
+		}
+		if (play.frame + 1 == play.framesCount) {
 			play.finished = true;
 		}
 		const auto rect = computeRect(play.view);
@@ -133,6 +155,43 @@ void EmojiInteractions::paint(QPainter &p) {
 		play.lottie->markFrameShown();
 	}
 	_plays.erase(ranges::remove(_plays, true, &Play::finished), end(_plays));
+	checkDelayed();
+}
+
+void EmojiInteractions::checkDelayed() {
+	if (_delayed.empty() || _plays.size() >= kMaxPlays) {
+		return;
+	}
+	auto withTooLittleDelay = false;
+	auto withHalfPlayed = false;
+	for (const auto &play : _plays) {
+		if (!play.framesCount
+			|| !play.frameRate
+			|| !play.frame
+			|| (play.frame * crl::time(1000)
+				< kSmallDelay * play.frameRate)) {
+			withTooLittleDelay = true;
+			break;
+		} else if (play.frame * 2 > play.framesCount) {
+			withHalfPlayed = true;
+		}
+	}
+	if (withTooLittleDelay) {
+		return;
+	} else if (_plays.size() >= kMaxPlaysWithSmallDelay && !withHalfPlayed) {
+		return;
+	}
+	const auto now = crl::now();
+	const auto i = ranges::find_if(_delayed, [&](const Delayed &delayed) {
+		return (delayed.shouldHaveStartedAt + kDropDelayedAfterDelay > now);
+	});
+	if (i == end(_delayed)) {
+		_delayed.clear();
+		return;
+	}
+	auto good = std::move(*i);
+	_delayed.erase(begin(_delayed), i + 1);
+	play(good.view, std::move(good.media));
 }
 
 rpl::producer<QRect> EmojiInteractions::updateRequests() const {

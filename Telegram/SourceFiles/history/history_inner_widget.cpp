@@ -203,9 +203,9 @@ HistoryInner::HistoryInner(
 	_controller->emojiInteractions().playRequests(
 	) | rpl::filter([=](const PlayRequest &request) {
 		return (request.item->history() == _history);
-	}) | rpl::start_with_next([=](const PlayRequest &request) {
+	}) | rpl::start_with_next([=](PlayRequest &&request) {
 		if (const auto view = request.item->mainView()) {
-			_emojiInteractions->play(request, view);
+			_emojiInteractions->play(std::move(request), view);
 		}
 	}, lifetime());
 	_emojiInteractions->updateRequests(

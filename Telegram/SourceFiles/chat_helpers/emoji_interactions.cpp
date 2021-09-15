@@ -31,6 +31,7 @@ namespace {
 
 constexpr auto kMinDelay = crl::time(200);
 constexpr auto kAccumulateDelay = crl::time(1000);
+constexpr auto kMaxDelay = 2 * crl::time(1000);
 constexpr auto kTimeNever = std::numeric_limits<crl::time>::max();
 constexpr auto kVersion = 1;
 
@@ -102,6 +103,14 @@ auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 	auto waitingForDownload = false;
 	for (auto &[item, animations] : _animations) {
 		auto lastStartedAt = crl::time();
+
+		// Erase too old requests.
+		const auto i = ranges::find_if(animations, [&](const Animation &a) {
+			return !a.startedAt && (a.scheduledAt + kMaxDelay <= now);
+		});
+		if (i != end(animations)) {
+			animations.erase(i, end(animations));
+		}
 		for (auto &animation : animations) {
 			if (animation.startedAt) {
 				lastStartedAt = animation.startedAt;
@@ -111,7 +120,11 @@ auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 				break;
 			} else if (!lastStartedAt || lastStartedAt + kMinDelay <= now) {
 				animation.startedAt = now;
-				_playRequests.fire({ item, animation.media });
+				_playRequests.fire({
+					item,
+					animation.media,
+					animation.scheduledAt,
+				});
 				break;
 			} else {
 				nearest = std::min(nearest, lastStartedAt + kMinDelay);

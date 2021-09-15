@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace ChatHelpers {
 struct EmojiInteractionPlayRequest;
 } // namespace ChatHelpers
@@ -41,10 +45,23 @@ private:
 		not_null<Element*> view;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		QPoint shift;
+		int frame = 0;
+		int framesCount = 0;
+		int frameRate = 0;
 		bool finished = false;
+	};
+	struct Delayed {
+		not_null<Element*> view;
+		std::shared_ptr<Data::DocumentMedia> media;
+		crl::time shouldHaveStartedAt = 0;
 	};
 
 	[[nodiscard]] QRect computeRect(not_null<Element*> view) const;
+
+	void play(
+		not_null<Element*> view,
+		std::shared_ptr<Data::DocumentMedia> media);
+	void checkDelayed();
 
 	const not_null<Main::Session*> _session;
 
@@ -53,6 +70,7 @@ private:
 	QSize _emojiSize;
 
 	std::vector<Play> _plays;
+	std::vector<Delayed> _delayed;
 	rpl::event_stream<QRect> _updateRequests;
 
 	rpl::lifetime _lifetime;

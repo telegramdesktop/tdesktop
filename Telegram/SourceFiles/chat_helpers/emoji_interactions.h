@@ -29,6 +29,7 @@ namespace ChatHelpers {
 struct EmojiInteractionPlayRequest {
 	not_null<HistoryItem*> item;
 	std::shared_ptr<Data::DocumentMedia> media;
+	crl::time shouldHaveStartedAt = 0;
 };
 
 class EmojiInteractions final {
