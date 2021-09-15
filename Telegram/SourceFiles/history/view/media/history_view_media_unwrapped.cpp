@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item.h"
@@ -42,7 +43,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 	_content->refreshLink();
 	_contentSize = NonEmptySize(DownscaledSize(
 		_content->size(),
-		{ st::maxStickerSize, st::maxStickerSize }));
+		Sticker::Size()));
 	auto maxWidth = _contentSize.width();
 	const auto minimal = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	auto minHeight = std::max(_contentSize.height(), minimal);

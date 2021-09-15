@@ -46,9 +46,7 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 Dice::~Dice() = default;
 
 QSize Dice::size() {
-	return _start
-		? _start->size()
-		: Sticker::GetAnimatedEmojiSize(&_parent->history()->session());
+	return _start ? _start->size() : Sticker::EmojiSize();
 }
 
 ClickHandlerPtr Dice::link() {

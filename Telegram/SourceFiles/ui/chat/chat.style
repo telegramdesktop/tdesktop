@@ -37,7 +37,8 @@ defaultMessageBar: MessageBar {
 minPhotoSize: 100px;
 minVideoSize: 160px;
 maxMediaSize: 430px;
-maxStickerSize: 228px;
+maxStickerSize: 224px;
+maxAnimatedEmojiSize: 112px;
 maxGifSize: 320px;
 maxVideoMessageSize: 240px;
 maxSignatureSize: 144px;

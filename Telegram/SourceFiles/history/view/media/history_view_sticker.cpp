@@ -37,11 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-[[nodiscard]] double GetEmojiStickerZoom(not_null<Main::Session*> session) {
-	return session->account().appConfig().get<double>(
-		"emojies_animated_zoom",
-		0.625);
-}
+constexpr auto kMaxSizeFixed = 512;
+constexpr auto kMaxEmojiSizeFixed = 256;
 
 [[nodiscard]] QImage CacheDiceImage(
 		const QString &emoji,
@@ -97,16 +94,13 @@ bool Sticker::isEmojiSticker() const {
 }
 
 void Sticker::initSize() {
-	_size = _data->dimensions;
 	if (isEmojiSticker() || _diceIndex >= 0) {
-		_size = GetAnimatedEmojiSize(&_data->session(), _size);
+		_size = Sticker::EmojiSize();
 		if (_diceIndex > 0) {
 			[[maybe_unused]] bool result = readyToDrawLottie();
 		}
 	} else {
-		_size = DownscaledSize(
-			_size,
-			{ st::maxStickerSize, st::maxStickerSize });
+		_size = DownscaledSize(_data->dimensions, Sticker::Size());
 	}
 }
 
@@ -135,18 +129,14 @@ bool Sticker::readyToDrawLottie() {
 	return (_lottie && _lottie->ready());
 }
 
-QSize Sticker::GetAnimatedEmojiSize(not_null<Main::Session*> session) {
-	return GetAnimatedEmojiSize(session, { 512, 512 });
+QSize Sticker::Size() {
+	const auto side = std::min(st::maxStickerSize, kMaxSizeFixed);
+	return { side, side };
 }
 
-QSize Sticker::GetAnimatedEmojiSize(
-		not_null<Main::Session*> session,
-		QSize documentSize) {
-	const auto zoom = GetEmojiStickerZoom(session);
-	const auto convert = [&](int size) {
-		return int(size * st::maxStickerSize * zoom / kStickerSideSize);
-	};
-	return { convert(documentSize.width()), convert(documentSize.height()) };
+QSize Sticker::EmojiSize() {
+	const auto side = std::min(st::maxAnimatedEmojiSize, kMaxEmojiSizeFixed);
+	return { side, side };
 }
 
 void Sticker::draw(

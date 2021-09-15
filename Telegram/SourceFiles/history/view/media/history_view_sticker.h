@@ -78,11 +78,8 @@ public:
 	}
 	[[nodiscard]] bool readyToDrawLottie();
 
-	[[nodiscard]] static QSize GetAnimatedEmojiSize(
-		not_null<Main::Session*> session);
-	[[nodiscard]] static QSize GetAnimatedEmojiSize(
-		not_null<Main::Session*> session,
-		QSize documentSize);
+	[[nodiscard]] static QSize Size();
+	[[nodiscard]] static QSize EmojiSize();
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;

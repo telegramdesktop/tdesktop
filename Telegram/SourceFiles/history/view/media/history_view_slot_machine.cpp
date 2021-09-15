@@ -139,9 +139,7 @@ bool SlotMachine::isEndResolved() const {
 }
 
 QSize SlotMachine::size() {
-	return _pull
-		? _pull->size()
-		: Sticker::GetAnimatedEmojiSize(&_parent->history()->session());
+	return _pull ? _pull->size() : Sticker::EmojiSize();
 }
 
 ClickHandlerPtr SlotMachine::link() {
