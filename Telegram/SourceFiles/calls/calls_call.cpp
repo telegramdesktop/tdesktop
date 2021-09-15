@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
+#include "base/random.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "mtproto/mtproto_config.h"
 #include "core/application.h"
@@ -233,7 +234,7 @@ void Call::startOutgoing() {
 	_api.request(MTPphone_RequestCall(
 		MTP_flags(flags),
 		_user->inputUser,
-		MTP_int(openssl::RandomValue<int32>()),
+		MTP_int(base::RandomValue<int32>()),
 		MTP_bytes(_gaHash),
 		MTP_phoneCallProtocol(
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p

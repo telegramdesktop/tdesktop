@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 #include "base/value_ordering.h"
 #include "base/bytes.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include <set>
 #include <deque>
 
@@ -1748,7 +1748,7 @@ auto ApiWrap::prepareFileProcess(
 	result->location = file.location;
 	result->size = file.size;
 	result->origin = origin;
-	result->randomId = openssl::RandomValue<uint64>();
+	result->randomId = base::RandomValue<uint64>();
 	return result;
 }
 

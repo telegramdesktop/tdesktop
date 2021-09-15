@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
+#include "base/random.h"
 #include "scheme.h"
 
 #include <QtCore/QPointer>
@@ -84,7 +85,7 @@ SerializedRequest DcKeyBinder::prepareRequest(
 	Expects(temporaryKey != nullptr);
 	Expects(temporaryKey->expiresAt() != 0);
 
-	const auto nonce = openssl::RandomValue<uint64>();
+	const auto nonce = base::RandomValue<uint64>();
 	const auto msgId = base::unixtime::mtproto_msg_id();
 	auto result = SerializedRequest::Serialize(MTPauth_BindTempAuthKey(
 		MTP_long(_persistentKey->keyId()),

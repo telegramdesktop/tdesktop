@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/details/mtproto_domain_resolver.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/invoke_queued.h"
 #include "base/call_delayed.h"
 
@@ -47,7 +47,7 @@ QString GenerateDnsRandomPadding() {
 		constexpr auto kMinPadding = 13;
 		constexpr auto kMaxPadding = 128;
 		while (true) {
-			const auto result = 1 + (openssl::RandomValue<uchar>() / 2);
+			const auto result = 1 + (base::RandomValue<uchar>() / 2);
 			Assert(result <= kMaxPadding);
 			if (result >= kMinPadding) {
 				return result;
@@ -56,7 +56,7 @@ QString GenerateDnsRandomPadding() {
 	}();
 	result.resize(count);
 	for (auto &ch : result) {
-		ch = kValid[openssl::RandomValue<uchar>() % (sizeof(kValid) - 1)];
+		ch = kValid[base::RandomValue<uchar>() % (sizeof(kValid) - 1)];
 	}
 	return result;
 }

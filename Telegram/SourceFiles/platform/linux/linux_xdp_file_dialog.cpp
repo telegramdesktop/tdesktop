@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "storage/localstorage.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/qt_adapters.h"
 
 #include <QtGui/QWindow>
@@ -391,7 +391,7 @@ void XDPFileDialog::openPortal() {
 	}
 
 	const auto handleToken = Glib::ustring("tdesktop")
-		+ std::to_string(openssl::RandomValue<uint>());
+		+ std::to_string(base::RandomValue<uint>());
 
 	options["handle_token"] = Glib::Variant<Glib::ustring>::create(
 		handleToken);

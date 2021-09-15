@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "main/main_account.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
 
@@ -192,7 +192,7 @@ void PasswordCheckWidget::requestPasswordData() {
 	).done([=](const MTPaccount_Password &result) {
 		_sentRequest = 0;
 		result.match([&](const MTPDaccount_password &data) {
-			openssl::AddRandomSeed(bytes::make_span(data.vsecure_random().v));
+			base::RandomAddSeed(bytes::make_span(data.vsecure_random().v));
 			_passwordState = Core::ParseCloudPasswordState(data);
 			passwordChecked();
 		});

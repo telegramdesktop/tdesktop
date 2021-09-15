@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -667,7 +667,7 @@ void FieldAutocomplete::showAnimated() {
 		return;
 	}
 	if (_cache.isNull()) {
-		_stickersSeed = openssl::RandomValue<uint64>();
+		_stickersSeed = base::RandomValue<uint64>();
 		_scroll->show();
 		_cache = Ui::GrabWidget(this);
 	}

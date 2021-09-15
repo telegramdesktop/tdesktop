@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/openssl_help.h"
+#include "base/random.h"
 
 #include <crl/crl_object_on_thread.h>
 #include <QtCore/QtEndian>
@@ -270,7 +271,7 @@ FileKey GenerateKey(const QString &basePath) {
 	path.reserve(basePath.size() + 0x11);
 	path += basePath;
 	do {
-		result = openssl::RandomValue<FileKey>();
+		result = base::RandomValue<FileKey>();
 		path.resize(basePath.size());
 		path += ToFilePart(result);
 	} while (!result || KeyAlreadyUsed(path));
@@ -460,7 +461,7 @@ void FileWriteDescriptor::finish() {
 	if (fullSize & 0x0F) {
 		fullSize += 0x10 - (fullSize & 0x0F);
 		toEncrypt.resize(fullSize);
-		memset_rand(toEncrypt.data() + size, fullSize - size);
+		base::RandomFill(toEncrypt.data() + size, fullSize - size);
 	}
 	*(uint32*)toEncrypt.data() = size;
 	QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data

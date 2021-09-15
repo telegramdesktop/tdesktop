@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_http.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/qthelp_url.h"
 
 namespace MTP {
@@ -21,7 +21,7 @@ constexpr auto kFullConnectionTimeout = crl::time(8000);
 
 HttpConnection::HttpConnection(QThread *thread, const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
-, _checkNonce(openssl::RandomValue<MTPint128>()) {
+, _checkNonce(base::RandomValue<MTPint128>()) {
 	_manager.moveToThread(thread);
 	_manager.setProxy(ToNetworkProxy(proxy));
 }

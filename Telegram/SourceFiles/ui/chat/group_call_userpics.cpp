@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_userpics.h"
 
 #include "ui/paint/blobs.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "styles/style_chat.h"
 
 namespace Ui {
@@ -237,7 +237,7 @@ void GroupCallUserpics::sendRandomLevels() {
 	}
 	for (auto &userpic : _list) {
 		if (const auto blobs = userpic.blobsAnimation.get()) {
-			const auto value = 30 + (openssl::RandomValue<uint32>() % 70);
+			const auto value = 30 + base::RandomIndex(70);
 			userpic.blobsAnimation->blobs.setLevel(float64(value) / 100.);
 		}
 	}

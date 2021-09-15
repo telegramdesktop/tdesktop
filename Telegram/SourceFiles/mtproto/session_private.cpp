@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/connection_abstract.h"
 #include "platform/platform_specific.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/qthelp_url.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "base/platform/base_platform_info.h"
 #include "zlib.h"
@@ -398,7 +399,7 @@ void SessionPrivate::resetSession() {
 void SessionPrivate::changeSessionId() {
 	auto sessionId = _sessionId;
 	do {
-		sessionId = openssl::RandomValue<uint64>();
+		sessionId = base::RandomValue<uint64>();
 	} while (_sessionId == sessionId);
 
 	DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
@@ -574,7 +575,7 @@ void SessionPrivate::tryToSend() {
 		&& !_pingIdToSend
 		&& !_pingId
 		&& _pingSendAt <= crl::now()) {
-		_pingIdToSend = openssl::RandomValue<mtpPingId>();
+		_pingIdToSend = base::RandomValue<mtpPingId>();
 	}
 	const auto forceNewMsgId = sendAll && markSessionAsStarted();
 	if (forceNewMsgId && _keyCreator) {
@@ -2528,7 +2529,7 @@ void SessionPrivate::authKeyChecked() {
 		resendAll();
 	} // else receive salt in bad_server_salt first, then try to send all the requests
 
-	_pingIdToSend = openssl::RandomValue<uint64>(); // get server_salt
+	_pingIdToSend = base::RandomValue<uint64>(); // get server_salt
 	_sessionData->queueNeedToResumeAndSend();
 }
 

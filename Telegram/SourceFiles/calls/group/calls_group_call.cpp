@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
@@ -1008,7 +1008,7 @@ void GroupCall::start(TimeId scheduleDate) {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		MTP_flags(scheduleDate ? Flag::f_schedule_date : Flag(0)),
 		_peer->input,
-		MTP_int(openssl::RandomValue<int32>()),
+		MTP_int(base::RandomValue<int32>()),
 		MTPstring(), // title
 		MTP_int(scheduleDate)
 	)).done([=](const MTPUpdates &result) {

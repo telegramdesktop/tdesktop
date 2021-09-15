@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
 #include "core/file_location.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/invoke_queued.h"
 #include "logs.h"
 
@@ -115,7 +115,7 @@ void Reader::init(const Core::FileLocation &location, const QByteArray &data) {
 		managers.push_back(new Manager(threads.back()));
 		threads.back()->start();
 	} else {
-		_threadIndex = int32(openssl::RandomValue<uint32>() % threads.size());
+		_threadIndex = int32(base::RandomValue<uint32>() % threads.size());
 		int32 loadLevel = 0x7FFFFFFF;
 		for (int32 i = 0, l = threads.size(); i < l; ++i) {
 			int32 level = managers.at(i)->loadLevel();

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 
 #include "base/openssl_help.h"
+#include "base/random.h"
 #include "mtproto/details/mtproto_rsa_public_key.h"
 
 #include <QtCore/QJsonDocument>
@@ -108,7 +109,7 @@ bool CheckSecretBytes(bytes::const_span secret) {
 
 bytes::vector GenerateSecretBytes() {
 	auto result = bytes::vector(kSecretSize);
-	memset_rand(result.data(), result.size());
+	bytes::set_random(result);
 	const auto full = ranges::accumulate(
 		result,
 		0ULL,
@@ -334,7 +335,7 @@ EncryptedData EncryptData(
 	constexpr auto kFromPadding = kMinPadding + kAlignTo - 1;
 	constexpr auto kPaddingDelta = kMaxPadding - kFromPadding;
 	const auto randomPadding = kFromPadding
-		+ (openssl::RandomValue<uint32>() % kPaddingDelta);
+		+ (base::RandomValue<uint32>() % kPaddingDelta);
 	const auto padding = randomPadding
 		- ((bytes.size() + randomPadding) % kAlignTo);
 	Assert(padding >= kMinPadding && padding <= kMaxPadding);
@@ -343,7 +344,7 @@ EncryptedData EncryptData(
 	Assert(unencrypted.size() % kAlignTo == 0);
 
 	unencrypted[0] = static_cast<gsl::byte>(padding);
-	memset_rand(unencrypted.data() + 1, padding - 1);
+	base::RandomFill(unencrypted.data() + 1, padding - 1);
 	bytes::copy(
 		gsl::make_span(unencrypted).subspan(padding),
 		bytes);

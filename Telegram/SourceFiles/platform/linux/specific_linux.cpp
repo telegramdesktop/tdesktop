@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/specific_linux.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -113,7 +113,7 @@ void PortalAutostart(bool start, bool silent) {
 		}();
 
 		const auto handleToken = Glib::ustring("tdesktop")
-			+ std::to_string(openssl::RandomValue<uint>());
+			+ std::to_string(base::RandomValue<uint>());
 
 		std::map<Glib::ustring, Glib::VariantBase> options;
 		options["handle_token"] = Glib::Variant<Glib::ustring>::create(

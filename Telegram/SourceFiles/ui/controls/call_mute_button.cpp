@@ -12,7 +12,7 @@
 #include "ui/painter.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/labels.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "styles/palette.h"
 #include "styles/style_widgets.h"
 #include "styles/style_calls.h"
@@ -681,7 +681,7 @@ CallMuteButton::IconState CallMuteButton::randomWavingState() {
 		{ 240, 420 },
 		{ 420, 540 },
 	};
-	const auto index = openssl::RandomValue<uint32>() % kAnimations.size();
+	const auto index = base::RandomIndex(kAnimations.size());
 	return { 1, kAnimations[index].from, kAnimations[index].to };
 }
 

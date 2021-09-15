@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "base/unixtime.h"
-#include "base/openssl_help.h"
 
 namespace MTP {
 namespace details {

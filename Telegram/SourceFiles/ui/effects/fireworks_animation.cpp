@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/fireworks_animation.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 
 namespace Ui {
 namespace {
@@ -37,12 +37,8 @@ std::vector<QBrush> PrepareBrushes() {
 	};
 }
 
-int RandomInt(uint32 till) {
-	return int(openssl::RandomValue<uint32>() % till);
-}
-
 [[nodiscard]] float64 RandomFloat01() {
-	return openssl::RandomValue<uint32>()
+	return base::RandomValue<uint32>()
 		/ float64(std::numeric_limits<uint32>::max());
 }
 
@@ -190,22 +186,24 @@ void FireworksAnimation::startFall() {
 
 void FireworksAnimation::initParticle(Particle &particle, bool falling) {
 	using Type = Particle::Type;
-	particle.color = RandomInt(_brushes.size());
-	particle.type = RandomInt(2) ? Type::Rectangle : Type::Circle;
-	particle.right = (RandomInt(2) == 1);
-	particle.finishedStart = 1 + RandomInt(2);
+	using base::RandomIndex;
+
+	particle.color = RandomIndex(_brushes.size());
+	particle.type = RandomIndex(2) ? Type::Rectangle : Type::Circle;
+	particle.right = (RandomIndex(2) == 1);
+	particle.finishedStart = 1 + RandomIndex(2);
 	if (particle.type == Type::Circle) {
 		particle.size = style::ConvertScale(6 + RandomFloat01() * 3);
 	} else {
 		particle.size = style::ConvertScale(6 + RandomFloat01() * 6);
-		particle.rotation = RandomInt(360);
+		particle.rotation = RandomIndex(360);
 	}
 	if (falling) {
 		particle.y = -RandomFloat01() * kFireworkHeight * 1.2f;
-		particle.x = 5 + RandomInt(kFireworkWidth - 10);
+		particle.x = 5 + RandomIndex(kFireworkWidth - 10);
 		particle.xFinished = particle.finishedStart;
 	} else {
-		const auto xOffset = 4 + RandomInt(10);
+		const auto xOffset = 4 + RandomIndex(10);
 		const auto yOffset = kFireworkHeight / 4;
 		if (particle.right) {
 			particle.x = kFireworkWidth + xOffset;
@@ -214,7 +212,7 @@ void FireworksAnimation::initParticle(Particle &particle, bool falling) {
 		}
 		particle.moveX = (particle.right ? -1 : 1) * (1.2 + RandomFloat01() * 4);
 		particle.moveY = -(4 + RandomFloat01() * 4);
-		particle.y = yOffset / 2 + RandomInt(yOffset * 2);
+		particle.y = yOffset / 2 + RandomIndex(yOffset * 2);
 	}
 }
 

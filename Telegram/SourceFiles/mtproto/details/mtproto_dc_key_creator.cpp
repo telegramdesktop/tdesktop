@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/unixtime.h"
 #include "scheme.h"
 #include "logs.h"
@@ -99,6 +100,8 @@ template <typename PQInnerData>
 [[nodiscard]] bytes::vector EncryptPQInnerRSA(
 		const PQInnerData &data,
 		const RSAPublicKey &key) {
+	DEBUG_LOG(("AuthKey Info: encrypting pq inner..."));
+
 	constexpr auto kPrime = sizeof(mtpPrime);
 	constexpr auto kDataWithPaddingPrimes = 192 / kPrime;
 	constexpr auto kMaxSizeInPrimes = 144 / kPrime;
@@ -126,6 +129,8 @@ template <typename PQInnerData>
 	const auto dataWithPaddingBytes = bytes::make_span(dataWithPadding);
 	bytes::set_random(dataWithPaddingBytes.subspan(sizeInPrimes * kPrime));
 
+	DEBUG_LOG(("AuthKey Info: starting key generation for pq inner..."));
+
 	while (true) {
 		auto dataWithHash = mtpBuffer();
 		dataWithHash.reserve(kDataWithPaddingPrimes + kDataHashPrimes);
@@ -136,7 +141,7 @@ template <typename PQInnerData>
 
 		// data_with_hash := data_pad_reversed
 		//	+ SHA256(temp_key + data_with_padding);
-		const auto tempKey = openssl::RandomValue<bytes::array<kKeySize>>();
+		const auto tempKey = base::RandomValue<bytes::array<kKeySize>>();
 		dataWithHash.resize(kDataWithPaddingPrimes + kDataHashPrimes);
 		const auto dataWithHashBytes = bytes::make_span(dataWithHash);
 		bytes::copy(
@@ -148,6 +153,8 @@ template <typename PQInnerData>
 		aesEncrypted.resize(dataWithHash.size());
 		const auto aesEncryptedBytes = bytes::make_span(aesEncrypted);
 
+		DEBUG_LOG(("AuthKey Info: encrypting ige for pq inner..."));
+
 		// aes_encrypted := AES256_IGE(data_with_hash, temp_key, 0);
 		const auto tempIv = bytes::array<kIvSize>{ { bytes::type(0) } };
 		aesIgeEncryptRaw(
@@ -156,6 +163,8 @@ template <typename PQInnerData>
 			dataWithHashBytes.size(),
 			tempKey.data(),
 			tempIv.data());
+
+		DEBUG_LOG(("AuthKey Info: counting hash for pq inner..."));
 
 		// temp_key_xor := temp_key XOR SHA256(aes_encrypted);
 		const auto fullSize = (kKeySize / kPrime) + dataWithHash.size();
@@ -166,13 +175,18 @@ template <typename PQInnerData>
 			keyAesEncryptedBytes[i] = tempKey[i] ^ aesHash[i];
 		}
 
+		DEBUG_LOG(("AuthKey Info: checking chosen key for pq inner..."));
+
 		// key_aes_encrypted := temp_key_xor + aes_encrypted;
 		bytes::copy(
 			keyAesEncryptedBytes.subspan(kKeySize),
 			aesEncryptedBytes);
 		if (IsGoodEncryptedInner(keyAesEncryptedBytes, key)) {
+			DEBUG_LOG(("AuthKey Info: chosen key for pq inner is good."));
 			return key.encrypt(keyAesEncryptedBytes);
 		}
+
+		DEBUG_LOG(("AuthKey Info: chosen key for pq inner is bad..."));
 	}
 }
 
@@ -360,7 +374,7 @@ void DcKeyCreator::pqSend(not_null<Attempt*> attempt, TimeId expiresIn) {
 		).arg(expiresIn ? "temporary" : "persistent"));
 	attempt->stage = Stage::WaitingPQ;
 	attempt->expiresIn = expiresIn;
-	attempt->data.nonce = openssl::RandomValue<MTPint128>();
+	attempt->data.nonce = base::RandomValue<MTPint128>();
 	sendNotSecureRequest(MTPReq_pq_multi(attempt->data.nonce));
 }
 
@@ -374,16 +388,19 @@ void DcKeyCreator::pqAnswered(
 			LOG(("AuthKey Error: Unexpected stage %1").arg(int(attempt->stage)));
 			return failed();
 		}
+		DEBUG_LOG(("AuthKey Info: getting dc RSA key..."));
 		const auto rsaKey = _dcOptions->getDcRSAKey(
 			_dcId,
 			data.vserver_public_key_fingerprints().v);
 		if (!rsaKey.valid()) {
+			DEBUG_LOG(("AuthKey Error: unknown public key."));
 			return failed(DcKeyError::UnknownPublicKey);
 		}
 
 		attempt->data.server_nonce = data.vserver_nonce();
-		attempt->data.new_nonce = openssl::RandomValue<MTPint256>();
+		attempt->data.new_nonce = base::RandomValue<MTPint256>();
 
+		DEBUG_LOG(("AuthKey Info: parsing pq..."));
 		const auto &pq = data.vpq().v;
 		const auto parsed = ParsePQ(data.vpq().v);
 		if (parsed.p.isEmpty() || parsed.q.isEmpty()) {
@@ -391,6 +408,7 @@ void DcKeyCreator::pqAnswered(
 			DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(pq.constData(), pq.length()).str()));
 			return failed();
 		}
+		DEBUG_LOG(("AuthKey Info: parse pq done."));
 
 		const auto dhEncString = [&] {
 			return (attempt->expiresIn == 0)
@@ -417,6 +435,7 @@ void DcKeyCreator::pqAnswered(
 					rsaKey);
 		}();
 		if (dhEncString.empty()) {
+			DEBUG_LOG(("AuthKey Error: could not encrypt pq inner."));
 			return failed();
 		}
 

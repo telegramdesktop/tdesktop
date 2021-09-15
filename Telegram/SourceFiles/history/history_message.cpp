@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_message.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -279,10 +279,10 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		for (const auto &fullId : data->msgIds) {
 			msgIds.push_back(MTP_int(fullId.msg));
 		}
-		auto generateRandom = [&] {
+		const auto generateRandom = [&] {
 			auto result = QVector<MTPlong>(data->msgIds.size());
 			for (auto &value : result) {
-				value = openssl::RandomValue<MTPlong>();
+				value = base::RandomValue<MTPlong>();
 			}
 			return result;
 		};

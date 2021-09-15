@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_cloud_password.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "core/core_cloud_password.h"
 #include "apiwrap.h"
 
@@ -27,7 +27,7 @@ void CloudPassword::reload() {
 	)).done([=](const MTPaccount_Password &result) {
 		_requestId = 0;
 		result.match([&](const MTPDaccount_password &data) {
-			openssl::AddRandomSeed(bytes::make_span(data.vsecure_random().v));
+			base::RandomAddSeed(bytes::make_span(data.vsecure_random().v));
 			if (_state) {
 				*_state = Core::ParseCloudPasswordState(data);
 			} else {

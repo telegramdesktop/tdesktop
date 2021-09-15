@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_wayland_integration.h"
 #include "core/application.h"
 #include "window/window_controller.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 
 #include <QtGui/QWindow>
 
@@ -93,7 +93,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		}();
 
 		const auto handleToken = Glib::ustring("tdesktop")
-			+ std::to_string(openssl::RandomValue<uint>());
+			+ std::to_string(base::RandomValue<uint>());
 
 		auto uniqueName = connection->get_unique_name();
 		uniqueName.erase(0, 1);

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -1431,7 +1431,7 @@ void FormController::restoreScan(
 void FormController::prepareFile(
 		EditFile &file,
 		const QByteArray &content) {
-	const auto fileId = openssl::RandomValue<uint64>();
+	const auto fileId = base::RandomValue<uint64>();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
 	file.fields.dcId = _controller->session().mainDcId();
@@ -2652,7 +2652,7 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(
 		Core::ParseSecureSecretAlgo(result.vnew_secure_algo()));
 	settings.pendingResetDate = result.vpending_reset_date().value_or_empty();
-	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random().v));
+	base::RandomAddSeed(bytes::make_span(result.vsecure_random().v));
 	return applyPassword(std::move(settings));
 }
 

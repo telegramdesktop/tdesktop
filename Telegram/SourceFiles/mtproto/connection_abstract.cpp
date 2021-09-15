@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_resolving.h"
 #include "mtproto/session.h"
 #include "base/unixtime.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 
 namespace MTP {
 namespace details {
@@ -189,7 +189,7 @@ ConnectionPointer AbstractConnection::Create(
 }
 
 uint32 AbstractConnection::extendedNotSecurePadding() const {
-	return uint32(openssl::RandomValue<uchar>() & 0x3F);
+	return uint32(base::RandomValue<uchar>() & 0x3F);
 }
 
 } // namespace details

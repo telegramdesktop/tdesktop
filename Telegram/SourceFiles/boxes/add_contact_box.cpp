@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
-#include "base/openssl_help.h"
+#include "base/random.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/add_participants_box.h"
@@ -383,7 +383,7 @@ void AddContactBox::save() {
 		lastName = QString();
 	}
 	_sentName = firstName;
-	_contactId = openssl::RandomValue<uint64>();
+	_contactId = base::RandomValue<uint64>();
 	_addRequest = _session->api().request(MTPcontacts_ImportContacts(
 		MTP_vector<MTPInputContact>(
 			1,

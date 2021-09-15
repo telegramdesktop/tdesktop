@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
-#include "base/openssl_help.h"
+
+namespace openssl {
+class BigNum;
+} // namespace openssl
 
 namespace MTP {
 

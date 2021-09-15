@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "passport/ui/passport_details_row.h"
-#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"

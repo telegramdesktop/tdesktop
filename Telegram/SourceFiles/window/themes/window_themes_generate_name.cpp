@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_themes_generate_name.h"
 
-#include "base/openssl_help.h"
+#include "base/random.h"
 
 namespace Window {
 namespace Theme {
@@ -339,13 +339,13 @@ QString GenerateName(const QColor &accent) {
 		return result;
 	};
 	const auto random = [&](const std::vector<const char*> &values) {
-		const auto index = openssl::RandomValue<size_t>() % values.size();
+		const auto index = base::RandomValue<size_t>() % values.size();
 		return capitalized(values[index]);
 	};
 	const auto min = ranges::min_element(kColors, pred);
 	Assert(min != end(kColors));
 	const auto color = capitalized(min->second);
-	return (openssl::RandomValue<uint8>() % 2 == 0)
+	return (base::RandomValue<uint8>() % 2 == 0)
 		? random(kAdjectives) + ' ' + color
 		: color + ' ' + random(kSubjectives);
 }

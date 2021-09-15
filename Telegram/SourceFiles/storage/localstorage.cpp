@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "base/platform/base_platform_info.h"
+#include "base/random.h"
 #include "ui/effects/animation_value.h"
 #include "core/update_checker.h"
 #include "core/file_location.h"
@@ -445,7 +446,7 @@ void writeSettings() {
 	FileWriteDescriptor settings(name, _basePath);
 	if (_settingsSalt.isEmpty() || !SettingsKey) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
-		memset_rand(_settingsSalt.data(), _settingsSalt.size());
+		base::RandomFill(_settingsSalt.data(), _settingsSalt.size());
 		SettingsKey = CreateLegacyLocalKey(QByteArray(), _settingsSalt);
 	}
 	settings.writeData(_settingsSalt);

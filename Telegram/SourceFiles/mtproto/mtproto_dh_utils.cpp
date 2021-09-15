@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtproto_dh_utils.h"
 
+#include "base/openssl_help.h"
+
 namespace MTP {
 namespace {
 

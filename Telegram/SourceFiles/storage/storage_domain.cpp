@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
+#include "base/random.h"
 
 namespace Storage {
 namespace {
@@ -94,8 +95,8 @@ void Domain::generateLocalKey() {
 
 	auto pass = QByteArray(MTP::AuthKey::kSize, Qt::Uninitialized);
 	auto salt = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
-	memset_rand(pass.data(), pass.size());
-	memset_rand(salt.data(), salt.size());
+	base::RandomFill(pass.data(), pass.size());
+	base::RandomFill(salt.data(), salt.size());
 	_localKey = CreateLocalKey(pass, salt);
 
 	encryptLocalKey(QByteArray());
@@ -103,7 +104,7 @@ void Domain::generateLocalKey() {
 
 void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_passcodeKeySalt.resize(LocalEncryptSaltSize);
-	memset_rand(_passcodeKeySalt.data(), _passcodeKeySalt.size());
+	base::RandomFill(_passcodeKeySalt.data(), _passcodeKeySalt.size());
 	_passcodeKey = CreateLocalKey(passcode, _passcodeKeySalt);
 
 	EncryptedDescriptor passKeyData(MTP::AuthKey::kSize);

@@ -371,11 +371,6 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 	return md5To;
 }
 
-void memset_rand(void *data, uint32 len) {
-	Assert(_sslInited);
-	RAND_bytes((uchar*)data, len);
-}
-
 namespace {
 	QMap<QString, QString> fastRusEng;
 	QHash<QChar, QString> fastLetterRusEng;

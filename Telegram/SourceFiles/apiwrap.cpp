@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "core/application.h"
 #include "base/unixtime.h"
+#include "base/random.h"
 #include "base/qt_adapters.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
@@ -3724,7 +3725,7 @@ void ApiWrap::forwardMessages(
 	ids.reserve(count);
 	randomIds.reserve(count);
 	for (const auto item : draft.items) {
-		const auto randomId = openssl::RandomValue<uint64>();
+		const auto randomId = base::RandomValue<uint64>();
 		if (genClientSideMessage) {
 			if (const auto message = item->toHistoryMessage()) {
 				const auto newId = FullMsgId(
@@ -4034,7 +4035,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		auto newId = FullMsgId(
 			peerToChannel(peer->id),
 			_session->data().nextLocalMessageId());
-		auto randomId = openssl::RandomValue<uint64>();
+		auto randomId = base::RandomValue<uint64>();
 
 		TextUtilities::Trim(sending);
 
@@ -4158,7 +4159,7 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 		sendMessage(std::move(message));
 		return;
 	}
-	const auto randomId = openssl::RandomValue<uint64>();
+	const auto randomId = base::RandomValue<uint64>();
 	request(MTPmessages_StartBot(
 		bot->inputUser,
 		chat ? chat->input : MTP_inputPeerEmpty(),
@@ -4184,7 +4185,7 @@ void ApiWrap::sendInlineResult(
 	const auto newId = FullMsgId(
 		peerToChannel(peer->id),
 		_session->data().nextLocalMessageId());
-	const auto randomId = openssl::RandomValue<uint64>();
+	const auto randomId = base::RandomValue<uint64>();
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
@@ -4340,7 +4341,7 @@ void ApiWrap::sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		Api::SendOptions options) {
-	const auto randomId = openssl::RandomValue<uint64>();
+	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, item->fullId());
 
 	sendMediaWithRandomId(item, media, options, randomId);
@@ -4414,7 +4415,7 @@ void ApiWrap::sendAlbumWithUploaded(
 		const MessageGroupId &groupId,
 		const MTPInputMedia &media) {
 	const auto localId = item->fullId();
-	const auto randomId = openssl::RandomValue<uint64>();
+	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, localId);
 
 	const auto albumIt = _sendingAlbums.find(groupId.raw());
@@ -4768,7 +4769,7 @@ void ApiWrap::createPoll(
 			MTP_int(replyTo),
 			PollDataToInputMedia(&data),
 			MTP_string(),
-			MTP_long(openssl::RandomValue<uint64>()),
+			MTP_long(base::RandomValue<uint64>()),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled)
