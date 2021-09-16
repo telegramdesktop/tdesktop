@@ -52,6 +52,14 @@ PRIVATE
     tdesktop::lib_tgcalls_legacy
     tdesktop::lib_tgcalls
     tdesktop::lib_tgvoip
+
+    # Order in this list defines the order of include paths in command line.
+    # We need to place desktop-app::external_minizip this early to have its
+    # include paths (usually ${PREFIX}/include/minizip) before any depend that
+    # would add ${PREFIX}/include. This path may have a different <zip.h>,
+    # for example installed by libzip (https://libzip.org).
+    desktop-app::external_minizip
+
     tdesktop::td_export
     tdesktop::td_mtproto
     tdesktop::td_lang
@@ -71,7 +79,6 @@ PRIVATE
     desktop-app::external_lz4
     desktop-app::external_rlottie
     desktop-app::external_zlib
-    desktop-app::external_minizip
     desktop-app::external_qt_static_plugins
     desktop-app::external_qt
     desktop-app::external_qr_code_generator
