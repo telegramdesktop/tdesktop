@@ -212,6 +212,10 @@ HistoryInner::HistoryInner(
 	) | rpl::start_with_next([=](QRect rect) {
 		update(rect.translated(0, _historyPaddingTop));
 	}, lifetime());
+	_emojiInteractions->playStarted(
+	) | rpl::start_with_next([=](QString &&emoji) {
+		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
+	}, lifetime());
 
 	session().data().itemRemoved(
 	) | rpl::start_with_next(

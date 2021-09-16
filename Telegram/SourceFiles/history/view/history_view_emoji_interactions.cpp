@@ -60,16 +60,29 @@ void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view) {
 	if (_plays.empty()) {
-		play(view, std::move(request.media));
+		play(
+			std::move(request.emoji),
+			view,
+			std::move(request.media),
+			request.incoming);
 	} else {
-		_delayed.push_back({ view, request.media, crl::now() });
+		const auto now = crl::now();
+		_delayed.push_back({
+			request.emoji,
+			view,
+			std::move(request.media),
+			now,
+			request.incoming,
+		});
 		checkDelayed();
 	}
 }
 
 void EmojiInteractions::play(
+		QString emoji,
 		not_null<Element*> view,
-		std::shared_ptr<Data::DocumentMedia> media) {
+		std::shared_ptr<Data::DocumentMedia> media,
+		bool incoming) {
 	const auto top = view->block()->y() + view->y();
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
@@ -100,6 +113,9 @@ void EmojiInteractions::play(
 		.lottie = std::move(lottie),
 		.shift = shift,
 	});
+	if (incoming) {
+		_playStarted.fire(std::move(emoji));
+	}
 	if (const auto media = view->media()) {
 		media->stickerClearLoopPlayed();
 	}
@@ -193,11 +209,16 @@ void EmojiInteractions::checkDelayed() {
 	}
 	auto good = std::move(*i);
 	_delayed.erase(begin(_delayed), i + 1);
-	play(good.view, std::move(good.media));
+	const auto incoming = good.incoming;
+	play(std::move(good.emoji), good.view, std::move(good.media), incoming);
 }
 
 rpl::producer<QRect> EmojiInteractions::updateRequests() const {
 	return _updateRequests.events();
+}
+
+rpl::producer<QString> EmojiInteractions::playStarted() const {
+	return _playStarted.events();
 }
 
 } // namespace HistoryView

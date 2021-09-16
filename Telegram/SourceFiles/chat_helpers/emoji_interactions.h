@@ -28,9 +28,11 @@ class Element;
 namespace ChatHelpers {
 
 struct EmojiInteractionPlayRequest {
+	QString emoji;
 	not_null<HistoryItem*> item;
 	std::shared_ptr<Data::DocumentMedia> media;
 	crl::time shouldHaveStartedAt = 0;
+	bool incoming = false;
 };
 
 struct EmojiInteractionsBunch {
@@ -58,6 +60,7 @@ public:
 	[[nodiscard]] rpl::producer<PlayRequest> playRequests() const {
 		return _playRequests.events();
 	}
+	void playStarted(not_null<PeerData*> peer, QString emoji);
 
 	[[nodiscard]] static EmojiInteractionsBunch Parse(const QByteArray &json);
 	[[nodiscard]] static QByteArray ToJson(
@@ -70,6 +73,7 @@ private:
 		std::shared_ptr<Data::DocumentMedia> media;
 		crl::time scheduledAt = 0;
 		crl::time startedAt = 0;
+		bool incoming = false;
 		int index = 0;
 	};
 	struct CheckResult {
@@ -93,6 +97,7 @@ private:
 		std::vector<Animation> &animations);
 	void setWaitingForDownload(bool waiting);
 
+	void checkSeenRequests(crl::time now);
 	void checkEdition(
 		not_null<HistoryItem*> item,
 		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map);
@@ -103,6 +108,9 @@ private:
 	base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> _incoming;
 	base::Timer _checkTimer;
 	rpl::event_stream<PlayRequest> _playRequests;
+	base::flat_map<
+		not_null<PeerData*>,
+		base::flat_map<QString, crl::time>> _playStarted;
 
 	bool _waitingForDownload = false;
 	rpl::lifetime _downloadCheckLifetime;

@@ -32,6 +32,7 @@ namespace {
 
 constexpr auto kMinDelay = crl::time(200);
 constexpr auto kAccumulateDelay = crl::time(1000);
+constexpr auto kAccumulateSeenRequests = kAccumulateDelay;
 constexpr auto kMaxDelay = 2 * crl::time(1000);
 constexpr auto kTimeNever = std::numeric_limits<crl::time>::max();
 constexpr auto kJsonVersion = 1;
@@ -75,7 +76,8 @@ void EmojiInteractions::checkEdition(
 	}
 }
 
-void EmojiInteractions::startOutgoing(not_null<const HistoryView::Element*> view) {
+void EmojiInteractions::startOutgoing(
+		not_null<const HistoryView::Element*> view) {
 	const auto item = view->data();
 	if (!IsServerMsgId(item->id) || !item->history()->peer->isUser()) {
 		return;
@@ -163,6 +165,7 @@ void EmojiInteractions::startIncoming(
 				.document = document,
 				.media = media,
 				.scheduledAt = at,
+				.incoming = true,
 				.index = index,
 			});
 		}
@@ -206,9 +209,11 @@ auto EmojiInteractions::checkAnimations(
 			} else if (!lastStartedAt || lastStartedAt + kMinDelay <= now) {
 				animation.startedAt = now;
 				_playRequests.fire({
+					animation.emoji->text(),
 					item,
 					animation.media,
 					animation.scheduledAt,
+					animation.incoming,
 				});
 				break;
 			} else {
@@ -309,14 +314,34 @@ void EmojiInteractions::check(crl::time now) {
 	if (!now) {
 		now = crl::now();
 	}
+	checkSeenRequests(now);
 	const auto result1 = checkAnimations(now);
 	const auto result2 = checkAccumulated(now);
 	const auto result = Combine(result1, result2);
 	if (result.nextCheckAt < kTimeNever) {
 		Assert(result.nextCheckAt > now);
 		_checkTimer.callOnce(result.nextCheckAt - now);
+	} else if (!_playStarted.empty()) {
+		_checkTimer.callOnce(kAccumulateSeenRequests);
 	}
 	setWaitingForDownload(result.waitingForDownload);
+}
+
+void EmojiInteractions::checkSeenRequests(crl::time now) {
+	for (auto i = begin(_playStarted); i != end(_playStarted);) {
+		for (auto j = begin(i->second); j != end(i->second);) {
+			if (j->second + kAccumulateSeenRequests <= now) {
+				j = i->second.erase(j);
+			} else {
+				++j;
+			}
+		}
+		if (i->second.empty()) {
+			i = _playStarted.erase(i);
+		} else {
+			++i;
+		}
+	}
 }
 
 void EmojiInteractions::setWaitingForDownload(bool waiting) {
@@ -332,6 +357,25 @@ void EmojiInteractions::setWaitingForDownload(bool waiting) {
 	} else {
 		_downloadCheckLifetime.destroy();
 		_downloadCheckLifetime.destroy();
+	}
+}
+
+void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
+	auto &map = _playStarted[peer];
+	const auto i = map.find(emoji);
+	const auto now = crl::now();
+	if (i != end(map) && now - i->second < kAccumulateSeenRequests) {
+		return;
+	}
+	_session->api().request(MTPmessages_SetTyping(
+		MTP_flags(0),
+		peer->input,
+		MTPint(), // top_msg_id
+		MTP_sendMessageEmojiInteractionSeen(MTP_string(emoji))
+	)).send();
+	map[emoji] = now;
+	if (!_checkTimer.isActive()) {
+		_checkTimer.callOnce(kAccumulateSeenRequests);
 	}
 }
 
