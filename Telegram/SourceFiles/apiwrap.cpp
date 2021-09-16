@@ -3653,8 +3653,9 @@ void ApiWrap::forwardMessages(
 	const auto history = action.history;
 	const auto peer = history->peer;
 
-	histories.readInbox(history);
-
+	if (!action.options.scheduled) {
+		histories.readInbox(history);
+	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 
