@@ -43,6 +43,11 @@ struct EmojiInteractionsBunch {
 	std::vector<Single> interactions;
 };
 
+struct EmojiInteractionSeen {
+	not_null<PeerData*> peer;
+	not_null<EmojiPtr> emoji;
+};
+
 class EmojiInteractions final {
 public:
 	explicit EmojiInteractions(not_null<Main::Session*> session);
@@ -57,6 +62,11 @@ public:
 		const QString &emoticon,
 		EmojiInteractionsBunch &&bunch);
 
+	void seenOutgoing(not_null<PeerData*> peer, const QString &emoticon);
+	[[nodiscard]] rpl::producer<EmojiInteractionSeen> seen() const {
+		return _seen.events();
+	}
+
 	[[nodiscard]] rpl::producer<PlayRequest> playRequests() const {
 		return _playRequests.events();
 	}
@@ -68,13 +78,17 @@ public:
 
 private:
 	struct Animation {
-		EmojiPtr emoji;
+		not_null<EmojiPtr> emoji;
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> media;
 		crl::time scheduledAt = 0;
 		crl::time startedAt = 0;
 		bool incoming = false;
 		int index = 0;
+	};
+	struct PlaySent {
+		mtpRequestId lastRequestId = 0;
+		crl::time lastDoneReceivedAt = 0;
 	};
 	struct CheckResult {
 		crl::time nextCheckAt = 0;
@@ -98,6 +112,7 @@ private:
 	void setWaitingForDownload(bool waiting);
 
 	void checkSeenRequests(crl::time now);
+	void checkSentRequests(crl::time now);
 	void checkEdition(
 		not_null<HistoryItem*> item,
 		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map);
@@ -111,6 +126,10 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		base::flat_map<QString, crl::time>> _playStarted;
+	base::flat_map<
+		not_null<PeerData*>,
+		base::flat_map<not_null<EmojiPtr>, PlaySent>> _playsSent;
+	rpl::event_stream<EmojiInteractionSeen> _seen;
 
 	bool _waitingForDownload = false;
 	rpl::lifetime _downloadCheckLifetime;

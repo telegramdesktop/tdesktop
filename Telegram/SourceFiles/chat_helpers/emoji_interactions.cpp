@@ -33,6 +33,7 @@ namespace {
 constexpr auto kMinDelay = crl::time(200);
 constexpr auto kAccumulateDelay = crl::time(1000);
 constexpr auto kAccumulateSeenRequests = kAccumulateDelay;
+constexpr auto kAcceptSeenSinceRequest = 3 * crl::time(1000);
 constexpr auto kMaxDelay = 2 * crl::time(1000);
 constexpr auto kTimeNever = std::numeric_limits<crl::time>::max();
 constexpr auto kJsonVersion = 1;
@@ -177,6 +178,21 @@ void EmojiInteractions::startIncoming(
 	}
 }
 
+void EmojiInteractions::seenOutgoing(
+		not_null<PeerData*> peer,
+		const QString &emoticon) {
+	if (const auto i = _playsSent.find(peer); i != end(_playsSent)) {
+		if (const auto emoji = Ui::Emoji::Find(emoticon)) {
+			if (const auto j = i->second.find(emoji); j != end(i->second)) {
+				const auto last = j->second.lastDoneReceivedAt;
+				if (!last || last + kAcceptSeenSinceRequest > crl::now()) {
+					_seen.fire({ peer, emoji });
+				}
+			}
+		}
+	}
+}
+
 auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 	return Combine(
 		checkAnimations(now, _outgoing),
@@ -254,15 +270,26 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	if (bunch.interactions.empty()) {
 		return;
 	}
-	_session->api().request(MTPmessages_SetTyping(
+	const auto peer = item->history()->peer;
+	const auto emoji = from->emoji;
+	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
-		item->history()->peer->input,
+		peer->input,
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteraction(
-			MTP_string(from->emoji->text()),
+			MTP_string(emoji->text()),
 			MTP_int(item->id),
 			MTP_dataJSON(MTP_bytes(ToJson(bunch))))
-	)).send();
+	)).done([=](const MTPBool &result, mtpRequestId requestId) {
+		auto &sent = _playsSent[peer][emoji];
+		if (sent.lastRequestId == requestId) {
+			sent.lastDoneReceivedAt = crl::now();
+			if (!_checkTimer.isActive()) {
+				_checkTimer.callOnce(kAcceptSeenSinceRequest);
+			}
+		}
+	}).send();
+	_playsSent[peer][emoji] = PlaySent{ .lastRequestId = requestId };
 	animations.erase(from, till);
 }
 
@@ -315,6 +342,7 @@ void EmojiInteractions::check(crl::time now) {
 		now = crl::now();
 	}
 	checkSeenRequests(now);
+	checkSentRequests(now);
 	const auto result1 = checkAnimations(now);
 	const auto result2 = checkAccumulated(now);
 	const auto result = Combine(result1, result2);
@@ -323,6 +351,8 @@ void EmojiInteractions::check(crl::time now) {
 		_checkTimer.callOnce(result.nextCheckAt - now);
 	} else if (!_playStarted.empty()) {
 		_checkTimer.callOnce(kAccumulateSeenRequests);
+	} else if (!_playsSent.empty()) {
+		_checkTimer.callOnce(kAcceptSeenSinceRequest);
 	}
 	setWaitingForDownload(result.waitingForDownload);
 }
@@ -338,6 +368,24 @@ void EmojiInteractions::checkSeenRequests(crl::time now) {
 		}
 		if (i->second.empty()) {
 			i = _playStarted.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
+void EmojiInteractions::checkSentRequests(crl::time now) {
+	for (auto i = begin(_playsSent); i != end(_playsSent);) {
+		for (auto j = begin(i->second); j != end(i->second);) {
+			const auto last = j->second.lastDoneReceivedAt;
+			if (last && last + kAcceptSeenSinceRequest <= now) {
+				j = i->second.erase(j);
+			} else {
+				++j;
+			}
+		}
+		if (i->second.empty()) {
+			i = _playsSent.erase(i);
 		} else {
 			++i;
 		}

@@ -143,6 +143,9 @@ private:
 		MsgId rootId,
 		PeerId fromId,
 		const MTPSendMessageAction &action);
+	void handleEmojiInteraction(
+		not_null<PeerData*> peer,
+		const MTPDsendMessageEmojiInteraction &data);
 	void handleSpeakingInCall(
 		not_null<PeerData*> peer,
 		PeerId participantPeerId,
@@ -152,6 +155,9 @@ private:
 		MsgId messageId,
 		const QString &emoticon,
 		ChatHelpers::EmojiInteractionsBunch bunch);
+	void handleEmojiInteraction(
+		not_null<PeerData*> peer,
+		const QString &emoticon);
 
 	const not_null<Main::Session*> _session;
 

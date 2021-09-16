@@ -991,17 +991,11 @@ void Updates::handleSendActionUpdate(
 	if (!from || !from->isUser() || from->isSelf()) {
 		return;
 	} else if (action.type() == mtpc_sendMessageEmojiInteraction) {
-		const auto &data = action.c_sendMessageEmojiInteraction();
-		const auto json = data.vinteraction().match([&](
-				const MTPDdataJSON &data) {
-			return data.vdata().v;
-		});
-		const auto emoticon = qs(data.vemoticon());
-		handleEmojiInteraction(
-			peer,
-			data.vmsg_id().v,
-			qs(data.vemoticon()),
-			ChatHelpers::EmojiInteractions::Parse(json));
+		handleEmojiInteraction(peer, action.c_sendMessageEmojiInteraction());
+		return;
+	} else if (action.type() == mtpc_sendMessageEmojiInteractionSeen) {
+		const auto &data = action.c_sendMessageEmojiInteractionSeen();
+		handleEmojiInteraction(peer, qs(data.vemoticon()));
 		return;
 	}
 	const auto when = requestingDifference()
@@ -1013,6 +1007,20 @@ void Updates::handleSendActionUpdate(
 		from->asUser(),
 		action,
 		when);
+}
+
+void Updates::handleEmojiInteraction(
+		not_null<PeerData*> peer,
+		const MTPDsendMessageEmojiInteraction &data) {
+	const auto json = data.vinteraction().match([&](
+			const MTPDdataJSON &data) {
+		return data.vdata().v;
+	});
+	handleEmojiInteraction(
+		peer,
+		data.vmsg_id().v,
+		qs(data.vemoticon()),
+		ChatHelpers::EmojiInteractions::Parse(json));
 }
 
 void Updates::handleSpeakingInCall(
@@ -1059,6 +1067,16 @@ void Updates::handleEmojiInteraction(
 		messageId,
 		emoticon,
 		std::move(bunch));
+}
+
+void Updates::handleEmojiInteraction(
+		not_null<PeerData*> peer,
+		const QString &emoticon) {
+	if (session().windows().empty()) {
+		return;
+	}
+	const auto window = session().windows().front();
+	window->emojiInteractions().seenOutgoing(peer, emoticon);
 }
 
 void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {

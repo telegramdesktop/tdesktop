@@ -1618,6 +1618,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_user_action_upload_file" = "{user} is sending a file";
 "lng_send_action_choose_sticker" = "choosing a sticker";
 "lng_user_action_choose_sticker" = "{user} is choosing a sticker";
+"lng_user_action_watching_animations" = "watching {emoji} animations";
 "lng_unread_bar#one" = "{count} unread message";
 "lng_unread_bar#other" = "{count} unread messages";
 "lng_unread_bar_some" = "Unread messages";
