@@ -445,10 +445,15 @@ Core::WindowPosition MainWindow::positionFromSettings() const {
 		return position;
 	}
 	const auto scaleFactor = cScale() / float64(position.scale);
-	position.x *= scaleFactor;
-	position.y *= scaleFactor;
-	position.w *= scaleFactor;
-	position.h *= scaleFactor;
+	if (scaleFactor != 1.) {
+		// Change scale while keeping the position center in place.
+		position.x += position.w / 2;
+		position.y += position.h / 2;
+		position.w *= scaleFactor;
+		position.h *= scaleFactor;
+		position.x -= position.w / 2;
+		position.y -= position.h / 2;
+	}
 	return position;
 }
 
