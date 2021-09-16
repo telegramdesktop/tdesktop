@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -984,35 +985,23 @@ void Updates::handleSendActionUpdate(
 	const auto from = (fromId == session().userPeerId())
 		? session().user().get()
 		: session().data().peerLoaded(fromId);
-	const auto isSpeakingInCall = (action.type()
-		== mtpc_speakingInGroupCallAction);
-	if (isSpeakingInCall) {
-		if (!peer->isChat() && !peer->isChannel()) {
-			return;
-		}
-		const auto call = peer->groupCall();
-		const auto now = crl::now();
-		if (call) {
-			call->applyActiveUpdate(
-				fromId,
-				Data::LastSpokeTimes{ .anything = now, .voice = now },
-				from);
-		} else {
-			const auto chat = peer->asChat();
-			const auto channel = peer->asChannel();
-			const auto active = chat
-				? (chat->flags() & ChatDataFlag::CallActive)
-				: (channel->flags() & ChannelDataFlag::CallActive);
-			if (active) {
-				_pendingSpeakingCallParticipants.emplace(
-					peer).first->second[fromId] = now;
-				if (peerIsUser(fromId)) {
-					session().api().requestFullPeer(peer);
-				}
-			}
-		}
+	if (action.type() == mtpc_speakingInGroupCallAction) {
+		handleSpeakingInCall(peer, fromId, from);
 	}
 	if (!from || !from->isUser() || from->isSelf()) {
+		return;
+	} else if (action.type() == mtpc_sendMessageEmojiInteraction) {
+		const auto &data = action.c_sendMessageEmojiInteraction();
+		const auto json = data.vinteraction().match([&](
+				const MTPDdataJSON &data) {
+			return data.vdata().v;
+		});
+		const auto emoticon = qs(data.vemoticon());
+		handleEmojiInteraction(
+			peer,
+			data.vmsg_id().v,
+			qs(data.vemoticon()),
+			ChatHelpers::EmojiInteractions::Parse(json));
 		return;
 	}
 	const auto when = requestingDifference()
@@ -1024,6 +1013,52 @@ void Updates::handleSendActionUpdate(
 		from->asUser(),
 		action,
 		when);
+}
+
+void Updates::handleSpeakingInCall(
+		not_null<PeerData*> peer,
+		PeerId participantPeerId,
+		PeerData *participantPeerLoaded) {
+	if (!peer->isChat() && !peer->isChannel()) {
+		return;
+	}
+	const auto call = peer->groupCall();
+	const auto now = crl::now();
+	if (call) {
+		call->applyActiveUpdate(
+			participantPeerId,
+			Data::LastSpokeTimes{ .anything = now, .voice = now },
+			participantPeerLoaded);
+	} else {
+		const auto chat = peer->asChat();
+		const auto channel = peer->asChannel();
+		const auto active = chat
+			? (chat->flags() & ChatDataFlag::CallActive)
+			: (channel->flags() & ChannelDataFlag::CallActive);
+		if (active) {
+			_pendingSpeakingCallParticipants.emplace(
+				peer).first->second[participantPeerId] = now;
+			if (peerIsUser(participantPeerId)) {
+				session().api().requestFullPeer(peer);
+			}
+		}
+	}
+}
+
+void Updates::handleEmojiInteraction(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		const QString &emoticon,
+		ChatHelpers::EmojiInteractionsBunch bunch) {
+	if (session().windows().empty()) {
+		return;
+	}
+	const auto window = session().windows().front();
+	window->emojiInteractions().startIncoming(
+		peer,
+		messageId,
+		emoticon,
+		std::move(bunch));
 }
 
 void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {

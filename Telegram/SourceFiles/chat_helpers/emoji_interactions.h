@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+class PeerData;
 class HistoryItem;
 class DocumentData;
 
@@ -32,6 +33,14 @@ struct EmojiInteractionPlayRequest {
 	crl::time shouldHaveStartedAt = 0;
 };
 
+struct EmojiInteractionsBunch {
+	struct Single {
+		int index = 0;
+		double time = 0;
+	};
+	std::vector<Single> interactions;
+};
+
 class EmojiInteractions final {
 public:
 	explicit EmojiInteractions(not_null<Main::Session*> session);
@@ -39,10 +48,20 @@ public:
 
 	using PlayRequest = EmojiInteractionPlayRequest;
 
-	void start(not_null<const HistoryView::Element*> view);
+	void startOutgoing(not_null<const HistoryView::Element*> view);
+	void startIncoming(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		const QString &emoticon,
+		EmojiInteractionsBunch &&bunch);
+
 	[[nodiscard]] rpl::producer<PlayRequest> playRequests() const {
 		return _playRequests.events();
 	}
+
+	[[nodiscard]] static EmojiInteractionsBunch Parse(const QByteArray &json);
+	[[nodiscard]] static QByteArray ToJson(
+		const EmojiInteractionsBunch &bunch);
 
 private:
 	struct Animation {
@@ -61,18 +80,27 @@ private:
 
 	void check(crl::time now = 0);
 	[[nodiscard]] CheckResult checkAnimations(crl::time now);
+	[[nodiscard]] CheckResult checkAnimations(
+		crl::time now,
+		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map);
 	[[nodiscard]] CheckResult checkAccumulated(crl::time now);
-	void sendAccumulated(
+	void sendAccumulatedOutgoing(
 		crl::time now,
 		not_null<HistoryItem*> item,
 		std::vector<Animation> &animations);
+	void clearAccumulatedIncoming(
+		crl::time now,
+		std::vector<Animation> &animations);
 	void setWaitingForDownload(bool waiting);
+
+	void checkEdition(
+		not_null<HistoryItem*> item,
+		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map);
 
 	const not_null<Main::Session*> _session;
 
-	base::flat_map<
-		not_null<HistoryItem*>,
-		std::vector<Animation>> _animations;
+	base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> _outgoing;
+	base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> _incoming;
 	base::Timer _checkTimer;
 	rpl::event_stream<PlayRequest> _playRequests;
 

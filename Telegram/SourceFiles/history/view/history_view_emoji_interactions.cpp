@@ -100,6 +100,9 @@ void EmojiInteractions::play(
 		.lottie = std::move(lottie),
 		.shift = shift,
 	});
+	if (const auto media = view->media()) {
+		media->stickerClearLoopPlayed();
+	}
 }
 
 void EmojiInteractions::visibleAreaUpdated(

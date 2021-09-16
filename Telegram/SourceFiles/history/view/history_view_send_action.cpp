@@ -119,7 +119,7 @@ bool SendActionPainter::updateNeedsAnimating(
 			Type::ChooseSticker,
 			kStatusShowClientsideChooseSticker);
 	}, [&](const MTPDsendMessageEmojiInteraction &) {
-		// #TODO interaction
+		Unexpected("EmojiInteraction here.");
 	}, [&](const MTPDsendMessageEmojiInteractionSeen &) {
 		// #TODO interaction
 	}, [&](const MTPDsendMessageCancelAction &) {

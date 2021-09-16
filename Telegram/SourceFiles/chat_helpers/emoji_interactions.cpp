@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_sticker.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_document.h"
@@ -33,7 +34,7 @@ constexpr auto kMinDelay = crl::time(200);
 constexpr auto kAccumulateDelay = crl::time(1000);
 constexpr auto kMaxDelay = 2 * crl::time(1000);
 constexpr auto kTimeNever = std::numeric_limits<crl::time>::max();
-constexpr auto kVersion = 1;
+constexpr auto kJsonVersion = 1;
 
 } // namespace
 
@@ -49,14 +50,32 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 , _checkTimer([=] { check(); }) {
 	_session->changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
+		| Data::MessageUpdate::Flag::Edited
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		_animations.remove(update.item);
+		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
+			_outgoing.remove(update.item);
+			_incoming.remove(update.item);
+		} else if (update.flags & Data::MessageUpdate::Flag::Edited) {
+			checkEdition(update.item, _outgoing);
+			checkEdition(update.item, _incoming);
+		}
 	}, _lifetime);
 }
 
 EmojiInteractions::~EmojiInteractions() = default;
 
-void EmojiInteractions::start(not_null<const HistoryView::Element*> view) {
+void EmojiInteractions::checkEdition(
+		not_null<HistoryItem*> item,
+		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map) {
+	const auto i = map.find(item);
+	if (i != end(map)
+		&& (i->second.front().emoji
+			!= Ui::Emoji::Find(item->originalText().text))) {
+		map.erase(i);
+	}
+}
+
+void EmojiInteractions::startOutgoing(not_null<const HistoryView::Element*> view) {
 	const auto item = view->data();
 	if (!IsServerMsgId(item->id) || !item->history()->peer->isUser()) {
 		return;
@@ -70,7 +89,7 @@ void EmojiInteractions::start(not_null<const HistoryView::Element*> view) {
 	if (list.empty()) {
 		return;
 	}
-	auto &animations = _animations[item];
+	auto &animations = _outgoing[item];
 	if (!animations.empty() && animations.front().emoji != emoji) {
 		// The message was edited, forget the old emoji.
 		animations.clear();
@@ -98,10 +117,76 @@ void EmojiInteractions::start(not_null<const HistoryView::Element*> view) {
 	check(now);
 }
 
+void EmojiInteractions::startIncoming(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		const QString &emoticon,
+		EmojiInteractionsBunch &&bunch) {
+	if (!peer->isUser()
+		|| bunch.interactions.empty()
+		|| !IsServerMsgId(messageId)) {
+		return;
+	}
+	const auto item = _session->data().message(nullptr, messageId);
+	if (!item) {
+		return;
+	}
+	const auto emoji = Ui::Emoji::Find(item->originalText().text);
+	if (!emoji || emoji != Ui::Emoji::Find(emoticon)) {
+		return;
+	}
+	const auto &pack = _session->emojiStickersPack();
+	const auto &list = pack.animationsForEmoji(emoji);
+	if (list.empty()) {
+		return;
+	}
+	auto &animations = _incoming[item];
+	if (!animations.empty() && animations.front().emoji != emoji) {
+		// The message was edited, forget the old emoji.
+		animations.clear();
+	}
+	const auto now = crl::now();
+	for (const auto &single : bunch.interactions) {
+		const auto at = now + crl::time(std::round(single.time * 1000));
+		if (!animations.empty() && animations.back().scheduledAt >= at) {
+			continue;
+		}
+		const auto last = !animations.empty() ? &animations.back() : nullptr;
+		const auto listSize = int(list.size());
+		const auto index = (single.index - 1);
+		if (index < listSize) {
+			const auto document = (begin(list) + index)->second;
+			const auto media = document->createMediaView();
+			media->checkStickerLarge();
+			animations.push_back({
+				.emoji = emoji,
+				.document = document,
+				.media = media,
+				.scheduledAt = at,
+				.index = index,
+			});
+		}
+	}
+	if (animations.empty()) {
+		_incoming.remove(item);
+	} else {
+		check(now);
+	}
+}
+
 auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
+	return Combine(
+		checkAnimations(now, _outgoing),
+		checkAnimations(now, _incoming));
+}
+
+auto EmojiInteractions::checkAnimations(
+		crl::time now,
+		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map
+) -> CheckResult {
 	auto nearest = kTimeNever;
 	auto waitingForDownload = false;
-	for (auto &[item, animations] : _animations) {
+	for (auto &[item, animations] : map) {
 		auto lastStartedAt = crl::time();
 
 		// Erase too old requests.
@@ -138,7 +223,7 @@ auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 	};
 }
 
-void EmojiInteractions::sendAccumulated(
+void EmojiInteractions::sendAccumulatedOutgoing(
 		crl::time now,
 		not_null<HistoryItem*> item,
 		std::vector<Animation> &animations) {
@@ -153,21 +238,17 @@ void EmojiInteractions::sendAccumulated(
 	const auto till = ranges::find_if(animations, [&](const auto &animation) {
 		return !animation.startedAt || (animation.startedAt >= intervalEnd);
 	});
-	auto list = QJsonArray();
+	auto bunch = EmojiInteractionsBunch();
+	bunch.interactions.reserve(till - from);
 	for (const auto &animation : ranges::make_subrange(from, till)) {
-		list.push_back(QJsonObject{
-			{ "i", (animation.index + 1) },
-			{ "t", (animation.startedAt - firstStartedAt) / 1000. },
+		bunch.interactions.push_back({
+			.index = animation.index + 1,
+			.time = (animation.startedAt - firstStartedAt) / 1000.,
 		});
 	}
-	if (list.empty()) {
+	if (bunch.interactions.empty()) {
 		return;
 	}
-	const auto json = QJsonDocument(QJsonObject{
-		{ "v", kVersion },
-		{ "a", std::move(list) },
-	}).toJson(QJsonDocument::Compact);
-
 	_session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
 		item->history()->peer->input,
@@ -175,22 +256,47 @@ void EmojiInteractions::sendAccumulated(
 		MTP_sendMessageEmojiInteraction(
 			MTP_string(from->emoji->text()),
 			MTP_int(item->id),
-			MTP_dataJSON(MTP_bytes(json)))
+			MTP_dataJSON(MTP_bytes(ToJson(bunch))))
 	)).send();
+	animations.erase(from, till);
+}
+
+void EmojiInteractions::clearAccumulatedIncoming(
+		crl::time now,
+		std::vector<Animation> &animations) {
+	Expects(!animations.empty());
+
+	const auto from = begin(animations);
+	const auto till = ranges::find_if(animations, [&](const auto &animation) {
+		return !animation.startedAt
+			|| (animation.startedAt + kMinDelay) > now;
+	});
 	animations.erase(from, till);
 }
 
 auto EmojiInteractions::checkAccumulated(crl::time now) -> CheckResult {
 	auto nearest = kTimeNever;
-	for (auto i = begin(_animations); i != end(_animations);) {
+	for (auto i = begin(_outgoing); i != end(_outgoing);) {
 		auto &[item, animations] = *i;
-		sendAccumulated(now, item, animations);
+		sendAccumulatedOutgoing(now, item, animations);
 		if (animations.empty()) {
-			i = _animations.erase(i);
+			i = _outgoing.erase(i);
 			continue;
 		} else if (const auto firstStartedAt = animations.front().startedAt) {
 			nearest = std::min(nearest, firstStartedAt + kAccumulateDelay);
 			Assert(nearest > now);
+		}
+		++i;
+	}
+	for (auto i = begin(_incoming); i != end(_incoming);) {
+		auto &[item, animations] = *i;
+		clearAccumulatedIncoming(now, animations);
+		if (animations.empty()) {
+			i = _incoming.erase(i);
+			continue;
+		} else {
+			// Doesn't really matter when, just clear them finally.
+			nearest = std::min(nearest, now + kAccumulateDelay);
 		}
 		++i;
 	}
@@ -227,6 +333,60 @@ void EmojiInteractions::setWaitingForDownload(bool waiting) {
 		_downloadCheckLifetime.destroy();
 		_downloadCheckLifetime.destroy();
 	}
+}
+
+EmojiInteractionsBunch EmojiInteractions::Parse(const QByteArray &json) {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(json, &error);
+	if (error.error != QJsonParseError::NoError || !document.isObject()) {
+		LOG(("API Error: Bad interactions json received."));
+		return {};
+	}
+	const auto root = document.object();
+	const auto version = root.value("v").toInt();
+	if (version != kJsonVersion) {
+		LOG(("API Error: Bad interactions version: %1").arg(version));
+		return {};
+	}
+	const auto actions = root.value("a").toArray();
+	if (actions.empty()) {
+		LOG(("API Error: Empty interactions list."));
+		return {};
+	}
+	auto result = EmojiInteractionsBunch();
+	for (const auto &interaction : actions) {
+		const auto object = interaction.toObject();
+		const auto index = object.value("i").toInt();
+		if (index < 0 || index > 10) {
+			LOG(("API Error: Bad interaction index: %1").arg(index));
+			return {};
+		}
+		const auto time = object.value("t").toDouble();
+		if (time < 0.
+			|| time > 1.
+			|| (!result.interactions.empty()
+				&& time <= result.interactions.back().time)) {
+			LOG(("API Error: Bad interaction time: %1").arg(time));
+			continue;
+		}
+		result.interactions.push_back({ .index = index, .time = time });
+	}
+
+	return result;
+}
+
+QByteArray EmojiInteractions::ToJson(const EmojiInteractionsBunch &bunch) {
+	auto list = QJsonArray();
+	for (const auto &single : bunch.interactions) {
+		list.push_back(QJsonObject{
+			{ "i", single.index },
+			{ "t", single.time },
+		});
+	}
+	return QJsonDocument(QJsonObject{
+		{ "v", kJsonVersion },
+		{ "a", std::move(list) },
+	}).toJson(QJsonDocument::Compact);
 }
 
 } // namespace ChatHelpers

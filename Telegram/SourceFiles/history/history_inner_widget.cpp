@@ -2720,7 +2720,7 @@ void HistoryInner::elementReplyTo(const FullMsgId &to) {
 }
 
 void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
-	_controller->emojiInteractions().start(view);
+	_controller->emojiInteractions().startOutgoing(view);
 }
 
 auto HistoryInner::getSelectionState() const
