@@ -135,8 +135,7 @@ void EmojiInteractions::paint(QPainter &p) {
 		const auto rightAligned = play.view->hasOutLayout()
 			&& !play.view->delegate()->elementIsChatWide();
 		if (!rightAligned) {
-			// #TODO interactions mirror
-			request.colored = st::msgStickerOverlay->c;
+			request.mirrorHorizontal = true;
 		}
 		const auto frame = play.lottie->frameInfo(request);
 		play.frame = frame.index;
