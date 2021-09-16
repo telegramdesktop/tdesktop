@@ -96,6 +96,11 @@ private:
 	};
 	[[nodiscard]] static CheckResult Combine(CheckResult a, CheckResult b);
 
+	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
+		not_null<HistoryItem*> item) const;
+	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
+		const QString &emoticon) const;
+
 	void check(crl::time now = 0);
 	[[nodiscard]] CheckResult checkAnimations(crl::time now);
 	[[nodiscard]] CheckResult checkAnimations(
