@@ -239,16 +239,21 @@ auto EmojiInteractions::checkAnimations(
 ) -> CheckResult {
 	auto nearest = kTimeNever;
 	auto waitingForDownload = false;
-	for (auto &[item, animations] : map) {
+	for (auto i = begin(map); i != end(map);) {
 		auto lastStartedAt = crl::time();
 
+		auto &animations = i->second;
 		// Erase too old requests.
-		const auto i = ranges::find_if(animations, [&](const Animation &a) {
+		const auto j = ranges::find_if(animations, [&](const Animation &a) {
 			return !a.startedAt && (a.scheduledAt + kMaxDelay <= now);
 		});
-		if (i != end(animations)) {
-			animations.erase(i, end(animations));
+		if (j == begin(animations)) {
+			i = map.erase(i);
+			continue;
+		} else if (j != end(animations)) {
+			animations.erase(j, end(animations));
 		}
+		const auto item = i->first;
 		for (auto &animation : animations) {
 			if (animation.startedAt) {
 				lastStartedAt = animation.startedAt;
@@ -271,6 +276,7 @@ auto EmojiInteractions::checkAnimations(
 				break;
 			}
 		}
+		++i;
 	}
 	return {
 		.nextCheckAt = nearest,
@@ -355,7 +361,7 @@ auto EmojiInteractions::checkAccumulated(crl::time now) -> CheckResult {
 		++i;
 	}
 	for (auto i = begin(_incoming); i != end(_incoming);) {
-		auto &[item, animations] = *i;
+		auto &animations = i->second;
 		clearAccumulatedIncoming(now, animations);
 		if (animations.empty()) {
 			i = _incoming.erase(i);
@@ -393,14 +399,15 @@ void EmojiInteractions::check(crl::time now) {
 
 void EmojiInteractions::checkSeenRequests(crl::time now) {
 	for (auto i = begin(_playStarted); i != end(_playStarted);) {
-		for (auto j = begin(i->second); j != end(i->second);) {
+		auto &animations = i->second;
+		for (auto j = begin(animations); j != end(animations);) {
 			if (j->second + kAccumulateSeenRequests <= now) {
-				j = i->second.erase(j);
+				j = animations.erase(j);
 			} else {
 				++j;
 			}
 		}
-		if (i->second.empty()) {
+		if (animations.empty()) {
 			i = _playStarted.erase(i);
 		} else {
 			++i;
@@ -410,15 +417,16 @@ void EmojiInteractions::checkSeenRequests(crl::time now) {
 
 void EmojiInteractions::checkSentRequests(crl::time now) {
 	for (auto i = begin(_playsSent); i != end(_playsSent);) {
-		for (auto j = begin(i->second); j != end(i->second);) {
+		auto &animations = i->second;
+		for (auto j = begin(animations); j != end(animations);) {
 			const auto last = j->second.lastDoneReceivedAt;
 			if (last && last + kAcceptSeenSinceRequest <= now) {
-				j = i->second.erase(j);
+				j = animations.erase(j);
 			} else {
 				++j;
 			}
 		}
-		if (i->second.empty()) {
+		if (animations.empty()) {
 			i = _playsSent.erase(i);
 		} else {
 			++i;
