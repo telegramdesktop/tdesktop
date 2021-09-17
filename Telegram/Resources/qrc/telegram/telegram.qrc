@@ -47,7 +47,7 @@
     <file alias="art/bg_initial.jpg">../../art/bg_initial.jpg</file>
     <file alias="art/logo_256.png">../../art/logo_256.png</file>
     <file alias="art/logo_256_no_margin.png">../../art/logo_256_no_margin.png</file>
-    <file alias="art/sunrise.jpg">../../art/sunrise.jpg</file>
+    <file alias="art/themeimage.jpg">../../art/themeimage.jpg</file>
     <file alias="art/dice_idle.tgs">../../art/dice_idle.tgs</file>
     <file alias="art/dart_idle.tgs">../../art/dart_idle.tgs</file>
     <file alias="art/bball_idle.tgs">../../art/bball_idle.tgs</file>

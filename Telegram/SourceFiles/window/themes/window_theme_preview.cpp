@@ -311,7 +311,7 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 
 void Generator::generateData() {
 	_rows.reserve(9);
-	addRow("Eva Summer", 0, "11:00", "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago.");
+	addRow("Eva Summer", 0, "11:00", "We are too smart for this world. " + QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"));
 	_rows.back().active = true;
 	_rows.back().pinned = true;
 	addRow("Alexandra Smith", 7, "10:00", "This is amazing!");
@@ -333,7 +333,7 @@ void Generator::generateData() {
 	_topBarStatus = "online";
 	_topBarStatusActive = true;
 
-	addPhotoBubble(":/gui/art/sunrise.jpg", "Nearly missed this sunrise", "7:00", Status::None);
+	addPhotoBubble(":/gui/art/themeimage.jpg", "To reach a port, we must sail. " + QString::fromUtf8("\xf0\x9f\xa5\xb8"), "7:00", Status::None);
 	int wavedata[] = { 0, 0, 0, 0, 27, 31, 4, 1, 0, 0, 23, 30, 18, 9, 7, 19, 4, 2, 2, 2, 0, 0, 15, 15, 15, 15, 3, 15, 19, 3, 2, 0, 0, 0, 0, 0, 3, 12, 16, 6, 4, 6, 14, 12, 2, 12, 12, 11, 3, 0, 7, 5, 7, 4, 7, 5, 2, 4, 0, 9, 5, 7, 6, 2, 2, 0, 0 };
 	auto waveform = QVector<int>(base::array_size(wavedata));
 	memcpy(waveform.data(), wavedata, sizeof(wavedata));
@@ -341,16 +341,16 @@ void Generator::generateData() {
 	_bubbles.back().outbg = true;
 	_bubbles.back().status = Status::Received;
 	addDateBubble("December 26");
-	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.", "10:00", Status::Received);
+	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. " + QString::fromUtf8("\xf0\x9f\xa7\x90"), "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
-	addTextBubble("Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), "10:00", Status::Received);
+	addTextBubble("Mark Twain said that " + QString::fromUtf8("\xe2\x98\x9d\xef\xb8\x8f"), "10:00", Status::Received);
 	_bubbles.back().outbg = true;
 	_bubbles.back().attached = true;
 	_bubbles.back().tail = true;
-	addTextBubble("Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago. The second best time is now.", "11:00", Status::None);
+	addTextBubble("We are too smart for this world. " + QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"), "11:00", Status::None);
 	_bubbles.back().replyName.setText(st::msgNameStyle, "Alex Cassio", Ui::NameTextOptions());
-	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), Ui::DialogTextOptions());
+	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString::fromUtf8("\xe2\x98\x9d\xef\xb8\x8f"), Ui::DialogTextOptions());
 }
 
 Generator::Generator(
@@ -563,7 +563,13 @@ void Generator::paintComposeArea() {
 void Generator::paintDialogs() {
 	_p->fillRect(_dialogs, st::dialogsBg[_palette]);
 
-	st::dialogsMenuToggle.icon[_palette].paint(*_p, _dialogs.x() + st::dialogsFilterPadding.x() + st::dialogsMenuToggle.iconPosition.x(), _dialogs.y() + st::dialogsFilterPadding.y() + st::dialogsMenuToggle.iconPosition.y(), _rect.width());
+	const auto iconLeft = (st::dialogsMenuToggle.iconPosition.x() < 0)
+		? (st::dialogsMenuToggle.width - st::dialogsMenuToggle.icon.width()) / 2
+		: st::dialogsMenuToggle.iconPosition.x();
+	const auto iconTop = (st::dialogsMenuToggle.iconPosition.y() < 0)
+		? (st::dialogsMenuToggle.height - st::dialogsMenuToggle.icon.height()) / 2
+		: st::dialogsMenuToggle.iconPosition.y();
+	st::dialogsMenuToggle.icon[_palette].paint(*_p, _dialogs.x() + st::dialogsFilterPadding.x() + iconLeft, _dialogs.y() + st::dialogsFilterPadding.y() + iconTop, _rect.width());
 
 	auto filterLeft = _dialogs.x() + st::dialogsFilterPadding.x() + st::dialogsMenuToggle.width + st::dialogsFilterPadding.x();
 	auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
