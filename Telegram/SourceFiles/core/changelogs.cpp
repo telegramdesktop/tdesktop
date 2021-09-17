@@ -54,7 +54,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Add a \"Close to Taskbar\" option when tray icon is disabled "
 		"(Windows and Linux)."
-	}
+	},
+	{
+		3000005,
+		"- Add support for Emoji 13.1."
 	};
 };
 
