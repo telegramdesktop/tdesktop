@@ -487,6 +487,19 @@ not_null<HistoryItem*> History::addNewItem(
 	} else if (!item->isHistoryEntry()) {
 		return item;
 	}
+
+	// In case we've loaded a new 'last' message
+	// and it is not in blocks and we think that
+	// we have all the messages till the bottom
+	// we should unload known history or mark
+	// currently loaded slice as not reaching bottom.
+	const auto shouldMarkBottomNotLoaded = loadedAtBottom()
+		&& !unread
+		&& !isEmpty();
+	if (shouldMarkBottomNotLoaded) {
+		setNotLoadedAtBottom();
+	}
+
 	if (!loadedAtBottom() || peer->migrateTo()) {
 		setLastMessage(item);
 		if (unread) {
