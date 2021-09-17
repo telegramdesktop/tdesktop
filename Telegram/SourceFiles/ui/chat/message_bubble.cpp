@@ -93,13 +93,11 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 	const auto fillBg = [&](const QRect &rect) {
 		const auto fill = rect.intersected(args.patternViewport);
 		if (!fill.isEmpty()) {
-			p.setClipRect(fill);
 			PaintPatternBubblePart(
 				p,
 				args.patternViewport,
 				pattern->pixmap,
 				fill);
-			p.setClipping(false);
 		}
 	};
 	const auto fillSh = [&](const QRect &rect) {
@@ -346,10 +344,30 @@ void PaintPatternBubblePart(
 		const QRect &viewport,
 		const QPixmap &pixmap,
 		const QRect &target) {
-	// #TODO bubbles optimizes
-	const auto to = viewport;
-	const auto from = QRect(QPoint(), pixmap.size());
-	p.drawPixmap(to, pixmap, from);
+	const auto factor = pixmap.devicePixelRatio();
+	if (viewport.size() * factor == pixmap.size()) {
+		const auto fill = target.intersected(viewport);
+		if (fill.isEmpty()) {
+			return;
+		}
+		p.drawPixmap(fill, pixmap, QRect(
+			(fill.topLeft() - viewport.topLeft()) * factor,
+			fill.size() * factor));
+	} else {
+		const auto to = viewport;
+		const auto from = QRect(QPoint(), pixmap.size());
+		const auto deviceRect = QRect(
+			QPoint(),
+			QSize(p.device()->width(), p.device()->height()));
+		const auto clip = (target != deviceRect);
+		if (clip) {
+			p.setClipRect(target);
+		}
+		p.drawPixmap(to, pixmap, from);
+		if (clip) {
+			p.setClipping(false);
+		}
+	}
 }
 
 void PaintPatternBubblePart(
@@ -392,7 +410,9 @@ void PaintPatternBubblePart(
 		QImage &cache) {
 	Expects(paintContent != nullptr);
 
-	if (cache.size() != target.size() * style::DevicePixelRatio()) {
+	const auto targetOrigin = target.topLeft();
+	const auto targetSize = target.size();
+	if (cache.size() != targetSize * style::DevicePixelRatio()) {
 		cache = QImage(
 			target.size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
@@ -400,10 +420,15 @@ void PaintPatternBubblePart(
 	}
 	cache.fill(Qt::transparent);
 	auto q = Painter(&cache);
-	q.translate(-target.topLeft());
+	q.translate(-targetOrigin);
 	paintContent(q);
+	q.translate(targetOrigin);
 	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-	PaintPatternBubblePart(q, viewport, pixmap, target);
+	PaintPatternBubblePart(
+		q,
+		viewport.translated(-targetOrigin),
+		pixmap,
+		QRect(QPoint(), targetSize));
 	q.end();
 
 	p.drawImage(target, cache);

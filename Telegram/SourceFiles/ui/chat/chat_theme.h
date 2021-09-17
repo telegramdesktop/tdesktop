@@ -147,11 +147,19 @@ private:
 		const CacheBackgroundRequest &request,
 		Fn<void(CacheBackgroundResult&&)> done = nullptr);
 	void setCachedBackground(CacheBackgroundResult &&cached);
-	[[nodiscard]] CacheBackgroundRequest currentCacheRequest(
+	[[nodiscard]] CacheBackgroundRequest cacheBackgroundRequest(
 		QSize area,
 		int addRotation = 0) const;
 	[[nodiscard]] bool readyForBackgroundRotation() const;
 	void generateNextBackgroundRotation();
+
+	void cacheBubbles();
+	void cacheBubblesNow();
+	void cacheBubblesAsync(
+		const CacheBackgroundRequest &request);
+	void setCachedBubbles(CacheBackgroundResult &&cached);
+	[[nodiscard]] CacheBackgroundRequest cacheBubblesRequest(
+		QSize area) const;
 
 	[[nodiscard]] style::colorizer bubblesAccentColorizer(
 		const QColor &accent) const;
@@ -167,11 +175,16 @@ private:
 	Animations::Simple _backgroundFade;
 	CacheBackgroundRequest _backgroundCachingRequest;
 	CacheBackgroundResult _backgroundNext;
-	QSize _willCacheForArea;
-	crl::time _lastAreaChangeTime = 0;
+	QSize _cacheBackgroundArea;
+	crl::time _lastBackgroundAreaChangeTime = 0;
 	std::optional<base::Timer> _cacheBackgroundTimer;
+
 	CachedBackground _bubblesBackground;
 	QImage _bubblesBackgroundPrepared;
+	CacheBackgroundRequest _bubblesCachingRequest;
+	QSize _cacheBubblesArea;
+	crl::time _lastBubblesAreaChangeTime = 0;
+	std::optional<base::Timer> _cacheBubblesTimer;
 	std::unique_ptr<BubblePattern> _bubblesBackgroundPattern;
 
 	rpl::event_stream<> _repaintBackgroundRequests;
