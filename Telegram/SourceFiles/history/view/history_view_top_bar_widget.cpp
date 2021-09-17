@@ -699,7 +699,6 @@ void TopBarWidget::handleEmojiInteractionSeen(const QString &emoticon) {
 					}
 				});
 			} else {
-				const auto animationWidth = seen->animation.width();
 				const auto skip = st::topBarArrowPadding.bottom();
 				update(
 					_leftTaken,

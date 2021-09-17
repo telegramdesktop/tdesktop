@@ -58,6 +58,7 @@ std::map<int, const char*> BetaLogs() {
 	{
 		3000005,
 		"- Add support for Emoji 13.1."
+	}
 	};
 };
 

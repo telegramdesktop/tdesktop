@@ -188,7 +188,6 @@ void EmojiInteractions::startIncoming(
 		if (!animations.empty() && animations.back().scheduledAt >= at) {
 			continue;
 		}
-		const auto last = !animations.empty() ? &animations.back() : nullptr;
 		const auto listSize = int(list.size());
 		const auto index = (single.index - 1);
 		if (index < listSize) {
