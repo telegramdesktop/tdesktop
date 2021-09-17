@@ -1,3 +1,7 @@
+3.0.5 beta (17.09.21)
+
+- Add support for Emoji 13.1.
+
 3.0.4 beta (13.09.21)
 
 - Fix a crash when joining video chat or live broadcast.
