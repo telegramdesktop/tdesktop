@@ -25,7 +25,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kSizeMultiplier = 3;
-
+constexpr auto kCachesCount = 4;
 constexpr auto kMaxPlays = 5;
 constexpr auto kMaxPlaysWithSmallDelay = 3;
 constexpr auto kSmallDelay = crl::time(200);
@@ -90,12 +90,9 @@ void EmojiInteractions::play(
 		|| _visibleTop == _visibleBottom) {
 		return;
 	}
-	auto lottie = ChatHelpers::LottiePlayerFromDocument(
-		media.get(),
-		nullptr,
-		ChatHelpers::StickerLottieSize::EmojiInteraction,
-		_emojiSize * kSizeMultiplier * style::DevicePixelRatio(),
-		Lottie::Quality::High);
+
+	auto lottie = preparePlayer(media.get());
+
 	const auto shift = GenerateRandomShift(_emojiSize);
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
@@ -119,6 +116,43 @@ void EmojiInteractions::play(
 	if (const auto media = view->media()) {
 		media->stickerClearLoopPlayed();
 	}
+}
+
+std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
+		not_null<Data::DocumentMedia*> media) {
+	// Shortened copy from stickers_lottie module.
+	const auto document = media->owner();
+	const auto baseKey = document->bigFileBaseCacheKey();
+	const auto tag = uint8(0);
+	const auto keyShift = ((tag << 4) & 0xF0)
+		| (uint8(ChatHelpers::StickerLottieSize::EmojiInteraction) & 0x0F);
+	const auto key = Storage::Cache::Key{
+		baseKey.high,
+		baseKey.low + keyShift
+	};
+	const auto get = [=](int i, FnMut<void(QByteArray &&cached)> handler) {
+		document->owner().cacheBigFile().get(
+			{ key.high, key.low + i },
+			std::move(handler));
+	};
+	const auto weak = base::make_weak(&document->session());
+	const auto put = [=](int i, QByteArray &&cached) {
+		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
+			weak->data().cacheBigFile().put(
+				{ key.high, key.low + i },
+				std::move(data));
+		});
+	};
+	const auto data = media->bytes();
+	const auto filepath = document->filepath();
+	return std::make_unique<Lottie::SinglePlayer>(
+		kCachesCount,
+		get,
+		put,
+		Lottie::ReadContent(data, filepath),
+		Lottie::FrameRequest{
+			_emojiSize * kSizeMultiplier * style::DevicePixelRatio() },
+			Lottie::Quality::High);
 }
 
 void EmojiInteractions::visibleAreaUpdated(

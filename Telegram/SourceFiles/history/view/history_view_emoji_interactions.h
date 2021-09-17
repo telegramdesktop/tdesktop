@@ -68,6 +68,9 @@ private:
 		bool incoming);
 	void checkDelayed();
 
+	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> preparePlayer(
+		not_null<Data::DocumentMedia*> media);
+
 	const not_null<Main::Session*> _session;
 
 	int _visibleTop = 0;
