@@ -1537,7 +1537,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 				? (areComments
 					? tr::lng_comments_header
 					: tr::lng_replies_header)(
-						lt_count,
+						lt_count_decimal,
 						rpl::single(count) | tr::to_count())
 				: (areComments
 					? tr::lng_comments_header_none
