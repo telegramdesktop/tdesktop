@@ -17,6 +17,7 @@ struct EmojiInteractionPlayRequest;
 
 namespace Lottie {
 class SinglePlayer;
+class FrameProvider;
 } // namespace Lottie
 
 namespace Main {
@@ -81,6 +82,9 @@ private:
 	std::vector<Delayed> _delayed;
 	rpl::event_stream<QRect> _updateRequests;
 	rpl::event_stream<QString> _playStarted;
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
 
 	rpl::lifetime _lifetime;
 

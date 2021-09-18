@@ -145,14 +145,25 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
 	};
 	const auto data = media->bytes();
 	const auto filepath = document->filepath();
-	return std::make_unique<Lottie::SinglePlayer>(
-		kCachesCount,
-		get,
-		put,
-		Lottie::ReadContent(data, filepath),
-		Lottie::FrameRequest{
-			_emojiSize * kSizeMultiplier * style::DevicePixelRatio() },
+	const auto request = Lottie::FrameRequest{
+		_emojiSize * kSizeMultiplier * style::DevicePixelRatio(),
+	};
+	auto &weakProvider = _sharedProviders[document];
+	auto shared = [&] {
+		if (const auto result = weakProvider.lock()) {
+			return result;
+		}
+		const auto result = Lottie::SinglePlayer::SharedProvider(
+			kCachesCount,
+			get,
+			put,
+			Lottie::ReadContent(data, filepath),
+			request,
 			Lottie::Quality::High);
+		weakProvider = result;
+		return result;
+	}();
+	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
 }
 
 void EmojiInteractions::visibleAreaUpdated(
