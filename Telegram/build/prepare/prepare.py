@@ -759,7 +759,7 @@ stage('tg_angle', """
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout ec51cc6
+    git checkout 0bb011f9e4
     mkdir out
     cd out
     mkdir Debug
