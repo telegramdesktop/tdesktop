@@ -76,6 +76,7 @@ namespace Window {
 namespace {
 
 constexpr auto kMaxChatEntryHistorySize = 50;
+constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
 [[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
@@ -93,21 +94,16 @@ constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 			? ColorizerFrom(*i, *accent)
 			: style::colorizer();
 
-		if (dark) {
-			auto instance = Instance();
-			const auto loaded = LoadFromFile(
-				kNightBaseFile.utf16(),
-				&instance,
-				nullptr,
-				nullptr,
-				colorizer);
-			Assert(loaded);
-
-			palette.finalize();
-			palette = instance.palette;
-		} else {
-			palette.finalize(colorizer);
-		}
+		auto instance = Instance();
+		const auto loaded = LoadFromFile(
+			(dark ? kNightBaseFile : kDayBaseFile).utf16(),
+			&instance,
+			nullptr,
+			nullptr,
+			colorizer);
+		Assert(loaded);
+		palette.finalize();
+		palette = instance.palette;
 	};
 }
 
