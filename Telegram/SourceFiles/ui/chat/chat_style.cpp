@@ -479,6 +479,12 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	_msgSelectOverlayCornersSmall = {};
 	_msgSelectOverlayCornersLarge = {};
 
+	for (auto &stm : _messageStyles) {
+		const auto same = (stm.textPalette.linkFg->c == stm.historyTextFg->c);
+		stm.textPalette.linkAlwaysActive = same ? 1 : 0;
+		stm.semiboldPalette.linkAlwaysActive = same ? 1 : 0;
+	}
+
 	_paletteChanged.fire({});
 }
 
@@ -604,6 +610,7 @@ void ChatStyle::make(style::icon &my, const style::icon &original) const {
 void ChatStyle::make(
 		style::TextPalette &my,
 		const style::TextPalette &original) const {
+	my.linkAlwaysActive = original.linkAlwaysActive;
 	make(my.linkFg, original.linkFg);
 	make(my.monoFg, original.monoFg);
 	make(my.selectBg, original.selectBg);
