@@ -1000,6 +1000,8 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			_recordingMark->setClickedCallback([=] {
 				showToast({ (livestream
 					? tr::lng_group_call_is_recorded_channel
+					: real->recordVideo()
+					? tr::lng_group_call_is_recorded_video
 					: tr::lng_group_call_is_recorded)(tr::now) });
 			});
 			const auto animate = [=] {

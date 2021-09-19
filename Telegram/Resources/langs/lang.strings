@@ -2239,7 +2239,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_recording_start_checkbox" = "Also record video";
 "lng_group_call_recording_start_audio_subtitle" = "This chat will be recorded into an audio file";
 "lng_group_call_recording_start_video_subtitle" = "Choose video orientation";
-"lng_group_call_is_recorded" = "Voice chat is being recorded.";
+"lng_group_call_is_recorded" = "The audio stream is being recorded.";
+"lng_group_call_is_recorded_video" = "The video stream is being recorded.";
 "lng_group_call_is_recorded_channel" = "Live stream is being recorded.";
 "lng_group_call_can_speak_here" = "You can now speak.";
 "lng_group_call_can_speak" = "You can now speak in {chat}.";
