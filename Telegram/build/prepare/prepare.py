@@ -246,23 +246,26 @@ def winFailOnEach(command):
             result = result + '\r\nif %errorlevel% neq 0 exit /b %errorlevel%\r\n'
     return result
 
-def run(command):
+def printCommands(commands):
     print('---------------------------------COMMANDS-LIST----------------------------------')
-    print(command, end='')
+    print(commands, end='')
     print('--------------------------------------------------------------------------------')
+
+def run(commands):
+    printCommands(commands)
     if win:
         if os.path.exists("command.bat"):
             os.remove("command.bat")
         with open("command.bat", 'w') as file:
-            file.write('@echo OFF\r\n' + winFailOnEach(command))
+            file.write('@echo OFF\r\n' + winFailOnEach(commands))
         result = subprocess.run("command.bat", shell=True, env=modifiedEnv).returncode == 0
         if result and os.path.exists("command.bat"):
             os.remove("command.bat")
         return result
-    elif re.search(r'\%', command):
-        error('Bad command: ' + command)
+    elif re.search(r'\%', commands):
+        error('Bad command: ' + commands)
     else:
-        return subprocess.run("set -e\n" + command, shell=True, env=modifiedEnv).returncode == 0
+        return subprocess.run("set -e\n" + commands, shell=True, env=modifiedEnv).returncode == 0
 
 # Thanks https://stackoverflow.com/a/510364
 class _Getch:
@@ -328,6 +331,7 @@ def runStages():
         prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
+        commands = removeDir(stage['name']) + '\n' + stage['commands']
         checkResult = 'Forced' if len(onlyStages) > 0 else checkCacheKey(stage)
         if checkResult == 'Good':
             print('SKIPPING')
@@ -340,11 +344,15 @@ def runStages():
             if rebuildStale:
                 checkResult == 'Rebuild'
             else:
-                print('(r)ebuild, rebuild (a)ll, (s)kip, (q)uit?: ', end='', flush=True)
+                print('(r)ebuild, rebuild (a)ll, (s)kip, (p)rint, (q)uit?: ', end='', flush=True)
                 while True:
                     ch = 'r' if rebuildStale else getch()
                     if ch == 'q':
                         finish(0)
+                    elif ch == 'p':
+                        printCommands(commands)
+                        checkResult = 'Printed'
+                        break
                     elif ch == 's':
                         checkResult = 'Skip'
                         break
@@ -355,13 +363,14 @@ def runStages():
                         checkResult = 'Rebuild'
                         rebuildStale = True
                         break
+        if checkResult == 'Printed':
+            continue
         if checkResult == 'Skip':
             print('SKIPPING')
             continue
         clearCacheKey(stage)
         print('BUILDING:')
         os.chdir(stage['directory'])
-        commands = removeDir(stage['name']) + '\n' + stage['commands']
         if not run(commands):
             print(prefix + ': FAILED')
             finish(1)
@@ -793,9 +802,9 @@ win:
     for /r %%i in (..\\..\\patches\\qtbase_5_15_2\\*) do git apply %%i
     cd ..
 
-    SET CONFIGURATIONS=-debug-and-release
-release:
     SET CONFIGURATIONS=-debug
+release:
+    SET CONFIGURATIONS=-debug-and-release
 win:
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
@@ -837,9 +846,9 @@ mac:
     find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    CONFIGURATIONS=-debug-and-release
-release:
     CONFIGURATIONS=-debug
+release:
+    CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-5.15.2" \
         $CONFIGURATIONS \
