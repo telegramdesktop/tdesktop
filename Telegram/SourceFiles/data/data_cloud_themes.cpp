@@ -433,7 +433,7 @@ void CloudThemes::SetTestingColors(bool testing) {
 	IsTestingColors = testing;
 }
 
-QString CloudThemes::PrepareTestingLink(const CloudTheme &theme) {
+QString CloudThemes::prepareTestingLink(const CloudTheme &theme) const {
 	const auto hex = [](int value) {
 		return QChar((value < 10) ? ('0' + value) : ('a' + (value - 10)));
 	};
@@ -459,6 +459,16 @@ QString CloudThemes::PrepareTestingLink(const CloudTheme &theme) {
 	}
 	if (theme.paper && !theme.paper->backgroundColors().empty()) {
 		arguments.push_back("bg=" + colors(theme.paper->backgroundColors()));
+	}
+	if (theme.paper/* && theme.paper->hasShareUrl()*/) {
+		arguments.push_back("intensity="
+			+ QString::number(theme.paper->patternIntensity()));
+		//const auto url = theme.paper->shareUrl(_session);
+		//const auto from = url.indexOf("bg/");
+		//const auto till = url.indexOf("?");
+		//if (from > 0 && till > from) {
+		//	arguments.push_back("slug=" + url.mid(from + 3, till - from - 3));
+		//}
 	}
 	if (theme.outgoingAccentColor) {
 		arguments.push_back("out_accent" + color(*theme.outgoingAccentColor));
@@ -525,7 +535,11 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 	const auto bg = colors(params["bg"]);
 	applyTo.paper = (applyTo.paper && !bg.empty())
 		? std::make_optional(applyTo.paper->withBackgroundColors(bg))
-		: std::nullopt;
+		: applyTo.paper;
+	applyTo.paper = (applyTo.paper && params["intensity"].toInt())
+		? std::make_optional(
+			applyTo.paper->withPatternIntensity(params["intensity"].toInt()))
+		: applyTo.paper;
 	applyTo.outgoingAccentColor = color(params["out_accent"]);
 	applyTo.outgoingMessagesColors = colors(params["out_bg"]);
 	_chatThemesUpdates.fire({});

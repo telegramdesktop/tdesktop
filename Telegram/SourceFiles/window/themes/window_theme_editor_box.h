@@ -54,5 +54,7 @@ void SaveThemeBox(
 	bool onlyPalette = false,
 	bool parseCurrent = true);
 
+[[nodiscard]] QString GenerateSlug();
+
 } // namespace Theme
 } // namespace Window

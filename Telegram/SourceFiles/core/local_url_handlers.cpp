@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "settings/settings_common.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -469,6 +470,100 @@ bool ShowInviteLink(
 	return true;
 }
 
+void ExportTestChatTheme(
+		not_null<Main::Session*> session,
+		not_null<const Data::CloudTheme*> theme) {
+	if (!theme->paper
+		|| !theme->paper->isPattern()
+		|| theme->paper->backgroundColors().empty()
+		|| !theme->accentColor
+		|| !theme->paper->hasShareUrl()) {
+		Ui::Toast::Show("Something went wrong :(");
+		return;
+	}
+	const auto &bg = theme->paper->backgroundColors();
+	const auto url = theme->paper->shareUrl(session);
+	const auto from = url.indexOf("bg/");
+	const auto till = url.indexOf("?");
+	if (from < 0 || till <= from) {
+		Ui::Toast::Show("Bad WallPaper link: " + url);
+		return;
+	}
+
+	using Flag = MTPaccount_CreateTheme::Flag;
+	using Setting = MTPDinputThemeSettings::Flag;
+	using Paper = MTPDwallPaperSettings::Flag;
+	const auto color = [](const QColor &color) {
+		const auto red = color.red();
+		const auto green = color.green();
+		const auto blue = color.blue();
+		return int(((uint32(red) & 0xFFU) << 16)
+			| ((uint32(green) & 0xFFU) << 8)
+			| (uint32(blue) & 0xFFU));
+	};
+	const auto colors = [&](const std::vector<QColor> &colors) {
+		auto result = QVector<MTPint>();
+		result.reserve(colors.size());
+		for (const auto &single : colors) {
+			result.push_back(MTP_int(color(single)));
+		}
+		return result;
+	};
+	const auto slug = url.mid(from + 3, till - from - 3);
+	const auto flags = Flag::f_settings;
+	const auto settings = Setting::f_wallpaper
+		| Setting::f_wallpaper_settings
+		| (theme->outgoingAccentColor
+			? Setting::f_outbox_accent_color
+			: Setting(0))
+		| (!theme->outgoingMessagesColors.empty()
+			? Setting::f_message_colors
+			: Setting(0));
+	const auto papers = Paper::f_background_color
+		| Paper::f_intensity
+		| (bg.size() > 1
+			? Paper::f_second_background_color
+			: Paper(0))
+		| (bg.size() > 2
+			? Paper::f_third_background_color
+			: Paper(0))
+		| (bg.size() > 3
+			? Paper::f_fourth_background_color
+			: Paper(0));
+	session->api().request(MTPaccount_CreateTheme(
+		MTP_flags(flags),
+		MTP_string(Window::Theme::GenerateSlug()),
+		MTP_string(theme->title + " Desktop"),
+		MTPInputDocument(),
+		MTP_inputThemeSettings(
+			MTP_flags(settings),
+			(theme->basedOnDark
+				? MTP_baseThemeTinted()
+				: MTP_baseThemeClassic()),
+			MTP_int(color(theme->accentColor.value_or(Qt::black))),
+			MTP_int(color(theme->outgoingAccentColor.value_or(
+				Qt::black))),
+			MTP_vector<MTPint>(colors(
+				theme->outgoingMessagesColors)),
+			MTP_inputWallPaperSlug(MTP_string(slug)),
+			MTP_wallPaperSettings(
+				MTP_flags(papers),
+				MTP_int(color(bg[0])),
+				MTP_int(color(bg.size() > 1 ? bg[1] : Qt::black)),
+				MTP_int(color(bg.size() > 2 ? bg[2] : Qt::black)),
+				MTP_int(color(bg.size() > 3 ? bg[3] : Qt::black)),
+				MTP_int(theme->paper->patternIntensity()),
+				MTP_int(0)))
+	)).done([=](const MTPTheme &result) {
+		const auto slug = Data::CloudTheme::Parse(session, result, true).slug;
+		QGuiApplication::clipboard()->setText(
+			session->createInternalLinkFull("addtheme/" + slug));
+		Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
+	}).fail([=](const MTP::Error &error) {
+		Ui::Toast::Show("Error: " + error.type());
+	}).send();
+}
+
 bool ResolveTestChatTheme(
 		Window::SessionController *controller,
 		const Match &match,
@@ -485,6 +580,9 @@ bool ResolveTestChatTheme(
 			history->peer->themeEmoji(),
 			params);
 		if (theme) {
+			if (!params["export"].isEmpty()) {
+				ExportTestChatTheme(&controller->session(), &*theme);
+			}
 			[[maybe_unused]] auto value = controller->cachedChatThemeValue(
 				*theme);
 		}

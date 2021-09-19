@@ -77,7 +77,7 @@ public:
 
 	[[nodiscard]] static bool TestingColors();
 	static void SetTestingColors(bool testing);
-	[[nodiscard]] static QString PrepareTestingLink(const CloudTheme &theme);
+	[[nodiscard]] QString prepareTestingLink(const CloudTheme &theme) const;
 	[[nodiscard]] std::optional<CloudTheme> updateThemeFromLink(
 		const QString &emoji,
 		const QMap<QString, QString> &params);

@@ -688,7 +688,8 @@ HistoryWidget::HistoryWidget(
 					auto text = QStringList();
 					const auto push = [&](QString label, const auto &theme) {
 						using namespace Data;
-						const auto l = CloudThemes::PrepareTestingLink(theme);
+						const auto &themes = _peer->owner().cloudThemes();
+						const auto l = themes.prepareTestingLink(theme);
 						if (!l.isEmpty()) {
 							text.push_back(label + ": " + l);
 						}

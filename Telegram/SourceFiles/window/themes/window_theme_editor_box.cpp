@@ -330,26 +330,6 @@ bool CopyColorsToPalette(
 	return true;
 }
 
-[[nodiscard]] QString GenerateSlug() {
-	const auto letters = uint8('Z' + 1 - 'A');
-	const auto digits = uint8('9' + 1 - '0');
-	const auto values = uint8(2 * letters + digits);
-
-	auto result = QString();
-	result.reserve(kRandomSlugSize);
-	for (auto i = 0; i != kRandomSlugSize; ++i) {
-		const auto value = base::RandomValue<uint8>() % values;
-		if (value < letters) {
-			result.append(char('A' + value));
-		} else if (value < 2 * letters) {
-			result.append(char('a' + (value - letters)));
-		} else {
-			result.append(char('0' + (value - 2 * letters)));
-		}
-	}
-	return result;
-}
-
 [[nodiscard]] QByteArray PackTheme(const ParsedTheme &parsed) {
 	zlib::FileToWrite zip;
 
@@ -1016,6 +996,26 @@ ParsedTheme ParseTheme(
 		return raw.background.isEmpty() ? ParsedTheme() : result();
 	}
 	return result();
+}
+
+[[nodiscard]] QString GenerateSlug() {
+	const auto letters = uint8('Z' + 1 - 'A');
+	const auto digits = uint8('9' + 1 - '0');
+	const auto values = uint8(2 * letters + digits);
+
+	auto result = QString();
+	result.reserve(kRandomSlugSize);
+	for (auto i = 0; i != kRandomSlugSize; ++i) {
+		const auto value = base::RandomValue<uint8>() % values;
+		if (value < letters) {
+			result.append(char('A' + value));
+		} else if (value < 2 * letters) {
+			result.append(char('a' + (value - letters)));
+		} else {
+			result.append(char('0' + (value - 2 * letters)));
+		}
+	}
+	return result;
 }
 
 } // namespace Theme
