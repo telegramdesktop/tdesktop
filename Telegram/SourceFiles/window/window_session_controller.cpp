@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
+constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
 constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
@@ -505,9 +506,10 @@ void SessionNavigation::showPollResults(
 }
 
 struct SessionController::CachedTheme {
-	std::shared_ptr<Ui::ChatTheme> theme;
+	std::weak_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
 	Data::WallPaper paper;
+	bool caching = false;
 	rpl::lifetime lifetime;
 };
 
@@ -1393,10 +1395,13 @@ auto SessionController::cachedChatThemeValue(
 		return rpl::single(_defaultChatTheme);
 	}
 	const auto i = _customChatThemes.find(key);
-	if (i != end(_customChatThemes) && i->second.theme) {
-		return rpl::single(i->second.theme);
+	if (i != end(_customChatThemes)) {
+		if (auto strong = i->second.theme.lock()) {
+			pushToLastUsed(strong);
+			return rpl::single(std::move(strong));
+		}
 	}
-	if (i == end(_customChatThemes)) {
+	if (i == end(_customChatThemes) || !i->second.caching) {
 		cacheChatTheme(data);
 	}
 	const auto limit = Data::CloudThemes::TestingColors() ? (1 << 20) : 1;
@@ -1405,8 +1410,25 @@ auto SessionController::cachedChatThemeValue(
 		_defaultChatTheme
 	) | rpl::then(_cachedThemesStream.events(
 	) | rpl::filter([=](const std::shared_ptr<Ui::ChatTheme> &theme) {
-		return (theme->key() == key);
+		if (theme->key() != key) {
+			return false;
+		}
+		pushToLastUsed(theme);
+		return true;
 	}) | rpl::take(limit));
+}
+
+void SessionController::pushToLastUsed(
+		const std::shared_ptr<Ui::ChatTheme> &theme) {
+	const auto i = ranges::find(_lastUsedCustomChatThemes, theme);
+	if (i == end(_lastUsedCustomChatThemes)) {
+		if (_lastUsedCustomChatThemes.size() >= kCustomThemesInMemory) {
+			_lastUsedCustomChatThemes.pop_back();
+		}
+		_lastUsedCustomChatThemes.push_front(theme);
+	} else if (i != begin(_lastUsedCustomChatThemes)) {
+		std::rotate(begin(_lastUsedCustomChatThemes), i, i + 1);
+	}
 }
 
 void SessionController::setChatStyleTheme(
@@ -1447,9 +1469,22 @@ void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 	const auto document = data.paper->document();
 	const auto media = document ? document->createMediaView() : nullptr;
 	data.paper->loadDocument();
-	auto &theme = _customChatThemes.emplace(
-		key,
-		CachedTheme{ .media = media, .paper = *data.paper }).first->second;
+	auto &theme = [&]() -> CachedTheme& {
+		const auto i = _customChatThemes.find(key);
+		if (i != end(_customChatThemes)) {
+			i->second.media = media;
+			i->second.paper = *data.paper;
+			i->second.caching = true;
+			return i->second;
+		}
+		return _customChatThemes.emplace(
+			key,
+			CachedTheme{
+				.media = media,
+				.paper = *data.paper,
+				.caching = true,
+			}).first->second;
+	}();
 	auto descriptor = Ui::ChatThemeDescriptor{
 		.id = key,
 		.preparePalette = PreparePaletteCallback(
@@ -1485,6 +1520,7 @@ void SessionController::cacheChatThemeDone(
 	if (i == end(_customChatThemes)) {
 		return;
 	}
+	i->second.caching = false;
 	i->second.theme = result;
 	if (i->second.media) {
 		if (i->second.media->loaded(true)) {
@@ -1510,10 +1546,11 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 		theme.lifetime.destroy();
 		theme.media = nullptr;
 	});
-	if (!theme.media || !theme.theme || !theme.media->loaded(true)) {
+	const auto strong = theme.theme.lock();
+	if (!theme.media || !strong || !theme.media->loaded(true)) {
 		return;
 	}
-	const auto key = theme.theme->key();
+	const auto key = strong->key();
 	const auto weak = base::make_weak(this);
 	crl::async([=, data = backgroundData(theme, false)] {
 		crl::on_main(weak, [
@@ -1522,7 +1559,9 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 		]() mutable {
 			const auto i = _customChatThemes.find(key);
 			if (i != end(_customChatThemes)) {
-				i->second.theme->updateBackgroundImageFrom(std::move(result));
+				if (const auto strong = i->second.theme.lock()) {
+					strong->updateBackgroundImageFrom(std::move(result));
+				}
 			}
 		});
 	});

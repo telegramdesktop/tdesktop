@@ -464,6 +464,7 @@ private:
 	[[nodiscard]] Ui::ChatThemeBackgroundData backgroundData(
 		CachedTheme &theme,
 		bool generateGradient = true) const;
+	void pushToLastUsed(const std::shared_ptr<Ui::ChatTheme> &theme);
 
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
@@ -498,6 +499,7 @@ private:
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
+	std::deque<std::shared_ptr<Ui::ChatTheme>> _lastUsedCustomChatThemes;
 
 	rpl::lifetime _lifetime;
 
