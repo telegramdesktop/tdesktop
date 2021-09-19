@@ -59,7 +59,10 @@ EmojiInteractions::~EmojiInteractions() = default;
 void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view) {
-	if (_plays.empty()) {
+	if (!view->media()) {
+		// Large emoji may be disabled.
+		return;
+	} else if (_plays.empty()) {
 		play(
 			std::move(request.emoticon),
 			view,
