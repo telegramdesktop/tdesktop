@@ -265,8 +265,6 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.msgOutReplyBarColor(), by);
 		adjust(p.msgWaveformOutActive(), by);
 		adjust(p.msgWaveformOutInactive(), by);
-		//adjust(p.historyTextOutFg(), by); // windowFg
-		//adjust(p.historyFileNameOutFg(), by); // historyTextOutFg
 		adjust(p.historyFileOutRadialFg(), by); // historyFileOutIconFg
 		adjust(p.mediaOutFg(), by);
 
@@ -291,6 +289,40 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 		adjust(p.historyOutIconFg(), colorizer);
 		adjust(p.historySendingOutIconFg(), colorizer);
 		adjust(p.historyCallArrowOutFg(), colorizer);
+
+		if (!descriptor.basedOnDark) {
+			adjust(p.msgOutBgSelected(), by);
+			adjust(p.msgOutShadowSelected(), by);
+			adjust(p.msgOutServiceFgSelected(), by);
+			adjust(p.msgOutDateFgSelected(), by);
+			adjust(p.msgFileThumbLinkOutFgSelected(), by);
+			adjust(p.msgFileOutBgSelected(), by);
+			adjust(p.msgOutReplyBarSelColor(), by);
+			adjust(p.msgWaveformOutActiveSelected(), by);
+			adjust(p.msgWaveformOutInactiveSelected(), by);
+			adjust(p.historyFileOutRadialFgSelected(), by);
+			adjust(p.mediaOutFgSelected(), by);
+
+			adjust(p.historyLinkOutFgSelected(), by);
+			adjust(p.msgOutMonoFgSelected(), by);
+			adjust(p.historyOutIconFgSelected(), by);
+			// adjust(p.historySendingOutIconFgSelected(), by);
+			adjust(p.historyCallArrowOutFgSelected(), by);
+			adjust(p.historyFileOutIconFgSelected(), by); // msgOutBg
+
+			adjust(p.msgOutServiceFgSelected(), colorizer);
+			adjust(p.msgOutDateFgSelected(), colorizer);
+			adjust(p.msgFileThumbLinkOutFgSelected(), colorizer);
+			adjust(p.msgFileOutBgSelected(), colorizer);
+			adjust(p.msgOutReplyBarSelColor(), colorizer);
+			adjust(p.msgWaveformOutActiveSelected(), colorizer);
+			adjust(p.msgWaveformOutInactiveSelected(), colorizer);
+			adjust(p.mediaOutFgSelected(), colorizer);
+			adjust(p.historyLinkOutFgSelected(), colorizer);
+			adjust(p.historyOutIconFgSelected(), colorizer);
+			//adjust(p.historySendingOutIconFgSelected(), colorizer);
+			adjust(p.historyCallArrowOutFgSelected(), colorizer);
+		}
 	}
 	auto outBgColors = descriptor.bubblesData.colors;
 	if (outBgColors.empty()) {
