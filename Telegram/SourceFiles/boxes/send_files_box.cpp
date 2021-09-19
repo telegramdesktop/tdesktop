@@ -549,9 +549,6 @@ void SendFilesBox::pushBlock(int from, int till) {
 		block.takeWidget(),
 		QMargins(0, _inner->count() ? st::sendMediaRowSkip : 0, 0, 0));
 
-	const auto preventDelete =
-		widget->lifetime().make_state<rpl::event_stream<int>>();
-
 	block.itemDeleteRequest(
 	) | rpl::filter([=] {
 		return !_removingIndex;
@@ -562,9 +559,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			if (index < 0 || index >= _list.files.size()) {
 				return;
 			}
-			// Prevent item delete if it is the only one.
+			// Just close the box if it is the only one.
 			if (_list.files.size() == 1) {
-				preventDelete->fire_copy(0);
+				closeBox();
 				return;
 			}
 			_list.files.erase(_list.files.begin() + index);
@@ -572,9 +569,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		});
 	}, widget->lifetime());
 
-	rpl::merge(
-		block.itemReplaceRequest(),
-		preventDelete->events()
+	block.itemReplaceRequest(
 	) | rpl::start_with_next([=](int index) {
 		const auto replace = [=](Ui::PreparedList list) {
 			if (list.files.empty()) {
