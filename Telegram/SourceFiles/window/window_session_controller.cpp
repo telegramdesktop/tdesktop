@@ -76,6 +76,7 @@ namespace Window {
 namespace {
 
 constexpr auto kMaxChatEntryHistorySize = 50;
+constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
 [[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
 		bool dark,
@@ -95,7 +96,7 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 		if (dark) {
 			auto instance = Instance();
 			const auto loaded = LoadFromFile(
-				i->path,
+				kNightBaseFile.utf16(),
 				&instance,
 				nullptr,
 				nullptr,
