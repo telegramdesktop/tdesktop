@@ -1207,31 +1207,67 @@ void Poll::paintFilling(
 
 	top += st::historyPollAnswerPadding.top();
 
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
 	const auto thickness = st::historyPollFillingHeight;
 	const auto max = awidth - st::historyPollFillingRight;
 	const auto size = anim::interpolate(st::historyPollFillingMin, max, filling);
 	const auto radius = st::historyPollFillingRadius;
 	const auto ftop = bottom - st::historyPollFillingBottom - thickness;
 
-	if (chosen && !correct) {
-		p.setBrush(st->boxTextFgError());
-	} else if (chosen && correct && _poll->quiz() && !context.outbg) {
-		p.setBrush(st->boxTextFgGood());
-	} else {
-		p.setBrush(stm->msgWaveformActive);
-	}
+	enum class Style {
+		Incorrect,
+		Correct,
+		Default,
+	};
+	const auto style = [&] {
+		if (chosen && !correct) {
+			return Style::Incorrect;
+		} else if (chosen && correct && _poll->quiz() && !context.outbg) {
+			return Style::Correct;
+		} else {
+			return Style::Default;
+		}
+	}();
 	auto barleft = aleft;
 	auto barwidth = size;
+	const auto &color = (style == Style::Incorrect)
+		? st->boxTextFgError()
+		: (style == Style::Correct)
+		? st->boxTextFgGood()
+		: stm->msgFileBg;
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+	PainterHighQualityEnabler hq(p);
 	if (chosen || correct) {
-		const auto &icon = (chosen && !correct)
+		const auto &icon = (style == Style::Incorrect)
 			? st->historyPollChoiceWrong()
-			: st->historyPollChoiceRight();
+			: (style == Style::Correct)
+			? st->historyPollChoiceRight()
+			: stm->historyPollChoiceRight;
 		const auto cleft = aleft - st::historyPollPercentSkip - icon.width();
 		const auto ctop = ftop - (icon.height() - thickness) / 2;
 		p.drawEllipse(cleft, ctop, icon.width(), icon.height());
-		icon.paint(p, cleft, ctop, width);
+
+		const auto paintContent = [&](Painter &p) {
+			icon.paint(p, cleft, ctop, width);
+		};
+		if (style == Style::Default && usesBubblePattern(context)) {
+			const auto add = st::lineWidth * 2;
+			const auto target = QRect(
+				cleft,
+				ctop,
+				icon.width(),
+				icon.height()
+			).marginsAdded({ add, add, add, add });
+			Ui::PaintPatternBubblePart(
+				p,
+				context.viewport,
+				context.bubblesPattern->pixmap,
+				target,
+				paintContent,
+				_fillingIconCache);
+		} else {
+			paintContent(p);
+		}
 		//barleft += icon.width() - radius;
 		//barwidth -= icon.width() - radius;
 	}

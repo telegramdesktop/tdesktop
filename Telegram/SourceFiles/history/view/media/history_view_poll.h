@@ -214,6 +214,7 @@ private:
 	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
 	mutable QImage _userpicCircleCache;
+	mutable QImage _fillingIconCache;
 
 	mutable std::unique_ptr<CloseInformation> _close;
 

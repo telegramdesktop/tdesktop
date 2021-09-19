@@ -392,6 +392,12 @@ ChatStyle::ChatStyle() {
 		st::historyPollOutChosen,
 		st::historyPollOutChosenSelected);
 	make(
+		&MessageStyle::historyPollChoiceRight,
+		st::historyPollInChoiceRight,
+		st::historyPollInChoiceRightSelected,
+		st::historyPollOutChoiceRight,
+		st::historyPollOutChoiceRightSelected);
+	make(
 		&MessageImageStyle::msgDateImgBg,
 		st::msgDateImgBg,
 		st::msgDateImgBgSelected);
