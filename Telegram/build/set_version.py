@@ -34,7 +34,8 @@ for arg in sys.argv:
     versionMajor = match.group(1)
     versionMinor = match.group(2)
     versionPatch = match.group(4) if match.group(4) else '0'
-    if len(match.group(5)) > 0:
+    versionAlphaBeta = match.group(5) if match.group(5) else ''
+    if len(versionAlphaBeta) > 0:
       if match.group(6) == 'beta':
         versionBeta = True
       else:
