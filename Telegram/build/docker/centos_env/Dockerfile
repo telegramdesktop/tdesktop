@@ -646,7 +646,11 @@ WORKDIR glibmm
 RUN git apply ../patches/glibmm.patch
 ENV ACLOCAL_PATH="/usr/local/share/aclocal"
 RUN NOCONFIGURE=1 ./autogen.sh
-RUN ./configure --enable-maintainer-mode --enable-static --disable-documentation
+RUN CC=\"gcc -flto\" CXX=\"g++ -flto\" AR=gcc-ar RANLIB=gcc-ranlib ./configure \
+	--enable-maintainer-mode \
+	--enable-static \
+	--disable-documentation
+
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/glibmm-cache" install
 
