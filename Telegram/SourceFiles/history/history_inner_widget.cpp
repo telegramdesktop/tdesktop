@@ -202,7 +202,8 @@ HistoryInner::HistoryInner(
 	using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
 	_controller->emojiInteractions().playRequests(
 	) | rpl::filter([=](const PlayRequest &request) {
-		return (request.item->history() == _history);
+		return (request.item->history() == _history)
+			&& _controller->widget()->isActive();
 	}) | rpl::start_with_next([=](PlayRequest &&request) {
 		if (const auto view = request.item->mainView()) {
 			_emojiInteractions->play(std::move(request), view);
