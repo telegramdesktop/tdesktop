@@ -117,7 +117,8 @@ void EmojiInteractions::startOutgoing(
 	if (!IsServerMsgId(item->id) || !item->history()->peer->isUser()) {
 		return;
 	}
-	const auto emoji = chooseInteractionEmoji(item);
+	const auto emoticon = item->originalText().text;
+	const auto emoji = chooseInteractionEmoji(emoticon);
 	if (!emoji) {
 		return;
 	}
@@ -145,6 +146,7 @@ void EmojiInteractions::startOutgoing(
 	media->checkStickerLarge();
 	const auto now = crl::now();
 	animations.push_back({
+		.emoticon = emoticon,
 		.emoji = emoji,
 		.document = document,
 		.media = media,
@@ -195,6 +197,7 @@ void EmojiInteractions::startIncoming(
 			const auto media = document->createMediaView();
 			media->checkStickerLarge();
 			animations.push_back({
+				.emoticon = emoticon,
 				.emoji = emoji,
 				.document = document,
 				.media = media,
@@ -219,7 +222,7 @@ void EmojiInteractions::seenOutgoing(
 			if (const auto j = i->second.find(emoji); j != end(i->second)) {
 				const auto last = j->second.lastDoneReceivedAt;
 				if (!last || last + kAcceptSeenSinceRequest > crl::now()) {
-					_seen.fire({ peer, emoji });
+					_seen.fire({ peer, emoticon });
 				}
 			}
 		}
@@ -263,7 +266,7 @@ auto EmojiInteractions::checkAnimations(
 			} else if (!lastStartedAt || lastStartedAt + kMinDelay <= now) {
 				animation.startedAt = now;
 				_playRequests.fire({
-					animation.emoji->text(),
+					animation.emoticon,
 					item,
 					animation.media,
 					animation.scheduledAt,
@@ -316,7 +319,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 		peer->input,
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteraction(
-			MTP_string(emoji->text()),
+			MTP_string(from->emoticon),
 			MTP_int(item->id),
 			MTP_dataJSON(MTP_bytes(ToJson(bunch))))
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {

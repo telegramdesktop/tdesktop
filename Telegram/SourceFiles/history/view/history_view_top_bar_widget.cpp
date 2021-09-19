@@ -667,7 +667,7 @@ void TopBarWidget::setActiveChat(
 			) | rpl::filter([=](const InteractionSeen &seen) {
 				return (seen.peer == history->peer);
 			}) | rpl::start_with_next([=](const InteractionSeen &seen) {
-				handleEmojiInteractionSeen(seen.emoji->text());
+				handleEmojiInteractionSeen(seen.emoticon);
 			}, lifetime());
 		}
 	}

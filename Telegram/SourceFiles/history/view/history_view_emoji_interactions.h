@@ -53,7 +53,7 @@ private:
 		bool finished = false;
 	};
 	struct Delayed {
-		QString emoji;
+		QString emoticon;
 		not_null<Element*> view;
 		std::shared_ptr<Data::DocumentMedia> media;
 		crl::time shouldHaveStartedAt = 0;
@@ -63,7 +63,7 @@ private:
 	[[nodiscard]] QRect computeRect(not_null<Element*> view) const;
 
 	void play(
-		QString emoji,
+		QString emoticon,
 		not_null<Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming);

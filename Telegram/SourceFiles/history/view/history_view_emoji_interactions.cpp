@@ -61,14 +61,14 @@ void EmojiInteractions::play(
 		not_null<Element*> view) {
 	if (_plays.empty()) {
 		play(
-			std::move(request.emoji),
+			std::move(request.emoticon),
 			view,
 			std::move(request.media),
 			request.incoming);
 	} else {
 		const auto now = crl::now();
 		_delayed.push_back({
-			request.emoji,
+			request.emoticon,
 			view,
 			std::move(request.media),
 			now,
@@ -79,7 +79,7 @@ void EmojiInteractions::play(
 }
 
 void EmojiInteractions::play(
-		QString emoji,
+		QString emoticon,
 		not_null<Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming) {
@@ -111,7 +111,7 @@ void EmojiInteractions::play(
 		.shift = shift,
 	});
 	if (incoming) {
-		_playStarted.fire(std::move(emoji));
+		_playStarted.fire(std::move(emoticon));
 	}
 	if (const auto media = view->media()) {
 		media->stickerClearLoopPlayed();
@@ -254,8 +254,11 @@ void EmojiInteractions::checkDelayed() {
 	}
 	auto good = std::move(*i);
 	_delayed.erase(begin(_delayed), i + 1);
-	const auto incoming = good.incoming;
-	play(std::move(good.emoji), good.view, std::move(good.media), incoming);
+	play(
+		std::move(good.emoticon),
+		good.view,
+		std::move(good.media),
+		good.incoming);
 }
 
 rpl::producer<QRect> EmojiInteractions::updateRequests() const {

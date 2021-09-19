@@ -28,7 +28,7 @@ class Element;
 namespace ChatHelpers {
 
 struct EmojiInteractionPlayRequest {
-	QString emoji;
+	QString emoticon;
 	not_null<HistoryItem*> item;
 	std::shared_ptr<Data::DocumentMedia> media;
 	crl::time shouldHaveStartedAt = 0;
@@ -45,7 +45,7 @@ struct EmojiInteractionsBunch {
 
 struct EmojiInteractionSeen {
 	not_null<PeerData*> peer;
-	not_null<EmojiPtr> emoji;
+	QString emoticon;
 };
 
 class EmojiInteractions final {
@@ -78,6 +78,7 @@ public:
 
 private:
 	struct Animation {
+		QString emoticon;
 		not_null<EmojiPtr> emoji;
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> media;
