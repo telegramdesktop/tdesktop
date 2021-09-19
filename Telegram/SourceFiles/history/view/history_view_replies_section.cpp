@@ -1421,6 +1421,7 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 	_composeControls->showForGrab();
 	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) _topBarShadow->show();
+	_rootView->hide();
 	return result;
 }
 
@@ -1706,6 +1707,7 @@ void RepliesWidget::showAnimatedHook(
 void RepliesWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	_composeControls->showFinished();
+	_rootView->show();
 
 	// We should setup the drag area only after
 	// the section animation is finished,
