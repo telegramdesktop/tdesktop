@@ -143,7 +143,7 @@ parts:
 
       snapcraftctl set-version "$version"
 
-      sed -i 's|^Icon=.*|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
+      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
       snapcraftctl build
       rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
