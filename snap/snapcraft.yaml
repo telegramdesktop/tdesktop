@@ -42,7 +42,16 @@ apps:
     slots:
       - tdesktop-mpris
 
+hooks:
+  configure:
+    command-chain:
+      - bin/hooks-configure-desktop
+    plugs:
+      - desktop
+
 plugs:
+  desktop:
+    mount-host-font-cache: false
   # Support for common GTK themes
   # https://forum.snapcraft.io/t/how-to-use-the-system-gtk-theme-via-the-gtk-common-themes-snap/6235
   gsettings:
