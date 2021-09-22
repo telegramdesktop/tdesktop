@@ -396,6 +396,7 @@ depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
     python3 -m pip install git+https://github.com/nodejs/gyp-next@v0.10.0
+    mkdir gyp
 """, 'ThirdParty')
 
 stage('yasm', """
