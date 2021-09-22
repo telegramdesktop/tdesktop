@@ -779,7 +779,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 			settings.setRememberedFlashBounceNotifyFromTray(false);
 		}
 	}
-	account().session().saveSettings();
+	Core::App().saveSettingsDelayed();
 	using Change = Window::Notifications::ChangeType;
 	auto &notifications = Core::App().notifications();
 	notifications.notifySettingsChanged(Change::DesktopEnabled);
