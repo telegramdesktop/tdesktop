@@ -341,6 +341,9 @@ enum class MessageFlag : uint32 {
 
 	// Fake message for some UI element.
 	FakeHistoryItem       = (1U << 27),
+
+	// Contact sign-up message, notification should be skipped for Silent.
+	IsContactSignUp       = (1U << 28),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

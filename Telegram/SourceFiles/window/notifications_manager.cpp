@@ -98,18 +98,13 @@ System::SkipState System::skipNotification(
 		not_null<HistoryItem*> item) const {
 	const auto history = item->history();
 	const auto notifyBy = item->specialNotificationPeer();
-	if (App::quitting() || !history->currentNotification()) {
+	if (App::quitting()
+		|| !history->currentNotification()
+		|| item->skipNotification()) {
 		return { SkipState::Skip };
 	} else if (!Core::App().settings().notifyFromAll()
 		&& &history->session().account() != &Core::App().domain().active()) {
 		return { SkipState::Skip };
-	}
-	const auto scheduled = item->out() && item->isFromScheduled();
-
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (forwarded->imported) {
-			return { SkipState::Skip };
-		}
 	}
 
 	history->owner().requestNotifySettings(history->peer);
@@ -117,6 +112,7 @@ System::SkipState System::skipNotification(
 		history->owner().requestNotifySettings(notifyBy);
 	}
 
+	const auto scheduled = item->out() && item->isFromScheduled();
 	if (history->owner().notifyMuteUnknown(history->peer)) {
 		return { SkipState::Unknown, item->isSilent() };
 	} else if (!history->owner().notifyIsMuted(history->peer)) {

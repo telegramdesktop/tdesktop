@@ -459,6 +459,17 @@ bool HistoryItem::isScheduled() const {
 		&& (_flags & MessageFlag::IsOrWasScheduled);
 }
 
+bool HistoryItem::skipNotification() const {
+	if (isSilent() && (_flags & MessageFlag::IsContactSignUp)) {
+		return true;
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		if (forwarded->imported) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
