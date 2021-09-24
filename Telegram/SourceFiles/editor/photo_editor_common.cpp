@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 
 QImage ImageModified(QImage image, const PhotoModifications &mods) {
+	Expects(!image.isNull());
+
 	if (!mods) {
 		return image;
 	}
