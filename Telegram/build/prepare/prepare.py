@@ -379,7 +379,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 9d2a07ba8b
+    git checkout 52e847920f
 """)
 
 stage('depot_tools', """
@@ -499,13 +499,18 @@ mac:
 """)
 
 stage('opus', """
-    git clone -b td-v1.3.1 https://github.com/telegramdesktop/opus.git
+    git clone -b v1.3.1 https://github.com/xiph/opus.git
     cd opus
 win:
-    cd win32\\VS2015
-    msbuild opus.sln /property:Configuration=Debug /property:Platform="%WIN32X64%"
+    cmake -B out . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local/opus ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
+    cmake --build out --config Debug
 release:
-    msbuild opus.sln /property:Configuration=Release /property:Platform="%WIN32X64%"
+    cmake --build out --config Release
+    cmake --install out --config Release
 mac:
     ./autogen.sh
     CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=$USED_PREFIX
