@@ -97,6 +97,8 @@ void ResetToSomeDefault();
 [[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
 
+[[nodiscard]] rpl::producer<bool> IsThemeDarkValue();
+
 [[nodiscard]] QString EditingPalettePath();
 
 // NB! This method looks to Core::App().settings() to get colorizer by 'file'.

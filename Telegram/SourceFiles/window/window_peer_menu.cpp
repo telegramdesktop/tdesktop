@@ -487,6 +487,11 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				[=] { AddBotToGroup::Start(user); });
 		}
 		addPollAction(user);
+		if (!user->isBot()) {
+			_addAction(
+				tr::lng_chat_theme_change(tr::now),
+				[=] { controller->toggleChooseChatTheme(user); });
+		}
 		if (user->canExportChatHistory()) {
 			_addAction(
 				tr::lng_profile_export_chat(tr::now),

@@ -46,6 +46,7 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
 constexpr auto kNightThemeFile = ":/gui/night.tdesktop-theme"_cs;
+constexpr auto kDarkValueThreshold = 0.5;
 
 struct Applying {
 	Saved data;
@@ -1448,6 +1449,16 @@ bool LoadFromContent(
 		std::nullopt,
 		outCache,
 		out);
+}
+
+rpl::producer<bool> IsThemeDarkValue() {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::map([] {
+		return (st::dialogsBg->c.valueF() < kDarkValueThreshold);
+	});
 }
 
 QString EditingPalettePath() {

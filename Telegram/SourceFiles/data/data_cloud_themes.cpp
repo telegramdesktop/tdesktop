@@ -387,26 +387,29 @@ rpl::producer<> CloudThemes::chatThemesUpdated() const {
 }
 
 std::optional<ChatTheme> CloudThemes::themeForEmoji(
-		const QString &emoji) const {
-	if (emoji.isEmpty()) {
+		const QString &emoticon) const {
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	if (!emoji) {
 		return {};
 	}
-	const auto i = ranges::find(_chatThemes, emoji, &ChatTheme::emoji);
+	const auto i = ranges::find(_chatThemes, emoji, [](const ChatTheme &v) {
+		return Ui::Emoji::Find(v.emoticon);
+	});
 	return (i != end(_chatThemes)) ? std::make_optional(*i) : std::nullopt;
 }
 
 rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
-		const QString &emoji) {
+		const QString &emoticon) {
 	const auto testing = TestingColors();
-	if (emoji.isEmpty()) {
+	if (!Ui::Emoji::Find(emoticon)) {
 		return rpl::single<std::optional<ChatTheme>>(std::nullopt);
-	} else if (auto result = themeForEmoji(emoji)) {
+	} else if (auto result = themeForEmoji(emoticon)) {
 		if (testing) {
 			return rpl::single(
 				std::move(result)
 			) | rpl::then(chatThemesUpdated(
 			) | rpl::map([=] {
-				return themeForEmoji(emoji);
+				return themeForEmoji(emoticon);
 			}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
 				return theme.has_value();
 			}));
@@ -419,7 +422,7 @@ rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
 		std::nullopt
 	) | rpl::then(chatThemesUpdated(
 	) | rpl::map([=] {
-		return themeForEmoji(emoji);
+		return themeForEmoji(emoticon);
 	}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
 		return theme.has_value();
 	}) | rpl::take(limit));
@@ -482,12 +485,15 @@ QString CloudThemes::prepareTestingLink(const CloudTheme &theme) const {
 }
 
 std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
-		const QString &emoji,
+		const QString &emoticon,
 		const QMap<QString, QString> &params) {
-	if (!TestingColors()) {
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	if (!TestingColors() || !emoji) {
 		return std::nullopt;
 	}
-	const auto i = ranges::find(_chatThemes, emoji, &ChatTheme::emoji);
+	const auto i = ranges::find(_chatThemes, emoji, [](const ChatTheme &v) {
+		return Ui::Emoji::Find(v.emoticon);
+	});
 	if (i == end(_chatThemes)) {
 		return std::nullopt;
 	}
@@ -552,7 +558,7 @@ void CloudThemes::parseChatThemes(const QVector<MTPChatTheme> &list) {
 	for (const auto &theme : list) {
 		theme.match([&](const MTPDchatTheme &data) {
 			_chatThemes.push_back({
-				.emoji = qs(data.vemoticon()),
+				.emoticon = qs(data.vemoticon()),
 				.light = CloudTheme::Parse(_session, data.vtheme(), true),
 				.dark = CloudTheme::Parse(_session, data.vdark_theme(), true),
 			});

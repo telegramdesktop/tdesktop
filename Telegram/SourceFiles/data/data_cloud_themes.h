@@ -50,7 +50,7 @@ struct CloudTheme {
 };
 
 struct ChatTheme {
-	QString emoji;
+	QString emoticon;
 	CloudTheme light;
 	CloudTheme dark;
 };
@@ -71,15 +71,15 @@ public:
 	[[nodiscard]] const std::vector<ChatTheme> &chatThemes() const;
 	[[nodiscard]] rpl::producer<> chatThemesUpdated() const;
 	[[nodiscard]] std::optional<ChatTheme> themeForEmoji(
-		const QString &emoji) const;
+		const QString &emoticon) const;
 	[[nodiscard]] rpl::producer<std::optional<ChatTheme>> themeForEmojiValue(
-		const QString &emoji);
+		const QString &emoticon);
 
 	[[nodiscard]] static bool TestingColors();
 	static void SetTestingColors(bool testing);
 	[[nodiscard]] QString prepareTestingLink(const CloudTheme &theme) const;
 	[[nodiscard]] std::optional<CloudTheme> updateThemeFromLink(
-		const QString &emoji,
+		const QString &emoticon,
 		const QMap<QString, QString> &params);
 
 	void applyUpdate(const MTPTheme &theme);

@@ -1004,19 +1004,24 @@ PeerId PeerData::groupCallDefaultJoinAs() const {
 	return 0;
 }
 
-void PeerData::setThemeEmoji(const QString &emoji) {
-	if (_themeEmoji == emoji) {
+void PeerData::setThemeEmoji(const QString &emoticon) {
+	if (_themeEmoticon == emoticon) {
 		return;
 	}
-	_themeEmoji = emoji;
-	if (!emoji.isEmpty() && !owner().cloudThemes().themeForEmoji(emoji)) {
+	if (Ui::Emoji::Find(_themeEmoticon) == Ui::Emoji::Find(emoticon)) {
+		_themeEmoticon = emoticon;
+		return;
+	}
+	_themeEmoticon = emoticon;
+	if (!emoticon.isEmpty()
+		&& !owner().cloudThemes().themeForEmoji(emoticon)) {
 		owner().cloudThemes().refreshChatThemes();
 	}
 	session().changes().peerUpdated(this, UpdateFlag::ChatThemeEmoji);
 }
 
 const QString &PeerData::themeEmoji() const {
-	return _themeEmoji;
+	return _themeEmoticon;
 }
 
 void PeerData::setIsBlocked(bool is) {

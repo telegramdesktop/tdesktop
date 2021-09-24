@@ -1353,6 +1353,10 @@ void MainWidget::clearChooseReportMessages() {
 	_history->setChooseReportMessagesDetails({}, nullptr);
 }
 
+void MainWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
+	_history->toggleChooseChatTheme(peer);
+}
+
 void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,

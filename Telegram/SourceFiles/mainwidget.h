@@ -213,6 +213,8 @@ public:
 		Fn<void(MessageIdsList)> done);
 	void clearChooseReportMessages();
 
+	void toggleChooseChatTheme(not_null<PeerData*> peer);
+
 	void ui_showPeerHistory(
 		PeerId peer,
 		const SectionShow &params,

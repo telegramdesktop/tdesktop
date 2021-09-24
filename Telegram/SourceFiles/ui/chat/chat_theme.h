@@ -137,6 +137,7 @@ public:
 		QRect viewport,
 		QRect clip);
 	[[nodiscard]] const BackgroundState &backgroundState(QSize area);
+	void clearBackgroundState();
 	[[nodiscard]] rpl::producer<> repaintBackgroundRequests() const;
 	void rotateComplexGradientBackground();
 
@@ -157,7 +158,6 @@ private:
 	void cacheBubblesNow();
 	void cacheBubblesAsync(
 		const CacheBackgroundRequest &request);
-	void setCachedBubbles(CacheBackgroundResult &&cached);
 	[[nodiscard]] CacheBackgroundRequest cacheBubblesRequest(
 		QSize area) const;
 

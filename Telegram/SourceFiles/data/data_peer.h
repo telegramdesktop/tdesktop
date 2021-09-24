@@ -459,7 +459,7 @@ public:
 	[[nodiscard]] Data::GroupCall *groupCall() const;
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
-	void setThemeEmoji(const QString &emoji);
+	void setThemeEmoji(const QString &emoticon);
 	[[nodiscard]] const QString &themeEmoji() const;
 
 	const PeerId id;
@@ -506,7 +506,7 @@ private:
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 
 	QString _about;
-	QString _themeEmoji;
+	QString _themeEmoticon;
 
 };
 

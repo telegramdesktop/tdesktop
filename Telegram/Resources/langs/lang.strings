@@ -2871,6 +2871,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_remove_sure" = "This will remove the folder, your chats will not be deleted.";
 "lng_filters_remove_yes" = "Remove";
 
+"lng_chat_theme_change" = "Change colors";
+"lng_chat_theme_none" = "No\nTheme";
+"lng_chat_theme_apply" = "Apply Theme";
+"lng_chat_theme_reset" = "Reset Theme";
+"lng_chat_theme_dont" = "Do Not Set Theme";
+"lng_chat_theme_title" = "Select theme";
+"lng_chat_theme_cant_voice" = "Sorry, you can't change the chat theme while you're having an unsent voice message.";
+
 "lng_photo_editor_menu_delete" = "Delete";
 "lng_photo_editor_menu_flip" = "Flip";
 "lng_photo_editor_menu_duplicate" = "Duplicate";

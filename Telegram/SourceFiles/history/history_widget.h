@@ -25,6 +25,8 @@ struct FileLoadResult;
 struct SendingAlbum;
 enum class SendMediaType;
 class MessageLinksParser;
+struct InlineBotQuery;
+struct AutocompleteQuery;
 
 namespace MTP {
 class Error;
@@ -77,6 +79,7 @@ enum class ReportReason;
 namespace Toast {
 class Instance;
 } // namespace Toast
+class ChooseThemeController;
 } // namespace Ui
 
 namespace Window {
@@ -236,6 +239,8 @@ public:
 	void clearDelayedShowAtRequest();
 	void clearDelayedShowAt();
 	void saveFieldToHistoryLocalDraft();
+
+	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
 	void applyCloudDraft(History *history);
 
@@ -454,6 +459,10 @@ private:
 	std::optional<QString> writeRestriction() const;
 	void orderWidgets();
 
+	[[nodiscard]] InlineBotQuery parseInlineBotQuery() const;
+	[[nodiscard]] auto parseMentionHashtagBotCommandQuery() const
+		-> AutocompleteQuery;
+
 	void clearInlineBot();
 	void inlineBotChanged();
 
@@ -585,18 +594,20 @@ private:
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
 
-	bool isRecording() const;
+	[[nodiscard]] bool isRecording() const;
 
-	bool isBotStart() const;
-	bool isBlocked() const;
-	bool isJoinChannel() const;
-	bool isMuteUnmute() const;
-	bool isReportMessages() const;
+	[[nodiscard]] bool isBotStart() const;
+	[[nodiscard]] bool isBlocked() const;
+	[[nodiscard]] bool isJoinChannel() const;
+	[[nodiscard]] bool isMuteUnmute() const;
+	[[nodiscard]] bool isReportMessages() const;
 	bool updateCmdStartShown();
 	void updateSendButtonType();
-	bool showRecordButton() const;
-	bool showInlineBotCancel() const;
+	[[nodiscard]] bool showRecordButton() const;
+	[[nodiscard]] bool showInlineBotCancel() const;
 	void refreshSilentToggle();
+
+	[[nodiscard]] bool isChoosingTheme() const;
 
 	void setupScheduledToggle();
 	void refreshScheduledToggle();
@@ -689,7 +700,7 @@ private:
 	bool _unreadMentionsIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _unreadMentions;
 
-	object_ptr<FieldAutocomplete> _fieldAutocomplete;
+	const object_ptr<FieldAutocomplete> _fieldAutocomplete;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
 	std::unique_ptr<MessageLinksParser> _fieldLinksParser;
 
@@ -725,6 +736,8 @@ private:
 	HistoryItem *_kbReplyTo = nullptr;
 	object_ptr<Ui::ScrollArea> _kbScroll;
 	const not_null<BotKeyboard*> _keyboard;
+
+	std::unique_ptr<Ui::ChooseThemeController> _chooseTheme;
 
 	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	base::Timer _membersDropdownShowTimer;

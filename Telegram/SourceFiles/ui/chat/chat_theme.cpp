@@ -511,6 +511,11 @@ const BackgroundState &ChatTheme::backgroundState(QSize area) {
 	return _backgroundState;
 }
 
+void ChatTheme::clearBackgroundState() {
+	_backgroundState = BackgroundState();
+	_backgroundFade.stop();
+}
+
 bool ChatTheme::readyForBackgroundRotation() const {
 	Expects(_cacheBackgroundTimer.has_value());
 
