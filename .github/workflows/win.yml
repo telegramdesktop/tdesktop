@@ -259,12 +259,16 @@ jobs:
       - name: Opus.
         if: steps.cache-opus.outputs.cache-hit != 'true'
         run: |
-          git clone %GIT%/telegramdesktop/opus.git
+          git clone -b v1.3.1 %GIT%/xiph/opus.git
           cd opus
-          git checkout tdesktop
-          cd win32\VS2015
-          msbuild -m opus.sln /property:Configuration=Debug /property:Platform="Win32"
-          msbuild -m opus.sln /property:Configuration=Release /property:Platform="Win32"
+          cmake -B out . ^
+          -A Win32 ^
+          -DCMAKE_INSTALL_PREFIX=%LibrariesPath%/local/opus ^
+          -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+          -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
+          cmake --build out --config Debug
+          cmake --build out --config Release
+          cmake --install out --config Release
 
       - name: Rnnoise.
         run: |
