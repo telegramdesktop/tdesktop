@@ -1411,15 +1411,16 @@ bool HistoryWidget::updateStickersByEmoji() {
 }
 
 void HistoryWidget::fieldChanged() {
-	const auto typing = (_history
-		&& !_inlineBot
-		&& !_editMsgId
-		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
+	const auto updateTyping = (_textUpdateEvents & TextUpdateEvent::SendTyping);
 
 	InvokeQueued(this, [=] {
 		updateInlineBotQuery();
 		const auto choosingSticker = updateStickersByEmoji();
-		if (!choosingSticker && typing) {
+		if (_history
+			&& !_inlineBot
+			&& !_editMsgId
+			&& !choosingSticker
+			&& updateTyping) {
 			session().sendProgressManager().update(
 				_history,
 				Api::SendProgressType::Typing);
