@@ -379,7 +379,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 52e847920f
+    git checkout 97eee9f4e5
 """)
 
 stage('depot_tools', """
@@ -812,6 +812,7 @@ win:
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.2\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
