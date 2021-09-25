@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/chat/attach/attach_extensions.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "core/crash_reports.h"
 
 #include <QtCore/QSemaphore>
 #include <QtCore/QMimeData>
@@ -328,10 +329,21 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 		: image->data;
 	Assert(!preview.isNull());
 	file.shownDimensions = PrepareShownDimensions(preview);
+	const auto toWidth = std::min(
+		previewWidth,
+		style::ConvertScale(preview.width())
+	) * cIntRetinaFactor();
 	const auto scaled = preview.scaledToWidth(
-		(std::min(previewWidth, style::ConvertScale(preview.width()))
-			* cIntRetinaFactor()),
+		toWidth,
 		Qt::SmoothTransformation);
+	if (scaled.isNull()) {
+		CrashReports::SetAnnotation("Info", QString("%1x%2:%3*%4->%5;%6x%7"
+		).arg(preview.width()).arg(preview.height()
+		).arg(previewWidth).arg(cIntRetinaFactor()
+		).arg(toWidth
+		).arg(scaled.width()).arg(scaled.height()));
+		Unexpected("Scaled is null.");
+	}
 	Assert(!scaled.isNull());
 	file.preview = Images::prepareOpaque(scaled);
 	Assert(!file.preview.isNull());
