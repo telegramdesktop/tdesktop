@@ -275,6 +275,9 @@ enum class MessageFlag : uint32 {
 
 	// Contact sign-up message, notification should be skipped for Silent.
 	IsContactSignUp       = (1U << 28),
+
+	// In channels.
+	IsSponsored           = (1U << 29),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

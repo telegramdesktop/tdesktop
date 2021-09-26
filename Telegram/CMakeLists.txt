@@ -453,6 +453,8 @@ PRIVATE
     data/data_shared_media.h
     data/data_sparse_ids.cpp
     data/data_sparse_ids.h
+    data/data_sponsored_messages.cpp
+    data/data_sponsored_messages.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_types.cpp

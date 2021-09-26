@@ -658,6 +658,9 @@ void Element::recountDisplayDateInBlocks() {
 		if (isHidden() || item->isEmpty()) {
 			return false;
 		}
+		if (item->isSponsored()) {
+			return false;
+		}
 
 		if (const auto previous = previousDisplayedInBlocks()) {
 			const auto prev = previous->data();
