@@ -294,6 +294,8 @@ private:
 	void setZoomLevel(int newZoom, bool force = false);
 
 	void updatePlaybackState();
+	void seekRelativeTime(crl::time time);
+	void restartAtProgress(float64 progress);
 	void restartAtSeekPosition(crl::time position);
 
 	void refreshClipControllerGeometry();
