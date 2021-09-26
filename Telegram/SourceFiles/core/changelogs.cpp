@@ -58,6 +58,16 @@ std::map<int, const char*> BetaLogs() {
 	{
 		3000005,
 		"- Add support for Emoji 13.1."
+	},
+	{
+		3001002,
+		"- Control video in fullscreen mode using arrows and numbers.\n"
+
+		"- Open locations in browser if default Bing Maps is not installed.\n"
+
+		"- Reconnect without timeout when network availability changes.\n"
+
+		"- Crash fixes."
 	}
 	};
 };
