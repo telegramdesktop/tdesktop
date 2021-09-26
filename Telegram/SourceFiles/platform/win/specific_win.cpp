@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <qpa/qplatformnativeinterface.h>
 
 #include <Shobjidl.h>
+#include <ShObjIdl_core.h>
 #include <shellapi.h>
 
 #include <roapi.h>
@@ -546,5 +547,27 @@ void psSendToMenu(bool send, bool silent) {
 }
 
 bool psLaunchMaps(const Data::LocationPoint &point) {
+	IApplicationAssociationRegistration *aar = nullptr;
+
+	const auto hr = CoCreateInstance(
+		CLSID_ApplicationAssociationRegistration,
+		nullptr,
+		CLSCTX_INPROC,
+		__uuidof(IApplicationAssociationRegistration),
+		reinterpret_cast<void**>(&aar));
+
+	if (SUCCEEDED(hr && aar)) {
+		LPWSTR current_app = nullptr;
+		const auto result = aar->QueryCurrentDefault(
+			L"bingmaps",
+			AT_URLPROTOCOL, 
+			AL_EFFECTIVE, 
+			&current_app);
+
+		if (FAILED(result)) {
+			return false;
+		}
+	}
+
 	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(point.latAsString()).arg(point.lonAsString()));
 }
