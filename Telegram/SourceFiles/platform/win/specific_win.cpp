@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -547,27 +548,29 @@ void psSendToMenu(bool send, bool silent) {
 }
 
 bool psLaunchMaps(const Data::LocationPoint &point) {
-	IApplicationAssociationRegistration *aar = nullptr;
-
-	const auto hr = CoCreateInstance(
-		CLSID_ApplicationAssociationRegistration,
-		nullptr,
-		CLSCTX_INPROC,
-		__uuidof(IApplicationAssociationRegistration),
-		reinterpret_cast<void**>(&aar));
-
-	if (SUCCEEDED(hr && aar)) {
-		LPWSTR current_app = nullptr;
-		const auto result = aar->QueryCurrentDefault(
-			L"bingmaps",
-			AT_URLPROTOCOL, 
-			AL_EFFECTIVE, 
-			&current_app);
-
-		if (FAILED(result)) {
-			return false;
-		}
+	const auto aar = base::WinRT::TryCreateInstance<
+		IApplicationAssociationRegistration
+	>(CLSID_ApplicationAssociationRegistration);
+	if (!aar) {
+		return false;
 	}
 
-	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(point.latAsString()).arg(point.lonAsString()));
+	auto handler = (LPWSTR)nullptr;
+	const auto guard = gsl::finally([&] {
+		if (handler) {
+			::CoTaskMemFree(handler);
+		}
+	});
+	const auto result = aar->QueryCurrentDefault(
+		L"bingmaps",
+		AT_URLPROTOCOL,
+		AL_EFFECTIVE,
+		&handler);
+	if (FAILED(result) || !handler) {
+		return false;
+	}
+
+	const auto url = u"bingmaps:?lvl=16&collection=point.%1_%2_Point"_q;
+	return QDesktopServices::openUrl(
+		url.arg(point.latAsString()).arg(point.lonAsString()));
 }
