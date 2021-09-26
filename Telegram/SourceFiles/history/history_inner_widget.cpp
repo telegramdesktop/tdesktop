@@ -614,8 +614,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
-	bool noHistoryDisplayed = _firstLoading || historyDisplayedEmpty;
-	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
+	bool noHistoryDisplayed = historyDisplayedEmpty;
+	if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		const auto st = context.st;
 		const auto stm = &st->messageStyle(false, false);
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
@@ -2326,11 +2326,6 @@ void HistoryInner::updateBotInfo(bool recount) {
 
 bool HistoryInner::wasSelectedText() const {
 	return _wasSelectedText;
-}
-
-void HistoryInner::setFirstLoading(bool loading) {
-	_firstLoading = loading;
-	update();
 }
 
 void HistoryInner::visibleAreaUpdated(int top, int bottom) {

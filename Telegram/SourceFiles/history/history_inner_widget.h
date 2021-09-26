@@ -121,7 +121,6 @@ public:
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;
-	void setFirstLoading(bool loading);
 
 	// updates history->scrollTopItem/scrollTopOffset
 	void visibleAreaUpdated(int top, int bottom);
@@ -377,8 +376,6 @@ private:
 	mutable History *_curHistory = nullptr;
 	mutable int _curBlock = 0;
 	mutable int _curItem = 0;
-
-	bool _firstLoading = false;
 
 	style::cursor _cursor = style::cur_default;
 	SelectedItems _selected;
