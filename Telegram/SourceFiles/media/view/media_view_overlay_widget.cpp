@@ -94,6 +94,7 @@ constexpr auto kPreloadCount = 3;
 constexpr auto kMaxZoomLevel = 7; // x8
 constexpr auto kZoomToScreenLevel = 1024;
 constexpr auto kOverlayLoaderPriority = 2;
+constexpr auto kSeekTimeMs = 5 * crl::time(1000);
 
 // macOS OpenGL renderer fails to render larger texture
 // even though it reports that max texture size is 16384.
@@ -3002,6 +3003,23 @@ void OverlayWidget::playbackPauseResume() {
 	}
 }
 
+void OverlayWidget::seekRelativeTime(crl::time time) {
+	Expects(_streamed != nullptr);
+
+	const auto newTime = std::clamp(
+		_streamed->instance.info().video.state.position + time,
+		crl::time(0),
+		_streamed->instance.info().video.state.duration);
+	restartAtSeekPosition(newTime);
+}
+
+void OverlayWidget::restartAtProgress(float64 progress) {
+	Expects(_streamed != nullptr);
+
+	restartAtSeekPosition(_streamed->instance.info().video.state.duration 
+		* std::clamp(progress, 0., 1.));
+}
+
 void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	Expects(_streamed != nullptr);
 
@@ -3737,7 +3755,21 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		} else if (_fullScreenVideo) {
 			if (key == Qt::Key_Escape) {
 				playbackToggleFullScreen();
+			} else if (key == Qt::Key_0) {
+				activateControls();
+				restartAtSeekPosition(0);
+			} else if (key >= Qt::Key_1 && key <= Qt::Key_9) {
+				activateControls();
+				const auto index = int(key - Qt::Key_0);
+				restartAtProgress(index / 10.0);
+			} else if (key == Qt::Key_Left) {
+				activateControls();
+				seekRelativeTime(-kSeekTimeMs);
+			} else if (key == Qt::Key_Right) {
+				activateControls();
+				seekRelativeTime(kSeekTimeMs);
 			}
+
 			return;
 		}
 	}
