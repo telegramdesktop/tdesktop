@@ -1,3 +1,8 @@
+3.1.4 beta (27.09.21)
+
+- Fix crash in network availability init.
+- Fix assertion violation after a NaN-resulting std::round call.
+
 3.1.3 beta (27.09.21)
 
 - Fix illegal instruction crash in opus encoder.
