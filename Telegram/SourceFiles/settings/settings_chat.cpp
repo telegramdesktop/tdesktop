@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/chat/attach/attach_extensions.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/layers/generic_box.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/style/style_palette_colorizer.h"
@@ -556,61 +557,61 @@ void BackgroundRow::updateImage() {
 	const auto size = st::settingsBackgroundThumb;
 	const auto fullsize = size * cIntRetinaFactor();
 
-	// We use Format_RGB32 so that DestinationIn shows black, not transparent.
-	// Then we'll convert to Format_ARGB32_Premultiplied for round corners.
-	auto back = QImage(fullsize, fullsize, QImage::Format_RGB32);
-	back.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&back);
-		PainterHighQualityEnabler hq(p);
-
-		const auto background = Window::Theme::Background();
-		if (const auto color = background->colorForFill()) {
-			p.fillRect(0, 0, size, size, *color);
-		} else {
-			const auto gradient = background->gradientForFill();
-			const auto patternOpacity = background->paper().patternOpacity();
-			if (!gradient.isNull()) {
-				auto hq = PainterHighQualityEnabler(p);
-				p.drawImage(QRect(0, 0, size, size), gradient);
-				if (patternOpacity >= 0.) {
-					p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-					p.setOpacity(patternOpacity);
-				} else {
-					p.setCompositionMode(
-						QPainter::CompositionMode_DestinationIn);
-				}
+	const auto &background = *Window::Theme::Background();
+	const auto &paper = background.paper();
+	const auto &prepared = background.prepared();
+	const auto preparePattern = [&] {
+		const auto paintPattern = [&](QPainter &p, bool inverted) {
+			if (prepared.isNull()) {
+				return;
 			}
-			const auto &prepared = background->prepared();
-			if (!prepared.isNull()) {
-				const auto pattern = background->paper().isPattern();
-				const auto w = prepared.width();
-				const auto h = prepared.height();
-				const auto use = [&] {
-					if (!pattern) {
-						return std::min(w, h);
-					}
-					const auto scaledw = w * st::windowMinHeight / h;
-					const auto result = (w * size) / scaledw;
-					return std::min({ result, w, h });
-				}();
-				p.drawImage(
-					QRect(0, 0, size, size),
-					prepared,
-					QRect((w - use) / 2, (h - use) / 2, use, use));
+			const auto w = prepared.width();
+			const auto h = prepared.height();
+			const auto s = [&] {
+				const auto scaledw = w * st::windowMinHeight / h;
+				const auto result = (w * size) / scaledw;
+				return std::min({ result, w, h });
+			}();
+			auto small = prepared.copy((w - s) / 2, (h - s) / 2, s, s);
+			if (inverted) {
+				small = Ui::InvertPatternImage(std::move(small));
 			}
-			if (!gradient.isNull()
-				&& !prepared.isNull()
-				&& patternOpacity < 0.
-				&& patternOpacity > -1.) {
-				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-				p.setOpacity(1. + patternOpacity);
-				p.fillRect(QRect(0, 0, size, size), Qt::black);
-			}
+			p.drawImage(QRect(0, 0, size, size), small);
+		};
+		return Ui::GenerateBackgroundImage(
+			{ fullsize, fullsize },
+			paper.backgroundColors(),
+			paper.gradientRotation(),
+			paper.patternOpacity(),
+			paintPattern);
+	};
+	const auto prepareNormal = [&] {
+		auto result = QImage(
+			QSize{ fullsize, fullsize },
+			QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (const auto color = background.colorForFill()) {
+			result.fill(*color);
+			return result;
+		} else if (prepared.isNull()) {
+			result.fill(Qt::transparent);
+			return result;
 		}
-	}
-	back = std::move(back).convertToFormat(
-		QImage::Format_ARGB32_Premultiplied);
+		Painter p(&result);
+		PainterHighQualityEnabler hq(p);
+		const auto w = prepared.width();
+		const auto h = prepared.height();
+		const auto s = std::min(w, h);
+		p.drawImage(
+			QRect(0, 0, size, size),
+			prepared,
+			QRect((w - s) / 2, (h - s) / 2, s, s));
+		p.end();
+		return result;
+	};
+	auto back = (paper.isPattern() || !background.gradientForFill().isNull())
+		? preparePattern()
+		: prepareNormal();
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = Ui::PixmapFromImage(std::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
