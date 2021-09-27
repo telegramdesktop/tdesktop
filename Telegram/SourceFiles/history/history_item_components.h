@@ -77,6 +77,15 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	Ui::Text::String text;
 };
 
+struct HistoryMessageSponsored : public RuntimeComponent<
+		HistoryMessageSponsored,
+		HistoryItem> {
+	HistoryMessageSponsored();
+	int maxWidth() const;
+
+	Ui::Text::String text;
+};
+
 struct HiddenSenderInfo {
 	HiddenSenderInfo(const QString &name, bool external);
 

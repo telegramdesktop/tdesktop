@@ -1731,6 +1731,8 @@ void Message::drawInfo(
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
 		; msgsigned && !msgsigned->isAnonymousRank) {
 		msgsigned->signature.drawElided(p, dateX, dateY, item->_timeWidth);
+	} else if (const auto sponsored = displayedSponsorBadge()) {
+		sponsored->text.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else if (const auto edited = displayedEditBadge()) {
 		edited->text.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else {
@@ -2639,11 +2641,13 @@ void Message::refreshEditedBadge() {
 	initTime();
 }
 
-void Message::initTime() {
+void Message::initTime() const {
 	const auto item = message();
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
 		; msgsigned && !msgsigned->isAnonymousRank) {
 		item->_timeWidth = msgsigned->maxWidth();
+	} else if (const auto sponsored = displayedSponsorBadge()) {
+		item->_timeWidth = sponsored->maxWidth();
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
@@ -2678,6 +2682,16 @@ TimeId Message::displayedEditDate() const {
 		return edited->date;
 	}
 	return TimeId(0);
+}
+
+const HistoryMessageSponsored *Message::displayedSponsorBadge() const {
+	// Ignore media while sponsored messages are text only.
+	// if (const auto media = this->media()) {
+	// 	if (media->overrideEditedDate()) {
+	// 		return media->displayedEditBadge();
+	// 	}
+	// }
+	return message()->Get<HistoryMessageSponsored>();
 }
 
 HistoryMessageEdited *Message::displayedEditBadge() {
