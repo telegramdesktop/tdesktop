@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/wrap/vertical_layout.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_layers.h" // boxTitle.
 #include "styles/style_settings.h"
+#include "styles/style_window.h"
 
 namespace Ui {
 namespace {
@@ -33,11 +35,86 @@ namespace {
 constexpr auto kDisableElement = "disable"_cs;
 
 [[nodiscard]] QImage GeneratePreview(not_null<Ui::ChatTheme*> theme) {
-	const auto &colors = theme->background().colors;
-	auto result = Images::GenerateGradient(
-		st::settingsThemePreviewSize * style::DevicePixelRatio(),
-		colors.empty() ? std::vector{ 1, QColor(0, 0, 0) } : colors
-	).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	const auto &background = theme->background();
+	const auto &colors = background.colors;
+	const auto size = st::settingsThemePreviewSize;
+	auto prepared = background.prepared;
+	const auto paintPattern = [&](QPainter &p, bool inverted) {
+		if (prepared.isNull()) {
+			return;
+		}
+		const auto w = prepared.width();
+		const auto h = prepared.height();
+		const auto scaled = size.scaled(
+			st::windowMinWidth / 2,
+			st::windowMinHeight / 2,
+			Qt::KeepAspectRatio);
+		const auto use = (scaled.width() > w || scaled.height() > h)
+			? scaled.scaled({ w, h }, Qt::KeepAspectRatio)
+			: scaled;
+		const auto good = QSize(
+			std::max(use.width(), 1),
+			std::max(use.height(), 1));
+		auto small = prepared.copy(QRect(
+			QPoint(
+				(w - good.width()) / 2,
+				(h - good.height()) / 2),
+			good));
+		if (inverted) {
+			small = Ui::InvertPatternImage(std::move(small));
+		}
+		p.drawImage(
+			QRect(QPoint(), size * style::DevicePixelRatio()),
+			small);
+	};
+	const auto fullsize = size * style::DevicePixelRatio();
+	auto result = background.waitingForNegativePattern()
+		? QImage(
+			fullsize,
+			QImage::Format_ARGB32_Premultiplied)
+		: Ui::GenerateBackgroundImage(
+			fullsize,
+			colors.empty() ? std::vector{ 1, QColor(0, 0, 0) } : colors,
+			background.gradientRotation,
+			background.patternOpacity,
+			paintPattern);
+	if (background.waitingForNegativePattern()) {
+		result.fill(Qt::black);
+	}
+	{
+		auto p = QPainter(&result);
+		const auto sent = QRect(
+			QPoint(
+				(size.width()
+					- st::settingsThemeBubbleSize.width()
+					- st::settingsThemeBubblePosition.x()),
+				st::settingsThemeBubblePosition.y()),
+			st::settingsThemeBubbleSize);
+		const auto received = QRect(
+			st::settingsThemeBubblePosition.x(),
+			sent.y() + sent.height() + st::settingsThemeBubbleSkip,
+			sent.width(),
+			sent.height());
+		const auto radius = st::settingsThemeBubbleRadius;
+
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		if (const auto pattern = theme->bubblesBackgroundPattern()) {
+			auto bubble = pattern->pixmap.toImage().scaled(
+				sent.size() * style::DevicePixelRatio(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation
+			).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			const auto corners = Images::CornersMask(radius);
+			Images::prepareRound(bubble, corners);
+			p.drawImage(sent, bubble);
+		} else {
+			p.setBrush(theme->palette()->msgOutBg()->c);
+			p.drawRoundedRect(sent, radius, radius);
+		}
+		p.setBrush(theme->palette()->msgInBg()->c);
+		p.drawRoundedRect(received, radius, radius);
+	}
 	Images::prepareRound(result, ImageRoundRadius::Large);
 	return result;
 }
@@ -220,30 +297,6 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 	const auto geometry = entry.geometry;
 	p.drawImage(geometry, entry.preview);
 
-	if (entry.theme) {
-		const auto received = QRect(
-			st::settingsThemeBubblePosition,
-			st::settingsThemeBubbleSize);
-		const auto sent = QRect(
-			(geometry.width()
-				- received.width()
-				- st::settingsThemeBubblePosition.x()),
-			received.y() + received.height() + st::settingsThemeBubbleSkip,
-			received.width(),
-			received.height());
-		const auto radius = st::settingsThemeBubbleRadius;
-
-		const auto sentBg = entry.theme->palette()->msgOutBg()->c;
-		const auto receivedBg = entry.theme->palette()->msgInBg()->c;
-
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-
-		p.setBrush(receivedBg);
-		p.drawRoundedRect(received.translated(geometry.topLeft()), radius, radius);
-		p.setBrush(sentBg);
-		p.drawRoundedRect(sent.translated(geometry.topLeft()), radius, radius);
-	}
 	const auto size = Ui::Emoji::GetSizeLarge();
 	const auto factor = style::DevicePixelRatio();
 	const auto skip = st::normalFont->spacew * 2;
@@ -376,14 +429,41 @@ void ChooseThemeController::fill(
 			) | rpl::start_with_next([=](std::shared_ptr<ChatTheme> &&data) {
 				const auto id = data->key();
 				const auto i = ranges::find(_entries, id, &Entry::id);
-				if (i != end(_entries)) {
-					i->theme = std::move(data);
-					i->preview = GeneratePreview(i->theme.get());
-					if (_chosen == i->emoji->text()) {
-						_controller->overridePeerTheme(_peer, i->theme);
-					}
-					_inner->update();
+				if (i == end(_entries)) {
+					return;
 				}
+				const auto theme = data.get();
+				i->theme = std::move(data);
+				i->preview = GeneratePreview(theme);
+				if (_chosen == i->emoji->text()) {
+					_controller->overridePeerTheme(_peer, i->theme);
+				}
+				_inner->update();
+
+				if (!theme->background().isPattern
+					|| !theme->background().prepared.isNull()) {
+					return;
+				}
+				// Subscribe to pattern loading if needed.
+				theme->repaintBackgroundRequests(
+				) | rpl::filter([=] {
+					const auto i = ranges::find(
+						_entries,
+						id,
+						&Entry::id);
+					return (i == end(_entries))
+						|| !i->theme->background().prepared.isNull();
+				}) | rpl::take(1) | rpl::start_with_next([=] {
+					const auto i = ranges::find(
+						_entries,
+						id,
+						&Entry::id);
+					if (i == end(_entries)) {
+						return;
+					}
+					i->preview = GeneratePreview(theme);
+					_inner->update();
+				}, _cachingLifetime);
 			}, _cachingLifetime);
 			_entries.back().preview;
 			x += single.width() + skip;

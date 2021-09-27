@@ -32,6 +32,10 @@ struct ChatThemeBackground {
 	int gradientRotation = 0;
 	bool isPattern = false;
 	bool tile = false;
+
+	[[nodiscard]] bool waitingForNegativePattern() const {
+		return isPattern && prepared.isNull() && (patternOpacity < 0.);
+	}
 };
 
 bool operator==(const ChatThemeBackground &a, const ChatThemeBackground &b);
