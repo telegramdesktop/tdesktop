@@ -694,8 +694,9 @@ InMemoryKey inMemoryKey(const WebFileLocation &location) {
 
 InMemoryKey inMemoryKey(const GeoPointLocation &location) {
 	return InMemoryKey(
-		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
-		| uint64(std::round(std::abs(location.lon + 360.) * 1000000)),
+		(uint64(base::SafeRound(
+			std::abs(location.lat + 360.) * 1000000)) << 32)
+		| uint64(base::SafeRound(std::abs(location.lon + 360.) * 1000000)),
 		(uint64(location.width) << 32) | uint64(location.height));
 }
 

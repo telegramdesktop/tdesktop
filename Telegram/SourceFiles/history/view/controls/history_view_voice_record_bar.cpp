@@ -130,7 +130,7 @@ void PaintWaveform(
 	const auto samplesCount = wf
 		? wf->size()
 		: ::Media::Player::kWaveformSamplesCount;
-	const auto activeWidth = std::round(availableWidth * progress);
+	const auto activeWidth = base::SafeRound(availableWidth * progress);
 
 	const auto &barWidth = st::historyRecordWaveformBar;
 	const auto barFullWidth = barWidth + st::msgWaveformSkip;
@@ -774,7 +774,7 @@ void RecordLock::drawProgress(Painter &p) {
 			_lockToStopProgress);
 		const auto blockRectTop = anim::interpolateF(
 			size.height() - blockHeight,
-			std::round((size.height() - blockRectHeight) / 2.),
+			base::SafeRound((size.height() - blockRectHeight) / 2.),
 			_lockToStopProgress);
 
 		const auto blockRect = QRectF(

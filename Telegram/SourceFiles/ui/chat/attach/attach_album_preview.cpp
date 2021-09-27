@@ -263,7 +263,7 @@ void AlbumPreview::updateSize() {
 		} else if (!_sendWay.groupFiles()) {
 			return _photosHeight;
 		} else {
-			return int(std::round(_thumbsHeightAnimation.value(
+			return int(base::SafeRound(_thumbsHeightAnimation.value(
 				_thumbsHeight)));
 		}
 	}();

@@ -485,9 +485,9 @@ void Pip::RendererGL::paintRadialLoading(
 		const auto fadeAlpha = controlsShown * fade.alphaF();
 		const auto fgAlpha = 1. - fadeAlpha;
 		const auto color = (fadeAlpha == 0.) ? fg : QColor(
-			int(std::round(fg.red() * fgAlpha + fade.red() * fadeAlpha)),
-			int(std::round(fg.green() * fgAlpha + fade.green() * fadeAlpha)),
-			int(std::round(fg.blue() * fgAlpha + fade.blue() * fadeAlpha)),
+			int(base::SafeRound(fg.red() * fgAlpha + fade.red() * fadeAlpha)),
+			int(base::SafeRound(fg.green() * fgAlpha + fade.green() * fadeAlpha)),
+			int(base::SafeRound(fg.blue() * fgAlpha + fade.blue() * fadeAlpha)),
 			fg.alpha());
 
 		_owner->paintRadialLoadingContent(p, newInner, color);

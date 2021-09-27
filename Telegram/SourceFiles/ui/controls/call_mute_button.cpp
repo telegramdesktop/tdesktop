@@ -1002,7 +1002,7 @@ void CallMuteButton::shake() {
 			? -1.
 			: 0.;
 		const auto shift = from * (1. - part) + to * part;
-		_labelShakeShift = int(std::round(shift * st::shakeShift));
+		_labelShakeShift = int(base::SafeRound(shift * st::shakeShift));
 		updateLabelsGeometry();
 	};
 	_shakeAnimation.start(

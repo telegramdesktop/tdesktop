@@ -452,8 +452,12 @@ void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
 			for (auto i = 0; i != count; ++i) {
 				const auto button = buttons[rowStart + i].widget;
 				auto right = x + buttonWidths[i];
-				button->setFullWidth(int(std::round(right) - std::round(x)));
-				button->moveToLeft(int(std::round(x)), height, outerWidth);
+				button->setFullWidth(
+					int(base::SafeRound(right) - base::SafeRound(x)));
+				button->moveToLeft(
+					int(base::SafeRound(x)),
+					height,
+					outerWidth);
 				x = right + skip;
 			}
 			height += buttons[0].widget->height() + skip;

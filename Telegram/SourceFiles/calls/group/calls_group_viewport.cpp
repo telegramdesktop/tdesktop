@@ -461,15 +461,15 @@ Viewport::Layout Viewport::countWide(int outerWidth, int outerHeight) const {
 		const auto columns = slices;
 		const auto sizew = (outerWidth + skip) / float64(columns);
 		for (auto column = 0; column != columns; ++column) {
-			const auto left = int(std::round(column * sizew));
-			const auto width = int(std::round(column * sizew + sizew - skip))
-				- left;
-			const auto rows = int(std::round((count - index)
+			const auto left = int(base::SafeRound(column * sizew));
+			const auto width = int(
+				base::SafeRound(column * sizew + sizew - skip)) - left;
+			const auto rows = int(base::SafeRound((count - index)
 				/ float64(columns - column)));
 			const auto sizeh = (outerHeight + skip) / float64(rows);
 			for (auto row = 0; row != rows; ++row) {
-				const auto top = int(std::round(row * sizeh));
-				const auto height = int(std::round(
+				const auto top = int(base::SafeRound(row * sizeh));
+				const auto height = int(base::SafeRound(
 					row * sizeh + sizeh - skip)) - top;
 				auto &geometry = sizes[index];
 				geometry.columns = {
@@ -493,15 +493,15 @@ Viewport::Layout Viewport::countWide(int outerWidth, int outerHeight) const {
 		const auto rows = slices;
 		const auto sizeh = (outerHeight + skip) / float64(rows);
 		for (auto row = 0; row != rows; ++row) {
-			const auto top = int(std::round(row * sizeh));
-			const auto height = int(std::round(row * sizeh + sizeh - skip))
-				- top;
-			const auto columns = int(std::round((count - index)
+			const auto top = int(base::SafeRound(row * sizeh));
+			const auto height = int(
+				base::SafeRound(row * sizeh + sizeh - skip)) - top;
+			const auto columns = int(base::SafeRound((count - index)
 				/ float64(rows - row)));
 			const auto sizew = (outerWidth + skip) / float64(columns);
 			for (auto column = 0; column != columns; ++column) {
-				const auto left = int(std::round(column * sizew));
-				const auto width = int(std::round(
+				const auto left = int(base::SafeRound(column * sizew));
+				const auto width = int(base::SafeRound(
 					column * sizew + sizew - skip)) - left;
 				auto &geometry = sizes[index];
 				geometry.rows = {

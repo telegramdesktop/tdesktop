@@ -329,7 +329,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 			const auto dividerValue = horizontal
 				? divider.atValue
 				: (1. - divider.atValue);
-			const auto dividerMid = std::round(from
+			const auto dividerMid = base::SafeRound(from
 				+ dividerValue * length);
 			const auto &size = divider.size;
 			const auto rect = horizontal

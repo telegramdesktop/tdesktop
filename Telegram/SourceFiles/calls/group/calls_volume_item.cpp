@@ -92,7 +92,7 @@ MenuVolumeItem::MenuVolumeItem(
 
 		const auto volume = _localMuted
 			? 0
-			: std::round(_slider->value() * kMaxVolumePercent);
+			: base::SafeRound(_slider->value() * kMaxVolumePercent);
 		const auto muteProgress =
 			_crossLineAnimation.value((!volume) ? 1. : 0.);
 
@@ -140,7 +140,7 @@ MenuVolumeItem::MenuVolumeItem(
 	};
 
 	_slider->setChangeFinishedCallback([=](float64 value) {
-		const auto newVolume = std::round(value * _maxVolume);
+		const auto newVolume = base::SafeRound(value * _maxVolume);
 		const auto muted = (value == 0);
 
 		if (!_cloudMuted && muted) {
@@ -175,7 +175,7 @@ MenuVolumeItem::MenuVolumeItem(
 		}
 		if (_waitingForUpdateVolume) {
 			const auto localVolume =
-				std::round(_slider->value() * _maxVolume);
+				base::SafeRound(_slider->value() * _maxVolume);
 			if ((localVolume != newVolume)
 				&& (_cloudVolume == newVolume)) {
 				_changeVolumeRequests.fire(int(localVolume));

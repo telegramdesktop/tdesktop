@@ -242,7 +242,7 @@ vec4 background() {
 		QSize outer,
 		float factor) {
 	factor *= kBlurTextureSizeFactor;
-	const auto area = outer / int(std::round(factor * cScale() / 100));
+	const auto area = outer / int(base::SafeRound(factor * cScale() / 100));
 	const auto scaled = unscaled.scaled(area, Qt::KeepAspectRatio);
 	return (scaled.width() > unscaled.width()
 		|| scaled.height() > unscaled.height())

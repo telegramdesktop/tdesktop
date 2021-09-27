@@ -617,7 +617,7 @@ public:
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
-		return int(std::round(std::clamp(speed, 0.5, 2.0) * 100));
+		return int(base::SafeRound(std::clamp(speed, 0.5, 2.0) * 100));
 	}
 	[[nodiscard]] static float64 DeserializePlaybackSpeed(qint32 speed) {
 		if (speed < 10) {

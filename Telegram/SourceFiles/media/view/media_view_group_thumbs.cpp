@@ -32,7 +32,7 @@ namespace {
 constexpr auto kThumbDuration = crl::time(150);
 
 int Round(float64 value) {
-	return int(std::round(value));
+	return int(base::SafeRound(value));
 }
 
 using Context = GroupThumbs::Context;

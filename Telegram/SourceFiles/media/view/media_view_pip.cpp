@@ -1396,7 +1396,7 @@ void Pip::paintProgressBar(
 		float64 progress,
 		int radius,
 		float64 active) const {
-	const auto done = int(std::round(rect.width() * progress));
+	const auto done = int(base::SafeRound(rect.width() * progress));
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	if (done > 0) {

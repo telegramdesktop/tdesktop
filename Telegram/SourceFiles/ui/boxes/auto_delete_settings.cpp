@@ -128,7 +128,7 @@ object_ptr<Ui::RpWidget> CreateSliderForTTL(
 				// Try to fill the line with exact number of dash segments.
 				// UPD Doesn't work so well because it changes when clicking.
 				//const auto length = till - from;
-				//const auto offSegmentsCount = int(std::round(
+				//const auto offSegmentsCount = int(base::SafeRound(
 				//	(length - st->dashOn) / (st->dashOn + st->dashOff)));
 				//const auto onSegmentsCount = offSegmentsCount + 1;
 				//const auto idealLength = offSegmentsCount * st->dashOff

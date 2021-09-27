@@ -477,7 +477,8 @@ void ListWidget::scrollToAnimationCallback(
 		int relativeTo) {
 	if (!attachToId) {
 		// Animated scroll to bottom.
-		const auto current = int(std::round(_scrollToAnimation.value(0)));
+		const auto current = int(base::SafeRound(
+			_scrollToAnimation.value(0)));
 		_delegate->listScrollTo(height()
 			- (_visibleBottom - _visibleTop)
 			+ current);
@@ -488,7 +489,7 @@ void ListWidget::scrollToAnimationCallback(
 	if (!attachToView) {
 		_scrollToAnimation.stop();
 	} else {
-		const auto current = int(std::round(_scrollToAnimation.value(
+		const auto current = int(base::SafeRound(_scrollToAnimation.value(
 			relativeTo)));
 		_delegate->listScrollTo(itemTop(attachToView) + current);
 	}

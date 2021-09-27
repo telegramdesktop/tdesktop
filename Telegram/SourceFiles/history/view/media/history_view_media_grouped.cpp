@@ -182,7 +182,7 @@ QSize GroupedMedia::countCurrentSize(int newWidth) {
 		const auto initialSpacing = st::historyGroupSkip;
 		const auto factor = newWidth / float64(maxWidth());
 		const auto scale = [&](int value) {
-			return int(std::round(value * factor));
+			return int(base::SafeRound(value * factor));
 		};
 		const auto spacing = scale(initialSpacing);
 		for (auto &part : _parts) {

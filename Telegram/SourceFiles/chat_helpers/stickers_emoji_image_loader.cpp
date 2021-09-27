@@ -68,7 +68,7 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 			{ -1, 1 },
 			{ 1, 1 },
 		} };
-		const auto corrected = int(std::round(delta / sqrt(2.)));
+		const auto corrected = int(base::SafeRound(delta / sqrt(2.)));
 		for (const auto &shift : diagonal) {
 			for (auto i = 0; i != corrected; ++i) {
 				p.drawImage(QPoint(delta, delta) + shift * (i + 1), tinted);

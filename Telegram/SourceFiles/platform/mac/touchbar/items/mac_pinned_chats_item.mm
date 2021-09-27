@@ -240,7 +240,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			: indexOf(peer);
 		const auto &entry = _pins[index];
 		entry->shift = entry->deltaShift
-			+ std::round(entry->shiftAnimation.value(entry->finalShift));
+			+ base::SafeRound(
+				entry->shiftAnimation.value(entry->finalShift));
 		if (entry->deltaShift && !entry->shiftAnimation.animating()) {
 			entry->finalShift += entry->deltaShift;
 			entry->deltaShift = 0;

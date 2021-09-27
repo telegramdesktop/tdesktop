@@ -544,7 +544,9 @@ MTPVector<MTPJSONObjectValue> SessionPrivate::prepareInitParams() {
 		sliced -= 24 * 3600;
 	}
 	const auto sign = (sliced < 0) ? -1 : 1;
-	const auto rounded = std::round(std::abs(sliced) / 900.) * 900 * sign;
+	const auto rounded = base::SafeRound(std::abs(sliced) / 900.)
+		* 900
+		* sign;
 	return MTP_vector<MTPJSONObjectValue>(
 		1,
 		MTP_jsonObjectValue(

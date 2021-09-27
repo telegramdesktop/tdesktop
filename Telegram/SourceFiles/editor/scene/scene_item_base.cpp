@@ -150,7 +150,7 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		const auto angle = Normalized((isLeft ? 180 : 0)
 			+ (std::atan2(diff.y(), diff.x()) * 180 / M_PI));
 		setRotation(shift
-			? (std::round(angle / kSnapAngle) * kSnapAngle) // Snap rotation.
+			? (base::SafeRound(angle / kSnapAngle) * kSnapAngle)
 			: angle);
 	} else {
 		QGraphicsItem::mouseMoveEvent(event);

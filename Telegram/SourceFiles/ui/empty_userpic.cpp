@@ -44,11 +44,11 @@ void PaintSavedMessagesInner(
 	// X XX          XX X   |      |
 	// XX              XX  ---    ---
 
-	const auto thinkness = std::round(size * 0.055);
+	const auto thinkness = base::SafeRound(size * 0.055);
 	const auto increment = int(thinkness) % 2 + (size % 2);
-	const auto width = std::round(size * 0.15) * 2 + increment;
-	const auto height = std::round(size * 0.19) * 2 + increment;
-	const auto add = std::round(size * 0.064);
+	const auto width = base::SafeRound(size * 0.15) * 2 + increment;
+	const auto height = base::SafeRound(size * 0.19) * 2 + increment;
+	const auto add = base::SafeRound(size * 0.064);
 
 	const auto left = x + (size - width) / 2;
 	const auto top = y + (size - height) / 2;

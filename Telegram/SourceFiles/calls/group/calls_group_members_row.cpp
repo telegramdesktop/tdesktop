@@ -57,7 +57,7 @@ auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 }
 
 [[nodiscard]] QString StatusPercentString(float volume) {
-	return QString::number(int(std::round(volume * 200))) + '%';
+	return QString::number(int(base::SafeRound(volume * 200))) + '%';
 }
 
 [[nodiscard]] int StatusPercentWidth(const QString &percent) {
@@ -492,7 +492,7 @@ int MembersRow::statusIconWidth(bool skipIcon) const {
 	const auto full = iconWidth
 		+ _statusIcon->percentWidth
 		+ st::normalFont->spacew;
-	return int(std::round(shown * full));
+	return int(base::SafeRound(shown * full));
 }
 
 int MembersRow::statusIconHeight() const {

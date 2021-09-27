@@ -63,7 +63,7 @@ rpl::producer<bool> GroupCallScheduledLeft::late() const {
 void GroupCallScheduledLeft::update() {
 	const auto now = crl::now();
 	const auto duration = (_datePrecise - now);
-	const auto left = crl::time(std::round(std::abs(duration) / 1000.));
+	const auto left = crl::time(base::SafeRound(std::abs(duration) / 1000.));
 	const auto late = (duration < 0) && (left > 0);
 	_late = late;
 	constexpr auto kDay = 24 * 60 * 60;

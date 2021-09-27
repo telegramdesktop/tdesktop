@@ -85,7 +85,7 @@ QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
 		return tr::lng_emoji_set_loading(
 			tr::now,
 			lt_percent,
-			QString::number(int(std::round(percent))) + '%',
+			QString::number(int(base::SafeRound(percent))) + '%',
 			lt_progress,
 			Ui::FormatDownloadText(data.already, data.size));
 	}, [](const Failed &data) {

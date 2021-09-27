@@ -270,7 +270,7 @@ void AlbumThumbnail::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
 	const auto scaleWidth = to.width() / float64(width);
 	const auto scaleHeight = to.height() / float64(height);
 	const auto Round = [](float64 value) {
-		return int(std::round(value));
+		return int(base::SafeRound(value));
 	};
 	const auto [from, fillBlack] = [&] {
 		if (previewWidth < width && previewHeight < height) {
@@ -474,7 +474,7 @@ void AlbumThumbnail::suggestMove(float64 delta, Fn<void()> callback) {
 }
 
 QRect AlbumThumbnail::countRealGeometry() const {
-	const auto addLeft = int(std::round(
+	const auto addLeft = int(base::SafeRound(
 		_suggestedMoveAnimation.value(_suggestedMove) * _lastShrinkValue));
 	const auto current = _layout.geometry;
 	const auto realTopLeft = current.topLeft()

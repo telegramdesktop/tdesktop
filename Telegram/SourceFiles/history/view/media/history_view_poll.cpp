@@ -963,7 +963,7 @@ void Poll::paintCloseByTimer(
 		const auto part = std::max(
 			left / float64(radial),
 			1. / FullArcLength);
-		const auto length = int(std::round(FullArcLength * part));
+		const auto length = int(base::SafeRound(FullArcLength * part));
 		auto pen = regular->p;
 		pen.setWidth(st::historyPollRadio.thickness);
 		pen.setCapStyle(Qt::RoundCap);
@@ -1050,7 +1050,7 @@ int Poll::paintAnswer(
 		}
 		if (opacity > 0.) {
 			const auto percent = QString::number(
-				int(std::round(animation->percent.current()))) + '%';
+				int(base::SafeRound(animation->percent.current()))) + '%';
 			const auto percentWidth = st::historyPollPercentFont->width(
 				percent);
 			p.setOpacity(opacity);

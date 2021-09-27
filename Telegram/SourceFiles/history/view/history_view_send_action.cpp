@@ -308,7 +308,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 							// We have to use QFontMetricsF instead of
 							// FontData::spacew for more precise calculation.
 							const auto mf = QFontMetricsF(_st.font->f);
-							_spacesCount = std::round(
+							_spacesCount = base::SafeRound(
 								_sendActionAnimation.widthNoMargins()
 									/ mf.horizontalAdvance(' '));
 						}

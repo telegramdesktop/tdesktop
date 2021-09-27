@@ -441,7 +441,7 @@ void OverlayWidget::RendererGL::paintControl(
 	Assert(meta.icon == &icon);
 
 	const auto &bg = st::mediaviewControlBg->c;
-	const auto bgAlpha = int(std::round(bg.alpha() * outerOpacity));
+	const auto bgAlpha = int(base::SafeRound(bg.alpha() * outerOpacity));
 	const auto offset = kControlsOffset + (meta.index * kControlValues) / 4;
 	const auto fgOffset = offset + 2;
 	const auto bgRect = transformRect(outer);

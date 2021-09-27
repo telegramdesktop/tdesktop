@@ -80,8 +80,9 @@ Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location) {
 		| (uint32(location.height) & 0xFFFFU);
 	return Storage::Cache::Key{
 		Data::kGeoPointCacheTag | (uint64(zoomscale) << 32) | widthheight,
-		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
-		| uint64(std::round(std::abs(location.lon + 360.) * 1000000))
+		(uint64(base::SafeRound(
+			std::abs(location.lat + 360.) * 1000000)) << 32)
+		| uint64(base::SafeRound(std::abs(location.lon + 360.) * 1000000))
 	};
 }
 

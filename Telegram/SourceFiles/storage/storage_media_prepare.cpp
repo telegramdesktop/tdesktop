@@ -329,6 +329,10 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 		: image->data;
 	Assert(!preview.isNull());
 	file.shownDimensions = PrepareShownDimensions(preview);
+	const auto scaledWidth = style::ConvertScale(preview.width());
+	constexpr auto kIntMin = std::numeric_limits<int>::min();
+	static_assert(kIntMin == -2147483648);
+	scaledWidth;
 	const auto toWidth = std::min(
 		previewWidth,
 		style::ConvertScale(preview.width())

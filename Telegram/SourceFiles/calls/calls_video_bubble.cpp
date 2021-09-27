@@ -209,7 +209,7 @@ void VideoBubble::updateSizeToFrame(QSize frame) {
 		size = frame.scaled((_min + _max) / 2, Qt::KeepAspectRatio);
 	} else {
 		const auto area = size.width() * size.height();
-		const auto w = int(std::round(std::max(
+		const auto w = int(base::SafeRound(std::max(
 			std::sqrt((frame.width() * float64(area)) / (frame.height() * 1.)),
 			1.)));
 		const auto h = area / w;

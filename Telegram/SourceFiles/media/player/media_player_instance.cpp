@@ -654,7 +654,7 @@ void Instance::finishSeeking(AudioMsgId::Type type, float64 progress) {
 			const auto &info = streamed->instance.info();
 			const auto duration = info.audio.state.duration;
 			if (duration != kTimeUnknown) {
-				const auto position = crl::time(std::round(
+				const auto position = crl::time(base::SafeRound(
 					std::clamp(progress, 0., 1.) * duration));
 				streamed->instance.play(streamingOptions(
 					streamed->id,

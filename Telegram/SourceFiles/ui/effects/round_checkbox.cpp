@@ -176,7 +176,7 @@ QPixmap CheckCaches::frame(
 	auto &frames = framesForStyle(st, displayInactive);
 
 	const auto frameCount = int(frames.list.size());
-	const auto frameIndex = int(std::round(progress * (frameCount - 1)));
+	const auto frameIndex = int(base::SafeRound(progress * (frameCount - 1)));
 	Assert(frameIndex >= 0 && frameIndex < frameCount);
 
 	if (!frames.list[frameIndex]) {

@@ -362,7 +362,7 @@ void ColorsPalette::updateInnerGeometry() {
 	const auto y = st::settingsSectionSkip * 2;
 	auto x = float64(padding.left());
 	for (const auto &button : _buttons) {
-		button->moveToLeft(int(std::round(x)), y);
+		button->moveToLeft(int(base::SafeRound(x)), y);
 		x += size + skip;
 	}
 	inner->resize(inner->width(), y + size);
@@ -1159,7 +1159,7 @@ void SetupDefaultThemes(
 		auto left = padding.left() + 0.;
 		for (const auto button : buttons) {
 			button->resizeToWidth(single);
-			button->moveToLeft(int(std::round(left)), 0);
+			button->moveToLeft(int(base::SafeRound(left)), 0);
 			left += button->width() + skip;
 		}
 	}, block->lifetime());

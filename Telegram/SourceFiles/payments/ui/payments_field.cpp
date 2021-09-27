@@ -229,7 +229,7 @@ struct SimpleFieldState {
 			QString()
 		).toDouble();
 		return QString::number(
-			int64(std::round(real * std::pow(10., rule.exponent))));
+			int64(base::SafeRound(real * std::pow(10., rule.exponent))));
 	} else if (config.type == FieldType::CardNumber
 		|| config.type == FieldType::CardCVC) {
 		return QString(parsed).replace(

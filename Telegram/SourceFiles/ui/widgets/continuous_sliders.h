@@ -167,14 +167,14 @@ public:
 			}
 		}
 		setAdjustCallback([=](float64 value) {
-			return std::round(value * sectionsCount) / sectionsCount;
+			return base::SafeRound(value * sectionsCount) / sectionsCount;
 		});
 		setChangeProgressCallback([
 			=,
 			convert = std::forward<Convert>(convert),
 			callback = std::forward<Callback>(callback)
 		](float64 value) {
-			const auto index = int(std::round(value * sectionsCount));
+			const auto index = int(base::SafeRound(value * sectionsCount));
 			callback(convert(index));
 		});
 	}

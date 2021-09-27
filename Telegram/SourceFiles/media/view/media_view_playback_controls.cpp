@@ -102,7 +102,7 @@ MenuSpeedItem::MenuSpeedItem(
 	enableMouseSelecting(_slider.get());
 
 	_slider->setAlwaysDisplayMarker(true);
-	_slider->setValue((std::round(startSpeed * 100.) - kMinSpeed)
+	_slider->setValue((base::SafeRound(startSpeed * 100.) - kMinSpeed)
 		/ (kMaxSpeed - kMinSpeed));
 
 	for (const auto &sticked : kSpeedStickedValues) {
@@ -438,7 +438,7 @@ void PlaybackControls::setLoadingProgress(int ready, int total) {
 			_loadingPercent = -1;
 		}
 		const auto progress = total ? (ready / float64(total)) : 0.;
-		const auto percent = int(std::round(progress * 100));
+		const auto percent = int(base::SafeRound(progress * 100));
 		if (_loadingPercent != percent) {
 			_loadingPercent = percent;
 			_downloadProgress->setText(QString::number(percent) + '%');

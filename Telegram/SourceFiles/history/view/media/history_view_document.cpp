@@ -91,7 +91,7 @@ void PaintWaveform(
 	const auto wfSize = wf
 		? wf->size()
 		: ::Media::Player::kWaveformSamplesCount;
-	const auto activeWidth = std::round(availableWidth * progress);
+	const auto activeWidth = base::SafeRound(availableWidth * progress);
 
 	const auto &barWidth = st::msgWaveformBar;
 	const auto barCount = std::min(
@@ -526,7 +526,7 @@ void Document::draw(
 		}();
 		if (voice->seeking()) {
 			voiceStatusOverride = Ui::FormatPlayedText(
-				std::round(progress * voice->_lastDurationMs) / 1000,
+				base::SafeRound(progress * voice->_lastDurationMs) / 1000,
 				voice->_lastDurationMs / 1000);
 		}
 

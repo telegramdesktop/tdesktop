@@ -723,7 +723,7 @@ int CloudList::resizeGetHeight(int newWidth) {
 	for (const auto &element : _elements) {
 		const auto button = element.button.get();
 		button->resizeToWidth(single);
-		button->moveToLeft(int(std::round(x)), y);
+		button->moveToLeft(int(base::SafeRound(x)), y);
 		accumulate_max(rowHeight, button->height());
 		x += single + skip;
 		if (++index == kShowPerRow) {

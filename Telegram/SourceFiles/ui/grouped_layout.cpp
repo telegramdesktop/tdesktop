@@ -11,7 +11,7 @@ namespace Ui {
 namespace {
 
 int Round(float64 value) {
-	return int(std::round(value));
+	return int(base::SafeRound(value));
 }
 
 class Layouter {

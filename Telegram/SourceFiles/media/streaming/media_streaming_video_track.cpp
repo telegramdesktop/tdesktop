@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/concurrent_timer.h"
 #include "core/crash_reports.h"
 
-#include <cfenv>
-
 namespace Media {
 namespace Streaming {
 namespace {
@@ -69,31 +67,6 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 		dstLinesize);
 
 	return result;
-}
-
-[[nodiscard]] float64 SafeRound(float64 value) {
-	Expects(!std::isnan(value));
-
-	if (const auto result = std::round(value); !std::isnan(result)) {
-		return result;
-	}
-	const auto errors = std::fetestexcept(FE_ALL_EXCEPT);
-	if (const auto result = std::round(value); !std::isnan(result)) {
-		return result;
-	}
-	LOG(("Streaming Error: Got second NAN in std::round(%1), fe: %2."
-		).arg(value
-		).arg(errors));
-	std::feclearexcept(FE_ALL_EXCEPT);
-	if (const auto result = std::round(value); !std::isnan(result)) {
-		return result;
-	}
-	CrashReports::SetAnnotation("FE-Error-Value", QString::number(value));
-	CrashReports::SetAnnotation("FE-Errors-Were", QString::number(errors));
-	CrashReports::SetAnnotation(
-		"FE-Errors-Now",
-		QString::number(std::fetestexcept(FE_ALL_EXCEPT)));
-	Unexpected("NAN after third std::round.");
 }
 
 } // namespace
@@ -713,7 +686,7 @@ TimePoint VideoTrackObject::trackTime() const {
 	}
 	const auto adjust = (result.worldTime - _syncTimePoint.worldTime);
 	const auto adjustSpeed = adjust * _options.speed;
-	const auto roundAdjustSpeed = SafeRound(adjustSpeed);
+	const auto roundAdjustSpeed = base::SafeRound(adjustSpeed);
 	const auto timeRoundAdjustSpeed = crl::time(roundAdjustSpeed);
 	result.trackTime = _syncTimePoint.trackTime + timeRoundAdjustSpeed;
 	return result;
@@ -848,7 +821,7 @@ auto VideoTrack::Shared::presentFrame(
 		}
 		const auto trackLeft = position - time.trackTime;
 		const auto adjustedBySpeed = trackLeft / playbackSpeed;
-		const auto roundedAdjustedBySpeed = SafeRound(adjustedBySpeed);
+		const auto roundedAdjustedBySpeed = base::SafeRound(adjustedBySpeed);
 		frame->display = time.worldTime
 			+ addedWorldTimeDelay
 			+ crl::time(roundedAdjustedBySpeed);

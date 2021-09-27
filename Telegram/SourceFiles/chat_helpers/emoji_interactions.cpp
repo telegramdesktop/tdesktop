@@ -186,7 +186,7 @@ void EmojiInteractions::startIncoming(
 	}
 	const auto now = crl::now();
 	for (const auto &single : bunch.interactions) {
-		const auto at = now + crl::time(std::round(single.time * 1000));
+		const auto at = now + crl::time(base::SafeRound(single.time * 1000));
 		if (!animations.empty() && animations.back().scheduledAt >= at) {
 			continue;
 		}

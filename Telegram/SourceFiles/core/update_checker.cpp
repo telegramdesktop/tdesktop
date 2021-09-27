@@ -586,7 +586,7 @@ bool ParseCommonMap(
 				}
 				return string.toULongLong();
 			} else if ((*version).isDouble()) {
-				return uint64(std::round((*version).toDouble()));
+				return uint64(base::SafeRound((*version).toDouble()));
 			}
 			return 0ULL;
 		}();

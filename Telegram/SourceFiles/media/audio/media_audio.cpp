@@ -49,7 +49,7 @@ int CoarseTuneForSpeed(float64 speed) {
 
 	constexpr auto kTuneSteps = 12;
 	const auto tuneRatio = std::log(speed) / std::log(2.);
-	return -int(std::round(kTuneSteps * tuneRatio));
+	return -int(base::SafeRound(kTuneSteps * tuneRatio));
 }
 
 } // namespace

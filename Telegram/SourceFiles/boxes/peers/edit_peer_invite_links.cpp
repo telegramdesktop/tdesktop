@@ -268,7 +268,8 @@ void Row::update(const InviteLinkData &data, TimeId now) {
 
 void Row::updateExpireProgress(TimeId now) {
 	const auto updated = ComputeProgress(_data, now);
-	if (std::round(_progressTillExpire * 360) != std::round(updated * 360)) {
+	if (base::SafeRound(_progressTillExpire * 360)
+		!= base::SafeRound(updated * 360)) {
 		_progressTillExpire = updated;
 		const auto color = ComputeColor(_data, _progressTillExpire);
 		if (_color != color) {
@@ -291,7 +292,8 @@ crl::time Row::updateExpireIn() const {
 	if (_data.expireDate <= start) {
 		return 0;
 	}
-	return std::round((_data.expireDate - start) * crl::time(1000) / 720.);
+	return base::SafeRound(
+		(_data.expireDate - start) * crl::time(1000) / 720.);
 }
 
 QString Row::generateName() {
