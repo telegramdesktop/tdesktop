@@ -355,6 +355,8 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 			} else if (UpdateUserpics(state, item, peers)) {
 				RegenerateParticipants(state, small, large);
 				pushNext();
+			} else if (peers.empty()) {
+				pushNext();
 			}
 		}, lifetime);
 
