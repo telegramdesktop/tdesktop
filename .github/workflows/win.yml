@@ -261,6 +261,7 @@ jobs:
         run: |
           git clone -b v1.3.1 %GIT%/xiph/opus.git
           cd opus
+          git cherry-pick 927de8453c
           cmake -B out . ^
           -A Win32 ^
           -DCMAKE_INSTALL_PREFIX=%LibrariesPath%/local/opus ^
