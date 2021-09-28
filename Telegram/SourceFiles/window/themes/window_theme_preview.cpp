@@ -505,7 +505,13 @@ void Generator::paintComposeArea() {
 	_p->fillRect(_composeArea, st::historyReplyBg[_palette]);
 
 	auto controlsTop = _composeArea.y() + _composeArea.height() - st::historySendSize.height();
-	st::historyAttach.icon[_palette].paint(*_p, _composeArea.x() + st::historyAttach.iconPosition.x(), controlsTop + st::historyAttach.iconPosition.y(), _rect.width());
+	const auto attachIconLeft = (st::historyAttach.iconPosition.x() < 0)
+		? ((st::historyAttach.width - st::historyAttach.icon.width()) / 2)
+		: st::historyAttach.iconPosition.x();
+	const auto attachIconTop = (st::historyAttach.iconPosition.y() < 0)
+		? ((st::historyAttach.height - st::historyAttach.icon.height()) / 2)
+		: st::historyAttach.iconPosition.y();
+	st::historyAttach.icon[_palette].paint(*_p, _composeArea.x() + attachIconLeft, controlsTop + attachIconTop, _rect.width());
 	auto right = st::historySendRight + st::historySendSize.width();
 	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
 
