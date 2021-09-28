@@ -1450,7 +1450,10 @@ void HistoryWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
 		return;
 	} else if (_chooseTheme) {
 		if (isChoosingTheme()) {
-			_chooseTheme = nullptr;
+			const auto was = base::take(_chooseTheme);
+			if (Ui::InFocusChain(this)) {
+				setInnerFocus();
+			}
 			update();
 		}
 		return;
@@ -1614,7 +1617,9 @@ void HistoryWidget::setInnerFocus() {
 	if (_scroll->isHidden()) {
 		setFocus();
 	} else if (_list) {
-		if (_nonEmptySelection
+		if (_chooseTheme && _chooseTheme->shouldBeShown()) {
+			_chooseTheme->setFocus();
+		} else if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
 			|| isRecording()
 			|| isBotStart()
@@ -2404,8 +2409,9 @@ void HistoryWidget::updateControlsVisibility() {
 			toggleOne(_unblock);
 		};
 		if (isChoosingTheme()) {
-			toggle(nullptr);
 			_chooseTheme->show();
+			setInnerFocus();
+			toggle(nullptr);
 		} else if (isReportMessages()) {
 			toggle(_reportMessages);
 		} else if (isBlocked()) {

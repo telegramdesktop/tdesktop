@@ -38,6 +38,7 @@ public:
 	void hide();
 	void show();
 	void raise();
+	void setFocus();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -48,9 +49,13 @@ private:
 	void initButtons();
 	void initList();
 	void fill(const std::vector<Data::ChatTheme> &themes);
+	void close();
 
 	void clearCurrentBackgroundState();
 	void paintEntry(QPainter &p, const Entry &entry);
+
+	[[nodiscard]] Entry *findChosen();
+	[[nodiscard]] const Entry *findChosen() const;
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;

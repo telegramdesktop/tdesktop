@@ -137,6 +137,7 @@ struct ChooseThemeController::Entry {
 	QImage preview;
 	EmojiPtr emoji = nullptr;
 	QRect geometry;
+	bool chosen = false;
 };
 
 ChooseThemeController::ChooseThemeController(
@@ -179,7 +180,7 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 			_wrap.get(),
 			tr::lng_chat_theme_title(),
 			st::boxTitle),
-		style::margins{ skip * 2, skip, skip * 2, skip });
+		style::margins{ skip * 2, skip, skip * 2, 0 });
 	_wrap->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
 		QPainter(_wrap.get()).fillRect(clip, st::windowBg);
@@ -220,7 +221,7 @@ void ChooseThemeController::initButtons() {
 	const auto skip = st::normalFont->spacew * 2;
 	controls->resize(
 		skip + cancel->width() + skip + apply->width() + skip,
-		skip + apply->height() + skip);
+		apply->height() + skip);
 	rpl::combine(
 		controls->widthValue(),
 		cancel->widthValue(),
@@ -231,23 +232,10 @@ void ChooseThemeController::initButtons() {
 			int applyWidth) {
 		const auto inner = skip + cancelWidth + skip + applyWidth + skip;
 		const auto left = (outer - inner) / 2;
-		cancel->moveToLeft(left, skip);
-		apply->moveToRight(left, skip);
+		cancel->moveToLeft(left, 0);
+		apply->moveToRight(left, 0);
 	}, controls->lifetime());
 
-	const auto findChosen = [=]() -> const Entry* {
-		if (_chosen.isEmpty()) {
-			return nullptr;
-		}
-		for (const auto &entry : _entries) {
-			if (!entry.id && _chosen == kDisableElement.utf16()) {
-				return &entry;
-			} else if (_chosen == entry.emoji->text()) {
-				return &entry;
-			}
-		}
-		return nullptr;
-	};
 	const auto changed = [=] {
 		if (_chosen.isEmpty()) {
 			return false;
@@ -263,14 +251,7 @@ void ChooseThemeController::initButtons() {
 		}
 		return false;
 	};
-	cancel->setClickedCallback([=] {
-		if (const auto chosen = findChosen()) {
-			if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
-				clearCurrentBackgroundState();
-			}
-		}
-		_controller->toggleChooseChatTheme(_peer);
-	});
+	cancel->setClickedCallback([=] { close(); });
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
 			if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
@@ -308,12 +289,24 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 			+ (geometry.width() - (size / factor)) / 2),
 		(geometry.y() + geometry.height() - (size / factor) - skip));
 
+	if (entry.chosen) {
+		auto hq = PainterHighQualityEnabler(p);
+		auto pen = st::activeLineFg->p;
+		const auto width = st::defaultFlatInput.borderWidth;
+		pen.setWidth(width);
+		p.setPen(pen);
+		const auto add = st::lineWidth + width;
+		p.drawRoundedRect(
+			entry.geometry.marginsAdded({ add, add, add, add }),
+			st::roundRadiusLarge + add,
+			st::roundRadiusLarge + add);
+	}
 }
 
 void ChooseThemeController::initList() {
 	_content->resize(
 		_content->width(),
-		st::settingsThemePreviewSize.height());
+		4 * st::normalFont->spacew + st::settingsThemePreviewSize.height());
 	_inner->setMouseTracking(true);
 
 	_inner->paintRequest(
@@ -326,8 +319,8 @@ void ChooseThemeController::initList() {
 			paintEntry(p, entry);
 		}
 	}, lifetime());
-	const auto byPoint = [=](QPoint position) -> const Entry* {
-		for (const auto &entry : _entries) {
+	const auto byPoint = [=](QPoint position) -> Entry* {
+		for (auto &entry : _entries) {
 			if (entry.geometry.contains(position)) {
 				return &entry;
 			}
@@ -360,22 +353,65 @@ void ChooseThemeController::initList() {
 			const auto chosen = chosenText(entry);
 			if (entry && chosen == _pressed && chosen != _chosen) {
 				clearCurrentBackgroundState();
+				if (const auto was = findChosen()) {
+					was->chosen = false;
+				}
 				_chosen = chosen;
+				entry->chosen = true;
 				if (entry->theme || !entry->id) {
 					_controller->overridePeerTheme(_peer, entry->theme);
 				}
+				_inner->update();
 			}
 			_pressed = QString();
 		}
 	}, lifetime());
+
+	_content->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		if (type == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(event.get());
+			if (key->key() == Qt::Key_Escape) {
+				close();
+			}
+		}
+	}, lifetime());
+}
+
+void ChooseThemeController::close() {
+	if (const auto chosen = findChosen()) {
+		if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
+			clearCurrentBackgroundState();
+		}
+	}
+	_controller->toggleChooseChatTheme(_peer);
 }
 
 void ChooseThemeController::clearCurrentBackgroundState() {
-	for (const auto &entry : _entries) {
-		if (entry.theme && entry.emoji && entry.emoji->text() == _chosen) {
-			entry.theme->clearBackgroundState();
+	if (const auto entry = findChosen()) {
+		if (entry->theme) {
+			entry->theme->clearBackgroundState();
 		}
 	}
+}
+
+auto ChooseThemeController::findChosen() -> Entry* {
+	if (_chosen.isEmpty()) {
+		return nullptr;
+	}
+	for (auto &entry : _entries) {
+		if (!entry.id && _chosen == kDisableElement.utf16()) {
+			return &entry;
+		} else if (_chosen == entry.emoji->text()) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+auto ChooseThemeController::findChosen() const -> const Entry* {
+	return const_cast<ChooseThemeController*>(this)->findChosen();
 }
 
 void ChooseThemeController::fill(
@@ -387,11 +423,16 @@ void ChooseThemeController::fill(
 	const auto single = st::settingsThemePreviewSize;
 	const auto skip = st::normalFont->spacew * 2;
 	const auto full = single.width() * count + skip * (count + 1);
-	_inner->resize(full, single.height());
+	_inner->resize(full, skip + single.height() + skip);
+
+	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
 
 	_dark.value(
 	) | rpl::start_with_next([=](bool dark) {
 		clearCurrentBackgroundState();
+		if (_chosen.isEmpty() && initial) {
+			_chosen = initial->text();
+		}
 
 		_cachingLifetime.destroy();
 		const auto old = base::take(_entries);
@@ -399,7 +440,8 @@ void ChooseThemeController::fill(
 		_entries.push_back({
 			.preview = GenerateEmptyPreview(),
 			.emoji = Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\x8c")),
-			.geometry = QRect(QPoint(x, 0), single),
+			.geometry = QRect(QPoint(x, skip), single),
+			.chosen = (_chosen == kDisableElement.utf16()),
 		});
 		Assert(_entries.front().emoji != nullptr);
 		style::PaletteChanged(
@@ -418,7 +460,8 @@ void ChooseThemeController::fill(
 			_entries.push_back({
 				.id = id,
 				.emoji = emoji,
-				.geometry = QRect(QPoint(x, 0), single),
+				.geometry = QRect(QPoint(x, skip), single),
+				.chosen = (_chosen == emoji->text()),
 			});
 			_controller->cachedChatThemeValue(
 				used
@@ -465,7 +508,6 @@ void ChooseThemeController::fill(
 					_inner->update();
 				}, _cachingLifetime);
 			}, _cachingLifetime);
-			_entries.back().preview;
 			x += single.width() + skip;
 		}
 	}, lifetime());
@@ -495,6 +537,10 @@ void ChooseThemeController::show() {
 void ChooseThemeController::raise() {
 	_wrap->raise();
 	_topShadow->raise();
+}
+
+void ChooseThemeController::setFocus() {
+	_content->setFocus();
 }
 
 rpl::lifetime &ChooseThemeController::lifetime() {
