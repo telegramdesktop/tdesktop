@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Ui {
 namespace {
 
@@ -174,13 +176,15 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 	}
 
 	const auto skip = st::normalFont->spacew * 2;
-	_wrap->insert(
+	const auto titleWrap = _wrap->insert(
 		0,
-		object_ptr<FlatLabel>(
+		object_ptr<FixedHeightWidget>(
 			_wrap.get(),
-			tr::lng_chat_theme_title(),
-			st::boxTitle),
-		style::margins{ skip * 2, skip, skip * 2, 0 });
+			skip + st::boxTitle.style.font->height));
+	auto title = CreateChild<FlatLabel>(
+		titleWrap,
+		tr::lng_chat_theme_title(),
+		st::boxTitle);
 	_wrap->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
 		QPainter(_wrap.get()).fillRect(clip, st::windowBg);
@@ -188,6 +192,11 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 
 	initButtons();
 	initList();
+
+	_inner->positionValue(
+	) | rpl::start_with_next([=](QPoint position) {
+		title->move(std::max(position.x(), skip) + skip, skip);
+	}, title->lifetime());
 
 	std::move(
 		outer
@@ -341,13 +350,32 @@ void ChooseThemeController::initList() {
 		const auto type = event->type();
 		if (type == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
-			_inner->setCursor(byPoint(mouse->pos())
-				? style::cur_pointer
-				: style::cur_default);
+			const auto skip = _inner->width() - _content->width();
+			if (skip <= 0) {
+				_dragStartPosition = _pressPosition = std::nullopt;
+			} else if (_pressPosition.has_value()
+				&& ((mouse->globalPos() - *_pressPosition).manhattanLength()
+					>= QApplication::startDragDistance())) {
+				_dragStartPosition = base::take(_pressPosition);
+				_dragStartInnerLeft = _inner->x();
+			}
+			if (_dragStartPosition.has_value()) {
+				const auto shift = mouse->globalPos().x()
+					- _dragStartPosition->x();
+				updateInnerLeft(_dragStartInnerLeft + shift);
+			} else {
+				_inner->setCursor(byPoint(mouse->pos())
+					? style::cur_pointer
+					: style::cur_default);
+			}
 		} else if (type == QEvent::MouseButtonPress) {
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
+			if (mouse->button() == Qt::LeftButton) {
+				_pressPosition = mouse->globalPos();
+			}
 			_pressed = chosenText(byPoint(mouse->pos()));
 		} else if (type == QEvent::MouseButtonRelease) {
+			_pressPosition = _dragStartPosition = std::nullopt;
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
 			const auto entry = byPoint(mouse->pos());
 			const auto chosen = chosenText(entry);
@@ -364,6 +392,18 @@ void ChooseThemeController::initList() {
 				_inner->update();
 			}
 			_pressed = QString();
+		} else if (type == QEvent::Wheel) {
+			const auto wheel = static_cast<QWheelEvent*>(event.get());
+			const auto was = _inner->x();
+			updateInnerLeft((wheel->angleDelta().x() != 0)
+				? (was + (wheel->pixelDelta().x()
+					? wheel->pixelDelta().x()
+					: wheel->angleDelta().x()))
+				: (wheel->angleDelta().y() != 0)
+				? (was + (wheel->pixelDelta().y()
+					? wheel->pixelDelta().y()
+					: wheel->angleDelta().y()))
+				: was);
 		}
 	}, lifetime());
 
@@ -377,6 +417,21 @@ void ChooseThemeController::initList() {
 			}
 		}
 	}, lifetime());
+
+	rpl::combine(
+		_content->widthValue(),
+		_inner->widthValue()
+	) | rpl::start_with_next([=] {
+		updateInnerLeft(_inner->x());
+	}, lifetime());
+}
+
+void ChooseThemeController::updateInnerLeft(int now) {
+	const auto skip = _content->width() - _inner->width();
+	const auto clamped = (skip >= 0)
+		? (skip / 2)
+		: std::clamp(now, skip, 0);
+	_inner->move(clamped, 0);
 }
 
 void ChooseThemeController::close() {
@@ -425,13 +480,14 @@ void ChooseThemeController::fill(
 	const auto full = single.width() * count + skip * (count + 1);
 	_inner->resize(full, skip + single.height() + skip);
 
-	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
+	const auto initialSelected = Ui::Emoji::Find(_peer->themeEmoji());
 
 	_dark.value(
 	) | rpl::start_with_next([=](bool dark) {
 		clearCurrentBackgroundState();
-		if (_chosen.isEmpty() && initial) {
-			_chosen = initial->text();
+		const auto initialSelect = (_chosen.isEmpty() && initialSelected);
+		if (initialSelect) {
+			_chosen = initialSelected->text();
 		}
 
 		_cachingLifetime.destroy();
@@ -457,11 +513,12 @@ void ChooseThemeController::fill(
 			}
 			const auto &used = dark ? theme.dark : theme.light;
 			const auto id = used.id;
+			const auto isChosen = (_chosen == emoji->text());
 			_entries.push_back({
 				.id = id,
 				.emoji = emoji,
 				.geometry = QRect(QPoint(x, skip), single),
-				.chosen = (_chosen == emoji->text()),
+				.chosen = isChosen,
 			});
 			_controller->cachedChatThemeValue(
 				used

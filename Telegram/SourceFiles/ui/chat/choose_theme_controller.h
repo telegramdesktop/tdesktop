@@ -53,6 +53,7 @@ private:
 
 	void clearCurrentBackgroundState();
 	void paintEntry(QPainter &p, const Entry &entry);
+	void updateInnerLeft(int now);
 
 	[[nodiscard]] Entry *findChosen();
 	[[nodiscard]] const Entry *findChosen() const;
@@ -67,6 +68,9 @@ private:
 	std::vector<Entry> _entries;
 	QString _pressed;
 	QString _chosen;
+	std::optional<QPoint> _pressPosition;
+	std::optional<QPoint> _dragStartPosition;
+	int _dragStartInnerLeft = 0;
 
 	rpl::variable<bool> _shouldBeShown = false;
 	rpl::variable<bool> _forceHidden = false;
