@@ -684,6 +684,7 @@ depends:yasm/yasm
 """)
 
 stage('openal-soft', """
+version: 2
     git clone -b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
     cd build
