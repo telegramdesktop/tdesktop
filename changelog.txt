@@ -1,3 +1,13 @@
+3.1.5 beta (28.09.21)
+
+- Choose one of 8 new preset themes for any individual private chat.
+- Click on '...' menu > 'Change Colors' to pick a theme.
+- Both chat participants will see the same theme in that chat – on all their devices.
+- Each new theme features colorful gradient message bubbles, beautifully animated backgrounds and unique background patterns.
+- All chat themes have day and night versions and will follow your overall dark mode settings.
+- Implement main window rounded corners on Windows 11.
+- Fix audio capture from AirPods on macOS.
+
 3.1.4 beta (27.09.21)
 
 - Fix crash in network availability init.

@@ -68,6 +68,25 @@ std::map<int, const char*> BetaLogs() {
 		"- Reconnect without timeout when network availability changes.\n"
 
 		"- Crash fixes."
+	},
+	{
+		3001005,
+		"- Choose one of 8 new preset themes for any individual private chat.\n"
+
+		"- Click on '...' menu > 'Change Colors' to pick a theme.\n"
+
+		"- Both chat participants will see the same theme in that chat "
+		"– on all their devices.\n"
+
+		"- Each new theme features colorful gradient message bubbles, "
+		"beautifully animated backgrounds and unique background patterns.\n"
+
+		"- All chat themes have day and night versions and will follow "
+		"your overall dark mode settings.\n"
+
+		"- Implement main window rounded corners on Windows 11.\n"
+
+		"- Fix audio capture from AirPods on macOS.\n"
 	}
 	};
 };
