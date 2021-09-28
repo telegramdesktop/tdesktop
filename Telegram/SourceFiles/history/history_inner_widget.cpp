@@ -49,7 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
-#include "mainwidget.h"
 #include "layout/layout_selection.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -2655,7 +2654,7 @@ void HistoryInner::elementStartStickerLoop(
 
 crl::time HistoryInner::elementHighlightTime(
 		not_null<const HistoryItem*> item) {
-	const auto fullAnimMs = _controller->content()->highlightStartTime(item);
+	const auto fullAnimMs = _widget->highlightStartTime(item);
 	if (fullAnimMs > 0) {
 		const auto now = crl::now();
 		if (fullAnimMs < now) {

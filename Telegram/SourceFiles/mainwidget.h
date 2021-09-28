@@ -176,9 +176,6 @@ public:
 
 	void deletePhotoLayer(PhotoData *photo);
 
-	// While HistoryInner is not HistoryView::ListWidget.
-	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
-
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);

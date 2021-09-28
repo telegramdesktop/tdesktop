@@ -762,10 +762,6 @@ bool MainWidget::selectingPeer() const {
 	return _hider ? true : false;
 }
 
-crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
-	return _history->highlightStartTime(item);
-}
-
 void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 	const auto type = _mainSection
 		? _mainSection->sendBotCommand(request)
