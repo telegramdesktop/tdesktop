@@ -126,6 +126,18 @@ constexpr auto kDisableElement = "disable"_cs;
 		st::settingsThemePreviewSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(st::settingsThemeNotSupportedBg->c);
+	{
+		auto p = QPainter(&result);
+		p.setPen(st::menuIconFg);
+		p.setFont(st::semiboldFont);
+		const auto top = st::normalFont->height / 2;
+		const auto width = st::settingsThemePreviewSize.width();
+		const auto height = st::settingsThemePreviewSize.height() - top;
+		p.drawText(
+			QRect(0, top, width, height),
+			tr::lng_chat_theme_none(tr::now),
+			style::al_top);
+	}
 	Images::prepareRound(result, ImageRoundRadius::Large);
 	return result;
 }
@@ -175,12 +187,12 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		}, lifetime());
 	}
 
-	const auto skip = st::normalFont->spacew * 2;
+	const auto skip = st::normalFont->spacew * 4;
 	const auto titleWrap = _wrap->insert(
 		0,
 		object_ptr<FixedHeightWidget>(
 			_wrap.get(),
-			skip + st::boxTitle.style.font->height));
+			skip + st::boxTitle.style.font->height + skip));
 	auto title = CreateChild<FlatLabel>(
 		titleWrap,
 		tr::lng_chat_theme_title(),
@@ -230,7 +242,7 @@ void ChooseThemeController::initButtons() {
 	const auto skip = st::normalFont->spacew * 2;
 	controls->resize(
 		skip + cancel->width() + skip + apply->width() + skip,
-		apply->height() + skip);
+		apply->height() + skip * 2);
 	rpl::combine(
 		controls->widthValue(),
 		cancel->widthValue(),
@@ -289,14 +301,13 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 
 	const auto size = Ui::Emoji::GetSizeLarge();
 	const auto factor = style::DevicePixelRatio();
-	const auto skip = st::normalFont->spacew * 2;
-	Ui::Emoji::Draw(
-		p,
-		entry.emoji,
-		size,
-		(geometry.x()
-			+ (geometry.width() - (size / factor)) / 2),
-		(geometry.y() + geometry.height() - (size / factor) - skip));
+	const auto emojiLeft = geometry.x()
+		+ (geometry.width() - (size / factor)) / 2;
+	const auto emojiTop = geometry.y()
+		+ geometry.height()
+		- (size / factor)
+		- (st::normalFont->spacew * 2);
+	Ui::Emoji::Draw(p, entry.emoji, size, emojiLeft, emojiTop);
 
 	if (entry.chosen) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -315,7 +326,7 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 void ChooseThemeController::initList() {
 	_content->resize(
 		_content->width(),
-		4 * st::normalFont->spacew + st::settingsThemePreviewSize.height());
+		8 * st::normalFont->spacew + st::settingsThemePreviewSize.height());
 	_inner->setMouseTracking(true);
 
 	_inner->paintRequest(
@@ -421,9 +432,23 @@ void ChooseThemeController::initList() {
 	rpl::combine(
 		_content->widthValue(),
 		_inner->widthValue()
-	) | rpl::start_with_next([=] {
-		updateInnerLeft(_inner->x());
+	) | rpl::start_with_next([=](int content, int inner) {
+		if (!content || !inner) {
+			return;
+		} else if (!_entries.empty() && !_initialInnerLeftApplied) {
+			applyInitialInnerLeft();
+		} else {
+			updateInnerLeft(_inner->x());
+		}
 	}, lifetime());
+}
+
+void ChooseThemeController::applyInitialInnerLeft() {
+	if (const auto chosen = findChosen()) {
+		updateInnerLeft(
+			_content->width() / 2 - chosen->geometry.center().x());
+	}
+	_initialInnerLeftApplied = true;
 }
 
 void ChooseThemeController::updateInnerLeft(int now) {
@@ -477,22 +502,21 @@ void ChooseThemeController::fill(
 	const auto count = int(themes.size()) + 1;
 	const auto single = st::settingsThemePreviewSize;
 	const auto skip = st::normalFont->spacew * 2;
-	const auto full = single.width() * count + skip * (count + 1);
+	const auto full = single.width() * count + skip * (count + 3);
 	_inner->resize(full, skip + single.height() + skip);
 
-	const auto initialSelected = Ui::Emoji::Find(_peer->themeEmoji());
+	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
 
 	_dark.value(
 	) | rpl::start_with_next([=](bool dark) {
 		clearCurrentBackgroundState();
-		const auto initialSelect = (_chosen.isEmpty() && initialSelected);
-		if (initialSelect) {
-			_chosen = initialSelected->text();
+		if (_chosen.isEmpty() && initial) {
+			_chosen = initial->text();
 		}
 
 		_cachingLifetime.destroy();
 		const auto old = base::take(_entries);
-		auto x = skip;
+		auto x = skip * 2;
 		_entries.push_back({
 			.preview = GenerateEmptyPreview(),
 			.emoji = Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\x8c")),
@@ -566,6 +590,10 @@ void ChooseThemeController::fill(
 				}, _cachingLifetime);
 			}, _cachingLifetime);
 			x += single.width() + skip;
+		}
+
+		if (!_initialInnerLeftApplied && _content->width() > 0) {
+			applyInitialInnerLeft();
 		}
 	}, lifetime());
 	_shouldBeShown = true;

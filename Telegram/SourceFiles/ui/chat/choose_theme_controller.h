@@ -53,6 +53,7 @@ private:
 
 	void clearCurrentBackgroundState();
 	void paintEntry(QPainter &p, const Entry &entry);
+	void applyInitialInnerLeft();
 	void updateInnerLeft(int now);
 
 	[[nodiscard]] Entry *findChosen();
@@ -71,6 +72,7 @@ private:
 	std::optional<QPoint> _pressPosition;
 	std::optional<QPoint> _dragStartPosition;
 	int _dragStartInnerLeft = 0;
+	bool _initialInnerLeftApplied = false;
 
 	rpl::variable<bool> _shouldBeShown = false;
 	rpl::variable<bool> _forceHidden = false;
