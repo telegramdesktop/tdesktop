@@ -259,21 +259,6 @@ void ChooseThemeController::initButtons() {
 		apply->moveToRight(left, 0);
 	}, controls->lifetime());
 
-	const auto changed = [=] {
-		if (_chosen.isEmpty()) {
-			return false;
-		}
-		const auto now = Ui::Emoji::Find(_peer->themeEmoji());
-		if (_chosen == kDisableElement.utf16()) {
-			return !now;
-		}
-		for (const auto &entry : _entries) {
-			if (entry.id && entry.emoji->text() == _chosen) {
-				return (now != entry.emoji);
-			}
-		}
-		return false;
-	};
 	cancel->setClickedCallback([=] { close(); });
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
