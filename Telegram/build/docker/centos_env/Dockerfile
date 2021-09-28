@@ -823,7 +823,8 @@ RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake3 -B out/Release . \
 
 RUN cmake3 --build out/Release -- -j$(nproc)
 
-RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake3 -B out/Debug . \
+ENV HFLAGS_DEBUG="-fstack-protector-all -fstack-clash-protection -fPIC"
+RUN CFLAGS=\"$HFLAGS_DEBUG\" CXXFLAGS=\"$HFLAGS_DEBUG\" cmake3 -B out/Debug . \
 	-DCMAKE_BUILD_TYPE=Debug \
 	-DTG_OWT_SPECIAL_TARGET=linux \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
