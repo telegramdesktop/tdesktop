@@ -36,13 +36,12 @@ SafeIniter::SafeIniter() {
 	LOAD_SYMBOL(LibShell32, SHChangeNotify);
 	LOAD_SYMBOL(LibShell32, SetCurrentProcessExplicitAppUserModelID);
 
-	const auto LibUxTheme = LoadLibrary(L"uxtheme.dll");
-	LOAD_SYMBOL(LibUxTheme, SetWindowTheme);
 	//if (IsWindows10OrGreater()) {
 	//	static const auto kSystemVersion = QOperatingSystemVersion::current();
 	//	static const auto kMinor = kSystemVersion.minorVersion();
 	//	static const auto kBuild = kSystemVersion.microVersion();
 	//	if (kMinor > 0 || (kMinor == 0 && kBuild >= 17763)) {
+	//		const auto LibUxTheme = LoadLibrary(L"uxtheme.dll");
 	//		if (kBuild < 18362) {
 	//			LOAD_SYMBOL(LibUxTheme, AllowDarkModeForApp, 135);
 	//		} else {
@@ -61,9 +60,6 @@ SafeIniter::SafeIniter() {
 	const auto LibPropSys = LoadLibrary(L"propsys.dll");
 	LOAD_SYMBOL(LibPropSys, PropVariantToString);
 	LOAD_SYMBOL(LibPropSys, PSStringFromPropertyKey);
-
-	const auto LibDwmApi = LoadLibrary(L"dwmapi.dll");
-	LOAD_SYMBOL(LibDwmApi, DwmSetWindowAttribute);
 
 	const auto LibPsApi = LoadLibrary(L"psapi.dll");
 	LOAD_SYMBOL(LibPsApi, GetProcessMemoryInfo);

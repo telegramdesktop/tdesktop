@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "base/crc32hash.h"
 #include "base/platform/win/base_windows_wrl.h"
+#include "base/platform/base_platform_info.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <Shobjidl.h>
 #include <shellapi.h>
 #include <WtsApi32.h>
+#include <dwmapi.h>
 
 #include <windows.ui.viewmanagement.h>
 #include <UIViewSettingsInterop.h>
@@ -401,11 +403,9 @@ void MainWindow::initHook() {
 }
 
 void MainWindow::validateWindowTheme(bool native, bool night) {
-	if (!Dlls::SetWindowTheme) {
-		return;
-	} else if (!IsWindows8OrGreater()) {
+	if (!IsWindows8OrGreater()) {
 		const auto empty = native ? nullptr : L" ";
-		Dlls::SetWindowTheme(ps_hWnd, empty, empty);
+		SetWindowTheme(ps_hWnd, empty, empty);
 		QApplication::setStyle(QStyleFactory::create(u"Windows"_q));
 #if 0
 	} else if (!Platform::IsDarkModeSupported()/*
@@ -416,7 +416,7 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 		return;
 #endif
 	} else if (!native) {
-		Dlls::SetWindowTheme(ps_hWnd, nullptr, nullptr);
+		SetWindowTheme(ps_hWnd, nullptr, nullptr);
 		return;
 	}
 
@@ -435,13 +435,13 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 				sizeof(darkValue)
 			};
 			Dlls::SetWindowCompositionAttribute(ps_hWnd, &data);
-		} else if (kSystemVersion.microVersion() >= 17763 && Dlls::DwmSetWindowAttribute) {
-			static const auto DWMWA_USE_IMMERSIVE_DARK_MODE = (kSystemVersion.microVersion() >= 18985)
+		} else if (kSystemVersion.microVersion() >= 17763) {
+			static const auto kDWMWA_USE_IMMERSIVE_DARK_MODE = (kSystemVersion.microVersion() >= 18985)
 				? DWORD(20)
 				: DWORD(19);
-			Dlls::DwmSetWindowAttribute(
+			DwmSetWindowAttribute(
 				ps_hWnd,
-				DWMWA_USE_IMMERSIVE_DARK_MODE,
+				kDWMWA_USE_IMMERSIVE_DARK_MODE,
 				&darkValue,
 				sizeof(darkValue));
 		}
@@ -457,7 +457,7 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 
 	//const auto updateWindowTheme = [&] {
 	//	const auto set = [&](LPCWSTR name) {
-	//		return Dlls::SetWindowTheme(ps_hWnd, name, nullptr);
+	//		return SetWindowTheme(ps_hWnd, name, nullptr);
 	//	};
 	//	if (!night || FAILED(set(L"DarkMode_Explorer"))) {
 	//		set(L"Explorer");
