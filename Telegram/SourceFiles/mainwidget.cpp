@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 
 #include "api/api_updates.h"
+#include "api/api_views.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -115,13 +116,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QMimeData>
-
-namespace {
-
-// Send channel views each second.
-constexpr auto kSendViewsTimeout = crl::time(1000);
-
-} // namespace
 
 enum StackItemType {
 	HistoryStackItem,
@@ -235,7 +229,6 @@ MainWidget::MainWidget(
 , _dialogs(this, _controller)
 , _history(this, _controller)
 , _playerPlaylist(this, _controller)
-, _viewsIncrementTimer([=] { viewsIncrement(); })
 , _changelogs(Core::Changelogs::Create(&controller->session())) {
 	setupConnectingWidget();
 
@@ -1221,100 +1214,6 @@ void MainWidget::setInnerFocus() {
 	}
 }
 
-void MainWidget::scheduleViewIncrement(HistoryItem *item) {
-	PeerData *peer = item->history()->peer;
-	auto i = _viewsIncremented.find(peer);
-	if (i != _viewsIncremented.cend()) {
-		if (i->second.contains(item->id)) return;
-	} else {
-		i = _viewsIncremented.emplace(peer).first;
-	}
-	i->second.emplace(item->id);
-	auto j = _viewsToIncrement.find(peer);
-	if (j == _viewsToIncrement.cend()) {
-		j = _viewsToIncrement.emplace(peer).first;
-		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
-	}
-	j->second.emplace(item->id);
-}
-
-void MainWidget::viewsIncrement() {
-	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
-		if (_viewsIncrementRequests.contains(i->first)) {
-			++i;
-			continue;
-		}
-
-		QVector<MTPint> ids;
-		ids.reserve(i->second.size());
-		for (const auto msgId : i->second) {
-			ids.push_back(MTP_int(msgId));
-		}
-		const auto requestId = _api.request(MTPmessages_GetMessagesViews(
-			i->first->input,
-			MTP_vector<MTPint>(ids),
-			MTP_bool(true)
-		)).done([=](const MTPmessages_MessageViews &result, mtpRequestId requestId) {
-			viewsIncrementDone(ids, result, requestId);
-		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
-			viewsIncrementFail(error, requestId);
-		}).afterDelay(5).send();
-
-		_viewsIncrementRequests.emplace(i->first, requestId);
-		i = _viewsToIncrement.erase(i);
-	}
-}
-
-void MainWidget::viewsIncrementDone(
-		QVector<MTPint> ids,
-		const MTPmessages_MessageViews &result,
-		mtpRequestId requestId) {
-	const auto &data = result.c_messages_messageViews();
-	session().data().processUsers(data.vusers());
-	session().data().processChats(data.vchats());
-	auto &v = data.vviews().v;
-	if (ids.size() == v.size()) {
-		for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
-			if (i->second == requestId) {
-				const auto peer = i->first;
-				const auto channel = peerToChannel(peer->id);
-				for (int32 j = 0, l = ids.size(); j < l; ++j) {
-					if (const auto item = session().data().message(channel, ids[j].v)) {
-						v[j].match([&](const MTPDmessageViews &data) {
-							if (const auto views = data.vviews()) {
-								item->setViewsCount(views->v);
-							}
-							if (const auto forwards = data.vforwards()) {
-								item->setForwardsCount(forwards->v);
-							}
-							if (const auto replies = data.vreplies()) {
-								item->setReplies(*replies);
-							}
-						});
-					}
-				}
-				_viewsIncrementRequests.erase(i);
-				break;
-			}
-		}
-	}
-	if (!_viewsToIncrement.empty() && !_viewsIncrementTimer.isActive()) {
-		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
-	}
-}
-
-void MainWidget::viewsIncrementFail(const MTP::Error &error, mtpRequestId requestId) {
-	for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
-		if (i->second == requestId) {
-			_viewsIncrementRequests.erase(i);
-			break;
-		}
-	}
-	if (!_viewsToIncrement.empty() && !_viewsIncrementTimer.isActive()) {
-		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
-	}
-}
-
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
 	if (selectingPeer()) {
 		_hider->offerPeer(peerId);
@@ -1505,7 +1404,7 @@ void MainWidget::ui_showPeerHistory(
 	} else {
 		const auto nowActivePeer = _controller->activeChatCurrent().peer();
 		if (nowActivePeer && nowActivePeer != wasActivePeer) {
-			_viewsIncremented.remove(nowActivePeer);
+			session().api().views().removeIncremented(nowActivePeer);
 		}
 		if (isOneColumn() && !_dialogs->isHidden()) {
 			_dialogs->hide();

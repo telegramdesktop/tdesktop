@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_toggling_media.h"
 #include "api/api_who_read.h"
+#include "api/api_views.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -677,7 +678,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				view->draw(p, context);
 
 				if (item->hasViews()) {
-					_controller->content()->scheduleViewIncrement(item);
+					session().api().views().scheduleIncrement(item);
 				}
 				if (item->isUnreadMention() && !item->isUnreadMedia()) {
 					readMentions.insert(item);
@@ -737,7 +738,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (_visibleAreaBottom >= middle
 						&& _visibleAreaTop <= middle) {
 						if (item->hasViews()) {
-							_controller->content()->scheduleViewIncrement(item);
+							session().api().views().scheduleIncrement(item);
 						}
 						if (item->isUnreadMention() && !item->isUnreadMedia()) {
 							readMentions.insert(item);
