@@ -83,6 +83,7 @@ constexpr auto kDisableElement = "disable"_cs;
 	if (background.waitingForNegativePattern()) {
 		result.fill(Qt::black);
 	}
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		auto p = QPainter(&result);
 		const auto sent = QRect(
@@ -126,6 +127,7 @@ constexpr auto kDisableElement = "disable"_cs;
 		st::settingsThemePreviewSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(st::settingsThemeNotSupportedBg->c);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		auto p = QPainter(&result);
 		p.setPen(st::menuIconFg);
