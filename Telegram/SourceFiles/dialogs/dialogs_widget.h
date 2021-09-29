@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
+#include <QtCore/QTimer>
+
 namespace MTP {
 class Error;
 } // namespace MTP

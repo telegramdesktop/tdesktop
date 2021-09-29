@@ -168,11 +168,10 @@ FieldAutocomplete::FieldAutocomplete(
 
 	hide();
 
-	connect(
-		_scroll,
-		&Ui::ScrollArea::geometryChanged,
-		_inner,
-		&Inner::onParentGeometryChanged);
+	_scroll->geometryChanged(
+	) | rpl::start_with_next(crl::guard(_inner, [=] {
+		_inner->onParentGeometryChanged();
+	}), lifetime());
 }
 
 not_null<Window::SessionController*> FieldAutocomplete::controller() const {

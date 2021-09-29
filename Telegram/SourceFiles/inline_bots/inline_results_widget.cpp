@@ -48,11 +48,10 @@ Widget::Widget(
 
 	_inner->moveToLeft(0, 0, _scroll->width());
 
-	connect(
-		_scroll,
-		&Ui::ScrollArea::scrolled,
-		this,
-		&InlineBots::Layout::Widget::onScroll);
+	_scroll->scrolls(
+	) | rpl::start_with_next([=] {
+		onScroll();
+	}, lifetime());
 
 	_inner->inlineRowsCleared(
 	) | rpl::start_with_next([=] {

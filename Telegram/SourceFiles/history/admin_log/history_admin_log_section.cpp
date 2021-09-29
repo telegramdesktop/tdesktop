@@ -322,8 +322,10 @@ Widget::Widget(
 
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
-
-	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
+	_scroll->scrolls(
+	) | rpl::start_with_next([=] {
+		onScroll();
+	}, lifetime());
 
 	_whatIsThis->setClickedCallback([=] {
 		controller->show(Box<InformBox>(channel->isMegagroup()

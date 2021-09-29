@@ -234,7 +234,10 @@ Widget::Widget(
 		}
 	}, lifetime());
 
-	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
+	_scroll->geometryChanged(
+	) | rpl::start_with_next(crl::guard(_inner, [=] {
+		_inner->onParentGeometryChanged();
+	}), lifetime());
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
 
 	session().data().chatsListChanges(
