@@ -147,6 +147,14 @@ ApplicationDelegate *_sharedDelegate = nil;
 	base::Timer _ignoreActivationStop;
 }
 
+- (instancetype) init: {
+	_ignoreActivation = false;
+	_ignoreActivationStop.setCallback([self] {
+		_ignoreActivation = false;
+	});
+	return [super init];
+}
+
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
 	if (const auto window = Core::App().activeWindow()) {
 		if (window->widget()->isHidden()) {
@@ -154,13 +162,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 		}
 	}
 	return YES;
-}
-
-- (void) applicationDidFinishLaunching:(NSNotification *)aNotification {
-	_ignoreActivation = false;
-	_ignoreActivationStop.setCallback([self] {
-		_ignoreActivation = false;
-	});
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
