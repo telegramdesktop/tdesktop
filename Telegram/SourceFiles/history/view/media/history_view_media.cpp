@@ -49,7 +49,7 @@ QString DocumentTimestampLinkBase(
 		FullMsgId context) {
 	return QString(
 		"doc%1_%2_%3"
-	).arg(document->id).arg(context.channel.bare).arg(context.msg);
+	).arg(document->id).arg(context.channel.bare).arg(context.msg.bare);
 }
 
 TextWithEntities AddTimestampLinks(

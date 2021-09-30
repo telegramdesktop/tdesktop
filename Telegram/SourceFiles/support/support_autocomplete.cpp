@@ -274,7 +274,6 @@ AdminLog::OwnedItem GenerateCommentItem(
 	if (data.comment.isEmpty()) {
 		return nullptr;
 	}
-	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
 	const auto flags = MessageFlag::HasFromId
 		| MessageFlag::Outgoing
 		| MessageFlag::FakeHistoryItem;
@@ -282,7 +281,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	const auto viaBotId = UserId();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		id,
+		history->owner().nextNonHistoryEntryId(),
 		flags,
 		replyTo,
 		viaBotId,
@@ -305,7 +304,7 @@ AdminLog::OwnedItem GenerateContactItem(
 	const auto postAuthor = QString();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		(ServerMaxMsgId + (ServerMaxMsgId / 2) + 1),
+		history->owner().nextNonHistoryEntryId(),
 		(MessageFlag::HasFromId
 			| MessageFlag::Outgoing
 			| MessageFlag::FakeHistoryItem),

@@ -75,18 +75,20 @@ public:
 		return kScheduledDraftIndex + kEditDraftShift;
 	}
 	[[nodiscard]] static DraftKey Replies(MsgId rootId) {
-		return rootId;
+		return rootId.bare;
 	}
 	[[nodiscard]] static DraftKey RepliesEdit(MsgId rootId) {
-		return rootId + kEditDraftShift;
+		return rootId.bare + kEditDraftShift;
 	}
 
-	[[nodiscard]] static DraftKey FromSerialized(int32 value) {
+	[[nodiscard]] static DraftKey FromSerialized(qint64 value) {
 		return value;
 	}
-	[[nodiscard]] int32 serialize() const {
+	[[nodiscard]] qint64 serialize() const {
 		return _value;
 	}
+
+	[[nodiscard]] static DraftKey FromSerializedOld(int32 value);
 
 	inline bool operator<(const DraftKey &other) const {
 		return _value < other._value;
@@ -111,15 +113,16 @@ public:
 	}
 
 private:
-	DraftKey(int value) : _value(value) {
+	DraftKey(int64 value) : _value(value) {
 	}
 
 	static constexpr auto kLocalDraftIndex = -1;
 	static constexpr auto kCloudDraftIndex = -2;
 	static constexpr auto kScheduledDraftIndex = -3;
-	static constexpr auto kEditDraftShift = ServerMaxMsgId;
+	static constexpr auto kEditDraftShift = ServerMaxMsgId.bare;
+	static constexpr auto kEditDraftShiftOld = 0x3FFF'FFFF;
 
-	int _value = 0;
+	int64 _value = 0;
 
 };
 

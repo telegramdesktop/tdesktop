@@ -19,7 +19,7 @@ namespace HistoryView {
 
 class PinnedTracker final {
 public:
-	using UniversalMsgId = int32;
+	using UniversalMsgId = MsgId;
 
 	explicit PinnedTracker(not_null<History*> history);
 	~PinnedTracker();

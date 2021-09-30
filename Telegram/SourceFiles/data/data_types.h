@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/value_ordering.h"
 #include "ui/text/text.h" // For QFIXED_MAX
 #include "data/data_peer_id.h"
+#include "data/data_msg_id.h"
 
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
@@ -100,80 +101,6 @@ class Folder;
 
 using FolderId = int32;
 using FilterId = int32;
-using MsgId = int32;
-constexpr auto StartClientMsgId = MsgId(-0x7FFFFFFF);
-constexpr auto EndClientMsgId = MsgId(-0x40000000);
-constexpr auto ShowAtTheEndMsgId = MsgId(-0x40000000);
-constexpr auto SwitchAtTopMsgId = MsgId(-0x3FFFFFFF);
-constexpr auto ShowAtProfileMsgId = MsgId(-0x3FFFFFFE);
-constexpr auto ShowAndStartBotMsgId = MsgId(-0x3FFFFFFD);
-constexpr auto ShowAtGameShareMsgId = MsgId(-0x3FFFFFFC);
-constexpr auto ShowForChooseMessagesMsgId = MsgId(-0x3FFFFFFB);
-constexpr auto ServerMaxMsgId = MsgId(0x3FFFFFFF);
-constexpr auto ShowAtUnreadMsgId = MsgId(0);
-constexpr inline bool IsClientMsgId(MsgId id) {
-	return (id >= StartClientMsgId && id < EndClientMsgId);
-}
-constexpr inline bool IsServerMsgId(MsgId id) {
-	return (id > 0 && id < ServerMaxMsgId);
-}
-
-struct MsgRange {
-	MsgRange() = default;
-	MsgRange(MsgId from, MsgId till) : from(from), till(till) {
-	}
-
-	MsgId from = 0;
-	MsgId till = 0;
-};
-inline bool operator==(const MsgRange &a, const MsgRange &b) {
-	return (a.from == b.from) && (a.till == b.till);
-}
-inline bool operator!=(const MsgRange &a, const MsgRange &b) {
-	return !(a == b);
-}
-
-struct FullMsgId {
-	constexpr FullMsgId() = default;
-	constexpr FullMsgId(ChannelId channel, MsgId msg)
-	: channel(channel), msg(msg) {
-	}
-
-	explicit operator bool() const {
-		return msg != 0;
-	}
-
-
-	inline constexpr bool operator<(const FullMsgId &other) const {
-		if (channel < other.channel) {
-			return true;
-		} else if (channel > other.channel) {
-			return false;
-		}
-		return msg < other.msg;
-	}
-	inline constexpr bool operator>(const FullMsgId &other) const {
-		return other < *this;
-	}
-	inline constexpr bool operator<=(const FullMsgId &other) const {
-		return !(other < *this);
-	}
-	inline constexpr bool operator>=(const FullMsgId &other) const {
-		return !(*this < other);
-	}
-	inline constexpr bool operator==(const FullMsgId &other) const {
-		return (channel == other.channel) && (msg == other.msg);
-	}
-	inline constexpr bool operator!=(const FullMsgId &other) const {
-		return !(*this == other);
-	}
-
-	ChannelId channel = NoChannel;
-	MsgId msg = 0;
-
-};
-
-Q_DECLARE_METATYPE(FullMsgId);
 
 using MessageIdsList = std::vector<FullMsgId>;
 
@@ -181,6 +108,10 @@ PeerId PeerFromMessage(const MTPmessage &message);
 MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message);
 MsgId IdFromMessage(const MTPmessage &message);
 TimeId DateFromMessage(const MTPmessage &message);
+
+[[nodiscard]] inline MTPint MTP_int(MsgId id) noexcept {
+	return MTP_int(id.bare);
+}
 
 class DocumentData;
 class PhotoData;

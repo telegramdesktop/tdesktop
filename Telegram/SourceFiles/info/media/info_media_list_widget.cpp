@@ -986,7 +986,7 @@ SparseIdsMergedSlice::Key ListWidget::sliceKey(
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
-		universalId += ServerMaxMsgId;
+		universalId = universalId + ServerMaxMsgId;
 	}
 	return Key(_peer->id, 0, universalId);
 }

@@ -1113,7 +1113,7 @@ QString AppendShareGameScoreUrl(
 	auto channelAccessHash = uint64(channel ? channel->access : 0);
 	shareHashDataInts[0] = session->userId().bare;
 	shareHashDataInts[1] = fullId.channel.bare;
-	shareHashDataInts[2] = fullId.msg;
+	shareHashDataInts[2] = uint64(fullId.msg.bare);
 	shareHashDataInts[3] = channelAccessHash;
 
 	// Count SHA1() of data.
@@ -1200,7 +1200,6 @@ void ShareGameScoreByHash(
 	//}
 
 	if (((hashDataInts[1] >> 40) != 0)
-		|| ((hashDataInts[2] >> 32) != 0)
 		|| (!hashDataInts[1] && channelAccessHash)) {
 		// If there is no channel id, there should be no channel access_hash.
 		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
@@ -1208,7 +1207,7 @@ void ShareGameScoreByHash(
 	}
 
 	auto channelId = ChannelId(hashDataInts[1]);
-	auto msgId = MsgId(hashDataInts[2]);
+	auto msgId = MsgId(int64(hashDataInts[2]));
 	if (const auto item = session->data().message(channelId, msgId)) {
 		FastShareMessage(item);
 	} else {

@@ -19,6 +19,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+DraftKey DraftKey::FromSerializedOld(int32 value) {
+	return !value
+		? DraftKey::None()
+		: (value == kLocalDraftIndex + kEditDraftShiftOld)
+		? DraftKey::LocalEdit()
+		: (value == kScheduledDraftIndex + kEditDraftShiftOld)
+		? DraftKey::ScheduledEdit()
+		: (value > 0 && value < 0x4000'0000)
+		? DraftKey::Replies(int64(value))
+		: (value > kEditDraftShiftOld
+			&& value < kEditDraftShiftOld + 0x4000'000)
+		? DraftKey::RepliesEdit(int64(value - kEditDraftShiftOld))
+		: DraftKey::None();
+}
+
 Draft::Draft(
 	const TextWithTags &textWithTags,
 	MsgId msgId,

@@ -662,8 +662,8 @@ QString ApiWrap::exportDirectMessageLink(
 	const auto fallback = [&] {
 		auto linkChannel = channel;
 		auto linkItemId = item->id;
-		auto linkCommentId = 0;
-		auto linkThreadId = 0;
+		auto linkCommentId = MsgId();
+		auto linkThreadId = MsgId();
 		if (inRepliesContext) {
 			if (const auto rootId = item->replyToTop()) {
 				const auto root = item->history()->owner().message(
@@ -693,11 +693,11 @@ QString ApiWrap::exportDirectMessageLink(
 			: "c/" + QString::number(peerToChannel(linkChannel->id).bare);
 		const auto query = base
 			+ '/'
-			+ QString::number(linkItemId)
+			+ QString::number(linkItemId.bare)
 			+ (linkCommentId
-				? "?comment=" + QString::number(linkCommentId)
+				? "?comment=" + QString::number(linkCommentId.bare)
 				: linkThreadId
-				? "?thread=" + QString::number(linkThreadId)
+				? "?thread=" + QString::number(linkThreadId.bare)
 				: "");
 		if (linkChannel->hasUsername()
 			&& !linkChannel->isMegagroup()

@@ -64,13 +64,14 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &[id, time] : _mediaLastPlaybackPosition) {
 			stream << quint64(id) << qint64(time);
 		}
-		stream << qint32(_hiddenPinnedMessages.size());
-		for (const auto &[key, value] : _hiddenPinnedMessages) {
-			stream << SerializePeerId(key) << qint32(value);
-		}
+		stream << qint32(0);
 		stream << qint32(_dialogsFiltersEnabled ? 1 : 0);
 		stream << qint32(_supportAllSilent ? 1 : 0);
 		stream << qint32(_photoEditorHintShowsCount);
+		stream << qint32(_hiddenPinnedMessages.size());
+		for (const auto &[key, value] : _hiddenPinnedMessages) {
+			stream << SerializePeerId(key) << qint64(value.bare);
+		}
 	}
 	return result;
 }
@@ -310,6 +311,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		auto count = qint32(0);
 		stream >> count;
 		if (stream.status() == QDataStream::Ok) {
+			// Legacy.
 			for (auto i = 0; i != count; ++i) {
 				auto key = quint64();
 				auto value = qint32();
@@ -331,6 +333,23 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> photoEditorHintShowsCount;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto key = quint64();
+				auto value = qint64();
+				stream >> key >> value;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				hiddenPinnedMessages.emplace(DeserializePeerId(key), value);
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

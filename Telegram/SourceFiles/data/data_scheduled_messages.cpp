@@ -546,7 +546,7 @@ uint64 ScheduledMessages::countListHash(const List &list) const {
 	}) | ranges::views::reverse;
 	for (const auto &item : serverside) {
 		const auto j = list.idByItem.find(item.get());
-		HashUpdate(hash, j->second);
+		HashUpdate(hash, j->second.bare);
 		if (const auto edited = item->Get<HistoryMessageEdited>()) {
 			HashUpdate(hash, edited->date);
 		} else {

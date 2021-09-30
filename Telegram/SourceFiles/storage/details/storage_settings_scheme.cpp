@@ -1074,14 +1074,14 @@ bool ReadSetting(
 	} break;
 
 	case dbiHiddenPinnedMessagesOld: {
-		auto v = QMap<uint64, MsgId>();
+		auto v = QMap<uint64, int32>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		for (auto i = v.begin(), e = v.end(); i != e; ++i) {
 			context.sessionSettings().setHiddenPinnedMessageId(
 				DeserializePeerId(i.key()),
-				i.value());
+				MsgId(i.value()));
 		}
 		context.legacyRead = true;
 	} break;

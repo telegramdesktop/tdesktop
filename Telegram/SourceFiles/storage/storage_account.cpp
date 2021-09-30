@@ -54,8 +54,10 @@ constexpr auto kSinglePeerTypeChat = qint32(8 + 2);
 constexpr auto kSinglePeerTypeChannel = qint32(8 + 3);
 constexpr auto kSinglePeerTypeSelf = qint32(4);
 constexpr auto kSinglePeerTypeEmpty = qint32(0);
-constexpr auto kMultiDraftTag = quint64(0xFFFFFFFFFFFFFF01ULL);
-constexpr auto kMultiDraftCursorsTag = quint64(0xFFFFFFFFFFFFFF02ULL);
+constexpr auto kMultiDraftTagOld = quint64(0xFFFF'FFFF'FFFF'FF01ULL);
+constexpr auto kMultiDraftCursorsTagOld = quint64(0xFFFF'FFFF'FFFF'FF02ULL);
+constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
+constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -1068,10 +1070,10 @@ void Account::writeDrafts(not_null<History*> history) {
 			const TextWithTags &text,
 			Data::PreviewState,
 			auto&&) { // cursor
-		size += sizeof(qint32) // key
+		size += sizeof(qint64) // key
 			+ Serialize::stringSize(text.text)
-			+ sizeof(quint32) + TextUtilities::SerializeTagsSize(text.tags)
-			+ 2 * sizeof(qint32); // msgId, previewState
+			+ sizeof(qint64) + TextUtilities::SerializeTagsSize(text.tags)
+			+ sizeof(qint64) + sizeof(qint32); // msgId, previewState
 	};
 	EnumerateDrafts(
 		map,
@@ -1096,7 +1098,7 @@ void Account::writeDrafts(not_null<History*> history) {
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
-			<< qint32(msgId)
+			<< qint64(msgId.bare)
 			<< qint32(previewState);
 	};
 	EnumerateDrafts(
@@ -1143,7 +1145,7 @@ void Account::writeDraftCursors(not_null<History*> history) {
 
 	auto size = int(sizeof(quint64) * 2
 		+ sizeof(quint32)
-		+ sizeof(qint32) * 4 * count);
+		+ (sizeof(qint64) + sizeof(qint32) * 3) * count);
 
 	EncryptedDescriptor data(size);
 	data.stream
@@ -1196,7 +1198,9 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 	}
 	quint64 tag = 0;
 	draft.stream >> tag;
-	if (tag != kMultiDraftTag && tag != kMultiDraftCursorsTag) {
+	if (tag != kMultiDraftCursorsTag
+		&& tag != kMultiDraftCursorsTagOld
+		&& tag != kMultiDraftTagOld) {
 		readDraftCursorsLegacy(peerId, draft, tag, map);
 		return;
 	}
@@ -1209,13 +1213,19 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 		return;
 	}
 	const auto keysWritten = (tag == kMultiDraftCursorsTag);
+	const auto keysOld = (tag == kMultiDraftCursorsTagOld);
 	for (auto i = 0; i != count; ++i) {
-		qint32 keyValue = 0;
+		qint64 keyValue = 0;
+		qint32 keyValueOld = 0;
 		if (keysWritten) {
 			draft.stream >> keyValue;
+		} else if (keysOld) {
+			draft.stream >> keyValueOld;
 		}
 		const auto key = keysWritten
 			? Data::DraftKey::FromSerialized(keyValue)
+			: keysOld
+			? Data::DraftKey::FromSerializedOld(keyValueOld)
 			: Data::DraftKey::Local();
 		qint32 position = 0, anchor = 0, scroll = QFIXED_MAX;
 		draft.stream >> position >> anchor >> scroll;
@@ -1287,7 +1297,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 
 	quint64 tag = 0;
 	draft.stream >> tag;
-	if (tag != kMultiDraftTag) {
+	if (tag != kMultiDraftTag && tag != kMultiDraftTagOld) {
 		readDraftsWithCursorsLegacy(history, draft, tag);
 		return;
 	}
@@ -1302,12 +1312,18 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		return;
 	}
 	auto map = Data::HistoryDrafts();
+	const auto keysOld = (tag == kMultiDraftTagOld);
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags data;
 		QByteArray tagsSerialized;
-		qint32 keyValue = 0, messageId = 0, uncheckedPreviewState = 0;
+		qint64 keyValue = 0;
+		qint32 keyValueOld = 0, messageId = 0, uncheckedPreviewState = 0;
+		if (keysOld) {
+			draft.stream >> keyValueOld;
+		} else {
+			draft.stream >> keyValue;
+		}
 		draft.stream
-			>> keyValue
 			>> data.text
 			>> tagsSerialized
 			>> messageId
@@ -1321,7 +1337,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		case Data::PreviewState::EmptyOnEdit:
 			previewState = Data::PreviewState(uncheckedPreviewState);
 		}
-		const auto key = Data::DraftKey::FromSerialized(keyValue);
+		const auto key = keysOld
+			? Data::DraftKey::FromSerializedOld(keyValueOld)
+			: Data::DraftKey::FromSerialized(keyValue);
 		if (key && key != Data::DraftKey::Cloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
 				data,

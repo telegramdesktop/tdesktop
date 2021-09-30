@@ -46,7 +46,7 @@ class AbstractController;
 namespace Media {
 
 using BaseLayout = Overview::Layout::ItemBase;
-using UniversalMsgId = int32;
+using UniversalMsgId = MsgId;
 
 class ListWidget final
 	: public Ui::RpWidget

@@ -141,7 +141,7 @@ private:
 };
 
 BoxController::Row::Row(not_null<HistoryItem*> item)
-: PeerListRow(item->history()->peer, item->id)
+: PeerListRow(item->history()->peer, item->id.bare)
 , _items(1, item)
 , _date(ItemDateTime(item).date())
 , _type(ComputeType(item))

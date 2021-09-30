@@ -1173,7 +1173,7 @@ HistoryItem *History::latestSendingMessage() const {
 	});
 	const auto i = ranges::max_element(sending, ranges::less(), [](
 			not_null<HistoryItem*> item) {
-		return uint64(item->date()) << 32 | uint32(item->id);
+		return std::pair(item->date(), item->id.bare);
 	});
 	return (i == sending.end()) ? nullptr : i->get();
 }
@@ -1466,7 +1466,7 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 	}
 	DEBUG_LOG(("Reading: readInboxTillNeedsRequest is_server %1, before %2."
 		).arg(Logs::b(IsServerMsgId(tillId))
-		).arg(_inboxReadBefore.value_or(-666)));
+		).arg(_inboxReadBefore.value_or(-666).bare));
 	return IsServerMsgId(tillId) && (_inboxReadBefore.value_or(1) <= tillId);
 }
 
@@ -1492,9 +1492,9 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	if (_inboxReadBefore) {
 		const auto before = *_inboxReadBefore;
 		DEBUG_LOG(("Reading: check before %1 with min %2 and max %3."
-			).arg(before
-			).arg(minMsgId()
-			).arg(maxMsgId()));
+			).arg(before.bare
+			).arg(minMsgId().bare
+			).arg(maxMsgId().bare));
 		if (minMsgId() <= before && maxMsgId() >= readTillId) {
 			auto result = 0;
 			for (const auto &block : blocks) {
@@ -1520,7 +1520,7 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	}
 	const auto minimalServerId = minMsgId();
 	DEBUG_LOG(("Reading: check at end loaded from %1 loaded %2 - %3").arg(
-		QString::number(minimalServerId),
+		QString::number(minimalServerId.bare),
 		Logs::b(loadedAtBottom()),
 		Logs::b(loadedAtTop())));
 	if (!loadedAtBottom()

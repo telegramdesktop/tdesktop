@@ -1838,8 +1838,8 @@ void Session::processMessages(
 				continue;
 			}
 		}
-		const auto id = IdFromMessage(message);
-		indices.emplace((uint64(uint32(id)) << 32) | uint64(i), i);
+		const auto id = IdFromMessage(message); // Only 32 bit values here.
+		indices.emplace((uint64(uint32(id.bare)) << 32) | uint64(i), i);
 	}
 	for (const auto &[position, index] : indices) {
 		addNewMessage(

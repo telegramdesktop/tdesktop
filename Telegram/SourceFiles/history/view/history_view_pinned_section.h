@@ -166,7 +166,7 @@ private:
 
 class PinnedMemento : public Window::SectionMemento {
 public:
-	using UniversalMsgId = int32;
+	using UniversalMsgId = MsgId;
 
 	explicit PinnedMemento(
 		not_null<History*> history,

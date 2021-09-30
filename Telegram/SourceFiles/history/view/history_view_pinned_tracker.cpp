@@ -153,7 +153,7 @@ void PinnedTracker::clear() {
 	_current = PinnedId();
 }
 
-void PinnedTracker::trackAround(MsgId messageId) {
+void PinnedTracker::trackAround(UniversalMsgId messageId) {
 	if (_aroundId == messageId) {
 		return;
 	}

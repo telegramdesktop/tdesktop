@@ -72,13 +72,13 @@ void Histories::readInbox(not_null<History*> history) {
 	if (history->lastServerMessageKnown()) {
 		const auto last = history->lastServerMessage();
 		DEBUG_LOG(("Reading: last known, reading till %1."
-			).arg(last ? last->id : 0));
+			).arg(last ? last->id.bare : 0));
 		readInboxTill(history, last ? last->id : 0);
 		return;
 	} else if (history->loadedAtBottom()) {
 		if (const auto lastId = history->maxMsgId()) {
 			DEBUG_LOG(("Reading: loaded at bottom, maxMsgId %1."
-				).arg(lastId));
+				).arg(lastId.bare));
 			readInboxTill(history, lastId);
 			return;
 		} else if (history->loadedAtTop()) {
@@ -93,7 +93,7 @@ void Histories::readInbox(not_null<History*> history) {
 
 		const auto last = history->lastServerMessage();
 		DEBUG_LOG(("Reading: got entry, reading till %1."
-			).arg(last ? last->id : 0));
+			).arg(last ? last->id.bare : 0));
 		readInboxTill(history, last ? last->id : 0);
 	});
 }
@@ -147,7 +147,7 @@ void Histories::readInboxTill(
 	Expects(IsServerMsgId(tillId) || (!tillId && !force));
 
 	DEBUG_LOG(("Reading: readInboxTill %1, force %2."
-		).arg(tillId
+		).arg(tillId.bare
 		).arg(Logs::b(force)));
 
 	const auto syncGuard = gsl::finally([&] {
@@ -156,8 +156,8 @@ void Histories::readInboxTill(
 		if (history->unreadCount() > 0) {
 			if (const auto last = history->lastServerMessage()) {
 				DEBUG_LOG(("Reading: checking last %1 and %2."
-					).arg(last->id
-					).arg(tillId));
+					).arg(last->id.bare
+					).arg(tillId.bare));
 				if (last->id == tillId) {
 					DEBUG_LOG(("Reading: locally marked as read."));
 					history->setUnreadCount(0);
@@ -180,11 +180,11 @@ void Histories::readInboxTill(
 	const auto maybeState = lookup(history);
 	if (maybeState && maybeState->sentReadTill >= tillId) {
 		DEBUG_LOG(("Reading: readInboxTill finish 3 with %1."
-			).arg(maybeState->sentReadTill));
+			).arg(maybeState->sentReadTill.bare));
 		return;
 	} else if (maybeState && maybeState->willReadTill >= tillId) {
 		DEBUG_LOG(("Reading: readInboxTill finish 4 with %1 and force %2."
-			).arg(maybeState->sentReadTill
+			).arg(maybeState->sentReadTill.bare
 			).arg(Logs::b(force)));
 		if (force) {
 			sendPendingReadInbox(history);
@@ -200,7 +200,7 @@ void Histories::readInboxTill(
 		&& history->unreadCountKnown()
 		&& *stillUnread == history->unreadCount()) {
 		DEBUG_LOG(("Reading: count didn't change so just update till %1"
-			).arg(tillId));
+			).arg(tillId.bare));
 		history->setInboxReadTill(tillId);
 		return;
 	}
@@ -208,7 +208,7 @@ void Histories::readInboxTill(
 	state.willReadTill = tillId;
 	if (force || !stillUnread || !*stillUnread) {
 		DEBUG_LOG(("Reading: will read till %1 with still unread %2"
-			).arg(tillId
+			).arg(tillId.bare
 			).arg(stillUnread.value_or(-666)));
 		state.willReadWhen = 0;
 		sendReadRequests();
@@ -216,17 +216,18 @@ void Histories::readInboxTill(
 			return;
 		}
 	} else if (!state.willReadWhen) {
-		DEBUG_LOG(("Reading: will read till %1 with postponed").arg(tillId));
+		DEBUG_LOG(("Reading: will read till %1 with postponed"
+			).arg(tillId.bare));
 		state.willReadWhen = crl::now() + kReadRequestTimeout;
 		if (!_readRequestsTimer.isActive()) {
 			_readRequestsTimer.callOnce(kReadRequestTimeout);
 		}
 	} else {
 		DEBUG_LOG(("Reading: will read till %1 postponed already"
-			).arg(tillId));
+			).arg(tillId.bare));
 	}
 	DEBUG_LOG(("Reading: marking now with till %1 and still %2"
-		).arg(tillId
+		).arg(tillId.bare
 		).arg(*stillUnread));
 	history->setInboxReadTill(tillId);
 	history->setUnreadCount(*stillUnread);
@@ -440,7 +441,7 @@ void Histories::requestFakeChatListMessage(
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
 		DEBUG_LOG(("Reading: send pending now with till %1 and when %2"
-			).arg(state->willReadTill
+			).arg(state->willReadTill.bare
 			).arg(state->willReadWhen));
 		if (state->willReadTill && state->willReadWhen) {
 			state->willReadWhen = 0;
@@ -462,7 +463,7 @@ void Histories::sendReadRequests() {
 			continue;
 		} else if (state.willReadWhen <= now) {
 			DEBUG_LOG(("Reading: sending with till %1."
-				).arg(state.willReadTill));
+				).arg(state.willReadTill.bare));
 			sendReadRequest(history, state);
 		} else if (!next || *next > state.willReadWhen) {
 			DEBUG_LOG(("Reading: scheduling for later send."));
@@ -483,10 +484,10 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	state.willReadWhen = 0;
 	state.sentReadDone = false;
 	DEBUG_LOG(("Reading: sending request now with till %1."
-		).arg(tillId));
+		).arg(tillId.bare));
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		DEBUG_LOG(("Reading: sending request invoked with till %1."
-			).arg(tillId));
+			).arg(tillId.bare));
 		const auto finished = [=] {
 			const auto state = lookup(history);
 			Assert(state != nullptr);

@@ -60,7 +60,7 @@ namespace {
 
 PinnedMemento::PinnedMemento(
 	not_null<History*> history,
-	MsgId highlightId)
+	UniversalMsgId highlightId)
 : _history(history)
 , _highlightId(highlightId) {
 	_list.setAroundPosition({

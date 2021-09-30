@@ -133,12 +133,10 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	Expects(history->peer->isUser());
 
 	using Flag = MTPDmessage::Flag;
-	// #TODO common global incrementable id for fake items, like clientMsgId.
-	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 6);
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
 	const auto item = MTP_message(
 		MTP_flags(flags),
-		MTP_int(++id),
+		MTP_int(history->owner().nextNonHistoryEntryId()),
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(

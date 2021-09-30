@@ -1172,7 +1172,7 @@ void HistoryWidget::checkNextHighlight() {
 				return msgId;
 			}
 		}
-		return 0;
+		return MsgId();
 	}();
 	if (!nextHighlight) {
 		return;
@@ -2844,7 +2844,7 @@ void HistoryWidget::firstLoadMessages() {
 	}
 
 	auto from = _history;
-	auto offsetId = 0;
+	auto offsetId = MsgId();
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
@@ -3018,7 +3018,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	_delayedShowAtMsgId = showAtMsgId;
 
 	auto from = _history;
-	auto offsetId = 0;
+	auto offsetId = MsgId();
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {

@@ -366,7 +366,7 @@ std::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
 			: QString("-"));
 		if (const auto msgId = std::get_if<FullMsgId>(&value)) {
 			info.push_back("value:" + QString::number(msgId->channel.bare));
-			info.push_back(QString::number(msgId->msg));
+			info.push_back(QString::number(msgId->msg.bare));
 			const auto index = _slice.indexOf(*std::get_if<FullMsgId>(&value));
 			info.push_back("index:" + (index
 				? QString::number(*index)

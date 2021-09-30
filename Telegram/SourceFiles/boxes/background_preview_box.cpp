@@ -288,7 +288,6 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 		bool out) {
 	Expects(history->peer->isUser());
 
-	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 3);
 	const auto flags = MessageFlag::FakeHistoryItem
 		| MessageFlag::HasFromId
 		| (out ? MessageFlag::Outgoing : MessageFlag(0));
@@ -296,7 +295,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 	const auto viaBotId = UserId();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		++id,
+		history->owner().nextNonHistoryEntryId(),
 		flags,
 		replyTo,
 		viaBotId,
