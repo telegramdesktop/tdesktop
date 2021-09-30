@@ -147,7 +147,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 	base::Timer _ignoreActivationStop;
 }
 
-- (instancetype) init: {
+- (instancetype) init {
 	_ignoreActivation = false;
 	_ignoreActivationStop.setCallback([self] {
 		_ignoreActivation = false;
