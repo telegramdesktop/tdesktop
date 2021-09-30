@@ -49,6 +49,7 @@ struct Panel::WebviewWithLifetime {
 		Webview::WindowConfig config = Webview::WindowConfig());
 
 	Webview::Window window;
+	QPointer<RpWidget> lastHidingBox;
 	rpl::lifetime lifetime;
 };
 
@@ -687,6 +688,26 @@ rpl::producer<> Panel::backRequests() const {
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
+	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
+		const auto hideNow = !widget->isHidden();
+		if (hideNow || _webview->lastHidingBox) {
+			const auto raw = _webview->lastHidingBox = box.data();
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				const auto widget = _webview
+					? _webview->window.widget()
+					: nullptr;
+				if (widget
+					&& widget->isHidden()
+					&& _webview->lastHidingBox == raw) {
+					widget->show();
+				}
+			}, _webview->lifetime);
+			if (hideNow) {
+				widget->hide();
+			}
+		}
+	}
 	_widget->showBox(
 		std::move(box),
 		LayerOption::KeepOther,
