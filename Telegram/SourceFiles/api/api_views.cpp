@@ -60,7 +60,7 @@ void ViewsManager::viewsIncrement() {
 
 		QVector<MTPint> ids;
 		ids.reserve(i->second.size());
-		for (const auto msgId : i->second) {
+		for (const auto &msgId : i->second) {
 			ids.push_back(MTP_int(msgId));
 		}
 		const auto requestId = _api.request(MTPmessages_GetMessagesViews(

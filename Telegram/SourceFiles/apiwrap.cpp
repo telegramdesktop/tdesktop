@@ -1761,7 +1761,7 @@ void ApiWrap::deleteAllFromUser(
 		? history->collectMessagesFromUserToDelete(from)
 		: QVector<MsgId>();
 	const auto channelId = peerToChannel(channel->id);
-	for (const auto msgId : ids) {
+	for (const auto &msgId : ids) {
 		if (const auto item = _session->data().message(channelId, msgId)) {
 			item->destroy();
 		}

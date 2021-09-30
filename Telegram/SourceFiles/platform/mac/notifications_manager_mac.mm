@@ -256,11 +256,25 @@ void Manager::Private::showNotification(
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
 	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
-		auto identifier = _managerIdString + '_' + QString::number(peer->id.value) + '_' + QString::number(msgId);
+		auto identifier = _managerIdString
+			+ '_'
+			+ QString::number(peer->id.value)
+			+ '_'
+			+ QString::number(msgId.bare);
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],@"session",[NSNumber numberWithUnsignedLongLong:peer->id.value],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
+	[notification setUserInfo:
+		[NSDictionary dictionaryWithObjectsAndKeys:
+			[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],
+			@"session",
+			[NSNumber numberWithUnsignedLongLong:peer->id.value],
+			@"peer",
+			[NSNumber numberWithInt:msgId.bare],
+			@"msgid",
+			[NSNumber numberWithUnsignedLongLong:_managerId],
+			@"manager",
+			nil]];
 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
