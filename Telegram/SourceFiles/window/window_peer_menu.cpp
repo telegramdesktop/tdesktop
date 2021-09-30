@@ -487,7 +487,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				[=] { AddBotToGroup::Start(user); });
 		}
 		addPollAction(user);
-		if (!user->isBot()) {
+		if (!user->isBot() && _request.section == Section::History) {
 			_addAction(
 				tr::lng_chat_theme_change(tr::now),
 				[=] { controller->toggleChooseChatTheme(user); });
