@@ -141,6 +141,8 @@ PRIVATE
     ui/chat/chat_style.h
     ui/chat/chat_theme.cpp
     ui/chat/chat_theme.h
+    ui/chat/continuous_scroll.cpp
+    ui/chat/continuous_scroll.h
     ui/chat/forward_options_box.cpp
     ui/chat/forward_options_box.h
     ui/chat/group_call_bar.cpp
