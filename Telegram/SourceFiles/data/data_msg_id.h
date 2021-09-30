@@ -73,16 +73,21 @@ Q_DECLARE_METATYPE(MsgId);
 	return (a.bare >= b.bare);
 }
 
-constexpr auto StartClientMsgId = MsgId(-0x7FFFFFFF);
-constexpr auto EndClientMsgId = MsgId(-0x40000000);
-constexpr auto ShowAtTheEndMsgId = MsgId(-0x40000000);
-constexpr auto SwitchAtTopMsgId = MsgId(-0x3FFFFFFF);
-constexpr auto ShowAtProfileMsgId = MsgId(-0x3FFFFFFE);
-constexpr auto ShowAndStartBotMsgId = MsgId(-0x3FFFFFFD);
-constexpr auto ShowAtGameShareMsgId = MsgId(-0x3FFFFFFC);
-constexpr auto ShowForChooseMessagesMsgId = MsgId(-0x3FFFFFFB);
+constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
+constexpr auto EndClientMsgId = MsgId(-(1LL << 57));
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
+
+constexpr auto SpecialMsgIdShift = EndClientMsgId.bare;
+constexpr auto ShowAtTheEndMsgId = MsgId(SpecialMsgIdShift + 1);
+constexpr auto SwitchAtTopMsgId = MsgId(SpecialMsgIdShift + 2);
+constexpr auto ShowAtProfileMsgId = MsgId(SpecialMsgIdShift + 3);
+constexpr auto ShowAndStartBotMsgId = MsgId(SpecialMsgIdShift + 4);
+constexpr auto ShowAtGameShareMsgId = MsgId(SpecialMsgIdShift + 5);
+constexpr auto ShowForChooseMessagesMsgId = MsgId(SpecialMsgIdShift + 6);
+
+static_assert(SpecialMsgIdShift + 0xFF < 0);
+static_assert(-(SpecialMsgIdShift + 0xFF) > ServerMaxMsgId);
 
 [[nodiscard]] constexpr inline bool IsClientMsgId(MsgId id) noexcept {
 	return (id >= StartClientMsgId && id < EndClientMsgId);
