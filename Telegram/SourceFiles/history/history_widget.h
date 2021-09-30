@@ -80,6 +80,7 @@ namespace Toast {
 class Instance;
 } // namespace Toast
 class ChooseThemeController;
+class ContinuousScroll;
 } // namespace Ui
 
 namespace Window {
@@ -675,7 +676,7 @@ private:
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
 
 	object_ptr<HistoryView::TopBarWidget> _topBar;
-	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ContinuousScroll> _scroll;
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;

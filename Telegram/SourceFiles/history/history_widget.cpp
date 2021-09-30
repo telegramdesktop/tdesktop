@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_sponsored_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
@@ -109,6 +110,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/continuous_scroll.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/item_text_options.h"
 #include "ui/unread_badge.h"
@@ -260,6 +262,14 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next(crl::guard(_list, [=] {
 		_list->onParentGeometryChanged();
 	}), lifetime());
+	_scroll->addContentRequests(
+	) | rpl::start_with_next([=] {
+		if (_history->loadedAtBottom()
+			&& session().data().sponsoredMessages().append(_history)) {
+			_scroll->contentAdded();
+		}
+	}, lifetime());
+
 	_historyDown->addClickHandler([=] { historyDownClicked(); });
 	_unreadMentions->addClickHandler([=] { showNextUnreadMention(); });
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
@@ -1966,6 +1976,8 @@ void HistoryWidget::showHistory(
 				}
 			}
 			return;
+		} else {
+			session().data().sponsoredMessages().clearItems(_history);
 		}
 		session().sendProgressManager().update(
 			_history,
@@ -2169,6 +2181,14 @@ void HistoryWidget::showHistory(
 		}
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
+
+		{
+			const auto hasSponsored = _history->canHaveSponsoredMessages();
+			_scroll->setTrackingContent(hasSponsored);
+			if (hasSponsored) {
+				session().data().sponsoredMessages().request(_history);
+			}
+		}
 	} else {
 		_chooseForReport = nullptr;
 		refreshTopBarActiveChat();
@@ -2614,6 +2634,16 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	if (_history != item->history()
 		|| !_historyInited
 		|| item->isScheduled()) {
+		return;
+	}
+	if (item->isSponsored()) {
+		if (const auto view = item->mainView()) {
+			view->resizeGetHeight(width());
+			updateHistoryGeometry(
+				false,
+				true,
+				{ ScrollChangeNoJumpToBottom, 0 });
+		}
 		return;
 	}
 
