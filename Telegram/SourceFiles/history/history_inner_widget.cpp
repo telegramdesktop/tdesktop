@@ -1615,16 +1615,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		if (hasWhoReadItem) {
-			const auto participantChosen = [=](uint64 id) {
-				controller->showPeerInfo(PeerId(id));
-			};
-			_menu->addAction(Ui::WhoReadContextAction(
-				_menu.get(),
-				Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
-				participantChosen));
-			_menu->addSeparator();
-		}
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);
@@ -1733,6 +1723,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 	};
+
+	if (hasWhoReadItem) {
+		const auto participantChosen = [=](uint64 id) {
+			controller->showPeerInfo(PeerId(id));
+		};
+		_menu->addAction(Ui::WhoReadContextAction(
+			_menu.get(),
+			Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
+			participantChosen));
+		_menu->addSeparator();
+	}
+
 	const auto link = ClickHandler::getActive();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
