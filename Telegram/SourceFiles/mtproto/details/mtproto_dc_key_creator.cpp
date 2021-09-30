@@ -26,50 +26,183 @@ struct ParsedPQ {
 	QByteArray q;
 };
 
-[[nodiscard]] ParsedPQ ParsePQ(const QByteArray &pqStr) {
-	if (pqStr.length() > 8) {
-		// More than 64 bit pq.
-		return ParsedPQ();
+// Fast PQ factorization taken from TDLib:
+// https://github.com/tdlib/td/blob/v1.7.0/tdutils/td/utils/crypto.cpp
+[[nodiscard]] uint64 gcd(uint64 a, uint64 b) {
+	if (a == 0) {
+		return b;
+	} else if (b == 0) {
+		return a;
 	}
 
-	uint64 pq = 0, p, q;
-	const uchar *pqChars = (const uchar*)pqStr.constData();
-	for (uint32 i = 0, l = pqStr.length(); i < l; ++i) {
-		pq <<= 8;
-		pq |= (uint64)pqChars[i];
+	int shift = 0;
+	while ((a & 1) == 0 && (b & 1) == 0) {
+		a >>= 1;
+		b >>= 1;
+		shift++;
 	}
-	uint64 pqSqrt = (uint64)sqrtl((long double)pq), ySqr, y;
-	while (pqSqrt * pqSqrt > pq) --pqSqrt;
-	while (pqSqrt * pqSqrt < pq) ++pqSqrt;
-	for (ySqr = pqSqrt * pqSqrt - pq; ; ++pqSqrt, ySqr = pqSqrt * pqSqrt - pq) {
-		y = (uint64)sqrtl((long double)ySqr);
-		while (y * y > ySqr) --y;
-		while (y * y < ySqr) ++y;
-		if (!ySqr || y + pqSqrt >= pq) {
-			return ParsedPQ();
+
+	while (true) {
+		while ((a & 1) == 0) {
+			a >>= 1;
 		}
-		if (y * y == ySqr) {
-			p = pqSqrt + y;
-			q = (pqSqrt > y) ? (pqSqrt - y) : (y - pqSqrt);
+		while ((b & 1) == 0) {
+			b >>= 1;
+		}
+		if (a > b) {
+			a -= b;
+		} else if (b > a) {
+			b -= a;
+		} else {
+			return a << shift;
+		}
+	}
+}
+
+[[nodiscard]] uint64 FactorizeSmallPQ(uint64 pq) {
+	if (pq < 2 || pq >(static_cast<uint64>(1) << 63)) {
+		return 1;
+	}
+	uint64 g = 0;
+	for (int i = 0, iter = 0; i < 3 || iter < 1000; i++) {
+		uint64 q = (17 + base::RandomIndex(16)) % (pq - 1);
+		uint64 x = base::RandomValue<uint64>() % (pq - 1) + 1;
+		uint64 y = x;
+		int lim = 1 << (std::min(5, i) + 18);
+		for (int j = 1; j < lim; j++) {
+			iter++;
+			uint64 a = x;
+			uint64 b = x;
+			uint64 c = q;
+
+			// c += a * b
+			while (b) {
+				if (b & 1) {
+					c += a;
+					if (c >= pq) {
+						c -= pq;
+					}
+				}
+				a += a;
+				if (a >= pq) {
+					a -= pq;
+				}
+				b >>= 1;
+			}
+
+			x = c;
+			uint64 z = x < y ? pq + x - y : x - y;
+			g = gcd(z, pq);
+			if (g != 1) {
+				break;
+			}
+
+			if (!(j & (j - 1))) {
+				y = x;
+			}
+		}
+		if (g > 1 && g < pq) {
 			break;
 		}
 	}
-	if (p > q) std::swap(p, q);
+	if (g != 0) {
+		uint64 other = pq / g;
+		if (other < g) {
+			g = other;
+		}
+	}
+	return g;
+}
+
+ParsedPQ FactorizeBigPQ(const QByteArray &pqStr) {
+	using namespace openssl;
+
+	Context context;
+	BigNum a;
+	BigNum b;
+	BigNum p;
+	BigNum q;
+	auto one = BigNum(1);
+	auto pq = BigNum(bytes::make_span(pqStr));
+
+	bool found = false;
+	for (int i = 0, iter = 0; !found && (i < 3 || iter < 1000); i++) {
+		int32 t = 17 + base::RandomIndex(16);
+		a.setWord(base::RandomValue<uint32>());
+		b = a;
+
+		int32 lim = 1 << (i + 23);
+		for (int j = 1; j < lim; j++) {
+			iter++;
+			a.setModMul(a, a, pq, context);
+			a.setAdd(a, BigNum(uint32(t)));
+			if (BigNum::Compare(a, pq) >= 0) {
+				a = BigNum::Sub(a, pq);
+			}
+			if (BigNum::Compare(a, b) > 0) {
+				q.setSub(a, b);
+			} else {
+				q.setSub(b, a);
+			}
+			p.setGcd(q, pq, context);
+			if (BigNum::Compare(p, one) != 0) {
+				found = true;
+				break;
+			}
+			if ((j & (j - 1)) == 0) {
+				b = a;
+			}
+		}
+	}
+
+	if (!found) {
+		return ParsedPQ();
+	}
+	BigNum::Div(&q, nullptr, pq, p, context);
+	if (BigNum::Compare(p, q) > 0) {
+		std::swap(p, q);
+	}
+
+	const auto pb = p.getBytes();
+	const auto qb = q.getBytes();
+
+	return {
+		QByteArray(reinterpret_cast<const char*>(pb.data()), pb.size()),
+		QByteArray(reinterpret_cast<const char*>(qb.data()), qb.size())
+	};
+}
+
+[[nodiscard]] ParsedPQ FactorizePQ(const QByteArray &pqStr) {
+	const auto size = pqStr.size();
+	if (size > 8 || (size == 8 && (uchar(pqStr[0]) & 128) != 0)) {
+		return FactorizeBigPQ(pqStr);
+	}
+
+	auto ptr = reinterpret_cast<const uchar*>(pqStr.data());
+	uint64 pq = 0;
+	for (auto i = 0; i != size; ++i) {
+		pq = (pq << 8) | ptr[i];
+	}
+
+	auto p = FactorizeSmallPQ(pq);
+	if (p == 0 || (pq % p) != 0) {
+		return ParsedPQ();
+	}
+	auto q = pq / p;
 
 	auto pStr = QByteArray(4, Qt::Uninitialized);
 	uchar *pChars = (uchar*)pStr.data();
-	for (uint32 i = 0; i < 4; ++i) {
+	for (auto i = 0; i != 4; ++i) {
 		*(pChars + 3 - i) = (uchar)(p & 0xFF);
 		p >>= 8;
 	}
 
 	auto qStr = QByteArray(4, Qt::Uninitialized);
 	uchar *qChars = (uchar*)qStr.data();
-	for (uint32 i = 0; i < 4; ++i) {
+	for (auto i = 0; i != 4; ++i) {
 		*(qChars + 3 - i) = (uchar)(q & 0xFF);
 		q >>= 8;
 	}
-
 	return { pStr, qStr };
 }
 
@@ -402,7 +535,7 @@ void DcKeyCreator::pqAnswered(
 
 		DEBUG_LOG(("AuthKey Info: parsing pq..."));
 		const auto &pq = data.vpq().v;
-		const auto parsed = ParsePQ(data.vpq().v);
+		const auto parsed = FactorizePQ(data.vpq().v);
 		if (parsed.p.isEmpty() || parsed.q.isEmpty()) {
 			LOG(("AuthKey Error: could not factor pq!"));
 			DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(pq.constData(), pq.length()).str()));
