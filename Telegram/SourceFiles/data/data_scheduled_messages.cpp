@@ -32,18 +32,18 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 		&& (item->date() > base::unixtime::now());
 }
 
-MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
+MTPMessage PrepareMessage(const MTPMessage &message) {
 	return message.match([&](const MTPDmessageEmpty &data) {
 		return MTP_messageEmpty(
 			data.vflags(),
-			MTP_int(id),
+			data.vid(),
 			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
 		return MTP_messageService(
 			MTP_flags(data.vflags().v
 				| MTPDmessageService::Flag(
 					MTPDmessage::Flag::f_from_scheduled)),
-			MTP_int(id),
+			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
@@ -53,7 +53,7 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 	}, [&](const MTPDmessage &data) {
 		return MTP_message(
 			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_from_scheduled),
-			MTP_int(id),
+			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
@@ -192,6 +192,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 	const auto views = 1;
 	const auto forwards = 0;
 	history->addNewMessage(
+		update.vid().v,
 		MTP_message(
 			MTP_flags(flags),
 			update.vid(),
@@ -463,7 +464,8 @@ HistoryItem *ScheduledMessages::append(
 	}
 
 	const auto item = _session->data().addNewMessage(
-		PrepareMessage(message, history->nextNonHistoryEntryId()),
+		history->nextNonHistoryEntryId(),
+		PrepareMessage(message),
 		MessageFlags(), // localFlags
 		NewMessageType::Existing);
 	if (!item || item->history() != history) {

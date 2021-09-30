@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
-#include "data/data_session.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/qt_adapters.h"
@@ -281,7 +280,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	const auto viaBotId = UserId();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		history->owner().nextNonHistoryEntryId(),
+		history->nextNonHistoryEntryId(),
 		flags,
 		replyTo,
 		viaBotId,
@@ -304,7 +303,7 @@ AdminLog::OwnedItem GenerateContactItem(
 	const auto postAuthor = QString();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		history->owner().nextNonHistoryEntryId(),
+		history->nextNonHistoryEntryId(),
 		(MessageFlag::HasFromId
 			| MessageFlag::Outgoing
 			| MessageFlag::FakeHistoryItem),

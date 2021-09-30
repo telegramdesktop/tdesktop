@@ -48,10 +48,12 @@ class HistoryMessage final : public HistoryItem {
 public:
 	HistoryMessage(
 		not_null<History*> history,
+		MsgId id,
 		const MTPDmessage &data,
 		MessageFlags localFlags);
 	HistoryMessage(
 		not_null<History*> history,
+		MsgId id,
 		const MTPDmessageService &data,
 		MessageFlags localFlags);
 	HistoryMessage(

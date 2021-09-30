@@ -1089,6 +1089,7 @@ MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags) {
 
 not_null<HistoryItem*> HistoryItem::Create(
 		not_null<History*> history,
+		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags) {
 	return message.match([&](const MTPDmessage &data) -> HistoryItem* {
@@ -1099,7 +1100,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 		if (checked == MediaCheckResult::Unsupported) {
 			return CreateUnsupportedMessage(
 				history,
-				data.vid().v,
+				id,
 				FlagsFromMTP(data.vflags().v) | localFlags,
 				MsgId(0), // No need to pass reply_to data here.
 				data.vvia_bot_id().value_or_empty(),
@@ -1110,28 +1111,24 @@ not_null<HistoryItem*> HistoryItem::Create(
 				tr::lng_message_empty(tr::now)
 			};
 			return history->makeServiceMessage(
-				data.vid().v,
+				id,
 				FlagsFromMTP(data.vflags().v) | localFlags,
 				data.vdate().v,
 				text,
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
-			return history->makeServiceMessage(data, localFlags);
+			return history->makeServiceMessage(id, data, localFlags);
 		}
-		return history->makeMessage(data, localFlags);
+		return history->makeMessage(id, data, localFlags);
 	}, [&](const MTPDmessageService &data) -> HistoryItem* {
 		if (data.vaction().type() == mtpc_messageActionPhoneCall) {
-			return history->makeMessage(data, localFlags);
+			return history->makeMessage(id, data, localFlags);
 		}
-		return history->makeServiceMessage(data, localFlags);
+		return history->makeServiceMessage(id, data, localFlags);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
 			tr::lng_message_empty(tr::now)
 		};
-		return history->makeServiceMessage(
-			data.vid().v,
-			localFlags,
-			TimeId(0),
-			text);
+		return history->makeServiceMessage(id, localFlags, TimeId(0), text);
 	});
 }

@@ -29,7 +29,7 @@ constexpr auto kMessagesPerPage = 50;
 		TimeId date,
 		const QString &text) {
 	return history->makeServiceMessage(
-		history->session().data().nextNonHistoryEntryId(),
+		history->nextNonHistoryEntryId(),
 		MessageFlag::FakeHistoryItem,
 		date,
 		HistoryService::PreparedText{ text });
@@ -101,7 +101,7 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		_partLoaded.events(
 		) | rpl::start_with_next(pushDelayed, lifetime);
 
-		_history->session().data().channelDifferenceTooLong(
+		_history->owner().channelDifferenceTooLong(
 		) | rpl::filter([=](not_null<ChannelData*> channel) {
 			if (_history->peer != channel || !_skippedAfter.has_value()) {
 				return false;

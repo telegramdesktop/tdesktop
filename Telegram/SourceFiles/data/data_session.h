@@ -397,6 +397,11 @@ public:
 		const MTPMessage &data,
 		MessageFlags localFlags,
 		NewMessageType type);
+	HistoryItem *addNewMessage( // Override message id.
+		MsgId id,
+		const MTPMessage &data,
+		MessageFlags localFlags,
+		NewMessageType type);
 
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;

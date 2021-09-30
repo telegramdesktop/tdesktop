@@ -295,7 +295,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 	const auto viaBotId = UserId();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
-		history->owner().nextNonHistoryEntryId(),
+		history->nextNonHistoryEntryId(),
 		flags,
 		replyTo,
 		viaBotId,

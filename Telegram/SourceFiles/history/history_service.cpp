@@ -866,11 +866,12 @@ HistoryService::PreparedText HistoryService::prepareCallScheduledText(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
+	MsgId id,
 	const MTPDmessage &data,
 	MessageFlags localFlags)
 : HistoryItem(
 		history,
-		data.vid().v,
+		id,
 		FlagsFromMTP(data.vflags().v) | localFlags,
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
@@ -880,11 +881,12 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
+	MsgId id,
 	const MTPDmessageService &data,
 	MessageFlags localFlags)
 : HistoryItem(
 		history,
-		data.vid().v,
+		id,
 		FlagsFromMTP(data.vflags().v) | localFlags,
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {

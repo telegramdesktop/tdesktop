@@ -136,7 +136,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
 	const auto item = MTP_message(
 		MTP_flags(flags),
-		MTP_int(history->owner().nextNonHistoryEntryId()),
+		MTP_int(0),
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(
@@ -166,7 +166,10 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPVector<MTPRestrictionReason>(),
 		MTPint() // ttl_period
 	).match([&](const MTPDmessage &data) {
-		return history->makeMessage(data, MessageFlag::FakeHistoryItem);
+		return history->makeMessage(
+			history->nextNonHistoryEntryId(),
+			data,
+			MessageFlag::FakeHistoryItem);
 	}, [](auto &&) -> not_null<HistoryMessage*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});

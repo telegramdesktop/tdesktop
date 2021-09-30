@@ -69,10 +69,12 @@ public:
 
 	HistoryService(
 		not_null<History*> history,
+		MsgId id,
 		const MTPDmessage &data,
 		MessageFlags localFlags);
 	HistoryService(
 		not_null<History*> history,
+		MsgId id,
 		const MTPDmessageService &data,
 		MessageFlags localFlags);
 	HistoryService(

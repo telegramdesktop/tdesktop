@@ -56,14 +56,11 @@ TimeId ExtractSentDate(const MTPMessage &message) {
 	});
 }
 
-MTPMessage PrepareLogMessage(
-		const MTPMessage &message,
-		MsgId newId,
-		TimeId newDate) {
+MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 	return message.match([&](const MTPDmessageEmpty &data) {
 		return MTP_messageEmpty(
 			data.vflags(),
-			MTP_int(newId),
+			data.vid(),
 			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
 		const auto removeFlags = MTPDmessageService::Flag::f_out
@@ -72,7 +69,7 @@ MTPMessage PrepareLogMessage(
 			| MTPDmessageService::Flag::f_ttl_period;
 		return MTP_messageService(
 			MTP_flags(data.vflags().v & ~removeFlags),
-			MTP_int(newId),
+			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			MTPMessageReplyHeader(),
@@ -93,7 +90,7 @@ MTPMessage PrepareLogMessage(
 			| MTPDmessage::Flag::f_ttl_period;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
-			MTP_int(newId),
+			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
@@ -669,10 +666,8 @@ void GenerateItems(
 			auto detachExistingItem = false;
 			addPart(
 				history->createItem(
-					PrepareLogMessage(
-						action.vmessage(),
-						history->nextNonHistoryEntryId(),
-						date),
+					history->nextNonHistoryEntryId(),
+					PrepareLogMessage(action.vmessage(), date),
 					MessageFlag::AdminLogEntry,
 					detachExistingItem),
 				ExtractSentDate(action.vmessage()));
@@ -698,10 +693,8 @@ void GenerateItems(
 		auto oldValue = ExtractEditedText(session, action.vprev_message());
 		auto detachExistingItem = false;
 		auto body = history->createItem(
-			PrepareLogMessage(
-				action.vnew_message(),
-				history->nextNonHistoryEntryId(),
-				date),
+			history->nextNonHistoryEntryId(),
+			PrepareLogMessage(action.vnew_message(), date),
 			MessageFlag::AdminLogEntry,
 			detachExistingItem);
 		if (oldValue.text.isEmpty()) {
@@ -724,10 +717,8 @@ void GenerateItems(
 		auto detachExistingItem = false;
 		addPart(
 			history->createItem(
-				PrepareLogMessage(
-					action.vmessage(),
-					history->nextNonHistoryEntryId(),
-					date),
+				history->nextNonHistoryEntryId(),
+				PrepareLogMessage(action.vmessage(), date),
 				MessageFlag::AdminLogEntry,
 				detachExistingItem),
 			ExtractSentDate(action.vmessage()));
@@ -821,10 +812,8 @@ void GenerateItems(
 		auto detachExistingItem = false;
 		addPart(
 			history->createItem(
-				PrepareLogMessage(
-					action.vmessage(),
-					history->nextNonHistoryEntryId(),
-					date),
+				history->nextNonHistoryEntryId(),
+				PrepareLogMessage(action.vmessage(), date),
 				MessageFlag::AdminLogEntry,
 				detachExistingItem),
 			ExtractSentDate(action.vmessage()));

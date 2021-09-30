@@ -134,12 +134,10 @@ public:
 	void unpinAllMessages();
 
 	HistoryItem *addNewMessage(
+		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
 		NewMessageType type);
-	HistoryItem *addToHistory(
-		const MTPMessage &msg,
-		MessageFlags localFlags);
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
@@ -194,6 +192,7 @@ public:
 
 	// Used only internally and for channel admin log.
 	HistoryItem *createItem(
+		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		bool detachExistingItem);
@@ -418,7 +417,7 @@ public:
 
 	[[nodiscard]] std::pair<Element*, int> findItemAndOffset(int top) const;
 
-	MsgId nextNonHistoryEntryId();
+	[[nodiscard]] MsgId nextNonHistoryEntryId();
 
 	bool folderKnown() const override;
 	Data::Folder *folder() const override;

@@ -360,21 +360,17 @@ void History::setForwardDraft(Data::ForwardDraft &&draft) {
 }
 
 HistoryItem *History::createItem(
+		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		bool detachExistingItem) {
-	const auto messageId = IdFromMessage(message);
-	if (!messageId) {
-		return nullptr;
-	}
-
-	if (const auto result = owner().message(channelId(), messageId)) {
+	if (const auto result = owner().message(channelId(), id)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
 		return result;
 	}
-	return HistoryItem::Create(this, message, localFlags);
+	return HistoryItem::Create(this, id, message, localFlags);
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
@@ -382,9 +378,14 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	auto result = std::vector<not_null<HistoryItem*>>();
 	result.reserve(data.size());
 	const auto localFlags = MessageFlags();
+	const auto detachExistingItem = true;
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
-		const auto detachExistingItem = true;
-		const auto item = createItem(*--i, localFlags, detachExistingItem);
+		const auto &data = *--i;
+		const auto item = createItem(
+			IdFromMessage(data),
+			data,
+			localFlags,
+			detachExistingItem);
 		if (item) {
 			result.emplace_back(item);
 		}
@@ -393,11 +394,12 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 }
 
 HistoryItem *History::addNewMessage(
+		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
 		NewMessageType type) {
 	const auto detachExistingItem = (type == NewMessageType::Unread);
-	const auto item = createItem(msg, localFlags, detachExistingItem);
+	const auto item = createItem(id, msg, localFlags, detachExistingItem);
 	if (!item) {
 		return nullptr;
 	}
@@ -744,11 +746,14 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 		const auto localFlags = MessageFlags();
 		const auto type = NewMessageType::Existing;
 		for (const auto &message : *messages) {
-			if (const auto item = addNewMessage(message, localFlags, type)) {
-				if (item->isUnreadMention()) {
-					_unreadMentions.insert(item->id);
-					added = true;
-				}
+			const auto item = addNewMessage(
+				IdFromMessage(message),
+				message,
+				localFlags,
+				type);
+			if (item && item->isUnreadMention()) {
+				_unreadMentions.insert(item->id);
+				added = true;
 			}
 		}
 	}

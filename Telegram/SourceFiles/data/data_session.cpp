@@ -2166,12 +2166,21 @@ HistoryItem *Session::addNewMessage(
 		const MTPMessage &data,
 		MessageFlags localFlags,
 		NewMessageType type) {
+	return addNewMessage(IdFromMessage(data), data, localFlags, type);
+}
+
+HistoryItem *Session::addNewMessage(
+		MsgId id,
+		const MTPMessage &data,
+		MessageFlags localFlags,
+		NewMessageType type) {
 	const auto peerId = PeerFromMessage(data);
 	if (!peerId) {
 		return nullptr;
 	}
 
 	const auto result = history(peerId)->addNewMessage(
+		id,
 		data,
 		localFlags,
 		type);

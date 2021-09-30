@@ -81,6 +81,7 @@ class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
 	static not_null<HistoryItem*> Create(
 		not_null<History*> history,
+		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags);
 
