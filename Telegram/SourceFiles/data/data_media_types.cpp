@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "ui/image/image.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
@@ -37,18 +38,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "chat_helpers/stickers_dice_pack.h" // Stickers::DicePacks::IsSlot.
 #include "data/data_session.h"
+#include "data/data_auto_download.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_game.h"
 #include "data/data_web_page.h"
 #include "data/data_poll.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
 #include "app.h"
 #include "styles/style_chat.h"
+#include "styles/style_dialogs.h"
 
 namespace Data {
 namespace {
@@ -132,6 +138,130 @@ using ItemPreview = HistoryView::ItemPreview;
 			attachType),
 		lt_caption,
 		caption);
+}
+
+[[nodiscard]] QImage PreparePreviewImage(
+		not_null<const Image*> image,
+		ImageRoundRadius radius = ImageRoundRadius::Small) {
+	const auto original = image->original();
+	if (original.width() * 10 < original.height()
+		|| original.height() * 10 < original.width()) {
+		return QImage();
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::dialogsMiniPreview * factor;
+	const auto scaled = original.scaled(
+		QSize(size, size),
+		Qt::KeepAspectRatioByExpanding,
+		Qt::SmoothTransformation);
+	auto square = scaled.copy(
+		(scaled.width() - size) / 2,
+		(scaled.height() - size) / 2,
+		size,
+		size
+	).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	Images::prepareRound(square, radius);
+	square.setDevicePixelRatio(factor);
+	return square;
+}
+
+struct PreparedPreview {
+	QImage preview;
+	bool loading = false;
+
+	explicit operator bool() const {
+		return !preview.isNull() || loading;
+	}
+};
+
+[[nodiscard]] PreparedPreview PreparePhotoPreview(
+		not_null<const HistoryItem*> item,
+		const std::shared_ptr<PhotoMedia> &media,
+		ImageRoundRadius radius) {
+	if (const auto small = media->image(PhotoSize::Small)) {
+		return { PreparePreviewImage(small, radius) };
+	} else if (const auto thumbnail = media->image(PhotoSize::Thumbnail)) {
+		return { PreparePreviewImage(thumbnail, radius) };
+	} else if (const auto large = media->image(PhotoSize::Large)) {
+		return { PreparePreviewImage(large, radius) };
+	}
+	const auto allowedToDownload = [&] {
+		const auto photo = media->owner();
+		if (media->loaded() || photo->cancelled()) {
+			return false;
+		}
+		return photo->hasExact(PhotoSize::Small)
+			|| photo->hasExact(PhotoSize::Thumbnail)
+			|| AutoDownload::Should(
+				photo->session().settings().autoDownload(),
+				item->history()->peer,
+				photo);
+	}();
+	if (allowedToDownload) {
+		media->owner()->load(PhotoSize::Small, item->fullId());
+	}
+	if (const auto blurred = media->thumbnailInline()) {
+		return { PreparePreviewImage(blurred, radius), allowedToDownload };
+	}
+	return { QImage(), allowedToDownload };
+}
+
+[[nodiscard]] PreparedPreview PrepareFilePreviewImage(
+		not_null<const HistoryItem*> item,
+		const std::shared_ptr<DocumentMedia> &media,
+		ImageRoundRadius radius) {
+	Expects(media->owner()->hasThumbnail());
+
+	if (const auto thumbnail = media->thumbnail()) {
+		return { PreparePreviewImage(thumbnail, radius) };
+	}
+	media->owner()->loadThumbnail(item->fullId());
+	if (const auto blurred = media->thumbnailInline()) {
+		return { PreparePreviewImage(blurred, radius), true };
+	}
+	return { QImage(), true };
+}
+
+[[nodiscard]] QImage PutPlayIcon(QImage preview) {
+	Expects(!preview.isNull());
+
+	{
+		QPainter p(&preview);
+		//st::overviewVideoPlay.paintInCenter(
+		//	p,
+		//	QRect(QPoint(), preview.size() / preview.devicePixelRatio()));
+	}
+	return preview;
+}
+
+[[nodiscard]] PreparedPreview PrepareFilePreview(
+		not_null<const HistoryItem*> item,
+		const std::shared_ptr<DocumentMedia> &media,
+		ImageRoundRadius radius) {
+	if (auto result = PrepareFilePreviewImage(item, media, radius)) {
+		const auto document = media->owner();
+		if (!result.preview.isNull()
+			&& (document->isVideoFile() || document->isVideoMessage())) {
+			result.preview = PutPlayIcon(std::move(result.preview));
+		}
+		return result;
+	}
+	Expects(media->owner()->hasThumbnail());
+
+	if (const auto thumbnail = media->thumbnail()) {
+		return { PreparePreviewImage(thumbnail, radius) };
+	}
+	media->owner()->loadThumbnail(item->fullId());
+	if (const auto blurred = media->thumbnailInline()) {
+		return { PreparePreviewImage(blurred, radius), true };
+	}
+	return { QImage(), true };
+}
+
+[[nodiscard]] bool TryFilePreview(not_null<DocumentData*> document) {
+	return document->hasThumbnail()
+		&& !document->sticker()
+		&& !document->isAudioFile();
 }
 
 } // namespace
@@ -348,11 +478,25 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	// #TODO minis generate images and support albums
+	auto images = std::vector<QImage>();
+	// #TODO minis support albums
+	const auto media = _photo->createMediaView();
+	const auto radius = _chat
+		? ImageRoundRadius::Ellipse
+		: ImageRoundRadius::Small;
+	auto context = std::any();
+	if (auto prepared = PreparePhotoPreview(parent(), media, radius)) {
+		images.push_back(std::move(prepared.preview));
+		if (prepared.loading) {
+			context = media;
+		}
+	}
 	return {
 		.text = WithCaptionDialogsText(
 			tr::lng_in_dlg_photo(tr::now),
-			caption)
+			caption),
+		.images = std::move(images),
+		.loadingContext = std::move(context),
 	};
 }
 
@@ -544,9 +688,27 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	// #TODO minis generate images and support albums
+	// #TODO minis support albums
+	auto images = std::vector<QImage>();
+	const auto media = TryFilePreview(_document)
+		? _document->createMediaView()
+		: nullptr;
+	const auto radius = _document->isVideoMessage()
+		? ImageRoundRadius::Ellipse
+		: ImageRoundRadius::Small;
+	auto context = std::any();
+	if (media) {
+		if (auto prepared = PrepareFilePreview(parent(), media, radius)) {
+			images.push_back(std::move(prepared.preview));
+			if (prepared.loading) {
+				context = media;
+			}
+		}
+	}
 	return {
 		.text = WithCaptionDialogsText(type, caption),
+		.images = std::move(images),
+		.loadingContext = std::move(context),
 	};
 }
 

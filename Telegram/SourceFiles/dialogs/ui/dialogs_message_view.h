@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <any>
+
+class Image;
 class HistoryItem;
+enum class ImageRoundRadius;
 
 namespace Ui {
-
 } // namespace Ui
 
 namespace HistoryView {
@@ -42,9 +45,12 @@ public:
 		ToPreviewOptions options) const;
 
 private:
+	struct LoadingContext;
+
 	mutable const HistoryItem *_textCachedFor = nullptr;
 	mutable Ui::Text::String _textCache;
 	mutable std::vector<QImage> _imagesCache;
+	mutable std::unique_ptr<LoadingContext> _loadingContext;
 
 };
 

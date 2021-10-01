@@ -926,7 +926,7 @@ bool HistoryItem::isEmpty() const {
 
 QString HistoryItem::notificationText() const {
 	const auto result = [&] {
-		if (_media) {
+		if (_media && !serviceMsg()) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
 			return _text.toString();

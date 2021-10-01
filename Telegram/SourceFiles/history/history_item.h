@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/value_ordering.h"
 #include "data/data_media_types.h"
 
+#include <any>
+
 enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
 class ReplyKeyboard;
@@ -63,6 +65,7 @@ struct ToPreviewOptions {
 struct ItemPreview {
 	QString text;
 	std::vector<QImage> images;
+	std::any loadingContext;
 };
 
 } // namespace HistoryView

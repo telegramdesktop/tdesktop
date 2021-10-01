@@ -926,9 +926,13 @@ bool HistoryService::needCheck() const {
 }
 
 ItemPreview HistoryService::toPreview(ToPreviewOptions options) const {
-	// #TODO minis generate images
+	// Don't show for service messages (chat photo changed).
+	// Because larger version is shown exactly to the left of the preview.
+	//auto media = _media ? _media->toPreview(options) : ItemPreview();
 	return {
 		.text = textcmdLink(1, TextUtilities::Clean(notificationText())),
+		//.images = std::move(media.images),
+		//.loadingContext = std::move(media.loadingContext),
 	};
 }
 
