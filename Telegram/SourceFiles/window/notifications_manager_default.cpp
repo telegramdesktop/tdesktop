@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/empty_userpic.h"
 #include "ui/ui_utility.h"
-#include "dialogs/dialogs_layout.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "window/window_controller.h"
 #include "storage/file_download.h"
 #include "main/main_session.h"

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "dialogs/dialogs_layout.h"
+#include "dialogs/ui/dialogs_layout.h"
 
 #include "data/data_abstract_structure.h"
 #include "data/data_drafts.h"
@@ -775,15 +775,15 @@ void RowPainter::paint(
 			: false;
 		if (const auto folder = row->folder()) {
 			PaintListEntryText(p, itemRect, active, selected, row);
-		} else if (!actionWasPainted) {
+		} else if (history && !actionWasPainted) {
 			item->drawInDialog(
 				p,
 				itemRect,
 				active,
 				selected,
 				HistoryItem::DrawInDialog::Normal,
-				entry->textCachedFor,
-				entry->lastItemTextCache);
+				history->textCachedFor,
+				history->lastItemTextCache);
 		}
 	};
 	const auto paintCounterCallback = [&] {

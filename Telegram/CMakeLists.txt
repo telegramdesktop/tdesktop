@@ -470,8 +470,6 @@ PRIVATE
     dialogs/dialogs_inner_widget.h
     dialogs/dialogs_key.cpp
     dialogs/dialogs_key.h
-    dialogs/dialogs_layout.cpp
-    dialogs/dialogs_layout.h
     dialogs/dialogs_list.cpp
     dialogs/dialogs_list.h
     dialogs/dialogs_main_list.cpp
@@ -484,6 +482,8 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    dialogs/ui/dialogs_layout.cpp
+    dialogs/ui/dialogs_layout.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h

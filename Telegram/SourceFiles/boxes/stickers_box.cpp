@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
-#include "dialogs/dialogs_layout.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "lottie/lottie_single_player.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"

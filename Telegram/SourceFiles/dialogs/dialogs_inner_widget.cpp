@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_inner_widget.h"
 
 #include "dialogs/dialogs_indexed_list.h"
-#include "dialogs/dialogs_layout.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/history.h"
@@ -159,11 +159,6 @@ InnerWidget::InnerWidget(
 		const auto history = item->history();
 		if (history->textCachedFor == item) {
 			history->updateChatListEntry();
-		}
-		if (const auto folder = history->folder()) {
-			if (folder->textCachedFor == item) {
-				folder->updateChatListEntry();
-			}
 		}
 	}, lifetime());
 
