@@ -1382,6 +1382,10 @@ void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
 			}
 		}
 	}
+	const auto history = item->history();
+	if (history->lastItemDialogsView.dependsOn(item)) {
+		history->updateChatListEntry();
+	}
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const {

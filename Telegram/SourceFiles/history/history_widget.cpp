@@ -6853,11 +6853,16 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 
 		if (count < 2) {
-			text = _toForward.items.front()->inDialogsText(keepCaptions
-				? HistoryItem::DrawInDialog::WithoutSender
-				: HistoryItem::DrawInDialog::WithoutSenderAndCaption);
+			// #TODO minis use images
+			text = _toForward.items.front()->toPreview({
+				.hideSender = true,
+				.hideCaption = !keepCaptions,
+				.generateImages = false,
+			}).text;
 		} else {
-			text = textcmdLink(1, tr::lng_forward_messages(tr::now, lt_count, count));
+			text = textcmdLink(
+				1,
+				tr::lng_forward_messages(tr::now, lt_count, count));
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());

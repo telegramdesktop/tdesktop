@@ -484,6 +484,8 @@ PRIVATE
     dialogs/dialogs_widget.h
     dialogs/ui/dialogs_layout.cpp
     dialogs/ui/dialogs_layout.h
+    dialogs/ui/dialogs_message_view.cpp
+    dialogs/ui/dialogs_message_view.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h

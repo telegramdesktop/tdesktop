@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_message_view.h"
 
 class History;
 class HistoryItem;
@@ -138,10 +139,8 @@ public:
 	[[nodiscard]] not_null<HistoryItem*> item() const {
 		return _item;
 	}
-
-	void invalidateCache() {
-		_cacheFor = nullptr;
-		_cache = Ui::Text::String();
+	[[nodiscard]] Ui::MessageView &itemView() const {
+		return _itemView;
 	}
 
 private:
@@ -149,8 +148,7 @@ private:
 
 	Key _searchInChat;
 	not_null<HistoryItem*> _item;
-	mutable const HistoryItem *_cacheFor = nullptr;
-	mutable Ui::Text::String _cache;
+	mutable Ui::MessageView _itemView;
 
 };
 

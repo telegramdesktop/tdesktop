@@ -804,10 +804,11 @@ void Notification::updateNotifyDisplay() {
 			p.setTextPalette(st::dialogsTextPalette);
 			p.setPen(st::dialogsTextFg);
 			p.setFont(st::dialogsTextFont);
-			const auto text = _item
-				? _item->inDialogsText(reminder
-					? HistoryItem::DrawInDialog::WithoutSender
-					: HistoryItem::DrawInDialog::Normal)
+			const auto text = _item // #TODO minis use images
+				? _item->toPreview({
+					.hideSender = reminder,
+					.generateImages = false,
+				}).text
 				: ((!_author.isEmpty()
 					? textcmdLink(1, _author)
 					: QString())

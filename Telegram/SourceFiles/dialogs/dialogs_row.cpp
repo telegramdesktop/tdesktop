@@ -285,8 +285,7 @@ void Row::validateListEntryCache() const {
 
 FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
 : _searchInChat(searchInChat)
-, _item(item)
-, _cache(st::dialogsTextWidthMin) {
+, _item(item) {
 }
 
 } // namespace Dialogs

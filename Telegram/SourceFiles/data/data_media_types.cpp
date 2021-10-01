@@ -55,6 +55,8 @@ namespace {
 
 constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 
+using ItemPreview = HistoryView::ItemPreview;
+
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
 	result.finishReason = [&] {
@@ -201,11 +203,12 @@ bool Media::canBeGrouped() const {
 	return false;
 }
 
-QString Media::chatListText(DrawInDialog way) const {
+ItemPreview Media::toPreview(ToPreviewOptions options) const {
 	auto result = notificationText();
-	return result.isEmpty()
+	auto text = result.isEmpty()
 		? QString()
 		: textcmdLink(1, TextUtilities::Clean(std::move(result)));
+	return { .text = std::move(text) };
 }
 
 bool Media::hasReplyPreview() const {
@@ -341,11 +344,16 @@ QString MediaPhoto::notificationText() const {
 		parent()->originalText().text);
 }
 
-QString MediaPhoto::chatListText(DrawInDialog way) const {
-	const auto caption = (way == DrawInDialog::WithoutSenderAndCaption)
+ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
+	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	return WithCaptionDialogsText(tr::lng_in_dlg_photo(tr::now), caption);
+	// #TODO minis generate images and support albums
+	return {
+		.text = WithCaptionDialogsText(
+			tr::lng_in_dlg_photo(tr::now),
+			caption)
+	};
 }
 
 QString MediaPhoto::pinnedTextSubstring() const {
@@ -511,16 +519,16 @@ bool MediaFile::replyPreviewLoaded() const {
 	return _document->replyPreviewLoaded();
 }
 
-QString MediaFile::chatListText(DrawInDialog way) const {
+ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	if (const auto sticker = _document->sticker()) {
-		return Media::chatListText(way);
+		return Media::toPreview(options);
 	}
 	const auto type = [&] {
 		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
 			return tr::lng_in_dlg_video_message(tr::now);
 		} else if (_document->isAnimation()) {
-			return qsl("GIF");
+			return u"GIF"_q;
 		} else if (_document->isVideoFile()) {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
@@ -533,10 +541,13 @@ QString MediaFile::chatListText(DrawInDialog way) const {
 		}
 		return tr::lng_in_dlg_file(tr::now);
 	}();
-	const auto caption = (way == DrawInDialog::WithoutSenderAndCaption)
+	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	return WithCaptionDialogsText(type, caption);
+	// #TODO minis generate images and support albums
+	return {
+		.text = WithCaptionDialogsText(type, caption),
+	};
 }
 
 QString MediaFile::notificationText() const {
@@ -855,8 +866,11 @@ Data::CloudImage *MediaLocation::location() const {
 	return _location;
 }
 
-QString MediaLocation::chatListText(DrawInDialog way) const {
-	return WithCaptionDialogsText(tr::lng_maps_point(tr::now), _title);
+ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
+	// #TODO minis generate images
+	return {
+		.text = WithCaptionDialogsText(tr::lng_maps_point(tr::now), _title),
+	};
 }
 
 QString MediaLocation::notificationText() const {
@@ -1049,8 +1063,8 @@ bool MediaWebPage::replyPreviewLoaded() const {
 	return true;
 }
 
-QString MediaWebPage::chatListText(DrawInDialog way) const {
-	return notificationText();
+ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
+	return { .text = notificationText() };
 }
 
 QString MediaWebPage::notificationText() const {

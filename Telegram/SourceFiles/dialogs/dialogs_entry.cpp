@@ -43,8 +43,7 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 } // namespace
 
 Entry::Entry(not_null<Data::Session*> owner, Type type)
-: lastItemTextCache(st::dialogsTextWidthMin)
-, _owner(owner)
+: _owner(owner)
 , _isFolder(type == Type::Folder) {
 }
 

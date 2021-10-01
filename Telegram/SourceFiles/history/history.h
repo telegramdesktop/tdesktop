@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_drafts.h"
 #include "dialogs/dialogs_entry.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "history/view/history_view_send_action.h"
 #include "base/observer.h"
 #include "base/timer.h"
@@ -457,6 +458,7 @@ public:
 	mtpRequestId sendRequestId = 0;
 
 	Ui::Text::String cloudDraftTextCache;
+	Dialogs::Ui::MessageView lastItemDialogsView;
 
 private:
 	friend class HistoryBlock;

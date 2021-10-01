@@ -154,14 +154,6 @@ InnerWidget::InnerWidget(
 		dialogRowReplaced(r.old, r.now);
 	}, lifetime());
 
-	session().data().itemRepaintRequest(
-	) | rpl::start_with_next([=](auto item) {
-		const auto history = item->history();
-		if (history->textCachedFor == item) {
-			history->updateChatListEntry();
-		}
-	}, lifetime());
-
 	session().data().sendActionManager().animationUpdated(
 	) | rpl::start_with_next([=](
 			const Data::SendActionManager::AnimationUpdate &update) {
@@ -235,16 +227,9 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::DialogRowRepaint
-		| Data::MessageUpdate::Flag::DialogRowRefresh
+		Data::MessageUpdate::Flag::DialogRowRefresh
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		const auto item = update.item;
-		if (update.flags & Data::MessageUpdate::Flag::DialogRowRefresh) {
-			refreshDialogRow({ item->history(), item->fullId() });
-		}
-		if (update.flags & Data::MessageUpdate::Flag::DialogRowRepaint) {
-			repaintDialogRow({ item->history(), item->fullId() });
-		}
+		refreshDialogRow({ update.item->history(), update.item->fullId() });
 	}, lifetime());
 
 	session().changes().entryUpdates(
@@ -1530,7 +1515,7 @@ void InnerWidget::refreshDialogRow(RowDescriptor row) {
 	if (row.fullId) {
 		for (const auto &result : _searchResults) {
 			if (result->item()->fullId() == row.fullId) {
-				result->invalidateCache();
+				result->itemView().itemInvalidated(result->item());
 			}
 		}
 	}

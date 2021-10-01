@@ -43,6 +43,8 @@ namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
 
+using ItemPreview = HistoryView::ItemPreview;
+
 [[nodiscard]] bool PeerCallKnown(not_null<PeerData*> peer) {
 	if (peer->groupCall() != nullptr) {
 		return true;
@@ -923,14 +925,18 @@ bool HistoryService::needCheck() const {
 	return out() && !isEmpty();
 }
 
-QString HistoryService::inDialogsText(DrawInDialog way) const {
-	return textcmdLink(1, TextUtilities::Clean(notificationText()));
+ItemPreview HistoryService::toPreview(ToPreviewOptions options) const {
+	// #TODO minis generate images
+	return {
+		.text = textcmdLink(1, TextUtilities::Clean(notificationText())),
+	};
 }
 
 QString HistoryService::inReplyText() const {
 	const auto result = HistoryService::notificationText();
-	const auto text = result.trimmed().startsWith(author()->name)
-		? result.trimmed().mid(author()->name.size()).trimmed()
+	const auto &name = author()->name;
+	const auto text = result.trimmed().startsWith(name)
+		? result.trimmed().mid(name.size()).trimmed()
 		: result;
 	return textcmdLink(1, text);
 }
@@ -1190,19 +1196,7 @@ void HistoryService::updateDependentText() {
 void HistoryService::updateText(PreparedText &&text) {
 	setServiceText(text);
 	history()->owner().requestItemResize(this);
-	const auto inDialogsHistory = history()->migrateToOrMe();
-	if (inDialogsHistory->textCachedFor == this) {
-		inDialogsHistory->textCachedFor = nullptr;
-	}
-	//if (const auto feed = history()->peer->feed()) { // #TODO archive
-	//	if (feed->textCachedFor == this) {
-	//		feed->textCachedFor = nullptr;
-	//		feed->updateChatListEntry();
-	//	}
-	//}
-	history()->session().changes().messageUpdated(
-		this,
-		Data::MessageUpdate::Flag::DialogRowRepaint);
+	invalidateChatListEntry();
 	history()->owner().updateDependentMessages(this);
 }
 

@@ -49,6 +49,8 @@ namespace {
 
 constexpr auto kNotificationTextLimit = 255;
 
+using ItemPreview = HistoryView::ItemPreview;
+
 enum class MediaCheckResult {
 	Good,
 	Unsupported,
@@ -292,17 +294,7 @@ void HistoryItem::invalidateChatListEntry() {
 	history()->session().changes().messageUpdated(
 		this,
 		Data::MessageUpdate::Flag::DialogRowRefresh);
-
-	// invalidate cache for drawInDialog
-	if (history()->textCachedFor == this) {
-		history()->textCachedFor = nullptr;
-	}
-	//if (const auto feed = history()->peer->feed()) { // #TODO archive
-	//	if (feed->textCachedFor == this) {
-	//		feed->textCachedFor = nullptr;
-	//		feed->updateChatListEntry();
-	//	}
-	//}
+	history()->lastItemDialogsView.itemInvalidated(this);
 }
 
 void HistoryItem::finishEditionToEmpty() {
@@ -946,20 +938,25 @@ QString HistoryItem::notificationText() const {
 		: result.mid(0, kNotificationTextLimit) + qsl("...");
 }
 
-QString HistoryItem::inDialogsText(DrawInDialog way) const {
-	const auto plainText = [&] {
+ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
+	auto result = [&]() -> ItemPreview {
 		if (_media) {
 			if (_groupId) {
-				return textcmdLink(1, TextUtilities::Clean(tr::lng_in_dlg_album(tr::now)));
+				// #TODO minis generate albums correctly
+				return {
+					.text = textcmdLink(
+						1,
+						TextUtilities::Clean(tr::lng_in_dlg_album(tr::now))),
+				};
 			}
-			return _media->chatListText(way);
+			return _media->toPreview(options);
 		} else if (!emptyText()) {
-			return TextUtilities::Clean(_text.toString());
+			return { .text = TextUtilities::Clean(_text.toString()) };
 		}
-		return QString();
+		return {};
 	}();
 	const auto sender = [&]() -> PeerData* {
-		if (isPost() || isEmpty() || (way != DrawInDialog::Normal)) {
+		if (options.hideSender || isPost() || isEmpty()) {
 			return nullptr;
 		} else if (!_history->peer->isUser() || out()) {
 			return displayFrom();
@@ -969,37 +966,27 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 		return nullptr;
 	}();
 	if (sender) {
-		auto fromText = sender->isSelf() ? tr::lng_from_you(tr::now) : sender->shortName();
-		auto fromWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, TextUtilities::Clean(fromText)));
-		return tr::lng_dialogs_text_with_from(tr::now, lt_from_part, fromWrapped, lt_message, plainText);
+		const auto fromText = sender->isSelf()
+			? tr::lng_from_you(tr::now)
+			: sender->shortName();
+		const auto fromWrapped = textcmdLink(
+			1,
+			tr::lng_dialogs_text_from_wrapped(
+				tr::now,
+				lt_from,
+				TextUtilities::Clean(fromText)));
+		result.text = tr::lng_dialogs_text_with_from(
+			tr::now,
+			lt_from_part,
+			fromWrapped,
+			lt_message,
+			std::move(result.text));
 	}
-	return plainText;
+	return result;
 }
 
 Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
 	return Ui::Text::IsolatedEmoji();
-}
-
-void HistoryItem::drawInDialog(
-		Painter &p,
-		const QRect &r,
-		bool active,
-		bool selected,
-		DrawInDialog way,
-		const HistoryItem *&cacheFor,
-		Ui::Text::String &cache) const {
-	if (r.isEmpty()) {
-		return;
-	}
-	if (cacheFor != this) {
-		cacheFor = this;
-		cache.setText(st::dialogsTextStyle, inDialogsText(way), Ui::DialogTextOptions());
-	}
-	p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));
-	p.setFont(st::dialogsTextFont);
-	p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
-	cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
-	p.restoreTextPalette();
 }
 
 HistoryItem::~HistoryItem() {

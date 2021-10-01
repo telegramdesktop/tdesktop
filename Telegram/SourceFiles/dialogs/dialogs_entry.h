@@ -183,12 +183,9 @@ public:
 		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
 	}
 
-	TimeId chatListTimeId() const {
+	[[nodiscard]] TimeId chatListTimeId() const {
 		return _timeId;
 	}
-
-	mutable const HistoryItem *textCachedFor = nullptr; // cache
-	mutable Ui::Text::String lastItemTextCache;
 
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);

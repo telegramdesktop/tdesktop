@@ -46,17 +46,25 @@ class SessionController;
 } // namespace Window
 
 namespace HistoryView {
+
 struct TextState;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
-enum class DrawInDialog {
-	Normal,
-	WithoutSender,
-	WithoutSenderAndCaption,
+
+struct ToPreviewOptions {
+	bool hideSender = false;
+	bool hideCaption = false;
+	bool generateImages = true;
 };
+
+struct ItemPreview {
+	QString text;
+	std::vector<QImage> images;
+};
+
 } // namespace HistoryView
 
 struct HiddenSenderInfo;
@@ -298,13 +306,18 @@ public:
 	}
 	[[nodiscard]] virtual QString notificationText() const;
 
-	using DrawInDialog = HistoryView::DrawInDialog;
+	using ToPreviewOptions = HistoryView::ToPreviewOptions;
+	using ItemPreview = HistoryView::ItemPreview;
 
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	[[nodiscard]] virtual QString inDialogsText(DrawInDialog way) const;
+	[[nodiscard]] virtual ItemPreview toPreview(
+		ToPreviewOptions options) const;
 	[[nodiscard]] virtual QString inReplyText() const {
-		return inDialogsText(DrawInDialog::WithoutSender);
+		return toPreview({
+			.hideSender = true,
+			.generateImages = false,
+		}).text;
 	}
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
@@ -334,15 +347,6 @@ public:
 	virtual void setRealId(MsgId newId);
 	virtual void incrementReplyToTopCounter() {
 	}
-
-	void drawInDialog(
-		Painter &p,
-		const QRect &r,
-		bool active,
-		bool selected,
-		DrawInDialog way,
-		const HistoryItem *&cacheFor,
-		Ui::Text::String &cache) const;
 
 	[[nodiscard]] bool emptyText() const {
 		return _text.isEmpty();

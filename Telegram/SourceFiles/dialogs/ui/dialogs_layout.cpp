@@ -775,14 +775,13 @@ void RowPainter::paint(
 		if (const auto folder = row->folder()) {
 			PaintListEntryText(p, itemRect, active, selected, row);
 		} else if (history && !actionWasPainted) {
-			item->drawInDialog(
+			history->lastItemDialogsView.paint(
 				p,
+				item,
 				itemRect,
 				active,
 				selected,
-				HistoryItem::DrawInDialog::Normal,
-				history->textCachedFor,
-				history->lastItemTextCache);
+				{});
 		}
 	};
 	const auto paintCounterCallback = [&] {
@@ -845,15 +844,15 @@ void RowPainter::paint(
 		}
 		return nullptr;
 	}();
-	const auto drawInDialogWay = [&] {
+	const auto previewOptions = [&]() -> HistoryView::ToPreviewOptions {
 		if (const auto searchChat = row->searchInChat()) {
 			if (const auto peer = searchChat.peer()) {
 				if (!peer->isChannel() || peer->isMegagroup()) {
-					return HistoryItem::DrawInDialog::WithoutSender;
+					return { .hideSender = true };
 				}
 			}
 		}
-		return HistoryItem::DrawInDialog::Normal;
+		return {};
 	}();
 
 	const auto unreadCount = displayUnreadInfo
@@ -895,14 +894,13 @@ void RowPainter::paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		item->drawInDialog(
+		row->itemView().paint(
 			p,
+			item,
 			itemRect,
 			active,
 			selected,
-			drawInDialogWay,
-			row->_cacheFor,
-			row->_cache);
+			previewOptions);
 	};
 	const auto paintCounterCallback = [&] {
 		PaintNarrowCounter(

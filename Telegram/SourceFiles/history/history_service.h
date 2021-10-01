@@ -111,7 +111,7 @@ public:
 	bool serviceMsg() const override {
 		return true;
 	}
-	QString inDialogsText(DrawInDialog way) const override;
+	ItemPreview toPreview(ToPreviewOptions options) const override;
 	QString inReplyText() const override;
 
 	std::unique_ptr<HistoryView::Element> createView(
