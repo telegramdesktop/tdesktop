@@ -156,7 +156,7 @@ private:
 	QImage _userpicCache;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	Dialogs::Layout::UnreadBadgeStyle _unreadSt;
+	Dialogs::Ui::UnreadBadgeStyle _unreadSt;
 	int _unreadBadge = 0;
 	bool _unreadBadgeMuted = true;
 
@@ -294,7 +294,7 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 			- st::mainMenu.itemToggleShift;
 		const auto unreadRight = width() - skip;
 		const auto unreadTop = (height() - _unreadSt.size) / 2;
-		Dialogs::Layout::paintUnreadCount(
+		Dialogs::Ui::paintUnreadCount(
 			p,
 			string,
 			unreadRight,
@@ -435,7 +435,7 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
 	if (_unreadBadge.isEmpty()) {
 		return;
 	}
-	Dialogs::Layout::UnreadBadgeStyle st;
+	Dialogs::Ui::UnreadBadgeStyle st;
 
 	const auto right = width() - st::mainMenuTogglePosition.x() - st::mainMenuToggleSize * 2;
 	const auto top = height() - st::mainMenuTogglePosition.y() - st::mainMenuToggleSize;
@@ -473,7 +473,7 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	}
 	_unreadBadge = computeUnreadBadge();
 
-	Dialogs::Layout::UnreadBadgeStyle st;
+	Dialogs::Ui::UnreadBadgeStyle st;
 	_unreadBadgeWidth = st.font->width(_unreadBadge);
 	const auto rectHeight = st.size;
 	const auto rectWidth = std::max(

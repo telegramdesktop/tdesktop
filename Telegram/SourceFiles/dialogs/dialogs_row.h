@@ -22,10 +22,12 @@ namespace Ui {
 class RippleAnimation;
 } // namespace Ui
 
-namespace Dialogs {
-namespace Layout {
+namespace Dialogs::Ui {
+using namespace ::Ui;
 class RowPainter;
-} // namespace Layout
+} // namespace Dialogs::Ui
+
+namespace Dialogs {
 
 enum class SortMode;
 
@@ -91,25 +93,25 @@ public:
 	}
 	Row(Key key, int pos);
 
-	Key key() const {
+	[[nodiscard]] Key key() const {
 		return _id;
 	}
-	History *history() const {
+	[[nodiscard]] History *history() const {
 		return _id.history();
 	}
-	Data::Folder *folder() const {
+	[[nodiscard]] Data::Folder *folder() const {
 		return _id.folder();
 	}
-	not_null<Entry*> entry() const {
+	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}
-	int pos() const {
+	[[nodiscard]] int pos() const {
 		return _pos;
 	}
-	uint64 sortKey(FilterId filterId) const;
+	[[nodiscard]] uint64 sortKey(FilterId filterId) const;
 
 	void validateListEntryCache() const;
-	const Ui::Text::String &listEntryCache() const {
+	[[nodiscard]] const Ui::Text::String &listEntryCache() const {
 		return _listEntryCache;
 	}
 
@@ -130,10 +132,10 @@ class FakeRow : public BasicRow {
 public:
 	FakeRow(Key searchInChat, not_null<HistoryItem*> item);
 
-	Key searchInChat() const {
+	[[nodiscard]] Key searchInChat() const {
 		return _searchInChat;
 	}
-	not_null<HistoryItem*> item() const {
+	[[nodiscard]] not_null<HistoryItem*> item() const {
 		return _item;
 	}
 
@@ -143,7 +145,7 @@ public:
 	}
 
 private:
-	friend class Layout::RowPainter;
+	friend class Ui::RowPainter;
 
 	Key _searchInChat;
 	not_null<HistoryItem*> _item;

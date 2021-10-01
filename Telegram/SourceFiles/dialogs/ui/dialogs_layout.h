@@ -7,13 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Dialogs {
+namespace Ui {
+} // namespace Ui
 
+namespace Dialogs {
 class Row;
 class FakeRow;
 class BasicRow;
+} // namespace Dialogs
 
-namespace Layout {
+namespace Dialogs::Ui {
+
+using namespace ::Ui;
 
 const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
@@ -89,5 +94,4 @@ void paintUnreadCount(
 
 void clearUnreadBadgesCache();
 
-} // namespace Layout
-} // namespace Dialogs
+} // namespace Dialogs::Ui

@@ -165,8 +165,7 @@ InnerWidget::InnerWidget(
 	session().data().sendActionManager().animationUpdated(
 	) | rpl::start_with_next([=](
 			const Data::SendActionManager::AnimationUpdate &update) {
-		using RowPainter = Layout::RowPainter;
-		const auto updateRect = RowPainter::sendActionAnimationRect(
+		const auto updateRect = Ui::RowPainter::sendActionAnimationRect(
 			update.left,
 			update.width,
 			update.height,
@@ -440,7 +439,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 				const auto isActive = (row->key() == active);
 				const auto isSelected = (row->key() == selected);
-				Layout::RowPainter::paint(
+				Ui::RowPainter::paint(
 					p,
 					row,
 					_filterId,
@@ -558,7 +557,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						: (from == (isPressed()
 							? _filteredPressed
 							: _filteredSelected));
-					Layout::RowPainter::paint(
+					Ui::RowPainter::paint(
 						p,
 						_filterResults[from],
 						_filterId,
@@ -650,7 +649,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						: (from == (isPressed()
 							? _searchedPressed
 							: _searchedSelected));
-					Layout::RowPainter::paint(
+					Ui::RowPainter::paint(
 						p,
 						result.get(),
 						fullWidth,
@@ -692,7 +691,7 @@ void InnerWidget::paintCollapsedRow(
 
 	const auto text = row->folder->chatListName();
 	const auto unread = row->folder->chatListUnreadCount();
-	Layout::PaintCollapsedRow(
+	Ui::PaintCollapsedRow(
 		p,
 		row->row,
 		row->folder,
@@ -735,7 +734,7 @@ void InnerWidget::paintPeerSearchResult(
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (auto chatTypeIcon = Layout::ChatTypeIcon(peer, active, selected)) {
+	if (auto chatTypeIcon = Ui::ChatTypeIcon(peer, active, selected)) {
 		chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
@@ -866,7 +865,7 @@ void InnerWidget::paintSearchInPeer(
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		peer->paintUserpicLeft(p, userpic, x, y, width(), size);
 	};
-	const auto icon = Layout::ChatTypeIcon(peer, false, false);
+	const auto icon = Ui::ChatTypeIcon(peer, false, false);
 	paintSearchInFilter(p, paintUserpic, top, icon, text);
 }
 

@@ -97,8 +97,8 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto unread = history->unreadMark()
 		? QString()
 		: QString::number(count);
-	Dialogs::Layout::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInTouchBar;
+	Dialogs::Ui::UnreadBadgeStyle unreadSt;
+	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeInTouchBar;
 	unreadSt.muted = history->mute();
 	// Use constant values to draw badge regardless of cConfigScale().
 	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
@@ -114,7 +114,7 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	result.fill(Qt::transparent);
 	Painter p(&result);
 
-	Dialogs::Layout::paintUnreadCount(
+	Dialogs::Ui::paintUnreadCount(
 		p,
 		unread,
 		result.width(),

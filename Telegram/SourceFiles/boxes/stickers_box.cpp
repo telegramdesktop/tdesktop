@@ -64,7 +64,7 @@ private:
 	void setCounter(int counter);
 
 	QString _text;
-	Dialogs::Layout::UnreadBadgeStyle _st;
+	Dialogs::Ui::UnreadBadgeStyle _st;
 
 };
 
@@ -303,7 +303,7 @@ StickersBox::CounterWidget::CounterWidget(
 : RpWidget(parent) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_st.sizeId = Dialogs::Layout::UnreadBadgeInStickersBox;
+	_st.sizeId = Dialogs::Ui::UnreadBadgeInStickersBox;
 	_st.textTop = st::stickersFeaturedBadgeTextTop;
 	_st.size = st::stickersFeaturedBadgeSize;
 	_st.padding = st::stickersFeaturedBadgePadding;
@@ -323,7 +323,7 @@ void StickersBox::CounterWidget::setCounter(int counter) {
 	Painter p(&dummy);
 
 	auto newWidth = 0;
-	Dialogs::Layout::paintUnreadCount(p, _text, 0, 0, _st, &newWidth);
+	Dialogs::Ui::paintUnreadCount(p, _text, 0, 0, _st, &newWidth);
 
 	resize(newWidth, st::stickersFeaturedBadgeSize);
 }
@@ -334,7 +334,7 @@ void StickersBox::CounterWidget::paintEvent(QPaintEvent *e) {
 	if (!_text.isEmpty()) {
 		auto unreadRight = rtl() ? 0 : width();
 		auto unreadTop = 0;
-		Dialogs::Layout::paintUnreadCount(p, _text, unreadRight, unreadTop, _st);
+		Dialogs::Ui::paintUnreadCount(p, _text, unreadRight, unreadTop, _st);
 	}
 }
 
