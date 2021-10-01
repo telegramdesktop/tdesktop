@@ -238,7 +238,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     fi
 
     echo "Dumping debug symbols.."
-    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
+    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
     echo "Done!"
 
     echo "Stripping the executable.."
