@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class FileLoader;
 class History;
 class UserData;
+struct HistoryMessageMarkupData;
 
 namespace Data {
 class LocationPoint;
@@ -118,7 +119,7 @@ private:
 	PhotoData *_photo = nullptr;
 	GameData *_game = nullptr;
 
-	std::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
+	std::unique_ptr<HistoryMessageMarkupData> _replyMarkup;
 
 	Data::CloudImage _thumbnail;
 	Data::CloudImage _locationThumbnail;

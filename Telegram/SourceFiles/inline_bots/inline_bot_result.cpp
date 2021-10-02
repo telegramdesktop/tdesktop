@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "history/history_item_reply_markup.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "storage/file_download.h"
@@ -267,7 +268,8 @@ std::unique_ptr<Result> Result::Create(
 
 	message->match([&](const auto &data) {
 		if (const auto markup = data.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
+			result->_replyMarkup
+				= std::make_unique<HistoryMessageMarkupData>(markup);
 		}
 	});
 
@@ -373,10 +375,9 @@ void Result::addToHistory(
 		const QString &postAuthor) const {
 	flags |= MessageFlag::FromInlineBot;
 
-	auto markup = MTPReplyMarkup();
-	if (_mtpKeyboard) {
+	auto markup = _replyMarkup ? *_replyMarkup : HistoryMessageMarkupData();
+	if (!markup.isNull()) {
 		flags |= MessageFlag::HasReplyMarkup;
-		markup = *_mtpKeyboard;
 	}
 	sendData->addToHistory(
 		this,
@@ -388,7 +389,7 @@ void Result::addToHistory(
 		viaBotId,
 		replyToId,
 		postAuthor,
-		markup);
+		std::move(markup));
 }
 
 QString Result::getErrorOnSend(History *history) const {

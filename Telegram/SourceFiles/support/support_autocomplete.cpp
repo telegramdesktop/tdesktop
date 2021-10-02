@@ -289,7 +289,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(data.comment) },
 		MTP_messageMediaEmpty(),
-		MTPReplyMarkup(),
+		HistoryMessageMarkupData(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }
@@ -319,7 +319,7 @@ AdminLog::OwnedItem GenerateContactItem(
 			MTP_string(data.lastName),
 			MTP_string(), // vcard
 			MTP_long(0)), // user_id
-		MTPReplyMarkup(),
+		HistoryMessageMarkupData(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }

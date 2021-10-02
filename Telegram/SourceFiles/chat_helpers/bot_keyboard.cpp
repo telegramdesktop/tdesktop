@@ -199,9 +199,9 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (key >= Qt::Key_1 && key <= Qt::Key_2) {
 				const auto index = int(key - Qt::Key_1);
-				if (!markup->rows.empty()
+				if (!markup->data.rows.empty()
 					&& index >= 0
-					&& index < int(markup->rows.front().size())) {
+					&& index < int(markup->data.rows.front().size())) {
 					App::activateBotCommand(_controller, item, 0, index);
 					return true;
 				}
@@ -257,14 +257,14 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	_singleUse = _forceReply || (markupFlags & ReplyMarkupFlag::SingleUse);
 
 	if (const auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-		_placeholder = markup->placeholder;
+		_placeholder = markup->data.placeholder;
 	} else {
 		_placeholder = QString();
 	}
 
 	_impl = nullptr;
 	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-		if (!markup->rows.empty()) {
+		if (!markup->data.rows.empty()) {
 			_impl = std::make_unique<ReplyKeyboard>(
 				to,
 				std::make_unique<Style>(this, *_st));

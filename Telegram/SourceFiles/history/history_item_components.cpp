@@ -504,10 +504,10 @@ ReplyKeyboard::ReplyKeyboard(
 	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
 		const auto owner = &_item->history()->owner();
 		const auto context = _item->fullId();
-		const auto rowCount = int(markup->rows.size());
+		const auto rowCount = int(markup->data.rows.size());
 		_rows.reserve(rowCount);
 		for (auto i = 0; i != rowCount; ++i) {
-			const auto &row = markup->rows.at(i);
+			const auto &row = markup->data.rows[i];
 			const auto rowSize = int(row.size());
 			auto newRow = std::vector<Button>();
 			newRow.reserve(rowSize);
@@ -831,174 +831,17 @@ void ReplyKeyboard::Style::paintButton(
 	button.text.drawElided(p, tx, rect.y() + _st->textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
 
-HistoryMessageMarkupButton::HistoryMessageMarkupButton(
-	Type type,
-	const QString &text,
-	const QByteArray &data,
-	const QString &forwardText,
-	int32 buttonId)
-: type(type)
-, text(text)
-, forwardText(forwardText)
-, data(data)
-, buttonId(buttonId) {
+void HistoryMessageReplyMarkup::createForwarded(
+		const HistoryMessageReplyMarkup &original) {
+	Expects(!inlineKeyboard);
+
+	data.fillForwardedData(original.data);
 }
 
-HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
-		not_null<Data::Session*> owner,
-		FullMsgId itemId,
-		int row,
-		int column) {
-	if (const auto item = owner->message(itemId)) {
-		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (row < markup->rows.size()) {
-				auto &buttons = markup->rows[row];
-				if (column < buttons.size()) {
-					return &buttons[column];
-				}
-			}
-		}
-	}
-	return nullptr;
-}
-
-void HistoryMessageReplyMarkup::createFromButtonRows(
-		const QVector<MTPKeyboardButtonRow> &list) {
-	rows.clear();
-	if (list.isEmpty()) {
-		return;
-	}
-
-	rows.reserve(list.size());
-	for (const auto &row : list) {
-		row.match([&](const MTPDkeyboardButtonRow &data) {
-			auto row = std::vector<Button>();
-			row.reserve(data.vbuttons().v.size());
-			for (const auto &button : data.vbuttons().v) {
-				using Type = Button::Type;
-				button.match([&](const MTPDkeyboardButton &data) {
-					row.emplace_back(Type::Default, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonCallback &data) {
-					row.emplace_back(
-						(data.is_requires_password()
-							? Type::CallbackWithPassword
-							: Type::Callback),
-						qs(data.vtext()),
-						qba(data.vdata()));
-				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonUrl &data) {
-					row.emplace_back(
-						Type::Url,
-						qs(data.vtext()),
-						qba(data.vurl()));
-				}, [&](const MTPDkeyboardButtonSwitchInline &data) {
-					const auto type = data.is_same_peer()
-						? Type::SwitchInlineSame
-						: Type::SwitchInline;
-					row.emplace_back(type, qs(data.vtext()), qba(data.vquery()));
-					if (type == Type::SwitchInline) {
-						// Optimization flag.
-						// Fast check on all new messages if there is a switch button to auto-click it.
-						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
-					}
-				}, [&](const MTPDkeyboardButtonGame &data) {
-					row.emplace_back(Type::Game, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonBuy &data) {
-					row.emplace_back(Type::Buy, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonUrlAuth &data) {
-					row.emplace_back(
-						Type::Auth,
-						qs(data.vtext()),
-						qba(data.vurl()),
-						qs(data.vfwd_text().value_or_empty()),
-						data.vbutton_id().v);
-				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
-					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
-					// Should not get those for the users.
-				}, [&](const MTPDkeyboardButtonRequestPoll &data) {
-					const auto quiz = [&] {
-						if (!data.vquiz()) {
-							return QByteArray();
-						}
-						return data.vquiz()->match([&](const MTPDboolTrue&) {
-							return QByteArray(1, 1);
-						}, [&](const MTPDboolFalse&) {
-							return QByteArray(1, 0);
-						});
-					}();
-					row.emplace_back(
-						Type::RequestPoll,
-						qs(data.vtext()),
-						quiz);
-				});
-			}
-			if (!row.empty()) {
-				rows.push_back(std::move(row));
-			}
-		});
-	}
-}
-
-void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
-	flags = 0;
-	rows.clear();
+void HistoryMessageReplyMarkup::updateData(
+		HistoryMessageMarkupData &&markup) {
+	data = std::move(markup);
 	inlineKeyboard = nullptr;
-
-	using Flag = ReplyMarkupFlag;
-	markup.match([&](const MTPDreplyKeyboardMarkup &data) {
-		flags = (data.is_resize() ? Flag::Resize : Flag())
-			| (data.is_selective() ? Flag::Selective : Flag())
-			| (data.is_single_use() ? Flag::SingleUse : Flag());
-		placeholder = qs(data.vplaceholder().value_or_empty());
-		createFromButtonRows(data.vrows().v);
-	}, [&](const MTPDreplyInlineMarkup &data) {
-		flags = Flag::Inline;
-		placeholder = QString();
-		createFromButtonRows(data.vrows().v);
-	}, [&](const MTPDreplyKeyboardHide &data) {
-		flags = Flag::None | (data.is_selective() ? Flag::Selective : Flag());
-		placeholder = QString();
-	}, [&](const MTPDreplyKeyboardForceReply &data) {
-		flags = Flag::ForceReply
-			| (data.is_selective() ? Flag::Selective : Flag())
-			| (data.is_single_use() ? Flag::SingleUse : Flag());
-		placeholder = qs(data.vplaceholder().value_or_empty());
-	});
-}
-
-void HistoryMessageReplyMarkup::create(
-		const HistoryMessageReplyMarkup &markup) {
-	flags = markup.flags;
-	placeholder = markup.placeholder;
-	inlineKeyboard = nullptr;
-
-	rows.clear();
-	rows.reserve(markup.rows.size());
-	using Type = HistoryMessageMarkupButton::Type;
-	for (const auto &existing : markup.rows) {
-		auto row = std::vector<Button>();
-		row.reserve(existing.size());
-		for (const auto &button : existing) {
-			const auto newType = (button.type != Type::SwitchInlineSame)
-				? button.type
-				: Type::SwitchInline;
-			const auto text = button.forwardText.isEmpty()
-				? button.text
-				: button.forwardText;
-			row.emplace_back(
-				newType,
-				text,
-				button.data,
-				QString(),
-				button.buttonId);
-		}
-		if (!row.empty()) {
-			rows.push_back(std::move(row));
-		}
-	}
 }
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;

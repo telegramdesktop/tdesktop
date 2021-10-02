@@ -270,7 +270,8 @@ void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
 		}, data.vmedia());
-		existing->updateReplyMarkup(data.vreply_markup());
+		existing->updateReplyMarkup(
+			HistoryMessageMarkupData(data.vreply_markup()));
 		existing->updateForwardedInfo(data.vfwd_from());
 		_session->data().requestItemTextRefresh(existing);
 
@@ -455,7 +456,8 @@ HistoryItem *ScheduledMessages::append(
 					_session,
 					data.ventities().value_or_empty())
 			}, data.vmedia());
-			existing->updateReplyMarkup(data.vreply_markup());
+			existing->updateReplyMarkup(
+				HistoryMessageMarkupData(data.vreply_markup()));
 			existing->updateForwardedInfo(data.vfwd_from());
 			existing->updateDate(data.vdate().v);
 			history->owner().requestItemTextRefresh(existing);

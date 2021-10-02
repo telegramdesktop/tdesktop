@@ -21,6 +21,7 @@ class Message;
 struct HistoryMessageEdited;
 struct HistoryMessageReply;
 struct HistoryMessageViews;
+struct HistoryMessageMarkupData;
 
 [[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
@@ -75,7 +76,7 @@ public:
 		const QString &postAuthor,
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia &media,
-		const MTPReplyMarkup &markup,
+		HistoryMessageMarkupData &&markup,
 		uint64 groupedId); // local message
 	HistoryMessage(
 		not_null<History*> history,
@@ -88,7 +89,7 @@ public:
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup); // local document
+		HistoryMessageMarkupData &&markup); // local document
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
@@ -100,7 +101,7 @@ public:
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup); // local photo
+		HistoryMessageMarkupData &&markup); // local photo
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
@@ -111,7 +112,7 @@ public:
 		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
-		const MTPReplyMarkup &markup); // local game
+		HistoryMessageMarkupData &&markup); // local game
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
@@ -164,9 +165,7 @@ public:
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) override;
-	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
-		setReplyMarkup(markup);
-	}
+	void updateReplyMarkup(HistoryMessageMarkupData &&markup) override;
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
 	void contributeToSlowmode(TimeId realDate = 0) override;
 
@@ -240,7 +239,7 @@ private:
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
 
-	void setReplyMarkup(const MTPReplyMarkup *markup);
+	void setReplyMarkup(HistoryMessageMarkupData &&markup);
 
 	struct CreateConfig;
 	void createComponentsHelper(
@@ -248,8 +247,8 @@ private:
 		MsgId replyTo,
 		UserId viaBotId,
 		const QString &postAuthor,
-		const MTPReplyMarkup &markup);
-	void createComponents(const CreateConfig &config);
+		HistoryMessageMarkupData &&markup);
+	void createComponents(CreateConfig &&config);
 	void setupForwardedComponent(const CreateConfig &config);
 	void changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,

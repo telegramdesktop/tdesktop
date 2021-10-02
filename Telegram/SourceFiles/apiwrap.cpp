@@ -3839,7 +3839,7 @@ void ApiWrap::sendSharedContact(
 			MTP_string(lastName),
 			MTP_string(), // vcard
 			MTP_long(userId.bare)),
-		MTPReplyMarkup());
+		HistoryMessageMarkupData());
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
@@ -4103,7 +4103,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			messagePostAuthor,
 			sending,
 			media,
-			MTPReplyMarkup());
+			HistoryMessageMarkupData());
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_SendMessage(
 				MTP_flags(sendFlags),

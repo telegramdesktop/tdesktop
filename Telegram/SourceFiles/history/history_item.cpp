@@ -86,7 +86,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		QString(),
 		text,
 		MTP_messageMediaEmpty(),
-		MTPReplyMarkup(),
+		HistoryMessageMarkupData(),
 		groupedId);
 }
 
@@ -233,7 +233,7 @@ void HistoryItem::setGroupId(MessageGroupId groupId) {
 
 HistoryMessageReplyMarkup *HistoryItem::inlineReplyMarkup() {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & ReplyMarkupFlag::Inline) {
+		if (markup->data.flags & ReplyMarkupFlag::Inline) {
 			return markup;
 		}
 	}
@@ -371,7 +371,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & ReplyMarkupFlag::Inline) {
+		if (markup->data.flags & ReplyMarkupFlag::Inline) {
 			return false;
 		}
 		return true;
@@ -386,7 +386,7 @@ ReplyMarkupFlags HistoryItem::replyKeyboardFlags() const {
 	Expects(definesReplyKeyboard());
 
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		return markup->flags;
+		return markup->data.flags;
 	}
 
 	// optimization: don't create markup component for the case
@@ -508,7 +508,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 			&history()->session(),
 			data.ventities().value_or_empty())
 	}, data.vmedia());
-	updateReplyMarkup(data.vreply_markup());
+	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
 	updateForwardedInfo(data.vfwd_from());
 	setViewsCount(data.vviews().value_or(-1));
 	if (const auto replies = data.vreplies()) {

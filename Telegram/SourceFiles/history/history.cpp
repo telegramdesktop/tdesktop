@@ -550,7 +550,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const QString &postAuthor,
 		const TextWithEntities &text,
 		const MTPMessageMedia &media,
-		const MTPReplyMarkup &markup,
+		HistoryMessageMarkupData &&markup,
 		uint64 groupedId) {
 	return addNewItem(
 		makeMessage(
@@ -563,7 +563,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			postAuthor,
 			text,
 			media,
-			markup,
+			std::move(markup),
 			groupedId),
 		true);
 }
@@ -596,7 +596,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup) {
+		HistoryMessageMarkupData &&markup) {
 	return addNewItem(
 		makeMessage(
 			id,
@@ -608,7 +608,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			postAuthor,
 			document,
 			caption,
-			markup),
+			std::move(markup)),
 		true);
 }
 
@@ -622,7 +622,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup) {
+		HistoryMessageMarkupData &&markup) {
 	return addNewItem(
 		makeMessage(
 			id,
@@ -634,7 +634,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			postAuthor,
 			photo,
 			caption,
-			markup),
+			std::move(markup)),
 		true);
 }
 
@@ -647,7 +647,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
-		const MTPReplyMarkup &markup) {
+		HistoryMessageMarkupData &&markup) {
 	return addNewItem(
 		makeMessage(
 			id,
@@ -658,7 +658,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			from,
 			postAuthor,
 			game,
-			markup),
+			std::move(markup)),
 		true);
 }
 

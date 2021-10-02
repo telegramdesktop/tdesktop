@@ -95,7 +95,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 			return;
 		}
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			for (const auto &row : markup->rows) {
+			for (const auto &row : markup->data.rows) {
 				for (const auto &button : row) {
 					using ButtonType = HistoryMessageMarkupButton::Type;
 					if (button.type == ButtonType::SwitchInline) {

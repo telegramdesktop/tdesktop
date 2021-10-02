@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/value_ordering.h"
 #include "data/data_media_types.h"
+#include "history/history_item_reply_markup.h"
 
 #include <any>
 
@@ -72,18 +73,6 @@ struct ItemPreview {
 
 struct HiddenSenderInfo;
 class History;
-
-enum class ReplyMarkupFlag : uint32 {
-	None                  = (1U << 0),
-	ForceReply            = (1U << 1),
-	HasSwitchInlineButton = (1U << 2),
-	Inline                = (1U << 3),
-	Resize                = (1U << 4),
-	SingleUse             = (1U << 5),
-	Selective             = (1U << 6),
-};
-inline constexpr bool is_flag_type(ReplyMarkupFlag) { return true; }
-using ReplyMarkupFlags = base::flags<ReplyMarkupFlag>;
 
 [[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessage::Flags flags);
 [[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags);
@@ -284,7 +273,7 @@ public:
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) {
 	}
-	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
+	virtual void updateReplyMarkup(HistoryMessageMarkupData &&markup) {
 	}
 	virtual void updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
 	}

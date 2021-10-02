@@ -38,7 +38,7 @@ void SendDataCommon::addToHistory(
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
+		HistoryMessageMarkupData &&markup) const {
 	auto fields = getSentMessageFields();
 	if (replyToId) {
 		flags |= MessageFlag::HasReplyInfo;
@@ -53,7 +53,7 @@ void SendDataCommon::addToHistory(
 		postAuthor,
 		std::move(fields.text),
 		std::move(fields.media),
-		markup);
+		std::move(markup));
 }
 
 QString SendDataCommon::getErrorOnSend(
@@ -123,7 +123,7 @@ void SendPhoto::addToHistory(
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
+		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
@@ -134,7 +134,7 @@ void SendPhoto::addToHistory(
 		postAuthor,
 		_photo,
 		{ _message, _entities },
-		markup);
+		std::move(markup));
 }
 
 QString SendPhoto::getErrorOnSend(
@@ -156,7 +156,7 @@ void SendFile::addToHistory(
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
+		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
@@ -167,7 +167,7 @@ void SendFile::addToHistory(
 		postAuthor,
 		_document,
 		{ _message, _entities },
-		markup);
+		std::move(markup));
 }
 
 QString SendFile::getErrorOnSend(
@@ -203,7 +203,7 @@ void SendGame::addToHistory(
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
+		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
@@ -213,7 +213,7 @@ void SendGame::addToHistory(
 		fromId,
 		postAuthor,
 		_game,
-		markup);
+		std::move(markup));
 }
 
 QString SendGame::getErrorOnSend(

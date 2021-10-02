@@ -304,7 +304,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(text) },
 		MTP_messageMediaEmpty(),
-		MTPReplyMarkup(),
+		HistoryMessageMarkupData(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }

@@ -556,7 +556,7 @@ void GenerateItems(
 			QString(),
 			std::move(text),
 			MTP_messageMediaEmpty(),
-			MTPReplyMarkup(),
+			HistoryMessageMarkupData(),
 			bodyGroupedId);
 	};
 
