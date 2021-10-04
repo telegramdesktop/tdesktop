@@ -230,9 +230,9 @@ struct PreparedPreview {
 
 	{
 		QPainter p(&preview);
-		//st::overviewVideoPlay.paintInCenter(
-		//	p,
-		//	QRect(QPoint(), preview.size() / preview.devicePixelRatio()));
+		st::dialogsMiniPlay.paintInCenter(
+			p,
+			QRect(QPoint(), preview.size() / preview.devicePixelRatio()));
 	}
 	return preview;
 }

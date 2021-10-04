@@ -300,3 +300,4 @@ dialogsMiniPreviewTop: 1px;
 dialogsMiniPreview: 16px;
 dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
+dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
