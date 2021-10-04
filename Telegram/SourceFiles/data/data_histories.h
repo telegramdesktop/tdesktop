@@ -59,6 +59,8 @@ public:
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	void requestFakeChatListMessage(not_null<History*> history);
 
+	void requestGroupAround(not_null<HistoryItem*> item);
+
 	void deleteMessages(
 		not_null<History*> history,
 		const QVector<MTPint> &ids,
@@ -95,6 +97,10 @@ private:
 		bool sentReadDone = false;
 		bool postponedRequestEntry = false;
 	};
+	struct ChatListGroupRequest {
+		MsgId aroundId = 0;
+		mtpRequestId requestId = 0;
+	};
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
@@ -129,6 +135,10 @@ private:
 		std::vector<Fn<void()>>> _dialogRequestsPending;
 
 	base::flat_set<not_null<History*>> _fakeChatListRequests;
+
+	base::flat_map<
+		not_null<History*>,
+		ChatListGroupRequest> _chatListGroupRequests;
 
 };
 

@@ -18,6 +18,7 @@ namespace Ui {
 
 namespace HistoryView {
 struct ToPreviewOptions;
+struct ItemPreviewImage;
 struct ItemPreview;
 } // namespace HistoryView
 
@@ -31,6 +32,7 @@ public:
 	~MessageView();
 
 	using ToPreviewOptions = HistoryView::ToPreviewOptions;
+	using ItemPreviewImage = HistoryView::ItemPreviewImage;
 	using ItemPreview = HistoryView::ItemPreview;
 
 	void itemInvalidated(not_null<const HistoryItem*> item);
@@ -50,7 +52,7 @@ private:
 	mutable const HistoryItem *_textCachedFor = nullptr;
 	mutable Ui::Text::String _senderCache;
 	mutable Ui::Text::String _textCache;
-	mutable std::vector<QImage> _imagesCache;
+	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 
 };

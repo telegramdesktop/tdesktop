@@ -560,7 +560,8 @@ void ApiWrap::resolveMessageDatas() {
 		)).done([=](
 				const MTPmessages_Messages &result,
 				mtpRequestId requestId) {
-			gotMessageDatas(nullptr, result, requestId);
+			_session->data().processExistingMessages(nullptr, result);
+			finalizeMessageDataRequest(nullptr, requestId);
 		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			finalizeMessageDataRequest(nullptr, requestId);
 		}).afterDelay(kSmallDelayMs).send();
@@ -586,7 +587,8 @@ void ApiWrap::resolveMessageDatas() {
 			)).done([=](
 					const MTPmessages_Messages &result,
 					mtpRequestId requestId) {
-				gotMessageDatas(channel, result, requestId);
+				_session->data().processExistingMessages(channel, result);
+				finalizeMessageDataRequest(channel, requestId);
 			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				finalizeMessageDataRequest(channel, requestId);
 			}).afterDelay(kSmallDelayMs).send();
@@ -600,37 +602,6 @@ void ApiWrap::resolveMessageDatas() {
 		}
 		++j;
 	}
-}
-
-void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId requestId) {
-	const auto handleResult = [&](auto &&result) {
-		_session->data().processUsers(result.vusers());
-		_session->data().processChats(result.vchats());
-		_session->data().processMessages(
-			result.vmessages(),
-			NewMessageType::Existing);
-	};
-	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		handleResult(msgs.c_messages_messages());
-		break;
-	case mtpc_messages_messagesSlice:
-		handleResult(msgs.c_messages_messagesSlice());
-		break;
-	case mtpc_messages_channelMessages: {
-		auto &d = msgs.c_messages_channelMessages();
-		if (channel) {
-			channel->ptsReceived(d.vpts().v);
-		} else {
-			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotDependencyItem)"));
-		}
-		handleResult(d);
-	} break;
-	case mtpc_messages_messagesNotModified:
-		LOG(("API Error: received messages.messagesNotModified! (ApiWrap::gotDependencyItem)"));
-		break;
-	}
-	finalizeMessageDataRequest(channel, requestId);
 }
 
 void ApiWrap::finalizeMessageDataRequest(

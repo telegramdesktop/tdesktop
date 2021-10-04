@@ -438,6 +438,49 @@ void Histories::requestFakeChatListMessage(
 	});
 }
 
+void Histories::requestGroupAround(not_null<HistoryItem*> item) {
+	const auto history = item->history();
+	const auto id = item->id;
+	const auto i = _chatListGroupRequests.find(history);
+	if (i != end(_chatListGroupRequests)) {
+		if (i->second.aroundId == id) {
+			return;
+		} else {
+			cancelRequest(i->second.requestId);
+			_chatListGroupRequests.erase(i);
+		}
+	}
+	constexpr auto kMaxAlbumCount = 10;
+	const auto requestId = sendRequest(history, RequestType::History, [=](
+			Fn<void()> finish) {
+		return session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
+			MTP_int(id),
+			MTP_int(0), // offset_date
+			MTP_int(-kMaxAlbumCount),
+			MTP_int(2 * kMaxAlbumCount - 1),
+			MTP_int(0), // max_id
+			MTP_int(0), // min_id
+			MTP_long(0) // hash
+		)).done([=](const MTPmessages_Messages &result) {
+			_owner->processExistingMessages(
+				history->peer->asChannel(),
+				result);
+			_chatListGroupRequests.remove(history);
+			history->migrateToOrMe()->applyChatListGroup(
+				history->channelId(),
+				result);
+			finish();
+		}).fail([=](const MTP::Error &error) {
+			_chatListGroupRequests.remove(history);
+			finish();
+		}).send();
+	});
+	_chatListGroupRequests.emplace(
+		history,
+		ChatListGroupRequest{ .aroundId = id, .requestId = requestId });
+}
+
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
 		DEBUG_LOG(("Reading: send pending now with till %1 and when %2"

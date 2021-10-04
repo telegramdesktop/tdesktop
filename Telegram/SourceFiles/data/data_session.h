@@ -341,6 +341,9 @@ public:
 	void processMessages(
 		const MTPVector<MTPMessage> &data,
 		NewMessageType type);
+	void processExistingMessages(
+		ChannelData *channel,
+		const MTPmessages_Messages &data);
 	void processMessagesDeleted(
 		ChannelId channelId,
 		const QVector<MTPint> &data);

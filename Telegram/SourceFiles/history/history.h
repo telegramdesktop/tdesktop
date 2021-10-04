@@ -409,6 +409,10 @@ public:
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
+	void applyChatListGroup(
+		ChannelId channelId,
+		const MTPmessages_Messages &data);
+
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
 	}
@@ -515,6 +519,9 @@ private:
 	bool isBuildingFrontBlock() const {
 		return _buildingFrontBlock != nullptr;
 	}
+
+	void addCreatedOlderSlice(
+		const std::vector<not_null<HistoryItem*>> &items);
 
 	void checkForLoadedAtTop(not_null<HistoryItem*> added);
 	void mainViewRemoved(

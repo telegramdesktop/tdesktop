@@ -105,6 +105,7 @@ void MessageView::paint(
 		return;
 	}
 	if (_textCachedFor != item.get()) {
+		options.existing = &_imagesCache;
 		auto preview = item->toPreview(options);
 		if (!preview.images.empty() && preview.imagesInTextPosition > 0) {
 			_senderCache.setText(
@@ -140,7 +141,11 @@ void MessageView::paint(
 		? st::dialogsTextPaletteOver
 		: st::dialogsTextPalette);
 	p.setFont(st::dialogsTextFont);
-	p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
+	p.setPen(active
+		? st::dialogsTextFgActive
+		: selected
+		? st::dialogsTextFgOver
+		: st::dialogsTextFg);
 	const auto guard = gsl::finally([&] {
 		p.restoreTextPalette();
 	});
@@ -161,7 +166,10 @@ void MessageView::paint(
 		if (rect.width() < st::dialogsMiniPreview) {
 			break;
 		}
-		p.drawImage(rect.x(), rect.y() + st::dialogsMiniPreviewTop, image);
+		p.drawImage(
+			rect.x(),
+			rect.y() + st::dialogsMiniPreviewTop,
+			image.data);
 		rect.setLeft(rect.x()
 			+ st::dialogsMiniPreview
 			+ st::dialogsMiniPreviewSkip);

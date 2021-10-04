@@ -1859,6 +1859,26 @@ void Session::processMessages(
 	processMessages(data.v, type);
 }
 
+void Session::processExistingMessages(
+		ChannelData *channel,
+		const MTPmessages_Messages &data) {
+	data.match([&](const MTPDmessages_channelMessages &data) {
+		if (channel) {
+			channel->ptsReceived(data.vpts().v);
+		} else {
+			LOG(("App Error: received messages.channelMessages!"));
+		}
+	}, [](const auto &) {});
+
+	data.match([&](const MTPDmessages_messagesNotModified&) {
+		LOG(("API Error: received messages.messagesNotModified!"));
+	}, [&](const auto &data) {
+		processUsers(data.vusers());
+		processChats(data.vchats());
+		processMessages(data.vmessages(), NewMessageType::Existing);
+	});
+}
+
 const Session::Messages *Session::messagesList(ChannelId channelId) const {
 	if (channelId == NoChannel) {
 		return &_messages;

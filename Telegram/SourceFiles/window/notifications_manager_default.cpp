@@ -804,7 +804,7 @@ void Notification::updateNotifyDisplay() {
 			p.setTextPalette(st::dialogsTextPalette);
 			p.setPen(st::dialogsTextFg);
 			p.setFont(st::dialogsTextFont);
-			const auto text = _item // #TODO minis use images
+			const auto text = _item
 				? _item->toPreview({
 					.hideSender = reminder,
 					.generateImages = false,

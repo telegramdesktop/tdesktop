@@ -57,18 +57,28 @@ enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
 
-struct ToPreviewOptions {
-	bool hideSender = false;
-	bool hideCaption = false;
-	bool generateImages = true;
-	bool ignoreGroup = false;
+struct ItemPreviewImage {
+	QImage data;
+	uint64 cacheKey = 0;
+
+	explicit operator bool() const {
+		return !data.isNull();
+	}
 };
 
 struct ItemPreview {
 	QString text;
-	std::vector<QImage> images;
+	std::vector<ItemPreviewImage> images;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;
+};
+
+struct ToPreviewOptions {
+	const std::vector<ItemPreviewImage> *existing = nullptr;
+	bool hideSender = false;
+	bool hideCaption = false;
+	bool generateImages = true;
+	bool ignoreGroup = false;
 };
 
 } // namespace HistoryView

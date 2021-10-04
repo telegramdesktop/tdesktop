@@ -28,6 +28,7 @@ enum class Context : char;
 class Element;
 class Media;
 struct ItemPreview;
+struct ItemPreviewImage;
 struct ToPreviewOptions;
 } // namespace HistoryView
 
@@ -75,6 +76,7 @@ public:
 	not_null<HistoryItem*> parent() const;
 
 	using ToPreviewOptions = HistoryView::ToPreviewOptions;
+	using ItemPreviewImage = HistoryView::ItemPreviewImage;
 	using ItemPreview = HistoryView::ItemPreview;
 
 	virtual std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) = 0;

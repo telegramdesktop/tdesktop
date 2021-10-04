@@ -458,7 +458,6 @@ private:
 	void saveDraftsToCloud();
 
 	void resolveMessageDatas();
-	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void finalizeMessageDataRequest(
 		ChannelData *channel,
 		mtpRequestId requestId);

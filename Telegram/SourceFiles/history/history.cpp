@@ -1253,25 +1253,29 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	}
 
 	if (const auto added = createItems(slice); !added.empty()) {
-		startBuildingFrontBlock(added.size());
-		for (const auto &item : added) {
-			addItemToBlock(item);
-		}
-		finishBuildingFrontBlock();
-
-		if (loadedAtBottom()) {
-			// Add photos to overview and authors to lastAuthors.
-			addItemsToLists(added);
-		}
-		addToSharedMedia(added);
+		addCreatedOlderSlice(added);
 	} else {
 		// If no items were added it means we've loaded everything old.
 		_loadedAtTop = true;
 		addEdgesToSharedMedia();
 	}
-
 	checkLocalMessages();
 	checkLastMessage();
+}
+
+void History::addCreatedOlderSlice(
+		const std::vector<not_null<HistoryItem*>> &items) {
+	startBuildingFrontBlock(items.size());
+	for (const auto &item : items) {
+		addItemToBlock(item);
+	}
+	finishBuildingFrontBlock();
+
+	if (loadedAtBottom()) {
+		// Add photos to overview and authors to lastAuthors.
+		addItemsToLists(items);
+	}
+	addToSharedMedia(items);
 }
 
 void History::addNewerSlice(const QVector<MTPMessage> &slice) {
@@ -2266,6 +2270,14 @@ void History::setChatListMessage(HistoryItem *item) {
 		}
 		_chatListMessage = item;
 		setChatListTimeId(item->date());
+
+		// If we have a single message from a group, request the full album.
+		if (hasOrphanMediaGroupPart()
+			&& !item->toPreview({
+				.hideSender = true,
+				.hideCaption = true }).images.empty()) {
+			owner().histories().requestGroupAround(item);
+		}
 	} else if (!_chatListMessage || *_chatListMessage) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
@@ -2420,6 +2432,44 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 		return;
 	}
 	setChatListMessage(item);
+}
+
+void History::applyChatListGroup(
+		ChannelId channelId,
+		const MTPmessages_Messages &data) {
+	if (!isEmpty()
+		|| !_chatListMessage
+		|| !*_chatListMessage
+		|| (*_chatListMessage)->history()->channelId() != channelId
+		|| (*_chatListMessage)->history() != this
+		|| !_lastMessage
+		|| !*_lastMessage) {
+		return;
+	}
+	// Apply loaded album as a last slice.
+	const auto processMessages = [&](const MTPVector<MTPMessage> &messages) {
+		auto items = std::vector<not_null<HistoryItem*>>();
+		items.reserve(messages.v.size());
+		for (const auto &message : messages.v) {
+			const auto id = IdFromMessage(message);
+			if (const auto message = owner().message(channelId, id)) {
+				items.push_back(message);
+			}
+		}
+		if (!ranges::contains(items, not_null(*_lastMessage))
+			|| !ranges::contains(items, not_null(*_chatListMessage))) {
+			return;
+		}
+		_loadedAtBottom = true;
+		ranges::sort(items, ranges::less{}, &HistoryItem::id);
+		addCreatedOlderSlice(items);
+		checkLocalMessages();
+		checkLastMessage();
+	};
+	data.match([&](const MTPDmessages_messagesNotModified &) {
+	}, [&](const auto &data) {
+		processMessages(data.vmessages());
+	});
 }
 
 HistoryItem *History::lastMessage() const {

@@ -63,6 +63,7 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 constexpr auto kMaxPreviewImages = 3;
 
 using ItemPreview = HistoryView::ItemPreview;
+using ItemPreviewImage = HistoryView::ItemPreviewImage;
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
@@ -191,25 +192,18 @@ using ItemPreview = HistoryView::ItemPreview;
 	return square;
 }
 
-struct PreparedPreview {
-	QImage preview;
-	bool loading = false;
-
-	explicit operator bool() const {
-		return !preview.isNull() || loading;
-	}
-};
-
-[[nodiscard]] PreparedPreview PreparePhotoPreview(
+[[nodiscard]] ItemPreviewImage PreparePhotoPreview(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<PhotoMedia> &media,
 		ImageRoundRadius radius) {
+	const auto photo = media->owner();
+	const auto readyCacheKey = reinterpret_cast<uint64>(photo.get());
 	if (const auto small = media->image(PhotoSize::Small)) {
-		return { PreparePreviewImage(small, radius) };
+		return { PreparePreviewImage(small, radius), readyCacheKey };
 	} else if (const auto thumbnail = media->image(PhotoSize::Thumbnail)) {
-		return { PreparePreviewImage(thumbnail, radius) };
+		return { PreparePreviewImage(thumbnail, radius), readyCacheKey };
 	} else if (const auto large = media->image(PhotoSize::Large)) {
-		return { PreparePreviewImage(large, radius) };
+		return { PreparePreviewImage(large, radius), readyCacheKey };
 	}
 	const auto allowedToDownload = [&] {
 		const auto photo = media->owner();
@@ -223,29 +217,32 @@ struct PreparedPreview {
 				item->history()->peer,
 				photo);
 	}();
+	const auto cacheKey = allowedToDownload ? 0 : readyCacheKey;
 	if (allowedToDownload) {
 		media->owner()->load(PhotoSize::Small, item->fullId());
 	}
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius), allowedToDownload };
+		return { PreparePreviewImage(blurred, radius), cacheKey };
 	}
-	return { QImage(), allowedToDownload };
+	return { QImage(), allowedToDownload ? 0 : cacheKey };
 }
 
-[[nodiscard]] PreparedPreview PrepareFilePreviewImage(
+[[nodiscard]] ItemPreviewImage PrepareFilePreviewImage(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<DocumentMedia> &media,
 		ImageRoundRadius radius) {
 	Expects(media->owner()->hasThumbnail());
 
+	const auto document = media->owner();
+	const auto readyCacheKey = reinterpret_cast<uint64>(document.get());
 	if (const auto thumbnail = media->thumbnail()) {
-		return { PreparePreviewImage(thumbnail, radius) };
+		return { PreparePreviewImage(thumbnail, radius), readyCacheKey };
 	}
-	media->owner()->loadThumbnail(item->fullId());
+	document->loadThumbnail(item->fullId());
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius), true };
+		return { PreparePreviewImage(blurred, radius), 0 };
 	}
-	return { QImage(), true };
+	return { QImage(), 0 };
 }
 
 [[nodiscard]] QImage PutPlayIcon(QImage preview) {
@@ -260,34 +257,37 @@ struct PreparedPreview {
 	return preview;
 }
 
-[[nodiscard]] PreparedPreview PrepareFilePreview(
+[[nodiscard]] ItemPreviewImage PrepareFilePreview(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<DocumentMedia> &media,
 		ImageRoundRadius radius) {
-	if (auto result = PrepareFilePreviewImage(item, media, radius)) {
-		const auto document = media->owner();
-		if (!result.preview.isNull()
-			&& (document->isVideoFile() || document->isVideoMessage())) {
-			result.preview = PutPlayIcon(std::move(result.preview));
-		}
-		return result;
+	auto result = PrepareFilePreviewImage(item, media, radius);
+	const auto document = media->owner();
+	if (!result.data.isNull()
+		&& (document->isVideoFile() || document->isVideoMessage())) {
+		result.data = PutPlayIcon(std::move(result.data));
 	}
-	Expects(media->owner()->hasThumbnail());
-
-	if (const auto thumbnail = media->thumbnail()) {
-		return { PreparePreviewImage(thumbnail, radius) };
-	}
-	media->owner()->loadThumbnail(item->fullId());
-	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius), true };
-	}
-	return { QImage(), true };
+	return result;
 }
 
 [[nodiscard]] bool TryFilePreview(not_null<DocumentData*> document) {
 	return document->hasThumbnail()
 		&& !document->sticker()
 		&& !document->isAudioFile();
+}
+
+template <typename MediaType>
+[[nodiscard]] ItemPreviewImage FindCachedPreview(
+		const std::vector<ItemPreviewImage> *existing,
+		not_null<MediaType*> data) {
+	if (!existing) {
+		return {};
+	}
+	const auto i = ranges::find(
+		*existing,
+		reinterpret_cast<uint64>(data.get()),
+		&ItemPreviewImage::cacheKey);
+	return (i != end(*existing)) ? *i : ItemPreviewImage();
 }
 
 } // namespace
@@ -554,22 +554,27 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 			return toGroupPreview(group->items, options);
 		}
 	}
-	const auto caption = options.hideCaption
-		? QString()
-		: parent()->originalText().text;
-	auto images = std::vector<QImage>();
-	const auto media = _photo->createMediaView();
-	const auto radius = _chat
-		? ImageRoundRadius::Ellipse
-		: ImageRoundRadius::Small;
+	auto images = std::vector<ItemPreviewImage>();
 	auto context = std::any();
-	if (auto prepared = PreparePhotoPreview(parent(), media, radius)) {
-		images.push_back(std::move(prepared.preview));
-		if (prepared.loading) {
-			context = media;
+	if (auto cached = FindCachedPreview(options.existing, _photo)) {
+		images.push_back(std::move(cached));
+	} else {
+		const auto media = _photo->createMediaView();
+		const auto radius = _chat
+			? ImageRoundRadius::Ellipse
+			: ImageRoundRadius::Small;
+		if (auto prepared = PreparePhotoPreview(parent(), media, radius)
+			; prepared || !prepared.cacheKey) {
+			images.push_back(std::move(prepared));
+			if (!prepared.cacheKey) {
+				context = media;
+			}
 		}
 	}
 	const auto type = tr::lng_in_dlg_photo(tr::now);
+	const auto caption = options.hideCaption
+		? QString()
+		: parent()->originalText().text;
 	return {
 		.text = WithCaptionDialogsText(type, caption, !images.empty()),
 		.images = std::move(images),
@@ -751,6 +756,23 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	if (const auto sticker = _document->sticker()) {
 		return Media::toPreview(options);
 	}
+	auto images = std::vector<ItemPreviewImage>();
+	auto context = std::any();
+	if (auto cached = FindCachedPreview(options.existing, _document)) {
+		images.push_back(std::move(cached));
+	} else if (TryFilePreview(_document)) {
+		const auto media = _document->createMediaView();
+		const auto radius = _document->isVideoMessage()
+			? ImageRoundRadius::Ellipse
+			: ImageRoundRadius::Small;
+		if (auto prepared = PrepareFilePreview(parent(), media, radius)
+			; prepared || !prepared.cacheKey) {
+			images.push_back(std::move(prepared));
+			if (!prepared.cacheKey) {
+				context = media;
+			}
+		}
+	}
 	const auto type = [&] {
 		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
@@ -772,22 +794,6 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	auto images = std::vector<QImage>();
-	const auto media = TryFilePreview(_document)
-		? _document->createMediaView()
-		: nullptr;
-	const auto radius = _document->isVideoMessage()
-		? ImageRoundRadius::Ellipse
-		: ImageRoundRadius::Small;
-	auto context = std::any();
-	if (media) {
-		if (auto prepared = PrepareFilePreview(parent(), media, radius)) {
-			images.push_back(std::move(prepared.preview));
-			if (prepared.loading) {
-				context = media;
-			}
-		}
-	}
 	return {
 		.text = WithCaptionDialogsText(type, caption, !images.empty()),
 		.images = std::move(images),
