@@ -298,6 +298,7 @@ dialogsScamRadius: 2px;
 
 dialogsMiniPreviewTop: 1px;
 dialogsMiniPreview: 16px;
+dialogsMiniPreviewRadius: 2px;
 dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};

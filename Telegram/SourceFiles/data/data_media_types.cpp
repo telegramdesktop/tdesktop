@@ -164,7 +164,29 @@ using ItemPreview = HistoryView::ItemPreview;
 		size,
 		size
 	).convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	Images::prepareRound(square, radius);
+	if (radius == ImageRoundRadius::Small) {
+		struct Cache {
+			base::flat_map<int, std::array<QImage, 4>> all;
+			std::array<QImage, 4> *lastUsed = nullptr;
+			int lastUsedRadius = 0;
+		};
+		static auto cache = Cache();
+		const auto pxRadius = st::dialogsMiniPreviewRadius;
+		if (!cache.lastUsed || cache.lastUsedRadius != pxRadius) {
+			cache.lastUsedRadius = pxRadius;
+			const auto i = cache.all.find(pxRadius);
+			if (i != end(cache.all)) {
+				cache.lastUsed = &i->second;
+			} else {
+				cache.lastUsed = &cache.all.emplace(
+					pxRadius,
+					Images::CornersMask(pxRadius)).first->second;
+			}
+		}
+		Images::prepareRound(square, *cache.lastUsed);
+	} else {
+		Images::prepareRound(square, radius);
+	}
 	square.setDevicePixelRatio(factor);
 	return square;
 }
