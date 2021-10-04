@@ -6853,7 +6853,6 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 
 		if (count < 2) {
-			// #TODO minis use images
 			text = _toForward.items.front()->toPreview({
 				.hideSender = true,
 				.hideCaption = !keepCaptions,

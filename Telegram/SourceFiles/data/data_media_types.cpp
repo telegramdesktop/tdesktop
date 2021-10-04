@@ -106,20 +106,23 @@ using ItemPreview = HistoryView::ItemPreview;
 
 [[nodiscard]] QString WithCaptionDialogsText(
 		const QString &attachType,
-		const QString &caption) {
+		const QString &caption,
+		bool hasMiniImages) {
 	if (caption.isEmpty()) {
 		return textcmdLink(1, TextUtilities::Clean(attachType));
 	}
 
-	return tr::lng_dialogs_text_media(
-		tr::now,
-		lt_media_part,
-		textcmdLink(1, tr::lng_dialogs_text_media_wrapped(
+	return hasMiniImages
+		? TextUtilities::Clean(caption)
+		: tr::lng_dialogs_text_media(
 			tr::now,
-			lt_media,
-			TextUtilities::Clean(attachType))),
-		lt_caption,
-		TextUtilities::Clean(caption));
+			lt_media_part,
+			textcmdLink(1, tr::lng_dialogs_text_media_wrapped(
+				tr::now,
+				lt_media,
+				TextUtilities::Clean(attachType))),
+			lt_caption,
+			TextUtilities::Clean(caption));
 }
 
 [[nodiscard]] QString WithCaptionNotificationText(
@@ -491,10 +494,9 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 			context = media;
 		}
 	}
+	const auto type = tr::lng_in_dlg_photo(tr::now);
 	return {
-		.text = WithCaptionDialogsText(
-			tr::lng_in_dlg_photo(tr::now),
-			caption),
+		.text = WithCaptionDialogsText(type, caption, !images.empty()),
 		.images = std::move(images),
 		.loadingContext = std::move(context),
 	};
@@ -706,7 +708,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 		}
 	}
 	return {
-		.text = WithCaptionDialogsText(type, caption),
+		.text = WithCaptionDialogsText(type, caption, !images.empty()),
 		.images = std::move(images),
 		.loadingContext = std::move(context),
 	};
@@ -1029,10 +1031,9 @@ Data::CloudImage *MediaLocation::location() const {
 }
 
 ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
-	// #TODO minis generate images
-	return {
-		.text = WithCaptionDialogsText(tr::lng_maps_point(tr::now), _title),
-	};
+	const auto type = tr::lng_maps_point(tr::now);
+	const auto hasMiniImages = false;
+	return { .text = WithCaptionDialogsText(type, _title, hasMiniImages) };
 }
 
 QString MediaLocation::notificationText() const {

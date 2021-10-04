@@ -66,6 +66,7 @@ struct ToPreviewOptions {
 struct ItemPreview {
 	QString text;
 	std::vector<QImage> images;
+	int imagesInTextPosition = 0;
 	std::any loadingContext;
 };
 

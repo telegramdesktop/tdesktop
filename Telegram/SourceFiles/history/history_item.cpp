@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
 #include "api/api_text_entities.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -965,24 +966,19 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		}
 		return nullptr;
 	}();
-	if (sender) {
-		const auto fromText = sender->isSelf()
-			? tr::lng_from_you(tr::now)
-			: sender->shortName();
-		const auto fromWrapped = textcmdLink(
-			1,
-			tr::lng_dialogs_text_from_wrapped(
-				tr::now,
-				lt_from,
-				TextUtilities::Clean(fromText)));
-		result.text = tr::lng_dialogs_text_with_from(
-			tr::now,
-			lt_from_part,
-			fromWrapped,
-			lt_message,
-			std::move(result.text));
+	if (!sender) {
+		return result;
 	}
-	return result;
+	const auto fromText = sender->isSelf()
+		? tr::lng_from_you(tr::now)
+		: sender->shortName();
+	const auto fromWrapped = textcmdLink(
+		1,
+		tr::lng_dialogs_text_from_wrapped(
+			tr::now,
+			lt_from,
+			TextUtilities::Clean(fromText)));
+	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
 }
 
 Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {

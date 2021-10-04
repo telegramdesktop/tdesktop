@@ -377,11 +377,14 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	if (force
 		|| sendActionChanged
 		|| (sendActionResult && !anim::Disabled())) {
+		const auto height = std::max(
+			st::normalFont->height,
+			st::dialogsMiniPreviewTop + st::dialogsMiniPreview);
 		_history->peer->owner().sendActionManager().updateAnimation({
 			_history,
 			0,
 			_sendActionAnimation.width() + _animationLeft,
-			st::normalFont->height,
+			height,
 			(force || sendActionChanged)
 		});
 	}

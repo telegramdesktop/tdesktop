@@ -48,10 +48,15 @@ private:
 	struct LoadingContext;
 
 	mutable const HistoryItem *_textCachedFor = nullptr;
+	mutable Ui::Text::String _senderCache;
 	mutable Ui::Text::String _textCache;
 	mutable std::vector<QImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 
 };
+
+[[nodiscard]] HistoryView::ItemPreview PreviewWithSender(
+	HistoryView::ItemPreview &&preview,
+	const QString &sender);
 
 } // namespace Dialogs::Ui

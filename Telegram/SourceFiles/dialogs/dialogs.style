@@ -296,6 +296,7 @@ dialogsScamFont: font(9px semibold);
 dialogsScamSkip: 4px;
 dialogsScamRadius: 2px;
 
+dialogsMiniPreviewTop: 1px;
 dialogsMiniPreview: 16px;
 dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;

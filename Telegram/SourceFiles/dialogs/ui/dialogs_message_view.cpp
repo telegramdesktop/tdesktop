@@ -12,7 +12,60 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/text/text_options.h"
 #include "ui/image/image.h"
+#include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
+
+namespace {
+
+template <ushort kTag>
+struct TextWithTagOffset {
+	TextWithTagOffset(QString text) : text(text) {
+	}
+	static TextWithTagOffset FromString(const QString &text) {
+		return { text };
+	}
+
+	QString text;
+	int offset = -1;
+};
+
+} // namespace
+
+namespace Lang {
+
+template <ushort kTag>
+struct ReplaceTag<TextWithTagOffset<kTag>> {
+	static TextWithTagOffset<kTag> Call(
+		TextWithTagOffset<kTag> &&original,
+		ushort tag,
+		const TextWithTagOffset<kTag> &replacement);
+};
+
+template <ushort kTag>
+TextWithTagOffset<kTag> ReplaceTag<TextWithTagOffset<kTag>>::Call(
+		TextWithTagOffset<kTag> &&original,
+		ushort tag,
+		const TextWithTagOffset<kTag> &replacement) {
+	const auto replacementPosition = FindTagReplacementPosition(
+		original.text,
+		tag);
+	if (replacementPosition < 0) {
+		return std::move(original);
+	}
+	original.text = ReplaceTag<QString>::Replace(
+		std::move(original.text),
+		replacement.text,
+		replacementPosition);
+	if (tag == kTag) {
+		original.offset = replacementPosition;
+	} else if (original.offset > replacementPosition) {
+		constexpr auto kReplaceCommandLength = 4;
+		original.offset += replacement.text.size() - kReplaceCommandLength;
+	}
+	return std::move(original);
+}
+
+} // namespace Lang
 
 namespace Dialogs::Ui {
 namespace {
@@ -52,9 +105,16 @@ void MessageView::paint(
 	}
 	if (_textCachedFor != item.get()) {
 		auto preview = item->toPreview(options);
+		if (!preview.images.empty() && preview.imagesInTextPosition > 0) {
+			_senderCache.setText(
+				st::dialogsTextStyle,
+				preview.text.mid(0, preview.imagesInTextPosition).trimmed(),
+				DialogTextOptions());
+			preview.text = preview.text.mid(preview.imagesInTextPosition);
+		}
 		_textCache.setText(
 			st::dialogsTextStyle,
-			preview.text,
+			preview.text.trimmed(),
 			DialogTextOptions());
 		_textCachedFor = item;
 		_imagesCache = std::move(preview.images);
@@ -71,12 +131,34 @@ void MessageView::paint(
 			_loadingContext = nullptr;
 		}
 	}
+	p.setTextPalette(active
+		? st::dialogsTextPaletteActive
+		: selected
+		? st::dialogsTextPaletteOver
+		: st::dialogsTextPalette);
+	p.setFont(st::dialogsTextFont);
+	p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
+	const auto guard = gsl::finally([&] {
+		p.restoreTextPalette();
+	});
+
 	auto rect = geometry;
+	if (!_senderCache.isEmpty()) {
+		_senderCache.drawElided(
+			p,
+			rect.left(),
+			rect.top(),
+			rect.width(),
+			rect.height() / st::dialogsTextFont->height);
+		const auto skip = st::dialogsMiniPreviewSkip
+			+ st::dialogsMiniPreviewRight;
+		rect.setLeft(rect.x() + _senderCache.maxWidth() + skip);
+	}
 	for (const auto &image : _imagesCache) {
 		if (rect.width() < st::dialogsMiniPreview) {
 			break;
 		}
-		p.drawImage(rect.topLeft(), image);
+		p.drawImage(rect.x(), rect.y() + st::dialogsMiniPreviewTop, image);
 		rect.setLeft(rect.x()
 			+ st::dialogsMiniPreview
 			+ st::dialogsMiniPreviewSkip);
@@ -87,20 +169,29 @@ void MessageView::paint(
 	if (rect.isEmpty()) {
 		return;
 	}
-	p.setTextPalette(active
-		? st::dialogsTextPaletteActive
-		: selected
-		? st::dialogsTextPaletteOver
-		: st::dialogsTextPalette);
-	p.setFont(st::dialogsTextFont);
-	p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 	_textCache.drawElided(
 		p,
 		rect.left(),
 		rect.top(),
 		rect.width(),
 		rect.height() / st::dialogsTextFont->height);
-	p.restoreTextPalette();
+}
+
+HistoryView::ItemPreview PreviewWithSender(
+		HistoryView::ItemPreview &&preview,
+		const QString &sender) {
+	auto textWithOffset = tr::lng_dialogs_text_with_from(
+		tr::now,
+		lt_from_part,
+		sender,
+		lt_message,
+		std::move(preview.text),
+		TextWithTagOffset<lt_from_part>::FromString);
+	preview.text = std::move(textWithOffset.text);
+	preview.imagesInTextPosition = (textWithOffset.offset < 0)
+		? 0
+		: textWithOffset.offset + sender.size();
+	return preview;
 }
 
 } // namespace Dialogs::Ui
