@@ -46,7 +46,7 @@ void Scene::cancelDrawing() {
 	_canvas->cancelDrawing();
 }
 
-void Scene::addItem(std::shared_ptr<NumberedItem> item) {
+void Scene::addItem(ItemPtr item) {
 	if (!item) {
 		return;
 	}
@@ -120,7 +120,7 @@ std::vector<ItemPtr> Scene::items(
 	return copyItems;
 }
 
-std::vector<MTPInputDocument> Scene::attachedStickers() const {
+std::vector<not_null<DocumentData*>> Scene::attachedStickers() const {
 	const auto allItems = items();
 
 	return ranges::views::all(

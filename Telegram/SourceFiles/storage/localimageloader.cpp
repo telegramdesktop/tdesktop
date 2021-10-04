@@ -1007,8 +1007,11 @@ void FileLoadTask::process(Args &&args) {
 		if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 				&_information->media)) {
 			if (image->modifications.paint) {
-				_result->attachedStickers =
-					image->modifications.paint->attachedStickers();
+				const auto documents
+					= image->modifications.paint->attachedStickers();
+				_result->attachedStickers = documents
+					| ranges::view::transform(&DocumentData::mtpInput)
+					| ranges::to_vector;
 			}
 		}
 	}

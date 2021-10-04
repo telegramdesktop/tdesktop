@@ -30,11 +30,13 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
-	MTPInputDocument sticker() const;
+	[[nodiscard]] not_null<DocumentData*> sticker() const;
 	int type() const override;
+
 protected:
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
+
 private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<::Data::DocumentMedia> _mediaView;

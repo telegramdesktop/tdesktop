@@ -95,8 +95,8 @@ void ItemSticker::paint(
 	ItemBase::paint(p, option, w);
 }
 
-MTPInputDocument ItemSticker::sticker() const {
-	return _document->mtpInput();
+not_null<DocumentData*> ItemSticker::sticker() const {
+	return _document;
 }
 
 int ItemSticker::type() const {
