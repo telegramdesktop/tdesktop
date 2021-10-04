@@ -61,6 +61,7 @@ struct ToPreviewOptions {
 	bool hideSender = false;
 	bool hideCaption = false;
 	bool generateImages = true;
+	bool ignoreGroup = false;
 };
 
 struct ItemPreview {

@@ -78,7 +78,8 @@ struct MessageView::LoadingContext {
 };
 
 MessageView::MessageView()
-: _textCache(st::dialogsTextWidthMin) {
+: _senderCache(st::dialogsTextWidthMin)
+, _textCache(st::dialogsTextWidthMin) {
 }
 
 MessageView::~MessageView() = default;
@@ -111,6 +112,8 @@ void MessageView::paint(
 				preview.text.mid(0, preview.imagesInTextPosition).trimmed(),
 				DialogTextOptions());
 			preview.text = preview.text.mid(preview.imagesInTextPosition);
+		} else {
+			_senderCache = { st::dialogsTextWidthMin };
 		}
 		_textCache.setText(
 			st::dialogsTextStyle,

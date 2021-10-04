@@ -60,6 +60,7 @@ namespace Data {
 namespace {
 
 constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
+constexpr auto kMaxPreviewImages = 3;
 
 using ItemPreview = HistoryView::ItemPreview;
 
@@ -406,6 +407,52 @@ std::unique_ptr<HistoryView::Media> Media::createView(
 	return createView(message, message->data(), replacing);
 }
 
+ItemPreview Media::toGroupPreview(
+		const HistoryItemsList &items,
+		ToPreviewOptions options) const {
+	const auto genericText = textcmdLink(
+		1,
+		TextUtilities::Clean(tr::lng_in_dlg_album(tr::now)));
+	auto result = ItemPreview();
+	auto loadingContext = std::vector<std::any>();
+	for (const auto &item : items) {
+		if (const auto media = item->media()) {
+			auto copy = options;
+			copy.ignoreGroup = true;
+			const auto already = int(result.images.size());
+			const auto left = kMaxPreviewImages - already;
+			auto single = left ? media->toPreview(copy) : ItemPreview();
+			if (!single.images.empty()) {
+				while (single.images.size() > left) {
+					single.images.pop_back();
+				}
+				result.images.insert(
+					end(result.images),
+					std::make_move_iterator(begin(single.images)),
+					std::make_move_iterator(end(single.images)));
+			}
+			if (single.loadingContext.has_value()) {
+				loadingContext.push_back(std::move(single.loadingContext));
+			}
+			const auto original = item->originalText().text;
+			if (!original.isEmpty()) {
+				if (result.text.isEmpty()) {
+					result.text = TextUtilities::Clean(original);
+				} else {
+					result.text = genericText;
+				}
+			}
+		}
+	}
+	if (result.text.isEmpty()) {
+		result.text = genericText;
+	}
+	if (!loadingContext.empty()) {
+		result.loadingContext = std::move(loadingContext);
+	}
+	return result;
+}
+
 MediaPhoto::MediaPhoto(
 	not_null<HistoryItem*> parent,
 	not_null<PhotoData*> photo)
@@ -478,11 +525,17 @@ QString MediaPhoto::notificationText() const {
 }
 
 ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
+	const auto item = parent();
+	if (!options.ignoreGroup && item->groupId()) {
+		if (const auto group = item->history()->owner().groups().find(item)
+			; group && group->items.size() > 1) {
+			return toGroupPreview(group->items, options);
+		}
+	}
 	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
 	auto images = std::vector<QImage>();
-	// #TODO minis support albums
 	const auto media = _photo->createMediaView();
 	const auto radius = _chat
 		? ImageRoundRadius::Ellipse
@@ -666,6 +719,13 @@ bool MediaFile::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
+	const auto item = parent();
+	if (!options.ignoreGroup && item->groupId()) {
+		if (const auto group = item->history()->owner().groups().find(item)
+			; group && group->items.size() > 1) {
+			return toGroupPreview(group->items, options);
+		}
+	}
 	if (const auto sticker = _document->sticker()) {
 		return Media::toPreview(options);
 	}
@@ -690,7 +750,6 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	const auto caption = options.hideCaption
 		? QString()
 		: parent()->originalText().text;
-	// #TODO minis support albums
 	auto images = std::vector<QImage>();
 	const auto media = TryFilePreview(_document)
 		? _document->createMediaView()

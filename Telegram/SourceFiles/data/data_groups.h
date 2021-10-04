@@ -15,7 +15,6 @@ class Session;
 
 struct Group {
 	HistoryItemsList items;
-
 };
 
 class Groups {

@@ -127,6 +127,11 @@ public:
 		not_null<HistoryView::Element*> message,
 		HistoryView::Element *replacing = nullptr);
 
+protected:
+	[[nodiscard]] ItemPreview toGroupPreview(
+		const HistoryItemsList &items,
+		ToPreviewOptions options) const;
+
 private:
 	const not_null<HistoryItem*> _parent;
 

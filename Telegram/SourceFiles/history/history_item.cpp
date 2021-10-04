@@ -205,14 +205,14 @@ void HistoryItem::applyServiceDateEdition(const MTPDmessageService &data) {
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
-	_history->owner().requestItemViewRefresh(this);
-	invalidateChatListEntry();
 	if (const auto group = _history->owner().groups().find(this)) {
-		const auto leader = group->items.front();
-		if (leader != this) {
-			_history->owner().requestItemViewRefresh(leader);
-			leader->invalidateChatListEntry();
+		for (const auto &item : group->items) {
+			_history->owner().requestItemViewRefresh(item);
+			item->invalidateChatListEntry();
 		}
+	} else {
+		_history->owner().requestItemViewRefresh(this);
+		invalidateChatListEntry();
 	}
 
 	// Should be completely redesigned as the oldTop no longer exists.
@@ -942,14 +942,6 @@ QString HistoryItem::notificationText() const {
 ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	auto result = [&]() -> ItemPreview {
 		if (_media) {
-			if (_groupId) {
-				// #TODO minis generate albums correctly
-				return {
-					.text = textcmdLink(
-						1,
-						TextUtilities::Clean(tr::lng_in_dlg_album(tr::now))),
-				};
-			}
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
 			return { .text = TextUtilities::Clean(_text.toString()) };

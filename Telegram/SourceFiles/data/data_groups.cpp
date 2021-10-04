@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_groups.h"
 
+#include "history/history.h"
 #include "history/history_item.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 
@@ -140,8 +142,13 @@ const Group *Groups::find(not_null<const HistoryItem*> item) const {
 }
 
 void Groups::refreshViews(const HistoryItemsList &items) {
+	if (items.empty()) {
+		return;
+	}
+	const auto history = items.front()->history();
 	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
+		history->lastItemDialogsView.itemInvalidated(item);
 	}
 }
 
