@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_notifications_manager.h"
 
+struct ToastActivation;
+
 namespace Platform {
 namespace Notifications {
 
@@ -21,6 +23,8 @@ public:
 
 	bool init();
 	void clearNotification(NotificationId id);
+
+	void handleActivation(const ToastActivation &activation);
 
 protected:
 	void doShowNativeNotification(

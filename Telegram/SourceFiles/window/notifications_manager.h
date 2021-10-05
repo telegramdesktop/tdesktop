@@ -191,7 +191,9 @@ public:
 		doClearFromSession(session);
 	}
 
-	void notificationActivated(NotificationId id);
+	void notificationActivated(
+		NotificationId id,
+		const TextWithTags &draft = {});
 	void notificationReplied(NotificationId id, const TextWithTags &reply);
 
 	struct DisplayOptions {

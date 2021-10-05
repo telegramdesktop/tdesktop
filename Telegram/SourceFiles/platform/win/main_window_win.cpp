@@ -390,11 +390,12 @@ void MainWindow::initHook() {
 	using namespace base::Platform;
 	auto factory = ComPtr<IUIViewSettingsInterop>();
 	if (SupportsWRL()) {
-		GetActivationFactory(
+		ABI::Windows::Foundation::GetActivationFactory(
 			StringReferenceWrapper(
 				RuntimeClass_Windows_UI_ViewManagement_UIViewSettings).Get(),
 			&factory);
 		if (factory) {
+			// NB! No such method (or IUIViewSettingsInterop) in C++/WinRT :(
 			factory->GetForWindow(
 				ps_hWnd,
 				IID_PPV_ARGS(&_private->viewSettings));

@@ -42,7 +42,10 @@ include(cmake/generate_appdata_changelog.cmake)
 
 if (WIN32)
     include(cmake/generate_midl.cmake)
-    generate_midl(Telegram ${src_loc}/platform/win/windows_quiethours.idl)
+    generate_midl(Telegram ${src_loc}
+        platform/win/windows_quiethours.idl
+        platform/win/windows_toastactivator.idl
+    )
 
     nuget_add_winrt(Telegram)
 endif()
@@ -950,6 +953,8 @@ PRIVATE
     platform/win/windows_dlls.h
     platform/win/windows_event_filter.cpp
     platform/win/windows_event_filter.h
+    platform/win/windows_toast_activator.cpp
+    platform/win/windows_toast_activator.h
     platform/platform_audio.h
     platform/platform_file_utilities.h
     platform/platform_launcher.h
@@ -1384,6 +1389,7 @@ if (WIN32)
         /DELAYLOAD:netapi32.dll
         /DELAYLOAD:userenv.dll
         /DELAYLOAD:wtsapi32.dll
+        /DELAYLOAD:propsys.dll
     )
 endif()
 

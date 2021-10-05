@@ -628,7 +628,9 @@ QString Manager::accountNameSeparator() {
 	return QString::fromUtf8(" \xE2\x9E\x9C ");
 }
 
-void Manager::notificationActivated(NotificationId id) {
+void Manager::notificationActivated(
+		NotificationId id,
+		const TextWithTags &reply) {
 	onBeforeNotificationActivated(id);
 	if (const auto session = system()->findSession(id.full.sessionId)) {
 		if (session->windows().empty()) {
@@ -637,6 +639,22 @@ void Manager::notificationActivated(NotificationId id) {
 		if (!session->windows().empty()) {
 			const auto window = session->windows().front();
 			const auto history = session->data().history(id.full.peerId);
+			if (!reply.text.isEmpty()) {
+				const auto replyToId = (id.msgId > 0
+					&& !history->peer->isUser())
+					? id.msgId
+					: 0;
+				auto draft = std::make_unique<Data::Draft>(
+					reply,
+					replyToId,
+					MessageCursor{
+						reply.text.size(),
+						reply.text.size(),
+						QFIXED_MAX,
+					},
+					Data::PreviewState::Allowed);
+				history->setLocalDraft(std::move(draft));
+			}
 			window->widget()->showFromTray();
 			window->widget()->reActivateWindow();
 			if (Core::App().passcodeLocked()) {

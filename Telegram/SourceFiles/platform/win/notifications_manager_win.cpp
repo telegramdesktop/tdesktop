@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_co_task_mem.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/win/wrl/wrl_module_h.h"
+#include "base/qthelp_url.h"
 #include "platform/win/windows_app_user_model_id.h"
+#include "platform/win/windows_toast_activator.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
 #include "history/history.h"
@@ -48,8 +51,10 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
-constexpr auto kNotificationTemplate = LR"(
-<toast launch="action=open">
+[[nodiscard]] std::wstring NotificationTemplate(QString id) {
+	const auto wid = id.replace('&', "&amp;").toStdWString();
+	return LR"(
+<toast launch="action=open&amp;)" + wid + LR"(">
 	<visual>
 		<binding template="ToastGeneric">
 			<image placement="appLogoOverride" hint-crop="circle" src=""/>
@@ -62,17 +67,24 @@ constexpr auto kNotificationTemplate = LR"(
 		<input id="fastReply" type="text" placeHolderContent=""/>
 		<action
 			content="Send"
-			arguments="action=reply"
+			arguments="action=reply&amp;)" + wid + LR"("
 			activationType="background"
 			imageUri=""
 			hint-inputId="fastReply"/>
+        <action
+            content=""
+            arguments="action=mark&amp;)" + wid + LR"("
+            activationType="background"/>
 	</actions>
 	<audio silent="true"/>
 </toast>
 )";
+}
 
-constexpr auto kNotificationTemplateSmall = LR"(
-<toast launch="action=open">
+[[nodiscard]] std::wstring NotificationTemplateSmall(QString id) {
+	const auto wid = id.replace('&', "&amp;").toStdWString();
+	return LR"(
+<toast launch="action=open&amp;)" + wid + LR"(">
 	<visual>
 		<binding template="ToastGeneric">
 			<image placement="appLogoOverride" hint-crop="circle" src=""/>
@@ -84,17 +96,21 @@ constexpr auto kNotificationTemplateSmall = LR"(
 	<audio silent="true"/>
 </toast>
 )";
+}
 
 bool init() {
 	if (!IsWindows8OrGreater()) {
 		return false;
 	}
 	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
-		|| (Dlls::PropVariantToString == nullptr)
 		|| !base::WinRT::Supported()) {
 		return false;
 	}
 
+	{
+		using namespace Microsoft::WRL;
+		Module<OutOfProc>::GetModule().RegisterObjects();
+	}
 	if (!AppUserModelId::validateShortcut()) {
 		return false;
 	}
@@ -157,6 +173,26 @@ void SetReplyPlaceholder(
 		toastXml,
 		attributes.GetNamedItem(L"placeHolderContent"),
 		placeholder);
+}
+
+// Throws.
+void SetAction(const XmlDocument &toastXml, const QString &id) {
+	auto nodeList = toastXml.GetElementsByTagName(L"toast");
+	if (const auto toast = nodeList.Item(0).try_as<XmlElement>()) {
+		toast.SetAttribute(L"launch", L"action=open&" + id.toStdWString());
+	}
+}
+
+// Throws.
+void SetMarkAsReadText(
+		const XmlDocument &toastXml,
+		const std::wstring &text) {
+	const auto nodeList = toastXml.GetElementsByTagName(L"action");
+	const auto attributes = nodeList.Item(1).Attributes();
+	return SetNodeValueString(
+		toastXml,
+		attributes.GetNamedItem(L"content"),
+		text);
 }
 
 auto Checked = false;
@@ -387,6 +423,8 @@ public:
 		not_null<Window::SessionController*> window);
 	void clearNotification(NotificationId id);
 
+	void handleActivation(const ToastActivation &activation);
+
 	~Private();
 
 private:
@@ -410,12 +448,17 @@ private:
 	base::flat_map<
 		FullPeer,
 		base::flat_map<MsgId, ToastNotification>> _notifications;
+	rpl::lifetime _lifetime;
 
 };
 
 Manager::Private::Private(Manager *instance, Type type)
 : _cachedUserpics(type)
 , _guarded(std::make_shared<Manager*>(instance)) {
+	ToastActivations(
+	) | rpl::start_with_next([=](const ToastActivation &activation) {
+		handleActivation(activation);
+	}, _lifetime);
 }
 
 bool Manager::Private::init() {
@@ -503,6 +546,40 @@ void Manager::Private::clearNotification(NotificationId id) {
 	}
 }
 
+void Manager::Private::handleActivation(const ToastActivation &activation) {
+	const auto parsed = qthelp::url_parse_params(activation.args);
+	const auto action = parsed.value("action");
+	const auto id = NotificationId{
+		.full = FullPeer{
+			.sessionId = parsed.value("s").toULongLong(),
+			.peerId = PeerId(parsed.value("p").toULongLong()),
+		},
+		.msgId = MsgId(parsed.value("m").toLongLong()),
+	};
+	if (!id.full.sessionId || !id.full.peerId || !id.msgId) {
+		return;
+	}
+	auto text = TextWithTags();
+	for (const auto &entry : activation.input) {
+		if (entry.key == "fastReply") {
+			text.text = entry.value;
+		}
+	}
+	const auto i = _notifications.find(id.full);
+	if (i == _notifications.cend() || !i->second.contains(id.msgId)) {
+		return;
+	}
+
+	const auto manager = *_guarded;
+	if (action == "reply") {
+		manager->notificationReplied(id, text);
+	} else if (action == "mark") {
+		manager->notificationReplied(id, TextWithTags());
+	} else {
+		manager->notificationActivated(id, text);
+	}
+}
+
 bool Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
@@ -549,17 +626,32 @@ bool Manager::Private::showNotificationInTryCatch(
 		bool hideReplyButton) {
 	const auto withSubtitle = !subtitle.isEmpty();
 	auto toastXml = XmlDocument();
+
+	const auto key = FullPeer{
+		.sessionId = peer->session().uniqueId(),
+		.peerId = peer->id,
+	};
+	const auto notificationId = NotificationId{
+		.full = key,
+		.msgId = msgId
+	};
+	const auto idString = u"s=%1&p=%2&m=%3"_q
+		.arg(key.sessionId)
+		.arg(key.peerId.value)
+		.arg(msgId.bare);
+
 	const auto modern = Platform::IsWindows10OrGreater();
 	if (modern) {
 		toastXml.LoadXml(hideReplyButton
-			? kNotificationTemplateSmall
-			: kNotificationTemplate);
+			? NotificationTemplateSmall(idString)
+			: NotificationTemplate(idString));
 	} else {
 		toastXml = ToastNotificationManager::GetTemplateContent(
 			(withSubtitle
 				? ToastTemplateType::ToastImageAndText04
 				: ToastTemplateType::ToastImageAndText02));
 		SetAudioSilent(toastXml);
+		SetAction(toastXml, idString);
 	}
 
 	const auto userpicKey = hideNameAndPhoto
@@ -576,6 +668,9 @@ bool Manager::Private::showNotificationInTryCatch(
 		SetReplyPlaceholder(
 			toastXml,
 			tr::lng_message_ph(tr::now).toStdWString());
+		SetMarkAsReadText(
+			toastXml,
+			tr::lng_context_mark_read(tr::now).toStdWString());
 	}
 
 	SetImageSrc(toastXml, userpicPathWide);
@@ -604,44 +699,30 @@ bool Manager::Private::showNotificationInTryCatch(
 		});
 	};
 
-	const auto key = FullPeer{
-		.sessionId = peer->session().uniqueId(),
-		.peerId = peer->id,
-	};
-	const auto notificationId = NotificationId{
-		.full = key,
-		.msgId = msgId
-	};
-
 	auto toast = ToastNotification(toastXml);
 	const auto token1 = toast.Activated([=](
 			const ToastNotification &sender,
 			const winrt::Windows::Foundation::IInspectable &object) {
+		auto activation = ToastActivation();
+		const auto string = &ToastActivation::String;
 		if (const auto args = object.try_as<ToastActivatedEventArgs>()) {
-			const auto arguments = args.Arguments();
-			const auto userInput = args.UserInput();
-			if (arguments == L"action=reply") {
-				const auto reply = userInput.TryLookup(L"fastReply");
-				const auto data = reply.try_as<IReference<winrt::hstring>>();
-				auto text = data
-					? QString::fromWCharArray(data.GetString().c_str())
-					: QString();
-				if (text.indexOf(QChar('\n')) < 0) {
-					text.replace(QChar('\r'), QChar('\n'));
-				}
-				performOnMainQueue([notificationId, text](Manager *manager) {
-					manager->notificationReplied(notificationId, { text });
-				});
-			} else {
-				performOnMainQueue([notificationId](Manager *manager) {
-					manager->notificationActivated(notificationId);
+			activation.args = string(args.Arguments().c_str());
+			const auto reply = args.UserInput().TryLookup(L"fastReply");
+			const auto data = reply.try_as<IReference<winrt::hstring>>();
+			if (data) {
+				activation.input.push_back({
+					.key = u"fastReply"_q,
+					.value = string(data.GetString().c_str()),
 				});
 			}
 		} else {
-			performOnMainQueue([notificationId](Manager *manager) {
-				manager->notificationActivated(notificationId);
-			});
+			activation.args = "action=open&" + idString;
 		}
+		crl::on_main([=, activation = std::move(activation)]() mutable {
+			if (const auto strong = weak.lock()) {
+				(*strong)->handleActivation(activation);
+			}
+		});
 	});
 	const auto token2 = toast.Dismissed([=](
 			const ToastNotification &sender,
@@ -703,6 +784,10 @@ bool Manager::init() {
 
 void Manager::clearNotification(NotificationId id) {
 	_private->clearNotification(id);
+}
+
+void Manager::handleActivation(const ToastActivation &activation) {
+	_private->handleActivation(activation);
 }
 
 Manager::~Manager() = default;
