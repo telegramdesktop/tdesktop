@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/win/base_windows_co_task_mem.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
@@ -555,17 +556,12 @@ bool psLaunchMaps(const Data::LocationPoint &point) {
 		return false;
 	}
 
-	auto handler = (LPWSTR)nullptr;
-	const auto guard = gsl::finally([&] {
-		if (handler) {
-			::CoTaskMemFree(handler);
-		}
-	});
+	auto handler = base::CoTaskMemString();
 	const auto result = aar->QueryCurrentDefault(
 		L"bingmaps",
 		AT_URLPROTOCOL,
 		AL_EFFECTIVE,
-		&handler);
+		handler.put());
 	if (FAILED(result) || !handler) {
 		return false;
 	}

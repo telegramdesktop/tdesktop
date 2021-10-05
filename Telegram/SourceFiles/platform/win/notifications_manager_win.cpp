@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/notifications_utilities.h"
 #include "window/window_session_controller.h"
-#include "base/platform/win/base_windows_wrl.h"
+#include "base/platform/win/base_windows_co_task_mem.h"
+#include "base/platform/win/base_windows_winrt.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_event_filter.h"
@@ -25,17 +26,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <Shobjidl.h>
 #include <shellapi.h>
+#include <strsafe.h>
 
 #ifndef __MINGW32__
-#include "base/platform/win/wrl/wrl_implements_h.h"
-#include <windows.ui.notifications.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Data.Xml.Dom.h>
+#include <winrt/Windows.UI.Notifications.h>
+#include <winrt/Windows.UI.Notifications.Management.h>
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
-using namespace Microsoft::WRL;
-using namespace ABI::Windows::UI::Notifications;
-using namespace ABI::Windows::Data::Xml::Dom;
-using namespace Windows::Foundation;
+using namespace winrt::Windows::UI::Notifications;
+using namespace winrt::Windows::Data::Xml::Dom;
+using namespace winrt::Windows::Foundation;
+using winrt::com_ptr;
 #endif // !__MINGW32__
 
 namespace Platform {
@@ -44,16 +48,13 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
-using base::Platform::GetActivationFactory;
-using base::Platform::StringReferenceWrapper;
-
 bool init() {
 	if (!IsWindows8OrGreater()) {
 		return false;
 	}
 	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
 		|| (Dlls::PropVariantToString == nullptr)
-		|| !base::Platform::SupportsWRL()) {
+		|| !base::WinRT::Supported()) {
 		return false;
 	}
 
@@ -68,188 +69,36 @@ bool init() {
 	return true;
 }
 
-HRESULT SetNodeValueString(_In_ HSTRING inputString, _In_ IXmlNode *node, _In_ IXmlDocument *xml) {
-	ComPtr<IXmlText> inputText;
-
-	HRESULT hr = xml->CreateTextNode(inputString, &inputText);
-	if (!SUCCEEDED(hr)) return hr;
-	ComPtr<IXmlNode> inputTextNode;
-
-	hr = inputText.As(&inputTextNode);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNode> pAppendedChild;
-	return node->AppendChild(inputTextNode.Get(), &pAppendedChild);
+// Throws.
+void SetNodeValueString(
+		const XmlDocument &xml,
+		const IXmlNode &node,
+		const std::wstring &text) {
+	node.AppendChild(xml.CreateTextNode(text).as<IXmlNode>());
 }
 
-HRESULT SetAudioSilent(_In_ IXmlDocument *toastXml) {
-	ComPtr<IXmlNodeList> nodeList;
-	HRESULT hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"audio").Get(), &nodeList);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNode> audioNode;
-	hr = nodeList->Item(0, &audioNode);
-	if (!SUCCEEDED(hr)) return hr;
-
-	if (audioNode) {
-		ComPtr<IXmlElement> audioElement;
-		hr = audioNode.As(&audioElement);
-		if (!SUCCEEDED(hr)) return hr;
-
-		hr = audioElement->SetAttribute(StringReferenceWrapper(L"silent").Get(), StringReferenceWrapper(L"true").Get());
-		if (!SUCCEEDED(hr)) return hr;
+// Throws.
+void SetAudioSilent(const XmlDocument &toastXml) {
+	const auto nodeList = toastXml.GetElementsByTagName(L"audio");
+	if (const auto audioNode = nodeList.Item(0)) {
+		audioNode.as<IXmlElement>().SetAttribute(L"silent", L"true");
 	} else {
-		ComPtr<IXmlElement> audioElement;
-		hr = toastXml->CreateElement(StringReferenceWrapper(L"audio").Get(), &audioElement);
-		if (!SUCCEEDED(hr)) return hr;
-
-		hr = audioElement->SetAttribute(StringReferenceWrapper(L"silent").Get(), StringReferenceWrapper(L"true").Get());
-		if (!SUCCEEDED(hr)) return hr;
-
-		ComPtr<IXmlNode> audioNode;
-		hr = audioElement.As(&audioNode);
-		if (!SUCCEEDED(hr)) return hr;
-
-		ComPtr<IXmlNodeList> nodeList;
-		hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"toast").Get(), &nodeList);
-		if (!SUCCEEDED(hr)) return hr;
-
-		ComPtr<IXmlNode> toastNode;
-		hr = nodeList->Item(0, &toastNode);
-		if (!SUCCEEDED(hr)) return hr;
-
-		ComPtr<IXmlNode> appendedNode;
-		hr = toastNode->AppendChild(audioNode.Get(), &appendedNode);
+		auto audioElement = toastXml.CreateElement(L"audio");
+		audioElement.SetAttribute(L"silent", L"true");
+		auto nodeList = toastXml.GetElementsByTagName(L"toast");
+		nodeList.Item(0).AppendChild(audioElement.as<IXmlNode>());
 	}
-	return hr;
 }
 
-HRESULT SetImageSrc(_In_z_ const wchar_t *imagePath, _In_ IXmlDocument *toastXml) {
-	wchar_t imageSrc[MAX_PATH] = L"file:///";
-	HRESULT hr = StringCchCat(imageSrc, ARRAYSIZE(imageSrc), imagePath);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNodeList> nodeList;
-	hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"image").Get(), &nodeList);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNode> imageNode;
-	hr = nodeList->Item(0, &imageNode);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNamedNodeMap> attributes;
-	hr = imageNode->get_Attributes(&attributes);
-	if (!SUCCEEDED(hr)) return hr;
-
-	ComPtr<IXmlNode> srcAttribute;
-	hr = attributes->GetNamedItem(StringReferenceWrapper(L"src").Get(), &srcAttribute);
-	if (!SUCCEEDED(hr)) return hr;
-
-	return SetNodeValueString(StringReferenceWrapper(imageSrc).Get(), srcAttribute.Get(), toastXml);
+// Throws.
+void SetImageSrc(const XmlDocument &toastXml, const std::wstring &path) {
+	const auto nodeList = toastXml.GetElementsByTagName(L"image");
+	const auto attributes = nodeList.Item(0).Attributes();
+	return SetNodeValueString(
+		toastXml,
+		attributes.GetNamedItem(L"src"),
+		L"file:///" + path);
 }
-
-typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ::IInspectable *> DesktopToastActivatedEventHandler;
-typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastDismissedEventArgs*> DesktopToastDismissedEventHandler;
-typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFailedEventArgs*> DesktopToastFailedEventHandler;
-
-class ToastEventHandler final : public Implements<
-	DesktopToastActivatedEventHandler,
-	DesktopToastDismissedEventHandler,
-	DesktopToastFailedEventHandler> {
-public:
-	using NotificationId = Manager::NotificationId;
-
-	// We keep a weak pointer to a member field of native notifications manager.
-	ToastEventHandler(
-		const std::shared_ptr<Manager*> &guarded,
-		NotificationId id)
-	: _id(id)
-	, _weak(guarded) {
-	}
-
-	void performOnMainQueue(FnMut<void(Manager *manager)> task) {
-		const auto weak = _weak;
-		crl::on_main(weak, [=, task = std::move(task)]() mutable {
-			task(*weak.lock());
-		});
-	}
-
-	// DesktopToastActivatedEventHandler
-	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
-		const auto my = _id;
-		performOnMainQueue([my](Manager *manager) {
-			manager->notificationActivated(my);
-		});
-		return S_OK;
-	}
-
-	// DesktopToastDismissedEventHandler
-	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastDismissedEventArgs *e) {
-		ToastDismissalReason tdr;
-		if (SUCCEEDED(e->get_Reason(&tdr))) {
-			switch (tdr) {
-			case ToastDismissalReason_ApplicationHidden:
-			break;
-			case ToastDismissalReason_UserCanceled:
-			case ToastDismissalReason_TimedOut:
-			default:
-				const auto my = _id;
-				performOnMainQueue([my](Manager *manager) {
-					manager->clearNotification(my);
-				});
-			break;
-			}
-		}
-		return S_OK;
-	}
-
-	// DesktopToastFailedEventHandler
-	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastFailedEventArgs *e) {
-		const auto my = _id;
-		performOnMainQueue([my](Manager *manager) {
-			manager->clearNotification(my);
-		});
-		return S_OK;
-	}
-
-	// IUnknown
-	IFACEMETHODIMP_(ULONG) AddRef() {
-		return InterlockedIncrement(&_refCount);
-	}
-
-	IFACEMETHODIMP_(ULONG) Release() {
-		auto refCount = InterlockedDecrement(&_refCount);
-		if (refCount == 0) {
-			delete this;
-		}
-		return refCount;
-	}
-
-	IFACEMETHODIMP QueryInterface(_In_ REFIID riid, _COM_Outptr_ void **ppv) {
-		if (IsEqualIID(riid, IID_IUnknown))
-			*ppv = static_cast<IUnknown*>(static_cast<DesktopToastActivatedEventHandler*>(this));
-		else if (IsEqualIID(riid, __uuidof(DesktopToastActivatedEventHandler)))
-			*ppv = static_cast<DesktopToastActivatedEventHandler*>(this);
-		else if (IsEqualIID(riid, __uuidof(DesktopToastDismissedEventHandler)))
-			*ppv = static_cast<DesktopToastDismissedEventHandler*>(this);
-		else if (IsEqualIID(riid, __uuidof(DesktopToastFailedEventHandler)))
-			*ppv = static_cast<DesktopToastFailedEventHandler*>(this);
-		else *ppv = nullptr;
-
-		if (*ppv) {
-			reinterpret_cast<IUnknown*>(*ppv)->AddRef();
-			return S_OK;
-		}
-
-		return E_NOINTERFACE;
-	}
-
-private:
-	ULONG _refCount = 0;
-	NotificationId _id;
-	std::weak_ptr<Manager*> _weak;
-
-};
 
 auto Checked = false;
 auto InitSucceeded = false;
@@ -311,25 +160,19 @@ bool FocusAssistBlocks = false;
 
 // Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
 void QueryFocusAssist() {
-	ComPtr<IQuietHoursSettings> quietHoursSettings;
-	auto hr = CoCreateInstance(
-		CLSID_QuietHoursSettings,
-		nullptr,
-		CLSCTX_LOCAL_SERVER,
-		IID_PPV_ARGS(&quietHoursSettings));
-	if (!SUCCEEDED(hr) || !quietHoursSettings) {
+	const auto quietHoursSettings = base::WinRT::TryCreateInstance<
+		IQuietHoursSettings
+	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER);
+	if (!quietHoursSettings) {
 		return;
 	}
 
-	auto profileId = LPWSTR{};
-	const auto guardProfileId = gsl::finally([&] {
-		if (profileId) CoTaskMemFree(profileId);
-	});
-	hr = quietHoursSettings->get_UserSelectedProfile(&profileId);
-	if (!SUCCEEDED(hr) || !profileId) {
+	auto profileId = base::CoTaskMemString();
+	auto hr = quietHoursSettings->get_UserSelectedProfile(profileId.put());
+	if (FAILED(hr) || !profileId) {
 		return;
 	}
-	const auto profileName = QString::fromWCharArray(profileId);
+	const auto profileName = QString::fromWCharArray(profileId.data());
 	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
 		if (!FocusAssistBlocks) {
 			LOG(("Focus Assist: Alarms Only."));
@@ -359,33 +202,27 @@ void QueryFocusAssist() {
 		}
 	});
 
-	ComPtr<IQuietHoursProfile> profile;
-	hr = quietHoursSettings->GetProfile(profileId, &profile);
-	if (!SUCCEEDED(hr) || !profile) {
+	com_ptr<IQuietHoursProfile> profile;
+	hr = quietHoursSettings->GetProfile(profileId.data(), profile.put());
+	if (FAILED(hr) || !profile) {
 		return;
 	}
 
-	UINT32 count = 0;
-	auto apps = (LPWSTR*)nullptr;
-	const auto guardApps = gsl::finally([&] {
-		if (apps) CoTaskMemFree(apps);
-	});
-	hr = profile->GetAllowedApps(&count, &apps);
-	if (!SUCCEEDED(hr) || !apps) {
+	auto apps = base::CoTaskMemStringArray();
+	hr = profile->GetAllowedApps(apps.put_size(), apps.put());
+	if (FAILED(hr) || !apps) {
 		return;
 	}
-	for (UINT32 i = 0; i < count; i++) {
-		auto app = apps[i];
-		const auto guardApp = gsl::finally([&] {
-			if (app) CoTaskMemFree(app);
-		});
-		if (app == appUserModelId) {
+	for (const auto &app : apps) {
+		if (app && app.data() == appUserModelId) {
 			blocked = false;
+			break;
 		}
 	}
 }
 
-QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
+QUERY_USER_NOTIFICATION_STATE UserNotificationState
+	= QUNS_ACCEPTS_NOTIFICATIONS;
 
 void QueryUserNotificationState() {
 	if (Dlls::SHQueryUserNotificationState != nullptr) {
@@ -494,23 +331,24 @@ public:
 	~Private();
 
 private:
+	bool showNotificationInTryCatch(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton);
+
 	Window::Notifications::CachedUserpics _cachedUserpics;
 
 	std::shared_ptr<Manager*> _guarded;
+	ToastNotifier _notifier = nullptr;
 
-	ComPtr<IToastNotificationManagerStatics> _notificationManager;
-	ComPtr<IToastNotifier> _notifier;
-	ComPtr<IToastNotificationFactory> _notificationFactory;
-
-	struct NotificationPtr {
-		NotificationPtr() {
-		}
-		NotificationPtr(const ComPtr<IToastNotification> &ptr) : p(ptr) {
-		}
-
-		ComPtr<IToastNotification> p;
-	};
-	base::flat_map<FullPeer, base::flat_map<MsgId, NotificationPtr>> _notifications;
+	base::flat_map<
+		FullPeer,
+		base::flat_map<MsgId, ToastNotification>> _notifications;
 
 };
 
@@ -520,28 +358,17 @@ Manager::Private::Private(Manager *instance, Type type)
 }
 
 bool Manager::Private::init() {
-	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &_notificationManager))) {
-		return false;
-	}
-
-	auto appUserModelId = AppUserModelId::getId();
-	if (!SUCCEEDED(_notificationManager->CreateToastNotifierWithId(StringReferenceWrapper(appUserModelId, wcslen(appUserModelId)).Get(), &_notifier))) {
-		return false;
-	}
-
-	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
-		return false;
-	}
-	return true;
+	return base::WinRT::Try([&] {
+		_notifier = ToastNotificationManager::CreateToastNotifier(
+			AppUserModelId::getId());
+	});
 }
 
 Manager::Private::~Private() {
 	clearAll();
 
 	_notifications.clear();
-	if (_notificationManager) _notificationManager.Reset();
-	if (_notifier) _notifier.Reset();
-	if (_notificationFactory) _notificationFactory.Reset();
+	_notifier = nullptr;
 }
 
 void Manager::Private::clearAll() {
@@ -552,7 +379,7 @@ void Manager::Private::clearAll() {
 	auto temp = base::take(_notifications);
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
-			_notifier->Hide(notification.p.Get());
+			_notifier.Hide(notification);
 		}
 	}
 }
@@ -571,7 +398,7 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			_notifier->Hide(notification.p.Get());
+			_notifier.Hide(notification);
 		}
 	}
 }
@@ -591,7 +418,7 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			_notifier->Hide(notification.p.Get());
+			_notifier.Hide(notification);
 		}
 	}
 }
@@ -625,22 +452,38 @@ bool Manager::Private::showNotification(
 		const QString &msg,
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
-	if (!_notificationManager || !_notifier || !_notificationFactory) {
+	if (!_notifier) {
 		return false;
 	}
 
-	ComPtr<IXmlDocument> toastXml;
-	bool withSubtitle = !subtitle.isEmpty();
+	return base::WinRT::Try([&] {
+		return showNotificationInTryCatch(
+			peer,
+			userpicView,
+			msgId,
+			title,
+			subtitle,
+			msg,
+			hideNameAndPhoto,
+			hideReplyButton);
+	}).value_or(false);
+}
 
-	HRESULT hr = _notificationManager->GetTemplateContent(
+bool Manager::Private::showNotificationInTryCatch(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {
+	const auto withSubtitle = !subtitle.isEmpty();
+	const auto toastXml = ToastNotificationManager::GetTemplateContent(
 		(withSubtitle
-			? ToastTemplateType_ToastImageAndText04
-			: ToastTemplateType_ToastImageAndText02),
-		&toastXml);
-	if (!SUCCEEDED(hr)) return false;
-
-	hr = SetAudioSilent(toastXml.Get());
-	if (!SUCCEEDED(hr)) return false;
+			? ToastTemplateType::ToastImageAndText04
+			: ToastTemplateType::ToastImageAndText02));
+	SetAudioSilent(toastXml);
 
 	const auto userpicKey = hideNameAndPhoto
 		? InMemoryKey()
@@ -648,50 +491,31 @@ bool Manager::Private::showNotification(
 	const auto userpicPath = _cachedUserpics.get(userpicKey, peer, userpicView);
 	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
-	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
-	if (!SUCCEEDED(hr)) return false;
+	SetImageSrc(toastXml, userpicPathWide);
 
-	ComPtr<IXmlNodeList> nodeList;
-	hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"text").Get(), &nodeList);
-	if (!SUCCEEDED(hr)) return false;
-
-	UINT32 nodeListLength;
-	hr = nodeList->get_Length(&nodeListLength);
-	if (!SUCCEEDED(hr)) return false;
-
-	if (nodeListLength < (withSubtitle ? 3U : 2U)) return false;
-
-	{
-		ComPtr<IXmlNode> textNode;
-		hr = nodeList->Item(0, &textNode);
-		if (!SUCCEEDED(hr)) return false;
-
-		std::wstring wtitle = title.toStdWString();
-		hr = SetNodeValueString(StringReferenceWrapper(wtitle.data(), wtitle.size()).Get(), textNode.Get(), toastXml.Get());
-		if (!SUCCEEDED(hr)) return false;
+	const auto nodeList = toastXml.GetElementsByTagName(L"text");
+	if (nodeList.Length() < (withSubtitle ? 3U : 2U)) {
+		return false;
 	}
+
+	SetNodeValueString(toastXml, nodeList.Item(0), title.toStdWString());
 	if (withSubtitle) {
-		ComPtr<IXmlNode> textNode;
-		hr = nodeList->Item(1, &textNode);
-		if (!SUCCEEDED(hr)) return false;
-
-		std::wstring wsubtitle = subtitle.toStdWString();
-		hr = SetNodeValueString(StringReferenceWrapper(wsubtitle.data(), wsubtitle.size()).Get(), textNode.Get(), toastXml.Get());
-		if (!SUCCEEDED(hr)) return false;
+		SetNodeValueString(
+			toastXml,
+			nodeList.Item(1),
+			subtitle.toStdWString());
 	}
-	{
-		ComPtr<IXmlNode> textNode;
-		hr = nodeList->Item(withSubtitle ? 2 : 1, &textNode);
-		if (!SUCCEEDED(hr)) return false;
+	SetNodeValueString(
+		toastXml,
+		nodeList.Item(withSubtitle ? 2 : 1),
+		msg.toStdWString());
 
-		std::wstring wmsg = msg.toStdWString();
-		hr = SetNodeValueString(StringReferenceWrapper(wmsg.data(), wmsg.size()).Get(), textNode.Get(), toastXml.Get());
-		if (!SUCCEEDED(hr)) return false;
-	}
-
-	ComPtr<IToastNotification> toast;
-	hr = _notificationFactory->CreateToastNotification(toastXml.Get(), &toast);
-	if (!SUCCEEDED(hr)) return false;
+	const auto weak = std::weak_ptr(_guarded);
+	const auto performOnMainQueue = [=](FnMut<void(Manager *manager)> task) {
+		crl::on_main(weak, [=, task = std::move(task)]() mutable {
+			task(*weak.lock());
+		});
+	};
 
 	const auto key = FullPeer{
 		.sessionId = peer->session().uniqueId(),
@@ -701,38 +525,55 @@ bool Manager::Private::showNotification(
 		.full = key,
 		.msgId = msgId
 	};
-
-	EventRegistrationToken activatedToken, dismissedToken, failedToken;
-	ComPtr<ToastEventHandler> eventHandler(new ToastEventHandler(
-		_guarded,
-		notificationId));
-
-	hr = toast->add_Activated(eventHandler.Get(), &activatedToken);
-	if (!SUCCEEDED(hr)) return false;
-
-	hr = toast->add_Dismissed(eventHandler.Get(), &dismissedToken);
-	if (!SUCCEEDED(hr)) return false;
-
-	hr = toast->add_Failed(eventHandler.Get(), &failedToken);
-	if (!SUCCEEDED(hr)) return false;
+	auto toast = ToastNotification(toastXml);
+	const auto token1 = toast.Activated([=](
+			const ToastNotification &sender,
+			const winrt::Windows::Foundation::IInspectable &args) {
+		performOnMainQueue([notificationId](Manager *manager) {
+			manager->notificationActivated(notificationId);
+		});
+	});
+	const auto token2 = toast.Dismissed([=](
+			const ToastNotification &sender,
+			const ToastDismissedEventArgs &args) {
+		base::WinRT::Try([&] {
+			switch (args.Reason()) {
+			case ToastDismissalReason::ApplicationHidden:
+			case ToastDismissalReason::TimedOut: // Went to Action Center.
+				break;
+			case ToastDismissalReason::UserCanceled:
+			default:
+				performOnMainQueue([notificationId](Manager *manager) {
+					manager->clearNotification(notificationId);
+				});
+				break;
+			}
+		});
+	});
+	const auto token3 = toast.Failed([=](
+			const auto &sender,
+			const ToastFailedEventArgs &args) {
+		performOnMainQueue([notificationId](Manager *manager) {
+			manager->clearNotification(notificationId);
+		});
+	});
 
 	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
 		auto j = i->second.find(msgId);
 		if (j != i->second.end()) {
-			ComPtr<IToastNotification> notify = j->second.p;
+			const auto existing = j->second;
 			i->second.erase(j);
-			_notifier->Hide(notify.Get());
+			_notifier.Hide(existing);
 			i = _notifications.find(key);
 		}
 	}
 	if (i == _notifications.cend()) {
 		i = _notifications.emplace(
 			key,
-			base::flat_map<MsgId, NotificationPtr>()).first;
+			base::flat_map<MsgId, ToastNotification>()).first;
 	}
-	hr = _notifier->Show(toast.Get());
-	if (!SUCCEEDED(hr)) {
+	if (!base::WinRT::Try([&] { _notifier.Show(toast); })) {
 		i = _notifications.find(key);
 		if (i != _notifications.cend() && i->second.empty()) {
 			_notifications.erase(i);
@@ -740,7 +581,6 @@ bool Manager::Private::showNotification(
 		return false;
 	}
 	i->second.emplace(msgId, toast);
-
 	return true;
 }
 
