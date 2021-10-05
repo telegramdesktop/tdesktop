@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "windows_quiethours_h.h"
+#include "styles/style_chat.h"
 
 #include <QtCore/QOperatingSystemVersion>
 
@@ -32,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.UI.Notifications.h>
-#include <winrt/Windows.UI.Notifications.Management.h>
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
@@ -47,6 +47,43 @@ namespace Notifications {
 
 #ifndef __MINGW32__
 namespace {
+
+constexpr auto kNotificationTemplate = LR"(
+<toast launch="action=open">
+	<visual>
+		<binding template="ToastGeneric">
+			<image placement="appLogoOverride" hint-crop="circle" src=""/>
+			<text hint-maxLines="1"></text>
+			<text></text>
+			<text></text>
+		</binding>
+	</visual>
+	<actions>
+		<input id="fastReply" type="text" placeHolderContent=""/>
+		<action
+			content="Send"
+			arguments="action=reply"
+			activationType="background"
+			imageUri=""
+			hint-inputId="fastReply"/>
+	</actions>
+	<audio silent="true"/>
+</toast>
+)";
+
+constexpr auto kNotificationTemplateSmall = LR"(
+<toast launch="action=open">
+	<visual>
+		<binding template="ToastGeneric">
+			<image placement="appLogoOverride" hint-crop="circle" src=""/>
+			<text hint-maxLines="1"></text>
+			<text></text>
+			<text></text>
+		</binding>
+	</visual>
+	<audio silent="true"/>
+</toast>
+)";
 
 bool init() {
 	if (!IsWindows8OrGreater()) {
@@ -98,6 +135,28 @@ void SetImageSrc(const XmlDocument &toastXml, const std::wstring &path) {
 		toastXml,
 		attributes.GetNamedItem(L"src"),
 		L"file:///" + path);
+}
+
+// Throws.
+void SetReplyIconSrc(const XmlDocument &toastXml, const std::wstring &path) {
+	const auto nodeList = toastXml.GetElementsByTagName(L"action");
+	const auto attributes = nodeList.Item(0).Attributes();
+	return SetNodeValueString(
+		toastXml,
+		attributes.GetNamedItem(L"imageUri"),
+		L"file:///" + path);
+}
+
+// Throws.
+void SetReplyPlaceholder(
+		const XmlDocument &toastXml,
+		const std::wstring &placeholder) {
+	const auto nodeList = toastXml.GetElementsByTagName(L"input");
+	const auto attributes = nodeList.Item(0).Attributes();
+	return SetNodeValueString(
+		toastXml,
+		attributes.GetNamedItem(L"placeHolderContent"),
+		placeholder);
 }
 
 auto Checked = false;
@@ -340,8 +399,10 @@ private:
 		const QString &msg,
 		bool hideNameAndPhoto,
 		bool hideReplyButton);
+	[[nodiscard]] std::wstring ensureSendButtonIcon();
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
+	std::wstring _sendButtonIconPath;
 
 	std::shared_ptr<Manager*> _guarded;
 	ToastNotifier _notifier = nullptr;
@@ -469,6 +530,15 @@ bool Manager::Private::showNotification(
 	}).value_or(false);
 }
 
+std::wstring Manager::Private::ensureSendButtonIcon() {
+	if (_sendButtonIconPath.empty()) {
+		const auto path = cWorkingDir() + u"tdata/temp/fast_reply.png"_q;
+		st::historySendIcon.instance(Qt::white, 300).save(path, "PNG");
+		_sendButtonIconPath = path.toStdWString();
+	}
+	return _sendButtonIconPath;
+}
+
 bool Manager::Private::showNotificationInTryCatch(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
@@ -479,17 +549,35 @@ bool Manager::Private::showNotificationInTryCatch(
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
 	const auto withSubtitle = !subtitle.isEmpty();
-	const auto toastXml = ToastNotificationManager::GetTemplateContent(
-		(withSubtitle
-			? ToastTemplateType::ToastImageAndText04
-			: ToastTemplateType::ToastImageAndText02));
-	SetAudioSilent(toastXml);
+	auto toastXml = XmlDocument();
+	const auto modern = Platform::IsWindows10OrGreater();
+	if (modern) {
+		toastXml.LoadXml(hideReplyButton
+			? kNotificationTemplateSmall
+			: kNotificationTemplate);
+	} else {
+		toastXml = ToastNotificationManager::GetTemplateContent(
+			(withSubtitle
+				? ToastTemplateType::ToastImageAndText04
+				: ToastTemplateType::ToastImageAndText02));
+		SetAudioSilent(toastXml);
+	}
 
 	const auto userpicKey = hideNameAndPhoto
 		? InMemoryKey()
 		: peer->userpicUniqueKey(userpicView);
-	const auto userpicPath = _cachedUserpics.get(userpicKey, peer, userpicView);
-	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
+	const auto userpicPath = _cachedUserpics.get(
+		userpicKey,
+		peer,
+		userpicView);
+	const auto userpicPathWide = QDir::toNativeSeparators(
+		userpicPath).toStdWString();
+	if (modern && !hideReplyButton) {
+		SetReplyIconSrc(toastXml, ensureSendButtonIcon());
+		SetReplyPlaceholder(
+			toastXml,
+			tr::lng_message_ph(tr::now).toStdWString());
+	}
 
 	SetImageSrc(toastXml, userpicPathWide);
 
@@ -525,30 +613,52 @@ bool Manager::Private::showNotificationInTryCatch(
 		.full = key,
 		.msgId = msgId
 	};
+
 	auto toast = ToastNotification(toastXml);
 	const auto token1 = toast.Activated([=](
 			const ToastNotification &sender,
-			const winrt::Windows::Foundation::IInspectable &args) {
-		performOnMainQueue([notificationId](Manager *manager) {
-			manager->notificationActivated(notificationId);
-		});
+			const winrt::Windows::Foundation::IInspectable &object) {
+		if (const auto args = object.try_as<ToastActivatedEventArgs>()) {
+			const auto arguments = args.Arguments();
+			const auto userInput = args.UserInput();
+			if (arguments == L"action=reply") {
+				const auto reply = userInput.TryLookup(L"fastReply");
+				const auto data = reply.try_as<IReference<winrt::hstring>>();
+				auto text = data
+					? QString::fromWCharArray(data.GetString().c_str())
+					: QString();
+				if (text.indexOf(QChar('\n')) < 0) {
+					text.replace(QChar('\r'), QChar('\n'));
+				}
+				performOnMainQueue([notificationId, text](Manager *manager) {
+					manager->notificationReplied(notificationId, { text });
+				});
+			} else {
+				performOnMainQueue([notificationId](Manager *manager) {
+					manager->notificationActivated(notificationId);
+				});
+			}
+		} else {
+			performOnMainQueue([notificationId](Manager *manager) {
+				manager->notificationActivated(notificationId);
+			});
+		}
 	});
 	const auto token2 = toast.Dismissed([=](
 			const ToastNotification &sender,
 			const ToastDismissedEventArgs &args) {
-		base::WinRT::Try([&] {
-			switch (args.Reason()) {
-			case ToastDismissalReason::ApplicationHidden:
-			case ToastDismissalReason::TimedOut: // Went to Action Center.
-				break;
-			case ToastDismissalReason::UserCanceled:
-			default:
-				performOnMainQueue([notificationId](Manager *manager) {
-					manager->clearNotification(notificationId);
-				});
-				break;
-			}
-		});
+		const auto reason = args.Reason();
+		switch (reason) {
+		case ToastDismissalReason::ApplicationHidden:
+		case ToastDismissalReason::TimedOut: // Went to Action Center.
+			break;
+		case ToastDismissalReason::UserCanceled:
+		default:
+			performOnMainQueue([notificationId](Manager *manager) {
+				manager->clearNotification(notificationId);
+			});
+			break;
+		}
 	});
 	const auto token3 = toast.Failed([=](
 			const auto &sender,
