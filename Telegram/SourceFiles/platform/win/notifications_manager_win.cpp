@@ -437,7 +437,6 @@ void Manager::Private::clearAll() {
 		return;
 	}
 
-	auto temp = base::take(_notifications);
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
 			_notifier.Hide(notification);
