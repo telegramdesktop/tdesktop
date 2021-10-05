@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/history_view_group_call_tracker.h" // UserpicInRow.
+#include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"
 #include "base/unixtime.h"
@@ -242,6 +243,12 @@ Message::Message(
 : Element(delegate, data, replacing) {
 	initLogEntryOriginal();
 	initPsa();
+
+	if (data->isSponsored()) {
+		_viewButton = std::make_unique<ViewButton>(
+			data->displayFrom(),
+			[=] { history()->owner().requestViewRepaint(this); });
+	}
 }
 
 Message::~Message() {
@@ -604,6 +611,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
+		if (_viewButton) {
+			_viewButton->draw(
+				p,
+				_viewButton->countSponsoredRect(inner),
+				context);
+		}
 
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
@@ -1066,10 +1079,12 @@ void Message::clickHandlerPressedChanged(
 		bool pressed) {
 	Element::clickHandlerPressedChanged(handler, pressed);
 
-	if (!handler || !_comments) {
+	if (!handler) {
 		return;
-	} else if (handler == _comments->link) {
+	} else if (_comments && (handler == _comments->link)) {
 		toggleCommentsButtonRipple(pressed);
+	} else if (_viewButton) {
+		_viewButton->checkLink(handler, pressed);
 	}
 }
 
@@ -1188,6 +1203,13 @@ TextState Message::textState(
 
 		auto bubble = g;
 		if (getStateCommentsButton(point, bubble, &result)) {
+			return result;
+		}
+		if (_viewButton
+			&& _viewButton->getState(
+				point,
+				_viewButton->countSponsoredRect(bubble),
+				&result)) {
 			return result;
 		}
 
@@ -1732,7 +1754,8 @@ void Message::drawInfo(
 		; msgsigned && !msgsigned->isAnonymousRank) {
 		msgsigned->signature.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else if (const auto sponsored = displayedSponsorBadge()) {
-		sponsored->text.drawElided(p, dateX, dateY, item->_timeWidth);
+		const auto skipY = _viewButton ? _viewButton->height() : 0;
+		sponsored->text.drawElided(p, dateX, dateY - skipY, item->_timeWidth);
 	} else if (const auto edited = displayedEditBadge()) {
 		edited->text.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else {
@@ -1969,6 +1992,8 @@ HistoryMessageReply *Message::displayedReply() const {
 bool Message::toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const {
 	if (_comments && _comments->link == handler) {
+		return true;
+	} else if (_viewButton && _viewButton->link() == handler) {
 		return true;
 	} else if (const auto media = this->media()) {
 		if (media->toggleSelectionByHandlerClick(handler)) {
@@ -2592,6 +2617,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
+		}
+		if (_viewButton) {
+			newHeight += _viewButton->height();
 		}
 	} else if (mediaDisplayed) {
 		newHeight = media->height();

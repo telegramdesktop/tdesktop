@@ -750,6 +750,11 @@ historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgS
 historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
+historyViewButtonHeight: 42px;
+historyViewButtonMargins: margins(5px, 5px, 5px, 5px);
+historyViewButtonOutline: margins(2px, 2px, 2px, 2px);
+historyViewButtonTextStyle: defaultTextStyle;
+
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;
 historyCommentsSkipText: 10px;

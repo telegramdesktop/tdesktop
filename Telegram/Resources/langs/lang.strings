@@ -2889,6 +2889,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_voice_speed_fast" = "Fast";
 "lng_voice_speed_very_fast" = "Very fast";
 
+"lng_view_button_user" = "View user";
+"lng_view_button_bot" = "View bot";
+"lng_view_button_group" = "View group";
+"lng_view_button_channel" = "View channel";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

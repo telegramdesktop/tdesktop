@@ -18,6 +18,7 @@ struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
+class ViewButton;
 class WebPage;
 
 // Special type of Component for the channel actions log.
@@ -223,6 +224,7 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<CommentsButton> _comments;
+	std::unique_ptr<ViewButton> _viewButton;
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
