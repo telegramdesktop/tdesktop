@@ -109,9 +109,13 @@ bool init() {
 
 	{
 		using namespace Microsoft::WRL;
-		Module<OutOfProc>::GetModule().RegisterObjects();
+		const auto hr = Module<OutOfProc>::GetModule().RegisterObjects();
+		if (!SUCCEEDED(hr)) {
+			LOG(("App Error: Object registration failed."));
+		}
 	}
 	if (!AppUserModelId::validateShortcut()) {
+		LOG(("App Error: Shortcut validation failed."));
 		return false;
 	}
 
@@ -707,8 +711,19 @@ bool Manager::Private::showNotificationInTryCatch(
 		const auto string = &ToastActivation::String;
 		if (const auto args = object.try_as<ToastActivatedEventArgs>()) {
 			activation.args = string(args.Arguments().c_str());
-			const auto reply = args.UserInput().TryLookup(L"fastReply");
-			const auto data = reply.try_as<IReference<winrt::hstring>>();
+			const auto args2 = args.try_as<IToastActivatedEventArgs2>();
+			if (!args2 && activation.args.startsWith("action=reply&")) {
+				LOG(("WinRT Error: "
+					"FastReply without IToastActivatedEventArgs2 support."));
+				return;
+			}
+			const auto input = args2 ? args2.UserInput() : nullptr;
+			const auto reply = input
+				? input.TryLookup(L"fastReply")
+				: nullptr;
+			const auto data = reply
+				? reply.try_as<IReference<winrt::hstring>>()
+				: nullptr;
 			if (data) {
 				activation.input.push_back({
 					.key = u"fastReply"_q,
@@ -741,7 +756,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		}
 	});
 	const auto token3 = toast.Failed([=](
-			const auto &sender,
+			const ToastNotification &sender,
 			const ToastFailedEventArgs &args) {
 		performOnMainQueue([notificationId](Manager *manager) {
 			manager->clearNotification(notificationId);

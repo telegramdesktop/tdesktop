@@ -273,6 +273,7 @@ bool validateShortcutAt(const QString &path) {
 	const auto bad2 = !good2 && (toastActivatorPropVar.vt != VT_EMPTY);
 	PropVariantClear(&toastActivatorPropVar);
 	if (good1 && good2) {
+		LOG(("App Info: Shortcut validated at \"%1\"").arg(path));
 		return true;
 	} else if (bad1 || bad2) {
 		return false;
@@ -300,9 +301,11 @@ bool validateShortcutAt(const QString &path) {
 	if (!SUCCEEDED(hr)) return false;
 
 	if (persistFile->IsDirty() == S_OK) {
-		persistFile->Save(p.c_str(), TRUE);
+		hr = persistFile->Save(p.c_str(), TRUE);
+		if (!SUCCEEDED(hr)) return false;
 	}
 
+	LOG(("App Info: Shortcut set and validated at \"%1\"").arg(path));
 	return true;
 }
 
@@ -400,6 +403,7 @@ bool validateShortcut() {
 		TRUE);
 	if (!SUCCEEDED(hr)) return false;
 
+	LOG(("App Info: Shortcut created and validated at \"%1\"").arg(path));
 	return true;
 }
 
