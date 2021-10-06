@@ -202,7 +202,7 @@ HistoryView::ItemPreview PreviewWithSender(
 	preview.imagesInTextPosition = (textWithOffset.offset < 0)
 		? 0
 		: textWithOffset.offset + sender.size();
-	return preview;
+	return std::move(preview);
 }
 
 } // namespace Dialogs::Ui
