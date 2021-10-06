@@ -593,11 +593,13 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| (view > Core::Settings::NotifyView::ShowName);
 	result.hideMessageText = hideEverything
 		|| (view > Core::Settings::NotifyView::ShowPreview);
-	result.hideReplyButton = result.hideMessageText
+	result.hideMarkAsRead = result.hideMessageText
 		|| !item
 		|| ((item->out() || item->history()->peer->isSelf())
-			&& item->isFromScheduled())
+			&& item->isFromScheduled());
+	result.hideReplyButton = result.hideMarkAsRead
 		|| !item->history()->peer->canWrite()
+		|| item->history()->peer->isBroadcast()
 		|| (item->history()->peer->slowmodeSecondsLeft() > 0);
 	return result;
 }
@@ -755,8 +757,7 @@ void NativeManager::doShowNotification(
 		scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
 		subtitle,
 		text,
-		options.hideNameAndPhoto,
-		options.hideReplyButton);
+		options);
 }
 
 bool NativeManager::forceHideDetails() const {

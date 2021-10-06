@@ -51,19 +51,11 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
-[[nodiscard]] std::wstring NotificationTemplate(QString id) {
+[[nodiscard]] std::wstring NotificationTemplate(
+		QString id,
+		Window::Notifications::Manager::DisplayOptions options) {
 	const auto wid = id.replace('&', "&amp;").toStdWString();
-	return LR"(
-<toast launch="action=open&amp;)" + wid + LR"(">
-	<visual>
-		<binding template="ToastGeneric">
-			<image placement="appLogoOverride" hint-crop="circle" src=""/>
-			<text hint-maxLines="1"></text>
-			<text></text>
-			<text></text>
-		</binding>
-	</visual>
-	<actions>
+	const auto fastReply = LR"(
 		<input id="fastReply" type="text" placeHolderContent=""/>
 		<action
 			content="Send"
@@ -71,18 +63,15 @@ namespace {
 			activationType="background"
 			imageUri=""
 			hint-inputId="fastReply"/>
+)";
+	const auto markAsRead = LR"(
         <action
             content=""
             arguments="action=mark&amp;)" + wid + LR"("
             activationType="background"/>
-	</actions>
-	<audio silent="true"/>
-</toast>
 )";
-}
-
-[[nodiscard]] std::wstring NotificationTemplateSmall(QString id) {
-	const auto wid = id.replace('&', "&amp;").toStdWString();
+	const auto actions = (options.hideReplyButton ? L"" : fastReply)
+		+ (options.hideMarkAsRead ? L"" : markAsRead);
 	return LR"(
 <toast launch="action=open&amp;)" + wid + LR"(">
 	<visual>
@@ -93,6 +82,9 @@ namespace {
 			<text></text>
 		</binding>
 	</visual>
+)" + (actions.empty()
+	? L""
+	: (L"<actions>" + actions + L"</actions>")) + LR"(
 	<audio silent="true"/>
 </toast>
 )";
@@ -160,11 +152,13 @@ void SetImageSrc(const XmlDocument &toastXml, const std::wstring &path) {
 // Throws.
 void SetReplyIconSrc(const XmlDocument &toastXml, const std::wstring &path) {
 	const auto nodeList = toastXml.GetElementsByTagName(L"action");
-	const auto attributes = nodeList.Item(0).Attributes();
-	return SetNodeValueString(
-		toastXml,
-		attributes.GetNamedItem(L"imageUri"),
-		L"file:///" + path);
+	const auto length = int(nodeList.Length());
+	for (auto i = 0; i != length; ++i) {
+		const auto attributes = nodeList.Item(i).Attributes();
+		if (const auto uri = attributes.GetNamedItem(L"imageUri")) {
+			return SetNodeValueString(toastXml, uri, L"file:///" + path);
+		}
+	}
 }
 
 // Throws.
@@ -192,11 +186,16 @@ void SetMarkAsReadText(
 		const XmlDocument &toastXml,
 		const std::wstring &text) {
 	const auto nodeList = toastXml.GetElementsByTagName(L"action");
-	const auto attributes = nodeList.Item(1).Attributes();
-	return SetNodeValueString(
-		toastXml,
-		attributes.GetNamedItem(L"content"),
-		text);
+	const auto length = int(nodeList.Length());
+	for (auto i = 0; i != length; ++i) {
+		const auto attributes = nodeList.Item(i).Attributes();
+		if (!attributes.GetNamedItem(L"imageUri")) {
+			return SetNodeValueString(
+				toastXml,
+				attributes.GetNamedItem(L"content"),
+				text);
+		}
+	}
 }
 
 auto Checked = false;
@@ -416,8 +415,7 @@ public:
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton);
+		DisplayOptions options);
 	void clearAll();
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
@@ -439,8 +437,7 @@ private:
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton);
+		DisplayOptions options);
 	[[nodiscard]] std::wstring ensureSendButtonIcon();
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
@@ -591,8 +588,7 @@ bool Manager::Private::showNotification(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton) {
+		DisplayOptions options) {
 	if (!_notifier) {
 		return false;
 	}
@@ -605,8 +601,7 @@ bool Manager::Private::showNotification(
 			title,
 			subtitle,
 			msg,
-			hideNameAndPhoto,
-			hideReplyButton);
+			options);
 	}).value_or(false);
 }
 
@@ -626,8 +621,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton) {
+		DisplayOptions options) {
 	const auto withSubtitle = !subtitle.isEmpty();
 	auto toastXml = XmlDocument();
 
@@ -646,9 +640,7 @@ bool Manager::Private::showNotificationInTryCatch(
 
 	const auto modern = Platform::IsWindows10OrGreater();
 	if (modern) {
-		toastXml.LoadXml(hideReplyButton
-			? NotificationTemplateSmall(idString)
-			: NotificationTemplate(idString));
+		toastXml.LoadXml(NotificationTemplate(idString, options));
 	} else {
 		toastXml = ToastNotificationManager::GetTemplateContent(
 			(withSubtitle
@@ -658,7 +650,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		SetAction(toastXml, idString);
 	}
 
-	const auto userpicKey = hideNameAndPhoto
+	const auto userpicKey = options.hideNameAndPhoto
 		? InMemoryKey()
 		: peer->userpicUniqueKey(userpicView);
 	const auto userpicPath = _cachedUserpics.get(
@@ -667,11 +659,13 @@ bool Manager::Private::showNotificationInTryCatch(
 		userpicView);
 	const auto userpicPathWide = QDir::toNativeSeparators(
 		userpicPath).toStdWString();
-	if (modern && !hideReplyButton) {
+	if (modern && !options.hideReplyButton) {
 		SetReplyIconSrc(toastXml, ensureSendButtonIcon());
 		SetReplyPlaceholder(
 			toastXml,
 			tr::lng_message_ph(tr::now).toStdWString());
+	}
+	if (modern && !options.hideMarkAsRead) {
 		SetMarkAsReadText(
 			toastXml,
 			tr::lng_context_mark_read(tr::now).toStdWString());
@@ -814,8 +808,7 @@ void Manager::doShowNativeNotification(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton) {
+		DisplayOptions options) {
 	_private->showNotification(
 		peer,
 		userpicView,
@@ -823,8 +816,7 @@ void Manager::doShowNativeNotification(
 		title,
 		subtitle,
 		msg,
-		hideNameAndPhoto,
-		hideReplyButton);
+		options);
 }
 
 void Manager::doClearAllFast() {

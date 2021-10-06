@@ -184,8 +184,7 @@ public:
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton);
+		DisplayOptions options);
 	void clearAll();
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
@@ -250,8 +249,7 @@ void Manager::Private::showNotification(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton) {
+		DisplayOptions options) {
 	@autoreleasepool {
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
@@ -279,7 +277,8 @@ void Manager::Private::showNotification(
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
 	[notification setInformativeText:Q2NSString(msg)];
-	if (!hideNameAndPhoto && [notification respondsToSelector:@selector(setContentImage:)]) {
+	if (!options.hideNameAndPhoto
+		&& [notification respondsToSelector:@selector(setContentImage:)]) {
 		auto userpic = peer->isSelf()
 			? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
 			: peer->isRepliesChat()
@@ -289,7 +288,8 @@ void Manager::Private::showNotification(
 		[notification setContentImage:img];
 	}
 
-	if (!hideReplyButton && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
+	if (!options.hideReplyButton
+		&& [notification respondsToSelector:@selector(setHasReplyButton:)]) {
 		[notification setHasReplyButton:YES];
 	}
 
@@ -419,8 +419,7 @@ void Manager::doShowNativeNotification(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton) {
+		DisplayOptions options) {
 	_private->showNotification(
 		peer,
 		userpicView,
@@ -428,8 +427,7 @@ void Manager::doShowNativeNotification(
 		title,
 		subtitle,
 		msg,
-		hideNameAndPhoto,
-		hideReplyButton);
+		options);
 }
 
 void Manager::doClearAllFast() {
