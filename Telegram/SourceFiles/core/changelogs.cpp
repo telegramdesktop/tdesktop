@@ -87,6 +87,15 @@ std::map<int, const char*> BetaLogs() {
 		"- Implement main window rounded corners on Windows 11.\n"
 
 		"- Fix audio capture from AirPods on macOS.\n"
+	},
+	{
+		3001006,
+		"- Show small media previews in chats list.\n"
+
+		"- Show media album previews and caption text in chats list.\n"
+
+		"- Add \"Quick Reply\" and \"Mark as Read\" "
+		"to native Windows notifications.\n"
 	}
 	};
 };

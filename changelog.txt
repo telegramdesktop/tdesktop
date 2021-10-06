@@ -1,3 +1,9 @@
+3.1.6 beta (06.10.21)
+
+- Show small media previews in chats list.
+- Show media album previews and caption text in chats list.
+- Add "Quick Reply" and "Mark as Read" to native Windows notifications.
+
 3.1.5 beta (28.09.21)
 
 - Choose one of 8 new preset themes for any individual private chat.
