@@ -450,8 +450,6 @@ RUN ./configure \
 	--disable-network \
 	--disable-autodetect \
 	--disable-everything \
-	--disable-alsa \
-	--disable-iconv \
 	--enable-libopus \
 	--enable-vaapi \
 	--enable-vdpau \
