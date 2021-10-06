@@ -904,7 +904,7 @@ void Manager::Private::showNotification(
 		return;
 	}
 
-	if (!hideNameAndPhoto) {
+	if (!options.hideNameAndPhoto) {
 		const auto userpicKey = peer->userpicUniqueKey(userpicView);
 		notification->setImage(
 			_cachedUserpics.get(userpicKey, peer, userpicView));
