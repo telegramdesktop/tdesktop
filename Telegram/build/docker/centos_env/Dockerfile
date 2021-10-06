@@ -30,7 +30,7 @@ ENV HFLAGS "-fstack-protector-all -fstack-clash-protection -fPIC -D_FORTIFY_SOUR
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 872c8dc01c
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5210855985
 
 FROM builder AS extra-cmake-modules
 

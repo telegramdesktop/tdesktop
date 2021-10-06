@@ -379,7 +379,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 97eee9f4e5
+    git checkout 5210855985
 """)
 
 stage('depot_tools', """
