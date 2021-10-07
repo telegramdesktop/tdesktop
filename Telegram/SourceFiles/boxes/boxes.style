@@ -974,7 +974,6 @@ autolockTimeField: InputField(scheduleTimeField) {
 }
 autolockTimeWidth: 52px;
 
-sponsoredInfoSkip: 22px;
 sponsoredUrlButtonSkip: 11px;
 sponsoredUrlButton: RoundButton(defaultActiveButton) {
 	height: 32px;

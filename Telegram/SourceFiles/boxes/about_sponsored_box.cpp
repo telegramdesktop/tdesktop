@@ -56,21 +56,13 @@ void AboutSponsoredBox(not_null<Ui::GenericBox*> box) {
 	const auto &stLabel = st::aboutLabel;
 	const auto info1 = box->addRow(object_ptr<FlatLabel>(box, stLabel));
 	info1->setText(tr::lng_sponsored_info_description1(tr::now));
-	box->addSkip(st::sponsoredInfoSkip);
 
-	const auto info2 = box->addRow(object_ptr<FlatLabel>(box, stLabel));
-	info2->setText(tr::lng_sponsored_info_description2(tr::now));
-	box->addSkip(st::sponsoredInfoSkip);
-
-	const auto info3 = box->addRow(object_ptr<FlatLabel>(box, stLabel));
-	info3->setText(tr::lng_sponsored_info_description3(tr::now));
 	box->addSkip(st::sponsoredUrlButtonSkip);
-
 	addUrl();
 	box->addSkip(st::sponsoredUrlButtonSkip);
 
-	const auto info4 = box->addRow(object_ptr<FlatLabel>(box, stLabel));
-	info4->setText(tr::lng_sponsored_info_description4(tr::now));
+	const auto info2 = box->addRow(object_ptr<FlatLabel>(box, stLabel));
+	info2->setText(tr::lng_sponsored_info_description2(tr::now));
 }
 
 } // namespace Ui
