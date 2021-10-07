@@ -1909,7 +1909,6 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& (_mouseCursorState == CursorState::None
 			|| _mouseCursorState == CursorState::Date)
 		&& _selected.empty()
-		&& (_mouseAction != MouseAction::Selecting)
 		&& _overElement
 		&& IsServerMsgId(_overElement->data()->id)) {
 		mouseActionCancel();
