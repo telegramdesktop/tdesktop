@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_view_button.h"
 
 #include "core/click_handler_types.h"
+#include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
 #include "data/data_user.h"
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/click_handler.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/round_rect.h"
@@ -60,7 +63,10 @@ ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
 , link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
-		controller->showPeer(peer);
+		const auto &data = controller->session().data();
+		controller->showPeer(
+			peer,
+			data.sponsoredMessages().channelPost(my.itemId));
 	}
 }))
 , updateCallback(std::move(updateCallback))

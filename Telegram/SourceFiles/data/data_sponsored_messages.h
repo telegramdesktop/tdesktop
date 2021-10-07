@@ -25,6 +25,7 @@ struct SponsoredMessage final {
 	PeerId fromId;
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
+	MsgId msgId;
 };
 
 class SponsoredMessages final {
@@ -38,6 +39,7 @@ public:
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);
+	[[nodiscard]] MsgId channelPost(const FullMsgId &fullId) const;
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
