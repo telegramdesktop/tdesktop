@@ -517,7 +517,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	updateForwardedInfo(data.vfwd_from());
 	setViewsCount(data.vviews().value_or(-1));
 	if (const auto replies = data.vreplies()) {
-		setReplies(*replies);
+		setReplies(HistoryMessageRepliesData(replies));
 	} else {
 		clearReplies();
 	}

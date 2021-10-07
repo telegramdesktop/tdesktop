@@ -336,7 +336,7 @@ public:
 	}
 	virtual void setForwardsCount(int count) {
 	}
-	virtual void setReplies(const MTPMessageReplies &data) {
+	virtual void setReplies(HistoryMessageRepliesData &&data) {
 	}
 	virtual void clearReplies() {
 	}

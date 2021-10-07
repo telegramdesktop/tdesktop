@@ -134,7 +134,7 @@ public:
 
 	void setViewsCount(int count) override;
 	void setForwardsCount(int count) override;
-	void setReplies(const MTPMessageReplies &data) override;
+	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
 	void changeRepliesCount(
 		int delta,

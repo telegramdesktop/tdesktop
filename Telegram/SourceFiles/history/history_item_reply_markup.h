@@ -81,3 +81,15 @@ private:
 	void fillRows(const QVector<MTPKeyboardButtonRow> &v);
 
 };
+
+struct HistoryMessageRepliesData {
+	HistoryMessageRepliesData() = default;
+	explicit HistoryMessageRepliesData(const MTPMessageReplies *data);
+
+	std::vector<PeerId> recentRepliers;
+	ChannelId channelId = 0;
+	MsgId readMaxId = 0;
+	MsgId maxId = 0;
+	int repliesCount = 0;
+	bool isNull = true;
+};

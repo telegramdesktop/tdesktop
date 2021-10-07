@@ -106,7 +106,8 @@ void ViewsManager::done(
 							item->setForwardsCount(forwards->v);
 						}
 						if (const auto replies = data.vreplies()) {
-							item->setReplies(*replies);
+							item->setReplies(
+								HistoryMessageRepliesData(replies));
 						}
 					});
 				}

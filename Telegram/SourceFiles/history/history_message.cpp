@@ -421,12 +421,10 @@ struct HistoryMessage::CreateConfig {
 	QString authorOriginal;
 	TimeId originalDate = 0;
 	TimeId editDate = 0;
-	bool imported = false;
 	HistoryMessageMarkupData markup;
+	HistoryMessageRepliesData replies;
+	bool imported = false;
 	bool sponsored = false;
-
-	// For messages created from MTP structs.
-	const MTPMessageReplies *mtpReplies = nullptr;
 
 	// For messages created from existing messages (forwarded).
 	const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
@@ -484,7 +482,9 @@ HistoryMessage::HistoryMessage(
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);
-	config.mtpReplies = isScheduled() ? nullptr : data.vreplies();
+	config.replies = isScheduled()
+		? HistoryMessageRepliesData()
+		: HistoryMessageRepliesData(data.vreplies());
 	config.markup = HistoryMessageMarkupData(data.vreply_markup());
 	config.editDate = data.vedit_date().value_or_empty();
 	config.author = qs(data.vpost_author().value_or_empty());
@@ -1062,7 +1062,7 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 	if (config.viaBotId) {
 		mask |= HistoryMessageVia::Bit();
 	}
-	if (config.viewsCount >= 0 || config.mtpReplies) {
+	if (config.viewsCount >= 0 || !config.replies.isNull) {
 		mask |= HistoryMessageViews::Bit();
 	}
 	if (!config.author.isEmpty()) {
@@ -1115,23 +1115,17 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 	}
 	if (const auto views = Get<HistoryMessageViews>()) {
 		setViewsCount(config.viewsCount);
-		if (config.mtpReplies) {
-			setReplies(*config.mtpReplies);
-		} else if (isSending() && config.markup.isNull()) {
+		if (config.replies.isNull
+			&& isSending()
+			&& config.markup.isNull()) {
 			if (const auto broadcast = history()->peer->asBroadcast()) {
 				if (const auto linked = broadcast->linkedChat()) {
-					setReplies(MTP_messageReplies(
-						MTP_flags(MTPDmessageReplies::Flag::f_comments
-							| MTPDmessageReplies::Flag::f_comments),
-						MTP_int(0),
-						MTP_int(0),
-						MTPVector<MTPPeer>(), // recent_repliers
-						MTP_long(peerToChannel(linked->id).bare),
-						MTP_int(0), // max_id
-						MTP_int(0))); // read_max_id
+					config.replies.isNull = false;
+					config.replies.channelId = peerToChannel(linked->id);
 				}
 			}
 		}
+		setReplies(std::move(config.replies));
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
 		edited->date = config.editDate;
@@ -1425,7 +1419,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto replies = message.vreplies()) {
 		if (checkRepliesPts(*replies)) {
-			setReplies(*replies);
+			setReplies(HistoryMessageRepliesData(replies));
 		}
 	} else {
 		clearReplies();
@@ -1757,57 +1751,46 @@ void HistoryMessage::setPostAuthor(const QString &author) {
 	history()->owner().requestItemResize(this);
 }
 
-void HistoryMessage::setReplies(const MTPMessageReplies &data) {
-	data.match([&](const MTPDmessageReplies &data) {
-		auto views = Get<HistoryMessageViews>();
-		if (!views) {
-			AddComponents(HistoryMessageViews::Bit());
-			views = Get<HistoryMessageViews>();
-		}
-		const auto repliers = [&] {
-			auto result = std::vector<PeerId>();
-			if (const auto list = data.vrecent_repliers()) {
-				result.reserve(list->v.size());
-				for (const auto &id : list->v) {
-					result.push_back(peerFromMTP(id));
-				}
-			}
-			return result;
-		}();
-		const auto count = data.vreplies().v;
-		const auto channelId = ChannelId(
-			data.vchannel_id().value_or_empty());
-		const auto readTillId = data.vread_max_id()
-			? std::max({
-				views->repliesInboxReadTillId.bare,
-				int64(data.vread_max_id()->v),
-				int64(1),
-			})
-			: views->repliesInboxReadTillId;
-		const auto maxId = data.vmax_id()
-			? data.vmax_id()->v
-			: views->repliesMaxId;
-		const auto countsChanged = (views->replies.count != count)
-			|| (views->repliesInboxReadTillId != readTillId)
-			|| (views->repliesMaxId != maxId);
-		const auto megagroupChanged = (views->commentsMegagroupId != channelId);
-		const auto recentChanged = (views->recentRepliers != repliers);
-		if (!countsChanged && !megagroupChanged && !recentChanged) {
-			return;
-		}
-		views->replies.count = count;
-		if (recentChanged) {
-			views->recentRepliers = repliers;
-		}
-		views->commentsMegagroupId = channelId;
-		const auto wasUnread = channelId && areRepliesUnread();
-		views->repliesInboxReadTillId = readTillId;
-		views->repliesMaxId = maxId;
-		if (channelId && wasUnread != areRepliesUnread()) {
-			history()->owner().requestItemRepaint(this);
-		}
-		refreshRepliesText(views, megagroupChanged);
-	});
+void HistoryMessage::setReplies(HistoryMessageRepliesData &&data) {
+	if (data.isNull) {
+		return;
+	}
+	auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		AddComponents(HistoryMessageViews::Bit());
+		views = Get<HistoryMessageViews>();
+	}
+	const auto &repliers = data.recentRepliers;
+	const auto count = data.repliesCount;
+	const auto channelId = data.channelId;
+	const auto readTillId = data.readMaxId
+		? std::max({
+			views->repliesInboxReadTillId.bare,
+			data.readMaxId.bare,
+			int64(1),
+		})
+		: views->repliesInboxReadTillId;
+	const auto maxId = data.maxId ? data.maxId : views->repliesMaxId;
+	const auto countsChanged = (views->replies.count != count)
+		|| (views->repliesInboxReadTillId != readTillId)
+		|| (views->repliesMaxId != maxId);
+	const auto megagroupChanged = (views->commentsMegagroupId != channelId);
+	const auto recentChanged = (views->recentRepliers != repliers);
+	if (!countsChanged && !megagroupChanged && !recentChanged) {
+		return;
+	}
+	views->replies.count = count;
+	if (recentChanged) {
+		views->recentRepliers = repliers;
+	}
+	views->commentsMegagroupId = channelId;
+	const auto wasUnread = channelId && areRepliesUnread();
+	views->repliesInboxReadTillId = readTillId;
+	views->repliesMaxId = maxId;
+	if (channelId && wasUnread != areRepliesUnread()) {
+		history()->owner().requestItemRepaint(this);
+	}
+	refreshRepliesText(views, megagroupChanged);
 }
 
 void HistoryMessage::clearReplies() {
