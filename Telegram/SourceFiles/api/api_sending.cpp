@@ -439,7 +439,7 @@ void SendConfirmedFile(
 				| (localEntities.v.isEmpty()
 					? MTPDmessage::Flag()
 					: MTPDmessage::Flag::f_entities)),
-			MTP_int(newId.msg),
+			MTP_int(0), // Not used (would've been trimmed to 32 bits).
 			peerToMTP(messageFromId),
 			peerToMTP(file->to.peer),
 			MTPMessageFwdHeader(),

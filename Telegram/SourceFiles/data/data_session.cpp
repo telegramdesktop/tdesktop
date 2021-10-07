@@ -3981,10 +3981,12 @@ void Session::insertCheckedServiceNotification(
 		| MessageFlag::LocalHistoryEntry;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		const auto id = nextLocalMessageId();
 		addNewMessage(
+			id,
 			MTP_message(
 				MTP_flags(flags),
-				MTP_int(nextLocalMessageId()),
+				MTP_int(0), // Not used (would've been trimmed to 32 bits).
 				peerToMTP(PeerData::kServiceNotificationsId),
 				peerToMTP(PeerData::kServiceNotificationsId),
 				MTPMessageFwdHeader(),

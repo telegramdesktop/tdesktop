@@ -136,7 +136,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
 	const auto item = MTP_message(
 		MTP_flags(flags),
-		MTP_int(0),
+		MTP_int(0), // Not used (would've been trimmed to 32 bits).
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(
