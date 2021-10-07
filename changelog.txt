@@ -1,3 +1,9 @@
+3.1.7 beta (07.10.21)
+
+- Fix channel message views and comments counter updates.
+- Sponsored messages support.
+- Crash fix.
+
 3.1.6 beta (06.10.21)
 
 - Show small media previews in chats list.
