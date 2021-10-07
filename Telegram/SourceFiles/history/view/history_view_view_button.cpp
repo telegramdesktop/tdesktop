@@ -113,7 +113,9 @@ void ViewButton::draw(
 	p.save();
 	{
 		PainterHighQualityEnabler hq(p);
-		p.setPen(stm->fwdTextPalette.linkFg);
+		auto pen = stm->fwdTextPalette.linkFg->p;
+		pen.setWidth(st::lineWidth);
+		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
 		p.drawRoundedRect(r, st::roundRadiusLarge, st::roundRadiusLarge);
 
