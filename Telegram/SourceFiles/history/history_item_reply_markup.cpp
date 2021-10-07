@@ -16,7 +16,7 @@ HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	const QString &text,
 	const QByteArray &data,
 	const QString &forwardText,
-	int32 buttonId)
+	int64 buttonId)
 : type(type)
 , text(text)
 , forwardText(forwardText)

@@ -286,9 +286,7 @@ private:
 
 class MediaCall final : public Media {
 public:
-	MediaCall(
-		not_null<HistoryItem*> parent,
-		const MTPDmessageActionPhoneCall &call);
+	MediaCall(not_null<HistoryItem*> parent, const Call &call);
 	~MediaCall();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -389,9 +387,6 @@ class MediaInvoice final : public Media {
 public:
 	MediaInvoice(
 		not_null<HistoryItem*> parent,
-		const MTPDmessageMediaInvoice &data);
-	MediaInvoice(
-		not_null<HistoryItem*> parent,
 		const Invoice &data);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -478,8 +473,14 @@ private:
 
 };
 
-TextForMimeData WithCaptionClipboardText(
+[[nodiscard]] TextForMimeData WithCaptionClipboardText(
 	const QString &attachType,
 	TextForMimeData &&caption);
+
+[[nodiscard]] Invoice ComputeInvoiceData(
+	not_null<HistoryItem*> item,
+	const MTPDmessageMediaInvoice &data);
+
+[[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
 
 } // namespace Data

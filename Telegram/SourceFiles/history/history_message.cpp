@@ -535,7 +535,9 @@ HistoryMessage::HistoryMessage(
 	createComponents(std::move(config));
 
 	data.vaction().match([&](const MTPDmessageActionPhoneCall &data) {
-		_media = std::make_unique<Data::MediaCall>(this, data);
+		_media = std::make_unique<Data::MediaCall>(
+			this,
+			Data::ComputeCallData(data));
 		setEmptyText();
 	}, [](const auto &) {
 		Unexpected("Service message action type in HistoryMessage.");
@@ -1346,7 +1348,9 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 				item->history()->owner().processGame(game));
 		});
 	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
-		return std::make_unique<Data::MediaInvoice>(item, media);
+		return std::make_unique<Data::MediaInvoice>(
+			item,
+			Data::ComputeInvoiceData(item, media));
 	}, [&](const MTPDmessageMediaPoll &media) -> Result {
 		return std::make_unique<Data::MediaPoll>(
 			item,
