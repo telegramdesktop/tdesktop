@@ -1156,15 +1156,13 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 	_fromNameVersion = from ? from->nameVersion : 1;
 }
 
-bool HistoryMessage::checkRepliesPts(const MTPMessageReplies &data) const {
+bool HistoryMessage::checkRepliesPts(
+		const HistoryMessageRepliesData &data) const {
 	const auto channel = history()->peer->asChannel();
 	const auto pts = channel
 		? channel->pts()
 		: history()->session().updates().pts();
-	const auto repliesPts = data.match([&](const MTPDmessageReplies &data) {
-		return data.vreplies_pts().v;
-	});
-	return (repliesPts >= pts);
+	return (data.pts >= pts);
 }
 
 void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
@@ -1380,7 +1378,7 @@ void HistoryMessage::replaceBuyWithReceiptInMarkup() {
 	}
 }
 
-void HistoryMessage::applyEdition(const MTPDmessage &message) {
+void HistoryMessage::applyEdition(HistoryMessageEdition &&edition) {
 	int keyboardTop = -1;
 	//if (!pendingResize()) {// #TODO edit bot message
 	//	if (auto keyboard = inlineReplyKeyboard()) {
@@ -1389,47 +1387,43 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	//	}
 	//}
 
-	if (message.is_edit_hide()) {
+	if (edition.isEditHide) {
 		_flags |= MessageFlag::HideEdited;
 	} else {
 		_flags &= ~MessageFlag::HideEdited;
 	}
 
-	if (const auto editDate = message.vedit_date()) {
+	if (edition.editDate != -1) {
 		//_flags |= MTPDmessage::Flag::f_edit_date;
 		if (!Has<HistoryMessageEdited>()) {
 			AddComponents(HistoryMessageEdited::Bit());
 		}
 		auto edited = Get<HistoryMessageEdited>();
-		edited->date = editDate->v;
+		edited->date = edition.editDate;
 	}
 
-	const auto textWithEntities = TextWithEntities{
-		qs(message.vmessage()),
-		Api::EntitiesFromMTP(
-			&history()->session(),
-			message.ventities().value_or_empty())
-	};
-	setReplyMarkup(HistoryMessageMarkupData(message.vreply_markup()));
+	if (!edition.useSameMarkup) {
+		setReplyMarkup(base::take(edition.replyMarkup));
+	}
 	if (!isLocalUpdateMedia()) {
-		refreshMedia(message.vmedia());
+		refreshMedia(edition.mtpMedia);
 	}
-	setViewsCount(message.vviews().value_or(-1));
-	setForwardsCount(message.vforwards().value_or(-1));
-	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
-	if (const auto replies = message.vreplies()) {
-		if (checkRepliesPts(*replies)) {
-			setReplies(HistoryMessageRepliesData(replies));
+	setViewsCount(edition.views);
+	setForwardsCount(edition.forwards);
+	setText(_media
+		? edition.textWithEntities
+		: EnsureNonEmpty(edition.textWithEntities));
+	if (!edition.useSameReplies) {
+		if (!edition.replies.isNull) {
+			if (checkRepliesPts(edition.replies)) {
+				setReplies(base::take(edition.replies));
+			}
+		} else {
+			clearReplies();
 		}
-	} else {
-		clearReplies();
 	}
 
-	if (const auto period = message.vttl_period(); period && period->v > 0) {
-		applyTTL(message.vdate().v + period->v);
-	} else {
-		applyTTL(0);
-	}
+	applyTTL(edition.ttl);
 
 	finishEdition(keyboardTop);
 }

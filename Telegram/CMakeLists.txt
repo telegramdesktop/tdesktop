@@ -645,6 +645,8 @@ PRIVATE
     history/history_item.h
     history/history_item_components.cpp
     history/history_item_components.h
+    history/history_item_edition.cpp
+    history/history_item_edition.h
     history/history_item_reply_markup.cpp
     history/history_item_reply_markup.h
     history/history_item_text.cpp

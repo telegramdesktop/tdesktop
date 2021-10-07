@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/value_ordering.h"
 #include "data/data_media_types.h"
+#include "history/history_item_edition.h"
 #include "history/history_item_reply_markup.h"
 
 #include <any>
@@ -277,7 +278,7 @@ public:
 	[[nodiscard]] virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void applyEdition(const MTPDmessage &message) {
+	virtual void applyEdition(HistoryMessageEdition &&edition) {
 	}
 	virtual void applyEdition(const MTPDmessageService &message) {
 	}

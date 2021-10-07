@@ -159,7 +159,7 @@ public:
 	//   f_forwards
 	//   f_replies
 	//   f_ttl_period
-	void applyEdition(const MTPDmessage &message) override;
+	void applyEdition(HistoryMessageEdition &&edition) override;
 
 	void applyEdition(const MTPDmessageService &message) override;
 	void updateSentContent(
@@ -269,7 +269,8 @@ private:
 		const TextWithEntities &textWithEntities) const;
 	void reapplyText();
 
-	[[nodiscard]] bool checkRepliesPts(const MTPMessageReplies &data) const;
+	[[nodiscard]] bool checkRepliesPts(
+		const HistoryMessageRepliesData &data) const;
 
 	QString _timeText;
 	int _timeWidth = 0;

@@ -92,4 +92,5 @@ struct HistoryMessageRepliesData {
 	MsgId maxId = 0;
 	int repliesCount = 0;
 	bool isNull = true;
+	int pts = 0;
 };

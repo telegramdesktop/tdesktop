@@ -335,7 +335,7 @@ void SendConfirmedFile(
 		isEditing
 			? file->to.replaceMediaOf
 			: session->data().nextLocalMessageId());
-	auto groupId = file->album ? file->album->groupId : uint64(0);
+	const auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
 			return item.taskId;
@@ -370,13 +370,6 @@ void SendConfirmedFile(
 		session->user()).flags;
 	TextUtilities::PrepareForSending(caption, prepareFlags);
 	TextUtilities::Trim(caption);
-	auto localEntities = Api::EntitiesToMTP(session, caption.entities);
-
-	if (itemToEdit) {
-		if (const auto id = itemToEdit->groupId()) {
-			groupId = id.value;
-		}
-	}
 
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
 	if (file->to.replyTo) {
@@ -408,7 +401,7 @@ void SendConfirmedFile(
 		? session->user()->name
 		: QString();
 
-	const auto media = [&] {
+	const auto media = MTPMessageMedia([&] {
 		if (file->type == SendMediaType::Photo) {
 			return MTP_messageMediaPhoto(
 				MTP_flags(MTPDmessageMediaPhoto::Flag::f_photo),
@@ -427,38 +420,21 @@ void SendConfirmedFile(
 		} else {
 			Unexpected("Type in sendFilesConfirmed.");
 		}
-	}();
+	}());
 
 	if (itemToEdit) {
 		itemToEdit->savePreviousMedia();
-		itemToEdit->applyEdition(MTP_message(
-			MTP_flags(MTPDmessage::Flag::f_media
-				| ((flags & MessageFlag::HideEdited)
-					? MTPDmessage::Flag::f_edit_hide
-					: MTPDmessage::Flag())
-				| (localEntities.v.isEmpty()
-					? MTPDmessage::Flag()
-					: MTPDmessage::Flag::f_entities)),
-			MTP_int(0), // Not used (would've been trimmed to 32 bits).
-			peerToMTP(messageFromId),
-			peerToMTP(file->to.peer),
-			MTPMessageFwdHeader(),
-			MTPlong(), // via_bot_id
-			replyHeader,
-			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
-			MTP_string(caption.text),
-			media,
-			MTPReplyMarkup(),
-			localEntities,
-			MTPint(), // views
-			MTPint(), // forwards
-			MTPMessageReplies(),
-			MTPint(), // edit_date
-			MTP_string(messagePostAuthor),
-			MTP_long(groupId),
-			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>(),
-			MTPint()).c_message());
+		auto edition = HistoryMessageEdition();
+		edition.isEditHide = (flags & MessageFlag::HideEdited);
+		edition.editDate = 0;
+		edition.views = 0;
+		edition.forwards = 0;
+		edition.ttl = 0;
+		edition.mtpMedia = &media;
+		edition.textWithEntities = caption;
+		edition.useSameMarkup = true;
+		edition.useSameReplies = true;
+		itemToEdit->applyEdition(std::move(edition));
 	} else {
 		const auto viaBotId = UserId();
 		history->addNewLocalMessage(

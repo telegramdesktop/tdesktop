@@ -448,7 +448,7 @@ HistoryItem *ScheduledMessages::append(
 			// so if we receive a flag about it,
 			// probably this message was edited.
 			if (data.is_edit_hide()) {
-				existing->applyEdition(data);
+				existing->applyEdition(HistoryMessageEdition(_session, data));
 			}
 			existing->updateSentContent({
 				qs(data.vmessage()),

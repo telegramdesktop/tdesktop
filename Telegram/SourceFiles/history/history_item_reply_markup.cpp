@@ -213,4 +213,5 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	readMaxId = fields.vread_max_id().value_or_empty();
 	maxId = fields.vmax_id().value_or_empty();
 	isNull = false;
+	pts = fields.vreplies_pts().v;
 }
