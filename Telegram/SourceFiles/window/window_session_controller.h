@@ -322,6 +322,8 @@ public:
 	void resizeForThirdSection();
 	void closeThirdSection();
 
+	void showPeer(not_null<PeerData*> peer, MsgId msgId = ShowAtUnreadMsgId);
+
 	enum class GroupCallJoinConfirm {
 		None,
 		IfNowInAnother,

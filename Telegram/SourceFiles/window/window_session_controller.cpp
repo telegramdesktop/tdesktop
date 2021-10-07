@@ -1074,6 +1074,30 @@ void SessionController::closeThirdSection() {
 	}
 }
 
+void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
+	const auto currentPeer = activeChatCurrent().peer();
+	if (peer && peer->isChannel() && currentPeer != peer) {
+		const auto clickedChannel = peer->asChannel();
+		if (!clickedChannel->isPublic()
+			&& !clickedChannel->amIn()
+			&& (!currentPeer->isChannel()
+				|| currentPeer->asChannel()->linkedChat()
+					!= clickedChannel)) {
+			Ui::ShowMultilineToast({
+				.text = {
+					.text = peer->isMegagroup()
+						? tr::lng_group_not_accessible(tr::now)
+						: tr::lng_channel_not_accessible(tr::now)
+				},
+			});
+		} else {
+			showPeerHistory(peer->id, SectionShow(), msgId);
+		}
+	} else {
+		showPeerInfo(peer, SectionShow());
+	}
+}
+
 void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		QString joinHash,

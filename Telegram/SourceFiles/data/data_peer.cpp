@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "core/application.h"
-#include "mainwindow.h"
+#include "core/click_handler_types.h"
 #include "window/window_session_controller.h"
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "facades.h" // Ui::showPeerProfile
 
 namespace {
 
@@ -168,33 +167,22 @@ void PeerClickHandler::onClick(ClickContext context) const {
 	if (context.button != Qt::LeftButton) {
 		return;
 	}
-	const auto &windows = _peer->session().windows();
-	if (windows.empty()) {
-		Core::App().domain().activate(&_peer->session().account());
+	const auto my = context.other.value<ClickHandlerContext>();
+	const auto window = [&]() -> Window::SessionController* {
+		if (const auto controller = my.sessionWindow.get()) {
+			return controller;
+		}
+		const auto &windows = _peer->session().windows();
 		if (windows.empty()) {
-			return;
+			_peer->session().domain().activate(&_peer->session().account());
+			if (windows.empty()) {
+				return nullptr;
+			}
 		}
-	}
-	const auto window = windows.front();
-	const auto currentPeer = window->activeChatCurrent().peer();
-	if (_peer && _peer->isChannel() && currentPeer != _peer) {
-		const auto clickedChannel = _peer->asChannel();
-		if (!clickedChannel->isPublic()
-			&& !clickedChannel->amIn()
-			&& (!currentPeer->isChannel()
-				|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
-			Ui::ShowMultilineToast({
-				.text = { _peer->isMegagroup()
-					? tr::lng_group_not_accessible(tr::now)
-					: tr::lng_channel_not_accessible(tr::now) },
-			});
-		} else {
-			window->showPeerHistory(
-				_peer,
-				Window::SectionShow::Way::Forward);
-		}
-	} else {
-		Ui::showPeerProfile(_peer);
+		return windows.front();
+	}();
+	if (window) {
+		window->showPeer(_peer);
 	}
 }
 

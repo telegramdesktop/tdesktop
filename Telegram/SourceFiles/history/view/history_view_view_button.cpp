@@ -57,7 +57,12 @@ struct ViewButton::Inner {
 
 ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(peer->openLink())
+, link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		controller->showPeer(peer);
+	}
+}))
 , updateCallback(std::move(updateCallback))
 , text(st::historyViewButtonTextStyle, PeerToPhrase(peer)) {
 }
