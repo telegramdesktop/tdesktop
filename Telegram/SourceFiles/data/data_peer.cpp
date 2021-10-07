@@ -1078,7 +1078,7 @@ std::optional<QString> RestrictionError(
 			auto restrictedUntil = channel->restrictedUntil();
 			if (restrictedUntil > 0 && !ChannelData::IsRestrictedForever(restrictedUntil)) {
 				auto restrictedUntilDateTime = base::unixtime::parse(channel->restrictedUntil());
-				auto date = restrictedUntilDateTime.toString(qsl("dd.MM.yy"));
+				auto date = restrictedUntilDateTime.toString(cDateFormat());
 				auto time = restrictedUntilDateTime.toString(cTimeFormat());
 
 				switch (restriction) {

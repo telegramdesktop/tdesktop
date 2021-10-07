@@ -2708,7 +2708,7 @@ void Message::initTime() const {
 		if (forwarded && forwarded->imported) {
 			const auto date = base::unixtime::parse(forwarded->originalDate);
 			item->_timeText = date.toString(
-				u"d.MM.yy, "_q + cTimeFormat() + ' '
+				cDateFormat() + u", "_q + cTimeFormat() + ' '
 			) + tr::lng_imported(tr::now);
 		} else {
 			item->_timeText = dateTime().toString(cTimeFormat());
