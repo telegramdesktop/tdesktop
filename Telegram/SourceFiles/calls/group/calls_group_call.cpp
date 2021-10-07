@@ -2361,6 +2361,7 @@ bool GroupCall::tryCreateController() {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
 		auto callLogPath = callLogFolder + qsl("/last_group_call_log.txt");
 		auto callLogNative = QDir::toNativeSeparators(callLogPath);
+		descriptor.config.need_log = true;
 #ifdef Q_OS_WIN
 		descriptor.config.logPath.data = callLogNative.toStdWString();
 #else // Q_OS_WIN
@@ -2370,6 +2371,8 @@ bool GroupCall::tryCreateController() {
 #endif // Q_OS_WIN
 		QFile(callLogPath).remove();
 		QDir().mkpath(callLogFolder);
+	} else {
+		descriptor.config.need_log = false;
 	}
 
 	LOG(("Call Info: Creating group instance"));
