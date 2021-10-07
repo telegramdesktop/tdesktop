@@ -174,6 +174,8 @@ PRIVATE
     boxes/peers/edit_peer_permissions_box.h
     boxes/about_box.cpp
     boxes/about_box.h
+    boxes/about_sponsored_box.cpp
+    boxes/about_sponsored_box.h
     boxes/abstract_box.cpp
     boxes/abstract_box.h
     boxes/add_contact_box.cpp

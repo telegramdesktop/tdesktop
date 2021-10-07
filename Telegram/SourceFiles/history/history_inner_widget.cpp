@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_emoji_interactions.h"
-#include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
@@ -41,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/notifications_manager.h"
+#include "boxes/about_sponsored_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
@@ -1871,6 +1871,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+					if (item->isSponsored()) {
+						_menu->addAction(tr::lng_sponsored_title({}), [=] {
+							_controller->show(Box(Ui::AboutSponsoredBox));
+						});
+					}
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					});
