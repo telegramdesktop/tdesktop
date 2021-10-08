@@ -36,6 +36,9 @@ HRESULT ToastActivator::Activate(
 		_In_ LPCWSTR invokedArgs,
 		_In_reads_(dataCount) const NOTIFICATION_USER_INPUT_DATA *data,
 		ULONG dataCount) {
+	DEBUG_LOG(("Toast Info: COM Activated \"%1\" with args \"%2\"."
+		).arg(QString::fromWCharArray(appUserModelId)
+		).arg(QString::fromWCharArray(invokedArgs)));
 	const auto string = &ToastActivation::String;
 	auto input = std::vector<ToastActivation::UserInput>();
 	input.reserve(dataCount);

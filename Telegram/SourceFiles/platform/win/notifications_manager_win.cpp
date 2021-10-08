@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_toast_activator.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
+#include "platform/win/specific_win.h"
 #include "history/history.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -549,17 +550,34 @@ void Manager::Private::clearNotification(NotificationId id) {
 
 void Manager::Private::handleActivation(const ToastActivation &activation) {
 	const auto parsed = qthelp::url_parse_params(activation.args);
+	const auto pid = parsed.value("pid").toULong();
+	const auto my = GetCurrentProcessId();
+	if (pid != my) {
+		DEBUG_LOG(("Toast Info: "
+			"Got activation \"%1\", my %2, activating %3."
+			).arg(activation.args
+			).arg(my
+			).arg(pid));
+		psActivateProcess(pid);
+		return;
+	}
 	const auto action = parsed.value("action");
 	const auto id = NotificationId{
 		.full = FullPeer{
-			.sessionId = parsed.value("s").toULongLong(),
-			.peerId = PeerId(parsed.value("p").toULongLong()),
+			.sessionId = parsed.value("session").toULongLong(),
+			.peerId = PeerId(parsed.value("peer").toULongLong()),
 		},
-		.msgId = MsgId(parsed.value("m").toLongLong()),
+		.msgId = MsgId(parsed.value("msg").toLongLong()),
 	};
 	if (!id.full.sessionId || !id.full.peerId || !id.msgId) {
+		DEBUG_LOG(("Toast Info: Got activation \"%1\", my %1, skipping."
+			).arg(activation.args
+			).arg(pid));
 		return;
 	}
+	DEBUG_LOG(("Toast Info: Got activation \"%1\", my %1, handling."
+		).arg(activation.args
+		).arg(pid));
 	auto text = TextWithTags();
 	for (const auto &entry : activation.input) {
 		if (entry.key == "fastReply") {
@@ -633,7 +651,8 @@ bool Manager::Private::showNotificationInTryCatch(
 		.full = key,
 		.msgId = msgId
 	};
-	const auto idString = u"s=%1&p=%2&m=%3"_q
+	const auto idString = u"pid=%1&session=%2&peer=%3&msg=%4"_q
+		.arg(GetCurrentProcessId())
 		.arg(key.sessionId)
 		.arg(key.peerId.value)
 		.arg(msgId.bare);
