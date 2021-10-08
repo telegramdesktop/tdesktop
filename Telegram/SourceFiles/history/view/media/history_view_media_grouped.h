@@ -141,6 +141,7 @@ private:
 	[[nodiscard]] QMargins groupedPadding() const;
 
 	Ui::Text::String _caption;
+	HistoryItem *_captionItem = nullptr;
 	std::vector<Part> _parts;
 	Mode _mode = Mode::Grid;
 	bool _needBubble = false;

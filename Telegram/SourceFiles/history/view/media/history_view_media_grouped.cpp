@@ -408,10 +408,14 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		if (QRect(st::msgPadding.left(), captiony, captionw, height() - captiony).contains(point)) {
-			return TextState(_parent->data(), _caption.getState(
-				point - QPoint(st::msgPadding.left(), captiony),
-				captionw,
-				request.forText()));
+			return TextState(
+				_captionItem
+					? _captionItem
+					: _parent->data().get(),
+				_caption.getState(
+					point - QPoint(st::msgPadding.left(), captiony),
+					captionw,
+					request.forText()));
 		}
 	} else if (_parent->media() == this) {
 		auto fullRight = width();
@@ -667,6 +671,7 @@ void GroupedMedia::updateNeedBubbleState() {
 	if (captionItem) {
 		_caption = createCaption(captionItem);
 	}
+	_captionItem = captionItem;
 	_needBubble = computeNeedBubble();
 }
 
