@@ -1247,7 +1247,11 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}));
 					}
 				}
-				if (msg && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+				if (msg
+					&& !link
+					&& (view->hasVisibleText()
+						|| mediaHasTextForCopy
+						|| item->Has<HistoryMessageLogEntryOriginal>())) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					});
