@@ -1,3 +1,7 @@
+3.1.9 (08.10.21)
+
+- Fix crash in chat closing while scrolling (macOS only).
+
 3.1.8 (08.10.21)
 
 - Show small media previews in chats list.
