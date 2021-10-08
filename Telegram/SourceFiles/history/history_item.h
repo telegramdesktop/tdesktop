@@ -227,6 +227,9 @@ public:
 	[[nodiscard]] bool hasFailed() const {
 		return _flags & MessageFlag::SendingFailed;
 	}
+	[[nodiscard]] bool hideEditedBadge() const {
+		return (_flags & MessageFlag::HideEdited);
+	}
 	void sendFailed();
 	[[nodiscard]] virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;

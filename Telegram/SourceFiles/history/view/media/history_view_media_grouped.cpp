@@ -638,8 +638,10 @@ DocumentData *GroupedMedia::getDocument() const {
 
 HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
 	for (const auto &part : _parts) {
-		if (const auto edited = part.item->Get<HistoryMessageEdited>()) {
-			return edited;
+		if (!part.item->hideEditedBadge()) {
+			if (const auto edited = part.item->Get<HistoryMessageEdited>()) {
+				return edited;
+			}
 		}
 	}
 	return nullptr;

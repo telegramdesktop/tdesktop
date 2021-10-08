@@ -128,10 +128,6 @@ public:
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
-	[[nodiscard]] bool hideEditedBadge() const {
-		return (_flags & MessageFlag::HideEdited);
-	}
-
 	void setViewsCount(int count) override;
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
