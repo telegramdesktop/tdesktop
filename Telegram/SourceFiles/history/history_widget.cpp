@@ -264,7 +264,8 @@ HistoryWidget::HistoryWidget(
 	}), lifetime());
 	_scroll->addContentRequests(
 	) | rpl::start_with_next([=] {
-		if (_history->loadedAtBottom()
+		if (_history
+			&& _history->loadedAtBottom()
 			&& session().data().sponsoredMessages().append(_history)) {
 			_scroll->contentAdded();
 		}
