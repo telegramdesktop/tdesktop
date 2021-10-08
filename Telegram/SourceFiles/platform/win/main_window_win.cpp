@@ -115,8 +115,7 @@ struct MainWindow::Private {
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , _private(std::make_unique<Private>())
-, ps_tbHider_hWnd(createTaskbarHider())
-, ps_tbHider(QWindow::fromWinId(WId(ps_tbHider_hWnd))) {
+, _taskbarHiderWindow(std::make_unique<QWindow>()) {
 	QCoreApplication::instance()->installNativeEventFilter(
 		EventFilter::CreateInstance(this));
 
@@ -248,8 +247,9 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 		psSetupTrayIcon();
 		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (!psOwner) {
-			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (LONG_PTR)ps_tbHider_hWnd);
-			windowHandle()->setTransientParent(ps_tbHider);
+			const auto hwnd = _taskbarHiderWindow->winId();
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (LONG_PTR)hwnd);
+			windowHandle()->setTransientParent(_taskbarHiderWindow.get());
 		}
 	} break;
 
@@ -538,8 +538,6 @@ MainWindow::~MainWindow() {
 	}
 
 	psDestroyIcons();
-	if (ps_tbHider) delete ps_tbHider;
-	if (ps_tbHider_hWnd) DestroyWindow(ps_tbHider_hWnd);
 
 	EventFilter::Destroy();
 }
