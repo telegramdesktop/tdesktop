@@ -1,3 +1,9 @@
+3.1.8 (08.10.21)
+
+- Show small media previews in chats list.
+- Show media album previews and caption text in chats list.
+- Add "Quick Reply" and "Mark as Read" to native Windows notifications.
+
 3.1.7 beta (07.10.21)
 
 - Fix channel message views and comments counter updates.
