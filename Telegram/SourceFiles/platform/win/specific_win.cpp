@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
+#include "core/application.h"
+#include "window/window_controller.h"
 #include "core/crash_reports.h"
 
 #include <QtCore/QOperatingSystemVersion>
@@ -144,6 +146,14 @@ void DeleteMyModules() {
 void psActivateProcess(uint64 pid) {
 	if (pid) {
 		::EnumWindows((WNDENUMPROC)_ActivateProcess, (LPARAM)&pid);
+	} else if (Core::IsAppLaunched()) {
+		if (const auto window = Core::App().activeWindow()) {
+			if (const auto handle = window->widget()->windowHandle()) {
+				if (const auto id = handle->winId()) {
+					SetForegroundWindow(HWND(id));
+				}
+			}
+		}
 	}
 }
 
