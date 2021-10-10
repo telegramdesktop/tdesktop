@@ -243,12 +243,6 @@ Message::Message(
 : Element(delegate, data, replacing) {
 	initLogEntryOriginal();
 	initPsa();
-
-	if (data->isSponsored()) {
-		_viewButton = std::make_unique<ViewButton>(
-			data->displayFrom(),
-			[=] { history()->owner().requestViewRepaint(this); });
-	}
 }
 
 Message::~Message() {
@@ -611,16 +605,18 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
-		if (_viewButton) {
+		if (ensureViewButton()) {
 			_viewButton->draw(
 				p,
-				_viewButton->countSponsoredRect(inner),
+				_viewButton->countRect(inner),
 				context);
 		}
 
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
-			trect.setHeight(trect.height() + st::msgPadding.bottom());
+			trect.setHeight(trect.height()
+				+ st::msgPadding.bottom()
+				- viewButtonHeight());
 		}
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
@@ -1208,14 +1204,16 @@ TextState Message::textState(
 		if (_viewButton
 			&& _viewButton->getState(
 				point,
-				_viewButton->countSponsoredRect(bubble),
+				_viewButton->countRect(bubble),
 				&result)) {
 			return result;
 		}
 
 		auto trect = bubble.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
-			trect.setHeight(trect.height() + st::msgPadding.bottom());
+			trect.setHeight(trect.height()
+				+ st::msgPadding.bottom()
+				- viewButtonHeight());
 		}
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
@@ -1754,7 +1752,7 @@ void Message::drawInfo(
 		; msgsigned && !msgsigned->isAnonymousRank) {
 		msgsigned->signature.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else if (const auto sponsored = displayedSponsorBadge()) {
-		const auto skipY = _viewButton ? _viewButton->height() : 0;
+		const auto skipY = viewButtonHeight();
 		sponsored->text.drawElided(p, dateX, dateY - skipY, item->_timeWidth);
 	} else if (const auto edited = displayedEditBadge()) {
 		edited->text.drawElided(p, dateX, dateY, item->_timeWidth);
@@ -1956,6 +1954,33 @@ int Message::monospaceMaxWidth() const {
 	return st::msgPadding.left()
 		+ (hasVisibleText() ? message()->_text.countMaxMonospaceWidth() : 0)
 		+ st::msgPadding.right();
+}
+
+int Message::viewButtonHeight() const {
+	return _viewButton ? _viewButton->height() : 0;
+}
+
+bool Message::ensureViewButton() const {
+	if (data()->isSponsored()
+		|| (data()->media()
+			&& ViewButton::MediaHasViewButton(data()->media()))) {
+		if (_viewButton) {
+			return true;
+		}
+		auto callback = [=] { history()->owner().requestViewRepaint(this); };
+		_viewButton = data()->isSponsored()
+			? std::make_unique<ViewButton>(
+				data()->displayFrom(),
+				std::move(callback))
+			: std::make_unique<ViewButton>(
+				data()->media(),
+				std::move(callback));
+		return true;
+	}
+	if (_viewButton) {
+		_viewButton.reset(nullptr);
+	}
+	return false;
 }
 
 void Message::initLogEntryOriginal() {
@@ -2618,8 +2643,8 @@ int Message::resizeContentGetHeight(int newWidth) {
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
 		}
-		if (_viewButton) {
-			newHeight += _viewButton->height();
+		if (ensureViewButton()) {
+			newHeight += viewButtonHeight();
 		}
 	} else if (mediaDisplayed) {
 		newHeight = media->height();

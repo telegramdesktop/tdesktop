@@ -146,6 +146,20 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		return WebPageType::WallPaper;
 	} else if (type == qstr("telegram_theme")) {
 		return WebPageType::Theme;
+	} else if (type == qstr("telegram_channel")) {
+		return WebPageType::Channel;
+	}  else if (type == qstr("telegram_message")) {
+		return WebPageType::Message;
+	}  else if (type == qstr("telegram_bot")) {
+		return WebPageType::Bot;
+	}  else if (type == qstr("telegram_megagroup")) {
+		return WebPageType::Group;
+	}  else if (type == qstr("telegram_voicechat")) {
+		return WebPageType::VoiceChat;
+	}  else if (type == qstr("telegram_livestream")) {
+		return WebPageType::Livestream;
+	}  else if (type == qstr("telegram_user")) {
+		return WebPageType::User;
 	} else if (page.vcached_page()) {
 		return WebPageType::ArticleWithIV;
 	} else {
