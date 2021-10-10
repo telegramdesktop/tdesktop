@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <storage/details/storage_file_utilities.h>
+
 namespace MTP {
 class Config;
 class AuthKey;
@@ -64,6 +66,17 @@ private:
 	void generateLocalKey();
 	void encryptLocalKey(const QByteArray &passcode);
 
+    [[nodiscard]] StartModernResult tryFakeStart(
+            const QByteArray& keyEncrypted,
+            const QByteArray& infoEncrypted,
+            const QByteArray& salt,
+            const QByteArray &passcode);
+    [[nodiscard]] StartModernResult startUsingKeyStream(
+            Storage::details::EncryptedDescriptor& keyInnerData,
+            const QByteArray& infoEncrypted,
+            const QByteArray& salt,
+            const QByteArray& passcode);
+
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
 
@@ -71,6 +84,9 @@ private:
 	MTP::AuthKeyPtr _passcodeKey;
 	QByteArray _passcodeKeySalt;
 	QByteArray _passcodeKeyEncrypted;
+
+    std::vector<QByteArray> _fakePasscodeKeysEncrypted;
+
 	int _oldVersion = 0;
 
 	bool _hasLocalPasscode = false;

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
-#include "base/random.h"
 
 namespace Storage {
 namespace {
@@ -95,8 +94,8 @@ void Domain::generateLocalKey() {
 
 	auto pass = QByteArray(MTP::AuthKey::kSize, Qt::Uninitialized);
 	auto salt = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
-	base::RandomFill(pass.data(), pass.size());
-	base::RandomFill(salt.data(), salt.size());
+	memset_rand(pass.data(), pass.size());
+	memset_rand(salt.data(), salt.size());
 	_localKey = CreateLocalKey(pass, salt);
 
 	encryptLocalKey(QByteArray());
@@ -104,7 +103,7 @@ void Domain::generateLocalKey() {
 
 void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_passcodeKeySalt.resize(LocalEncryptSaltSize);
-	base::RandomFill(_passcodeKeySalt.data(), _passcodeKeySalt.size());
+	memset_rand(_passcodeKeySalt.data(), _passcodeKeySalt.size());
 	_passcodeKey = CreateLocalKey(passcode, _passcodeKeySalt);
 
 	EncryptedDescriptor passKeyData(MTP::AuthKey::kSize);
@@ -125,6 +124,18 @@ Domain::StartModernResult Domain::startModern(
 
 	QByteArray salt, keyEncrypted, infoEncrypted;
 	keyData.stream >> salt >> keyEncrypted >> infoEncrypted;
+    std::vector<QByteArray> infoFakeEncrypted;
+    qint32 fakePasscodeCount;
+    if (keyData.stream.atEnd()) {
+        fakePasscodeCount = 0;
+    } else {
+        keyData.stream >> fakePasscodeCount;
+    }
+
+    if (fakePasscodeCount > 0) {
+        _fakePasscodeKeysEncrypted.resize(fakePasscodeCount);
+    }
+
 	if (!CheckStreamStatus(keyData.stream)) {
 		return StartModernResult::Failed;
 	}
@@ -135,80 +146,18 @@ Domain::StartModernResult Domain::startModern(
 	}
 	_passcodeKey = CreateLocalKey(passcode, salt);
 
+    _oldVersion = keyData.version;
+    _passcodeKeyEncrypted = keyEncrypted;
+    _passcodeKeySalt = salt;
+
 	EncryptedDescriptor keyInnerData, info;
 	if (!DecryptLocal(keyInnerData, keyEncrypted, _passcodeKey)) {
 		LOG(("App Info: could not decrypt pass-protected key from info file, "
-			"maybe bad password..."));
-		return StartModernResult::IncorrectPasscode;
-	}
-	auto key = Serialize::read<MTP::AuthKey::Data>(keyInnerData.stream);
-	if (keyInnerData.stream.status() != QDataStream::Ok
-		|| !keyInnerData.stream.atEnd()) {
-		LOG(("App Error: could not read pass-protected key from info file"));
-		return StartModernResult::Failed;
-	}
-	_localKey = std::make_shared<MTP::AuthKey>(key);
-
-	_passcodeKeyEncrypted = keyEncrypted;
-	_passcodeKeySalt = salt;
-	_hasLocalPasscode = !passcode.isEmpty();
-
-	if (!DecryptLocal(info, infoEncrypted, _localKey)) {
-		LOG(("App Error: could not decrypt info."));
-		return StartModernResult::Failed;
-	}
-	LOG(("App Info: reading encrypted info..."));
-	auto count = qint32();
-	info.stream >> count;
-	if (count <= 0 || count > Main::Domain::kMaxAccounts) {
-		LOG(("App Error: bad accounts count: %1").arg(count));
-		return StartModernResult::Failed;
+			"maybe bad or fake password..."));
+        return tryFakeStart(keyEncrypted, infoEncrypted, salt, passcode);
 	}
 
-	_oldVersion = keyData.version;
-
-	auto tried = base::flat_set<int>();
-	auto sessions = base::flat_set<uint64>();
-	auto active = 0;
-	for (auto i = 0; i != count; ++i) {
-		auto index = qint32();
-		info.stream >> index;
-		if (index >= 0
-			&& index < Main::Domain::kMaxAccounts
-			&& tried.emplace(index).second) {
-			auto account = std::make_unique<Main::Account>(
-				_owner,
-				_dataName,
-				index);
-			auto config = account->prepareToStart(_localKey);
-			const auto sessionId = account->willHaveSessionUniqueId(
-				config.get());
-			if (!sessions.contains(sessionId)
-				&& (sessionId != 0 || (sessions.empty() && i + 1 == count))) {
-				if (sessions.empty()) {
-					active = index;
-				}
-				account->start(std::move(config));
-				_owner->accountAddedInStorage({
-					.index = index,
-					.account = std::move(account)
-				});
-				sessions.emplace(sessionId);
-			}
-		}
-	}
-	if (sessions.empty()) {
-		LOG(("App Error: no accounts read."));
-		return StartModernResult::Failed;
-	}
-
-	if (!info.stream.atEnd()) {
-		info.stream >> active;
-	}
-	_owner->activateFromStorage(active);
-
-	Ensures(!sessions.empty());
-	return StartModernResult::Success;
+	return startUsingKeyStream(keyInnerData, infoEncrypted, salt, passcode);
 }
 
 void Domain::writeAccounts() {
@@ -222,6 +171,17 @@ void Domain::writeAccounts() {
 	FileWriteDescriptor key(ComputeKeyName(_dataName), path);
 	key.writeData(_passcodeKeySalt);
 	key.writeData(_passcodeKeyEncrypted);
+	const auto convertToByteArray = [](qint32 size) {
+	    QByteArray sizeArray;
+	    QDataStream convertStream(&sizeArray, QIODevice::WriteOnly);
+	    convertStream << size;
+	    return sizeArray;
+	};
+
+	key.writeData(convertToByteArray(qint32(_fakePasscodeKeysEncrypted.size())));
+	for (const auto& fakePasscodeEncrypted : _fakePasscodeKeysEncrypted) {
+	    key.writeData(fakePasscodeEncrypted);
+	}
 
 	const auto &list = _owner->accounts();
 
@@ -278,6 +238,107 @@ rpl::producer<> Domain::localPasscodeChanged() const {
 
 bool Domain::hasLocalPasscode() const {
 	return _hasLocalPasscode;
+}
+
+[[nodiscard]] Domain::StartModernResult Domain::tryFakeStart(
+        const QByteArray& keyEncrypted,
+        const QByteArray& infoEncrypted,
+        const QByteArray& salt,
+        const QByteArray &passcode) {
+    for (qint32 i = 0; i < qint32(_fakePasscodeKeysEncrypted.size()); ++i) {
+        if (salt.size() != LocalEncryptSaltSize) {
+            LOG(("App Error: bad salt in info file, size: %1").arg(salt.size()));
+            return StartModernResult::Failed;
+        }
+        _passcodeKey = CreateLocalKey(passcode, salt);
+
+        EncryptedDescriptor keyInnerData;
+        if (!DecryptLocal(keyInnerData, _fakePasscodeKeysEncrypted[i], _passcodeKey)) {
+            LOG(("App Info: could not decrypt pass-protected key from info file, "
+                 "maybe bad or fake password..."));
+            continue;
+        }
+
+        QByteArray sourcePasscode;
+        keyInnerData.stream >> sourcePasscode;
+
+        EncryptedDescriptor realKeyInnerData;
+        DecryptLocal(realKeyInnerData, keyEncrypted, CreateLocalKey(sourcePasscode, salt));
+
+        return startUsingKeyStream(realKeyInnerData, infoEncrypted, salt, sourcePasscode);
+    }
+    return StartModernResult::IncorrectPasscode;
+}
+
+Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyInnerData,
+                                                      const QByteArray& infoEncrypted,
+                                                      const QByteArray& salt,
+                                                      const QByteArray& passcode) {
+    EncryptedDescriptor info;
+    auto key = Serialize::read<MTP::AuthKey::Data>(keyInnerData.stream);
+    if (keyInnerData.stream.status() != QDataStream::Ok
+        || !keyInnerData.stream.atEnd()) {
+        LOG(("App Error: could not read pass-protected key from info file"));
+        return StartModernResult::Failed;
+    }
+    _localKey = std::make_shared<MTP::AuthKey>(key);
+
+    _hasLocalPasscode = !passcode.isEmpty();
+
+    if (!DecryptLocal(info, infoEncrypted, _localKey)) {
+        LOG(("App Error: could not decrypt info."));
+        return StartModernResult::Failed;
+    }
+    LOG(("App Info: reading encrypted info..."));
+    auto count = qint32();
+    info.stream >> count;
+    if (count <= 0 || count > Main::Domain::kMaxAccounts) {
+        LOG(("App Error: bad accounts count: %1").arg(count));
+        return StartModernResult::Failed;
+    }
+
+    auto tried = base::flat_set<int>();
+    auto sessions = base::flat_set<uint64>();
+    auto active = 0;
+    for (auto i = 0; i != count; ++i) {
+        auto index = qint32();
+        info.stream >> index;
+        if (index >= 0
+            && index < Main::Domain::kMaxAccounts
+            && tried.emplace(index).second) {
+            auto account = std::make_unique<Main::Account>(
+                    _owner,
+                    _dataName,
+                    index);
+            auto config = account->prepareToStart(_localKey);
+            const auto sessionId = account->willHaveSessionUniqueId(
+                    config.get());
+            if (!sessions.contains(sessionId)
+                && (sessionId != 0 || (sessions.empty() && i + 1 == count))) {
+                if (sessions.empty()) {
+                    active = index;
+                }
+                account->start(std::move(config));
+                _owner->accountAddedInStorage({
+                                                      .index = index,
+                                                      .account = std::move(account)
+                                              });
+                sessions.emplace(sessionId);
+            }
+        }
+    }
+    if (sessions.empty()) {
+        LOG(("App Error: no accounts read."));
+        return StartModernResult::Failed;
+    }
+
+    if (!info.stream.atEnd()) {
+        info.stream >> active;
+    }
+    _owner->activateFromStorage(active);
+
+    Ensures(!sessions.empty());
+    return StartModernResult::Success;
 }
 
 } // namespace Storage
