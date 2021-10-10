@@ -1127,6 +1127,8 @@ ServiceAction ParseServiceAction(
 		result.content = ActionSetChatTheme{
 			.emoji = qs(data.vemoticon()),
 		};
+	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		result.content = ActionChatJoinedByRequest();
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

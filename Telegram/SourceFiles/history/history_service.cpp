@@ -454,6 +454,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareChatJoinedByRequest = [this](const MTPDmessageActionChatJoinedByRequest &action) {
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_user_joined_by_request(tr::now, lt_from, fromLinkText());
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -513,6 +520,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareCallScheduledText(data.vschedule_date().v);
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
 		return prepareSetChatTheme(data);
+	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		return prepareChatJoinedByRequest(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});
@@ -558,6 +567,12 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 		_flags |= MessageFlag::IsGroupEssential;
 	}, [&](const MTPDmessageActionContactSignUp &) {
 		_flags |= MessageFlag::IsContactSignUp;
+	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		if (_from->isSelf()) {
+			if (const auto channel = history()->peer->asMegagroup()) {
+				channel->mgInfo->joinedMessageFound = true;
+			}
+		}
 	}, [](const auto &) {
 	});
 }

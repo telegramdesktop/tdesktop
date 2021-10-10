@@ -967,11 +967,14 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
-	auto addInviteLinkServiceMessage = [&](const QString &text, const MTPExportedChatInvite &data) {
+	auto addInviteLinkServiceMessage = [&](const QString &text, const MTPExportedChatInvite &data, ClickHandlerPtr additional = nullptr) {
 		auto message = HistoryService::PreparedText{ text };
 		message.links.push_back(fromLink);
 		if (!ExtractInviteLink(data).endsWith("...")) {
 			message.links.push_back(std::make_shared<UrlClickHandler>(InternalInviteLinkUrl(data)));
+		}
+		if (additional) {
+			message.links.push_back(std::move(additional));
 		}
 		addPart(history->makeServiceMessage(
 			history->nextNonHistoryEntryId(),
@@ -1065,6 +1068,27 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	auto createParticipantJoinByRequest = [&](const MTPDchannelAdminLogEventActionParticipantJoinByRequest &data) {
+		const auto user = channel->owner().user(UserId(data.vapproved_by()));
+		auto text = (channel->isMegagroup()
+			? tr::lng_admin_log_participant_approved_by_link
+			: tr::lng_admin_log_participant_approved_by_link_channel);
+		const auto linkText = GenerateInviteLinkLink(data.vinvite());
+		const auto adminIndex = linkText.endsWith("...") ? 2 : 3;
+		addInviteLinkServiceMessage(
+			text(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_link,
+				linkText,
+				lt_user,
+				textcmdLink(adminIndex, user->name)),
+			data.vinvite(),
+			user->createOpenLink());
+
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -1129,6 +1153,8 @@ void GenerateItems(
 		createParticipantVolume(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeHistoryTTL &data) {
 		createChangeHistoryTTL(data);
+	}, [&](const MTPDchannelAdminLogEventActionParticipantJoinByRequest &data) {
+		createParticipantJoinByRequest(data);
 	});
 }
 

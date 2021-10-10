@@ -1106,6 +1106,9 @@ auto HtmlWriter::Wrap::pushMessage(
 		return isChannel
 			? ("Channel theme was changed to " + data.emoji).toUtf8()
 			: (serviceFrom + " changed chat theme to " + data.emoji).toUtf8();
+	}, [&](const ActionChatJoinedByRequest &data) {
+		return serviceFrom
+			+ " joined group by request";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

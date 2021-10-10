@@ -243,7 +243,8 @@ void InviteLinks::performEdit(
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),
-		MTP_int(usageLimit)
+		MTP_int(usageLimit),
+		MTPbool() // request_needed // #TODO requests
 	)).done([=](const MTPmessages_ExportedChatInvite &result) {
 		const auto callbacks = _editCallbacks.take(key);
 		const auto peer = key.peer;
@@ -484,8 +485,10 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 		return;
 	}
 	const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
+		MTP_flags(0),
 		key.peer->input,
 		MTP_string(key.link),
+		MTPstring(), // q
 		MTP_int(0), // offset_date
 		MTP_inputUserEmpty(), // offset_user
 		MTP_int(kJoinedFirstPage)

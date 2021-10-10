@@ -479,6 +479,9 @@ struct ActionSetChatTheme {
 	QString emoji;
 };
 
+struct ActionChatJoinedByRequest {
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -508,7 +511,8 @@ struct ServiceAction {
 		ActionInviteToGroupCall,
 		ActionSetMessagesTTL,
 		ActionGroupCallScheduled,
-		ActionSetChatTheme> content;
+		ActionSetChatTheme,
+		ActionChatJoinedByRequest> content;
 };
 
 ServiceAction ParseServiceAction(

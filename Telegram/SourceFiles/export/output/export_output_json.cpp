@@ -523,6 +523,9 @@ QByteArray SerializeMessage(
 		if (!data.emoji.isEmpty()) {
 			push("emoticon", data.emoji.toUtf8());
 		}
+	}, [&](const ActionChatJoinedByRequest &data) {
+		pushActor();
+		pushAction("join_group_by_request");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

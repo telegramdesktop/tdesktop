@@ -907,49 +907,45 @@ void History::applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data) {
 	const auto replyTo = data.vreply_to();
+	const auto processJoinedUser = [&](
+			not_null<ChannelData*> megagroup,
+			not_null<MegagroupInfo*> mgInfo,
+			not_null<UserData*> user) {
+		if (!base::contains(mgInfo->lastParticipants, user)) {
+			mgInfo->lastParticipants.push_front(user);
+			session().changes().peerUpdated(
+				peer,
+				Data::PeerUpdate::Flag::Members);
+			owner().addNewMegagroupParticipant(megagroup, user);
+		}
+		if (user->isBot()) {
+			mgInfo->bots.insert(user);
+			if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
+				mgInfo->botStatus = 2;
+			}
+		}
+	};
+	const auto processJoinedPeer = [&](not_null<PeerData*> joined) {
+		if (const auto megagroup = peer->asMegagroup()) {
+			const auto mgInfo = megagroup->mgInfo.get();
+			Assert(mgInfo != nullptr);
+			if (const auto user = joined->asUser()) {
+				processJoinedUser(megagroup, mgInfo, user);
+			}
+		}
+	};
 	data.vaction().match([&](const MTPDmessageActionChatAddUser &data) {
 		if (const auto megagroup = peer->asMegagroup()) {
 			const auto mgInfo = megagroup->mgInfo.get();
 			Assert(mgInfo != nullptr);
 			for (const auto &userId : data.vusers().v) {
 				if (const auto user = owner().userLoaded(userId.v)) {
-					if (!base::contains(mgInfo->lastParticipants, user)) {
-						mgInfo->lastParticipants.push_front(user);
-						session().changes().peerUpdated(
-							peer,
-							Data::PeerUpdate::Flag::Members);
-						owner().addNewMegagroupParticipant(megagroup, user);
-					}
-					if (user->isBot()) {
-						peer->asChannel()->mgInfo->bots.insert(user);
-						if (peer->asChannel()->mgInfo->botStatus != 0
-							&& peer->asChannel()->mgInfo->botStatus < 2) {
-							peer->asChannel()->mgInfo->botStatus = 2;
-						}
-					}
+					processJoinedUser(megagroup, mgInfo, user);
 				}
 			}
 		}
 	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
-		if (const auto megagroup = peer->asMegagroup()) {
-			const auto mgInfo = megagroup->mgInfo.get();
-			Assert(mgInfo != nullptr);
-			if (const auto user = item->from()->asUser()) {
-				if (!base::contains(mgInfo->lastParticipants, user)) {
-					mgInfo->lastParticipants.push_front(user);
-					session().changes().peerUpdated(
-						peer,
-						Data::PeerUpdate::Flag::Members);
-					owner().addNewMegagroupParticipant(megagroup, user);
-				}
-				if (user->isBot()) {
-					mgInfo->bots.insert(user);
-					if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
-						mgInfo->botStatus = 2;
-					}
-				}
-			}
-		}
+		processJoinedPeer(item->from());
 	}, [&](const MTPDmessageActionChatDeletePhoto &data) {
 		if (const auto chat = peer->asChat()) {
 			chat->setPhoto(MTP_chatPhotoEmpty());
@@ -1094,6 +1090,8 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
 		peer->setThemeEmoji(qs(data.vemoticon()));
+	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		processJoinedPeer(item->from());
 	}, [](const auto &) {
 	});
 }

@@ -515,8 +515,10 @@ void Controller::loadMoreRows() {
 		return;
 	}
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
+		MTP_flags(0),
 		_peer->input,
 		MTP_string(_link),
+		MTPstring(), // q // #TODO requests
 		MTP_int(_lastUser ? _lastUser->date : 0),
 		_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
 		MTP_int(_lastUser ? kPerPage : kFirstPage)
