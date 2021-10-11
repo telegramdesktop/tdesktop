@@ -134,9 +134,11 @@ WebPageCollage ExtractCollage(
 
 } // namespace
 
-WebPageType ParseWebPageType(const MTPDwebPage &page) {
-	const auto type = qs(page.vtype().value_or_empty());
-	if (type == qstr("video") || page.vembed_url()) {
+WebPageType ParseWebPageType(
+		const QString &type,
+		const QString &embedUrl,
+		bool hasIV) {
+	if (type == qstr("video") || !embedUrl.isEmpty()) {
 		return WebPageType::Video;
 	} else if (type == qstr("photo")) {
 		return WebPageType::Photo;
@@ -160,11 +162,18 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		return WebPageType::Livestream;
 	}  else if (type == qstr("telegram_user")) {
 		return WebPageType::User;
-	} else if (page.vcached_page()) {
+	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
 		return WebPageType::Article;
 	}
+}
+
+WebPageType ParseWebPageType(const MTPDwebPage &page) {
+	return ParseWebPageType(
+		qs(page.vtype().value_or_empty()),
+		page.vembed_url().value_or_empty(),
+		!!page.vcached_page());
 }
 
 WebPageCollage::WebPageCollage(
