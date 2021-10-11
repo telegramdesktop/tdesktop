@@ -407,6 +407,7 @@ PRIVATE
     data/data_file_origin.cpp
     data/data_file_origin.h
     data/data_flags.h
+    data/data_game.cpp
     data/data_game.h
     data/data_group_call.cpp
     data/data_group_call.h
