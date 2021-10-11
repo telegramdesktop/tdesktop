@@ -373,7 +373,7 @@ void DocumentData::setattributes(
 				}
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
-			setFileName(_filename);
+			setFileName(qs(data.vfile_name()));
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 			_flags |= Flag::HasAttachedStickers;
 		});
