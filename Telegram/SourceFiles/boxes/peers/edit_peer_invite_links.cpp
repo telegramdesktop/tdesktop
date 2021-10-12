@@ -178,6 +178,16 @@ private:
 			tr::now,
 			lt_count_decimal,
 			link.usageLimit - link.usage);
+	} else if (link.usage > 0 && link.requested > 0) {
+		result += ", " + tr::lng_group_invite_requested(
+			tr::now,
+			lt_count_decimal,
+			link.requested);
+	} else if (link.requested > 0) {
+		result = tr::lng_group_invite_requested_full(
+			tr::now,
+			lt_count_decimal,
+			link.requested);
 	}
 	if (link.expireDate > now) {
 		const auto left = (link.expireDate - now);

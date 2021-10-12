@@ -19,6 +19,7 @@ struct InviteLink {
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	int usage = 0;
+	int requested = 0;
 	bool requestApproval = false;
 	bool permanent = false;
 	bool revoked = false;
@@ -100,6 +101,15 @@ public:
 	void requestMyLinks(not_null<PeerData*> peer);
 	[[nodiscard]] const Links &myLinks(not_null<PeerData*> peer) const;
 
+	void processRequest(
+		not_null<PeerData*> peer,
+		const QString &link,
+		not_null<UserData*> user,
+		bool approved,
+		Fn<void()> done,
+		Fn<void()> fail);
+	void applyExternalUpdate(not_null<PeerData*> peer, InviteLink updated);
+
 	[[nodiscard]] rpl::producer<JoinedByLinkSlice> joinedFirstSliceValue(
 		not_null<PeerData*> peer,
 		const QString &link,
@@ -135,6 +145,10 @@ private:
 		friend inline bool operator==(const LinkKey &a, const LinkKey &b) {
 			return (a.peer == b.peer) && (a.link == b.link);
 		}
+	};
+	struct ProcessRequest {
+		Fn<void()> done;
+		Fn<void()> fail;
 	};
 
 	[[nodiscard]] Links parseSlice(
@@ -198,6 +212,10 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::vector<Fn<void()>>> _deleteRevokedCallbacks;
+
+	base::flat_map<
+		std::pair<not_null<PeerData*>, not_null<UserData*>>,
+		ProcessRequest> _processRequests;
 
 	rpl::event_stream<Update> _updates;
 

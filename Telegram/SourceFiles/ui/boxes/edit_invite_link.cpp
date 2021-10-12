@@ -309,8 +309,8 @@ void CreateInviteLinkBox(
 		bool isGroup,
 		Fn<void(InviteLinkFields)> done) {
 	EditInviteLinkBox(
-		box, 
-		InviteLinkFields{ .isGroup = isGroup }, 
+		box,
+		InviteLinkFields{ .isGroup = isGroup },
 		std::move(done));
 }
 

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
+#include "base/unixtime.h"
 #include "apiwrap.h"
 
 namespace Api {
@@ -435,6 +436,77 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 	_firstSliceRequests.emplace(peer, requestId);
 }
 
+void InviteLinks::processRequest(
+		not_null<PeerData*> peer,
+		const QString &link,
+		not_null<UserData*> user,
+		bool approved,
+		Fn<void()> done,
+		Fn<void()> fail) {
+	if (_processRequests.contains({ peer, user })) {
+		return;
+	}
+	_processRequests.emplace(
+		std::pair{ peer, user },
+		ProcessRequest{ std::move(done), std::move(fail) });
+	using Flag = MTPmessages_HideChatJoinRequest::Flag;
+	_api->request(MTPmessages_HideChatJoinRequest(
+		MTP_flags(approved ? Flag::f_approved : Flag(0)),
+		peer->input,
+		user->inputUser
+	)).done([=](const MTPUpdates &result) {
+		if (const auto chat = peer->asChat()) {
+			if (chat->count > 0) {
+				if (chat->participants.size() >= chat->count) {
+					chat->participants.emplace(user);
+				}
+				++chat->count;
+			}
+		} else if (const auto channel = peer->asChannel()) {
+			_api->requestParticipantsCountDelayed(channel);
+		}
+		_api->applyUpdates(result);
+		if (approved) {
+			const auto i = _firstJoined.find({ peer, link });
+			if (i != end(_firstJoined)) {
+				++i->second.count;
+				i->second.users.insert(
+					begin(i->second.users),
+					JoinedByLinkUser{ user, base::unixtime::now() });
+			}
+		}
+		if (const auto callbacks = _processRequests.take({ peer, user })) {
+			if (const auto &done = callbacks->done) {
+				done();
+			}
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto callbacks = _processRequests.take({ peer, user })) {
+			if (const auto &fail = callbacks->fail) {
+				fail();
+			}
+		}
+	}).send();
+}
+
+void InviteLinks::applyExternalUpdate(
+		not_null<PeerData*> peer,
+		InviteLink updated) {
+	if (const auto i = _firstSlices.find(peer); i != end(_firstSlices)) {
+		for (auto &link : i->second.links) {
+			if (link.link == updated.link) {
+				link = updated;
+			}
+		}
+	}
+	_updates.fire({
+		.peer = peer,
+		.admin = updated.admin,
+		.was = updated.link,
+		.now = updated,
+	});
+}
+
 std::optional<JoinedByLinkSlice> InviteLinks::lookupJoinedFirstSlice(
 		LinkKey key) const {
 	const auto i = _firstJoined.find(key);
@@ -498,7 +570,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 		return;
 	}
 	const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
-		MTP_flags(0),
+		MTP_flags(MTPmessages_GetChatInviteImporters::Flag::f_link),
 		key.peer->input,
 		MTP_string(key.link),
 		MTPstring(), // q
@@ -645,6 +717,7 @@ auto InviteLinks::parse(
 			.expireDate = data.vexpire_date().value_or_empty(),
 			.usageLimit = data.vusage_limit().value_or_empty(),
 			.usage = data.vusage().value_or_empty(),
+			.requested = data.vrequested().value_or_empty(),
 			.requestApproval = data.is_request_needed(),
 			.permanent = data.is_permanent(),
 			.revoked = data.is_revoked(),
