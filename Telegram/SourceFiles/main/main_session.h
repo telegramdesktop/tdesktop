@@ -83,6 +83,9 @@ public:
 	}
 	bool validateSelf(const MTPUser &user);
 
+	[[nodiscard]] Data::Changes &changes() const {
+		return *_changes;
+	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
 	}
@@ -103,9 +106,6 @@ public:
 	}
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
-	}
-	[[nodiscard]] Data::Changes &changes() const {
-		return *_changes;
 	}
 	[[nodiscard]] Data::Session &data() const {
 		return *_data;
@@ -165,6 +165,7 @@ private:
 	const not_null<Account*> _account;
 
 	const std::unique_ptr<SessionSettings> _settings;
+	const std::unique_ptr<Data::Changes> _changes;
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Api::Updates> _updates;
 	const std::unique_ptr<Api::SendProgressManager> _sendProgressManager;
@@ -173,7 +174,6 @@ private:
 	const std::unique_ptr<Storage::Facade> _storage;
 
 	// _data depends on _downloader / _uploader.
-	const std::unique_ptr<Data::Changes> _changes;
 	const std::unique_ptr<Data::Session> _data;
 	const not_null<UserData*> _user;
 

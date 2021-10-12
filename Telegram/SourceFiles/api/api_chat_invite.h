@@ -72,6 +72,7 @@ private:
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<Participant> _participants;
 	bool _isChannel = false;
+	bool _requestApprove = false;
 
 	int _userWidth = 0;
 

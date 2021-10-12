@@ -149,12 +149,18 @@ WebPageType ParseWebPageType(
 		return WebPageType::Theme;
 	} else if (type == qstr("telegram_channel")) {
 		return WebPageType::Channel;
+	} else if (type == qstr("telegram_channel_request")) {
+		return WebPageType::ChannelWithRequest;
+	} else if (type == qstr("telegram_megagroup")
+		|| type == qstr("telegram_chat")) {
+		return WebPageType::Group;
+	} else if (type == qstr("telegram_megagroup_request")
+		|| type == qstr("telegram_chat_request")) {
+		return WebPageType::GroupWithRequest;
 	}  else if (type == qstr("telegram_message")) {
 		return WebPageType::Message;
 	}  else if (type == qstr("telegram_bot")) {
 		return WebPageType::Bot;
-	}  else if (type == qstr("telegram_megagroup")) {
-		return WebPageType::Group;
 	}  else if (type == qstr("telegram_voicechat")) {
 		return WebPageType::VoiceChat;
 	}  else if (type == qstr("telegram_livestream")) {

@@ -643,6 +643,7 @@ void PeerData::updateFullForced() {
 
 void PeerData::fullUpdated() {
 	_lastFullUpdate = crl::now();
+	setLoadedStatus(LoadedStatus::Full);
 }
 
 UserData *PeerData::asUser() {

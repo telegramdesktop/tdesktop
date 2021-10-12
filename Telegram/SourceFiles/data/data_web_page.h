@@ -20,7 +20,9 @@ enum class WebPageType {
 	Message,
 
 	Group,
+	GroupWithRequest,
 	Channel,
+	ChannelWithRequest,
 
 	Photo,
 	Video,

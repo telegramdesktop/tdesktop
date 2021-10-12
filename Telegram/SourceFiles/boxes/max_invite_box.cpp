@@ -71,6 +71,9 @@ void MaxInviteBox::prepare() {
 			+ st::boxTextFont->height * 2
 			+ st::newGroupLinkPadding.bottom());
 
+	if (_channel->inviteLink().isEmpty()) {
+		_channel->session().api().requestFullPeer(_channel);
+	}
 	_channel->session().changes().peerUpdates(
 		_channel,
 		Data::PeerUpdate::Flag::InviteLinks
@@ -86,11 +89,12 @@ void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
 void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		if (_channel->inviteLink().isEmpty()) {
-			_channel->session().api().inviteLinks().create(_channel);
-		} else {
+		if (!_channel->inviteLink().isEmpty()) {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
+		} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
+			_creatingInviteLink = true;
+			_channel->session().api().inviteLinks().create(_channel);
 		}
 	}
 }

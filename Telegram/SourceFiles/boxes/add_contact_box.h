@@ -191,6 +191,7 @@ private:
 	MTP::Sender _api;
 
 	bool _existing = false;
+	bool _creatingInviteLink = false;
 
 	std::shared_ptr<Ui::RadioenumGroup<Privacy>> _privacyGroup;
 	object_ptr<Ui::Radioenum<Privacy>> _public;

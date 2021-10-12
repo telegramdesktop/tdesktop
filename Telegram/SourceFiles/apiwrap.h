@@ -202,7 +202,7 @@ public:
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
-	void importChatInvite(const QString &hash);
+	void importChatInvite(const QString &hash, bool isGroup);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -269,10 +269,6 @@ public:
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);
-
-	base::Observable<PeerData*> &fullPeerUpdated() {
-		return _fullPeerUpdated;
-	}
 
 	bool isQuitPrevent();
 
@@ -662,8 +658,6 @@ private:
 
 	std::unique_ptr<TaskQueue> _fileLoader;
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
-
-	base::Observable<PeerData*> _fullPeerUpdated;
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
@@ -63,12 +64,12 @@ Controller::Controller(
 , _chat(chat)
 , _chats(std::move(chats))
 , _callback(std::move(callback)) {
-	base::ObservableViewer(
-		channel->session().api().fullPeerUpdated()
-	) | rpl::start_with_next([=](PeerData *peer) {
-		if (peer == _waitForFull) {
-			choose(std::exchange(_waitForFull, nullptr));
-		}
+	channel->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::FullInfo
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer == _waitForFull);
+	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		choose(std::exchange(_waitForFull, nullptr));
 	}, lifetime());
 }
 

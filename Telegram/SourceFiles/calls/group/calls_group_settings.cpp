@@ -584,7 +584,12 @@ void SettingsBox(
 			}
 			return false;
 		};
-		if (!lookupLink().isEmpty() || canCreateLink()) {
+		const auto alreadyHasLink = !lookupLink().isEmpty();
+		if (alreadyHasLink || canCreateLink()) {
+			if (!alreadyHasLink) {
+				// Request invite link.
+				peer->session().api().requestFullPeer(peer);
+			}
 			const auto copyLink = [=] {
 				const auto link = lookupLink();
 				if (link.isEmpty()) {

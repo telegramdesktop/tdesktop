@@ -2272,6 +2272,7 @@ void ComposeControls::initWebpageProcess() {
 		Data::PeerUpdate::Flag::Rights
 		| Data::PeerUpdate::Flag::Notifications
 		| Data::PeerUpdate::Flag::MessagesTTL
+		| Data::PeerUpdate::Flag::FullInfo
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -2288,16 +2289,11 @@ void ComposeControls::initWebpageProcess() {
 		if (flags & Data::PeerUpdate::Flag::MessagesTTL) {
 			updateMessagesTTLShown();
 		}
-	}, lifetime);
-
-	base::ObservableViewer(
-		session().api().fullPeerUpdated()
-	) | rpl::filter([=](PeerData *peer) {
-		return _history && (_history->peer == peer);
-	}) | rpl::start_with_next([=] {
-		if (updateBotCommandShown()) {
-			updateControlsVisibility();
-			updateControlsGeometry(_wrap->size());
+		if (flags & Data::PeerUpdate::Flag::FullInfo) {
+			if (updateBotCommandShown()) {
+				updateControlsVisibility();
+				updateControlsGeometry(_wrap->size());
+			}
 		}
 	}, lifetime);
 

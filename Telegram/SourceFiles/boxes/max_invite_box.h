@@ -32,6 +32,7 @@ private:
 
 	QRect _invitationLink;
 	bool _linkOver = false;
+	bool _creatingInviteLink = false;
 
 	QPoint _lastMousePos;
 

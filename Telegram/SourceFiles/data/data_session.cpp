@@ -348,7 +348,7 @@ PeerData *Session::peerLoaded(PeerId id) const {
 	const auto i = _peers.find(id);
 	if (i == end(_peers)) {
 		return nullptr;
-	} else if (!i->second->isFullLoaded()) {
+	} else if (!i->second->isLoaded()) {
 		return nullptr;
 	}
 	return i->second.get();
@@ -556,9 +556,9 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (!result->isMinimalLoaded()) {
 			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
 		}
-	} else if (!result->isFullLoaded()
+	} else if (!result->isLoaded()
 		&& (!result->isSelf() || !result->phone().isEmpty())) {
-		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 
 	if (status && !minimal) {
@@ -680,7 +680,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto channel = result->asChannel();
 
 		minimal = data.is_min();
-		if (minimal && !result->isFullLoaded()) {
+		if (minimal && !result->isLoaded()) {
 			LOG(("API Warning: not loaded minimal channel applied."));
 		}
 
@@ -825,8 +825,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (!result->isMinimalLoaded()) {
 			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
 		}
-	} else if (!result->isFullLoaded()) {
-		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+	} else if (!result->isLoaded()) {
+		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
@@ -1171,7 +1171,7 @@ void Session::setupUserIsContactViewer() {
 				requestViewResize(view);
 			}
 		}
-		if (!user->isFullLoaded()) {
+		if (!user->isLoaded()) {
 			LOG(("API Error: "
 				"userIsContactChanged() called for a not loaded user!"));
 			return;

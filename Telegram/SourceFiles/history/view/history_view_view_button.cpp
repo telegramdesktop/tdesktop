@@ -57,6 +57,9 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		? tr::lng_view_button_background(tr::now)
 		: (type == WebPageType::Channel)
 		? tr::lng_view_button_channel(tr::now)
+		: (type == WebPageType::GroupWithRequest
+			|| type == WebPageType::ChannelWithRequest)
+		? tr::lng_view_button_request_join(tr::now)
 		: (type == WebPageType::VoiceChat)
 		? tr::lng_view_button_voice_chat(tr::now)
 		: (type == WebPageType::Livestream)

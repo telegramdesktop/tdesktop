@@ -64,38 +64,39 @@ struct PeerUpdate {
 		ChatThemeEmoji    = (1ULL << 7),
 		IsBlocked         = (1ULL << 8),
 		MessagesTTL       = (1ULL << 9),
+		FullInfo          = (1ULL << 10),
 
 		// For users
-		CanShareContact   = (1ULL << 10),
-		IsContact         = (1ULL << 11),
-		PhoneNumber       = (1ULL << 12),
-		OnlineStatus      = (1ULL << 13),
-		BotCommands       = (1ULL << 14),
-		BotCanBeInvited   = (1ULL << 15),
-		BotStartToken     = (1ULL << 16),
-		CommonChats       = (1ULL << 17),
-		HasCalls          = (1ULL << 18),
-		SupportInfo       = (1ULL << 19),
-		IsBot             = (1ULL << 20),
+		CanShareContact   = (1ULL << 11),
+		IsContact         = (1ULL << 12),
+		PhoneNumber       = (1ULL << 13),
+		OnlineStatus      = (1ULL << 14),
+		BotCommands       = (1ULL << 15),
+		BotCanBeInvited   = (1ULL << 16),
+		BotStartToken     = (1ULL << 17),
+		CommonChats       = (1ULL << 18),
+		HasCalls          = (1ULL << 19),
+		SupportInfo       = (1ULL << 20),
+		IsBot             = (1ULL << 21),
 
 		// For chats and channels
-		InviteLinks       = (1ULL << 21),
-		Members           = (1ULL << 22),
-		Admins            = (1ULL << 23),
-		BannedUsers       = (1ULL << 24),
-		Rights            = (1ULL << 25),
-		PendingRequests   = (1ULL << 26),
+		InviteLinks       = (1ULL << 22),
+		Members           = (1ULL << 23),
+		Admins            = (1ULL << 24),
+		BannedUsers       = (1ULL << 25),
+		Rights            = (1ULL << 26),
+		PendingRequests   = (1ULL << 27),
 
 		// For channels
-		ChannelAmIn       = (1ULL << 27),
-		StickersSet       = (1ULL << 28),
-		ChannelLinkedChat = (1ULL << 29),
-		ChannelLocation   = (1ULL << 30),
-		Slowmode          = (1ULL << 31),
-		GroupCall         = (1ULL << 32),
+		ChannelAmIn       = (1ULL << 28),
+		StickersSet       = (1ULL << 29),
+		ChannelLinkedChat = (1ULL << 30),
+		ChannelLocation   = (1ULL << 31),
+		Slowmode          = (1ULL << 32),
+		GroupCall         = (1ULL << 33),
 
 		// For iteration
-		LastUsedBit       = (1ULL << 32),
+		LastUsedBit       = (1ULL << 33),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

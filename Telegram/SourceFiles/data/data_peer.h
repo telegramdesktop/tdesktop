@@ -440,6 +440,7 @@ public:
 	enum class LoadedStatus : char {
 		Not,
 		Minimal,
+		Normal,
 		Full,
 	};
 	[[nodiscard]] LoadedStatus loadedStatus() const {
@@ -447,6 +448,9 @@ public:
 	}
 	[[nodiscard]] bool isMinimalLoaded() const {
 		return (loadedStatus() != LoadedStatus::Not);
+	}
+	[[nodiscard]] bool isLoaded() const {
+		return (loadedStatus() == LoadedStatus::Normal) || isFullLoaded();
 	}
 	[[nodiscard]] bool isFullLoaded() const {
 		return (loadedStatus() == LoadedStatus::Full);

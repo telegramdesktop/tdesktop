@@ -38,11 +38,12 @@ void CheckChatInvite(
 			if (!strongController) {
 				return;
 			}
+			const auto isGroup = !data.is_broadcast();
 			const auto box = strongController->show(Box<ConfirmInviteBox>(
 				session,
 				data,
 				invitePeekChannel,
-				[=] { session->api().importChatInvite(hash); }));
+				[=] { session->api().importChatInvite(hash, isGroup); }));
 			if (invitePeekChannel) {
 				box->boxClosing(
 				) | rpl::filter([=] {
@@ -104,7 +105,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 , _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
 , _participants(GetParticipants(_session, data))
-, _isChannel(data.is_channel() && !data.is_megagroup()) {
+, _isChannel(data.is_channel() && !data.is_megagroup())
+, _requestApprove(data.is_request_needed()) {
 	const auto title = qs(data.vtitle());
 	const auto count = data.vparticipants_count().v;
 	const auto status = [&] {
@@ -166,7 +168,9 @@ auto ConfirmInviteBox::GetParticipants(
 
 void ConfirmInviteBox::prepare() {
 	addButton(
-		(_isChannel
+		(_requestApprove
+			? tr::lng_group_request_to_join()
+			: _isChannel
 			? tr::lng_profile_join_channel()
 			: tr::lng_profile_join_group()),
 		_submit);

@@ -746,6 +746,7 @@ void GroupInfoBox::createChannel(
 						channel,
 						std::move(image));
 				}
+				channel->session().api().requestFullPeer(channel);
 				_createdChannel = channel;
 				checkInviteLink();
 			};
@@ -772,12 +773,19 @@ void GroupInfoBox::checkInviteLink() {
 
 	if (!_createdChannel->inviteLink().isEmpty()) {
 		channelReady();
-		return;
+	} else if (_createdChannel->isFullLoaded() && !_creatingInviteLink) {
+		_creatingInviteLink = true;
+		_createdChannel->session().api().inviteLinks().create(
+			_createdChannel,
+			crl::guard(this, [=](auto&&) { channelReady(); }));
+	} else {
+		_createdChannel->session().changes().peerUpdates(
+			_createdChannel,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			checkInviteLink();
+		}, lifetime());
 	}
-	_creatingInviteLink = true;
-	_createdChannel->session().api().inviteLinks().create(
-		_createdChannel,
-		crl::guard(this, [=](auto&&) { channelReady(); }));
 }
 
 void GroupInfoBox::channelReady() {
@@ -870,6 +878,10 @@ SetupChannelBox::SetupChannelBox(
 
 void SetupChannelBox::prepare() {
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
+
+	if (_channel->inviteLink().isEmpty()) {
+		_channel->session().api().requestFullPeer(_channel);
+	}
 
 	setMouseTracking(true);
 
@@ -1068,13 +1080,14 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
-	if (_linkOver) {
-		if (_channel->inviteLink().isEmpty()) {
-			_channel->session().api().inviteLinks().create(_channel);
-		} else {
-			QGuiApplication::clipboard()->setText(_channel->inviteLink());
-			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
-		}
+	if (!_linkOver) {
+		return;
+	} else if (!_channel->inviteLink().isEmpty()) {
+		QGuiApplication::clipboard()->setText(_channel->inviteLink());
+		Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
+	} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
+		_creatingInviteLink = true;
+		_channel->session().api().inviteLinks().create(_channel);
 	}
 }
 
