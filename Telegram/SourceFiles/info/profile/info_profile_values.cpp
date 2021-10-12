@@ -239,6 +239,25 @@ rpl::producer<int> MembersCountValue(not_null<PeerData*> peer) {
 	Unexpected("User in MembersCountViewer().");
 }
 
+rpl::producer<int> PendingRequestsCountValue(not_null<PeerData*> peer) {
+	if (const auto chat = peer->asChat()) {
+		return peer->session().changes().peerFlagsValue(
+			peer,
+			UpdateFlag::PendingRequests
+		) | rpl::map([=] {
+			return chat->pendingRequestsCount();
+		});
+	} else if (const auto channel = peer->asChannel()) {
+		return peer->session().changes().peerFlagsValue(
+			peer,
+			UpdateFlag::PendingRequests
+		) | rpl::map([=] {
+			return channel->pendingRequestsCount();
+		});
+	}
+	Unexpected("User in MembersCountViewer().");
+}
+
 rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 	if (const auto chat = peer->asChat()) {
 		return peer->session().changes().peerFlagsValue(

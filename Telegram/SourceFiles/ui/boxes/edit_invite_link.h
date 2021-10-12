@@ -15,6 +15,8 @@ struct InviteLinkFields {
 	QString link;
 	TimeId expireDate = 0;
 	int usageLimit = 0;
+	bool requestApproval = false;
+	bool isGroup = false;
 };
 
 void EditInviteLinkBox(
@@ -24,6 +26,7 @@ void EditInviteLinkBox(
 
 void CreateInviteLinkBox(
 	not_null<Ui::GenericBox*> box,
+	bool isGroup,
 	Fn<void(InviteLinkFields)> done);
 
 } // namespace Ui

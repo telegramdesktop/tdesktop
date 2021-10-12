@@ -345,6 +345,7 @@ infoProfileSeparatorPadding: margins(
 infoIconFg: menuIconFg;
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info/edit/group_manage_members", infoIconFg, point(-2px, 0px) }};
+infoIconRequests: icon {{ "info/edit/group_manage_requests", infoIconFg, point(-2px, 0px) }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};

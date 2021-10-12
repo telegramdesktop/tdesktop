@@ -146,6 +146,9 @@ void ChatData::setAdminRights(ChatAdminRights rights) {
 		return;
 	}
 	_adminRights.set(rights);
+	if (!canHaveInviteLink()) {
+		setPendingRequestsCount(0);
+	}
 	session().changes().peerUpdated(
 		this,
 		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
@@ -255,6 +258,13 @@ void ChatData::setBotCommands(
 		const MTPVector<MTPBotCommand> &data) {
 	if (Data::UpdateBotCommands(_botCommands, botId, data)) {
 		owner().botCommandsChanged(this);
+	}
+}
+
+void ChatData::setPendingRequestsCount(int count) {
+	if (_pendingRequestsCount != count) {
+		_pendingRequestsCount = count;
+		session().changes().peerUpdated(this, UpdateFlag::PendingRequests);
 	}
 }
 
@@ -431,6 +441,8 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	chat->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	chat->fullUpdated();
 	chat->setAbout(qs(update.vabout()));
+	chat->setPendingRequestsCount(
+		update.vrequests_pending().value_or_empty());
 
 	chat->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(chat->input),

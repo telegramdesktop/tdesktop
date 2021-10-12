@@ -19,6 +19,7 @@ struct InviteLink {
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	int usage = 0;
+	bool requestApproval = false;
 	bool permanent = false;
 	bool revoked = false;
 };
@@ -61,13 +62,15 @@ public:
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done = nullptr,
 		TimeId expireDate = 0,
-		int usageLimit = 0);
+		int usageLimit = 0,
+		bool requestApproval = false);
 	void edit(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link,
 		TimeId expireDate,
 		int usageLimit,
+		bool requestApproval,
 		Fn<void(Link)> done = nullptr);
 	void revoke(
 		not_null<PeerData*> peer,
@@ -164,13 +167,15 @@ private:
 		Fn<void(Link)> done,
 		bool revoke,
 		TimeId expireDate = 0,
-		int usageLimit = 0);
+		int usageLimit = 0,
+		bool requestApproval = false);
 	void performCreate(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done,
 		bool revokeLegacyPermanent,
 		TimeId expireDate = 0,
-		int usageLimit = 0);
+		int usageLimit = 0,
+		bool requestApproval = false);
 
 	void requestJoinedFirstSlice(LinkKey key);
 	[[nodiscard]] std::optional<JoinedByLinkSlice> lookupJoinedFirstSlice(

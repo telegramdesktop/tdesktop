@@ -312,6 +312,11 @@ TextWithEntities GenerateInviteLinkChangeText(
 			return data.vusage_limit().value_or_empty();
 		});
 	};
+	const auto requestApproval = [](const MTPExportedChatInvite &link) {
+		return link.match([](const MTPDchatInviteExported &data) {
+			return data.is_request_needed();
+		});
+	};
 	const auto wrapDate = [](TimeId date) {
 		return date
 			? langDateTime(base::unixtime::parse(date))
@@ -326,11 +331,16 @@ TextWithEntities GenerateInviteLinkChangeText(
 	const auto nowExpireDate = expireDate(newLink);
 	const auto wasUsageLimit = usageLimit(prevLink);
 	const auto nowUsageLimit = usageLimit(newLink);
+	const auto wasRequestApproval = requestApproval(prevLink);
+	const auto nowRequestApproval = requestApproval(newLink);
 	if (wasExpireDate != nowExpireDate) {
 		result.text.append('\n').append(tr::lng_admin_log_invite_link_expire_date(tr::now, lt_previous, wrapDate(wasExpireDate), lt_limit, wrapDate(nowExpireDate)));
 	}
 	if (wasUsageLimit != nowUsageLimit) {
 		result.text.append('\n').append(tr::lng_admin_log_invite_link_usage_limit(tr::now, lt_previous, wrapUsage(wasUsageLimit), lt_limit, wrapUsage(nowUsageLimit)));
+	}
+	if (wasRequestApproval != nowRequestApproval) {
+		result.text.append('\n').append(nowRequestApproval ? tr::lng_admin_log_invite_link_request_needed(tr::now) : tr::lng_admin_log_invite_link_request_not_needed(tr::now));
 	}
 
 	result.entities.push_front(EntityInText(EntityType::Italic, 0, result.text.size()));

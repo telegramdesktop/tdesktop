@@ -164,6 +164,11 @@ public:
 		return _botCommands;
 	}
 
+	[[nodiscard]] int pendingRequestsCount() const {
+		return _pendingRequestsCount;
+	}
+	void setPendingRequestsCount(int count);
+
 	// Still public data members.
 	const MTPlong inputChat;
 
@@ -185,6 +190,7 @@ private:
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
 	int _version = 0;
+	int _pendingRequestsCount = 0;
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;

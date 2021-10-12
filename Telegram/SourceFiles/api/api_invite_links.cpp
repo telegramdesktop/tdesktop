@@ -70,8 +70,15 @@ void InviteLinks::create(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done,
 		TimeId expireDate,
-		int usageLimit) {
-	performCreate(peer, std::move(done), false, expireDate, usageLimit);
+		int usageLimit,
+		bool requestApproval) {
+	performCreate(
+		peer,
+		std::move(done),
+		false,
+		expireDate,
+		usageLimit,
+		requestApproval);
 }
 
 void InviteLinks::performCreate(
@@ -79,7 +86,8 @@ void InviteLinks::performCreate(
 		Fn<void(Link)> done,
 		bool revokeLegacyPermanent,
 		TimeId expireDate,
-		int usageLimit) {
+		int usageLimit,
+		bool requestApproval) {
 	if (const auto i = _createCallbacks.find(peer)
 		; i != end(_createCallbacks)) {
 		if (done) {
@@ -98,7 +106,8 @@ void InviteLinks::performCreate(
 			? Flag::f_legacy_revoke_permanent
 			: Flag(0))
 			| (expireDate ? Flag::f_expire_date : Flag(0))
-			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
+			| (usageLimit ? Flag::f_usage_limit : Flag(0))
+			| (requestApproval ? Flag::f_request_needed : Flag(0))),
 		peer->input,
 		MTP_int(expireDate),
 		MTP_int(usageLimit)
@@ -201,6 +210,7 @@ void InviteLinks::edit(
 		const QString &link,
 		TimeId expireDate,
 		int usageLimit,
+		bool requestApproval,
 		Fn<void(Link)> done) {
 	performEdit(
 		peer,
@@ -209,7 +219,8 @@ void InviteLinks::edit(
 		std::move(done),
 		false,
 		expireDate,
-		usageLimit);
+		usageLimit,
+		requestApproval);
 }
 
 void InviteLinks::performEdit(
@@ -219,7 +230,8 @@ void InviteLinks::performEdit(
 		Fn<void(Link)> done,
 		bool revoke,
 		TimeId expireDate,
-		int usageLimit) {
+		int usageLimit,
+		bool requestApproval) {
 	const auto key = LinkKey{ peer, link };
 	if (_deleteCallbacks.contains(key)) {
 		return;
@@ -239,12 +251,13 @@ void InviteLinks::performEdit(
 	_api->request(MTPmessages_EditExportedChatInvite(
 		MTP_flags((revoke ? Flag::f_revoked : Flag(0))
 			| (!revoke ? Flag::f_expire_date : Flag(0))
-			| (!revoke ? Flag::f_usage_limit : Flag(0))),
+			| (!revoke ? Flag::f_usage_limit : Flag(0))
+			| (!revoke ? Flag::f_request_needed : Flag(0))),
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
-		MTPbool() // request_needed // #TODO requests
+		MTP_bool(requestApproval)
 	)).done([=](const MTPmessages_ExportedChatInvite &result) {
 		const auto callbacks = _editCallbacks.take(key);
 		const auto peer = key.peer;
@@ -632,6 +645,7 @@ auto InviteLinks::parse(
 			.expireDate = data.vexpire_date().value_or_empty(),
 			.usageLimit = data.vusage_limit().value_or_empty(),
 			.usage = data.vusage().value_or_empty(),
+			.requestApproval = data.is_request_needed(),
 			.permanent = data.is_permanent(),
 			.revoked = data.is_revoked(),
 		};

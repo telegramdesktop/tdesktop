@@ -52,6 +52,7 @@ void EditInviteLinkBox(
 		const InviteLinkFields &data,
 		Fn<void(InviteLinkFields)> done) {
 	const auto link = data.link;
+	const auto isGroup = data.isGroup;
 	box->setTitle(link.isEmpty()
 		? tr::lng_group_invite_new_title()
 		: tr::lng_group_invite_edit_title());
@@ -119,10 +120,12 @@ void EditInviteLinkBox(
 		Buttons usageButtons;
 		int expireValue = 0;
 		int usageValue = 0;
+		rpl::variable<bool> requestApproval = false;
 	};
 	const auto state = box->lifetime().make_state<State>(State{
 		.expireValue = expire,
-		.usageValue = usage
+		.usageValue = usage,
+		.requestApproval = data.requestApproval,
 	});
 	const auto regenerate = [=] {
 		expireGroup->setValue(state->expireValue);
@@ -260,6 +263,24 @@ void EditInviteLinkBox(
 
 	regenerate();
 
+	const auto buttonSkip = st::settingsSectionSkip;
+	const auto requestApproval = container->add(
+		object_ptr<SettingsButton>(
+			container,
+			tr::lng_group_invite_request_approve(),
+			st::settingsButton),
+		style::margins{ 0, buttonSkip, 0, buttonSkip });
+	requestApproval->toggleOn(state->requestApproval.value());
+	state->requestApproval = requestApproval->toggledValue();
+	addDivider(rpl::conditional(
+		state->requestApproval.value(),
+		(isGroup
+			? tr::lng_group_invite_about_approve()
+			: tr::lng_group_invite_about_approve_channel()),
+		(isGroup
+			? tr::lng_group_invite_about_no_approve()
+			: tr::lng_group_invite_about_no_approve_channel())));
+
 	const auto &saveLabel = link.isEmpty()
 		? tr::lng_formatting_link_create
 		: tr::lng_settings_save;
@@ -275,7 +296,9 @@ void EditInviteLinkBox(
 		done(InviteLinkFields{
 			.link = link,
 			.expireDate = expireDate,
-			.usageLimit = usageLimit
+			.usageLimit = usageLimit,
+			.requestApproval = state->requestApproval.current(),
+			.isGroup = isGroup,
 		});
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -283,8 +306,12 @@ void EditInviteLinkBox(
 
 void CreateInviteLinkBox(
 		not_null<GenericBox*> box,
+		bool isGroup,
 		Fn<void(InviteLinkFields)> done) {
-	EditInviteLinkBox(box, InviteLinkFields(), std::move(done));
+	EditInviteLinkBox(
+		box, 
+		InviteLinkFields{ .isGroup = isGroup }, 
+		std::move(done));
 }
 
 } // namespace Ui

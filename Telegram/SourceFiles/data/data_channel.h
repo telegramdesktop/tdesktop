@@ -177,6 +177,11 @@ public:
 	}
 	void setKickedCount(int newKickedCount);
 
+	[[nodiscard]] int pendingRequestsCount() const {
+		return _pendingRequestsCount;
+	}
+	void setPendingRequestsCount(int count);
+
 	[[nodiscard]] bool haveLeft() const {
 		return flags() & Flag::Left;
 	}
@@ -426,6 +431,7 @@ private:
 	int _adminsCount = 1;
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
+	int _pendingRequestsCount = 0;
 	MsgId _availableMinId = 0;
 
 	RestrictionFlags _defaultRestrictions;

@@ -1965,6 +1965,18 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updatePendingJoinRequests: {
+		const auto &d = update.c_updatePendingJoinRequests();
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
+			const auto count = d.vrequests_pending().v;
+			if (const auto chat = peer->asChat()) {
+				chat->setPendingRequestsCount(count);
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setPendingRequestsCount(count);
+			}
+		}
+	} break;
+
 	case mtpc_updateServiceNotification: {
 		const auto &d = update.c_updateServiceNotification();
 		const auto text = TextWithEntities {

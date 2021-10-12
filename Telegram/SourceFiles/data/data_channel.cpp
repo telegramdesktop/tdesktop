@@ -195,6 +195,13 @@ void ChannelData::setKickedCount(int newKickedCount) {
 	}
 }
 
+void ChannelData::setPendingRequestsCount(int count) {
+	if (_pendingRequestsCount != count) {
+		_pendingRequestsCount = count;
+		session().changes().peerUpdated(this, UpdateFlag::PendingRequests);
+	}
+}
+
 ChatRestrictionsInfo ChannelData::KickedRestrictedRights(
 		not_null<PeerData*> participant) {
 	using Flag = ChatRestriction;
@@ -542,6 +549,9 @@ void ChannelData::setAdminRights(ChatAdminRights rights) {
 		return;
 	}
 	_adminRights.set(rights);
+	if (!canHaveInviteLink()) {
+		setPendingRequestsCount(0);
+	}
 	if (isMegagroup()) {
 		const auto self = session().user();
 		if (hasAdminRights()) {
@@ -874,6 +884,8 @@ void ApplyChannelUpdate(
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->fullUpdated();
+	channel->setPendingRequestsCount(
+		update.vrequests_pending().value_or_empty());
 
 	if (canViewAdmins != channel->canViewAdmins()
 		|| canViewMembers != channel->canViewMembers()) {

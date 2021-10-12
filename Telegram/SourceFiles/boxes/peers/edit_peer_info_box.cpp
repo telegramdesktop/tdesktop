@@ -297,6 +297,7 @@ private:
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
+	void fillPendingRequestsButton();
 
 	void submitTitle();
 	void submitDescription();
@@ -845,6 +846,8 @@ void Controller::fillHistoryVisibilityButton() {
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
+	using namespace rpl::mappers;
+
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	const auto isChannel = (!chat);
@@ -1042,6 +1045,9 @@ void Controller::fillManageSection() {
 			},
 			st::infoIconMembers);
 	}
+
+	fillPendingRequestsButton();
+
 	if (canViewKicked) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
@@ -1087,6 +1093,42 @@ void Controller::fillManageSection() {
 			[=]{ deleteWithConfirmation(); }
 		);
 	}
+}
+
+void Controller::fillPendingRequestsButton() {
+	auto pendingRequestsCount = Info::Profile::MigratedOrMeValue(
+		_peer
+	) | rpl::map(
+		Info::Profile::PendingRequestsCountValue
+	) | rpl::flatten_latest(
+	) | rpl::start_spawning(_controls.buttonsLayout->lifetime());
+	const auto wrap = _controls.buttonsLayout->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_controls.buttonsLayout,
+			object_ptr<Ui::VerticalLayout>(
+				_controls.buttonsLayout)));
+	AddButtonWithCount(
+		wrap->entity(),
+		(_isGroup
+			? tr::lng_manage_peer_requests()
+			: tr::lng_manage_peer_requests_channel()),
+		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
+		[=] {
+			_navigation->parentController()->show(
+				Box( // #TODO requests
+					ManageInviteLinksBox,
+					_peer,
+					_peer->session().user(),
+					0,
+					0),
+				Ui::LayerOption::KeepOther);
+		},
+		st::infoIconRequests);
+	std::move(
+		pendingRequestsCount
+	) | rpl::start_with_next([=](int count) {
+		wrap->toggle(count > 0, anim::type::instant);
+	}, wrap->lifetime());
 }
 
 void Controller::submitTitle() {

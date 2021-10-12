@@ -943,7 +943,8 @@ void EditLink(
 				peer,
 				finish,
 				result.expireDate,
-				result.usageLimit);
+				result.usageLimit,
+				result.requestApproval);
 		} else {
 			peer->session().api().inviteLinks().edit(
 				peer,
@@ -951,18 +952,22 @@ void EditLink(
 				result.link,
 				result.expireDate,
 				result.usageLimit,
+				result.requestApproval,
 				finish);
 		}
 	};
+	const auto isGroup = !peer->isBroadcast();
 	*box = Ui::show(
 		(creating
-			? Box(Ui::CreateInviteLinkBox, done)
+			? Box(Ui::CreateInviteLinkBox, isGroup, done)
 			: Box(
 				Ui::EditInviteLinkBox,
 				Fields{
 					.link = data.link,
 					.expireDate = data.expireDate,
-					.usageLimit = data.usageLimit
+					.usageLimit = data.usageLimit,
+					.requestApproval = data.requestApproval,
+					.isGroup = isGroup,
 				},
 				done)),
 		Ui::LayerOption::KeepOther);
