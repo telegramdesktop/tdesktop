@@ -57,7 +57,7 @@ if not os.path.isdir(thirdPartyDir + '/' + keysLoc):
 
 pathPrefixes = [
     'ThirdParty\\Strawberry\\perl\\bin',
-    'ThirdParty\\Python27',
+    'ThirdParty\\Python39',
     'ThirdParty\\NASM',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
