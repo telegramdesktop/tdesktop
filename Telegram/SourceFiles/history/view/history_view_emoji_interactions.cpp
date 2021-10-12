@@ -46,9 +46,12 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 : _session(session) {
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
-		return !_plays.empty();
+		return !_plays.empty() || !_delayed.empty();
 	}) | rpl::start_with_next([=](not_null<const Element*> view) {
 		_plays.erase(ranges::remove(_plays, view, &Play::view), end(_plays));
+		_delayed.erase(
+			ranges::remove(_delayed, view, &Delayed::view),
+			end(_delayed));
 	}, _lifetime);
 
 	_emojiSize = Sticker::EmojiSize();
