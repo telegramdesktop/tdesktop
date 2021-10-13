@@ -228,7 +228,7 @@ void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-void BlockedBoxController::rowActionClicked(not_null<PeerListRow*> row) {
+void BlockedBoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	session().api().blockedPeers().unblock(row->peer());
 }
 

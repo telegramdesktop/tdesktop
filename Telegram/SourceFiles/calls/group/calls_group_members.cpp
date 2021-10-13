@@ -65,7 +65,7 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
@@ -1159,7 +1159,7 @@ void Members::Controller::showRowMenu(
 	delegate()->peerListShowRowMenu(row, highlightRow, cleanup);
 }
 
-void Members::Controller::rowActionClicked(
+void Members::Controller::rowRightActionClicked(
 		not_null<PeerListRow*> row) {
 	showRowMenu(row, true);
 }

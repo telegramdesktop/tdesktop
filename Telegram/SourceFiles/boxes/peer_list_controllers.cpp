@@ -136,11 +136,11 @@ void PeerListRowWithLink::lazyInitialize(const style::PeerListItem &st) {
 	refreshActionLink();
 }
 
-QSize PeerListRowWithLink::actionSize() const {
+QSize PeerListRowWithLink::rightActionSize() const {
 	return QSize(_actionWidth, st::normalFont->height);
 }
 
-QMargins PeerListRowWithLink::actionMargins() const {
+QMargins PeerListRowWithLink::rightActionMargins() const {
 	return QMargins(
 		st::contactsCheckPosition.x(),
 		(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom() - st::normalFont->height) / 2,
@@ -148,7 +148,7 @@ QMargins PeerListRowWithLink::actionMargins() const {
 		0);
 }
 
-void PeerListRowWithLink::paintAction(
+void PeerListRowWithLink::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,

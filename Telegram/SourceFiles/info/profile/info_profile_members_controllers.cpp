@@ -37,7 +37,7 @@ void MemberListRow::setType(Type type) {
 	_type = type;
 }
 
-QSize MemberListRow::actionSize() const {
+QSize MemberListRow::rightActionSize() const {
 	return canRemove()
 		? QRect(
 			QPoint(),
@@ -46,7 +46,7 @@ QSize MemberListRow::actionSize() const {
 		: QSize();
 }
 
-void MemberListRow::paintAction(
+void MemberListRow::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,

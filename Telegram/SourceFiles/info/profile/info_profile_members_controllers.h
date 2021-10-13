@@ -31,8 +31,8 @@ public:
 	MemberListRow(not_null<UserData*> user, Type type);
 
 	void setType(Type type);
-	QSize actionSize() const override;
-	void paintAction(
+	QSize rightActionSize() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,

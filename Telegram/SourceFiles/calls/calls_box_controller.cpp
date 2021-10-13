@@ -102,23 +102,25 @@ public:
 		int availableWidth,
 		int outerWidth,
 		bool selected) override;
-	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
-	void stopLastActionRipple() override;
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
 
 	int nameIconWidth() const override {
 		return 0;
 	}
-	QSize actionSize() const override {
+	QSize rightActionSize() const override {
 		return peer()->isUser() ? QSize(_st->width, _st->height) : QSize();
 	}
-	QMargins actionMargins() const override {
+	QMargins rightActionMargins() const override {
 		return QMargins(
 			0,
 			0,
 			st::defaultPeerListItem.photoPosition.x(),
 			0);
 	}
-	void paintAction(
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -168,14 +170,14 @@ void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &
 	PeerListRow::paintStatusText(p, st, x, y, availableWidth, outerWidth, selected);
 }
 
-void BoxController::Row::paintAction(
+void BoxController::Row::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	auto size = actionSize();
+	auto size = rightActionSize();
 	if (_actionRipple) {
 		_actionRipple->paint(
 			p,
@@ -243,7 +245,7 @@ BoxController::Row::CallType BoxController::Row::ComputeCallType(
 	return CallType::Voice;
 }
 
-void BoxController::Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
+void BoxController::Row::rightActionAddRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
 		auto mask = Ui::RippleAnimation::ellipseMask(
 			QSize(_st->rippleAreaSize, _st->rippleAreaSize));
@@ -255,7 +257,7 @@ void BoxController::Row::addActionRipple(QPoint point, Fn<void()> updateCallback
 	_actionRipple->add(point - _st->rippleAreaPosition);
 }
 
-void BoxController::Row::stopLastActionRipple() {
+void BoxController::Row::rightActionStopLastRipple() {
 	if (_actionRipple) {
 		_actionRipple->lastStop();
 	}
@@ -379,7 +381,7 @@ void BoxController::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
+void BoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 

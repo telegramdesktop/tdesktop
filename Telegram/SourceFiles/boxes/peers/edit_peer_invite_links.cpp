@@ -91,9 +91,9 @@ public:
 	QString generateShortName() override;
 	PaintRoundImageCallback generatePaintUserpicCallback() override;
 
-	QSize actionSize() const override;
-	QMargins actionMargins() const override;
-	void paintAction(
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -337,21 +337,21 @@ PaintRoundImageCallback Row::generatePaintUserpicCallback() {
 	};
 }
 
-QSize Row::actionSize() const {
+QSize Row::rightActionSize() const {
 	return QSize(
 		st::inviteLinkThreeDotsIcon.width(),
 		st::inviteLinkThreeDotsIcon.height());
 }
 
-QMargins Row::actionMargins() const {
+QMargins Row::rightActionMargins() const {
 	return QMargins(
 		0,
-		(st::inviteLinkList.item.height - actionSize().height()) / 2,
+		(st::inviteLinkList.item.height - rightActionSize().height()) / 2,
 		st::inviteLinkThreeDotsSkip,
 		0);
 }
 
-void Row::paintAction(
+void Row::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -381,7 +381,7 @@ public:
 	void prepare() override;
 	void loadMoreRows() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
@@ -545,7 +545,7 @@ void LinksController::rowClicked(not_null<PeerListRow*> row) {
 	ShowInviteLinkBox(_peer, static_cast<Row*>(row.get())->data());
 }
 
-void LinksController::rowActionClicked(not_null<PeerListRow*> row) {
+void LinksController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListShowRowMenu(row, true);
 }
 

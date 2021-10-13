@@ -61,9 +61,9 @@ class RequestedRow final : public PeerListRow {
 public:
 	explicit RequestedRow(not_null<PeerData*> peer);
 
-	QSize actionSize() const override;
-	QMargins actionMargins() const override;
-	void paintAction(
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -77,21 +77,21 @@ RequestedRow::RequestedRow(not_null<PeerData*> peer)
 : PeerListRow(peer) {
 }
 
-QSize RequestedRow::actionSize() const {
+QSize RequestedRow::rightActionSize() const {
 	return QSize(
 		st::inviteLinkThreeDotsIcon.width(),
 		st::inviteLinkThreeDotsIcon.height());
 }
 
-QMargins RequestedRow::actionMargins() const {
+QMargins RequestedRow::rightActionMargins() const {
 	return QMargins(
 		0,
-		(st::inviteLinkList.item.height - actionSize().height()) / 2,
+		(st::inviteLinkList.item.height - rightActionSize().height()) / 2,
 		st::inviteLinkThreeDotsSkip,
 		0);
 }
 
-void RequestedRow::paintAction(
+void RequestedRow::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -120,7 +120,7 @@ public:
 	void prepare() override;
 	void loadMoreRows() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	Main::Session &session() const override;
 
 	rpl::producer<int> boxHeightValue() const override;
@@ -712,7 +712,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	Ui::showPeerProfile(row->peer());
 }
 
-void Controller::rowActionClicked(not_null<PeerListRow*> row) {
+void Controller::rowRightActionClicked(not_null<PeerListRow*> row) {
 	if (_role != Role::Requested) {
 		return;
 	}

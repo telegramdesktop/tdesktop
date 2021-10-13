@@ -519,6 +519,55 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 	_name.setText(st.nameStyle, text, Ui::NameTextOptions());
 }
 
+QRect PeerListRow::elementGeometry(int element, int outerWidth) const {
+	if (element != 1) {
+		return QRect();
+	}
+	const auto size = rightActionSize();
+	if (size.isEmpty()) {
+		return QRect();
+	}
+	const auto margins = rightActionMargins();
+	const auto right = margins.right();
+	const auto top = margins.top();
+	const auto left = outerWidth - right - size.width();
+	return QRect(QPoint(left, top), size);
+}
+
+bool PeerListRow::elementDisabled(int element) const {
+	return (element == 1) && rightActionDisabled();
+}
+
+void PeerListRow::elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	if (element == 1) {
+		rightActionAddRipple(point, std::move(updateCallback));
+	}
+}
+
+void PeerListRow::elementsStopLastRipple() {
+	rightActionStopLastRipple();
+}
+
+void PeerListRow::elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) {
+	const auto geometry = elementGeometry(1, outerWidth);
+	if (!geometry.isEmpty()) {
+		rightActionPaint(
+			p,
+			geometry.x(),
+			geometry.y(),
+			outerWidth,
+			selected,
+			(selectedElement == 1));
+	}
+}
+
 QString PeerListRow::generateName() {
 	return peer()->name;
 }
@@ -1273,11 +1322,16 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 		auto updateCallback = [this, row, hint = _selected.index] {
 			updateRow(row, hint);
 		};
-		if (_selected.action) {
-			auto actionRect = getActiveActionRect(row, _selected.index);
-			if (!actionRect.isEmpty()) {
-				auto point = mapFromGlobal(QCursor::pos()) - actionRect.topLeft();
-				row->addActionRipple(point, std::move(updateCallback));
+		if (_selected.element) {
+			const auto elementRect = getElementRect(
+				row,
+				_selected.index,
+				_selected.element);
+			if (!elementRect.isEmpty()) {
+				row->elementAddRipple(
+					_selected.element,
+					mapFromGlobal(QCursor::pos()) - elementRect.topLeft(),
+					std::move(updateCallback));
 			}
 		} else {
 			auto point = mapFromGlobal(QCursor::pos()) - QPoint(0, getRowTop(_selected.index));
@@ -1309,8 +1363,8 @@ void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 	setPressed(Selected());
 	if (button == Qt::LeftButton && pressed == _selected) {
 		if (auto row = getRow(pressed.index)) {
-			if (pressed.action) {
-				_controller->rowActionClicked(row);
+			if (pressed.element) {
+				_controller->rowElementClicked(row, pressed.element);
 			} else {
 				_controller->rowClicked(row);
 			}
@@ -1387,9 +1441,11 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void PeerListContent::setPressed(Selected pressed) {
-	if (auto row = getRow(_pressed.index)) {
+	if (_pressed == pressed) {
+		return;
+	} else if (const auto row = getRow(_pressed.index)) {
 		row->stopLastRipple();
-		row->stopLastActionRipple();
+		row->elementsStopLastRipple();
 	}
 	_pressed = pressed;
 }
@@ -1402,6 +1458,7 @@ crl::time PeerListContent::paintRow(
 	Assert(row != nullptr);
 
 	row->lazyInitialize(_st.item);
+	const auto outerWidth = width();
 
 	auto refreshStatusAt = row->refreshStatusTime();
 	if (refreshStatusAt > 0 && now >= refreshStatusAt) {
@@ -1419,7 +1476,6 @@ crl::time PeerListContent::paintRow(
 		? _pressed
 		: _selected;
 	const auto selected = (active.index == index);
-	const auto actionSelected = (selected && active.action);
 
 	if (_mode == Mode::Custom) {
 		_controller->customRowPaint(p, now, row, selected);
@@ -1429,27 +1485,29 @@ crl::time PeerListContent::paintRow(
 	const auto &bg = selected
 		? _st.item.button.textBgOver
 		: _st.item.button.textBg;
-	p.fillRect(0, 0, width(), _rowHeight, bg);
-	row->paintRipple(p, 0, 0, width());
+	p.fillRect(0, 0, outerWidth, _rowHeight, bg);
+	row->paintRipple(p, 0, 0, outerWidth);
 	row->paintUserpic(
 		p,
 		_st.item,
 		_st.item.photoPosition.x(),
 		_st.item.photoPosition.y(),
-		width());
+		outerWidth);
 
 	p.setPen(st::contactsNameFg);
 
 	auto skipRight = _st.item.photoPosition.x();
-	auto actionSize = row->actionSize();
-	auto actionMargins = actionSize.isEmpty() ? QMargins() : row->actionMargins();
+	auto rightActionSize = row->rightActionSize();
+	auto rightActionMargins = rightActionSize.isEmpty()
+		? QMargins()
+		: row->rightActionMargins();
 	auto &name = row->name();
 	auto namex = _st.item.namePosition.x();
-	auto namew = width() - namex - skipRight;
-	if (!actionSize.isEmpty()) {
-		namew -= actionMargins.left()
-			+ actionSize.width()
-			+ actionMargins.right()
+	auto namew = outerWidth - namex - skipRight;
+	if (!rightActionSize.isEmpty()) {
+		namew -= rightActionMargins.left()
+			+ rightActionSize.width()
+			+ rightActionMargins.right()
 			- skipRight;
 	}
 	auto statusw = namew;
@@ -1465,20 +1523,6 @@ crl::time PeerListContent::paintRow(
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(_st.item.nameFg, _st.item.nameFgChecked, nameCheckedRatio));
 	name.drawLeftElided(p, namex, _st.item.namePosition.y(), namew, width());
-
-	if (!actionSize.isEmpty()) {
-		auto actionLeft = width()
-			- actionMargins.right()
-			- actionSize.width();
-		auto actionTop = actionMargins.top();
-		row->paintAction(
-			p,
-			actionLeft,
-			actionTop,
-			width(),
-			selected,
-			actionSelected);
-	}
 
 	p.setFont(st::contactsStatusFont);
 	if (row->isSearchResult()
@@ -1508,6 +1552,9 @@ crl::time PeerListContent::paintRow(
 	} else {
 		row->paintStatusText(p, _st.item, _st.item.statusPosition.x(), _st.item.statusPosition.y(), statusw, width(), selected);
 	}
+
+	row->elementsPaint(p, width(), selected, selected ? active.element : 0);
+
 	return refreshStatusIn;
 }
 
@@ -1573,7 +1620,7 @@ PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
 	}
 
 	_selected.index.value = newSelectedIndex;
-	_selected.action = false;
+	_selected.element = 0;
 	if (newSelectedIndex >= 0) {
 		auto top = (newSelectedIndex > 0) ? getRowTop(RowIndex(newSelectedIndex)) : 0;
 		auto bottom = (newSelectedIndex + 1 < rowsCount) ? getRowTop(RowIndex(newSelectedIndex + 1)) : height();
@@ -1798,7 +1845,7 @@ void PeerListContent::setSelected(Selected selected) {
 	}
 	_selected = selected;
 	updateRow(_selected.index);
-	setCursor(_selected.action ? style::cur_pointer : style::cur_default);
+	setCursor(_selected.element ? style::cur_pointer : style::cur_default);
 
 	_selectedIndex = _selected.index.value;
 }
@@ -1859,25 +1906,30 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 					rowsPointY - (selected.index.value * _rowHeight)))) {
 			selected = Selected();
 		} else if (!customMode) {
-			if (getActiveActionRect(row, selected.index).contains(point)) {
-				selected.action = true;
+			for (auto i = 0, count = row->elementsCount(); i != count; ++i) {
+				const auto rect = getElementRect(row, selected.index, i + 1);
+				if (rect.contains(point)) {
+					selected.element = i + 1;
+					break;
+				}
 			}
 		}
 	}
 	setSelected(selected);
 }
 
-QRect PeerListContent::getActiveActionRect(not_null<PeerListRow*> row, RowIndex index) const {
-	auto actionSize = row->actionSize();
-	if (actionSize.isEmpty() || row->actionDisabled()) {
+QRect PeerListContent::getElementRect(
+		not_null<PeerListRow*> row,
+		RowIndex index,
+		int element) const {
+	if (row->elementDisabled(element)) {
 		return QRect();
 	}
-	auto actionMargins = row->actionMargins();
-	auto actionRight = actionMargins.right();
-	auto actionTop = actionMargins.top();
-	auto actionLeft = width() - actionRight - actionSize.width();
-	auto rowTop = getRowTop(index);
-	return myrtlrect(actionLeft, rowTop + actionTop, actionSize.width(), actionSize.height());
+	const auto geometry = row->elementGeometry(element, width());
+	if (geometry.isEmpty()) {
+		return QRect();
+	}
+	return geometry.translated(0, getRowTop(index));
 }
 
 int PeerListContent::rowsTop() const {

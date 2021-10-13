@@ -104,15 +104,16 @@ public:
 		return _raisedHandRating;
 	}
 
-	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
-	void stopLastActionRipple() override;
-
 	void refreshName(const style::PeerListItem &st) override;
 
-	QSize actionSize() const override;
-	bool actionDisabled() const override;
-	QMargins actionMargins() const override;
-	void paintAction(
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
+	QSize rightActionSize() const override;
+	bool rightActionDisabled() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,

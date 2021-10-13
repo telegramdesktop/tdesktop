@@ -47,9 +47,9 @@ public:
 
 private:
 	void refreshActionLink();
-	QSize actionSize() const override;
-	QMargins actionMargins() const override;
-	void paintAction(
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,

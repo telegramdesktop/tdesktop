@@ -47,6 +47,7 @@ using PaintRoundImageCallback = Fn<void(
 	bool respectSavedMessagesChat);
 
 using PeerListRowId = uint64;
+
 class PeerListRow {
 public:
 	enum class State {
@@ -100,20 +101,17 @@ public:
 		int y,
 		int outerWidth,
 		bool selected);
-	virtual QSize actionSize() const {
+
+	virtual QSize rightActionSize() const {
 		return QSize();
 	}
-	virtual bool actionDisabled() const {
-		return false;
-	}
-	virtual QMargins actionMargins() const {
+	virtual QMargins rightActionMargins() const {
 		return QMargins();
 	}
-	virtual void addActionRipple(QPoint point, Fn<void()> updateCallback) {
+	virtual bool rightActionDisabled() const {
+		return false;
 	}
-	virtual void stopLastActionRipple() {
-	}
-	virtual void paintAction(
+	virtual void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -121,6 +119,29 @@ public:
 		bool selected,
 		bool actionSelected) {
 	}
+	virtual void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) {
+	}
+	virtual void rightActionStopLastRipple() {
+	}
+
+	// By default elements code falls back to a simple right action code.
+	virtual int elementsCount() const {
+		return 1;
+	}
+	virtual QRect elementGeometry(int element, int outerWidth) const;
+	virtual bool elementDisabled(int element) const;
+	virtual void elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback);
+	virtual void elementsStopLastRipple();
+	virtual void elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement);
 
 	virtual void refreshName(const style::PeerListItem &st);
 	const Ui::Text::String &name() const {
@@ -405,11 +426,21 @@ public:
 	const style::PeerList &computeListSt() const;
 	const style::MultiSelect &computeSelectSt() const;
 
-	virtual void prepare() = 0;
-	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
 	virtual Main::Session &session() const = 0;
-	virtual void rowActionClicked(not_null<PeerListRow*> row) {
+
+	virtual void prepare() = 0;
+
+	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
+	virtual void rowRightActionClicked(not_null<PeerListRow*> row) {
 	}
+
+	// By default elements code falls back to a simple right action code.
+	virtual void rowElementClicked(not_null<PeerListRow*> row, int element) {
+		if (element == 1) {
+			rowRightActionClicked(row);
+		}
+	}
+
 	virtual void loadMoreRows() {
 	}
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
@@ -653,15 +684,20 @@ private:
 	struct Selected {
 		Selected() {
 		}
-		Selected(RowIndex index, bool action) : index(index), action(action) {
+		Selected(RowIndex index, int element)
+		: index(index)
+		, element(element) {
 		}
-		Selected(int index, bool action) : index(index), action(action) {
+		Selected(int index, int element)
+		: index(index)
+		, element(element) {
 		}
+
 		RowIndex index;
-		bool action = false;
+		int element = 0;
 	};
 	friend inline bool operator==(Selected a, Selected b) {
-		return (a.index == b.index) && (a.action == b.action);
+		return (a.index == b.index) && (a.element == b.element);
 	}
 	friend inline bool operator!=(Selected a, Selected b) {
 		return !(a == b);
@@ -689,8 +725,13 @@ private:
 	void updateRow(RowIndex row);
 	int getRowTop(RowIndex row) const;
 	PeerListRow *getRow(RowIndex element);
-	RowIndex findRowIndex(not_null<PeerListRow*> row, RowIndex hint = RowIndex());
-	QRect getActiveActionRect(not_null<PeerListRow*> row, RowIndex index) const;
+	RowIndex findRowIndex(
+		not_null<PeerListRow*> row,
+		RowIndex hint = RowIndex());
+	QRect getElementRect(
+		not_null<PeerListRow*> row,
+		RowIndex index,
+		int element) const;
 
 	bool showRowMenu(
 		RowIndex index,

@@ -1438,7 +1438,7 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-void ParticipantsBoxController::rowActionClicked(
+void ParticipantsBoxController::rowRightActionClicked(
 		not_null<PeerListRow*> row) {
 	const auto participant = row->peer();
 	const auto user = participant->asUser();
