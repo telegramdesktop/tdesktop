@@ -50,3 +50,5 @@ void DeleteLink(
 void ShowInviteLinkBox(
 	not_null<PeerData*> peer,
 	const Api::InviteLink &link);
+
+[[nodiscard]] QString PrepareRequestedRowStatus(TimeId date);

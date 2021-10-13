@@ -542,6 +542,10 @@ bool PeerListRow::elementDisabled(int element) const {
 	return (element == 1) && rightActionDisabled();
 }
 
+bool PeerListRow::elementOnlySelect(int element) const {
+	return false;
+}
+
 void PeerListRow::elementAddRipple(
 		int element,
 		QPoint point,
@@ -1479,7 +1483,8 @@ crl::time PeerListContent::paintRow(
 		: (_pressed.index.value >= 0)
 		? _pressed
 		: _selected;
-	const auto selected = (active.index == index);
+	const auto selected = (active.index == index)
+		&& (!active.element || !row->elementOnlySelect(active.element));
 
 	if (_mode == Mode::Custom) {
 		_controller->customRowPaint(p, now, row, selected);
@@ -1557,7 +1562,11 @@ crl::time PeerListContent::paintRow(
 		row->paintStatusText(p, _st.item, _st.item.statusPosition.x(), _st.item.statusPosition.y(), statusw, width(), selected);
 	}
 
-	row->elementsPaint(p, width(), selected, selected ? active.element : 0);
+	row->elementsPaint(
+		p,
+		width(),
+		selected,
+		(active.index == index) ? active.element : 0);
 
 	return refreshStatusIn;
 }

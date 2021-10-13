@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/abstract_button.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_invite_link.h"
 #include "boxes/share_box.h"
@@ -59,7 +60,7 @@ using LinkData = Api::InviteLink;
 
 class RequestedRow final : public PeerListRow {
 public:
-	explicit RequestedRow(not_null<PeerData*> peer);
+	RequestedRow(not_null<PeerData*> peer, TimeId date);
 
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
@@ -73,8 +74,9 @@ public:
 
 };
 
-RequestedRow::RequestedRow(not_null<PeerData*> peer)
+RequestedRow::RequestedRow(not_null<PeerData*> peer, TimeId date)
 : PeerListRow(peer) {
+	setCustomStatus(PrepareRequestedRowStatus(date));
 }
 
 QSize RequestedRow::rightActionSize() const {
@@ -86,7 +88,7 @@ QSize RequestedRow::rightActionSize() const {
 QMargins RequestedRow::rightActionMargins() const {
 	return QMargins(
 		0,
-		(st::inviteLinkList.item.height - rightActionSize().height()) / 2,
+		(st::peerListBoxItem.height - rightActionSize().height()) / 2,
 		st::inviteLinkThreeDotsSkip,
 		0);
 }
@@ -696,7 +698,7 @@ void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 	for (const auto &user : slice.users) {
 		_lastUser = user;
 		delegate()->peerListAppendRow((_role == Role::Requested)
-			? std::make_unique<RequestedRow>(user.user)
+			? std::make_unique<RequestedRow>(user.user, user.date)
 			: std::make_unique<PeerListRow>(user.user));
 	}
 	delegate()->peerListRefreshRows();
@@ -763,6 +765,17 @@ void Controller::processRequest(
 		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListRemoveRow(row);
 			delegate()->peerListRefreshRows();
+		}
+		if (approved) {
+			Ui::ShowMultilineToast({
+				.text = (_peer->isBroadcast()
+					? tr::lng_group_requests_was_added_channel
+					: tr::lng_group_requests_was_added)(
+						tr::now,
+						lt_user,
+						Ui::Text::Bold(user->name),
+						Ui::Text::WithEntities)
+			});
 		}
 	});
 	const auto fail = crl::guard(this, [=] {
@@ -1287,4 +1300,27 @@ void ShowInviteLinkBox(
 				Controller::Role::Joined),
 			std::move(initBox)),
 		Ui::LayerOption::KeepOther);
+}
+
+QString PrepareRequestedRowStatus(TimeId date) {
+	const auto now = QDateTime::currentDateTime();
+	const auto parsed = base::unixtime::parse(date);
+	const auto parsedDate = parsed.date();
+	const auto time = parsed.time().toString(cTimeFormat());
+	const auto dateGeneric = [&] {
+		return tr::lng_mediaview_date_time(
+			tr::now,
+			lt_date,
+			langDayOfMonth(parsedDate),
+			lt_time,
+			time);
+	};
+	const auto dateString = (parsedDate.addDays(1) < now.date())
+		? dateGeneric()
+		: (parsedDate.addDays(1) == now.date())
+		? tr::lng_mediaview_yesterday(tr::now, lt_time, time)
+		: (now.date() == parsedDate)
+		? tr::lng_mediaview_today(tr::now, lt_time, time)
+		: dateGeneric();
+	return tr::lng_group_requests_status(tr::now, lt_date, dateString);
 }

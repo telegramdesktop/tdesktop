@@ -1349,6 +1349,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_requests_add_channel" = "Add to Channel";
 "lng_group_requests_dismiss" = "Dismiss";
 "lng_group_requests_was_added" = "{user} has been added to the group.";
+"lng_group_requests_was_added_channel" = "{user} has been added to the channel.";
 "lng_group_requests_none" = "No member requests";
 "lng_group_requests_none_channel" = "No subscriber requests";
 

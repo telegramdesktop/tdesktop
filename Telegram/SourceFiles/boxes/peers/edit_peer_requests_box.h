@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/peer_list_box.h"
+#include "base/weak_ptr.h"
 
 namespace Window {
 class SessionNavigation;
@@ -17,7 +18,9 @@ namespace Ui {
 class RippleAnimation;
 } // namespace Ui
 
-class RequestsBoxController final : public PeerListController {
+class RequestsBoxController final
+	: public PeerListController
+	, public base::has_weak_ptr {
 public:
 	RequestsBoxController(
 		not_null<Window::SessionNavigation*> navigation,

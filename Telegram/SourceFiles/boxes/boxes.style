@@ -994,13 +994,27 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 
 requestsBoxItem: PeerListItem(peerListBoxItem) {
 	height: 99px;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBg;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: contactsBgOver;
+		}
+	}
 }
 requestsBoxList: PeerList(peerListBox) {
+	padding: margins(0px, 12px, 0px, 12px);
 	item: requestsBoxItem;
 }
 requestsAcceptButton: RoundButton(defaultActiveButton) {
+	width: -28px;
+	height: 30px;
+	textTop: 6px;
 }
 requestsRejectButton: RoundButton(defaultLightButton) {
+	width: -28px;
+	height: 30px;
+	textTop: 6px;
 }
 requestAcceptPosition: point(71px, 58px);
 requestButtonsSkip: 9px;

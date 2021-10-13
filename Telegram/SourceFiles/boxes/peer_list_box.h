@@ -130,6 +130,7 @@ public:
 	virtual int elementsCount() const;
 	virtual QRect elementGeometry(int element, int outerWidth) const;
 	virtual bool elementDisabled(int element) const;
+	virtual bool elementOnlySelect(int element) const;
 	virtual void elementAddRipple(
 		int element,
 		QPoint point,

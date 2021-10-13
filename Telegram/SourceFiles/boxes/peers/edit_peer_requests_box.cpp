@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
+#include "boxes/peers/edit_peer_invite_link.h" // PrepareRequestedRowStatus
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -18,8 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toasts/common_toasts.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+#include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -58,6 +63,7 @@ public:
 	int elementsCount() const override;
 	QRect elementGeometry(int element, int outerWidth) const override;
 	bool elementDisabled(int element) const override;
+	bool elementOnlySelect(int element) const override;
 	void elementAddRipple(
 		int element,
 		QPoint point,
@@ -82,27 +88,7 @@ Row::Row(
 	TimeId date)
 : PeerListRow(user)
 , _delegate(delegate) {
-	const auto now = QDateTime::currentDateTime();
-	const auto parsed = base::unixtime::parse(date);
-	const auto parsedDate = parsed.date();
-	const auto time = parsed.time().toString(cTimeFormat());
-	const auto dateGeneric = [&] {
-		return tr::lng_group_call_starts_date(
-			tr::now,
-			lt_date,
-			langDayOfMonthFull(parsedDate),
-			lt_time,
-			time);
-	};
-	const auto dateString = (now.date().addDays(1) < parsedDate)
-		? dateGeneric()
-		: (now.date().addDays(1) == parsedDate)
-		? tr::lng_group_call_starts_tomorrow(tr::now, lt_time, time)
-		: (now.date() == parsedDate)
-		? time
-		: dateGeneric();
-	setCustomStatus(
-		tr::lng_group_requests_status(tr::now, lt_date, dateString));
+	setCustomStatus(PrepareRequestedRowStatus(date));
 }
 
 int Row::elementsCount() const {
@@ -129,6 +115,10 @@ QRect Row::elementGeometry(int element, int outerWidth) const {
 
 bool Row::elementDisabled(int element) const {
 	return false;
+}
+
+bool Row::elementOnlySelect(int element) const {
+	return true;
 }
 
 void Row::elementAddRipple(
@@ -345,8 +335,8 @@ void RequestsBoxController::refreshDescription() {
 	setDescriptionText((delegate()->peerListFullRowsCount() > 0)
 		? QString()
 		: _peer->isBroadcast()
-		? tr::lng_group_removed_list_about(tr::now)
-		: tr::lng_channel_removed_list_about(tr::now));
+		? tr::lng_group_requests_none_channel(tr::now)
+		: tr::lng_group_requests_none(tr::now));
 }
 
 void RequestsBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -362,7 +352,32 @@ void RequestsBoxController::rowElementClicked(
 void RequestsBoxController::processRequest(
 		not_null<UserData*> user,
 		bool approved) {
-
+	const auto done = crl::guard(this, [=] {
+		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
+			delegate()->peerListRemoveRow(row);
+			refreshDescription();
+			delegate()->peerListRefreshRows();
+		}
+		if (approved) {
+			Ui::ShowMultilineToast({
+				.text = (_peer->isBroadcast()
+					? tr::lng_group_requests_was_added_channel
+					: tr::lng_group_requests_was_added)(
+						tr::now,
+						lt_user,
+						Ui::Text::Bold(user->name),
+						Ui::Text::WithEntities)
+			});
+		}
+	});
+	const auto fail = [] {};
+	session().api().inviteLinks().processRequest(
+		_peer,
+		QString(), // link
+		user,
+		approved,
+		done,
+		fail);
 }
 
 void RequestsBoxController::appendRow(

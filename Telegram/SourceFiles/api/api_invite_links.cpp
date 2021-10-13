@@ -466,7 +466,18 @@ void InviteLinks::processRequest(
 			_api->requestParticipantsCountDelayed(channel);
 		}
 		_api->applyUpdates(result);
-		if (approved) {
+		if (link.isEmpty() && approved) {
+			// We don't know the link that was used for this user.
+			// Prune all the cache.
+			for (auto i = begin(_firstJoined); i != end(_firstJoined);) {
+				if (i->first.peer == peer) {
+					i = _firstJoined.erase(i);
+				} else {
+					++i;
+				}
+			}
+			_firstSlices.remove(peer);
+		} else if (approved) {
 			const auto i = _firstJoined.find({ peer, link });
 			if (i != end(_firstJoined)) {
 				++i->second.count;
