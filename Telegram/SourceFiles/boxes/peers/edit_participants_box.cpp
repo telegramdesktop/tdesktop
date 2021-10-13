@@ -925,9 +925,8 @@ void ParticipantsBoxController::Start(
 			});
 		}
 	};
-	Ui::show(
-		Box<PeerListBox>(std::move(controller), initBox),
-		Ui::LayerOption::KeepOther);
+	navigation->parentController()->show(
+		Box<PeerListBox>(std::move(controller), initBox));
 }
 
 void ParticipantsBoxController::addNewItem() {

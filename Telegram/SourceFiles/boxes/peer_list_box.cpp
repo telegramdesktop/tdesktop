@@ -270,6 +270,7 @@ bool PeerListController::hasComplexSearch() const {
 
 void PeerListController::search(const QString &query) {
 	Expects(hasComplexSearch());
+
 	_searchController->searchQuery(query);
 }
 

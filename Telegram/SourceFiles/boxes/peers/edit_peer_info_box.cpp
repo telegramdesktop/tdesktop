@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/edit_peer_invite_links.h"
 #include "boxes/peers/edit_linked_chat_box.h"
+#include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/single_choice_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -1107,22 +1108,23 @@ void Controller::fillPendingRequestsButton() {
 			_controls.buttonsLayout,
 			object_ptr<Ui::VerticalLayout>(
 				_controls.buttonsLayout)));
+	const auto showPendingRequestsBox = [=] {
+		auto controller = std::make_unique<RequestsBoxController>(
+			_navigation,
+			_peer->migrateToOrMe());
+		const auto initBox = [=](not_null<PeerListBox*> box) {
+			box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+		};
+		_navigation->parentController()->show(
+			Box<PeerListBox>(std::move(controller), initBox));
+	};
 	AddButtonWithCount(
 		wrap->entity(),
 		(_isGroup
 			? tr::lng_manage_peer_requests()
 			: tr::lng_manage_peer_requests_channel()),
 		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
-		[=] {
-			_navigation->parentController()->show(
-				Box( // #TODO requests
-					ManageInviteLinksBox,
-					_peer,
-					_peer->session().user(),
-					0,
-					0),
-				Ui::LayerOption::KeepOther);
-		},
+		showPendingRequestsBox,
 		st::infoIconRequests);
 	std::move(
 		pendingRequestsCount
