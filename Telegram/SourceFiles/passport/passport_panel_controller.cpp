@@ -117,7 +117,8 @@ std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
 		std::optional<Value::Type> scansType,
-		bool nativeNames) {
+		bool nativeNames,
+		preferredLangCallback &&preferredLanguage) {
 	using Scheme = EditDocumentScheme;
 	using ValueClass = Scheme::ValueClass;
 	const auto DontFormat = nullptr;
@@ -294,21 +295,17 @@ EditDocumentScheme GetDocumentScheme(
 		if (nativeNames) {
 			result.additionalDependencyKey = qsl("residence_country_code");
 
-			const auto languageValue = [](const QString &countryCode) {
-				if (countryCode.isEmpty()) {
-					return QString();
-				}
-				const auto &config = ConfigInstance();
-				const auto i = config.languagesByCountryCode.find(
-					countryCode);
-				if (i == end(config.languagesByCountryCode)) {
-					return QString();
-				}
-				return Lang::GetNonDefaultValue(
-					kLanguageNamePrefix + i->second.toUtf8());
+			result.preferredLanguage = preferredLanguage
+				? std::move(preferredLanguage)
+				: [](const QString &) {
+					return rpl::single(EditDocumentCountry());
+				};
+			const auto languageValue = [](const QString &langCode) {
+				return Lang::GetNonDefaultValue(kLanguageNamePrefix
+					+ langCode.toUtf8());
 			};
-			result.additionalHeader = [=](const QString &countryCode) {
-				const auto language = languageValue(countryCode);
+			result.additionalHeader = [=](const EditDocumentCountry &info) {
+				const auto language = languageValue(info.languageCode);
 				return language.isEmpty()
 					? tr::lng_passport_native_name_title(tr::now)
 					: tr::lng_passport_native_name_language(
@@ -316,32 +313,28 @@ EditDocumentScheme GetDocumentScheme(
 						lt_language,
 						language);
 			};
-			result.additionalDescription = [=](const QString &countryCode) {
-				const auto language = languageValue(countryCode);
+			result.additionalDescription = [=](
+					const EditDocumentCountry &info) {
+				const auto language = languageValue(info.languageCode);
 				if (!language.isEmpty()) {
-					return tr::lng_passport_native_name_language_about(tr::now);
+					return tr::lng_passport_native_name_language_about(
+						tr::now);
 				}
 				const auto name = Countries::Instance().countryNameByISO2(
-					countryCode);
+					info.countryCode);
 				Assert(!name.isEmpty());
 				return tr::lng_passport_native_name_about(
 					tr::now,
 					lt_country,
 					name);
 			};
-			result.additionalShown = [](const QString &countryCode) {
+			result.additionalShown = [](const EditDocumentCountry &info) {
 				using Result = EditDocumentScheme::AdditionalVisibility;
-				if (countryCode.isEmpty()) {
-					return Result::Hidden;
-				}
-				const auto &config = ConfigInstance();
-				const auto i = config.languagesByCountryCode.find(
-					countryCode);
-				if (i != end(config.languagesByCountryCode)
-					&& i->second == "en") {
-					return Result::OnlyIfError;
-				}
-				return Result::Shown;
+				return (info.countryCode.isEmpty())
+					? Result::Hidden
+					: (info.languageCode == "en")
+					? Result::OnlyIfError
+					: Result::Shown;
 			};
 			using Row = EditDocumentScheme::Row;
 			auto additional = std::initializer_list<Row>{
@@ -1149,6 +1142,10 @@ void PanelController::startScopeEdit(
 		_form->startValueEdit(_editDocument);
 	}
 
+	auto preferredLanguage = [=](const QString &countryCode) {
+		return _form->preferredLanguage(countryCode);
+	};
+
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
@@ -1169,7 +1166,8 @@ void PanelController::startScopeEdit(
 					GetDocumentScheme(
 						_editScope->type,
 						_editDocument->type,
-						_editValue->nativeNames),
+						_editValue->nativeNames,
+						std::move(preferredLanguage)),
 					_editValue->error,
 					_editValue->data.parsedInEdit,
 					_editDocument->error,
@@ -1183,7 +1181,8 @@ void PanelController::startScopeEdit(
 					GetDocumentScheme(
 						_editScope->type,
 						_editDocument->type,
-						false),
+						false,
+						std::move(preferredLanguage)),
 					_editDocument->error,
 					_editDocument->data.parsedInEdit,
 					std::move(scans),
@@ -1204,7 +1203,8 @@ void PanelController::startScopeEdit(
 				GetDocumentScheme(
 					_editScope->type,
 					std::nullopt,
-					_editValue->nativeNames),
+					_editValue->nativeNames,
+					std::move(preferredLanguage)),
 				_editValue->error,
 				_editValue->data.parsedInEdit);
 			const auto weak = Ui::MakeWeak(result.data());

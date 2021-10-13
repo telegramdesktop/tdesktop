@@ -42,8 +42,6 @@ constexpr auto kTranslationScansLimit = 20;
 constexpr auto kShortPollTimeout = crl::time(3000);
 constexpr auto kRememberCredentialsDelay = crl::time(1800 * 1000);
 
-Config GlobalConfig;
-
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == qstr("BOT_INVALID"))
 		|| (error == qstr("PUBLIC_KEY_REQUIRED"))
@@ -239,45 +237,34 @@ QString ValidateUrl(const QString &url) {
 		: result;
 }
 
+auto ParseConfig(const QByteArray &json) {
+	auto languagesByCountryCode = std::map<QString, QString>();
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(json, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("API Error: Failed to parse passport config, error: %1."
+			).arg(error.errorString()));
+		return languagesByCountryCode;
+	} else if (!document.isObject()) {
+		LOG(("API Error: Not an object received in passport config."));
+		return languagesByCountryCode;
+	}
+	const auto object = document.object();
+	for (auto i = object.constBegin(); i != object.constEnd(); ++i) {
+		const auto countryCode = i.key();
+		const auto language = i.value();
+		if (!language.isString()) {
+			LOG(("API Error: Not a string in passport config item."));
+			continue;
+		}
+		languagesByCountryCode.emplace(
+			countryCode,
+			language.toString());
+	}
+	return languagesByCountryCode;
+}
+
 } // namespace
-
-Config &ConfigInstance() {
-	return GlobalConfig;
-}
-
-Config ParseConfig(const MTPhelp_PassportConfig &data) {
-	return data.match([](const MTPDhelp_passportConfig &data) {
-		auto result = Config();
-		result.hash = data.vhash().v;
-		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-		const auto document = QJsonDocument::fromJson(
-			data.vcountries_langs().c_dataJSON().vdata().v,
-			&error);
-		if (error.error != QJsonParseError::NoError) {
-			LOG(("API Error: Failed to parse passport config, error: %1."
-				).arg(error.errorString()));
-			return result;
-		} else if (!document.isObject()) {
-			LOG(("API Error: Not an object received in passport config."));
-			return result;
-		}
-		const auto object = document.object();
-		for (auto i = object.constBegin(); i != object.constEnd(); ++i) {
-			const auto countryCode = i.key();
-			const auto language = i.value();
-			if (!language.isString()) {
-				LOG(("API Error: Not a string in passport config item."));
-				continue;
-			}
-			result.languagesByCountryCode.emplace(
-				countryCode,
-				language.toString());
-		}
-		return result;
-	}, [](const MTPDhelp_passportConfigNotModified &data) {
-		return ConfigInstance();
-	});
-}
 
 QString NonceNameByScope(const QString &scope) {
 	if (scope.startsWith('{') && scope.endsWith('}')) {
@@ -638,7 +625,6 @@ Main::Session &FormController::session() const {
 void FormController::show() {
 	requestForm();
 	requestPassword();
-	requestConfig();
 }
 
 UserData *FormController::bot() const {
@@ -1242,6 +1228,44 @@ void FormController::fillErrors() {
 	}
 }
 
+rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
+		const QString &countryCode) {
+	const auto findLang = [=] {
+		if (countryCode.isEmpty()) {
+			return QString();
+		}
+		auto &langs = _passportConfig.languagesByCountryCode;
+		const auto i = langs.find(countryCode);
+		return (i == end(langs)) ? QString() : i->second;
+	};
+	return [=](auto consumer) {
+		const auto hash = _passportConfig.hash;
+		if (hash) {
+			consumer.put_next({ countryCode, findLang() });
+			consumer.put_done();
+			return rpl::lifetime() ;
+		}
+
+		_api.request(MTPhelp_GetPassportConfig(
+			MTP_int(hash)
+		)).done([=](const MTPhelp_PassportConfig &result) {
+			result.match([&](const MTPDhelp_passportConfig &data) {
+				_passportConfig.hash = data.vhash().v;
+				_passportConfig.languagesByCountryCode = ParseConfig(
+					data.vcountries_langs().c_dataJSON().vdata().v);
+			}, [](const MTPDhelp_passportConfigNotModified &data) {
+			});
+			consumer.put_next({ countryCode, findLang() });
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_next({ countryCode, QString() });
+			consumer.put_done();
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
 void FormController::fillNativeFromFallback() {
 	// Check if additional values (*_name_native) were requested.
 	const auto i = _form.values.find(Value::Type::PersonalDetails);
@@ -1254,48 +1278,58 @@ void FormController::fillNativeFromFallback() {
 	const auto scheme = GetDocumentScheme(
 		Scope::Type::PersonalDetails,
 		std::nullopt,
-		true);
+		true,
+		[=](const QString &code) { return preferredLanguage(code); });
 	const auto dependencyIt = values.fields.find(
 		scheme.additionalDependencyKey);
 	const auto dependency = (dependencyIt == end(values.fields))
 		? QString()
 		: dependencyIt->second.text;
-	if (scheme.additionalShown(dependency)
-		!= EditDocumentScheme::AdditionalVisibility::OnlyIfError) {
-		return;
-	}
 
 	// Copy additional values from fallback if they're not filled yet.
-	auto changed = false;
 	using Scheme = EditDocumentScheme;
-	for (const auto &row : scheme.rows) {
-		if (row.valueClass == Scheme::ValueClass::Additional) {
-			const auto nativeIt = values.fields.find(row.key);
-			const auto native = (nativeIt == end(values.fields))
-				? QString()
-				: nativeIt->second.text;
-			if (!native.isEmpty()
-				|| (nativeIt != end(values.fields)
-					&& !nativeIt->second.error.isEmpty())) {
-				return;
-			}
-			const auto latinIt = values.fields.find(
-				row.additionalFallbackKey);
-			const auto latin = (latinIt == end(values.fields))
-				? QString()
-				: latinIt->second.text;
-			if (row.error(latin).has_value()) {
-				return;
-			} else if (native != latin) {
-				values.fields[row.key].text = latin;
-				changed = true;
+	scheme.preferredLanguage(
+		dependency
+	) | rpl::map(
+		scheme.additionalShown
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](Scheme::AdditionalVisibility v) {
+		if (v != Scheme::AdditionalVisibility::OnlyIfError) {
+			return;
+		}
+		auto values = i->second.data.parsed;
+		auto changed = false;
+
+		for (const auto &row : scheme.rows) {
+			if (row.valueClass == Scheme::ValueClass::Additional) {
+				const auto nativeIt = values.fields.find(row.key);
+				const auto native = (nativeIt == end(values.fields))
+					? QString()
+					: nativeIt->second.text;
+				if (!native.isEmpty()
+					|| (nativeIt != end(values.fields)
+						&& !nativeIt->second.error.isEmpty())) {
+					return;
+				}
+				const auto latinIt = values.fields.find(
+					row.additionalFallbackKey);
+				const auto latin = (latinIt == end(values.fields))
+					? QString()
+					: latinIt->second.text;
+				if (row.error(latin).has_value()) {
+					return;
+				} else if (native != latin) {
+					values.fields[row.key].text = latin;
+					changed = true;
+				}
 			}
 		}
-	}
-	if (changed) {
-		startValueEdit(&i->second);
-		saveValueEdit(&i->second, std::move(values));
-	}
+		if (changed) {
+			startValueEdit(&i->second);
+			saveValueEdit(&i->second, std::move(values));
+		}
+	}, _lifetime);
 }
 
 void FormController::decryptValue(Value &value) const {
@@ -2507,20 +2541,6 @@ void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	}
 }
 
-void FormController::requestConfig() {
-	const auto hash = ConfigInstance().hash;
-	_configRequestId = _api.request(MTPhelp_GetPassportConfig(
-		MTP_int(hash)
-	)).done([=](const MTPhelp_PassportConfig &result) {
-		_configRequestId = 0;
-		ConfigInstance() = ParseConfig(result);
-		showForm();
-	}).fail([=](const MTP::Error &error) {
-		_configRequestId = 0;
-		showForm();
-	}).send();
-}
-
 bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	Expects(result.type() == mtpc_account_authorizationForm);
 
@@ -2614,7 +2634,7 @@ void FormController::shortPollEmailConfirmation() {
 }
 
 void FormController::showForm() {
-	if (_formRequestId || _passwordRequestId || _configRequestId) {
+	if (_formRequestId || _passwordRequestId) {
 		return;
 	} else if (!_bot) {
 		formFail(Lang::Hard::NoAuthorizationBot());
