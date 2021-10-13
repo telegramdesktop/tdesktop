@@ -127,9 +127,7 @@ public:
 	}
 
 	// By default elements code falls back to a simple right action code.
-	virtual int elementsCount() const {
-		return 1;
-	}
+	virtual int elementsCount() const;
 	virtual QRect elementGeometry(int element, int outerWidth) const;
 	virtual bool elementDisabled(int element) const;
 	virtual void elementAddRipple(

@@ -991,3 +991,16 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 		color: windowBgOver;
 	}
 }
+
+requestsBoxItem: PeerListItem(peerListBoxItem) {
+	height: 99px;
+}
+requestsBoxList: PeerList(peerListBox) {
+	item: requestsBoxItem;
+}
+requestsAcceptButton: RoundButton(defaultActiveButton) {
+}
+requestsRejectButton: RoundButton(defaultLightButton) {
+}
+requestAcceptPosition: point(71px, 58px);
+requestButtonsSkip: 9px;

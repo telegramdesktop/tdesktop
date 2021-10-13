@@ -13,15 +13,21 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 class RequestsBoxController final : public PeerListController {
 public:
 	RequestsBoxController(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer);
+	~RequestsBoxController();
 
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
 	void loadMoreRows() override;
 
 	std::unique_ptr<PeerListRow> createSearchRow(
@@ -33,6 +39,8 @@ public:
 	}
 
 private:
+	class RowHelper;
+
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(
 		not_null<PeerData*> peer);
 
@@ -48,6 +56,7 @@ private:
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
 	const not_null<Window::SessionNavigation*> _navigation;
+	const std::unique_ptr<RowHelper> _helper;
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;
 

@@ -519,6 +519,10 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 	_name.setText(st.nameStyle, text, Ui::NameTextOptions());
 }
 
+int PeerListRow::elementsCount() const {
+	return 1;
+}
+
 QRect PeerListRow::elementGeometry(int element, int outerWidth) const {
 	if (element != 1) {
 		return QRect();

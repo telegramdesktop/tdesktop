@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_requests_box.h"
 
+#include "ui/effects/ripple_animation.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
 #include "data/data_peer.h"
@@ -14,54 +15,256 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
 constexpr auto kFirstPageCount = 16;
 constexpr auto kPerPage = 200;
 constexpr auto kServerSearchDelay = crl::time(1000);
+constexpr auto kAcceptButton = 1;
+constexpr auto kRejectButton = 2;
+
+class RowDelegate {
+public:
+	[[nodiscard]] virtual QSize rowAcceptButtonSize() = 0;
+	[[nodiscard]] virtual QSize rowRejectButtonSize() = 0;
+	virtual void rowPaintAccept(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) = 0;
+	virtual void rowPaintReject(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) = 0;
+};
 
 class Row final : public PeerListRow {
 public:
-	Row(not_null<UserData*> user, TimeId date);
+	Row(
+		not_null<RowDelegate*> delegate,
+		not_null<UserData*> user,
+		TimeId date);
 
-	//QSize actionSize() const override;
-	//void paintAction(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	int outerWidth,
-	//	bool selected,
-	//	bool actionSelected) override;
-
-	//not_null<UserData*> user() const;
+	int elementsCount() const override;
+	QRect elementGeometry(int element, int outerWidth) const override;
+	bool elementDisabled(int element) const override;
+	void elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void elementsStopLastRipple() override;
+	void elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) override;
 
 private:
-	TimeId _date = 0;
+	const not_null<RowDelegate*> _delegate;
+	std::unique_ptr<Ui::RippleAnimation> _acceptRipple;
+	std::unique_ptr<Ui::RippleAnimation> _rejectRipple;
 
 };
 
-Row::Row(not_null<UserData*> user, TimeId date)
+Row::Row(
+	not_null<RowDelegate*> delegate,
+	not_null<UserData*> user,
+	TimeId date)
 : PeerListRow(user)
-, _date(date) {
-	setCustomStatus(QString::number(_date));
+, _delegate(delegate) {
+	const auto now = QDateTime::currentDateTime();
+	const auto parsed = base::unixtime::parse(date);
+	const auto parsedDate = parsed.date();
+	const auto time = parsed.time().toString(cTimeFormat());
+	const auto dateGeneric = [&] {
+		return tr::lng_group_call_starts_date(
+			tr::now,
+			lt_date,
+			langDayOfMonthFull(parsedDate),
+			lt_time,
+			time);
+	};
+	const auto dateString = (now.date().addDays(1) < parsedDate)
+		? dateGeneric()
+		: (now.date().addDays(1) == parsedDate)
+		? tr::lng_group_call_starts_tomorrow(tr::now, lt_time, time)
+		: (now.date() == parsedDate)
+		? time
+		: dateGeneric();
+	setCustomStatus(
+		tr::lng_group_requests_status(tr::now, lt_date, dateString));
+}
+
+int Row::elementsCount() const {
+	return 2;
+}
+
+QRect Row::elementGeometry(int element, int outerWidth) const {
+	switch (element) {
+	case kAcceptButton: {
+		const auto size = _delegate->rowAcceptButtonSize();
+		return QRect(st::requestAcceptPosition, size);
+	} break;
+	case kRejectButton: {
+		const auto accept = _delegate->rowAcceptButtonSize();
+		const auto size = _delegate->rowRejectButtonSize();
+		return QRect(
+			(st::requestAcceptPosition
+				+ QPoint(accept.width() + st::requestButtonsSkip, 0)),
+			size);
+	} break;
+	}
+	return QRect();
+}
+
+bool Row::elementDisabled(int element) const {
+	return false;
+}
+
+void Row::elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	const auto pointer = (element == kAcceptButton)
+		? &_acceptRipple
+		: (element == kRejectButton)
+		? &_rejectRipple
+		: nullptr;
+	if (!pointer) {
+		return;
+	}
+	auto &ripple = *pointer;
+	if (!ripple) {
+		auto mask = Ui::RippleAnimation::roundRectMask(
+			(element == kAcceptButton
+				? _delegate->rowAcceptButtonSize()
+				: _delegate->rowRejectButtonSize()),
+			st::buttonRadius);
+		ripple = std::make_unique<Ui::RippleAnimation>(
+			(element == kAcceptButton
+				? st::requestsAcceptButton.ripple
+				: st::requestsRejectButton.ripple),
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	ripple->add(point);
+}
+
+void Row::elementsStopLastRipple() {
+	if (_acceptRipple) {
+		_acceptRipple->lastStop();
+	}
+	if (_rejectRipple) {
+		_rejectRipple->lastStop();
+	}
+}
+
+void Row::elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) {
+	const auto accept = elementGeometry(kAcceptButton, outerWidth);
+	const auto reject = elementGeometry(kRejectButton, outerWidth);
+
+	const auto over = [&](int element) {
+		return (selectedElement == element);
+	};
+	_delegate->rowPaintAccept(
+		p,
+		accept,
+		_acceptRipple,
+		outerWidth,
+		over(kAcceptButton));
+	_delegate->rowPaintReject(
+		p,
+		reject,
+		_rejectRipple,
+		outerWidth,
+		over(kRejectButton));
 }
 
 } // namespace
+
+class RequestsBoxController::RowHelper final : public RowDelegate {
+public:
+	explicit RowHelper(bool isGroup);
+
+	[[nodiscard]] QSize rowAcceptButtonSize() override;
+	[[nodiscard]] QSize rowRejectButtonSize() override;
+	void rowPaintAccept(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) override;
+	void rowPaintReject(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) override;
+
+private:
+	void paintButton(
+		Painter &p,
+		QRect geometry,
+		const style::RoundButton &st,
+		const Ui::RoundRect &rect,
+		const Ui::RoundRect &rectOver,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		const QString &text,
+		int textWidth,
+		int outerWidth,
+		bool over);
+
+	Ui::RoundRect _acceptRect;
+	Ui::RoundRect _acceptRectOver;
+	Ui::RoundRect _rejectRect;
+	Ui::RoundRect _rejectRectOver;
+	QString _acceptText;
+	QString _rejectText;
+	int _acceptTextWidth = 0;
+	int _rejectTextWidth = 0;
+
+};
+
+RequestsBoxController::RowHelper::RowHelper(bool isGroup)
+: _acceptRect(st::buttonRadius, st::requestsAcceptButton.textBg)
+, _acceptRectOver(st::buttonRadius, st::requestsAcceptButton.textBgOver)
+, _rejectRect(st::buttonRadius, st::requestsRejectButton.textBg)
+, _rejectRectOver(st::buttonRadius, st::requestsRejectButton.textBgOver)
+, _acceptText(isGroup
+	? tr::lng_group_requests_add(tr::now)
+	: tr::lng_group_requests_add_channel(tr::now))
+, _rejectText(tr::lng_group_requests_dismiss(tr::now))
+, _acceptTextWidth(st::requestsAcceptButton.font->width(_acceptText))
+, _rejectTextWidth(st::requestsRejectButton.font->width(_rejectText)) {
+}
 
 RequestsBoxController::RequestsBoxController(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer)
 : PeerListController(CreateSearchController(peer))
 , _navigation(navigation)
+, _helper(std::make_unique<RowHelper>(!peer->isBroadcast()))
 , _peer(peer)
 , _api(&_peer->session().mtp()) {
+	setStyleOverrides(&st::requestsBoxList);
 	subscribeToMigration();
 }
+
+RequestsBoxController::~RequestsBoxController() = default;
 
 Main::Session &RequestsBoxController::session() const {
 	return _peer->session();
@@ -150,6 +353,18 @@ void RequestsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	_navigation->showPeerInfo(row->peer());
 }
 
+void RequestsBoxController::rowElementClicked(
+		not_null<PeerListRow*> row,
+		int element) {
+	processRequest(row->peer()->asUser(), (element == kAcceptButton));
+}
+
+void RequestsBoxController::processRequest(
+		not_null<UserData*> user,
+		bool approved) {
+
+}
+
 void RequestsBoxController::appendRow(
 		not_null<UserData*> user,
 		TimeId date) {
@@ -161,6 +376,90 @@ void RequestsBoxController::appendRow(
 	}
 }
 
+QSize RequestsBoxController::RowHelper::rowAcceptButtonSize() {
+	const auto &st = st::requestsAcceptButton;
+	return {
+		 (st.width <= 0) ? (_acceptTextWidth - st.width) : st.width,
+		 st.height,
+	};
+}
+
+QSize RequestsBoxController::RowHelper::rowRejectButtonSize() {
+	const auto &st = st::requestsRejectButton;
+	return {
+		 (st.width <= 0) ? (_rejectTextWidth - st.width) : st.width,
+		 st.height,
+	};
+}
+
+void RequestsBoxController::RowHelper::rowPaintAccept(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) {
+	paintButton(
+		p,
+		geometry,
+		st::requestsAcceptButton,
+		_acceptRect,
+		_acceptRectOver,
+		ripple,
+		_acceptText,
+		_acceptTextWidth,
+		outerWidth,
+		over);
+}
+
+void RequestsBoxController::RowHelper::rowPaintReject(
+		Painter &p,
+		QRect geometry,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		int outerWidth,
+		bool over) {
+	paintButton(
+		p,
+		geometry,
+		st::requestsRejectButton,
+		_rejectRect,
+		_rejectRectOver,
+		ripple,
+		_rejectText,
+		_rejectTextWidth,
+		outerWidth,
+		over);
+}
+
+void RequestsBoxController::RowHelper::paintButton(
+		Painter &p,
+		QRect geometry,
+		const style::RoundButton &st,
+		const Ui::RoundRect &rect,
+		const Ui::RoundRect &rectOver,
+		std::unique_ptr<Ui::RippleAnimation> &ripple,
+		const QString &text,
+		int textWidth,
+		int outerWidth,
+		bool over) {
+	rect.paint(p, geometry);
+	if (over) {
+		rectOver.paint(p, geometry);
+	}
+	if (ripple) {
+		ripple->paint(p, geometry.x(), geometry.y(), outerWidth);
+		if (ripple->empty()) {
+			ripple = nullptr;
+		}
+	}
+
+	const auto textLeft = geometry.x()
+		+ ((geometry.width() - textWidth) / 2);
+	const auto textTop = geometry.y() + st.textTop;
+	p.setFont(st.font);
+	p.setPen(over ? st.textFgOver : st.textFg);
+	p.drawTextLeft(textLeft, textTop, outerWidth, text);
+}
+
 std::unique_ptr<PeerListRow> RequestsBoxController::createRow(
 		not_null<UserData*> user,
 		TimeId date) {
@@ -169,7 +468,7 @@ std::unique_ptr<PeerListRow> RequestsBoxController::createRow(
 			searchController());
 		date = search->dateForUser(user);
 	}
-	return std::make_unique<Row>(user, date);
+	return std::make_unique<Row>(_helper.get(), user, date);
 }
 
 void RequestsBoxController::subscribeToMigration() {
