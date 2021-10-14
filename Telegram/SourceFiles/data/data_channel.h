@@ -412,6 +412,7 @@ public:
 	// > 0 - user who invited me to channel, < 0 - not in channel.
 	UserId inviter = 0;
 	TimeId inviteDate = 0;
+	bool inviteViaRequest = false;
 
 private:
 	struct InvitePeek {

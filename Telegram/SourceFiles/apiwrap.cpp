@@ -1618,9 +1618,13 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 		return;
 	}
 
-	const auto finalize = [=](UserId inviter, TimeId inviteDate) {
+	const auto finalize = [=](
+			UserId inviter = -1,
+			TimeId inviteDate = 0,
+			bool inviteViaRequest = false) {
 		channel->inviter = inviter;
 		channel->inviteDate = inviteDate;
+		channel->inviteViaRequest = inviteViaRequest;
 		if (const auto history = _session->data().historyLoaded(channel)) {
 			if (history->lastMessageKnown()) {
 				history->checkLocalMessages();
@@ -1641,7 +1645,10 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 
 			const auto &participant = data.vparticipant();
 			participant.match([&](const MTPDchannelParticipantSelf &data) {
-				finalize(data.vinviter_id().v, data.vdate().v);
+				finalize(
+					data.vinviter_id().v,
+					data.vdate().v,
+					data.is_via_invite());
 			}, [&](const MTPDchannelParticipantCreator &) {
 				if (channel->mgInfo) {
 					channel->mgInfo->creator = _session->user();
@@ -1654,13 +1661,13 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 				finalize(inviter, data.vdate().v);
 			}, [&](const MTPDchannelParticipantBanned &data) {
 				LOG(("API Error: Got self banned participant."));
-				finalize(-1, 0);
+				finalize();
 			}, [&](const MTPDchannelParticipant &data) {
 				LOG(("API Error: Got self regular participant."));
-				finalize(-1, 0);
+				finalize();
 			}, [&](const MTPDchannelParticipantLeft &data) {
 				LOG(("API Error: Got self left participant."));
-				finalize(-1, 0);
+				finalize();
 			});
 		});
 	}).fail([=](const MTP::Error &error) {
@@ -1668,7 +1675,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 		if (error.type() == qstr("CHANNEL_PRIVATE")) {
 			channel->privateErrorReceived();
 		}
-		finalize(-1, 0);
+		finalize();
 	}).afterDelay(kSmallDelayMs).send();
 }
 

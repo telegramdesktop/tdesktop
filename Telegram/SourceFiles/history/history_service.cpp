@@ -1243,7 +1243,8 @@ HistoryService::~HistoryService() {
 
 HistoryService::PreparedText GenerateJoinedText(
 		not_null<History*> history,
-		not_null<UserData*> inviter) {
+		not_null<UserData*> inviter,
+		bool viaRequest) {
 	if (inviter->id != history->session().userPeerId()) {
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(inviter->createOpenLink());
@@ -1255,6 +1256,9 @@ HistoryService::PreparedText GenerateJoinedText(
 				textcmdLink(1, inviter->name));
 		return result;
 	} else if (history->isMegagroup()) {
+		if (viaRequest) {
+			return { tr::lng_action_you_joined_by_request(tr::now) };
+		}
 		auto self = history->session().user();
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(self->createOpenLink());
@@ -1264,18 +1268,21 @@ HistoryService::PreparedText GenerateJoinedText(
 			textcmdLink(1, self->name));
 		return result;
 	}
-	return { tr::lng_action_you_joined(tr::now) };
+	return { viaRequest
+		? tr::lng_action_you_joined_by_request_channel(tr::now)
+		: tr::lng_action_you_joined(tr::now) };
 }
 
 not_null<HistoryService*> GenerateJoinedMessage(
 		not_null<History*> history,
 		TimeId inviteDate,
-		not_null<UserData*> inviter) {
+		not_null<UserData*> inviter,
+		bool viaRequest) {
 	return history->makeServiceMessage(
 		history->owner().nextLocalMessageId(),
 		MessageFlag::LocalHistoryEntry,
 		inviteDate,
-		GenerateJoinedText(history, inviter));
+		GenerateJoinedText(history, inviter, viaRequest));
 }
 
 std::optional<bool> PeerHasThisCall(

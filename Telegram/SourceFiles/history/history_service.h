@@ -175,7 +175,8 @@ private:
 [[nodiscard]] not_null<HistoryService*> GenerateJoinedMessage(
 	not_null<History*> history,
 	TimeId inviteDate,
-	not_null<UserData*> inviter);
+	not_null<UserData*> inviter,
+	bool viaRequest);
 [[nodiscard]] std::optional<bool> PeerHasThisCall(
 	not_null<PeerData*> peer,
 	CallId id);

@@ -2879,16 +2879,17 @@ MsgRange History::rangeForDifferenceRequest() const {
 }
 
 HistoryService *History::insertJoinedMessage() {
-	if (!isChannel()
+	const auto channel = peer->asChannel();
+	if (!channel
 		|| _joinedMessage
-		|| !peer->asChannel()->amIn()
+		|| !channel->amIn()
 		|| (peer->isMegagroup()
-			&& peer->asChannel()->mgInfo->joinedMessageFound)) {
+			&& channel->mgInfo->joinedMessageFound)) {
 		return _joinedMessage;
 	}
 
-	const auto inviter = peer->asChannel()->inviter
-		? owner().userLoaded(peer->asChannel()->inviter)
+	const auto inviter = (channel->inviter.bare > 0)
+		? owner().userLoaded(channel->inviter)
 		: nullptr;
 	if (!inviter) {
 		return nullptr;
@@ -2898,12 +2899,15 @@ HistoryService *History::insertJoinedMessage() {
 		&& peer->migrateFrom()
 		&& !blocks.empty()
 		&& blocks.front()->messages.front()->data()->id == 1) {
-		peer->asChannel()->mgInfo->joinedMessageFound = true;
+		channel->mgInfo->joinedMessageFound = true;
 		return nullptr;
 	}
 
-	const auto inviteDate = peer->asChannel()->inviteDate;
-	_joinedMessage = GenerateJoinedMessage(this, inviteDate, inviter);
+	_joinedMessage = GenerateJoinedMessage(
+		this,
+		channel->inviteDate,
+		inviter,
+		channel->inviteViaRequest);
 	insertLocalMessage(_joinedMessage);
 	return _joinedMessage;
 }
