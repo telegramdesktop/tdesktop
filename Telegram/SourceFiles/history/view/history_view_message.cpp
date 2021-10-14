@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/view/history_view_group_call_tracker.h" // UserpicInRow.
+#include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"

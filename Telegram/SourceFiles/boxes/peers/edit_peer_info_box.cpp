@@ -1108,23 +1108,13 @@ void Controller::fillPendingRequestsButton() {
 			_controls.buttonsLayout,
 			object_ptr<Ui::VerticalLayout>(
 				_controls.buttonsLayout)));
-	const auto showPendingRequestsBox = [=] {
-		auto controller = std::make_unique<RequestsBoxController>(
-			_navigation,
-			_peer->migrateToOrMe());
-		const auto initBox = [=](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-		};
-		_navigation->parentController()->show(
-			Box<PeerListBox>(std::move(controller), initBox));
-	};
 	AddButtonWithCount(
 		wrap->entity(),
 		(_isGroup
 			? tr::lng_manage_peer_requests()
 			: tr::lng_manage_peer_requests_channel()),
 		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
-		showPendingRequestsBox,
+		[=] { RequestsBoxController::Start(_navigation, _peer); },
 		st::infoIconRequests);
 	std::move(
 		pendingRequestsCount

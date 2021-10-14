@@ -37,22 +37,14 @@ void GenerateUserpicsInRow(
 	const style::GroupCallUserpics &st,
 	int maxElements = 0);
 
-class GroupCallTracker final {
-public:
-	explicit GroupCallTracker(not_null<PeerData*> peer);
+[[nodiscard]] auto GroupCallBarContentByCall(
+	not_null<Data::GroupCall*> call,
+	int userpicSize)
+-> rpl::producer<Ui::GroupCallBarContent>;
 
-	[[nodiscard]] rpl::producer<Ui::GroupCallBarContent> content() const;
-	[[nodiscard]] rpl::producer<> joinClicks() const;
-
-	[[nodiscard]] static rpl::producer<Ui::GroupCallBarContent> ContentByCall(
-		not_null<Data::GroupCall*> call,
-		int userpicSize);
-
-private:
-	const not_null<PeerData*> _peer;
-
-	rpl::event_stream<> _joinClicks;
-
-};
+[[nodiscard]] auto GroupCallBarContentByPeer(
+	not_null<PeerData*> peer,
+	int userpicSize)
+-> rpl::producer<Ui::GroupCallBarContent>;
 
 } // namespace HistoryView

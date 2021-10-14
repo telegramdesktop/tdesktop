@@ -1350,8 +1350,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_requests_dismiss" = "Dismiss";
 "lng_group_requests_was_added" = "{user} has been added to the group.";
 "lng_group_requests_was_added_channel" = "{user} has been added to the channel.";
-"lng_group_requests_none" = "No member requests";
-"lng_group_requests_none_channel" = "No subscriber requests";
+"lng_group_requests_none" = "You have no pending requests\nto join your group.";
+"lng_group_requests_none_channel" = "You have no pending requests\nto join your channel.";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";

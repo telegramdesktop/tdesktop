@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_signal_bars.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_menu.h" // Group::LeaveBox.
-#include "history/view/history_view_group_call_tracker.h" // ContentByCall.
+#include "history/view/history_view_group_call_bar.h" // ContentByCall.
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_peer.h"
@@ -582,7 +582,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 		}, lifetime());
 	}) | rpl::map([=](not_null<Data::GroupCall*> real) {
 
-		return HistoryView::GroupCallTracker::ContentByCall(
+		return HistoryView::GroupCallBarContentByCall(
 			real,
 			st::groupCallTopBarUserpics.size);
 	}) | rpl::flatten_latest(

@@ -909,3 +909,11 @@ whoReadChecksDisabled: icon{{ "chat/seen_checks", menuFgDisabled }};
 whoReadPlayed: icon{{ "chat/seen_played", windowFg }};
 whoReadPlayedOver: icon{{ "chat/seen_played", windowFgOver }};
 whoReadPlayedDisabled: icon {{ "chat/seen_played", menuFgDisabled }};
+
+historyRequestsUserpics: GroupCallUserpics {
+	size: 22px;
+	shift: 8px;
+	stroke: 4px;
+	align: align(left);
+}
+historyRequestsHeight: 33px;

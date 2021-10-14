@@ -27,6 +27,10 @@ public:
 		not_null<PeerData*> peer);
 	~RequestsBoxController();
 
+	static void Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer);
+
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;

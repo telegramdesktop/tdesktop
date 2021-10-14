@@ -256,6 +256,19 @@ RequestsBoxController::RequestsBoxController(
 
 RequestsBoxController::~RequestsBoxController() = default;
 
+void RequestsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
+	auto controller = std::make_unique<RequestsBoxController>(
+		navigation,
+		peer->migrateToOrMe());
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	};
+	navigation->parentController()->show(
+		Box<PeerListBox>(std::move(controller), initBox));
+}
+
 Main::Session &RequestsBoxController::session() const {
 	return _peer->session();
 }

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/history_view_group_call_tracker.h"
+#include "history/view/history_view_group_call_bar.h"
 
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -62,11 +62,7 @@ void GenerateUserpicsInRow(
 	}
 }
 
-GroupCallTracker::GroupCallTracker(not_null<PeerData*> peer)
-: _peer(peer) {
-}
-
-rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
+rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 		not_null<Data::GroupCall*> call,
 		int userpicSize) {
 	struct State {
@@ -74,7 +70,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		Ui::GroupCallBarContent current;
 		base::has_weak_ptr guard;
 		bool someUserpicsNotLoaded = false;
-		bool scheduled = false;
+		bool pushScheduled = false;
 	};
 
 	// speaking DESC, std::max(date, lastActive) DESC
@@ -251,12 +247,12 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		state->current.livestream = call->peer()->isBroadcast();
 
 		const auto pushNext = [=] {
-			if (state->scheduled) {
+			if (state->pushScheduled) {
 				return;
 			}
-			state->scheduled = true;
+			state->pushScheduled = true;
 			crl::on_main(&state->guard, [=] {
-				state->scheduled = false;
+				state->pushScheduled = false;
 				consumer.put_next_copy(state->current);
 			});
 		};
@@ -350,8 +346,9 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 	};
 }
 
-rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::content() const {
-	const auto peer = _peer;
+rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByPeer(
+		not_null<PeerData*> peer,
+		int userpicSize) {
 	return rpl::combine(
 		peer->session().changes().peerFlagsValue(
 			peer,
@@ -363,19 +360,15 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::content() const {
 			? call
 			: nullptr;
 	}) | rpl::distinct_until_changed(
-	) | rpl::map([](Data::GroupCall *call)
+	) | rpl::map([=](Data::GroupCall *call)
 	-> rpl::producer<Ui::GroupCallBarContent> {
 		if (!call) {
 			return rpl::single(Ui::GroupCallBarContent{ .shown = false });
 		} else if (!call->fullCount() && !call->participantsLoaded()) {
 			call->reload();
 		}
-		return ContentByCall(call, st::historyGroupCallUserpics.size);
+		return GroupCallBarContentByCall(call, userpicSize);
 	}) | rpl::flatten_latest();
-}
-
-rpl::producer<> GroupCallTracker::joinClicks() const {
-	return _joinClicks.events();
 }
 
 } // namespace HistoryView
