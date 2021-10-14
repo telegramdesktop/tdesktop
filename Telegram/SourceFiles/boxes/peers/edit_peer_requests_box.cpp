@@ -366,12 +366,18 @@ void RequestsBoxController::rowElementClicked(
 void RequestsBoxController::processRequest(
 		not_null<UserData*> user,
 		bool approved) {
-	const auto done = crl::guard(this, [=] {
+	const auto remove = [=] {
 		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListRemoveRow(row);
 			refreshDescription();
 			delegate()->peerListRefreshRows();
 		}
+		static_cast<RequestsBoxSearchController*>(
+			searchController())->removeFromCache(user);
+		pushRecentRequests();
+	};
+	const auto done = crl::guard(this, [=] {
+		remove();
 		if (approved) {
 			Ui::ShowMultilineToast({
 				.text = (_peer->isBroadcast()
@@ -383,9 +389,8 @@ void RequestsBoxController::processRequest(
 						Ui::Text::WithEntities)
 			});
 		}
-		pushRecentRequests();
 	});
-	const auto fail = [] {};
+	const auto fail = crl::guard(this, remove);
 	session().api().inviteLinks().processRequest(
 		_peer,
 		QString(), // link
