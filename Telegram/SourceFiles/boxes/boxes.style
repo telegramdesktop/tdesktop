@@ -82,29 +82,39 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
+		font: font(18px semibold);
+		linkFont: font(18px semibold);
+		linkFontOver: font(18px semibold underline);
 	}
 }
-confirmInviteStatus: FlatLabel(boxLabel) {
+confirmInviteAbout: FlatLabel(boxLabel) {
 	align: align(center);
 	minWidth: 320px;
-	textFg: windowSubTextFg;
+	maxHeight: 60px;
+	style: TextStyle(boxLabelStyle) {
+		lineHeight: 19px;
+	}
 }
-confirmInviteTitleTop: 106px;
-confirmInvitePhotoSize: 76px;
-confirmInvitePhotoTop: 20px;
-confirmInviteStatusTop: 136px;
-confirmInviteUserHeight: 84px;
-confirmInviteUserPhotoSize: 56px;
-confirmInviteUserPhotoTop: 166px;
+confirmInviteStatus: FlatLabel(confirmInviteAbout) {
+	textFg: windowSubTextFg;
+	style: boxLabelStyle;
+}
+confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
+confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
+confirmInviteTitleTop: 141px;
+confirmInvitePhotoSize: 96px;
+confirmInvitePhotoTop: 33px;
+confirmInviteStatusTop: 164px;
+confirmInviteUserHeight: 100px;
+confirmInviteUserPhotoSize: 50px;
+confirmInviteUserPhotoTop: 210px;
+confirmInviteUsersWidth: 320px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	minWidth: 66px;
 	maxHeight: 20px;
 }
-confirmInviteUserNameTop: 227px;
+confirmInviteUserNameTop: 264px;
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 272px;

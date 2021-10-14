@@ -104,6 +104,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 , _submit(std::move(submit))
 , _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
+, _about(this, st::confirmInviteAbout)
+, _aboutRequests(this, st::confirmInviteStatus)
 , _participants(GetParticipants(_session, data))
 , _isChannel(data.is_channel() && !data.is_megagroup())
 , _requestApprove(data.is_request_needed()) {
@@ -127,6 +129,18 @@ ConfirmInviteBox::ConfirmInviteBox(
 	}();
 	_title->setText(title);
 	_status->setText(status);
+	if (const auto v = qs(data.vabout().value_or_empty()); !v.isEmpty()) {
+		_about->setText(v);
+	} else {
+		_about.destroy();
+	}
+	if (_requestApprove) {
+		_aboutRequests->setText(_isChannel
+			? tr::lng_group_request_about_channel(tr::now)
+			: tr::lng_group_request_about(tr::now));
+	} else {
+		_aboutRequests.destroy();
+	}
 
 	const auto photo = _session->data().processPhoto(data.vphoto());
 	if (!photo->isNull()) {
@@ -182,7 +196,7 @@ void ConfirmInviteBox::prepare() {
 
 	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
 	if (!_participants.empty()) {
-		int skip = (st::boxWideWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
+		int skip = (st::confirmInviteUsersWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
@@ -199,6 +213,16 @@ void ConfirmInviteBox::prepare() {
 
 		newHeight += st::confirmInviteUserHeight;
 	}
+	if (_about) {
+		const auto padding = st::confirmInviteAboutPadding;
+		_about->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
+		newHeight += padding.top() + _about->height() + padding.bottom();
+	}
+	if (_aboutRequests) {
+		const auto padding = st::confirmInviteAboutRequestsPadding;
+		_aboutRequests->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
+		newHeight += padding.top() + _aboutRequests->height() + padding.bottom();
+	}
 	setDimensions(st::boxWideWidth, newHeight);
 }
 
@@ -206,6 +230,19 @@ void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_title->move((width() - _title->width()) / 2, st::confirmInviteTitleTop);
 	_status->move((width() - _status->width()) / 2, st::confirmInviteStatusTop);
+	auto bottom = _status->y()
+		+ _status->height()
+		+ st::boxPadding.bottom()
+		+ (_participants.empty() ? 0 : st::confirmInviteUserHeight);
+	if (_about) {
+		const auto padding = st::confirmInviteAboutPadding;
+		_about->move((width() - _about->width()) / 2, bottom + padding.top());
+		bottom += padding.top() + _about->height() + padding.bottom();
+	}
+	if (_aboutRequests) {
+		const auto padding = st::confirmInviteAboutRequestsPadding;
+		_aboutRequests->move((width() - _aboutRequests->width()) / 2, bottom + padding.top());
+	}
 }
 
 void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
