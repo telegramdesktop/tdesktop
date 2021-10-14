@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/slide_wrap.h"
 #include "base/unixtime.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -51,6 +52,8 @@ void EditInviteLinkBox(
 		not_null<GenericBox*> box,
 		const InviteLinkFields &data,
 		Fn<void(InviteLinkFields)> done) {
+	using namespace rpl::mappers;
+
 	const auto link = data.link;
 	const auto isGroup = data.isGroup;
 	box->setTitle(link.isEmpty()
@@ -58,15 +61,19 @@ void EditInviteLinkBox(
 		: tr::lng_group_invite_edit_title());
 
 	const auto container = box->verticalLayout();
-	const auto addTitle = [&](rpl::producer<QString> text) {
+	const auto addTitle = [&](
+			not_null<VerticalLayout*> container,
+			rpl::producer<QString> text,
+			style::margins margins = style::margins()) {
 		container->add(
 			object_ptr<FlatLabel>(
 				container,
 				std::move(text),
 				st::settingsSubsectionTitle),
-			st::settingsSubsectionTitlePadding);
+			st::settingsSubsectionTitlePadding + margins);
 	};
 	const auto addDivider = [&](
+			not_null<VerticalLayout*> container,
 			rpl::producer<QString> text,
 			style::margins margins = style::margins()) {
 		container->add(
@@ -80,19 +87,27 @@ void EditInviteLinkBox(
 			margins);
 	};
 
-	addTitle(tr::lng_group_invite_expire_title());
+	addTitle(container, tr::lng_group_invite_expire_title());
 	const auto expiresWrap = container->add(
 		object_ptr<VerticalLayout>(container),
 		style::margins(0, 0, 0, st::settingsSectionSkip));
 	addDivider(
-		tr::lng_group_invite_expire_about(),
-		style::margins(0, 0, 0, st::settingsSectionSkip));
+		container,
+		tr::lng_group_invite_expire_about());
 
-	addTitle(tr::lng_group_invite_usage_title());
-	const auto usagesWrap = container->add(
-		object_ptr<VerticalLayout>(container),
+	const auto usagesSlide = container->add(
+		object_ptr<SlideWrap<VerticalLayout>>(
+			container,
+			object_ptr<VerticalLayout>(container)));
+	const auto usagesInner = usagesSlide->entity();
+	addTitle(
+		usagesInner,
+		tr::lng_group_invite_usage_title(),
+		style::margins(0, st::settingsSectionSkip, 0, 0));
+	const auto usagesWrap = usagesInner->add(
+		object_ptr<VerticalLayout>(usagesInner),
 		style::margins(0, 0, 0, st::settingsSectionSkip));
-	addDivider(tr::lng_group_invite_usage_about());
+	addDivider(usagesInner, tr::lng_group_invite_usage_about());
 
 	static const auto addButton = [](
 			not_null<VerticalLayout*> container,
@@ -272,7 +287,7 @@ void EditInviteLinkBox(
 		style::margins{ 0, buttonSkip, 0, buttonSkip });
 	requestApproval->toggleOn(state->requestApproval.value());
 	state->requestApproval = requestApproval->toggledValue();
-	addDivider(rpl::conditional(
+	addDivider(container, rpl::conditional(
 		state->requestApproval.value(),
 		(isGroup
 			? tr::lng_group_invite_about_approve()
@@ -280,6 +295,9 @@ void EditInviteLinkBox(
 		(isGroup
 			? tr::lng_group_invite_about_no_approve()
 			: tr::lng_group_invite_about_no_approve_channel())));
+
+	usagesSlide->toggleOn(state->requestApproval.value() | rpl::map(!_1));
+	usagesSlide->finishAnimating();
 
 	const auto &saveLabel = link.isEmpty()
 		? tr::lng_formatting_link_create

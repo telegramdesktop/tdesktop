@@ -1340,10 +1340,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_request_about_channel" = "This channel accepts new subscribers only after they are approved by its admins.";
 "lng_group_request_sent" = "You will be added to the group once its admins approve your request.";
 "lng_group_request_sent_channel" = "You will be added to the channel once its admins approve your request.";
-"lng_group_requests_pending#one" = "{count} pending member request";
-"lng_group_requests_pending#other" = "{count} pending member requests";
-"lng_group_requests_pending_channel#one" = "{count} pending subscriber request";
-"lng_group_requests_pending_channel#other" = "{count} pending subscriber requests";
+"lng_group_requests_pending#one" = "{count} user requested to join";
+"lng_group_requests_pending#other" = "{count} users requested to join";
 "lng_group_requests_status" = "requested to join {date}";
 "lng_group_requests_add" = "Add to Group";
 "lng_group_requests_add_channel" = "Add to Channel";

@@ -107,7 +107,9 @@ void InviteLinks::performCreate(
 			? Flag::f_legacy_revoke_permanent
 			: Flag(0))
 			| (expireDate ? Flag::f_expire_date : Flag(0))
-			| (usageLimit ? Flag::f_usage_limit : Flag(0))
+			| ((!requestApproval && usageLimit)
+				? Flag::f_usage_limit
+				: Flag(0))
 			| (requestApproval ? Flag::f_request_needed : Flag(0))),
 		peer->input,
 		MTP_int(expireDate),
@@ -249,11 +251,14 @@ void InviteLinks::performEdit(
 		callbacks.push_back(std::move(done));
 	}
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;
+	const auto flags = (revoke ? Flag::f_revoked : Flag(0))
+		| (!revoke ? Flag::f_expire_date : Flag(0))
+		| ((!revoke && !requestApproval) ? Flag::f_usage_limit : Flag(0))
+		| ((!revoke && (requestApproval || !usageLimit))
+			? Flag::f_request_needed
+			: Flag(0));
 	_api->request(MTPmessages_EditExportedChatInvite(
-		MTP_flags((revoke ? Flag::f_revoked : Flag(0))
-			| (!revoke ? Flag::f_expire_date : Flag(0))
-			| (!revoke ? Flag::f_usage_limit : Flag(0))
-			| (!revoke ? Flag::f_request_needed : Flag(0))),
+		MTP_flags(flags),
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),

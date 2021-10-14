@@ -47,12 +47,10 @@ RequestsBar::RequestsBar(
 	) | rpl::start_with_next([=](RequestsBarContent &&content) {
 		_content = content;
 		if (_content.count > 0) {
-			_text = (_content.isGroup
-				? tr::lng_group_requests_pending
-				: tr::lng_group_requests_pending_channel)(
-					tr::now,
-					lt_count_decimal,
-					_content.count);
+			_text = tr::lng_group_requests_pending(
+				tr::now,
+				lt_count_decimal,
+				_content.count);
 		}
 		_userpics->update(_content.users, !_wrap.isHidden());
 		_inner->update();
