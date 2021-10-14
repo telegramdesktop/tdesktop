@@ -17,12 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_userpics.h"
 #include "info/profile/info_profile_values.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 
 namespace HistoryView {
 namespace {
 
 // If less than 10 requests we request userpics each time the count changes.
-constexpr auto kRequestAgainThreshold = 10;
+constexpr auto kRequestExactThreshold = 10;
 
 } // namespace
 
@@ -31,27 +32,25 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		int userpicSize) {
 	struct State {
 		explicit State(not_null<PeerData*> peer)
-		: api(&peer->session().api()) {
+		: peer(peer) {
 			current.isGroup = !peer->isBroadcast();
 		}
 		~State() {
 			if (requestId) {
-				api->request(requestId).cancel();
+				peer->session().api().request(requestId).cancel();
 			}
 		}
 
-		not_null<ApiWrap*> api;
+		not_null<PeerData*> peer;
 		std::vector<UserpicInRow> userpics;
 		std::vector<not_null<UserData*>> users;
 		Ui::RequestsBarContent current;
 		base::has_weak_ptr guard;
 		mtpRequestId requestId = 0;
-		Fn<void()> requestUsers;
 		bool someUserpicsNotLoaded = false;
 		bool pushScheduled = false;
 	};
 
-	static constexpr auto kLimit = 3;
 	static const auto FillUserpics = [](
 			not_null<State*> state) {
 		const auto &users = state->users;
@@ -114,6 +113,60 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		return true;
 	};
 
+	static const auto RequestExact = [](
+			not_null<State*> state,
+			int userpicSize,
+			Fn<void()> push,
+			auto requestExact) {
+		if (state->requestId) {
+			return;
+		}
+		using Flag = MTPmessages_GetChatInviteImporters::Flag;
+		state->requestId = state->peer->session().api().request(
+			MTPmessages_GetChatInviteImporters(
+				MTP_flags(Flag::f_requested),
+				state->peer->input,
+				MTPstring(), // link
+				MTPstring(), // q
+				MTP_int(0), // offset_date
+				MTP_inputUserEmpty(), // offset_user
+				MTP_int(kRecentRequestsLimit))
+		).done([=](const MTPmessages_ChatInviteImporters &result) {
+			state->requestId = 0;
+
+			result.match([&](
+				const MTPDmessages_chatInviteImporters &data) {
+				const auto count = data.vcount().v;
+				const auto changed = (state->current.count != count);
+				const auto &importers = data.vimporters().v;
+				auto &owner = state->peer->owner();
+				state->users = std::vector<not_null<UserData*>>();
+				const auto use = std::min(
+					importers.size(),
+					HistoryView::kRecentRequestsLimit);
+				state->users.reserve(use);
+				for (auto i = 0; i != use; ++i) {
+					importers[i].match([&](
+						const MTPDchatInviteImporter &data) {
+						state->users.push_back(
+							owner.user(data.vuser_id()));
+					});
+				}
+				if (changed) {
+					state->current.count = count;
+				}
+				if (RegenerateUserpics(state, userpicSize) || changed) {
+					push();
+				}
+				if (state->userpics.size() > state->current.count) {
+					requestExact(state, userpicSize, push, requestExact);
+				}
+			});
+		}).fail([=](const MTP::Error &error) {
+			state->requestId = 0;
+		}).send();
+	};
+
 	return [=](auto consumer) {
 		const auto api = &peer->session().api();
 
@@ -121,7 +174,9 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		auto state = lifetime.make_state<State>(peer);
 
 		const auto pushNext = [=] {
-			if (state->pushScheduled) {
+			if (state->pushScheduled
+				|| (std::min(state->current.count, kRecentRequestsLimit)
+					!= state->users.size())) {
 				return;
 			}
 			state->pushScheduled = true;
@@ -129,53 +184,6 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 				state->pushScheduled = false;
 				consumer.put_next_copy(state->current);
 			});
-		};
-
-		state->requestUsers = [=] {
-			if (state->requestId) {
-				return;
-			}
-			using Flag = MTPmessages_GetChatInviteImporters::Flag;
-			state->requestId = state->api->request(
-				MTPmessages_GetChatInviteImporters(
-					MTP_flags(Flag::f_requested),
-					peer->input,
-					MTPstring(), // link
-					MTPstring(), // q
-					MTP_int(0), // offset_date
-					MTP_inputUserEmpty(), // offset_user
-					MTP_int(kLimit))
-			).done([=](const MTPmessages_ChatInviteImporters &result) {
-				state->requestId = 0;
-
-				result.match([&](
-						const MTPDmessages_chatInviteImporters &data) {
-					const auto count = data.vcount().v;
-					const auto changed = (state->current.count != count);
-					const auto &importers = data.vimporters().v;
-					auto &owner = peer->owner();
-					state->users = std::vector<not_null<UserData*>>();
-					state->users.reserve(importers.size());
-					for (const auto &importer : importers) {
-						importer.match([&](
-								const MTPDchatInviteImporter &data) {
-							state->users.push_back(
-								owner.user(data.vuser_id()));
-						});
-					}
-					if (changed) {
-						state->current.count = count;
-					}
-					if (RegenerateUserpics(state, userpicSize) || changed) {
-						pushNext();
-					}
-					if (state->userpics.size() > state->current.count) {
-						state->requestUsers();
-					}
-				});
-			}).fail([=](const MTP::Error &error) {
-				state->requestId = 0;
-			}).send();
 		};
 
 		peer->session().downloaderTaskFinished(
@@ -198,13 +206,26 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 			return (state->current.count != count);
 		}) | rpl::start_with_next([=](int count) {
 			const auto was = state->current.count;
-			const auto requestUsersNeeded = (was < kRequestAgainThreshold)
-				|| (count < kRequestAgainThreshold);
+			const auto requestUsersNeeded = (was < kRequestExactThreshold)
+				|| (count < kRequestExactThreshold);
 			state->current.count = count;
 			if (requestUsersNeeded) {
-				state->requestUsers();
+				RequestExact(state, userpicSize, pushNext, RequestExact);
 			}
 			pushNext();
+		}, lifetime);
+
+		using RecentRequests = Api::InviteLinks::RecentRequests;
+		api->inviteLinks().recentRequestsLocal(
+		) | rpl::filter([=](const RecentRequests &value) {
+			return (value.peer == peer)
+				&& (state->current.count >= kRequestExactThreshold)
+				&& (value.users.size() == kRecentRequestsLimit);
+		}) | rpl::start_with_next([=](RecentRequests &&value) {
+			state->users = std::move(value.users);
+			if (RegenerateUserpics(state, userpicSize)) {
+				pushNext();
+			}
 		}, lifetime);
 
 		return lifetime;

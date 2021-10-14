@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
 #include "boxes/peers/edit_peer_invite_link.h" // PrepareRequestedRowStatus
+#include "history/view/history_view_requests_bar.h" // kRecentRequestsLimit
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -382,6 +383,7 @@ void RequestsBoxController::processRequest(
 						Ui::Text::WithEntities)
 			});
 		}
+		pushRecentRequests();
 	});
 	const auto fail = [] {};
 	session().api().inviteLinks().processRequest(
@@ -391,6 +393,24 @@ void RequestsBoxController::processRequest(
 		approved,
 		done,
 		fail);
+}
+
+void RequestsBoxController::pushRecentRequests() {
+	const auto count = std::min(
+		delegate()->peerListFullRowsCount(),
+		HistoryView::kRecentRequestsLimit);
+	if (!count) {
+		return;
+	}
+	auto requests = std::vector<not_null<UserData*>>();
+	requests.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		requests.push_back(delegate()->peerListRowAt(i)->peer()->asUser());
+	}
+	session().api().inviteLinks().pushRecentRequests({
+		.peer = _peer,
+		.users = std::move(requests),
+	});
 }
 
 void RequestsBoxController::appendRow(
