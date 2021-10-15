@@ -162,6 +162,12 @@ public:
 	struct NotificationId {
 		FullPeer full;
 		MsgId msgId = 0;
+
+		friend inline bool operator<(
+				const NotificationId &a,
+				const NotificationId &b) {
+			return std::tie(a.full, a.msgId) < std::tie(b.full, b.msgId);
+		}
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {
@@ -275,8 +281,6 @@ protected:
 	void doClearAll() override {
 		doClearAllFast();
 	}
-	void doClearFromItem(not_null<HistoryItem*> item) override {
-	}
 	void doShowNotification(
 		not_null<HistoryItem*> item,
 		int forwardedCount) override;
@@ -313,6 +317,8 @@ protected:
 		DisplayOptions options) override {
 	}
 	void doClearAllFast() override {
+	}
+	void doClearFromItem(not_null<HistoryItem*> item) override {
 	}
 	void doClearFromHistory(not_null<History*> history) override {
 	}

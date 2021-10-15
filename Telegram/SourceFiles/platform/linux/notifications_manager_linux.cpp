@@ -828,6 +828,7 @@ public:
 		const QString &msg,
 		DisplayOptions options);
 	void clearAll();
+	void clearFromItem(not_null<HistoryItem*> item);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
@@ -943,6 +944,30 @@ void Manager::Private::clearAll() {
 	}
 }
 
+void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
+	if (!Supported()) {
+		return;
+	}
+	const auto key = FullPeer{
+		.sessionId = item->history()->session().uniqueId(),
+		.peerId = item->history()->peer->id
+	};
+	const auto i = _notifications.find(key);
+	if (i == _notifications.cend()) {
+		return;
+	}
+	const auto j = i->second.find(item->id);
+	if (j == i->second.end()) {
+		return;
+	}
+	const auto taken = base::take(j->second);
+	i->second.erase(j);
+	if (i->second.empty()) {
+		_notifications.erase(i);
+	}
+	taken->close();
+}
+
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!Supported()) {
 		return;
@@ -952,7 +977,7 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		.sessionId = history->session().uniqueId(),
 		.peerId = history->peer->id
 	};
-	auto i = _notifications.find(key);
+	const auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
 		const auto temp = base::take(i->second);
 		_notifications.erase(i);
@@ -1031,6 +1056,10 @@ void Manager::doShowNativeNotification(
 
 void Manager::doClearAllFast() {
 	_private->clearAll();
+}
+
+void Manager::doClearFromItem(not_null<HistoryItem*> item) {
+	_private->clearFromItem(item);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {
