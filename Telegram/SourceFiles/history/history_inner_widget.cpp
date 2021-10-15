@@ -1568,19 +1568,19 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			} else {
 				isUponSelected = -2;
 			}
-		} else {
+		} else if (App::mousedItem()
+			&& App::mousedItem() == App::hoveredItem()
+			&& _selected.cbegin()->first == App::mousedItem()->data()) {
 			uint16 selFrom = _selected.cbegin()->second.from, selTo = _selected.cbegin()->second.to;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
-			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-				auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
-				StateRequest request;
-				request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-				auto dragState = App::mousedItem()->textState(mousePos, request);
-				if (dragState.cursor == CursorState::Text
-					&& dragState.symbol >= selFrom
-					&& dragState.symbol < selTo) {
-					isUponSelected = 1;
-				}
+			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
+			StateRequest request;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
+			auto dragState = App::mousedItem()->textState(mousePos, request);
+			if (dragState.cursor == CursorState::Text
+				&& dragState.symbol >= selFrom
+				&& dragState.symbol < selTo) {
+				isUponSelected = 1;
 			}
 		}
 	}
