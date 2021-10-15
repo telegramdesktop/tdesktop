@@ -1156,8 +1156,8 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				}
-			} else if (history->chatListTimeId() != 0) {
-				return base::unixtime::parse(history->chatListTimeId()).date();
+			} else if (const auto item = history->lastMessage()) {
+				return base::unixtime::parse(item->date()).date();
 			}
 		}
 		return QDate();
@@ -1167,8 +1167,8 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 			if (const auto channel = history->peer->migrateTo()) {
 				history = channel->owner().historyLoaded(channel);
 			}
-			if (history && history->chatListTimeId() != 0) {
-				return base::unixtime::parse(history->chatListTimeId()).date();
+			if (const auto item = history ? history->lastMessage() : nullptr) {
+				return base::unixtime::parse(item->date()).date();
 			}
 		}
 		return QDate::currentDate();
