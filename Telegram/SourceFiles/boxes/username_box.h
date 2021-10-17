@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "base/timer.h"
 #include "mtproto/sender.h"
 
 namespace Ui {
@@ -31,11 +32,9 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void updateDone(const MTPUser &result);
-	void updateFail(const MTP::Error &error);
+	void updateFail(const QString &error);
 
-	void checkDone(const MTPBool &result);
-	void checkFail(const MTP::Error &error);
+	void checkFail(const QString &error);
 
 	void save();
 
@@ -48,6 +47,10 @@ private:
 	void updateLinkText();
 
 	const not_null<Main::Session*> _session;
+	const style::TextStyle &_textStyle;
+	const style::font &_font;
+	const style::margins &_padding;
+	const int _textCenterTop;
 	MTP::Sender _api;
 
 	object_ptr<Ui::UsernameInput> _username;
@@ -58,6 +61,6 @@ private:
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	Ui::Text::String _about;
-	object_ptr<QTimer> _checkTimer;
+	base::Timer _checkTimer;
 
 };
