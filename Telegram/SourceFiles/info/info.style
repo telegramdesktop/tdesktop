@@ -952,3 +952,9 @@ infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 
 infoScrollDateHideTimeout: historyScrollDateHideTimeout;
 infoDateFadeDuration: historyDateFadeDuration;
+
+shortInfoName: FlatLabel(defaultFlatLabel) {
+}
+shortInfoStatus: FlatLabel(defaultFlatLabel) {
+}
+shortInfoWidth: 336px;

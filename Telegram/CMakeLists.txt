@@ -182,6 +182,10 @@ PRIVATE
     boxes/peers/edit_peer_requests_box.h
     boxes/peers/edit_peer_type_box.cpp
     boxes/peers/edit_peer_type_box.h
+    boxes/peers/peer_short_info_box.cpp
+    boxes/peers/peer_short_info_box.h
+    boxes/peers/prepare_short_info_box.cpp
+    boxes/peers/prepare_short_info_box.h
     boxes/about_box.cpp
     boxes/about_box.h
     boxes/about_sponsored_box.cpp

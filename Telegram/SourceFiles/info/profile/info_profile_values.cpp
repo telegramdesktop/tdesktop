@@ -74,7 +74,7 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 		UpdateFlag::Name
 	) | rpl::map([=] {
 		return peer->name;
-	}) | Ui::Text::ToWithEntities();;
+	}) | Ui::Text::ToWithEntities();
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
@@ -113,7 +113,9 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 	}) | Ui::Text::ToWithEntities();
 }
 
-rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
+TextWithEntities AboutWithEntities(
+		not_null<PeerData*> peer,
+		const QString &value) {
 	auto flags = TextParseLinks | TextParseMentions;
 	const auto user = peer->asUser();
 	const auto isBot = user && user->isBot();
@@ -125,15 +127,19 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	const auto stripExternal = peer->isChat()
 		|| peer->isMegagroup()
 		|| (user && !isBot);
+	auto result = TextWithEntities{ value };
+	TextUtilities::ParseEntities(result, flags);
+	if (stripExternal) {
+		StripExternalLinks(result);
+	}
+	return result;
+}
+
+rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	return PlainAboutValue(
 		peer
-	) | Ui::Text::ToWithEntities(
-	) | rpl::map([=](TextWithEntities &&text) {
-		TextUtilities::ParseEntities(text, flags);
-		if (stripExternal) {
-			StripExternalLinks(text);
-		}
-		return std::move(text);
+	) | rpl::map([peer](const QString &value) {
+		return AboutWithEntities(peer, value);
 	});
 }
 

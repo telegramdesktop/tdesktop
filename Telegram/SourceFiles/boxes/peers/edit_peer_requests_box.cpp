@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
 #include "boxes/peers/edit_peer_invite_link.h" // PrepareRequestedRowStatus
+#include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
 #include "history/view/history_view_requests_bar.h" // kRecentRequestsLimit
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -354,7 +355,9 @@ void RequestsBoxController::refreshDescription() {
 }
 
 void RequestsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_navigation->showPeerInfo(row->peer());
+	_navigation->parentController()->show(PrepareShortInfoBox(
+		row->peer(),
+		_navigation));
 }
 
 void RequestsBoxController::rowElementClicked(
