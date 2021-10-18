@@ -8,10 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "base/timer.h"
 #include "mtproto/sender.h"
-#include "styles/style_widgets.h"
-
-#include <QtCore/QTimer>
 
 class ConfirmBox;
 class PeerListBox;
@@ -118,7 +116,10 @@ protected:
 
 private:
 	void createChannel(const QString &title, const QString &description);
-	void createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users);
+	void createGroup(
+		not_null<PeerListBox*> selectUsersBox,
+		const QString &title,
+		const std::vector<not_null<PeerData*>> &users);
 	void submitName();
 	void submit();
 	void checkInviteLink();
@@ -176,12 +177,10 @@ private:
 	void check();
 	void save();
 
-	void updateDone(const MTPBool &result);
-	void updateFail(const MTP::Error &error);
+	void updateFail(const QString &error);
 
-	void checkDone(const MTPBool &result);
-	void checkFail(const MTP::Error &error);
-	void firstCheckFail(const MTP::Error &error);
+	void checkFail(const QString &error);
+	void firstCheckFail(const QString &error);
 
 	void updateMaxHeight();
 
@@ -209,7 +208,7 @@ private:
 	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
-	QTimer _checkTimer;
+	base::Timer _checkTimer;
 
 };
 
@@ -226,8 +225,7 @@ protected:
 private:
 	void submit();
 	void save();
-	void saveSelfDone(const MTPUser &user);
-	void saveSelfFail(const MTP::Error &error);
+	void saveSelfFail(const QString &error);
 
 	const not_null<UserData*> _user;
 	MTP::Sender _api;
