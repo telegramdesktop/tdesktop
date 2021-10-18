@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_panel.h"
 #include "calls/calls_call.h"

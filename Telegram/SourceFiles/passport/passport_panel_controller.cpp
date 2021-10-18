@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/ui/passport_details_row.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "window/window_session_controller.h"
 #include "ui/toast/toast.h"
 #include "ui/rp_widget.h"

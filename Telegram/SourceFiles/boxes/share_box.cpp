@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "base/qthelp_url.h"
 #include "storage/storage_account.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/multi_select.h"

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"

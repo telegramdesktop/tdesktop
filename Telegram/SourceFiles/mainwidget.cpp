@@ -71,7 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "mainwindow.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/mute_settings_box.h"
 #include "boxes/peer_list_controllers.h"

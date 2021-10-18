@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_media.h"
 #include "api/api_text_entities.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "history/history.h"

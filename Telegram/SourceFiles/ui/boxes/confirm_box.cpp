@@ -5,47 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-#include "apiwrap.h"
-#include "api/api_invite_links.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/toast/toast.h"
-#include "ui/image/image.h"
-#include "ui/text/text_utilities.h"
-#include "ui/empty_userpic.h"
-#include "core/click_handler_types.h"
-#include "window/window_session_controller.h"
-#include "storage/localstorage.h"
-#include "data/data_scheduled_messages.h"
-#include "data/data_session.h"
-#include "data/data_photo.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
-#include "data/data_file_origin.h"
-#include "data/data_histories.h"
-#include "data/data_photo_media.h"
-#include "data/data_changes.h"
-#include "base/unixtime.h"
-#include "history/view/controls/history_view_ttl_button.h"
-#include "main/main_session.h"
-#include "mtproto/mtproto_config.h"
-#include "facades.h" // Ui::showChatsList
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
 
 namespace {
 
@@ -81,7 +47,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(tr::lng_box_ok(tr::now))
 , _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -96,7 +64,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -111,7 +81,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -127,7 +99,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(confirmStyle)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -143,7 +117,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -160,7 +136,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
 , _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
@@ -174,7 +152,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(generateInformCallback(closedCallback))
 , _cancelledCallback(generateInformCallback(closedCallback)) {
 	init(text);
@@ -188,7 +168,9 @@ ConfirmBox::ConfirmBox(
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
-, _text(st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right())
+, _text(st::boxWidth
+	- st::boxPadding.left()
+	- st::defaultBox.buttonPadding.right())
 , _confirmedCallback(generateInformCallback(closedCallback))
 , _cancelledCallback(generateInformCallback(closedCallback)) {
 	init(text);
@@ -245,12 +227,18 @@ void ConfirmBox::setMaxLineCount(int count) {
 }
 
 void ConfirmBox::textUpdated() {
-	_textWidth = st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right();
+	_textWidth = st::boxWidth
+		- st::boxPadding.left()
+		- st::defaultBox.buttonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
 	if (_maxLineCount > 0) {
-		accumulate_min(_textHeight, _maxLineCount * st::boxLabelStyle.lineHeight);
+		accumulate_min(
+			_textHeight,
+			_maxLineCount * st::boxLabelStyle.lineHeight);
 	}
-	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
+	setDimensions(
+		st::boxWidth,
+		st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 
 	setMouseTracking(_text.hasLinks());
 }
@@ -302,12 +290,16 @@ void ConfirmBox::leaveEventHook(QEvent *e) {
 	ClickHandler::clearActive(this);
 }
 
-void ConfirmBox::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+void ConfirmBox::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
 	setCursor(active ? style::cur_pointer : style::cur_default);
 	update();
 }
 
-void ConfirmBox::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void ConfirmBox::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
 	update();
 }
 
@@ -317,8 +309,11 @@ void ConfirmBox::updateLink() {
 }
 
 void ConfirmBox::updateHover() {
-	auto m = mapFromGlobal(_lastMousePos);
-	auto state = _text.getStateLeft(m - QPoint(st::boxPadding.left(), st::boxPadding.top()), _textWidth, width());
+	const auto m = mapFromGlobal(_lastMousePos);
+	const auto state = _text.getStateLeft(
+		m - QPoint(st::boxPadding.left(), st::boxPadding.top()),
+		_textWidth,
+		width());
 
 	ClickHandler::setActive(state.link, this);
 }
@@ -339,22 +334,68 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	// draw box title / text
 	p.setPen(st::boxTextFg);
 	if (_maxLineCount > 0) {
-		_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), _maxLineCount, style::al_left);
+		_text.drawLeftElided(
+			p,
+			st::boxPadding.left(),
+			st::boxPadding.top(),
+			_textWidth,
+			width(),
+			_maxLineCount,
+			style::al_left);
 	} else {
-		_text.drawLeft(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), style::al_left);
+		_text.drawLeft(
+			p,
+			st::boxPadding.left(),
+			st::boxPadding.top(),
+			_textWidth,
+			width(),
+			style::al_left);
 	}
 }
 
-InformBox::InformBox(QWidget*, const QString &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, tr::lng_box_ok(tr::now), std::move(closedCallback)) {
+InformBox::InformBox(
+	QWidget*,
+	const QString &text, Fn<void()> closedCallback)
+: ConfirmBox(
+	ConfirmBox::InformBoxTag(),
+	text,
+	tr::lng_box_ok(tr::now),
+	std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
+InformBox::InformBox(
+	QWidget*,
+	const QString &text,
+	const QString &doneText,
+	Fn<void()> closedCallback)
+: ConfirmBox(
+	ConfirmBox::InformBoxTag(),
+	text,
+	doneText,
+	std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, tr::lng_box_ok(tr::now), std::move(closedCallback)) {
+InformBox::InformBox(
+	QWidget*,
+	const TextWithEntities &text,
+	Fn<void()> closedCallback)
+: ConfirmBox(
+	ConfirmBox::InformBoxTag(),
+	text,
+	tr::lng_box_ok(tr::now),
+	std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
+InformBox::InformBox(
+	QWidget*,
+	const TextWithEntities &text,
+	const QString &doneText,
+	Fn<void()> closedCallback)
+: ConfirmBox(
+	ConfirmBox::InformBoxTag(),
+	text,
+	doneText,
+	std::move(closedCallback)) {
 }
 
 ConfirmDontWarnBox::ConfirmDontWarnBox(

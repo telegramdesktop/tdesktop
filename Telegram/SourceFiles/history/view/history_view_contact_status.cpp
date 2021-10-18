@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "main/main_session.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/background_preview_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/sticker_set_box.h"

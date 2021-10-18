@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_canvas.h"

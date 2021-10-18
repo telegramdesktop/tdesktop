@@ -8,23 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/sender.h"
-
-namespace Data {
-class PhotoMedia;
-class CloudImageView;
-} // namespace Data
-
-namespace Main {
-class Session;
-} // namespace Main
-
-namespace Ui {
-class Checkbox;
-class FlatLabel;
-class EmptyUserpic;
-class LinkButton;
-} // namespace Ui
 
 class InformBox;
 class ConfirmBox : public Ui::BoxContent, public ClickHandlerHost {
@@ -77,7 +60,8 @@ public:
 
 	void updateLink();
 
-	// If strict cancel is set the cancelledCallback is only called if the cancel button was pressed.
+	// If strict cancel is set the cancelledCallback is only called
+	// if the cancel button was pressed.
 	void setStrictCancel(bool strictCancel) {
 		_strictCancel = strictCancel;
 	}
@@ -85,8 +69,12 @@ public:
 	void setMaxLineCount(int count);
 
 	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) override;
 
 protected:
 	void prepare() override;
@@ -101,8 +89,16 @@ protected:
 private:
 	struct InformBoxTag {
 	};
-	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, Fn<void()> closedCallback);
-	ConfirmBox(const InformBoxTag &, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback);
+	ConfirmBox(
+		const InformBoxTag &,
+		const QString &text,
+		const QString &doneText,
+		Fn<void()> closedCallback);
+	ConfirmBox(
+		const InformBoxTag &,
+		const TextWithEntities &text,
+		const QString &doneText,
+		Fn<void()> closedCallback);
 	FnMut<void()> generateInformCallback(Fn<void()> closedCallback);
 	friend class InformBox;
 
@@ -134,10 +130,24 @@ private:
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(QWidget*, const QString &text, Fn<void()> closedCallback = nullptr);
-	InformBox(QWidget*, const QString &text, const QString &doneText, Fn<void()> closedCallback = nullptr);
-	InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback = nullptr);
-	InformBox(QWidget*, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback = nullptr);
+	InformBox(
+		QWidget*,
+		const QString &text,
+		Fn<void()> closedCallback = nullptr);
+	InformBox(
+		QWidget*,
+		const QString &text,
+		const QString &doneText,
+		Fn<void()> closedCallback = nullptr);
+	InformBox(
+		QWidget*,
+		const TextWithEntities &text,
+		Fn<void()> closedCallback = nullptr);
+	InformBox(
+		QWidget*,
+		const TextWithEntities &text,
+		const QString &doneText,
+		Fn<void()> closedCallback = nullptr);
 
 };
 

@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
 #include "history/history_message.h" // GetErrorTextForSending.
 #include "history/history.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "mainwindow.h"
 #include "facades.h" // Ui::showPerProfile.
