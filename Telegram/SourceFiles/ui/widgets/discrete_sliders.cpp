@@ -194,7 +194,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 	enumerateSections([&](Section &section) {
 		Expects(sectionWidth != sectionWidths.end());
 
-		section.left = qFloor(x) + skip;
+		section.left = std::floor(x) + skip;
 		x += *sectionWidth;
 		section.width = qRound(x) - (section.left - skip);
 		skip += _st.barSkip;

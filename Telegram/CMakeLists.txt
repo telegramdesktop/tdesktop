@@ -1076,10 +1076,6 @@ PRIVATE
     ui/image/image_location.h
     ui/image/image_location_factory.cpp
     ui/image/image_location_factory.h
-    ui/widgets/continuous_sliders.cpp
-    ui/widgets/continuous_sliders.h
-    ui/widgets/discrete_sliders.cpp
-    ui/widgets/discrete_sliders.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
     ui/widgets/multi_select.cpp
