@@ -169,33 +169,6 @@ private:
 
 };
 
-class PinMessageBox final : public Ui::BoxContent {
-public:
-	PinMessageBox(QWidget*, not_null<PeerData*> peer, MsgId msgId);
-
-protected:
-	void prepare() override;
-
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-private:
-	void pinMessage();
-
-	const not_null<PeerData*> _peer;
-	MTP::Sender _api;
-	MsgId _msgId = 0;
-	bool _pinningOld = false;
-
-	object_ptr<Ui::FlatLabel> _text;
-	object_ptr<Ui::Checkbox> _notify = { nullptr };
-	object_ptr<Ui::Checkbox> _pinForPeer = { nullptr };
-	QPointer<Ui::Checkbox> _checkbox;
-
-	mtpRequestId _requestId = 0;
-
-};
-
 class DeleteMessagesBox final : public Ui::BoxContent {
 public:
 	DeleteMessagesBox(
