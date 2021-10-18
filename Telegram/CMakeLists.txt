@@ -223,6 +223,8 @@ PRIVATE
     boxes/peer_lists_box.h
     boxes/passcode_box.cpp
     boxes/passcode_box.h
+    boxes/phone_banned_box.cpp
+    boxes/phone_banned_box.h
     boxes/rate_call_box.cpp
     boxes/rate_call_box.h
     boxes/self_destruction_box.cpp

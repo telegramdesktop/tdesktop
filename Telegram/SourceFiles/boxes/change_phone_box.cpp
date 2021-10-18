@@ -9,14 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/special_fields.h"
-#include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/phone_banned_box.h"
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -231,7 +231,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(const MTP::Error &error, const QS
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
 		showError(tr::lng_bad_phone(tr::now));
 	} else if (error.type() == qstr("PHONE_NUMBER_BANNED")) {
-		ShowPhoneBannedError(phoneNumber);
+		Ui::ShowPhoneBannedError(&_controller->window(), phoneNumber);
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		_controller->show(
 			Box<InformBox>(

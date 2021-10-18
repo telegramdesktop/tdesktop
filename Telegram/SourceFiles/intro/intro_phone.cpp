@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/data_user.h"
-#include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/phone_banned_box.h"
 #include "core/application.h"
 
 namespace Intro {
@@ -240,7 +240,7 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
-		ShowPhoneBannedError(_sentPhone);
+		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
 	} else if (Logs::DebugEnabled()) { // internal server error
 		showPhoneError(rpl::single(err + ": " + error.description()));
 	} else {

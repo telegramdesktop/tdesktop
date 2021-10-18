@@ -27,48 +27,7 @@ namespace {
 
 object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
-void SendToBannedHelp(const QString &phone) {
-	const auto version = QString::fromLatin1(AppVersionStr)
-		+ (cAlphaVersion()
-			? qsl(" alpha %1").arg(cAlphaVersion())
-			: (AppBetaVersion ? " beta" : ""));
-
-	const auto subject = qsl("Banned phone number: ") + phone;
-
-	const auto body = qsl("\
-I'm trying to use my mobile phone number: ") + phone + qsl("\n\
-But Telegram says it's banned. Please help.\n\
-\n\
-App version: ") + version + qsl("\n\
-OS version: ") + Platform::SystemVersionPretty() + qsl("\n\
-Locale: ") + Platform::SystemLanguage();
-
-	const auto url = "mailto:?to="
-		+ qthelp::url_encode("login@stel.com")
-		+ "&subject="
-		+ qthelp::url_encode(subject)
-		+ "&body="
-		+ qthelp::url_encode(body);
-
-	UrlClickHandler::Open(url);
-}
-
 } // namespace
-
-void ShowPhoneBannedError(const QString &phone) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto close = [=] {
-		if (*box) {
-			(*box)->closeBox();
-		}
-	};
-	*box = Ui::show(Box<ConfirmBox>(
-		tr::lng_signin_banned_text(tr::now),
-		tr::lng_box_ok(tr::now),
-		tr::lng_signin_banned_help(tr::now),
-		close,
-		[=] { SendToBannedHelp(phone); close(); }));
-}
 
 void ConfirmPhoneBox::Start(
 		not_null<Main::Session*> session,

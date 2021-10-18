@@ -22,8 +22,6 @@ namespace Main {
 class Session;
 } // namespace Main
 
-void ShowPhoneBannedError(const QString &phone);
-
 class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
 	static void Start(
