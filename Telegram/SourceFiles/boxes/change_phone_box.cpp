@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "mtproto/sender.h"
 #include "apiwrap.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -67,7 +68,7 @@ void createErrorLabel(
 
 class ChangePhoneBox::EnterPhone : public Ui::BoxContent {
 public:
-	EnterPhone(QWidget*, not_null<Main::Session*> session);
+	EnterPhone(QWidget*, not_null<Window::SessionController*> controller);
 
 	void setInnerFocus() override {
 		_phone->setFocusFast();
@@ -85,7 +86,7 @@ private:
 		showError(QString());
 	}
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	object_ptr<Ui::PhoneInput> _phone = { nullptr };
@@ -139,9 +140,9 @@ private:
 
 ChangePhoneBox::EnterPhone::EnterPhone(
 	QWidget*,
-	not_null<Main::Session*> session)
-: _session(session)
-, _api(&session->mtp()) {
+	not_null<Window::SessionController*> controller)
+: _controller(controller)
+, _api(&controller->session().mtp()) {
 }
 
 void ChangePhoneBox::EnterPhone::prepare() {
@@ -152,7 +153,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 		this,
 		st::defaultInputField,
 		tr::lng_change_phone_new_title(),
-		Countries::ExtractPhoneCode(_session->user()->phone()),
+		Countries::ExtractPhoneCode(_controller->session().user()->phone()),
 		phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
@@ -213,9 +214,9 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(
 			callTimeout = data.vtimeout().value_or(60);
 		}
 	}
-	Ui::show(
+	_controller->show(
 		Box<EnterCode>(
-			_session,
+			&_controller->session(),
 			phoneNumber,
 			phoneCodeHash,
 			codeLength,
@@ -232,12 +233,14 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(const MTP::Error &error, const QS
 	} else if (error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(phoneNumber);
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
-		Ui::show(Box<InformBox>(
-			tr::lng_change_phone_occupied(
-				tr::now,
-				lt_phone,
-				Ui::FormatPhone(phoneNumber)),
-			tr::lng_box_ok(tr::now)));
+		_controller->show(
+			Box<InformBox>(
+				tr::lng_change_phone_occupied(
+					tr::now,
+					lt_phone,
+					Ui::FormatPhone(phoneNumber)),
+				tr::lng_box_ok(tr::now)),
+			Ui::LayerOption::CloseOther);
 	} else {
 		showError(Lang::Hard::ServerError());
 	}
@@ -371,18 +374,25 @@ void ChangePhoneBox::EnterCode::sendCodeFail(const MTP::Error &error) {
 	}
 }
 
-ChangePhoneBox::ChangePhoneBox(QWidget*, not_null<Main::Session*> session)
-: _session(session) {
+ChangePhoneBox::ChangePhoneBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
 }
 
 void ChangePhoneBox::prepare() {
-	const auto session = _session;
-
 	setTitle(tr::lng_change_phone_title());
-	addButton(tr::lng_change_phone_button(), [=] {
-		Ui::show(Box<ConfirmBox>(tr::lng_change_phone_warning(tr::now), [=] {
-			Ui::show(Box<EnterPhone>(session));
-		}));
+	addButton(tr::lng_change_phone_button(), [=, controller = _controller] {
+		auto callback = [=] {
+			controller->show(
+				Box<EnterPhone>(controller),
+				Ui::LayerOption::CloseOther);
+		};
+		controller->show(
+			Box<ConfirmBox>(
+				tr::lng_change_phone_warning(tr::now),
+				std::move(callback)),
+			Ui::LayerOption::CloseOther);
 	});
 	addButton(tr::lng_cancel(), [this] {
 		closeBox();

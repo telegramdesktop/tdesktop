@@ -214,7 +214,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[=] { controller->show(Box<ChangePhoneBox>(session)); },
+		[=] { controller->show(Box<ChangePhoneBox>(controller)); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
