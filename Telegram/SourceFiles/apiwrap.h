@@ -63,6 +63,7 @@ class GlobalPrivacy;
 class UserPrivacy;
 class InviteLinks;
 class ViewsManager;
+class ConfirmPhone;
 
 namespace details {
 
@@ -402,6 +403,7 @@ public:
 	[[nodiscard]] Api::UserPrivacy &userPrivacy();
 	[[nodiscard]] Api::InviteLinks &inviteLinks();
 	[[nodiscard]] Api::ViewsManager &views();
+	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
 
 	void createPoll(
 		const PollData &data,
@@ -723,6 +725,7 @@ private:
 	const std::unique_ptr<Api::UserPrivacy> _userPrivacy;
 	const std::unique_ptr<Api::InviteLinks> _inviteLinks;
 	const std::unique_ptr<Api::ViewsManager> _views;
+	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;

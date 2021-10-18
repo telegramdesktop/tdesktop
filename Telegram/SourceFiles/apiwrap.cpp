@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "api/api_user_privacy.h"
 #include "api/api_views.h"
+#include "api/api_confirm_phone.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_changes.h"
@@ -143,7 +144,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this))
 , _userPrivacy(std::make_unique<Api::UserPrivacy>(this))
 , _inviteLinks(std::make_unique<Api::InviteLinks>(this))
-, _views(std::make_unique<Api::ViewsManager>(this)) {
+, _views(std::make_unique<Api::ViewsManager>(this))
+, _confirmPhone(std::make_unique<Api::ConfirmPhone>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -4701,6 +4703,10 @@ Api::InviteLinks &ApiWrap::inviteLinks() {
 
 Api::ViewsManager &ApiWrap::views() {
 	return *_views;
+}
+
+Api::ConfirmPhone &ApiWrap::confirmPhone() {
+	return *_confirmPhone;
 }
 
 void ApiWrap::createPoll(

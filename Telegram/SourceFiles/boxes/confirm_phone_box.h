@@ -8,30 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "base/timer.h"
-#include "ui/widgets/input_fields.h"
 #include "ui/widgets/sent_code_field.h"
-#include "mtproto/sender.h"
 
 namespace Ui {
-class InputField;
 class FlatLabel;
 } // namespace Ui
 
-namespace Main {
-class Session;
-} // namespace Main
-
 class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
-	static void Start(
-		not_null<Main::Session*> session,
+	ConfirmPhoneBox(
+		QWidget*,
 		const QString &phone,
-		const QString &hash);
+		int codeLength,
+		std::optional<int> timeout);
 
-	[[nodiscard]] Main::Session &session() const {
-		return *_session;
-	}
+	[[nodiscard]] rpl::producer<QString> checkRequests() const;
+	[[nodiscard]] rpl::producer<> resendRequests() const;
+
+	void callDone();
+	void showServerError(const QString &text);
 
 protected:
 	void prepare() override;
@@ -41,50 +36,29 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	ConfirmPhoneBox(
-		QWidget*,
-		not_null<Main::Session*> session,
-		const QString &phone,
-		const QString &hash);
-	friend class object_ptr<ConfirmPhoneBox>;
-
 	void sendCode();
 	void sendCall();
 	void checkPhoneAndHash();
 
-	void sendCodeDone(const MTPauth_SentCode &result);
-	void sendCodeFail(const MTP::Error &error);
-
-	void callDone(const MTPauth_SentCode &result);
-
-	void confirmDone(const MTPBool &result);
-	void confirmFail(const MTP::Error &error);
-
-	QString getPhone() const {
-		return _phone;
-	}
-	void launch();
-
+	QString getPhone() const;
 	void showError(const QString &error);
-
-	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
-	mtpRequestId _sendCodeRequestId = 0;
 
 	// _hash from the link for account.sendConfirmPhoneCode call.
 	// _phoneHash from auth.sentCode for account.confirmPhone call.
-	QString _phone, _hash;
-	QString _phoneHash;
+	const QString _phone;
 
 	// If we receive the code length, we autosubmit _code field when enough symbols is typed.
-	int _sentCodeLength = 0;
+	const int _sentCodeLength = 0;
 
-	mtpRequestId _checkCodeRequestId = 0;
+	bool _isWaitingCheck = false;
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
 	object_ptr<Ui::SentCodeField> _code = { nullptr };
 
 	QString _error;
 	Ui::SentCodeCall _call;
+
+	rpl::event_stream<QString> _checkRequests;
+	rpl::event_stream<> _resendRequests;
 
 };

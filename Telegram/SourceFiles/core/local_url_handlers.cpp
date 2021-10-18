@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_confirm_phone.h"
 #include "api/api_text_entities.h"
 #include "api/api_chat_invite.h"
 #include "base/qthelp_regex.h"
@@ -136,15 +137,18 @@ bool ConfirmPhone(
 	if (!controller) {
 		return false;
 	}
-	auto params = url_parse_params(
+	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	auto phone = params.value(qsl("phone"));
-	auto hash = params.value(qsl("hash"));
+	const auto phone = params.value(qsl("phone"));
+	const auto hash = params.value(qsl("hash"));
 	if (phone.isEmpty() || hash.isEmpty()) {
 		return false;
 	}
-	ConfirmPhoneBox::Start(&controller->session(), phone, hash);
+	controller->session().api().confirmPhone().resolve(
+		controller,
+		phone,
+		hash);
 	return true;
 }
 
