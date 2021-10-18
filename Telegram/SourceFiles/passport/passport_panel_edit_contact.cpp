@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
@@ -61,7 +62,7 @@ private:
 
 	rpl::producer<QString> _title;
 	Fn<void()> _submit;
-	QPointer<SentCodeField> _code;
+	QPointer<Ui::SentCodeField> _code;
 	QPointer<Ui::VerticalLayout> _content;
 
 };
@@ -109,7 +110,7 @@ void VerifyBox::setupControls(
 			st::boxLabel),
 		small);
 	_code = _content->add(
-		object_ptr<SentCodeField>(
+		object_ptr<Ui::SentCodeField>(
 			_content,
 			st::defaultInputField,
 			tr::lng_change_phone_code_title()),
@@ -177,9 +178,9 @@ void VerifyBox::setupControls(
 	if (codeLength > 0) {
 		_code->setAutoSubmit(codeLength, _submit);
 	} else {
-		connect(_code, &SentCodeField::submitted, _submit);
+		connect(_code, &Ui::SentCodeField::submitted, _submit);
 	}
-	connect(_code, &SentCodeField::changed, [=] {
+	connect(_code, &Ui::SentCodeField::changed, [=] {
 		problem->hide(anim::type::normal);
 	});
 }

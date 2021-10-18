@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/sent_code_field.h"
 #include "mtproto/sender.h"
 
 namespace Ui {
@@ -22,72 +23,6 @@ class Session;
 } // namespace Main
 
 void ShowPhoneBannedError(const QString &phone);
-
-class SentCodeField : public Ui::InputField {
-public:
-	SentCodeField(
-		QWidget *parent,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder = nullptr,
-		const QString &val = QString());
-
-	void setAutoSubmit(int length, Fn<void()> submitCallback);
-	void setChangedCallback(Fn<void()> changedCallback);
-	QString getDigitsOnly() const;
-
-private:
-	void fix();
-
-	// Flag for not calling onTextChanged() recursively.
-	bool _fixing = false;
-
-	int _autoSubmitLength = 0;
-	Fn<void()> _submitCallback;
-	Fn<void()> _changedCallback;
-
-};
-
-class SentCodeCall {
-public:
-	SentCodeCall(
-		FnMut<void()> callCallback,
-		Fn<void()> updateCallback);
-
-	enum class State {
-		Waiting,
-		Calling,
-		Called,
-		Disabled,
-	};
-	struct Status {
-		Status() {
-		}
-		Status(State state, int timeout) : state(state), timeout(timeout) {
-		}
-
-		State state = State::Disabled;
-		int timeout = 0;
-	};
-	void setStatus(const Status &status);
-
-	void callDone() {
-		if (_status.state == State::Calling) {
-			_status.state = State::Called;
-			if (_update) {
-				_update();
-			}
-		}
-	}
-
-	QString getText() const;
-
-private:
-	Status _status;
-	base::Timer _timer;
-	FnMut<void()> _call;
-	Fn<void()> _update;
-
-};
 
 class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
@@ -149,9 +84,9 @@ private:
 	mtpRequestId _checkCodeRequestId = 0;
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
-	object_ptr<SentCodeField> _code = { nullptr };
+	object_ptr<Ui::SentCodeField> _code = { nullptr };
 
 	QString _error;
-	SentCodeCall _call;
+	Ui::SentCodeCall _call;
 
 };

@@ -129,11 +129,11 @@ private:
 	QString _hash;
 	int _codeLength = 0;
 	int _callTimeout = 0;
-	object_ptr<SentCodeField> _code = { nullptr };
+	object_ptr<Ui::SentCodeField> _code = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	object_ptr<Ui::FlatLabel> _callLabel = { nullptr };
 	mtpRequestId _requestId = 0;
-	SentCodeCall _call;
+	Ui::SentCodeCall _call;
 
 };
 
@@ -289,7 +289,7 @@ void ChangePhoneBox::EnterCode::prepare() {
 	setDimensions(st::boxWidth, countHeight());
 
 	if (_callTimeout > 0) {
-		_call.setStatus({ SentCodeCall::State::Waiting, _callTimeout });
+		_call.setStatus({ Ui::SentCodeCall::State::Waiting, _callTimeout });
 		updateCall();
 	}
 

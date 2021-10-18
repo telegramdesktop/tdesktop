@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
 #include "ui/text/format_values.h"
+#include "ui/widgets/sent_code_field.h"
 #include "core/update_checker.h"
 #include "countries/countries_instance.h"
 #include "styles/style_layers.h"

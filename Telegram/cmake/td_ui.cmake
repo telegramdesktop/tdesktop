@@ -177,8 +177,12 @@ PRIVATE
     ui/text/text_options.h
     ui/toasts/common_toasts.cpp
     ui/toasts/common_toasts.h
+
+    ui/widgets/sent_code_field.cpp
+    ui/widgets/sent_code_field.h
     ui/widgets/separate_panel.cpp
     ui/widgets/separate_panel.h
+
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/grouped_layout.cpp

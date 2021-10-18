@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/sent_code_field.h"
 #include "main/main_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
@@ -2181,11 +2182,11 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 			value->verification.codeLength = (type.vlength().v > 0)
 				? type.vlength().v
 				: -1;
-			value->verification.call = std::make_unique<SentCodeCall>(
+			value->verification.call = std::make_unique<Ui::SentCodeCall>(
 				[=] { requestPhoneCall(value); },
 				[=] { _verificationUpdate.fire_copy(value); });
 			value->verification.call->setStatus(
-				{ SentCodeCall::State::Called, 0 });
+				{ Ui::SentCodeCall::State::Called, 0 });
 			if (data.vnext_type()) {
 				LOG(("API Error: next_type is not supported for calls."));
 			}
@@ -2197,11 +2198,11 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 				: -1;
 			const auto next = data.vnext_type();
 			if (next && next->type() == mtpc_auth_codeTypeCall) {
-				value->verification.call = std::make_unique<SentCodeCall>(
+				value->verification.call = std::make_unique<Ui::SentCodeCall>(
 					[=] { requestPhoneCall(value); },
 					[=] { _verificationUpdate.fire_copy(value); });
 				value->verification.call->setStatus({
-					SentCodeCall::State::Waiting,
+					Ui::SentCodeCall::State::Waiting,
 					data.vtimeout().value_or(60) });
 			}
 		} break;
@@ -2235,7 +2236,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	Expects(value->verification.call != nullptr);
 
 	value->verification.call->setStatus(
-		{ SentCodeCall::State::Calling, 0 });
+		{ Ui::SentCodeCall::State::Calling, 0 });
 	_api.request(MTPauth_ResendCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_string(value->verification.phoneCodeHash)

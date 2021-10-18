@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
-#include "boxes/confirm_phone_box.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "core/core_cloud_password.h"
 
@@ -26,6 +26,10 @@ class SessionController;
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Ui {
+class SentCodeCall;
+} // namespace Ui
 
 namespace Passport {
 
@@ -184,7 +188,7 @@ struct Verification {
 	mtpRequestId requestId = 0;
 	QString phoneCodeHash;
 	int codeLength = 0;
-	std::unique_ptr<SentCodeCall> call;
+	std::unique_ptr<Ui::SentCodeCall> call;
 
 	QString error;
 
