@@ -952,28 +952,34 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		}
 		return {};
 	}();
-	const auto sender = [&]() -> PeerData* {
+	const auto sender = [&]() -> std::optional<QString> {
+		const auto fromSender = [](not_null<PeerData*> sender) {
+			return sender->isSelf()
+				? tr::lng_from_you(tr::now)
+				: sender->shortName();
+		};
 		if (options.hideSender || isPost() || isEmpty()) {
-			return nullptr;
-		} else if (!_history->peer->isUser() || out()) {
-			return displayFrom();
-		} else if (_history->peer->isSelf() && !Has<HistoryMessageForwarded>()) {
-			return senderOriginal();
+			return {};
+		} else if (!_history->peer->isUser()) {
+			return fromSender(displayFrom());
+		} else if (_history->peer->isSelf()) {
+			if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+				return forwarded->originalSender
+					? fromSender(forwarded->originalSender)
+					: forwarded->hiddenSenderInfo->name;
+			}
 		}
-		return nullptr;
+		return {};
 	}();
 	if (!sender) {
 		return result;
 	}
-	const auto fromText = sender->isSelf()
-		? tr::lng_from_you(tr::now)
-		: sender->shortName();
 	const auto fromWrapped = textcmdLink(
 		1,
 		tr::lng_dialogs_text_from_wrapped(
 			tr::now,
 			lt_from,
-			TextUtilities::Clean(fromText)));
+			TextUtilities::Clean(*sender)));
 	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
 }
 
