@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/sent_code_field.h"
 
 namespace Ui {
+
 class FlatLabel;
-} // namespace Ui
 
 class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
@@ -62,3 +62,5 @@ private:
 	rpl::event_stream<> _resendRequests;
 
 };
+
+} // namespace Ui

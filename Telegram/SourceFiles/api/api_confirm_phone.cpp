@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_confirm_phone.h"
 
 #include "apiwrap.h"
-#include "ui/boxes/confirm_box.h"
-#include "boxes/confirm_phone_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/confirm_phone_box.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "window/window_session_controller.h"
 
@@ -56,7 +56,7 @@ void ConfirmPhone::resolve(
 				}
 				return std::nullopt;
 			}();
-			auto box = Box<ConfirmPhoneBox>(
+			auto box = Box<Ui::ConfirmPhoneBox>(
 				phone,
 				sentCodeLength,
 				timeout);

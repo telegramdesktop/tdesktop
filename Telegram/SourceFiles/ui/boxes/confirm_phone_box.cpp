@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/confirm_phone_box.h"
+#include "ui/boxes/confirm_phone_box.h"
 
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+namespace Ui {
 
 ConfirmPhoneBox::ConfirmPhoneBox(
 	QWidget*,
@@ -161,3 +163,5 @@ void ConfirmPhoneBox::showServerError(const QString &text) {
 QString ConfirmPhoneBox::getPhone() const {
 	return _phone;
 }
+
+} // namespace Ui
