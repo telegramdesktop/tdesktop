@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
 #include "storage/storage_shared_media.h"
-#include "boxes/confirm_box.h"
+#include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "mainwidget.h"
 #include "main/main_session.h"

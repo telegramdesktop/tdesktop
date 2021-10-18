@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
-#include "boxes/confirm_box.h"
+#include "boxes/delete_messages_box.h"
 #include "base/unixtime.h"
 #include "api/api_updates.h"
 #include "apiwrap.h"
