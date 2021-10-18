@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
+#include "boxes/peers/edit_peer_common.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/special_fields.h"
@@ -19,12 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
-
-namespace {
-
-constexpr auto kMinUsernameLength = 5;
-
-} // namespace
 
 UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
@@ -190,7 +185,7 @@ void UsernameBox::check() {
 	_api.request(base::take(_checkRequestId)).cancel();
 
 	const auto name = getName();
-	if (name.size() < kMinUsernameLength) {
+	if (name.size() < Ui::EditPeer::kMinUsernameLength) {
 		return;
 	}
 	_checkUsername = name;
@@ -240,7 +235,7 @@ void UsernameBox::changed() {
 				return;
 			}
 		}
-		if (name.size() < kMinUsernameLength) {
+		if (name.size() < Ui::EditPeer::kMinUsernameLength) {
 			if (_errorText != tr::lng_username_too_short(tr::now)) {
 				_errorText = tr::lng_username_too_short(tr::now);
 				update();
@@ -251,7 +246,7 @@ void UsernameBox::changed() {
 				_errorText = _goodText = QString();
 				update();
 			}
-			_checkTimer.callOnce(UsernameCheckTimeout);
+			_checkTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 		}
 	}
 }

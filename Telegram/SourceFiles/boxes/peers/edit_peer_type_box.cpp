@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_common.h"
 #include "boxes/peers/edit_peer_info_box.h" // CreateButton.
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
@@ -54,9 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 
 namespace {
-
-constexpr auto kUsernameCheckTimeout = crl::time(200);
-constexpr auto kMinUsernameLength = 5;
 
 class Controller : public base::has_weak_ptr {
 public:
@@ -419,7 +417,7 @@ void Controller::checkUsernameAvailability() {
 	const auto checking = initial
 		? qsl(".bad.")
 		: getUsernameInput();
-	if (checking.size() < kMinUsernameLength) {
+	if (checking.size() < Ui::EditPeer::kMinUsernameLength) {
 		return;
 	}
 	if (_checkUsernameRequestId) {
@@ -496,11 +494,11 @@ void Controller::usernameChanged() {
 	});
 	if (bad) {
 		showUsernameError(tr::lng_create_channel_link_bad_symbols());
-	} else if (username.size() < kMinUsernameLength) {
+	} else if (username.size() < Ui::EditPeer::kMinUsernameLength) {
 		showUsernameError(tr::lng_create_channel_link_too_short());
 	} else {
 		_controls.usernameResult = nullptr;
-		_checkUsernameTimer.callOnce(kUsernameCheckTimeout);
+		_checkUsernameTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 	}
 }
 

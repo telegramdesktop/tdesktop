@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "boxes/peers/edit_peer_common.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
@@ -25,8 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace {
-
-constexpr auto kMaxUserFirstLastName = 64; // See also add_contact_box.
 
 QString UserPhone(not_null<UserData*> user) {
 	const auto phone = user->phone();
@@ -222,8 +221,8 @@ void Controller::initNameFields(
 	};
 	QObject::connect(first, &Ui::InputField::submitted, submit);
 	QObject::connect(last, &Ui::InputField::submitted, submit);
-	first->setMaxLength(kMaxUserFirstLastName);
-	first->setMaxLength(kMaxUserFirstLastName);
+	first->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
+	first->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
 }
 
 void Controller::setupWarning() {

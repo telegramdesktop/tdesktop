@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_common.h"
 #include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/peers/edit_peer_history_visibility_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -249,9 +250,6 @@ void ShowEditPermissions(
 
 namespace {
 
-constexpr auto kMaxGroupChannelTitle = 128; // See also add_contact_box.
-constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
-
 class Controller : public base::has_weak_ptr {
 public:
 	Controller(
@@ -475,7 +473,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 				: tr::lng_dlg_new_channel_name)(),
 			_peer->name),
 		st::editPeerTitleMargins);
-	result->entity()->setMaxLength(kMaxGroupChannelTitle);
+	result->entity()->setMaxLength(Ui::EditPeer::kMaxGroupChannelTitle);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
@@ -509,7 +507,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 			tr::lng_create_group_description(),
 			_peer->about()),
 		st::editPeerDescriptionMargins);
-	result->entity()->setMaxLength(kMaxChannelDescription);
+	result->entity()->setMaxLength(Ui::EditPeer::kMaxChannelDescription);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());

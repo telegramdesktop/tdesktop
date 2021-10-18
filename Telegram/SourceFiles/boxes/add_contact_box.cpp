@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/add_participants_box.h"
+#include "boxes/peers/edit_peer_common.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "core/application.h"
@@ -46,11 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 namespace {
-
-constexpr auto kMaxGroupChannelTitle = 128; // See also edit_peer_info_box.
-constexpr auto kMaxUserFirstLastName = 64; // See also edit_contact_box.
-constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
-constexpr auto kMinUsernameLength = 5;
 
 bool IsValidPhone(QString phone) {
 	phone = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
@@ -504,7 +500,7 @@ void GroupInfoBox::prepare() {
 			? tr::lng_dlg_new_channel_name
 			: tr::lng_dlg_new_group_name)(),
 		_initialTitle);
-	_title->setMaxLength(kMaxGroupChannelTitle);
+	_title->setMaxLength(Ui::EditPeer::kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
@@ -520,7 +516,7 @@ void GroupInfoBox::prepare() {
 			Ui::InputField::Mode::MultiLine,
 			tr::lng_create_group_description());
 		_description->show();
-		_description->setMaxLength(kMaxChannelDescription);
+		_description->setMaxLength(Ui::EditPeer::kMaxChannelDescription);
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
 		_description->setInstantReplacesEnabled(
 			Core::App().settings().replaceEmojiValue());
@@ -1157,7 +1153,7 @@ void SetupChannelBox::handleChange() {
 				return;
 			}
 		}
-		if (name.size() < kMinUsernameLength) {
+		if (name.size() < Ui::EditPeer::kMinUsernameLength) {
 			const auto tooShort =
 				tr::lng_create_channel_link_too_short(tr::now);
 			if (_errorText != tooShort) {
@@ -1170,7 +1166,7 @@ void SetupChannelBox::handleChange() {
 				_errorText = _goodText = QString();
 				update();
 			}
-			_checkTimer.callOnce(UsernameCheckTimeout);
+			_checkTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 		}
 	}
 }
@@ -1180,7 +1176,7 @@ void SetupChannelBox::check() {
 		_channel->session().api().request(_checkRequestId).cancel();
 	}
 	const auto link = _link->text().trimmed();
-	if (link.size() >= kMinUsernameLength) {
+	if (link.size() >= Ui::EditPeer::kMinUsernameLength) {
 		_checkUsername = link;
 		_checkRequestId = _api.request(MTPchannels_CheckUsername(
 			_channel->inputChannel,
@@ -1340,8 +1336,8 @@ void EditNameBox::prepare() {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
-	_first->setMaxLength(kMaxUserFirstLastName);
-	_last->setMaxLength(kMaxUserFirstLastName);
+	_first->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
+	_last->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
 
 	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
 	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
