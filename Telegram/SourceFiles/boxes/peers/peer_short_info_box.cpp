@@ -8,7 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/peer_short_info_box.h"
 
 #include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/wrap.h"
 #include "ui/image/image_prepare.h"
+#include "ui/text/text_utilities.h"
+#include "info/profile/info_profile_text.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "lang/lang_keys.h"
@@ -16,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace {
+
+constexpr auto kShadowMaxAlpha = 80;
 
 } // namespace
 
@@ -30,6 +38,14 @@ PeerShortInfoBox::PeerShortInfoBox(
 , _fields(std::move(fields))
 , _name(this, nameValue(), st::shortInfoName)
 , _status(this, std::move(status), st::shortInfoStatus)
+, _scroll(this, st::defaultSolidScroll)
+, _rows(
+	static_cast<Ui::VerticalLayout*>(
+		_scroll->setOwnedWidget(
+			object_ptr<Ui::OverrideMargins>(
+				_scroll.data(),
+				object_ptr<Ui::VerticalLayout>(
+					_scroll.data())))->entity()))
 , _videoPaused(std::move(videoPaused)) {
 	std::move(
 		userpic
@@ -54,8 +70,80 @@ void PeerShortInfoBox::prepare() {
 		? tr::lng_view_button_group()
 		: tr::lng_profile_view_channel(), [=] { _openRequests.fire({}); });
 
+	prepareRows();
+
 	setNoContentMargin(true);
-	setDimensions(st::shortInfoWidth, st::shortInfoWidth);
+
+	_rows->move(0, 0);
+	_rows->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::shortInfoWidth, st::shortInfoWidth + height);
+	}, lifetime());
+}
+
+void PeerShortInfoBox::prepareRows() {
+	using namespace Info::Profile;
+
+	auto addInfoLineGeneric = [&](
+			rpl::producer<QString> &&label,
+			rpl::producer<TextWithEntities> &&text,
+			const style::FlatLabel &textSt = st::infoLabeled) {
+		auto line = CreateTextWithLabel(
+			_rows,
+			rpl::duplicate(label) | Ui::Text::ToWithEntities(),
+			rpl::duplicate(text),
+			textSt,
+			st::shortInfoLabeledPadding);
+		_rows->add(std::move(line.wrap));
+
+		rpl::combine(
+			std::move(label),
+			std::move(text)
+		) | rpl::start_with_next([=] {
+			_rows->resizeToWidth(st::shortInfoWidth);
+		}, _rows->lifetime());
+
+		//line.text->setClickHandlerFilter(infoClickFilter);
+		return line.text;
+	};
+	auto addInfoLine = [&](
+			rpl::producer<QString> &&label,
+			rpl::producer<TextWithEntities> &&text,
+			const style::FlatLabel &textSt = st::infoLabeled) {
+		return addInfoLineGeneric(
+			std::move(label),
+			std::move(text),
+			textSt);
+	};
+	auto addInfoOneLine = [&](
+			rpl::producer<QString> &&label,
+			rpl::producer<TextWithEntities> &&text,
+			const QString &contextCopyText) {
+		auto result = addInfoLine(
+			std::move(label),
+			std::move(text),
+			st::infoLabeledOneLine);
+		result->setDoubleClickSelectsParagraph(true);
+		result->setContextCopyText(contextCopyText);
+		return result;
+	};
+	addInfoOneLine(
+		tr::lng_info_link_label(),
+		linkValue(),
+		tr::lng_context_copy_link(tr::now));
+	addInfoOneLine(
+		tr::lng_info_mobile_label(),
+		phoneValue() | Ui::Text::ToWithEntities(),
+		tr::lng_profile_copy_phone(tr::now));
+	auto label = _fields.current().isBio
+		? tr::lng_info_bio_label()
+		: tr::lng_info_about_label();
+	addInfoLine(std::move(label), aboutValue());
+	addInfoOneLine(
+		tr::lng_info_username_label(),
+		usernameValue() | Ui::Text::ToWithEntities(),
+		tr::lng_context_copy_mention(tr::now));
+
 }
 
 RectParts PeerShortInfoBox::customCornersFilling() {
@@ -64,6 +152,20 @@ RectParts PeerShortInfoBox::customCornersFilling() {
 
 void PeerShortInfoBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
+
+	_name->moveToLeft(
+		st::shortInfoNamePosition.x(),
+		st::shortInfoWidth - st::shortInfoNamePosition.y() - _name->height(),
+		width());
+	_status->moveToLeft(
+		st::shortInfoStatusPosition.x(),
+		(st::shortInfoWidth
+			- st::shortInfoStatusPosition.y()
+			- _status->height()),
+		height());
+	_rows->resizeToWidth(st::shortInfoWidth);
+	_scroll->resize(st::shortInfoWidth, height() - st::shortInfoWidth);
+	_scroll->move(0, st::shortInfoWidth);
 }
 
 void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
@@ -89,6 +191,27 @@ void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
 	if (_videoInstance && _videoInstance->ready() && !paused) {
 		_videoInstance->markFrameShown();
 	}
+
+	if (_shadow.isNull()) {
+		_shadow = Images::GenerateShadow(
+			st::shortInfoShadowHeight,
+			0,
+			kShadowMaxAlpha);
+	}
+	const auto shadowRect = QRect(
+		0,
+		st::shortInfoWidth - st::shortInfoShadowHeight,
+		st::shortInfoWidth,
+		st::shortInfoShadowHeight);
+	const auto factor = style::DevicePixelRatio();
+	p.drawImage(
+		shadowRect,
+		_shadow,
+		QRect(
+			0,
+			0,
+			_shadow.width(),
+			st::shortInfoShadowHeight * factor));
 }
 
 QImage PeerShortInfoBox::currentVideoFrame() const {
@@ -110,6 +233,30 @@ QImage PeerShortInfoBox::currentVideoFrame() const {
 rpl::producer<QString> PeerShortInfoBox::nameValue() const {
 	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.name;
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<TextWithEntities> PeerShortInfoBox::linkValue() const {
+	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+		return Ui::Text::Link(fields.link, fields.link);
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<QString> PeerShortInfoBox::phoneValue() const {
+	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.phone;
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<QString> PeerShortInfoBox::usernameValue() const {
+	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.username;
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<TextWithEntities> PeerShortInfoBox::aboutValue() const {
+	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.about;
 	}) | rpl::distinct_until_changed();
 }
 

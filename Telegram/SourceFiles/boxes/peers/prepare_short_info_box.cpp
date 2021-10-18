@@ -162,7 +162,8 @@ void ProcessFullPhoto(
 			.about = Info::Profile::AboutWithEntities(peer, peer->about()),
 			.username = ((user && !username.isEmpty())
 				? ('@' + username)
-				: QString())
+				: QString()),
+			.isBio = (user && !user->isBot()),
 		};
 	});
 }

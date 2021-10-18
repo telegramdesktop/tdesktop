@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/image/image_prepare.h"
 #include "ui/round_rect.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
@@ -1549,7 +1550,7 @@ void Panel::setupControlsBackgroundNarrow() {
 				bottom - (st::groupCallMembersFadeHeight * factor),
 				full->width(),
 				st::groupCallMembersFadeHeight * factor),
-			GenerateShadow(
+			Images::GenerateShadow(
 				st::groupCallMembersFadeHeight,
 				0,
 				255,
@@ -1560,7 +1561,7 @@ void Panel::setupControlsBackgroundNarrow() {
 				(height - st::groupCallMembersShadowHeight) * factor,
 				full->width(),
 				st::groupCallMembersShadowHeight * factor),
-			GenerateShadow(
+			Images::GenerateShadow(
 				st::groupCallMembersShadowHeight,
 				0,
 				255,

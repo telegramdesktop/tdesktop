@@ -954,7 +954,20 @@ infoScrollDateHideTimeout: historyScrollDateHideTimeout;
 infoDateFadeDuration: historyDateFadeDuration;
 
 shortInfoName: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallVideoTextFg;
+	maxHeight: 19px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+		linkFont: font(15px semibold);
+		linkFontOver: font(15px semibold underline);
+	}
 }
 shortInfoStatus: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallVideoSubTextFg;
+	maxHeight: 18px;
 }
-shortInfoWidth: 336px;
+shortInfoWidth: 304px;
+shortInfoNamePosition: point(25px, 37px);
+shortInfoStatusPosition: point(25px, 14px);
+shortInfoShadowHeight: 80px;
+shortInfoLabeledPadding: margins(20px, 16px, 20px, 0px);
