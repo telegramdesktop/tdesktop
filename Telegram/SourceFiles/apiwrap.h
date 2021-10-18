@@ -390,7 +390,7 @@ public:
 	std::optional<bool> contactSignupSilentCurrent() const;
 	void saveContactSignupSilent(bool silent);
 
-	void saveSelfBio(const QString &text, FnMut<void()> done);
+	void saveSelfBio(const QString &text);
 
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
@@ -708,9 +708,10 @@ private:
 
 	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
 
-	mtpRequestId _saveBioRequestId = 0;
-	FnMut<void()> _saveBioDone;
-	QString _saveBioText;
+	struct {
+		mtpRequestId requestId = 0;
+		QString requestedText;
+	} _bio;
 
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;

@@ -4639,34 +4639,27 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 	_contactSignupSilentRequestId = requestId;
 }
 
-void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
-	if (_saveBioRequestId) {
-		if (text != _saveBioText) {
-			request(_saveBioRequestId).cancel();
+void ApiWrap::saveSelfBio(const QString &text) {
+	if (_bio.requestId) {
+		if (text != _bio.requestedText) {
+			request(_bio.requestId).cancel();
 		} else {
-			if (done) {
-				_saveBioDone = std::move(done);
-			}
 			return;
 		}
 	}
-	_saveBioText = text;
-	_saveBioDone = std::move(done);
-	_saveBioRequestId = request(MTPaccount_UpdateProfile(
+	_bio.requestedText = text;
+	_bio.requestId = request(MTPaccount_UpdateProfile(
 		MTP_flags(MTPaccount_UpdateProfile::Flag::f_about),
 		MTPstring(),
 		MTPstring(),
 		MTP_string(text)
 	)).done([=](const MTPUser &result) {
-		_saveBioRequestId = 0;
+		_bio.requestId = 0;
 
-		_session->data().processUsers(MTP_vector<MTPUser>(1, result));
-		_session->user()->setAbout(_saveBioText);
-		if (_saveBioDone) {
-			_saveBioDone();
-		}
+		_session->data().processUser(result);
+		_session->user()->setAbout(_bio.requestedText);
 	}).fail([=](const MTP::Error &error) {
-		_saveBioRequestId = 0;
+		_bio.requestId = 0;
 	}).send();
 }
 

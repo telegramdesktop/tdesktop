@@ -20,9 +20,6 @@ public:
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
-	//rpl::variable<bool> _canSaveChanges;
-	//Fn<void(FnMut<void()> done)> _save;
-
 };
 
 } // namespace Settings
