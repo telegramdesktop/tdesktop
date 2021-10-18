@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/max_invite_box.h"
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/create_poll_box.h"

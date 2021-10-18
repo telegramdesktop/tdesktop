@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/max_invite_box.h"
 #include "boxes/add_contact_box.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"

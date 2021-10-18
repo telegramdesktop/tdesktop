@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/max_invite_box.h"
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
