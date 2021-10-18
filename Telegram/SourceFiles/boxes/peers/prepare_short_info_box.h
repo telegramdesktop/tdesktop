@@ -21,7 +21,8 @@ class SessionNavigation;
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,
-	Fn<void()> open);
+	Fn<void()> open,
+	Fn<bool()> videoPaused);
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,

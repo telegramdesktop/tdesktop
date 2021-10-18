@@ -56,8 +56,8 @@ void GenerateImage(
 		size * factor,
 		size * factor,
 		options,
-		size * factor,
-		size * factor);
+		size,
+		size);
 }
 
 void GenerateImage(
@@ -134,6 +134,7 @@ void ProcessFullPhoto(
 	state->current.videoDocument = peer->owner().streaming().sharedDocument(
 		photo,
 		origin);
+	state->current.videoStartPosition = photo->videoStartPosition();
 	state->photoView = nullptr;
 	state->current.photoLoadingProgress = 1.;
 }
@@ -274,7 +275,8 @@ void ProcessFullPhoto(
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
-		Fn<void()> open) {
+		Fn<void()> open,
+		Fn<bool()> videoPaused) {
 	const auto type = peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
@@ -284,7 +286,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		type,
 		FieldsValue(peer),
 		StatusValue(peer),
-		UserpicValue(peer));
+		UserpicValue(peer),
+		std::move(videoPaused));
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
@@ -295,7 +298,13 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
 		not_null<Window::SessionNavigation*> navigation) {
+	const auto open = [=] { navigation->showPeerHistory(peer); };
+	const auto videoIsPaused = [=] {
+		return navigation->parentController()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	};
 	return PrepareShortInfoBox(
 		peer,
-		[=] { navigation->showPeerHistory(peer); });
+		open,
+		videoIsPaused);
 }

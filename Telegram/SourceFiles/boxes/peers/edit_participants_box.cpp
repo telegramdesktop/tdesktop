@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
+#include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
 #include "ui/boxes/confirm_box.h"
 #include "boxes/max_invite_box.h"
 #include "boxes/add_contact_box.h"
@@ -1434,7 +1435,10 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		showRestricted(user);
 	} else {
 		Assert(_navigation != nullptr);
-		_navigation->showPeerInfo(participant);
+		AssertIsDebug();
+		_navigation->parentController()->show(PrepareShortInfoBox(
+			participant,
+			_navigation));
 	}
 }
 

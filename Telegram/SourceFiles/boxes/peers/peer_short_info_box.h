@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::Streaming {
 class Document;
 class Instance;
+struct Update;
+enum class Error;
+struct Information;
 } // namespace Media::Streaming
 
 enum class PeerShortInfoType {
@@ -35,6 +38,7 @@ struct PeerShortInfoUserpic {
 	QImage photo;
 	float64 photoLoadingProgress = 0.;
 	std::shared_ptr<Media::Streaming::Document> videoDocument;
+	crl::time videoStartPosition = 0;
 };
 
 class PeerShortInfoBox final : public Ui::BoxContent {
@@ -44,7 +48,8 @@ public:
 		PeerShortInfoType type,
 		rpl::producer<PeerShortInfoFields> fields,
 		rpl::producer<QString> status,
-		rpl::producer<PeerShortInfoUserpic> userpic);
+		rpl::producer<PeerShortInfoUserpic> userpic,
+		Fn<bool()> videoPaused);
 	~PeerShortInfoBox();
 
 	[[nodiscard]] rpl::producer<> openRequests() const;
@@ -56,8 +61,18 @@ private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	[[nodiscard]] QImage currentVideoFrame() const;
+
 	[[nodiscard]] rpl::producer<QString> nameValue() const;
 	void applyUserpic(PeerShortInfoUserpic &&value);
+	QRect coverRect() const;
+	QRect radialRect() const;
+
+	void videoWaiting();
+	void checkStreamedIsStarted();
+	void handleStreamingUpdate(Media::Streaming::Update &&update);
+	void handleStreamingError(Media::Streaming::Error &&error);
+	void streamingReady(Media::Streaming::Information &&info);
 
 	const PeerShortInfoType _type = PeerShortInfoType::User;
 
@@ -68,6 +83,8 @@ private:
 
 	QImage _userpicImage;
 	std::unique_ptr<Media::Streaming::Instance> _videoInstance;
+	crl::time _videoStartPosition = 0;
+	Fn<bool()> _videoPaused;
 
 	rpl::event_stream<> _openRequests;
 
