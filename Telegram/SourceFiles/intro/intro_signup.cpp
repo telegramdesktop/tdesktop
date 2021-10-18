@@ -130,7 +130,7 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
-		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
 	} else if (err == qstr("PHONE_NUMBER_INVALID")
 		|| err == qstr("PHONE_NUMBER_BANNED")
 		|| err == qstr("PHONE_CODE_EXPIRED")

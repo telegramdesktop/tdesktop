@@ -176,7 +176,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 		)).send();
 	};
 	_controller->show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			tr::lng_background_sure_delete(tr::now),
 			tr::lng_selected_delete(tr::now),
 			tr::lng_cancel(tr::now),

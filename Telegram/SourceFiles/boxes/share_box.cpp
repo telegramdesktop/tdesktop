@@ -1155,7 +1155,8 @@ void ShareGameScoreByHash(
 
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() != key128Size + 0x20)) {
-		Ui::show(Box<InformBox>(tr::lng_confirm_phone_link_invalid(tr::now)));
+		Ui::show(Box<Ui::InformBox>(
+			tr::lng_confirm_phone_link_invalid(tr::now)));
 		return;
 	}
 
@@ -1175,19 +1176,19 @@ void ShareGameScoreByHash(
 	//// Check next 64 bits of SHA1() of data.
 	//auto skipSha1Part = sizeof(channelAccessHash);
 	//if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
-	//	Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+	//	Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
 	//	return;
 	//}
 
 	// Check 128 bits of SHA1() of data.
 	if (memcmp(dataSha1, hashEncrypted.constData(), key128Size) != 0) {
-		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
 	auto hashDataInts = reinterpret_cast<uint64*>(hashData.data());
 	if (hashDataInts[0] != session->userId().bare) {
-		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
@@ -1195,14 +1196,14 @@ void ShareGameScoreByHash(
 	auto channelAccessHash = hashDataInts[3];
 	//auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
 	//if (channelAccessHashInts[0] != hashDataInts[3]) {
-	//	Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+	//	Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
 	//	return;
 	//}
 
 	if (((hashDataInts[1] >> 40) != 0)
 		|| (!hashDataInts[1] && channelAccessHash)) {
 		// If there is no channel id, there should be no channel access_hash.
-		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
@@ -1218,7 +1219,8 @@ void ShareGameScoreByHash(
 				if (const auto item = session->data().message(channel, msgId)) {
 					FastShareMessage(item);
 				} else {
-					Ui::show(Box<InformBox>(tr::lng_edit_deleted(tr::now)));
+					Ui::show(Box<Ui::InformBox>(
+						tr::lng_edit_deleted(tr::now)));
 				}
 			});
 		};

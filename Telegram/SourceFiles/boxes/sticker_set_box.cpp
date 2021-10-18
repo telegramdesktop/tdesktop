@@ -257,7 +257,7 @@ void StickerSetBox::handleError(Error error) {
 	switch (error) {
 	case Error::NotFound:
 		_controller->show(
-			Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+			Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
 		break;
 	default: Unexpected("Error in StickerSetBox::handleError.");
 	}

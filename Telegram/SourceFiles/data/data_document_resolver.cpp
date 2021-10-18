@@ -80,7 +80,7 @@ void LaunchWithWarning(
 			rpl::single(Ui::Text::Bold(extension)),
 			Ui::Text::WithEntities)
 		: tr::lng_launch_svg_warning(Ui::Text::WithEntities);
-	Ui::show(Box<ConfirmDontWarnBox>(
+	Ui::show(Box<Ui::ConfirmDontWarnBox>(
 		std::move(text),
 		tr::lng_launch_exe_dont_ask(tr::now),
 		(isExecutable ? tr::lng_launch_exe_sure : tr::lng_continue)(),

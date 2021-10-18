@@ -152,7 +152,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		onstack(chat);
 	};
 	Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
@@ -184,7 +184,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
 	Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),

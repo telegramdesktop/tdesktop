@@ -479,7 +479,7 @@ void SetupSystemIntegrationContent(
 		}) | rpl::start_with_next([=](bool checked) {
 			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
-				controller->show(Box<InformBox>(
+				controller->show(Box<Ui::InformBox>(
 					tr::lng_error_start_minimized_passcoded(tr::now)));
 			} else {
 				cSetStartMinimized(checked);
@@ -596,7 +596,7 @@ void SetupANGLE(
 					}
 					App::restart();
 				});
-				controller->show(Box<ConfirmBox>(
+				controller->show(Box<Ui::ConfirmBox>(
 					tr::lng_settings_need_restart(tr::now),
 					tr::lng_settings_restart_now(tr::now),
 					confirmed));
@@ -638,7 +638,7 @@ void SetupOpenGL(
 		const auto cancelled = crl::guard(button, [=] {
 			toggles->fire(!enabled);
 		});
-		controller->show(Box<ConfirmBox>(
+		controller->show(Box<Ui::ConfirmBox>(
 			tr::lng_settings_need_restart(tr::now),
 			tr::lng_settings_restart_now(tr::now),
 			confirmed,

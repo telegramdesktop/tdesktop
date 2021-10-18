@@ -1010,7 +1010,7 @@ void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
 			session->api().closePoll(item);
 		}
 	};
-	Ui::show(Box<ConfirmBox>(
+	Ui::show(Box<Ui::ConfirmBox>(
 		tr::lng_polls_stop_warning(tr::now),
 		tr::lng_polls_stop_sure(tr::now),
 		tr::lng_cancel(tr::now),

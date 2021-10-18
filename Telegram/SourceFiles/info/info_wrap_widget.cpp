@@ -411,7 +411,7 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 		close();
 	};
 	if (_controller->canSaveChangesNow()) {
-		Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<Ui::ConfirmBox>(
 			tr::lng_settings_close_sure(tr::now),
 			tr::lng_close(tr::now),
 			confirmed));

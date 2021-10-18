@@ -149,7 +149,8 @@ void EditMessageWithUploadedMedia(
 			session->data().sendHistoryChangeNotifications();
 			if (mediaInvalid) {
 				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
+					Box<Ui::InformBox>(
+						tr::lng_edit_media_invalid_file(tr::now)),
 					Ui::LayerOption::KeepOther);
 			}
 		} else {

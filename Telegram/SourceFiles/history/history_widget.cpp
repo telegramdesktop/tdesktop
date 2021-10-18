@@ -671,7 +671,7 @@ HistoryWidget::HistoryWidget(
 			const auto unavailable = _peer->computeUnavailableReason();
 			if (!unavailable.isEmpty()) {
 				controller->showBackFromStack();
-				controller->show(Box<InformBox>(unavailable));
+				controller->show(Box<Ui::InformBox>(unavailable));
 				return;
 			}
 		}
@@ -858,7 +858,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			? Data::RestrictionError(_peer, ChatRestriction::SendMedia)
 			: std::nullopt;
 		if (error) {
-			controller()->show(Box<InformBox>(*error));
+			controller()->show(Box<Ui::InformBox>(*error));
 			return true;
 		} else if (showSlowmodeError()) {
 			return true;
@@ -3308,7 +3308,8 @@ void HistoryWidget::saveEditMsg() {
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
 		return;
 	} else if (!left.text.isEmpty()) {
-		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<Ui::InformBox>(
+			tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -3343,7 +3344,7 @@ void HistoryWidget::saveEditMsg() {
 			const auto &err = error.type();
 			if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
 				controller()->show(
-					Box<InformBox>(tr::lng_edit_error(tr::now)));
+					Box<Ui::InformBox>(tr::lng_edit_error(tr::now)));
 			} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 				cancelEdit();
 			} else if (err == u"MESSAGE_EMPTY"_q) {
@@ -3351,7 +3352,7 @@ void HistoryWidget::saveEditMsg() {
 				_field->setFocus();
 			} else {
 				controller()->show(
-					Box<InformBox>(tr::lng_edit_error(tr::now)));
+					Box<Ui::InformBox>(tr::lng_edit_error(tr::now)));
 			}
 			update();
 		})();
@@ -3729,7 +3730,7 @@ void HistoryWidget::unreadMentionsAnimationFinish() {
 void HistoryWidget::chooseAttach() {
 	if (_editMsgId) {
 		controller()->show(
-			Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+			Box<Ui::InformBox>(tr::lng_edit_caption_attach(tr::now)));
 		return;
 	}
 
@@ -4544,7 +4545,7 @@ bool HistoryWidget::confirmSendingFiles(
 	}
 	if (_editMsgId) {
 		controller()->show(
-			Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+			Box<Ui::InformBox>(tr::lng_edit_caption_attach(tr::now)));
 		return false;
 	}
 
@@ -5714,7 +5715,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 
 	auto errorText = result.result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		controller()->show(Box<InformBox>(errorText));
+		controller()->show(Box<Ui::InformBox>(errorText));
 		return;
 	}
 
@@ -6048,7 +6049,7 @@ bool HistoryWidget::sendExistingDocument(
 		: std::nullopt;
 	if (error) {
 		controller()->show(
-			Box<InformBox>(*error),
+			Box<Ui::InformBox>(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
@@ -6084,7 +6085,7 @@ bool HistoryWidget::sendExistingPhoto(
 		: std::nullopt;
 	if (error) {
 		controller()->show(
-			Box<InformBox>(*error),
+			Box<Ui::InformBox>(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
@@ -6169,11 +6170,12 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	}
 	if (item->history() == _migrated) {
 		if (item->serviceMsg()) {
-			controller()->show(Box<InformBox>(tr::lng_reply_cant(tr::now)));
+			controller()->show(Box<Ui::InformBox>(
+				tr::lng_reply_cant(tr::now)));
 		} else {
 			const auto itemId = item->fullId();
 			controller()->show(
-				Box<ConfirmBox>(
+				Box<Ui::ConfirmBox>(
 					tr::lng_reply_cant_forward(tr::now),
 					tr::lng_selected_forward(tr::now),
 					crl::guard(this, [=] {
@@ -6231,7 +6233,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 		toggleChooseChatTheme(_peer);
 	} else if (_voiceRecordBar->isActive()) {
 		controller()->show(
-			Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+			Box<Ui::InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
 
@@ -6691,7 +6693,7 @@ void HistoryWidget::escape() {
 	} else if (_editMsgId) {
 		if (_replyEditMsg
 			&& PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
-			controller()->show(Box<ConfirmBox>(
+			controller()->show(Box<Ui::ConfirmBox>(
 				tr::lng_cancel_edit_post_sure(tr::now),
 				tr::lng_cancel_edit_post_yes(tr::now),
 				tr::lng_cancel_edit_post_no(tr::now),

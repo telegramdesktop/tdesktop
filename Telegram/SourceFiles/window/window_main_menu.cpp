@@ -339,7 +339,7 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 			close();
 			Core::App().logout(&session->account());
 		};
-		Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<Ui::ConfirmBox>(
 			tr::lng_sure_logout(tr::now),
 			tr::lng_settings_logout(tr::now),
 			st::attentionBoxButton,
@@ -941,7 +941,7 @@ void MainMenu::refreshMenu() {
 
 	auto nightCallback = [=] {
 		if (Window::Theme::Background()->editingTheme()) {
-			controller->show(Box<InformBox>(
+			controller->show(Box<Ui::InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 			return;
 		}

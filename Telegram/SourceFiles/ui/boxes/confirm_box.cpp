@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+namespace Ui {
 namespace {
 
 TextParseOptions kInformBoxTextOptions = {
@@ -444,3 +445,5 @@ not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(
 	};
 	return result;
 }
+
+} // namespace Ui

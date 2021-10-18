@@ -83,7 +83,7 @@ void ConfirmPhone::resolve(
 				)).done([=](const MTPBool &result) {
 					_checkRequestId = 0;
 					controller->show(
-						Box<InformBox>(
+						Box<Ui::InformBox>(
 							tr::lng_confirm_phone_success(
 								tr::now,
 								lt_phone,
@@ -117,7 +117,7 @@ void ConfirmPhone::resolve(
 			? tr::lng_confirm_phone_link_invalid(tr::now)
 			: Lang::Hard::ServerError();
 		controller->show(
-			Box<InformBox>(errorText),
+			Box<Ui::InformBox>(errorText),
 			Ui::LayerOption::CloseOther);
 	}).handleFloodErrors().send();
 }

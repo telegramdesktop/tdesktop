@@ -609,7 +609,8 @@ void ScheduledWidget::edit(
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<Ui::InformBox>(
+			tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -634,13 +635,15 @@ void ScheduledWidget::edit(
 
 		const auto &err = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
-			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<Ui::InformBox>(
+				tr::lng_edit_error(tr::now)));
 		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (err == u"MESSAGE_EMPTY"_q) {
 			_composeControls->focus();
 		} else {
-			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<Ui::InformBox>(
+				tr::lng_edit_error(tr::now)));
 		}
 		update();
 		return true;
@@ -675,7 +678,7 @@ bool ScheduledWidget::sendExistingDocument(
 		ChatRestriction::SendStickers);
 	if (error) {
 		controller()->show(
-			Box<InformBox>(*error),
+			Box<Ui::InformBox>(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
 	}
@@ -707,7 +710,7 @@ bool ScheduledWidget::sendExistingPhoto(
 		ChatRestriction::SendMedia);
 	if (error) {
 		controller()->show(
-			Box<InformBox>(*error),
+			Box<Ui::InformBox>(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
 	}
@@ -727,7 +730,7 @@ void ScheduledWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		controller()->show(Box<InformBox>(errorText));
+		controller()->show(Box<Ui::InformBox>(errorText));
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) {

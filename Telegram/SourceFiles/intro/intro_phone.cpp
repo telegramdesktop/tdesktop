@@ -236,7 +236,7 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
-		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {

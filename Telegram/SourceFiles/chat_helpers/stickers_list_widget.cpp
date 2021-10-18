@@ -3156,19 +3156,21 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Data::Stickers::MegagroupSetId;
-	controller()->show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
-		Expects(group->mgInfo != nullptr);
+	controller()->show(Box<Ui::ConfirmBox>(
+		tr::lng_stickers_remove_group_set(tr::now),
+		crl::guard(this, [this, group = _megagroupSet] {
+			Expects(group->mgInfo != nullptr);
 
-		if (group->mgInfo->stickerSet) {
-			session().api().setGroupStickerSet(group, {});
-		}
-		Ui::hideLayer();
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	}), crl::guard(this, [this] {
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	})));
+			if (group->mgInfo->stickerSet) {
+				session().api().setGroupStickerSet(group, {});
+			}
+			Ui::hideLayer();
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		}), crl::guard(this, [this] {
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		})));
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
@@ -3184,7 +3186,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 		lt_sticker_pack,
 		set->title);
 	const auto confirm = tr::lng_stickers_remove_pack_confirm(tr::now);
-	controller()->show(Box<ConfirmBox>(text, confirm, crl::guard(this, [=](
+	controller()->show(Box<Ui::ConfirmBox>(text, confirm, crl::guard(this, [=](
 			Fn<void()> &&close) {
 		close();
 		const auto &sets = session().data().stickers().sets();

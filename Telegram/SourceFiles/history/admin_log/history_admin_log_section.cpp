@@ -328,7 +328,7 @@ Widget::Widget(
 	}, lifetime());
 
 	_whatIsThis->setClickedCallback([=] {
-		controller->show(Box<InformBox>(channel->isMegagroup()
+		controller->show(Box<Ui::InformBox>(channel->isMegagroup()
 			? tr::lng_admin_log_about_text(tr::now)
 			: tr::lng_admin_log_about_text_channel(tr::now)));
 	});

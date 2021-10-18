@@ -710,7 +710,7 @@ void PanelController::setupPassword() {
 }
 
 void PanelController::cancelPasswordSubmit() {
-	show(Box<ConfirmBox>(
+	show(Box<Ui::ConfirmBox>(
 		tr::lng_passport_stop_password_sure(tr::now),
 		tr::lng_passport_stop(tr::now),
 		[=](Fn<void()> &&close) { close(); _form->cancelPassword(); }));
@@ -887,7 +887,7 @@ void PanelController::deleteValueSure(bool withDetails) {
 }
 
 void PanelController::suggestReset(Fn<void()> callback) {
-	_resetBox = Ui::BoxPointer(show(Box<ConfirmBox>(
+	_resetBox = Ui::BoxPointer(show(Box<Ui::ConfirmBox>(
 		Lang::Hard::PassportCorrupted(),
 		Lang::Hard::PassportCorruptedReset(),
 		[=] { resetPassport(callback); },
@@ -895,7 +895,7 @@ void PanelController::suggestReset(Fn<void()> callback) {
 }
 
 void PanelController::resetPassport(Fn<void()> callback) {
-	const auto box = show(Box<ConfirmBox>(
+	const auto box = show(Box<Ui::ConfirmBox>(
 		Lang::Hard::PassportCorruptedResetSure(),
 		Lang::Hard::PassportCorruptedReset(),
 		st::attentionBoxButton,
@@ -942,7 +942,7 @@ void PanelController::showUpdateAppBox() {
 		Core::UpdateApplication();
 	};
 	show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			tr::lng_passport_app_out_of_date(tr::now),
 			tr::lng_menu_update(tr::now),
 			callback,
@@ -1076,7 +1076,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 }
 
 void PanelController::readScanError(ReadScanError error) {
-	show(Box<InformBox>([&] {
+	show(Box<Ui::InformBox>([&] {
 		switch (error) {
 		case ReadScanError::FileTooLarge:
 			return tr::lng_passport_error_too_large(tr::now);
@@ -1402,7 +1402,7 @@ void PanelController::cancelEditScope() {
 
 	if (_panelHasUnsavedChanges && _panelHasUnsavedChanges()) {
 		if (!_confirmForgetChangesBox) {
-			_confirmForgetChangesBox = show(Box<ConfirmBox>(
+			_confirmForgetChangesBox = show(Box<Ui::ConfirmBox>(
 				tr::lng_passport_sure_cancel(tr::now),
 				tr::lng_continue(tr::now),
 				[=] { _panel->showForm(); }));

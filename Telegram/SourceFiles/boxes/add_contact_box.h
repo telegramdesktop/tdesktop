@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/sender.h"
 
-class ConfirmBox;
 class PeerListBox;
 
 namespace Window {
@@ -23,6 +22,7 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+class ConfirmBox;
 class FlatLabel;
 class InputField;
 class PhoneInput;

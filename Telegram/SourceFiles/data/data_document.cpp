@@ -905,7 +905,7 @@ void DocumentData::handleLoaderUpdates() {
 				Ui::hideLayer();
 				save(origin, failedFileName);
 			};
-			Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<Ui::ConfirmBox>(
 				tr::lng_download_finish_failed(tr::now),
 				crl::guard(&session(), retry)));
 		} else {
@@ -917,7 +917,7 @@ void DocumentData::handleLoaderUpdates() {
 			//	Core::App().settings().setDownloadPath(QString());
 			//	Ui::show(Box<DownloadPathBox>());
 			//};
-			//Ui::show(Box<ConfirmBox>(
+			//Ui::show(Box<Ui::ConfirmBox>(
 			//	tr::lng_download_path_failed(tr::now),
 			//	tr::lng_download_path_settings(tr::now),
 			//	crl::guard(&session(), openSettings)));

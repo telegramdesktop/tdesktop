@@ -646,7 +646,7 @@ void Histories::deleteAllMessages(
 				session().api().applyUpdates(result);
 			//}).fail([=](const MTP::Error &error) {
 			//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-			//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+			//		Ui::show(Box<Ui::InformBox>(tr::lng_cant_delete_channel(tr::now)));
 			//	}
 			}).send();
 		} else if (channel) {

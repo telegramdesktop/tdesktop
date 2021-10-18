@@ -234,7 +234,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(const MTP::Error &error, const QS
 		Ui::ShowPhoneBannedError(&_controller->window(), phoneNumber);
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		_controller->show(
-			Box<InformBox>(
+			Box<Ui::InformBox>(
 				tr::lng_change_phone_occupied(
 					tr::now,
 					lt_phone,
@@ -389,7 +389,7 @@ void ChangePhoneBox::prepare() {
 				Ui::LayerOption::CloseOther);
 		};
 		controller->show(
-			Box<ConfirmBox>(
+			Box<Ui::ConfirmBox>(
 				tr::lng_change_phone_warning(tr::now),
 				std::move(callback)),
 			Ui::LayerOption::CloseOther);

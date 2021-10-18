@@ -368,7 +368,7 @@ bool CloudManager::showOfferSwitchBox() {
 		Local::writeLangPack();
 	};
 	Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			"Do you want to switch your language to "
 			+ language.nativeName
 			+ "? You can always change your language in Settings.",
@@ -420,7 +420,7 @@ void CloudManager::requestLanguageAndSwitch(
 	Expects(!id.isEmpty());
 
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
-		Ui::show(Box<InformBox>(tr::lng_language_already(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_language_already(tr::now)));
 		return;
 	} else if (id == qstr("#custom")) {
 		performSwitchToCustom();
@@ -465,7 +465,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 	}).fail([=](const MTP::Error &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
-			Ui::show(Box<InformBox>(tr::lng_language_not_found(tr::now)));
+			Ui::show(Box<Ui::InformBox>(tr::lng_language_not_found(tr::now)));
 		}
 	}).send();
 }
@@ -503,7 +503,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 				+ "\n\n"
 				+ getValue(tr::lng_sure_save_language.base);
 			Ui::show(
-				Box<ConfirmBox>(
+				Box<Ui::ConfirmBox>(
 					text,
 					tr::lng_box_ok(tr::now),
 					tr::lng_cancel(tr::now),
@@ -551,7 +551,7 @@ void CloudManager::performSwitchToCustom() {
 					App::restart();
 				};
 				Ui::show(
-					Box<ConfirmBox>(
+					Box<Ui::ConfirmBox>(
 						text,
 						tr::lng_box_ok(tr::now),
 						tr::lng_cancel(tr::now),
@@ -560,7 +560,8 @@ void CloudManager::performSwitchToCustom() {
 			}
 		} else {
 			Ui::show(
-				Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()),
+				Box<Ui::InformBox>(
+					"Custom lang failed :(\n\nError: " + loader.errors()),
 				Ui::LayerOption::KeepOther);
 		}
 	});

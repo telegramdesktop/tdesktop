@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace Ui {
+
 class InformBox;
 class ConfirmBox : public Ui::BoxContent, public ClickHandlerHost {
 public:
@@ -174,3 +176,5 @@ private:
 	not_null<Ui::RpWidget*> _content;
 
 };
+
+} // namespace Ui

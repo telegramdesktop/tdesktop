@@ -56,7 +56,7 @@ void ShowPhoneBannedError(
 		}
 	};
 	*box = controller->show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			tr::lng_signin_banned_text(tr::now),
 			tr::lng_box_ok(tr::now),
 			tr::lng_signin_banned_help(tr::now),

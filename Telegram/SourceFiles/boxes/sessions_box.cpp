@@ -81,7 +81,7 @@ private:
 	Full _data;
 
 	object_ptr<Inner> _inner;
-	QPointer<ConfirmBox> _terminateBox;
+	QPointer<Ui::ConfirmBox> _terminateBox;
 
 	base::Timer _shortPollTimer;
 
@@ -250,7 +250,7 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		terminateRequest();
 	});
 	_terminateBox = Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			message,
 			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,

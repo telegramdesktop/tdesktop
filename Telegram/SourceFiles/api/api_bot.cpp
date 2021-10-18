@@ -91,7 +91,7 @@ void SendBotCallbackData(
 		result.match([&](const MTPDmessages_botCallbackAnswer &data) {
 			if (const auto message = data.vmessage()) {
 				if (data.is_alert()) {
-					Ui::show(Box<InformBox>(qs(*message)));
+					Ui::show(Box<Ui::InformBox>(qs(*message)));
 				} else {
 					if (withPassword) {
 						Ui::hideLayer();

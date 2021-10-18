@@ -237,7 +237,7 @@ void SetupInterfaceScale(
 					button,
 					[=] { repeatSetScale(cConfigScale(), repeatSetScale); });
 			});
-			window->show(Box<ConfirmBox>(
+			window->show(Box<Ui::ConfirmBox>(
 				tr::lng_settings_need_restart(tr::now),
 				tr::lng_settings_restart_now(tr::now),
 				confirmed,
@@ -328,7 +328,7 @@ void SetupHelp(
 				*requestId = 0;
 			}).send();
 		});
-		auto box = Box<ConfirmBox>(
+		auto box = Box<Ui::ConfirmBox>(
 			tr::lng_settings_ask_sure(tr::now),
 			tr::lng_settings_ask_ok(tr::now),
 			tr::lng_settings_faq_button(tr::now),

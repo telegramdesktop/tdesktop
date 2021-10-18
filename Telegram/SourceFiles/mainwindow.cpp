@@ -739,7 +739,7 @@ bool MainWindow::skipTrayClick() const {
 void MainWindow::toggleDisplayNotifyFromTray() {
 	if (controller().locked()) {
 		if (!isActive()) showFromTray();
-		Ui::show(Box<InformBox>(tr::lng_passcode_need_unblock(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_passcode_need_unblock(tr::now)));
 		return;
 	}
 	if (!sessionController()) {

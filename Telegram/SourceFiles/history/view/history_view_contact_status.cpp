@@ -341,7 +341,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 			}).send();
 			close();
 		};
-		_controller->window().show(Box<ConfirmBox>(
+		_controller->window().show(Box<Ui::ConfirmBox>(
 			tr::lng_new_contact_share_sure(
 				tr::now,
 				lt_phone,
@@ -399,7 +399,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 		const auto text = ((peer->isChat() || peer->isMegagroup())
 			? tr::lng_report_spam_sure_group
 			: tr::lng_report_spam_sure_channel)(tr::now);
-		_controller->window().show(Box<ConfirmBox>(
+		_controller->window().show(Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_report_spam_ok(tr::now),
 			st::attentionBoxButton,

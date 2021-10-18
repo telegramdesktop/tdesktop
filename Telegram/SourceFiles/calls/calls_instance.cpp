@@ -192,7 +192,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		user->session().api().requestFullPeer(user);
-		Ui::show(Box<InformBox>(
+		Ui::show(Box<Ui::InformBox>(
 			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
 		return;
 	}
@@ -695,10 +695,13 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 		if (inGroupCall()) {
 			_currentGroupCall->hangup();
 		}
-		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [=] {
-			Platform::OpenSystemSettingsForPermission(type);
-			Ui::hideLayer();
-		})));
+		Ui::show(Box<Ui::ConfirmBox>(
+			tr::lng_no_mic_permission(tr::now),
+			tr::lng_menu_settings(tr::now),
+			crl::guard(this, [=] {
+				Platform::OpenSystemSettingsForPermission(type);
+				Ui::hideLayer();
+			})));
 	}
 }
 

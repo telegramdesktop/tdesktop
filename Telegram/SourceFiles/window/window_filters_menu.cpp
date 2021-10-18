@@ -336,7 +336,7 @@ void FiltersMenu::showEditBox(FilterId id) {
 }
 
 void FiltersMenu::showRemoveBox(FilterId id) {
-	_session->window().show(Box<ConfirmBox>(
+	_session->window().show(Box<Ui::ConfirmBox>(
 		tr::lng_filters_remove_sure(tr::now),
 		tr::lng_filters_remove_yes(tr::now),
 		[=](Fn<void()> &&close) { close(); remove(id); }));

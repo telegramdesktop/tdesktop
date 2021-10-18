@@ -394,9 +394,9 @@ void ApiWrap::importChatInvite(const QString &hash) {
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (type == qstr("CHANNELS_TOO_MUCH")) {
-			Ui::show(Box<InformBox>(tr::lng_join_channel_error(tr::now)));
+			Ui::show(Box<Ui::InformBox>(tr::lng_join_channel_error(tr::now)));
 		} else if (error.code() == 400) {
-			Ui::show(Box<InformBox>((type == qstr("USERS_TOO_MUCH"))
+			Ui::show(Box<Ui::InformBox>((type == qstr("USERS_TOO_MUCH"))
 				? tr::lng_group_invite_no_room(tr::now)
 				: tr::lng_group_invite_bad_link(tr::now)));
 		}
@@ -468,13 +468,13 @@ void ApiWrap::sendMessageFail(
 		uint64 randomId,
 		FullMsgId itemId) {
 	if (error.type() == qstr("PEER_FLOOD")) {
-		Ui::show(Box<InformBox>(
+		Ui::show(Box<Ui::InformBox>(
 			PeerFloodErrorText(&session(), PeerFloodType::Send)));
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = textcmdLink(
 			session().createInternalLinkFull(qsl("spambot")),
 			tr::lng_cant_more_info(tr::now));
-		Ui::show(Box<InformBox>(tr::lng_error_public_groups_denied(
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_public_groups_denied(
 			tr::now,
 			lt_more_info,
 			link)));
@@ -495,7 +495,7 @@ void ApiWrap::sendMessageFail(
 		Assert(peer->isUser());
 		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
 			scheduled.removeSending(item);
-			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now)));
+			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)));
 		}
 	}
 	if (const auto item = _session->data().message(itemId)) {
@@ -1253,7 +1253,7 @@ void ApiWrap::migrateDone(
 void ApiWrap::migrateFail(not_null<PeerData*> peer, const MTP::Error &error) {
 	const auto &type = error.type();
 	if (type == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::show(Box<InformBox>(tr::lng_migrate_error(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_migrate_error(tr::now)));
 	}
 	if (auto handlers = _migrateCallbacks.take(peer)) {
 		for (auto &handler : *handlers) {
@@ -2086,13 +2086,14 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			} else if (error.type() == qstr("CHANNEL_PRIVATE")
 				|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
 				|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-				Ui::show(Box<InformBox>(channel->isMegagroup()
+				Ui::show(Box<Ui::InformBox>(channel->isMegagroup()
 					? tr::lng_group_not_accessible(tr::now)
 					: tr::lng_channel_not_accessible(tr::now)));
 			} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-				Ui::show(Box<InformBox>(tr::lng_join_channel_error(tr::now)));
+				Ui::show(Box<Ui::InformBox>(
+					tr::lng_join_channel_error(tr::now)));
 			} else if (error.type() == qstr("USERS_TOO_MUCH")) {
-				Ui::show(Box<InformBox>(tr::lng_group_full(tr::now)));
+				Ui::show(Box<Ui::InformBox>(tr::lng_group_full(tr::now)));
 			}
 			_channelAmInRequests.remove(channel);
 		}).send();

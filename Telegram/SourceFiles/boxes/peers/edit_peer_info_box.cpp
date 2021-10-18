@@ -1485,7 +1485,7 @@ void Controller::deleteWithConfirmation() {
 		deleteChannel();
 	});
 	_navigation->parentController()->show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_box_delete(tr::now),
 			st::attentionBoxButton,
@@ -1512,7 +1512,7 @@ void Controller::deleteChannel() {
 		session->api().applyUpdates(result);
 	//}).fail([=](const MTP::Error &error) {
 	//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-	//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+	//		Ui::show(Box<Ui::InformBox>(tr::lng_cant_delete_channel(tr::now)));
 	//	}
 	}).send();
 }

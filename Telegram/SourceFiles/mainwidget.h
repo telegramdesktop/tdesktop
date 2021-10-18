@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryMessageMarkupButton;
 class MainWindow;
-class ConfirmBox;
 class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
@@ -66,6 +65,7 @@ struct Content;
 } // namespace Export
 
 namespace Ui {
+class ConfirmBox;
 class ResizeArea;
 class PlainShadow;
 class DropdownMenu;

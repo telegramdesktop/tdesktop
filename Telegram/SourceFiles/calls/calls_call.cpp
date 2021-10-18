@@ -1152,23 +1152,28 @@ void Call::setFailedQueued(const QString &error) {
 
 void Call::handleRequestError(const MTP::Error &error) {
 	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
+		Ui::show(Box<Ui::InformBox>(
+			tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
 	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, _user->name)));
+		Ui::show(Box<Ui::InformBox>(
+			tr::lng_call_error_outdated(tr::now, lt_user, _user->name)));
 	} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
-		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)));
+		Ui::show(Box<Ui::InformBox>(
+			Lang::Hard::CallErrorIncompatible().replace(
+				"{user}",
+				_user->name)));
 	}
 	finish(FinishType::Failed);
 }
 
 void Call::handleControllerError(const QString &error) {
 	if (error == u"ERROR_INCOMPATIBLE"_q) {
-		Ui::show(Box<InformBox>(
+		Ui::show(Box<Ui::InformBox>(
 			Lang::Hard::CallErrorIncompatible().replace(
 				"{user}",
 				_user->name)));
 	} else if (error == u"ERROR_AUDIO_IO"_q) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}
 	finish(FinishType::Failed);
 }

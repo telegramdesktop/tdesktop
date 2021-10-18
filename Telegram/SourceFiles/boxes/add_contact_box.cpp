@@ -156,7 +156,7 @@ void ShowAddParticipantsError(
 				*weak = Ui::show(std::move(box));
 			};
 			Ui::show(
-				Box<ConfirmBox>(
+				Box<Ui::ConfirmBox>(
 					tr::lng_cant_invite_offer_admin(tr::now),
 					tr::lng_cant_invite_make_admin(tr::now),
 					tr::lng_cancel(tr::now),
@@ -195,7 +195,7 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Box<InformBox>(text), Ui::LayerOption::KeepOther);
+	Ui::show(Box<Ui::InformBox>(text), Ui::LayerOption::KeepOther);
 }
 
 class RevokePublicLinkBox::Inner : public TWidget {
@@ -641,18 +641,18 @@ void GroupInfoBox::createGroup(
 			}
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
 			Ui::show(
-				Box<InformBox>(tr::lng_cant_invite_privacy(tr::now)),
+				Box<Ui::InformBox>(tr::lng_cant_invite_privacy(tr::now)),
 				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
-				Box<InformBox>(
+				Box<Ui::InformBox>(
 					PeerFloodErrorText(
 						&_navigation->session(),
 						PeerFloodType::InviteGroup)),
 				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(
-				Box<InformBox>(tr::lng_cant_do_this(tr::now)),
+				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
 				Ui::LayerOption::KeepOther);
 		}
 	}).send();
@@ -759,9 +759,9 @@ void GroupInfoBox::createChannel(
 			_title->setFocus();
 			_title->showError();
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now)));
+			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)));
 		} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
+			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
 		}
 	}).send();
 }
@@ -1598,7 +1598,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			}).send();
 		});
 		Ui::show(
-			Box<ConfirmBox>(text, confirmText, std::move(callback)),
+			Box<Ui::ConfirmBox>(text, confirmText, std::move(callback)),
 			Ui::LayerOption::KeepOther);
 	}
 }

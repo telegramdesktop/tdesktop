@@ -462,7 +462,7 @@ void AppendEmojiPacks(
 	auto callback = [=] {
 		if (document) {
 			if (const auto error = RestrictionToSendStickers(_controller)) {
-				_controller->show(Box<InformBox>(*error));
+				_controller->show(Box<Ui::InformBox>(*error));
 				return true;
 			}
 			Api::SendExistingDocument(

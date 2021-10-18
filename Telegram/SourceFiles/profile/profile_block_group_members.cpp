@@ -98,7 +98,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 				currentRestrictedRights);
 		}
 	};
-	Ui::show(Box<ConfirmBox>(
+	Ui::show(Box<Ui::ConfirmBox>(
 		text,
 		tr::lng_box_remove(tr::now),
 		crl::guard(&peer->session(), callback)));
