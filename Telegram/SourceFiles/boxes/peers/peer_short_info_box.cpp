@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kShadowMaxAlpha = 80;
+constexpr auto kInactiveBarOpacity = 0.5;
 
 } // namespace
 
@@ -52,12 +53,21 @@ PeerShortInfoBox::PeerShortInfoBox(
 	) | rpl::start_with_next([=](PeerShortInfoUserpic &&value) {
 		applyUserpic(std::move(value));
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		refreshBarImages();
+	}, lifetime());
 }
 
 PeerShortInfoBox::~PeerShortInfoBox() = default;
 
 rpl::producer<> PeerShortInfoBox::openRequests() const {
 	return _openRequests.events();
+}
+
+rpl::producer<int> PeerShortInfoBox::moveRequests() const {
+	return _moveRequests.events();
 }
 
 void PeerShortInfoBox::prepare() {
@@ -79,6 +89,8 @@ void PeerShortInfoBox::prepare() {
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(st::shortInfoWidth, st::shortInfoWidth + height);
 	}, lifetime());
+
+	setMouseTracking(true);
 }
 
 void PeerShortInfoBox::prepareRows() {
@@ -143,7 +155,6 @@ void PeerShortInfoBox::prepareRows() {
 		tr::lng_info_username_label(),
 		usernameValue() | Ui::Text::ToWithEntities(),
 		tr::lng_context_copy_mention(tr::now));
-
 }
 
 RectParts PeerShortInfoBox::customCornersFilling() {
@@ -192,8 +203,72 @@ void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
 		_videoInstance->markFrameShown();
 	}
 
-	if (_shadow.isNull()) {
-		_shadow = Images::GenerateShadow(
+	paintBars(p);
+	paintShadow(p);
+}
+
+void PeerShortInfoBox::mouseMoveEvent(QMouseEvent *e) {
+	//const auto x = e->pos().x();
+	const auto cursor = (_count > 1)
+		? style::cur_pointer
+		: style::cur_default;
+	//const auto cursor = (_index > 0 && x < st::shortInfoWidth / 3)
+	//	? style::cur_pointer
+	//	: (_index + 1 < _count && x >= st::shortInfoWidth / 3)
+	//	? style::cur_pointer
+	//	: style::cur_default;
+	if (_cursor != cursor) {
+		_cursor = cursor;
+		setCursor(_cursor);
+	}
+}
+
+void PeerShortInfoBox::mousePressEvent(QMouseEvent *e) {
+	const auto x = e->pos().x();
+	if (e->button() != Qt::LeftButton) {
+		return;
+	} else if (/*_index > 0 && */x < st::shortInfoWidth / 3) {
+		_moveRequests.fire(-1);
+	} else if (/*_index + 1 < _count && */x >= st::shortInfoWidth / 3) {
+		_moveRequests.fire(1);
+	}
+}
+
+void PeerShortInfoBox::paintBars(QPainter &p) {
+	const auto height = st::shortInfoLinePadding * 2 + st::shortInfoLine;
+	if (_shadowTop.isNull()) {
+		_shadowTop = Images::GenerateShadow(height, kShadowMaxAlpha, 0);
+	}
+	const auto shadowRect = QRect(0, 0, st::shortInfoWidth, height);
+	const auto factor = style::DevicePixelRatio();
+	p.drawImage(
+		shadowRect,
+		_shadowTop,
+		QRect(0, 0, _shadowTop.width(), height * factor));
+	if (!_smallWidth) {
+		return;
+	}
+	const auto top = st::shortInfoLinePadding;
+	const auto skip = st::shortInfoLineSkip;
+	const auto full = (st::shortInfoWidth - 2 * top - (_count - 1) * skip);
+	const auto width = full / float64(_count);
+	for (auto i = 0; i != _count; ++i) {
+		const auto left = top + i * (width + skip);
+		const auto right = left + width;
+		p.setOpacity((i == _index) ? 1. : kInactiveBarOpacity);
+		p.drawImage(
+			qRound(left),
+			top,
+			((qRound(right) == qRound(left) + _smallWidth)
+				? _barSmall
+				: _barLarge));
+	}
+	p.setOpacity(1.);
+}
+
+void PeerShortInfoBox::paintShadow(QPainter &p) {
+	if (_shadowBottom.isNull()) {
+		_shadowBottom = Images::GenerateShadow(
 			st::shortInfoShadowHeight,
 			0,
 			kShadowMaxAlpha);
@@ -206,11 +281,11 @@ void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
 	const auto factor = style::DevicePixelRatio();
 	p.drawImage(
 		shadowRect,
-		_shadow,
+		_shadowBottom,
 		QRect(
 			0,
 			0,
-			_shadow.width(),
+			_shadowBottom.width(),
 			st::shortInfoShadowHeight * factor));
 }
 
@@ -261,14 +336,24 @@ rpl::producer<TextWithEntities> PeerShortInfoBox::aboutValue() const {
 }
 
 void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
+	if (_index != value.index) {
+		_index = value.index;
+		update();
+	}
+	if (_count != value.count) {
+		_count = value.count;
+		refreshBarImages();
+		update();
+	}
 	if (!value.photo.isNull()
 		&& _userpicImage.cacheKey() != value.photo.cacheKey()) {
 		_userpicImage = std::move(value.photo);
 		update();
 	}
-	if (value.videoDocument
-		&& (!_videoInstance
-			|| _videoInstance->shared() != value.videoDocument)) {
+	if (!value.videoDocument) {
+		_videoInstance = nullptr;
+	} else if (!_videoInstance
+		|| _videoInstance->shared() != value.videoDocument) {
 		const auto frame = currentVideoFrame();
 		if (!frame.isNull()) {
 			_userpicImage = frame;
@@ -338,6 +423,40 @@ void PeerShortInfoBox::handleStreamingError(
 
 void PeerShortInfoBox::streamingReady(Media::Streaming::Information &&info) {
 	update(coverRect());
+}
+
+void PeerShortInfoBox::refreshBarImages() {
+	if (_count < 2) {
+		_smallWidth = _largeWidth = 0;
+		_barSmall = _barLarge = QImage();
+		return;
+	}
+	const auto width = st::shortInfoWidth - 2 * st::shortInfoLinePadding;
+	_smallWidth = (width - (_count - 1) * st::shortInfoLineSkip) / _count;
+	if (_smallWidth < st::shortInfoLine) {
+		_smallWidth = _largeWidth = 0;
+		_barSmall = _barLarge = QImage();
+		return;
+	}
+	_largeWidth = _smallWidth + 1;
+	const auto makeBar = [](int size) {
+		const auto radius = st::shortInfoLine / 2.;
+		auto result = QImage(
+			QSize(size, st::shortInfoLine) * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(style::DevicePixelRatio());
+		result.fill(Qt::transparent);
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::groupCallVideoTextFg);
+		p.drawRoundedRect(0, 0, size, st::shortInfoLine, radius, radius);
+		p.end();
+
+		return result;
+	};
+	_barSmall = makeBar(_smallWidth);
+	_barLarge = makeBar(_largeWidth);
 }
 
 QRect PeerShortInfoBox::coverRect() const {

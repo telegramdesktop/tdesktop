@@ -971,3 +971,6 @@ shortInfoNamePosition: point(25px, 37px);
 shortInfoStatusPosition: point(25px, 14px);
 shortInfoShadowHeight: 80px;
 shortInfoLabeledPadding: margins(20px, 16px, 20px, 0px);
+shortInfoLinePadding: 8px;
+shortInfoLineSkip: 4px;
+shortInfoLine: 2px;

@@ -58,6 +58,7 @@ public:
 	~PeerShortInfoBox();
 
 	[[nodiscard]] rpl::producer<> openRequests() const;
+	[[nodiscard]] rpl::producer<int> moveRequests() const;
 
 private:
 	void prepare() override;
@@ -66,6 +67,11 @@ private:
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+	void paintBars(QPainter &p);
+	void paintShadow(QPainter &p);
 
 	[[nodiscard]] QImage currentVideoFrame() const;
 
@@ -84,6 +90,8 @@ private:
 	void handleStreamingError(Media::Streaming::Error &&error);
 	void streamingReady(Media::Streaming::Information &&info);
 
+	void refreshBarImages();
+
 	const PeerShortInfoType _type = PeerShortInfoType::User;
 
 	rpl::variable<PeerShortInfoFields> _fields;
@@ -94,11 +102,22 @@ private:
 	not_null<Ui::VerticalLayout*> _rows;
 
 	QImage _userpicImage;
+	QImage _barSmall;
+	QImage _barLarge;
+	QImage _shadowTop;
+	int _smallWidth = 0;
+	int _largeWidth = 0;
+	int _index = 0;
+	int _count = 0;
+
+	style::cursor _cursor = style::cur_default;
+
 	std::unique_ptr<Media::Streaming::Instance> _videoInstance;
 	crl::time _videoStartPosition = 0;
 	Fn<bool()> _videoPaused;
-	QImage _shadow;
+	QImage _shadowBottom;
 
 	rpl::event_stream<> _openRequests;
+	rpl::event_stream<int> _moveRequests;
 
 };

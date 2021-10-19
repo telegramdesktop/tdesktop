@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_peer_values.h"
+#include "data/data_user_photos.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -29,12 +30,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kOverviewLimit = 48;
+
 struct UserpicState {
 	PeerShortInfoUserpic current;
+	std::optional<UserPhotosSlice> userSlice;
+	PhotoId userpicPhotoId = PeerData::kUnknownPhotoId;
 	std::shared_ptr<Data::CloudImageView> userpicView;
 	std::shared_ptr<Data::PhotoMedia> photoView;
 	InMemoryKey userpicKey;
-	PhotoId photoId = 0;
+	PhotoId photoId = PeerData::kUnknownPhotoId;
 	bool waitingFull = false;
 	bool waitingLoad = false;
 };
@@ -117,8 +122,11 @@ void ProcessFullPhoto(
 		} else if (const auto small = view->image(PhotoSize::Small)) {
 			GenerateImage(state, small, true);
 		} else {
-			ProcessUserpic(peer, state);
-			if (state->current.photo.isNull()) {
+			const auto current = (peer->userpicPhotoId() == photo->id);
+			if (current) {
+				ProcessUserpic(peer, state);
+			}
+			if (!current || state->current.photo.isNull()) {
 				if (const auto blurred = view->thumbnailInline()) {
 					GenerateImage(state, blurred, true);
 				}
@@ -212,43 +220,113 @@ void ProcessFullPhoto(
 	});
 }
 
-[[nodiscard]] rpl::producer<PeerShortInfoUserpic> UserpicValue(
-		not_null<PeerData*> peer) {
-	return [=](auto consumer) {
+void ProcessOld(not_null<PeerData*> peer, not_null<UserpicState*> state) {
+
+}
+
+void ValidatePhotoId(
+		not_null<UserpicState*> state,
+		PhotoId oldUserpicPhotoId) {
+	if (state->userSlice) {
+		const auto count = state->userSlice->size();
+		const auto hasOld = state->userSlice->indexOf(oldUserpicPhotoId);
+		const auto hasNew = state->userSlice->indexOf(state->userpicPhotoId);
+		const auto shift = (hasNew ? 0 : 1);
+		const auto fullCount = count + shift;
+		state->current.count = fullCount;
+		if (hasOld && !hasNew && state->current.index + 1 < fullCount) {
+			++state->current.index;
+		} else if (!hasOld && hasNew && state->current.index > 0) {
+			--state->current.index;
+		}
+		const auto index = state->current.index;
+		if (!index || index >= fullCount) {
+			state->current.index = 0;
+			state->photoId = state->userpicPhotoId;
+		} else {
+			state->photoId = (*state->userSlice)[index - shift];
+		}
+	} else {
+		state->photoId = state->userpicPhotoId;
+	}
+}
+
+bool ProcessCurrent(
+		not_null<PeerData*> peer,
+		not_null<UserpicState*> state) {
+	const auto userpicPhotoId = peer->userpicPhotoId();
+	const auto userpicPhoto = (userpicPhotoId
+		&& (userpicPhotoId != PeerData::kUnknownPhotoId)
+		&& (state->userpicPhotoId != userpicPhotoId))
+		? peer->owner().photo(userpicPhotoId).get()
+		: (state->photoId == userpicPhotoId && state->photoView)
+		? state->photoView->owner().get()
+		: nullptr;
+	state->waitingFull = (state->userpicPhotoId != userpicPhotoId)
+		&& ((userpicPhotoId == PeerData::kUnknownPhotoId)
+			|| (userpicPhotoId && userpicPhoto->isNull()));
+	if (state->waitingFull) {
+		peer->updateFullForced();
+	}
+	const auto oldUserpicPhotoId = state->waitingFull
+		? state->userpicPhotoId
+		: std::exchange(state->userpicPhotoId, userpicPhotoId);
+	const auto changedUserpicPhotoId
+		= (state->userpicPhotoId != oldUserpicPhotoId);
+	const auto changedUserpic = (state->userpicKey
+		!= peer->userpicUniqueKey(state->userpicView));
+
+	const auto wasIndex = state->current.index;
+	const auto wasCount = state->current.count;
+	const auto wasPhotoId = state->photoId;
+	ValidatePhotoId(state, oldUserpicPhotoId);
+	const auto changedInSlice = (state->current.index != wasIndex)
+		|| (state->current.count != wasCount);
+	const auto changedPhotoId = (state->photoId != wasPhotoId);
+	const auto photo = (state->photoId == state->userpicPhotoId
+		&& userpicPhoto)
+		? userpicPhoto
+		: (state->photoId
+			&& (state->photoId != PeerData::kUnknownPhotoId)
+			&& changedPhotoId)
+		? peer->owner().photo(state->photoId).get()
+		: state->photoView
+		? state->photoView->owner().get()
+		: nullptr;
+	state->waitingLoad = false;
+	if (!changedPhotoId
+		&& (state->current.index > 0 || !changedUserpic)
+		&& !state->photoView
+		&& (!state->current.photo.isNull()
+			|| state->current.videoDocument)) {
+		return changedInSlice;
+	} else if (photo && !photo->isNull()) {
+		ProcessFullPhoto(peer, state, photo);
+	} else if (state->current.index > 0) {
+		return changedInSlice;
+	} else {
+		ProcessUserpic(peer, state);
+	}
+	return true;
+}
+
+struct UserpicResult {
+	rpl::producer<PeerShortInfoUserpic> value;
+	Fn<void(int)> move;
+};
+
+[[nodiscard]] UserpicResult UserpicValue(not_null<PeerData*> peer) {
+	const auto moveRequests = std::make_shared<rpl::event_stream<int>>();
+	auto move = [=](int shift) {
+		moveRequests->fire_copy(shift);
+	};
+	auto value = [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		const auto state = lifetime.make_state<UserpicState>();
-		const auto push = [=] {
-			state->waitingLoad = false;
-			const auto nowPhotoId = peer->userpicPhotoId();
-			const auto photo = (nowPhotoId
-				&& (nowPhotoId != PeerData::kUnknownPhotoId)
-				&& (state->photoId != nowPhotoId || state->photoView))
-				? peer->owner().photo(nowPhotoId).get()
-				: nullptr;
-			state->waitingFull = !(state->photoId == nowPhotoId)
-				&& ((nowPhotoId == PeerData::kUnknownPhotoId)
-					|| (nowPhotoId && photo->isNull()));
-			if (state->waitingFull) {
-				peer->updateFullForced();
+		const auto push = [=](bool force = false) {
+			if (ProcessCurrent(peer, state) || force) {
+				consumer.put_next_copy(state->current);
 			}
-			const auto oldPhotoId = state->waitingFull
-				? state->photoId
-				: std::exchange(state->photoId, nowPhotoId);
-			const auto changedPhotoId = (state->photoId != oldPhotoId);
-			const auto changedUserpic = (state->userpicKey
-				!= peer->userpicUniqueKey(state->userpicView));
-			if (!changedPhotoId
-				&& !changedUserpic
-				&& !state->photoView
-				&& (!state->current.photo.isNull()
-					|| state->current.videoDocument)) {
-				return;
-			} else if (photo && !photo->isNull()) {
-				ProcessFullPhoto(peer, state, photo);
-			} else {
-				ProcessUserpic(peer, state);
-			}
-			consumer.put_next_copy(state->current);
 		};
 		using UpdateFlag = Data::PeerUpdate::Flag;
 		peer->session().changes().peerFlagsValue(
@@ -258,6 +336,30 @@ void ProcessFullPhoto(
 			return (update.flags & UpdateFlag::Photo) || state->waitingFull;
 		}) | rpl::start_with_next([=] {
 			push();
+		}, lifetime);
+
+		if (const auto user = peer->asUser()) {
+			UserPhotosReversedViewer(
+				&peer->session(),
+				UserPhotosSlice::Key(peerToUser(user->id), PhotoId()),
+				kOverviewLimit,
+				kOverviewLimit
+			) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
+				state->userSlice = std::move(slice);
+				push();
+			}, lifetime);
+		}
+
+		moveRequests->events(
+		) | rpl::filter([=] {
+			return (state->current.count > 1);
+		}) | rpl::start_with_next([=](int shift) {
+			state->current.index = std::clamp(
+				((state->current.index + shift + state->current.count)
+					% state->current.count),
+				0,
+				state->current.count - 1);
+			push(true);
 		}, lifetime);
 
 		peer->session().downloaderTaskFinished(
@@ -272,6 +374,7 @@ void ProcessFullPhoto(
 
 		return lifetime;
 	};
+	return { .value = std::move(value), .move = std::move(move) };
 }
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
@@ -283,15 +386,19 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel
 		: PeerShortInfoType::Group;
+	auto userpic = UserpicValue(peer);
 	auto result = Box<PeerShortInfoBox>(
 		type,
 		FieldsValue(peer),
 		StatusValue(peer),
-		UserpicValue(peer),
+		std::move(userpic.value),
 		std::move(videoPaused));
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
+
+	result->moveRequests(
+	) | rpl::start_with_next(userpic.move, result->lifetime());
 
 	return result;
 }
