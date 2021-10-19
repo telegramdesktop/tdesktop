@@ -26,7 +26,7 @@ BlockedPeers::Slice TLToSlice(
 		Data::Session &owner) {
 	const auto create = [&](int count, const QVector<MTPPeerBlocked> &list) {
 		auto slice = BlockedPeers::Slice();
-		slice.total = std::max(count, list.size());
+		slice.total = std::max(count, int(list.size()));
 		slice.list.reserve(list.size());
 		for (const auto &contact : list) {
 			contact.match([&](const MTPDpeerBlocked &data) {

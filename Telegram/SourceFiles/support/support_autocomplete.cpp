@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
-#include "base/qt_adapters.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -477,7 +476,7 @@ void Autocomplete::submitValue(const QString &value) {
 		const auto contact = value.mid(
 			prefix.size(),
 			(line > 0) ? (line - prefix.size()) : -1);
-		const auto parts = contact.split(' ', base::QStringSkipEmptyParts);
+		const auto parts = contact.split(' ', Qt::SkipEmptyParts);
 		if (parts.size() > 1) {
 			const auto phone = parts[0];
 			const auto firstName = parts[1];

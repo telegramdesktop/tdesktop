@@ -679,7 +679,7 @@ void Stickers::setPackAndEmoji(
 
 			auto p = StickersPack();
 			p.reserve(stickers.size());
-			for (auto j = 0, c = stickers.size(); j != c; ++j) {
+			for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
 				auto document = owner().document(stickers[j].v);
 				if (!document || !document->sticker()) continue;
 
@@ -1302,7 +1302,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 		set->stickers = pack;
 		set->emoji.clear();
 		auto &v = d.vpacks().v;
-		for (auto i = 0, l = v.size(); i != l; ++i) {
+		for (auto i = 0, l = int(v.size()); i != l; ++i) {
 			if (v[i].type() != mtpc_stickerPack) continue;
 
 			auto &pack = v[i].c_stickerPack();
@@ -1312,7 +1312,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 
 				StickersPack p;
 				p.reserve(stickers.size());
-				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+				for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
 					auto doc = owner().document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 

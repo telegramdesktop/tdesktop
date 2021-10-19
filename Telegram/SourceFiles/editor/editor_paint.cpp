@@ -133,7 +133,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 	setGeometry(geometry);
 	const auto size = geometry.size();
 
-	const auto rotatedImageSize = QMatrix()
+	const auto rotatedImageSize = QTransform()
 		.rotate(angle)
 		.mapRect(QRect(QPoint(), _imageSize));
 

@@ -683,7 +683,7 @@ void NotificationData::setImage(const QString &imagePath) {
 	_hints[_imageKey] = MakeGlibVariant(std::tuple{
 		image.width(),
 		image.height(),
-		image.bytesPerLine(),
+		int(image.bytesPerLine()),
 		true,
 		8,
 		4,

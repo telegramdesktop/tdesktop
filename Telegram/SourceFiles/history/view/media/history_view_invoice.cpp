@@ -58,7 +58,7 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	statusText.entities.push_back({
 		EntityType::Bold,
 		0,
-		statusText.text.size() });
+		int(statusText.text.size()) });
 	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(
 		st::defaultTextStyle,

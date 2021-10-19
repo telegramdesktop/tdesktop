@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_proxy_data.h"
+#include "base/qt_adapters.h"
 
 #include <QtWidgets/QApplication>
 #include <QtNetwork/QLocalServer>
@@ -85,7 +86,7 @@ private:
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) override;
+		base::NativeEventResult *result) override;
 	void processPostponedCalls(int level);
 	void singleInstanceChecked();
 	void launchApplication();

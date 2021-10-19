@@ -404,7 +404,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 
 					auto p = StickersPack();
 					p.reserve(stickers.size());
-					for (auto j = 0, c = stickers.size(); j != c; ++j) {
+					for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
 						auto doc = _controller->session().data().document(stickers[j].v);
 						if (!doc || !doc->sticker()) continue;
 
@@ -532,7 +532,7 @@ void StickerSetBox::Inner::installDone(
 	auto &order = isMasks
 		? stickers.maskSetsOrderRef()
 		: stickers.setsOrderRef();
-	const auto insertAtIndex = 0, currentIndex = order.indexOf(_setId);
+	const auto insertAtIndex = 0, currentIndex = int(order.indexOf(_setId));
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
 			order.removeAt(currentIndex);

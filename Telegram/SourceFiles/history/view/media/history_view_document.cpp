@@ -89,7 +89,7 @@ void PaintWaveform(
 	const auto active = stm->msgWaveformActive;
 	const auto inactive = stm->msgWaveformInactive;
 	const auto wfSize = wf
-		? wf->size()
+		? int(wf->size())
 		: ::Media::Player::kWaveformSamplesCount;
 	const auto activeWidth = base::SafeRound(availableWidth * progress);
 

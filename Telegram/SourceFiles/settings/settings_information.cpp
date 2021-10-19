@@ -241,7 +241,7 @@ void SetupRows(
 		result.entities.push_back({
 			EntityType::CustomUrl,
 			0,
-			add.size(),
+			int(add.size()),
 			"internal:edit_username" });
 		return result;
 	});

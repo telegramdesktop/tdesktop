@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
+#include "base/qt_adapters.h"
 
 #include <QtCore/QMimeData>
 
@@ -1475,12 +1476,12 @@ void Widget::showSearchFrom() {
 void Widget::onFilterCursorMoved(int from, int to) {
 	if (to < 0) to = _filter->cursorPosition();
 	QString t = _filter->getLastText();
-	QStringRef r;
+	QStringView r;
 	for (int start = to; start > 0;) {
 		--start;
 		if (t.size() <= start) break;
 		if (t.at(start) == '#') {
-			r = t.midRef(start, to - start);
+			r = base::StringViewMid(t, start, to - start);
 			break;
 		}
 		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
@@ -1495,7 +1496,9 @@ void Widget::onCompleteHashtag(QString tag) {
 		--start;
 		if (t.size() <= start) break;
 		if (t.at(start) == '#') {
-			if (cur == start + 1 || t.midRef(start + 1, cur - start - 1) == tag.midRef(0, cur - start - 1)) {
+			if (cur == start + 1
+				|| base::StringViewMid(t, start + 1, cur - start - 1)
+					== base::StringViewMid(tag, 0, cur - start - 1)) {
 				for (; cur < t.size() && cur - start - 1 < tag.size(); ++cur) {
 					if (t.at(cur) != tag.at(cur - start - 1)) break;
 				}

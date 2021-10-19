@@ -988,7 +988,7 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	// Write each 0-31 unsigned char as 5 bit to result.
 	// We reserve one extra byte to be able to dereference any of required bytes
 	// as a uint16 without overflowing, even the byte with index "bytesCount - 1".
-	for (auto i = 0, l = waveform.size(); i < l; ++i) {
+	for (auto i = 0, l = int(waveform.size()); i < l; ++i) {
 		auto byteIndex = (i * 5) / 8;
 		auto bitShift = (i * 5) % 8;
 		auto value = (static_cast<uint16>(waveform[i]) & 0x1F) << bitShift;
@@ -1337,7 +1337,7 @@ bool DocumentData::isAudioFile() const {
 		}
 		return false;
 	}
-	const auto left = _mimeString.midRef(prefix.size()).toString();
+	const auto left = _mimeString.mid(prefix.size());
 	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
 	return ranges::contains(types, left);
 }

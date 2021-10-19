@@ -38,7 +38,7 @@ TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
 			result.entities.push_back({
 				EntityType::Italic,
 				0,
-				emptyValue.size() });
+				int(emptyValue.size()) });
 		}
 	} else {
 		TextUtilities::ParseEntities(result, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands);
@@ -296,7 +296,7 @@ TextWithEntities GenerateInviteLinkChangeText(
 		link.entities.push_back({
 			EntityType::CustomUrl,
 			0,
-			link.text.size(),
+			int(link.text.size()),
 			InternalInviteLinkUrl(newLink) });
 	}
 	auto result = tr::lng_admin_log_edited_invite_link(tr::now, lt_link, link, Ui::Text::WithEntities);
@@ -350,7 +350,7 @@ auto GenerateParticipantString(
 		name.entities.push_back({
 			EntityType::MentionName,
 			0,
-			name.text.size(),
+			int(name.text.size()),
 			entityData });
 	}
 	auto username = peer->userName();
@@ -361,7 +361,7 @@ auto GenerateParticipantString(
 	mention.entities.push_back({
 		EntityType::Mention,
 		0,
-		mention.text.size() });
+		int(mention.text.size()) });
 	return tr::lng_admin_log_user_with_username(
 		tr::now,
 		lt_name,

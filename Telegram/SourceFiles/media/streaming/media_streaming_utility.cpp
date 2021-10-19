@@ -160,7 +160,7 @@ QImage ConvertFrame(
 
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *data[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
-		int linesize[AV_NUM_DATA_POINTERS] = { storage.bytesPerLine(), 0 };
+		int linesize[AV_NUM_DATA_POINTERS] = { int(storage.bytesPerLine()), 0 };
 
 		sws_scale(
 			stream.swscale.get(),

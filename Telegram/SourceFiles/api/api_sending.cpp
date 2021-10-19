@@ -212,7 +212,7 @@ void SendExistingPhoto(
 }
 
 bool SendDice(Api::MessageToSend &message) {
-	const auto full = message.textWithTags.text.midRef(0).trimmed();
+	const auto full = QStringView(message.textWithTags.text).trimmed();
 	auto length = 0;
 	if (!Ui::Emoji::Find(full.data(), full.data() + full.size(), &length)
 		|| length != full.size()) {

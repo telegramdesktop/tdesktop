@@ -265,7 +265,10 @@ void Sandbox::socketReading() {
 	}
 	_localSocketReadData.append(_localSocket.readAll());
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
-		uint64 pid = _localSocketReadData.midRef(4, _localSocketReadData.length() - 5).toULongLong();
+		uint64 pid = base::StringViewMid(
+			_localSocketReadData,
+			4,
+			_localSocketReadData.length() - 5).toULongLong();
 		if (pid != kEmptyPidForCommandResponse) {
 			psActivateProcess(pid);
 		}
@@ -388,7 +391,7 @@ void Sandbox::readClients() {
 			QString cmds(QString::fromLatin1(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
-				QStringRef cmd(&cmds, from, to - from);
+				auto cmd = base::StringViewMid(cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
 					const auto response = qsl("RES:%1;").arg(QApplication::applicationPid()).toLatin1();
@@ -409,7 +412,7 @@ void Sandbox::readClients() {
 					const auto response = qsl("RES:%1;").arg(responsePid).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else {
-					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
+					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd.toString()));
 				}
 				from = to + 1;
 			}
@@ -571,7 +574,7 @@ void Sandbox::processPostponedCalls(int level) {
 bool Sandbox::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		base::NativeEventResult *result) {
 	registerEnterFromEventLoop();
 	return false;
 }

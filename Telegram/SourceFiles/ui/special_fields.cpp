@@ -41,7 +41,7 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = '+' + code;
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	setText(newText);
 	_nosignal = true;
 	correctValue(wasText, wasCursor, newText, newCursor);
@@ -200,7 +200,7 @@ void PhonePartInput::addedToNumber(const QString &added) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = added + wasText;
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	setText(newText);
 	setCursorPosition(added.length());
 	correctValue(wasText, wasCursor, newText, newCursor);
@@ -231,7 +231,7 @@ void PhonePartInput::chooseCode(const QString &code) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = getLastText();
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	correctValue(wasText, wasCursor, newText, newCursor);
 
 	startPlaceholderAnimation();
@@ -271,7 +271,7 @@ void UsernameInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto newPos = nowCursor;
-	auto from = 0, len = now.size();
+	auto from = 0, len = int(now.size());
 	for (; from < len; ++from) {
 		if (!now.at(from).isSpace()) {
 			break;
@@ -303,7 +303,7 @@ PhoneInput::PhoneInput(
 	if (value.isEmpty()) {
 		clearText();
 	} else {
-		auto pos = value.size();
+		auto pos = int(value.size());
 		correctValue(QString(), 0, value, pos);
 	}
 }
@@ -316,7 +316,7 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 void PhoneInput::clearText() {
 	auto value = _defaultValue;
 	setText(value);
-	auto pos = value.size();
+	auto pos = int(value.size());
 	correctValue(QString(), 0, value, pos);
 }
 

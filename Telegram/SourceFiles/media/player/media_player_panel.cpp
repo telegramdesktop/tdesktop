@@ -164,7 +164,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	Ui::FillRoundRect(p, shadowedRect, st::menuBg, Ui::MenuCorners, nullptr, parts);
 }
 
-void Panel::enterEventHook(QEvent *e) {
+void Panel::enterEventHook(QEnterEvent *e) {
 	if (_ignoringEnterEvents || contentTooSmall()) return;
 
 	_hideTimer.cancel();

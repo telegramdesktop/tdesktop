@@ -159,7 +159,7 @@ struct State {
 				auto &entry = context->cache(item);
 				entry.requestId = 0;
 				auto peers = std::vector<PeerId>();
-				peers.reserve(std::max(result.v.size(), 1));
+				peers.reserve(std::max(int(result.v.size()), 1));
 				for (const auto &id : result.v) {
 					peers.push_back(UserId(id));
 				}

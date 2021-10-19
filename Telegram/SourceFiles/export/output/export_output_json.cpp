@@ -71,7 +71,7 @@ QByteArray SerializeString(const QByteArray &value) {
 
 QByteArray SerializeDate(TimeId date) {
 	return SerializeString(
-		QDateTime::fromTime_t(date).toString(Qt::ISODate).toUtf8());
+		QDateTime::fromSecsSinceEpoch(date).toString(Qt::ISODate).toUtf8());
 }
 
 QByteArray StringAllowEmpty(const Data::Utf8String &data) {

@@ -132,7 +132,6 @@ ViewButton::Inner::Inner(
 , link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
-		const auto &data = controller->session().data();
 		const auto webpage = media->webpage();
 		if (!webpage) {
 			return;

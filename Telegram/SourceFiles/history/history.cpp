@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/application.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "styles/style_dialogs.h"
 
 namespace {
@@ -2655,10 +2656,10 @@ void History::cacheTopPromotion(
 	}
 }
 
-QStringRef History::topPromotionType() const {
+QStringView History::topPromotionType() const {
 	return topPromotionAboutShown()
-		? _topPromotedType.midRef(5)
-		: _topPromotedType.midRef(0);
+		? base::StringViewMid(_topPromotedType, 5)
+		: QStringView(_topPromotedType);
 }
 
 bool History::topPromotionAboutShown() const {

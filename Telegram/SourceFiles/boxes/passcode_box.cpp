@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
+#include "base/qt_adapters.h"
 
 namespace {
 
@@ -525,7 +526,7 @@ void PasscodeBox::setPasswordFail(
 		const MTP::Error &error) {
 	const auto prefix = qstr("EMAIL_UNCONFIRMED_");
 	if (error.type().startsWith(prefix)) {
-		const auto codeLength = error.type().midRef(prefix.size()).toInt();
+		const auto codeLength = base::StringViewMid(error.type(), prefix.size()).toInt();
 
 		closeReplacedBy();
 		_setRequest = 0;

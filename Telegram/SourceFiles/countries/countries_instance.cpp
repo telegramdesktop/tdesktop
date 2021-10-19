@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "countries/countries_instance.h"
 
+#include "base/qt_adapters.h"
+
 namespace Countries {
 namespace {
 
@@ -328,11 +330,11 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 			if (phoneNumber.startsWith(callingCode.callingCode)) {
 				const auto codeSize = callingCode.callingCode.size();
 				for (const auto &prefix : callingCode.prefixes) {
-					if (prefix.startsWith(phoneNumber.midRef(codeSize))) {
+					if (prefix.startsWith(base::StringViewMid(phoneNumber, codeSize))) {
 						isPrefix = true;
 					}
 					if ((codeSize + prefix.size()) > bestLength &&
-							phoneNumber.midRef(codeSize).startsWith(prefix)) {
+							base::StringViewMid(phoneNumber, codeSize).startsWith(prefix)) {
 						bestCountryPtr = &country;
 						bestCallingCodePtr = &callingCode;
 						bestLength = codeSize + prefix.size();

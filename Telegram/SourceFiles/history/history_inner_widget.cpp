@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h" // st::windowMinWidth
+#include "base/qt_adapters.h"
 
 #include <QtGui/QClipboard>
 #include <QtWidgets/QApplication>
@@ -866,7 +867,7 @@ bool HistoryInner::eventHook(QEvent *e) {
 		|| e->type() == QEvent::TouchEnd
 		|| e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
-		if (ev->device()->type() == QTouchDevice::TouchScreen) {
+		if (ev->device()->type() == base::TouchDevice::TouchScreen) {
 			touchEvent(ev);
 			return true;
 		}
@@ -2504,7 +2505,7 @@ void HistoryInner::updateSize() {
 	}
 }
 
-void HistoryInner::enterEventHook(QEvent *e) {
+void HistoryInner::enterEventHook(QEnterEvent *e) {
 	mouseActionUpdate(QCursor::pos());
 	return TWidget::enterEventHook(e);
 }

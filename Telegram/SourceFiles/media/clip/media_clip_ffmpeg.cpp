@@ -225,7 +225,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 		}
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
-		int toLinesize[AV_NUM_DATA_POINTERS] = { to.bytesPerLine(), 0 };
+		int toLinesize[AV_NUM_DATA_POINTERS] = { int(to.bytesPerLine()), 0 };
 		sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
 	}
 	if (hasAlpha) {

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "countries/countries_instance.h"
-#include "base/qt_adapters.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
@@ -50,7 +49,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -241,7 +240,7 @@ void CountrySelectBox::Inner::init() {
 				: QString());
 		const auto namesList = std::move(full).toLower().split(
 			QRegularExpression("[\\s\\-]"),
-			base::QStringSkipEmptyParts);
+			Qt::SkipEmptyParts);
 		auto &names = _namesList.emplace_back();
 		names.reserve(namesList.size());
 		for (const auto &name : namesList) {
@@ -315,7 +314,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void CountrySelectBox::Inner::enterEventHook(QEvent *e) {
+void CountrySelectBox::Inner::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 

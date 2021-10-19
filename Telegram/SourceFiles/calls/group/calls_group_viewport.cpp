@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 
 #include <QtGui/QtEvents>
-#include <QtGui/QOpenGLShader>
+#include <QOpenGLShader>
 
 namespace Calls::Group {
 namespace {

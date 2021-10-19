@@ -120,7 +120,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.text = tr::lng_action_add_user(tr::now, lt_from, fromLinkText(), lt_user, qsl("somebody"));
 		} else {
 			result.links.push_back(fromLink());
-			for (auto i = 0, l = users.size(); i != l; ++i) {
+			for (auto i = 0, l = int(users.size()); i != l; ++i) {
 				auto user = history()->owner().user(users[i].v);
 				result.links.push_back(user->createOpenLink());
 
@@ -641,7 +641,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 	} else if (users.isEmpty()) {
 		result.text = tr::lng_action_invite_user(tr::now, lt_from, fromLinkText(), lt_user, qsl("somebody"), lt_chat, chatText);
 	} else {
-		for (auto i = 0, l = users.size(); i != l; ++i) {
+		for (auto i = 0, l = int(users.size()); i != l; ++i) {
 			auto user = owner->user(users[i].v);
 			result.links.push_back(user->createOpenLink());
 

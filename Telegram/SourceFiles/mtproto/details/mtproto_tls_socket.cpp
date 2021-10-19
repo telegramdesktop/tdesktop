@@ -710,7 +710,7 @@ int64 TlsSocket::read(bytes::span buffer) {
 	while (_incomingGoodDataLimit) {
 		const auto available = std::min(
 			_incomingGoodDataLimit,
-			_incoming.size() - _incomingGoodDataOffset);
+			int(_incoming.size()) - _incomingGoodDataOffset);
 		if (available <= 0) {
 			return written;
 		}

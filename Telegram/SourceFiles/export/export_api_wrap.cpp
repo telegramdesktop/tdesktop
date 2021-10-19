@@ -736,7 +736,7 @@ void ApiWrap::requestUserpics(
 
 		auto startInfo = result.match(
 		[](const MTPDphotos_photos &data) {
-			return Data::UserpicsInfo{ data.vphotos().v.size() };
+			return Data::UserpicsInfo{ int(data.vphotos().v.size()) };
 		}, [](const MTPDphotos_photosSlice &data) {
 			return Data::UserpicsInfo{ data.vcount().v };
 		});
@@ -968,7 +968,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 
 		const auto count = result.match(
 			[](const MTPDmessages_messages &data) {
-			return data.vmessages().v.size();
+			return int(data.vmessages().v.size());
 		}, [](const MTPDmessages_messagesSlice &data) {
 			return data.vcount().v;
 		}, [](const MTPDmessages_channelMessages &data) {

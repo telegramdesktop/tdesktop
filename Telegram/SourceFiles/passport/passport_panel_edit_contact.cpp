@@ -135,7 +135,7 @@ void VerifyBox::setupControls(
 		link.entities.push_back({
 			EntityType::CustomUrl,
 			0,
-			link.text.size(),
+			int(link.text.size()),
 			QString("internal:resend") });
 		const auto label = _content->add(
 			object_ptr<Ui::FlatLabel>(

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
-#include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -40,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QStyle>
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtGui/QWindow>
@@ -670,7 +668,7 @@ void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
-	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell;wl-shell");
+	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell");
 #endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());

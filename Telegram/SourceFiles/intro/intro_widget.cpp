@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"
+#include "base/qt_adapters.h"
 
 namespace Intro {
 namespace {
@@ -512,7 +513,8 @@ void Widget::resetAccount() {
 
 			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				const auto seconds = type.midRef(
+				const auto seconds = base::StringViewMid(
+					type,
 					qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
