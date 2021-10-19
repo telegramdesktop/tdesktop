@@ -143,7 +143,7 @@ QByteArray ParseRealtimeResponse(const QByteArray &bytes) {
 	}
 
 	const auto number = [&](int index) {
-		return match.capturedRef(index).toInt();
+		return match.capturedView(index).toInt();
 	};
 	const auto day = number(1);
 	const auto month = [&] {
@@ -161,9 +161,9 @@ QByteArray ParseRealtimeResponse(const QByteArray &bytes) {
 			"Nov",
 			"Dec"
 		};
-		const auto captured = match.capturedRef(2);
+		const auto captured = match.capturedView(2);
 		for (auto i = begin(months); i != end(months); ++i) {
-			if (captured == (*i)) {
+			if (captured == QString(*i)) {
 				return 1 + int(i - begin(months));
 			}
 		}
@@ -369,7 +369,7 @@ void SpecialConfigRequest::handleHeaderUnixtime(
 		LOG(("Config Error: Bad 'Date' header received: %1").arg(date));
 		return;
 	}
-	base::unixtime::http_update(parsed.toTime_t());
+	base::unixtime::http_update(parsed.toSecsSinceEpoch());
 	if (_timeDoneCallback) {
 		_timeDoneCallback();
 	}

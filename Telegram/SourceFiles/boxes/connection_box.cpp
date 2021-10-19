@@ -74,7 +74,7 @@ void HostInput::correctValue(
 	QString newText;
 	int newCursor = nowCursor;
 	newText.reserve(now.size());
-	for (auto i = 0, l = now.size(); i < l; ++i) {
+	for (auto i = 0, l = int(now.size()); i < l; ++i) {
 		if (now[i] == ',') {
 			newText.append('.');
 		} else {
@@ -120,7 +120,7 @@ void Base64UrlInput::correctValue(
 	QString newText;
 	newText.reserve(now.size());
 	auto newPos = nowCursor;
-	for (auto i = 0, l = now.size(); i < l; ++i) {
+	for (auto i = 0, l = int(now.size()); i < l; ++i) {
 		const auto ch = now[i];
 		if ((ch >= '0' && ch <= '9')
 			|| (ch >= 'a' && ch <= 'z')
@@ -537,8 +537,8 @@ void ProxyRow::showMenu() {
 			_deleteClicks.fire({});
 		});
 	}
-	const auto parentTopLeft = window()->mapToGlobal({ 0, 0 });
-	const auto buttonTopLeft = _menuToggle->mapToGlobal({ 0, 0 });
+	const auto parentTopLeft = window()->mapToGlobal(QPoint());
+	const auto buttonTopLeft = _menuToggle->mapToGlobal(QPoint());
 	const auto parent = QRect(parentTopLeft, window()->size());
 	const auto button = QRect(buttonTopLeft, _menuToggle->size());
 	const auto bottom = button.y()

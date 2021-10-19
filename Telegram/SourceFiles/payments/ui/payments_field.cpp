@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
+#include "base/qt_adapters.h"
 #include "styles/style_payments.h"
 
 #include <QtCore/QRegularExpression>
@@ -49,11 +50,11 @@ struct SimpleFieldState {
 	);
 	const auto digitsLimit = 16 - rule.exponent;
 	const auto beforePosition = state.value.mid(0, state.position);
-	auto decimalPosition = withDecimal.lastIndexOf(rule.decimal);
+	auto decimalPosition = int(withDecimal.lastIndexOf(rule.decimal));
 	if (decimalPosition < 0) {
 		state = {
 			.value = RemoveNonNumbers(state.value),
-			.position = RemoveNonNumbers(beforePosition).size(),
+			.position = int(RemoveNonNumbers(beforePosition).size()),
 		};
 	} else {
 		const auto onlyNumbersBeforeDecimal = RemoveNonNumbers(
@@ -62,7 +63,7 @@ struct SimpleFieldState {
 			.value = (onlyNumbersBeforeDecimal
 				+ QChar(rule.decimal)
 				+ RemoveNonNumbers(state.value.mid(decimalPosition + 1))),
-			.position = (RemoveNonNumbers(beforePosition).size()
+			.position = int(RemoveNonNumbers(beforePosition).size()
 				+ (state.position > decimalPosition ? 1 : 0)),
 		};
 		decimalPosition = onlyNumbersBeforeDecimal.size();
@@ -133,19 +134,19 @@ struct SimpleFieldState {
 [[nodiscard]] bool IsBackspace(const FieldValidateRequest &request) {
 	return (request.wasAnchor == request.wasPosition)
 		&& (request.wasPosition == request.nowPosition + 1)
-		&& (request.wasValue.midRef(0, request.wasPosition - 1)
-			== request.nowValue.midRef(0, request.nowPosition))
-		&& (request.wasValue.midRef(request.wasPosition)
-			== request.nowValue.midRef(request.nowPosition));
+		&& (base::StringViewMid(request.wasValue, 0, request.wasPosition - 1)
+			== base::StringViewMid(request.nowValue, 0, request.nowPosition))
+		&& (base::StringViewMid(request.wasValue, request.wasPosition)
+			== base::StringViewMid(request.nowValue, request.nowPosition));
 }
 
 [[nodiscard]] bool IsDelete(const FieldValidateRequest &request) {
 	return (request.wasAnchor == request.wasPosition)
 		&& (request.wasPosition == request.nowPosition)
-		&& (request.wasValue.midRef(0, request.wasPosition)
-			== request.nowValue.midRef(0, request.nowPosition))
-		&& (request.wasValue.midRef(request.wasPosition + 1)
-			== request.nowValue.midRef(request.nowPosition));
+		&& (base::StringViewMid(request.wasValue, 0, request.wasPosition)
+			== base::StringViewMid(request.nowValue, 0, request.nowPosition))
+		&& (base::StringViewMid(request.wasValue, request.wasPosition + 1)
+			== base::StringViewMid(request.nowValue, request.nowPosition));
 }
 
 [[nodiscard]] auto MoneyValidator(const CurrencyRule &rule) {
@@ -345,7 +346,7 @@ struct SimpleFieldState {
 		const auto symbol = QChar(rule.decimal);
 		const auto decimal = text.indexOf(symbol);
 		const auto zeros = (decimal >= 0)
-			? std::max(rule.exponent - (text.size() - decimal - 1), 0)
+			? std::max(rule.exponent - int(text.size() - decimal - 1), 0)
 			: rule.stripDotZero
 			? 0
 			: rule.exponent;

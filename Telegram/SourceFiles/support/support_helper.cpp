@@ -177,18 +177,18 @@ uint32 ParseOccupationTag(History *history) {
 		return 0;
 	}
 	const auto &text = draft->textWithTags.text;
-	const auto parts = text.splitRef(';');
+	const auto parts = QStringView(text).split(';');
 	auto valid = false;
 	auto result = uint32();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= base::unixtime::now()) {
+			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
 			}
 		} else if (part.startsWith(qstr("u:"))) {
-			result = part.mid(2).toUInt();
+			result = base::StringViewMid(part, 2).toUInt();
 		}
 	}
 	return valid ? result : 0;
@@ -203,18 +203,18 @@ QString ParseOccupationName(History *history) {
 		return QString();
 	}
 	const auto &text = draft->textWithTags.text;
-	const auto parts = text.splitRef(';');
+	const auto parts = QStringView(text).split(';');
 	auto valid = false;
 	auto result = QString();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= base::unixtime::now()) {
+			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
 			}
 		} else if (part.startsWith(qstr("n:"))) {
-			result = part.mid(2).toString();
+			result = base::StringViewMid(part, 2).toString();
 		}
 	}
 	return valid ? result : QString();
@@ -229,18 +229,18 @@ TimeId OccupiedBySomeoneTill(History *history) {
 		return 0;
 	}
 	const auto &text = draft->textWithTags.text;
-	const auto parts = text.splitRef(';');
+	const auto parts = QStringView(text).split(';');
 	auto valid = false;
 	auto result = TimeId();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= base::unixtime::now()) {
-				result = part.mid(2).toInt();
+			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
+				result = base::StringViewMid(part, 2).toInt();
 			} else {
 				return 0;
 			}
 		} else if (part.startsWith(qstr("u:"))) {
-			if (part.mid(2).toUInt() != OccupationTag()) {
+			if (base::StringViewMid(part, 2).toUInt() != OccupationTag()) {
 				valid = true;
 			} else {
 				return 0;
@@ -562,11 +562,14 @@ QString InterpretSendPath(
 	for (const auto &line : lines) {
 		if (line.startsWith(qstr("from: "))) {
 			if (window->session().userId().bare
-				!= line.midRef(qstr("from: ").size()).toULongLong()) {
+				!= base::StringViewMid(
+					line,
+					qstr("from: ").size()).toULongLong()) {
 				return "App Error: Wrong current user.";
 			}
 		} else if (line.startsWith(qstr("channel: "))) {
-			const auto channelId = line.midRef(
+			const auto channelId = base::StringViewMid(
+				line,
 				qstr("channel: ").size()).toULongLong();
 			toId = peerFromChannel(channelId);
 		} else if (line.startsWith(qstr("file: "))) {

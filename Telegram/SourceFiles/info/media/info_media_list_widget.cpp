@@ -1906,7 +1906,7 @@ void ListWidget::validateTrippleClickStartTime() {
 	}
 }
 
-void ListWidget::enterEventHook(QEvent *e) {
+void ListWidget::enterEventHook(QEnterEvent *e) {
 	mouseActionUpdate(QCursor::pos());
 	return RpWidget::enterEventHook(e);
 }

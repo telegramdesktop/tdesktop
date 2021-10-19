@@ -1015,7 +1015,7 @@ bool Notification::unlinkSession(not_null<Main::Session*> session) {
 	return unlink;
 }
 
-void Notification::enterEventHook(QEvent *e) {
+void Notification::enterEventHook(QEnterEvent *e) {
 	if (!_history) return;
 	manager()->stopAllHiding();
 	if (!_replyArea && canReply()) {
@@ -1096,7 +1096,7 @@ void HideAllButton::stopHiding() {
 	hideStop();
 }
 
-void HideAllButton::enterEventHook(QEvent *e) {
+void HideAllButton::enterEventHook(QEnterEvent *e) {
 	_mouseOver = true;
 	update();
 }

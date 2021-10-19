@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/core_cloud_password.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "main/main_session.h"
@@ -710,7 +709,7 @@ void EditRestrictedBox::showRestrictUntil() {
 			highlighted,
 			[this](const QDate &date) {
 				setRestrictUntil(
-					static_cast<int>(base::QDateToDateTime(date).toTime_t()));
+					static_cast<int>(date.startOfDay().toSecsSinceEpoch()));
 			}),
 		Ui::LayerOption::KeepOther);
 	_restrictUntilBox->setMaxDate(

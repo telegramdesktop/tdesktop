@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
 
@@ -219,7 +220,8 @@ void PanelController::showError(const ApiErrorState &error) {
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
 		showError(tr::lng_export_invalid(tr::now));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
-		const auto seconds = std::max(error.data.type().midRef(
+		const auto seconds = std::max(base::StringViewMid(
+			error.data.type(),
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);

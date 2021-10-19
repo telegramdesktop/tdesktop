@@ -232,7 +232,7 @@ void ResolveDocument(
 				location.accessDisable();
 			});
 			const auto path = location.name();
-			if (Core::MimeTypeForFile(path).name().startsWith("image/")
+			if (Core::MimeTypeForFile(QFileInfo(path)).name().startsWith("image/")
 				&& QImageReader(path).canRead()) {
 				showDocument();
 				return true;

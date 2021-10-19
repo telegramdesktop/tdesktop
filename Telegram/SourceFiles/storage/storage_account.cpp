@@ -2447,10 +2447,10 @@ std::optional<RecentHashtagPack> Account::saveRecentHashtags(
 		i = m.capturedStart();
 		next = m.capturedEnd();
 		if (m.hasMatch()) {
-			if (!m.capturedRef(1).isEmpty()) {
+			if (!m.capturedView(1).isEmpty()) {
 				++i;
 			}
-			if (!m.capturedRef(2).isEmpty()) {
+			if (!m.capturedView(2).isEmpty()) {
 				--next;
 			}
 		}

@@ -650,8 +650,8 @@ void Manager::notificationActivated(
 					reply,
 					replyToId,
 					MessageCursor{
-						reply.text.size(),
-						reply.text.size(),
+						int(reply.text.size()),
+						int(reply.text.size()),
 						QFIXED_MAX,
 					},
 					Data::PreviewState::Allowed);

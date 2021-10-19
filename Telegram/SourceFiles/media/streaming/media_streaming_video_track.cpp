@@ -55,7 +55,7 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 		0,
 	};
 	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { result.bits(), nullptr };
-	int dstLinesize[AV_NUM_DATA_POINTERS] = { result.bytesPerLine(), 0 };
+	int dstLinesize[AV_NUM_DATA_POINTERS] = { int(result.bytesPerLine()), 0 };
 
 	sws_scale(
 		swscale.get(),

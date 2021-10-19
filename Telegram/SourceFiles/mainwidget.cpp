@@ -531,8 +531,8 @@ bool MainWidget::shareUrl(
 		TextWithTags::Tags()
 	};
 	MessageCursor cursor = {
-		url.size() + 1,
-		url.size() + 1 + text.size(),
+		int(url.size()) + 1,
+		int(url.size()) + 1 + int(text.size()),
 		QFIXED_MAX
 	};
 	auto history = peer->owner().history(peer);
@@ -558,7 +558,7 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	}
 	const auto h = peer->owner().history(peer);
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
-	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
+	MessageCursor cursor = { int(botAndQuery.size()), int(botAndQuery.size()), QFIXED_MAX };
 	h->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
 		0,

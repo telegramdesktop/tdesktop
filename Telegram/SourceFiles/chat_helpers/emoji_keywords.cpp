@@ -132,7 +132,7 @@ void CreateCacheFilePath() {
 			}
 			list.push_back(entry);
 		}
-		result.maxKeyLength = std::max(result.maxKeyLength, key.size());
+		result.maxKeyLength = std::max(result.maxKeyLength, int(key.size()));
 	}
 	result.version = version;
 	return result;

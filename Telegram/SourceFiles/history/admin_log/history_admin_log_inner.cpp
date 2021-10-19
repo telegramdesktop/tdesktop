@@ -1464,7 +1464,7 @@ void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void InnerWidget::enterEventHook(QEvent *e) {
+void InnerWidget::enterEventHook(QEnterEvent *e) {
 	mouseActionUpdate(QCursor::pos());
 	return TWidget::enterEventHook(e);
 }

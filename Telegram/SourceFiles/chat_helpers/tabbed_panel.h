@@ -58,7 +58,7 @@ public:
 	~TabbedPanel();
 
 protected:
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void otherEnter();
 	void otherLeave();

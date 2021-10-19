@@ -1197,7 +1197,7 @@ else()
     )
 endif()
 
-if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION OR DESKTOP_APP_QT6)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_wayland_integration.cpp
     )
@@ -1289,10 +1289,16 @@ elseif (APPLE)
     endif()
 else()
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+        if (NOT DESKTOP_APP_QT6)
+            target_link_libraries(Telegram
+            PRIVATE
+                desktop-app::external_statusnotifieritem
+                desktop-app::external_dbusmenu_qt
+            )
+        endif()
+
         target_link_libraries(Telegram
         PRIVATE
-            desktop-app::external_statusnotifieritem
-            desktop-app::external_dbusmenu_qt
             desktop-app::external_glibmm
             desktop-app::external_glib
         )
@@ -1309,8 +1315,14 @@ else()
         target_link_libraries(Telegram
         PRIVATE
             desktop-app::lib_waylandshells
-            desktop-app::external_kwayland
         )
+
+        if (NOT DESKTOP_APP_QT6)
+            target_link_libraries(Telegram
+            PRIVATE
+                desktop-app::external_kwayland
+            )
+        endif()
     endif()
 endif()
 

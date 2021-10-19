@@ -136,7 +136,7 @@ void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {
 	}
 }
 
-void ContinuousSlider::enterEventHook(QEvent *e) {
+void ContinuousSlider::enterEventHook(QEnterEvent *e) {
 	setOver(true);
 }
 

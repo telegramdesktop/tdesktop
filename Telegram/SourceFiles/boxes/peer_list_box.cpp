@@ -1240,7 +1240,7 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 	return belowTop + _belowHeight;
 }
 
-void PeerListContent::enterEventHook(QEvent *e) {
+void PeerListContent::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 

@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "history/history.h"
+#include "base/qt_adapters.h"
 #include "apiwrap.h"
 
 #include <QtGui/QGuiApplication>
@@ -100,7 +101,7 @@ bool SetLanguage(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (match->capturedRef(1).isEmpty()) {
+	if (match->capturedView(1).isEmpty()) {
 		ShowLanguagesBox();
 	} else {
 		const auto languageId = match->captured(2);
@@ -688,7 +689,7 @@ QString TryConvertUrlToLocal(QString url) {
 	auto matchOptions = RegExOption::CaseInsensitive;
 	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
-		auto query = telegramMeMatch->capturedRef(5);
+		auto query = telegramMeMatch->capturedView(5);
 		if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
@@ -746,7 +747,7 @@ bool InternalPassportLink(const QString &url) {
 	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		return false;
 	}
-	const auto command = urlTrimmed.midRef(qstr("tg://").size());
+	const auto command = base::StringViewMid(urlTrimmed, qstr("tg://").size());
 
 	using namespace qthelp;
 	const auto matchOptions = RegExOption::CaseInsensitive;

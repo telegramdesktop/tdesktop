@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
-#include "base/qt_adapters.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
@@ -136,7 +135,7 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
-	const auto parts = name.trimmed().split(' ', base::QStringSkipEmptyParts);
+	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
 	firstName = parts[0];
 	for (const auto &part : parts.mid(1)) {
 		if (!lastName.isEmpty()) {

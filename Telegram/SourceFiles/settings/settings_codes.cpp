@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "settings/settings_common.h"
 #include "api/api_updates.h"
+#include "base/qt_adapters.h"
 
 #include "zlib.h"
 
@@ -294,7 +295,7 @@ void CodesFeedString(SessionController *window, const QString &text) {
 	secret += text.toLower();
 	int size = secret.size(), from = 0;
 	while (size > from) {
-		auto piece = secret.midRef(from);
+		auto piece = base::StringViewMid(secret,from);
 		auto found = false;
 		for (const auto &[key, method] : codes) {
 			if (piece == key) {

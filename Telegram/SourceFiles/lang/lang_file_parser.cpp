@@ -174,7 +174,11 @@ QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &rela
 
 	QByteArray data;
 	auto readUtf16Stream = [relativePath, absolutePath](auto &&stream) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		stream.setEncoding(QStringConverter::Utf16);
+#else // Qt >= 6.0.0
 		stream.setCodec("UTF-16");
+#endif // Qt < 6.0.0
 		auto string = stream.readAll();
 		if (stream.status() != QTextStream::Ok) {
 			LOG(("Lang Error: Could not read UTF-16 data from '%1' ('%2')").arg(relativePath, absolutePath));

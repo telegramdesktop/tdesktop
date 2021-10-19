@@ -149,7 +149,7 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 	Ui::FillRoundRect(p, QRect(shadowedRect.x(), -st::roundRadiusSmall, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::roundRadiusSmall), st::menuBg, Ui::MenuCorners, nullptr, parts);
 }
 
-void VolumeWidget::enterEventHook(QEvent *e) {
+void VolumeWidget::enterEventHook(QEnterEvent *e) {
 	_hideTimer.stop();
 	if (_a_appearance.animating()) {
 		onShowStart();

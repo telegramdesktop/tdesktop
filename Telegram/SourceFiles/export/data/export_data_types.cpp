@@ -177,7 +177,7 @@ Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	}
 	auto result = Utf8String();
 	result.reserve(length);
-	for (auto i = 0, count = length - data.size(); i != count; ++i) {
+	for (auto i = 0, count = length - int(data.size()); i != count; ++i) {
 		result.append(filler);
 	}
 	result.append(data);
@@ -1806,7 +1806,7 @@ Utf8String FormatDateTime(
 	if (!date) {
 		return Utf8String();
 	}
-	const auto value = QDateTime::fromTime_t(date);
+	const auto value = QDateTime::fromSecsSinceEpoch(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
 	).arg(value.date().day(), 2, 10, QChar('0')

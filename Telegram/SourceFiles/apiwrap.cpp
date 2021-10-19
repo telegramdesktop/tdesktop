@@ -478,7 +478,7 @@ void ApiWrap::sendMessageFail(
 			link)));
 	} else if (error.type().startsWith(qstr("SLOWMODE_WAIT_"))) {
 		const auto chop = qstr("SLOWMODE_WAIT_").size();
-		const auto left = error.type().midRef(chop).toInt();
+		const auto left = base::StringViewMid(error.type(), chop).toInt();
 		if (const auto channel = peer->asChannel()) {
 			const auto seconds = channel->slowmodeSeconds();
 			if (seconds >= left) {
@@ -3263,7 +3263,7 @@ void ApiWrap::requestMessageAfterDate(
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
 	const auto offsetId = 0;
-	const auto offsetDate = static_cast<int>(base::QDateToDateTime(date).toTime_t()) - 1;
+	const auto offsetDate = static_cast<int>(date.startOfDay().toSecsSinceEpoch()) - 1;
 	const auto addOffset = -1;
 	const auto limit = 1;
 	const auto maxId = 0;

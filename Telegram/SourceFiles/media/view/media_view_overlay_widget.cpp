@@ -74,13 +74,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
+#include "base/qt_adapters.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
 #endif // Q_OS_MAC
 
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QBuffer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -4430,7 +4430,7 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 }
 
 bool OverlayWidget::handleTouchEvent(not_null<QTouchEvent*> e) {
-	if (e->device()->type() != QTouchDevice::TouchScreen) {
+	if (e->device()->type() != base::TouchDevice::TouchScreen) {
 		return false;
 	} else if (e->type() == QEvent::TouchBegin
 		&& !e->touchPoints().isEmpty()

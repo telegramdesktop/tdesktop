@@ -24,7 +24,7 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 	if (originalEntitiesCount != 0 || replacementEntitiesCount != 0) {
 		result.entities.reserve(originalEntitiesCount + replacementEntitiesCount);
 
-		auto replacementEnd = replacementPosition + replacement.text.size();
+		auto replacementEnd = replacementPosition + int(replacement.text.size());
 		auto replacementEntity = replacement.entities.cbegin();
 		auto addReplacementEntitiesUntil = [&replacementEntity, &replacement, &result, replacementPosition, replacementEnd](int untilPosition) {
 			while (replacementEntity != replacement.entities.cend()) {
@@ -52,8 +52,8 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 			if (end > replacementPosition) {
 				end = end + replacement.text.size() - kTagReplacementSize;
 			}
-			offset = std::clamp(offset, 0, result.text.size());
-			end = std::clamp(end, 0, result.text.size());
+			offset = std::clamp(offset, 0, int(result.text.size()));
+			end = std::clamp(end, 0, int(result.text.size()));
 
 			// Add all replacement entities that start before the current original entity.
 			addReplacementEntitiesUntil(offset);
