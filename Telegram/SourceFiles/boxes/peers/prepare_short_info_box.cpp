@@ -129,6 +129,8 @@ void ProcessFullPhoto(
 			if (!current || state->current.photo.isNull()) {
 				if (const auto blurred = view->thumbnailInline()) {
 					GenerateImage(state, blurred, true);
+				} else {
+					state->current.photo = QImage();
 				}
 			}
 		}
@@ -229,8 +231,10 @@ void ValidatePhotoId(
 		PhotoId oldUserpicPhotoId) {
 	if (state->userSlice) {
 		const auto count = state->userSlice->size();
-		const auto hasOld = state->userSlice->indexOf(oldUserpicPhotoId);
-		const auto hasNew = state->userSlice->indexOf(state->userpicPhotoId);
+		const auto hasOld = state->userSlice->indexOf(
+			oldUserpicPhotoId).has_value();
+		const auto hasNew = state->userSlice->indexOf(
+			state->userpicPhotoId).has_value();
 		const auto shift = (hasNew ? 0 : 1);
 		const auto fullCount = count + shift;
 		state->current.count = fullCount;

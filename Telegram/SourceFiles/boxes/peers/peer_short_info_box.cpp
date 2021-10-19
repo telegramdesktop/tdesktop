@@ -345,8 +345,15 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 		refreshBarImages();
 		update();
 	}
-	if (!value.photo.isNull()
-		&& _userpicImage.cacheKey() != value.photo.cacheKey()) {
+	if (value.photo.isNull()) {
+		const auto videoChanged = _videoInstance
+			? (_videoInstance->shared() != value.videoDocument)
+			: (value.videoDocument != nullptr);
+		const auto frame = videoChanged ? currentVideoFrame() : QImage();
+		if (!frame.isNull()) {
+			_userpicImage = frame;
+		}
+	} else if (_userpicImage.cacheKey() != value.photo.cacheKey()) {
 		_userpicImage = std::move(value.photo);
 		update();
 	}
@@ -354,10 +361,6 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 		_videoInstance = nullptr;
 	} else if (!_videoInstance
 		|| _videoInstance->shared() != value.videoDocument) {
-		const auto frame = currentVideoFrame();
-		if (!frame.isNull()) {
-			_userpicImage = frame;
-		}
 		using namespace Media::Streaming;
 		_videoInstance = std::make_unique<Instance>(
 			std::move(value.videoDocument),
