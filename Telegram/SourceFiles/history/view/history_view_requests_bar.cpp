@@ -137,9 +137,9 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 			result.match([&](
 				const MTPDmessages_chatInviteImporters &data) {
 				const auto count = data.vcount().v;
-				const auto changed = (state->current.count != count);
 				const auto &importers = data.vimporters().v;
 				auto &owner = state->peer->owner();
+				const auto old = base::take(state->users);
 				state->users = std::vector<not_null<UserData*>>();
 				const auto use = std::min(
 					importers.size(),
@@ -152,8 +152,22 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 							owner.user(data.vuser_id()));
 					});
 				}
+				const auto changed = (state->current.count != count)
+					|| (count == 1
+						&& ((state->users.size() != old.size())
+							|| (old.size() == 1
+								&& state->users.front() != old.front())));
 				if (changed) {
 					state->current.count = count;
+					if (count == 1 && !state->users.empty()) {
+						const auto user = state->users.front();
+						state->current.nameShort = user->shortName();
+						state->current.nameFull = user->name;
+					} else {
+						state->current.nameShort
+							= state->current.nameFull
+							= QString();
+					}
 				}
 				if (RegenerateUserpics(state, userpicSize) || changed) {
 					push();

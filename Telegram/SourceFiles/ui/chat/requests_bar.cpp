@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/group_call_userpics.h"
 #include "ui/widgets/shadow.h"
+#include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_calls.h"
@@ -47,10 +48,31 @@ RequestsBar::RequestsBar(
 	) | rpl::start_with_next([=](RequestsBarContent &&content) {
 		_content = content;
 		if (_content.count > 0) {
-			_text = tr::lng_group_requests_pending(
-				tr::now,
-				lt_count_decimal,
-				_content.count);
+			if (_content.count == 1 && !_content.nameFull.isEmpty()) {
+				_textFull.setText(
+					st::defaultMessageBar.title,
+					tr::lng_group_requests_pending_user(
+						tr::now,
+						lt_user,
+						_content.nameFull),
+					Ui::NameTextOptions());
+				_textShort.setText(
+					st::defaultMessageBar.title,
+					tr::lng_group_requests_pending_user(
+						tr::now,
+						lt_user,
+						_content.nameShort),
+					Ui::NameTextOptions());
+			} else {
+				_textShort.setText(
+					st::defaultMessageBar.title,
+					tr::lng_group_requests_pending(
+						tr::now,
+						lt_count_decimal,
+						_content.count),
+					Ui::NameTextOptions());
+				_textFull.clear();
+			}
 		}
 		_userpics->update(_content.users, !_wrap.isHidden());
 		_inner->update();
@@ -131,7 +153,11 @@ void RequestsBar::paint(Painter &p) {
 
 	const auto textLeft = userpicsLeft + _userpicsWidth + userpicsLeft;
 	const auto available = width - textLeft - userpicsLeft;
-	p.drawTextLeft(textLeft, textTop, width, _text);
+	if (_textFull.isEmpty() || available < _textFull.maxWidth()) {
+		_textShort.drawElided(p, textLeft, textTop, available);
+	} else {
+		_textFull.drawElided(p, textLeft, textTop, available);
+	}
 
 	// Skip shadow of the bar above.
 	_userpics->paint(p, userpicsLeft, userpicsTop, userpicsSize);

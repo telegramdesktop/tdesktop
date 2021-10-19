@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text.h"
 #include "base/object_ptr.h"
 #include "base/timer.h"
 
@@ -22,6 +23,8 @@ class GroupCallUserpics;
 
 struct RequestsBarContent {
 	std::vector<GroupCallUser> users;
+	QString nameFull;
+	QString nameShort;
 	int count = 0;
 	bool isGroup = false;
 };
@@ -70,7 +73,8 @@ private:
 	RequestsBarContent _content;
 	std::unique_ptr<GroupCallUserpics> _userpics;
 	int _userpicsWidth = 0;
-	QString _text;
+	Ui::Text::String _textShort;
+	Ui::Text::String _textFull;
 
 };
 
