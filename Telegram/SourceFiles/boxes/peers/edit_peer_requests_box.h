@@ -40,11 +40,6 @@ public:
 	std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override;
 
-	bool searchInLocal() override {
-		AssertIsDebug();
-		return false;
-	}
-
 private:
 	class RowHelper;
 
