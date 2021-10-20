@@ -19,6 +19,7 @@ struct Information;
 
 namespace Ui {
 class VerticalLayout;
+class RpWidget;
 } // namespace Ui
 
 enum class PeerShortInfoType {
@@ -61,17 +62,21 @@ public:
 	[[nodiscard]] rpl::producer<int> moveRequests() const;
 
 private:
+	struct CustomLabelStyle;
+
 	void prepare() override;
 	void prepareRows();
 	RectParts customCornersFilling() override;
 
 	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
 
+	void paintCover(QPainter &p);
+	void paintCoverImage(QPainter &p, const QImage &image);
 	void paintBars(QPainter &p);
 	void paintShadow(QPainter &p);
+
+	void refreshRoundedTopImage(const QColor &color);
+	int fillRoundedTopHeight();
 
 	[[nodiscard]] QImage currentVideoFrame() const;
 
@@ -81,7 +86,6 @@ private:
 	[[nodiscard]] rpl::producer<QString> usernameValue() const;
 	[[nodiscard]] rpl::producer<TextWithEntities> aboutValue() const;
 	void applyUserpic(PeerShortInfoUserpic &&value);
-	QRect coverRect() const;
 	QRect radialRect() const;
 
 	void videoWaiting();
@@ -90,18 +94,26 @@ private:
 	void handleStreamingError(Media::Streaming::Error &&error);
 	void streamingReady(Media::Streaming::Information &&info);
 
+	void refreshCoverCursor();
 	void refreshBarImages();
 
 	const PeerShortInfoType _type = PeerShortInfoType::User;
 
 	rpl::variable<PeerShortInfoFields> _fields;
 
-	object_ptr<Ui::FlatLabel> _name;
-	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<Ui::RpWidget> _topRoundBackground;
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _rows;
+	not_null<Ui::RpWidget*> _cover;
+	std::unique_ptr<CustomLabelStyle> _nameStyle;
+	object_ptr<Ui::FlatLabel> _name;
+	std::unique_ptr<CustomLabelStyle> _statusStyle;
+	object_ptr<Ui::FlatLabel> _status;
 
 	QImage _userpicImage;
+	QImage _roundedTopImage;
+	QColor _roundedTopColor;
+	QImage _roundedTop;
 	QImage _barSmall;
 	QImage _barLarge;
 	QImage _shadowTop;

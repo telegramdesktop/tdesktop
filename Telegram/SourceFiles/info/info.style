@@ -974,3 +974,13 @@ shortInfoLabeledPadding: margins(20px, 16px, 20px, 0px);
 shortInfoLinePadding: 8px;
 shortInfoLineSkip: 4px;
 shortInfoLine: 2px;
+shortInfoScroll: ScrollArea(defaultScrollArea) {
+	deltat: 3px;
+	deltab: 0px;
+	round: 1px;
+	width: 8px;
+	deltax: 3px;
+
+	duration: 150;
+	hiding: 1000;
+}

@@ -28,6 +28,25 @@ constexpr auto kInactiveBarOpacity = 0.5;
 
 } // namespace
 
+struct PeerShortInfoBox::CustomLabelStyle {
+	explicit CustomLabelStyle(const style::FlatLabel &original);
+
+	style::complex_color textFg;
+	style::FlatLabel st;
+	float64 opacity = 1.;
+};
+
+PeerShortInfoBox::CustomLabelStyle::CustomLabelStyle(
+	const style::FlatLabel &original)
+: textFg([=, c = original.textFg]{
+	auto result = c->c;
+	result.setAlphaF(result.alphaF() * opacity);
+	return result;
+})
+, st(original) {
+	st.textFg = textFg.color();
+}
+
 PeerShortInfoBox::PeerShortInfoBox(
 	QWidget*,
 	PeerShortInfoType type,
@@ -37,16 +56,17 @@ PeerShortInfoBox::PeerShortInfoBox(
 	Fn<bool()> videoPaused)
 : _type(type)
 , _fields(std::move(fields))
-, _name(this, nameValue(), st::shortInfoName)
-, _status(this, std::move(status), st::shortInfoStatus)
-, _scroll(this, st::defaultSolidScroll)
+, _topRoundBackground(this)
+, _scroll(this, st::shortInfoScroll)
 , _rows(
-	static_cast<Ui::VerticalLayout*>(
-		_scroll->setOwnedWidget(
-			object_ptr<Ui::OverrideMargins>(
-				_scroll.data(),
-				object_ptr<Ui::VerticalLayout>(
-					_scroll.data())))->entity()))
+	_scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(
+			_scroll.data())))
+, _cover(_rows->add(object_ptr<Ui::RpWidget>(_rows.get())))
+, _nameStyle(std::make_unique<CustomLabelStyle>(st::shortInfoName))
+, _name(_cover.get(), nameValue(), _nameStyle->st)
+, _statusStyle(std::make_unique<CustomLabelStyle>(st::shortInfoStatus))
+, _status(_cover.get(), std::move(status), _statusStyle->st)
 , _videoPaused(std::move(videoPaused)) {
 	std::move(
 		userpic
@@ -84,13 +104,51 @@ void PeerShortInfoBox::prepare() {
 
 	setNoContentMargin(true);
 
-	_rows->move(0, 0);
-	_rows->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::shortInfoWidth, st::shortInfoWidth + height);
-	}, lifetime());
+	_cover->resize(st::shortInfoWidth, st::shortInfoWidth);
+	_cover->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_cover.get());
+		paintCover(p);
+	}, _cover->lifetime());
+	_cover->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::MouseButtonPress)
+			|| (e->type() == QEvent::MouseButtonDblClick);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto mouse = static_cast<QMouseEvent*>(e.get());
+		const auto x = mouse->pos().x();
+		if (mouse->button() != Qt::LeftButton) {
+			return;
+		} else if (/*_index > 0 && */x < st::shortInfoWidth / 3) {
+			_moveRequests.fire(-1);
+		} else if (/*_index + 1 < _count && */x >= st::shortInfoWidth / 3) {
+			_moveRequests.fire(1);
+		}
+	}, _cover->lifetime());
 
-	setMouseTracking(true);
+	_topRoundBackground->resize(st::shortInfoWidth, st::boxRadius);
+	_topRoundBackground->paintRequest(
+	) | rpl::start_with_next([=] {
+		if (const auto use = fillRoundedTopHeight()) {
+			const auto width = _topRoundBackground->width();
+			const auto top = _topRoundBackground->height() - use;
+			const auto factor = style::DevicePixelRatio();
+			QPainter(_topRoundBackground.data()).drawImage(
+				QRect(0, top, width, use),
+				_roundedTop,
+				QRect(0, top * factor, width * factor, use * factor));
+		}
+	}, _topRoundBackground->lifetime());
+
+	_roundedTop = QImage(
+		_topRoundBackground->size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	_roundedTop.setDevicePixelRatio(style::DevicePixelRatio());
+	_roundedTopImage = _roundedTop;
+	_roundedTopImage.fill(Qt::transparent);
+	refreshRoundedTopImage(getDelegate()->style().bg->c);
+
+	setDimensionsToContent(st::shortInfoWidth, _rows);
 }
 
 void PeerShortInfoBox::prepareRows() {
@@ -106,7 +164,9 @@ void PeerShortInfoBox::prepareRows() {
 			rpl::duplicate(text),
 			textSt,
 			st::shortInfoLabeledPadding);
-		_rows->add(std::move(line.wrap));
+		_rows->add(object_ptr<Ui::OverrideMargins>(
+			_rows.get(),
+			std::move(line.wrap)));
 
 		rpl::combine(
 			std::move(label),
@@ -175,19 +235,18 @@ void PeerShortInfoBox::resizeEvent(QResizeEvent *e) {
 			- _status->height()),
 		height());
 	_rows->resizeToWidth(st::shortInfoWidth);
-	_scroll->resize(st::shortInfoWidth, height() - st::shortInfoWidth);
-	_scroll->move(0, st::shortInfoWidth);
+	_scroll->resize(st::shortInfoWidth, height());
+	_scroll->move(0, 0);
+	_topRoundBackground->move(0, 0);
 }
 
-void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-
+void PeerShortInfoBox::paintCover(QPainter &p) {
 	checkStreamedIsStarted();
 	const auto frame = currentVideoFrame();
 	auto paused = _videoPaused && _videoPaused();
 	if (frame.isNull() && _userpicImage.isNull()) {
 		auto image = QImage(
-			coverRect().size() * style::DevicePixelRatio(),
+			_cover->size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
 		image.fill(Qt::black);
 		Images::prepareRound(
@@ -196,69 +255,115 @@ void PeerShortInfoBox::paintEvent(QPaintEvent *e) {
 			RectPart::TopLeft | RectPart::TopRight);
 		_userpicImage = std::move(image);
 	}
-	p.drawImage(
-		coverRect(),
-		frame.isNull() ? _userpicImage : frame);
+
+	paintCoverImage(p, frame.isNull() ? _userpicImage : frame);
+	paintBars(p);
+	paintShadow(p);
 	if (_videoInstance && _videoInstance->ready() && !paused) {
 		_videoInstance->markFrameShown();
 	}
-
-	paintBars(p);
-	paintShadow(p);
 }
 
-void PeerShortInfoBox::mouseMoveEvent(QMouseEvent *e) {
-	//const auto x = e->pos().x();
-	const auto cursor = (_count > 1)
-		? style::cur_pointer
-		: style::cur_default;
-	//const auto cursor = (_index > 0 && x < st::shortInfoWidth / 3)
-	//	? style::cur_pointer
-	//	: (_index + 1 < _count && x >= st::shortInfoWidth / 3)
-	//	? style::cur_pointer
-	//	: style::cur_default;
-	if (_cursor != cursor) {
-		_cursor = cursor;
-		setCursor(_cursor);
-	}
-}
-
-void PeerShortInfoBox::mousePressEvent(QMouseEvent *e) {
-	const auto x = e->pos().x();
-	if (e->button() != Qt::LeftButton) {
+void PeerShortInfoBox::paintCoverImage(QPainter &p, const QImage &image) {
+	const auto roundedWidth = _topRoundBackground->width();
+	const auto roundedHeight = _topRoundBackground->height();
+	const auto scrollTop = _scroll->scrollTop();
+	const auto covered = (st::shortInfoWidth - scrollTop);
+	if (covered <= 0) {
 		return;
-	} else if (/*_index > 0 && */x < st::shortInfoWidth / 3) {
-		_moveRequests.fire(-1);
-	} else if (/*_index + 1 < _count && */x >= st::shortInfoWidth / 3) {
-		_moveRequests.fire(1);
+	} else if (!scrollTop) {
+		p.drawImage(_cover->rect(), image);
+		return;
 	}
+	const auto fill = covered - roundedHeight;
+	const auto top = _cover->height() - fill;
+	const auto factor = style::DevicePixelRatio();
+	if (fill > 0) {
+		p.drawImage(
+			QRect(0, top, roundedWidth, fill),
+			image,
+			QRect(0, top * factor, roundedWidth * factor, fill * factor));
+	}
+	if (covered <= 0) {
+		return;
+	}
+	const auto rounded = std::min(covered, roundedHeight);
+	const auto from = top - rounded;
+	auto q = QPainter(&_roundedTopImage);
+	q.drawImage(
+		QRect(0, 0, roundedWidth, rounded),
+		image,
+		QRect(0, from * factor, roundedWidth * factor, rounded * factor));
+	q.end();
+	Images::prepareRound(
+		_roundedTopImage,
+		ImageRoundRadius::Small,
+		RectPart::TopLeft | RectPart::TopRight);
+	p.drawImage(
+		QRect(0, from, roundedWidth, rounded),
+		_roundedTopImage,
+		QRect(0, 0, roundedWidth * factor, rounded * factor));
+}
+
+int PeerShortInfoBox::fillRoundedTopHeight() {
+	const auto roundedWidth = _topRoundBackground->width();
+	const auto roundedHeight = _topRoundBackground->height();
+	const auto scrollTop = _scroll->scrollTop();
+	const auto covered = (st::shortInfoWidth - scrollTop);
+	if (covered >= roundedHeight) {
+		return 0;
+	}
+	const auto &color = getDelegate()->style().bg->c;
+	if (_roundedTopColor != color) {
+		refreshRoundedTopImage(color);
+	}
+	return roundedHeight - covered;
+}
+
+void PeerShortInfoBox::refreshRoundedTopImage(const QColor &color) {
+	_roundedTopColor = color;
+	_roundedTop.fill(color);
+	Images::prepareRound(
+		_roundedTop,
+		ImageRoundRadius::Small,
+		RectPart::TopLeft | RectPart::TopRight);
 }
 
 void PeerShortInfoBox::paintBars(QPainter &p) {
 	const auto height = st::shortInfoLinePadding * 2 + st::shortInfoLine;
+	const auto factor = style::DevicePixelRatio();
 	if (_shadowTop.isNull()) {
 		_shadowTop = Images::GenerateShadow(height, kShadowMaxAlpha, 0);
+		_shadowTop = _shadowTop.scaled(
+			QSize(st::shortInfoWidth, height) * factor);
+		Images::prepareRound(
+			_shadowTop,
+			ImageRoundRadius::Small,
+			RectPart::TopLeft | RectPart::TopRight);
 	}
-	const auto shadowRect = QRect(0, 0, st::shortInfoWidth, height);
-	const auto factor = style::DevicePixelRatio();
+	const auto scrollTop = _scroll->scrollTop();
+	const auto shadowRect = QRect(0, scrollTop, st::shortInfoWidth, height);
 	p.drawImage(
 		shadowRect,
 		_shadowTop,
 		QRect(0, 0, _shadowTop.width(), height * factor));
-	if (!_smallWidth) {
+	const auto hiddenAt = st::shortInfoWidth - st::shortInfoNamePosition.y();
+	if (!_smallWidth || scrollTop >= hiddenAt) {
 		return;
 	}
 	const auto top = st::shortInfoLinePadding;
 	const auto skip = st::shortInfoLineSkip;
 	const auto full = (st::shortInfoWidth - 2 * top - (_count - 1) * skip);
 	const auto width = full / float64(_count);
+	const auto masterOpacity = 1. - (scrollTop / float64(hiddenAt));
+	const auto inactiveOpacity = masterOpacity * kInactiveBarOpacity;
 	for (auto i = 0; i != _count; ++i) {
 		const auto left = top + i * (width + skip);
 		const auto right = left + width;
-		p.setOpacity((i == _index) ? 1. : kInactiveBarOpacity);
+		p.setOpacity((i == _index) ? masterOpacity : inactiveOpacity);
 		p.drawImage(
 			qRound(left),
-			top,
+			scrollTop + top,
 			((qRound(right) == qRound(left) + _smallWidth)
 				? _barSmall
 				: _barLarge));
@@ -273,9 +378,24 @@ void PeerShortInfoBox::paintShadow(QPainter &p) {
 			0,
 			kShadowMaxAlpha);
 	}
+	const auto scrollTop = _scroll->scrollTop();
+	const auto shadowTop = st::shortInfoWidth - st::shortInfoShadowHeight;
+	if (scrollTop >= shadowTop) {
+		_name->hide();
+		_status->hide();
+		return;
+	}
+	const auto opacity = 1. - (scrollTop / float64(shadowTop));
+	_nameStyle->opacity = opacity;
+	_nameStyle->textFg.refresh();
+	_name->show();
+	_statusStyle->opacity = opacity;
+	_statusStyle->textFg.refresh();
+	_status->show();
+	p.setOpacity(opacity);
 	const auto shadowRect = QRect(
 		0,
-		st::shortInfoWidth - st::shortInfoShadowHeight,
+		shadowTop,
 		st::shortInfoWidth,
 		st::shortInfoShadowHeight);
 	const auto factor = style::DevicePixelRatio();
@@ -287,6 +407,7 @@ void PeerShortInfoBox::paintShadow(QPainter &p) {
 			0,
 			_shadowBottom.width(),
 			st::shortInfoShadowHeight * factor));
+	p.setOpacity(1.);
 }
 
 QImage PeerShortInfoBox::currentVideoFrame() const {
@@ -342,6 +463,7 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 	}
 	if (_count != value.count) {
 		_count = value.count;
+		refreshCoverCursor();
 		refreshBarImages();
 		update();
 	}
@@ -408,7 +530,7 @@ void PeerShortInfoBox::handleStreamingUpdate(
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {
-		this->update(coverRect());
+		_cover->update();
 	}, [&](const PreloadedAudio &update) {
 	}, [&](const UpdateAudio &update) {
 	}, [&](const WaitingForData &update) {
@@ -425,7 +547,17 @@ void PeerShortInfoBox::handleStreamingError(
 }
 
 void PeerShortInfoBox::streamingReady(Media::Streaming::Information &&info) {
-	update(coverRect());
+	_cover->update();
+}
+
+void PeerShortInfoBox::refreshCoverCursor() {
+	const auto cursor = (_count > 1)
+		? style::cur_pointer
+		: style::cur_default;
+	if (_cursor != cursor) {
+		_cursor = cursor;
+		_cover->setCursor(_cursor);
+	}
 }
 
 void PeerShortInfoBox::refreshBarImages() {
@@ -462,12 +594,8 @@ void PeerShortInfoBox::refreshBarImages() {
 	_barLarge = makeBar(_largeWidth);
 }
 
-QRect PeerShortInfoBox::coverRect() const {
-	return QRect(0, 0, st::shortInfoWidth, st::shortInfoWidth);
-}
-
 QRect PeerShortInfoBox::radialRect() const {
-	const auto cover = coverRect();
+	const auto cover = _cover->rect();
 	return cover;
 }
 
