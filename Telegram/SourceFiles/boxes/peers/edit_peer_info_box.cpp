@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -1469,7 +1470,7 @@ void Controller::savePhoto() {
 		? _controls.photo->takeResultImage()
 		: QImage();
 	if (!image.isNull()) {
-		_peer->session().api().uploadPeerPhoto(_peer, std::move(image));
+		_peer->session().api().peerPhoto().upload(_peer, std::move(image));
 	}
 	_box->closeBox();
 }

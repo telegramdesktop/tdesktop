@@ -64,6 +64,7 @@ class UserPrivacy;
 class InviteLinks;
 class ViewsManager;
 class ConfirmPhone;
+class PeerPhoto;
 
 namespace details {
 
@@ -383,9 +384,6 @@ public:
 		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
 
-	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
-	void clearPeerPhoto(not_null<PhotoData*> photo);
-
 	void reloadContactSignupSilent();
 	rpl::producer<bool> contactSignupSilent() const;
 	std::optional<bool> contactSignupSilentCurrent() const;
@@ -404,6 +402,7 @@ public:
 	[[nodiscard]] Api::InviteLinks &inviteLinks();
 	[[nodiscard]] Api::ViewsManager &views();
 	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
+	[[nodiscard]] Api::PeerPhoto &peerPhoto();
 
 	void createPoll(
 		const PollData &data,
@@ -576,8 +575,6 @@ private:
 		FileReferencesHandler &&handler,
 		Request &&data);
 
-	void photoUploadReady(const FullMsgId &msgId, const MTPInputFile &file);
-
 	void migrateDone(
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
@@ -708,8 +705,6 @@ private:
 
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 
-	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
-
 	struct {
 		mtpRequestId requestId = 0;
 		QString requestedText;
@@ -726,6 +721,7 @@ private:
 	const std::unique_ptr<Api::InviteLinks> _inviteLinks;
 	const std::unique_ptr<Api::ViewsManager> _views;
 	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
+	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;

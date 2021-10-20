@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/stickers/data_stickers.h"
-#include "api/api_text_entities.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
@@ -222,7 +221,6 @@ MainWidget::MainWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _api(&controller->session().mtp())
 , _dialogsWidth(st::columnMinimalWidthLeft)
 , _thirdColumnWidth(st::columnMinimalWidthThird)
 , _sideShadow(this)
@@ -724,17 +722,6 @@ void MainWidget::showSendPathsLayer() {
 			cSetSendPaths(QStringList());
 		});
 	}
-}
-
-void MainWidget::deletePhotoLayer(PhotoData *photo) {
-	if (!photo) return;
-	Ui::show(Box<Ui::ConfirmBox>(
-		tr::lng_delete_photo_sure(tr::now),
-		tr::lng_box_delete(tr::now),
-		crl::guard(this, [=] {
-			session().api().clearPeerPhoto(photo);
-			Ui::hideLayer();
-		})));
 }
 
 void MainWidget::shareUrlLayer(const QString &url, const QString &text) {

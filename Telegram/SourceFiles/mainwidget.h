@@ -174,8 +174,6 @@ public:
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer() const;
 
-	void deletePhotoLayer(PhotoData *photo);
-
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
@@ -328,7 +326,6 @@ private:
 	bool isThreeColumn() const;
 
 	const not_null<Window::SessionController*> _controller;
-	MTP::Sender _api;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;

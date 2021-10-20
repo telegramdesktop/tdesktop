@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
+#include "api/api_peer_photo.h"
 #include "main/main_session.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -89,7 +90,7 @@ void ChatCreateDone(
 		}
 		| [&](not_null<ChatData*> chat) {
 			if (!image.isNull()) {
-				chat->session().api().uploadPeerPhoto(
+				chat->session().api().peerPhoto().upload(
 					chat,
 					std::move(image));
 			}
@@ -741,7 +742,7 @@ void GroupInfoBox::createChannel(
 			| [&](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();
 				if (!image.isNull()) {
-					channel->session().api().uploadPeerPhoto(
+					channel->session().api().peerPhoto().upload(
 						channel,
 						std::move(image));
 				}

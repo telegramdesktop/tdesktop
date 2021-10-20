@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "mainwindow.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
@@ -197,7 +198,7 @@ void Step::createSession(
 		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {
-		session.api().uploadPeerPhoto(session.user(), std::move(photo));
+		session.api().peerPhoto().upload(session.user(), std::move(photo));
 	}
 	if (session.supportMode()) {
 		PrepareSupportMode(&session);

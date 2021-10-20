@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_hash.h"
 #include "api/api_invite_links.h"
 #include "api/api_media.h"
+#include "api/api_peer_photo.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
@@ -145,15 +146,11 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _userPrivacy(std::make_unique<Api::UserPrivacy>(this))
 , _inviteLinks(std::make_unique<Api::InviteLinks>(this))
 , _views(std::make_unique<Api::ViewsManager>(this))
-, _confirmPhone(std::make_unique<Api::ConfirmPhone>(this)) {
+, _confirmPhone(std::make_unique<Api::ConfirmPhone>(this))
+, _peerPhoto(std::make_unique<Api::PeerPhoto>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
-		_session->uploader().photoReady(
-		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
-			photoUploadReady(data.fullId, data.file);
-		}, _session->lifetime());
-
 		_session->data().chatsFilters().changed(
 		) | rpl::filter([=] {
 			return _session->data().chatsFilters().archiveNeeded();
@@ -4501,105 +4498,6 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 		action.replaceMediaOf);
 }
 
-void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
-	peer = peer->migrateToOrMe();
-	const auto ready = PreparePeerPhoto(
-		instance().mainDcId(),
-		peer->id,
-		std::move(image));
-
-	const auto fakeId = FullMsgId(
-		peerToChannel(peer->id),
-		_session->data().nextLocalMessageId());
-	const auto already = ranges::find(
-		_peerPhotoUploads,
-		peer,
-		[](const auto &pair) { return pair.second; });
-	if (already != end(_peerPhotoUploads)) {
-		_session->uploader().cancel(already->first);
-		_peerPhotoUploads.erase(already);
-	}
-	_peerPhotoUploads.emplace(fakeId, peer);
-	_session->uploader().uploadMedia(fakeId, ready);
-}
-
-void ApiWrap::photoUploadReady(
-		const FullMsgId &msgId,
-		const MTPInputFile &file) {
-	if (const auto maybePeer = _peerPhotoUploads.take(msgId)) {
-		const auto peer = *maybePeer;
-		const auto applier = [=](const MTPUpdates &result) {
-			applyUpdates(result);
-		};
-		if (peer->isSelf()) {
-			request(MTPphotos_UploadProfilePhoto(
-				MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file),
-				file,
-				MTPInputFile(), // video
-				MTPdouble() // video_start_ts
-			)).done([=](const MTPphotos_Photo &result) {
-				result.match([&](const MTPDphotos_photo &data) {
-					_session->data().processPhoto(data.vphoto());
-					_session->data().processUsers(data.vusers());
-				});
-			}).send();
-		} else if (const auto chat = peer->asChat()) {
-			const auto history = _session->data().history(chat);
-			history->sendRequestId = request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
-				MTP_inputChatUploadedPhoto(
-					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
-					file,
-					MTPInputFile(), // video
-					MTPdouble()) // video_start_ts
-			)).done(applier).afterRequest(history->sendRequestId).send();
-		} else if (const auto channel = peer->asChannel()) {
-			const auto history = _session->data().history(channel);
-			history->sendRequestId = request(MTPchannels_EditPhoto(
-				channel->inputChannel,
-				MTP_inputChatUploadedPhoto(
-					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
-					file,
-					MTPInputFile(), // video
-					MTPdouble()) // video_start_ts
-			)).done(applier).afterRequest(history->sendRequestId).send();
-		}
-	}
-}
-
-void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
-	const auto self = _session->user();
-	if (self->userpicPhotoId() == photo->id) {
-		request(MTPphotos_UpdateProfilePhoto(
-			MTP_inputPhotoEmpty()
-		)).done([=](const MTPphotos_Photo &result) {
-			self->setPhoto(MTP_userProfilePhotoEmpty());
-		}).send();
-	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
-		const auto applier = [=](const MTPUpdates &result) {
-			applyUpdates(result);
-		};
-		if (const auto chat = photo->peer->asChat()) {
-			request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
-				MTP_inputChatPhotoEmpty()
-			)).done(applier).send();
-		} else if (const auto channel = photo->peer->asChannel()) {
-			request(MTPchannels_EditPhoto(
-				channel->inputChannel,
-				MTP_inputChatPhotoEmpty()
-			)).done(applier).send();
-		}
-	} else {
-		request(MTPphotos_DeletePhotos(
-			MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
-		)).send();
-		_session->storage().remove(Storage::UserPhotosRemoveOne(
-			peerToUser(self->id),
-			photo->id));
-	}
-}
-
 void ApiWrap::reloadContactSignupSilent() {
 	if (_contactSignupSilentRequestId) {
 		return;
@@ -4708,6 +4606,10 @@ Api::ViewsManager &ApiWrap::views() {
 
 Api::ConfirmPhone &ApiWrap::confirmPhone() {
 	return *_confirmPhone;
+}
+
+Api::PeerPhoto &ApiWrap::peerPhoto() {
+	return *_peerPhoto;
 }
 
 void ApiWrap::createPoll(

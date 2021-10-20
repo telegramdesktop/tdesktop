@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
 #include "styles/style_layers.h"
@@ -63,7 +64,7 @@ void SetupPhoto(
 	upload->setFullRadius(true);
 	upload->addClickHandler([=] {
 		auto callback = [=](QImage &&image) {
-			self->session().api().uploadPeerPhoto(self, std::move(image));
+			self->session().api().peerPhoto().upload(self, std::move(image));
 		};
 		Editor::PrepareProfilePhoto(
 			upload,

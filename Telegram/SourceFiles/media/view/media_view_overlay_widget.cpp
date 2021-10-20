@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
+#include "api/api_peer_photo.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
@@ -1733,16 +1734,25 @@ void OverlayWidget::deleteMedia() {
 	}();
 	close();
 
-	Core::App().domain().activate(&session->account());
-	const auto &active = session->windows();
-	if (active.empty()) {
-		return;
-	}
-	if (deletingPeerPhoto) {
-		active.front()->content()->deletePhotoLayer(photo);
-	} else if (const auto item = session->data().message(msgid)) {
-		const auto suggestModerateActions = true;
-		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+	if (const auto window = findWindow()) {
+		if (deletingPeerPhoto) {
+			if (photo) {
+				window->show(
+					Box<Ui::ConfirmBox>(
+						tr::lng_delete_photo_sure(tr::now),
+						tr::lng_box_delete(tr::now),
+						crl::guard(_widget, [=] {
+							session->api().peerPhoto().clear(photo);
+							Ui::hideLayer();
+						})),
+					Ui::LayerOption::CloseOther);
+			}
+		} else if (const auto item = session->data().message(msgid)) {
+			const auto suggestModerateActions = true;
+			window->show(
+				Box<DeleteMessagesBox>(item, suggestModerateActions),
+				Ui::LayerOption::CloseOther);
+		}
 	}
 }
 

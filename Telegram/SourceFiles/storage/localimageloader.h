@@ -98,8 +98,6 @@ struct SendMediaReady {
 
 };
 
-SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image);
-
 using TaskId = void*; // no interface, just id
 
 class Task {
