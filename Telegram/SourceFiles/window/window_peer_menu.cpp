@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "api/api_blocked_peers.h"
 #include "api/api_chat_filters.h"
+#include "api/api_polls.h"
 #include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
@@ -828,7 +829,7 @@ void PeerMenuCreatePoll(
 			action.clearDraft = localDraft->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
-		api->createPoll(result.poll, action, crl::guard(box, [=] {
+		api->polls().create(result.poll, action, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const MTP::Error &error) {
 			*lock = false;

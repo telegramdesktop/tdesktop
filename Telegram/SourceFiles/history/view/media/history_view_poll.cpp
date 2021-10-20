@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_polls.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -546,7 +547,7 @@ ClickHandlerPtr Poll::createAnswerClickHandler(
 	}
 	return std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
 		_votedFromHere = true;
-		history()->session().api().sendPollVotes(
+		history()->session().api().polls().sendVotes(
 			_parent->data()->fullId(),
 			{ option });
 	}));
@@ -586,7 +587,7 @@ void Poll::sendMultiOptions() {
 	) | ranges::to_vector;
 	if (!chosen.empty()) {
 		_votedFromHere = true;
-		history()->session().api().sendPollVotes(
+		history()->session().api().polls().sendVotes(
 			_parent->data()->fullId(),
 			std::move(chosen));
 	}
@@ -721,7 +722,9 @@ void Poll::draw(Painter &p, const PaintContext &context) const {
 	auto paintw = width();
 
 	checkSendingAnimation();
-	_poll->checkResultsReload(_parent->data(), context.now);
+	if (_poll->checkResultsReload(context.now)) {
+		history()->session().api().polls().reloadResults(_parent->data());
+	}
 
 	const auto stm = context.messageStyle();
 	const auto padding = st::msgPadding;

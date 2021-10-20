@@ -50,7 +50,7 @@ struct PollData {
 	bool closeByTimer();
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
-	void checkResultsReload(not_null<HistoryItem*> item, crl::time now);
+	[[nodiscard]] bool checkResultsReload(crl::time now);
 
 	[[nodiscard]] PollAnswer *answerByOption(const QByteArray &option);
 	[[nodiscard]] const PollAnswer *answerByOption(

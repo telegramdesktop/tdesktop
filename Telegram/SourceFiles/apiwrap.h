@@ -65,6 +65,7 @@ class InviteLinks;
 class ViewsManager;
 class ConfirmPhone;
 class PeerPhoto;
+class Polls;
 
 namespace details {
 
@@ -403,17 +404,7 @@ public:
 	[[nodiscard]] Api::ViewsManager &views();
 	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
 	[[nodiscard]] Api::PeerPhoto &peerPhoto();
-
-	void createPoll(
-		const PollData &data,
-		const SendAction &action,
-		Fn<void()> done,
-		Fn<void(const MTP::Error &error)> fail);
-	void sendPollVotes(
-		FullMsgId itemId,
-		const std::vector<QByteArray> &options);
-	void closePoll(not_null<HistoryItem*> item);
-	void reloadPollResults(not_null<HistoryItem*> item);
+	[[nodiscard]] Api::Polls &polls();
 
 	void updatePrivacyLastSeens();
 
@@ -722,10 +713,7 @@ private:
 	const std::unique_ptr<Api::ViewsManager> _views;
 	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
 	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;
-
-	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
-	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
-	base::flat_map<FullMsgId, mtpRequestId> _pollReloadRequestIds;
+	const std::unique_ptr<Api::Polls> _polls;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
+#include "api/api_polls.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
 #include "history/view/history_view_list_widget.h"
@@ -1007,7 +1008,7 @@ void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
 	const auto stop = [=] {
 		Ui::hideLayer();
 		if (const auto item = session->data().message(itemId)) {
-			session->api().closePoll(item);
+			session->api().polls().close(item);
 		}
 	};
 	Ui::show(Box<Ui::ConfirmBox>(
@@ -1033,7 +1034,7 @@ void AddPollActions(
 	const auto itemId = item->fullId();
 	if (poll->voted() && !poll->quiz()) {
 		menu->addAction(tr::lng_polls_retract(tr::now), [=] {
-			poll->session().api().sendPollVotes(itemId, {});
+			poll->session().api().polls().sendVotes(itemId, {});
 		});
 	}
 	if (item->canStopPoll()) {
