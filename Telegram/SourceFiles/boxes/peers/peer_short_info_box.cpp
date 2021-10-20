@@ -351,22 +351,49 @@ void PeerShortInfoBox::paintBars(QPainter &p) {
 	if (!_smallWidth || scrollTop >= hiddenAt) {
 		return;
 	}
-	const auto top = st::shortInfoLinePadding;
+	const auto start = st::shortInfoLinePadding;
+	const auto y = scrollTop + start;
 	const auto skip = st::shortInfoLineSkip;
-	const auto full = (st::shortInfoWidth - 2 * top - (_count - 1) * skip);
-	const auto width = full / float64(_count);
+	const auto full = (st::shortInfoWidth - 2 * start - (_count - 1) * skip);
+	const auto single = full / float64(_count);
 	const auto masterOpacity = 1. - (scrollTop / float64(hiddenAt));
 	const auto inactiveOpacity = masterOpacity * kInactiveBarOpacity;
 	for (auto i = 0; i != _count; ++i) {
-		const auto left = top + i * (width + skip);
-		const auto right = left + width;
-		p.setOpacity((i == _index) ? masterOpacity : inactiveOpacity);
-		p.drawImage(
-			qRound(left),
-			scrollTop + top,
-			((qRound(right) == qRound(left) + _smallWidth)
-				? _barSmall
-				: _barLarge));
+		const auto left = start + i * (single + skip);
+		const auto right = left + single;
+		const auto x = qRound(left);
+		const auto small = (qRound(right) == qRound(left) + _smallWidth);
+		const auto width = small ? _smallWidth : _largeWidth;
+		const auto &image = small ? _barSmall : _barLarge;
+		const auto min = 2 * ((st::shortInfoLine + 1) / 2);
+		const auto minProgress = min / float64(width);
+		const auto videoProgress = (_videoInstance && _videoDuration > 0);
+		const auto progress = (i != _index)
+			? 0.
+			: videoProgress
+			? std::max(_videoPosition / float64(_videoDuration), minProgress)
+			: (_videoInstance ? 0. : 1.);
+		if (progress == 1. && !videoProgress) {
+			p.setOpacity(masterOpacity);
+			p.drawImage(x, y, image);
+		} else {
+			p.setOpacity(inactiveOpacity);
+			p.drawImage(x, y, image);
+			if (progress > 0.) {
+				const auto paint = qRound(progress * width);
+				const auto right = paint / 2;
+				const auto left = paint - right;
+				p.setOpacity(masterOpacity);
+				p.drawImage(
+					QRect(x, y, left, st::shortInfoLine),
+					image,
+					QRect(0, 0, left * factor, image.height()));
+				p.drawImage(
+					QRect(x + left, y, right, st::shortInfoLine),
+					image,
+					QRect(left * factor, 0, right * factor, image.height()));
+			}
+		}
 	}
 	p.setOpacity(1.);
 }
@@ -480,7 +507,7 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 		update();
 	}
 	if (!value.videoDocument) {
-		_videoInstance = nullptr;
+		clearVideo();
 	} else if (!_videoInstance
 		|| _videoInstance->shared() != value.videoDocument) {
 		using namespace Media::Streaming;
@@ -499,9 +526,14 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 			streamingReady(base::duplicate(_videoInstance->info()));
 		}
 		if (!_videoInstance->valid()) {
-			_videoInstance = nullptr;
+			clearVideo();
 		}
 	}
+}
+
+void PeerShortInfoBox::clearVideo() {
+	_videoInstance = nullptr;
+	_videoStartPosition = _videoPosition = _videoDuration = 0;
 }
 
 void PeerShortInfoBox::checkStreamedIsStarted() {
@@ -530,6 +562,7 @@ void PeerShortInfoBox::handleStreamingUpdate(
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {
+		_videoPosition = update.position;
 		_cover->update();
 	}, [&](const PreloadedAudio &update) {
 	}, [&](const UpdateAudio &update) {
@@ -543,10 +576,12 @@ void PeerShortInfoBox::handleStreamingError(
 		Media::Streaming::Error &&error) {
 	//_streamedPhoto->setVideoPlaybackFailed();
 	//_streamedPhoto = nullptr;
-	_videoInstance = nullptr;
+	clearVideo();
 }
 
 void PeerShortInfoBox::streamingReady(Media::Streaming::Information &&info) {
+	_videoPosition = info.video.state.position;
+	_videoDuration = info.video.state.duration;
 	_cover->update();
 }
 

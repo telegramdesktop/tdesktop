@@ -93,6 +93,7 @@ private:
 	void handleStreamingUpdate(Media::Streaming::Update &&update);
 	void handleStreamingError(Media::Streaming::Error &&error);
 	void streamingReady(Media::Streaming::Information &&info);
+	void clearVideo();
 
 	void refreshCoverCursor();
 	void refreshBarImages();
@@ -126,6 +127,8 @@ private:
 
 	std::unique_ptr<Media::Streaming::Instance> _videoInstance;
 	crl::time _videoStartPosition = 0;
+	crl::time _videoPosition = 0;
+	crl::time _videoDuration = 0;
 	Fn<bool()> _videoPaused;
 	QImage _shadowBottom;
 
