@@ -30,7 +30,7 @@ RUN yum -y install git meson ninja-build autoconf automake libtool \
 	devtoolset-9-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
 	llvm-toolset-7.0-llvm-devel
 
-SHELL [ "scl", "enable", "devtoolset-9", "--", "bash", "-c" ]
+SHELL [ "bash", "-c", ". /opt/rh/devtoolset-9/enable; exec bash -c \"$@\"", "-s"]
 
 ENV LibrariesPath /usr/src/Libraries
 ENV HFLAGS "-fstack-protector-all -fstack-clash-protection -fPIC -D_FORTIFY_SOURCE=2"
@@ -73,7 +73,7 @@ FROM builder AS zlib
 RUN git clone -b v1.2.11 --depth=1 $GIT/madler/zlib.git
 
 WORKDIR zlib
-RUN CFLAGS=\"-O3 $HFLAGS\" ./configure --static
+RUN CFLAGS="-O3 $HFLAGS" ./configure --static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/zlib-cache" install
 
@@ -84,7 +84,7 @@ FROM builder AS xz
 RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git
 
 WORKDIR xz
-RUN CFLAGS=\"$HFLAGS\" \
+RUN CFLAGS="$HFLAGS" \
 	cmake -B build . -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build build -j$(nproc)
 RUN DESTDIR="$LibrariesPath/xz-cache" cmake --install build
@@ -113,7 +113,7 @@ RUN git clone -b 0.4.17 --depth=1 $GIT/libproxy/libproxy.git
 
 WORKDIR libproxy
 RUN git apply ../patches/libproxy.patch
-RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake -B build . \
+RUN CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -B build . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DWITH_DBUS=OFF \
 	-DWITH_NM=OFF \
@@ -129,7 +129,7 @@ FROM builder AS mozjpeg
 RUN git clone -b v4.0.1-rc2 --depth=1 $GIT/mozilla/mozjpeg.git
 
 WORKDIR mozjpeg
-RUN CFLAGS=\"$HFLAGS\" cmake -B build . \
+RUN CFLAGS="$HFLAGS" cmake -B build . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX=/usr/local \
 	-DWITH_JPEG8=ON \
@@ -146,7 +146,7 @@ RUN git clone -b v1.3 --depth=1 $GIT/xiph/opus.git
 
 WORKDIR opus
 RUN ./autogen.sh
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./configure
+RUN CFLAGS="-g -O2 $HFLAGS" ./configure
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/opus-cache" install
 
@@ -157,7 +157,7 @@ FROM builder AS rnnoise
 RUN git clone -b master --depth=1 $GIT/desktop-app/rnnoise
 
 WORKDIR rnnoise
-RUN CFLAGS=\"$HFLAGS\" cmake -B build . \
+RUN CFLAGS="$HFLAGS" cmake -B build . \
 	-DCMAKE_BUILD_TYPE=Release
 
 RUN cmake --build build -j$(nproc)
@@ -186,7 +186,7 @@ COPY --from=xcb-proto ${LibrariesPath}/xcb-proto-cache /
 RUN git clone -b libxcb-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxcb.git
 
 WORKDIR libxcb
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-cache" install
 
@@ -217,7 +217,7 @@ COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
 RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-image.git
 
 WORKDIR libxcb-image
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-image-cache" install
 
@@ -226,7 +226,7 @@ FROM builder AS xcb-keysyms
 RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms.git
 
 WORKDIR libxcb-keysyms
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-keysyms-cache" install
 
@@ -235,7 +235,7 @@ FROM builder AS xcb-render-util
 RUN git clone -b 0.3.9 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util.git
 
 WORKDIR libxcb-render-util
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-render-util-cache" install
 
@@ -243,7 +243,7 @@ FROM builder AS libXext
 RUN git clone -b libXext-1.3.4 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxext.git
 
 WORKDIR libxext
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXext-cache" install
 
@@ -254,7 +254,7 @@ FROM builder AS libXtst
 RUN git clone -b libXtst-1.2.3 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxtst.git
 
 WORKDIR libxtst
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXtst-cache" install
 
@@ -265,7 +265,7 @@ FROM builder AS libXfixes
 RUN git clone -b libXfixes-5.0.3 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxfixes.git
 
 WORKDIR libxfixes
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXfixes-cache" install
 
@@ -289,7 +289,7 @@ FROM builder AS libXrandr
 RUN git clone -b libXrandr-1.5.2 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrandr.git
 
 WORKDIR libxrandr
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXrandr-cache" install
 
@@ -300,7 +300,7 @@ FROM builder AS libXrender
 RUN git clone -b libXrender-0.9.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrender.git
 
 WORKDIR libxrender
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXrender-cache" install
 
@@ -311,7 +311,7 @@ FROM builder AS libXdamage
 RUN git clone -b libXdamage-1.1.5 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxdamage.git
 
 WORKDIR libxdamage
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXdamage-cache" install
 
@@ -322,7 +322,7 @@ FROM builder AS libXcomposite
 RUN git clone -b libXcomposite-0.4.5 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxcomposite.git
 
 WORKDIR libxcomposite
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh --enable-static
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libXcomposite-cache" install
 
@@ -411,7 +411,7 @@ COPY --from=drm ${LibrariesPath}/drm-cache /
 RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
 
 WORKDIR libva
-RUN CFLAGS=\"-g -O2 $HFLAGS\" ./autogen.sh \
+RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh \
 	--enable-static \
 	--sysconfdir=/etc \
 	--with-drivers-path=/usr/lib/dri
@@ -455,8 +455,8 @@ RUN git clone -b release/4.4 --depth=1 $GIT/FFmpeg/FFmpeg.git ffmpeg
 
 WORKDIR ffmpeg
 RUN ./configure \
-	--extra-cflags=\"-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS\" \
-	--extra-cxxflags=\"-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS\" \
+	--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS" \
+	--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS" \
 	--disable-debug \
 	--disable-programs \
 	--disable-doc \
@@ -566,7 +566,7 @@ ADD https://api.github.com/repos/telegramdesktop/openal-soft/git/refs/heads/fix_
 RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git
 
 WORKDIR openal-soft
-RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake -B build . \
+RUN CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -B build . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DLIBTYPE:STRING=STATIC \
 	-DALSOFT_EXAMPLES=OFF \
@@ -640,7 +640,7 @@ RUN git clone -b 2.10.6 --depth=1 $GIT/libsigcplusplus/libsigcplusplus.git
 WORKDIR libsigcplusplus
 ENV ACLOCAL_PATH="/usr/local/share/aclocal"
 RUN NOCONFIGURE=1 ./autogen.sh
-RUN CFLAGS=\"-g -O2 $HFLAGS\" CXXFLAGS=\"-g -O2 $HFLAGS\" ./configure --enable-maintainer-mode --enable-static --disable-documentation
+RUN CFLAGS="-g -O2 $HFLAGS" CXXFLAGS="-g -O2 $HFLAGS" ./configure --enable-maintainer-mode --enable-static --disable-documentation
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libsigcplusplus-cache" install
 
@@ -659,7 +659,7 @@ WORKDIR glibmm
 RUN git apply ../patches/glibmm.patch
 ENV ACLOCAL_PATH="/usr/local/share/aclocal"
 RUN NOCONFIGURE=1 ./autogen.sh
-RUN CC=\"gcc -flto $HFLAGS\" CXX=\"g++ -flto $HFLAGS\" AR=gcc-ar RANLIB=gcc-ranlib ./configure \
+RUN CC="gcc -flto $HFLAGS" CXX="g++ -flto $HFLAGS" AR=gcc-ar RANLIB=gcc-ranlib ./configure \
 	--enable-maintainer-mode \
 	--enable-static \
 	--disable-documentation
@@ -696,8 +696,7 @@ WORKDIR ../qtwayland
 RUN [ -n "${QT6}" ] || find ../../patches/qtwayland_${QT5_VER} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
-# I couldn't make it work with direct ./configure call :(
-RUN [ -n "${QT6}" ] || echo './configure -prefix '$'\"''$QT5_PREFIX'$'\"'' \
+RUN [ -n "${QT6}" ] || ./configure -prefix "$QT5_PREFIX" \
 	-release \
 	-force-debug-info \
 	-opensource \
@@ -714,15 +713,11 @@ RUN [ -n "${QT6}" ] || echo './configure -prefix '$'\"''$QT5_PREFIX'$'\"'' \
 	-static \
 	-dbus-runtime \
 	-openssl-linked \
-	-I '$'\"''$OPENSSL_PREFIX/include'$'\"'' \
-	OPENSSL_LIBS='$'\"''$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread'$'\"'' \
-	LIBPROXY_LIBS='$'\"''-lproxy -ldl'$'\"'' \
+	-I "$OPENSSL_PREFIX/include" \
+	OPENSSL_LIBS="$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread" \
+	LIBPROXY_LIBS="-lproxy -ldl"\
 	-nomake examples \
-	-nomake tests' >> ./run_configure.sh
-RUN [ -n "${QT6}" ] || cat ./run_configure.sh
-RUN [ -n "${QT6}" ] || chmod a+x ./run_configure.sh
-RUN [ -n "${QT6}" ] || ./run_configure.sh
-RUN [ -n "${QT6}" ] || rm ./run_configure.sh
+	-nomake tests
 
 RUN [ -n "${QT6}" ] || make -j$(nproc)
 RUN [ -n "${QT6}" ] || make INSTALL_ROOT="$LibrariesPath/qt-cache" install
@@ -859,7 +854,7 @@ RUN meson build
 
 WORKDIR ../../..
 
-RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake -B out/Release . \
+RUN CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
 	-DTG_OWT_SPECIAL_TARGET=linux \
@@ -871,7 +866,7 @@ RUN CFLAGS=\"$HFLAGS\" CXXFLAGS=\"$HFLAGS\" cmake -B out/Release . \
 RUN cmake --build out/Release -- -j$(nproc)
 
 ENV HFLAGS_DEBUG="-fstack-protector-all -fstack-clash-protection -fPIC"
-RUN CFLAGS=\"$HFLAGS_DEBUG\" CXXFLAGS=\"$HFLAGS_DEBUG\" cmake -B out/Debug . \
+RUN CFLAGS="$HFLAGS_DEBUG" CXXFLAGS="$HFLAGS_DEBUG" cmake -B out/Debug . \
 	-DCMAKE_BUILD_TYPE=Debug \
 	-DTG_OWT_SPECIAL_TARGET=linux \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
