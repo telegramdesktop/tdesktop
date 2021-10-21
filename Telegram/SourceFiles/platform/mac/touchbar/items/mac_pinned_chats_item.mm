@@ -575,7 +575,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			if (pin->onlineTill) {
 				const auto time = pin->onlineTill - base::unixtime::now();
 				if (time > 0) {
-					onlineTimer->callOnce(time * crl::time(1000));
+					onlineTimer->callOnce(std::min(86400, time)
+						* crl::time(1000));
 				}
 			}
 		};
