@@ -252,7 +252,7 @@ parts:
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
     source-depth: 1
-    source-tag: v4.0.1-rc2
+    source-tag: v4.0.3
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
