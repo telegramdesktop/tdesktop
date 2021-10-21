@@ -4,7 +4,7 @@ cd Telegram
 ./configure.sh "$@"
 
 if [ -n "$DEBUG" ]; then
-	cmake3 --build ../out/Debug -j$(nproc)
+	cmake --build ../out/Debug -j$(nproc)
 else
-	cmake3 --build ../out/Release -j$(nproc)
+	cmake --build ../out/Release -j$(nproc)
 fi
