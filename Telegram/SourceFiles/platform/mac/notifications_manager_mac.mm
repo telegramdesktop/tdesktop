@@ -395,8 +395,8 @@ void Manager::Private::clearAll() {
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	putClearTask(ClearFromItem { FullPeer{
-		.sessionId = history->session().uniqueId(),
-		.peerId = history->peer->id
+		.sessionId = item->history()->session().uniqueId(),
+		.peerId = item->history()->peer->id
 	}, item->id });
 }
 
