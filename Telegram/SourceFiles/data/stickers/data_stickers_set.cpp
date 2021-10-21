@@ -151,6 +151,14 @@ const ImageLocation &StickersSet::thumbnailLocation() const {
 	return _thumbnail.location;
 }
 
+Storage::Cache::Key StickersSet::thumbnailBigFileBaseCacheKey() const {
+	const auto &location = _thumbnail.location.file().data;
+	if (const auto storage = std::get_if<StorageFileLocation>(&location)) {
+		return storage->bigFileBaseCacheKey();
+	}
+	return {};
+}
+
 int StickersSet::thumbnailByteSize() const {
 	return _thumbnail.byteSize;
 }

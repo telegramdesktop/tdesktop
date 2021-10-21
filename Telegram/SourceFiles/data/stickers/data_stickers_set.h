@@ -87,6 +87,7 @@ public:
 	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail();
 	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
+	[[nodiscard]] Storage::Cache::Key thumbnailBigFileBaseCacheKey() const;
 	[[nodiscard]] int thumbnailByteSize() const;
 
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> createThumbnailView();

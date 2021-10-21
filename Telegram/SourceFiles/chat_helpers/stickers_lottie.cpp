@@ -158,7 +158,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		QSize box,
 		std::shared_ptr<Lottie::FrameRenderer> renderer) {
 	const auto baseKey = thumb
-		? thumb->owner()->thumbnailLocation().file().bigFileBaseCacheKey()
+		? thumb->owner()->thumbnailBigFileBaseCacheKey()
 		: media
 		? media->owner()->bigFileBaseCacheKey()
 		: Storage::Cache::Key();
