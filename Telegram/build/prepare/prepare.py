@@ -37,10 +37,18 @@ usedPrefix = libsDir + dirSep + 'local'
 
 processedArgs = []
 skipReleaseBuilds = False
+buildQt5 = True
+buildQt6 = False
 for arg in sys.argv[1:]:
     if arg == 'skip-release':
         processedArgs.append(arg)
         skipReleaseBuilds = True
+    elif arg == 'qt6':
+        processedArgs.append(arg)
+        buildQt6 = True
+    elif arg == 'skip-qt5':
+        processedArgs.append(arg)
+        buildQt5 = False
 
 if not os.path.isdir(libsDir + '/' + keysLoc):
     pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
@@ -379,7 +387,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 5210855985
+    git checkout 212984972d
 """)
 
 stage('depot_tools', """
@@ -798,7 +806,8 @@ release:
     cd ..\\..\\..
 """)
 
-stage('qt_5_15_2', """
+if buildQt5:
+    stage('qt_5_15_2', """
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
     cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
@@ -877,6 +886,46 @@ mac:
 
     make $MAKE_THREADS_CNT
     make install
+""")
+
+if buildQt6:
+    stage('qt_6_2_0', """
+mac:
+    git clone -b v6.2.0 git://code.qt.io/qt/qt5.git qt_6_2_0
+    cd qt_6_2_0
+    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
+depends:patches/qtbase_6_2_0/*.patch
+    cd qtbase
+
+    find ../../patches/qtbase_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    cd ..
+
+depends:patches/qt5compat_6_2_0/*.patch
+    cd qt5compat
+
+    find ../../patches/qt5compat_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    cd ..
+
+    CONFIGURATIONS=-debug
+release:
+    CONFIGURATIONS=-debug-and-release
+mac:
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.0" \
+        $CONFIGURATIONS \
+        -force-debug-info \
+        -opensource \
+        -confirm-license \
+        -static \
+        -opengl desktop \
+        -no-openssl \
+        -securetransport \
+        -I "$USED_PREFIX/include" \
+        -nomake examples \
+        -nomake tests \
+        -platform macx-clang
+
+    ninja
+    ninja install
 """)
 
 stage('tg_owt', """
