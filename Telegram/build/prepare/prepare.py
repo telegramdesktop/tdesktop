@@ -387,7 +387,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 212984972d
+    git checkout 856edb916f
 """)
 
 stage('depot_tools', """
@@ -920,6 +920,7 @@ mac:
         -no-openssl \
         -securetransport \
         -I "$USED_PREFIX/include" \
+        -no-feature-futimens \
         -nomake examples \
         -nomake tests \
         -platform macx-clang
