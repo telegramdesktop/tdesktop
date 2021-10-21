@@ -126,7 +126,7 @@ WORKDIR ..
 RUN rm -rf libproxy
 
 FROM builder AS mozjpeg
-RUN git clone -b v4.0.1-rc2 --depth=1 $GIT/mozilla/mozjpeg.git
+RUN git clone -b v4.0.3 --depth=1 $GIT/mozilla/mozjpeg.git
 
 WORKDIR mozjpeg
 RUN CFLAGS="$HFLAGS" cmake -B build . \

@@ -444,7 +444,7 @@ mac:
 """)
 
 stage('mozjpeg', """
-    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    git clone -b v4.0.3 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
 win:
     cmake . ^
