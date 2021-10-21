@@ -730,19 +730,19 @@ RUN [ -n "${QT6}" ] || make INSTALL_ROOT="$LibrariesPath/qt-cache" install
 WORKDIR ..
 RUN [ -n "${QT6}" ] || rm -rf qt_${QT5_VER}
 
-RUN [ -n "${QT6}" ] && git clone -b ${QT6_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT6_VER}
+RUN [ -z "${QT6}" ] || git clone -b ${QT6_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT6_VER}
 WORKDIR qt_${QT6_VER}
-RUN [ -n "${QT6}" ] && perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
+RUN [ -z "${QT6}" ] || perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
 WORKDIR qtbase
-RUN [ -n "${QT6}" ] && find ../../patches/qtbase_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
+RUN [ -z "${QT6}" ] || find ../../patches/qtbase_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ../qtwayland
-RUN [ -n "${QT6}" ] && find ../../patches/qtwayland_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
+RUN [ -z "${QT6}" ] || find ../../patches/qtwayland_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ../qt5compat
-RUN [ -n "${QT6}" ] && find ../../patches/qt5compat_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
+RUN [ -z "${QT6}" ] || find ../../patches/qt5compat_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
-RUN [ -n "${QT6}" ] && ./configure -prefix "$QT6_PREFIX" \
+RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
 	-release \
 	-force-debug-info \
 	-opensource \
@@ -760,11 +760,11 @@ RUN [ -n "${QT6}" ] && ./configure -prefix "$QT6_PREFIX" \
 	-nomake examples \
 	-nomake tests
 
-RUN [ -n "${QT6}" ] && cmake --build . -j$(nproc)
-RUN [ -n "${QT6}" ] && DESTDIR="$LibrariesPath/qt-cache" cmake --install .
+RUN [ -z "${QT6}" ] || cmake --build . -j$(nproc)
+RUN [ -z "${QT6}" ] || DESTDIR="$LibrariesPath/qt-cache" cmake --install .
 
 WORKDIR ..
-RUN [ -n "${QT6}" ] && rm -rf qt_${QT6_VER}
+RUN [ -z "${QT6}" ] || rm -rf qt_${QT6_VER}
 
 FROM builder AS kwayland
 
@@ -792,7 +792,7 @@ WORKDIR kwayland
 RUN [ -n "${QT6}" ] || cmake -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
 RUN [ -n "${QT6}" ] || cmake --build build --target KF5WaylandClient -j$(nproc)
 RUN [ -n "${QT6}" ] || DESTDIR="$LibrariesPath/kwayland-cache" cmake --install build/src/client
-RUN [ -n "${QT6}" ] && mkdir "$LibrariesPath/kwayland-cache"
+RUN [ -z "${QT6}" ] || mkdir "$LibrariesPath/kwayland-cache"
 
 WORKDIR ..
 RUN [ -n "${QT6}" ] || rm -rf kwayland
