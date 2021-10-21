@@ -8,25 +8,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/sender.h"
 
 namespace Ui {
-class InputField;
-class FlatLabel;
-class IconButton;
-} // namespace Ui
 
-namespace Main {
-class Session;
-} // namespace Main
+class InputField;
+class IconButton;
+enum class InputSubmitSettings;
 
 class RateCallBox : public Ui::BoxContent {
 public:
-	RateCallBox(
-		QWidget*,
-		not_null<Main::Session*> session,
-		uint64 callId,
-		uint64 callAccessHash);
+	RateCallBox(QWidget*, InputSubmitSettings sendWay);
+
+	struct Result {
+		int rating = 0;
+		QString comment;
+	};
+
+	[[nodiscard]] rpl::producer<Result> sends() const;
 
 protected:
 	void prepare() override;
@@ -40,16 +38,14 @@ private:
 	void send();
 	void commentResized();
 
-	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
-
-	uint64 _callId = 0;
-	uint64 _callAccessHash = 0;
+	const InputSubmitSettings _sendWay;
 	int _rating = 0;
 
 	std::vector<object_ptr<Ui::IconButton>> _stars;
 	object_ptr<Ui::InputField> _comment = { nullptr };
 
-	mtpRequestId _requestId = 0;
+	rpl::event_stream<Result> _sends;
 
 };
+
+} // namespace Ui

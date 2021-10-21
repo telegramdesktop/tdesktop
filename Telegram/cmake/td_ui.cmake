@@ -116,6 +116,8 @@ PRIVATE
     ui/boxes/country_select_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
+    ui/boxes/rate_call_box.cpp
+    ui/boxes/rate_call_box.h
     ui/boxes/report_box.cpp
     ui/boxes/report_box.h
     ui/boxes/single_choice_box.cpp

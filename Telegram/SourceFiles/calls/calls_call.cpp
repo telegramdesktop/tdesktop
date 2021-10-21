@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/rate_call_box.h"
+#include "ui/boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
@@ -571,7 +571,31 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			Ui::show(Box<RateCallBox>(&_user->session(), _id, _accessHash));
+			const auto session = &_user->session();
+			const auto callId = _id;
+			const auto callAccessHash = _accessHash;
+			const auto box = Ui::show(Box<Ui::RateCallBox>(
+				Core::App().settings().sendSubmitWay()));
+			const auto sender = box->lifetime().make_state<MTP::Sender>(
+				&session->mtp());
+			box->sends(
+			) | rpl::take(
+				1 // Instead of keeping requestId.
+			) | rpl::start_with_next([=](const Ui::RateCallBox::Result &r) {
+				sender->request(MTPphone_SetCallRating(
+					MTP_flags(0),
+					MTP_inputPhoneCall(
+						MTP_long(callId),
+						MTP_long(callAccessHash)),
+					MTP_int(r.rating),
+					MTP_string(r.comment)
+				)).done([=](const MTPUpdates &updates) {
+					session->api().applyUpdates(updates);
+					box->closeBox();
+				}).fail([=] {
+					box->closeBox();
+				}).send();
+			}, box->lifetime());
 		}
 		const auto reason = data.vreason();
 		if (reason && reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
