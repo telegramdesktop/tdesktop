@@ -706,20 +706,11 @@ HistoryWidget::HistoryWidget(
 				) | rpl::filter_optional(
 				) | rpl::take(
 					1
-				) | rpl::start_with_next([=](const Data::ChatTheme &theme) {
-					auto text = QStringList();
-					const auto push = [&](QString label, const auto &theme) {
-						using namespace Data;
-						const auto &themes = _peer->owner().cloudThemes();
-						const auto l = themes.prepareTestingLink(theme);
-						if (!l.isEmpty()) {
-							text.push_back(label + ": " + l);
-						}
-					};
-					push("Light", theme.light);
-					push("Dark", theme.dark);
+				) | rpl::start_with_next([=](const Data::CloudTheme &theme) {
+					const auto &themes = _peer->owner().cloudThemes();
+					const auto text = themes.prepareTestingLink(theme);
 					if (!text.isEmpty()) {
-						_field->setText(text.join("\n\n"));
+						_field->setText(text);
 					}
 				}, _list->lifetime());
 			}

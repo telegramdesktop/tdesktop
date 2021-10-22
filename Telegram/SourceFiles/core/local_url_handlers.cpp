@@ -477,78 +477,77 @@ bool ShowInviteLink(
 void ExportTestChatTheme(
 		not_null<Main::Session*> session,
 		not_null<const Data::CloudTheme*> theme) {
-	if (!theme->paper
-		|| !theme->paper->isPattern()
-		|| theme->paper->backgroundColors().empty()
-		|| !theme->accentColor
-		|| !theme->paper->hasShareUrl()) {
-		Ui::Toast::Show("Something went wrong :(");
-		return;
-	}
-	const auto &bg = theme->paper->backgroundColors();
-	const auto url = theme->paper->shareUrl(session);
-	const auto from = url.indexOf("bg/");
-	const auto till = url.indexOf("?");
-	if (from < 0 || till <= from) {
-		Ui::Toast::Show("Bad WallPaper link: " + url);
-		return;
-	}
-
-	using Flag = MTPaccount_CreateTheme::Flag;
-	using Setting = MTPDinputThemeSettings::Flag;
-	using Paper = MTPDwallPaperSettings::Flag;
-	const auto color = [](const QColor &color) {
-		const auto red = color.red();
-		const auto green = color.green();
-		const auto blue = color.blue();
-		return int(((uint32(red) & 0xFFU) << 16)
-			| ((uint32(green) & 0xFFU) << 8)
-			| (uint32(blue) & 0xFFU));
-	};
-	const auto colors = [&](const std::vector<QColor> &colors) {
-		auto result = QVector<MTPint>();
-		result.reserve(colors.size());
-		for (const auto &single : colors) {
-			result.push_back(MTP_int(color(single)));
+	const auto inputSettings = [&](Data::CloudThemeType type)
+	-> std::optional<MTPInputThemeSettings> {
+		const auto i = theme->settings.find(type);
+		if (i == end(theme->settings)) {
+			Ui::Toast::Show("Something went wrong :(");
+			return std::nullopt;
 		}
-		return result;
-	};
-	const auto slug = url.mid(from + 3, till - from - 3);
-	const auto flags = Flag::f_settings;
-	const auto settings = Setting::f_wallpaper
-		| Setting::f_wallpaper_settings
-		| (theme->outgoingAccentColor
-			? Setting::f_outbox_accent_color
-			: Setting(0))
-		| (!theme->outgoingMessagesColors.empty()
-			? Setting::f_message_colors
-			: Setting(0));
-	const auto papers = Paper::f_background_color
-		| Paper::f_intensity
-		| (bg.size() > 1
-			? Paper::f_second_background_color
-			: Paper(0))
-		| (bg.size() > 2
-			? Paper::f_third_background_color
-			: Paper(0))
-		| (bg.size() > 3
-			? Paper::f_fourth_background_color
-			: Paper(0));
-	session->api().request(MTPaccount_CreateTheme(
-		MTP_flags(flags),
-		MTP_string(Window::Theme::GenerateSlug()),
-		MTP_string(theme->title + " Desktop"),
-		MTPInputDocument(),
-		MTP_inputThemeSettings(
+		const auto &fields = i->second;
+		if (!fields.paper
+			|| !fields.paper->isPattern()
+			|| fields.paper->backgroundColors().empty()
+			|| !fields.paper->hasShareUrl()) {
+			Ui::Toast::Show("Something went wrong :(");
+			return std::nullopt;
+		}
+		const auto &bg = fields.paper->backgroundColors();
+		const auto url = fields.paper->shareUrl(session);
+		const auto from = url.indexOf("bg/");
+		const auto till = url.indexOf("?");
+		if (from < 0 || till <= from) {
+			Ui::Toast::Show("Bad WallPaper link: " + url);
+			return std::nullopt;
+		}
+
+		using Setting = MTPDinputThemeSettings::Flag;
+		using Paper = MTPDwallPaperSettings::Flag;
+		const auto color = [](const QColor &color) {
+			const auto red = color.red();
+			const auto green = color.green();
+			const auto blue = color.blue();
+			return int(((uint32(red) & 0xFFU) << 16)
+				| ((uint32(green) & 0xFFU) << 8)
+				| (uint32(blue) & 0xFFU));
+		};
+		const auto colors = [&](const std::vector<QColor> &colors) {
+			auto result = QVector<MTPint>();
+			result.reserve(colors.size());
+			for (const auto &single : colors) {
+				result.push_back(MTP_int(color(single)));
+			}
+			return result;
+		};
+		const auto slug = url.mid(from + 3, till - from - 3);
+		const auto settings = Setting::f_wallpaper
+			| Setting::f_wallpaper_settings
+			| (fields.outgoingAccentColor
+				? Setting::f_outbox_accent_color
+				: Setting(0))
+			| (!fields.outgoingMessagesColors.empty()
+				? Setting::f_message_colors
+				: Setting(0));
+		const auto papers = Paper::f_background_color
+			| Paper::f_intensity
+			| (bg.size() > 1
+				? Paper::f_second_background_color
+				: Paper(0))
+			| (bg.size() > 2
+				? Paper::f_third_background_color
+				: Paper(0))
+			| (bg.size() > 3
+				? Paper::f_fourth_background_color
+				: Paper(0));
+		return MTP_inputThemeSettings(
 			MTP_flags(settings),
-			(theme->basedOnDark
+			((type == Data::CloudThemeType::Dark)
 				? MTP_baseThemeTinted()
 				: MTP_baseThemeClassic()),
-			MTP_int(color(theme->accentColor.value_or(Qt::black))),
-			MTP_int(color(theme->outgoingAccentColor.value_or(
+			MTP_int(color(fields.accentColor)),
+			MTP_int(color(fields.outgoingAccentColor.value_or(
 				Qt::black))),
-			MTP_vector<MTPint>(colors(
-				theme->outgoingMessagesColors)),
+			MTP_vector<MTPint>(colors(fields.outgoingMessagesColors)),
 			MTP_inputWallPaperSlug(MTP_string(slug)),
 			MTP_wallPaperSettings(
 				MTP_flags(papers),
@@ -556,8 +555,26 @@ void ExportTestChatTheme(
 				MTP_int(color(bg.size() > 1 ? bg[1] : Qt::black)),
 				MTP_int(color(bg.size() > 2 ? bg[2] : Qt::black)),
 				MTP_int(color(bg.size() > 3 ? bg[3] : Qt::black)),
-				MTP_int(theme->paper->patternIntensity()),
-				MTP_int(0)))
+				MTP_int(fields.paper->patternIntensity()),
+				MTP_int(0)));
+	};
+	const auto light = inputSettings(Data::CloudThemeType::Light);
+	if (!light) {
+		return;
+	}
+	const auto dark = inputSettings(Data::CloudThemeType::Dark);
+	if (!dark) {
+		return;
+	}
+	session->api().request(MTPaccount_CreateTheme(
+		MTP_flags(MTPaccount_CreateTheme::Flag::f_settings),
+		MTP_string(Window::Theme::GenerateSlug()),
+		MTP_string(theme->title + " Desktop"),
+		MTPInputDocument(),
+		MTP_vector<MTPInputThemeSettings>(QVector<MTPInputThemeSettings>{
+			*light,
+			*dark,
+		})
 	)).done([=](const MTPTheme &result) {
 		const auto slug = Data::CloudTheme::Parse(session, result, true).slug;
 		QGuiApplication::clipboard()->setText(
@@ -587,8 +604,13 @@ bool ResolveTestChatTheme(
 			if (!params["export"].isEmpty()) {
 				ExportTestChatTheme(&controller->session(), &*theme);
 			}
-			[[maybe_unused]] auto value = controller->cachedChatThemeValue(
-				*theme);
+			const auto recache = [&](Data::CloudThemeType type) {
+				[[maybe_unused]] auto value = theme->settings.contains(type)
+					? controller->cachedChatThemeValue(*theme, type)
+					: nullptr;
+			};
+			recache(Data::CloudThemeType::Dark);
+			recache(Data::CloudThemeType::Light);
 		}
 	}
 	return true;

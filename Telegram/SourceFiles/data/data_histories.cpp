@@ -688,7 +688,9 @@ void Histories::deleteAllMessages(
 			return session().api().request(MTPmessages_DeleteHistory(
 				MTP_flags(flags),
 				peer->input,
-				MTP_int(0)
+				MTP_int(0),
+				MTPint(), // min_date
+				MTPint() // max_date
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				const auto offset = session().api().applyAffectedHistory(
 					peer,

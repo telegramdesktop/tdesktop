@@ -517,7 +517,7 @@ Fn<void()> SavePreparedTheme(
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
 			document->mtpInput(),
-			MTPInputThemeSettings()
+			MTPVector<MTPInputThemeSettings>()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const MTP::Error &error) {
@@ -540,7 +540,7 @@ Fn<void()> SavePreparedTheme(
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
 			document->mtpInput(),
-			MTPInputThemeSettings()
+			MTPVector<MTPInputThemeSettings>()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const MTP::Error &error) {
@@ -607,7 +607,7 @@ Fn<void()> SavePreparedTheme(
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
 			MTP_inputDocumentEmpty(),
-			MTPInputThemeSettings()
+			MTPVector<MTPInputThemeSettings>()
 		)).done([=](const MTPTheme &result) {
 			save();
 		}).fail([=](const MTP::Error &error) {

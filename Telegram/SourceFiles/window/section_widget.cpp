@@ -37,27 +37,28 @@ namespace {
 
 [[nodiscard]] auto MaybeChatThemeDataValueFromPeer(
 	not_null<PeerData*> peer)
--> rpl::producer<std::optional<Data::ChatTheme>> {
+-> rpl::producer<std::optional<Data::CloudTheme>> {
 	return PeerThemeEmojiValue(
 		peer
 	) | rpl::map([=](const QString &emoji)
-	-> rpl::producer<std::optional<Data::ChatTheme>> {
+	-> rpl::producer<std::optional<Data::CloudTheme>> {
 		return peer->owner().cloudThemes().themeForEmojiValue(emoji);
 	}) | rpl::flatten_latest();
 }
 
+struct ResolvedTheme {
+	std::optional<Data::CloudTheme> theme;
+	bool dark = false;
+};
+
 [[nodiscard]] auto MaybeCloudThemeValueFromPeer(
 	not_null<PeerData*> peer)
--> rpl::producer<std::optional<Data::CloudTheme>> {
+-> rpl::producer<ResolvedTheme> {
 	return rpl::combine(
 		MaybeChatThemeDataValueFromPeer(peer),
 		Theme::IsThemeDarkValue() | rpl::distinct_until_changed()
-	) | rpl::map([](std::optional<Data::ChatTheme> theme, bool night) {
-		return !theme
-			? std::nullopt
-			: night
-			? std::make_optional(std::move(theme->dark))
-			: std::make_optional(std::move(theme->light));
+	) | rpl::map([](std::optional<Data::CloudTheme> theme, bool night) {
+		return ResolvedTheme{ std::move(theme), night };
 	});
 }
 
@@ -296,12 +297,15 @@ auto ChatThemeValueFromPeer(
 -> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
 	auto cloud = MaybeCloudThemeValueFromPeer(
 		peer
-	) | rpl::map([=](std::optional<Data::CloudTheme> theme)
+	) | rpl::map([=](ResolvedTheme resolved)
 	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
-		if (!theme) {
-			return rpl::single(controller->defaultChatTheme());
-		}
-		return controller->cachedChatThemeValue(*theme);
+		return resolved.theme
+			? controller->cachedChatThemeValue(
+				*resolved.theme,
+				(resolved.dark
+					? Data::CloudThemeType::Dark
+					: Data::CloudThemeType::Light))
+			: rpl::single(controller->defaultChatTheme());
 	}) | rpl::flatten_latest(
 	) | rpl::distinct_until_changed();
 

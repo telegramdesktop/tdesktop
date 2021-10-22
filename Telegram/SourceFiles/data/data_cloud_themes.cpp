@@ -36,59 +36,63 @@ CloudTheme CloudTheme::Parse(
 		const MTPDtheme &data,
 		bool parseSettings) {
 	const auto document = data.vdocument();
-	const auto paper = [&]() -> std::optional<WallPaper> {
-		if (const auto settings = data.vsettings()) {
-			return settings->match([&](const MTPDthemeSettings &data) {
-				return data.vwallpaper()
-					? WallPaper::Create(session, *data.vwallpaper())
-					: std::nullopt;
-			});
-		}
-		return {};
+	const auto paper = [&](const MTPThemeSettings &settings) {
+		return settings.match([&](const MTPDthemeSettings &data) {
+			return data.vwallpaper()
+				? WallPaper::Create(session, *data.vwallpaper())
+				: std::nullopt;
+		});
 	};
-	const auto outgoingMessagesColors = [&] {
+	const auto outgoingMessagesColors = [&](
+			const MTPThemeSettings &settings) {
 		auto result = std::vector<QColor>();
-		if (const auto settings = data.vsettings()) {
-			settings->match([&](const MTPDthemeSettings &data) {
-				if (const auto colors = data.vmessage_colors()) {
-					for (const auto &color : colors->v) {
-						result.push_back(ColorFromSerialized(color));
-					}
+		settings.match([&](const MTPDthemeSettings &data) {
+			if (const auto colors = data.vmessage_colors()) {
+				for (const auto &color : colors->v) {
+					result.push_back(ColorFromSerialized(color));
 				}
+			}
+		});
+		return result;
+	};
+	const auto accentColor = [&](const MTPThemeSettings &settings) {
+		return settings.match([&](const MTPDthemeSettings &data) {
+			return ColorFromSerialized(data.vaccent_color().v);
+		});
+	};
+	const auto outgoingAccentColor = [&](const MTPThemeSettings &settings) {
+		return settings.match([&](const MTPDthemeSettings &data) {
+			return MaybeColorFromSerialized(data.voutbox_accent_color());
+		});
+	};
+	const auto basedOnDark = [&](const MTPThemeSettings &settings) {
+		return settings.match([&](const MTPDthemeSettings &data) {
+			return data.vbase_theme().match([](
+					const MTPDbaseThemeNight &) {
+				return true;
+			}, [](const MTPDbaseThemeTinted &) {
+				return true;
+			}, [](const auto &) {
+				return false;
+			});
+		});
+	};
+	const auto settings = [&] {
+		auto result = base::flat_map<Type, Settings>();
+		const auto settings = data.vsettings();
+		if (!settings) {
+			return result;
+		}
+		for (const auto &fields : settings->v) {
+			const auto type = basedOnDark(fields) ? Type::Dark : Type::Light;
+			result.emplace(type, Settings{
+				.paper = paper(fields),
+				.accentColor = accentColor(fields),
+				.outgoingAccentColor = outgoingAccentColor(fields),
+				.outgoingMessagesColors = outgoingMessagesColors(fields),
 			});
 		}
 		return result;
-	};
-	const auto accentColor = [&]() -> std::optional<QColor> {
-		if (const auto settings = data.vsettings()) {
-			return settings->match([&](const MTPDthemeSettings &data) {
-				return ColorFromSerialized(data.vaccent_color().v);
-			});
-		}
-		return {};
-	};
-	const auto outgoingAccentColor = [&]() -> std::optional<QColor> {
-		if (const auto settings = data.vsettings()) {
-			return settings->match([&](const MTPDthemeSettings &data) {
-				return MaybeColorFromSerialized(data.voutbox_accent_color());
-			});
-		}
-		return {};
-	};
-	const auto basedOnDark = [&] {
-		if (const auto settings = data.vsettings()) {
-			return settings->match([&](const MTPDthemeSettings &data) {
-				return data.vbase_theme().match([](
-						const MTPDbaseThemeNight &) {
-					return true;
-				}, [](const MTPDbaseThemeTinted &) {
-					return true;
-				}, [](const auto &) {
-					return false;
-				});
-			});
-		}
-		return false;
 	};
 	return {
 		.id = data.vid().v,
@@ -100,15 +104,10 @@ CloudTheme CloudTheme::Parse(
 			: DocumentId(0)),
 		.createdBy = data.is_creator() ? session->userId() : UserId(0),
 		.usersCount = data.vinstalls_count().value_or_empty(),
-		.paper = parseSettings ? paper() : std::nullopt,
-		.accentColor = parseSettings ? accentColor() : std::nullopt,
-		.outgoingAccentColor = (parseSettings
-			? outgoingAccentColor()
-			: std::nullopt),
-		.outgoingMessagesColors = (parseSettings
-			? outgoingMessagesColors()
-			: std::vector<QColor>()),
-		.basedOnDark = parseSettings && basedOnDark(),
+		.emoticon = qs(data.vemoticon().value_or_empty()),
+		.settings = (parseSettings
+			? settings()
+			: base::flat_map<Type, Settings>()),
 	};
 }
 
@@ -176,8 +175,9 @@ void CloudThemes::install() {
 		| (themeId ? Flag::f_theme : Flag(0));
 	_session->api().request(MTPaccount_InstallTheme(
 		MTP_flags(flags),
+		MTP_inputTheme(MTP_long(cloudId), MTP_long(fields.accessHash)),
 		MTP_string(Format()),
-		MTP_inputTheme(MTP_long(cloudId), MTP_long(fields.accessHash))
+		MTPBaseTheme()
 	)).send();
 }
 
@@ -364,21 +364,21 @@ void CloudThemes::refreshChatThemes() {
 		return;
 	}
 	_chatThemesRequestId = _session->api().request(MTPaccount_GetChatThemes(
-		MTP_int(_chatThemesHash)
-	)).done([=](const MTPaccount_ChatThemes &result) {
+		MTP_long(_chatThemesHash)
+	)).done([=](const MTPaccount_Themes &result) {
 		_chatThemesRequestId = 0;
-		result.match([&](const MTPDaccount_chatThemes &data) {
-			_hash = data.vhash().v;
+		result.match([&](const MTPDaccount_themes &data) {
+			_chatThemesHash = data.vhash().v;
 			parseChatThemes(data.vthemes().v);
 			_chatThemesUpdates.fire({});
-		}, [](const MTPDaccount_chatThemesNotModified &) {
+		}, [](const MTPDaccount_themesNotModified &) {
 		});
 	}).fail([=](const MTP::Error &error) {
 		_chatThemesRequestId = 0;
 	}).send();
 }
 
-const std::vector<ChatTheme> &CloudThemes::chatThemes() const {
+const std::vector<CloudTheme> &CloudThemes::chatThemes() const {
 	return _chatThemes;
 }
 
@@ -386,23 +386,23 @@ rpl::producer<> CloudThemes::chatThemesUpdated() const {
 	return _chatThemesUpdates.events();
 }
 
-std::optional<ChatTheme> CloudThemes::themeForEmoji(
+std::optional<CloudTheme> CloudThemes::themeForEmoji(
 		const QString &emoticon) const {
 	const auto emoji = Ui::Emoji::Find(emoticon);
 	if (!emoji) {
 		return {};
 	}
-	const auto i = ranges::find(_chatThemes, emoji, [](const ChatTheme &v) {
+	const auto i = ranges::find(_chatThemes, emoji, [](const CloudTheme &v) {
 		return Ui::Emoji::Find(v.emoticon);
 	});
 	return (i != end(_chatThemes)) ? std::make_optional(*i) : std::nullopt;
 }
 
-rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
+rpl::producer<std::optional<CloudTheme>> CloudThemes::themeForEmojiValue(
 		const QString &emoticon) {
 	const auto testing = TestingColors();
 	if (!Ui::Emoji::Find(emoticon)) {
-		return rpl::single<std::optional<ChatTheme>>(std::nullopt);
+		return rpl::single<std::optional<CloudTheme>>(std::nullopt);
 	} else if (auto result = themeForEmoji(emoticon)) {
 		if (testing) {
 			return rpl::single(
@@ -410,7 +410,7 @@ rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
 			) | rpl::then(chatThemesUpdated(
 			) | rpl::map([=] {
 				return themeForEmoji(emoticon);
-			}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
+			}) | rpl::filter([](const std::optional<CloudTheme> &theme) {
 				return theme.has_value();
 			}));
 		}
@@ -418,12 +418,12 @@ rpl::producer<std::optional<ChatTheme>> CloudThemes::themeForEmojiValue(
 	}
 	refreshChatThemes();
 	const auto limit = testing ? (1 << 20) : 1;
-	return rpl::single<std::optional<ChatTheme>>(
+	return rpl::single<std::optional<CloudTheme>>(
 		std::nullopt
 	) | rpl::then(chatThemesUpdated(
 	) | rpl::map([=] {
 		return themeForEmoji(emoticon);
-	}) | rpl::filter([](const std::optional<ChatTheme> &theme) {
+	}) | rpl::filter([](const std::optional<CloudTheme> &theme) {
 		return theme.has_value();
 	}) | rpl::take(limit));
 }
@@ -454,30 +454,33 @@ QString CloudThemes::prepareTestingLink(const CloudTheme &theme) const {
 		return list.join(",");
 	};
 	auto arguments = QStringList();
-	if (theme.basedOnDark) {
-		arguments.push_back("dark=1");
-	}
-	if (theme.accentColor) {
-		arguments.push_back("accent=" + color(*theme.accentColor));
-	}
-	if (theme.paper && !theme.paper->backgroundColors().empty()) {
-		arguments.push_back("bg=" + colors(theme.paper->backgroundColors()));
-	}
-	if (theme.paper/* && theme.paper->hasShareUrl()*/) {
-		arguments.push_back("intensity="
-			+ QString::number(theme.paper->patternIntensity()));
-		//const auto url = theme.paper->shareUrl(_session);
-		//const auto from = url.indexOf("bg/");
-		//const auto till = url.indexOf("?");
-		//if (from > 0 && till > from) {
-		//	arguments.push_back("slug=" + url.mid(from + 3, till - from - 3));
-		//}
-	}
-	if (theme.outgoingAccentColor) {
-		arguments.push_back("out_accent" + color(*theme.outgoingAccentColor));
-	}
-	if (!theme.outgoingMessagesColors.empty()) {
-		arguments.push_back("out_bg=" + colors(theme.outgoingMessagesColors));
+	for (const auto &[type, settings] : theme.settings) {
+		const auto add = [&](const QString &value) {
+			const auto prefix = (type == CloudTheme::Type::Dark)
+				? u"dark_"_q
+				: u""_q;
+			arguments.push_back(prefix + value);
+		};
+		add("accent=" + color(settings.accentColor));
+		if (settings.paper && !settings.paper->backgroundColors().empty()) {
+			add("bg=" + colors(settings.paper->backgroundColors()));
+		}
+		if (settings.paper/* && settings.paper->hasShareUrl()*/) {
+			add("intensity="
+				+ QString::number(settings.paper->patternIntensity()));
+			//const auto url = settings.paper->shareUrl(_session);
+			//const auto from = url.indexOf("bg/");
+			//const auto till = url.indexOf("?");
+			//if (from > 0 && till > from) {
+			//	add("slug=" + url.mid(from + 3, till - from - 3));
+			//}
+		}
+		if (settings.outgoingAccentColor) {
+			add("out_accent" + color(*settings.outgoingAccentColor));
+		}
+		if (!settings.outgoingMessagesColors.empty()) {
+			add("out_bg=" + colors(settings.outgoingMessagesColors));
+		}
 	}
 	return arguments.isEmpty()
 		? QString()
@@ -491,7 +494,7 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 	if (!TestingColors() || !emoji) {
 		return std::nullopt;
 	}
-	const auto i = ranges::find(_chatThemes, emoji, [](const ChatTheme &v) {
+	const auto i = ranges::find(_chatThemes, emoji, [](const CloudTheme &v) {
 		return Ui::Emoji::Find(v.emoticon);
 	});
 	if (i == end(_chatThemes)) {
@@ -536,33 +539,42 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 		return (result.size() > 4) ? std::vector<QColor>() : result;
 	};
 
-	auto &applyTo = params["dark"].isEmpty() ? i->light : i->dark;
-	applyTo.accentColor = color(params["accent"]);
-	const auto bg = colors(params["bg"]);
-	applyTo.paper = (applyTo.paper && !bg.empty())
-		? std::make_optional(applyTo.paper->withBackgroundColors(bg))
-		: applyTo.paper;
-	applyTo.paper = (applyTo.paper && params["intensity"].toInt())
-		? std::make_optional(
-			applyTo.paper->withPatternIntensity(params["intensity"].toInt()))
-		: applyTo.paper;
-	applyTo.outgoingAccentColor = color(params["out_accent"]);
-	applyTo.outgoingMessagesColors = colors(params["out_bg"]);
+	const auto parse = [&](CloudThemeType type, const QString &prefix = {}) {
+		const auto accent = color(params["accent"]);
+		if (!accent) {
+			return;
+		}
+		auto &settings = i->settings[type];
+		settings.accentColor = *accent;
+		const auto bg = colors(params["bg"]);
+		settings.paper = (settings.paper && !bg.empty())
+			? std::make_optional(settings.paper->withBackgroundColors(bg))
+			: settings.paper;
+		settings.paper = (settings.paper && params["intensity"].toInt())
+			? std::make_optional(
+				settings.paper->withPatternIntensity(
+					params["intensity"].toInt()))
+			: settings.paper;
+		settings.outgoingAccentColor = color(params["out_accent"]);
+		settings.outgoingMessagesColors = colors(params["out_bg"]);
+	};
+	if (params.contains("dark_accent")) {
+		parse(CloudThemeType::Dark, "dark_");
+	}
+	if (params.contains("accent")) {
+		parse(params["dark"].isEmpty()
+			? CloudThemeType::Light
+			: CloudThemeType::Dark);
+	}
 	_chatThemesUpdates.fire({});
-	return applyTo;
+	return *i;
 }
 
-void CloudThemes::parseChatThemes(const QVector<MTPChatTheme> &list) {
+void CloudThemes::parseChatThemes(const QVector<MTPTheme> &list) {
 	_chatThemes.clear();
 	_chatThemes.reserve(list.size());
 	for (const auto &theme : list) {
-		theme.match([&](const MTPDchatTheme &data) {
-			_chatThemes.push_back({
-				.emoticon = qs(data.vemoticon()),
-				.light = CloudTheme::Parse(_session, data.vtheme(), true),
-				.dark = CloudTheme::Parse(_session, data.vdark_theme(), true),
-			});
-		});
+		_chatThemes.push_back(CloudTheme::Parse(_session, theme, true));
 	}
 }
 

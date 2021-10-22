@@ -109,10 +109,16 @@ constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 }
 
 [[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
-		const Data::CloudTheme &theme) {
+		const Data::CloudTheme &theme,
+		Data::CloudThemeType type) {
+	const auto i = theme.settings.find(type);
 	return {
-		.colors = theme.outgoingMessagesColors,
-		.accent = theme.outgoingAccentColor,
+		.colors = (i != end(theme.settings)
+			? i->second.outgoingMessagesColors
+			: std::vector<QColor>()),
+		.accent = (i != end(theme.settings)
+			? i->second.outgoingAccentColor
+			: std::optional<QColor>()),
 	};
 }
 
@@ -1423,10 +1429,18 @@ void SessionController::openDocument(
 }
 
 auto SessionController::cachedChatThemeValue(
-	const Data::CloudTheme &data)
+	const Data::CloudTheme &data,
+	Data::CloudThemeType type)
 -> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
-	const auto key = data.id;
-	if (!key || !data.paper || data.paper->backgroundColors().empty()) {
+	const auto key = Ui::ChatThemeKey{
+		data.id,
+		(type == Data::CloudThemeType::Dark),
+	};
+	const auto settings = data.settings.find(type);
+	if (!key
+		|| (settings == end(data.settings))
+		|| !settings->second.paper
+		|| settings->second.paper->backgroundColors().empty()) {
 		return rpl::single(_defaultChatTheme);
 	}
 	const auto i = _customChatThemes.find(key);
@@ -1437,7 +1451,7 @@ auto SessionController::cachedChatThemeValue(
 		}
 	}
 	if (i == end(_customChatThemes) || !i->second.caching) {
-		cacheChatTheme(data);
+		cacheChatTheme(data, type);
 	}
 	const auto limit = Data::CloudThemes::TestingColors() ? (1 << 20) : 1;
 	using namespace rpl::mappers;
@@ -1510,20 +1524,26 @@ void SessionController::pushDefaultChatBackground() {
 	});
 }
 
-void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
+void SessionController::cacheChatTheme(
+		const Data::CloudTheme &data,
+		Data::CloudThemeType type) {
 	Expects(data.id != 0);
-	Expects(data.paper.has_value());
-	Expects(!data.paper->backgroundColors().empty());
 
-	const auto key = data.id;
-	const auto document = data.paper->document();
+	const auto dark = (type == Data::CloudThemeType::Dark);
+	const auto key = Ui::ChatThemeKey{ data.id, dark };
+	const auto i = data.settings.find(type);
+	Assert(i != end(data.settings));
+	const auto &paper = i->second.paper;
+	Assert(paper.has_value());
+	Assert(!paper->backgroundColors().empty());
+	const auto document = paper->document();
 	const auto media = document ? document->createMediaView() : nullptr;
-	data.paper->loadDocument();
+	paper->loadDocument();
 	auto &theme = [&]() -> CachedTheme& {
 		const auto i = _customChatThemes.find(key);
 		if (i != end(_customChatThemes)) {
 			i->second.media = media;
-			i->second.paper = *data.paper;
+			i->second.paper = *paper;
 			i->second.caching = true;
 			return i->second;
 		}
@@ -1531,18 +1551,18 @@ void SessionController::cacheChatTheme(const Data::CloudTheme &data) {
 			key,
 			CachedTheme{
 				.media = media,
-				.paper = *data.paper,
+				.paper = *paper,
 				.caching = true,
 			}).first->second;
 	}();
 	auto descriptor = Ui::ChatThemeDescriptor{
-		.id = key,
+		.key = key,
 		.preparePalette = PreparePaletteCallback(
-			data.basedOnDark,
-			data.accentColor),
+			dark,
+			i->second.accentColor),
 		.backgroundData = backgroundData(theme),
-		.bubblesData = PrepareBubblesData(data),
-		.basedOnDark = data.basedOnDark,
+		.bubblesData = PrepareBubblesData(data, type),
+		.basedOnDark = dark,
 	};
 	crl::async([
 		this,
