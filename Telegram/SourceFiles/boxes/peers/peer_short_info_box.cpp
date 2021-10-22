@@ -40,12 +40,31 @@ struct PeerShortInfoBox::CustomLabelStyle {
 struct PeerShortInfoBox::Radial {
 	explicit Radial(Fn<void()> &&callback);
 
+	void toggle(bool visible);
+
 	Ui::RadialAnimation radial;
-	base::Timer removeTimer;
+	Ui::Animations::Simple shownAnimation;
+	Fn<void()> callback;
+	base::Timer showTimer;
+	bool shown = false;
 };
 
 PeerShortInfoBox::Radial::Radial(Fn<void()> &&callback)
-: radial(callback) {
+: radial(callback)
+, callback(callback)
+, showTimer([=] { toggle(true); }) {
+}
+
+void PeerShortInfoBox::Radial::toggle(bool visible) {
+	if (shown == visible) {
+		return;
+	}
+	shown = visible;
+	shownAnimation.start(
+		callback,
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		st::fadeWrapDuration);
 }
 
 PeerShortInfoBox::CustomLabelStyle::CustomLabelStyle(
@@ -451,18 +470,41 @@ void PeerShortInfoBox::paintShadow(QPainter &p) {
 }
 
 void PeerShortInfoBox::paintRadial(QPainter &p) {
+	const auto infinite = _videoInstance && _videoInstance->waitingShown();
+	if (!_radial && !infinite) {
+		return;
+	}
 	const auto radial = radialRect();
-	if (_videoInstance && _videoInstance->waitingShown()) {
-		const auto line = st::shortInfoRadialAnimation.thickness;
-		const auto arc = radial.marginsRemoved(
-			{ line, line, line, line });
-		p.setOpacity(_videoInstance->waitingOpacity());
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::radialBg);
-		{
-			PainterHighQualityEnabler hq(p);
-			p.drawEllipse(radial);
-		}
+	const auto line = st::shortInfoRadialAnimation.thickness;
+	const auto arc = radial.marginsRemoved(
+		{ line, line, line, line });
+	const auto infiniteOpacity = _videoInstance
+		? _videoInstance->waitingOpacity()
+		: 0.;
+	const auto radialState = _radial
+		? _radial->radial.computeState()
+		: Ui::RadialState();
+	if (_radial) {
+		updateRadialState();
+	}
+	const auto radialOpacity = _radial
+		? (_radial->shownAnimation.value(_radial->shown ? 1. : 0.)
+			* radialState.shown)
+		: 0.;
+	auto hq = PainterHighQualityEnabler(p);
+	p.setOpacity(std::max(infiniteOpacity, radialOpacity));
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::radialBg);
+	p.drawEllipse(radial);
+	if (radialOpacity > 0.) {
+		p.setOpacity(radialOpacity);
+		auto pen = st::radialFg->p;
+		pen.setWidth(line);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		p.drawArc(arc, radialState.arcFrom, radialState.arcLength);
+	}
+	if (infinite) {
 		p.setOpacity(1.);
 		Ui::InfiniteRadialAnimation::Draw(
 			p,
@@ -566,6 +608,44 @@ void PeerShortInfoBox::applyUserpic(PeerShortInfoUserpic &&value) {
 		if (!_videoInstance->valid()) {
 			clearVideo();
 		}
+	}
+	_photoLoadingProgress = value.photoLoadingProgress;
+	updateRadialState();
+}
+
+void PeerShortInfoBox::updateRadialState() {
+	const auto progress = _videoInstance ? 1. : _photoLoadingProgress;
+	if (_radial) {
+		_radial->radial.update(progress, (progress == 1.), crl::now());
+	}
+	_cover->update(radialRect());
+
+	if (progress == 1.) {
+		if (!_radial) {
+			return;
+		}
+		_radial->showTimer.cancel();
+		_radial->toggle(false);
+		if (!_radial->shownAnimation.animating()) {
+			_radial = nullptr;
+		}
+		return;
+	} else if (!_radial) {
+		_radial = std::make_unique<Radial>([=] { updateRadialState(); });
+		_radial->radial.update(progress, false, crl::now());
+		_radial->showTimer.callOnce(st::fadeWrapDuration);
+		return;
+	} else if (!_radial->showTimer.isActive()) {
+		_radial->toggle(true);
+	}
+}
+
+void PeerShortInfoBox::radialCallback() {
+	_cover->update(radialRect());
+	if (!_radial->shown
+		&& !_radial->shownAnimation.animating()
+		&& !_radial->showTimer.isActive()) {
+		_radial = nullptr;
 	}
 }
 

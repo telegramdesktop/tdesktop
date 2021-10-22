@@ -97,8 +97,10 @@ private:
 	void streamingReady(Media::Streaming::Information &&info);
 	void clearVideo();
 
+	void updateRadialState();
 	void refreshCoverCursor();
 	void refreshBarImages();
+	void radialCallback();
 
 	const PeerShortInfoType _type = PeerShortInfoType::User;
 
@@ -135,6 +137,7 @@ private:
 	QImage _shadowBottom;
 
 	std::unique_ptr<Radial> _radial;
+	float64 _photoLoadingProgress = 0.;
 
 	rpl::event_stream<> _openRequests;
 	rpl::event_stream<int> _moveRequests;
