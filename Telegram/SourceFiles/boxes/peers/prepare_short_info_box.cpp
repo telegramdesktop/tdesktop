@@ -38,6 +38,7 @@ struct UserpicState {
 	PhotoId userpicPhotoId = PeerData::kUnknownPhotoId;
 	std::shared_ptr<Data::CloudImageView> userpicView;
 	std::shared_ptr<Data::PhotoMedia> photoView;
+	std::vector<std::shared_ptr<Data::PhotoMedia>> photoPreloads;
 	InMemoryKey userpicKey;
 	PhotoId photoId = PeerData::kUnknownPhotoId;
 	bool waitingFull = false;
@@ -100,13 +101,55 @@ void ProcessUserpic(
 	state->photoView = nullptr;
 }
 
+void Preload(
+		not_null<PeerData*> peer,
+		not_null<UserpicState*> state) {
+	auto taken = base::take(state->photoPreloads);
+	if (state->userSlice && state->userSlice->size() > 0) {
+		const auto preload = [&](int index) {
+			const auto photo = peer->owner().photo(
+				(*state->userSlice)[index]);
+			const auto current = (peer->userpicPhotoId() == photo->id);
+			const auto origin = current
+				? peer->userpicPhotoOrigin()
+				: Data::FileOriginUserPhoto(peerToUser(peer->id), photo->id);
+			state->photoPreloads.push_back(photo->createMediaView());
+			if (photo->hasVideo()) {
+				state->photoPreloads.back()->videoWanted(origin);
+			} else {
+				state->photoPreloads.back()->wanted(
+					Data::PhotoSize::Large,
+					origin);
+			}
+		};
+		const auto skip = (state->userSlice->size() == state->current.count)
+			? 0
+			: 1;
+		if (state->current.index - skip > 0) {
+			preload(state->current.index - skip - 1);
+		} else if (!state->current.index && state->current.count > 1) {
+			preload(state->userSlice->size() - 1);
+		}
+		if (state->current.index - skip + 1 < state->userSlice->size()) {
+			preload(state->current.index - skip + 1);
+		} else if (!skip && state->current.index > 0) {
+			preload(0);
+		}
+	}
+}
+
 void ProcessFullPhoto(
 		not_null<PeerData*> peer,
 		not_null<UserpicState*> state,
 		not_null<PhotoData*> photo) {
 	using PhotoSize = Data::PhotoSize;
+	const auto current = (peer->userpicPhotoId() == photo->id);
 	const auto video = photo->hasVideo();
-	const auto origin = peer->userpicPhotoOrigin();
+	const auto originCurrent = peer->userpicPhotoOrigin();
+	const auto originOther = peer->isUser()
+		? Data::FileOriginUserPhoto(peerToUser(peer->id), photo->id)
+		: originCurrent;
+	const auto origin = current ? originCurrent : originOther;
 	const auto was = base::take(state->current.videoDocument);
 	const auto view = photo->createMediaView();
 	if (!video) {
@@ -114,6 +157,7 @@ void ProcessFullPhoto(
 	}
 	if (const auto image = view->image(PhotoSize::Large)) {
 		GenerateImage(state, image);
+		Preload(peer, state);
 		state->photoView = nullptr;
 		state->current.photoLoadingProgress = 1.;
 	} else {
@@ -122,7 +166,6 @@ void ProcessFullPhoto(
 		} else if (const auto small = view->image(PhotoSize::Small)) {
 			GenerateImage(state, small, true);
 		} else {
-			const auto current = (peer->userpicPhotoId() == photo->id);
 			if (current) {
 				ProcessUserpic(peer, state);
 			}
