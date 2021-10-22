@@ -1263,6 +1263,13 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			) | rpl::map([](const auto &text) { return text.text; }),
 			PrepareShortInfoStatus(participantPeer),
 			PrepareShortInfoUserpic(participantPeer)));
+
+		if (const auto about = participantPeer->about(); !about.isEmpty()) {
+			result->addAction(base::make_unique_q<AboutItem>(
+				result->menu(),
+				st::groupCallPopupCoverMenu,
+				about));
+		}
 	}
 
 	if (const auto real = _call->lookupReal()) {

@@ -12,9 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace Calls {
-namespace {
-
-} // namespace
 
 CoverItem::CoverItem(
 	not_null<RpWidget*> parent,
@@ -54,6 +51,42 @@ bool CoverItem::isEnabled() const {
 
 int CoverItem::contentHeight() const {
 	return _st.size + st::groupCallMenu.separatorPadding.bottom();
+}
+
+AboutItem::AboutItem(
+	not_null<RpWidget*> parent,
+	const style::Menu &st,
+	const QString &about)
+: Ui::Menu::ItemBase(parent, st)
+, _st(st)
+, _text(base::make_unique_q<Ui::FlatLabel>(
+	this,
+	about,
+	st::groupCallMenuAbout))
+, _dummyAction(new QAction(parent)) {
+	setPointerCursor(false);
+
+	initResizeHook(parent->sizeValue());
+	enableMouseSelecting();
+	enableMouseSelecting(_text.get());
+
+	_text->setSelectable(true);
+	_text->resizeToWidth(st::groupCallMenuAbout.minWidth);
+	_text->moveToLeft(st.itemPadding.left(), st.itemPadding.top());
+}
+
+not_null<QAction*> AboutItem::action() const {
+	return _dummyAction;
+}
+
+bool AboutItem::isEnabled() const {
+	return false;
+}
+
+int AboutItem::contentHeight() const {
+	return _st.itemPadding.top()
+		+ _text->height()
+		+ _st.itemPadding.bottom();
 }
 
 } // namespace Calls

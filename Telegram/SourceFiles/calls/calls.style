@@ -561,6 +561,11 @@ groupCallMenuCover: ShortInfoCover(shortInfoCover) {
 	namePosition: point(17px, 28px);
 	statusPosition: point(17px, 8px);
 }
+groupCallMenuAbout: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMemberNotJoinedStatus;
+	minWidth: 200px;
+	maxHeight: 92px;
+}
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);
 groupCallRecordingTimerFont: font(12px);

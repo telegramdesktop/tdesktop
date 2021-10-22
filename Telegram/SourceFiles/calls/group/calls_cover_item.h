@@ -45,6 +45,24 @@ private:
 	const not_null<QAction*> _dummyAction;
 	const style::ShortInfoCover &_st;
 
+};
+
+class AboutItem final : public Ui::Menu::ItemBase {
+public:
+	AboutItem(
+		not_null<RpWidget*> parent,
+		const style::Menu &st,
+		const QString &about);
+
+	not_null<QAction*> action() const override;
+	bool isEnabled() const override;
+
+private:
+	int contentHeight() const override;
+
+	const style::Menu &_st;
+	const base::unique_qptr<Ui::FlatLabel> _text;
+	const not_null<QAction*> _dummyAction;
 
 };
 
