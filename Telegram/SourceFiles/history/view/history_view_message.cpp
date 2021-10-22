@@ -2729,7 +2729,8 @@ bool Message::displayEditedBadge() const {
 
 TimeId Message::displayedEditDate() const {
 	const auto item = message();
-	if (item->hideEditedBadge()) {
+	const auto overrided = media() && media()->overrideEditedDate();
+	if (item->hideEditedBadge() && !overrided) {
 		return TimeId(0);
 	} else if (const auto edited = displayedEditBadge()) {
 		return edited->date;
