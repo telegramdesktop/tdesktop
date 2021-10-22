@@ -10,6 +10,7 @@ using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "ui/layers/layers.style";
 using "ui/chat/chat.style"; // GroupCallUserpics
+using "info/info.style"; // ShortInfoCover
 using "window/window.style";
 
 CallSignalBars {
@@ -541,6 +542,24 @@ groupCallPopupMenuWithVolume: PopupMenu(groupCallPopupMenu) {
 groupCallPopupVolumeMenu: Menu(groupCallMenu) {
 	widthMin: 210px;
 	itemBgOver: groupCallMenuBg;
+}
+groupCallMenuCoverSize: 240px;
+groupCallPopupCoverMenu: Menu(groupCallMenu) {
+	widthMin: groupCallMenuCoverSize;
+	widthMax: groupCallMenuCoverSize;
+	itemBgOver: groupCallMenuBg;
+}
+groupCallPopupMenuWithCover: PopupMenu(groupCallPopupMenu) {
+	scrollPadding: margins(0px, 0px, 0px, 8px);
+	menu: Menu(groupCallMenu) {
+		widthMin: groupCallMenuCoverSize;
+		widthMax: groupCallMenuCoverSize;
+	}
+}
+groupCallMenuCover: ShortInfoCover(shortInfoCover) {
+	size: groupCallMenuCoverSize;
+	namePosition: point(17px, 28px);
+	statusPosition: point(17px, 8px);
 }
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);

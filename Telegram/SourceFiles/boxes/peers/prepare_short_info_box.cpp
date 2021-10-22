@@ -86,18 +86,20 @@ void ProcessUserpic(
 				st::shortInfoWidth * style::DevicePixelRatio(),
 				ImageRoundRadius::None),
 			false);
+		state->current.photoLoadingProgress = 1.;
 		state->photoView = nullptr;
 		return;
 	}
 	peer->loadUserpic();
-	state->current.photoLoadingProgress = 0.;
 	const auto image = state->userpicView->image();
 	if (!image) {
+		state->current.photoLoadingProgress = 0.;
 		state->current.photo = QImage();
 		state->waitingLoad = true;
 		return;
 	}
 	GenerateImage(state, image, true);
+	state->current.photoLoadingProgress = peer->userpicPhotoId() ? 0. : 1.;
 	state->photoView = nullptr;
 }
 
@@ -265,10 +267,6 @@ void ProcessFullPhoto(
 	});
 }
 
-void ProcessOld(not_null<PeerData*> peer, not_null<UserpicState*> state) {
-
-}
-
 void ValidatePhotoId(
 		not_null<UserpicState*> state,
 		PhotoId oldUserpicPhotoId) {
@@ -357,12 +355,8 @@ bool ProcessCurrent(
 	return true;
 }
 
-struct UserpicResult {
-	rpl::producer<PeerShortInfoUserpic> value;
-	Fn<void(int)> move;
-};
-
-[[nodiscard]] UserpicResult UserpicValue(not_null<PeerData*> peer) {
+[[nodiscard]] PreparedShortInfoUserpic UserpicValue(
+		not_null<PeerData*> peer) {
 	const auto moveRequests = std::make_shared<rpl::event_stream<int>>();
 	auto move = [=](int shift) {
 		moveRequests->fire_copy(shift);
@@ -462,4 +456,12 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		peer,
 		open,
 		videoIsPaused);
+}
+
+rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {
+	return StatusValue(peer);
+}
+
+PreparedShortInfoUserpic PrepareShortInfoUserpic(not_null<PeerData*> peer) {
+	return UserpicValue(peer);
 }

@@ -19,6 +19,13 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+struct PeerShortInfoUserpic;
+
+struct PreparedShortInfoUserpic {
+	rpl::producer<PeerShortInfoUserpic> value;
+	Fn<void(int)> move;
+};
+
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,
 	Fn<void()> open,
@@ -27,3 +34,9 @@ class SessionNavigation;
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,
 	not_null<Window::SessionNavigation*> navigation);
+
+[[nodiscard]] rpl::producer<QString> PrepareShortInfoStatus(
+	not_null<PeerData*> peer);
+
+[[nodiscard]] PreparedShortInfoUserpic PrepareShortInfoUserpic(
+	not_null<PeerData*> peer);

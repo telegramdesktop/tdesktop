@@ -62,6 +62,7 @@ public:
 		Fn<bool()> videoPaused);
 	~PeerShortInfoCover();
 
+	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 	[[nodiscard]] object_ptr<Ui::RpWidget> takeOwned();
 
 	void setScrollTop(int scrollTop);

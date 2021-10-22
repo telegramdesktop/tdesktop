@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_text.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
+#include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
@@ -93,6 +94,8 @@ PeerShortInfoCover::PeerShortInfoCover(
 , _statusStyle(std::make_unique<CustomLabelStyle>(_st.status))
 , _status(_widget.get(), std::move(status), _statusStyle->st)
 , _videoPaused(std::move(videoPaused)) {
+	_widget->setCursor(_cursor);
+
 	_widget->resize(_st.size, _st.size);
 
 	std::move(
@@ -112,21 +115,23 @@ PeerShortInfoCover::PeerShortInfoCover(
 		paint(p);
 	}, lifetime());
 
-	_widget->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseButtonPress)
-			|| (e->type() == QEvent::MouseButtonDblClick);
-	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	base::install_event_filter(_widget.get(), [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::MouseButtonPress
+			&& e->type() != QEvent::MouseButtonDblClick) {
+			return base::EventFilterResult::Continue;
+		}
 		const auto mouse = static_cast<QMouseEvent*>(e.get());
 		const auto x = mouse->pos().x();
 		if (mouse->button() != Qt::LeftButton) {
-			return;
+			return base::EventFilterResult::Continue;
 		} else if (/*_index > 0 && */x < _st.size / 3) {
 			_moveRequests.fire(-1);
 		} else if (/*_index + 1 < _count && */x >= _st.size / 3) {
 			_moveRequests.fire(1);
 		}
-	}, lifetime());
+		e->accept();
+		return base::EventFilterResult::Cancel;
+	});
 
 	_name->moveToLeft(
 		_st.namePosition.x(),
@@ -147,6 +152,10 @@ PeerShortInfoCover::PeerShortInfoCover(
 }
 
 PeerShortInfoCover::~PeerShortInfoCover() = default;
+
+not_null<Ui::RpWidget*> PeerShortInfoCover::widget() const {
+	return _widget;
+}
 
 object_ptr<Ui::RpWidget> PeerShortInfoCover::takeOwned() {
 	return std::move(_owned);

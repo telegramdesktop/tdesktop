@@ -258,6 +258,8 @@ PRIVATE
     boxes/username_box.h
     calls/group/calls_choose_join_as.cpp
     calls/group/calls_choose_join_as.h
+    calls/group/calls_cover_item.cpp
+    calls/group/calls_cover_item.h
     calls/group/calls_group_call.cpp
     calls/group/calls_group_call.h
     calls/group/calls_group_common.cpp
