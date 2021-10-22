@@ -984,3 +984,8 @@ shortInfoScroll: ScrollArea(defaultScrollArea) {
 	duration: 150;
 	hiding: 1000;
 }
+
+shortInfoRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: radialFg;
+	thickness: 2px;
+}

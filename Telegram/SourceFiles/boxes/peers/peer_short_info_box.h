@@ -63,6 +63,7 @@ public:
 
 private:
 	struct CustomLabelStyle;
+	struct Radial;
 
 	void prepare() override;
 	void prepareRows();
@@ -74,6 +75,7 @@ private:
 	void paintCoverImage(QPainter &p, const QImage &image);
 	void paintBars(QPainter &p);
 	void paintShadow(QPainter &p);
+	void paintRadial(QPainter &p);
 
 	void refreshRoundedTopImage(const QColor &color);
 	int fillRoundedTopHeight();
@@ -131,6 +133,8 @@ private:
 	crl::time _videoDuration = 0;
 	Fn<bool()> _videoPaused;
 	QImage _shadowBottom;
+
+	std::unique_ptr<Radial> _radial;
 
 	rpl::event_stream<> _openRequests;
 	rpl::event_stream<int> _moveRequests;

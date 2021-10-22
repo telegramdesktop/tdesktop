@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/peer_short_info_box.h"
 
+#include "ui/effects/radial_animation.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
@@ -35,6 +36,17 @@ struct PeerShortInfoBox::CustomLabelStyle {
 	style::FlatLabel st;
 	float64 opacity = 1.;
 };
+
+struct PeerShortInfoBox::Radial {
+	explicit Radial(Fn<void()> &&callback);
+
+	Ui::RadialAnimation radial;
+	base::Timer removeTimer;
+};
+
+PeerShortInfoBox::Radial::Radial(Fn<void()> &&callback)
+: radial(callback) {
+}
 
 PeerShortInfoBox::CustomLabelStyle::CustomLabelStyle(
 	const style::FlatLabel &original)
@@ -259,6 +271,7 @@ void PeerShortInfoBox::paintCover(QPainter &p) {
 	paintCoverImage(p, frame.isNull() ? _userpicImage : frame);
 	paintBars(p);
 	paintShadow(p);
+	paintRadial(p);
 	if (_videoInstance && _videoInstance->ready() && !paused) {
 		_videoInstance->markFrameShown();
 	}
@@ -435,6 +448,31 @@ void PeerShortInfoBox::paintShadow(QPainter &p) {
 			_shadowBottom.width(),
 			st::shortInfoShadowHeight * factor));
 	p.setOpacity(1.);
+}
+
+void PeerShortInfoBox::paintRadial(QPainter &p) {
+	const auto radial = radialRect();
+	if (_videoInstance && _videoInstance->waitingShown()) {
+		const auto line = st::shortInfoRadialAnimation.thickness;
+		const auto arc = radial.marginsRemoved(
+			{ line, line, line, line });
+		p.setOpacity(_videoInstance->waitingOpacity());
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::radialBg);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(radial);
+		}
+		p.setOpacity(1.);
+		Ui::InfiniteRadialAnimation::Draw(
+			p,
+			_videoInstance->waitingState(),
+			arc.topLeft(),
+			arc.size(),
+			st::shortInfoWidth,
+			st::radialFg,
+			line);
+	}
 }
 
 QImage PeerShortInfoBox::currentVideoFrame() const {
@@ -631,11 +669,16 @@ void PeerShortInfoBox::refreshBarImages() {
 
 QRect PeerShortInfoBox::radialRect() const {
 	const auto cover = _cover->rect();
-	return cover;
+	const auto size = st::boxLoadingSize;
+	return QRect(
+		cover.x() + (cover.width() - size) / 2,
+		cover.y() + (cover.height() - size) / 2,
+		size,
+		size);
 }
 
 void PeerShortInfoBox::videoWaiting() {
 	if (!anim::Disabled()) {
-		update(radialRect());
+		_cover->update(radialRect());
 	}
 }
