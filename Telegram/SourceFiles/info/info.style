@@ -953,27 +953,8 @@ infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 infoScrollDateHideTimeout: historyScrollDateHideTimeout;
 infoDateFadeDuration: historyDateFadeDuration;
 
-shortInfoName: FlatLabel(defaultFlatLabel) {
-	textFg: groupCallVideoTextFg;
-	maxHeight: 19px;
-	style: TextStyle(defaultTextStyle) {
-		font: font(15px semibold);
-		linkFont: font(15px semibold);
-		linkFontOver: font(15px semibold underline);
-	}
-}
-shortInfoStatus: FlatLabel(defaultFlatLabel) {
-	textFg: groupCallVideoSubTextFg;
-	maxHeight: 18px;
-}
 shortInfoWidth: 304px;
-shortInfoNamePosition: point(25px, 37px);
-shortInfoStatusPosition: point(25px, 14px);
-shortInfoShadowHeight: 80px;
 shortInfoLabeledPadding: margins(20px, 16px, 20px, 0px);
-shortInfoLinePadding: 8px;
-shortInfoLineSkip: 4px;
-shortInfoLine: 2px;
 shortInfoScroll: ScrollArea(defaultScrollArea) {
 	deltat: 3px;
 	deltab: 0px;
@@ -985,7 +966,41 @@ shortInfoScroll: ScrollArea(defaultScrollArea) {
 	hiding: 1000;
 }
 
-shortInfoRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	color: radialFg;
-	thickness: 2px;
+ShortInfoCover {
+	size: pixels;
+	name: FlatLabel;
+	namePosition: point;
+	status: FlatLabel;
+	statusPosition: point;
+	linePadding: pixels;
+	lineSkip: pixels;
+	line: pixels;
+	shadowHeight: pixels;
+	radialAnimation: InfiniteRadialAnimation;
+}
+shortInfoCover: ShortInfoCover {
+	size: shortInfoWidth;
+	name: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallVideoTextFg;
+		maxHeight: 19px;
+		style: TextStyle(defaultTextStyle) {
+			font: font(15px semibold);
+			linkFont: font(15px semibold);
+			linkFontOver: font(15px semibold underline);
+		}
+	}
+	namePosition: point(25px, 37px);
+	status: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallVideoSubTextFg;
+		maxHeight: 18px;
+	}
+	statusPosition: point(25px, 14px);
+	linePadding: 8px;
+	lineSkip: 4px;
+	line: 2px;
+	shadowHeight: 80px;
+	radialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+		color: radialFg;
+		thickness: 2px;
+	}
 }

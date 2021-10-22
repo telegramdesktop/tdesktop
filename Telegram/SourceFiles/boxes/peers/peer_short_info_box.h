@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace style {
+struct ShortInfoCover;
+} // namespace style
+
 namespace Media::Streaming {
 class Document;
 class Instance;
@@ -47,48 +51,39 @@ struct PeerShortInfoUserpic {
 	crl::time videoStartPosition = 0;
 };
 
-class PeerShortInfoBox final : public Ui::BoxContent {
+class PeerShortInfoCover final {
 public:
-	PeerShortInfoBox(
-		QWidget*,
-		PeerShortInfoType type,
-		rpl::producer<PeerShortInfoFields> fields,
+	PeerShortInfoCover(
+		not_null<QWidget*> parent,
+		const style::ShortInfoCover &st,
+		rpl::producer<QString> name,
 		rpl::producer<QString> status,
 		rpl::producer<PeerShortInfoUserpic> userpic,
 		Fn<bool()> videoPaused);
-	~PeerShortInfoBox();
+	~PeerShortInfoCover();
 
-	[[nodiscard]] rpl::producer<> openRequests() const;
+	[[nodiscard]] object_ptr<Ui::RpWidget> takeOwned();
+
+	void setScrollTop(int scrollTop);
+
 	[[nodiscard]] rpl::producer<int> moveRequests() const;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	struct CustomLabelStyle;
 	struct Radial;
 
-	void prepare() override;
-	void prepareRows();
-	RectParts customCornersFilling() override;
-
-	void resizeEvent(QResizeEvent *e) override;
-
-	void paintCover(QPainter &p);
+	void paint(QPainter &p);
 	void paintCoverImage(QPainter &p, const QImage &image);
 	void paintBars(QPainter &p);
 	void paintShadow(QPainter &p);
 	void paintRadial(QPainter &p);
 
-	void refreshRoundedTopImage(const QColor &color);
-	int fillRoundedTopHeight();
-
 	[[nodiscard]] QImage currentVideoFrame() const;
 
-	[[nodiscard]] rpl::producer<QString> nameValue() const;
-	[[nodiscard]] rpl::producer<TextWithEntities> linkValue() const;
-	[[nodiscard]] rpl::producer<QString> phoneValue() const;
-	[[nodiscard]] rpl::producer<QString> usernameValue() const;
-	[[nodiscard]] rpl::producer<TextWithEntities> aboutValue() const;
 	void applyUserpic(PeerShortInfoUserpic &&value);
-	QRect radialRect() const;
+	[[nodiscard]] QRect radialRect() const;
 
 	void videoWaiting();
 	void checkStreamedIsStarted();
@@ -100,16 +95,11 @@ private:
 	void updateRadialState();
 	void refreshCoverCursor();
 	void refreshBarImages();
-	void radialCallback();
 
-	const PeerShortInfoType _type = PeerShortInfoType::User;
+	const style::ShortInfoCover &_st;
 
-	rpl::variable<PeerShortInfoFields> _fields;
-
-	object_ptr<Ui::RpWidget> _topRoundBackground;
-	object_ptr<Ui::ScrollArea> _scroll;
-	not_null<Ui::VerticalLayout*> _rows;
-	not_null<Ui::RpWidget*> _cover;
+	object_ptr<Ui::RpWidget> _owned;
+	const not_null<Ui::RpWidget*> _widget;
 	std::unique_ptr<CustomLabelStyle> _nameStyle;
 	object_ptr<Ui::FlatLabel> _name;
 	std::unique_ptr<CustomLabelStyle> _statusStyle;
@@ -117,11 +107,10 @@ private:
 
 	QImage _userpicImage;
 	QImage _roundedTopImage;
-	QColor _roundedTopColor;
-	QImage _roundedTop;
 	QImage _barSmall;
 	QImage _barLarge;
 	QImage _shadowTop;
+	int _scrollTop = 0;
 	int _smallWidth = 0;
 	int _largeWidth = 0;
 	int _index = 0;
@@ -139,7 +128,52 @@ private:
 	std::unique_ptr<Radial> _radial;
 	float64 _photoLoadingProgress = 0.;
 
-	rpl::event_stream<> _openRequests;
 	rpl::event_stream<int> _moveRequests;
+
+};
+
+class PeerShortInfoBox final : public Ui::BoxContent {
+public:
+	PeerShortInfoBox(
+		QWidget*,
+		PeerShortInfoType type,
+		rpl::producer<PeerShortInfoFields> fields,
+		rpl::producer<QString> status,
+		rpl::producer<PeerShortInfoUserpic> userpic,
+		Fn<bool()> videoPaused);
+	~PeerShortInfoBox();
+
+	[[nodiscard]] rpl::producer<> openRequests() const;
+	[[nodiscard]] rpl::producer<int> moveRequests() const;
+
+private:
+	void prepare() override;
+	void prepareRows();
+	RectParts customCornersFilling() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+	void refreshRoundedTopImage(const QColor &color);
+	int fillRoundedTopHeight();
+
+	[[nodiscard]] rpl::producer<QString> nameValue() const;
+	[[nodiscard]] rpl::producer<TextWithEntities> linkValue() const;
+	[[nodiscard]] rpl::producer<QString> phoneValue() const;
+	[[nodiscard]] rpl::producer<QString> usernameValue() const;
+	[[nodiscard]] rpl::producer<TextWithEntities> aboutValue() const;
+
+	const PeerShortInfoType _type = PeerShortInfoType::User;
+
+	rpl::variable<PeerShortInfoFields> _fields;
+
+	QColor _roundedTopColor;
+	QImage _roundedTop;
+
+	object_ptr<Ui::RpWidget> _topRoundBackground;
+	object_ptr<Ui::ScrollArea> _scroll;
+	not_null<Ui::VerticalLayout*> _rows;
+	PeerShortInfoCover _cover;
+
+	rpl::event_stream<> _openRequests;
 
 };
