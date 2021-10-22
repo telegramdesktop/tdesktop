@@ -563,6 +563,9 @@ groupCallMenuCover: ShortInfoCover(shortInfoCover) {
 }
 groupCallMenuAbout: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMemberNotJoinedStatus;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: groupCallActiveFg;
+	}
 	minWidth: 200px;
 	maxHeight: 92px;
 }

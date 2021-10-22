@@ -52,7 +52,7 @@ public:
 	AboutItem(
 		not_null<RpWidget*> parent,
 		const style::Menu &st,
-		const QString &about);
+		TextWithEntities &&about);
 
 	not_null<QAction*> action() const override;
 	bool isEnabled() const override;

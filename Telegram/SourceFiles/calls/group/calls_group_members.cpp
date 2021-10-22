@@ -1268,7 +1268,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			result->addAction(base::make_unique_q<AboutItem>(
 				result->menu(),
 				st::groupCallPopupCoverMenu,
-				about));
+				Info::Profile::AboutWithEntities(participantPeer, about)));
 		}
 	}
 

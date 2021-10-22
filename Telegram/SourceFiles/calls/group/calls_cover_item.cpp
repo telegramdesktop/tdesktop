@@ -56,12 +56,12 @@ int CoverItem::contentHeight() const {
 AboutItem::AboutItem(
 	not_null<RpWidget*> parent,
 	const style::Menu &st,
-	const QString &about)
+	TextWithEntities &&about)
 : Ui::Menu::ItemBase(parent, st)
 , _st(st)
 , _text(base::make_unique_q<Ui::FlatLabel>(
 	this,
-	about,
+	rpl::single(std::move(about)),
 	st::groupCallMenuAbout))
 , _dummyAction(new QAction(parent)) {
 	setPointerCursor(false);
