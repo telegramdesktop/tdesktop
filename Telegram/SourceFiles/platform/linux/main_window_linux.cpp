@@ -50,13 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusObjectPath>
 #include <QtDBus/QDBusMetaType>
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <statusnotifieritem.h>
 #include <dbusmenuexporter.h>
-#else // Qt < 6.0.0
-class StatusNotifierItem;
-class DBusMenuExporter;
-#endif // Qt >= 6.0.0
 
 #include <glibmm.h>
 #include <giomm.h>
@@ -394,7 +389,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-[[maybe_unused]] bool IsIndicatorApplication() {
+bool IsIndicatorApplication() {
 	// Hack for indicator-application,
 	// which doesn't handle icons sent across D-Bus:
 	// save the icon to a temp file
@@ -422,7 +417,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 	return Result;
 }
 
-[[maybe_unused]] std::unique_ptr<QTemporaryFile> TrayIconFile(
+std::unique_ptr<QTemporaryFile> TrayIconFile(
 		const QIcon &icon,
 		QObject *parent = nullptr) {
 	static const auto templateName = AppRuntimeDirectory()
@@ -651,7 +646,6 @@ private:
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void MainWindow::Private::setSNITrayIcon(int counter, bool muted) {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	const auto iconName = GetTrayIconName(counter, muted);
 	const auto panelIconName = GetPanelIconName(counter, muted);
 
@@ -687,11 +681,9 @@ void MainWindow::Private::setSNITrayIcon(int counter, bool muted) {
 		sniTrayIcon->setIconByPixmap(icon);
 		sniTrayIcon->setToolTipIconByPixmap(icon);
 	}
-#endif // Qt < 6.0.0
 }
 
 void MainWindow::Private::attachToSNITrayIcon() {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	sniTrayIcon->setToolTipTitle(AppName.utf16());
 	connect(sniTrayIcon,
 		&StatusNotifierItem::activateRequested,
@@ -707,7 +699,6 @@ void MainWindow::Private::attachToSNITrayIcon() {
 				_public->handleTrayIconActication(QSystemTrayIcon::MiddleClick);
 			});
 	});
-#endif // Qt < 6.0.0
 }
 
 void MainWindow::Private::handleSNIHostRegistered() {
@@ -796,11 +787,9 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , _private(std::make_unique<Private>(this)) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	qDBusRegisterMetaType<ToolTip>();
 	qDBusRegisterMetaType<IconPixmap>();
 	qDBusRegisterMetaType<IconPixmapList>();
-#endif // Qt < 6.0.0
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
@@ -928,7 +917,6 @@ void MainWindow::psSetupTrayIcon() {
 	const auto muted = Core::App().unreadBadgeMuted();
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	if (_sniAvailable) {
 		LOG(("Using SNI tray icon."));
 		if (!_private->sniTrayIcon) {
@@ -947,7 +935,6 @@ void MainWindow::psSetupTrayIcon() {
 
 		return;
 	}
-#endif // Qt < 6.0.0
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	LOG(("Using Qt tray icon."));
@@ -970,13 +957,11 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 		return;
 	} else if (mode == WorkMode::WindowOnly) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 		if (_private->sniTrayIcon) {
 			_private->sniTrayIcon->setContextMenu(0);
 			_private->sniTrayIcon->deleteLater();
 		}
 		_private->sniTrayIcon = nullptr;
-#endif // Qt < 6.0.0
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 		if (trayIcon) {
@@ -1239,11 +1224,9 @@ void MainWindow::createGlobalMenu() {
 	about->setMenuRole(QAction::AboutQtRole);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	_private->mainMenuExporter = new DBusMenuExporter(
 		kMainMenuObjectPath.utf16(),
 		psMainMenu);
-#endif // Qt < 6.0.0
 
 	if (_private->appMenuSupported) {
 		RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());

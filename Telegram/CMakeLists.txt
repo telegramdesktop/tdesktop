@@ -1289,16 +1289,10 @@ elseif (APPLE)
     endif()
 else()
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
-        if (NOT DESKTOP_APP_QT6)
-            target_link_libraries(Telegram
-            PRIVATE
-                desktop-app::external_statusnotifieritem
-                desktop-app::external_dbusmenu_qt
-            )
-        endif()
-
         target_link_libraries(Telegram
         PRIVATE
+            desktop-app::external_statusnotifieritem
+            desktop-app::external_dbusmenu_qt
             desktop-app::external_glibmm
             desktop-app::external_glib
         )
