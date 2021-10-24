@@ -164,18 +164,18 @@ public:
 
 	void registerGroupCall(not_null<GroupCall*> call);
 	void unregisterGroupCall(not_null<GroupCall*> call);
-	GroupCall *groupCall(uint64 callId) const;
+	GroupCall *groupCall(CallId callId) const;
 
-	[[nodiscard]] auto invitedToCallUsers(uint64 callId) const
+	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
 		-> const base::flat_set<not_null<UserData*>> &;
 	void registerInvitedToCallUser(
-		uint64 callId,
+		CallId callId,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user);
-	void unregisterInvitedToCallUser(uint64 callId, not_null<UserData*> user);
+	void unregisterInvitedToCallUser(CallId callId, not_null<UserData*> user);
 
 	struct InviteToCall {
-		uint64 id = 0;
+		CallId id = 0;
 		not_null<UserData*> user;
 	};
 	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {

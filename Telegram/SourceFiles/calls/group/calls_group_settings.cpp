@@ -64,7 +64,7 @@ constexpr auto kCheckAccessibilityInterval = crl::time(500);
 
 void SaveCallJoinMuted(
 		not_null<PeerData*> peer,
-		uint64 callId,
+		CallId callId,
 		bool joinMuted) {
 	const auto call = peer->groupCall();
 	if (!call

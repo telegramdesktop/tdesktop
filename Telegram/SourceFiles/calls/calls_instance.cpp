@@ -535,7 +535,7 @@ void Instance::handleGroupCallUpdate(
 		return data.vcall().match([&](const MTPDinputGroupCall &data) {
 			return data.vid().v;
 		});
-	}, [](const auto &) -> uint64 {
+	}, [](const auto &) -> CallId {
 		Unexpected("Type in Instance::handleGroupCallUpdate.");
 	});
 	if (const auto existing = session->data().groupCall(callId)) {

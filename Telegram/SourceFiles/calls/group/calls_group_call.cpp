@@ -62,7 +62,7 @@ constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
 
 [[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
 		not_null<PeerData*> peer,
-		uint64 id,
+		CallId id,
 		not_null<PeerData*> participantPeer) {
 	const auto call = peer->groupCall();
 	return (id && call && call->id() == id)

@@ -871,12 +871,12 @@ void Session::unregisterGroupCall(not_null<GroupCall*> call) {
 	_groupCalls.remove(call->id());
 }
 
-GroupCall *Session::groupCall(uint64 callId) const {
+GroupCall *Session::groupCall(CallId callId) const {
 	const auto i = _groupCalls.find(callId);
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
-auto Session::invitedToCallUsers(uint64 callId) const
+auto Session::invitedToCallUsers(CallId callId) const
 -> const base::flat_set<not_null<UserData*>> & {
 	static const base::flat_set<not_null<UserData*>> kEmpty;
 	const auto i = _invitedToCallUsers.find(callId);
@@ -884,7 +884,7 @@ auto Session::invitedToCallUsers(uint64 callId) const
 }
 
 void Session::registerInvitedToCallUser(
-		uint64 callId,
+		CallId callId,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user) {
 	const auto call = peer->groupCall();
@@ -902,7 +902,7 @@ void Session::registerInvitedToCallUser(
 }
 
 void Session::unregisterInvitedToCallUser(
-		uint64 callId,
+		CallId callId,
 		not_null<UserData*> user) {
 	const auto i = _invitedToCallUsers.find(callId);
 	if (i != _invitedToCallUsers.end()) {

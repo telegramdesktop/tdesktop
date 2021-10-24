@@ -53,12 +53,12 @@ class GroupCall final {
 public:
 	GroupCall(
 		not_null<PeerData*> peer,
-		uint64 id,
-		uint64 accessHash,
+		CallId id,
+		CallId accessHash,
 		TimeId scheduleDate);
 	~GroupCall();
 
-	[[nodiscard]] uint64 id() const;
+	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
@@ -194,8 +194,8 @@ private:
 	void finishParticipantsSliceRequest();
 	[[nodiscard]] Participant *findParticipant(not_null<PeerData*> peer);
 
-	const uint64 _id = 0;
-	const uint64 _accessHash = 0;
+	const CallId _id = 0;
+	const CallId _accessHash = 0;
 
 	not_null<PeerData*> _peer;
 	int _version = 0;

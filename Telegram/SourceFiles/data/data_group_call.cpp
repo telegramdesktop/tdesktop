@@ -53,8 +53,8 @@ bool GroupCallParticipant::screenPaused() const {
 
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
-	uint64 id,
-	uint64 accessHash,
+	CallId id,
+	CallId accessHash,
 	TimeId scheduleDate)
 : _id(id)
 , _accessHash(accessHash)
@@ -70,7 +70,7 @@ GroupCall::~GroupCall() {
 	api().request(_reloadRequestId).cancel();
 }
 
-uint64 GroupCall::id() const {
+CallId GroupCall::id() const {
 	return _id;
 }
 

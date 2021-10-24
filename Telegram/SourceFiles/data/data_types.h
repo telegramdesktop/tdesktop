@@ -127,6 +127,7 @@ using WebPageId = uint64;
 using GameId = uint64;
 using PollId = uint64;
 using WallPaperId = uint64;
+using CallId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 struct PreparedPhotoThumb {
