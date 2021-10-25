@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_settings.h"
+#include "base/platform/base_platform_info.h"
 
 namespace Settings {
 
@@ -249,7 +250,11 @@ void SetupInterfaceScale(
 	};
 
 	const auto label = [](int scale) {
-		return QString::number(scale) + '%';
+		if constexpr (Platform::IsMac()) {
+			return QString::number(scale) + '%';
+		} else {
+			return QString::number(scale * cIntRetinaFactor()) + '%';
+		}
 	};
 	const auto scaleByIndex = [](int index) {
 		return *(ScaleValues.begin() + index);
