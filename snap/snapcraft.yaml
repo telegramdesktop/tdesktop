@@ -126,6 +126,7 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
+      - -DDESKTOP_APP_QT6=ON
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
@@ -150,7 +151,7 @@ parts:
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
-      - desktop-qt5
+      - desktop-qt
       - extra-cmake-modules
       - ffmpeg
       - kwayland
@@ -167,7 +168,7 @@ parts:
       "*": patches/
     prime: [-./*]
 
-  desktop-qt5:
+  desktop-qt:
     source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
     source-subdir: qt
     plugin: make
@@ -190,12 +191,12 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
-      - qt5
+      - qt
 
   extra-cmake-modules:
     source: https://github.com/KDE/extra-cmake-modules.git
     source-depth: 1
-    source-tag: v5.77.0
+    source-tag: v5.87.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -225,7 +226,7 @@ parts:
   kwayland:
     source: https://github.com/KDE/kwayland.git
     source-depth: 1
-    source-tag: v5.77.0
+    source-tag: v5.87.0
     plugin: cmake
     build-packages:
       - libwayland-dev
@@ -237,6 +238,9 @@ parts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DBUILD_TESTING=OFF
+    override-pull: |
+      snapcraftctl pull
+      patch -p1 < $SNAPCRAFT_STAGE/patches/kwayland-qt6.patch
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libexec
@@ -246,7 +250,8 @@ parts:
       - -./usr/share
     after:
       - extra-cmake-modules
-      - desktop-qt5
+      - desktop-qt
+      - patches
       - plasma-wayland-protocols
 
   mozjpeg:
@@ -294,7 +299,7 @@ parts:
   plasma-wayland-protocols:
     source: https://github.com/KDE/plasma-wayland-protocols.git
     source-depth: 1
-    source-tag: v1.1.1
+    source-tag: v1.4.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -303,7 +308,7 @@ parts:
     after:
       - extra-cmake-modules
 
-  qt5:
+  qt:
     plugin: nil
     build-packages:
       - libdbus-1-dev
@@ -334,7 +339,6 @@ parts:
       - libxcb-sync-dev
       - libxcb-util-dev
       - libxcb-xfixes0-dev
-      - libxcb-xinerama0-dev
       - libxcb-xinput-dev
       - libxcb-xkb-dev
       - libxcursor-dev
@@ -372,7 +376,6 @@ parts:
       - libxcb-sync1
       - libxcb-util1
       - libxcb-xfixes0
-      - libxcb-xinerama0
       - libxcb-xinput0
       - libxcb-xkb1
       - libxcursor1
@@ -380,64 +383,48 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=5_15_2
+      QT=6_2_0
 
-      git clone -b v5.15.2 --depth=1 git://code.qt.io/qt/qt5.git .
-      perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
-      git submodule update qtbase qtwayland qtimageformats qtsvg
+      git clone -b v6.2.0 --depth=1 git://code.qt.io/qt/qt5.git .
+      perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qt5compat
+      find $SNAPCRAFT_STAGE/patches/qt5compat_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
         -prefix /usr \
-        -bindir /usr/lib/qt5/bin \
         -libdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET \
-        -docdir /usr/share/qt5/doc \
-        -headerdir /usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -datadir /usr/share/qt5 \
-        -archdatadir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -plugindir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins \
-        -importdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/imports \
-        -translationdir /usr/share/qt5/translations \
-        -hostdatadir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -sysconfdir /etc/xdg \
-        -examplesdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples \
         -release \
         -opensource \
         -confirm-license \
-        -no-feature-xcb-sm \
-        -no-feature-xcomposite-egl \
-        -no-feature-xcomposite-glx \
-        -no-feature-wayland-server \
         -openssl-linked \
         -nomake examples \
-        -nomake tests \
-        -I $SNAPCRAFT_STAGE/usr/include \
-        -L $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
+        -nomake tests
 
-      make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
-      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
+      cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
+      DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     prime:
+      - -./usr/bin
+      - -./usr/doc
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
-      # Allow tdesktop's custom try-portal-and-fallback logic to work
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes/libqxdgdesktopportal.so
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/metatypes
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.prl
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/lib/qt5
-      - -./usr/share
+      - -./usr/libexec
+      - -./usr/mkspecs
+      - -./usr/modules
+      # Allow tdesktop's custom try-portal-and-fallback logic to work
+      - -./usr/plugins/platformthemes/libqxdgdesktopportal.so
     after:
       - mozjpeg
       - patches
