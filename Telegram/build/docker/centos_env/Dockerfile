@@ -1,6 +1,8 @@
+# Default value of the arg should be specified here
+ARG QT6
+
 FROM centos:7 AS builder
 
-ARG QT6
 ENV GIT https://github.com
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 ENV QT5_VER 5_15_2
@@ -43,11 +45,11 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout a467abdeb9
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout a4d0cc1d72
 
 FROM builder AS extra-cmake-modules
 
-RUN git clone -b v5.77.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
+RUN git clone -b v5.87.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
 
 WORKDIR extra-cmake-modules
 RUN cmake -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
@@ -332,7 +334,7 @@ RUN rm -rf libxcomposite
 FROM builder AS wayland
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 
-RUN git clone -b 1.18.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
+RUN git clone -b 1.19.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
 
 WORKDIR wayland
 RUN ./autogen.sh \
@@ -349,7 +351,7 @@ RUN rm -rf wayland
 FROM builder AS wayland-protocols
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 1.20 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+RUN git clone -b 1.23 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
 
 WORKDIR wayland-protocols
 RUN ./autogen.sh
@@ -362,7 +364,7 @@ RUN rm -rf wayland-protocols
 FROM builder AS plasma-wayland-protocols
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 
-RUN git clone -b v1.1.1 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
+RUN git clone -b v1.4.0 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
 
 WORKDIR plasma-wayland-protocols
 RUN cmake -B build . -DCMAKE_BUILD_TYPE=Release
@@ -671,6 +673,7 @@ WORKDIR ..
 RUN rm -rf glibmm
 
 FROM patches AS qt
+ARG QT6
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=zlib ${LibrariesPath}/zlib-cache /
@@ -761,7 +764,8 @@ RUN [ -z "${QT6}" ] || DESTDIR="$LibrariesPath/qt-cache" cmake --install .
 WORKDIR ..
 RUN [ -z "${QT6}" ] || rm -rf qt_${QT6_VER}
 
-FROM builder AS kwayland
+FROM patches AS kwayland
+ARG QT6
 
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
@@ -781,16 +785,16 @@ COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 COPY --from=qt ${LibrariesPath}/qt-cache /
 
-RUN [ -n "${QT6}" ] || git clone -b v5.77.0 --depth=1 $GIT/KDE/kwayland.git
+RUN git clone -b v5.87.0 --depth=1 $GIT/KDE/kwayland.git
 
 WORKDIR kwayland
-RUN [ -n "${QT6}" ] || cmake -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
-RUN [ -n "${QT6}" ] || cmake --build build --target KF5WaylandClient -j$(nproc)
-RUN [ -n "${QT6}" ] || DESTDIR="$LibrariesPath/kwayland-cache" cmake --install build/src/client
-RUN [ -z "${QT6}" ] || mkdir "$LibrariesPath/kwayland-cache"
+RUN [ -z "${QT6}" ] || git apply ../patches/kwayland-qt6.patch
+RUN cmake -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
+RUN cmake --build build --target KF5WaylandClient -j$(nproc)
+RUN DESTDIR="$LibrariesPath/kwayland-cache" cmake --install build/src/client
 
 WORKDIR ..
-RUN [ -n "${QT6}" ] || rm -rf kwayland
+RUN rm -rf kwayland
 
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git
