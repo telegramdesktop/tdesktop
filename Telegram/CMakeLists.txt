@@ -1197,7 +1197,7 @@ else()
     )
 endif()
 
-if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION OR DESKTOP_APP_QT6)
+if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_wayland_integration.cpp
     )
@@ -1309,14 +1309,8 @@ else()
         target_link_libraries(Telegram
         PRIVATE
             desktop-app::lib_waylandshells
+            desktop-app::external_kwayland
         )
-
-        if (NOT DESKTOP_APP_QT6)
-            target_link_libraries(Telegram
-            PRIVATE
-                desktop-app::external_kwayland
-            )
-        endif()
     endif()
 endif()
 
