@@ -403,7 +403,7 @@ win:
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
-    python3 -m pip install git+https://github.com/nodejs/gyp-next@v0.10.0
+    python3 -m pip install git+https://github.com/desktop-app/gyp-next@v0.10.1
     mkdir gyp
 """, 'ThirdParty')
 
@@ -750,7 +750,7 @@ release:
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
     cd ../../../build
-    ./gyp_breakpad
+    python3 gyp_breakpad
     cd ../processor
     xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
