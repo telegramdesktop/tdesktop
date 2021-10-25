@@ -172,6 +172,8 @@ Call::Call(
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
 	} else {
+		const auto &config = _user->session().serverConfig();
+		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
 		startWaitingTrack();
 	}
 	setupOutgoingVideo();
@@ -967,6 +969,7 @@ void Call::setState(State state) {
 			break;
 		case State::Busy:
 			_delegate->callPlaySound(Delegate::CallSound::Busy);
+			_discardByTimeoutTimer.cancel();
 			break;
 		}
 	}
