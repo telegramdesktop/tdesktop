@@ -455,7 +455,7 @@ QString CloudThemes::prepareTestingLink(const CloudTheme &theme) const {
 	};
 	auto arguments = QStringList();
 	for (const auto &[type, settings] : theme.settings) {
-		const auto add = [&](const QString &value) {
+		const auto add = [&, type = type](const QString &value) {
 			const auto prefix = (type == CloudTheme::Type::Dark)
 				? u"dark_"_q
 				: u""_q;
