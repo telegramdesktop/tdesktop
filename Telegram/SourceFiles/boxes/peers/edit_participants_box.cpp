@@ -1435,10 +1435,13 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		showRestricted(user);
 	} else {
 		Assert(_navigation != nullptr);
-		AssertIsDebug();
-		_navigation->parentController()->show(PrepareShortInfoBox(
-			participant,
-			_navigation));
+		if (_role != Role::Profile) {
+			_navigation->parentController()->show(PrepareShortInfoBox(
+				participant,
+				_navigation));
+		} else {
+			_navigation->showPeerInfo(participant);
+		}
 	}
 }
 
