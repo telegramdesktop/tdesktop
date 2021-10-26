@@ -219,10 +219,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       Error "$BinaryName.app not found!"
     fi
 
-    if [ ! -d "$ReleasePath/$BinaryName.app.dSYM" ]; then
-      Error "$BinaryName.app.dSYM not found!"
-    fi
-
     if [ "$BuildTarget" == "mac" ]; then
       if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
         Error "Updater not found!"
@@ -237,8 +233,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       fi
     fi
 
-    echo "Dumping debug symbols.."
-    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
+    echo "Dumping debug symbols x86_64.."
+    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "x86_64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.x86_64.sym" 2>/dev/null
+    echo "Done!"
+
+    echo "Dumping debug symbols arm64.."
+    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "arm64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.arm64.sym" 2>/dev/null
     echo "Done!"
 
     echo "Stripping the executable.."
@@ -254,12 +254,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       productbuild --sign "3rd Party Mac Developer Installer: Telegram FZ-LLC (C67CF9S4VU)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
     fi
     echo "Done!"
-
-    AppUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" | awk -F " " '{print $2}'`
-    DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
-    if [ "$AppUUID" != "$DsymUUID" ]; then
-      Error "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
-    fi
 
     if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns" ]; then
       Error "Icon.icns not found in Resources!"
@@ -283,10 +277,16 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       fi
     fi
 
-    SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
-    echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-    cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+    SymbolsHashAMD64=`head -n 1 "$ReleasePath/$BinaryName.x86_64.sym" | awk -F " " 'END {print $4}'`
+    echo "Copying $BinaryName.x86_64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
+    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
+    cp "$ReleasePath/$BinaryName.x86_64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64/$BinaryName.sym"
+    echo "Done!"
+
+    SymbolsHashARM64=`head -n 1 "$ReleasePath/$BinaryName.arm64.sym" | awk -F " " 'END {print $4}'`
+    echo "Copying $BinaryName.arm64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
+    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
+    cp "$ReleasePath/$BinaryName.arm64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64/$BinaryName.sym"
     echo "Done!"
   fi
 
