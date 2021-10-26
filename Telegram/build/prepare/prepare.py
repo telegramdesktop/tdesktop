@@ -625,15 +625,14 @@ depends:patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
-    CFLAGS=`freetype-config --cflags`
-    LDFLAGS=`freetype-config --libs`
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
-
 depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
-    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
-    --extra-ldflags="$MIN_VER" \
+    --enable-cross-compile \
+    --target-os=darwin \
+    --arch="arm64" \
+    --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
     --enable-protocol=file \
     --enable-libopus \
     --disable-programs \
@@ -732,6 +731,125 @@ depends:yasm/yasm
     --enable-muxer=opus
 
     make $MAKE_THREADS_CNT
+
+    mkdir out.arm64
+    mv libavformat/libavformat.a out.arm64
+    mv libavcodec/libavcodec.a out.arm64
+    mv libswresample/libswresample.a out.arm64
+    mv libswscale/libswscale.a out.arm64
+    mv libavutil/libavutil.a out.arm64
+
+    make clean
+
+    ./configure --prefix=$USED_PREFIX \
+    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER $USED_PREFIX/lib/libopus.a" \
+    --enable-protocol=file \
+    --enable-libopus \
+    --disable-programs \
+    --disable-doc \
+    --disable-network \
+    --disable-everything \
+    --enable-hwaccel=h264_videotoolbox \
+    --enable-hwaccel=hevc_videotoolbox \
+    --enable-hwaccel=mpeg1_videotoolbox \
+    --enable-hwaccel=mpeg2_videotoolbox \
+    --enable-hwaccel=mpeg4_videotoolbox \
+    --enable-decoder=aac \
+    --enable-decoder=aac_at \
+    --enable-decoder=aac_fixed \
+    --enable-decoder=aac_latm \
+    --enable-decoder=aasc \
+    --enable-decoder=alac \
+    --enable-decoder=alac_at \
+    --enable-decoder=flac \
+    --enable-decoder=gif \
+    --enable-decoder=h264 \
+    --enable-decoder=hevc \
+    --enable-decoder=mp1 \
+    --enable-decoder=mp1float \
+    --enable-decoder=mp2 \
+    --enable-decoder=mp2float \
+    --enable-decoder=mp3 \
+    --enable-decoder=mp3adu \
+    --enable-decoder=mp3adufloat \
+    --enable-decoder=mp3float \
+    --enable-decoder=mp3on4 \
+    --enable-decoder=mp3on4float \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=msmpeg4v2 \
+    --enable-decoder=msmpeg4v3 \
+    --enable-decoder=opus \
+    --enable-decoder=pcm_alaw \
+    --enable-decoder=pcm_alaw_at \
+    --enable-decoder=pcm_f32be \
+    --enable-decoder=pcm_f32le \
+    --enable-decoder=pcm_f64be \
+    --enable-decoder=pcm_f64le \
+    --enable-decoder=pcm_lxf \
+    --enable-decoder=pcm_mulaw \
+    --enable-decoder=pcm_mulaw_at \
+    --enable-decoder=pcm_s16be \
+    --enable-decoder=pcm_s16be_planar \
+    --enable-decoder=pcm_s16le \
+    --enable-decoder=pcm_s16le_planar \
+    --enable-decoder=pcm_s24be \
+    --enable-decoder=pcm_s24daud \
+    --enable-decoder=pcm_s24le \
+    --enable-decoder=pcm_s24le_planar \
+    --enable-decoder=pcm_s32be \
+    --enable-decoder=pcm_s32le \
+    --enable-decoder=pcm_s32le_planar \
+    --enable-decoder=pcm_s64be \
+    --enable-decoder=pcm_s64le \
+    --enable-decoder=pcm_s8 \
+    --enable-decoder=pcm_s8_planar \
+    --enable-decoder=pcm_u16be \
+    --enable-decoder=pcm_u16le \
+    --enable-decoder=pcm_u24be \
+    --enable-decoder=pcm_u24le \
+    --enable-decoder=pcm_u32be \
+    --enable-decoder=pcm_u32le \
+    --enable-decoder=pcm_u8 \
+    --enable-decoder=vorbis \
+    --enable-decoder=wavpack \
+    --enable-decoder=wmalossless \
+    --enable-decoder=wmapro \
+    --enable-decoder=wmav1 \
+    --enable-decoder=wmav2 \
+    --enable-decoder=wmavoice \
+    --enable-encoder=libopus \
+    --enable-parser=aac \
+    --enable-parser=aac_latm \
+    --enable-parser=flac \
+    --enable-parser=h264 \
+    --enable-parser=hevc \
+    --enable-parser=mpeg4video \
+    --enable-parser=mpegaudio \
+    --enable-parser=opus \
+    --enable-parser=vorbis \
+    --enable-demuxer=aac \
+    --enable-demuxer=flac \
+    --enable-demuxer=gif \
+    --enable-demuxer=h264 \
+    --enable-demuxer=hevc \
+    --enable-demuxer=m4v \
+    --enable-demuxer=mov \
+    --enable-demuxer=mp3 \
+    --enable-demuxer=ogg \
+    --enable-demuxer=wav \
+    --enable-muxer=ogg \
+    --enable-muxer=opus
+
+    make $MAKE_THREADS_CNT
+
+    lipo -create out.arm64/libavformat.a libavformat/libavformat.a -output libavformat/libavformat.a
+    lipo -create out.arm64/libavcodec.a libavcodec/libavcodec.a -output libavcodec/libavcodec.a
+    lipo -create out.arm64/libswresample.a libswresample/libswresample.a -output libswresample/libswresample.a
+    lipo -create out.arm64/libswscale.a libswscale/libswscale.a -output libswscale/libswscale.a
+    lipo -create out.arm64/libavutil.a libavutil/libavutil.a -output libavutil/libavutil.a
+
     make install
 """)
 
