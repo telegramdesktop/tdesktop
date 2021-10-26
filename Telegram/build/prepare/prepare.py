@@ -387,7 +387,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 856edb916f
+    git checkout b7366a6c66
 """)
 
 stage('depot_tools', """
@@ -1178,7 +1178,6 @@ common:
     mkdir Debug
     lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
 release:
-    cd ..
     mkdir Release.x86_64
     cd Release.x86_64
     cmake -G Ninja \
