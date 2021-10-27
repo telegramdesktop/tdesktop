@@ -1970,10 +1970,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updatePendingJoinRequests();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
 			const auto count = d.vrequests_pending().v;
+			const auto &requesters = d.vrecent_requesters().v;
 			if (const auto chat = peer->asChat()) {
-				chat->setPendingRequestsCount(count);
+				chat->setPendingRequestsCount(count, requesters);
 			} else if (const auto channel = peer->asChannel()) {
-				channel->setPendingRequestsCount(count);
+				channel->setPendingRequestsCount(count, requesters);
 			}
 		}
 	} break;

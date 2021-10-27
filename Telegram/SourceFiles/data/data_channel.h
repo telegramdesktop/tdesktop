@@ -180,7 +180,15 @@ public:
 	[[nodiscard]] int pendingRequestsCount() const {
 		return _pendingRequestsCount;
 	}
-	void setPendingRequestsCount(int count);
+	[[nodiscard]] const std::vector<UserId> &recentRequesters() const {
+		return _recentRequesters;
+	}
+	void setPendingRequestsCount(
+		int count,
+		const QVector<MTPlong> &recentRequesters);
+	void setPendingRequestsCount(
+		int count,
+		std::vector<UserId> recentRequesters);
 
 	[[nodiscard]] bool haveLeft() const {
 		return flags() & Flag::Left;
@@ -433,6 +441,7 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	int _pendingRequestsCount = 0;
+	std::vector<UserId> _recentRequesters;
 	MsgId _availableMinId = 0;
 
 	RestrictionFlags _defaultRestrictions;

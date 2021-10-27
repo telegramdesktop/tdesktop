@@ -195,9 +195,23 @@ void ChannelData::setKickedCount(int newKickedCount) {
 	}
 }
 
-void ChannelData::setPendingRequestsCount(int count) {
-	if (_pendingRequestsCount != count) {
+void ChannelData::setPendingRequestsCount(
+		int count,
+		const QVector<MTPlong> &recentRequesters) {
+	setPendingRequestsCount(count, ranges::views::all(
+		recentRequesters
+	) | ranges::views::transform([&](const MTPlong &value) {
+		return UserId(value);
+	}) | ranges::to_vector);
+}
+
+void ChannelData::setPendingRequestsCount(
+		int count,
+		std::vector<UserId> recentRequesters) {
+	if (_pendingRequestsCount != count
+		|| _recentRequesters != recentRequesters) {
 		_pendingRequestsCount = count;
+		_recentRequesters = std::move(recentRequesters);
 		session().changes().peerUpdated(this, UpdateFlag::PendingRequests);
 	}
 }
@@ -550,7 +564,7 @@ void ChannelData::setAdminRights(ChatAdminRights rights) {
 	}
 	_adminRights.set(rights);
 	if (!canHaveInviteLink()) {
-		setPendingRequestsCount(0);
+		setPendingRequestsCount(0, std::vector<UserId>{});
 	}
 	if (isMegagroup()) {
 		const auto self = session().user();
@@ -885,7 +899,8 @@ void ApplyChannelUpdate(
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->fullUpdated();
 	channel->setPendingRequestsCount(
-		update.vrequests_pending().value_or_empty());
+		update.vrequests_pending().value_or_empty(),
+		update.vrecent_requesters().value_or_empty());
 
 	if (canViewAdmins != channel->canViewAdmins()
 		|| canViewMembers != channel->canViewMembers()) {
