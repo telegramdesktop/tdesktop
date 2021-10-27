@@ -922,7 +922,7 @@ stage('crashpad', """
 mac:
     git clone https://github.com/desktop-app/crashpad.git
     cd crashpad
-    git checkout a2d421ed8d
+    git checkout c1b7afa2fd
     git submodule init
     git submodule update third_party/mini_chromium
     ZLIB_PATH=$USED_PREFIX/include
@@ -952,9 +952,7 @@ common:
     cd ..
     mkdir Debug
     lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
-    lipo -create Debug.arm64/libmini_chromium_base.a Debug.x86_64/libmini_chromium_base.a -output Debug/libmini_chromium_base.a
     lipo -create Debug.arm64/libcrashpad_client.a Debug.x86_64/libcrashpad_client.a -output Debug/libcrashpad_client.a
-    lipo -create Debug.arm64/libcrashpad_util.a Debug.x86_64/libcrashpad_util.a -output Debug/libcrashpad_util.a
 release:
     mkdir Release.x86_64
     cd Release.x86_64
@@ -978,9 +976,7 @@ release:
     cd ..
     mkdir Release
     lipo -create Release.arm64/crashpad_handler Release.x86_64/crashpad_handler -output Release/crashpad_handler
-    lipo -create Release.arm64/libmini_chromium_base.a Release.x86_64/libmini_chromium_base.a -output Release/libmini_chromium_base.a
     lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
-    lipo -create Release.arm64/libcrashpad_util.a Release.x86_64/libcrashpad_util.a -output Release/libcrashpad_util.a
 """)
 
 stage('tg_angle', """
