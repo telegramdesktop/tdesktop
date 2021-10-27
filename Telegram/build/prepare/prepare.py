@@ -39,6 +39,7 @@ processedArgs = []
 skipReleaseBuilds = False
 buildQt5 = True
 buildQt6 = False
+buildMinidumpStackwalk = False
 for arg in sys.argv[1:]:
     if arg == 'skip-release':
         processedArgs.append(arg)
@@ -49,6 +50,9 @@ for arg in sys.argv[1:]:
     elif arg == 'skip-qt5':
         processedArgs.append(arg)
         buildQt5 = False
+    elif arg == 'minidump_stackwalk':
+        processedArgs.append(arg)
+        buildMinidumpStackwalk = True
 
 if not os.path.isdir(libsDir + '/' + keysLoc):
     pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
@@ -387,7 +391,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 52a8799806
+    git checkout 5485c56e93
 """)
 
 stage('depot_tools', """
@@ -395,7 +399,8 @@ mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 """, 'ThirdParty')
 
-stage('gyp', """
+if not mac or buildMinidumpStackwalk:
+    stage('gyp', """
 win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -555,11 +560,6 @@ mac:
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
 """)
-
-    # ./autogen.sh
-    # CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=$USED_PREFIX
-    # make $MAKE_THREADS_CNT
-    # make install
 
 stage('rnnoise', """
     git clone https://github.com/desktop-app/rnnoise.git
@@ -878,6 +878,24 @@ mac:
     make install
 """)
 
+if buildMinidumpStackwalk:
+    stage('stackwalk', """
+mac:
+    git clone https://chromium.googlesource.com/breakpad/breakpad stackwalk
+    cd stackwalk
+    git checkout dfcb7b6799
+depends:patches/breakpad.diff
+    git apply ../patches/breakpad.diff
+    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
+    git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
+    cd src/third_party/lss
+    git checkout e1e7b0ad8e
+    cd ../../build
+    python3 gyp_breakpad
+    cd ../processor
+    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
+""")
+
 stage('breakpad', """
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
@@ -912,10 +930,6 @@ release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
-    cd ../../../build
-    python3 gyp_breakpad
-    cd ../processor
-    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
 
 stage('crashpad', """
