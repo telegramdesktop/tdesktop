@@ -50,7 +50,8 @@ if (WIN32)
     nuget_add_winrt(Telegram)
 endif()
 
-set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
+set_target_properties(Telegram PROPERTIES AUTOMOC ON)
+target_prepare_qrc(Telegram)
 
 target_link_libraries(Telegram
 PRIVATE
@@ -1249,8 +1250,7 @@ elseif (APPLE)
     endif()
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
-    set_target_properties(Telegram PROPERTIES RESOURCE ${icons_path})
-    target_sources(Telegram PRIVATE ${icons_path})
+    target_add_resource(Telegram ${icons_path})
 
     set(lang_packs
         en
@@ -1276,6 +1276,8 @@ elseif (APPLE)
         PRE_LINK
             COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
             COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Resources
+            COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
         )
         if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
             add_custom_command(TARGET Telegram
