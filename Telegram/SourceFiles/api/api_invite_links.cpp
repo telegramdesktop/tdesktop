@@ -113,7 +113,8 @@ void InviteLinks::performCreate(
 			| (requestApproval ? Flag::f_request_needed : Flag(0))),
 		peer->input,
 		MTP_int(expireDate),
-		MTP_int(usageLimit)
+		MTP_int(usageLimit),
+		MTPstring() // title
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);
@@ -263,7 +264,8 @@ void InviteLinks::performEdit(
 		MTP_string(link),
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
-		MTP_bool(requestApproval)
+		MTP_bool(requestApproval),
+		MTPstring() // title
 	)).done([=](const MTPmessages_ExportedChatInvite &result) {
 		const auto callbacks = _editCallbacks.take(key);
 		const auto peer = key.peer;
