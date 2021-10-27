@@ -387,7 +387,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 5bdd3210dd
+    git checkout 52a8799806
 """)
 
 stage('depot_tools', """
@@ -881,10 +881,10 @@ mac:
 stage('breakpad', """
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
-    git checkout bc8fb886
+    git checkout dfcb7b6799
 depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
-    git clone https://github.com/google/googletest src/testing
+    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
 win:
     if "%X8664%" equ "x64" (
         set "FolderPostfix=_x64"
@@ -904,7 +904,7 @@ release:
 mac:
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
-    git checkout a91633d1
+    git checkout e1e7b0ad8e
     cd ../../..
     cd src/client/mac
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
