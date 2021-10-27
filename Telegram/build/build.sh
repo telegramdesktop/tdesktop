@@ -208,7 +208,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     fi
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
-    ./configure.sh
+    ./configure.sh -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
 
     cd $ProjectPath
     cmake --build . --config Release --target Telegram
