@@ -377,7 +377,6 @@ void RequestsBoxController::processRequest(
 		}
 		static_cast<RequestsBoxSearchController*>(
 			searchController())->removeFromCache(user);
-		pushRecentRequests();
 	};
 	const auto done = crl::guard(this, [=] {
 		remove();
@@ -401,24 +400,6 @@ void RequestsBoxController::processRequest(
 		approved,
 		done,
 		fail);
-}
-
-void RequestsBoxController::pushRecentRequests() {
-	const auto count = std::min(
-		delegate()->peerListFullRowsCount(),
-		HistoryView::kRecentRequestsLimit);
-	if (!count) {
-		return;
-	}
-	auto requests = std::vector<not_null<UserData*>>();
-	requests.reserve(count);
-	for (auto i = 0; i != count; ++i) {
-		requests.push_back(delegate()->peerListRowAt(i)->peer()->asUser());
-	}
-	session().api().inviteLinks().pushRecentRequests({
-		.peer = _peer,
-		.users = std::move(requests),
-	});
 }
 
 void RequestsBoxController::appendRow(

@@ -132,13 +132,6 @@ public:
 		bool revoked,
 		Fn<void(Links)> done);
 
-	struct RecentRequests {
-		not_null<PeerData*> peer;
-		std::vector<not_null<UserData*>> users;
-	};
-	void pushRecentRequests(RecentRequests &&requests);
-	[[nodiscard]] rpl::producer<RecentRequests> recentRequestsLocal() const;
-
 private:
 	struct LinkKey {
 		not_null<PeerData*> peer;
@@ -223,7 +216,6 @@ private:
 	base::flat_map<
 		std::pair<not_null<PeerData*>, not_null<UserData*>>,
 		ProcessRequest> _processRequests;
-	rpl::event_stream<RecentRequests> _recentRequestsLocal;
 
 	rpl::event_stream<Update> _updates;
 

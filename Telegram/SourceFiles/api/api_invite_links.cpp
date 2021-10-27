@@ -766,15 +766,6 @@ void InviteLinks::requestMoreLinks(
 	}).send();
 }
 
-void InviteLinks::pushRecentRequests(RecentRequests &&requests) {
-	_recentRequestsLocal.fire(std::move(requests));
-}
-
-auto  InviteLinks::recentRequestsLocal() const
--> rpl::producer<RecentRequests> {
-	return _recentRequestsLocal.events();
-}
-
 void InviteLinks::editPermanentLink(
 		not_null<PeerData*> peer,
 		const QString &link) {

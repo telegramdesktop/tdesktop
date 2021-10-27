@@ -53,7 +53,6 @@ private:
 	void appendRow(not_null<UserData*> user, TimeId date);
 	void refreshDescription();
 	void processRequest(not_null<UserData*> user, bool approved);
-	void pushRecentRequests();
 
 	void subscribeToMigration();
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
