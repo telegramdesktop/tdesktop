@@ -101,6 +101,9 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
+	[[nodiscard]] uint64 id() const {
+		return _id;
+	}
 	[[nodiscard]] bool isIncomingWaiting() const;
 
 	void start(bytes::const_span random);

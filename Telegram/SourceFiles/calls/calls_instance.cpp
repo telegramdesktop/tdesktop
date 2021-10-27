@@ -482,6 +482,11 @@ void Instance::handleCallUpdate(
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
+		} else if (_currentCall
+			&& _currentCall->user() == user
+			&& _currentCall->id() == phoneCall.vid().v) {
+			// May be a repeated phoneCallRequested update from getDifference.
+			return;
 		}
 		const auto &config = session->serverConfig();
 		if (inCall() || inGroupCall() || !user || user->isSelf()) {
