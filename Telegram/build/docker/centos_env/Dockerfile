@@ -1,5 +1,5 @@
 # Default value of the arg should be specified here
-ARG QT6
+ARG QT6=true
 
 FROM centos:7 AS builder
 

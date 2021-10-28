@@ -89,7 +89,7 @@ jobs:
 
       - name: Libraries.
         run: |
-          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent skip-qt5 qt6
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
@@ -109,7 +109,6 @@ jobs:
           -D CMAKE_C_FLAGS="-Werror" \
           -D CMAKE_CXX_FLAGS="-Werror" \
           -D TDESKTOP_API_TEST=ON \
-          -D DESKTOP_APP_QT6=ON \
           -D DESKTOP_APP_USE_PACKAGED=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
