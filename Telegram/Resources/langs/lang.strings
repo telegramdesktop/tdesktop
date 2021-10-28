@@ -1307,6 +1307,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_link_expired" = "Expired";
 "lng_group_invite_edit_title" = "Edit Link";
 "lng_group_invite_new_title" = "New Link";
+"lng_group_invite_label_header" = "Label (optional)";
+"lng_group_invite_label_about" = "Add an optional link label.";
 "lng_group_invite_expire_title" = "Limit by time period";
 "lng_group_invite_expire_about" = "You can make the link expire after a certain time.";
 "lng_group_invite_expire_never" = "No limit";
@@ -2526,6 +2528,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_edited_invite_link" = "edited invite link {link}";
 "lng_admin_log_invite_link_expire_date" = "Expire date: {previous} -> {limit}";
 "lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} -> {limit}";
+"lng_admin_log_invite_link_label" = "Label: {previous} -> {limit}";
 "lng_admin_log_invite_link_request_needed" = "Now admin approval is required to join.";
 "lng_admin_log_invite_link_request_not_needed" = "Now admin approval is not required to join.";
 "lng_admin_log_restricted_forever" = "indefinitely";

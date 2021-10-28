@@ -1180,6 +1180,7 @@ void EditLink(
 			peer->session().api().inviteLinks().create(
 				peer,
 				finish,
+				result.label,
 				result.expireDate,
 				result.usageLimit,
 				result.requestApproval);
@@ -1188,6 +1189,7 @@ void EditLink(
 				peer,
 				data.admin,
 				result.link,
+				result.label,
 				result.expireDate,
 				result.usageLimit,
 				result.requestApproval,
@@ -1202,6 +1204,7 @@ void EditLink(
 				Ui::EditInviteLinkBox,
 				Fields{
 					.link = data.link,
+					.label = data.label,
 					.expireDate = data.expireDate,
 					.usageLimit = data.usageLimit,
 					.requestApproval = data.requestApproval,

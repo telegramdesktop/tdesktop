@@ -13,6 +13,7 @@ namespace Ui {
 
 struct InviteLinkFields {
 	QString link;
+	QString label;
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	bool requestApproval = false;

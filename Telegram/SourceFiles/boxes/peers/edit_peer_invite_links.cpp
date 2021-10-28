@@ -275,6 +275,7 @@ void Row::update(const InviteLinkData &data, TimeId now) {
 	_progressTillExpire = ComputeProgress(data, now);
 	_color = ComputeColor(data, _progressTillExpire);
 	setCustomStatus(ComputeStatus(data, now));
+	refreshName(st::inviteLinkList.item);
 	_delegate->rowUpdateRow(this);
 }
 
@@ -309,6 +310,9 @@ crl::time Row::updateExpireIn() const {
 }
 
 QString Row::generateName() {
+	if (!_data.label.isEmpty()) {
+		return _data.label;
+	}
 	auto result = _data.link;
 	return result.replace(
 		qstr("https://"),

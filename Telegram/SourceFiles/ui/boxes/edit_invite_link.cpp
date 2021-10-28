@@ -24,6 +24,7 @@ namespace {
 constexpr auto kMaxLimit = std::numeric_limits<int>::max();
 constexpr auto kHour = 3600;
 constexpr auto kDay = 86400;
+constexpr auto kMaxLabelLength = 32;
 
 [[nodiscard]] QString FormatExpireDate(TimeId date) {
 	if (date > 0) {
@@ -278,6 +279,20 @@ void EditInviteLinkBox(
 
 	regenerate();
 
+	const auto labelField = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st::defaultInputField,
+			tr::lng_group_invite_label_header(),
+			data.label),
+		style::margins(
+			st::settingsSubsectionTitlePadding.left(),
+			st::settingsSectionSkip,
+			st::settingsSubsectionTitlePadding.right(),
+			st::settingsSectionSkip * 2));
+	labelField->setMaxLength(kMaxLabelLength);
+	addDivider(container, tr::lng_group_invite_label_about());
+
 	const auto buttonSkip = st::settingsSectionSkip;
 	const auto requestApproval = container->add(
 		object_ptr<SettingsButton>(
@@ -303,6 +318,7 @@ void EditInviteLinkBox(
 		? tr::lng_formatting_link_create
 		: tr::lng_settings_save;
 	box->addButton(saveLabel(), [=] {
+		const auto label = labelField->getLastText();
 		const auto expireDate = (state->expireValue == kMaxLimit)
 			? 0
 			: (state->expireValue < 0)
@@ -313,6 +329,7 @@ void EditInviteLinkBox(
 			: state->usageValue;
 		done(InviteLinkFields{
 			.link = link,
+			.label = label,
 			.expireDate = expireDate,
 			.usageLimit = usageLimit,
 			.requestApproval = state->requestApproval.current(),

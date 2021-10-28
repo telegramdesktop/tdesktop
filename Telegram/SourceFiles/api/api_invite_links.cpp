@@ -70,6 +70,7 @@ InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 void InviteLinks::create(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done,
+		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval) {
@@ -77,6 +78,7 @@ void InviteLinks::create(
 		peer,
 		std::move(done),
 		false,
+		label,
 		expireDate,
 		usageLimit,
 		requestApproval);
@@ -86,6 +88,7 @@ void InviteLinks::performCreate(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done,
 		bool revokeLegacyPermanent,
+		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval) {
@@ -106,6 +109,7 @@ void InviteLinks::performCreate(
 		MTP_flags((revokeLegacyPermanent
 			? Flag::f_legacy_revoke_permanent
 			: Flag(0))
+			| (!label.isEmpty() ? Flag::f_title : Flag(0))
 			| (expireDate ? Flag::f_expire_date : Flag(0))
 			| ((!requestApproval && usageLimit)
 				? Flag::f_usage_limit
@@ -114,7 +118,7 @@ void InviteLinks::performCreate(
 		peer->input,
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
-		MTPstring() // title
+		MTP_string(label)
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);
@@ -212,6 +216,7 @@ void InviteLinks::edit(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link,
+		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval,
@@ -222,6 +227,7 @@ void InviteLinks::edit(
 		link,
 		std::move(done),
 		false,
+		label,
 		expireDate,
 		usageLimit,
 		requestApproval);
@@ -233,6 +239,7 @@ void InviteLinks::performEdit(
 		const QString &link,
 		Fn<void(Link)> done,
 		bool revoke,
+		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval) {
@@ -253,6 +260,7 @@ void InviteLinks::performEdit(
 	}
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;
 	const auto flags = (revoke ? Flag::f_revoked : Flag(0))
+		| (!revoke ? Flag::f_title : Flag(0))
 		| (!revoke ? Flag::f_expire_date : Flag(0))
 		| ((!revoke && !requestApproval) ? Flag::f_usage_limit : Flag(0))
 		| ((!revoke && (requestApproval || !usageLimit))
@@ -265,7 +273,7 @@ void InviteLinks::performEdit(
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
 		MTP_bool(requestApproval),
-		MTPstring() // title
+		MTP_string(label)
 	)).done([=](const MTPmessages_ExportedChatInvite &result) {
 		const auto callbacks = _editCallbacks.take(key);
 		const auto peer = key.peer;
@@ -729,6 +737,7 @@ auto InviteLinks::parse(
 	return invite.match([&](const MTPDchatInviteExported &data) {
 		return Link{
 			.link = qs(data.vlink()),
+			.label = qs(data.vtitle().value_or_empty()),
 			.admin = peer->session().data().user(data.vadmin_id()),
 			.date = data.vdate().v,
 			.startDate = data.vstart_date().value_or_empty(),

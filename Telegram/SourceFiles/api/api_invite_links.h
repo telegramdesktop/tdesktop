@@ -13,6 +13,7 @@ namespace Api {
 
 struct InviteLink {
 	QString link;
+	QString label;
 	not_null<UserData*> admin;
 	TimeId date = 0;
 	TimeId startDate = 0;
@@ -62,6 +63,7 @@ public:
 	void create(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done = nullptr,
+		const QString &label = QString(),
 		TimeId expireDate = 0,
 		int usageLimit = 0,
 		bool requestApproval = false);
@@ -69,6 +71,7 @@ public:
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link,
+		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval,
@@ -180,6 +183,7 @@ private:
 		const QString &link,
 		Fn<void(Link)> done,
 		bool revoke,
+		const QString &label = QString(),
 		TimeId expireDate = 0,
 		int usageLimit = 0,
 		bool requestApproval = false);
@@ -187,6 +191,7 @@ private:
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done,
 		bool revokeLegacyPermanent,
+		const QString &label = QString(),
 		TimeId expireDate = 0,
 		int usageLimit = 0,
 		bool requestApproval = false);

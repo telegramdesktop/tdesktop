@@ -263,13 +263,20 @@ QString ExtractInviteLink(const MTPExportedChatInvite &data) {
 	});
 }
 
+QString ExtractInviteLinkLabel(const MTPExportedChatInvite &data) {
+	return data.match([&](const MTPDchatInviteExported &data) {
+		return qs(data.vtitle().value_or_empty());
+	});
+}
+
 QString InternalInviteLinkUrl(const MTPExportedChatInvite &data) {
 	const auto base64 = ExtractInviteLink(data).toUtf8().toBase64();
 	return "internal:show_invite_link/?link=" + QString::fromLatin1(base64);
 }
 
 QString GenerateInviteLinkText(const MTPExportedChatInvite &data) {
-	return ExtractInviteLink(data).replace(
+	const auto label = ExtractInviteLinkLabel(data);
+	return label.isEmpty() ? ExtractInviteLink(data).replace(
 		qstr("https://"),
 		QString()
 	).replace(
@@ -278,7 +285,7 @@ QString GenerateInviteLinkText(const MTPExportedChatInvite &data) {
 	).replace(
 		qstr("t.me/joinchat/"),
 		QString()
-	);
+	) : label;
 }
 
 QString GenerateInviteLinkLink(const MTPExportedChatInvite &data) {
@@ -302,6 +309,11 @@ TextWithEntities GenerateInviteLinkChangeText(
 	auto result = tr::lng_admin_log_edited_invite_link(tr::now, lt_link, link, Ui::Text::WithEntities);
 	result.text.append('\n');
 
+	const auto label = [](const MTPExportedChatInvite &link) {
+		return link.match([](const MTPDchatInviteExported &data) {
+			return qs(data.vtitle().value_or_empty());
+		});
+	};
 	const auto expireDate = [](const MTPExportedChatInvite &link) {
 		return link.match([](const MTPDchatInviteExported &data) {
 			return data.vexpire_date().value_or_empty();
@@ -327,12 +339,17 @@ TextWithEntities GenerateInviteLinkChangeText(
 			? QString::number(count)
 			: tr::lng_group_invite_usage_any(tr::now);
 	};
+	const auto wasLabel = label(prevLink);
+	const auto nowLabel = label(newLink);
 	const auto wasExpireDate = expireDate(prevLink);
 	const auto nowExpireDate = expireDate(newLink);
 	const auto wasUsageLimit = usageLimit(prevLink);
 	const auto nowUsageLimit = usageLimit(newLink);
 	const auto wasRequestApproval = requestApproval(prevLink);
 	const auto nowRequestApproval = requestApproval(newLink);
+	if (wasLabel != nowLabel) {
+		result.text.append('\n').append(tr::lng_admin_log_invite_link_label(tr::now, lt_previous, wasLabel, lt_limit, nowLabel));
+	}
 	if (wasExpireDate != nowExpireDate) {
 		result.text.append('\n').append(tr::lng_admin_log_invite_link_expire_date(tr::now, lt_previous, wrapDate(wasExpireDate), lt_limit, wrapDate(nowExpireDate)));
 	}
