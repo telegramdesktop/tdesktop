@@ -4,6 +4,10 @@ pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
 
+arg1="$1"
+arg2="$2"
+arg3="$3"
+
 if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   echo ""
   echo "This script is for building the production version of Telegram Desktop."
@@ -11,12 +15,6 @@ if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   echo "For building custom versions please visit the build instructions page at:"
   echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
   exit
-fi
-
-if [ "$1" == "request_uuid" ]; then
-  if [ "$2" != "" ]; then
-    NotarizeRequestId="$2"
-  fi
 fi
 
 Error () {
@@ -61,12 +59,36 @@ if [ "$BuildTarget" == "linux" ]; then
   ProjectPath="$HomePath/../out"
   ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
-elif [ "$BuildTarget" == "mac" ]; then
-  echo "Building version $AppVersionStrFull for macOS 10.12+.."
+elif [ "$BuildTarget" == "mac" ] ; then
+  if [ "$arg1" == "x86_64" ] || [ "$arg1" == "arm64" ]; then
+    echo "Building version $AppVersionStrFull for macOS 10.12+ ($arg1).."
+    MacArch="$arg1"
+    if [ "$arg2" == "request_uuid" ] && [ "$arg3" != "" ]; then
+      NotarizeRequestId="$arg3"
+    fi
+  else
+    echo "Building version $AppVersionStrFull for macOS 10.12+.."
+    if [ "$arg2" != "" ]; then
+      if [ "$arg1" == "request_uuid_x86_64" ]; then
+        NotarizeRequestIdAMD64="$arg2"
+      elif [ "$arg1" == "request_uuid_arm64" ]; then
+        NotarizeRequestIdARM64="$arg2"
+      elif [ "$arg1" == "request_uuid" ]; then
+        NotarizeRequestId="$arg2"
+      fi
+    fi
+  fi
+
   if [ "$AC_USERNAME" == "" ]; then
     Error "AC_USERNAME not found!"
   fi
-  UpdateFile="tmacupd$AppVersion"
+  UpdateFileAMD64="tmacupd$AppVersion"
+  UpdateFileARM64="tarmacupd$AppVersion"
+  if [ "$MacArch" == "arm64" ]; then
+    UpdateFile="$UpdateFileARM64"
+  elif [ "$MacArch" == "x86_64" ]; then
+    UpdateFile="$UpdateFileAMD64"
+  fi
   SetupFile="tsetup.$AppVersionStrFull.dmg"
   ProjectPath="$HomePath/../out"
   ReleasePath="$ProjectPath/Release"
@@ -77,6 +99,7 @@ elif [ "$BuildTarget" == "macstore" ]; then
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
+  MacArch="x86_64;arm64"
   ProjectPath="$HomePath/../out"
   ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram Lite"
@@ -199,7 +222,20 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     Error "Backup path not found!"
   fi
 
-  if [ "$NotarizeRequestId" == "" ]; then
+  if [ "$MacArch" == "" ]; then
+    if [ "$NotarizeRequestIdAMD64" == "" ]; then
+      ./$0 arm64 request_uuid $NotarizeRequestIdARM64
+    fi
+    ./$0 x86_64 request_uuid $NotarizeRequestIdAMD64
+
+    cd $ReleasePath
+
+    echo "Preparing universal .app.."
+    lipo -create $BinaryName.arm64.app/Contents/MacOS/$BinaryName $BinaryName.x86_64.app/Contents/MacOS/Telegram -output $BinaryName.app/Contents/MacOS/$BinaryName
+    lipo -create $BinaryName.arm64.app/Contents/Frameworks/Updater $BinaryName.x86_64.app/Contents/Frameworks/Updater -output $BinaryName.app/Contents/Frameworks/Updater
+    lipo -create $BinaryName.arm64.app/Contents/Helpers/crashpad_handler $BinaryName.x86_64.app/Contents/Helpers/crashpad_handler -output $BinaryName.app/Contents/Helpers/crashpad_handler
+    echo "Done!"
+  elif [ "$NotarizeRequestId" == "" ]; then
     if [ -f "$ReleasePath/$BinaryName.app/Contents/Info.plist" ]; then
       rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
     fi
@@ -208,7 +244,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     fi
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
-    ./configure.sh -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+    ./configure.sh -D DESKTOP_APP_QT6=ON -D DESKTOP_APP_MAC_ARCH="$MacArch"
 
     cd $ProjectPath
     cmake --build . --config Release --target Telegram
@@ -232,17 +268,42 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         Error "Breakpad.framework not found!"
       fi
     fi
+  fi
+  if [ "$NotarizeRequestId" == "" ]; then
+    if [ "$MacArch" == "x86_64" ] || [ "$MacArch" == "x86_64;arm64" ]; then
+      echo "Dumping debug symbols x86_64.."
+      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "x86_64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.x86_64.sym" 2>/dev/null
+      echo "Done!"
 
-    echo "Dumping debug symbols x86_64.."
-    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "x86_64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.x86_64.sym" 2>/dev/null
-    echo "Done!"
+      SymbolsHashAMD64=`head -n 1 "$ReleasePath/$BinaryName.x86_64.sym" | awk -F " " 'END {print $4}'`
+      echo "Copying $BinaryName.x86_64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
+      mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
+      cp "$ReleasePath/$BinaryName.x86_64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64/$BinaryName.sym"
+      echo "Done!"
+    fi
 
-    echo "Dumping debug symbols arm64.."
-    "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "arm64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.arm64.sym" 2>/dev/null
-    echo "Done!"
+    if [ "$MacArch" == "arm64" ] || [ "$MacArch" == "x86_64;arm64" ]; then
+      echo "Dumping debug symbols arm64.."
+      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "arm64" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.arm64.sym" 2>/dev/null
+      echo "Done!"
+
+      SymbolsHashARM64=`head -n 1 "$ReleasePath/$BinaryName.arm64.sym" | awk -F " " 'END {print $4}'`
+      echo "Copying $BinaryName.arm64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
+      mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
+      cp "$ReleasePath/$BinaryName.arm64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64/$BinaryName.sym"
+      echo "Done!"
+    fi
+
+    if [ "$MacArch" == "" ]; then
+      cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/$BinaryName.Universal.Unstripped.app"
+    fi
 
     echo "Stripping the executable.."
     strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+    if [ "$BuildTarget" == "mac" ]; then
+      strip "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
+      strip "$ReleasePath/$BinaryName.app/Contents/Helpers/crashpad_handler"
+    fi
     echo "Done!"
 
     echo "Signing the application.."
@@ -267,27 +328,11 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       Error "$BinaryName signature not found!"
     fi
 
-    if [ "$BuildTarget" == "mac" ]; then
-      if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
-        Error "Updater not found in Frameworks!"
-      fi
-    elif [ "$BuildTarget" == "macstore" ]; then
+    if [ "$BuildTarget" == "macstore" ]; then
       if [ ! -f "$ReleasePath/$BinaryName.pkg" ]; then
         Error "$BinaryName.pkg not found!"
       fi
     fi
-
-    SymbolsHashAMD64=`head -n 1 "$ReleasePath/$BinaryName.x86_64.sym" | awk -F " " 'END {print $4}'`
-    echo "Copying $BinaryName.x86_64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
-    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64"
-    cp "$ReleasePath/$BinaryName.x86_64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashAMD64/$BinaryName.sym"
-    echo "Done!"
-
-    SymbolsHashARM64=`head -n 1 "$ReleasePath/$BinaryName.arm64.sym" | awk -F " " 'END {print $4}'`
-    echo "Copying $BinaryName.arm64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
-    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64"
-    cp "$ReleasePath/$BinaryName.arm64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHashARM64/$BinaryName.sym"
-    echo "Done!"
   fi
 
   if [ "$BuildTarget" == "mac" ]; then
@@ -317,6 +362,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       done < "$ReleasePath/$AlphaKeyFile"
 
       UpdateFile="${UpdateFile}_${AlphaSignature}"
+      UpdateFileAMD64="${UpdateFileAMD64}_${AlphaSignature}"
+      UpdateFileARM64="${UpdateFileARM64}_${AlphaSignature}"
       SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
 
       if [ "$NotarizeRequestId" == "" ]; then
@@ -330,86 +377,93 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cd "$ReleasePath"
       fi
     fi
-    if [ "$BuildTarget" == "mac" ]; then
-      if [ "$NotarizeRequestId" == "" ]; then
-        echo "Beginning notarization process."
-        set +e
-        xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" > request_uuid.txt
-        set -e
-        while IFS='' read -r line || [[ -n "$line" ]]; do
-          Prefix=$(echo $line | cut -d' ' -f 1)
-          Value=$(echo $line | cut -d' ' -f 3)
-          if [ "$Prefix" == "RequestUUID" ]; then
-            RequestUUID=$Value
-          fi
-        done < "request_uuid.txt"
-        if [ "$RequestUUID" == "" ]; then
-          cat request_uuid.txt
-          Error "Could not extract Request UUID."
+    if [ "$NotarizeRequestId" == "" ]; then
+      echo "Beginning notarization process."
+      set +e
+      xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" > request_uuid.txt
+      set -e
+      while IFS='' read -r line || [[ -n "$line" ]]; do
+        Prefix=$(echo $line | cut -d' ' -f 1)
+        Value=$(echo $line | cut -d' ' -f 3)
+        if [ "$Prefix" == "RequestUUID" ]; then
+          RequestUUID=$Value
         fi
-        echo "Request UUID: $RequestUUID"
-        rm request_uuid.txt
-      else
-        RequestUUID=$NotarizeRequestId
-        echo "Continue notarization process with Request UUID: $RequestUUID"
+      done < "request_uuid.txt"
+      if [ "$RequestUUID" == "" ]; then
+        cat request_uuid.txt
+        Error "Could not extract Request UUID."
       fi
-
-      RequestStatus=
-      LogFile=
-      while [[ "$RequestStatus" == "" ]]; do
-        sleep 5
-        xcrun altool --notarization-info "$RequestUUID" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" > request_result.txt
-        while IFS='' read -r line || [[ -n "$line" ]]; do
-          Prefix=$(echo $line | cut -d' ' -f 1)
-          Value=$(echo $line | cut -d' ' -f 2)
-          if [ "$Prefix" == "LogFileURL:" ]; then
-            LogFile=$Value
-          fi
-          if [ "$Prefix" == "Status:" ]; then
-            if [ "$Value" == "in" ]; then
-              echo "In progress..."
-            else
-              RequestStatus=$Value
-              echo "Status: $RequestStatus"
-            fi
-          fi
-        done < "request_result.txt"
-      done
-      if [ "$RequestStatus" != "success" ]; then
-        echo "Notarization problems, response:"
-        cat request_result.txt
-        if [ "$LogFile" != "" ]; then
-          echo "Requesting log: $LogFile"
-          curl $LogFile
-        fi
-        Error "Notarization FAILED."
-      fi
-      rm request_result.txt
-
-      if [ "$LogFile" != "" ]; then
-        echo "Requesting log: $LogFile"
-        curl $LogFile > request_log.txt
-      fi
-
-      xcrun stapler staple "$ReleasePath/$BinaryName.app"
-
-      if [ "$AlphaVersion" != "0" ]; then
-        rm -rf "$ReleasePath/AlphaTemp"
-        mkdir "$ReleasePath/AlphaTemp"
-        mkdir "$ReleasePath/AlphaTemp/$BinaryName"
-        cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
-        cd "$ReleasePath/AlphaTemp"
-        zip -r "$SetupFile" "$BinaryName"
-        mv "$SetupFile" "$ReleasePath/"
-        cd "$ReleasePath"
-        echo "Alpha archive re-created."
-      else
-        xcrun stapler staple "$ReleasePath/$SetupFile"
-      fi
+      echo "Request UUID: $RequestUUID"
+      rm request_uuid.txt
+    else
+      RequestUUID=$NotarizeRequestId
+      echo "Continue notarization process with Request UUID: $RequestUUID"
     fi
 
-    "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
-    echo "Packer done!"
+    RequestStatus=
+    LogFile=
+    while [[ "$RequestStatus" == "" ]]; do
+      sleep 5
+      xcrun altool --notarization-info "$RequestUUID" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" > request_result.txt
+      while IFS='' read -r line || [[ -n "$line" ]]; do
+        Prefix=$(echo $line | cut -d' ' -f 1)
+        Value=$(echo $line | cut -d' ' -f 2)
+        if [ "$Prefix" == "LogFileURL:" ]; then
+          LogFile=$Value
+        fi
+        if [ "$Prefix" == "Status:" ]; then
+          if [ "$Value" == "in" ]; then
+            echo "In progress..."
+          else
+            RequestStatus=$Value
+            echo "Status: $RequestStatus"
+          fi
+        fi
+      done < "request_result.txt"
+    done
+    if [ "$RequestStatus" != "success" ]; then
+      echo "Notarization problems, response:"
+      cat request_result.txt
+      if [ "$LogFile" != "" ]; then
+        echo "Requesting log: $LogFile"
+        curl $LogFile
+      fi
+      Error "Notarization FAILED."
+    fi
+    rm request_result.txt
+
+    if [ "$LogFile" != "" ]; then
+      echo "Requesting log: $LogFile"
+      curl $LogFile > request_log.txt
+    fi
+
+    xcrun stapler staple "$ReleasePath/$BinaryName.app"
+
+    if [ "$MacArch" != "" ]; then
+      rm -rf "$ReleasePath/$BinaryName.$MacArch.app"
+      cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/$BinaryName.$MacArch.app"
+      echo "Single-arch binary saved to $BinaryName.$MacArch.app."
+      rm $SetupFile
+      echo "Setup file $SetupFile removed."
+    elif [ "$AlphaVersion" != "0" ]; then
+      rm -rf "$ReleasePath/AlphaTemp"
+      mkdir "$ReleasePath/AlphaTemp"
+      mkdir "$ReleasePath/AlphaTemp/$BinaryName"
+      cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
+      cd "$ReleasePath/AlphaTemp"
+      zip -r "$SetupFile" "$BinaryName"
+      mv "$SetupFile" "$ReleasePath/"
+      cd "$ReleasePath"
+      echo "Alpha archive re-created."
+    else
+      xcrun stapler staple "$ReleasePath/$SetupFile"
+    fi
+
+    if [ "$MacArch" != "" ]; then
+      "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker -arch $MacArch $AlphaBetaParam
+      echo "Packer done!"
+      exit
+    fi
   fi
 
   if [ ! -d "$ReleasePath/deploy" ]; then
@@ -421,22 +475,23 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
   fi
 
   if [ "$BuildTarget" == "mac" ]; then
-    echo "Copying $BinaryName.app and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStr..";
+    echo "Copying $BinaryName.app, $UpdateFileAMD64 and $UpdateFileARM64 to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
     mkdir "$DeployPath/$BinaryName"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
     if [ "$AlphaVersion" != "0" ]; then
       mv "$ReleasePath/$AlphaKeyFile" "$DeployPath/"
     fi
-    mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
-    mv "$ReleasePath/$UpdateFile" "$DeployPath/"
+    mv "$ReleasePath/$UpdateFileAMD64" "$DeployPath/"
+    mv "$ReleasePath/$UpdateFileARM64" "$DeployPath/"
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac" ]; then
       mkdir -p "$BackupPath/tmac"
-      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac/"
+      cp "$DeployPath/$UpdateFileAMD64" "$BackupPath/tmac/"
+      cp "$DeployPath/$UpdateFileARM64" "$BackupPath/tmac/"
       cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
       if [ "$AlphaVersion" != "0" ]; then
         cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac/"
@@ -447,7 +502,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     mkdir "$DeployPath"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/"
     mv "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
-    mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
   fi
 fi

@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(td_mtproto OBJECT)
-init_target(td_mtproto)
+init_non_host_target(td_mtproto)
 add_library(tdesktop::td_mtproto ALIAS td_mtproto)
 
 target_precompile_headers(td_mtproto PRIVATE ${src_loc}/mtproto/mtproto_pch.h)
