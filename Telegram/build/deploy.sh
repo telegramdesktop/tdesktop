@@ -78,6 +78,7 @@ else
 fi
 MacDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tmac"
 MacUpdateFile="tmacupd$AppVersion"
+ARMacUpdateFile="tarmacupd$AppVersion"
 MacSetupFile="tsetup.$AppVersionStrFull.dmg"
 MacRemoteFolder="tmac"
 WinDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tsetup"
@@ -115,6 +116,7 @@ if [ "$AlphaVersion" != "0" ]; then
   done < "$AlphaFilePath"
 
   MacUpdateFile="${MacUpdateFile}_${AlphaSignature}"
+  ARMacUpdateFile="${ARMacUpdateFile}_${AlphaSignature}"
   MacSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   WinUpdateFile="${WinUpdateFile}_${AlphaSignature}"
   WinPortableFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
@@ -127,6 +129,9 @@ fi
 if [ "$DeployMac" == "1" ]; then
   if [ ! -f "$MacDeployPath/$MacUpdateFile" ]; then
     Error "$MacDeployPath/$MacUpdateFile not found!";
+  fi
+  if [ ! -f "$MacDeployPath/$ARMacUpdateFile" ]; then
+    Error "$MacDeployPath/$ARMacUpdateFile not found!";
   fi
   if [ ! -f "$MacDeployPath/$MacSetupFile" ]; then
     Error "$MacDeployPath/$MacSetupFile not found!"
@@ -171,7 +176,7 @@ $FullScriptPath/../../../DesktopPrivate/mount.sh
 
 declare -a Files
 if [ "$DeployMac" == "1" ]; then
-  Files+=("tmac/$MacUpdateFile" "tmac/$MacSetupFile")
+  Files+=("tmac/$MacUpdateFile" "tmac/$ARMacUpdateFile" "tmac/$MacSetupFile")
 fi
 if [ "$DeployWin" == "1" ]; then
   Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
