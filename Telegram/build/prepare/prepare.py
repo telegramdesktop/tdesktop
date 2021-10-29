@@ -387,7 +387,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddcd93010e
+    git checkout ab9e042ef6
 """)
 
 stage('depot_tools', """
@@ -937,7 +937,6 @@ mac:
     git submodule update third_party/mini_chromium
     ZLIB_PATH=$USED_PREFIX/include
     ZLIB_LIB=$USED_PREFIX/lib/libz.a
-common:
     mkdir out
     cd out
     mkdir Debug.x86_64
