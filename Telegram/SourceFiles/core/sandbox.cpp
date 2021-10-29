@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 
 #include "base/platform/base_platform_info.h"
-#include "base/base_file_utilities.h"
 #include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -94,8 +93,6 @@ Sandbox::Sandbox(
 }
 
 int Sandbox::start() {
-	base::RegisterBundledResources(u"Telegram.rcc"_q);
-
 	if (!Core::UpdaterDisabled()) {
 		_updateChecker = std::make_unique<Core::UpdateChecker>();
 	}
