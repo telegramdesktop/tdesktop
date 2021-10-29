@@ -1307,8 +1307,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_link_expired" = "Expired";
 "lng_group_invite_edit_title" = "Edit Link";
 "lng_group_invite_new_title" = "New Link";
-"lng_group_invite_label_header" = "Label (optional)";
-"lng_group_invite_label_about" = "Add an optional link label.";
+"lng_group_invite_label_header" = "Link Name (optional)";
+"lng_group_invite_label_about" = "Only admins will see this name.";
 "lng_group_invite_expire_title" = "Limit by time period";
 "lng_group_invite_expire_about" = "You can make the link expire after a certain time.";
 "lng_group_invite_expire_never" = "No limit";
@@ -1331,7 +1331,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_qr_title" = "Invite by QR Code";
 "lng_group_invite_qr_about" = "Everyone on Telegram can scan this code to join your group.";
 "lng_group_invite_qr_copied" = "QR Code copied to clipboard.";
-"lng_group_invite_request_approve" = "Request admin approval";
+"lng_group_invite_request_approve" = "Approve everyone who joins";
 "lng_group_invite_about_approve" = "New users will be able to join the group only after having been approved by the admins.";
 "lng_group_invite_about_no_approve" = "New users will be able to join the group without being approved by the admins.";
 "lng_group_invite_about_approve_channel" = "New users will be able to join the channel only after having been approved by the admins.";
@@ -2528,7 +2528,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_edited_invite_link" = "edited invite link {link}";
 "lng_admin_log_invite_link_expire_date" = "Expire date: {previous} -> {limit}";
 "lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} -> {limit}";
-"lng_admin_log_invite_link_label" = "Label: {previous} -> {limit}";
+"lng_admin_log_invite_link_label" = "Name: {previous} -> {limit}";
 "lng_admin_log_invite_link_request_needed" = "Now admin approval is required to join.";
 "lng_admin_log_invite_link_request_not_needed" = "Now admin approval is not required to join.";
 "lng_admin_log_restricted_forever" = "indefinitely";

@@ -1283,7 +1283,9 @@ void ShowInviteLinkBox(
 				return;
 			}
 			const auto now = base::unixtime::now();
-			box->setTitle(link.revoked
+			box->setTitle(!link.label.isEmpty()
+				? rpl::single(link.label)
+				: link.revoked
 				? tr::lng_manage_peer_link_invite()
 				: IsExpiredLink(link, now)
 				? tr::lng_manage_peer_link_expired()
