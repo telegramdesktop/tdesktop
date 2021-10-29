@@ -314,11 +314,12 @@ parts:
       - libegl-dev
       - libfontconfig1-dev
       - libfreetype-dev
-      - libgl-dev
       - libglib2.0-dev
+      - libglx-dev
       - libgtk-3-dev
       - libharfbuzz-dev
       - libicu-dev
+      - libopengl-dev
       - libpcre2-dev
       - libpng-dev
       - libssl-dev
@@ -349,11 +350,12 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
-      - libgl1
       - libglib2.0-0
+      - libglx0
       - libgtk-3-0
       - libharfbuzz0b
       - libicu66
+      - libopengl0
       - libpcre2-16-0
       - libpng16-16
       - libssl1.1
