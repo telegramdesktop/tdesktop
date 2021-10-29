@@ -391,7 +391,7 @@ def runStages():
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 5485c56e93
+    git checkout ddcd93010e
 """)
 
 stage('depot_tools', """
@@ -408,7 +408,7 @@ win:
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
-    python3 -m pip install git+https://github.com/desktop-app/gyp-next@v0.10.1
+    python3 -m pip install --ignore-installed git+https://github.com/desktop-app/gyp-next@main
     mkdir gyp
 """, 'ThirdParty')
 
