@@ -236,10 +236,10 @@ jobs:
 
           git clone https://chromium.googlesource.com/breakpad/breakpad
           cd breakpad
-          git checkout bc8fb886
+          git checkout dfcb7b6799
           git apply ../patches/breakpad.diff
           cd src
-          git clone %GIT%/google/googletest testing
+          git clone -b release-1.11.0 %GIT%/google/googletest testing
           cd client\windows
           call gyp --no-circular-check breakpad_client.gyp --format=ninja
           cd ..\..
