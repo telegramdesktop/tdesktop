@@ -249,7 +249,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
       rm -rf "$ReleasePath/Updater"
 
-      ./configure.sh -D DESKTOP_APP_QT6=ON -D DESKTOP_APP_MAC_ARCH="x86_64;arm64"
+      ./configure.sh
 
       cd $ProjectPath
       cmake --build . --config Release --target Telegram

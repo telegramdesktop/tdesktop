@@ -59,7 +59,7 @@ if building:
         finish(1, 'Todays updates version exists.')
 
     if uuid == '':
-        result = subprocess.call('./configure.sh -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"', shell=True)
+        result = subprocess.call('./configure.sh', shell=True)
         if result != 0:
             finish(1, 'While calling GYP.')
 
