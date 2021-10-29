@@ -345,7 +345,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cp -R "./$BinaryName.app" "$TempDiskPath/"
         bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
         hdiutil detach "$TempDiskPath"
-        hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
+        hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"
         rm tsetup.temp.dmg
       fi
     fi
