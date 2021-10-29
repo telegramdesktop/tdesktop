@@ -1147,11 +1147,36 @@ win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$LIBS_DIR/opus/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
+release:
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
     FFMPEG_PATH=$USED_PREFIX/include
-common:
     mkdir out
     cd out
     mkdir Debug.x86_64
