@@ -35,24 +35,20 @@ libsDir = rootDir + dirSep + libsLoc
 thirdPartyDir = rootDir + dirSep + 'ThirdParty'
 usedPrefix = libsDir + dirSep + 'local'
 
-processedArgs = []
-skipReleaseBuilds = False
-buildQt5 = True
-buildQt6 = False
-buildMinidumpStackwalk = False
+optionsList = [
+    'skip-release',
+    'build-qt5',
+    'skip-qt5',
+    'build-qt6',
+    'skip-qt6',
+    'build-stackwalk',
+]
+options = []
 for arg in sys.argv[1:]:
-    if arg == 'skip-release':
-        processedArgs.append(arg)
-        skipReleaseBuilds = True
-    elif arg == 'qt6':
-        processedArgs.append(arg)
-        buildQt6 = True
-    elif arg == 'skip-qt5':
-        processedArgs.append(arg)
-        buildQt5 = False
-    elif arg == 'minidump_stackwalk':
-        processedArgs.append(arg)
-        buildMinidumpStackwalk = True
+    if arg in optionsList:
+        options.append(arg)
+buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
+buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
 if not os.path.isdir(libsDir + '/' + keysLoc):
     pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
@@ -205,7 +201,7 @@ def filterByPlatform(commands):
             # if linux and 'linux' in scopes:
             #     inscope = True
             if 'release' in scopes:
-                if skipReleaseBuilds:
+                if 'skip-release' in options:
                     inscope = False
                 elif len(scopes) == 1:
                     continue
@@ -320,7 +316,7 @@ def runStages():
     onlyStages = []
     rebuildStale = False
     for arg in sys.argv[1:]:
-        if arg in processedArgs:
+        if arg in options:
             continue
         elif arg == 'silent':
             rebuildStale = True
@@ -399,7 +395,7 @@ mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 """, 'ThirdParty')
 
-if not mac or buildMinidumpStackwalk:
+if not mac or 'build-stackwalk' in options:
     stage('gyp', """
 win:
     git clone https://chromium.googlesource.com/external/gyp
@@ -878,7 +874,7 @@ mac:
     make install
 """)
 
-if buildMinidumpStackwalk:
+if 'build-stackwalk' in options:
     stage('stackwalk', """
 mac:
     git clone https://chromium.googlesource.com/breakpad/breakpad stackwalk
