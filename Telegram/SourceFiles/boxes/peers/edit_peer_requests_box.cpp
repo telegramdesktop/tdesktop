@@ -321,7 +321,6 @@ void RequestsBoxController::loadMoreRows() {
 		_loadRequestId = 0;
 
 		result.match([&](const MTPDmessages_chatInviteImporters &data) {
-			const auto count = data.vcount().v;
 			const auto &importers = data.vimporters().v;
 			auto &owner = _peer->owner();
 			for (const auto &importer : importers) {
@@ -612,7 +611,6 @@ bool RequestsBoxSearchController::loadMoreRows() {
 			mtpRequestId requestId) {
 		auto items = std::vector<Item>();
 		result.match([&](const MTPDmessages_chatInviteImporters &data) {
-			const auto count = data.vcount().v;
 			const auto &importers = data.vimporters().v;
 			auto &owner = _peer->owner();
 			items.reserve(importers.size());
