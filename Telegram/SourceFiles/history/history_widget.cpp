@@ -918,6 +918,13 @@ void HistoryWidget::initVoiceRecordBar() {
 		_scroll->viewportEvent(e);
 	}, lifetime());
 
+	_voiceRecordBar->recordingTipRequests(
+	) | rpl::start_with_next([=] {
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_record_hold_tip(tr::now) },
+		});
+	}, lifetime());
+
 	_voiceRecordBar->hideFast();
 }
 

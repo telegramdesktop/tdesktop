@@ -44,8 +44,10 @@ using VoiceToSend = VoiceRecordBar::VoiceToSend;
 
 constexpr auto kAudioVoiceUpdateView = crl::time(200);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
-constexpr auto kMaxSamples =
-	::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;
+constexpr auto kMaxSamples
+	= ::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;
+constexpr auto kMinSamples
+	= ::Media::Player::kDefaultFrequency / 5; // 0.2 seconds
 
 constexpr auto kInactiveWaveformBarAlpha = int(255 * 0.6);
 
@@ -1190,8 +1192,12 @@ void VoiceRecordBar::init() {
 			if (_startRecordingFilter && _startRecordingFilter()) {
 				return;
 			}
+			_recordingTipRequired = true;
 			_startTimer.callOnce(st::historyRecordVoiceShowDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
+			if (base::take(_recordingTipRequired)) {
+				_recordingTipRequests.fire({});
+			}
 			_startTimer.cancel();
 		}
 	}, lifetime());
@@ -1278,7 +1284,7 @@ void VoiceRecordBar::startRecording() {
 		return;
 	}
 	auto appearanceCallback = [=] {
-		if(_showAnimation.animating()) {
+		if (_showAnimation.animating()) {
 			return;
 		}
 
@@ -1296,6 +1302,7 @@ void VoiceRecordBar::startRecording() {
 		instance()->start();
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
+			_recordingTipRequired = (update.samples < kMinSamples);
 			recordUpdated(update.level, update.samples);
 		}, [=] {
 			stop(false);
@@ -1311,10 +1318,10 @@ void VoiceRecordBar::startRecording() {
 
 	_send->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
-		return isTypeRecord()
-			&& !_lock->isLocked()
-			&& (e->type() == QEvent::MouseMove
-				|| e->type() == QEvent::MouseButtonRelease);
+		return (e->type() == QEvent::MouseMove
+			|| e->type() == QEvent::MouseButtonRelease)
+			&& isTypeRecord()
+			&& !_lock->isLocked();
 	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::MouseMove) {
@@ -1331,6 +1338,9 @@ void VoiceRecordBar::startRecording() {
 			}
 			computeAndSetLockProgress(mouse->globalPos());
 		} else if (type == QEvent::MouseButtonRelease) {
+			if (base::take(_recordingTipRequired)) {
+				_recordingTipRequests.fire({});
+			}
 			stop(_inField.current());
 		}
 	}, _recordingLifetime);
@@ -1531,6 +1541,10 @@ rpl::producer<not_null<QEvent*>> VoiceRecordBar::lockViewportEvents() const {
 
 rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
 	return _listenChanges.events();
+}
+
+rpl::producer<> VoiceRecordBar::recordingTipRequests() const {
+	return _recordingTipRequests.events();
 }
 
 bool VoiceRecordBar::isLockPresent() const {

@@ -67,6 +67,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
 	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
+	[[nodiscard]] rpl::producer<> recordingTipRequests() const;
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
@@ -150,6 +151,9 @@ private:
 	rpl::variable<bool> _lockShowing = false;
 	int _recordingSamples = 0;
 	float64 _redCircleProgress = 0.;
+
+	rpl::event_stream<> _recordingTipRequests;
+	bool _recordingTipRequired = false;
 
 	const style::font &_cancelFont;
 
