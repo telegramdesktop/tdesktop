@@ -1281,13 +1281,16 @@ elseif (APPLE)
         source_group(TREE ${res_loc} PREFIX Resources FILES ${strings_path})
     endforeach()
 
+    add_custom_command(TARGET Telegram
+    PRE_LINK
+        COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Resources
+        COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
+    )
     if (NOT build_macstore)
         add_custom_command(TARGET Telegram
         PRE_LINK
             COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
             COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
-            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Resources
-            COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
         )
         if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
             if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
@@ -1342,6 +1345,8 @@ if (build_macstore)
         COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks
         COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
         COMMAND cp -a ${libs_loc}/breakpad/src/client/mac/build/Release/Breakpad.framework $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework
+        COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework/Resources/crash_report_sender.app
+        COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework/Resources/Inspector
     )
 else()
     set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")

@@ -261,15 +261,17 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
 
     cd $FullExecPath
 
-    if [ "$NotarizeRequestIdAMD64" == "" ]; then
-      echo "Preparing single arm64 update.."
-      ./$0 arm64 request_uuid $NotarizeRequestIdARM64
+    if [ "$BuildTarget" == "mac" ]; then
+      if [ "$NotarizeRequestIdAMD64" == "" ]; then
+        echo "Preparing single arm64 update.."
+        ./$0 arm64 request_uuid $NotarizeRequestIdARM64
+      fi
+
+      echo "Preparing single x86_64 update.."
+      ./$0 x86_64 request_uuid $NotarizeRequestIdAMD64
+
+      echo "Done."
     fi
-
-    echo "Preparing single x86_64 update.."
-    ./$0 x86_64 request_uuid $NotarizeRequestIdAMD64
-
-    echo "Done."
     cd $ReleasePath
   fi
   if [ "$NotarizeRequestId" == "" ]; then
@@ -287,27 +289,26 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       fi
     fi
 
-    if [ "$MacArch" != "" ]; then
-      echo "Dumping debug symbols for single $MacArch.."
-      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "$MacArch" "$ReleasePath/$BundleName/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.$MacArch.sym" 2>/dev/null
+    if [ "$MacArch" == "" ]; then
+      echo "Dumping debug symbols x86_64 from universal.."
+      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "x86_64" "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" > "$ReleasePath/$BinaryName.x86_64.sym" 2>/dev/null
       echo "Done!"
 
-      SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.$MacArch.sym" | awk -F " " 'END {print $4}'`
-      echo "Copying $BinaryName.$MacArch.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+      SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.x86_64.sym" | awk -F " " 'END {print $4}'`
+      echo "Copying $BinaryName.x86_64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
       mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-      cp "$ReleasePath/$BinaryName.$MacArch.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/$BinaryName.sym"
+      cp "$ReleasePath/$BinaryName.x86_64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/$BinaryName.sym"
       echo "Done!"
 
-      echo "Dumping debug symbols $MacArch from universal.."
-      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "$MacArch" "$ReleasePath/$BinaryName.app/Contents/MacOS/Telegram" > "$ReleasePath/$BinaryName.universal.$MacArch.sym" 2>/dev/null
+      echo "Dumping debug symbols arm64 from universal.."
+      "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "-a" "arm64" "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" > "$ReleasePath/$BinaryName.arm64.sym" 2>/dev/null
       echo "Done!"
 
-      DiffLines=`diff "$ReleasePath/$BinaryName.$MacArch.sym" "$ReleasePath/$BinaryName.universal.$MacArch.sym" | wc -l | awk -F " " 'END {print $1}'`
-      if [ "$DiffLines" != "0" ]; then
-        Error "Bad symbol dumps, different from universal and single-arch."
-      fi
-
-      rm "$ReleasePath/$BinaryName.universal.$MacArch.sym"
+      SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.arm64.sym" | awk -F " " 'END {print $4}'`
+      echo "Copying $BinaryName.arm64.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+      mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+      cp "$ReleasePath/$BinaryName.arm64.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/$BinaryName.sym"
+      echo "Done!"
     fi
 
     echo "Stripping the executable.."
@@ -322,6 +323,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     if [ "$BuildTarget" == "mac" ]; then
       codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "$ReleasePath/$BundleName" --entitlements "$HomePath/Telegram/Telegram.entitlements"
     elif [ "$BuildTarget" == "macstore" ]; then
+      codesign --force --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BundleName/Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib" --entitlements "$HomePath/Telegram/Breakpad.entitlements"
       codesign --force --deep --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BundleName" --entitlements "$HomePath/Telegram/Telegram Lite.entitlements"
       echo "Making an installer.."
       productbuild --sign "3rd Party Mac Developer Installer: Telegram FZ-LLC (C67CF9S4VU)" --component "$ReleasePath/$BundleName" /Applications "$ReleasePath/$BinaryName.pkg"
