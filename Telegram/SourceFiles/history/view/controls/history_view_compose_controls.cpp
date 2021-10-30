@@ -1225,7 +1225,9 @@ void ComposeControls::initAutocomplete() {
 
 	_autocomplete->stickerChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
-		setText({});
+		if (!_showSlowmodeError || !_showSlowmodeError()) {
+			setText({});
+		}
 		//_saveDraftText = true;
 		//_saveDraftStart = crl::now();
 		//saveDraft();
