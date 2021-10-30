@@ -164,6 +164,8 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
     ui/chat/requests_bar.h
+    ui/chat/select_scroll_manager.cpp
+    ui/chat/select_scroll_manager.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
     ui/controls/delete_message_context_action.cpp

@@ -252,6 +252,11 @@ HistoryInner::HistoryInner(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
 	}, lifetime());
+
+	_selectScroll.scrolls(
+	) | rpl::start_with_next([=](int d) {
+		_scroll->scrollToY(_scroll->scrollTop() + d);
+	}, _scroll->lifetime());
 }
 
 Main::Session &HistoryInner::session() const {
@@ -1226,7 +1231,7 @@ void HistoryInner::mouseActionCancel() {
 	_dragStartPosition = QPoint(0, 0);
 	_dragSelFrom = _dragSelTo = nullptr;
 	_wasSelectedText = false;
-	_widget->noSelectingScroll();
+	_selectScroll.cancel();
 }
 
 std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
@@ -1281,7 +1286,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 	}();
 	if (auto mimeData = TextUtilities::MimeDataFromText(selectedText)) {
 		updateDragSelection(nullptr, nullptr, false);
-		_widget->noSelectingScroll();
+		_selectScroll.cancel();
 
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
 		if (uponSelected && !_controller->adaptive().isOneColumn()) {
@@ -1474,7 +1479,7 @@ void HistoryInner::mouseActionFinish(
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = nullptr;
 	_mouseSelectType = TextSelectType::Letters;
-	_widget->noSelectingScroll();
+	_selectScroll.cancel();
 	_widget->updateTopBarSelection();
 
 	if (QGuiApplication::clipboard()->supportsSelection()
@@ -3064,10 +3069,13 @@ void HistoryInner::mouseActionUpdate() {
 	}
 
 	if (_mouseAction == MouseAction::Selecting) {
-		_widget->checkSelectingScroll(mousePos);
+		_selectScroll.checkDeltaScroll(
+			mousePos,
+			_scroll->scrollTop(),
+			_scroll->scrollTop() + _scroll->height());
 	} else {
 		updateDragSelection(nullptr, nullptr, false);
-		_widget->noSelectingScroll();
+		_selectScroll.cancel();
 	}
 
 	if (_mouseAction == MouseAction::None && (lnkChanged || cur != _cursor)) {

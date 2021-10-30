@@ -490,7 +490,7 @@ EmojiInteractionsBunch EmojiInteractions::Parse(const QByteArray &json) {
 		return {};
 	}
 	auto result = EmojiInteractionsBunch();
-	for (const auto &interaction : actions) {
+	for (const auto interaction : actions) {
 		const auto object = interaction.toObject();
 		const auto index = object.value("i").toInt();
 		if (index < 0 || index > 10) {
