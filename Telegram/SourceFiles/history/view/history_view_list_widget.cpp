@@ -326,6 +326,11 @@ ListWidget::ListWidget(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
 	}, lifetime());
+
+	_selectScroll.scrolls(
+	) | rpl::start_with_next([=](int d) {
+		delegate->listScrollTo(_visibleTop + d);
+	}, lifetime());
 }
 
 Main::Session &ListWidget::session() const {
@@ -2326,7 +2331,7 @@ void ListWidget::mouseActionCancel() {
 	_mouseAction = MouseAction::None;
 	clearDragSelection();
 	_wasSelectedText = false;
-	//_widget->noSelectingScroll(); // #TODO select scroll
+	_selectScroll.cancel();
 }
 
 void ListWidget::mouseActionFinish(
@@ -2410,7 +2415,7 @@ void ListWidget::mouseActionFinish(
 	}
 	_mouseAction = MouseAction::None;
 	_mouseSelectType = TextSelectType::Letters;
-	//_widget->noSelectingScroll(); // #TODO select scroll
+	_selectScroll.cancel();
 
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& _selectedTextItem
@@ -2605,11 +2610,14 @@ void ListWidget::mouseActionUpdate() {
 		}
 	}
 
-	//if (_mouseAction == MouseAction::Selecting) {
-	//	_widget->checkSelectingScroll(mousePos);
-	//} else {
-	//	_widget->noSelectingScroll();
-	//} // #TODO select scroll
+	if (_mouseAction == MouseAction::Selecting) {
+		_selectScroll.checkDeltaScroll(
+			mousePosition,
+			_visibleTop,
+			_visibleBottom);
+	} else {
+		_selectScroll.cancel();
+	}
 }
 
 style::cursor ListWidget::computeMouseCursor() const {
@@ -2652,7 +2660,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 	}();
 	if (auto mimeData = TextUtilities::MimeDataFromText(selectedText)) {
 		clearDragSelection();
-//		_widget->noSelectingScroll(); #TODO scroll
+		_selectScroll.cancel();
 
 		if (!urls.isEmpty()) {
 			mimeData->setUrls(urls);

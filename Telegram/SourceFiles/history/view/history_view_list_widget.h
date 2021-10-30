@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
-#include "base/timer.h"
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 
@@ -589,6 +589,8 @@ private:
 	crl::time _highlightStart = 0;
 	FullMsgId _highlightedMessageId;
 	base::Timer _highlightTimer;
+
+	Ui::SelectScrollManager _selectScroll;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
