@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_userpics.h"
 #include "info/profile/info_profile_values.h"
-#include "apiwrap.h"
 
 namespace HistoryView {
 
@@ -103,8 +102,6 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 	};
 
 	return [=](auto consumer) {
-		const auto api = &peer->session().api();
-
 		auto lifetime = rpl::lifetime();
 		auto state = lifetime.make_state<State>(peer);
 
