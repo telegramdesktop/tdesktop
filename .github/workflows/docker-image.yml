@@ -1,0 +1,25 @@
+name: Docker.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/docker.yml'
+      - 'Telegram/build/docker/centos_env/**'
+  pull_request:
+    paths:
+      - '.github/workflows/docker.yml'
+      - 'Telegram/build/docker/centos_env/**'
+
+jobs:
+  docker:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Docker image build.
+        run: docker build -t telegram_desktop Telegram/build/docker/centos_env
