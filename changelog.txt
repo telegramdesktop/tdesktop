@@ -1,3 +1,10 @@
+3.1.12 beta (30.10.21)
+
+- Create special invite links that require admins to approve users before they become members.
+- Admins can view the applicants' profiles and bios by tapping the Join Requests bar at the top of the chat.
+- Add internal labels to your chat's Invite Links to keep them organized.
+- Run natively on Apple Silicon (macOS only).
+
 3.1.11 (29.10.21)
 
 - Create special invite links that require admins to approve users before they become members.

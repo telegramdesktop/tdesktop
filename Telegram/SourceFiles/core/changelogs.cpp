@@ -97,6 +97,19 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Add \"Quick Reply\" and \"Mark as Read\" "
 		"to native Windows notifications.\n"
+	},
+	{
+		3001012,
+		"- Create special invite links that require admins "
+		"to approve users before they become members.\n"
+
+		"- Admins can view the applicants' profiles and bios "
+		"by tapping the Join Requests bar at the top of the chat.\n"
+
+		"- Add internal labels to your chat's Invite Links "
+		"to keep them organized.\n"
+
+		"- Run natively on Apple Silicon (macOS only).\n"
 	}
 	};
 };
