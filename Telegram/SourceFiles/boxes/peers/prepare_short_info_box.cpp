@@ -316,8 +316,6 @@ bool ProcessCurrent(
 	const auto oldUserpicPhotoId = state->waitingFull
 		? state->userpicPhotoId
 		: std::exchange(state->userpicPhotoId, userpicPhotoId);
-	const auto changedUserpicPhotoId
-		= (state->userpicPhotoId != oldUserpicPhotoId);
 	const auto changedUserpic = (state->userpicKey
 		!= peer->userpicUniqueKey(state->userpicView));
 
