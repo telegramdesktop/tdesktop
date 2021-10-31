@@ -755,7 +755,6 @@ void PeerShortInfoBox::resizeEvent(QResizeEvent *e) {
 }
 
 int PeerShortInfoBox::fillRoundedTopHeight() {
-	const auto roundedWidth = _topRoundBackground->width();
 	const auto roundedHeight = _topRoundBackground->height();
 	const auto scrollTop = _scroll->scrollTop();
 	const auto covered = (st::shortInfoWidth - scrollTop);
