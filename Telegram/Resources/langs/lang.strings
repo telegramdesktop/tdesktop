@@ -1345,7 +1345,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_requests_pending#one" = "{count} user requested to join";
 "lng_group_requests_pending#other" = "{count} users requested to join";
 "lng_group_requests_pending_user" = "{user} requested to join";
-"lng_group_requests_status" = "requested to join {date}";
+"lng_group_requests_status_today" = "requested to join today at {time}";
+"lng_group_requests_status_yesterday" = "requested to join yesterday at {time}";
+"lng_group_requests_status_date_time" = "requested to join {date} at {time}";
 "lng_group_requests_add" = "Add to Group";
 "lng_group_requests_add_channel" = "Add to Channel";
 "lng_group_requests_dismiss" = "Dismiss";

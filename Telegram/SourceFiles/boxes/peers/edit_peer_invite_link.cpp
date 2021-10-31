@@ -1312,20 +1312,19 @@ QString PrepareRequestedRowStatus(TimeId date) {
 	const auto parsed = base::unixtime::parse(date);
 	const auto parsedDate = parsed.date();
 	const auto time = parsed.time().toString(cTimeFormat());
-	const auto dateGeneric = [&] {
-		return tr::lng_mediaview_date_time(
+	const auto generic = [&] {
+		return tr::lng_group_requests_status_date_time(
 			tr::now,
 			lt_date,
 			langDayOfMonth(parsedDate),
 			lt_time,
 			time);
 	};
-	const auto dateString = (parsedDate.addDays(1) < now.date())
-		? dateGeneric()
+	return (parsedDate.addDays(1) < now.date())
+		? generic()
 		: (parsedDate.addDays(1) == now.date())
-		? tr::lng_mediaview_yesterday(tr::now, lt_time, time)
+		? tr::lng_group_requests_status_yesterday(tr::now, lt_time, time)
 		: (now.date() == parsedDate)
-		? tr::lng_mediaview_today(tr::now, lt_time, time)
-		: dateGeneric();
-	return tr::lng_group_requests_status(tr::now, lt_date, dateString);
+		? tr::lng_group_requests_status_today(tr::now, lt_time, time)
+		: generic();
 }
