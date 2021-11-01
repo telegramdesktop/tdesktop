@@ -1354,7 +1354,7 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 			}
 		}
 	}
-	if (anim::Disabled()) {
+	if (anim::Disabled() && !_selected.element) {
 		mousePressReleased(e->button());
 	}
 }
