@@ -213,7 +213,7 @@ private:
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
-	[[nodiscard]] void updateViewButtonExistence();
+	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 
 	WebPage *logEntryOriginal() const;
