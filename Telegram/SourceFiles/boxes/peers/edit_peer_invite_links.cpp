@@ -251,8 +251,10 @@ not_null<Ui::SettingsButton*> AddCreateLinkButton(
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowBgActive);
 		const auto rect = icon->rect();
-		auto hq = PainterHighQualityEnabler(p);
-		p.drawEllipse(rect);
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawEllipse(rect);
+		}
 		st::inviteLinkCreateIcon.paintInCenter(p, rect);
 	}, icon->lifetime());
 	return result;
@@ -701,12 +703,14 @@ void LinksController::rowPaintIcon(
 		auto p = QPainter(&icon);
 		p.setPen(Qt::NoPen);
 		p.setBrush(*bg);
-		auto hq = PainterHighQualityEnabler(p);
-		auto rect = QRect(0, 0, inner, inner);
-		if (color == Color::Expiring || color == Color::ExpireSoon) {
-			rect = rect.marginsRemoved({ stroke, stroke, stroke, stroke });
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			auto rect = QRect(0, 0, inner, inner);
+			if (color == Color::Expiring || color == Color::ExpireSoon) {
+				rect = rect.marginsRemoved({ stroke, stroke, stroke, stroke });
+			}
+			p.drawEllipse(rect);
 		}
-		p.drawEllipse(rect);
 		(color == Color::Revoked
 			? st::inviteLinkRevokedIcon
 			: st::inviteLinkIcon).paintInCenter(p, { 0, 0, inner, inner });
