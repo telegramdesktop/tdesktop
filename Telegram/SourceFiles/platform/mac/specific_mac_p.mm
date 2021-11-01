@@ -156,11 +156,15 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
-	if (const auto window = Core::App().activeWindow()) {
-		if (window->widget()->isHidden()) {
-			window->widget()->showFromTray();
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		if (Core::IsAppLaunched()) {
+			if (const auto window = Core::App().activeWindow()) {
+				if (window->widget()->isHidden()) {
+					window->widget()->showFromTray();
+				}
+			}
 		}
-	}
+	});
 	return YES;
 }
 
