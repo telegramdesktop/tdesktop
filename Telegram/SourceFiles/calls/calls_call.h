@@ -101,7 +101,7 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
-	[[nodiscard]] uint64 id() const {
+	[[nodiscard]] CallId id() const {
 		return _id;
 	}
 	[[nodiscard]] bool isIncomingWaiting() const;
@@ -278,7 +278,7 @@ private:
 	bytes::vector _randomPower;
 	MTP::AuthKey::Data _authKey;
 
-	uint64 _id = 0;
+	CallId _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
