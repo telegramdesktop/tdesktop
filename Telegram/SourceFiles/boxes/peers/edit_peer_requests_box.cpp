@@ -321,6 +321,7 @@ void RequestsBoxController::loadMoreRows() {
 		_loadRequestId = 0;
 
 		result.match([&](const MTPDmessages_chatInviteImporters &data) {
+			session().data().processUsers(data.vusers());
 			const auto &importers = data.vimporters().v;
 			auto &owner = _peer->owner();
 			for (const auto &importer : importers) {
@@ -613,6 +614,7 @@ bool RequestsBoxSearchController::loadMoreRows() {
 		result.match([&](const MTPDmessages_chatInviteImporters &data) {
 			const auto &importers = data.vimporters().v;
 			auto &owner = _peer->owner();
+			owner.processUsers(data.vusers());
 			items.reserve(importers.size());
 			for (const auto &importer : importers) {
 				importer.match([&](const MTPDchatInviteImporter &data) {
