@@ -208,7 +208,9 @@ void ViewButton::draw(
 		pen.setWidth(st::lineWidth);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
-		p.drawRoundedRect(r, st::roundRadiusLarge, st::roundRadiusLarge);
+		const auto half = st::lineWidth / 2.;
+		const auto rf = QRectF(r).marginsRemoved({ half, half, half, half });
+		p.drawRoundedRect(rf, st::roundRadiusLarge, st::roundRadiusLarge);
 
 		_inner->text.drawElided(
 			p,
