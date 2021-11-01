@@ -960,13 +960,13 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		};
 		if (options.hideSender || isPost() || isEmpty()) {
 			return {};
-		} else if (!_history->peer->isUser()) {
-			return fromSender(displayFrom());
-		} else if (_history->peer->isSelf()) {
+		} else if (!_history->peer->isUser() || _history->peer->isSelf()) {
 			if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 				return forwarded->originalSender
 					? fromSender(forwarded->originalSender)
 					: forwarded->hiddenSenderInfo->name;
+			} else if (!_history->peer->isUser()) {
+				return fromSender(displayFrom());
 			}
 		}
 		return {};
