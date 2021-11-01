@@ -312,17 +312,10 @@ QSize Message::performCountOptimalSize() {
 	auto maxWidth = 0;
 	auto minHeight = 0;
 
+	updateViewButtonExistence();
 	updateMediaInBubbleState();
 	refreshEditedBadge();
 	refreshRightBadge();
-
-	auto mediaOnBottom = (logEntryOriginal() != nullptr)
-		|| (media && media->isDisplayed() && media->isBubbleBottom());
-	if (mediaOnBottom) {
-		// remove skip
-	} else {
-		// add skip
-	}
 
 	if (drawBubble()) {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -349,7 +342,7 @@ QSize Message::performCountOptimalSize() {
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		if (mediaOnBottom) {
+		if (mediaOnBottom || (mediaDisplayed && _viewButton)) {
 			if (item->_text.removeSkipBlock()) {
 				item->_textWidth = -1;
 				item->_textHeight = 0;
@@ -531,6 +524,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (data()->repliesAreComments() || data()->externalReply()) {
 			localMediaBottom -= st::historyCommentsButtonHeight;
 		}
+		if (_viewButton) {
+			localMediaBottom -= st::mediaInBubbleSkip + _viewButton->height();
+		}
 		if (!mediaOnBottom) {
 			localMediaBottom -= st::msgPadding.bottom();
 		}
@@ -605,18 +601,25 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
-		if (ensureViewButton()) {
+
+		auto trect = inner.marginsRemoved(st::msgPadding);
+		if (_viewButton) {
 			_viewButton->draw(
 				p,
 				_viewButton->countRect(inner),
 				context);
+			// Inner should contain _viewButton height, because info is
+			// painted below the _viewButton.
+			//
+			// inner.setHeight(inner.height() - _viewButton->height());
+			trect.setHeight(trect.height() - _viewButton->height());
+			if (mediaDisplayed) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+			}
 		}
 
-		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
-			trect.setHeight(trect.height()
-				+ st::msgPadding.bottom()
-				- viewButtonHeight());
+			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
@@ -1960,27 +1963,29 @@ int Message::viewButtonHeight() const {
 	return _viewButton ? _viewButton->height() : 0;
 }
 
-bool Message::ensureViewButton() const {
-	if (data()->isSponsored()
-		|| (data()->media()
-			&& ViewButton::MediaHasViewButton(data()->media()))) {
-		if (_viewButton) {
+void Message::updateViewButtonExistence() {
+	const auto has = [&] {
+		const auto item = data();
+		if (item->isSponsored()) {
 			return true;
 		}
-		auto callback = [=] { history()->owner().requestViewRepaint(this); };
-		_viewButton = data()->isSponsored()
-			? std::make_unique<ViewButton>(
-				data()->displayFrom(),
-				std::move(callback))
-			: std::make_unique<ViewButton>(
-				data()->media(),
-				std::move(callback));
-		return true;
+		const auto media = item->media();
+		return media && ViewButton::MediaHasViewButton(media);
+	}();
+	if (!has) {
+		_viewButton = nullptr;
+		return;
+	} else if (_viewButton) {
+		return;
 	}
-	if (_viewButton) {
-		_viewButton.reset(nullptr);
-	}
-	return false;
+	auto callback = [=] { history()->owner().requestViewRepaint(this); };
+	_viewButton = data()->isSponsored()
+		? std::make_unique<ViewButton>(
+			data()->displayFrom(),
+			std::move(callback))
+		: std::make_unique<ViewButton>(
+			data()->media(),
+			std::move(callback));
 }
 
 void Message::initLogEntryOriginal() {
@@ -2384,7 +2389,7 @@ void Message::updateMediaInBubbleState() {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto mediaHasSomethingBelow = false;
+	auto mediaHasSomethingBelow = (_viewButton != nullptr);
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
@@ -2643,9 +2648,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
 		}
-		if (ensureViewButton()) {
-			newHeight += viewButtonHeight();
-		}
+		newHeight += viewButtonHeight();
 	} else if (mediaDisplayed) {
 		newHeight = media->height();
 	} else {
