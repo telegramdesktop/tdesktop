@@ -1067,8 +1067,18 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
+SendMenu::Type MainWidget::sendMenuType() const {
+	return _history->sendMenuType();
+}
+
 bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
-	return _history->sendExistingDocument(document, Api::SendOptions());
+	return sendExistingDocument(document, Api::SendOptions());
+}
+
+bool MainWidget::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options) {
+	return _history->sendExistingDocument(document, options);
 }
 
 void MainWidget::dialogsCancelled() {

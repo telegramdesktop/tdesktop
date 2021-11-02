@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
+#include "chat_helpers/send_context_menu.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"
@@ -35,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_toggling_media.h"
+#include "api/api_common.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "styles/style_layers.h"
@@ -87,6 +90,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
@@ -112,6 +116,8 @@ private:
 
 	void gotSet(const MTPmessages_StickerSet &set);
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
+
+	void send(not_null<DocumentData*> sticker, Api::SendOptions options);
 
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
@@ -143,6 +149,8 @@ private:
 
 	base::Timer _previewTimer;
 	int _previewShown = -1;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	rpl::event_stream<uint64> _setInstalled;
 	rpl::event_stream<uint64> _setArchived;
@@ -577,10 +585,14 @@ void StickerSetBox::Inner::installDone(
 }
 
 void StickerSetBox::Inner::mousePressEvent(QMouseEvent *e) {
-	int index = stickerFromGlobalPos(e->globalPos());
-	if (index >= 0 && index < _pack.size()) {
-		_previewTimer.callOnce(QApplication::startDragTime());
+	if (e->button() != Qt::LeftButton) {
+		return;
 	}
+	const auto index = stickerFromGlobalPos(e->globalPos());
+	if (index < 0 || index >= _pack.size()) {
+		return;
+	}
+	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
@@ -605,18 +617,62 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		_previewShown = -1;
 		return;
 	}
-	if (_previewTimer.isActive()) {
-		_previewTimer.cancel();
-		const auto index = stickerFromGlobalPos(e->globalPos());
-		if (index >= 0 && index < _pack.size() && !isMasksSet()) {
-			const auto sticker = _pack[index];
-			Ui::PostponeCall(crl::guard(_controller, [=] {
-				if (_controller->content()->sendExistingDocument(sticker)) {
-					Ui::hideSettingsAndLayer();
-				}
-			}));
-		}
+	if (!_previewTimer.isActive()) {
+		return;
 	}
+	_previewTimer.cancel();
+	const auto index = stickerFromGlobalPos(e->globalPos());
+	if (index < 0 || index >= _pack.size() || isMasksSet()) {
+		return;
+	}
+	send(_pack[index], Api::SendOptions());
+}
+
+void StickerSetBox::Inner::send(
+		not_null<DocumentData*> sticker,
+		Api::SendOptions options) {
+	const auto controller = _controller;
+	Ui::PostponeCall(controller, [=] {
+		if (controller->content()->sendExistingDocument(sticker, options)) {
+			Ui::hideSettingsAndLayer();
+		}
+	});
+}
+
+void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
+	const auto index = stickerFromGlobalPos(e->globalPos());
+	if (index < 0 || index >= _pack.size()) {
+		return;
+	}
+	const auto type = _controller->content()->sendMenuType();
+	if (type == SendMenu::Type::Disabled) {
+		return;
+	}
+	_previewTimer.cancel();
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+
+	const auto document = _pack[index];
+	const auto sendSelected = [=](Api::SendOptions options) {
+		send(document, options);
+	};
+	SendMenu::FillSendMenu(
+		_menu.get(),
+		type,
+		SendMenu::DefaultSilentCallback(sendSelected),
+		SendMenu::DefaultScheduleCallback(this, type, sendSelected));
+
+	const auto toggleFavedSticker = [=] {
+		Api::ToggleFavedSticker(
+			document,
+			Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
+	};
+	_menu->addAction(
+		(document->owner().stickers().isFaved(document)
+			? tr::lng_faved_stickers_remove
+			: tr::lng_faved_stickers_add)(tr::now),
+		toggleFavedSticker);
+
+	_menu->popup(QCursor::pos());
 }
 
 void StickerSetBox::Inner::updateSelected() {

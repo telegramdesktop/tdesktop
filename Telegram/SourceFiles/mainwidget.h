@@ -29,7 +29,12 @@ class Error;
 
 namespace Api {
 struct SendAction;
+struct SendOptions;
 } // namespace Api
+
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace Main {
 class Session;
@@ -150,7 +155,11 @@ public:
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 	void checkMainSectionToLayer();
 
-	bool sendExistingDocument(not_null<DocumentData*> sticker);
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	bool sendExistingDocument(not_null<DocumentData*> document);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options);
 
 	bool isActive() const;
 	[[nodiscard]] bool doWeMarkAsRead() const;
