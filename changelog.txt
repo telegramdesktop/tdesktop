@@ -1,3 +1,12 @@
+3.1.13 beta (02.11.21)
+
+- Fix requests to groups / channels processing.
+- Fix internal link previews with View Content button layout.
+- Fix crash in messages search with imported messages results.
+- Don't use fractional system UI scaling on Linux.
+- Fix invite link icons on macOS.
+- Several crash fixes.
+
 3.1.12 beta (30.10.21)
 
 - Create special invite links that require admins to approve users before they become members.

@@ -110,7 +110,21 @@ std::map<int, const char*> BetaLogs() {
 		"to keep them organized.\n"
 
 		"- Run natively on Apple Silicon (macOS only).\n"
-	}
+	},
+	{
+		3001013,
+		"- Fix requests to groups / channels processing.\n"
+
+		"- Fix internal link previews with View Content button layout.\n"
+
+		"- Fix crash in messages search with imported messages results.\n"
+
+		"- Don't use fractional system UI scaling on Linux.\n"
+
+		"- Fix invite link icons on macOS.\n"
+
+		"- Several crash fixes.\n"
+	},
 	};
 };
 
