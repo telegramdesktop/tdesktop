@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_sponsored_messages.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_chat.h"
@@ -681,6 +682,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				if (item->hasViews()) {
 					session().api().views().scheduleIncrement(item);
 				}
+				if (item->isSponsored()) {
+					session().data().sponsoredMessages().view(item->fullId());
+				}
 				if (item->isUnreadMention() && !item->isUnreadMedia()) {
 					readMentions.insert(item);
 					_widget->enqueueMessageHighlight(view);
@@ -740,6 +744,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						&& _visibleAreaTop <= middle) {
 						if (item->hasViews()) {
 							session().api().views().scheduleIncrement(item);
+						}
+						if (item->isSponsored()) {
+							session().data().sponsoredMessages().view(
+								item->fullId());
 						}
 						if (item->isUnreadMention() && !item->isUnreadMedia()) {
 							readMentions.insert(item);

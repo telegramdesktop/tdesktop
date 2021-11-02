@@ -41,6 +41,8 @@ public:
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] MsgId channelPost(const FullMsgId &fullId) const;
 
+	void view(const FullMsgId &fullId);
+
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
 	struct Entry {
@@ -65,7 +67,7 @@ private:
 		const MTPSponsoredMessage &message);
 	void clearOldRequests();
 
-	void view(const std::vector<Entry>::iterator entryIt);
+	const Entry *find(const FullMsgId &fullId) const;
 
 	const not_null<Main::Session*> _session;
 
