@@ -88,6 +88,43 @@ void EditInviteLinkBox(
 			margins);
 	};
 
+	const auto now = base::unixtime::now();
+	const auto expire = data.expireDate ? data.expireDate : kMaxLimit;
+	const auto expireGroup = std::make_shared<RadiobuttonGroup>(expire);
+	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
+	const auto usageGroup = std::make_shared<RadiobuttonGroup>(usage);
+
+	using Buttons = base::flat_map<int, base::unique_qptr<Radiobutton>>;
+	struct State {
+		Buttons expireButtons;
+		Buttons usageButtons;
+		int expireValue = 0;
+		int usageValue = 0;
+		rpl::variable<bool> requestApproval = false;
+	};
+	const auto state = box->lifetime().make_state<State>(State{
+		.expireValue = expire,
+		.usageValue = usage,
+		.requestApproval = data.requestApproval,
+	});
+
+	const auto requestApproval = container->add(
+		object_ptr<SettingsButton>(
+			container,
+			tr::lng_group_invite_request_approve(),
+			st::settingsButton),
+		style::margins{ 0, 0, 0, st::settingsSectionSkip });
+	requestApproval->toggleOn(state->requestApproval.value());
+	state->requestApproval = requestApproval->toggledValue();
+	addDivider(container, rpl::conditional(
+		state->requestApproval.value(),
+		(isGroup
+			? tr::lng_group_invite_about_approve()
+			: tr::lng_group_invite_about_approve_channel()),
+		(isGroup
+			? tr::lng_group_invite_about_no_approve()
+			: tr::lng_group_invite_about_no_approve_channel())));
+
 	addTitle(container, tr::lng_group_invite_expire_title());
 	const auto expiresWrap = container->add(
 		object_ptr<VerticalLayout>(container),
@@ -124,25 +161,6 @@ void EditInviteLinkBox(
 			st::inviteLinkLimitMargin);
 	};
 
-	const auto now = base::unixtime::now();
-	const auto expire = data.expireDate ? data.expireDate : kMaxLimit;
-	const auto expireGroup = std::make_shared<RadiobuttonGroup>(expire);
-	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
-	const auto usageGroup = std::make_shared<RadiobuttonGroup>(usage);
-
-	using Buttons = base::flat_map<int, base::unique_qptr<Radiobutton>>;
-	struct State {
-		Buttons expireButtons;
-		Buttons usageButtons;
-		int expireValue = 0;
-		int usageValue = 0;
-		rpl::variable<bool> requestApproval = false;
-	};
-	const auto state = box->lifetime().make_state<State>(State{
-		.expireValue = expire,
-		.usageValue = usage,
-		.requestApproval = data.requestApproval,
-	});
 	const auto regenerate = [=] {
 		expireGroup->setValue(state->expireValue);
 		usageGroup->setValue(state->usageValue);
@@ -292,24 +310,6 @@ void EditInviteLinkBox(
 			st::settingsSectionSkip * 2));
 	labelField->setMaxLength(kMaxLabelLength);
 	addDivider(container, tr::lng_group_invite_label_about());
-
-	const auto buttonSkip = st::settingsSectionSkip;
-	const auto requestApproval = container->add(
-		object_ptr<SettingsButton>(
-			container,
-			tr::lng_group_invite_request_approve(),
-			st::settingsButton),
-		style::margins{ 0, buttonSkip, 0, buttonSkip });
-	requestApproval->toggleOn(state->requestApproval.value());
-	state->requestApproval = requestApproval->toggledValue();
-	addDivider(container, rpl::conditional(
-		state->requestApproval.value(),
-		(isGroup
-			? tr::lng_group_invite_about_approve()
-			: tr::lng_group_invite_about_approve_channel()),
-		(isGroup
-			? tr::lng_group_invite_about_no_approve()
-			: tr::lng_group_invite_about_no_approve_channel())));
 
 	usagesSlide->toggleOn(state->requestApproval.value() | rpl::map(!_1));
 	usagesSlide->finishAnimating();
