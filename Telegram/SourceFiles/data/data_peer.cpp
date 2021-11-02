@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "window/window_session_controller.h"
+#include "window/main_window.h" // Window::LogoNoMargin.
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
@@ -302,7 +303,7 @@ Image *PeerData::currentUserpic(
 		_userpicEmpty = nullptr;
 	} else if (isNotificationsUser()) {
 		static auto result = Image(
-			Core::App().logoNoMargin().scaledToWidth(
+			Window::LogoNoMargin().scaledToWidth(
 				kUserpicSize,
 				Qt::SmoothTransformation));
 		return &result;

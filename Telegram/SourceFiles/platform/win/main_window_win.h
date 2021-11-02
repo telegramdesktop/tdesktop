@@ -30,8 +30,6 @@ public:
 
 	void psRefreshTaskbarIcon();
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
-
 	[[nodiscard]] static uint32 TaskbarCreatedMsgId();
 	static void TaskbarCreated();
 
@@ -59,7 +57,6 @@ protected:
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
-	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	void showTrayTooltip() override;
 

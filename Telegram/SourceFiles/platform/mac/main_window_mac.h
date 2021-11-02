@@ -25,8 +25,6 @@ public:
 
 	bool psFilterNativeEvent(void *event);
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
-
 	int getCustomTitleHeight() const {
 		return _customTitleHeight;
 	}
@@ -77,7 +75,6 @@ protected:
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
-	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	void closeWithoutDestroy() override;
 	void createGlobalMenu() override;

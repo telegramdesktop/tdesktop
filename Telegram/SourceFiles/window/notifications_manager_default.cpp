@@ -87,7 +87,7 @@ Manager::QueuedNotification::QueuedNotification(
 QPixmap Manager::hiddenUserpicPlaceholder() const {
 	if (_hiddenUserpicPlaceholder.isNull()) {
 		_hiddenUserpicPlaceholder = Ui::PixmapFromImage(
-			Core::App().logoNoMargin().scaled(
+			LogoNoMargin().scaled(
 				st::notifyPhotoSize,
 				st::notifyPhotoSize,
 				Qt::IgnoreAspectRatio,

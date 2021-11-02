@@ -141,12 +141,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
-, _logo(Window::LoadLogo())
-, _logoNoMargin(Window::LoadLogoNoMargin())
 , _autoLockTimer([=] { checkAutoLock(); }) {
-	Expects(!_logo.isNull());
-	Expects(!_logoNoMargin.isNull());
-
 	Ui::Integration::Set(&_private->uiIntegration);
 
 	passcodeLockChanges(

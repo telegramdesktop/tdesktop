@@ -305,7 +305,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 					}
 				}
 			} else {
-				currentImageBack = Core::App().logo();
+				currentImageBack = Window::Logo();
 			}
 
 			if (dprSize(currentImageBack) != desiredSize) {
@@ -324,20 +324,19 @@ QIcon TrayIconGen(int counter, bool muted) {
 				: st::trayCounterBg;
 			const auto &fg = st::trayCounterFg;
 			if (iconSize >= 22) {
-				auto layerSize = -16;
-				if (iconSize >= 48) {
-					layerSize = -32;
-				} else if (iconSize >= 36) {
-					layerSize = -24;
-				} else if (iconSize >= 32) {
-					layerSize = -20;
-				}
-				const auto layer = App::wnd()->iconWithCounter(
-					layerSize,
-					counter,
-					bg,
-					fg,
-					false);
+				const auto layerSize = (iconSize >= 48)
+					? 32
+					: (iconSize >= 36)
+					? 24
+					: (iconSize >= 32)
+					? 20
+					: 16;
+				const auto layer = Window::GenerateCounterLayer({
+					.size = layerSize,
+					.count = counter,
+					.bg = bg,
+					.fg = fg,
+				});
 
 				QPainter p(&iconImage);
 				p.drawImage(
@@ -345,13 +344,12 @@ QIcon TrayIconGen(int counter, bool muted) {
 					iconImage.height() - layer.height() - 1,
 					layer);
 			} else {
-				App::wnd()->placeSmallCounter(
-					iconImage,
-					16,
-					counter,
-					bg,
-					QPoint(),
-					fg);
+				iconImage = Window::WithSmallCounter(std::move(iconImage), {
+					.size = 16,
+					.count = counter,
+					.bg = bg,
+					.fg = fg,
+				});
 			}
 		}
 
