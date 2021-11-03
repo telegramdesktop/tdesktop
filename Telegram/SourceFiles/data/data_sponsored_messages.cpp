@@ -92,15 +92,24 @@ bool SponsoredMessages::append(not_null<History*> history) {
 	return true;
 }
 
+bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
+	return history->isChannel();
+}
+
 void SponsoredMessages::request(not_null<History*> history) {
+	if (!canHaveFor(history)) {
+		return;
+	}
 	auto &request = _requests[history];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
+	const auto channel = history->peer->asChannel();
+	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
 		MTPchannels_GetSponsoredMessages(
-			_session->data().channel(history->channelId())->inputChannel
-	)).done([=](const MTPmessages_sponsoredMessages &result) {
+			channel->inputChannel)
+	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
 	}).fail([=](const MTP::Error &error) {
 		_requests.remove(history);
@@ -169,6 +178,9 @@ void SponsoredMessages::clearItems(not_null<History*> history) {
 
 const SponsoredMessages::Entry *SponsoredMessages::find(
 		const FullMsgId &fullId) const {
+	if (!fullId.channel) {
+		return nullptr;
+	}
 	const auto history = _session->data().history(
 		peerFromChannel(fullId.channel));
 	const auto it = _data.find(history);
@@ -195,12 +207,13 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
-	const auto history = entryPtr->item->history();
+	const auto channel = entryPtr->item->history()->peer->asChannel();
+	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
 		MTPchannels_ViewSponsoredMessage(
-			_session->data().channel(history->channelId())->inputChannel,
-			MTP_bytes(randomId)
-	)).done([=] {
+			channel->inputChannel,
+			MTP_bytes(randomId))
+	).done([=] {
 		auto &request = _viewRequests[randomId];
 		request.lastReceived = crl::now();
 		request.requestId = 0;

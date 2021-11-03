@@ -2674,10 +2674,6 @@ QString History::topPromotionMessage() const {
 	return _topPromotedMessage;
 }
 
-bool History::canHaveSponsoredMessages() const {
-	return isChannel();
-}
-
 bool History::clearUnreadOnClientSide() const {
 	if (!session().supportMode()) {
 		return false;

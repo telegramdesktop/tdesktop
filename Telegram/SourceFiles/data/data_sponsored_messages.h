@@ -36,6 +36,7 @@ public:
 	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
 
+	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);

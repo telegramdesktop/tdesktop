@@ -679,18 +679,20 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					seltoy - mtop);
 				view->draw(p, context);
 
-				if (item->hasViews()) {
-					session().api().views().scheduleIncrement(item);
-				}
-				if (item->isSponsored()) {
-					session().data().sponsoredMessages().view(item->fullId());
-				}
-				if (item->isUnreadMention() && !item->isUnreadMedia()) {
-					readMentions.insert(item);
-					_widget->enqueueMessageHighlight(view);
+				const auto height = view->height();
+				const auto middle = top + height / 2;
+				const auto bottom = top + height;
+				if (_visibleAreaBottom >= middle
+					&& _visibleAreaTop <= middle) {
+					if (item->hasViews()) {
+						session().api().views().scheduleIncrement(item);
+					}
+					if (item->isUnreadMention() && !item->isUnreadMedia()) {
+						readMentions.insert(item);
+						_widget->enqueueMessageHighlight(view);
+					}
 				}
 
-				const auto height = view->height();
 				top += height;
 				context.translate(0, -height);
 				p.translate(0, height);
@@ -739,15 +741,15 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						if (!item->out() && item->unread()) {
 							readTill = item;
 						}
+						if (item->isSponsored()) {
+							session().data().sponsoredMessages().view(
+								item->fullId());
+						}
 					}
 					if (_visibleAreaBottom >= middle
 						&& _visibleAreaTop <= middle) {
 						if (item->hasViews()) {
 							session().api().views().scheduleIncrement(item);
-						}
-						if (item->isSponsored()) {
-							session().data().sponsoredMessages().view(
-								item->fullId());
 						}
 						if (item->isUnreadMention() && !item->isUnreadMedia()) {
 							readMentions.insert(item);

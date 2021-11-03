@@ -2189,11 +2189,9 @@ void HistoryWidget::showHistory(
 		showAboutTopPromotion();
 
 		{
-			const auto hasSponsored = _history->canHaveSponsoredMessages();
-			_scroll->setTrackingContent(hasSponsored);
-			if (hasSponsored) {
-				session().data().sponsoredMessages().request(_history);
-			}
+			auto &sponsored = session().data().sponsoredMessages();
+			sponsored.request(_history);
+			_scroll->setTrackingContent(sponsored.canHaveFor(_history));
 		}
 	} else {
 		_chooseForReport = nullptr;

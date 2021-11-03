@@ -282,8 +282,6 @@ public:
 	[[nodiscard]] bool topPromotionAboutShown() const;
 	void markTopPromotionAboutShown();
 
-	[[nodiscard]] bool canHaveSponsoredMessages() const;
-
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
