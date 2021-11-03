@@ -164,18 +164,8 @@ if [ "$BuildTarget" == "linux" ]; then
   strip -s "$ReleasePath/$BinaryName"
   echo "Done!"
 
-  echo "Appending an icon.."
-  rm -rf "$ReleasePath/$BinaryName.AppDir"
-  rm -rf "$ReleasePath/$BinaryName.squashfs"
-  mkdir "$ReleasePath/$BinaryName.AppDir"
-  cp "$HomePath/Resources/art/logo_256.png" "$ReleasePath/$BinaryName.AppDir/.DirIcon"
-  cd "$ReleasePath"
-  mksquashfs "$BinaryName.AppDir" "$BinaryName.squashfs" -root-owned -noappend
-  cat "$BinaryName.squashfs" >> "$BinaryName"
-  echo "8: 414902" | xxd -r - "$BinaryName"
-  echo "Done!"
-
   echo "Preparing version $AppVersionStrFull, executing Packer.."
+  cd "$ReleasePath"
   "./Packer" -path "$BinaryName" -path Updater -version $VersionForPacker $AlphaBetaParam
   echo "Packer done!"
 
