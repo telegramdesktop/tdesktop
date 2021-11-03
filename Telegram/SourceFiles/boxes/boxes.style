@@ -98,6 +98,7 @@ confirmInviteAbout: FlatLabel(boxLabel) {
 confirmInviteStatus: FlatLabel(confirmInviteAbout) {
 	textFg: windowSubTextFg;
 	style: boxLabelStyle;
+	maxHeight: 0px;
 }
 confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
 confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
