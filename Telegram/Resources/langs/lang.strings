@@ -1331,7 +1331,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_qr_title" = "Invite by QR Code";
 "lng_group_invite_qr_about" = "Everyone on Telegram can scan this code to join your group.";
 "lng_group_invite_qr_copied" = "QR Code copied to clipboard.";
-"lng_group_invite_request_approve" = "Approve everyone who joins";
+"lng_group_invite_request_approve" = "Request admin approval";
 "lng_group_invite_about_approve" = "New users will be able to join the group only after having been approved by the admins.";
 "lng_group_invite_about_no_approve" = "New users will be able to join the group without being approved by the admins.";
 "lng_group_invite_about_approve_channel" = "New users will be able to join the channel only after having been approved by the admins.";

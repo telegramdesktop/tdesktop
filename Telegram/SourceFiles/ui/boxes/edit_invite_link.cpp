@@ -57,6 +57,7 @@ void EditInviteLinkBox(
 
 	const auto link = data.link;
 	const auto isGroup = data.isGroup;
+	const auto isPublic = data.isPublic;
 	box->setTitle(link.isEmpty()
 		? tr::lng_group_invite_new_title()
 		: tr::lng_group_invite_edit_title());
@@ -64,14 +65,14 @@ void EditInviteLinkBox(
 	const auto container = box->verticalLayout();
 	const auto addTitle = [&](
 			not_null<VerticalLayout*> container,
-			rpl::producer<QString> text,
-			style::margins margins = style::margins()) {
+			rpl::producer<QString> text) {
 		container->add(
 			object_ptr<FlatLabel>(
 				container,
 				std::move(text),
 				st::settingsSubsectionTitle),
-			st::settingsSubsectionTitlePadding + margins);
+			(st::settingsSubsectionTitlePadding
+				+ style::margins(0, st::settingsSectionSkip, 0, 0)));
 	};
 	const auto addDivider = [&](
 			not_null<VerticalLayout*> container,
@@ -105,25 +106,43 @@ void EditInviteLinkBox(
 	const auto state = box->lifetime().make_state<State>(State{
 		.expireValue = expire,
 		.usageValue = usage,
-		.requestApproval = data.requestApproval,
+		.requestApproval = (data.requestApproval && !isPublic),
 	});
 
-	const auto requestApproval = container->add(
-		object_ptr<SettingsButton>(
+	const auto requestApproval = isPublic
+		? nullptr
+		: container->add(
+			object_ptr<SettingsButton>(
+				container,
+				tr::lng_group_invite_request_approve(),
+				st::settingsButton),
+			style::margins{ 0, 0, 0, st::settingsSectionSkip });
+	if (requestApproval) {
+		requestApproval->toggleOn(state->requestApproval.value());
+		state->requestApproval = requestApproval->toggledValue();
+		addDivider(container, rpl::conditional(
+			state->requestApproval.value(),
+			(isGroup
+				? tr::lng_group_invite_about_approve()
+				: tr::lng_group_invite_about_approve_channel()),
+			(isGroup
+				? tr::lng_group_invite_about_no_approve()
+				: tr::lng_group_invite_about_no_approve_channel())));
+	}
+
+	const auto labelField = container->add(
+		object_ptr<Ui::InputField>(
 			container,
-			tr::lng_group_invite_request_approve(),
-			st::settingsButton),
-		style::margins{ 0, 0, 0, st::settingsSectionSkip });
-	requestApproval->toggleOn(state->requestApproval.value());
-	state->requestApproval = requestApproval->toggledValue();
-	addDivider(container, rpl::conditional(
-		state->requestApproval.value(),
-		(isGroup
-			? tr::lng_group_invite_about_approve()
-			: tr::lng_group_invite_about_approve_channel()),
-		(isGroup
-			? tr::lng_group_invite_about_no_approve()
-			: tr::lng_group_invite_about_no_approve_channel())));
+			st::defaultInputField,
+			tr::lng_group_invite_label_header(),
+			data.label),
+		style::margins(
+			st::settingsSubsectionTitlePadding.left(),
+			st::settingsSectionSkip,
+			st::settingsSubsectionTitlePadding.right(),
+			st::settingsSectionSkip * 2));
+	labelField->setMaxLength(kMaxLabelLength);
+	addDivider(container, tr::lng_group_invite_label_about());
 
 	addTitle(container, tr::lng_group_invite_expire_title());
 	const auto expiresWrap = container->add(
@@ -138,10 +157,7 @@ void EditInviteLinkBox(
 			container,
 			object_ptr<VerticalLayout>(container)));
 	const auto usagesInner = usagesSlide->entity();
-	addTitle(
-		usagesInner,
-		tr::lng_group_invite_usage_title(),
-		style::margins(0, st::settingsSectionSkip, 0, 0));
+	addTitle(usagesInner, tr::lng_group_invite_usage_title());
 	const auto usagesWrap = usagesInner->add(
 		object_ptr<VerticalLayout>(usagesInner),
 		style::margins(0, 0, 0, st::settingsSectionSkip));
@@ -297,20 +313,6 @@ void EditInviteLinkBox(
 
 	regenerate();
 
-	const auto labelField = container->add(
-		object_ptr<Ui::InputField>(
-			container,
-			st::defaultInputField,
-			tr::lng_group_invite_label_header(),
-			data.label),
-		style::margins(
-			st::settingsSubsectionTitlePadding.left(),
-			st::settingsSectionSkip,
-			st::settingsSubsectionTitlePadding.right(),
-			st::settingsSectionSkip * 2));
-	labelField->setMaxLength(kMaxLabelLength);
-	addDivider(container, tr::lng_group_invite_label_about());
-
 	usagesSlide->toggleOn(state->requestApproval.value() | rpl::map(!_1));
 	usagesSlide->finishAnimating();
 
@@ -334,6 +336,7 @@ void EditInviteLinkBox(
 			.usageLimit = usageLimit,
 			.requestApproval = state->requestApproval.current(),
 			.isGroup = isGroup,
+			.isPublic = isPublic,
 		});
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -342,10 +345,11 @@ void EditInviteLinkBox(
 void CreateInviteLinkBox(
 		not_null<GenericBox*> box,
 		bool isGroup,
+		bool isPublic,
 		Fn<void(InviteLinkFields)> done) {
 	EditInviteLinkBox(
 		box,
-		InviteLinkFields{ .isGroup = isGroup },
+		InviteLinkFields{ .isGroup = isGroup, .isPublic = isPublic },
 		std::move(done));
 }
 

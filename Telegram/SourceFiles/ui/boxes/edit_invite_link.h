@@ -18,6 +18,7 @@ struct InviteLinkFields {
 	int usageLimit = 0;
 	bool requestApproval = false;
 	bool isGroup = false;
+	bool isPublic = false;
 };
 
 void EditInviteLinkBox(
@@ -28,6 +29,7 @@ void EditInviteLinkBox(
 void CreateInviteLinkBox(
 	not_null<Ui::GenericBox*> box,
 	bool isGroup,
+	bool isPublic,
 	Fn<void(InviteLinkFields)> done);
 
 } // namespace Ui
