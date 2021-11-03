@@ -425,7 +425,6 @@ void MainWindow::updateIconCounters() {
 			: std::wstring();
 		taskbarList->SetOverlayIcon(ps_hWnd, ps_iconOverlay, description.c_str());
 	}
-	psDestroyIcons();
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
