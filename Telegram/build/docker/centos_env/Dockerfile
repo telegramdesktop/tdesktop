@@ -752,6 +752,7 @@ RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
 	-no-pch \
 	-no-icu \
 	-no-feature-xcb-sm \
+	-no-feature-highdpiscaling \
 	-static \
 	-dbus-runtime \
 	-openssl-linked \

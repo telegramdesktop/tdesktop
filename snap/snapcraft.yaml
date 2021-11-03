@@ -407,6 +407,7 @@ parts:
         -release \
         -opensource \
         -confirm-license \
+        -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
         -nomake tests
