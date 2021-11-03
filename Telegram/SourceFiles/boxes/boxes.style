@@ -373,7 +373,7 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 aboutTextTop: 34px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 330px;
+	minWidth: 300px;
 	align: align(topleft);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 22px;
