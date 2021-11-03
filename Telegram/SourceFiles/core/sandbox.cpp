@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
+#include <qpa/qplatformscreen.h>
 
 namespace Core {
 namespace {
@@ -183,7 +184,11 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
-	const auto dpi = Sandbox::primaryScreen()->logicalDotsPerInch();
+	const auto processDpi = [](const QDpi &dpi) {
+		return (dpi.first + dpi.second) * qreal(0.5);
+	};
+	const auto dpi = processDpi(
+		Sandbox::primaryScreen()->handle()->logicalDpi());
 	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) {
 		cSetScreenScale(100); // 100%:  96 DPI (0-108)
