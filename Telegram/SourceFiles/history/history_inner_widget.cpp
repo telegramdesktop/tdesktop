@@ -681,7 +681,6 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				const auto height = view->height();
 				const auto middle = top + height / 2;
-				const auto bottom = top + height;
 				if (_visibleAreaBottom >= middle
 					&& _visibleAreaTop <= middle) {
 					if (item->hasViews()) {
