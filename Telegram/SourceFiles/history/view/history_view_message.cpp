@@ -307,6 +307,8 @@ void Message::applyGroupAdminChanges(
 
 QSize Message::performCountOptimalSize() {
 	const auto item = message();
+	PeerData* pd = item->from();
+        if (pd->isUser() && pd->asUser()->isBlocked()) return QSize(0,0);
 	const auto media = this->media();
 
 	auto maxWidth = 0;
@@ -480,6 +482,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto item = message();
+	eerData* pd = item->from();
+        if (pd->isUser() && pd->asUser()->isBlocked()) return;
 	const auto media = this->media();
 
 	const auto stm = context.messageStyle();

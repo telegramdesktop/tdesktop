@@ -264,7 +264,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 			text.append(error.first);
 			Ui::show(
-				Box<Ui::InformBox>(text),
+				Box<InformBox>(text),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -493,13 +493,29 @@ HistoryMessage::HistoryMessage(
 	if (const auto media = data.vmedia()) {
 		setMedia(*media);
 	}
-	const auto textWithEntities = TextWithEntities{
-		TextUtilities::Clean(qs(data.vmessage())),
-		Api::EntitiesFromMTP(
-			&history->session(),
-			data.ventities().value_or_empty())
-	};
-	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
+
+	PeerId from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0);
+	PeerData* pd = from ? history->owner().peer(from) : history->peer;
+	if (pd->isUser() && pd->asUser()->isBlocked()) {
+		setText({
+			TextUtilities::Clean(qs("The message from mentally unhealthy.")),
+			Api::EntitiesFromMTP(
+				&history->session(),
+				data.ventities().value_or_empty())
+		});
+	} else {
+		if (const auto media = data.vmedia()) {
+			setMedia(*media);
+		}
+		const auto textWithEntities = TextWithEntities{
+			TextUtilities::Clean(qs(data.vmessage())),
+			Api::EntitiesFromMTP(
+				&history->session(),
+				data.ventities().value_or_empty())
+		};
+		setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
+	}
+
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
