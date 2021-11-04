@@ -4,8 +4,9 @@
    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
    xmlns:uap2="http://schemas.microsoft.com/appx/manifest/uap/windows10/2"
    xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-   IgnorableNamespaces="uap uap2 uap3 rescap">
+   IgnorableNamespaces="uap uap2 uap3 desktop rescap">
   <Identity Name="TelegramMessengerLLP.TelegramDesktop"
     ProcessorArchitecture="ARCHITECTURE"
     Publisher="CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A"
@@ -37,6 +38,15 @@
         <uap3:Extension Category="windows.protocol">
           <uap3:Protocol Name="tg" Parameters="-- &quot;%1&quot;" />
         </uap3:Extension>
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="StartupTask.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="TelegramStartupTask"
+            Enabled="false"
+            DisplayName="Telegram Desktop" />
+        </desktop:Extension>
       </Extensions>
     </Application>
   </Applications>

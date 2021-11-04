@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
+#include "platform/win/windows_autostart_task.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/win/base_windows_co_task_mem.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
+#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -175,7 +177,7 @@ QString psAppDataPathOld() {
 
 void psDoCleanup() {
 	try {
-		psAutoStart(false, true);
+		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 		AppUserModelId::cleanupShortcut();
 		DeleteMyModules();
@@ -328,7 +330,51 @@ std::optional<bool> IsDarkMode() {
 }
 
 bool AutostartSupported() {
-	return !IsWindowsStoreBuild();
+	return true;
+}
+
+void AutostartRequestStateFromSystem(Fn<void(bool)> callback) {
+#ifdef OS_WIN_STORE
+	AutostartTask::RequestState([=](bool enabled) {
+		crl::on_main([=] {
+			callback(enabled);
+		});
+	});
+#endif // OS_WIN_STORE
+}
+
+void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+#ifdef OS_WIN_STORE
+	const auto requested = enabled;
+	const auto callback = [=](bool enabled) { crl::on_main([=] {
+		if (!Core::IsAppLaunched()) {
+			return;
+		}
+		done(enabled);
+		if (!requested || enabled) {
+			return;
+		} else if (const auto window = Core::App().activeWindow()) {
+			window->show(Box<Ui::ConfirmBox>(
+				tr::lng_settings_auto_start_disabled_uwp(tr::now),
+				tr::lng_settings_open_system_settings(tr::now),
+				[] { AutostartTask::OpenSettings(); Ui::hideLayer(); }));
+		}
+	}); };
+	AutostartTask::Toggle(
+		enabled,
+		done ? Fn<void(bool)>(callback) : nullptr);
+#else // OS_WIN_STORE
+	_manageAppLnk(start, silent, CSIDL_STARTUP, L"-autostart", L"Telegram autorun link.\nYou can disable autorun in Telegram settings.");
+	done(enabled);
+#endif // OS_WIN_STORE
+}
+
+bool AutostartSkip() {
+#ifdef OS_WIN_STORE
+	return false;
+#else // OS_WIN_STORE
+	return !cAutoStart();
+#endif // OS_WIN_STORE
 }
 
 void WriteCrashDumpDetails() {
@@ -532,10 +578,6 @@ void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args
 	} else {
 		if (!silent) LOG(("App Error: could not get CSIDL %1 folder %2").arg(path_csidl).arg(hr));
 	}
-}
-
-void psAutoStart(bool start, bool silent) {
-	_manageAppLnk(start, silent, CSIDL_STARTUP, L"-autostart", L"Telegram autorun link.\nYou can disable autorun in Telegram settings.");
 }
 
 void psSendToMenu(bool send, bool silent) {

@@ -223,6 +223,13 @@ if %BuildUWP% equ 0 (
     set "UpdateFile=!UpdateFile!_!AlphaSignature!"
     set "PortableFile=talpha!AlphaVersion!_!AlphaSignature!.zip"
   )
+) else (
+:sign2
+  call "%SignPath%" "StartupTask.exe"
+  if %errorlevel% neq 0 (
+    timeout /t 3
+    goto sign2
+  )
 )
 
 for /f ^"usebackq^ eol^=^
@@ -251,6 +258,7 @@ if %BuildUWP% neq 0 (
   if %errorlevel% neq 0 goto error
 
   xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX\"
+  xcopy "%ReleasePath%\StartupTask.exe" "%ReleasePath%\AppX\"
   xcopy "%ReleasePath%\modules\%Platform%\d3d\d3dcompiler_47.dll" "%ReleasePath%\AppX\modules\%Platform%\d3d\"
 
   MakeAppx.exe pack /d "%ReleasePath%\AppX" /l /p ..\out\Release\%BinaryName%.%Platform%.appx

@@ -226,8 +226,8 @@ void Application::run() {
 		cSetAutoStart(false);
 	}
 
-	if (cLaunchMode() == LaunchModeAutoStart && !cAutoStart()) {
-		psAutoStart(false, true);
+	if (cLaunchMode() == LaunchModeAutoStart && Platform::AutostartSkip()) {
+		Platform::AutostartToggle(false);
 		App::quit();
 		return;
 	}

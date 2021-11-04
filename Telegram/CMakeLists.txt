@@ -982,6 +982,8 @@ PRIVATE
     platform/win/windows_dlls.h
     platform/win/windows_event_filter.cpp
     platform/win/windows_event_filter.h
+    platform/win/windows_autostart_task.cpp
+    platform/win/windows_autostart_task.h
     platform/win/windows_toast_activator.cpp
     platform/win/windows_toast_activator.h
     platform/platform_audio.h
@@ -1191,6 +1193,13 @@ PRIVATE
     settings.h
     stdafx.h
 )
+
+if (NOT build_winstore)
+    remove_target_sources(Telegram ${src_loc}
+        platform/win/windows_start_task.cpp
+        platform/win/windows_start_task.h
+    )
+endif()
 
 if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
@@ -1490,6 +1499,20 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
 
         set_target_properties(Packer PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
     endif()
+elseif (build_winstore)
+    add_executable(StartupTask WIN32)
+    init_non_host_target(StartupTask)
+
+    add_dependencies(Telegram StartupTask)
+
+    nice_target_sources(StartupTask ${src_loc}
+    PRIVATE
+        _other/startup_task_win.cpp
+    )
+
+    set_target_properties(StartupTask PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+    )
 endif()
 
 if (LINUX AND DESKTOP_APP_USE_PACKAGED)

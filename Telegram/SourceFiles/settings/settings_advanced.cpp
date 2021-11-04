@@ -462,15 +462,20 @@ void SetupSystemIntegrationContent(
 			return (checked != cAutoStart());
 		}) | rpl::start_with_next([=](bool checked) {
 			cSetAutoStart(checked);
-			psAutoStart(checked);
-			if (checked) {
-				Local::writeSettings();
-			} else if (minimized->entity()->checked()) {
-				minimized->entity()->setChecked(false);
-			} else {
-				Local::writeSettings();
-			}
+			Platform::AutostartToggle(checked, crl::guard(autostart, [=](
+					bool enabled) {
+				autostart->setChecked(enabled);
+				if (enabled || !minimized->entity()->checked()) {
+					Local::writeSettings();
+				} else {
+					minimized->entity()->setChecked(false);
+				}
+			}));
 		}, autostart->lifetime());
+
+		Platform::AutostartRequestStateFromSystem(crl::guard(
+			controller,
+			[=](bool enabled) { autostart->setChecked(enabled); }));
 
 		minimized->toggleOn(autostart->checkedValue());
 		minimized->entity()->checkedChanges(

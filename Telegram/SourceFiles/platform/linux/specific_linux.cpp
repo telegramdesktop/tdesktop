@@ -560,6 +560,41 @@ bool AutostartSupported() {
 	return !InSnap();
 }
 
+void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+	const auto guard = gsl::finally([&] {
+		done(enabled);
+	});
+
+#ifdef __HAIKU__
+
+	HaikuAutostart(enabled);
+
+#else // __HAIKU__
+
+	const auto silent = !done;
+	if (InFlatpak()) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+		PortalAutostart(enabled, silent);
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	} else {
+		const auto autostart = QStandardPaths::writableLocation(
+			QStandardPaths::GenericConfigLocation)
+			+ qsl("/autostart/");
+
+		if (enabled) {
+			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
+		} else {
+			QFile::remove(autostart + QGuiApplication::desktopFileName());
+		}
+	}
+
+#endif // __HAIKU__
+}
+
+bool AutostartSkip() {
+	return !cAutoStart();
+}
+
 bool TrayIconSupported() {
 	return App::wnd()
 		? App::wnd()->trayAvailable()
@@ -637,7 +672,7 @@ QString psAppDataPath() {
 
 void psDoCleanup() {
 	try {
-		psAutoStart(false, true);
+		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 	} catch (...) {
 	}
@@ -835,29 +870,6 @@ void psNewVersion() {
 #ifndef __HAIKU__
 	Platform::InstallLauncher();
 #endif // __HAIKU__
-}
-
-void psAutoStart(bool start, bool silent) {
-#ifdef __HAIKU__
-	HaikuAutostart(start);
-	return;
-#endif // __HAIKU__
-
-	if (InFlatpak()) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-		PortalAutostart(start, silent);
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	} else {
-		const auto autostart = QStandardPaths::writableLocation(
-			QStandardPaths::GenericConfigLocation)
-			+ qsl("/autostart/");
-
-		if (start) {
-			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
-		} else {
-			QFile::remove(autostart + QGuiApplication::desktopFileName());
-		}
-	}
 }
 
 void psSendToMenu(bool send, bool silent) {

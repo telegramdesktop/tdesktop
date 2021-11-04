@@ -383,11 +383,7 @@ void start(not_null<Core::Launcher*> launcher) {
 
 #elif defined OS_WIN_STORE // Q_OS_UNIX || Q_OS_WINRT
 
-#ifdef _DEBUG
-		cForceWorkingDir(cExeDir());
-#else // _DEBUG
 		cForceWorkingDir(psAppDataPath());
-#endif // !_DEBUG
 		workingDirChosen = true;
 
 #elif defined Q_OS_WIN

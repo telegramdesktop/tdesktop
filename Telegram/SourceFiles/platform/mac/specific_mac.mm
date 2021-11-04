@@ -48,7 +48,7 @@ QString psAppDataPath() {
 
 void psDoCleanup() {
 	try {
-		psAutoStart(false, true);
+		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 	} catch (...) {
 	}
@@ -181,12 +181,17 @@ void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
 
+void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+	done(false);
+}
+
+bool AutostartSkip() {
+	return !cAutoStart();
+}
+
 } // namespace Platform
 
 void psNewVersion() {
-}
-
-void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
