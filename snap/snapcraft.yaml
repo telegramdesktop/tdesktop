@@ -192,6 +192,23 @@ parts:
       - mozjpeg
       - qt
 
+  epoxy:
+    source: https://github.com/anholt/libepoxy.git
+    source-depth: 1
+    source-tag: 1.5.9
+    plugin: meson
+    meson-parameters:
+      - --buildtype=release
+      - --prefix=/usr
+      - --default-library=static
+      - -Dtests=false
+    override-pull: |
+      snapcraftctl pull
+      patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
+    prime: [-./*]
+    after:
+      - patches
+
   extra-cmake-modules:
     source: https://github.com/KDE/extra-cmake-modules.git
     source-depth: 1
@@ -432,6 +449,7 @@ parts:
       # Allow tdesktop's custom try-portal-and-fallback logic to work
       - -./usr/plugins/platformthemes/libqxdgdesktopportal.so
     after:
+      - epoxy
       - mozjpeg
       - patches
 
