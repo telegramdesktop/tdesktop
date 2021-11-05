@@ -562,7 +562,9 @@ bool AutostartSupported() {
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 	const auto guard = gsl::finally([&] {
-		done(enabled);
+		if (done) {
+			done(enabled);
+		}
 	});
 
 #ifdef __HAIKU__

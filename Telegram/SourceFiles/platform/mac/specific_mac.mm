@@ -182,7 +182,9 @@ void IgnoreApplicationActivationRightNow() {
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
-	done(false);
+	if (done) {
+		done(false);
+	}
 }
 
 bool AutostartSkip() {
