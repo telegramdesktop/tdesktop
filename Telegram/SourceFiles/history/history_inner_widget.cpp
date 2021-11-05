@@ -1302,7 +1302,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 
 	const auto pressedHandler = ClickHandler::getPressed();
 	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())
-		|| !_peer->allowsForwarding()) {
+		|| hasCopyRestriction()) {
 		return nullptr;
 	}
 
@@ -1546,7 +1546,7 @@ void HistoryInner::mouseActionFinish(
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& !_selected.empty()
 		&& _selected.cbegin()->second != FullSelection
-		&& _peer->allowsForwarding()) {
+		&& !hasCopyRestriction()) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
 			TextUtilities::SetClipboardText(
@@ -1725,7 +1725,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
 		const auto media = photo->activeMediaView();
-		if (!photo->isNull() && media && media->loaded() && _peer->allowsForwarding()) {
+		if (!photo->isNull() && media && media->loaded() && !hasCopyRestriction()) {
 			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}));
@@ -1767,16 +1767,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					openContextGif(itemId);
 				});
 			}
-			_menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
-				saveContextGif(itemId);
-			});
+			if (!hasCopyRestriction()) {
+				_menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
+					saveContextGif(itemId);
+				});
+			}
 		}
 		if (!document->filepath(true).isEmpty()) {
 			_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
 				showContextInFolder(document);
 			});
 		}
-		if (_peer->allowsForwarding()) {
+		if (!hasCopyRestriction()) {
 			_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				saveDocumentToFile(itemId, document);
 			}));
@@ -1830,7 +1832,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		if (isUponSelected > 0 && _peer->allowsForwarding()) {
+		if (isUponSelected > 0 && !hasCopyRestriction()) {
 			_menu->addAction(
 				(isUponSelected > 1
 					? tr::lng_context_copy_selected_items(tr::now)
@@ -1911,7 +1913,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto view = item ? item->mainView() : nullptr;
 
 		if (isUponSelected > 0) {
-			if (_peer->allowsForwarding()) {
+			if (!hasCopyRestriction()) {
 				_menu->addAction(
 					((isUponSelected > 1)
 						? tr::lng_context_copy_selected_items(tr::now)
@@ -1934,7 +1936,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Api::ToggleFavedSticker(document, itemId);
 							});
 						}
-						if (_peer->allowsForwarding()) {
+						if (!hasCopyRestriction()) {
 							_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 								saveDocumentToFile(itemId, document);
 							}));
@@ -1963,7 +1965,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (!item->isService()
 					&& view
 					&& !link
-					&& _peer->allowsForwarding()
+					&& !hasCopyRestriction()
 					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
@@ -2135,7 +2137,9 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 }
 
 void HistoryInner::saveContextGif(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
+	if (hasCopyRestriction()) {
+		return;
+	} else if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Api::ToggleSavedGif(document, item->fullId(), true);

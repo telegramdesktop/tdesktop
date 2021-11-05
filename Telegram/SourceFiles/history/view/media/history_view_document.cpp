@@ -329,7 +329,7 @@ void Document::draw(
 
 	const auto cornerDownload = downloadInCorner();
 
-	if (!_dataMedia->canBePlayed()) {
+	if (!_dataMedia->canBePlayed(_realParent)) {
 		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
@@ -452,8 +452,8 @@ void Document::draw(
 				return _data->isSongWithCover()
 					? sti->historyFileThumbPause
 					: stm->historyFilePause;
-			} else if (loaded || _dataMedia->canBePlayed()) {
-				return _dataMedia->canBePlayed()
+			} else if (loaded || _dataMedia->canBePlayed(_realParent)) {
+				return _dataMedia->canBePlayed(_realParent)
 					? (_data->isSongWithCover()
 						? sti->historyFileThumbPlay
 						: stm->historyFilePlay)
@@ -593,7 +593,8 @@ void Document::ensureDataMediaCreated() const {
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& _data->canBeStreamed()
+		&& _realParent->history()->peer->allowsForwarding()
+		&& _data->canBeStreamed(_realParent)
 		&& !_data->inappPlaybackFailed()
 		&& _realParent->isRegular();
 }
@@ -782,7 +783,7 @@ TextState Document::textState(
 		&& (!_data->loading() || downloadInCorner())
 		&& !_data->uploading()
 		&& !_data->isNull()) {
-		if (loaded || _dataMedia->canBePlayed()) {
+		if (loaded || _dataMedia->canBePlayed(_realParent)) {
 			result.link = _openl;
 		} else {
 			result.link = _savel;

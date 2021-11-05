@@ -1158,12 +1158,14 @@ bool DocumentData::useStreamingLoader() const {
 		|| isVoiceMessage();
 }
 
-bool DocumentData::canBeStreamed() const {
+bool DocumentData::canBeStreamed(HistoryItem *item) const {
 	// Streaming couldn't be used with external player
 	// Maybe someone brave will implement this once upon a time...
 	return hasRemoteLocation()
 		&& supportsStreaming()
-		&& (!cUseExternalVideoPlayer() || !isVideoFile());
+		&& (!isVideoFile()
+			|| !cUseExternalVideoPlayer()
+			|| (item && !item->history()->peer->allowsForwarding()));
 }
 
 void DocumentData::setInappPlaybackFailed() {

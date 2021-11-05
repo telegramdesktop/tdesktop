@@ -241,7 +241,7 @@ void AddDocumentActions(
 				OpenGif(list->controller(), contextId);
 			});
 		}
-		if (document->isGifv()) {
+		if (document->isGifv() && !list->hasCopyRestriction()) {
 			menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 				SaveGif(list->controller(), contextId);
 			});

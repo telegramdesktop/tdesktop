@@ -348,10 +348,10 @@ float64 DocumentMedia::progress() const {
 		: (loaded() ? 1. : 0.);
 }
 
-bool DocumentMedia::canBePlayed() const {
+bool DocumentMedia::canBePlayed(HistoryItem *item) const {
 	return !_owner->inappPlaybackFailed()
 		&& _owner->useStreamingLoader()
-		&& (loaded() || _owner->canBeStreamed());
+		&& (loaded() || _owner->canBeStreamed(item));
 }
 
 bool DocumentMedia::thumbnailEnoughForSticker() const {

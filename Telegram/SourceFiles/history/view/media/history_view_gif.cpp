@@ -264,7 +264,8 @@ QSize Gif::videoSize() const {
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
-		&& _data->canBeStreamed()
+		&& _realParent->history()->peer->allowsForwarding()
+		&& _data->canBeStreamed(_realParent)
 		&& !_data->inappPlaybackFailed()
 		&& !_parent->data()->isSending();
 }
@@ -288,7 +289,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto stm = context.messageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = autoplayEnabled()
 		&& canBePlayed
 		&& CanPlayInline(_data);
@@ -836,7 +837,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			? _cancell
 			: _realParent->isSending()
 			? nullptr
-			: (dataLoaded() || _dataMedia->canBePlayed())
+			: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 			? _openl
 			: _data->loading()
 			? _cancell
@@ -917,7 +918,7 @@ void Gif::drawGrouped(
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = fullFeatured
 		&& autoplayEnabled()
 		&& canBePlayed
@@ -1109,7 +1110,7 @@ TextState Gif::getStateGrouped(
 		? _cancell
 		: _realParent->isSending()
 		? nullptr
-		: (dataLoaded() || _dataMedia->canBePlayed())
+		: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 		? _openl
 		: _data->loading()
 		? _cancell
@@ -1258,7 +1259,7 @@ void Gif::updateStatusText() const {
 		statusSize = _data->uploadingData->offset;
 	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (dataLoaded() || _dataMedia->canBePlayed()) {
+	} else if (dataLoaded() || _dataMedia->canBePlayed(_realParent)) {
 		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
 		statusSize = Ui::FileStatusSizeReady;
@@ -1386,7 +1387,7 @@ void Gif::playAnimation(bool autoplay) {
 	}
 	if (_streamed) {
 		stopAnimation();
-	} else if (_dataMedia->canBePlayed()) {
+	} else if (_dataMedia->canBePlayed(_realParent)) {
 		if (!autoplayEnabled()) {
 			history()->owner().checkPlayingAnimations();
 		}

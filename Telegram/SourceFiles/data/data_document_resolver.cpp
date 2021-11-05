@@ -252,7 +252,7 @@ void ResolveDocument(
 	if (document->isTheme() && media->loaded(true)) {
 		showDocument();
 		location.accessDisable();
-	} else if (media->canBePlayed()) {
+	} else if (media->canBePlayed(item)) {
 		if (document->isAudioFile()
 			|| document->isVoiceMessage()
 			|| document->isVideoMessage()) {
