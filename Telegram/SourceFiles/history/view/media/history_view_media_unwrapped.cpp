@@ -77,7 +77,8 @@ QSize UnwrappedMedia::countOptimalSize() {
 QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
-	if (_parent->media() == this) {
+	const auto isPageAttach = (_parent->media() != this);
+	if (!isPageAttach) {
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();
@@ -93,8 +94,9 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		}
 	}
 	auto newHeight = minHeight();
-	if (_parent->hasOutLayout()
-			&& !_parent->delegate()->elementIsChatWide()) {
+	if (!isPageAttach
+		&& _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide()) {
 		// Add some height to isolated emoji for the timestamp info.
 		const auto infoHeight = st::msgDateImgPadding.y() * 2
 			+ st::msgDateFont->height;
