@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kRequestTimeLimit = 5 * 60 * crl::time(1000);
+constexpr auto kRequestTimeLimit = 10 * 60 * crl::time(1000);
 
 [[nodiscard]] bool TooEarlyForRequest(crl::time received) {
 	return (received > 0) && (received + kRequestTimeLimit > crl::now());
@@ -59,7 +59,7 @@ bool SponsoredMessages::append(not_null<History*> history) {
 		return false;
 	}
 	auto &list = it->second;
-	if (list.showedAll) {
+	if (list.showedAll || !TooEarlyForRequest(list.received)) {
 		return false;
 	}
 
@@ -104,6 +104,19 @@ void SponsoredMessages::request(not_null<History*> history) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
+	{
+		const auto it = _data.find(history);
+		if (it != end(_data)) {
+			auto &list = it->second;
+			// Don't rebuild currently displayed messages.
+			const auto proj = [](const Entry &e) {
+				return e.item != nullptr;
+			};
+			if (ranges::any_of(list.entries, proj)) {
+				return;
+			}
+		}
+	}
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
@@ -131,11 +144,9 @@ void SponsoredMessages::parse(
 		_session->data().processChats(data.vchats());
 
 		const auto &messages = data.vmessages().v;
-		if (messages.isEmpty()) {
-			return;
-		}
 		auto &list = _data.emplace(history, List()).first->second;
 		list.entries.clear();
+		list.received = crl::now();
 		for (const auto &message : messages) {
 			append(history, list, message);
 		}

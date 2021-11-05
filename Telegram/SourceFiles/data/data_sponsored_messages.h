@@ -53,6 +53,7 @@ private:
 	struct List {
 		std::vector<Entry> entries;
 		bool showedAll = false;
+		crl::time received = 0;
 	};
 	struct Request {
 		mtpRequestId requestId = 0;
