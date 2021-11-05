@@ -634,7 +634,9 @@ bool HistoryItem::canStopPoll() const {
 }
 
 bool HistoryItem::canDelete() const {
-	if (!IsServerMsgId(id) && serviceMsg()) {
+	if (isSponsored()) {
+		return false;
+	} else if (!IsServerMsgId(id) && serviceMsg()) {
 		return false;
 	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
