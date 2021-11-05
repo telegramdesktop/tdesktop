@@ -266,11 +266,11 @@ void TopBarWidget::setChooseForReportReason(
 	updateControlsVisibility();
 	updateControlsGeometry();
 	update();
-	if (wasNoReason != nowNoReason && _selectedCount > 0) {
+	if (wasNoReason != nowNoReason && showSelectedState()) {
 		toggleSelectedControls(false);
 		finishAnimating();
 	}
-	setCursor((nowNoReason && !_selectedCount)
+	setCursor((nowNoReason && !showSelectedState())
 		? style::cur_pointer
 		: style::cur_default);
 }
@@ -584,9 +584,9 @@ QRect TopBarWidget::getMembersShowAreaGeometry() const {
 }
 
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
-	auto handleClick = (e->button() == Qt::LeftButton)
+	const auto handleClick = (e->button() == Qt::LeftButton)
 		&& (e->pos().y() < st::topBarHeight)
-		&& !_selectedCount
+		&& !showSelectedState()
 		&& !_chooseForReportReason;
 	if (handleClick) {
 		if (_animatingMode && _back->rect().contains(e->pos())) {
@@ -924,7 +924,7 @@ void TopBarWidget::updateControlsVisibility() {
 void TopBarWidget::updateMembersShowArea() {
 	const auto membersShowAreaNeeded = [&] {
 		const auto peer = _activeChat.key.peer();
-		if ((_selectedCount > 0) || !peer) {
+		if (showSelectedState() || !peer) {
 			return false;
 		} else if (const auto chat = peer->asChat()) {
 			return chat->amIn();
@@ -949,44 +949,58 @@ void TopBarWidget::updateMembersShowArea() {
 	_membersShowArea->setGeometry(getMembersShowAreaGeometry());
 }
 
+bool TopBarWidget::showSelectedState() const {
+	return (_selectedCount > 0)
+		&& (_canDelete || _canForward || _canSendNow);
+}
+
 void TopBarWidget::showSelected(SelectedState state) {
 	auto canDelete = (state.count > 0 && state.count == state.canDeleteCount);
 	auto canForward = (state.count > 0 && state.count == state.canForwardCount);
 	auto canSendNow = (state.count > 0 && state.count == state.canSendNowCount);
-	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward && _canSendNow == canSendNow) {
+	auto count = (!canDelete && !canForward && !canSendNow) ? 0 : state.count;
+	if (_selectedCount == count
+		&& _canDelete == canDelete
+		&& _canForward == canForward
+		&& _canSendNow == canSendNow) {
 		return;
 	}
-	if (state.count == 0) {
+	if (count == 0) {
 		// Don't change the visible buttons if the selection is cancelled.
 		canDelete = _canDelete;
 		canForward = _canForward;
 		canSendNow = _canSendNow;
 	}
 
-	auto wasSelected = (_selectedCount > 0);
-	_selectedCount = state.count;
-	if (_selectedCount > 0) {
+	const auto wasSelectedState = showSelectedState();
+	const auto visibilityChanged = (_canDelete != canDelete)
+		|| (_canForward != canForward)
+		|| (_canSendNow != canSendNow);
+	_selectedCount = count;
+	_canDelete = canDelete;
+	_canForward = canForward;
+	_canSendNow = canSendNow;
+	const auto nowSelectedState = showSelectedState();
+	if (nowSelectedState) {
 		_forward->setNumbersText(_selectedCount);
 		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
-		if (!wasSelected) {
+		if (!wasSelectedState) {
 			_forward->finishNumbersAnimation();
 			_sendNow->finishNumbersAnimation();
 			_delete->finishNumbersAnimation();
 		}
 	}
-	auto hasSelected = (_selectedCount > 0);
-	if (_canDelete != canDelete || _canForward != canForward || _canSendNow != canSendNow) {
-		_canDelete = canDelete;
-		_canForward = canForward;
-		_canSendNow = canSendNow;
+	if (visibilityChanged) {
 		updateControlsVisibility();
 	}
-	if (wasSelected != hasSelected && !_chooseForReportReason) {
-		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
+	if (wasSelectedState != nowSelectedState && !_chooseForReportReason) {
+		setCursor(nowSelectedState
+			? style::cur_default
+			: style::cur_pointer);
 
 		updateMembersShowArea();
-		toggleSelectedControls(hasSelected);
+		toggleSelectedControls(nowSelectedState);
 	} else {
 		updateControlsGeometry();
 	}
@@ -1002,7 +1016,7 @@ void TopBarWidget::toggleSelectedControls(bool shown) {
 }
 
 bool TopBarWidget::showSelectedActions() const {
-	return (_selectedCount > 0) && !_chooseForReportReason;
+	return showSelectedState() && !_chooseForReportReason;
 }
 
 void TopBarWidget::selectedShowCallback() {
