@@ -1038,6 +1038,12 @@ PointState Message::pointState(QPoint point) const {
 			}
 
 			auto trect = g.marginsRemoved(st::msgPadding);
+			if (_viewButton) {
+				trect.setHeight(trect.height() - _viewButton->height());
+				if (mediaDisplayed) {
+					trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+				}
+			}
 			if (mediaOnBottom) {
 				trect.setHeight(trect.height() + st::msgPadding.bottom());
 			}
@@ -1213,6 +1219,12 @@ TextState Message::textState(
 		}
 
 		auto trect = bubble.marginsRemoved(st::msgPadding);
+		if (_viewButton) {
+			trect.setHeight(trect.height() - _viewButton->height());
+			if (mediaDisplayed) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+			}
+		}
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height()
 				+ st::msgPadding.bottom()
