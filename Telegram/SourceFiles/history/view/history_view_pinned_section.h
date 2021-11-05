@@ -104,6 +104,7 @@ public:
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType() override;
+	CopyRestrictionType listSelectRestrictionType() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

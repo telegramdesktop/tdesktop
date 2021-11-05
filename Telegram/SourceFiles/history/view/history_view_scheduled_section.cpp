@@ -1235,6 +1235,10 @@ CopyRestrictionType ScheduledWidget::listCopyRestrictionType() {
 	return CopyRestrictionType::None;
 }
 
+CopyRestrictionType ScheduledWidget::listSelectRestrictionType() {
+	return CopyRestrictionType::None;
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

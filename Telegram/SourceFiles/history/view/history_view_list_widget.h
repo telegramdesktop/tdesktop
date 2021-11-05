@@ -101,6 +101,7 @@ public:
 	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual not_null<Ui::ChatTheme*> listChatTheme() = 0;
 	virtual CopyRestrictionType listCopyRestrictionType() = 0;
+	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 
 };
 
@@ -213,6 +214,7 @@ public:
 
 	[[nodiscard]] bool hasCopyRestriction() const;
 	[[nodiscard]] bool showCopyRestriction();
+	[[nodiscard]] bool hasSelectRestriction() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -615,6 +617,8 @@ void ConfirmForwardSelectedItems(not_null<ListWidget*> widget);
 void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
 
 [[nodiscard]] CopyRestrictionType CopyRestrictionTypeFor(
+	not_null<PeerData*> peer);
+[[nodiscard]] CopyRestrictionType SelectRestrictionTypeFor(
 	not_null<PeerData*> peer);
 
 } // namespace HistoryView

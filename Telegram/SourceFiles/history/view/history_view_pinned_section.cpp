@@ -680,6 +680,10 @@ CopyRestrictionType PinnedWidget::listCopyRestrictionType() {
 	return CopyRestrictionTypeFor(_history->peer);
 }
 
+CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
+	return SelectRestrictionTypeFor(_history->peer);
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

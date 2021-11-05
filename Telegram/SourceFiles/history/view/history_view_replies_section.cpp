@@ -1931,6 +1931,10 @@ CopyRestrictionType RepliesWidget::listCopyRestrictionType() {
 	return CopyRestrictionTypeFor(_history->peer);
 }
 
+CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
+	return SelectRestrictionTypeFor(_history->peer);
+}
+
 void RepliesWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

@@ -85,7 +85,6 @@ public:
 	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelected(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
-	void selectItem(not_null<HistoryItem*> item);
 	bool inSelectionMode() const;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -342,7 +341,11 @@ private:
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
+
+	void setupSharingDisallowed();
+	[[nodiscard]] bool hasCopyRestriction() const;
 	bool showCopyRestriction();
+	[[nodiscard]] bool hasSelectRestriction() const;
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
@@ -415,6 +418,8 @@ private:
 	base::Timer _touchSelectTimer;
 
 	Ui::SelectScrollManager _selectScroll;
+
+	rpl::variable<bool> _sharingDisallowed = false;
 
 	Ui::TouchScrollState _touchScrollState = Ui::TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;

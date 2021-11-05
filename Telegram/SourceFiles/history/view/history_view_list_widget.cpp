@@ -1076,7 +1076,9 @@ void ListWidget::cancelSelection() {
 }
 
 void ListWidget::selectItem(not_null<HistoryItem*> item) {
-	if (const auto view = viewForItem(item)) {
+	if (hasSelectRestriction()) {
+		return;
+	} else if (const auto view = viewForItem(item)) {
 		clearTextSelection();
 		changeSelection(
 			_selected,
@@ -1087,7 +1089,9 @@ void ListWidget::selectItem(not_null<HistoryItem*> item) {
 }
 
 void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
-	if (const auto view = viewForItem(item)) {
+	if (hasSelectRestriction()) {
+		return;
+	} else if (const auto view = viewForItem(item)) {
 		clearTextSelection();
 		changeSelectionAsGroup(
 			_selected,
@@ -1165,8 +1169,6 @@ bool ListWidget::isEmpty() const {
 		&& (_itemsHeight + _itemsRevealHeight == 0);
 }
 
-
-
 bool ListWidget::hasCopyRestriction() const {
 	return _delegate->listCopyRestrictionType() != CopyRestrictionType::None;
 }
@@ -1182,6 +1184,11 @@ bool ListWidget::showCopyRestriction() {
 			: tr::lng_error_nocopy_group(tr::now) },
 	});
 	return true;
+}
+
+bool ListWidget::hasSelectRestriction() const {
+	return _delegate->listSelectRestrictionType()
+		!= CopyRestrictionType::None;
 }
 
 int ListWidget::itemMinimalHeight() const {
@@ -1751,7 +1758,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 }
 
 void ListWidget::applyDragSelection() {
-	applyDragSelection(_selected);
+	if (!hasSelectRestriction()) {
+		applyDragSelection(_selected);
+	}
 	clearDragSelection();
 	pushSelectedItems();
 }
@@ -2080,7 +2089,9 @@ void ListWidget::leaveEventHook(QEvent *e) {
 }
 
 void ListWidget::updateDragSelection() {
-	if (!_overState.itemId || !_pressState.itemId) {
+	if (!_overState.itemId
+		|| !_pressState.itemId
+		|| hasSelectRestriction()) {
 		clearDragSelection();
 		return;
 	} else if (_items.empty() || !_overElement || !_selectEnabled) {
@@ -2281,7 +2292,7 @@ void ListWidget::mouseActionStart(
 	} else if (hasSelectedItems()) {
 		if (overSelectedItems()) {
 			_mouseAction = MouseAction::PrepareDrag;
-		} else if (!_pressWasInactive) {
+		} else if (!_pressWasInactive && !hasSelectRestriction()) {
 			_mouseAction = MouseAction::PrepareSelect;
 		}
 	}
@@ -2326,7 +2337,7 @@ void ListWidget::mouseActionStart(
 							_mouseTextSymbol,
 							_mouseTextSymbol));
 						_mouseAction = MouseAction::Selecting;
-					} else {
+					} else if (!hasSelectRestriction()) {
 						_mouseAction = MouseAction::PrepareSelect;
 					}
 				}
@@ -2653,7 +2664,8 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		return nullptr;
 	}
 	auto pressedHandler = ClickHandler::getPressed();
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())
+		|| hasCopyRestriction()) {
 		return nullptr;
 	}
 
@@ -3081,7 +3093,6 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 		clearSelection);
 }
 
-
 CopyRestrictionType CopyRestrictionTypeFor(
 		not_null<PeerData*> peer) {
 	return peer->allowsForwarding()
@@ -3089,6 +3100,20 @@ CopyRestrictionType CopyRestrictionTypeFor(
 		: peer->isBroadcast()
 		? CopyRestrictionType::Channel
 		: CopyRestrictionType::Group;
+}
+
+CopyRestrictionType SelectRestrictionTypeFor(
+		not_null<PeerData*> peer) {
+	if (const auto chat = peer->asChat()) {
+		return chat->canDeleteMessages()
+			? CopyRestrictionType::None
+			: CopyRestrictionTypeFor(peer);
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->canDeleteMessages()
+			? CopyRestrictionType::None
+			: CopyRestrictionTypeFor(peer);
+	}
+	return CopyRestrictionType::None;
 }
 
 } // namespace HistoryView

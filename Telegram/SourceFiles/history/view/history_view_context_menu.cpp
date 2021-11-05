@@ -811,7 +811,10 @@ bool AddSelectMessageAction(
 	const auto item = request.item;
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
-	} else if (!item || item->isLocal() || item->isService()) {
+	} else if (!item
+		|| item->isLocal()
+		|| item->isService()
+		|| list->hasSelectRestriction()) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
