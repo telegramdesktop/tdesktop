@@ -188,7 +188,11 @@ void ShowInFolder(not_null<DocumentData*> document) {
 void AddSaveDocumentAction(
 		not_null<Ui::PopupMenu*> menu,
 		Data::FileOrigin origin,
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		not_null<ListWidget*> list) {
+	if (list->hasCopyRestriction()) {
+		return;
+	}
 	const auto save = [=] {
 		DocumentSaveClickHandler::Save(
 			origin,
@@ -272,7 +276,7 @@ void AddDocumentActions(
 			tr::lng_context_attached_stickers(tr::now),
 			std::move(callback));
 	}
-	AddSaveDocumentAction(menu, contextId, document);
+	AddSaveDocumentAction(menu, contextId, document, list);
 }
 
 void AddPostLinkAction(

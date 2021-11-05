@@ -1595,15 +1595,17 @@ void ListWidget::showContextMenu(
 								document,
 								DocumentSaveClickHandler::Mode::ToNewFile);
 						});
-					_contextMenu->addAction(
-						(isVideo
-							? tr::lng_context_save_video(tr::now)
-							: isVoice
-							? tr::lng_context_save_audio(tr::now)
-							: isAudio
-							? tr::lng_context_save_audio_file(tr::now)
-							: tr::lng_context_save_file(tr::now)),
-						std::move(handler));
+					if (_peer->allowsForwarding()) {
+						_contextMenu->addAction(
+							(isVideo
+								? tr::lng_context_save_video(tr::now)
+								: isVoice
+								? tr::lng_context_save_audio(tr::now)
+								: isAudio
+								? tr::lng_context_save_audio_file(tr::now)
+								: tr::lng_context_save_file(tr::now)),
+							std::move(handler));
+					}
 				}
 			}
 		}

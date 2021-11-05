@@ -727,7 +727,9 @@ void OverlayWidget::refreshNavVisibility() {
 }
 
 bool OverlayWidget::contentCanBeSaved() const {
-	if (_photo) {
+	if (hasCopyRestriction()) {
+		return false;
+	} else if (_photo) {
 		return _photo->hasVideo() || _photoMedia->loaded();
 	} else if (_document) {
 		return _document->filepath(true).isEmpty() && !_document->loading();
@@ -943,7 +945,9 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if (canDelete) {
 		addAction(tr::lng_mediaview_delete(tr::now), [=] { deleteMedia(); });
 	}
-	addAction(tr::lng_mediaview_save_as(tr::now), [=] { saveAs(); });
+	if (!hasCopyRestriction()) {
+		addAction(tr::lng_mediaview_save_as(tr::now), [=] { saveAs(); });
+	}
 
 	if (const auto overviewType = computeOverviewType()) {
 		const auto text = _document
