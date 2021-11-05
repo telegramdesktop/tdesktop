@@ -342,6 +342,7 @@ private:
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
+	bool showCopyRestriction();
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;

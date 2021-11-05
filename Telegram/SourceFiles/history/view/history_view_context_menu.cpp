@@ -129,15 +129,19 @@ void AddPhotoActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PhotoData*> photo,
 		not_null<ListWidget*> list) {
-	menu->addAction(
-		tr::lng_context_save_image(tr::now),
-		App::LambdaDelayed(
-			st::defaultDropdownMenu.menu.ripple.hideDuration,
-			&photo->session(),
-			[=] { SavePhotoToFile(photo); }));
-	menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-		CopyImage(photo);
-	});
+	if (!list->hasCopyRestriction()) {
+		menu->addAction(
+			tr::lng_context_save_image(tr::now),
+			App::LambdaDelayed(
+				st::defaultDropdownMenu.menu.ripple.hideDuration,
+				&photo->session(),
+				[=] { SavePhotoToFile(photo); }));
+		menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
+			if (!list->showCopyRestriction()) {
+				CopyImage(photo);
+			}
+		});
+	}
 	if (photo->hasAttachedStickers()) {
 		const auto controller = list->controller();
 		auto callback = [=] {
@@ -903,12 +907,14 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto hasSelection = !request.selectedItems.empty()
 		|| !request.selectedText.empty();
 
-	if (request.overSelection) {
+	if (request.overSelection && !list->hasCopyRestriction()) {
 		const auto text = request.selectedItems.empty()
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
 		result->addAction(text, [=] {
-			TextUtilities::SetClipboardText(list->getSelectedText());
+			if (!list->showCopyRestriction()) {
+				TextUtilities::SetClipboardText(list->getSelectedText());
+			}
 		});
 	}
 
@@ -930,17 +936,21 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 				view->data()->fullId(),
 				list);
 		}
-		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+		if (!link
+			&& (view->hasVisibleText() || mediaHasTextForCopy)
+			&& !list->hasCopyRestriction()) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
 			result->addAction(tr::lng_context_copy_text(tr::now), [=] {
-				if (const auto item = owner->message(itemId)) {
-					if (asGroup) {
-						if (const auto group = owner->groups().find(item)) {
-							TextUtilities::SetClipboardText(HistoryGroupText(group));
-							return;
+				if (!list->showCopyRestriction()) {
+					if (const auto item = owner->message(itemId)) {
+						if (asGroup) {
+							if (const auto group = owner->groups().find(item)) {
+								TextUtilities::SetClipboardText(HistoryGroupText(group));
+								return;
+							}
 						}
+						TextUtilities::SetClipboardText(HistoryItemText(item));
 					}
-					TextUtilities::SetClipboardText(HistoryItemText(item));
 				}
 			});
 		}

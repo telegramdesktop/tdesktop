@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/ui_utility.h"
@@ -554,6 +555,23 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 	return FlipSizeByRotation(size, _rotation);
 }
 
+bool OverlayWidget::hasCopyRestriction() const {
+	return _history && !_history->peer->allowsForwarding();
+}
+
+bool OverlayWidget::showCopyRestriction() {
+	if (!hasCopyRestriction()) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.parentOverride = _widget,
+		.text = { _history->peer->isBroadcast()
+			? tr::lng_error_nocopy_channel(tr::now)
+			: tr::lng_error_nocopy_group(tr::now) },
+	});
+	return true;
+}
+
 bool OverlayWidget::videoShown() const {
 	return _streamed && !_streamed->instance.info().video.cover.isNull();
 }
@@ -891,8 +909,10 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			: tr::lng_context_show_in_folder(tr::now);
 		addAction(text, [=] { showInFolder(); });
 	}
-	if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
-		addAction(tr::lng_mediaview_copy(tr::now), [=] { copyMedia(); });
+	if (!hasCopyRestriction()) {
+		if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
+			addAction(tr::lng_mediaview_copy(tr::now), [=] { copyMedia(); });
+		}
 	}
 	if ((_photo && _photo->hasAttachedStickers())
 		|| (_document && _document->hasAttachedStickers())) {
@@ -1756,6 +1776,9 @@ void OverlayWidget::showMediaOverview() {
 }
 
 void OverlayWidget::copyMedia() {
+	if (showCopyRestriction()) {
+		return;
+	}
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
 		QGuiApplication::clipboard()->setImage(transformedShownContent());

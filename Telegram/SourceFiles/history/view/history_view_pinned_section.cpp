@@ -676,6 +676,10 @@ not_null<Ui::ChatTheme*> PinnedWidget::listChatTheme() {
 	return _theme.get();
 }
 
+CopyRestrictionType PinnedWidget::listCopyRestrictionType() {
+	return CopyRestrictionTypeFor(_history->peer);
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

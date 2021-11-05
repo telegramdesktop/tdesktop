@@ -1927,6 +1927,10 @@ not_null<Ui::ChatTheme*> RepliesWidget::listChatTheme() {
 	return _theme.get();
 }
 
+CopyRestrictionType RepliesWidget::listCopyRestrictionType() {
+	return CopyRestrictionTypeFor(_history->peer);
+}
+
 void RepliesWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

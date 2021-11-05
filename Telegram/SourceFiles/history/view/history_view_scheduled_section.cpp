@@ -1231,6 +1231,10 @@ not_null<Ui::ChatTheme*> ScheduledWidget::listChatTheme() {
 	return _theme.get();
 }
 
+CopyRestrictionType ScheduledWidget::listCopyRestrictionType() {
+	return CopyRestrictionType::None;
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

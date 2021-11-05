@@ -148,8 +148,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_error_admin_limit" = "Sorry, you've reached the maximum number of admins for this group.";
 "lng_error_admin_limit_channel" = "Sorry, you've reached the maximum number of admins for this channel.";
 "lng_error_post_link_invalid" = "Unfortunately, you can't access this message. You are not a member of the chat where it was posted.";
-"lng_error_noforwards_group" = "Sorry, forwarding is disabled from this group.";
-"lng_error_noforwards_channel" = "Sorry, forwarding is disabled from this channel.";
+"lng_error_noforwards_group" = "Sorry, forwarding from this group is disabled by admins.";
+"lng_error_noforwards_channel" = "Sorry, forwarding from this channel is disabled by admins.";
+"lng_error_nocopy_group" = "Sorry, copying from this group is disabled by admins.";
+"lng_error_nocopy_channel" = "Sorry, copying from this channel is disabled by admins.";
 "lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
 "lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
 "lng_sure_add_admin_unremove" = "This user is currently restricted or removed. Are you sure you want to promote them?";

@@ -386,6 +386,9 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 
+	[[nodiscard]] bool hasCopyRestriction() const;
+	[[nodiscard]] bool showCopyRestriction();
+
 	[[nodiscard]] QSize flipSizeByRotation(QSize size) const;
 
 	void applyVideoSize();

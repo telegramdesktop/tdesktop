@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/inactive_press.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
@@ -1164,6 +1165,25 @@ bool ListWidget::isEmpty() const {
 		&& (_itemsHeight + _itemsRevealHeight == 0);
 }
 
+
+
+bool ListWidget::hasCopyRestriction() const {
+	return _delegate->listCopyRestrictionType() != CopyRestrictionType::None;
+}
+
+bool ListWidget::showCopyRestriction() {
+	const auto type = _delegate->listCopyRestrictionType();
+	if (type == CopyRestrictionType::None) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.text = { (type == CopyRestrictionType::Channel)
+			? tr::lng_error_nocopy_channel(tr::now)
+			: tr::lng_error_nocopy_group(tr::now) },
+	});
+	return true;
+}
+
 int ListWidget::itemMinimalHeight() const {
 	return st::msgMarginTopAttached
 		+ st::msgPhotoSize
@@ -1892,11 +1912,13 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 			_delegate->listCancelRequest();
 		}
 	} else if (e == QKeySequence::Copy
-		&& (hasSelectedText() || hasSelectedItems())) {
+		&& (hasSelectedText() || hasSelectedItems())
+		&& !showCopyRestriction()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
-		&& e->modifiers().testFlag(Qt::ControlModifier)) {
+		&& e->modifiers().testFlag(Qt::ControlModifier)
+		&& !showCopyRestriction()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
@@ -2417,7 +2439,8 @@ void ListWidget::mouseActionFinish(
 
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& _selectedTextItem
-		&& _selectedTextRange.from != _selectedTextRange.to) {
+		&& _selectedTextRange.from != _selectedTextRange.to
+		&& !hasCopyRestriction()) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
 			TextUtilities::SetClipboardText(
 				view->selectedText(_selectedTextRange),
@@ -3056,6 +3079,16 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 		history,
 		widget->getSelectedIds(),
 		clearSelection);
+}
+
+
+CopyRestrictionType CopyRestrictionTypeFor(
+		not_null<PeerData*> peer) {
+	return peer->allowsForwarding()
+		? CopyRestrictionType::None
+		: peer->isBroadcast()
+		? CopyRestrictionType::Channel
+		: CopyRestrictionType::Group;
 }
 
 } // namespace HistoryView

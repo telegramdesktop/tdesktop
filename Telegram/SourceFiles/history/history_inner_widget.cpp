@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/text/text_options.h"
 #include "ui/boxes/report_box.h"
@@ -1494,7 +1494,8 @@ void HistoryInner::mouseActionFinish(
 
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& !_selected.empty()
-		&& _selected.cbegin()->second != FullSelection) {
+		&& _selected.cbegin()->second != FullSelection
+		&& _peer->allowsForwarding()) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
 			TextUtilities::SetClipboardText(
@@ -1673,7 +1674,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
 		const auto media = photo->activeMediaView();
-		if (!photo->isNull() && media && media->loaded()) {
+		if (!photo->isNull() && media && media->loaded() && _peer->allowsForwarding()) {
 			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}));
@@ -1753,7 +1754,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		if (isUponSelected > 0) {
+		if (isUponSelected > 0 && _peer->allowsForwarding()) {
 			_menu->addAction(
 				(isUponSelected > 1
 					? tr::lng_context_copy_selected_items(tr::now)
@@ -1844,11 +1845,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto view = item ? item->mainView() : nullptr;
 
 		if (isUponSelected > 0) {
-			_menu->addAction(
-				((isUponSelected > 1)
-					? tr::lng_context_copy_selected_items(tr::now)
-					: tr::lng_context_copy_selected(tr::now)),
-				[=] { copySelectedText(); });
+			if (_peer->allowsForwarding()) {
+				_menu->addAction(
+					((isUponSelected > 1)
+						? tr::lng_context_copy_selected_items(tr::now)
+						: tr::lng_context_copy_selected(tr::now)),
+					[=] { copySelectedText(); });
+			}
 			addItemActions(item, item);
 		} else {
 			addItemActions(item, albumPartItem);
@@ -1892,6 +1895,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (!item->isService()
 					&& view
 					&& !link
+					&& _peer->allowsForwarding()
 					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
@@ -1997,8 +2001,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 }
 
+bool HistoryInner::showCopyRestriction() {
+	if (_peer->allowsForwarding()) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.text = { _peer->isBroadcast()
+			? tr::lng_error_nocopy_channel(tr::now)
+			: tr::lng_error_nocopy_group(tr::now) },
+	});
+	return true;
+}
+
 void HistoryInner::copySelectedText() {
-	TextUtilities::SetClipboardText(getSelectedText());
+	if (!showCopyRestriction()) {
+		TextUtilities::SetClipboardText(getSelectedText());
+	}
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
@@ -2027,10 +2045,10 @@ void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 	const auto media = photo->activeMediaView();
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
+	} else if (!showCopyRestriction()) {
+		const auto image = media->image(Data::PhotoSize::Large)->original();
+		QGuiApplication::clipboard()->setImage(image);
 	}
-
-	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
@@ -2078,7 +2096,9 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 }
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
+	if (showCopyRestriction()) {
+		return;
+	} else if (const auto item = session().data().message(itemId)) {
 		if (const auto group = session().data().groups().find(item)) {
 			TextUtilities::SetClipboardText(HistoryGroupText(group));
 		} else {
@@ -2174,7 +2194,8 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
-		&& e->modifiers().testFlag(Qt::ControlModifier)) {
+		&& e->modifiers().testFlag(Qt::ControlModifier)
+		&& !showCopyRestriction()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
