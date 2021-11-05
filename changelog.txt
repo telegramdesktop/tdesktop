@@ -1,3 +1,8 @@
+3.2.2 (05.11.21)
+
+- Fix webpage preview links when View Button is present.
+- Fixed possible crash on sponsored messages.
+
 3.2.1 (03.11.21)
 
 - Remove AppImage icon hack and -pie.
