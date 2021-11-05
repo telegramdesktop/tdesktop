@@ -1116,7 +1116,11 @@ void GenerateItems(
 	};
 
 	auto createToggleNoForwards = [&](const MTPDchannelAdminLogEventActionToggleNoForwards &data) {
-		// #TODO noforwards
+		const auto disabled = (data.vnew_value().type() == mtpc_boolTrue);
+		const auto text = (disabled
+			? tr::lng_admin_log_forwards_disabled
+			: tr::lng_admin_log_forwards_enabled);
+		addSimpleServiceMessage(text(tr::now, lt_from, fromLinkText));
 	};
 
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
