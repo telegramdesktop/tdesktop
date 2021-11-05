@@ -73,7 +73,8 @@ void Polls::create(
 			MTP_long(base::RandomValue<uint64>()),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
-			MTP_int(action.options.scheduled)
+			MTP_int(action.options.scheduled),
+			MTPInputPeer() // #TODO send_as
 		)).done([=](
 				const MTPUpdates &result,
 				const MTP::Response &response) mutable {

@@ -50,7 +50,8 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
-			MTP_int(0) // schedule_date
+			MTP_int(0), // schedule_date
+			MTPInputPeer() // #TODO send_as
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();

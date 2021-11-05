@@ -210,6 +210,17 @@ void activateBotCommand(
 	case ButtonType::Auth:
 		UrlAuthBox::Activate(msg, row, column);
 		break;
+
+	case ButtonType::UserProfile: {
+		const auto session = &msg->history()->session();
+		const auto userId = UserId(button->data.toULongLong());
+		if (const auto user = session->data().userLoaded(userId)) {
+			const auto &windows = session->windows();
+			if (!windows.empty()) {
+				windows.front()->showPeerInfo(user);
+			}
+		}
+	} break;
 	}
 }
 

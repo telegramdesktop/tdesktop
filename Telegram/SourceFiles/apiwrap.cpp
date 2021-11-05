@@ -3707,7 +3707,8 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPint>(ids),
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
-				MTP_int(action.options.scheduled)
+				MTP_int(action.options.scheduled),
+				MTPInputPeer() // #TODO send_as
 			)).done([=](const MTPUpdates &result) {
 				applyUpdates(result);
 				if (shared && !--shared->requestsLeft) {
@@ -4109,7 +4110,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTP_long(randomId),
 				MTPReplyMarkup(),
 				sentEntities,
-				MTP_int(action.options.scheduled)
+				MTP_int(action.options.scheduled),
+				MTPInputPeer() // #TODO send_as
 			)).done([=](
 					const MTPUpdates &result,
 					const MTP::Response &response) {
@@ -4236,7 +4238,8 @@ void ApiWrap::sendInlineResult(
 			MTP_long(randomId),
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
-			MTP_int(action.options.scheduled)
+			MTP_int(action.options.scheduled),
+			MTPInputPeer() // #TODO send_as
 		)).done([=](
 				const MTPUpdates &result,
 				const MTP::Response &response) {
@@ -4389,7 +4392,8 @@ void ApiWrap::sendMediaWithRandomId(
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			sentEntities,
-			MTP_int(options.scheduled)
+			MTP_int(options.scheduled),
+			MTPInputPeer() // #TODO send_as
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result);
 			finish();
@@ -4491,7 +4495,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			peer->input,
 			MTP_int(replyTo),
 			MTP_vector<MTPInputSingleMedia>(medias),
-			MTP_int(album->options.scheduled)
+			MTP_int(album->options.scheduled),
+			MTPInputPeer() // #TODO send_as
 		)).done([=](const MTPUpdates &result) {
 			_sendingAlbums.remove(groupId);
 			applyUpdates(result);

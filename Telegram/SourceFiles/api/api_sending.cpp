@@ -142,7 +142,8 @@ void SendExistingMedia(
 				MTP_long(randomId),
 				MTPReplyMarkup(),
 				sentEntities,
-				MTP_int(message.action.options.scheduled)
+				MTP_int(message.action.options.scheduled),
+				MTPInputPeer() // #TODO send_as
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result, randomId);
 				finish();
@@ -297,7 +298,8 @@ bool SendDice(MessageToSend &message) {
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
-			MTP_int(message.action.options.scheduled)
+			MTP_int(message.action.options.scheduled),
+			MTPInputPeer() // #TODO send_as
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();

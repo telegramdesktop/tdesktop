@@ -1113,7 +1113,10 @@ void GenerateItems(
 				textcmdLink(adminIndex, user->name)),
 			data.vinvite(),
 			user->createOpenLink());
+	};
 
+	auto createToggleNoForwards = [&](const MTPDchannelAdminLogEventActionToggleNoForwards &data) {
+		// #TODO noforwards
 	};
 
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
@@ -1182,6 +1185,8 @@ void GenerateItems(
 		createChangeHistoryTTL(data);
 	}, [&](const MTPDchannelAdminLogEventActionParticipantJoinByRequest &data) {
 		createParticipantJoinByRequest(data);
+	}, [&](const MTPDchannelAdminLogEventActionToggleNoForwards &data) {
+		createToggleNoForwards(data);
 	});
 }
 

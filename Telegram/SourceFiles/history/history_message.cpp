@@ -311,7 +311,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					MTP_vector<MTPint>(msgIds),
 					MTP_vector<MTPlong>(generateRandom()),
 					peer->input,
-					MTP_int(options.scheduled)
+					MTP_int(options.scheduled),
+					MTPInputPeer() // #TODO send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId requestId) {
 					history->session().api().applyUpdates(updates);
 					data->requests.remove(requestId);
