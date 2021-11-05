@@ -50,6 +50,7 @@ enum class ChannelDataFlag {
 	CanViewParticipants = (1 << 17),
 	HasLink = (1 << 18),
 	SlowmodeEnabled = (1 << 19),
+	NoForwards = (1 << 20),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -293,6 +294,7 @@ public:
 
 	// Like in ChatData.
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
 	[[nodiscard]] bool canEditUsername() const;

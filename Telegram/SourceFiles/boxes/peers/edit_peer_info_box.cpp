@@ -277,6 +277,7 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> signatures;
+		std::optional<bool> forwards;
 		std::optional<ChannelData*> linkedChat;
 	};
 
@@ -296,6 +297,7 @@ private:
 	void fillLinkedChatButton();
 	//void fillInviteLinkButton();
 	void fillSignaturesButton();
+	void fillForwardsButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
 	void fillPendingRequestsButton();
@@ -312,6 +314,7 @@ private:
 	bool validateDescription(Saving &to) const;
 	bool validateHistoryVisibility(Saving &to) const;
 	bool validateSignatures(Saving &to) const;
+	bool validateForwards(Saving &to) const;
 
 	void save();
 	void saveUsername();
@@ -320,6 +323,7 @@ private:
 	void saveDescription();
 	void saveHistoryVisibility();
 	void saveSignatures();
+	void saveForwards();
 	void savePhoto();
 	void pushSaveStage(FnMut<void()> &&lambda);
 	void continueSave();
@@ -341,6 +345,7 @@ private:
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<QString> _usernameSavedValue;
 	std::optional<bool> _signaturesSavedValue;
+	std::optional<bool> _forwardsSavedValue;
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<Ui::BoxContent*> _box;
@@ -795,6 +800,21 @@ void Controller::fillSignaturesButton() {
 	}, _controls.buttonsLayout->lifetime());
 }
 
+void Controller::fillForwardsButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	AddButtonWithText(
+		_controls.buttonsLayout,
+		tr::lng_edit_allow_forwards(),
+		rpl::single(QString()),
+		[=] {}
+	)->toggleOn(rpl::single(_peer->allowsForwarding())
+	)->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_forwardsSavedValue = toggled;
+	}, _controls.buttonsLayout->lifetime());
+}
+
 void Controller::fillHistoryVisibilityButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -863,6 +883,9 @@ void Controller::fillManageSection() {
 		return isChannel
 			? (channel->canEditSignatures() && !channel->isMegagroup())
 			: false;
+	}();
+	const auto canEditForwards = [&] {
+		return isChannel ? channel->amCreator() : chat->amCreator();
 	}();
 	const auto canEditPreHistoryHidden = [&] {
 		return isChannel
@@ -937,8 +960,12 @@ void Controller::fillManageSection() {
 	if (canEditSignatures) {
 		fillSignaturesButton();
 	}
+	if (canEditForwards) {
+		fillForwardsButton();
+	}
 	if (canEditPreHistoryHidden
 		|| canEditSignatures
+		|| canEditForwards
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
 		|| canEditUsername) {
@@ -1154,7 +1181,8 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
-		&& validateSignatures(result)) {
+		&& validateSignatures(result)
+		&& validateForwards(result)) {
 		return result;
 	}
 	return {};
@@ -1229,6 +1257,14 @@ bool Controller::validateSignatures(Saving &to) const {
 	return true;
 }
 
+bool Controller::validateForwards(Saving &to) const {
+	if (!_forwardsSavedValue.has_value()) {
+		return true;
+	}
+	to.forwards = _forwardsSavedValue;
+	return true;
+}
+
 void Controller::save() {
 	Expects(_wrap != nullptr);
 
@@ -1243,6 +1279,7 @@ void Controller::save() {
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
 		pushSaveStage([=] { saveSignatures(); });
+		pushSaveStage([=] { saveForwards(); });
 		pushSaveStage([=] { savePhoto(); });
 		continueSave();
 	}
@@ -1489,6 +1526,26 @@ void Controller::saveSignatures() {
 		MTP_bool(*_savingData.signatures)
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
+		continueSave();
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			continueSave();
+		} else {
+			cancelSave();
+		}
+	}).send();
+}
+
+void Controller::saveForwards() {
+	if (!_savingData.forwards
+		|| *_savingData.forwards == _peer->allowsForwarding()) {
+		return continueSave();
+	}
+	_api.request(MTPmessages_ToggleNoForwards(
+		_peer->input,
+		MTP_bool(!*_savingData.forwards)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
 		continueSave();
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {

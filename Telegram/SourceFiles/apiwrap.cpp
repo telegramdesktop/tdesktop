@@ -504,6 +504,11 @@ void ApiWrap::sendMessageFail(
 			scheduled.removeSending(item);
 			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)));
 		}
+	} else if (error.type() == qstr("CHAT_FORWARDS_RESTRICTED")) {
+		Ui::ShowMultilineToast({ .text = { peer->isBroadcast()
+			? tr::lng_error_noforwards_channel(tr::now)
+			: tr::lng_error_noforwards_group(tr::now)
+		}, .duration = kJoinErrorDuration });
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

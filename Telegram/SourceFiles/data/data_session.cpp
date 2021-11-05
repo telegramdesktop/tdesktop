@@ -641,7 +641,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::Deactivated
 			| Flag::Forbidden
 			| Flag::CallActive
-			| Flag::CallNotEmpty;
+			| Flag::CallNotEmpty
+			| Flag::NoForwards;
 		const auto flagsSet = (data.is_left() ? Flag::Left : Flag())
 			| (data.is_kicked() ? Flag::Kicked : Flag())
 			| (data.is_creator() ? Flag::Creator : Flag())
@@ -651,7 +652,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				|| (chat->groupCall()
 					&& chat->groupCall()->fullCount() > 0))
 				? Flag::CallNotEmpty
-				: Flag());
+				: Flag())
+			| (data.is_noforwards() ? Flag::NoForwards : Flag());
 		chat->setFlags((chat->flags() & ~flagsMask) | flagsSet);
 		chat->count = data.vparticipants_count().v;
 
@@ -739,10 +741,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallActive
 			| Flag::CallNotEmpty
 			| Flag::Forbidden
-			| (!minimal
-				? Flag::Left
-				| Flag::Creator
-				: Flag());
+			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
+			| Flag::NoForwards;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -762,7 +762,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (!minimal
 				? (data.is_left() ? Flag::Left : Flag())
 				| (data.is_creator() ? Flag::Creator : Flag())
-				: Flag());
+				: Flag())
+			| (data.is_noforwards() ? Flag::NoForwards : Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		channel->setName(

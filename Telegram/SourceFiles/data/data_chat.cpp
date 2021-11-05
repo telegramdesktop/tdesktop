@@ -28,7 +28,7 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 , inputChat(MTP_long(peerToChat(id).bare)) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
-		if (change.diff & ChatDataFlag::CallNotEmpty) {
+		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
 			}
@@ -63,6 +63,10 @@ bool ChatData::canWrite() const {
 	return amIn() && !amRestricted(Restriction::SendMessages);
 }
 
+bool ChatData::allowsForwarding() const {
+	return !(flags() & Flag::NoForwards);
+}
+
 bool ChatData::canEditInformation() const {
 	return amIn() && !amRestricted(Restriction::ChangeInfo);
 }
@@ -74,7 +78,7 @@ bool ChatData::canEditPermissions() const {
 
 bool ChatData::canEditUsername() const {
 	return amCreator()
-		&& (flags() & ChatDataFlag::CanSetUsername);
+		&& (flags() & Flag::CanSetUsername);
 }
 
 bool ChatData::canEditPreHistoryHidden() const {
@@ -222,7 +226,7 @@ void ChatData::setGroupCall(
 			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-		addFlags(ChatDataFlag::CallActive);
+		addFlags(Flag::CallActive);
 	});
 }
 
@@ -236,7 +240,7 @@ void ChatData::clearGroupCall() {
 		_call = nullptr;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	removeFlags(ChatDataFlag::CallActive | ChatDataFlag::CallNotEmpty);
+	removeFlags(Flag::CallActive | Flag::CallNotEmpty);
 }
 
 void ChatData::setGroupCallDefaultJoinAs(PeerId peerId) {

@@ -18,6 +18,7 @@ enum class ChatDataFlag {
 	CallActive = (1 << 5),
 	CallNotEmpty = (1 << 6),
 	CanSetUsername = (1 << 7),
+	NoForwards = (1 << 8),
 };
 inline constexpr bool is_flag_type(ChatDataFlag) { return true; };
 using ChatDataFlags = base::flags<ChatDataFlag>;
@@ -109,6 +110,7 @@ public:
 
 	// Like in ChannelData.
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
 	[[nodiscard]] bool canEditUsername() const;

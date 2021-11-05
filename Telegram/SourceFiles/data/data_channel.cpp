@@ -470,6 +470,10 @@ bool ChannelData::canWrite() const {
 				&& !amRestricted(Restriction::SendMessages)));
 }
 
+bool ChannelData::allowsForwarding() const {
+	return !(flags() & Flag::NoForwards);
+}
+
 bool ChannelData::canViewMembers() const {
 	return flags() & Flag::CanViewParticipants;
 }
