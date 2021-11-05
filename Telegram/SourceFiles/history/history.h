@@ -135,7 +135,7 @@ public:
 
 	void unpinAllMessages();
 
-	HistoryItem *addNewMessage(
+	not_null<HistoryItem*> addNewMessage(
 		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
@@ -193,7 +193,7 @@ public:
 		HistoryMessageMarkupData &&markup);
 
 	// Used only internally and for channel admin log.
-	HistoryItem *createItem(
+	not_null<HistoryItem*> createItem(
 		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,

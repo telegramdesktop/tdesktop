@@ -2213,7 +2213,7 @@ HistoryItem *Session::addNewMessage(
 		data,
 		localFlags,
 		type);
-	if (result && type == NewMessageType::Unread) {
+	if (type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
 	}
 	return result;

@@ -360,7 +360,7 @@ void History::setForwardDraft(Data::ForwardDraft &&draft) {
 	_forwardDraft = std::move(draft);
 }
 
-HistoryItem *History::createItem(
+not_null<HistoryItem*> History::createItem(
 		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
@@ -382,28 +382,22 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	const auto detachExistingItem = true;
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto &data = *--i;
-		const auto item = createItem(
+		result.emplace_back(createItem(
 			IdFromMessage(data),
 			data,
 			localFlags,
-			detachExistingItem);
-		if (item) {
-			result.emplace_back(item);
-		}
+			detachExistingItem));
 	}
 	return result;
 }
 
-HistoryItem *History::addNewMessage(
+not_null<HistoryItem*> History::addNewMessage(
 		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
 		NewMessageType type) {
 	const auto detachExistingItem = (type == NewMessageType::Unread);
 	const auto item = createItem(id, msg, localFlags, detachExistingItem);
-	if (!item) {
-		return nullptr;
-	}
 	if (type == NewMessageType::Existing || item->mainView()) {
 		return item;
 	}
