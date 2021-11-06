@@ -9,10 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
-
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 #include "webview/platform/linux/webview_linux_webkit2gtk.h"
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 #include <QtWidgets/QApplication>
 
@@ -64,14 +61,12 @@ int Launcher::exec() {
 	Gio::init();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
 		if (*i == "-webviewhelper" && std::distance(i, e) > 2) {
 			Webview::WebKit2Gtk::SetServiceName(*(i + 2));
 			return Webview::WebKit2Gtk::Exec(*(i + 1));
 		}
 	}
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 	return Core::Launcher::exec();
 }
