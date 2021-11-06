@@ -30,11 +30,10 @@ apps:
       - camera
       - desktop
       - desktop-legacy
+      - hardware-observe
       - home
       - network
-      - network-manager-observe
       - opengl
-      - pulseaudio
       - removable-media
       - unity7
       - wayland
@@ -121,6 +120,7 @@ parts:
       - libxcb-record0
       - libxcb-screensaver0
       - zlib1g
+      - systemd
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
