@@ -213,10 +213,17 @@ void UnwrappedMedia::drawSurrounding(
 			p.setTextPalette(st->serviceTextPalette());
 			forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
 			p.restoreTextPalette();
+
+			const auto skip = std::min(
+				forwarded->text.countHeight(rectw),
+				kMaxForwardedBarLines * st::msgServiceNameFont->height);
+			recty += skip;
 		} else if (via) {
 			p.setFont(st::msgDateFont);
 			p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
-			int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+
+			const auto skip = st::msgServiceNameFont->height
+				+ (reply ? st::msgReplyPadding.top() : 0);
 			recty += skip;
 		}
 		if (reply) {
@@ -465,7 +472,9 @@ int UnwrappedMedia::additionalWidth(
 
 auto UnwrappedMedia::getDisplayedForwardedInfo() const
 -> const HistoryMessageForwarded * {
-	return _parent->data()->Get<HistoryMessageForwarded>();
+	return _parent->displayForwardedFrom()
+		? _parent->data()->Get<HistoryMessageForwarded>()
+		: nullptr;
 }
 
 } // namespace HistoryView
