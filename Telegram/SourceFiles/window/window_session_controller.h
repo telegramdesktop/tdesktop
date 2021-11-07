@@ -18,8 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PhotoData;
 class MainWidget;
 class MainWindow;
-class HistoryMessage;
-class HistoryService;
 
 namespace Adaptive {
 enum class WindowLayout;
