@@ -36,7 +36,7 @@ void SendBotCallbackData(
 		int column,
 		std::optional<MTPInputCheckPasswordSRP> password = std::nullopt,
 		Fn<void(const MTP::Error &)> handleError = nullptr) {
-	if (!IsServerMsgId(item->id)) {
+	if (!item->isRegular()) {
 		return;
 	}
 	const auto history = item->history();
@@ -150,7 +150,7 @@ void SendBotCallbackDataWithPassword(
 		not_null<HistoryItem*> item,
 		int row,
 		int column) {
-	if (!IsServerMsgId(item->id)) {
+	if (!item->isRegular()) {
 		return;
 	}
 	const auto history = item->history();

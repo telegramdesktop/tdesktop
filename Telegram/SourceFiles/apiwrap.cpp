@@ -1288,7 +1288,7 @@ void ApiWrap::markMediaRead(
 			continue;
 		}
 		item->markMediaRead();
-		if (!IsServerMsgId(item->id)) {
+		if (!item->isRegular()) {
 			continue;
 		}
 		if (const auto channel = item->history()->peer->asChannel()) {
@@ -1318,7 +1318,7 @@ void ApiWrap::markMediaRead(not_null<HistoryItem*> item) {
 		return;
 	}
 	item->markMediaRead();
-	if (!IsServerMsgId(item->id)) {
+	if (!item->isRegular()) {
 		return;
 	}
 	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
@@ -2329,7 +2329,7 @@ void ApiWrap::deleteHistory(
 			if (!last) {
 				// History is empty.
 				return;
-			} else if (!IsServerMsgId(last->id)) {
+			} else if (!last->isRegular()) {
 				// Destroy client-side message locally.
 				last->destroy();
 			} else {
@@ -2354,7 +2354,7 @@ void ApiWrap::deleteHistory(
 			if (const auto migrated = peer->migrateFrom()) {
 				deleteHistory(migrated, justClear, revoke);
 			}
-			if (IsServerMsgId(deleteTillId) || (!justClear && revoke)) {
+			if (deleteTillId || (!justClear && revoke)) {
 				history->owner().histories().deleteAllMessages(
 					history,
 					deleteTillId,
@@ -3681,8 +3681,6 @@ void ApiWrap::forwardMessages(
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_schedule_date;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 	if (draft.options != Data::ForwardOptions::PreserveInfo) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_author;
@@ -3741,30 +3739,28 @@ void ApiWrap::forwardMessages(
 	for (const auto item : draft.items) {
 		const auto randomId = base::RandomValue<uint64>();
 		if (genClientSideMessage) {
-			if (const auto message = item->toHistoryMessage()) {
-				const auto newId = FullMsgId(
-					peerToChannel(peer->id),
-					_session->data().nextLocalMessageId());
-				const auto self = _session->user();
-				const auto messageFromId = anonymousPost
-					? PeerId(0)
-					: self->id;
-				const auto messagePostAuthor = peer->isBroadcast()
-					? self->name
-					: QString();
-				history->addNewLocalMessage(
-					newId.msg,
-					flags,
-					HistoryItem::NewMessageDate(action.options.scheduled),
-					messageFromId,
-					messagePostAuthor,
-					message);
-				_session->data().registerMessageRandomId(randomId, newId);
-				if (!localIds) {
-					localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
-				}
-				localIds->emplace(randomId, newId);
+			const auto newId = FullMsgId(
+				peerToChannel(peer->id),
+				_session->data().nextLocalMessageId());
+			const auto self = _session->user();
+			const auto messageFromId = anonymousPost
+				? PeerId(0)
+				: self->id;
+			const auto messagePostAuthor = peer->isBroadcast()
+				? self->name
+				: QString();
+			history->addNewLocalMessage(
+				newId.msg,
+				flags,
+				HistoryItem::NewMessageDate(action.options.scheduled),
+				messageFromId,
+				messagePostAuthor,
+				item);
+			_session->data().registerMessageRandomId(randomId, newId);
+			if (!localIds) {
+				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
 			}
+			localIds->emplace(randomId, newId);
 		}
 		const auto newFrom = item->history()->peer;
 		if (forwardFrom != newFrom) {
@@ -3827,8 +3823,6 @@ void ApiWrap::sendSharedContact(
 	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
@@ -4009,7 +4003,7 @@ void ApiWrap::sendUploadedDocument(
 }
 
 void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
-	Expects(!IsServerMsgId(item->id));
+	Expects(item->isSending());
 
 	if (const auto groupId = item->groupId()) {
 		sendAlbumWithCancelled(item, groupId);
@@ -4100,8 +4094,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (action.options.scheduled) {
 			flags |= MessageFlag::IsOrWasScheduled;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
-		} else {
-			flags |= MessageFlag::LocalHistoryEntry;
 		}
 		const auto viaBotId = UserId();
 		lastMessage = history->addNewLocalMessage(
@@ -4219,8 +4211,6 @@ void ApiWrap::sendInlineResult(
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 
 	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();

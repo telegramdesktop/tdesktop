@@ -147,8 +147,9 @@ void InnerWidget::enumerateUserpics(Method method) {
 
 	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		const auto message = view->data()->toHistoryMessage();
-		if (!message) return true;
+		if (view->data()->isService()) {
+			return true;
+		}
 
 		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
 			lowestAttachedItemTop = itemtop + view->marginTop();
@@ -963,10 +964,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
-					const auto message = view->data()->toHistoryMessage();
-					Assert(message != nullptr);
-
-					const auto from = message->from();
+					const auto from = view->data()->from();
 					from->paintUserpicLeft(
 						p,
 						_userpics[from],
@@ -1677,26 +1675,21 @@ void InnerWidget::updateSelected() {
 		dragState = view->textState(itemPoint, request);
 		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (item->toHistoryMessage()) {
-				if (view->hasFromPhoto()) {
-					enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
-						// stop enumeration if the userpic is below our point
-						if (userpicTop > point.y()) {
-							return false;
-						}
+			if (!item->isService() && view->hasFromPhoto()) {
+				enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+					// stop enumeration if the userpic is below our point
+					if (userpicTop > point.y()) {
+						return false;
+					}
 
-						// stop enumeration if we've found a userpic under the cursor
-						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-							const auto message = view->data()->toHistoryMessage();
-							Assert(message != nullptr);
-
-							dragState.link = message->from()->openLink();
-							lnkhost = view;
-							return false;
-						}
-						return true;
-					});
-				}
+					// stop enumeration if we've found a userpic under the cursor
+					if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+						dragState.link = view->data()->from()->openLink();
+						lnkhost = view;
+						return false;
+					}
+					return true;
+				});
 			}
 		}
 	}

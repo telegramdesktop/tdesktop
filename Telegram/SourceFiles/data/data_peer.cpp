@@ -528,7 +528,7 @@ bool PeerData::canExportChatHistory() const {
 	}
 	for (const auto &block : _owner->history(id)->blocks) {
 		for (const auto &message : block->messages) {
-			if (!message->data()->serviceMsg()) {
+			if (!message->data()->isService()) {
 				return true;
 			}
 		}

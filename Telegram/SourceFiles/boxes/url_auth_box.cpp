@@ -32,7 +32,7 @@ void UrlAuthBox::Activate(
 		itemId,
 		row,
 		column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !message->isRegular()) {
 		return;
 	}
 	const auto session = &message->history()->session();
@@ -121,7 +121,7 @@ void UrlAuthBox::Request(
 		itemId,
 		row,
 		column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !message->isRegular()) {
 		return;
 	}
 	const auto session = &message->history()->session();

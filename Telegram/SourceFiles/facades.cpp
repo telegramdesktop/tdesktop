@@ -91,7 +91,7 @@ void activateBotCommand(
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		if (sessionController) {
-			MsgId replyTo = (msg->id > 0) ? msg->id : 0;
+			MsgId replyTo = msg->isRegular() ? msg->id : 0;
 			sessionController->content()->sendBotCommand({
 				.peer = msg->history()->peer,
 				.command = QString(button->text),

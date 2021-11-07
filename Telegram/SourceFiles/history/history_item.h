@@ -87,8 +87,14 @@ struct ToPreviewOptions {
 struct HiddenSenderInfo;
 class History;
 
-[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessage::Flags flags);
-[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags);
+[[nodiscard]] MessageFlags FlagsFromMTP(
+	MsgId id,
+	MTPDmessage::Flags flags,
+	MessageFlags localFlags);
+[[nodiscard]] MessageFlags FlagsFromMTP(
+	MsgId id,
+	MTPDmessageService::Flags flags,
+	MessageFlags localFlags);
 
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
@@ -230,6 +236,11 @@ public:
 	[[nodiscard]] bool hideEditedBadge() const {
 		return (_flags & MessageFlag::HideEdited);
 	}
+	[[nodiscard]] bool isLocal() const {
+		return _flags & MessageFlag::Local;
+	}
+	[[nodiscard]] bool isRegular() const;
+	[[nodiscard]] bool isUploading() const;
 	void sendFailed();
 	[[nodiscard]] virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
@@ -278,7 +289,7 @@ public:
 
 	[[nodiscard]] virtual bool needCheck() const;
 
-	[[nodiscard]] virtual bool serviceMsg() const {
+	[[nodiscard]] virtual bool isService() const {
 		return false;
 	}
 	virtual void applyEdition(HistoryMessageEdition &&edition) {
@@ -392,12 +403,6 @@ public:
 		return false;
 	}
 
-	[[nodiscard]] virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
-		return nullptr;
-	}
-	[[nodiscard]] virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
-		return nullptr;
-	}
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] MsgId replyToTop() const;
 

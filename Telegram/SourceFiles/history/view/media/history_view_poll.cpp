@@ -282,7 +282,7 @@ bool Poll::showVotes() const {
 }
 
 bool Poll::canVote() const {
-	return !showVotes() && IsServerMsgId(_parent->data()->id);
+	return !showVotes() && _parent->data()->isRegular();
 }
 
 bool Poll::canSendVotes() const {

@@ -562,7 +562,7 @@ HistoryWidget::HistoryWidget(
 		| HistoryUpdateFlag::UnreadMentions
 		| HistoryUpdateFlag::UnreadView
 		| HistoryUpdateFlag::TopPromoted
-		| HistoryUpdateFlag::LocalMessages
+		| HistoryUpdateFlag::ClientSideMessages
 		| HistoryUpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
 		if (_migrated && update.history.get() == _migrated) {
@@ -586,7 +586,7 @@ HistoryWidget::HistoryWidget(
 		if (flags & HistoryUpdateFlag::CloudDraft) {
 			applyCloudDraft(update.history);
 		}
-		if (flags & HistoryUpdateFlag::LocalMessages) {
+		if (flags & HistoryUpdateFlag::ClientSideMessages) {
 			updateSendButtonType();
 		}
 		if (flags & HistoryUpdateFlag::UnreadMentions) {
@@ -5337,7 +5337,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 }
 
 void HistoryWidget::botCallbackSent(not_null<HistoryItem*> item) {
-	if (item->id < 0 || _peer != item->history()->peer) {
+	if (!item->isRegular() || _peer != item->history()->peer) {
 		return;
 	}
 
@@ -6239,11 +6239,10 @@ void HistoryWidget::replyToMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
-	if (!IsServerMsgId(item->id) || !_canSendMessages) {
+	if (!item->isRegular() || !_canSendMessages) {
 		return;
-	}
-	if (item->history() == _migrated) {
-		if (item->serviceMsg()) {
+	} else if (item->history() == _migrated) {
+		if (item->isService()) {
 			controller()->show(Box<Ui::InformBox>(
 				tr::lng_reply_cant(tr::now)));
 		} else {

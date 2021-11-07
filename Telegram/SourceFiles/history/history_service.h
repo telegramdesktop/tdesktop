@@ -108,7 +108,7 @@ public:
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
 	bool needCheck() const override;
-	bool serviceMsg() const override {
+	bool isService() const override {
 		return true;
 	}
 	ItemPreview toPreview(ToPreviewOptions options) const override;

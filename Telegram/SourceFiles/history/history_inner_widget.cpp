@@ -428,7 +428,9 @@ void HistoryInner::enumerateUserpics(Method method) {
 	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
 		const auto item = view->data();
-		if (view->isHidden() || !item->toHistoryMessage()) return true;
+		if (view->isHidden() || item->isService()) {
+			return true;
+		}
 
 		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
 			lowestAttachedItemTop = itemtop + view->marginTop();
@@ -565,7 +567,7 @@ TextSelection HistoryInner::itemRenderSelection(
 	const auto item = view->data();
 	const auto y = view->block()->y() + view->y();
 	if (y >= selfromy && y < seltoy) {
-		if (_dragSelecting && !item->serviceMsg() && item->id > 0) {
+		if (_dragSelecting && !item->isService() && item->isRegular()) {
 			return FullSelection;
 		}
 	} else if (!_selected.empty()) {
@@ -792,8 +794,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
-					const auto message = view->data()->toHistoryMessage();
-					if (const auto from = message->displayFrom()) {
+					if (const auto from = view->data()->displayFrom()) {
 						from->paintUserpicLeft(
 							p,
 							_userpics[from],
@@ -801,7 +802,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 							userpicTop,
 							width(),
 							st::msgPhotoSize);
-					} else if (const auto info = message->hiddenForwardedInfo()) {
+					} else if (const auto info = view->data()->hiddenForwardedInfo()) {
 						info->userpic.paint(
 							p,
 							st::historyPhotoLeft,
@@ -1462,8 +1463,8 @@ void HistoryInner::mouseActionFinish(
 			_selected.erase(i);
 			repaintItem(_mouseActionItem);
 		} else if ((i == _selected.cend())
-			&& !_dragStateItem->serviceMsg()
-			&& (_dragStateItem->id > 0)
+			&& !_dragStateItem->isService()
+			&& _dragStateItem->isRegular()
 			&& inSelectionMode()) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.emplace(_dragStateItem, FullSelection);
@@ -1621,7 +1622,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			HistoryItem *item,
 			HistoryItem *albumPartItem) {
 		if (!item
-			|| !IsServerMsgId(item->id)
+			|| !item->isRegular()
 			|| isUponSelected == 2
 			|| isUponSelected == -2) {
 			return;
@@ -1633,8 +1634,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 		const auto repliesCount = item->repliesCount();
-		const auto withReplies = IsServerMsgId(item->id)
-			&& (repliesCount > 0);
+		const auto withReplies = (repliesCount > 0);
 		if (withReplies && item->history()->peer->isMegagroup()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
 			const auto phrase = (repliesCount > 0)
@@ -1807,7 +1807,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 			}
-			if (IsServerMsgId(item->id) && !item->serviceMsg()) {
+			if (item->isRegular() && !item->isService()) {
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = session->data().message(itemId)) {
 						if (const auto view = item->mainView()) {
@@ -1837,13 +1837,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		const auto canDelete = item
 			&& item->canDelete()
-			&& (item->id > 0 || !item->serviceMsg());
+			&& (item->isRegular() || !item->isService());
 		const auto canForward = item && item->allowsForward();
 		const auto canReport = item && item->suggestReport();
 		const auto canBlockSender = item && item->history()->peer->isRepliesChat();
 		const auto view = item ? item->mainView() : nullptr;
 
-		const auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
 			_menu->addAction(
 				((isUponSelected > 1)
@@ -1885,12 +1884,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						});
 					}
 				}
-				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
-					if (item->isSponsored()) {
-						_menu->addAction(tr::lng_sponsored_title({}), [=] {
-							_controller->show(Box(Ui::AboutSponsoredBox));
-						});
-					}
+				if (item->isSponsored()) {
+					_menu->addAction(tr::lng_sponsored_title({}), [=] {
+						_controller->show(Box(Ui::AboutSponsoredBox));
+					});
+				}
+				if (!item->isService()
+					&& view
+					&& !link
+					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					});
@@ -1926,7 +1928,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 				_widget->clearSelected();
 			});
-		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
+		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->isRegular())) {
 			if (isUponSelected != -2) {
 				if (canForward) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
@@ -1937,7 +1939,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					const auto callback = [=] {
 						deleteAsGroup(itemId);
 					};
-					if (msg && msg->uploading()) {
+					if (item->isUploading()) {
 						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback);
 					} else {
 						_menu->addAction(Ui::DeleteMessageContextAction(
@@ -1953,7 +1955,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 			}
-			if (item->id > 0 && !item->serviceMsg()) {
+			if (item->isRegular() && !item->isService()) {
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = session->data().message(itemId)) {
 						if (const auto view = item->mainView()) {
@@ -1971,8 +1973,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		} else {
 			if (App::mousedItem()
-				&& IsServerMsgId(App::mousedItem()->data()->id)
-				&& !App::mousedItem()->data()->serviceMsg()) {
+				&& App::mousedItem()->data()->isRegular()
+				&& !App::mousedItem()->data()->isService()) {
 				const auto itemId = App::mousedItem()->data()->fullId();
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = session->data().message(itemId)) {
@@ -2783,7 +2785,7 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 		_selected.end()
 	) | views::filter([](const auto &selected) {
 		const auto item = selected.first;
-		return item && item->toHistoryMessage() && (item->id > 0);
+		return item && !item->isService() && item->isRegular();
 	}) | views::transform([](const auto &selected) {
 		return selected.first->fullId();
 	}) | to_vector;
@@ -2935,27 +2937,22 @@ void HistoryInner::mouseActionUpdate() {
 			_dragStateItem = session().data().message(dragState.itemId);
 			lnkhost = view;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-				if (item->toHistoryMessage()) {
-					if (view->hasFromPhoto()) {
-						enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
-							// stop enumeration if the userpic is below our point
-							if (userpicTop > point.y()) {
-								return false;
-							}
+				if (!item->isService() && view->hasFromPhoto()) {
+					enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
+						// stop enumeration if the userpic is below our point
+						if (userpicTop > point.y()) {
+							return false;
+						}
 
-							// stop enumeration if we've found a userpic under the cursor
-							if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-								const auto message = view->data()->toHistoryMessage();
-								Assert(message != nullptr);
-
-								dragState = TextState(nullptr, view->fromPhotoLink());
-								_dragStateItem = session().data().message(dragState.itemId);
-								lnkhost = view;
-								return false;
-							}
-							return true;
-						});
-					}
+						// stop enumeration if we've found a userpic under the cursor
+						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							dragState = TextState(nullptr, view->fromPhotoLink());
+							_dragStateItem = nullptr;
+							lnkhost = view;
+							return false;
+						}
+						return true;
+					});
 				}
 			}
 		}
@@ -3040,7 +3037,9 @@ void HistoryInner::mouseActionUpdate() {
 				}
 				auto dragSelecting = false;
 				auto dragFirstAffected = dragSelFrom;
-				while (dragFirstAffected && (dragFirstAffected->data()->id < 0 || dragFirstAffected->data()->serviceMsg())) {
+				while (dragFirstAffected
+					&& (!dragFirstAffected->data()->isRegular()
+						|| dragFirstAffected->data()->isService())) {
 					dragFirstAffected = (dragFirstAffected != dragSelTo)
 						? (selectingDown
 							? nextItem(dragFirstAffected)
@@ -3186,7 +3185,7 @@ auto HistoryInner::findViewForPinnedTracking(int top) const
 	const auto fromHistory = [&](not_null<History*> history, int historyTop)
 	-> std::pair<Element*, int> {
 		auto [view, offset] = history->findItemAndOffset(top - historyTop);
-		while (view && !IsServerMsgId(view->data()->id)) {
+		while (view && !view->data()->isRegular()) {
 			offset -= view->height();
 			view = view->nextInBlocks();
 		}
@@ -3262,10 +3261,9 @@ bool HistoryInner::goodForSelection(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
-	if (item->id <= 0 || item->serviceMsg()) {
+	if (!item->isRegular() || item->isService()) {
 		return false;
-	}
-	if (toItems->find(item) == toItems->end()) {
+	} else if (toItems->find(item) == toItems->end()) {
 		++totalCount;
 	}
 	return true;
@@ -3367,11 +3365,9 @@ void HistoryInner::deleteItem(FullMsgId itemId) {
 }
 
 void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
-	if (auto message = item->toHistoryMessage()) {
-		if (message->uploading()) {
-			_controller->cancelUploadLayer(item);
-			return;
-		}
+	if (item->isUploading()) {
+		_controller->cancelUploadLayer(item);
+		return;
 	}
 	const auto suggestModerateActions = true;
 	_controller->show(Box<DeleteMessagesBox>(item, suggestModerateActions));

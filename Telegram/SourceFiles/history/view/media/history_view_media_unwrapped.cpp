@@ -437,10 +437,11 @@ QPoint UnwrappedMedia::calculateFastActionPosition(
 }
 
 bool UnwrappedMedia::needInfoDisplay() const {
-	return (_parent->data()->id < 0)
-		|| (_parent->isUnderCursor())
-		|| (_parent->rightActionSize())
-		|| (_parent->isLastAndSelfMessage())
+	return _parent->data()->isSending()
+		|| _parent->data()->hasFailed()
+		|| _parent->isUnderCursor()
+		|| _parent->rightActionSize()
+		|| _parent->isLastAndSelfMessage()
 		|| (_parent->hasOutLayout()
 			&& !_parent->delegate()->elementIsChatWide()
 			&& _content->alwaysShowOutTimestamp());

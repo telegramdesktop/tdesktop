@@ -595,7 +595,7 @@ bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed()
-		&& IsServerMsgId(_realParent->id);
+		&& _realParent->isRegular();
 }
 
 void Document::drawCornerDownload(

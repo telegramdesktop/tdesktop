@@ -332,7 +332,7 @@ auto Instance::playlistKey(not_null<Data*> data) const
 		return {};
 	}
 	const auto item = data->history->owner().message(contextId);
-	if (!item || (!IsServerMsgId(contextId.msg) && !item->isScheduled())) {
+	if (!item || (!item->isRegular() && !item->isScheduled())) {
 		return {};
 	}
 

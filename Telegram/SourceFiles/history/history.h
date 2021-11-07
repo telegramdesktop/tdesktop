@@ -158,7 +158,7 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> forwardOriginal);
+		not_null<HistoryItem*> forwardOriginal);
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
@@ -206,9 +206,9 @@ public:
 
 	void newItemAdded(not_null<HistoryItem*> item);
 
-	void registerLocalMessage(not_null<HistoryItem*> item);
-	void unregisterLocalMessage(not_null<HistoryItem*> item);
-	[[nodiscard]] auto localMessages()
+	void registerClientSideMessage(not_null<HistoryItem*> item);
+	void unregisterClientSideMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] auto clientSideMessages()
 		-> const base::flat_set<not_null<HistoryItem*>> &;
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
@@ -600,7 +600,7 @@ private:
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
 	std::optional<HistoryItem*> _lastServerMessage;
-	base::flat_set<not_null<HistoryItem*>> _localMessages;
+	base::flat_set<not_null<HistoryItem*>> _clientSideMessages;
 	std::unordered_set<std::unique_ptr<HistoryItem>> _messages;
 
 	// This almost always is equal to _lastMessage. The only difference is

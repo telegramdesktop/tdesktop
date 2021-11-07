@@ -268,17 +268,20 @@ enum class MessageFlag : uint32 {
 	// No media and only a several emoji text.
 	IsolatedEmoji         = (1U << 25),
 
-	// Local message existing in the message history.
-	LocalHistoryEntry     = (1U << 26),
+	// Message existing in the message history.
+	HistoryEntry          = (1U << 26),
+
+	// Local message, not existing on the server.
+	Local                 = (1U << 27),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1U << 27),
+	FakeHistoryItem       = (1U << 28),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1U << 28),
+	IsContactSignUp       = (1U << 29),
 
 	// In channels.
-	IsSponsored           = (1U << 29),
+	IsSponsored           = (1U << 30),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

@@ -114,7 +114,7 @@ EmojiPtr EmojiInteractions::chooseInteractionEmoji(
 void EmojiInteractions::startOutgoing(
 		not_null<const HistoryView::Element*> view) {
 	const auto item = view->data();
-	if (!IsServerMsgId(item->id) || !item->history()->peer->isUser()) {
+	if (!item->isRegular() || !item->history()->peer->isUser()) {
 		return;
 	}
 	const auto emoticon = item->originalText().text;
@@ -161,13 +161,11 @@ void EmojiInteractions::startIncoming(
 		MsgId messageId,
 		const QString &emoticon,
 		EmojiInteractionsBunch &&bunch) {
-	if (!peer->isUser()
-		|| bunch.interactions.empty()
-		|| !IsServerMsgId(messageId)) {
+	if (!peer->isUser() || bunch.interactions.empty()) {
 		return;
 	}
 	const auto item = _session->data().message(nullptr, messageId);
-	if (!item) {
+	if (!item || !item->isRegular()) {
 		return;
 	}
 	const auto emoji = chooseInteractionEmoji(item);

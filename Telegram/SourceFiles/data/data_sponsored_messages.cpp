@@ -75,7 +75,7 @@ bool SponsoredMessages::append(not_null<History*> history) {
 		| (history->isChannel() ? MessageFlag::Post : MessageFlags(0))
 		| MessageFlag::HasFromId
 		| MessageFlag::IsSponsored
-		| MessageFlag::LocalHistoryEntry;
+		| MessageFlag::Local;
 	auto local = history->addNewLocalMessage(
 		_session->data().nextLocalMessageId(),
 		flags,

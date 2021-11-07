@@ -491,7 +491,8 @@ FileLoadTask::FileLoadTask(
 , _type(type)
 , _caption(caption) {
 	Expects(to.options.scheduled
-		|| (to.replaceMediaOf == 0 || IsServerMsgId(to.replaceMediaOf)));
+		|| !to.replaceMediaOf
+		|| IsServerMsgId(to.replaceMediaOf));
 }
 
 FileLoadTask::FileLoadTask(

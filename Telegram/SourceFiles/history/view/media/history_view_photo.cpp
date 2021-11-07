@@ -619,9 +619,10 @@ bool Photo::dataLoaded() const {
 }
 
 bool Photo::needInfoDisplay() const {
-	return (_parent->data()->id < 0
+	return _parent->data()->isSending()
+		|| _parent->data()->hasFailed()
 		|| _parent->isUnderCursor()
-		|| _parent->isLastAndSelfMessage());
+		|| _parent->isLastAndSelfMessage();
 }
 
 void Photo::validateGroupedCache(
@@ -813,15 +814,13 @@ bool Photo::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	if (item->toHistoryMessage()) {
-		return item->repliesAreComments()
+	return !item->isService()
+		&& (item->repliesAreComments()
 			|| item->externalReply()
 			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
-			|| _parent->displayFromName();
-	}
-	return false;
+			|| _parent->displayFromName());
 }
 
 bool Photo::isReadyForOpen() const {

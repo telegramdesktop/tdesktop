@@ -760,7 +760,8 @@ bool GroupedMedia::computeNeedBubble() const {
 
 bool GroupedMedia::needInfoDisplay() const {
 	return (_mode != Mode::Column)
-		&& (_parent->data()->id < 0
+		&& (_parent->data()->isSending()
+			|| _parent->data()->hasFailed()
 			|| _parent->isUnderCursor()
 			|| _parent->isLastAndSelfMessage());
 }

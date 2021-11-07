@@ -263,8 +263,8 @@ private:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] Data::FileOrigin fileOrigin(const Entity& entity) const;
 
-	void refreshFromLabel(HistoryItem *item);
-	void refreshCaption(HistoryItem *item);
+	void refreshFromLabel();
+	void refreshCaption();
 	void refreshMediaViewer();
 	void refreshNavVisibility();
 	void refreshGroupThumbs();
@@ -280,10 +280,9 @@ private:
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
-	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
+	void displayPhoto(not_null<PhotoData*> photo);
 	void displayDocument(
 		DocumentData *document,
-		HistoryItem *item,
 		const Data::CloudTheme &cloud = Data::CloudTheme(),
 		bool continueStreaming = false);
 	void displayFinished();
@@ -516,9 +515,7 @@ private:
 	std::optional<int> _index; // Index in current _sharedMedia data.
 	std::optional<int> _fullIndex; // Index in full shared media.
 	std::optional<int> _fullCount;
-	FullMsgId _msgid;
-	bool _canForwardItem = false;
-	bool _canDeleteItem = false;
+	HistoryItem *_message = nullptr;
 
 	mtpRequestId _loadRequest = 0;
 

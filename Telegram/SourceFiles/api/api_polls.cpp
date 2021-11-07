@@ -182,8 +182,7 @@ void Polls::close(not_null<HistoryItem*> item) {
 
 void Polls::reloadResults(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
-	if (!IsServerMsgId(item->id)
-		|| _pollReloadRequestIds.contains(itemId)) {
+	if (!item->isRegular() || _pollReloadRequestIds.contains(itemId)) {
 		return;
 	}
 	const auto requestId = _api.request(MTPmessages_GetPollResults(

@@ -460,7 +460,7 @@ void RepliesWidget::setupComposeControls() {
 
 	auto hasSendingMessage = session().changes().historyFlagsValue(
 		_history,
-		Data::HistoryUpdate::Flag::LocalMessages
+		Data::HistoryUpdate::Flag::ClientSideMessages
 	) | rpl::map([=] {
 		return _history->latestSendingMessage() != nullptr;
 	}) | rpl::distinct_until_changed();
@@ -1782,7 +1782,7 @@ bool RepliesWidget::listAllowsMultiSelect() {
 
 bool RepliesWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return IsServerMsgId(item->id);
+	return item->isRegular();
 }
 
 bool RepliesWidget::listIsLessInOrder(
@@ -1845,9 +1845,7 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 
 void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 	const auto reversed = ranges::views::reverse(items);
-	const auto good = ranges::find_if(reversed, [](auto item) {
-		return IsServerMsgId(item->id);
-	});
+	const auto good = ranges::find_if(reversed, &HistoryItem::isRegular);
 	if (good != end(reversed)) {
 		readTill(*good);
 	}
@@ -1862,7 +1860,7 @@ MessagesBarData RepliesWidget::listMessagesBar(
 	const auto hidden = (till < 2);
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
-		if (IsServerMsgId(item->id) && item->id > till) {
+		if (item->isRegular() && item->id > till) {
 			if (item->out() || !item->replyToId()) {
 				readTill(item);
 			} else {
@@ -1904,7 +1902,7 @@ bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
 
 bool RepliesWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
-	return IsServerMsgId(view->data()->id);
+	return view->data()->isRegular();
 }
 
 void RepliesWidget::listSendBotCommand(

@@ -889,7 +889,7 @@ HistoryService::HistoryService(
 : HistoryItem(
 		history,
 		id,
-		FlagsFromMTP(data.vflags().v) | localFlags,
+		FlagsFromMTP(id, data.vflags().v, localFlags),
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
@@ -904,7 +904,7 @@ HistoryService::HistoryService(
 : HistoryItem(
 		history,
 		id,
-		FlagsFromMTP(data.vflags().v) | localFlags,
+		FlagsFromMTP(id, data.vflags().v, localFlags),
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
@@ -1280,7 +1280,7 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		bool viaRequest) {
 	return history->makeServiceMessage(
 		history->owner().nextLocalMessageId(),
-		MessageFlag::LocalHistoryEntry,
+		MessageFlag::Local,
 		inviteDate,
 		GenerateJoinedText(history, inviter, viaRequest));
 }

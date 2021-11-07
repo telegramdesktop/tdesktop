@@ -909,7 +909,9 @@ void Gif::drawGrouped(
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
-	const auto displayLoading = (item->id < 0) || _data->displayLoading();
+	const auto displayLoading = item->isSending()
+		|| item->hasFailed()
+		|| _data->displayLoading();
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
@@ -1508,20 +1510,23 @@ void Gif::checkAnimation() {
 
 float64 Gif::dataProgress() const {
 	ensureDataMediaCreated();
-	return (_data->uploading() || _parent->data()->id > 0)
+	return (_data->uploading()
+		|| (!_parent->data()->isSending() && !_parent->data()->hasFailed()))
 		? _dataMedia->progress()
 		: 0;
 }
 
 bool Gif::dataFinished() const {
-	return (_parent->data()->id > 0)
+	return (!_parent->data()->isSending() && !_parent->data()->hasFailed())
 		? (!_data->loading() && !_data->uploading())
 		: false;
 }
 
 bool Gif::dataLoaded() const {
 	ensureDataMediaCreated();
-	return (_parent->data()->id > 0) ? _dataMedia->loaded() : false;
+	return !_parent->data()->isSending()
+		&& !_parent->data()->hasFailed()
+		&& _dataMedia->loaded();
 }
 
 bool Gif::needInfoDisplay() const {

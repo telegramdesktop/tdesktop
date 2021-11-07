@@ -49,7 +49,7 @@ QSize Game::countOptimalSize() {
 	auto lineHeight = unitedLineHeight();
 
 	const auto item = _parent->data();
-	if (!_openl && IsServerMsgId(item->id)) {
+	if (!_openl && item->isRegular()) {
 		const auto row = 0;
 		const auto column = 0;
 		_openl = std::make_shared<ReplyMarkupClickHandler>(

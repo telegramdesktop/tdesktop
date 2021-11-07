@@ -249,7 +249,7 @@ void ListController::loadMoreRows() {
 		return;
 	}
 	const auto item = session().data().message(_context);
-	if (!item || !IsServerMsgId(item->id)) {
+	if (!item || !item->isRegular()) {
 		_leftToLoad = 0;
 		return;
 	}

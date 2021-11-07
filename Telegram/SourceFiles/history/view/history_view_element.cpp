@@ -536,7 +536,7 @@ void Element::refreshDataId() {
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto mayBeAttached = [](not_null<HistoryItem*> item) {
-		return !item->serviceMsg()
+		return !item->isService()
 			&& !item->isEmpty()
 			&& !item->isPost()
 			&& (item->from() != item->history()->peer

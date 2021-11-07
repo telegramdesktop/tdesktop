@@ -3496,7 +3496,7 @@ HistoryItem *Session::findWebPageItem(not_null<WebPageData*> page) const {
 	const auto i = _webpageItems.find(page);
 	if (i != _webpageItems.end()) {
 		for (const auto &item : i->second) {
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				return item;
 			}
 		}
@@ -3983,7 +3983,7 @@ void Session::insertCheckedServiceNotification(
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage::Flag::f_media;
 	const auto localFlags = MessageFlag::ClientSideUnread
-		| MessageFlag::LocalHistoryEntry;
+		| MessageFlag::Local;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		const auto id = nextLocalMessageId();

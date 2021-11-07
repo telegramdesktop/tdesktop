@@ -166,8 +166,9 @@ void ListWidget::enumerateUserpics(Method method) {
 
 	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		auto message = view->data()->toHistoryMessage();
-		if (!message) return true;
+		if (view->data()->isService()) {
+			return true;
+		}
 
 		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
 			lowestAttachedItemTop = itemtop + view->marginTop();
@@ -1659,10 +1660,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 			// paint the userpic if it intersects the painted rect
 			if (userpicTop + st::msgPhotoSize > clip.top()) {
-				const auto message = view->data()->toHistoryMessage();
-				Assert(message != nullptr);
-
-				if (const auto from = message->displayFrom()) {
+				if (const auto from = view->data()->displayFrom()) {
 					from->paintUserpicLeft(
 						p,
 						_userpics[from],
@@ -1670,7 +1668,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 						userpicTop,
 						view->width(),
 						st::msgPhotoSize);
-				} else if (const auto info = message->hiddenForwardedInfo()) {
+				} else if (const auto info = view->data()->hiddenForwardedInfo()) {
 					info->userpic.paint(
 						p,
 						st::historyPhotoLeft,
@@ -1917,7 +1915,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 			|| _mouseCursorState == CursorState::Date)
 		&& _selected.empty()
 		&& _overElement
-		&& IsServerMsgId(_overElement->data()->id)) {
+		&& _overElement->data()->isRegular()) {
 		mouseActionCancel();
 		replyToMessageRequestNotify(_overElement->data()->fullId());
 	}
@@ -2543,11 +2541,8 @@ void ListWidget::mouseActionUpdate() {
 
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-							const auto message = view->data()->toHistoryMessage();
-							Assert(message != nullptr);
-
 							dragState = TextState(nullptr, view->fromPhotoLink());
-							_overItemExact = session().data().message(dragState.itemId);
+							_overItemExact = nullptr;
 							lnkhost = view;
 							return false;
 						}

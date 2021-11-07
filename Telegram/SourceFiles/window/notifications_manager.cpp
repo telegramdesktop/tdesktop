@@ -674,13 +674,13 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isUser()
-			|| history->peer->isChannel()
-			|| !IsServerMsgId(messageId)) {
+		if (history->peer->isUser() || history->peer->isChannel()) {
 			return false;
 		}
-		const auto item = history->owner().message(history->channelId(), messageId);
-		if (!item || !item->mentionsMe()) {
+		const auto item = history->owner().message(
+			history->channelId(),
+			messageId);
+		if (!item || !item->isRegular() || !item->mentionsMe()) {
 			return false;
 		}
 		return true;

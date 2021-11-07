@@ -146,7 +146,7 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 	checkChatListMessageRemoved(item);
 	itemVanished(item);
 	if (IsClientMsgId(item->id)) {
-		unregisterLocalMessage(item);
+		unregisterClientSideMessage(item);
 	}
 	if (const auto chat = peer->asChat()) {
 		if (const auto to = chat->getMigrateToChannel()) {
@@ -428,7 +428,7 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	if (item->isHistoryEntry()) {
 		// All this must be done for all items manually in History::clear()!
 		item->destroyHistoryEntry();
-		if (IsServerMsgId(item->id)) {
+		if (item->isRegular()) {
 			if (const auto types = item->sharedMediaTypes()) {
 				session().storage().remove(Storage::SharedMediaRemoveOne(
 					peerId,
@@ -550,7 +550,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 	return addNewItem(
 		makeMessage(
 			id,
-			flags,
+			flags | MessageFlag::Local,
 			replyTo,
 			viaBotId,
 			date,
@@ -569,11 +569,11 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> forwardOriginal) {
+		not_null<HistoryItem*> forwardOriginal) {
 	return addNewItem(
 		makeMessage(
 			id,
-			flags,
+			flags | MessageFlag::Local,
 			date,
 			from,
 			postAuthor,
@@ -595,7 +595,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 	return addNewItem(
 		makeMessage(
 			id,
-			flags,
+			flags | MessageFlag::Local,
 			replyTo,
 			viaBotId,
 			date,
@@ -621,7 +621,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 	return addNewItem(
 		makeMessage(
 			id,
-			flags,
+			flags | MessageFlag::Local,
 			replyTo,
 			viaBotId,
 			date,
@@ -646,7 +646,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 	return addNewItem(
 		makeMessage(
 			id,
-			flags,
+			flags | MessageFlag::Local,
 			replyTo,
 			viaBotId,
 			date,
@@ -766,7 +766,7 @@ not_null<HistoryItem*> History::addNewToBack(
 
 	addItemToBlock(item);
 
-	if (!unread && IsServerMsgId(item->id)) {
+	if (!unread && item->isRegular()) {
 		if (const auto sharedMediaTypes = item->sharedMediaTypes()) {
 			auto from = loadedAtTop() ? 0 : minMsgId();
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
@@ -1144,28 +1144,28 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	}
 }
 
-void History::registerLocalMessage(not_null<HistoryItem*> item) {
+void History::registerClientSideMessage(not_null<HistoryItem*> item) {
 	Expects(item->isHistoryEntry());
 	Expects(IsClientMsgId(item->id));
 
-	_localMessages.emplace(item);
-	session().changes().historyUpdated(this, UpdateFlag::LocalMessages);
+	_clientSideMessages.emplace(item);
+	session().changes().historyUpdated(this, UpdateFlag::ClientSideMessages);
 }
 
-void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
-	const auto removed = _localMessages.remove(item);
+void History::unregisterClientSideMessage(not_null<HistoryItem*> item) {
+	const auto removed = _clientSideMessages.remove(item);
 	Assert(removed);
 
-	session().changes().historyUpdated(this, UpdateFlag::LocalMessages);
+	session().changes().historyUpdated(this, UpdateFlag::ClientSideMessages);
 }
 
-const base::flat_set<not_null<HistoryItem*>> &History::localMessages() {
-	return _localMessages;
+const base::flat_set<not_null<HistoryItem*>> &History::clientSideMessages() {
+	return _clientSideMessages;
 }
 
 HistoryItem *History::latestSendingMessage() const {
 	auto sending = ranges::views::all(
-		_localMessages
+		_clientSideMessages
 	) | ranges::views::filter([](not_null<HistoryItem*> item) {
 		return item->isSending();
 	});
@@ -1446,7 +1446,7 @@ void History::calculateFirstUnreadMessage() {
 	for (const auto &block : ranges::views::reverse(blocks)) {
 		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
-			if (!IsServerMsgId(item->id)) {
+			if (!item->isRegular()) {
 				continue;
 			} else if (!item->out()) {
 				if (item->id >= *_inboxReadBefore) {
@@ -1474,7 +1474,7 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 
 void History::readClientSideMessages() {
 	auto &histories = owner().histories();
-	for (const auto &item : _localMessages) {
+	for (const auto &item : _clientSideMessages) {
 		histories.readClientSideMessage(item);
 	}
 }
@@ -1502,7 +1502,7 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 			for (const auto &block : blocks) {
 				for (const auto &message : block->messages) {
 					const auto item = message->data();
-					if (!IsServerMsgId(item->id)
+					if (!item->isRegular()
 						|| (item->out() && !item->isFromScheduled())) {
 						continue;
 					} else if (item->id > readTillId) {
@@ -1534,7 +1534,7 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	for (const auto &block : ranges::views::reverse(blocks)) {
 		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				if (item->id <= readTillId) {
 					return result;
 				} else if (!item->out()) {
@@ -1588,7 +1588,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 }
 
 void History::inboxRead(not_null<const HistoryItem*> wasRead) {
-	if (IsServerMsgId(wasRead->id)) {
+	if (wasRead->isRegular()) {
 		inboxRead(wasRead->id);
 	}
 }
@@ -1596,7 +1596,7 @@ void History::inboxRead(not_null<const HistoryItem*> wasRead) {
 void History::outboxRead(MsgId upTo) {
 	setOutboxReadTill(upTo);
 	if (const auto last = chatListMessage()) {
-		if (last->out() && IsServerMsgId(last->id) && last->id <= upTo) {
+		if (last->out() && last->isRegular() && last->id <= upTo) {
 			session().changes().messageUpdated(
 				last,
 				Data::MessageUpdate::Flag::DialogRowRepaint);
@@ -1607,7 +1607,7 @@ void History::outboxRead(MsgId upTo) {
 }
 
 void History::outboxRead(not_null<const HistoryItem*> wasRead) {
-	if (IsServerMsgId(wasRead->id)) {
+	if (wasRead->isRegular()) {
 		outboxRead(wasRead->id);
 	}
 }
@@ -1663,7 +1663,7 @@ void History::setUnreadCount(int newUnreadCount) {
 	const auto lastOutgoing = [&] {
 		const auto last = lastMessage();
 		return last
-			&& IsServerMsgId(last->id)
+			&& last->isRegular()
 			&& loadedAtBottom()
 			&& !isEmpty()
 			&& blocks.back()->messages.back()->data() == last
@@ -1757,7 +1757,7 @@ void History::getNextFirstUnreadMessage() {
 	const auto block = _firstUnreadView->block();
 	const auto index = _firstUnreadView->indexInBlock();
 	const auto setFromMessage = [&](const auto &view) {
-		if (IsServerMsgId(view->data()->id)) {
+		if (view->data()->isRegular()) {
 			_firstUnreadView = view.get();
 			return true;
 		}
@@ -2213,7 +2213,7 @@ void History::setLastServerMessage(HistoryItem *item) {
 	_lastServerMessage = item;
 	if (_lastMessage
 		&& *_lastMessage
-		&& !IsServerMsgId((*_lastMessage)->id)
+		&& !(*_lastMessage)->isRegular()
 		&& (!item || (*_lastMessage)->date() > item->date())) {
 		return;
 	}
@@ -2225,7 +2225,7 @@ void History::setLastMessage(HistoryItem *item) {
 		return;
 	}
 	_lastMessage = item;
-	if (!item || IsServerMsgId(item->id)) {
+	if (!item || item->isRegular()) {
 		_lastServerMessage = item;
 	}
 	if (peer->migrateTo()) {
@@ -2260,7 +2260,7 @@ void History::setChatListMessage(HistoryItem *item) {
 		}
 		if (_chatListMessage
 			&& *_chatListMessage
-			&& !IsServerMsgId((*_chatListMessage)->id)
+			&& !(*_chatListMessage)->isRegular()
 			&& (*_chatListMessage)->date() > item->date()) {
 			return;
 		}
@@ -2539,7 +2539,7 @@ void History::unknownMessageDeleted(MsgId messageId) {
 }
 
 bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
-	Expects(IsServerMsgId(item->id));
+	Expects(item->isRegular());
 
 	return item->out()
 		? (!_outboxReadBefore || (item->id >= *_outboxReadBefore))
@@ -2743,7 +2743,7 @@ MsgId History::minMsgId() const {
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			const auto item = message->data();
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				return item->id;
 			}
 		}
@@ -2755,7 +2755,7 @@ MsgId History::maxMsgId() const {
 	for (const auto &block : ranges::views::reverse(blocks)) {
 		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				return item->id;
 			}
 		}
@@ -2765,7 +2765,7 @@ MsgId History::maxMsgId() const {
 
 MsgId History::msgIdForRead() const {
 	const auto last = lastMessage();
-	const auto result = (last && IsServerMsgId(last->id))
+	const auto result = (last && last->isRegular())
 		? last->id
 		: MsgId(0);
 	return loadedAtBottom()
@@ -2944,7 +2944,7 @@ void History::checkLocalMessages() {
 	const auto goodDate = [&](TimeId date) {
 		return (date >= firstDate && date < lastDate);
 	};
-	for (const auto &item : _localMessages) {
+	for (const auto &item : _clientSideMessages) {
 		if (!item->mainView() && goodDate(item->date())) {
 			insertLocalMessage(item);
 		}
@@ -2989,7 +2989,7 @@ bool History::isDisplayedEmpty() const {
 	}
 	const auto isChangePhoto = [](not_null<HistoryItem*> item) {
 		if (const auto media = item->media()) {
-			return (media->photo() != nullptr) && !item->toHistoryMessage();
+			return (media->photo() != nullptr) && item->isService();
 		}
 		return false;
 	};
@@ -3108,7 +3108,7 @@ void History::clear(ClearType type) {
 	} else {
 		// Leave the 'sending' messages in local messages.
 		auto local = base::flat_set<not_null<HistoryItem*>>();
-		for (const auto &item : _localMessages) {
+		for (const auto &item : _clientSideMessages) {
 			if (!item->isSending()) {
 				local.emplace(item);
 			}
@@ -3124,7 +3124,7 @@ void History::clear(ClearType type) {
 		if (type == ClearType::DeleteChat) {
 			setLastServerMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {
-			if (IsServerMsgId((*_lastMessage)->id)) {
+			if ((*_lastMessage)->isRegular()) {
 				(*_lastMessage)->applyEditionToHistoryCleared();
 			} else {
 				_lastMessage = std::nullopt;
@@ -3158,7 +3158,7 @@ void History::clearUpTill(MsgId availableMinId) {
 	remove.reserve(_messages.size());
 	for (const auto &item : _messages) {
 		const auto itemId = item->id;
-		if (!IsServerMsgId(itemId)) {
+		if (!item->isRegular()) {
 			continue;
 		} else if (itemId == availableMinId) {
 			item->applyEditionToHistoryCleared();
