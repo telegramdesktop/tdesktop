@@ -1,3 +1,7 @@
+3.2.3 (08.11.21)
+
+- Fix autoupdater launch on macOS.
+
 3.2.2 (05.11.21)
 
 - Fix webpage preview links when View Button is present.
