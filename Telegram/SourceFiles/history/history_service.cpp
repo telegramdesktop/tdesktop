@@ -1153,13 +1153,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 					: 0;
 				dependent->msgId = data.vreply_to_msg_id().v;
 				if (!updateDependent()) {
-					history()->session().api().requestMessageData(
-						(peerIsChannel(dependent->peerId)
-							? history()->owner().channel(
-								peerToChannel(dependent->peerId)).get()
-							: history()->peer->asChannel()),
-						dependent->msgId,
-						HistoryDependentItemCallback(this));
+					RequestDependentMessageData(
+						this,
+						dependent->peerId,
+						dependent->msgId);
 				}
 			}
 		});

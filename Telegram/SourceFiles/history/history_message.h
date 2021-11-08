@@ -23,8 +23,10 @@ struct HistoryMessageReply;
 struct HistoryMessageViews;
 struct HistoryMessageMarkupData;
 
-[[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
-	not_null<HistoryItem*> item);
+void RequestDependentMessageData(
+	not_null<HistoryItem*> item,
+	PeerId peerId,
+	MsgId msgId);
 [[nodiscard]] MessageFlags NewMessageFlags(not_null<PeerData*> peer);
 [[nodiscard]] bool ShouldSendSilent(
 	not_null<PeerData*> peer,

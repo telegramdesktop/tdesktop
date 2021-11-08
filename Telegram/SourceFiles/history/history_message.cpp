@@ -347,15 +347,23 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		.navigation = App::wnd()->sessionController() }));
 }
 
-Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
-		not_null<HistoryItem*> item) {
-	const auto session = &item->history()->session();
-	const auto dependent = item->fullId();
-	return [=](ChannelData *channel, MsgId msgId) {
-		if (const auto item = session->data().message(dependent)) {
-			item->updateDependencyItem();
-		}
-	};
+void RequestDependentMessageData(
+		not_null<HistoryItem*> item,
+		PeerId peerId,
+		MsgId msgId) {
+	const auto fullId = item->fullId();
+	const auto history = item->history();
+	const auto session = &history->session();
+	history->session().api().requestMessageData(
+		(peerIsChannel(peerId)
+			? history->owner().channel(peerToChannel(peerId)).get()
+			: history->peer->asChannel()),
+		msgId,
+		[=](ChannelData *channel, MsgId msgId) {
+			if (const auto item = session->data().message(fullId)) {
+				item->updateDependencyItem();
+			}
+		});
 }
 
 MessageFlags NewMessageFlags(not_null<PeerData*> peer) {
@@ -1094,13 +1102,10 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 		reply->replyToMsgId = config.replyTo;
 		reply->replyToMsgTop = isScheduled() ? 0 : config.replyToTop;
 		if (!reply->updateData(this)) {
-			history()->session().api().requestMessageData(
-				(peerIsChannel(reply->replyToPeerId)
-					? history()->owner().channel(
-						peerToChannel(reply->replyToPeerId)).get()
-					: history()->peer->asChannel()),
-				reply->replyToMsgId,
-				HistoryDependentItemCallback(this));
+			RequestDependentMessageData(
+				this,
+				reply->replyToPeerId,
+				reply->replyToMsgId);
 		}
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {
