@@ -78,6 +78,8 @@ QString _escapeFrom7bit(const QString &str) {
 
 } // namespace
 
+bool Sandbox::QuitOnStartRequested = false;
+
 Sandbox::Sandbox(
 	not_null<Core::Launcher*> launcher,
 	int &argc,
@@ -155,7 +157,20 @@ int Sandbox::start() {
 		_localSocket.connectToServer(_localServerName);
 	}
 
+	if (QuitOnStartRequested) {
+		closeApplication();
+		return 0;
+	}
+	_started = true;
 	return exec();
+}
+
+void Sandbox::QuitWhenStarted() {
+	if (!QApplication::instance() || !Instance()._started) {
+		QuitOnStartRequested = true;
+	} else {
+		quit();
+	}
 }
 
 void Sandbox::launchApplication() {

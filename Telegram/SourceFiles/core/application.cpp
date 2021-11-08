@@ -1079,7 +1079,7 @@ void Application::QuitAttempt() {
 	if (!IsAppLaunched()
 		|| Sandbox::Instance().isSavingSession()
 		|| App().readyToQuit()) {
-		QApplication::quit();
+		Sandbox::QuitWhenStarted();
 	}
 }
 
@@ -1115,7 +1115,7 @@ void Application::quitPreventFinished() {
 
 void Application::quitDelayed() {
 	if (!_private->quitTimer.isActive()) {
-		_private->quitTimer.setCallback([] { QApplication::quit(); });
+		_private->quitTimer.setCallback([] { Sandbox::QuitWhenStarted(); });
 		_private->quitTimer.callOnce(kQuitPreventTimeoutMs);
 	}
 }

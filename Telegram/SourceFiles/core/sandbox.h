@@ -60,6 +60,7 @@ public:
 
 		return *static_cast<Sandbox*>(QCoreApplication::instance());
 	}
+	static void QuitWhenStarted();
 
 	~Sandbox();
 
@@ -119,6 +120,8 @@ private:
 	QLocalSocket _localSocket;
 	LocalClients _localClients;
 	bool _secondInstance = false;
+	bool _started = false;
+	static bool QuitOnStartRequested;
 
 	std::unique_ptr<UpdateChecker> _updateChecker;
 
