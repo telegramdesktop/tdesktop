@@ -577,7 +577,7 @@ private:
 	void createLocalDraftFromCloud();
 
 	HistoryService *insertJoinedMessage();
-	void insertLocalMessage(not_null<HistoryItem*> item);
+	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
 	void setFolderPointer(Data::Folder *folder);
 

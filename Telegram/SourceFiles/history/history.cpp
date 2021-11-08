@@ -2898,11 +2898,11 @@ HistoryService *History::insertJoinedMessage() {
 		channel->inviteDate,
 		inviter,
 		channel->inviteViaRequest);
-	insertLocalMessage(_joinedMessage);
+	insertMessageToBlocks(_joinedMessage);
 	return _joinedMessage;
 }
 
-void History::insertLocalMessage(not_null<HistoryItem*> item) {
+void History::insertMessageToBlocks(not_null<HistoryItem*> item) {
 	Expects(item->mainView() == nullptr);
 
 	if (isEmpty()) {
@@ -2946,7 +2946,7 @@ void History::checkLocalMessages() {
 	};
 	for (const auto &item : _clientSideMessages) {
 		if (!item->mainView() && goodDate(item->date())) {
-			insertLocalMessage(item);
+			insertMessageToBlocks(item);
 		}
 	}
 	if (isChannel()
