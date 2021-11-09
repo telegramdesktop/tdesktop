@@ -34,13 +34,14 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	[[nodiscard]] not_null<PeerData*> selected() const;
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> clicked() const;
 
 private:
 	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer);
 
 	std::vector<not_null<PeerData*>> _list;
 	not_null<PeerData*> _selected;
+	rpl::event_stream<not_null<PeerData*>> _clicked;
 
 };
 
@@ -92,15 +93,11 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	if (peer == _selected) {
 		return;
 	}
-	const auto previous = delegate()->peerListFindRow(_selected->id.value);
-	Assert(previous != nullptr);
-	delegate()->peerListSetRowChecked(previous, false);
-	delegate()->peerListSetRowChecked(row, true);
-	_selected = peer;
+	_clicked.fire_copy(peer);
 }
 
-not_null<PeerData*> ListController::selected() const {
-	return _selected;
+rpl::producer<not_null<PeerData*>> ListController::clicked() const {
+	return _clicked.events();
 }
 
 } // namespace
@@ -131,19 +128,22 @@ void ChooseSendAsBox(
 	controller->setStyleOverrides(
 		&st::peerListJoinAsList,
 		nullptr);
+
+	controller->clicked(
+	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		const auto weak = MakeWeak(box);
+		done(peer);
+		if (weak) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
 		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
-	box->addButton(tr::lng_settings_save(), [=] {
-		const auto weak = MakeWeak(box);
-		done(controller->selected());
-		if (weak) {
-			box->closeBox();
-		}
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->addButton(tr::lng_box_done(), [=] { box->closeBox(); });
 }
 
 void SetupSendAsButton(
