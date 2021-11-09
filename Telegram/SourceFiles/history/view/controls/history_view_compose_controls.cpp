@@ -663,6 +663,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateControlsGeometry(_wrap->size());
 	updateControlsVisibility();
 	updateFieldPlaceholder();
+	updateSendAsButton();
 	//if (!_history) {
 	//	return;
 	//}
@@ -677,17 +678,6 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		_silent = std::make_unique<Ui::SilentToggle>(
 			_wrap.get(),
 			peer->asChannel());
-	}
-	if (!session().sendAsPeers().shouldChoose(peer)) {
-		_sendAs = nullptr;
-	} else if (!_sendAs) {
-		_sendAs = std::make_unique<Ui::SendAsButton>(
-			_wrap.get(),
-			st::sendAsButton);
-		Ui::SetupSendAsButton(
-			_sendAs.get(),
-			rpl::single(peer.get()),
-			_window);
 	}
 	session().local().readDraftsWithCursors(_history);
 	applyDraft();
@@ -995,6 +985,7 @@ void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
 	initSendButton();
+	initSendAsButton();
 	initWriteRestriction();
 	initVoiceRecordBar();
 	initKeyHandler();
@@ -1629,6 +1620,17 @@ void ComposeControls::initSendButton() {
 		SendMenu::DefaultScheduleCallback(_wrap.get(), sendMenuType(), send));
 }
 
+void ComposeControls::initSendAsButton() {
+	session().sendAsPeers().updated(
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return _history && (peer == _history->peer);
+	}) | rpl::start_with_next([=] {
+		updateSendAsButton();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	}, _wrap->lifetime());
+}
+
 void ComposeControls::inlineBotResolveDone(
 		const MTPcontacts_ResolvedPeer &result) {
 	Expects(result.type() == mtpc_contacts_resolvedPeer);
@@ -1933,6 +1935,23 @@ void ComposeControls::updateMessagesTTLShown() {
 		orderControls();
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
+	}
+}
+
+void ComposeControls::updateSendAsButton() {
+	Expects(_history != nullptr);
+
+	const auto peer = _history->peer;
+	if (!session().sendAsPeers().shouldChoose(peer)) {
+		_sendAs = nullptr;
+	} else if (!_sendAs) {
+		_sendAs = std::make_unique<Ui::SendAsButton>(
+			_wrap.get(),
+			st::sendAsButton);
+		Ui::SetupSendAsButton(
+			_sendAs.get(),
+			rpl::single(peer.get()),
+			_window);
 	}
 }
 

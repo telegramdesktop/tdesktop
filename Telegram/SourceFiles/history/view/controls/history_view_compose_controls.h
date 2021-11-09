@@ -197,6 +197,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
+	void initSendAsButton();
 	void initWebpageProcess();
 	void initWriteRestriction();
 	void initVoiceRecordBar();
@@ -205,6 +206,7 @@ private:
 	void updateSubmitSettings();
 	void updateSendButtonType();
 	void updateMessagesTTLShown();
+	void updateSendAsButton();
 	void updateHeight();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
