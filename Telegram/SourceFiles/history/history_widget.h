@@ -76,6 +76,7 @@ class GroupCallBar;
 class RequestsBar;
 struct PreparedList;
 class SendFilesWay;
+class SendAsButton;
 enum class ReportReason;
 namespace Toast {
 class Instance;
@@ -609,6 +610,8 @@ private:
 
 	void setupScheduledToggle();
 	void refreshScheduledToggle();
+	void setupSendAsToggle();
+	void refreshSendAsToggle();
 
 	bool kbWasHidden() const;
 
@@ -718,6 +721,7 @@ private:
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::FlatButton> _reportMessages;
 	object_ptr<Ui::IconButton> _attachToggle;
+	object_ptr<Ui::SendAsButton> _sendAs = { nullptr };
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
 	object_ptr<Ui::IconButton> _botKeyboardHide;

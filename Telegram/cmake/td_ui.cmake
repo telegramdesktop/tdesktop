@@ -179,6 +179,8 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
+    ui/controls/send_as_button.cpp
+    ui/controls/send_as_button.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
     ui/controls/who_read_context_action.cpp

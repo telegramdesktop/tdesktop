@@ -785,6 +785,8 @@ PRIVATE
     main/main_session.h
     main/main_session_settings.cpp
     main/main_session_settings.h
+    main/session/send_as_peers.cpp
+    main/session/send_as_peers.h
     media/system_media_controls_manager.h
     media/system_media_controls_manager.cpp
     media/audio/media_audio.cpp

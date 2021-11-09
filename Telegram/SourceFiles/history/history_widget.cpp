@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
+#include "ui/controls/send_as_button.h"
 #include "inline_bots/inline_bot_result.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
@@ -52,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
+#include "data/data_peer_values.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -120,6 +122,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "main/session/send_as_peers.h"
 #include "window/notifications_manager.h"
 #include "window/window_adaptive.h"
 #include "window/window_controller.h"
@@ -791,6 +794,7 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	setupScheduledToggle();
+	setupSendAsToggle();
 	orderWidgets();
 	setupShortcuts();
 }
@@ -2111,6 +2115,7 @@ void HistoryWidget::showHistory(
 			updateNotifyControls();
 		}
 		refreshScheduledToggle();
+		refreshSendAsToggle();
 
 		if (_showAtMsgId == ShowAtUnreadMsgId) {
 			if (_history->scrollTopItem) {
@@ -2368,6 +2373,49 @@ void HistoryWidget::refreshScheduledToggle() {
 	}
 }
 
+void HistoryWidget::setupSendAsToggle() {
+	session().sendAsPeers().updated(
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return (peer == _peer);
+	}) | rpl::start_with_next([=] {
+		refreshSendAsToggle();
+		updateControlsVisibility();
+		updateControlsGeometry();
+	}, lifetime());
+}
+
+void HistoryWidget::refreshSendAsToggle() {
+	Expects(_peer != nullptr);
+
+	session().sendAsPeers().refresh(_peer);
+	const auto &list = session().sendAsPeers().list(_peer);
+	const auto has = _peer->canWrite() && (list.size() > 1);
+	if (!has) {
+		_sendAs.destroy();
+		return;
+	} else if (_sendAs) {
+		return;
+	}
+	_sendAs.create(this, st::sendAsButton);
+
+	using namespace rpl::mappers;
+	controller()->activeChatValue(
+	) | rpl::map([=](const Dialogs::Key &key) -> PeerData* {
+		if (const auto history = key.history()) {
+			return history->peer;
+		}
+		return nullptr;
+	}) | rpl::filter_nullptr(
+	) | rpl::map([=](not_null<PeerData*> peer) {
+		return Data::PeerUserpicImageValue(
+			peer,
+			st::sendAsButton.size * style::DevicePixelRatio());
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](QImage &&userpic) {
+		_sendAs->setUserpic(std::move(userpic));
+	}, _sendAs->lifetime());
+}
+
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragAreas.document->overlaps(globalRect)
 			|| _attachDragAreas.photo->overlaps(globalRect)
@@ -2469,6 +2517,9 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_ttlInfo) {
 			_ttlInfo->hide();
 		}
+		if (_sendAs) {
+			_sendAs->hide();
+		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
@@ -2535,6 +2586,9 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_ttlInfo) {
 			_ttlInfo->show();
 		}
+		if (_sendAs) {
+			_sendAs->show();
+		}
 		updateFieldPlaceholder();
 
 		if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
@@ -2567,9 +2621,11 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_ttlInfo) {
 			_ttlInfo->hide();
 		}
+		if (_sendAs) {
+			_sendAs->hide();
+		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
-		_attachToggle->hide();
 		_tabbedSelectorToggle->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
@@ -4345,13 +4401,16 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometryToLeft(0, bottom, width(), keyboardHeight);
 	}
 
-// _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
+// _attachToggle (_sendAs) ------- _inlineResults ---------------------------------- _tabbedPanel -------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = st::historySendRight;
 	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
+	if (_sendAs) {
+		_sendAs->moveToLeft(left, buttonsBottom); left += _sendAs->width();
+	}
 	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
 	auto right = st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();

@@ -917,3 +917,28 @@ historyRequestsUserpics: GroupCallUserpics {
 	align: align(left);
 }
 historyRequestsHeight: 33px;
+
+SendAsButton {
+	width: pixels;
+	height: pixels;
+	size: pixels;
+	activeBg: color;
+	activeFg: color;
+	cross: CrossAnimation;
+	duration: int;
+}
+
+sendAsButton: SendAsButton {
+	width: 44px;
+	height: 46px;
+	size: 32px;
+	activeBg: activeButtonBg;
+	activeFg: activeButtonFg;
+	cross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	duration: 150;
+}
