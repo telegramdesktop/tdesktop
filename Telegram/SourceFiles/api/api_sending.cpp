@@ -41,7 +41,7 @@ void InnerFillMessagePostFlags(
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	const auto anonymousPost = peer->amAnonymous();
-	if (!anonymousPost) {
+	if (!anonymousPost || options.sendAs) {
 		flags |= MessageFlag::HasFromId;
 		return;
 	} else if (peer->asMegagroup()) {
