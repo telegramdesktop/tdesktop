@@ -38,7 +38,8 @@ void SendAsPeers::refresh(not_null<PeerData*> peer) {
 	request(peer);
 }
 
-const std::vector<not_null<PeerData*>> &SendAsPeers::list(not_null<PeerData*> peer) {
+const std::vector<not_null<PeerData*>> &SendAsPeers::list(
+		not_null<PeerData*> peer) const {
 	const auto i = _lists.find(peer);
 	return (i != end(_lists)) ? i->second : _onlyMe;
 }
@@ -47,12 +48,60 @@ rpl::producer<not_null<PeerData*>> SendAsPeers::updated() const {
 	return _updates.events();
 }
 
+void SendAsPeers::saveChosen(
+		not_null<PeerData*> peer,
+		not_null<PeerData*> chosen) {
+	peer->session().api().request(MTPmessages_SaveDefaultSendAs(
+		peer->input,
+		chosen->input
+	)).send();
+
+	setChosen(peer, chosen->id);
+}
+
+void SendAsPeers::setChosen(not_null<PeerData*> peer, PeerId chosenId) {
+	if (chosen(peer) == chosenId) {
+		return;
+	}
+	const auto fallback = peer->amAnonymous()
+		? peer
+		: peer->session().user();
+	if (fallback->id == chosenId) {
+		_chosen.remove(peer);
+	} else {
+		_chosen[peer] = chosenId;
+	}
+	_updates.fire_copy(peer);
+}
+
+PeerId SendAsPeers::chosen(not_null<PeerData*> peer) const {
+	const auto i = _chosen.find(peer);
+	return (i != end(_chosen)) ? i->second : PeerId();
+}
+
+not_null<PeerData*> SendAsPeers::resolveChosen(
+		not_null<PeerData*> peer) const {
+	return ResolveChosen(peer, list(peer), chosen(peer));
+}
+
+not_null<PeerData*> SendAsPeers::ResolveChosen(
+		not_null<PeerData*> peer,
+		const std::vector<not_null<PeerData*>> &list,
+		PeerId chosen) {
+	const auto i = ranges::find(list, chosen, &PeerData::id);
+	return (i != end(list))
+		? (*i)
+		: (peer->isMegagroup() && peer->amAnonymous())
+		? peer
+		: peer->session().user();
+}
+
 void SendAsPeers::request(not_null<PeerData*> peer) {
-	_session->api().request(MTPchannels_GetSendAs(
+	peer->session().api().request(MTPchannels_GetSendAs(
 		peer->input
 	)).done([=](const MTPchannels_SendAsPeers &result) {
 		auto list = std::vector<not_null<PeerData*>>();
-		auto &owner = _session->data();
+		auto &owner = peer->owner();
 		result.match([&](const MTPDchannels_sendAsPeers &data) {
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());

@@ -470,7 +470,7 @@ rpl::producer<QImage> PeerUserpicImageValue(
 		const auto state = result.make_state<State>();
 		state->push = [=] {
 			const auto key = peer->userpicUniqueKey(state->view);
-			const auto loading = !state->view || state->view->image();
+			const auto loading = state->view && !state->view->image();
 
 			if (loading && !state->waiting) {
 				peer->session().downloaderTaskFinished(

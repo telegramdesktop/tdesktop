@@ -19,8 +19,19 @@ public:
 
 	void refresh(not_null<PeerData*> peer);
 	[[nodiscard]] const std::vector<not_null<PeerData*>> &list(
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer) const;
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> updated() const;
+
+	void saveChosen(not_null<PeerData*> peer, not_null<PeerData*> chosen);
+	void setChosen(not_null<PeerData*> peer, PeerId chosenId);
+	[[nodiscard]] PeerId chosen(not_null<PeerData*> peer) const;
+	[[nodiscard]] not_null<PeerData*> resolveChosen(
+		not_null<PeerData*> peer) const;
+
+	[[nodiscard]] static not_null<PeerData*> ResolveChosen(
+		not_null<PeerData*> peer,
+		const std::vector<not_null<PeerData*>> &list,
+		PeerId chosen);
 
 private:
 	void request(not_null<PeerData*> peer);
@@ -32,6 +43,7 @@ private:
 		not_null<PeerData*>,
 		std::vector<not_null<PeerData*>>> _lists;
 	base::flat_map<not_null<PeerData*>, crl::time> _lastRequestTime;
+	base::flat_map<not_null<PeerData*>, PeerId> _chosen;
 
 	rpl::event_stream<not_null<PeerData*>> _updates;
 

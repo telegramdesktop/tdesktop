@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
+#include "main/main_session.h"
+#include "main/session/send_as_peers.h"
 #include "base/unixtime.h"
 #include "history/history.h"
 #include "main/main_session.h"
@@ -914,6 +916,12 @@ void ApplyChannelUpdate(
 	session->api().applyNotifySettings(
 		MTP_inputNotifyPeer(channel->input),
 		update.vnotify_settings());
+
+	if (const auto sendAs = update.vdefault_send_as()) {
+		session->sendAsPeers().setChosen(channel, peerFromMTP(*sendAs));
+	} else {
+		session->sendAsPeers().setChosen(channel, PeerId());
+	}
 
 	// For clearUpTill() call.
 	channel->owner().sendHistoryChangeNotifications();

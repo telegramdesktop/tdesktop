@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/forward_options_box.h"
 #include "ui/chat/message_bar.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/chat/choose_send_as.h"
 #include "ui/image/image.h"
 #include "ui/special_buttons.h"
 #include "ui/controls/emoji_button.h"
@@ -53,7 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
-#include "data/data_peer_values.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -2397,23 +2397,7 @@ void HistoryWidget::refreshSendAsToggle() {
 		return;
 	}
 	_sendAs.create(this, st::sendAsButton);
-
-	using namespace rpl::mappers;
-	controller()->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) -> PeerData* {
-		if (const auto history = key.history()) {
-			return history->peer;
-		}
-		return nullptr;
-	}) | rpl::filter_nullptr(
-	) | rpl::map([=](not_null<PeerData*> peer) {
-		return Data::PeerUserpicImageValue(
-			peer,
-			st::sendAsButton.size * style::DevicePixelRatio());
-	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](QImage &&userpic) {
-		_sendAs->setUserpic(std::move(userpic));
-	}, _sendAs->lifetime());
+	Ui::SetupSendAsButton(_sendAs.data(), controller());
 }
 
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
