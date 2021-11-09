@@ -66,7 +66,7 @@ public:
 	bool chooseAtIndex(
 		FieldAutocomplete::ChooseMethod method,
 		int index,
-		Api::SendOptions options = Api::SendOptions()) const;
+		Api::SendOptions options = {}) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
 	void setSendMenuType(Fn<SendMenu::Type()> &&callback);

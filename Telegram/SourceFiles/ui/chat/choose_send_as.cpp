@@ -137,7 +137,11 @@ void ChooseSendAsBox(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 	box->addButton(tr::lng_settings_save(), [=] {
+		const auto weak = MakeWeak(box);
 		done(controller->selected());
+		if (weak) {
+			box->closeBox();
+		}
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

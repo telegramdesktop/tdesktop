@@ -90,8 +90,18 @@ void SendExistingMedia(
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
+	const auto sendAs = message.action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost
+		? 0
+		: session->userPeerId();
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name
+		: QString();
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
@@ -143,7 +153,7 @@ void SendExistingMedia(
 				MTPReplyMarkup(),
 				sentEntities,
 				MTP_int(message.action.options.scheduled),
-				MTPInputPeer() // #TODO send_as
+				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result, randomId);
 				finish();
@@ -263,8 +273,18 @@ bool SendDice(MessageToSend &message) {
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
+	const auto sendAs = message.action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost
+		? 0
+		: session->userPeerId();
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name
+		: QString();
 	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
@@ -299,7 +319,7 @@ bool SendDice(MessageToSend &message) {
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(message.action.options.scheduled),
-			MTPInputPeer() // #TODO send_as
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
@@ -352,8 +372,7 @@ void SendConfirmedFile(
 	const auto history = session->data().history(file->to.peer);
 	const auto peer = history->peer;
 
-	auto action = SendAction(history);
-	action.options = file->to.options;
+	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
 	action.generateLocal = true;
@@ -392,7 +411,12 @@ void SendConfirmedFile(
 		}
 	}
 
-	const auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	const auto messageFromId =
+		file->to.options.sendAs
+		? file->to.options.sendAs->id
+		: anonymousPost
+		? PeerId()
+		: session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name
 		: QString();

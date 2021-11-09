@@ -42,6 +42,7 @@ enum class Type;
 
 namespace Api {
 struct SendOptions;
+struct SendAction;
 } // namespace Api
 
 namespace InlineBots {
@@ -372,6 +373,8 @@ private:
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 
+	[[nodiscard]] Api::SendAction prepareSendAction(
+		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendSilent();

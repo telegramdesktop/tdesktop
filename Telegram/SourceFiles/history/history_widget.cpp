@@ -890,9 +890,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			return;
 		}
 
-		auto action = Api::SendAction(_history);
-		action.replyTo = replyToId();
-		action.options = data.options;
+		auto action = prepareSendAction(data.options);
 		session().api().sendVoiceMessage(
 			data.bytes,
 			data.waveform,
@@ -1025,7 +1023,9 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 		if (!history) {
 			return;
 		}
-		auto options = Api::SendOptions();
+		auto options = Api::SendOptions{
+			.sendAs = prepareSendAction({}).options.sendAs,
+		};
 		auto action = Api::SendAction(history);
 		send(options);
 		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
@@ -1298,7 +1298,7 @@ void HistoryWidget::insertHashtagOrBotCommand(
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		sendBotCommand({ _peer, str, FullMsgId(), replyToId() });
-		session().api().finishForwarding(Api::SendAction(_history));
+		session().api().finishForwarding(prepareSendAction({}));
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
 		_field->insertTag(str);
@@ -3405,10 +3405,12 @@ void HistoryWidget::saveEditMsg() {
 		})();
 	};
 
+	auto options = Api::SendOptions();
+	options.removeWebPageId = (webPageId == CancelledWebPageId);
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
-		{ .removeWebPageId = (webPageId == CancelledWebPageId) },
+		options,
 		done,
 		fail);
 }
@@ -3448,6 +3450,17 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 	}
 }
 
+Api::SendAction HistoryWidget::prepareSendAction(
+		Api::SendOptions options) const {
+	auto result = Api::SendAction(_history, options);
+	result.replyTo = replyToId();
+	result.options.sendAs = _sendAs
+		? _history->session().sendAsPeers().resolveChosen(
+			_history->peer).get()
+		: nullptr;
+	return result;
+}
+
 void HistoryWidget::send(Api::SendOptions options) {
 	if (!_history) {
 		return;
@@ -3469,10 +3482,8 @@ void HistoryWidget::send(Api::SendOptions options) {
 			? _previewData->id
 			: WebPageId(0));
 
-	auto message = ApiWrap::MessageToSend(_history);
+	auto message = ApiWrap::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
-	message.action.options = options;
-	message.action.replyTo = replyToId();
 	message.webPageId = webPageId;
 
 	if (_canSendMessages) {
@@ -3512,15 +3523,11 @@ void HistoryWidget::send(Api::SendOptions options) {
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
-	auto options = Api::SendOptions();
-	options.handleSupportSwitch = Support::HandleSwitch(modifiers);
-	send(options);
+	send({ .handleSupportSwitch = Support::HandleSwitch(modifiers) });
 }
 
 void HistoryWidget::sendSilent() {
-	auto options = Api::SendOptions();
-	options.silent = true;
-	send(options);
+	send({ .silent = true });
 }
 
 void HistoryWidget::sendScheduled() {
@@ -3894,7 +3901,7 @@ void HistoryWidget::sendBotCommand(const Bot::SendCommandRequest &request) {
 		? request.command
 		: Bot::WrapCommandInChat(_peer, request.command, request.context);
 
-	auto message = ApiWrap::MessageToSend(_history);
+	auto message = Api::MessageToSend(prepareSendAction({}));
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.action.replyTo = request.replyTo
 		? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/)
@@ -4675,15 +4682,12 @@ void HistoryWidget::sendingFilesConfirmed(
 	const auto type = way.sendImagesAsPhotos()
 		? SendMediaType::Photo
 		: SendMediaType::File;
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyToId();
-	action.options = options;
+	auto action = prepareSendAction(options);
 	action.clearDraft = false;
 	if ((groups.size() != 1 || !groups.front().sentWithCaption())
 		&& !caption.text.isEmpty()) {
-		auto message = Api::MessageToSend(_history);
+		auto message = Api::MessageToSend(action);
 		message.textWithTags = base::take(caption);
-		message.action = action;
 		session().api().sendMessage(std::move(message));
 	}
 	for (auto &group : groups) {
@@ -4773,9 +4777,7 @@ void HistoryWidget::uploadFile(
 		SendMediaType type) {
 	if (!canWriteMessage()) return;
 
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyToId();
-	session().api().sendFile(fileContent, type, action);
+	session().api().sendFile(fileContent, type, prepareSendAction({}));
 }
 
 void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
@@ -5791,9 +5793,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		return;
 	}
 
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyToId();
-	action.options = std::move(result.options);
+	auto action = prepareSendAction(result.options);
 	action.generateLocal = true;
 	session().api().sendInlineResult(result.bot, result.result, action);
 
@@ -6175,10 +6175,9 @@ bool HistoryWidget::sendExistingDocument(
 		return false;
 	}
 
-	auto message = Api::MessageToSend(_history);
-	message.action.options = std::move(options);
-	message.action.replyTo = replyToId();
-	Api::SendExistingDocument(std::move(message), document);
+	Api::SendExistingDocument(
+		Api::MessageToSend(prepareSendAction(options)),
+		document);
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
@@ -6211,10 +6210,9 @@ bool HistoryWidget::sendExistingPhoto(
 		return false;
 	}
 
-	auto message = Api::MessageToSend(_history);
-	message.action.replyTo = replyToId();
-	message.action.options = std::move(options);
-	Api::SendExistingPhoto(std::move(message), photo);
+	Api::SendExistingPhoto(
+		Api::MessageToSend(prepareSendAction(options)),
+		photo);
 
 	hideSelectorControlsAnimated();
 

@@ -496,9 +496,7 @@ void ShareBox::submit(Api::SendOptions options) {
 }
 
 void ShareBox::submitSilent() {
-	auto options = Api::SendOptions();
-	options.silent = true;
-	submit(options);
+	submit({ .silent = true });
 }
 
 void ShareBox::submitScheduled() {

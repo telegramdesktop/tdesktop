@@ -1076,7 +1076,7 @@ SendMenu::Type MainWidget::sendMenuType() const {
 }
 
 bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
-	return sendExistingDocument(document, Api::SendOptions());
+	return sendExistingDocument(document, {});
 }
 
 bool MainWidget::sendExistingDocument(

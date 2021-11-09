@@ -1683,7 +1683,8 @@ ClickHandlerPtr MediaDice::MakeHandler(
 					const ClickHandlerPtr &handler,
 					Qt::MouseButton button) {
 				if (button == Qt::LeftButton && !ShownToast.empty()) {
-					auto message = Api::MessageToSend(history);
+					auto message = Api::MessageToSend(
+						Api::SendAction(history));
 					message.action.clearDraft = false;
 					message.textWithTags.text = emoji;
 

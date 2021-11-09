@@ -193,7 +193,7 @@ struct SendingAlbum {
 
 struct FileLoadTo {
 	FileLoadTo(
-		const PeerId &peer,
+		PeerId peer,
 		Api::SendOptions options,
 		MsgId replyTo,
 		MsgId replaceMediaOf)

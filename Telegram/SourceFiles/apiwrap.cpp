@@ -3676,6 +3676,7 @@ void ApiWrap::forwardMessages(
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto sendAs = action.options.sendAs;
 
 	auto flags = MessageFlags();
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
@@ -3692,6 +3693,9 @@ void ApiWrap::forwardMessages(
 	}
 	if (draft.options == Data::ForwardOptions::NoNamesAndCaptions) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_media_captions;
+	}
+	if (sendAs) {
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_send_as;
 	}
 
 	auto forwardFrom = draft.items.front()->history()->peer;
@@ -3713,7 +3717,7 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
 				MTP_int(action.options.scheduled),
-				MTPInputPeer() // #TODO send_as
+				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
 				applyUpdates(result);
 				if (shared && !--shared->requestsLeft) {
@@ -3749,7 +3753,9 @@ void ApiWrap::forwardMessages(
 				peerToChannel(peer->id),
 				_session->data().nextLocalMessageId());
 			const auto self = _session->user();
-			const auto messageFromId = anonymousPost
+			const auto messageFromId = sendAs
+				? sendAs->id
+				: anonymousPost
 				? PeerId(0)
 				: self->id;
 			const auto messagePostAuthor = peer->isBroadcast()
@@ -3830,7 +3836,11 @@ void ApiWrap::sendSharedContact(
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 	}
-	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
+	const auto messageFromId = action.options.sendAs
+		? action.options.sendAs->id
+		: anonymousPost
+		? PeerId()
+		: _session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name
 		: QString();
@@ -3910,9 +3920,8 @@ void ApiWrap::sendFiles(
 		const SendAction &action) {
 	const auto haveCaption = !caption.text.isEmpty();
 	if (haveCaption && !list.canAddCaption(album != nullptr)) {
-		auto message = MessageToSend(action.history);
+		auto message = MessageToSend(action);
 		message.textWithTags = base::take(caption);
-		message.action = action;
 		message.action.clearDraft = false;
 		sendMessage(std::move(message));
 	}
@@ -4086,8 +4095,16 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			history->clearCloudDraft();
 			history->startSavingCloudDraft();
 		}
-		auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
-		auto messagePostAuthor = peer->isBroadcast()
+		const auto sendAs = action.options.sendAs;
+		const auto messageFromId = sendAs
+			? sendAs->id
+			: anonymousPost
+			? PeerId()
+			: _session->userPeerId();
+		if (sendAs) {
+			sendFlags |= MTPmessages_SendMessage::Flag::f_send_as;
+		}
+		const auto messagePostAuthor = peer->isBroadcast()
 			? _session->user()->name
 			: QString();
 		if (action.options.scheduled) {
@@ -4116,7 +4133,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTPReplyMarkup(),
 				sentEntities,
 				MTP_int(action.options.scheduled),
-				MTPInputPeer() // #TODO send_as
+				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](
 					const MTPUpdates &result,
 					const MTP::Response &response) {
@@ -4160,7 +4177,8 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 	auto &info = bot->botInfo;
 	auto &token = chat ? info->startGroupToken : info->startToken;
 	if (token.isEmpty()) {
-		auto message = ApiWrap::MessageToSend(_session->data().history(bot));
+		auto message = MessageToSend(
+			Api::SendAction(_session->data().history(bot)));
 		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
 		sendMessage(std::move(message));
 		return;
@@ -4213,7 +4231,14 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;
 	}
 
-	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
+	const auto sendAs = action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost ? PeerId()
+		: _session->userPeerId();
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_send_as;
+	}
 	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name
 		: QString();
@@ -4244,7 +4269,7 @@ void ApiWrap::sendInlineResult(
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
 			MTP_int(action.options.scheduled),
-			MTPInputPeer() // #TODO send_as
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](
 				const MTPUpdates &result,
 				const MTP::Response &response) {
@@ -4381,6 +4406,9 @@ void ApiWrap::sendMediaWithRandomId(
 			: MTPmessages_SendMedia::Flag(0))
 		| (options.scheduled
 			? MTPmessages_SendMedia::Flag::f_schedule_date
+			: MTPmessages_SendMedia::Flag(0))
+		| (options.sendAs
+			? MTPmessages_SendMedia::Flag::f_send_as
 			: MTPmessages_SendMedia::Flag(0));
 
 	auto &histories = history->owner().histories();
@@ -4398,7 +4426,7 @@ void ApiWrap::sendMediaWithRandomId(
 			MTPReplyMarkup(),
 			sentEntities,
 			MTP_int(options.scheduled),
-			MTPInputPeer() // #TODO send_as
+			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result);
 			finish();
@@ -4481,6 +4509,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	}
 	const auto history = sample->history();
 	const auto replyTo = sample->replyToId();
+	const auto sendAs = album->options.sendAs;
 	const auto flags = MTPmessages_SendMultiMedia::Flags(0)
 		| (replyTo
 			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
@@ -4490,6 +4519,9 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			: MTPmessages_SendMultiMedia::Flag(0))
 		| (album->options.scheduled
 			? MTPmessages_SendMultiMedia::Flag::f_schedule_date
+			: MTPmessages_SendMultiMedia::Flag(0))
+		| (sendAs
+			? MTPmessages_SendMultiMedia::Flag::f_send_as
 			: MTPmessages_SendMultiMedia::Flag(0));
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::Send;
@@ -4501,7 +4533,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			MTP_int(replyTo),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
-			MTPInputPeer() // #TODO send_as
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](const MTPUpdates &result) {
 			_sendingAlbums.remove(groupId);
 			applyUpdates(result);

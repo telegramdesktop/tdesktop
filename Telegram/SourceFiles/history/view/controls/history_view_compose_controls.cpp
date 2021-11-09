@@ -570,12 +570,10 @@ MessageToEdit FieldHeader::queryToEdit() {
 		return {};
 	}
 	return {
-		item->fullId(),
-		{
-			item->isScheduled() ? item->date() : 0,
-			false,
-			false,
-			!hasPreview(),
+		.fullId = item->fullId(),
+		.options = {
+			.scheduled = item->isScheduled() ? item->date() : 0,
+			.removeWebPageId = !hasPreview(),
 		},
 	};
 }

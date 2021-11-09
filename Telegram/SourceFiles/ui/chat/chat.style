@@ -931,11 +931,11 @@ SendAsButton {
 sendAsButton: SendAsButton {
 	width: 44px;
 	height: 46px;
-	size: 32px;
+	size: 28px;
 	activeBg: activeButtonBg;
 	activeFg: activeButtonFg;
 	cross: CrossAnimation {
-		size: 32px;
+		size: 28px;
 		skip: 10px;
 		stroke: 2px;
 		minScale: 0.3;

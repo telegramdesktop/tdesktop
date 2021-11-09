@@ -2062,7 +2062,7 @@ bool Message::hasFromName() const {
 	case Context::Replies: {
 		const auto item = message();
 		const auto peer = item->history()->peer;
-		if (hasOutLayout() && !item->from()->isMegagroup()) {
+		if (hasOutLayout() && !item->from()->isChannel()) {
 			return false;
 		} else if (!peer->isUser()) {
 			return true;

@@ -60,6 +60,10 @@ void Polls::create(
 	if (action.options.scheduled) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 	}
+	const auto sendAs = action.options.sendAs;
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::Send;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
@@ -74,7 +78,7 @@ void Polls::create(
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
-			MTPInputPeer() // #TODO send_as
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](
 				const MTPUpdates &result,
 				const MTP::Response &response) mutable {

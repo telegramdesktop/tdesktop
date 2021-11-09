@@ -23,6 +23,7 @@ enum class Type;
 
 namespace Api {
 struct SendOptions;
+struct SendAction;
 } // namespace Api
 
 namespace Storage {
@@ -190,6 +191,8 @@ private:
 	void clearSelected();
 	void setPinnedVisibility(bool shown);
 
+	[[nodiscard]] Api::SendAction prepareSendAction(
+		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
 	void sendVoice(Controls::VoiceToSend &&data);

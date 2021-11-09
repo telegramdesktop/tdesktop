@@ -466,7 +466,8 @@ void AppendEmojiPacks(
 				return true;
 			}
 			Api::SendExistingDocument(
-				Api::MessageToSend(ActiveChat(_controller).history()),
+				Api::MessageToSend(
+					Api::SendAction(ActiveChat(_controller).history())),
 				document);
 			return true;
 		} else if (emoji) {

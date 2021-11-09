@@ -625,7 +625,7 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (index < 0 || index >= _pack.size() || isMasksSet()) {
 		return;
 	}
-	send(_pack[index], Api::SendOptions());
+	send(_pack[index], {});
 }
 
 void StickerSetBox::Inner::send(

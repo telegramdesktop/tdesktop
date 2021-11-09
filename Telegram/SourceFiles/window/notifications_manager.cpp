@@ -706,7 +706,7 @@ void Manager::notificationReplied(
 	}
 	const auto history = session->data().history(id.full.peerId);
 
-	auto message = Api::MessageToSend(history);
+	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
 	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
 		? id.msgId

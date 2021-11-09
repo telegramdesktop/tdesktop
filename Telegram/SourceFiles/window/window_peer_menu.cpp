@@ -821,9 +821,10 @@ void PeerMenuCreatePoll(
 		if (std::exchange(*lock, true)) {
 			return;
 		}
-		auto action = Api::SendAction(peer->owner().history(peer));
+		auto action = Api::SendAction(
+			peer->owner().history(peer),
+			result.options);
 		action.clearDraft = false;
-		action.options = result.options;
 		action.replyTo = replyToId;
 		if (const auto localDraft = action.history->localDraft()) {
 			action.clearDraft = localDraft->textWithTags.text.isEmpty();

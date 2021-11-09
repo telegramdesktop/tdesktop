@@ -22,6 +22,7 @@ enum class Type;
 
 namespace Api {
 struct SendOptions;
+struct SendAction;
 } // namespace Api
 
 namespace Ui {
@@ -155,6 +156,8 @@ private:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	[[nodiscard]] Api::SendAction prepareSendAction(
+		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
 	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
