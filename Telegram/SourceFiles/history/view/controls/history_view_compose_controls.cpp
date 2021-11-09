@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/session/send_as_peers.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
 #include "styles/style_chat.h"
@@ -50,6 +51,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
+#include "ui/controls/send_as_button.h"
+#include "ui/chat/choose_send_as.h"
 #include "ui/special_buttons.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -675,6 +678,17 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 			_wrap.get(),
 			peer->asChannel());
 	}
+	if (!session().sendAsPeers().shouldChoose(peer)) {
+		_sendAs = nullptr;
+	} else if (!_sendAs) {
+		_sendAs = std::make_unique<Ui::SendAsButton>(
+			_wrap.get(),
+			st::sendAsButton);
+		Ui::SetupSendAsButton(
+			_sendAs.get(),
+			rpl::single(peer.get()),
+			_window);
+	}
 	session().local().readDraftsWithCursors(_history);
 	applyDraft();
 }
@@ -684,6 +698,12 @@ void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
 	if (_inlineResults) {
 		_inlineResults->setCurrentDialogsEntryState(state);
 	}
+}
+
+PeerData *ComposeControls::sendAsPeer() const {
+	return (_sendAs && _history)
+		? session().sendAsPeers().resolveChosen(_history->peer).get()
+		: nullptr;
 }
 
 void ComposeControls::move(int x, int y) {
@@ -1802,11 +1822,12 @@ void ComposeControls::finishAnimating() {
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {
-	// _attachToggle -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
+	// _attachToggle (_sendAs) -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
 	// (_attachDocument|_attachPhoto) _field (_ttlInfo) (_silent|_botCommandStart) _tabbedSelectorToggle _send
 
 	const auto fieldWidth = size.width()
 		- _attachToggle->width()
+		- (_sendAs ? _sendAs->width() : 0)
 		- st::historySendRight
 		- _send->width()
 		- _tabbedSelectorToggle->width()
@@ -1828,6 +1849,10 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	auto left = st::historySendRight;
 	_attachToggle->moveToLeft(left, buttonsTop);
 	left += _attachToggle->width();
+	if (_sendAs) {
+		_sendAs->moveToLeft(left, buttonsTop);
+		left += _sendAs->width();
+	}
 	_field->moveToLeft(
 		left,
 		size.height() - _field->height() - st::historySendPadding);

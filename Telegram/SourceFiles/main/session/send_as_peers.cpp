@@ -24,6 +24,11 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 , _onlyMe({ session->user() }) {
 }
 
+bool SendAsPeers::shouldChoose(not_null<PeerData*> peer) {
+	refresh(peer);
+	return peer->canWrite() && (list(peer).size() > 1);
+}
+
 void SendAsPeers::refresh(not_null<PeerData*> peer) {
 	if (!peer->isMegagroup()) {
 		return;

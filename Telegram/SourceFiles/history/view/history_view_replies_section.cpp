@@ -916,6 +916,7 @@ Api::SendAction RepliesWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyToId();
+	result.options.sendAs = _composeControls->sendAsPeer();
 	return result;
 }
 

@@ -17,6 +17,7 @@ class SendAsPeers final {
 public:
 	explicit SendAsPeers(not_null<Session*> session);
 
+	bool shouldChoose(not_null<PeerData*> peer);
 	void refresh(not_null<PeerData*> peer);
 	[[nodiscard]] const std::vector<not_null<PeerData*>> &list(
 		not_null<PeerData*> peer) const;

@@ -28,6 +28,11 @@ void ChooseSendAsBox(
 
 void SetupSendAsButton(
 	not_null<SendAsButton*> button,
+	rpl::producer<PeerData*> active,
+	not_null<Window::SessionController*> window);
+
+void SetupSendAsButton(
+	not_null<SendAsButton*> button,
 	not_null<Window::SessionController*> window);
 
 } // namespace Ui

@@ -519,6 +519,7 @@ bool ScheduledWidget::showSendingFilesError(
 Api::SendAction ScheduledWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
+	result.options.sendAs = _composeControls->sendAsPeer();
 	return result;
 }
 

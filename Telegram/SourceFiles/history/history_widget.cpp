@@ -2387,10 +2387,7 @@ void HistoryWidget::setupSendAsToggle() {
 void HistoryWidget::refreshSendAsToggle() {
 	Expects(_peer != nullptr);
 
-	session().sendAsPeers().refresh(_peer);
-	const auto &list = session().sendAsPeers().list(_peer);
-	const auto has = _peer->canWrite() && (list.size() > 1);
-	if (!has) {
+	if (!session().sendAsPeers().shouldChoose(_peer)) {
 		_sendAs.destroy();
 		return;
 	} else if (_sendAs) {

@@ -148,14 +148,17 @@ void ChooseSendAsBox(
 
 void SetupSendAsButton(
 		not_null<SendAsButton*> button,
+		rpl::producer<PeerData*> active,
 		not_null<Window::SessionController*> window) {
 	using namespace rpl::mappers;
+	const auto current = button->lifetime().make_state<
+		rpl::variable<PeerData*>
+	>(std::move(active));
 	button->setClickedCallback([=] {
-		const auto history = window->activeChatCurrent().history();
-		if (!history) {
+		const auto peer = current->current();
+		if (!peer) {
 			return;
 		}
-		const auto peer = history->peer;
 		const auto session = &peer->session();
 		const auto &list = session->sendAsPeers().list(peer);
 		if (list.size() < 2) {
@@ -171,16 +174,10 @@ void SetupSendAsButton(
 			done));
 	});
 
-	auto userpic = window->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) -> PeerData* {
-		if (const auto history = key.history()) {
-			return history->peer->isMegagroup()
-				? history->peer.get()
-				: nullptr;
-		}
-		return nullptr;
-	}) | rpl::filter_nullptr(
-	) | rpl::map([=](not_null<PeerData*> peer) {
+	auto userpic = current->value(
+	) | rpl::filter([=](PeerData *peer) {
+		return peer && peer->isMegagroup();
+	}) | rpl::map([=](not_null<PeerData*> peer) {
 		const auto channel = peer->asMegagroup();
 
 		auto updates = rpl::single(
@@ -208,7 +205,16 @@ void SetupSendAsButton(
 	) | rpl::start_with_next([=](QImage &&userpic) {
 		button->setUserpic(std::move(userpic));
 	}, button->lifetime());
+}
 
+void SetupSendAsButton(
+		not_null<SendAsButton*> button,
+		not_null<Window::SessionController*> window) {
+	auto active = window->activeChatValue(
+	) | rpl::map([=](const Dialogs::Key &key) {
+		return key.history() ? key.history()->peer.get() : nullptr;
+	});
+	SetupSendAsButton(button, std::move(active), window);
 }
 
 } // namespace Ui
