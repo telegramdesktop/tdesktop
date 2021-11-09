@@ -535,11 +535,13 @@ void Element::refreshDataId() {
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
-	const auto mayBeAttached = [](not_null<HistoryItem*> item) {
+	const auto mayBeAttached = [](not_null<Element*> view) {
+		const auto item = view->data();
 		return !item->isService()
 			&& !item->isEmpty()
 			&& !item->isPost()
-			&& (item->from() != item->history()->peer
+			&& (!item->history()->peer->isMegagroup()
+				|| !view->hasOutLayout()
 				|| !item->from()->isChannel());
 	};
 	const auto item = data();
@@ -547,8 +549,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto prev = previous->data();
 		const auto possible = (std::abs(prev->date() - item->date())
 				< kAttachMessageToPreviousSecondsDelta)
-			&& mayBeAttached(item)
-			&& mayBeAttached(prev);
+			&& mayBeAttached(this)
+			&& mayBeAttached(previous);
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
