@@ -131,7 +131,6 @@ public:
 	}
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
