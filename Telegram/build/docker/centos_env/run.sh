@@ -15,7 +15,7 @@ fi
 
 Command="$1"
 if [ "$Command" == "" ]; then
-  Command="scl enable llvm-toolset-7.0 -- scl enable devtoolset-9 -- bash"
+  Command="scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash"
 fi
 
 docker run -it --rm --cpus=8 --memory=22g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $Command
