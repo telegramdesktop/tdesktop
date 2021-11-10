@@ -1546,6 +1546,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
 "lng_send_anonymous_ph" = "Send anonymously...";
+"lng_send_as_title" = "Send message as...";
+"lng_send_as_anonymous_admin" = "Anonymous admin";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_record_lock_cancel_sure" = "Are you sure you want to stop recording and discard your voice message?";
 "lng_record_listen_cancel_sure" = "Are you sure you want to discard your recorded voice message?";

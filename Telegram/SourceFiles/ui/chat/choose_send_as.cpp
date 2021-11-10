@@ -64,7 +64,7 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 		result->setCustomStatus(
 			tr::lng_group_call_join_as_personal(tr::now));
 	} else if (peer->isMegagroup()) {
-		result->setCustomStatus(u"Anonymous admin"_q);
+		result->setCustomStatus(tr::lng_send_as_anonymous_admin(tr::now));
 	} else if (const auto channel = peer->asChannel()) {
 		result->setCustomStatus(tr::lng_chat_status_subscribers(
 			tr::now,
@@ -111,7 +111,7 @@ void ChooseSendAsBox(
 	Expects(done != nullptr);
 
 	box->setWidth(st::groupCallJoinAsWidth);
-	box->setTitle(rpl::single(u"Send message as..."_q));
+	box->setTitle(tr::lng_send_as_title());
 	const auto &labelSt = st::confirmPhoneAboutLabel;
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
