@@ -433,21 +433,11 @@ PeerListRow::PeerListRow(not_null<PeerData*> peer)
 
 PeerListRow::PeerListRow(not_null<PeerData*> peer, PeerListRowId id)
 : _id(id)
-, _peer(peer)
-, _hidden(false)
-, _initialized(false)
-, _isSearchResult(false)
-, _isSavedMessagesChat(false)
-, _isRepliesMessagesChat(false) {
+, _peer(peer) {
 }
 
 PeerListRow::PeerListRow(PeerListRowId id)
-: _id(id)
-, _hidden(false)
-, _initialized(false)
-, _isSearchResult(false)
-, _isSavedMessagesChat(false)
-, _isRepliesMessagesChat(false) {
+: _id(id) {
 }
 
 PeerListRow::~PeerListRow() = default;

@@ -126,12 +126,7 @@ MembersRow::MembersRow(
 	not_null<MembersRowDelegate*> delegate,
 	not_null<PeerData*> participantPeer)
 : PeerListRow(participantPeer)
-, _delegate(delegate)
-, _sounding(false)
-, _speaking(false)
-, _raisedHandStatus(false)
-, _skipLevelUpdate(false)
-, _mutedByMe(false) {
+, _delegate(delegate) {
 	refreshStatus();
 	_aboutText = participantPeer->about();
 }

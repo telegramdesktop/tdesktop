@@ -210,11 +210,11 @@ private:
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
 	int _volume = Group::kDefaultVolume;
-	bool _sounding : 1;
-	bool _speaking : 1;
-	bool _raisedHandStatus : 1;
-	bool _skipLevelUpdate : 1;
-	bool _mutedByMe : 1;
+	bool _sounding : 1 = false;
+	bool _speaking : 1 = false;
+	bool _raisedHandStatus : 1 = false;
+	bool _skipLevelUpdate : 1 = false;
+	bool _mutedByMe : 1 = false;
 
 };
 
