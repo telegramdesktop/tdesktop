@@ -1391,6 +1391,7 @@ void MainWidget::ui_showPeerHistory(
 
 	if (noPeer) {
 		_controller->setActiveChatEntry(Dialogs::Key());
+		_controller->setChatStyleTheme(controller()->defaultChatTheme());
 	}
 
 	if (onlyDialogs) {

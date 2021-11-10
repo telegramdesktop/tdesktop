@@ -2203,8 +2203,6 @@ void HistoryWidget::showHistory(
 		refreshTopBarActiveChat();
 		updateTopBarSelection();
 		checkMessagesTTL();
-		// Restore default theme.
-		controller()->setChatStyleTheme(controller()->defaultChatTheme());
 		clearFieldText();
 		doneShow();
 	}
