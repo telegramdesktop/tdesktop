@@ -373,6 +373,7 @@ public:
 	}
 
 	[[nodiscard]] bool canPin() const;
+	[[nodiscard]] bool canBeEdited() const;
 	[[nodiscard]] bool canStopPoll() const;
 	[[nodiscard]] virtual bool allowsSendNow() const;
 	[[nodiscard]] virtual bool allowsForward() const;

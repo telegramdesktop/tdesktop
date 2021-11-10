@@ -619,8 +619,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 	return false;
 }
 
-bool HistoryItem::canStopPoll() const {
-	if (!isRegular()
+bool HistoryItem::canBeEdited() const {
+	if ((!isRegular() && !isScheduled())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;
@@ -639,6 +639,10 @@ bool HistoryItem::canStopPoll() const {
 		}
 	}
 	return out();
+}
+
+bool HistoryItem::canStopPoll() const {
+	return canBeEdited() && isRegular();
 }
 
 bool HistoryItem::canDelete() const {
