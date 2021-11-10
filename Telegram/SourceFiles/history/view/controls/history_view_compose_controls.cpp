@@ -1892,6 +1892,9 @@ void ComposeControls::updateControlsVisibility() {
 	if (_ttlInfo) {
 		_ttlInfo->show();
 	}
+	if (_sendAs) {
+		_sendAs->show();
+	}
 }
 
 bool ComposeControls::updateBotCommandShown() {
