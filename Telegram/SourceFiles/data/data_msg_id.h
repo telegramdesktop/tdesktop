@@ -35,6 +35,8 @@ struct MsgId {
 	constexpr MsgId operator--(int) noexcept {
 		return bare--;
 	}
+	constexpr auto operator<=>(const MsgId &other) const = default;
+	constexpr bool operator==(const MsgId &other) const = default;
 
 	int64 bare = 0;
 };
@@ -47,30 +49,6 @@ Q_DECLARE_METATYPE(MsgId);
 
 [[nodiscard]] inline constexpr MsgId operator-(MsgId a, MsgId b) noexcept {
 	return MsgId(a.bare - b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator==(MsgId a, MsgId b) noexcept {
-	return (a.bare == b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator!=(MsgId a, MsgId b) noexcept {
-	return (a.bare != b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator<(MsgId a, MsgId b) noexcept {
-	return (a.bare < b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator>(MsgId a, MsgId b) noexcept {
-	return (a.bare > b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator<=(MsgId a, MsgId b) noexcept {
-	return (a.bare <= b.bare);
-}
-
-[[nodiscard]] inline constexpr bool operator>=(MsgId a, MsgId b) noexcept {
-	return (a.bare >= b.bare);
 }
 
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
@@ -132,51 +110,12 @@ struct FullMsgId {
 	constexpr bool operator!() const noexcept {
 		return msg == 0;
 	}
+	constexpr auto operator<=>(const FullMsgId &other) const = default;
+	constexpr bool operator==(const FullMsgId &other) const = default;
 
 	ChannelId channel = NoChannel;
 	MsgId msg = 0;
 };
-
-[[nodiscard]] inline constexpr bool operator<(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	if (a.channel < b.channel) {
-		return true;
-	} else if (a.channel > b.channel) {
-		return false;
-	}
-	return a.msg < b.msg;
-}
-
-[[nodiscard]] inline constexpr bool operator>(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	return b < a;
-}
-
-[[nodiscard]] inline constexpr bool operator<=(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	return !(b < a);
-}
-
-[[nodiscard]] inline constexpr bool operator>=(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	return !(a < b);
-}
-
-[[nodiscard]] inline constexpr bool operator==(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	return (a.channel == b.channel) && (a.msg == b.msg);
-}
-
-[[nodiscard]] inline constexpr bool operator!=(
-		const FullMsgId &a,
-		const FullMsgId &b) noexcept {
-	return !(a == b);
-}
 
 Q_DECLARE_METATYPE(FullMsgId);
 

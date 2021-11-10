@@ -40,29 +40,8 @@ public:
 	Data::Folder *folder() const;
 	PeerData *peer() const;
 
-	inline bool operator<(const Key &other) const {
-		return _value < other._value;
-	}
-	inline bool operator>(const Key &other) const {
-		return (other < *this);
-	}
-	inline bool operator<=(const Key &other) const {
-		return !(other < *this);
-	}
-	inline bool operator>=(const Key &other) const {
-		return !(*this < other);
-	}
-	inline bool operator==(const Key &other) const {
-		return _value == other._value;
-	}
-	inline bool operator!=(const Key &other) const {
-		return !(*this == other);
-	}
-
-	// Not working :(
-	//friend inline auto value_ordering_helper(const Key &key) {
-	//	return key.value;
-	//}
+	constexpr auto operator<=>(const Key &other) const = default;
+	constexpr bool operator==(const Key &other) const = default;
 
 private:
 	Entry *_value = nullptr;
@@ -74,40 +53,23 @@ struct RowDescriptor {
 	RowDescriptor(Key key, FullMsgId fullId) : key(key), fullId(fullId) {
 	}
 
+	constexpr auto operator<=>(const RowDescriptor &other) const noexcept {
+		if (const auto result = (key <=> other.key); result != 0) {
+			return result;
+		} else if (!fullId.msg && !other.fullId.msg) {
+			return (fullId.msg <=> other.fullId.msg);
+		} else {
+			return (fullId <=> other.fullId);
+		}
+	}
+	constexpr bool operator==(const RowDescriptor &other) const noexcept {
+		return ((*this) <=> other) == 0;
+	}
+
 	Key key;
 	FullMsgId fullId;
 
 };
-
-inline bool operator==(const RowDescriptor &a, const RowDescriptor &b) {
-	return (a.key == b.key)
-		&& ((a.fullId == b.fullId) || (!a.fullId.msg && !b.fullId.msg));
-}
-
-inline bool operator!=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(a == b);
-}
-
-inline bool operator<(const RowDescriptor &a, const RowDescriptor &b) {
-	if (a.key < b.key) {
-		return true;
-	} else if (a.key > b.key) {
-		return false;
-	}
-	return a.fullId < b.fullId;
-}
-
-inline bool operator>(const RowDescriptor &a, const RowDescriptor &b) {
-	return (b < a);
-}
-
-inline bool operator<=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(b < a);
-}
-
-inline bool operator>=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(a < b);
-}
 
 struct EntryState {
 	enum class Section {

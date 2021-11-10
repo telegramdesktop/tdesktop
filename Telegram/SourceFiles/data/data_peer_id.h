@@ -34,102 +34,14 @@ struct ChatIdType {
 	[[nodiscard]] constexpr bool operator!() const noexcept {
 		return !bare;
 	}
+	[[nodiscard]] constexpr auto operator<=>(const ChatIdType &other) const = default;
+	[[nodiscard]] constexpr bool operator==(const ChatIdType &other) const = default;
+	constexpr auto operator<=>(PeerIdZero) const = delete;
+	[[nodiscard]] constexpr bool operator==(PeerIdZero) const noexcept {
+		return (bare == 0);
+	}
 
 };
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator==(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare == b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator!=(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare != b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator<(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare < b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator>(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare > b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator<=(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare <= b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator>=(
-		ChatIdType<Shift> a,
-		ChatIdType<Shift> b) noexcept {
-	return (a.bare >= b.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator==(
-		ChatIdType<Shift> a,
-		PeerIdZero) noexcept {
-	return (a.bare == 0);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator==(
-		PeerIdZero,
-		ChatIdType<Shift> a) noexcept {
-	return (0 == a.bare);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator!=(
-		ChatIdType<Shift> a,
-		PeerIdZero) noexcept {
-	return (a.bare != 0);
-}
-
-template <uchar Shift>
-[[nodiscard]] inline constexpr bool operator!=(
-		PeerIdZero,
-		ChatIdType<Shift> a) noexcept {
-	return (0 != a.bare);
-}
-
-template <uchar Shift>
-bool operator<(ChatIdType<Shift>, PeerIdZero) = delete;
-
-template <uchar Shift>
-bool operator<(PeerIdZero, ChatIdType<Shift>) = delete;
-
-template <uchar Shift>
-bool operator>(ChatIdType<Shift>, PeerIdZero) = delete;
-
-template <uchar Shift>
-bool operator>(PeerIdZero, ChatIdType<Shift>) = delete;
-
-template <uchar Shift>
-bool operator<=(ChatIdType<Shift>, PeerIdZero) = delete;
-
-template <uchar Shift>
-bool operator<=(PeerIdZero, ChatIdType<Shift>) = delete;
-
-template <uchar Shift>
-bool operator>=(ChatIdType<Shift>, PeerIdZero) = delete;
-
-template <uchar Shift>
-bool operator>=(PeerIdZero, ChatIdType<Shift>) = delete;
 
 using UserId = ChatIdType<0>;
 using ChatId = ChatIdType<1>;
@@ -177,64 +89,14 @@ struct PeerId {
 		return !value;
 	}
 
+	[[nodiscard]] constexpr auto operator<=>(const PeerId &other) const = default;
+	[[nodiscard]] constexpr bool operator==(const PeerId &other) const = default;
+	constexpr auto operator<=>(PeerIdZero) const = delete;
+	[[nodiscard]] constexpr bool operator==(PeerIdZero) const noexcept {
+		return (value == 0);
+	}
+
 };
-
-[[nodiscard]] inline constexpr bool operator==(PeerId a, PeerId b) noexcept {
-	return (a.value == b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator!=(PeerId a, PeerId b) noexcept {
-	return (a.value != b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator<(PeerId a, PeerId b) noexcept {
-	return (a.value < b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator>(PeerId a, PeerId b) noexcept {
-	return (a.value > b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator<=(PeerId a, PeerId b) noexcept {
-	return (a.value <= b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator>=(PeerId a, PeerId b) noexcept {
-	return (a.value >= b.value);
-}
-
-[[nodiscard]] inline constexpr bool operator==(
-		PeerId a,
-		PeerIdZero) noexcept {
-	return (a.value == 0);
-}
-
-[[nodiscard]] inline constexpr bool operator==(
-		PeerIdZero,
-		PeerId a) noexcept {
-	return (0 == a.value);
-}
-
-[[nodiscard]] inline constexpr bool operator!=(
-		PeerId a,
-		PeerIdZero) noexcept {
-	return (a.value != 0);
-}
-
-[[nodiscard]] inline constexpr bool operator!=(
-		PeerIdZero,
-		PeerId a) noexcept {
-	return (0 != a.value);
-}
-
-bool operator<(PeerId, PeerIdZero) = delete;
-bool operator<(PeerIdZero, PeerId) = delete;
-bool operator>(PeerId, PeerIdZero) = delete;
-bool operator>(PeerIdZero, PeerId) = delete;
-bool operator<=(PeerId, PeerIdZero) = delete;
-bool operator<=(PeerIdZero, PeerId) = delete;
-bool operator>=(PeerId, PeerIdZero) = delete;
-bool operator>=(PeerIdZero, PeerId) = delete;
 
 [[nodiscard]] inline constexpr bool peerIsUser(PeerId id) noexcept {
 	return id.is<UserId>();
