@@ -519,7 +519,7 @@ defaultCalendarSizes: CalendarSizes {
 	daysHeight: 40px;
 	cellSize: size(48px, 40px);
 	cellInner: 34px;
-	padding: margins(14px, 7px, 14px, 10px);
+	padding: margins(14px, 0px, 14px, 0px);
 }
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;

@@ -43,6 +43,7 @@ public:
 
 	void skipMonth(int skip);
 	void showMonth(QDate month);
+	[[nodiscard]] bool showsMonthOf(QDate date) const;
 
 	[[nodiscard]] int highlightedIndex() const {
 		return _highlightedIndex;
@@ -122,6 +123,11 @@ void CalendarBox::Context::showMonth(QDate month) {
 	applyMonth(month);
 }
 
+bool CalendarBox::Context::showsMonthOf(QDate date) const {
+	const auto shown = _month.current();
+	return (shown.year() == date.year()) && (shown.month() == date.month());
+}
+
 void CalendarBox::Context::applyMonth(const QDate &month, bool forced) {
 	_daysCount = month.daysInMonth();
 	_daysShift = DaysShiftForMonth(month, _min);
@@ -167,7 +173,7 @@ int CalendarBox::Context::DaysShiftForMonth(QDate month, QDate min) {
 	if (min.day() != 1) {
 		min = QDate(min.year(), min.month(), 1);
 	}
-	const auto add = min.daysTo(month) + inWeekIndex + (min.dayOfWeek() - 1);
+	const auto add = min.daysTo(month) - inWeekIndex + (min.dayOfWeek() - 1);
 	return from + add;
 }
 
@@ -565,6 +571,13 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 	_context->setBeginningButton(args.hasBeginningButton);
 	_context->setMinDate(args.minDate);
 	_context->setMaxDate(args.maxDate);
+
+	_scroll->scrolls(
+	) | rpl::filter([=] {
+		return _watchScroll;
+	}) | rpl::start_with_next([=] {
+		processScroll();
+	}, lifetime());
 }
 
 void CalendarBox::prepare() {
@@ -579,6 +592,7 @@ void CalendarBox::prepare() {
 	) | rpl::start_with_next([=](QDate month) {
 		monthChanged(month);
 	}, lifetime());
+	setExactScroll();
 
 	if (_finalize) {
 		_finalize(this);
@@ -601,13 +615,44 @@ bool CalendarBox::isNextEnabled() const {
 void CalendarBox::goPreviousMonth() {
 	if (isPreviousEnabled()) {
 		_context->skipMonth(-1);
+		setExactScroll();
 	}
 }
 
 void CalendarBox::goNextMonth() {
 	if (isNextEnabled()) {
 		_context->skipMonth(1);
+		setExactScroll();
 	}
+}
+
+void CalendarBox::setExactScroll() {
+	const auto top = _st.padding.top()
+		+ (_context->daysShift() / kDaysInWeek) * _st.cellSize.height();
+	_scroll->scrollToY(top);
+	_watchScroll = true;
+}
+
+void CalendarBox::processScroll() {
+	const auto wasTop = _scroll->scrollTop();
+	const auto wasShift = _context->daysShift();
+	const auto point = _scroll->rect().center() + QPoint(0, wasTop);
+	const auto row = (point.y() - _st.padding.top()) / _st.cellSize.height();
+	const auto col = (point.x() - _st.padding.left()) / _st.cellSize.width();
+	const auto index = row * kDaysInWeek + col;
+	const auto date = _context->dateFromIndex(index - wasShift);
+	if (_context->showsMonthOf(date)) {
+		return;
+	}
+	const auto wasFirst = _context->dateFromIndex(-wasShift);
+	const auto month = QDate(date.year(), date.month(), 1);
+	_watchScroll = false;
+	_context->showMonth(month);
+	const auto nowShift = _context->daysShift();
+	const auto nowFirst = _context->dateFromIndex(-nowShift);
+	const auto delta = nowFirst.daysTo(wasFirst) / kDaysInWeek;
+	_scroll->scrollToY(wasTop + delta * _st.cellSize.height());
+	_watchScroll = true;
 }
 
 void CalendarBox::monthChanged(QDate month) {

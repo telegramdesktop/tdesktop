@@ -58,6 +58,8 @@ private:
 
 	void goPreviousMonth();
 	void goNextMonth();
+	void setExactScroll();
+	void processScroll();
 
 	const style::CalendarSizes &_st;
 
@@ -76,6 +78,7 @@ private:
 
 	Fn<void(QDate date)> _callback;
 	FnMut<void(not_null<CalendarBox*>)> _finalize;
+	bool _watchScroll = false;
 
 };
 
