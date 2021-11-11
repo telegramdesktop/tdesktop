@@ -1209,18 +1209,16 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		: !currentPeerDate.isNull()
 		? currentPeerDate
 		: QDate::currentDate();
-	const auto month = highlighted;
-	auto callback = [=](const QDate &date) {
-		session().api().jumpToDate(chat, date);
-	};
-	auto box = Box<Ui::CalendarBox>(
-		month,
-		highlighted,
-		std::move(callback));
-	box->setMinDate(minPeerDate(chat));
-	box->setMaxDate(maxPeerDate(chat));
-	box->setBeginningButton(true);
-	show(std::move(box));
+	show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+		.month = highlighted,
+		.highlighted = highlighted,
+		.callback = [=](const QDate &date) {
+			session().api().jumpToDate(chat, date);
+		},
+		.minDate = minPeerDate(chat),
+		.maxDate = maxPeerDate(chat),
+		.hasBeginningButton = true,
+	}));
 }
 
 void SessionController::showPassportForm(const Passport::FormRequest &request) {

@@ -8,38 +8,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/layers/box_content.h"
-#include "base/observer.h"
+#include "base/required.h"
 
 namespace style {
 struct CalendarSizes;
 } // namespace style
 
+namespace st {
+extern const style::CalendarSizes &defaultCalendarSizes;
+} // namespace st
+
 namespace Ui {
 
 class IconButton;
+class ScrollArea;
+class CalendarBox;
 
-class CalendarBox : public BoxContent, private base::Subscriber {
+struct CalendarBoxArgs {
+	template <typename T>
+	using required = base::required<T>;
+
+	required<QDate> month;
+	required<QDate> highlighted;
+	required<Fn<void(QDate date)>> callback;
+	FnMut<void(not_null<CalendarBox*>)> finalize;
+	const style::CalendarSizes &st = st::defaultCalendarSizes;
+	QDate minDate;
+	QDate maxDate;
+	bool hasBeginningButton = false;
+};
+
+class CalendarBox final : public BoxContent {
 public:
-	CalendarBox(
-		QWidget*,
-		QDate month,
-		QDate highlighted,
-		Fn<void(QDate date)> callback,
-		FnMut<void(not_null<CalendarBox*>)> finalize = nullptr);
-	CalendarBox(
-		QWidget*,
-		QDate month,
-		QDate highlighted,
-		Fn<void(QDate date)> callback,
-		FnMut<void(not_null<CalendarBox*>)> finalize,
-		const style::CalendarSizes &st);
-
-	void setBeginningButton(bool enabled);
-	bool hasBeginningButton() const;
-
-	void setMinDate(QDate date);
-	void setMaxDate(QDate date);
-
+	CalendarBox(QWidget*, CalendarBoxArgs &&args);
 	~CalendarBox();
 
 protected:
@@ -63,8 +64,10 @@ private:
 	class Context;
 	std::unique_ptr<Context> _context;
 
+	std::unique_ptr<ScrollArea> _scroll;
+
 	class Inner;
-	object_ptr<Inner> _inner;
+	not_null<Inner*> _inner;
 
 	class Title;
 	object_ptr<Title> _title;

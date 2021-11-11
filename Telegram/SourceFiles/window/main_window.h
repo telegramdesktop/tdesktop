@@ -42,10 +42,13 @@ struct TermsLock;
 void ConvertIconToBlack(QImage &image);
 
 struct CounterLayerArgs {
-	base::required<int> size = 16;
-	base::required<int> count = 1;
-	base::required<style::color> bg;
-	base::required<style::color> fg;
+	template <typename T>
+	using required = base::required<T>;
+
+	required<int> size = 16;
+	required<int> count = 1;
+	required<style::color> bg;
+	required<style::color> fg;
 };
 
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);

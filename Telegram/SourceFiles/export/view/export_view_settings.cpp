@@ -464,12 +464,6 @@ void SettingsWidget::editDateLimit(
 	const auto month = highlighted;
 	const auto shared = std::make_shared<QPointer<Ui::CalendarBox>>();
 	const auto finalize = [=](not_null<Ui::CalendarBox*> box) {
-		box->setMaxDate(max
-			? base::unixtime::parse(max).date()
-			: QDate::currentDate());
-		box->setMinDate(min
-			? base::unixtime::parse(min).date()
-			: QDate(2013, 8, 1)); // Telegram was launched in August 2013 :)
 		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
 			if (const auto weak = shared->data()) {
@@ -483,12 +477,19 @@ void SettingsWidget::editDateLimit(
 			weak->closeBox();
 		}
 	});
-	auto box = Box<Ui::CalendarBox>(
-		month,
-		highlighted,
-		callback,
-		finalize,
-		st::exportCalendarSizes);
+	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+		.month = month,
+		.highlighted = highlighted,
+		.callback = callback,
+		.finalize = finalize,
+		.st = st::exportCalendarSizes,
+		.minDate = (min
+			? base::unixtime::parse(min).date()
+			: QDate(2013, 8, 1)), // Telegram was launched in August 2013 :)
+		.maxDate = (max
+			? base::unixtime::parse(max).date()
+			: QDate::currentDate()),
+	});
 	*shared = Ui::MakeWeak(box.data());
 	_showBoxCallback(std::move(box));
 }

@@ -704,20 +704,22 @@ void EditRestrictedBox::showRestrictUntil() {
 		: base::unixtime::parse(getRealUntilValue()).date();
 	auto month = highlighted;
 	_restrictUntilBox = Ui::show(
-		Box<Ui::CalendarBox>(
-			month,
-			highlighted,
-			[this](const QDate &date) {
+		Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+			.month = month,
+			.highlighted = highlighted,
+			.callback = [=](const QDate &date) {
 				setRestrictUntil(
 					static_cast<int>(date.startOfDay().toSecsSinceEpoch()));
-			}),
+			},
+			.finalize = [=](not_null<Ui::CalendarBox*> box) {
+				box->addLeftButton(
+					tr::lng_rights_chat_banned_forever(),
+					[=] { setRestrictUntil(0); });
+			},
+			.minDate = tomorrow,
+			.maxDate = QDate::currentDate().addDays(kMaxRestrictDelayDays),
+		}),
 		Ui::LayerOption::KeepOther);
-	_restrictUntilBox->setMaxDate(
-		QDate::currentDate().addDays(kMaxRestrictDelayDays));
-	_restrictUntilBox->setMinDate(tomorrow);
-	_restrictUntilBox->addLeftButton(
-		tr::lng_rights_chat_banned_forever(),
-		[=] { setRestrictUntil(0); });
 }
 
 void EditRestrictedBox::setRestrictUntil(TimeId until) {
