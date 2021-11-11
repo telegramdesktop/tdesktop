@@ -504,6 +504,7 @@ private:
 
 	QString _text;
 	int _textWidth = 0;
+	int _textLeft = 0;
 
 };
 
@@ -514,6 +515,9 @@ CalendarBox::Title::Title(
 : RpWidget(parent)
 , _st(st)
 , _context(context) {
+	const auto dayWidth = st::calendarDaysFont->width(langDayOfWeek(1));
+	_textLeft = _st.padding.left() + (_st.cellSize.width() - dayWidth) / 2;
+
 	_context->monthValue(
 	) | rpl::start_with_next([=](QDate date) {
 		monthChanged(date);
@@ -533,7 +537,12 @@ void CalendarBox::Title::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::calendarTitleFont);
 	p.setPen(st::boxTitleFg);
-	p.drawTextLeft((width() - _textWidth) / 2, (st::calendarTitleHeight - st::calendarTitleFont->height) / 2, width(), _text, _textWidth);
+	p.drawTextLeft(
+		_textLeft,
+		(st::calendarTitleHeight - st::calendarTitleFont->height) / 2,
+		width(),
+		_text,
+		_textWidth);
 
 	paintDayNames(p, clip);
 }
@@ -614,6 +623,7 @@ bool CalendarBox::isNextEnabled() const {
 
 void CalendarBox::goPreviousMonth() {
 	if (isPreviousEnabled()) {
+		_watchScroll = false;
 		_context->skipMonth(-1);
 		setExactScroll();
 	}
@@ -621,6 +631,7 @@ void CalendarBox::goPreviousMonth() {
 
 void CalendarBox::goNextMonth() {
 	if (isNextEnabled()) {
+		_watchScroll = false;
 		_context->skipMonth(1);
 		setExactScroll();
 	}
@@ -668,8 +679,17 @@ void CalendarBox::monthChanged(QDate month) {
 }
 
 void CalendarBox::resizeEvent(QResizeEvent *e) {
-	_previous->moveToLeft(0, 0);
-	_next->moveToRight(0, 0);
+	const auto dayWidth = st::calendarDaysFont->width(langDayOfWeek(7));
+	const auto skip = _st.padding.left()
+		+ _st.cellSize.width() * (kDaysInWeek - 1)
+		+ (_st.cellSize.width() - dayWidth) / 2
+		+ dayWidth;
+	const auto right = width() - skip;
+	const auto shift = _next->width()
+		- (_next->width() - st::calendarPrevious.icon.width()) / 2
+		- st::calendarPrevious.icon.width();
+	_next->moveToRight(right - shift, 0);
+	_previous->moveToRight(right - shift + _next->width(), 0);
 	const auto title = st::calendarTitleHeight + _st.daysHeight;
 	_title->setGeometryToLeft(0, 0, width(), title);
 	_scroll->setGeometryToLeft(0, title, width(), height() - title);
@@ -684,16 +704,6 @@ void CalendarBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Up) {
 		goPreviousMonth();
 	} else if (e->key() == Qt::Key_Right || e->key() == Qt::Key_Down) {
-		goNextMonth();
-	}
-}
-
-void CalendarBox::wheelEvent(QWheelEvent *e) {
-	const auto direction = Ui::WheelDirection(e);
-
-	if (direction < 0) {
-		goPreviousMonth();
-	} else if (direction > 0) {
 		goNextMonth();
 	}
 }
