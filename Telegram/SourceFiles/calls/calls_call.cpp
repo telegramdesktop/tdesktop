@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace tgcalls {
 class InstanceImpl;
+class InstanceV2Impl;
 class InstanceImplLegacy;
 class InstanceImplReference;
 void SetLegacyGlobalServerConfig(const std::string &serverConfig);
@@ -50,8 +51,9 @@ constexpr auto kSha256Size = 32;
 constexpr auto kAuthKeySize = 256;
 const auto kDefaultVersion = "2.4.4"_q;
 
-const auto RegisterTag = tgcalls::Register<tgcalls::InstanceImpl>();
-const auto RegisterTagLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
+const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
+const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
+const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,

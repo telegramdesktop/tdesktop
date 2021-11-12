@@ -7,7 +7,7 @@
 add_library(lib_tgcalls STATIC)
 
 if (WIN32)
-    init_target(lib_tgcalls cxx_std_17) # Small amount of patches required here.
+    init_target(lib_tgcalls) # Small amount of patches required here.
 elseif (LINUX)
     init_target(lib_tgcalls) # All C++20 on Linux, because otherwise ODR violation.
 else()
@@ -61,6 +61,15 @@ PRIVATE
     VideoCaptureInterfaceImpl.cpp
     VideoCaptureInterfaceImpl.h
     VideoCapturerInterface.h
+
+    v2/InstanceV2Impl.cpp
+    v2/InstanceV2Impl.h
+    v2/NativeNetworkingImpl.cpp
+    v2/NativeNetworkingImpl.h
+    v2/Signaling.cpp
+    v2/Signaling.h
+    v2/SignalingEncryption.cpp
+    v2/SignalingEncryption.h
 
     # Desktop capturer
     desktop_capturer/DesktopCaptureSource.h
