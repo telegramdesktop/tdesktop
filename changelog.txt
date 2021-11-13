@@ -1,3 +1,8 @@
+3.2.4 (13.11.21)
+
+- Fix editing of scheduled messages on macOS.
+- Fix launching on Chrome OS in Crostini container. 
+
 3.2.3 (08.11.21)
 
 - Fix autoupdater launch on macOS.
