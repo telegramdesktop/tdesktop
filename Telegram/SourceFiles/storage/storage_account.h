@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "fakepasscode/fake_passcode.h"
 #include "base/timer.h"
 #include "base/flags.h"
 #include "storage/cache/storage_cache_database.h"
@@ -57,6 +56,11 @@ struct MessageDraft {
 	Data::PreviewState previewState = Data::PreviewState::Allowed;
 };
 
+struct MessageDraftSource {
+	Fn<MessageDraft()> draft;
+	Fn<MessageCursor()> cursor;
+};
+
 class Account final {
 public:
 	Account(not_null<Main::Account*> owner, const QString &dataName);
@@ -76,21 +80,20 @@ public:
 		return _localKey;
 	}
 
-	void AddFakePasscode(std::unique_ptr<FakePasscode::FakePasscode> passcode);
-
 	void writeSessionSettings();
 	void writeMtpData();
 	void writeMtpConfig();
 
-	void writeDrafts(
+	void registerDraftSource(
 		not_null<History*> history,
-		Data::DraftKey replaceKey = Data::DraftKey::None(),
-		MessageDraft replaceDraft = MessageDraft());
+		Data::DraftKey key,
+		MessageDraftSource source);
+	void unregisterDraftSource(
+		not_null<History*> history,
+		Data::DraftKey key);
+	void writeDrafts(not_null<History*> history);
 	void readDraftsWithCursors(not_null<History*> history);
-	void writeDraftCursors(
-		not_null<History*> history,
-		Data::DraftKey replaceKey = Data::DraftKey::None(),
-		MessageCursor replaceCursor = MessageCursor());
+	void writeDraftCursors(not_null<History*> history);
 	[[nodiscard]] bool hasDraftCursors(PeerId peerId);
 	[[nodiscard]] bool hasDraft(PeerId peerId);
 
@@ -162,8 +165,6 @@ public:
 		const void *key128) const;
 
 	void reset();
-
-	[[nodiscard]] qint32 getCurrentPasscodeIndex() const;
 
 private:
 	enum class ReadMapResult {
@@ -244,11 +245,12 @@ private:
 
 	MTP::AuthKeyPtr _localKey;
 
-	std::vector<std::unique_ptr<FakePasscode::FakePasscode>> _fakePasscodes;
-
 	base::flat_map<PeerId, FileKey> _draftsMap;
 	base::flat_map<PeerId, FileKey> _draftCursorsMap;
 	base::flat_map<PeerId, bool> _draftsNotReadMap;
+	base::flat_map<
+		not_null<History*>,
+		base::flat_map<Data::DraftKey, MessageDraftSource>> _draftSources;
 
 	QMultiMap<MediaKey, Core::FileLocation> _fileLocations;
 	QMap<QString, QPair<MediaKey, Core::FileLocation>> _fileLocationPairs;
@@ -289,7 +291,6 @@ private:
 	bool _mapChanged = false;
 	bool _locationsChanged = false;
 
-	qint32 _currentFakePasscode = -1;
 };
 
 } // namespace Storage

@@ -82,7 +82,7 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			result.active = langDayOfWeek(lastDate);
 		} else {
-			result.active = lastDate.toString(qsl("d.MM.yy"));
+			result.active = lastDate.toString(cDateFormat());
 		}
 	}
 

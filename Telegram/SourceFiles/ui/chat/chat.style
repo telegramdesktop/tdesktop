@@ -751,7 +751,7 @@ historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 historyViewButtonHeight: 42px;
-historyViewButtonMargins: margins(5px, 5px, 5px, 5px);
+historyViewButtonMargins: margins(13px, 5px, 13px, 5px);
 historyViewButtonOutline: margins(2px, 2px, 2px, 2px);
 historyViewButtonTextStyle: semiboldTextStyle;
 

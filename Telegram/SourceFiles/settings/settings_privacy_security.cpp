@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "fakepasscode/action_ui/fakepasscodes_list.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -283,6 +284,15 @@ void SetupLocalPasscode(
 	)->addClickHandler([=] {
 		controller->show(Box<PasscodeBox>(&controller->session(), true));
 	});
+
+    inner->add(
+        object_ptr<Button>(
+                inner,
+                tr::lng_show_fakes(),
+                st::settingsButton)
+    )->addClickHandler([=] {
+        controller->show(Box<FakePasscodeListBox>(&controller->session().domain(), controller));
+    });
 
 	const auto autoLockBoxClosing =
 		container->lifetime().make_state<rpl::event_stream<>>();

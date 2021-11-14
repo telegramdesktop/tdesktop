@@ -17,13 +17,26 @@ class Session;
 } // namespace Data
 
 enum class WebPageType {
+	Message,
+
+	Group,
+	Channel,
+
 	Photo,
 	Video,
+
+	User,
+	Bot,
 	Profile,
+
 	WallPaper,
 	Theme,
+
 	Article,
 	ArticleWithIV,
+
+	VoiceChat,
+	Livestream,
 };
 
 WebPageType ParseWebPageType(const MTPDwebPage &type);

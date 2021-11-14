@@ -3041,7 +3041,7 @@ void Session::webpageApplyFields(
 not_null<GameData*> Session::game(GameId id) {
 	auto i = _games.find(id);
 	if (i == _games.cend()) {
-		i = _games.emplace(id, std::make_unique<GameData>(id)).first;
+		i = _games.emplace(id, std::make_unique<GameData>(this, id)).first;
 	}
 	return i->second.get();
 }

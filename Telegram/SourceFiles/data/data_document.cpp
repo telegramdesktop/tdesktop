@@ -373,24 +373,7 @@ void DocumentData::setattributes(
 				}
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
-			_filename = qs(data.vfile_name());
-
-			// We don't want LTR/RTL mark/embedding/override/isolate chars
-			// in filenames, because they introduce a security issue, when
-			// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
-			QChar controls[] = {
-				0x200E, // LTR Mark
-				0x200F, // RTL Mark
-				0x202A, // LTR Embedding
-				0x202B, // RTL Embedding
-				0x202D, // LTR Override
-				0x202E, // RTL Override
-				0x2066, // LTR Isolate
-				0x2067, // RTL Isolate
-			};
-			for (const auto &ch : controls) {
-				_filename = std::move(_filename).replace(ch, "_");
-			}
+			setFileName(qs(data.vfile_name()));
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 			_flags |= Flag::HasAttachedStickers;
 		});
@@ -765,6 +748,27 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 			session().local().removeFileLocation(mediaKey());
 		}
 		owner().requestDocumentViewRepaint(this);
+	}
+}
+
+void DocumentData::setFileName(const QString &remoteFileName) {
+	_filename = remoteFileName;
+
+	// We don't want LTR/RTL mark/embedding/override/isolate chars
+	// in filenames, because they introduce a security issue, when
+	// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
+	QChar controls[] = {
+		0x200E, // LTR Mark
+		0x200F, // RTL Mark
+		0x202A, // LTR Embedding
+		0x202B, // RTL Embedding
+		0x202D, // LTR Override
+		0x202E, // RTL Override
+		0x2066, // LTR Isolate
+		0x2067, // RTL Isolate
+	};
+	for (const auto &ch : controls) {
+		_filename = std::move(_filename).replace(ch, "_");
 	}
 }
 

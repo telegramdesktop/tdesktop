@@ -296,6 +296,7 @@ private:
 	void validateLottieSticker();
 	void setMaybeSupportsStreaming(bool supports);
 	void setLoadedInMediaCacheLocation();
+	void setFileName(const QString &remoteFileName);
 
 	void finishLoad();
 	void handleLoaderUpdates();

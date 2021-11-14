@@ -42,16 +42,22 @@ using Database = Cache::Database;
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 
 constexpr auto kStickersVersionTag = quint32(-1);
-constexpr auto kStickersSerializeVersion = 1;
+constexpr auto kStickersSerializeVersion = 2;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
-constexpr auto kSinglePeerTypeUser = qint32(1);
-constexpr auto kSinglePeerTypeChat = qint32(2);
-constexpr auto kSinglePeerTypeChannel = qint32(3);
+constexpr auto kSinglePeerTypeUserOld = qint32(1);
+constexpr auto kSinglePeerTypeChatOld = qint32(2);
+constexpr auto kSinglePeerTypeChannelOld = qint32(3);
+constexpr auto kSinglePeerTypeUser = qint32(8 + 1);
+constexpr auto kSinglePeerTypeChat = qint32(8 + 2);
+constexpr auto kSinglePeerTypeChannel = qint32(8 + 3);
 constexpr auto kSinglePeerTypeSelf = qint32(4);
 constexpr auto kSinglePeerTypeEmpty = qint32(0);
-constexpr auto kMultiDraftTag = quint64(0xFFFFFFFFFFFFFF01ULL);
+constexpr auto kMultiDraftTagOld = quint64(0xFFFF'FFFF'FFFF'FF01ULL);
+constexpr auto kMultiDraftCursorsTagOld = quint64(0xFFFF'FFFF'FFFF'FF02ULL);
+constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
+constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -78,6 +84,14 @@ enum { // Local Storage Keys
 	lskSelfSerialized = 0x15, // serialized self
 	lskMasksKeys = 0x16, // no data
 };
+
+auto EmptyMessageDraftSources()
+-> const base::flat_map<Data::DraftKey, MessageDraftSource> & {
+	static const auto result = base::flat_map<
+		Data::DraftKey,
+		MessageDraftSource>();
+	return result;
+}
 
 [[nodiscard]] FileKey ComputeDataNameKey(const QString &dataName) {
 	// We dropped old test authorizations when migrated to multi auth.
@@ -957,12 +971,10 @@ void EnumerateDrafts(
 		const Data::HistoryDrafts &map,
 		Data::Draft *cloudDraft,
 		bool supportMode,
-		Data::DraftKey replaceKey,
-		const MessageDraft &replaceDraft,
-		const MessageCursor &replaceCursor,
+		const base::flat_map<Data::DraftKey, MessageDraftSource> &sources,
 		Callback &&callback) {
 	for (const auto &[key, draft] : map) {
-		if (key == Data::DraftKey::Cloud() || key == replaceKey) {
+		if (key == Data::DraftKey::Cloud() || sources.contains(key)) {
 			continue;
 		} else if (key == Data::DraftKey::Local()
 			&& !supportMode
@@ -976,23 +988,45 @@ void EnumerateDrafts(
 			draft->previewState,
 			draft->cursor);
 	}
-	if (replaceKey
-		&& (replaceDraft.msgId
-			|| !replaceDraft.textWithTags.text.isEmpty()
-			|| replaceCursor != MessageCursor())) {
-		callback(
-			replaceKey,
-			replaceDraft.msgId,
-			replaceDraft.textWithTags,
-			replaceDraft.previewState,
-			replaceCursor);
+	for (const auto &[key, source] : sources) {
+		const auto draft = source.draft();
+		const auto cursor = source.cursor();
+		if (draft.msgId
+			|| !draft.textWithTags.text.isEmpty()
+			|| cursor != MessageCursor()) {
+			callback(
+				key,
+				draft.msgId,
+				draft.textWithTags,
+				draft.previewState,
+				cursor);
+		}
 	}
 }
 
-void Account::writeDrafts(
+void Account::registerDraftSource(
 		not_null<History*> history,
-		Data::DraftKey replaceKey,
-		MessageDraft replaceDraft) {
+		Data::DraftKey key,
+		MessageDraftSource source) {
+	Expects(source.draft != nullptr);
+	Expects(source.cursor != nullptr);
+
+	_draftSources[history][key] = std::move(source);
+}
+
+void Account::unregisterDraftSource(
+		not_null<History*> history,
+		Data::DraftKey key) {
+	const auto i = _draftSources.find(history);
+	if (i != _draftSources.end()) {
+		i->second.remove(key);
+		if (i->second.empty()) {
+			_draftSources.erase(i);
+		}
+	}
+}
+
+void Account::writeDrafts(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
 	const auto cloudIt = map.find(Data::DraftKey::Cloud());
@@ -1000,14 +1034,16 @@ void Account::writeDrafts(
 		? cloudIt->second.get()
 		: nullptr;
 	const auto supportMode = _owner->session().supportMode();
+	const auto sourcesIt = _draftSources.find(history);
+	const auto &sources = (sourcesIt != _draftSources.end())
+		? sourcesIt->second
+		: EmptyMessageDraftSources();
 	auto count = 0;
 	EnumerateDrafts(
 		map,
 		cloudDraft,
 		supportMode,
-		replaceKey,
-		replaceDraft,
-		MessageCursor(),
+		sources,
 		[&](auto&&...) { ++count; });
 	if (!count) {
 		auto i = _draftsMap.find(peerId);
@@ -1034,18 +1070,16 @@ void Account::writeDrafts(
 			const TextWithTags &text,
 			Data::PreviewState,
 			auto&&) { // cursor
-		size += sizeof(qint32) // key
+		size += sizeof(qint64) // key
 			+ Serialize::stringSize(text.text)
-			+ sizeof(quint32) + TextUtilities::SerializeTagsSize(text.tags)
-			+ 2 * sizeof(qint32); // msgId, previewState
+			+ sizeof(qint64) + TextUtilities::SerializeTagsSize(text.tags)
+			+ sizeof(qint64) + sizeof(qint32); // msgId, previewState
 	};
 	EnumerateDrafts(
 		map,
 		cloudDraft,
 		supportMode,
-		replaceKey,
-		replaceDraft,
-		MessageCursor(),
+		sources,
 		sizeCallback);
 
 	EncryptedDescriptor data(size);
@@ -1064,16 +1098,14 @@ void Account::writeDrafts(
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
-			<< qint32(msgId)
+			<< qint64(msgId.bare)
 			<< qint32(previewState);
 	};
 	EnumerateDrafts(
 		map,
 		cloudDraft,
 		supportMode,
-		replaceKey,
-		replaceDraft,
-		MessageCursor(),
+		sources,
 		writeCallback);
 
 	FileWriteDescriptor file(i->second, _basePath);
@@ -1082,10 +1114,7 @@ void Account::writeDrafts(
 	_draftsNotReadMap.remove(peerId);
 }
 
-void Account::writeDraftCursors(
-		not_null<History*> history,
-		Data::DraftKey replaceKey,
-		MessageCursor replaceCursor) {
+void Account::writeDraftCursors(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
 	const auto cloudIt = map.find(Data::DraftKey::Cloud());
@@ -1093,14 +1122,16 @@ void Account::writeDraftCursors(
 		? cloudIt->second.get()
 		: nullptr;
 	const auto supportMode = _owner->session().supportMode();
+	const auto sourcesIt = _draftSources.find(history);
+	const auto &sources = (sourcesIt != _draftSources.end())
+		? sourcesIt->second
+		: EmptyMessageDraftSources();
 	auto count = 0;
 	EnumerateDrafts(
 		map,
 		cloudDraft,
 		supportMode,
-		replaceKey,
-		MessageDraft(),
-		replaceCursor,
+		sources,
 		[&](auto&&...) { ++count; });
 	if (!count) {
 		clearDraftCursors(peerId);
@@ -1112,21 +1143,24 @@ void Account::writeDraftCursors(
 		writeMapQueued();
 	}
 
-	auto size = int(sizeof(quint64) * 2 + sizeof(quint32) * 4);
+	auto size = int(sizeof(quint64) * 2
+		+ sizeof(quint32)
+		+ (sizeof(qint64) + sizeof(qint32) * 3) * count);
 
 	EncryptedDescriptor data(size);
 	data.stream
-		<< quint64(kMultiDraftTag)
+		<< quint64(kMultiDraftCursorsTag)
 		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
-			auto&&, // key
+			const Data::DraftKey &key,
 			MsgId, // msgId
 			auto&&, // text
 			Data::PreviewState,
 			const MessageCursor &cursor) { // cursor
 		data.stream
+			<< key.serialize()
 			<< qint32(cursor.position)
 			<< qint32(cursor.anchor)
 			<< qint32(cursor.scroll);
@@ -1135,9 +1169,7 @@ void Account::writeDraftCursors(
 		map,
 		cloudDraft,
 		supportMode,
-		replaceKey,
-		MessageDraft(),
-		replaceCursor,
+		sources,
 		writeCallback);
 
 	FileWriteDescriptor file(i->second, _basePath);
@@ -1166,7 +1198,9 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 	}
 	quint64 tag = 0;
 	draft.stream >> tag;
-	if (tag != kMultiDraftTag) {
+	if (tag != kMultiDraftCursorsTag
+		&& tag != kMultiDraftCursorsTagOld
+		&& tag != kMultiDraftTagOld) {
 		readDraftCursorsLegacy(peerId, draft, tag, map);
 		return;
 	}
@@ -1178,10 +1212,24 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 		clearDraftCursors(peerId);
 		return;
 	}
+	const auto keysWritten = (tag == kMultiDraftCursorsTag);
+	const auto keysOld = (tag == kMultiDraftCursorsTagOld);
 	for (auto i = 0; i != count; ++i) {
+		qint64 keyValue = 0;
+		qint32 keyValueOld = 0;
+		if (keysWritten) {
+			draft.stream >> keyValue;
+		} else if (keysOld) {
+			draft.stream >> keyValueOld;
+		}
+		const auto key = keysWritten
+			? Data::DraftKey::FromSerialized(keyValue)
+			: keysOld
+			? Data::DraftKey::FromSerializedOld(keyValueOld)
+			: Data::DraftKey::Local();
 		qint32 position = 0, anchor = 0, scroll = QFIXED_MAX;
 		draft.stream >> position >> anchor >> scroll;
-		if (const auto i = map.find(Data::DraftKey::Local()); i != end(map)) {
+		if (const auto i = map.find(key); i != end(map)) {
 			i->second->cursor = MessageCursor(position, anchor, scroll);
 		}
 	}
@@ -1249,7 +1297,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 
 	quint64 tag = 0;
 	draft.stream >> tag;
-	if (tag != kMultiDraftTag) {
+	if (tag != kMultiDraftTag && tag != kMultiDraftTagOld) {
 		readDraftsWithCursorsLegacy(history, draft, tag);
 		return;
 	}
@@ -1264,12 +1312,18 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		return;
 	}
 	auto map = Data::HistoryDrafts();
+	const auto keysOld = (tag == kMultiDraftTagOld);
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags data;
 		QByteArray tagsSerialized;
-		qint32 keyValue = 0, messageId = 0, uncheckedPreviewState = 0;
+		qint64 keyValue = 0;
+		qint32 keyValueOld = 0, messageId = 0, uncheckedPreviewState = 0;
+		if (keysOld) {
+			draft.stream >> keyValueOld;
+		} else {
+			draft.stream >> keyValue;
+		}
 		draft.stream
-			>> keyValue
 			>> data.text
 			>> tagsSerialized
 			>> messageId
@@ -1283,7 +1337,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		case Data::PreviewState::EmptyOnEdit:
 			previewState = Data::PreviewState(uncheckedPreviewState);
 		}
-		const auto key = Data::DraftKey::FromSerialized(keyValue);
+		const auto key = keysOld
+			? Data::DraftKey::FromSerializedOld(keyValueOld)
+			: Data::DraftKey::FromSerialized(keyValue);
 		if (key && key != Data::DraftKey::Cloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
 				data,
@@ -1515,11 +1571,11 @@ void Account::writeStickerSet(
 	const auto writeInfo = [&](int count) {
 		stream
 			<< quint64(set.id)
-			<< quint64(set.access)
+			<< quint64(set.accessHash)
+			<< quint64(set.hash)
 			<< set.title
 			<< set.shortName
 			<< qint32(count)
-			<< qint32(set.hash)
 			<< qint32(set.flags)
 			<< qint32(set.installDate);
 		Serialize::writeImageLocation(stream, set.thumbnailLocation());
@@ -1590,11 +1646,11 @@ void Account::writeStickerSets(
 			continue;
 		}
 
-		// id + access + title + shortName + stickersCount + hash + flags + installDate
-		size += sizeof(quint64) * 2
+		// id + accessHash + hash + title + shortName + stickersCount + flags + installDate
+		size += sizeof(quint64) * 3
 			+ Serialize::stringSize(raw->title)
 			+ Serialize::stringSize(raw->shortName)
-			+ sizeof(qint32) * 4
+			+ sizeof(qint32) * 3
 			+ Serialize::imageLocationSize(raw->thumbnailLocation());
 		if (raw->flags & SetFlag::NotLoaded) {
 			continue;
@@ -1689,22 +1745,21 @@ void Account::readStickerSets(
 		return failed();
 	}
 	for (auto i = 0; i != count; ++i) {
-		quint64 setId = 0, setAccess = 0;
+		quint64 setId = 0, setAccessHash = 0, setHash = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
 		qint32 setInstallDate = 0;
-		qint32 setHash = 0;
 		Data::StickersSetFlags setFlags = 0;
 		qint32 setFlagsValue = 0;
 		ImageLocation setThumbnail;
 
 		stickers.stream
 			>> setId
-			>> setAccess
+			>> setAccessHash
+			>> setHash
 			>> setTitle
 			>> setShortName
 			>> scnt
-			>> setHash
 			>> setFlagsValue
 			>> setInstallDate;
 		const auto thumbnail = Serialize::readImageLocation(
@@ -1719,34 +1774,7 @@ void Account::readStickerSets(
 			setThumbnail = *thumbnail;
 		}
 
-		if (stickers.version >= 2008007) {
-			setFlags = Data::StickersSetFlags::from_raw(setFlagsValue);
-		} else {
-			using Saved = MTPDstickerSet::Flag;
-			using Flag = SetFlag;
-			struct Conversion {
-				Saved saved;
-				Flag flag;
-			};
-			const auto conversions = {
-				Conversion{ Saved::f_archived, Flag::Archived },
-				Conversion{ Saved::f_installed_date, Flag::Installed },
-				Conversion{ Saved::f_masks, Flag::Masks },
-				Conversion{ Saved::f_official, Flag::Official },
-				Conversion{ Saved(1U << 30), Flag::NotLoaded },
-				Conversion{ Saved(1U << 29), Flag::Featured },
-				Conversion{ Saved(1U << 28), Flag::Unread },
-				Conversion{ Saved(1U << 27), Flag::Special },
-			};
-			auto flagsSet = Flag() | 0;
-			for (const auto &conversion : conversions) {
-				if (setFlagsValue & int(conversion.saved)) {
-					flagsSet |= conversion.flag;
-				}
-			}
-			setFlags = flagsSet;
-		}
-
+		setFlags = Data::StickersSetFlags::from_raw(setFlagsValue);
 		if (setId == Data::Stickers::DefaultSetId) {
 			setTitle = tr::lng_stickers_default_set(tr::now);
 			setFlags |= SetFlag::Official | SetFlag::Special;
@@ -1771,11 +1799,11 @@ void Account::readStickerSets(
 			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
 				&_owner->session().data(),
 				setId,
-				setAccess,
+				setAccessHash,
+				setHash,
 				setTitle,
 				setShortName,
 				0,
-				setHash,
 				setFlags,
 				setInstallDate)).first;
 			it->second->setThumbnail(
@@ -1797,7 +1825,10 @@ void Account::readStickerSets(
 			set->count = 0;
 		}
 
-		Serialize::Document::StickerSetInfo info(setId, setAccess, setShortName);
+		Serialize::Document::StickerSetInfo info(
+			setId,
+			setAccessHash,
+			setShortName);
 		base::flat_set<DocumentId> read;
 		for (int32 j = 0; j < scnt; ++j) {
 			auto document = Serialize::Document::readStickerFromStream(
@@ -2060,11 +2091,11 @@ void Account::importOldRecentStickers() {
 		std::make_unique<Data::StickersSet>(
 			&_owner->session().data(),
 			Data::Stickers::DefaultSetId,
-			uint64(0),
+			uint64(0), // accessHash
+			uint64(0), // hash
 			tr::lng_stickers_default_set(tr::now),
 			QString(),
 			0, // count
-			0, // hash
 			(SetFlag::Official | SetFlag::Installed | SetFlag::Special),
 			kDefaultStickerInstallDate)).first->second.get();
 	const auto custom = sets.emplace(
@@ -2072,11 +2103,11 @@ void Account::importOldRecentStickers() {
 		std::make_unique<Data::StickersSet>(
 			&_owner->session().data(),
 			Data::Stickers::CustomSetId,
-			uint64(0),
+			uint64(0), // accessHash
+			uint64(0), // hash
 			qsl("Custom stickers"),
 			QString(),
 			0, // count
-			0, // hash
 			(SetFlag::Installed | SetFlag::Special),
 			kDefaultStickerInstallDate)).first->second.get();
 
@@ -2223,7 +2254,7 @@ void Account::readInstalledMasks() {
 }
 
 void Account::writeSavedGifs() {
-	auto &saved = _owner->session().data().stickers().savedGifs();
+	const auto &saved = _owner->session().data().stickers().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			ClearKey(_savedGifsKey, _basePath);
@@ -2232,7 +2263,7 @@ void Account::writeSavedGifs() {
 		}
 	} else {
 		quint32 size = sizeof(quint32); // count
-		for_const (auto gif, saved) {
+		for (const auto gif : saved) {
 			size += Serialize::Document::sizeInStream(gif);
 		}
 
@@ -2242,7 +2273,7 @@ void Account::writeSavedGifs() {
 		}
 		EncryptedDescriptor data(size);
 		data.stream << quint32(saved.size());
-		for_const (auto gif, saved) {
+		for (const auto gif : saved) {
 			Serialize::Document::writeToStream(data.stream, gif);
 		}
 		FileWriteDescriptor file(_savedGifsKey, _basePath);
@@ -2495,14 +2526,14 @@ void Account::writeExportSettings(const Export::Settings &settings) {
 	settings.singlePeer.match([&](const MTPDinputPeerUser & user) {
 		data.stream
 			<< kSinglePeerTypeUser
-			<< qint32(user.vuser_id().v)
+			<< quint64(user.vuser_id().v)
 			<< quint64(user.vaccess_hash().v);
 	}, [&](const MTPDinputPeerChat & chat) {
-		data.stream << kSinglePeerTypeChat << qint32(chat.vchat_id().v);
+		data.stream << kSinglePeerTypeChat << quint64(chat.vchat_id().v);
 	}, [&](const MTPDinputPeerChannel & channel) {
 		data.stream
 			<< kSinglePeerTypeChannel
-			<< qint32(channel.vchannel_id().v)
+			<< quint64(channel.vchannel_id().v)
 			<< quint64(channel.vaccess_hash().v);
 	}, [&](const MTPDinputPeerSelf &) {
 		data.stream << kSinglePeerTypeSelf;
@@ -2533,7 +2564,8 @@ Export::Settings Account::readExportSettings() {
 	quint32 mediaTypes = 0, mediaSizeLimit = 0;
 	quint32 format = 0, availableAt = 0;
 	QString path;
-	qint32 singlePeerType = 0, singlePeerBareId = 0;
+	qint32 singlePeerType = 0, singlePeerBareIdOld = 0;
+	quint64 singlePeerBareId = 0;
 	quint64 singlePeerAccessHash = 0;
 	qint32 singlePeerFrom = 0, singlePeerTill = 0;
 	file.stream
@@ -2547,6 +2579,12 @@ Export::Settings Account::readExportSettings() {
 	if (!file.stream.atEnd()) {
 		file.stream >> singlePeerType;
 		switch (singlePeerType) {
+		case kSinglePeerTypeUserOld:
+		case kSinglePeerTypeChannelOld: {
+			file.stream >> singlePeerBareIdOld >> singlePeerAccessHash;
+		} break;
+		case kSinglePeerTypeChatOld: file.stream >> singlePeerBareIdOld; break;
+
 		case kSinglePeerTypeUser:
 		case kSinglePeerTypeChannel: {
 			file.stream >> singlePeerBareId >> singlePeerAccessHash;
@@ -2570,15 +2608,26 @@ Export::Settings Account::readExportSettings() {
 	result.availableAt = availableAt;
 	result.singlePeer = [&] {
 		switch (singlePeerType) {
+		case kSinglePeerTypeUserOld:
+			return MTP_inputPeerUser(
+				MTP_long(singlePeerBareIdOld),
+				MTP_long(singlePeerAccessHash));
+		case kSinglePeerTypeChatOld:
+			return MTP_inputPeerChat(MTP_long(singlePeerBareIdOld));
+		case kSinglePeerTypeChannelOld:
+			return MTP_inputPeerChannel(
+				MTP_long(singlePeerBareIdOld),
+				MTP_long(singlePeerAccessHash));
+
 		case kSinglePeerTypeUser:
 			return MTP_inputPeerUser(
-				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerBareId),
 				MTP_long(singlePeerAccessHash));
 		case kSinglePeerTypeChat:
-			return MTP_inputPeerChat(MTP_int(singlePeerBareId));
+			return MTP_inputPeerChat(MTP_long(singlePeerBareId));
 		case kSinglePeerTypeChannel:
 			return MTP_inputPeerChannel(
-				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerBareId),
 				MTP_long(singlePeerAccessHash));
 		case kSinglePeerTypeSelf:
 			return MTP_inputPeerSelf();
@@ -2744,10 +2793,6 @@ bool Account::decrypt(
 	}
 	MTP::aesDecryptLocal(src, dst, len, _localKey, key128);
 	return true;
-}
-
-void Account::AddFakePasscode(std::unique_ptr<FakePasscode::FakePasscode> passcode) {
-    _fakePasscodes.push_back(std::move(passcode));
 }
 
 } // namespace Storage

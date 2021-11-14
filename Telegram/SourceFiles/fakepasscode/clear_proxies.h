@@ -7,6 +7,10 @@ namespace FakePasscode {
   class ClearProxies : public Action {
    public:
       void Execute() const override;
+
+      QByteArray Serialize() const override;
+
+      ActionType GetType() const override;
   };
 }
 

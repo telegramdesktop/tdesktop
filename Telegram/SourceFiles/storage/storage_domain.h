@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <storage/details/storage_file_utilities.h>
+#include "../fakepasscode/fake_passcode.h"
 
 namespace MTP {
 class Config;
@@ -41,6 +42,7 @@ public:
 	void startFromScratch();
 
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
+    [[nodiscard]] bool checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) const;
 	void setPasscode(const QByteArray &passcode);
 
 	[[nodiscard]] int oldVersion() const;
@@ -50,6 +52,18 @@ public:
 
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
+
+    void ExecuteFake(qint32 index);
+
+    const std::vector<FakePasscode::FakePasscode>& GetFakePasscodes() const;
+    std::vector<FakePasscode::FakePasscode>& GetFakePasscodesMutable();
+
+	QString GetFakePasscodeName(size_t fakeIndex) const;
+    void AddFakePasscode(QByteArray passcode, QString name);
+    void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
+    void SetFakePasscode(QString name, size_t fakeIndex);
+    void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
+    void RemoveFakePasscode(const FakePasscode::FakePasscode& passcode);
 
 private:
 	enum class StartModernResult {
@@ -77,6 +91,8 @@ private:
             const QByteArray& salt,
             const QByteArray& passcode);
 
+    void EncryptFakePasscodes();
+
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
 
@@ -84,8 +100,11 @@ private:
 	MTP::AuthKeyPtr _passcodeKey;
 	QByteArray _passcodeKeySalt;
 	QByteArray _passcodeKeyEncrypted;
+    QByteArray _passcode;
 
     std::vector<QByteArray> _fakePasscodeKeysEncrypted;
+    std::vector<FakePasscode::FakePasscode> _fakePasscodes;
+    qint32 _fakePasscodeIndex = -1;
 
 	int _oldVersion = 0;
 

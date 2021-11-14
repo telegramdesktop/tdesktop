@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_view_button.h"
 
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_user.h"
+#include "data/data_web_page.h"
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -42,21 +45,70 @@ inline auto PeerToPhrase(not_null<PeerData*> peer) {
 	return Ui::Text::Upper(phrase);
 }
 
+inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return Ui::Text::Upper((type == WebPageType::Theme)
+		? tr::lng_view_button_theme(tr::now)
+		: (type == WebPageType::Message)
+		? tr::lng_view_button_message(tr::now)
+		: (type == WebPageType::Group)
+		? tr::lng_view_button_group(tr::now)
+		: (type == WebPageType::WallPaper)
+		? tr::lng_view_button_background(tr::now)
+		: (type == WebPageType::Channel)
+		? tr::lng_view_button_channel(tr::now)
+		: (type == WebPageType::VoiceChat)
+		? tr::lng_view_button_voice_chat(tr::now)
+		: (type == WebPageType::Livestream)
+		? tr::lng_view_button_voice_chat_channel(tr::now)
+		: (type == WebPageType::Bot)
+		? tr::lng_view_button_bot(tr::now)
+		: (type == WebPageType::User)
+		? tr::lng_view_button_user(tr::now)
+		: QString());
+}
+
 } // namespace
 
 struct ViewButton::Inner {
 	Inner(not_null<PeerData*> peer, Fn<void()> updateCallback);
+	Inner(not_null<Data::Media*> media, Fn<void()> updateCallback);
 	void updateMask(int height);
 	void toggleRipple(bool pressed);
 
 	const style::margins &margins;
 	const ClickHandlerPtr link;
 	const Fn<void()> updateCallback;
+	bool underDate = true;
 	int lastWidth = 0;
 	QPoint lastPoint;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	Ui::Text::String text;
 };
+
+bool ViewButton::MediaHasViewButton(not_null<Data::Media*> media) {
+	return media->webpage()
+		? MediaHasViewButton(media->webpage())
+		: false;
+}
+
+bool ViewButton::MediaHasViewButton(
+		not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return (type == WebPageType::Message)
+		|| (type == WebPageType::Group)
+		|| (type == WebPageType::Channel)
+		// || (type == WebPageType::Bot)
+		// || (type == WebPageType::User)
+		|| (type == WebPageType::VoiceChat)
+		|| (type == WebPageType::Livestream)
+		|| ((type == WebPageType::Theme)
+			&& webpage->document
+			&& webpage->document->isTheme())
+		|| ((type == WebPageType::WallPaper)
+			&& webpage->document
+			&& webpage->document->isWallPaper());
+}
 
 ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
@@ -71,6 +123,26 @@ ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
 }))
 , updateCallback(std::move(updateCallback))
 , text(st::historyViewButtonTextStyle, PeerToPhrase(peer)) {
+}
+
+ViewButton::Inner::Inner(
+	not_null<Data::Media*> media,
+	Fn<void()> updateCallback)
+: margins(st::historyViewButtonMargins)
+, link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		const auto &data = controller->session().data();
+		const auto webpage = media->webpage();
+		if (!webpage) {
+			return;
+		}
+		HiddenUrlClickHandler::Open(webpage->url, context.other);
+	}
+}))
+, updateCallback(std::move(updateCallback))
+, underDate(false)
+, text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {
 }
 
 void ViewButton::Inner::updateMask(int height) {
@@ -94,6 +166,12 @@ void ViewButton::Inner::toggleRipple(bool pressed) {
 
 ViewButton::ViewButton(not_null<PeerData*> peer, Fn<void()> updateCallback)
 : _inner(std::make_unique<Inner>(peer, std::move(updateCallback))) {
+}
+
+ViewButton::ViewButton(
+	not_null<Data::Media*> media,
+	Fn<void()> updateCallback)
+: _inner(std::make_unique<Inner>(media, std::move(updateCallback))) {
 }
 
 ViewButton::~ViewButton() {
@@ -169,10 +247,11 @@ bool ViewButton::getState(
 	return true;
 }
 
-QRect ViewButton::countSponsoredRect(const QRect &r) const {
+QRect ViewButton::countRect(const QRect &r) const {
+	const auto dateHeight = (_inner->underDate ? 0 : st::msgDateFont->height);
 	return QRect(
 		r.left(),
-		r.top() + r.height() - height(),
+		r.top() + r.height() - height() - dateHeight,
 		r.width(),
 		height()) - _inner->margins;
 }

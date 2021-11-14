@@ -213,6 +213,9 @@ private:
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
+	[[nodiscard]] bool ensureViewButton() const;
+	[[nodiscard]] int viewButtonHeight() const;
+
 	WebPage *logEntryOriginal() const;
 
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
@@ -224,7 +227,7 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<CommentsButton> _comments;
-	std::unique_ptr<ViewButton> _viewButton;
+	mutable std::unique_ptr<ViewButton> _viewButton;
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;

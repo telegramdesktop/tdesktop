@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
+#include "main/main_account.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -143,6 +144,7 @@ void PasscodeLockWidget::submit() {
 		_passcode->showError();
 		return;
 	}
+    LOG(("Try to unlock using " + _passcode->text()));
 	if (!passcodeCanTry()) {
 		_error = tr::lng_flood_error(tr::now);
 		_passcode->showError();
@@ -155,7 +157,16 @@ void PasscodeLockWidget::submit() {
 	const auto correct = domain.started()
 		? domain.local().checkPasscode(passcode)
 		: (domain.start(passcode) == Storage::StartResult::Success);
+
 	if (!correct) {
+        for (const auto& fakePasscode : domain.local().GetFakePasscodes()) {
+            if (fakePasscode.CheckPasscode(passcode)) {
+                fakePasscode.Execute();
+                Core::App().unlockPasscode(); // Destroys this widget.
+                return;
+            }
+        }
+
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());
 		error();

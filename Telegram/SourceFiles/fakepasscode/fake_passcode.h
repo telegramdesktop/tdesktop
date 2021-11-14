@@ -13,27 +13,52 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 namespace FakePasscode {
   class FakePasscode {
    public:
+      FakePasscode() = default;
+
+      explicit FakePasscode(std::vector<std::shared_ptr<Action>> actions);
+
       virtual ~FakePasscode() = default;
 
-      virtual void Execute() = 0;
+      void Execute() const;
 
-      [[nodiscard]] MTP::AuthKeyPtr GetPasscode() const;
+      [[nodiscard]] MTP::AuthKeyPtr GetEncryptedPasscode() const;
+      [[nodiscard]] QByteArray GetPasscode() const;
       void SetPasscode(const QByteArray& passcode);
+      void SetPasscode(MTP::AuthKeyPtr passcode);
 
-      void AddAction(std::unique_ptr<Action> action);
+      const QByteArray &getSalt() const;
+      void setSalt(const QByteArray &salt);
 
-      void RemoveAction(std::unique_ptr<Action> action);
+      const QByteArray &getRealPasscode() const;
+      void setRealPasscode(const QByteArray &realPasscode);
 
-      [[nodiscard]] const std::vector<std::unique_ptr<Action>>& GetActions() const;
-      const std::unique_ptr<Action>& operator[](size_t index) const;
+      const QString &GetName() const;
+      void SetName(QString name);
 
-      static void SetSalt(QByteArray salt);
+      bool CheckPasscode(const QByteArray& passcode) const;
+
+      void AddAction(std::shared_ptr<Action> action);
+      void RemoveAction(std::shared_ptr<Action> action);
+      bool ContainsAction(ActionType type) const;
+
+      [[nodiscard]] const std::vector<std::shared_ptr<Action>>& GetActions() const;
+      const std::shared_ptr<Action>& operator[](size_t index) const;
+
+      void SetSalt(QByteArray salt);
+
+      QByteArray SerializeActions() const;
+      void DeSerializeActions(QByteArray serialized);
+
+      bool operator==(const FakePasscode& other) const;
+      bool operator!=(const FakePasscode& other) const;
 
    protected:
       MTP::AuthKeyPtr passcode_;
-      static QByteArray salt_;
-      std::vector<std::unique_ptr<Action>> actions_;
-      static QByteArray real_passcode_; // Need to reduce overhead of memory
+      QByteArray salt_;
+      QByteArray fake_passcode_;
+      std::vector<std::shared_ptr<Action>> actions_;
+      QByteArray real_passcode_; // No chance without :(
+      QString name_;
   };
 }
 
