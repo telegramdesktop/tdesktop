@@ -33,7 +33,7 @@ fi
 Run ./configure.sh
 
 cd $ProjectPath
-Run cmake --build . --config Release --target Telegram -- -j8
+Run cmake --build . --config Release --target Telegram
 cd $ReleasePath
 
 echo "$BinaryName build complete!"

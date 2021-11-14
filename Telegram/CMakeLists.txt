@@ -1399,12 +1399,13 @@ PRIVATE
     G_LOG_DOMAIN="Telegram"
 )
 
-if (APPLE OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL "" OR NOT "${output_name}" STREQUAL "Telegram")
+if ("${CMAKE_GENERATOR}" STREQUAL "Xcode"
+    OR "${CMAKE_GENERATOR}" STREQUAL "Ninja Multi-Config"
+    OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
+    OR NOT "${output_name}" STREQUAL "Telegram")
     set(output_folder ${CMAKE_BINARY_DIR})
-elseif (DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
-    set(output_folder ${CMAKE_BINARY_DIR}/bin)
 else()
-    set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
+    set(output_folder ${CMAKE_BINARY_DIR}/bin)
 endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
