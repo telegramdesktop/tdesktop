@@ -19,6 +19,8 @@ namespace {
 
 constexpr auto kDaysInWeek = 7;
 constexpr auto kMaxDaysForScroll = kDaysInWeek * 1000;
+constexpr auto kTooltipDelay = crl::time(1000);
+constexpr auto kJumpDelay = 2 * crl::time(1000);
 
 } // namespace
 
@@ -26,9 +28,9 @@ class CalendarBox::Context {
 public:
 	Context(QDate month, QDate highlighted);
 
-	void setBeginningButton(bool enabled);
-	[[nodiscard]] bool hasBeginningButton() const {
-		return _beginningButton;
+	void setHasSelection(bool has);
+	[[nodiscard]] bool hasSelection() const {
+		return _hasSelection;
 	}
 
 	void setMinDate(QDate date);
@@ -63,9 +65,6 @@ public:
 	[[nodiscard]] bool isEnabled(int index) const {
 		return (index >= _minDayIndex) && (index <= _maxDayIndex);
 	}
-	[[nodiscard]] bool atBeginning() const {
-		return _highlighted == _min;
-	}
 
 	[[nodiscard]] rpl::producer<QDate> monthValue() const {
 		return _month.value();
@@ -80,7 +79,7 @@ private:
 	static int DaysShiftForMonth(QDate month, QDate min);
 	static int RowsCountForMonth(QDate month, QDate min, QDate max);
 
-	bool _beginningButton = false;
+	bool _hasSelection = false;
 
 	rpl::variable<QDate> _month;
 	QDate _min, _max;
@@ -102,8 +101,8 @@ CalendarBox::Context::Context(QDate month, QDate highlighted)
 	showMonth(month);
 }
 
-void CalendarBox::Context::setBeginningButton(bool enabled) {
-	_beginningButton = enabled;
+void CalendarBox::Context::setHasSelection(bool has) {
+	_hasSelection = has;
 }
 
 void CalendarBox::Context::setMinDate(QDate date) {
@@ -245,7 +244,6 @@ public:
 
 	[[nodiscard]] int countMaxHeight() const;
 	void setDateChosenCallback(Fn<void(QDate)> callback);
-	void selectBeginning();
 
 	~Inner();
 
@@ -479,10 +477,6 @@ void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 	_dateChosenCallback = std::move(callback);
 }
 
-void CalendarBox::Inner::selectBeginning() {
-	_dateChosenCallback(_context->dateFromIndex(_context->minDayIndex()));
-}
-
 CalendarBox::Inner::~Inner() = default;
 
 class CalendarBox::Title final : public RpWidget {
@@ -575,9 +569,10 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 , _previous(this, st::calendarPrevious)
 , _next(this, st::calendarNext)
 , _callback(std::move(args.callback.value()))
-, _finalize(std::move(args.finalize)) {
+, _finalize(std::move(args.finalize))
+, _jumpTimer([=] { jump(_jumpButton); }) {
 	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_context->setBeginningButton(args.hasBeginningButton);
+	_context->setHasSelection(args.allowsSelection);
 	_context->setMinDate(args.minDate);
 	_context->setMaxDate(args.maxDate);
 
@@ -587,6 +582,60 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 	}) | rpl::start_with_next([=] {
 		processScroll();
 	}, lifetime());
+
+	const auto setupJumps = [&](
+			not_null<IconButton*> button,
+			not_null<bool*> enabled) {
+		button->events(
+		) | rpl::filter([=] {
+			return *enabled;
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			const auto type = e->type();
+			if (type == QEvent::MouseMove
+				&& !(static_cast<QMouseEvent*>(e.get())->buttons()
+					& Qt::LeftButton)) {
+				showJumpTooltip(button);
+			} else if (type == QEvent::Leave) {
+				Ui::Tooltip::Hide();
+			} else if (type == QEvent::MouseButtonPress
+				&& (static_cast<QMouseEvent*>(e.get())->button()
+					== Qt::LeftButton)) {
+				jumpAfterDelay(button);
+			} else if (type == QEvent::MouseButtonRelease
+				&& (static_cast<QMouseEvent*>(e.get())->button()
+					== Qt::LeftButton)) {
+				_jumpTimer.cancel();
+			}
+		}, lifetime());
+	};
+	setupJumps(_previous.data(), &_previousEnabled);
+	setupJumps(_next.data(), &_nextEnabled);
+}
+
+void CalendarBox::showJumpTooltip(not_null<IconButton*> button) {
+	_tooltipButton = button;
+	Ui::Tooltip::Show(kTooltipDelay, this);
+}
+
+void CalendarBox::jumpAfterDelay(not_null<IconButton*> button) {
+	_jumpButton = button;
+	_jumpTimer.callOnce(kJumpDelay);
+	Ui::Tooltip::Hide();
+}
+
+void CalendarBox::jump(QPointer<IconButton> button) {
+	const auto jumpToIndex = [&](int index) {
+		_watchScroll = false;
+		_context->showMonth(_context->dateFromIndex(index));
+		setExactScroll();
+	};
+	if (_jumpButton == _previous.data() && _previousEnabled) {
+		jumpToIndex(_context->minDayIndex());
+	} else if (_jumpButton == _next.data() && _nextEnabled) {
+		jumpToIndex(_context->maxDayIndex());
+	}
+	_jumpButton = nullptr;
+	_jumpTimer.cancel();
 }
 
 void CalendarBox::prepare() {
@@ -606,9 +655,8 @@ void CalendarBox::prepare() {
 	if (_finalize) {
 		_finalize(this);
 	}
-	if (!_context->atBeginning() && _context->hasBeginningButton()) {
-		addLeftButton(tr::lng_calendar_beginning(), [=] {
-			_inner->selectBeginning();
+	if (_context->hasSelection()) {
+		addLeftButton(tr::lng_calendar_select_days(), [=] {
 		});
 	}
 }
@@ -666,16 +714,40 @@ void CalendarBox::processScroll() {
 	_watchScroll = true;
 }
 
+QString CalendarBox::tooltipText() const {
+	if (_tooltipButton == _previous.data()) {
+		return tr::lng_calendar_start_tip(tr::now);
+	} else if (_tooltipButton == _next.data()) {
+		return tr::lng_calendar_end_tip(tr::now);
+	}
+	return QString();
+}
+
+QPoint CalendarBox::tooltipPos() const {
+	return QCursor::pos();
+}
+
+bool CalendarBox::tooltipWindowActive() const {
+	return window()->isActiveWindow();
+}
+
 void CalendarBox::monthChanged(QDate month) {
 	setDimensions(_st.width, st::calendarTitleHeight + _st.daysHeight + _inner->countMaxHeight());
-	auto previousEnabled = isPreviousEnabled();
-	_previous->setIconOverride(previousEnabled ? nullptr : &st::calendarPreviousDisabled);
-	_previous->setRippleColorOverride(previousEnabled ? nullptr : &st::boxBg);
-	_previous->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-	auto nextEnabled = isNextEnabled();
-	_next->setIconOverride(nextEnabled ? nullptr : &st::calendarNextDisabled);
-	_next->setRippleColorOverride(nextEnabled ? nullptr : &st::boxBg);
-	_next->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
+
+	_previousEnabled = isPreviousEnabled();
+	_previous->setIconOverride(_previousEnabled ? nullptr : &st::calendarPreviousDisabled);
+	_previous->setRippleColorOverride(_previousEnabled ? nullptr : &st::boxBg);
+	_previous->setCursor(_previousEnabled ? style::cur_pointer : style::cur_default);
+	if (!_previousEnabled) {
+		_previous->clearState();
+	}
+	_nextEnabled = isNextEnabled();
+	_next->setIconOverride(_nextEnabled ? nullptr : &st::calendarNextDisabled);
+	_next->setRippleColorOverride(_nextEnabled ? nullptr : &st::boxBg);
+	_next->setCursor(_nextEnabled ? style::cur_pointer : style::cur_default);
+	if (!_nextEnabled) {
+		_next->clearState();
+	}
 }
 
 void CalendarBox::resizeEvent(QResizeEvent *e) {
@@ -700,7 +772,9 @@ void CalendarBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Home) {
-		_inner->selectBeginning();
+		jump(_previous.data());
+	} else if (e->key() == Qt::Key_End) {
+		jump(_next.data());
 	} else if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Up) {
 		goPreviousMonth();
 	} else if (e->key() == Qt::Key_Right || e->key() == Qt::Key_Down) {

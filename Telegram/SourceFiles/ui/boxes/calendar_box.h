@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/layers/box_content.h"
+#include "ui/widgets/tooltip.h"
 #include "base/required.h"
+#include "base/timer.h"
 
 namespace style {
 struct CalendarSizes;
@@ -35,10 +37,10 @@ struct CalendarBoxArgs {
 	const style::CalendarSizes &st = st::defaultCalendarSizes;
 	QDate minDate;
 	QDate maxDate;
-	bool hasBeginningButton = false;
+	bool allowsSelection = false;
 };
 
-class CalendarBox final : public BoxContent {
+class CalendarBox final : public BoxContent, private AbstractTooltipShower {
 public:
 	CalendarBox(QWidget*, CalendarBoxArgs &&args);
 	~CalendarBox();
@@ -60,6 +62,14 @@ private:
 	void setExactScroll();
 	void processScroll();
 
+	void showJumpTooltip(not_null<IconButton*> button);
+	void jumpAfterDelay(not_null<IconButton*> button);
+	void jump(QPointer<IconButton> button);
+
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
+
 	const style::CalendarSizes &_st;
 
 	class Context;
@@ -74,10 +84,16 @@ private:
 	object_ptr<Title> _title;
 	object_ptr<IconButton> _previous;
 	object_ptr<IconButton> _next;
+	bool _previousEnabled = false;
+	bool _nextEnabled = false;
 
 	Fn<void(QDate date)> _callback;
 	FnMut<void(not_null<CalendarBox*>)> _finalize;
 	bool _watchScroll = false;
+
+	QPointer<IconButton> _tooltipButton;
+	QPointer<IconButton> _jumpButton;
+	base::Timer _jumpTimer;
 
 };
 

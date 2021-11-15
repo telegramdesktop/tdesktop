@@ -78,7 +78,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_month_day_year" = "{month} {day}, {year}";
 "lng_month_year" = "{month} {year}";
 
-"lng_calendar_beginning" = "Beginning";
+"lng_calendar_select_days" = "Select days";
+"lng_calendar_start_tip" = "Press and hold to jump to the start.";
+"lng_calendar_end_tip" = "Press and hold to jump to the end.";
 
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";

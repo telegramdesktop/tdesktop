@@ -1147,63 +1147,61 @@ void SessionController::startOrJoinGroupCall(
 }
 
 void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
+	const auto history = chat.history();
+	if (!history) {
+		return;
+	}
 	const auto currentPeerDate = [&] {
-		if (const auto history = chat.history()) {
-			if (history->scrollTopItem) {
-				return history->scrollTopItem->dateTime().date();
-			} else if (history->loadedAtTop()
-				&& !history->isEmpty()
-				&& history->peer->migrateFrom()) {
-				if (const auto migrated = history->owner().historyLoaded(history->peer->migrateFrom())) {
-					if (migrated->scrollTopItem) {
-						// We're up in the migrated history.
-						// So current date is the date of first message here.
-						return history->blocks.front()->messages.front()->dateTime().date();
-					}
+		if (history->scrollTopItem) {
+			return history->scrollTopItem->dateTime().date();
+		} else if (history->loadedAtTop()
+			&& !history->isEmpty()
+			&& history->peer->migrateFrom()) {
+			if (const auto migrated = history->owner().historyLoaded(history->peer->migrateFrom())) {
+				if (migrated->scrollTopItem) {
+					// We're up in the migrated history.
+					// So current date is the date of first message here.
+					return history->blocks.front()->messages.front()->dateTime().date();
 				}
-			} else if (const auto item = history->lastMessage()) {
-				return base::unixtime::parse(item->date()).date();
 			}
+		} else if (const auto item = history->lastMessage()) {
+			return base::unixtime::parse(item->date()).date();
 		}
 		return QDate();
 	}();
-	const auto maxPeerDate = [](Dialogs::Key chat) {
-		if (auto history = chat.history()) {
-			if (const auto channel = history->peer->migrateTo()) {
-				history = channel->owner().historyLoaded(channel);
-			}
-			if (const auto item = history ? history->lastMessage() : nullptr) {
-				return base::unixtime::parse(item->date()).date();
-			}
+	const auto maxPeerDate = [&] {
+		const auto check = history->peer->migrateTo()
+			? history->owner().historyLoaded(history->peer->migrateTo())
+			: history;
+		if (const auto item = check ? check->lastMessage() : nullptr) {
+			return base::unixtime::parse(item->date()).date();
 		}
-		return QDate::currentDate();
-	};
-	const auto minPeerDate = [](Dialogs::Key chat) {
+		return QDate();
+	}();
+	const auto minPeerDate = [&] {
 		const auto startDate = [] {
 			// Telegram was launched in August 2013 :)
 			return QDate(2013, 8, 1);
 		};
-		if (const auto history = chat.history()) {
-			if (const auto chat = history->peer->migrateFrom()) {
-				if (const auto history = chat->owner().historyLoaded(chat)) {
-					if (history->loadedAtTop()) {
-						if (!history->isEmpty()) {
-							return history->blocks.front()->messages.front()->dateTime().date();
-						}
-					} else {
-						return startDate();
+		if (const auto chat = history->peer->migrateFrom()) {
+			if (const auto history = chat->owner().historyLoaded(chat)) {
+				if (history->loadedAtTop()) {
+					if (!history->isEmpty()) {
+						return history->blocks.front()->messages.front()->dateTime().date();
 					}
+				} else {
+					return startDate();
 				}
-			}
-			if (history->loadedAtTop()) {
-				if (!history->isEmpty()) {
-					return history->blocks.front()->messages.front()->dateTime().date();
-				}
-				return QDate::currentDate();
 			}
 		}
+		if (history->loadedAtTop()) {
+			if (!history->isEmpty()) {
+				return history->blocks.front()->messages.front()->dateTime().date();
+			}
+			return QDate::currentDate();
+		}
 		return startDate();
-	};
+	}();
 	const auto highlighted = !requestedDate.isNull()
 		? requestedDate
 		: !currentPeerDate.isNull()
@@ -1215,9 +1213,9 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		.callback = [=](const QDate &date) {
 			session().api().jumpToDate(chat, date);
 		},
-		.minDate = minPeerDate(chat),
-		.maxDate = maxPeerDate(chat),
-		.hasBeginningButton = true,
+		.minDate = minPeerDate,
+		.maxDate = maxPeerDate,
+		.allowsSelection = history->peer->isUser(),
 	}));
 }
 
