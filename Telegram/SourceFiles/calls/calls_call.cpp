@@ -38,7 +38,6 @@ namespace tgcalls {
 class InstanceImpl;
 class InstanceV2Impl;
 class InstanceImplLegacy;
-class InstanceImplReference;
 void SetLegacyGlobalServerConfig(const std::string &serverConfig);
 } // namespace tgcalls
 
@@ -388,12 +387,15 @@ void Call::setupOutgoingVideo() {
 					_videoCaptureIsScreencast);
 				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
+			_videoCapture->setState(tgcalls::VideoState::Active);
 			if (_instance) {
 				_instance->setVideoCapture(_videoCapture);
 			}
-			_videoCapture->setState(tgcalls::VideoState::Active);
 		} else if (_videoCapture) {
 			_videoCapture->setState(tgcalls::VideoState::Inactive);
+			if (_instance) {
+				_instance->setVideoCapture(nullptr);
+			}
 		}
 	}, _lifetime);
 }
