@@ -608,14 +608,14 @@ void ChatBackground::checkUploadWallPaper() {
 		return;
 	}
 	_wallPaperUploadLifetime = _session->uploader().documentReady(
-	) | rpl::start_with_next([=](const Storage::UploadedDocument &data) {
+	) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
 		if (data.fullId != _wallPaperUploadId) {
 			return;
 		}
 		_wallPaperUploadId = FullMsgId();
 		_wallPaperRequestId = _session->api().request(
 			MTPaccount_UploadWallPaper(
-				data.file,
+				data.info.file,
 				MTP_string("image/jpeg"),
 				_paper.mtpSettings()
 			)

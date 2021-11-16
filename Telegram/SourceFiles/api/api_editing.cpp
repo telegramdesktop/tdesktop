@@ -172,33 +172,28 @@ void RescheduleMessage(
 
 void EditMessageWithUploadedDocument(
 		HistoryItem *item,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		RemoteFileInfo info,
+		SendOptions options) {
 	if (!item || !item->media() || !item->media()->document()) {
 		return;
 	}
-	const auto media = PrepareUploadedDocument(
+	EditMessageWithUploadedMedia(
 		item,
-		file,
-		thumb,
-		std::move(attachedStickers));
-	EditMessageWithUploadedMedia(item, options, media);
+		options,
+		PrepareUploadedDocument(item, std::move(info)));
 }
 
 void EditMessageWithUploadedPhoto(
 		HistoryItem *item,
-		const MTPInputFile &file,
-		SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		RemoteFileInfo info,
+		SendOptions options) {
 	if (!item || !item->media() || !item->media()->photo()) {
 		return;
 	}
-	const auto media = PrepareUploadedPhoto(
-		file,
-		std::move(attachedStickers));
-	EditMessageWithUploadedMedia(item, options, media);
+	EditMessageWithUploadedMedia(
+		item,
+		options,
+		PrepareUploadedPhoto(std::move(info)));
 }
 
 mtpRequestId EditCaption(

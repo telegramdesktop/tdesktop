@@ -45,4 +45,10 @@ struct MessageToSend {
 	WebPageId webPageId = 0;
 };
 
+struct RemoteFileInfo {
+	MTPInputFile file;
+	std::optional<MTPInputFile> thumb;
+	std::vector<MTPInputDocument> attachedStickers;
+};
+
 } // namespace Api

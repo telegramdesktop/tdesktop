@@ -3963,13 +3963,10 @@ void ApiWrap::sendFile(
 
 void ApiWrap::sendUploadedPhoto(
 		FullMsgId localId,
-		const MTPInputFile &file,
-		Api::SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		Api::RemoteFileInfo info,
+		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		const auto media = Api::PrepareUploadedPhoto(
-			file,
-			std::move(attachedStickers));
+		const auto media = Api::PrepareUploadedPhoto(std::move(info));
 		if (const auto groupId = item->groupId()) {
 			uploadAlbumMedia(item, groupId, media);
 		} else {
@@ -3980,19 +3977,15 @@ void ApiWrap::sendUploadedPhoto(
 
 void ApiWrap::sendUploadedDocument(
 		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		Api::SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		Api::RemoteFileInfo info,
+		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
 		if (!item->media() || !item->media()->document()) {
 			return;
 		}
 		const auto media = Api::PrepareUploadedDocument(
 			item,
-			file,
-			thumb,
-			std::move(attachedStickers));
+			std::move(info));
 		const auto groupId = item->groupId();
 		if (groupId) {
 			uploadAlbumMedia(item, groupId, media);

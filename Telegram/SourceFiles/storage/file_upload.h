@@ -28,21 +28,11 @@ namespace Storage {
 // MTP big files methods used for files greater than 10mb.
 constexpr auto kUseBigFilesFrom = 10 * 1024 * 1024;
 
-struct UploadedPhoto {
+struct UploadedMedia {
 	FullMsgId fullId;
+	Api::RemoteFileInfo info;
 	Api::SendOptions options;
-	MTPInputFile file;
 	bool edit = false;
-	std::vector<MTPInputDocument> attachedStickers;
-};
-
-struct UploadedDocument {
-	FullMsgId fullId;
-	Api::SendOptions options;
-	MTPInputFile file;
-	std::optional<MTPInputFile> thumb;
-	bool edit = false;
-	std::vector<MTPInputDocument> attachedStickers;
 };
 
 struct UploadSecureProgress {
@@ -75,10 +65,10 @@ public:
 
 	void clear();
 
-	rpl::producer<UploadedPhoto> photoReady() const {
+	rpl::producer<UploadedMedia> photoReady() const {
 		return _photoReady.events();
 	}
-	rpl::producer<UploadedDocument> documentReady() const {
+	rpl::producer<UploadedMedia> documentReady() const {
 		return _documentReady.events();
 	}
 	rpl::producer<UploadSecureDone> secureReady() const {
@@ -138,8 +128,8 @@ private:
 	std::map<FullMsgId, File> uploaded;
 	base::Timer _nextTimer, _stopSessionsTimer;
 
-	rpl::event_stream<UploadedPhoto> _photoReady;
-	rpl::event_stream<UploadedDocument> _documentReady;
+	rpl::event_stream<UploadedMedia> _photoReady;
+	rpl::event_stream<UploadedMedia> _documentReady;
 	rpl::event_stream<UploadSecureDone> _secureReady;
 	rpl::event_stream<FullMsgId> _photoProgress;
 	rpl::event_stream<FullMsgId> _documentProgress;

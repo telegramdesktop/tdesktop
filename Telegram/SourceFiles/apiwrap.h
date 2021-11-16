@@ -357,15 +357,12 @@ public:
 
 	void sendUploadedPhoto(
 		FullMsgId localId,
-		const MTPInputFile &file,
-		Api::SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers);
+		Api::RemoteFileInfo info,
+		Api::SendOptions options);
 	void sendUploadedDocument(
 		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		Api::SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers);
+		Api::RemoteFileInfo file,
+		Api::SendOptions options);
 
 	void cancelLocalItem(not_null<HistoryItem*> item);
 

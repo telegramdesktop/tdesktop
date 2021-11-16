@@ -158,40 +158,34 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 , _stopSessionsTimer([=] { stopSessions(); }) {
 	const auto session = &_api->session();
 	photoReady(
-	) | rpl::start_with_next([=](const UploadedPhoto &data) {
+	) | rpl::start_with_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedPhoto(
 				item,
-				data.file,
-				data.options,
-				data.attachedStickers);
+				std::move(data.info),
+				data.options);
 		} else {
 			_api->sendUploadedPhoto(
 				data.fullId,
-				data.file,
-				data.options,
-				data.attachedStickers);
+				std::move(data.info),
+				data.options);
 		}
 	}, _lifetime);
 
 	documentReady(
-	) | rpl::start_with_next([=](const UploadedDocument &data) {
+	) | rpl::start_with_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedDocument(
 				item,
-				data.file,
-				data.thumb,
-				data.options,
-				data.attachedStickers);
+				std::move(data.info),
+				data.options);
 		} else {
 			_api->sendUploadedDocument(
 				data.fullId,
-				data.file,
-				data.thumb,
-				data.options,
-				data.attachedStickers);
+				std::move(data.info),
+				data.options);
 		}
 	}, _lifetime);
 
@@ -472,11 +466,14 @@ void Uploader::sendNext() {
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
 					_photoReady.fire({
-						uploadingId,
-						options,
-						file,
-						edit,
-						attachedStickers });
+						.fullId = uploadingId,
+						.info = {
+							.file = file,
+							.attachedStickers = attachedStickers,
+						},
+						.options = options,
+						.edit = edit,
+					});
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::ThemeFile
 					|| uploadingData.type() == SendMediaType::Audio) {
@@ -510,12 +507,15 @@ void Uploader::sendNext() {
 							MTP_bytes(thumbMd5));
 					}();
 					_documentReady.fire({
-						uploadingId,
-						options,
-						file,
-						thumb,
-						edit,
-						attachedStickers });
+						.fullId = uploadingId,
+						.info = {
+							.file = file,
+							.thumb = thumb,
+							.attachedStickers = attachedStickers,
+						},
+						.options = options,
+						.edit = edit,
+					});
 				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({
 						uploadingId,
