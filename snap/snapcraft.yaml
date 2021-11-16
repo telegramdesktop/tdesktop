@@ -149,6 +149,8 @@ parts:
       rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    prime:
+      - -./lib/systemd
     after:
       - desktop-qt
       - extra-cmake-modules
