@@ -291,10 +291,6 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	const auto megagroup = peer->asMegagroup();
 	if (!chat && !megagroup) {
 		return false;
-	} else if (peer->migrateTo()) {
-		// They're all always marked as read.
-		// We don't know if there really are any readers.
-		return false;
 	}
 	const auto &appConfig = peer->session().account().appConfig();
 	const auto expirePeriod = TimeId(appConfig.get<double>(
