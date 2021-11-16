@@ -38,12 +38,17 @@ struct CalendarBoxArgs {
 	QDate minDate;
 	QDate maxDate;
 	bool allowsSelection = false;
+	Fn<void(
+		not_null<Ui::CalendarBox*>,
+		std::optional<int>)> selectionChanged;
 };
 
 class CalendarBox final : public BoxContent, private AbstractTooltipShower {
 public:
 	CalendarBox(QWidget*, CalendarBoxArgs &&args);
 	~CalendarBox();
+
+	void toggleSelectionMode(bool enabled);
 
 protected:
 	void prepare() override;
@@ -61,6 +66,7 @@ private:
 	void goNextMonth();
 	void setExactScroll();
 	void processScroll();
+	void createButtons();
 
 	void showJumpTooltip(not_null<IconButton*> button);
 	void jumpAfterDelay(not_null<IconButton*> button);
@@ -94,6 +100,11 @@ private:
 	QPointer<IconButton> _tooltipButton;
 	QPointer<IconButton> _jumpButton;
 	base::Timer _jumpTimer;
+
+	bool _selectionMode = false;
+	Fn<void(
+		not_null<Ui::CalendarBox*>,
+		std::optional<int>)> _selectionChanged;
 
 };
 

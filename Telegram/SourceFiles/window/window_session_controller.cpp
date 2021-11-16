@@ -1207,6 +1207,53 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		: !currentPeerDate.isNull()
 		? currentPeerDate
 		: QDate::currentDate();
+	struct ButtonState {
+		enum class Type {
+			None,
+			Disabled,
+			Active,
+		};
+		Type type = Type::None;
+		style::complex_color disabledFg = style::complex_color([] {
+			auto result = st::attentionBoxButton.textFg->c;
+			result.setAlpha(result.alpha() / 2);
+			return result;
+		});
+		style::RoundButton disabled = st::attentionBoxButton;
+	};
+	const auto buttonState = std::make_shared<ButtonState>();
+	buttonState->disabled.textFg
+		= buttonState->disabled.textFgOver
+		= buttonState->disabledFg.color();
+	buttonState->disabled.ripple.color
+		= buttonState->disabled.textBgOver
+		= buttonState->disabled.textBg;
+	const auto selectionChanged = [=](
+			not_null<Ui::CalendarBox*> box,
+			std::optional<int> selected) {
+		if (!selected.has_value()) {
+			buttonState->type = ButtonState::Type::None;
+			return;
+		}
+		const auto type = (*selected > 0)
+			? ButtonState::Type::Active
+			: ButtonState::Type::Disabled;
+		if (buttonState->type == type) {
+			return;
+		}
+		buttonState->type = type;
+		box->clearButtons();
+		box->addButton(tr::lng_cancel(), [=] {
+			box->toggleSelectionMode(false);
+		});
+		auto text = tr::lng_profile_clear_history();
+		const auto button = box->addLeftButton(std::move(text), [=] {
+
+		}, (*selected > 0) ? st::attentionBoxButton : buttonState->disabled);
+		if (!*selected) {
+			button->setPointerCursor(false);
+		}
+	};
 	show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
 		.month = highlighted,
 		.highlighted = highlighted,
@@ -1216,6 +1263,7 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		.minDate = minPeerDate,
 		.maxDate = maxPeerDate,
 		.allowsSelection = history->peer->isUser(),
+		.selectionChanged = selectionChanged,
 	}));
 }
 
