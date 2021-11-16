@@ -46,12 +46,10 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		return version;
 	}();
 
-	result.name = QString("%1%2").arg(
-		appName,
-		appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.name = qs(data.vdevice_model());
 
 	const auto country = qs(data.vcountry());
-	const auto platform = qs(data.vplatform());
+	//const auto platform = qs(data.vplatform());
 	//const auto &countries = countriesByISO2();
 	//const auto j = countries.constFind(country);
 	//if (j != countries.cend()) {
@@ -61,14 +59,10 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
-	result.info = QString("%1, %2%3").arg(
-		qs(data.vdevice_model()),
-		platform.isEmpty() ? QString() : platform + ' ',
-		qs(data.vsystem_version()));
-	result.ip = qs(data.vip())
-		+ (country.isEmpty()
-			? QString()
-			: QString::fromUtf8(" \xe2\x80\x93 ") + country);
+	result.info = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.ip = qs(data.vip());
 	if (!result.hash) {
 		result.active = tr::lng_status_online(tr::now);
 	} else {
@@ -85,6 +79,10 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 			result.active = lastDate.toString(cDateFormat());
 		}
 	}
+	result.location = (country.isEmpty() ? result.ip : country)
+		+ (result.hash
+			? (QString::fromUtf8(" \xe2\x80\x93 ") + result.active)
+			: QString());
 
 	return result;
 }

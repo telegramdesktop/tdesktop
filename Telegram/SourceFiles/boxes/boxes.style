@@ -291,7 +291,7 @@ sessionWhenFont: msgDateFont;
 sessionWhenFg: windowSubTextFg;
 sessionInfoFont: msgFont;
 sessionInfoFg: windowSubTextFg;
-sessionTerminateTop: 28px;
+sessionTerminateTop: 9px;
 sessionTerminateSkip: 22px;
 sessionNamePadding: margins(0px, 0px, 5px, 0px);
 sessionTerminate: IconButton {

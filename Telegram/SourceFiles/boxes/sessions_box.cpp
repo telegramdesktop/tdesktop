@@ -49,16 +49,15 @@ private:
 		, incomplete(entry.incomplete)
 		, activeTime(entry.activeTime)
 		, name(st::sessionNameStyle, entry.name)
-		, active(st::sessionWhenStyle, entry.active)
 		, info(st::sessionInfoStyle, entry.info)
-		, ip(st::sessionInfoStyle, entry.ip) {
+		, ip(st::sessionInfoStyle, entry.location) {
 		};
 
 		uint64 hash = 0;
 
 		bool incomplete = false;
 		TimeId activeTime = 0;
-		Ui::Text::String name, active, info, ip;
+		Ui::Text::String name, info, ip;
 	};
 	struct Full {
 		Entry current;
@@ -496,16 +495,10 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	for (auto i = from; i != till; ++i) {
 		const auto &entry = _items[i];
 
-		const auto activeW = entry.active.maxWidth();
-		const auto nameW = available
-			- activeW
-			- st::sessionNamePadding.right();
+		const auto nameW = _rowWidth.info;
 		const auto nameH = entry.name.style()->font->height;
 		const auto infoW = entry.hash ? _rowWidth.info : available;
 		const auto infoH = entry.info.style()->font->height;
-
-		p.setPen(entry.hash ? st::sessionWhenFg : st::contactsStatusFgOnline);
-		entry.active.drawRight(p, xact, y, activeW, w);
 
 		p.setPen(st::sessionNameFg);
 		entry.name.drawLeftElided(p, x, y, nameW, w);
