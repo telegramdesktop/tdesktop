@@ -29,6 +29,11 @@ public:
 		QWidget*,
 		not_null<Main::Session*> session,
 		MessageIdsList &&selected);
+	DeleteMessagesBox(
+		QWidget*,
+		not_null<PeerData*> peer,
+		QDate firstDayToDelete,
+		QDate lastDayToDelete);
 	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool justClear);
 
 	void setDeleteConfirmedCallback(Fn<void()> callback) {
@@ -56,6 +61,8 @@ private:
 
 	PeerData * const _wipeHistoryPeer = nullptr;
 	const bool _wipeHistoryJustClear = false;
+	const QDate _wipeHistoryFirstToDelete;
+	const QDate _wipeHistoryLastToDelete;
 	const MessageIdsList _ids;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;

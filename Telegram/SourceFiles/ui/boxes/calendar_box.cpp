@@ -693,7 +693,10 @@ CalendarBox::Title::Title(
 		} else if (!_context->selectedMin()) {
 			setText(tr::lng_calendar_select_days(tr::now));
 		} else {
-			setText(QString::number(1 + *_context->selectedMax() - *_context->selectedMin())); // #TODO calendar
+			setText(tr::lng_calendar_days(
+				tr::now,
+				lt_count,
+				(1 + *_context->selectedMax() - *_context->selectedMin())));
 		}
 	}, lifetime());
 }
@@ -801,6 +804,16 @@ CalendarBox::~CalendarBox() = default;
 
 void CalendarBox::toggleSelectionMode(bool enabled) {
 	_context->toggleSelectionMode(enabled);
+}
+
+QDate CalendarBox::selectedFirstDate() const {
+	const auto min = _context->selectedMin();
+	return min.has_value() ? _context->dateFromIndex(*min) : QDate();
+}
+
+QDate CalendarBox::selectedLastDate() const {
+	const auto max = _context->selectedMax();
+	return max.has_value() ? _context->dateFromIndex(*max) : QDate();
 }
 
 void CalendarBox::showJumpTooltip(not_null<IconButton*> button) {

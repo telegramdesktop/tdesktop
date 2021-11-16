@@ -462,6 +462,20 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	}
 }
 
+void History::destroyMessagesByDates(TimeId minDate, TimeId maxDate) {
+	auto toDestroy = std::vector<not_null<HistoryItem*>>();
+	for (const auto &message : _messages) {
+		if (message->isRegular()
+			&& message->date() > minDate
+			&& message->date() < maxDate) {
+			toDestroy.push_back(message.get());
+		}
+	}
+	for (const auto item : toDestroy) {
+		item->destroy();
+	}
+}
+
 void History::unpinAllMessages() {
 	session().storage().remove(
 		Storage::SharedMediaRemoveAll(

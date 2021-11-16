@@ -3027,15 +3027,12 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 			return;
 		}
 	}
-	const auto weak = Ui::MakeWeak(widget);
 	auto box = Box<DeleteMessagesBox>(
 		&widget->controller()->session(),
 		widget->getSelectedIds());
-	box->setDeleteConfirmedCallback([=] {
-		if (const auto strong = weak.data()) {
-			strong->cancelSelection();
-		}
-	});
+	box->setDeleteConfirmedCallback(crl::guard(widget, [=] {
+		widget->cancelSelection();
+	}));
 	widget->controller()->show(std::move(box));
 }
 

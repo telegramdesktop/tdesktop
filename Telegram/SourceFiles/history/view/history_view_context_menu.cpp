@@ -689,16 +689,13 @@ bool AddDeleteSelectedAction(
 	}
 
 	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
-		const auto weak = Ui::MakeWeak(list);
 		auto items = ExtractIdsList(request.selectedItems);
 		auto box = Box<DeleteMessagesBox>(
 			&request.navigation->session(),
 			std::move(items));
-		box->setDeleteConfirmedCallback([=] {
-			if (const auto strong = weak.data()) {
-				strong->cancelSelection();
-			}
-		});
+		box->setDeleteConfirmedCallback(crl::guard(list, [=] {
+			list->cancelSelection();
+		}));
 		request.navigation->parentController()->show(std::move(box));
 	});
 	return true;

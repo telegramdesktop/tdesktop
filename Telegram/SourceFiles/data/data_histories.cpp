@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
+#include "base/unixtime.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
@@ -706,6 +707,58 @@ void Histories::deleteAllMessages(
 			}).fail(fail).send();
 		}
 	});
+}
+
+void Histories::deleteMessagesByDates(
+		not_null<History*> history,
+		QDate firstDayToDelete,
+		QDate lastDayToDelete,
+		bool revoke) {
+	const auto firstSecondToDelete = base::unixtime::serialize(
+		{ firstDayToDelete, QTime(0, 0) }
+	);
+	const auto lastSecondToDelete = base::unixtime::serialize(
+		{ lastDayToDelete, QTime(23, 59, 59) }
+	);
+	deleteMessagesByDates(
+		history,
+		firstSecondToDelete - 1,
+		lastSecondToDelete + 1,
+		revoke);
+}
+
+void Histories::deleteMessagesByDates(
+		not_null<History*> history,
+		TimeId minDate,
+		TimeId maxDate,
+		bool revoke) {
+	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
+		const auto peer = history->peer;
+		const auto fail = [=](const MTP::Error &error) {
+			finish();
+		};
+		using Flag = MTPmessages_DeleteHistory::Flag;
+		const auto flags = Flag::f_just_clear
+			| Flag::f_min_date
+			| Flag::f_max_date
+			| (revoke ? Flag::f_revoke : Flag(0));
+		return session().api().request(MTPmessages_DeleteHistory(
+			MTP_flags(flags),
+			peer->input,
+			MTP_int(0),
+			MTP_int(minDate),
+			MTP_int(maxDate)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				deleteMessagesByDates(history, minDate, maxDate, revoke);
+			}
+			finish();
+		}).fail(fail).send();
+	});
+	history->destroyMessagesByDates(minDate, maxDate);
 }
 
 void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {

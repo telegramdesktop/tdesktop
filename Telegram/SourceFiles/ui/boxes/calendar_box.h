@@ -50,6 +50,9 @@ public:
 
 	void toggleSelectionMode(bool enabled);
 
+	[[nodiscard]] QDate selectedFirstDate() const;
+	[[nodiscard]] QDate selectedLastDate() const;
+
 protected:
 	void prepare() override;
 

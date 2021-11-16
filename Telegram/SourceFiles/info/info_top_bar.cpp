@@ -544,11 +544,9 @@ void TopBar::performDelete() {
 		auto box = Box<DeleteMessagesBox>(
 			&_navigation->session(),
 			std::move(items));
-		box->setDeleteConfirmedCallback([weak = Ui::MakeWeak(this)] {
-			if (weak) {
-				weak->_cancelSelectionClicks.fire({});
-			}
-		});
+		box->setDeleteConfirmedCallback(crl::guard(this, [=] {
+			_cancelSelectionClicks.fire({});
+		}));
 		_navigation->parentController()->show(std::move(box));
 	}
 }

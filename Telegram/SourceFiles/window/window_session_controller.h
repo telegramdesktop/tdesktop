@@ -363,7 +363,7 @@ public:
 	}
 	void removeLayerBlackout();
 
-	void showJumpToDate(
+	void showCalendar(
 		Dialogs::Key chat,
 		QDate requestedDate);
 

@@ -81,6 +81,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_calendar_select_days" = "Select days";
 "lng_calendar_start_tip" = "Press and hold to jump to the start.";
 "lng_calendar_end_tip" = "Press and hold to jump to the end.";
+"lng_calendar_days#one" = "{count} day";
+"lng_calendar_days#other" = "{count} days";
 
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
@@ -1134,6 +1136,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
 "lng_no_clear_history_channel" = "In channels you can enable auto-delete for messages.";
 "lng_no_clear_history_group" = "In public groups you can enable auto-delete for messages.";
+"lng_sure_delete_by_date_one" = "Are you sure you want to delete all messages for **{date}**?\n\nThis action cannot be undone.";
+"lng_sure_delete_by_date_many" = "Are you sure you want to delete all messages for the **{days}**?\n\nThis action cannot be undone.";
+"lng_sure_delete_selected_days#one" = "{count} selected day";
+"lng_sure_delete_selected_days#other" = "{count} selected days";
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";

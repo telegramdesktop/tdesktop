@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/delete_messages_box.h"
 #include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
@@ -151,7 +152,7 @@ void DateClickHandler::setDate(QDate date) {
 void DateClickHandler::onClick(ClickContext context) const {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto window = my.sessionWindow.get()) {
-		window->showJumpToDate(_chat, _date);
+		window->showCalendar(_chat, _date);
 	}
 }
 
@@ -1146,7 +1147,7 @@ void SessionController::startOrJoinGroupCall(
 	}
 }
 
-void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
+void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 	const auto history = chat.history();
 	if (!history) {
 		return;
@@ -1248,7 +1249,18 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		});
 		auto text = tr::lng_profile_clear_history();
 		const auto button = box->addLeftButton(std::move(text), [=] {
-
+			const auto firstDate = box->selectedFirstDate();
+			const auto lastDate = box->selectedLastDate();
+			if (!firstDate.isNull()) {
+				auto confirm = Box<DeleteMessagesBox>(
+					history->peer,
+					firstDate,
+					lastDate);
+				confirm->setDeleteConfirmedCallback(crl::guard(box, [=] {
+					box->closeBox();
+				}));
+				box->getDelegate()->show(std::move(confirm));
+			}
 		}, (*selected > 0) ? st::attentionBoxButton : buttonState->disabled);
 		if (!*selected) {
 			button->setPointerCursor(false);
