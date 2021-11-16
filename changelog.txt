@@ -1,6 +1,7 @@
-3.2.5 (16.11.21) [Windows]
+3.2.5 (16.11.21) [Windows, macOS]
 
 - Fix connecting in case bad characters appear in device name on Windows.
+- Fix custom input methods on macOS.
 
 3.2.4 (13.11.21)
 
