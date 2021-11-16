@@ -208,7 +208,6 @@ void Application::run() {
 	style::internal::StartFonts();
 
 	ThirdParty::start();
-	refreshGlobalProxy(); // Depends on Core::IsAppLaunched().
 
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
 	// Depends on notifications settings.
@@ -216,6 +215,8 @@ void Application::run() {
 
 	startLocalStorage();
 	ValidateScale();
+
+	refreshGlobalProxy(); // Depends on app settings being read.
 
 	if (Local::oldSettingsVersion() < AppVersion) {
 		RegisterUrlScheme();
