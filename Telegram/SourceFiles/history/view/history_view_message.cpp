@@ -2217,7 +2217,7 @@ std::optional<QSize> Message::rightActionSize() const {
 bool Message::displayFastShare() const {
 	const auto item = message();
 	const auto peer = item->history()->peer;
-	if (!item->isRegular()) {
+	if (!item->isRegular() || !peer->allowsForwarding()) {
 		return false;
 	} else if (peer->isChannel()) {
 		return !peer->isMegagroup();

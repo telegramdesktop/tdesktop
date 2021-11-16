@@ -518,7 +518,7 @@ bool PeerData::canEditMessagesIndefinitely() const {
 }
 
 bool PeerData::canExportChatHistory() const {
-	if (isRepliesChat()) {
+	if (isRepliesChat() || !allowsForwarding()) {
 		return false;
 	}
 	if (const auto channel = asChannel()) {
