@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/changelogs.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 
 namespace Api {
@@ -46,7 +47,9 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		return version;
 	}();
 
-	result.name = qs(data.vdevice_model());
+	result.name = result.hash
+		? qs(data.vdevice_model())
+		: Core::App().settings().deviceModel();
 
 	const auto country = qs(data.vcountry());
 	//const auto platform = qs(data.vplatform());
@@ -91,6 +94,19 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 
 Authorizations::Authorizations(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
+	Core::App().settings().deviceModelChanges(
+	) | rpl::start_with_next([=](const QString &model) {
+		auto changed = false;
+		for (auto &entry : _list) {
+			if (!entry.hash) {
+				entry.name = model;
+				changed = true;
+			}
+		}
+		if (changed) {
+			_listChanges.fire({});
+		}
+	}, _lifetime);
 }
 
 void Authorizations::reload() {

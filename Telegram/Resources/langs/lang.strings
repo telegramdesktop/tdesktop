@@ -699,6 +699,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
 "lng_settings_reset_button" = "Terminate";
+"lng_settings_rename_device" = "Rename";
+"lng_settings_device_name" = "Device name ({device})";
+"lng_settings_rename_device_title" = "Rename current device";
 "lng_settings_manage_local_storage" = "Manage local storage";
 "lng_settings_ask_question" = "Ask a Question";
 "lng_settings_ask_sure" = "Please note that Telegram Support is run by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";

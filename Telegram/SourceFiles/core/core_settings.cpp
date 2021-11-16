@@ -124,7 +124,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(proxy)
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(_photoEditorBrush)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 3
+		+ Serialize::stringSize(_customDeviceModel.current());
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -221,7 +222,8 @@ QByteArray Settings::serialize() const {
 			<< _photoEditorBrush
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(_voicePlaybackSpeed * 100)
-			<< qint32(_closeToTaskbar.current() ? 1 : 0);
+			<< qint32(_closeToTaskbar.current() ? 1 : 0)
+			<< _customDeviceModel.current();
 	}
 	return result;
 }
@@ -305,6 +307,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
 	QByteArray photoEditorBrush = _photoEditorBrush;
 	qint32 closeToTaskbar = _closeToTaskbar.current() ? 1 : 0;
+	QString customDeviceModel = _customDeviceModel.current();
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -465,6 +468,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> closeToTaskbar;
 	}
+	if (!stream.atEnd()) {
+		stream >> customDeviceModel;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -606,6 +612,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}();
 	_photoEditorBrush = photoEditorBrush;
 	_closeToTaskbar = (closeToTaskbar == 1);
+	_customDeviceModel = customDeviceModel;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -670,6 +677,23 @@ rpl::producer<float64> Settings::dialogsWidthRatioChanges() const {
 
 void Settings::setThirdColumnWidth(int width) {
 	_thirdColumnWidth = width;
+}
+
+QString Settings::deviceModel() const {
+	const auto custom = customDeviceModel();
+	return custom.isEmpty() ? Platform::DeviceModelPretty() : custom;
+}
+
+rpl::producer<QString> Settings::deviceModelChanges() const {
+	return customDeviceModelChanges() | rpl::map([=] {
+		return deviceModel();
+	});
+}
+
+rpl::producer<QString> Settings::deviceModelValue() const {
+	return customDeviceModelValue() | rpl::map([=] {
+		return deviceModel();
+	});
 }
 
 int Settings::thirdColumnWidth() const {

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "base/algorithm.h"
+#include "base/platform/base_platform_info.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -19,15 +21,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/layers/generic_box.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "window/window_session_controller.h"
 
 namespace {
 
 constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
+constexpr auto kMaxDeviceModelLength = 16;
+
+void RenameBox(not_null<Ui::GenericBox*> box) {
+	box->setTitle(tr::lng_settings_rename_device_title());
+
+	const auto name = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::defaultInputField,
+		tr::lng_settings_device_name(
+			lt_device,
+			rpl::single(Platform::DeviceModelPretty())),
+		Core::App().settings().customDeviceModel()));
+	name->setMaxLength(kMaxDeviceModelLength);
+	box->setFocusCallback([=] {
+		name->setFocusFast();
+	});
+	const auto submit = [=] {
+		const auto result = base::CleanAndSimplify(
+			name->getLastText());
+		box->closeBox();
+		Core::App().settings().setCustomDeviceModel(result);
+		Core::App().saveSettingsDelayed();
+	};
+	QObject::connect(name, &Ui::InputField::submitted, submit);
+	box->addButton(tr::lng_settings_save(), submit);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
 
 } // namespace
 
@@ -107,10 +140,11 @@ private:
 		int available = 0;
 		int info = 0;
 	};
-	RowWidth _rowWidth;
 
+	void subscribeToCustomDeviceModel();
 	void computeRowWidth();
 
+	RowWidth _rowWidth;
 	std::vector<Entry> _items;
 	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
 	rpl::event_stream<uint64> _terminate;
@@ -125,6 +159,7 @@ public:
 	void showData(const Full &data);
 	rpl::producer<uint64> terminateOne() const;
 	rpl::producer<> terminateAll() const;
+	rpl::producer<> renameCurrentRequests() const;
 
 	void terminatingOne(uint64 hash, bool terminating);
 
@@ -312,7 +347,28 @@ void SessionsContent::Inner::setupContent() {
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSubsectionTitle(content, tr::lng_sessions_header());
+	const auto header = AddSubsectionTitle(
+		content,
+		tr::lng_sessions_header());
+	const auto rename = Ui::CreateChild<Ui::LinkButton>(
+		content,
+		tr::lng_settings_rename_device(tr::now),
+		st::defaultLinkButton);
+	rpl::combine(
+		content->sizeValue(),
+		header->positionValue()
+	) | rpl::start_with_next([=](QSize outer, QPoint position) {
+		const auto x = st::sessionTerminateSkip
+			+ st::sessionTerminate.iconPosition.x();
+		const auto y = st::settingsSubsectionTitlePadding.top()
+			+ st::settingsSubsectionTitle.style.font->ascent
+			- st::defaultLinkButton.font->ascent;
+		rename->moveToRight(x, y, outer.width());
+	}, rename->lifetime());
+	rename->setClickedCallback([=] {
+		Ui::show(Box(RenameBox), Ui::LayerOption::KeepOther);
+	});
+
 	_current = content->add(object_ptr<List>(content));
 	const auto terminateWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -398,6 +454,18 @@ void SessionsContent::List::resizeEvent(QResizeEvent *e) {
 	RpWidget::resizeEvent(e);
 
 	computeRowWidth();
+}
+
+void SessionsContent::List::subscribeToCustomDeviceModel() {
+	Core::App().settings().deviceModelChanges(
+	) | rpl::start_with_next([=](const QString &model) {
+		for (auto &entry : _items) {
+			if (!entry.hash) {
+				entry.name.setText(st::sessionNameStyle, model);
+			}
+		}
+		update();
+	}, lifetime());
 }
 
 void SessionsContent::List::showData(gsl::span<const Entry> items) {

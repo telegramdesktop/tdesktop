@@ -48,6 +48,7 @@ private:
 	rpl::event_stream<> _listChanges;
 
 	crl::time _lastReceived = 0;
+	rpl::lifetime _lifetime;
 
 };
 

@@ -614,6 +614,22 @@ public:
 		return _closeToTaskbar.changes();
 	}
 
+	void setCustomDeviceModel(const QString &model) {
+		_customDeviceModel = model;
+	}
+	[[nodiscard]] QString customDeviceModel() const {
+		return _customDeviceModel.current();
+	}
+	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
+		return _customDeviceModel.changes();
+	}
+	[[nodiscard]] rpl::producer<QString> customDeviceModelValue() const {
+		return _customDeviceModel.value();
+	}
+	[[nodiscard]] QString deviceModel() const;
+	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
+	[[nodiscard]] rpl::producer<QString> deviceModelValue() const;
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -714,6 +730,7 @@ private:
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
 	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
 	rpl::variable<bool> _closeToTaskbar = false;
+	rpl::variable<QString> _customDeviceModel;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
