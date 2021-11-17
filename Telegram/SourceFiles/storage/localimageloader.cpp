@@ -432,6 +432,10 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	}
 }
 
+SendingAlbum::Item::Item(TaskId taskId)
+: taskId(taskId) {
+}
+
 FileLoadResult::FileLoadResult(
 	TaskId taskId,
 	uint64 id,

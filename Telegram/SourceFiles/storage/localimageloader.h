@@ -168,8 +168,7 @@ private:
 
 struct SendingAlbum {
 	struct Item {
-		explicit Item(TaskId taskId) : taskId(taskId) {
-		}
+		explicit Item(TaskId taskId);
 
 		TaskId taskId;
 		uint64 randomId = 0;
