@@ -206,7 +206,7 @@ void ResolveDocument(
 		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		HistoryItem *item) {
-	if (!document->date) {
+	if (document->isNull()) {
 		return;
 	}
 	const auto msgId = item ? item->fullId() : FullMsgId();
