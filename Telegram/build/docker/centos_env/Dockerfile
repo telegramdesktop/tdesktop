@@ -808,17 +808,12 @@ RUN git clone https://chromium.googlesource.com/linux-syscall-support.git src/th
 WORKDIR src/third_party/lss
 RUN git checkout e1e7b0ad8e
 
-WORKDIR ${LibrariesPath}
-
-ENV BreakpadCache ${LibrariesPath}/breakpad-cache
-
-WORKDIR breakpad
+WORKDIR ../../..
 RUN ./configure
 RUN make -j$(nproc)
-RUN make DESTDIR="$BreakpadCache" install
+RUN make DESTDIR="${LibrariesPath}/breakpad-cache" install
 
 WORKDIR ..
-RUN rm -rf gyp
 
 FROM builder AS webrtc
 
