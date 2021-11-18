@@ -53,6 +53,9 @@ public:
 	QPoint getPositionForVolumeWidget() const;
 	void volumeWidgetCreated(Dropdown *widget);
 
+	QPoint getPositionForRepeatWidget() const;
+	void repeatWidgetCreated(Dropdown *widget);
+
 	~Widget();
 
 protected:

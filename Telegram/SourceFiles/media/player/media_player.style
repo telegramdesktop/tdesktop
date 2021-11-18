@@ -67,10 +67,40 @@ mediaPlayerRepeatDisabledIcon: icon {
 mediaPlayerRepeatDisabledIconOver: icon {
 	{ "player/player_repeat", menuIconFgOver, point(9px, 11px)}
 };
-mediaPlayerRepeatDisabledRippleBg: windowBgOver;
-mediaPlayerRepeatInactiveIcon: icon {
-	{ "player/player_repeat", mediaPlayerInactiveFg, point(9px, 11px)}
+mediaPlayerRepeatOneIcon: icon {
+	{ "player/player_repeat_one", mediaPlayerActiveFg, point(9px, 11px)}
 };
+mediaPlayerRepeatOneDisabledIcon: icon {
+	{ "player/player_repeat_one", menuIconFg, point(9px, 11px)}
+};
+mediaPlayerRepeatOneDisabledIconOver: icon {
+	{ "player/player_repeat_one", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerReverseIcon: icon {
+	{ "player/player_reverse", mediaPlayerActiveFg, point(9px, 11px)}
+};
+mediaPlayerReverseDisabledIcon: icon {
+	{ "player/player_reverse", menuIconFg, point(9px, 11px)}
+};
+mediaPlayerReverseDisabledIconOver: icon {
+	{ "player/player_reverse", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerShuffleIcon: icon {
+	{ "player/player_shuffle", mediaPlayerActiveFg, point(9px, 11px)}
+};
+mediaPlayerShuffleDisabledIcon: icon {
+	{ "player/player_shuffle", menuIconFg, point(9px, 11px)}
+};
+mediaPlayerShuffleDisabledIconOver: icon {
+	{ "player/player_shuffle", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerRepeatReverseIcon: icon {
+	{ "player/player_repeat_reverse", mediaPlayerActiveFg, point(9px, 11px)}
+};
+mediaPlayerRepeatShuffleIcon: icon {
+	{ "player/player_repeat_shuffle", mediaPlayerActiveFg, point(9px, 11px)}
+};
+mediaPlayerRepeatDisabledRippleBg: windowBgOver;
 
 mediaPlayerSpeedButton: IconButton {
 	width: 31px;

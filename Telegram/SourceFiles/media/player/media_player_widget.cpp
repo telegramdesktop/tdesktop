@@ -398,6 +398,17 @@ void Widget::volumeWidgetCreated(Dropdown *widget) {
 	_volumeToggle->installEventFilter(widget);
 }
 
+QPoint Widget::getPositionForRepeatWidget() const {
+	auto x = _repeatToggle->x();
+	x += (_repeatToggle->width() - st::mediaPlayerVolumeSize.width()) / 2;
+	if (rtl()) x = width() - x - st::mediaPlayerVolumeSize.width();
+	return QPoint(x, height());
+}
+
+void Widget::repeatWidgetCreated(Dropdown *widget) {
+	_repeatToggle->installEventFilter(widget);
+}
+
 Widget::~Widget() = default;
 
 void Widget::handleSeekProgress(float64 progress) {

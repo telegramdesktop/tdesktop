@@ -368,6 +368,7 @@ private:
 	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
 		= { nullptr };
 	object_ptr<Media::Player::Dropdown> _playerVolume = { nullptr };
+	object_ptr<Media::Player::Dropdown> _playerRepeat = { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	bool _playerUsingPanel = false;
 

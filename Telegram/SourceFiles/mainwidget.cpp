@@ -81,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
 #include "media/player/media_player_dropdown.h"
+#include "media/player/media_player_repeat_controls.h"
 #include "media/player/media_player_volume_controller.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_float.h"
@@ -813,6 +814,7 @@ void MainWidget::closeBothPlayers() {
 		_player->hide(anim::type::normal);
 	}
 	_playerVolume.destroyDelayed();
+	_playerRepeat.destroyDelayed();
 
 	_playerPlaylist->hideIgnoringEnterEvents();
 	Media::Player::instance()->stop(AudioMsgId::Type::Voice);
@@ -849,6 +851,11 @@ void MainWidget::createPlayer() {
 			_playerVolume.data(),
 			_controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
+		_playerRepeat.create(this);
+		Media::Player::PrepareRepeatDropdown(
+			_playerRepeat.data(),
+			_controller);
+		_player->entity()->repeatWidgetCreated(_playerRepeat);
 		orderWidgets();
 		if (_a_show.animating()) {
 			_player->show(anim::type::instant);
@@ -883,6 +890,7 @@ void MainWidget::playerHeightUpdated() {
 		const auto state = Media::Player::instance()->getState(Media::Player::instance()->getActiveType());
 		if (!state.id || Media::Player::IsStoppedOrStopping(state.state)) {
 			_playerVolume.destroyDelayed();
+			_playerRepeat.destroyDelayed();
 			_player.destroyDelayed();
 		}
 	}
@@ -1536,6 +1544,10 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
 	}
+	auto playerRepeatVisible = _playerRepeat && !_playerRepeat->isHidden();
+	if (playerRepeatVisible) {
+		_playerRepeat->hide();
+	}
 	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
 	if (playerPlaylistVisible) {
 		_playerPlaylist->hide();
@@ -1562,6 +1574,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 
 	if (playerVolumeVisible) {
 		_playerVolume->show();
+	}
+	if (playerRepeatVisible) {
+		_playerRepeat->show();
 	}
 	if (playerPlaylistVisible) {
 		_playerPlaylist->show();
@@ -1822,6 +1837,9 @@ void MainWidget::orderWidgets() {
 	if (_playerVolume) {
 		_playerVolume->raise();
 	}
+	if (_playerRepeat) {
+		_playerRepeat->raise();
+	}
 	_sideShadow->raise();
 	if (_thirdShadow) {
 		_thirdShadow->raise();
@@ -1855,6 +1873,10 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
 	}
+	auto playerRepeatVisible = _playerRepeat && !_playerRepeat->isHidden();
+	if (playerRepeatVisible) {
+		_playerRepeat->hide();
+	}
 	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
 	if (playerPlaylistVisible) {
 		_playerPlaylist->hide();
@@ -1884,6 +1906,9 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	}
 	if (playerVolumeVisible) {
 		_playerVolume->show();
+	}
+	if (playerRepeatVisible) {
+		_playerRepeat->show();
 	}
 	if (playerPlaylistVisible) {
 		_playerPlaylist->show();
@@ -2374,10 +2399,18 @@ void MainWidget::updateThirdColumnToCurrentChat(
 }
 
 void MainWidget::updateMediaPlayerPosition() {
-	if (_player && _playerVolume) {
+	if (!_player) {
+		return;
+	}
+	if (_playerVolume) {
 		auto relativePosition = _player->entity()->getPositionForVolumeWidget();
 		auto playerMargins = _playerVolume->getMargin();
 		_playerVolume->moveToLeft(_player->x() + relativePosition.x() - playerMargins.left(), _player->y() + relativePosition.y() - playerMargins.top());
+	}
+	if (_playerRepeat) {
+		auto relativePosition = _player->entity()->getPositionForRepeatWidget();
+		auto playerMargins = _playerRepeat->getMargin();
+		_playerRepeat->moveToLeft(_player->x() + relativePosition.x() - playerMargins.left(), _player->y() + relativePosition.y() - playerMargins.top());
 	}
 }
 
@@ -2529,8 +2562,9 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect)
-			|| _playerPlaylist->overlaps(globalRect)
-			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
+		|| _playerPlaylist->overlaps(globalRect)
+		|| (_playerVolume && _playerVolume->overlaps(globalRect)))
+		|| (_playerRepeat && _playerRepeat->overlaps(globalRect));
 }
 
 void MainWidget::activate() {
