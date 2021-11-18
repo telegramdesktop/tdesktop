@@ -91,9 +91,12 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
     build-environment:
+      - CC: gcc-10
+      - CXX: g++-10
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH
     build-packages:
       - clang
+      - g++-10
       - python
       - libasound2-dev
       - libglib2.0-dev
