@@ -782,10 +782,10 @@ historyGroupAboutSkip: 8px;
 
 historyVideoDownloadSize: 44px;
 historyVideoMuteSize: 22px;
-historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
-historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
-historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
-historyVideoDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
+historyVideoCancel: icon {{ "player/playlist_cancel", historyFileThumbIconFg }};
+historyVideoCancelSelected: icon {{ "player/playlist_cancel", historyFileThumbIconFgSelected }};
+historyVideoDownload: icon {{ "player/playlist_download", historyFileThumbIconFg }};
+historyVideoDownloadSelected: icon {{ "player/playlist_download", historyFileThumbIconFgSelected }};
 historyVideoRadialLine: msgFileRadialLine;
 
 historyAudioDownloadSize: 20px;
