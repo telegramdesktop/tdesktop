@@ -37,7 +37,7 @@ namespace Api {
 namespace {
 
 void InnerFillMessagePostFlags(
-		const Api::SendOptions &options,
+		const SendOptions &options,
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	const auto anonymousPost = peer->amAnonymous();
@@ -60,7 +60,7 @@ void InnerFillMessagePostFlags(
 
 template <typename MediaData>
 void SendExistingMedia(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<MediaData*> media,
 		Fn<MTPInputMedia()> inputMedia,
 		Data::FileOrigin origin) {
@@ -173,7 +173,7 @@ void SendExistingMedia(
 } // namespace
 
 void SendExistingDocument(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<DocumentData*> document) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
@@ -194,7 +194,7 @@ void SendExistingDocument(
 }
 
 void SendExistingPhoto(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<PhotoData*> photo) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
@@ -209,7 +209,7 @@ void SendExistingPhoto(
 		Data::FileOrigin());
 }
 
-bool SendDice(Api::MessageToSend &message) {
+bool SendDice(MessageToSend &message) {
 	const auto full = QStringView(message.textWithTags.text).trimmed();
 	auto length = 0;
 	if (!Ui::Emoji::Find(full.data(), full.data() + full.size(), &length)
@@ -313,7 +313,7 @@ bool SendDice(Api::MessageToSend &message) {
 }
 
 void FillMessagePostFlags(
-		const Api::SendAction &action,
+		const SendAction &action,
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	InnerFillMessagePostFlags(action.options, peer, flags);
@@ -350,7 +350,7 @@ void SendConfirmedFile(
 	const auto history = session->data().history(file->to.peer);
 	const auto peer = history->peer;
 
-	auto action = Api::SendAction(history);
+	auto action = SendAction(history);
 	action.options = file->to.options;
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
