@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
+#include "data/data_web_page.h"
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
@@ -44,18 +45,77 @@ namespace {
 
 } // namespace
 
-QString DocumentTimestampLinkBase(
+TimeId DurationForTimestampLinks(not_null<DocumentData*> document) {
+	if (!document->isVideoFile()
+		&& !document->isSong()
+		&& !document->isVoiceMessage()) {
+		return TimeId(0);
+	}
+	return std::max(document->getDuration(), TimeId(0));
+}
+
+QString TimestampLinkBase(
 		not_null<DocumentData*> document,
 		FullMsgId context) {
 	return QString(
-		"doc%1_%2_%3"
+		"media_timestamp?base=doc%1_%2_%3&t="
 	).arg(document->id).arg(context.channel.bare).arg(context.msg.bare);
+}
+
+TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {
+	if (!webpage->collage.items.empty()) {
+		return false;
+	} else if (const auto document = webpage->document) {
+		return DurationForTimestampLinks(document);
+	} else if (webpage->type != WebPageType::Video
+		|| webpage->siteName != qstr("YouTube")) {
+		return TimeId(0);
+	} else if (webpage->duration > 0) {
+		return webpage->duration;
+	}
+	constexpr auto kMaxYouTubeTimestampDuration = 10 * 60 * TimeId(60);
+	return kMaxYouTubeTimestampDuration;
+}
+
+QString TimestampLinkBase(
+		not_null<WebPageData*> webpage,
+		FullMsgId context) {
+	const auto url = webpage->url;
+	if (url.isEmpty()) {
+		return QString();
+	}
+	auto parts = url.split(QChar('#'));
+	const auto base = parts[0];
+	parts.pop_front();
+	const auto use = [&] {
+		const auto query = base.indexOf(QChar('?'));
+		if (query < 0) {
+			return base + QChar('?');
+		}
+		auto params = base.mid(query + 1).split(QChar('&'));
+		for (auto i = params.begin(); i != params.end();) {
+			if (i->startsWith("t=")) {
+				i = params.erase(i);
+			} else {
+				++i;
+			}
+		}
+		return base.mid(0, query)
+			+ (params.empty() ? "?" : ("?" + params.join(QChar('&')) + "&"));
+	}();
+	return "url:"
+		+ use
+		+ "t="
+		+ (parts.empty() ? QString() : ("#" + parts.join(QChar('#'))));
 }
 
 TextWithEntities AddTimestampLinks(
 		TextWithEntities text,
 		TimeId duration,
 		const QString &base) {
+	if (base.isEmpty()) {
+		return text;
+	}
 	static const auto expression = QRegularExpression(
 		"(?<![^\\s\\(\\)\"\\,\\.\\-])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s\\(\\)\",\\.\\-])");
 	const auto &string = text.text;
@@ -104,10 +164,7 @@ TextWithEntities AddTimestampLinks(
 				EntityType::CustomUrl,
 				from,
 				till - from,
-				("internal:media_timestamp?base="
-					+ base
-					+ "&t="
-					+ QString::number(time))));
+				("internal:" + base + QString::number(time))));
 	}
 	return text;
 }

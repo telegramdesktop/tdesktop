@@ -52,9 +52,18 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
-[[nodiscard]] QString DocumentTimestampLinkBase(
+[[nodiscard]] TimeId DurationForTimestampLinks(
+	not_null<DocumentData*> document);
+[[nodiscard]] QString TimestampLinkBase(
 	not_null<DocumentData*> document,
 	FullMsgId context);
+
+[[nodiscard]] TimeId DurationForTimestampLinks(
+	not_null<WebPageData*> webpage);
+[[nodiscard]] QString TimestampLinkBase(
+	not_null<WebPageData*> webpage,
+	FullMsgId context);
+
 [[nodiscard]] TextWithEntities AddTimestampLinks(
 	TextWithEntities text,
 	TimeId duration,

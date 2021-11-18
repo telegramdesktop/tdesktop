@@ -474,6 +474,15 @@ bool ShowInviteLink(
 	return true;
 }
 
+bool OpenExternalLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	return Ui::Integration::Instance().handleUrlClick(
+		match->captured(1),
+		context);
+}
+
 void ExportTestChatTheme(
 		not_null<Main::Session*> session,
 		not_null<const Data::CloudTheme*> theme) {
@@ -697,6 +706,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			qsl("^show_invite_link/?\\?link=([a-zA-Z0-9_\\+\\/\\=\\-]+)(&|$)"),
 			ShowInviteLink
+		},
+		{
+			qsl("^url:(.+)$"),
+			OpenExternalLink
 		},
 	};
 	return Result;

@@ -1084,12 +1084,9 @@ TextWithEntities Document::getCaption() const {
 }
 
 Ui::Text::String Document::createCaption() {
-	const auto timestampLinksDuration = (_data->isSong()
-			|| _data->isVoiceMessage())
-		? _data->getDuration()
-		: 0;
+	const auto timestampLinksDuration = DurationForTimestampLinks(_data);
 	const auto timestampLinkBase = timestampLinksDuration
-		? DocumentTimestampLinkBase(_data, _realParent->fullId())
+		? TimestampLinkBase(_data, _realParent->fullId())
 		: QString();
 	return File::createCaption(
 		_realParent,

@@ -39,11 +39,9 @@ class HiddenUrlClickHandler : public UrlClickHandler {
 public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
 	}
-	QString copyToClipboardContextItemText() const override {
-		return (url().isEmpty() || url().startsWith(qstr("internal:")))
-			? QString()
-			: UrlClickHandler::copyToClipboardContextItemText();
-	}
+	QString copyToClipboardText() const override;
+	QString copyToClipboardContextItemText() const override;
+	QString dragText() const override;
 
 	static void Open(QString url, QVariant context = {});
 	void onClick(ClickContext context) const override {

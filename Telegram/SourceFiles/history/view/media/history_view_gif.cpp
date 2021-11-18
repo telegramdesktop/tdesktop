@@ -1322,11 +1322,9 @@ void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Gif::refreshCaption() {
-	const auto timestampLinksDuration = _data->isVideoFile()
-		? _data->getDuration()
-		: 0;
+	const auto timestampLinksDuration = DurationForTimestampLinks(_data);
 	const auto timestampLinkBase = timestampLinksDuration
-		? DocumentTimestampLinkBase(_data, _realParent->fullId())
+		? TimestampLinkBase(_data, _realParent->fullId())
 		: QString();
 	_caption = createCaption(
 			_parent->data(),

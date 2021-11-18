@@ -677,18 +677,16 @@ void GroupedMedia::updateNeedBubbleState() {
 			QString base;
 		};
 		const auto timestamp = [&]() -> Timestamp {
-			const auto &document = part->content->getDocument();
-			if (!document || document->isAnimation()) {
+			const auto document = part->content->getDocument();
+			const auto duration = document
+				? DurationForTimestampLinks(document)
+				: TimeId(0);
+			if (!duration) {
 				return {};
 			}
-			const auto duration = document->getDuration();
 			return {
 				.duration = duration,
-				.base = duration
-					? DocumentTimestampLinkBase(
-						document,
-						part->item->fullId())
-					: QString(),
+				.base = TimestampLinkBase(document, part->item->fullId()),
 			};
 		}();
 		_caption = createCaption(

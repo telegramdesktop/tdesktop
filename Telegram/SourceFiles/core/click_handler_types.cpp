@@ -65,6 +65,26 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 		RegExOption::CaseInsensitive);
 }
 
+QString HiddenUrlClickHandler::copyToClipboardText() const {
+	return url().startsWith(qstr("internal:url:"))
+		? url().mid(qstr("internal:url:").size())
+		: url();
+}
+
+QString HiddenUrlClickHandler::copyToClipboardContextItemText() const {
+	return url().isEmpty()
+		? QString()
+		: !url().startsWith(qstr("internal:"))
+		? UrlClickHandler::copyToClipboardContextItemText()
+		: url().startsWith(qstr("internal:url:"))
+		? UrlClickHandler::copyToClipboardContextItemText()
+		: QString();
+}
+
+QString HiddenUrlClickHandler::dragText() const {
+	return HiddenUrlClickHandler::copyToClipboardText();
+}
+
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	url = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(url)) {

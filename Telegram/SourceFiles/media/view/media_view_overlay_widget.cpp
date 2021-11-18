@@ -2102,18 +2102,20 @@ void OverlayWidget::refreshCaption() {
 
 	using namespace HistoryView;
 	_caption = Ui::Text::String(st::msgMinWidth);
-	const auto duration = (_streamed && _document && !videoIsGifOrUserpic())
-		? _document->getDuration()
+	const auto duration = (_streamed && _document)
+		? DurationForTimestampLinks(_document)
 		: 0;
 	const auto base = duration
-		? DocumentTimestampLinkBase(_document, _message->fullId())
+		? TimestampLinkBase(_document, _message->fullId())
 		: QString();
 	const auto context = Core::MarkedTextContext{
 		.session = &_message->history()->session()
 	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
-		AddTimestampLinks(caption, duration, base),
+		(base.isEmpty()
+			? caption
+			: AddTimestampLinks(caption, duration, base)),
 		Ui::ItemTextOptions(_message),
 		context);
 }
