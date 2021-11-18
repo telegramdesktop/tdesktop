@@ -10,8 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
-
-#include <QtCore/QTimer>
+#include "base/timer.h"
 
 namespace Ui {
 class IconButton;
@@ -44,9 +43,7 @@ private:
 
 };
 
-class VolumeWidget : public Ui::RpWidget {
-	Q_OBJECT
-
+class VolumeWidget final : public Ui::RpWidget {
 public:
 	VolumeWidget(
 		QWidget *parent,
@@ -64,11 +61,10 @@ protected:
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-private Q_SLOTS:
-	void onShowStart();
-	void onHideStart();
-
 private:
+	void startHide();
+	void startShow();
+
 	void otherEnter();
 	void otherLeave();
 
@@ -81,9 +77,10 @@ private:
 	QPixmap _cache;
 	Ui::Animations::Simple _a_appearance;
 
-	QTimer _hideTimer, _showTimer;
-
 	object_ptr<VolumeController> _controller;
+
+	base::Timer _hideTimer;
+	base::Timer _showTimer;
 
 };
 

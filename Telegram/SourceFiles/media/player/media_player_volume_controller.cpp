@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
-#include "base/object_ptr.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -81,15 +80,11 @@ VolumeWidget::VolumeWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
-, _controller(this, controller) {
+, _controller(this, controller)
+, _hideTimer([=] { startHide(); })
+, _showTimer([=] { startShow(); }) {
 	hide();
 	_controller->setIsVertical(true);
-
-	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
-
-	_showTimer.setSingleShot(true);
-	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShowStart()));
 
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
@@ -150,44 +145,44 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 }
 
 void VolumeWidget::enterEventHook(QEnterEvent *e) {
-	_hideTimer.stop();
+	_hideTimer.cancel();
 	if (_a_appearance.animating()) {
-		onShowStart();
+		startShow();
 	} else {
-		_showTimer.start(0);
+		_showTimer.callOnce(0);
 	}
 	return RpWidget::enterEventHook(e);
 }
 
 void VolumeWidget::leaveEventHook(QEvent *e) {
-	_showTimer.stop();
+	_showTimer.cancel();
 	if (_a_appearance.animating()) {
-		onHideStart();
+		startHide();
 	} else {
-		_hideTimer.start(300);
+		_hideTimer.callOnce(300);
 	}
 	return RpWidget::leaveEventHook(e);
 }
 
 void VolumeWidget::otherEnter() {
-	_hideTimer.stop();
+	_hideTimer.cancel();
 	if (_a_appearance.animating()) {
-		onShowStart();
+		startShow();
 	} else {
-		_showTimer.start(0);
+		_showTimer.callOnce(0);
 	}
 }
 
 void VolumeWidget::otherLeave() {
-	_showTimer.stop();
+	_showTimer.cancel();
 	if (_a_appearance.animating()) {
-		onHideStart();
+		startHide();
 	} else {
-		_hideTimer.start(0);
+		_hideTimer.callOnce(0);
 	}
 }
 
-void VolumeWidget::onShowStart() {
+void VolumeWidget::startShow() {
 	if (isHidden()) {
 		show();
 	} else if (!_hiding) {
@@ -197,8 +192,10 @@ void VolumeWidget::onShowStart() {
 	startAnimation();
 }
 
-void VolumeWidget::onHideStart() {
-	if (_hiding) return;
+void VolumeWidget::startHide() {
+	if (_hiding) {
+		return;
+	}
 
 	_hiding = true;
 	startAnimation();
