@@ -80,6 +80,9 @@ PRIVATE
     media/clip/media_clip_reader.cpp
     media/clip/media_clip_reader.h
 
+    media/player/media_player_dropdown.cpp
+    media/player/media_player_dropdown.h
+
     passport/ui/passport_details_row.cpp
     passport/ui/passport_details_row.h
     passport/ui/passport_form_row.cpp

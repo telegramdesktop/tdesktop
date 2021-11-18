@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_volume_controller.h"
 
 #include "media/audio/media_audio.h"
+#include "media/player/media_player_dropdown.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -21,8 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 
-namespace Media {
-namespace Player {
+namespace Media::Player {
 
 VolumeController::VolumeController(
 	QWidget *parent,
@@ -76,166 +76,28 @@ void VolumeController::applyVolumeChange(float64 volume) {
 	}
 }
 
-VolumeWidget::VolumeWidget(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: RpWidget(parent)
-, _controller(this, controller)
-, _hideTimer([=] { startHide(); })
-, _showTimer([=] { startShow(); }) {
-	hide();
-	_controller->setIsVertical(true);
+void PrepareVolumeDropdown(
+		not_null<Dropdown*> dropdown,
+		not_null<Window::SessionController*> controller) {
+	const auto volume = Ui::CreateChild<VolumeController>(
+		dropdown.get(),
+		controller);
+	volume->show();
+	volume->setIsVertical(true);
 
-	macWindowDeactivateEvents(
-	) | rpl::filter([=] {
-		return !isHidden();
-	}) | rpl::start_with_next([=] {
-		leaveEvent(nullptr);
-	}, lifetime());
-
-	hide();
-	auto margin = getMargin();
-	resize(margin.left() + st::mediaPlayerVolumeSize.width() + margin.right(), margin.top() + st::mediaPlayerVolumeSize.height() + margin.bottom());
+	dropdown->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		const auto rect = QRect(QPoint(), size);
+		const auto inner = rect.marginsRemoved(dropdown->getMargin());
+		volume->setGeometry(
+			inner.x(),
+			inner.y() - st::lineWidth,
+			inner.width(),
+			(inner.height()
+				+ st::lineWidth
+				- ((st::mediaPlayerVolumeSize.width()
+					- st::mediaPlayerPanelPlayback.width) / 2)));
+	}, volume->lifetime());
 }
 
-QMargins VolumeWidget::getMargin() const {
-	const auto top = st::mediaPlayerHeight
-		+ st::lineWidth
-		- st::mediaPlayerPlayTop
-		- st::mediaPlayerVolumeToggle.height;
-	return QMargins(st::mediaPlayerVolumeMargin, top, st::mediaPlayerVolumeMargin, st::mediaPlayerVolumeMargin);
-}
-
-bool VolumeWidget::overlaps(const QRect &globalRect) {
-	if (isHidden() || _a_appearance.animating()) return false;
-
-	return rect().marginsRemoved(getMargin()).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
-}
-
-void VolumeWidget::resizeEvent(QResizeEvent *e) {
-	auto inner = rect().marginsRemoved(getMargin());
-	_controller->setGeometry(inner.x(), inner.y() - st::lineWidth, inner.width(), inner.height() + st::lineWidth - ((st::mediaPlayerVolumeSize.width() - st::mediaPlayerPanelPlayback.width) / 2));
-}
-
-void VolumeWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	if (!_cache.isNull()) {
-		bool animating = _a_appearance.animating();
-		if (animating) {
-			p.setOpacity(_a_appearance.value(_hiding ? 0. : 1.));
-		} else if (_hiding || isHidden()) {
-			hidingFinished();
-			return;
-		}
-		p.drawPixmap(0, 0, _cache);
-		if (!animating) {
-			showChildren();
-			_cache = QPixmap();
-		}
-		return;
-	}
-
-	// draw shadow
-	auto shadowedRect = rect().marginsRemoved(getMargin());
-	auto shadowedSides = RectPart::Left | RectPart::Right | RectPart::Bottom;
-	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
-	auto parts = RectPart::NoTopBottom | RectPart::FullBottom;
-	Ui::FillRoundRect(p, QRect(shadowedRect.x(), -st::roundRadiusSmall, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::roundRadiusSmall), st::menuBg, Ui::MenuCorners, nullptr, parts);
-}
-
-void VolumeWidget::enterEventHook(QEnterEvent *e) {
-	_hideTimer.cancel();
-	if (_a_appearance.animating()) {
-		startShow();
-	} else {
-		_showTimer.callOnce(0);
-	}
-	return RpWidget::enterEventHook(e);
-}
-
-void VolumeWidget::leaveEventHook(QEvent *e) {
-	_showTimer.cancel();
-	if (_a_appearance.animating()) {
-		startHide();
-	} else {
-		_hideTimer.callOnce(300);
-	}
-	return RpWidget::leaveEventHook(e);
-}
-
-void VolumeWidget::otherEnter() {
-	_hideTimer.cancel();
-	if (_a_appearance.animating()) {
-		startShow();
-	} else {
-		_showTimer.callOnce(0);
-	}
-}
-
-void VolumeWidget::otherLeave() {
-	_showTimer.cancel();
-	if (_a_appearance.animating()) {
-		startHide();
-	} else {
-		_hideTimer.callOnce(0);
-	}
-}
-
-void VolumeWidget::startShow() {
-	if (isHidden()) {
-		show();
-	} else if (!_hiding) {
-		return;
-	}
-	_hiding = false;
-	startAnimation();
-}
-
-void VolumeWidget::startHide() {
-	if (_hiding) {
-		return;
-	}
-
-	_hiding = true;
-	startAnimation();
-}
-
-void VolumeWidget::startAnimation() {
-	if (_cache.isNull()) {
-		showChildren();
-		_cache = Ui::GrabWidget(this);
-	}
-	hideChildren();
-	_a_appearance.start(
-		[=] { appearanceCallback(); },
-		_hiding ? 1. : 0.,
-		_hiding ? 0. : 1.,
-		st::defaultInnerDropdown.duration);
-}
-
-void VolumeWidget::appearanceCallback() {
-	if (!_a_appearance.animating() && _hiding) {
-		_hiding = false;
-		hidingFinished();
-	} else {
-		update();
-	}
-}
-
-void VolumeWidget::hidingFinished() {
-	hide();
-	_cache = QPixmap();
-}
-
-bool VolumeWidget::eventFilter(QObject *obj, QEvent *e) {
-	if (e->type() == QEvent::Enter) {
-		otherEnter();
-	} else if (e->type() == QEvent::Leave) {
-		otherLeave();
-	}
-	return false;
-}
-
-} // namespace Player
-} // namespace Media
+} // namespace Media::Player

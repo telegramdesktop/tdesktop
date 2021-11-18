@@ -80,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
+#include "media/player/media_player_dropdown.h"
 #include "media/player/media_player_volume_controller.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_float.h"
@@ -843,7 +844,10 @@ void MainWidget::createPlayer() {
 				not_null<const HistoryItem*> item) {
 			_controller->showPeerHistoryAtItem(item);
 		});
-		_playerVolume.create(this, _controller);
+		_playerVolume.create(this);
+		Media::Player::PrepareVolumeDropdown(
+			_playerVolume.data(),
+			_controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		orderWidgets();
 		if (_a_show.animating()) {

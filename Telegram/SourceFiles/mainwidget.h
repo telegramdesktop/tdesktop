@@ -55,7 +55,7 @@ class Widget;
 namespace Media {
 namespace Player {
 class Widget;
-class VolumeWidget;
+class Dropdown;
 class Panel;
 struct TrackState;
 } // namespace Player
@@ -367,7 +367,7 @@ private:
 
 	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
 		= { nullptr };
-	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
+	object_ptr<Media::Player::Dropdown> _playerVolume = { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	bool _playerUsingPanel = false;
 

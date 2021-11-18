@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
-#include "media/player/media_player_volume_controller.h"
+#include "media/player/media_player_dropdown.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
@@ -239,7 +239,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 , _timeLabel(this, st::mediaPlayerTime)
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
-, _repeatTrack(this, st::mediaPlayerRepeatButton)
+, _repeatToggle(this, st::mediaPlayerRepeatButton)
 , _playbackSpeed(this, st::mediaPlayerSpeedButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
@@ -291,7 +291,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 	}, lifetime());
 
 	updateRepeatTrackIcon();
-	_repeatTrack->setClickedCallback([=] {
+	_repeatToggle->setClickedCallback([=] {
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
@@ -394,7 +394,7 @@ QPoint Widget::getPositionForVolumeWidget() const {
 	return QPoint(x, height());
 }
 
-void Widget::volumeWidgetCreated(VolumeWidget *widget) {
+void Widget::volumeWidgetCreated(Dropdown *widget) {
 	_volumeToggle->installEventFilter(widget);
 }
 
@@ -433,7 +433,7 @@ void Widget::updateControlsGeometry() {
 	if (hasPlaybackSpeedControl()) {
 		_playbackSpeed->moveToRight(right, st::mediaPlayerPlayTop); right += _playbackSpeed->width();
 	}
-	_repeatTrack->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatTrack->width();
+	_repeatToggle->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatToggle->width();
 	_volumeToggle->moveToRight(right, st::mediaPlayerPlayTop); right += _volumeToggle->width();
 
 	updatePlayPrevNextPositions();
@@ -520,7 +520,7 @@ int Widget::getLabelsLeft() const {
 int Widget::getLabelsRight() const {
 	auto result = st::mediaPlayerCloseRight + _close->width();
 	if (_type == AudioMsgId::Type::Song) {
-		result += _repeatTrack->width() + _volumeToggle->width();
+		result += _repeatToggle->width() + _volumeToggle->width();
 	}
 	if (hasPlaybackSpeedControl()) {
 		result += _playbackSpeed->width();
@@ -543,8 +543,8 @@ void Widget::updateLabelsGeometry() {
 
 void Widget::updateRepeatTrackIcon() {
 	auto repeating = instance()->repeatEnabled(AudioMsgId::Type::Song);
-	_repeatTrack->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
-	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
+	_repeatToggle->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
+	_repeatToggle->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
 void Widget::checkForTypeChange() {
@@ -567,7 +567,7 @@ bool Widget::hasPlaybackSpeedControl() const {
 }
 
 void Widget::updateControlsVisibility() {
-	_repeatTrack->setVisible(_type == AudioMsgId::Type::Song);
+	_repeatToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_playbackSpeed->setVisible(hasPlaybackSpeedControl());
 	if (!_shadow->isHidden()) {

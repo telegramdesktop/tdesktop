@@ -36,7 +36,7 @@ namespace Player {
 
 class PlayButton;
 class SpeedButton;
-class VolumeWidget;
+class Dropdown;
 struct TrackState;
 
 class Widget : public Ui::RpWidget, private base::Subscriber {
@@ -51,7 +51,7 @@ public:
 	void hideShadow();
 
 	QPoint getPositionForVolumeWidget() const;
-	void volumeWidgetCreated(VolumeWidget *widget);
+	void volumeWidgetCreated(Dropdown *widget);
 
 	~Widget();
 
@@ -120,7 +120,7 @@ private:
 	object_ptr<PlayButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
 	object_ptr<Ui::IconButton> _volumeToggle;
-	object_ptr<Ui::IconButton> _repeatTrack;
+	object_ptr<Ui::IconButton> _repeatToggle;
 	object_ptr<SpeedButton> _playbackSpeed;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
