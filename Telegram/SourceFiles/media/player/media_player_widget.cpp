@@ -826,10 +826,10 @@ void Widget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
 		_previousTrack->setRippleColorOverride(previousEnabled ? nullptr : &st::mediaPlayerBg);
-		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
+		_previousTrack->setPointerCursor(previousEnabled);
 		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
 		_nextTrack->setRippleColorOverride(nextEnabled ? nullptr : &st::mediaPlayerBg);
-		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
+		_nextTrack->setPointerCursor(nextEnabled);
 	}
 }
 

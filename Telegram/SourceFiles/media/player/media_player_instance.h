@@ -189,7 +189,7 @@ public:
 	};
 
 	[[nodiscard]] rpl::producer<Switch> switchToNextEvents() const {
-		return _switchToNextStream.events();
+		return _switchToNext.events();
 	}
 	[[nodiscard]] rpl::producer<AudioMsgId::Type> tracksFinished() const {
 		return _tracksFinished.events();
@@ -322,7 +322,7 @@ private:
 	Data _voiceData;
 	bool _roundPlaying = false;
 
-	rpl::event_stream<Switch> _switchToNextStream;
+	rpl::event_stream<Switch> _switchToNext;
 	rpl::event_stream<AudioMsgId::Type> _tracksFinished;
 	rpl::event_stream<AudioMsgId::Type> _trackChanged;
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;

@@ -364,12 +364,13 @@ bool Instance::moveInPlaylist(
 	if (!data->playlistIndex) {
 		return false;
 	}
-	const auto newIndex = *data->playlistIndex + delta;
+	const auto newIndex = *data->playlistIndex
+		+ (data->order.current() == OrderMode::Reverse ? -delta : delta);
 	if (const auto item = itemByIndex(data, newIndex)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				if (autonext) {
-					_switchToNextStream.fire({
+					_switchToNext.fire({
 						data->current,
 						item->fullId()
 					});
@@ -389,24 +390,35 @@ bool Instance::moveInPlaylist(
 bool Instance::previousAvailable(AudioMsgId::Type type) const {
 	const auto data = getData(type);
 	Assert(data != nullptr);
-	return data->playlistIndex
-		&& data->playlistSlice
-		&& (*data->playlistIndex > 0);
+
+	if (!data->playlistIndex || !data->playlistSlice) {
+		return false;
+	}
+	return (data->order.current() == OrderMode::Reverse)
+		? (*data->playlistIndex + 1 < data->playlistSlice->size())
+		: (*data->playlistIndex > 0);
 }
 
 bool Instance::nextAvailable(AudioMsgId::Type type) const {
 	const auto data = getData(type);
 	Assert(data != nullptr);
-	return data->playlistIndex
-		&& data->playlistSlice
-		&& (*data->playlistIndex + 1 < data->playlistSlice->size());
+
+	if (!data->playlistIndex || !data->playlistSlice) {
+		return false;
+	}
+	return (data->order.current() == OrderMode::Reverse)
+		? (*data->playlistIndex > 0)
+		: (*data->playlistIndex + 1 < data->playlistSlice->size());
 }
 
 rpl::producer<> Media::Player::Instance::playlistChanges(
 		AudioMsgId::Type type) const {
 	const auto data = getData(type);
 	Assert(data != nullptr);
-	return data->playlistChanges.events();
+
+	return rpl::merge(
+		data->playlistChanges.events(),
+		data->order.changes() | rpl::to_empty);
 }
 
 rpl::producer<> Media::Player::Instance::stops(AudioMsgId::Type type) const {
