@@ -1004,6 +1004,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_public_group_title" = "Public";
 "lng_manage_private_peer_title" = "Private";
 "lng_manage_public_peer_title" = "Public";
+"lng_manage_peer_no_forwards_title" = "Saving content";
+"lng_manage_peer_no_forwards" = "Restrict saving content";
+"lng_manage_peer_no_forwards_about" = "Participants won't be able to forward messages from this channel or save media files.";
 
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";
@@ -1825,7 +1828,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
 "lng_edit_sign_messages" = "Sign messages";
-"lng_edit_allow_forwards" = "Allow saving content";
 "lng_edit_group" = "Edit group";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";

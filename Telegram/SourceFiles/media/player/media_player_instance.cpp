@@ -467,6 +467,10 @@ bool Instance::moveInPlaylist(
 	const auto jumpById = [&](FullMsgId id) {
 		return jumpByItem(data->history->owner().message(id));
 	};
+
+	if (data->order.current() == OrderMode::Shuffle) {
+	}
+
 	const auto newIndex = *data->playlistIndex
 		+ (data->order.current() == OrderMode::Reverse ? -delta : delta);
 	const auto useIndex = (!data->playlistSlice
@@ -499,6 +503,7 @@ bool Instance::previousAvailable(AudioMsgId::Type type) const {
 		return false;
 	} else if (data->repeat.current() == RepeatMode::All) {
 		return true;
+	} else if (data->order.current() == OrderMode::Shuffle) {
 	}
 	return (data->order.current() == OrderMode::Reverse)
 		? (*data->playlistIndex + 1 < data->playlistSlice->size())
@@ -513,6 +518,7 @@ bool Instance::nextAvailable(AudioMsgId::Type type) const {
 		return false;
 	} else if (data->repeat.current() == RepeatMode::All) {
 		return true;
+	} else if (data->order.current() == OrderMode::Shuffle) {
 	}
 	return (data->order.current() == OrderMode::Reverse)
 		? (*data->playlistIndex > 0)

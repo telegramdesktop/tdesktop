@@ -63,13 +63,14 @@ public:
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
 		std::optional<Privacy> privacySavedValue,
-		std::optional<QString> usernameSavedValue);
+		std::optional<QString> usernameSavedValue,
+		std::optional<bool> noForwardsSavedValue);
 
 	void createContent();
-	QString getUsernameInput();
+	[[nodiscard]] QString getUsernameInput() const;
 	void setFocusUsername();
 
-	rpl::producer<QString> getTitle() {
+	[[nodiscard]] rpl::producer<QString> getTitle() const {
 		return !_privacySavedValue
 			? tr::lng_create_invite_link_title()
 			: _isGroup
@@ -77,12 +78,16 @@ public:
 			: tr::lng_manage_peer_channel_type();
 	}
 
-	bool isAllowSave() {
+	[[nodiscard]] bool isAllowSave() {
 		return _isAllowSave;
 	}
 
-	Privacy getPrivacy() {
+	[[nodiscard]] Privacy getPrivacy() const {
 		return _controls.privacy->value();
+	}
+
+	[[nodiscard]] bool noForwards() const {
+		return _controls.noForwards->toggled();
 	}
 
 	void showError(rpl::producer<QString> text) {
@@ -100,6 +105,8 @@ private:
 
 		Ui::SlideWrap<Ui::RpWidget> *inviteLinkWrap = nullptr;
 		Ui::FlatLabel *inviteLink = nullptr;
+
+		Ui::SettingsButton *noForwards = nullptr;
 	};
 
 	Controls _controls;
@@ -133,6 +140,7 @@ private:
 	MTP::Sender _api;
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
+	std::optional<bool> _noForwardsSavedValue;
 
 	bool _useLocationPhrases = false;
 	bool _isGroup = false;
@@ -153,12 +161,14 @@ Controller::Controller(
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
 	std::optional<Privacy> privacySavedValue,
-	std::optional<QString> usernameSavedValue)
+	std::optional<QString> usernameSavedValue,
+	std::optional<bool> noForwardsSavedValue)
 : _peer(peer)
 , _linkOnly(!privacySavedValue.has_value())
 , _api(&_peer->session().mtp())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
+, _noForwardsSavedValue(noForwardsSavedValue)
 , _useLocationPhrases(useLocationPhrases)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
 , _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
@@ -195,6 +205,25 @@ void Controller::createContent() {
 		&st::infoIconInviteLinks));
 	AddSkip(_wrap.get());
 	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
+
+	AddSkip(_wrap.get());
+	AddSubsectionTitle(_wrap.get(), tr::lng_manage_peer_no_forwards_title());
+	_controls.noForwards = _wrap->add(EditPeerInfoBox::CreateButton(
+		_wrap.get(),
+		tr::lng_manage_peer_no_forwards(),
+		rpl::single(QString()),
+		[=] {},
+		st::manageGroupTopButtonWithText,
+		nullptr
+	));
+	_controls.noForwards->toggleOn(
+		rpl::single(_noForwardsSavedValue.value_or(false))
+	)->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_noForwardsSavedValue = toggled;
+	}, _wrap->lifetime());
+	AddSkip(_wrap.get());
+	AddDividerText(_wrap.get(), tr::lng_manage_peer_no_forwards_about());
 
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);
@@ -299,7 +328,7 @@ void Controller::setFocusUsername() {
 	}
 }
 
-QString Controller::getUsernameInput() {
+QString Controller::getUsernameInput() const {
 	return _controls.usernameInput->getLastText().trimmed();
 }
 
@@ -575,22 +604,24 @@ EditPeerTypeBox::EditPeerTypeBox(
 	QWidget*,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
-	std::optional<FnMut<void(Privacy, QString)>> savedCallback,
+	std::optional<FnMut<void(Privacy, QString, bool)>> savedCallback,
 	std::optional<Privacy> privacySaved,
 	std::optional<QString> usernameSaved,
+	std::optional<bool> noForwardsValue,
 	std::optional<rpl::producer<QString>> usernameError)
 : _peer(peer)
 , _useLocationPhrases(useLocationPhrases)
 , _savedCallback(std::move(savedCallback))
 , _privacySavedValue(privacySaved)
 , _usernameSavedValue(usernameSaved)
+, _noForwardsValue(noForwardsValue)
 , _usernameError(usernameError) {
 }
 
 EditPeerTypeBox::EditPeerTypeBox(
 	QWidget*,
 	not_null<PeerData*> peer)
-: EditPeerTypeBox(nullptr, peer, {}, {}, {}, {}, {}) {
+: EditPeerTypeBox(nullptr, peer, {}, {}, {}, {}, {}, {}) {
 }
 
 void EditPeerTypeBox::setInnerFocus() {
@@ -608,7 +639,8 @@ void EditPeerTypeBox::prepare() {
 		_peer,
 		_useLocationPhrases,
 		_privacySavedValue,
-		_usernameSavedValue);
+		_usernameSavedValue,
+		_noForwardsValue);
 	_focusRequests.events(
 	) | rpl::start_with_next(
 		[=] {
@@ -632,10 +664,12 @@ void EditPeerTypeBox::prepare() {
 			}
 
 			auto local = std::move(*_savedCallback);
-			local(v,
-				(v == Privacy::HasUsername)
+			local(
+				v,
+				(v == Privacy::HasUsername
 					? controller->getUsernameInput()
-					: QString()); // We don't need username with private type.
+					: QString()),
+				controller->noForwards()); // We don't need username with private type.
 			closeBox();
 		});
 		addButton(tr::lng_cancel(), [=] { closeBox(); });

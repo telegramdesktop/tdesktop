@@ -277,7 +277,7 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> signatures;
-		std::optional<bool> forwards;
+		std::optional<bool> noForwards;
 		std::optional<ChannelData*> linkedChat;
 	};
 
@@ -297,7 +297,6 @@ private:
 	void fillLinkedChatButton();
 	//void fillInviteLinkButton();
 	void fillSignaturesButton();
-	void fillForwardsButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
 	void fillPendingRequestsButton();
@@ -345,7 +344,7 @@ private:
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<QString> _usernameSavedValue;
 	std::optional<bool> _signaturesSavedValue;
-	std::optional<bool> _forwardsSavedValue;
+	std::optional<bool> _noForwardsSavedValue;
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<Ui::BoxContent*> _box;
@@ -611,10 +610,11 @@ void Controller::refreshHistoryVisibility() {
 void Controller::showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error) {
 	const auto boxCallback = crl::guard(this, [=](
-			Privacy checked, QString publicLink) {
+			Privacy checked, QString publicLink, bool noForwards) {
 		_privacyTypeUpdates.fire(std::move(checked));
 		_privacySavedValue = checked;
 		_usernameSavedValue = publicLink;
+		_noForwardsSavedValue = noForwards;
 		refreshHistoryVisibility();
 	});
 	_navigation->parentController()->show(
@@ -624,6 +624,7 @@ void Controller::showEditPeerTypeBox(
 			boxCallback,
 			_privacySavedValue,
 			_usernameSavedValue,
+			_noForwardsSavedValue,
 			error),
 		Ui::LayerOption::KeepOther);
 }
@@ -699,6 +700,7 @@ void Controller::fillPrivacyTypeButton() {
 		&& _peer->asChannel()->hasUsername())
 		? Privacy::HasUsername
 		: Privacy::NoUsername;
+	_noForwardsSavedValue = !_peer->allowsForwarding();
 
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
 	AddButtonWithText(
@@ -800,21 +802,6 @@ void Controller::fillSignaturesButton() {
 	}, _controls.buttonsLayout->lifetime());
 }
 
-void Controller::fillForwardsButton() {
-	Expects(_controls.buttonsLayout != nullptr);
-
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_edit_allow_forwards(),
-		rpl::single(QString()),
-		[=] {}
-	)->toggleOn(rpl::single(_peer->allowsForwarding())
-	)->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		_forwardsSavedValue = toggled;
-	}, _controls.buttonsLayout->lifetime());
-}
-
 void Controller::fillHistoryVisibilityButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -874,18 +861,15 @@ void Controller::fillManageSection() {
 	const auto isChannel = (!chat);
 	if (!chat && !channel) return;
 
-	const auto canEditUsername = [&] {
+	const auto canEditType = [&] {
 		return isChannel
-			? channel->canEditUsername()
-			: chat->canEditUsername();
+			? channel->amCreator()
+			: chat->amCreator();
 	}();
 	const auto canEditSignatures = [&] {
 		return isChannel
 			? (channel->canEditSignatures() && !channel->isMegagroup())
 			: false;
-	}();
-	const auto canEditForwards = [&] {
-		return isChannel ? channel->amCreator() : chat->amCreator();
 	}();
 	const auto canEditPreHistoryHidden = [&] {
 		return isChannel
@@ -946,7 +930,7 @@ void Controller::fillManageSection() {
 
 	AddSkip(_controls.buttonsLayout, 0);
 
-	if (canEditUsername) {
+	if (canEditType) {
 		fillPrivacyTypeButton();
 	//} else if (canEditInviteLinks) {
 	//	fillInviteLinkButton();
@@ -960,15 +944,11 @@ void Controller::fillManageSection() {
 	if (canEditSignatures) {
 		fillSignaturesButton();
 	}
-	if (canEditForwards) {
-		fillForwardsButton();
-	}
 	if (canEditPreHistoryHidden
 		|| canEditSignatures
-		|| canEditForwards
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
-		|| canEditUsername) {
+		|| canEditType) {
 		AddSkip(
 			_controls.buttonsLayout,
 			st::editPeerTopButtonsLayoutSkip,
@@ -989,7 +969,7 @@ void Controller::fillManageSection() {
 			st::infoIconPermissions);
 	}
 	if (canEditInviteLinks
-		&& (canEditUsername
+		&& (canEditType
 			|| !_peer->isChannel()
 			|| !_peer->asChannel()->hasUsername())) {
 		auto count = Info::Profile::MigratedOrMeValue(
@@ -1258,10 +1238,10 @@ bool Controller::validateSignatures(Saving &to) const {
 }
 
 bool Controller::validateForwards(Saving &to) const {
-	if (!_forwardsSavedValue.has_value()) {
+	if (!_noForwardsSavedValue.has_value()) {
 		return true;
 	}
-	to.forwards = _forwardsSavedValue;
+	to.noForwards = _noForwardsSavedValue;
 	return true;
 }
 
@@ -1537,13 +1517,13 @@ void Controller::saveSignatures() {
 }
 
 void Controller::saveForwards() {
-	if (!_savingData.forwards
-		|| *_savingData.forwards == _peer->allowsForwarding()) {
+	if (!_savingData.noForwards
+		|| *_savingData.noForwards != _peer->allowsForwarding()) {
 		return continueSave();
 	}
 	_api.request(MTPmessages_ToggleNoForwards(
 		_peer->input,
-		MTP_bool(!*_savingData.forwards)
+		MTP_bool(*_savingData.noForwards)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		continueSave();
