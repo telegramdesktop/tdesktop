@@ -788,37 +788,39 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for (const auto &event : events) {
-		event.match([&](const MTPDchannelAdminLogEvent &data) {
-			const auto id = data.vid().v;
-			if (_eventIds.find(id) != _eventIds.end()) {
-				return;
-			}
-
-			auto count = 0;
-			const auto addOne = [&](OwnedItem item, TimeId sentDate) {
-				if (sentDate) {
-					_itemDates.emplace(item->data(), sentDate);
-				}
-				_eventIds.emplace(id);
-				_itemsByData.emplace(item->data(), item.get());
-				addToItems.push_back(std::move(item));
-				++count;
-			};
-			GenerateItems(
-				this,
-				_history,
-				data,
-				addOne);
-			if (count > 1) {
-				// Reverse the inner order of the added messages, because we load events
-				// from bottom to top but inside one event they go from top to bottom.
-				auto full = addToItems.size();
-				auto from = full - count;
-				for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
-					std::swap(addToItems[from + i], addToItems[full - i - 1]);
-				}
-			}
+		const auto &data = event.match([](const MTPDchannelAdminLogEvent &d)
+				-> const MTPDchannelAdminLogEvent & {
+			return d;
 		});
+		const auto id = data.vid().v;
+		if (_eventIds.find(id) != _eventIds.end()) {
+			return;
+		}
+
+		auto count = 0;
+		const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+			if (sentDate) {
+				_itemDates.emplace(item->data(), sentDate);
+			}
+			_eventIds.emplace(id);
+			_itemsByData.emplace(item->data(), item.get());
+			addToItems.push_back(std::move(item));
+			++count;
+		};
+		GenerateItems(
+			this,
+			_history,
+			data,
+			addOne);
+		if (count > 1) {
+			// Reverse the inner order of the added messages, because we load events
+			// from bottom to top but inside one event they go from top to bottom.
+			auto full = addToItems.size();
+			auto from = full - count;
+			for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
+				std::swap(addToItems[from + i], addToItems[full - i - 1]);
+			}
+		}
 	}
 	auto newItemsCount = _items.size() + ((direction == Direction::Up) ? 0 : newItemsForDownDirection.size());
 	if (newItemsCount != oldItemsCount) {
