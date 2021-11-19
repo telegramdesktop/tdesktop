@@ -82,7 +82,7 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
-	bool validateSelf(const MTPUser &user);
+	bool validateSelf(UserId id);
 
 	[[nodiscard]] Data::Changes &changes() const {
 		return *_changes;

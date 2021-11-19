@@ -1887,11 +1887,16 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 		}
 	} else if (!_megagroupSetRequestId) {
 		_megagroupSetRequestId = _api.request(MTPmessages_GetStickerSet(
-			MTP_inputStickerSetShortName(MTP_string(text))
+			MTP_inputStickerSetShortName(MTP_string(text)),
+			MTP_int(0) // hash
 		)).done([=](const MTPmessages_StickerSet &result) {
 			_megagroupSetRequestId = 0;
-			auto set = session().data().stickers().feedSetFull(result);
-			setMegagroupSelectedSet(set->identifier());
+			result.match([&](const MTPDmessages_stickerSet &data) {
+				const auto set = session().data().stickers().feedSetFull(data);
+				setMegagroupSelectedSet(set->identifier());
+			}, [](const MTPDmessages_stickerSetNotModified &) {
+				LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+			});
 		}).fail([=](const MTP::Error &error) {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet({});

@@ -231,12 +231,15 @@ void EmojiPack::refresh() {
 		return;
 	}
 	_requestId = _session->api().request(MTPmessages_GetStickerSet(
-		MTP_inputStickerSetAnimatedEmoji()
+		MTP_inputStickerSetAnimatedEmoji(),
+		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		_requestId = 0;
 		refreshAnimations();
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -249,12 +252,15 @@ void EmojiPack::refreshAnimations() {
 		return;
 	}
 	_animationsRequestId = _session->api().request(MTPmessages_GetStickerSet(
-		MTP_inputStickerSetAnimatedEmojiAnimations()
+		MTP_inputStickerSetAnimatedEmojiAnimations(),
+		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		_animationsRequestId = 0;
 		refreshDelayed();
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applyAnimationsSet(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		_animationsRequestId = 0;

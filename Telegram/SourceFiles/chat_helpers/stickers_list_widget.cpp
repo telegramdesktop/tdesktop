@@ -2778,16 +2778,21 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	}
 	_megagroupSetIdRequested = set.id;
 	_api.request(MTPmessages_GetStickerSet(
-		Data::InputStickerSet(set)
+		Data::InputStickerSet(set),
+		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
-		if (const auto set = session().data().stickers().feedSetFull(result)) {
-			refreshStickers();
-			if (set->id == _megagroupSetIdRequested) {
-				_megagroupSetIdRequested = 0;
-			} else {
-				LOG(("API Error: Got different set."));
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			if (const auto set = session().data().stickers().feedSetFull(data)) {
+				refreshStickers();
+				if (set->id == _megagroupSetIdRequested) {
+					_megagroupSetIdRequested = 0;
+				} else {
+					LOG(("API Error: Got different set."));
+				}
 			}
-		}
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
 	}).send();
 }
 
@@ -3117,9 +3122,14 @@ void StickersListWidget::installSet(uint64 setId) {
 		const auto input = set->mtpInput();
 		if ((set->flags & SetFlag::NotLoaded) || set->stickers.empty()) {
 			_api.request(MTPmessages_GetStickerSet(
-				input
+				input,
+				MTP_int(0) // hash
 			)).done([=](const MTPmessages_StickerSet &result) {
-				session().data().stickers().feedSetFull(result);
+				result.match([&](const MTPDmessages_stickerSet &data) {
+					session().data().stickers().feedSetFull(data);
+				}, [](const MTPDmessages_stickerSetNotModified &) {
+					LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+				});
 				sendInstallRequest(setId, input);
 			}).send();
 		} else {

@@ -1283,15 +1283,14 @@ std::map<MessageId, Message> ParseMessagesList(
 	return result;
 }
 
-PersonalInfo ParsePersonalInfo(const MTPUserFull &data) {
-	Expects(data.type() == mtpc_userFull);
-
-	const auto &fields = data.c_userFull();
+PersonalInfo ParsePersonalInfo(const MTPDusers_userFull &data) {
 	auto result = PersonalInfo();
-	result.user = ParseUser(fields.vuser());
-	if (const auto about = fields.vabout()) {
-		result.bio = ParseString(*about);
-	}
+	result.user = ParseUser(data.vusers().v[0]);
+	data.vfull_user().match([&](const MTPDuserFull &data) {
+		if (const auto about = data.vabout()) {
+			result.bio = ParseString(*about);
+		}
+	});
 	return result;
 }
 

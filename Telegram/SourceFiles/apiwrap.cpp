@@ -1040,7 +1040,11 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 			}
 			return request(MTPusers_GetFullUser(
 				user->inputUser
-			)).done([=](const MTPUserFull &result, mtpRequestId requestId) {
+			)).done([=](const MTPusers_UserFull &result, mtpRequestId requestId) {
+				result.match([&](const MTPDusers_userFull &data) {
+					_session->data().processUsers(data.vusers());
+					_session->data().processChats(data.vchats());
+				});
 				gotUserFull(user, result, requestId);
 			}).fail(failHandler).send();
 		} else if (const auto chat = peer->asChat()) {
@@ -1070,12 +1074,6 @@ void ApiWrap::processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result) {
 	gotChatFull(peer, result, mtpRequestId(0));
-}
-
-void ApiWrap::processFullPeer(
-		not_null<UserData*> user,
-		const MTPUserFull &result) {
-	gotUserFull(user, result, mtpRequestId(0));
 }
 
 void ApiWrap::gotChatFull(
@@ -1117,18 +1115,20 @@ void ApiWrap::gotChatFull(
 
 void ApiWrap::gotUserFull(
 		not_null<UserData*> user,
-		const MTPUserFull &result,
+		const MTPusers_UserFull &result,
 		mtpRequestId req) {
-	const auto &d = result.c_userFull();
-	if (user == _session->user() && !_session->validateSelf(d.vuser())) {
-		constexpr auto kRequestUserAgainTimeout = crl::time(10000);
-		base::call_delayed(kRequestUserAgainTimeout, _session, [=] {
-			requestFullPeer(user);
+	result.match([&](const MTPDusers_userFull &data) {
+		data.vfull_user().match([&](const MTPDuserFull &fields) {
+			if (user == _session->user() && !_session->validateSelf(fields.vid().v)) {
+				constexpr auto kRequestUserAgainTimeout = crl::time(10000);
+				base::call_delayed(kRequestUserAgainTimeout, _session, [=] {
+					requestFullPeer(user);
+				});
+				return;
+			}
+			Data::ApplyUserUpdate(user, fields);
 		});
-		return;
-	}
-	Data::ApplyUserUpdate(user, d);
-
+	});
 	if (req) {
 		const auto i = _fullPeerRequests.find(user);
 		if (i != _fullPeerRequests.cend() && i.value() == req) {
@@ -1184,9 +1184,13 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 	}
 	request(MTPmessages_GetPeerSettings(
 		peer->input
-	)).done([=](const MTPPeerSettings &result) {
-		peer->setSettings(result);
-		_requestedPeerSettings.erase(peer);
+	)).done([=](const MTPmessages_PeerSettings &result) {
+		result.match([&](const MTPDmessages_peerSettings &data) {
+			_session->data().processUsers(data.vusers());
+			_session->data().processChats(data.vchats());
+			peer->setSettings(data.vsettings());
+			_requestedPeerSettings.erase(peer);
+		});
 	}).fail([=](const MTP::Error &error) {
 		_requestedPeerSettings.erase(peer);
 	}).send();
@@ -1775,9 +1779,9 @@ void ApiWrap::deleteAllFromUser(
 void ApiWrap::deleteAllFromUserSend(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from) {
-	request(MTPchannels_DeleteUserHistory(
+	request(MTPchannels_DeleteParticipantHistory(
 		channel->inputChannel,
-		from->inputUser
+		from->input
 	)).done([=](const MTPmessages_AffectedHistory &result) {
 		const auto offset = applyAffectedHistory(channel, result);
 		if (offset > 0) {
@@ -1834,7 +1838,8 @@ void ApiWrap::requestStickerSets() {
 			MTP_long(i.key()),
 			MTP_long(i.value().first));
 		i.value().second = request(MTPmessages_GetStickerSet(
-			id
+			id,
+			MTP_int(0) // hash
 		)).done([=, setId = i.key()](const MTPmessages_StickerSet &result) {
 			gotStickerSet(setId, result);
 		}).fail([=, setId = i.key()](const MTP::Error &error) {
@@ -2589,7 +2594,11 @@ void ApiWrap::applyNotifySettings(
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
-	_session->data().stickers().feedSetFull(result);
+	result.match([&](const MTPDmessages_stickerSet &data) {
+		_session->data().stickers().feedSetFull(data);
+	}, [](const MTPDmessages_stickerSetNotModified &) {
+		LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+	});
 }
 
 void ApiWrap::requestWebPageDelayed(WebPageData *page) {
@@ -2846,7 +2855,8 @@ void ApiWrap::refreshFileReference(
 			request(MTPmessages_GetStickerSet(
 				MTP_inputStickerSetID(
 					MTP_long(data.setId),
-					MTP_long(data.accessHash))),
+					MTP_long(data.accessHash)),
+				MTP_int(0)), // hash
 				[=] { crl::on_main(_session, [=] {
 					local().writeInstalledStickers();
 					local().writeRecentStickers();

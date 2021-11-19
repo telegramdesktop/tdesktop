@@ -255,7 +255,7 @@ struct PersonalInfo {
 	Utf8String bio;
 };
 
-PersonalInfo ParsePersonalInfo(const MTPUserFull &data);
+PersonalInfo ParsePersonalInfo(const MTPDusers_userFull &data);
 
 struct TopPeer {
 	Peer peer;

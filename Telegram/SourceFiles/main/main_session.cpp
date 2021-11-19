@@ -220,11 +220,8 @@ PeerId Session::userPeerId() const {
 	return _user->id;
 }
 
-bool Session::validateSelf(const MTPUser &user) {
-	if (user.type() != mtpc_user || !user.c_user().is_self()) {
-		LOG(("API Error: bad self user received."));
-		return false;
-	} else if (UserId(user.c_user().vid()) != userId()) {
+bool Session::validateSelf(UserId id) {
+	if (id != userId()) {
 		LOG(("Auth Error: wrong self user received."));
 		crl::on_main(this, [=] { _account->logOut(); });
 		return false;

@@ -210,9 +210,6 @@ public:
 	void processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
-	void processFullPeer(
-		not_null<UserData*> user,
-		const MTPUserFull &result);
 
 	void migrateChat(
 		not_null<ChatData*> chat,
@@ -459,7 +456,7 @@ private:
 		mtpRequestId req);
 	void gotUserFull(
 		not_null<UserData*> user,
-		const MTPUserFull &result,
+		const MTPusers_UserFull &result,
 		mtpRequestId req);
 	void applyLastParticipantsList(
 		not_null<ChannelData*> channel,

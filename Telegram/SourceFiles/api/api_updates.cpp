@@ -2214,7 +2214,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
 		const auto &d = update.c_updateNewStickerSet();
-		session().data().stickers().newSetReceived(d.vstickerset());
+		d.vstickerset().match([&](const MTPDmessages_stickerSet &data) {
+			session().data().stickers().newSetReceived(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {

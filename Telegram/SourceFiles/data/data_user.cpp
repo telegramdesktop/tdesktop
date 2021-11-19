@@ -188,7 +188,6 @@ bool UserData::hasCalls() const {
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
-	user->owner().processUser(update.vuser());
 	if (const auto photo = update.vprofile_photo()) {
 		user->owner().processPhoto(*photo);
 	}
