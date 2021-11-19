@@ -1835,12 +1835,6 @@ void MainWidget::orderWidgets() {
 	if (_callTopBar) {
 		_callTopBar->raise();
 	}
-	if (_playerVolume) {
-		_playerVolume->raise();
-	}
-	if (_playerRepeat) {
-		_playerRepeat->raise();
-	}
 	_sideShadow->raise();
 	if (_thirdShadow) {
 		_thirdShadow->raise();
@@ -1852,8 +1846,14 @@ void MainWidget::orderWidgets() {
 		_thirdColumnResizeArea->raise();
 	}
 	_connecting->raise();
-	_playerPlaylist->raise();
 	floatPlayerRaiseAll();
+	_playerPlaylist->raise();
+	if (_playerVolume) {
+		_playerVolume->raise();
+	}
+	if (_playerRepeat) {
+		_playerRepeat->raise();
+	}
 	if (_hider) _hider->raise();
 }
 
