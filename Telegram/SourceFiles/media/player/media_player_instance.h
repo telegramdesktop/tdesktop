@@ -136,11 +136,7 @@ public:
 		}
 		return rpl::never<RepeatMode>();
 	}
-	void setRepeatMode(AudioMsgId::Type type, RepeatMode mode) {
-		if (const auto data = getData(type)) {
-			data->repeat = mode;
-		}
-	}
+	void setRepeatMode(AudioMsgId::Type type, RepeatMode mode);
 
 	[[nodiscard]] OrderMode orderMode(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
@@ -162,11 +158,7 @@ public:
 		}
 		return rpl::never<OrderMode>();
 	}
-	void setOrderMode(AudioMsgId::Type type, OrderMode mode) {
-		if (const auto data = getData(type)) {
-			data->order = mode;
-		}
-	}
+	void setOrderMode(AudioMsgId::Type type, OrderMode mode);
 
 	[[nodiscard]] bool isSeeking(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
@@ -232,8 +224,11 @@ private:
 		std::optional<SparseIdsMergedSlice> playlistSlice;
 		std::optional<SliceKey> playlistSliceKey;
 		std::optional<SliceKey> playlistRequestedKey;
+		std::optional<SparseIdsMergedSlice> playlistOtherSlice;
+		std::optional<SliceKey> playlistOtherRequestedKey;
 		std::optional<int> playlistIndex;
 		rpl::lifetime playlistLifetime;
+		rpl::lifetime playlistOtherLifetime;
 		rpl::lifetime sessionLifetime;
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
@@ -273,9 +268,13 @@ private:
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
-	std::optional<SliceKey> playlistKey(not_null<Data*> data) const;
-	bool validPlaylist(not_null<Data*> data);
+	std::optional<SliceKey> playlistKey(not_null<const Data*> data) const;
+	bool validPlaylist(not_null<const Data*> data) const;
 	void validatePlaylist(not_null<Data*> data);
+	std::optional<SliceKey> playlistOtherKey(
+		not_null<const Data*> data) const;
+	bool validOtherPlaylist(not_null<const Data*> data) const;
+	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);

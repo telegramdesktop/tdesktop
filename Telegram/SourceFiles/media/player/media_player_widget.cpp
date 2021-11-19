@@ -593,7 +593,7 @@ void Widget::updateRepeatToggleIcon() {
 				(active
 					? &st::mediaPlayerReverseIcon
 					: &st::mediaPlayerReverseDisabledIcon),
-				active ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
+				active ? nullptr : &st::mediaPlayerReverseDisabledIconOver);
 			break;
 		case OrderMode::Shuffle:
 			_repeatToggle->setIconOverride(
