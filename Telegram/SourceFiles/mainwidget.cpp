@@ -852,9 +852,7 @@ void MainWidget::createPlayer() {
 			_controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		_playerRepeat.create(this);
-		Media::Player::PrepareRepeatDropdown(
-			_playerRepeat.data(),
-			_controller);
+		Media::Player::PrepareRepeatDropdown(_playerRepeat.data());
 		_player->entity()->repeatWidgetCreated(_playerRepeat);
 		orderWidgets();
 		if (_a_show.animating()) {

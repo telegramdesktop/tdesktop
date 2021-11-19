@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
+#include "media/player/media_player_instance.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
 #include "facades.h"
@@ -125,7 +126,8 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(_photoEditorBrush)
 		+ sizeof(qint32) * 3
-		+ Serialize::stringSize(_customDeviceModel.current());
+		+ Serialize::stringSize(_customDeviceModel.current())
+		+ sizeof(qint32) * 2;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -223,7 +225,9 @@ QByteArray Settings::serialize() const {
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(_voicePlaybackSpeed * 100)
 			<< qint32(_closeToTaskbar.current() ? 1 : 0)
-			<< _customDeviceModel.current();
+			<< _customDeviceModel.current()
+			<< qint32(_playerRepeatMode.current())
+			<< qint32(_playerOrderMode.current());
 	}
 	return result;
 }
@@ -308,6 +312,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray photoEditorBrush = _photoEditorBrush;
 	qint32 closeToTaskbar = _closeToTaskbar.current() ? 1 : 0;
 	QString customDeviceModel = _customDeviceModel.current();
+	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
+	qint32 playerOrderMode = static_cast<qint32>(_playerOrderMode.current());
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -471,6 +477,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> customDeviceModel;
 	}
+	if (!stream.atEnd()) {
+		stream
+			>> playerRepeatMode
+			>> playerOrderMode;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -613,6 +624,18 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_photoEditorBrush = photoEditorBrush;
 	_closeToTaskbar = (closeToTaskbar == 1);
 	_customDeviceModel = customDeviceModel;
+	const auto uncheckedPlayerRepeatMode = static_cast<Media::Player::RepeatMode>(playerRepeatMode);
+	switch (uncheckedPlayerRepeatMode) {
+	case Media::Player::RepeatMode::None:
+	case Media::Player::RepeatMode::One:
+	case Media::Player::RepeatMode::All: _playerRepeatMode = uncheckedPlayerRepeatMode; break;
+	}
+	const auto uncheckedPlayerOrderMode = static_cast<Media::Player::OrderMode>(playerOrderMode);
+	switch (uncheckedPlayerOrderMode) {
+	case Media::Player::OrderMode::Default:
+	case Media::Player::OrderMode::Reverse:
+	case Media::Player::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {

@@ -746,7 +746,7 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		}
 		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
-			if (data->repeatEnabled) {
+			if (data->repeat.current() == RepeatMode::One) {
 				play(data->current);
 			} else if (!moveInPlaylist(data, 1, true)) {
 				_tracksFinishedNotifier.notify(type);

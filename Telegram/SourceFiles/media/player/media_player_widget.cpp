@@ -290,9 +290,33 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		updateVolumeToggleIcon();
 	}, lifetime());
 
-	updateRepeatTrackIcon();
+	rpl::combine(
+		Core::App().settings().playerRepeatModeValue(),
+		Core::App().settings().playerOrderModeValue(),
+		instance()->repeatModeValue(AudioMsgId::Type::Song),
+		instance()->orderModeValue(AudioMsgId::Type::Song)
+	) | rpl::start_with_next([=] {
+		updateRepeatToggleIcon();
+	}, lifetime());
 	_repeatToggle->setClickedCallback([=] {
-		instance()->toggleRepeat(AudioMsgId::Type::Song);
+		const auto type = AudioMsgId::Type::Song;
+		const auto repeat = Core::App().settings().playerRepeatMode();
+		const auto order = Core::App().settings().playerOrderMode();
+		const auto mayBeActive = (repeat != RepeatMode::None)
+			|| (order != OrderMode::Default);
+		const auto active = mayBeActive
+			&& (repeat == instance()->repeatMode(type))
+			&& (order == instance()->orderMode(type));
+		if (!active && !mayBeActive) {
+			Core::App().settings().setPlayerRepeatMode(RepeatMode::All);
+			Core::App().saveSettingsDelayed();
+		}
+		instance()->setRepeatMode(type, active
+			? RepeatMode::None
+			: mayBeActive
+			? repeat
+			: RepeatMode::All);
+		instance()->setOrderMode(type, active ? OrderMode::Default : order);
 	});
 
 	_playbackSpeed->saved(
@@ -300,11 +324,6 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		instance()->updateVoicePlaybackSpeed();
 	}, lifetime());
 
-	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == _type) {
-			updateRepeatTrackIcon();
-		}
-	});
 	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == _type) {
 			handleSongChange();
@@ -552,10 +571,74 @@ void Widget::updateLabelsGeometry() {
 	_timeLabel->moveToRight(right, st::mediaPlayerNameTop - st::mediaPlayerTime.font->ascent);
 }
 
-void Widget::updateRepeatTrackIcon() {
-	auto repeating = instance()->repeatEnabled(AudioMsgId::Type::Song);
-	_repeatToggle->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
-	_repeatToggle->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
+void Widget::updateRepeatToggleIcon() {
+	const auto type = AudioMsgId::Type::Song;
+	const auto repeat = Core::App().settings().playerRepeatMode();
+	const auto order = Core::App().settings().playerOrderMode();
+	const auto active = (repeat == instance()->repeatMode(type))
+		&& (order == instance()->orderMode(type))
+		&& (repeat != RepeatMode::None || order != OrderMode::Default);
+	switch (repeat) {
+	case RepeatMode::None:
+		switch (order) {
+		case OrderMode::Default:
+			_repeatToggle->setIconOverride(
+				&st::mediaPlayerRepeatDisabledIcon,
+				&st::mediaPlayerRepeatDisabledIconOver);
+			break;
+		case OrderMode::Reverse:
+			_repeatToggle->setIconOverride(
+				(active
+					? &st::mediaPlayerReverseIcon
+					: &st::mediaPlayerReverseDisabledIcon),
+				active ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
+			break;
+		case OrderMode::Shuffle:
+			_repeatToggle->setIconOverride(
+				(active
+					? &st::mediaPlayerShuffleIcon
+					: &st::mediaPlayerShuffleDisabledIcon),
+				active ? nullptr : &st::mediaPlayerShuffleDisabledIconOver);
+			break;
+		}
+		break;
+	case RepeatMode::One:
+		_repeatToggle->setIconOverride(
+			(active
+				? &st::mediaPlayerRepeatOneIcon
+				: &st::mediaPlayerRepeatOneDisabledIcon),
+			active ? nullptr : &st::mediaPlayerRepeatOneDisabledIconOver);
+		break;
+	case RepeatMode::All:
+		switch (order) {
+		case OrderMode::Default:
+			_repeatToggle->setIconOverride(
+				(active ? nullptr : &st::mediaPlayerRepeatDisabledIcon),
+				(active ? nullptr : &st::mediaPlayerRepeatDisabledIconOver));
+			break;
+		case OrderMode::Reverse:
+			_repeatToggle->setIconOverride(
+				(active
+					? &st::mediaPlayerRepeatReverseIcon
+					: &st::mediaPlayerRepeatReverseDisabledIcon),
+				(active
+					? nullptr
+					: &st::mediaPlayerRepeatReverseDisabledIconOver));
+			break;
+		case OrderMode::Shuffle:
+			_repeatToggle->setIconOverride(
+				(active
+					? &st::mediaPlayerRepeatShuffleIcon
+					: &st::mediaPlayerRepeatShuffleDisabledIcon),
+				(active
+					? nullptr
+					: &st::mediaPlayerRepeatShuffleDisabledIconOver));
+			break;
+		}
+		break;
+	}
+	_repeatToggle->setRippleColorOverride(
+		active ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
 void Widget::checkForTypeChange() {

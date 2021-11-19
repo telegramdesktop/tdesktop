@@ -38,6 +38,18 @@ enum class Error;
 namespace Media {
 namespace Player {
 
+enum class RepeatMode {
+	None,
+	One,
+	All,
+};
+
+enum class OrderMode {
+	Default,
+	Reverse,
+	Shuffle,
+};
+
 class Instance;
 struct TrackState;
 
@@ -104,16 +116,55 @@ public:
 		return AudioMsgId();
 	}
 
-	[[nodiscard]] bool repeatEnabled(AudioMsgId::Type type) const {
+	[[nodiscard]] RepeatMode repeatMode(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
-			return data->repeatEnabled;
+			return data->repeat.current();
 		}
-		return false;
+		return RepeatMode::None;
 	}
-	void toggleRepeat(AudioMsgId::Type type) {
+	[[nodiscard]] rpl::producer<RepeatMode> repeatModeValue(
+			AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
-			data->repeatEnabled = !data->repeatEnabled;
-			_repeatChangedNotifier.notify(type);
+			return data->repeat.value();
+		}
+		return rpl::single(RepeatMode::None);
+	}
+	[[nodiscard]] rpl::producer<RepeatMode> repeatModeChanges(
+			AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return data->repeat.changes();
+		}
+		return rpl::never<RepeatMode>();
+	}
+	void setRepeatMode(AudioMsgId::Type type, RepeatMode mode) {
+		if (const auto data = getData(type)) {
+			data->repeat = mode;
+		}
+	}
+
+	[[nodiscard]] OrderMode orderMode(AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return data->order.current();
+		}
+		return OrderMode::Default;
+	}
+	[[nodiscard]] rpl::producer<OrderMode> orderModeValue(
+			AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return data->order.value();
+		}
+		return rpl::single(OrderMode::Default);
+	}
+	[[nodiscard]] rpl::producer<OrderMode> orderModeChanges(
+		AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return data->order.changes();
+		}
+		return rpl::never<OrderMode>();
+	}
+	void setOrderMode(AudioMsgId::Type type, OrderMode mode) {
+		if (const auto data = getData(type)) {
+			data->order = mode;
 		}
 	}
 
@@ -148,9 +199,6 @@ public:
 	}
 	base::Observable<AudioMsgId::Type> &trackChangedNotifier() {
 		return _trackChangedNotifier;
-	}
-	base::Observable<AudioMsgId::Type> &repeatChangedNotifier() {
-		return _repeatChangedNotifier;
 	}
 
 	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
@@ -192,7 +240,8 @@ private:
 		History *history = nullptr;
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
-		bool repeatEnabled = false;
+		rpl::variable<RepeatMode> repeat = RepeatMode::None;
+		rpl::variable<OrderMode> order = OrderMode::Default;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
@@ -278,7 +327,6 @@ private:
 	base::Observable<bool> _playerWidgetOver;
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
-	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
