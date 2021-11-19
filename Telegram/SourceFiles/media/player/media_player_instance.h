@@ -188,31 +188,30 @@ public:
 		FullMsgId to;
 	};
 
-	base::Observable<Switch> &switchToNextNotifier() {
-		return _switchToNextNotifier;
+	[[nodiscard]] rpl::producer<Switch> switchToNextEvents() const {
+		return _switchToNextStream.events();
 	}
-	base::Observable<bool> &playerWidgetOver() {
-		return _playerWidgetOver;
+	[[nodiscard]] rpl::producer<AudioMsgId::Type> tracksFinished() const {
+		return _tracksFinished.events();
 	}
-	base::Observable<AudioMsgId::Type> &tracksFinishedNotifier() {
-		return _tracksFinishedNotifier;
-	}
-	base::Observable<AudioMsgId::Type> &trackChangedNotifier() {
-		return _trackChangedNotifier;
+	[[nodiscard]] rpl::producer<AudioMsgId::Type> trackChanged() const {
+		return _trackChanged.events();
 	}
 
-	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> playlistChanges(
+		AudioMsgId::Type type) const;
 
-	rpl::producer<TrackState> updatedNotifier() const {
+	[[nodiscard]] rpl::producer<TrackState> updatedNotifier() const {
 		return _updatedNotifier.events();
 	}
 
-	rpl::producer<> stops(AudioMsgId::Type type) const;
-	rpl::producer<> startsPlay(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> stops(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> startsPlay(AudioMsgId::Type type) const;
 
-	rpl::producer<Seeking> seekingChanges(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
+		AudioMsgId::Type type) const;
 
-	bool pauseGifByRoundVideo() const;
+	[[nodiscard]] bool pauseGifByRoundVideo() const;
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -323,11 +322,9 @@ private:
 	Data _voiceData;
 	bool _roundPlaying = false;
 
-	base::Observable<Switch> _switchToNextNotifier;
-	base::Observable<bool> _playerWidgetOver;
-	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
-	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
-
+	rpl::event_stream<Switch> _switchToNextStream;
+	rpl::event_stream<AudioMsgId::Type> _tracksFinished;
+	rpl::event_stream<AudioMsgId::Type> _trackChanged;
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;

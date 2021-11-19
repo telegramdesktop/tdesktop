@@ -50,11 +50,15 @@ public:
 	void showShadow();
 	void hideShadow();
 
-	QPoint getPositionForVolumeWidget() const;
+	[[nodiscard]] QPoint getPositionForVolumeWidget() const;
 	void volumeWidgetCreated(Dropdown *widget);
 
-	QPoint getPositionForRepeatWidget() const;
+	[[nodiscard]] QPoint getPositionForRepeatWidget() const;
 	void repeatWidgetCreated(Dropdown *widget);
+
+	[[nodiscard]] rpl::producer<bool> togglePlaylistRequests() const {
+		return _togglePlaylistRequests.events();
+	}
 
 	~Widget();
 
@@ -114,6 +118,7 @@ private:
 
 	bool _labelsOver = false;
 	bool _labelsDown = false;
+	rpl::event_stream<bool> _togglePlaylistRequests;
 
 	class PlayButton;
 	class SpeedButton;

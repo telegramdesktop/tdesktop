@@ -324,23 +324,26 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		instance()->updateVoicePlaybackSpeed();
 	}, lifetime());
 
-	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == _type) {
-			handleSongChange();
-			updateControlsVisibility();
-			updateLabelsGeometry();
+	instance()->trackChanged(
+	) | rpl::filter([=](AudioMsgId::Type type) {
+		return (type == _type);
+	}) | rpl::start_with_next([=](AudioMsgId::Type type) {
+		handleSongChange();
+		updateControlsVisibility();
+		updateLabelsGeometry();
+	}, lifetime());
+
+	instance()->tracksFinished(
+	) | rpl::filter([=](AudioMsgId::Type type) {
+		return (type == AudioMsgId::Type::Voice);
+	}) | rpl::start_with_next([=](AudioMsgId::Type type) {
+		_voiceIsActive = false;
+		const auto currentSong = instance()->current(AudioMsgId::Type::Song);
+		const auto songState = instance()->getState(AudioMsgId::Type::Song);
+		if (currentSong == songState.id && !IsStoppedOrStopping(songState.state)) {
+			setType(AudioMsgId::Type::Song);
 		}
-	});
-	subscribe(instance()->tracksFinishedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == AudioMsgId::Type::Voice) {
-			_voiceIsActive = false;
-			const auto currentSong = instance()->current(AudioMsgId::Type::Song);
-			const auto songState = instance()->getState(AudioMsgId::Type::Song);
-			if (currentSong == songState.id && !IsStoppedOrStopping(songState.state)) {
-				setType(AudioMsgId::Type::Song);
-			}
-		}
-	});
+	}, lifetime());
 
 	instance()->updatedNotifier(
 	) | rpl::start_with_next([=](const TrackState &state) {
@@ -521,8 +524,7 @@ void Widget::updateOverLabelsState(bool over) {
 	_labelsOver = over;
 	auto pressShowsItem = _labelsOver && (_type == AudioMsgId::Type::Voice);
 	setCursor(pressShowsItem ? style::cur_pointer : style::cur_default);
-	auto showPlaylist = over && (_type == AudioMsgId::Type::Song);
-	instance()->playerWidgetOver().notify(showPlaylist, true);
+	_togglePlaylistRequests.fire(over && (_type == AudioMsgId::Type::Song));
 }
 
 void Widget::updatePlayPrevNextPositions() {

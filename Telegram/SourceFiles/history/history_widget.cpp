@@ -634,11 +634,13 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
-		if (pair.from.type() == AudioMsgId::Type::Voice) {
-			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
-		}
-	});
+	using MediaSwitch = Media::Player::Instance::Switch;
+	Media::Player::instance()->switchToNextEvents(
+	) | rpl::filter([=](const MediaSwitch &pair) {
+		return (pair.from.type() == AudioMsgId::Type::Voice);
+	}) | rpl::start_with_next([=](const MediaSwitch &pair) {
+		scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
+	}, lifetime());
 
 	using PeerUpdateFlag = Data::PeerUpdate::Flag;
 	session().changes().peerUpdates(

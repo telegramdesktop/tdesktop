@@ -96,8 +96,7 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_lifetimeDownload.destroy();
 	}, _lifetime);
 
-	auto trackChanged = base::ObservableViewer(
-		mediaPlayer->trackChangedNotifier()
+	auto trackChanged = mediaPlayer->trackChanged(
 	) | rpl::filter([=](AudioMsgId::Type audioType) {
 		return audioType == type;
 	});

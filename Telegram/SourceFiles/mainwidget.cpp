@@ -333,20 +333,8 @@ MainWidget::MainWidget(
 
 	QCoreApplication::instance()->installEventFilter(this);
 
-	subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
-		if (over) {
-			if (_playerPlaylist->isHidden()) {
-				auto position = mapFromGlobal(QCursor::pos()).x();
-				auto bestPosition = _playerPlaylist->bestPositionFor(position);
-				if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
-				updateMediaPlaylistPosition(bestPosition);
-			}
-			_playerPlaylist->showFromOther();
-		} else {
-			_playerPlaylist->hideFromOther();
-		}
-	});
-	subscribe(Media::Player::instance()->tracksFinishedNotifier(), [this](AudioMsgId::Type type) {
+	Media::Player::instance()->tracksFinished(
+	) | rpl::start_with_next([=](AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Voice) {
 			const auto songState = Media::Player::instance()->getState(AudioMsgId::Type::Song);
 			if (!songState.id || IsStoppedOrStopping(songState.state)) {
@@ -358,7 +346,7 @@ MainWidget::MainWidget(
 				closeBothPlayers();
 			}
 		}
-	});
+	}, lifetime());
 
 	_controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
@@ -846,6 +834,21 @@ void MainWidget::createPlayer() {
 				not_null<const HistoryItem*> item) {
 			_controller->showPeerHistoryAtItem(item);
 		});
+
+		_player->entity()->togglePlaylistRequests(
+		) | rpl::start_with_next([=](bool shown) {
+			if (!shown) {
+				_playerPlaylist->hideFromOther();
+				return;
+			} else if (_playerPlaylist->isHidden()) {
+				auto position = mapFromGlobal(QCursor::pos()).x();
+				auto bestPosition = _playerPlaylist->bestPositionFor(position);
+				if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
+				updateMediaPlaylistPosition(bestPosition);
+			}
+			_playerPlaylist->showFromOther();
+		}, _player->lifetime());
+
 		_playerVolume.create(this);
 		Media::Player::PrepareVolumeDropdown(
 			_playerVolume.data(),

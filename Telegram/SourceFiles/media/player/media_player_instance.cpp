@@ -182,7 +182,7 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 			data->migrated = nullptr;
 			data->session = nullptr;
 		}
-		_trackChangedNotifier.notify(data->type, true);
+		_trackChanged.fire_copy(data->type);
 		refreshPlaylist(data);
 	}
 }
@@ -369,7 +369,7 @@ bool Instance::moveInPlaylist(
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				if (autonext) {
-					_switchToNextNotifier.notify({
+					_switchToNextStream.fire({
 						data->current,
 						item->fullId()
 					});
@@ -558,8 +558,8 @@ void Instance::stop(AudioMsgId::Type type) {
 
 void Instance::stopAndClear(not_null<Data*> data) {
 	stop(data->type);
-	_tracksFinishedNotifier.notify(data->type);
 	*data = Data(data->type, data->overview);
+	_tracksFinished.fire_copy(data->type);
 }
 
 void Instance::playPause(AudioMsgId::Type type) {
@@ -744,15 +744,19 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 				streamed->progress.updateState(state);
 			}
 		}
+		auto finished = false;
 		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (data->repeat.current() == RepeatMode::One) {
 				play(data->current);
 			} else if (!moveInPlaylist(data, 1, true)) {
-				_tracksFinishedNotifier.notify(type);
+				finished = true;
 			}
 		}
 		data->isPlaying = !IsStopped(state.state);
+		if (finished) {
+			_tracksFinished.fire_copy(type);
+		}
 	}
 }
 
