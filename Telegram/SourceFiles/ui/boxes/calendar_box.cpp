@@ -367,6 +367,7 @@ private:
 
 	const style::CalendarSizes &_st;
 	const not_null<Context*> _context;
+	bool _twoPressSelectionStarted = false;
 
 	std::map<int, std::unique_ptr<RippleAnimation>> _ripples;
 
@@ -464,7 +465,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 		if (selectedInRow > 0) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::lightButtonBgOver);
+			p.setBrush(st::dialogsRippleBgActive);
 			p.drawRoundedRect(
 				(x
 					+ (selectedFrom - index) * _st.cellSize.width()
@@ -495,27 +496,24 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 				p.setBrush(Qt::NoBrush);
 			}
 			const auto it = _ripples.find(index);
-			if (it != _ripples.cend()) {
-				const auto colorOverride = [&] {
-					if (selectionMode) {
-						return st::lightButtonBgOver;
-					} else if (highlighted) {
-						return grayedOut ? st::windowBgRipple : st::dialogsRippleBgActive;
-					}
-					return st::windowBgOver;
-				}()->c;
+			if (it != _ripples.cend() && !selectionMode) {
+				const auto colorOverride = (!highlighted
+					? st::windowBgOver
+					: grayedOut
+					? st::windowBgRipple
+					: st::dialogsRippleBgActive)->c;
 				it->second->paint(p, innerLeft, innerTop, width(), &colorOverride);
 				if (it->second->empty()) {
 					_ripples.erase(it);
 				}
 			}
-			if (highlighted) {
-				p.setPen(grayedOut ? st::windowSubTextFg : st::dialogsNameFgActive);
-			} else if (enabled) {
-				p.setPen(grayedOut ? st::windowSubTextFg : st::boxTextFg);
-			} else {
-				p.setPen(st::windowSubTextFg);
-			}
+			p.setPen(selected
+				? st::dialogsNameFgActive
+				: highlighted
+				? (grayedOut ? st::windowSubTextFg : st::dialogsNameFgActive)
+				: enabled
+				? (grayedOut ? st::windowSubTextFg : st::boxTextFg)
+				: st::windowSubTextFg);
 			p.drawText(rect, _context->labelFromIndex(index), style::al_center);
 		}
 	}
@@ -598,10 +596,15 @@ void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 		if (_context->selectionMode()) {
 			if (_context->selectedMin().has_value()
-				&& (e->modifiers() & Qt::ShiftModifier)) {
+				&& ((e->modifiers() & Qt::ShiftModifier)
+					|| (_twoPressSelectionStarted
+						&& (_context->selectedMin()
+							== _context->selectedMax())))) {
 				_context->updateSelection(_selected);
+				_twoPressSelectionStarted = false;
 			} else {
 				_context->startSelection(_selected);
+				_twoPressSelectionStarted = true;
 			}
 		}
 	}
