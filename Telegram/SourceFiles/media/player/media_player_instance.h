@@ -116,50 +116,6 @@ public:
 		return AudioMsgId();
 	}
 
-	[[nodiscard]] RepeatMode repeatMode(AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->repeat.current();
-		}
-		return RepeatMode::None;
-	}
-	[[nodiscard]] rpl::producer<RepeatMode> repeatModeValue(
-			AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->repeat.value();
-		}
-		return rpl::single(RepeatMode::None);
-	}
-	[[nodiscard]] rpl::producer<RepeatMode> repeatModeChanges(
-			AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->repeat.changes();
-		}
-		return rpl::never<RepeatMode>();
-	}
-	void setRepeatMode(AudioMsgId::Type type, RepeatMode mode);
-
-	[[nodiscard]] OrderMode orderMode(AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->order.current();
-		}
-		return OrderMode::Default;
-	}
-	[[nodiscard]] rpl::producer<OrderMode> orderModeValue(
-			AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->order.value();
-		}
-		return rpl::single(OrderMode::Default);
-	}
-	[[nodiscard]] rpl::producer<OrderMode> orderModeChanges(
-		AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->order.changes();
-		}
-		return rpl::never<OrderMode>();
-	}
-	void setOrderMode(AudioMsgId::Type type, OrderMode mode);
-
 	[[nodiscard]] bool isSeeking(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
 			return (data->seeking == data->current);
@@ -268,6 +224,7 @@ private:
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
+	void refreshOtherPlaylist(not_null<Data*> data);
 	std::optional<SliceKey> playlistKey(not_null<const Data*> data) const;
 	bool validPlaylist(not_null<const Data*> data) const;
 	void validatePlaylist(not_null<Data*> data);

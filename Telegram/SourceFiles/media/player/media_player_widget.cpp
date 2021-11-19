@@ -292,31 +292,22 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 
 	rpl::combine(
 		Core::App().settings().playerRepeatModeValue(),
-		Core::App().settings().playerOrderModeValue(),
-		instance()->repeatModeValue(AudioMsgId::Type::Song),
-		instance()->orderModeValue(AudioMsgId::Type::Song)
+		Core::App().settings().playerOrderModeValue()
 	) | rpl::start_with_next([=] {
 		updateRepeatToggleIcon();
 	}, lifetime());
+
 	_repeatToggle->setClickedCallback([=] {
-		const auto type = AudioMsgId::Type::Song;
-		const auto repeat = Core::App().settings().playerRepeatMode();
-		const auto order = Core::App().settings().playerOrderMode();
-		const auto mayBeActive = (repeat != RepeatMode::None)
-			|| (order != OrderMode::Default);
-		const auto active = mayBeActive
-			&& (repeat == instance()->repeatMode(type))
-			&& (order == instance()->orderMode(type));
-		if (!active && !mayBeActive) {
-			Core::App().settings().setPlayerRepeatMode(RepeatMode::All);
-			Core::App().saveSettingsDelayed();
-		}
-		instance()->setRepeatMode(type, active
-			? RepeatMode::None
-			: mayBeActive
-			? repeat
-			: RepeatMode::All);
-		instance()->setOrderMode(type, active ? OrderMode::Default : order);
+		auto &settings = Core::App().settings();
+		settings.setPlayerRepeatMode([&] {
+			switch (settings.playerRepeatMode()) {
+			case RepeatMode::None: return RepeatMode::One;
+			case RepeatMode::One: return RepeatMode::All;
+			case RepeatMode::All: return RepeatMode::None;
+			}
+			Unexpected("Repeat mode in Settings.");
+		}());
+		Core::App().saveSettingsDelayed();
 	});
 
 	_playbackSpeed->saved(
@@ -577,70 +568,34 @@ void Widget::updateRepeatToggleIcon() {
 	const auto type = AudioMsgId::Type::Song;
 	const auto repeat = Core::App().settings().playerRepeatMode();
 	const auto order = Core::App().settings().playerOrderMode();
-	const auto active = (repeat == instance()->repeatMode(type))
-		&& (order == instance()->orderMode(type))
-		&& (repeat != RepeatMode::None || order != OrderMode::Default);
-	switch (repeat) {
-	case RepeatMode::None:
-		switch (order) {
-		case OrderMode::Default:
-			_repeatToggle->setIconOverride(
-				&st::mediaPlayerRepeatDisabledIcon,
-				&st::mediaPlayerRepeatDisabledIconOver);
-			break;
-		case OrderMode::Reverse:
-			_repeatToggle->setIconOverride(
-				(active
-					? &st::mediaPlayerReverseIcon
-					: &st::mediaPlayerReverseDisabledIcon),
-				active ? nullptr : &st::mediaPlayerReverseDisabledIconOver);
-			break;
-		case OrderMode::Shuffle:
-			_repeatToggle->setIconOverride(
-				(active
-					? &st::mediaPlayerShuffleIcon
-					: &st::mediaPlayerShuffleDisabledIcon),
-				active ? nullptr : &st::mediaPlayerShuffleDisabledIconOver);
-			break;
-		}
-		break;
-	case RepeatMode::One:
+	if (repeat == RepeatMode::None && order == OrderMode::Default) {
 		_repeatToggle->setIconOverride(
-			(active
-				? &st::mediaPlayerRepeatOneIcon
-				: &st::mediaPlayerRepeatOneDisabledIcon),
-			active ? nullptr : &st::mediaPlayerRepeatOneDisabledIconOver);
-		break;
-	case RepeatMode::All:
-		switch (order) {
-		case OrderMode::Default:
-			_repeatToggle->setIconOverride(
-				(active ? nullptr : &st::mediaPlayerRepeatDisabledIcon),
-				(active ? nullptr : &st::mediaPlayerRepeatDisabledIconOver));
+			&st::mediaPlayerRepeatDisabledIcon,
+			&st::mediaPlayerRepeatDisabledIconOver);
+		_repeatToggle->setRippleColorOverride(
+			&st::mediaPlayerRepeatDisabledRippleBg);
+		return;
+	}
+	const auto &icon = [&]() -> const style::icon& {
+		switch (repeat) {
+		case RepeatMode::None:
+			switch (order) {
+			case OrderMode::Reverse: return st::mediaPlayerReverseIcon;
+			case OrderMode::Shuffle: return st::mediaPlayerShuffleIcon;
+			}
 			break;
-		case OrderMode::Reverse:
-			_repeatToggle->setIconOverride(
-				(active
-					? &st::mediaPlayerRepeatReverseIcon
-					: &st::mediaPlayerRepeatReverseDisabledIcon),
-				(active
-					? nullptr
-					: &st::mediaPlayerRepeatReverseDisabledIconOver));
-			break;
-		case OrderMode::Shuffle:
-			_repeatToggle->setIconOverride(
-				(active
-					? &st::mediaPlayerRepeatShuffleIcon
-					: &st::mediaPlayerRepeatShuffleDisabledIcon),
-				(active
-					? nullptr
-					: &st::mediaPlayerRepeatShuffleDisabledIconOver));
+		case RepeatMode::One: return st::mediaPlayerRepeatOneIcon;
+		case RepeatMode::All:
+			switch (order) {
+			case OrderMode::Default: return st::mediaPlayerRepeatButton.icon;
+			case OrderMode::Reverse: return st::mediaPlayerRepeatReverseIcon;
+			case OrderMode::Shuffle: return st::mediaPlayerRepeatShuffleIcon;
+			}
 			break;
 		}
-		break;
-	}
-	_repeatToggle->setRippleColorOverride(
-		active ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
+		Unexpected("Repeat / order values in Settings.");
+	}();
+	_repeatToggle->setIconOverride(&icon);
 }
 
 void Widget::checkForTypeChange() {

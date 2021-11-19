@@ -121,6 +121,13 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
+	_songData.repeat.changes(
+	) | rpl::start_with_next([=](RepeatMode mode) {
+		if (mode == RepeatMode::All) {
+			refreshPlaylist(&_songData);
+		}
+	}, _lifetime);
+
 	using namespace rpl::mappers;
 	rpl::combine(
 		Core::App().calls().currentCallValue(),
@@ -254,7 +261,13 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 void Instance::refreshPlaylist(not_null<Data*> data) {
 	if (!validPlaylist(data)) {
 		validatePlaylist(data);
-	} else if (!validOtherPlaylist(data)) {
+	} else {
+		refreshOtherPlaylist(data);
+	}
+}
+
+void Instance::refreshOtherPlaylist(not_null<Data*> data) {
+	if (!validOtherPlaylist(data)) {
 		validateOtherPlaylist(data);
 	}
 	playlistUpdated(data);
@@ -322,12 +335,12 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 		) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
 			data->playlistSlice = std::move(update);
 			data->playlistSliceKey = key;
-			playlistUpdated(data);
+			refreshOtherPlaylist(data);
 		}, data->playlistLifetime);
 	} else {
 		data->playlistSlice = std::nullopt;
 		data->playlistSliceKey = data->playlistRequestedKey = std::nullopt;
-		playlistUpdated(data);
+		refreshOtherPlaylist(data);
 	}
 }
 
@@ -456,7 +469,14 @@ bool Instance::moveInPlaylist(
 	};
 	const auto newIndex = *data->playlistIndex
 		+ (data->order.current() == OrderMode::Reverse ? -delta : delta);
-	if (const auto item = itemByIndex(data, newIndex)) {
+	const auto useIndex = (!data->playlistSlice
+		|| data->playlistSlice->skippedAfter() != 0
+		|| data->playlistSlice->skippedBefore() != 0
+		|| !data->playlistSlice->size())
+		? newIndex
+		: ((newIndex + int(data->playlistSlice->size()))
+			% int(data->playlistSlice->size()));
+	if (const auto item = itemByIndex(data, useIndex)) {
 		return jumpByItem(item);
 	} else if (data->repeat.current() == RepeatMode::All
 		&& data->playlistOtherSlice
@@ -737,23 +757,6 @@ void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
 		pause(type);
 	} else {
 		play(type);
-	}
-}
-
-void Instance::setRepeatMode(AudioMsgId::Type type, RepeatMode mode) {
-	if (const auto data = getData(type)) {
-		const auto otherNeeded = (mode == RepeatMode::All)
-			&& (data->repeat.current() != RepeatMode::All);
-		data->repeat = mode;
-		if (otherNeeded) {
-			refreshPlaylist(data);
-		}
-	}
-}
-
-void Instance::setOrderMode(AudioMsgId::Type type, OrderMode mode) {
-	if (const auto data = getData(type)) {
-		data->order = mode;
 	}
 }
 

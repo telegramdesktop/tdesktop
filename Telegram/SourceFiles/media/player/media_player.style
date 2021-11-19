@@ -97,20 +97,8 @@ mediaPlayerShuffleDisabledIconOver: icon {
 mediaPlayerRepeatReverseIcon: icon {
 	{ "player/player_repeat_reverse", mediaPlayerActiveFg, point(9px, 11px)}
 };
-mediaPlayerRepeatReverseDisabledIcon: icon {
-	{ "player/player_repeat_reverse", menuIconFg, point(9px, 11px)}
-};
-mediaPlayerRepeatReverseDisabledIconOver: icon {
-	{ "player/player_repeat_reverse", menuIconFgOver, point(9px, 11px)}
-};
 mediaPlayerRepeatShuffleIcon: icon {
 	{ "player/player_repeat_shuffle", mediaPlayerActiveFg, point(9px, 11px)}
-};
-mediaPlayerRepeatShuffleDisabledIcon: icon {
-	{ "player/player_repeat_shuffle", menuIconFg, point(9px, 11px)}
-};
-mediaPlayerRepeatShuffleDisabledIconOver: icon {
-	{ "player/player_repeat_shuffle", menuIconFgOver, point(9px, 11px)}
 };
 mediaPlayerRepeatDisabledRippleBg: windowBgOver;
 

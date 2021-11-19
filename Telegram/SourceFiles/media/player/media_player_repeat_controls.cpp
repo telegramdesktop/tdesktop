@@ -70,22 +70,12 @@ void PrepareRepeatDropdown(not_null<Dropdown*> dropdown) {
 		auto &settings = Core::App().settings();
 		const auto active = (settings.playerRepeatMode() == mode);
 		settings.setPlayerRepeatMode(active ? RepeatMode::None : mode);
-		const auto type = AudioMsgId::Type::Song;
-		instance()->setRepeatMode(type, settings.playerRepeatMode());
-		if (!active) {
-			instance()->setOrderMode(type, settings.playerOrderMode());
-		}
 		Core::App().saveSettingsDelayed();
 	};
 	const auto toggleOrder = [](OrderMode mode) {
 		auto &settings = Core::App().settings();
 		const auto active = (settings.playerOrderMode() == mode);
 		settings.setPlayerOrderMode(active ? OrderMode::Default : mode);
-		const auto type = AudioMsgId::Type::Song;
-		instance()->setOrderMode(type, settings.playerOrderMode());
-		if (!active) {
-			instance()->setRepeatMode(type, settings.playerRepeatMode());
-		}
 		Core::App().saveSettingsDelayed();
 	};
 	repeatOne->setClickedCallback([=] { toggleRepeat(RepeatMode::One); });
