@@ -104,7 +104,6 @@ parts:
       - libopus-dev
       - libpulse-dev
       - libssl-dev
-      - libwebkit2gtk-4.0-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
