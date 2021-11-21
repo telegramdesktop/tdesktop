@@ -108,6 +108,14 @@ public:
 
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
+	void applyAdminLocally(
+		UserData *user,
+		ChatAdminRightsInfo rights,
+		const QString &rank);
+	void applyBannedLocally(
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo rights);
+
 private:
 	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
 	UserData *applyAdmin(const MTPDchannelParticipantAdmin &data);

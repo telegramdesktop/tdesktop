@@ -658,37 +658,7 @@ void AddSpecialBoxController::editAdminDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = base::unixtime::now(); // Incorrect, but ignored.
-	if (_additional.isCreator(user) && user->isSelf()) {
-		using Flag = MTPDchannelParticipantCreator::Flag;
-		_additional.applyParticipant(MTP_channelParticipantCreator(
-			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
-			peerToBareMTPInt(user->id),
-			MTP_chatAdminRights(
-				MTP_flags(MTPDchatAdminRights::Flags::from_raw(
-					uint32(rights.flags)))),
-			MTP_string(rank)));
-	} else if (!rights.flags) {
-		_additional.applyParticipant(MTP_channelParticipant(
-			peerToBareMTPInt(user->id),
-			MTP_int(date)));
-	} else {
-		using Flag = MTPDchannelParticipantAdmin::Flag;
-		const auto alreadyPromotedBy = _additional.adminPromotedBy(user);
-		_additional.applyParticipant(MTP_channelParticipantAdmin(
-			MTP_flags(Flag::f_can_edit
-				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
-			peerToBareMTPInt(user->id),
-			MTPlong(), // inviter_id
-			peerToBareMTPInt(alreadyPromotedBy
-				? alreadyPromotedBy->id
-				: user->session().userPeerId()),
-			MTP_int(date),
-			MTP_chatAdminRights(
-				MTP_flags(MTPDchatAdminRights::Flags::from_raw(
-					uint32(rights.flags)))),
-			MTP_string(rank)));
-	}
+	_additional.applyAdminLocally(user, rights, rank);
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights, rank);
 	}
@@ -765,33 +735,7 @@ void AddSpecialBoxController::editRestrictedDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = base::unixtime::now(); // Incorrect, but ignored.
-	if (!rights.flags) {
-		if (const auto user = participant->asUser()) {
-			_additional.applyParticipant(MTP_channelParticipant(
-				peerToBareMTPInt(user->id),
-				MTP_int(date)));
-		} else {
-			_additional.setExternal(participant);
-		}
-	} else {
-		const auto kicked = rights.flags & ChatRestriction::ViewMessages;
-		const auto alreadyRestrictedBy = _additional.restrictedBy(
-			participant);
-		_additional.applyParticipant(MTP_channelParticipantBanned(
-			MTP_flags(kicked
-				? MTPDchannelParticipantBanned::Flag::f_left
-				: MTPDchannelParticipantBanned::Flag(0)),
-			peerToMTP(participant->id),
-			peerToBareMTPInt(alreadyRestrictedBy
-				? alreadyRestrictedBy->id
-				: participant->session().userPeerId()),
-			MTP_int(date),
-			MTP_chatBannedRights(
-				MTP_flags(MTPDchatBannedRights::Flags::from_raw(
-					uint32(rights.flags))),
-				MTP_int(rights.until))));
-	}
+	_additional.applyBannedLocally(participant, rights);
 	if (const auto callback = _bannedDoneCallback) {
 		callback(participant, rights);
 	}
