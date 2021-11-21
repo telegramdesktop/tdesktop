@@ -17,75 +17,7 @@ class UserData;
 class ChatData;
 class ChannelData;
 
-enum class ChatAdminRight {
-	ChangeInfo = (1 << 0),
-	PostMessages = (1 << 1),
-	EditMessages = (1 << 2),
-	DeleteMessages = (1 << 3),
-	BanUsers = (1 << 4),
-	InviteUsers = (1 << 5),
-	PinMessages = (1 << 7),
-	AddAdmins = (1 << 9),
-	Anonymous = (1 << 10),
-	ManageCall = (1 << 11),
-	Other = (1 << 12),
-};
-inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
-using ChatAdminRights = base::flags<ChatAdminRight>;
-
-enum class ChatRestriction {
-	ViewMessages = (1 << 0),
-	SendMessages = (1 << 1),
-	SendMedia = (1 << 2),
-	SendStickers = (1 << 3),
-	SendGifs = (1 << 4),
-	SendGames = (1 << 5),
-	SendInline = (1 << 6),
-	EmbedLinks = (1 << 7),
-	SendPolls = (1 << 8),
-	ChangeInfo = (1 << 10),
-	InviteUsers = (1 << 15),
-	PinMessages = (1 << 17),
-};
-inline constexpr bool is_flag_type(ChatRestriction) { return true; }
-using ChatRestrictions = base::flags<ChatRestriction>;
-
-namespace Data {
-
-[[nodiscard]] ChatAdminRights ChatAdminRightsFlags(
-	const MTPChatAdminRights &rights);
-[[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
-	const MTPChatBannedRights &rights);
-[[nodiscard]] TimeId ChatBannedRightsUntilDate(
-	const MTPChatBannedRights &rights);
-
-} // namespace Data
-
-struct ChatAdminRightsInfo {
-	ChatAdminRightsInfo() = default;
-	explicit ChatAdminRightsInfo(ChatAdminRights flags) : flags(flags) {
-	}
-	explicit ChatAdminRightsInfo(const MTPChatAdminRights &rights)
-	: flags(Data::ChatAdminRightsFlags(rights)) {
-	}
-
-	ChatAdminRights flags;
-};
-
-struct ChatRestrictionsInfo {
-	ChatRestrictionsInfo() = default;
-	ChatRestrictionsInfo(ChatRestrictions flags, TimeId until)
-	: flags(flags)
-	, until(until) {
-	}
-	explicit ChatRestrictionsInfo(const MTPChatBannedRights &rights)
-	: flags(Data::ChatBannedRightsFlags(rights))
-	, until(Data::ChatBannedRightsUntilDate(rights)) {
-	}
-
-	ChatRestrictions flags;
-	TimeId until = 0;
-};
+enum class ChatRestriction;
 
 struct BotCommand {
 	QString command;
@@ -527,8 +459,6 @@ private:
 };
 
 namespace Data {
-
-std::vector<ChatRestrictions> ListOfRestrictions();
 
 std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,

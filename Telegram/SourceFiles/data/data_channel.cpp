@@ -774,8 +774,8 @@ void ApplyMigration(
 void ApplyChannelUpdate(
 		not_null<ChannelData*> channel,
 		const MTPDupdateChatDefaultBannedRights &update) {
-	channel->setDefaultRestrictions(Data::ChatBannedRightsFlags(
-		update.vdefault_banned_rights()));
+	channel->setDefaultRestrictions(ChatRestrictionsInfo(
+		update.vdefault_banned_rights()).flags);
 }
 
 void ApplyChannelUpdate(

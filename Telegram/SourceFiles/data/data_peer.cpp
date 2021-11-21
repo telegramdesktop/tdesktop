@@ -1069,24 +1069,6 @@ void PeerData::setMessagesTTL(TimeId period) {
 
 namespace Data {
 
-std::vector<ChatRestrictions> ListOfRestrictions() {
-	using Flag = ChatRestriction;
-
-	return {
-		Flag::SendMessages,
-		Flag::SendMedia,
-		Flag::SendStickers
-		| Flag::SendGifs
-		| Flag::SendGames
-		| Flag::SendInline,
-		Flag::EmbedLinks,
-		Flag::SendPolls,
-		Flag::InviteUsers,
-		Flag::PinMessages,
-		Flag::ChangeInfo,
-	};
-}
-
 std::optional<QString> RestrictionError(
 		not_null<PeerData*> peer,
 		ChatRestriction restriction) {
@@ -1273,24 +1255,6 @@ std::optional<int> ResolvePinnedCount(
 	return (slice.count.has_value() && old.count.has_value())
 		? std::make_optional(*slice.count + *old.count)
 		: std::nullopt;
-}
-
-ChatAdminRights ChatAdminRightsFlags(const MTPChatAdminRights &rights) {
-	return rights.match([](const MTPDchatAdminRights &data) {
-		return ChatAdminRights::from_raw(int32(data.vflags().v));
-	});
-}
-
-ChatRestrictions ChatBannedRightsFlags(const MTPChatBannedRights &rights) {
-	return rights.match([](const MTPDchatBannedRights &data) {
-		return ChatRestrictions::from_raw(int32(data.vflags().v));
-	});
-}
-
-TimeId ChatBannedRightsUntilDate(const MTPChatBannedRights &rights) {
-	return rights.match([](const MTPDchatBannedRights &data) {
-		return data.vuntil_date().v;
-	});
 }
 
 } // namespace Data

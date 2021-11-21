@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_session.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_user.h"

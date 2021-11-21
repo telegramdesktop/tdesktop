@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
+
+enum class ChatAdminRight;
 
 enum class ChatDataFlag {
 	Left = (1 << 0),
@@ -27,13 +30,6 @@ class ChatData : public PeerData {
 public:
 	using Flag = ChatDataFlag;
 	using Flags = Data::Flags<ChatDataFlags>;
-
-	using AdminRight = ChatAdminRight;
-	using Restriction = ChatRestriction;
-	using AdminRights = ChatAdminRights;
-	using Restrictions = ChatRestrictions;
-	using AdminRightFlags = Data::Flags<AdminRights>;
-	using RestrictionFlags = Data::Flags<Restrictions>;
 
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
@@ -197,8 +193,8 @@ private:
 	Flags _flags;
 	QString _inviteLink;
 
-	RestrictionFlags _defaultRestrictions;
-	AdminRightFlags _adminRights;
+	Data::Flags<ChatRestrictions> _defaultRestrictions;
+	Data::Flags<ChatAdminRights> _adminRights;
 	int _version = 0;
 	int _pendingRequestsCount = 0;
 	std::vector<UserId> _recentRequesters;

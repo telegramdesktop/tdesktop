@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
+#include "data/data_chat_participant_status.h"
 
 struct ChannelLocation {
 	QString address;

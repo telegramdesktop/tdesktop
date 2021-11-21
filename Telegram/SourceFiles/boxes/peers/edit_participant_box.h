@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
-#include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
 
 namespace MTP {
 class Error;

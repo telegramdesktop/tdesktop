@@ -47,7 +47,7 @@ void ChatData::setPhoto(const MTPChatPhoto &photo) {
 ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 	const auto isCreator = (creator == peerToUser(user->id))
 		|| (user->isSelf() && amCreator());
-	using Flag = AdminRight;
+	using Flag = ChatAdminRight;
 	return ChatAdminRightsInfo(Flag::Other
 		| Flag::ChangeInfo
 		| Flag::DeleteMessages
@@ -60,7 +60,7 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 
 bool ChatData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	return amIn() && !amRestricted(Restriction::SendMessages);
+	return amIn() && !amRestricted(ChatRestriction::SendMessages);
 }
 
 bool ChatData::allowsForwarding() const {
@@ -68,12 +68,12 @@ bool ChatData::allowsForwarding() const {
 }
 
 bool ChatData::canEditInformation() const {
-	return amIn() && !amRestricted(Restriction::ChangeInfo);
+	return amIn() && !amRestricted(ChatRestriction::ChangeInfo);
 }
 
 bool ChatData::canEditPermissions() const {
 	return amIn()
-		&& (amCreator() || (adminRights() & AdminRight::BanUsers));
+		&& (amCreator() || (adminRights() & ChatAdminRight::BanUsers));
 }
 
 bool ChatData::canEditUsername() const {
@@ -87,15 +87,15 @@ bool ChatData::canEditPreHistoryHidden() const {
 
 bool ChatData::canDeleteMessages() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::DeleteMessages);
+		|| (adminRights() & ChatAdminRight::DeleteMessages);
 }
 
 bool ChatData::canAddMembers() const {
-	return amIn() && !amRestricted(Restriction::InviteUsers);
+	return amIn() && !amRestricted(ChatRestriction::InviteUsers);
 }
 
 bool ChatData::canSendPolls() const {
-	return amIn() && !amRestricted(Restriction::SendPolls);
+	return amIn() && !amRestricted(ChatRestriction::SendPolls);
 }
 
 bool ChatData::canAddAdmins() const {
@@ -104,11 +104,11 @@ bool ChatData::canAddAdmins() const {
 
 bool ChatData::canBanMembers() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::BanUsers);
+		|| (adminRights() & ChatAdminRight::BanUsers);
 }
 
 bool ChatData::anyoneCanAddMembers() const {
-	return !(defaultRestrictions() & Restriction::InviteUsers);
+	return !(defaultRestrictions() & ChatRestriction::InviteUsers);
 }
 
 void ChatData::setName(const QString &newName) {
@@ -142,7 +142,7 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 
 bool ChatData::canHaveInviteLink() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::InviteUsers);
+		|| (adminRights() & ChatAdminRight::InviteUsers);
 }
 
 void ChatData::setAdminRights(ChatAdminRights rights) {
@@ -414,8 +414,8 @@ void ApplyChatUpdate(
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	}
-	chat->setDefaultRestrictions(Data::ChatBannedRightsFlags(
-		update.vdefault_banned_rights()));
+	chat->setDefaultRestrictions(ChatRestrictionsInfo(
+		update.vdefault_banned_rights()).flags);
 }
 
 void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
