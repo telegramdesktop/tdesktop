@@ -206,25 +206,26 @@ void Controller::createContent() {
 	AddSkip(_wrap.get());
 	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
-	AddSkip(_wrap.get());
-	AddSubsectionTitle(_wrap.get(), tr::lng_manage_peer_no_forwards_title());
-	_controls.noForwards = _wrap->add(EditPeerInfoBox::CreateButton(
-		_wrap.get(),
-		tr::lng_manage_peer_no_forwards(),
-		rpl::single(QString()),
-		[=] {},
-		st::manageGroupTopButtonWithText,
-		nullptr
-	));
-	_controls.noForwards->toggleOn(
-		rpl::single(_noForwardsSavedValue.value_or(false))
-	)->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		_noForwardsSavedValue = toggled;
-	}, _wrap->lifetime());
-	AddSkip(_wrap.get());
-	AddDividerText(_wrap.get(), tr::lng_manage_peer_no_forwards_about());
-
+	if (!_linkOnly) {
+		AddSkip(_wrap.get());
+		AddSubsectionTitle(_wrap.get(), tr::lng_manage_peer_no_forwards_title());
+		_controls.noForwards = _wrap->add(EditPeerInfoBox::CreateButton(
+			_wrap.get(),
+			tr::lng_manage_peer_no_forwards(),
+			rpl::single(QString()),
+			[=] {},
+			st::manageGroupTopButtonWithText,
+			nullptr
+		));
+		_controls.noForwards->toggleOn(
+			rpl::single(_noForwardsSavedValue.value_or(false))
+		)->toggledValue(
+		) | rpl::start_with_next([=](bool toggled) {
+			_noForwardsSavedValue = toggled;
+		}, _wrap->lifetime());
+		AddSkip(_wrap.get());
+		AddDividerText(_wrap.get(), tr::lng_manage_peer_no_forwards_about());
+	}
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);
 	} else {
@@ -267,15 +268,7 @@ void Controller::addRoundButton(
 void Controller::fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
 		std::optional<Privacy> savedValue) {
-	const auto canEditUsername = [&] {
-		if (const auto chat = _peer->asChat()) {
-			return chat->canEditUsername();
-		} else if (const auto channel = _peer->asChannel()) {
-			return channel->canEditUsername();
-		}
-		Unexpected("Peer type in Controller::createPrivaciesEdit.");
-	}();
-	if (!canEditUsername || _linkOnly) {
+	if (_linkOnly) {
 		return;
 	}
 
