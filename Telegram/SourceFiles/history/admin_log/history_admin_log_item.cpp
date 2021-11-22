@@ -1123,6 +1123,20 @@ void GenerateItems(
 		addSimpleServiceMessage(text(tr::now, lt_from, fromLinkText));
 	};
 
+	auto createSendMessage = [&](const MTPDchannelAdminLogEventActionSendMessage &data) {
+		auto text = tr::lng_admin_log_sent_message(tr::now, lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+
+		auto detachExistingItem = false;
+		addPart(
+			history->createItem(
+				history->nextNonHistoryEntryId(),
+				PrepareLogMessage(data.vmessage(), date),
+				MessageFlag::AdminLogEntry,
+				detachExistingItem),
+			ExtractSentDate(data.vmessage()));
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -1191,6 +1205,8 @@ void GenerateItems(
 		createParticipantJoinByRequest(data);
 	}, [&](const MTPDchannelAdminLogEventActionToggleNoForwards &data) {
 		createToggleNoForwards(data);
+	}, [&](const MTPDchannelAdminLogEventActionSendMessage &data) {
+		createSendMessage(data);
 	});
 }
 
