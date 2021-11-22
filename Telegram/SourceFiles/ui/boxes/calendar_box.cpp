@@ -465,7 +465,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 		if (selectedInRow > 0) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::dialogsRippleBgActive);
+			p.setBrush(st::activeButtonBg);
 			p.drawRoundedRect(
 				(x
 					+ (selectedFrom - index) * _st.cellSize.width()
@@ -508,7 +508,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 				}
 			}
 			p.setPen(selected
-				? st::dialogsNameFgActive
+				? st::activeButtonFg
 				: highlighted
 				? (grayedOut ? st::windowSubTextFg : st::dialogsNameFgActive)
 				: enabled
