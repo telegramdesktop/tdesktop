@@ -18,6 +18,7 @@ class SessionController;
 namespace Ui {
 class FlatButton;
 class IconButton;
+class FlatLabel;
 } // namespace Ui
 
 namespace HistoryView {
@@ -33,51 +34,32 @@ public:
 	void raise();
 
 	void move(int x, int y);
-	int height() const;
-	rpl::producer<int> heightValue() const;
+	[[nodiscard]] int height() const;
+	[[nodiscard]] rpl::producer<int> heightValue() const;
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
 private:
-	enum class State {
-		None,
-		ReportSpam,
-		Add,
-		AddOrBlock,
-		UnarchiveOrBlock,
-		UnarchiveOrReport,
-		SharePhoneNumber,
-	};
+	class Bar;
+	class BgButton;
 
-	class Bar : public Ui::RpWidget {
-	public:
-		Bar(QWidget *parent, const QString &name);
-
-		void showState(State state);
-
-		rpl::producer<> unarchiveClicks() const;
-		rpl::producer<> addClicks() const;
-		rpl::producer<> blockClicks() const;
-		rpl::producer<> shareClicks() const;
-		rpl::producer<> reportClicks() const;
-		rpl::producer<> closeClicks() const;
-
-	protected:
-		void resizeEvent(QResizeEvent *e) override;
-
-	private:
-		void updateButtonsGeometry();
-
-		QString _name;
-		object_ptr<Ui::FlatButton> _add;
-		object_ptr<Ui::FlatButton> _unarchive;
-		object_ptr<Ui::FlatButton> _block;
-		object_ptr<Ui::FlatButton> _share;
-		object_ptr<Ui::FlatButton> _report;
-		object_ptr<Ui::IconButton> _close;
-
+	struct State {
+		enum class Type {
+			None,
+			ReportSpam,
+			Add,
+			AddOrBlock,
+			UnarchiveOrBlock,
+			UnarchiveOrReport,
+			SharePhoneNumber,
+			RequestChatInfo,
+		};
+		Type type = Type::None;
+		QString requestChatName;
+		bool requestChatIsBroadcast = false;
+		TimeId requestDate = 0;
 	};
 
 	void setupWidgets(not_null<Ui::RpWidget*> parent);
@@ -89,11 +71,12 @@ private:
 	void setupUnarchiveHandler(not_null<PeerData*> peer);
 	void setupReportHandler(not_null<PeerData*> peer);
 	void setupCloseHandler(not_null<PeerData*> peer);
+	void setupRequestInfoHandler(not_null<PeerData*> peer);
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 
 	const not_null<Window::SessionController*> _controller;
-	State _state = State::None;
+	State _state;
 	Ui::SlideWrap<Bar> _bar;
 	Ui::PlainShadow _shadow;
 	bool _shown = false;

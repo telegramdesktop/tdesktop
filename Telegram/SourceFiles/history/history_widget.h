@@ -157,8 +157,6 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
-	QRect historyRect() const;
-
 	void updateFieldPlaceholder();
 	bool updateStickersByEmoji();
 

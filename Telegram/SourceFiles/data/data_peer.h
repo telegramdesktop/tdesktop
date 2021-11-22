@@ -199,7 +199,9 @@ enum class PeerSetting {
 	ShareContact = (1 << 3),
 	NeedContactsException = (1 << 4),
 	AutoArchived = (1 << 5),
-	Unknown = (1 << 6),
+	RequestChat = (1 << 6),
+	RequestChatIsBroadcast = (1 << 7),
+	Unknown = (1 << 8),
 };
 inline constexpr bool is_flag_type(PeerSetting) { return true; };
 using PeerSettings = base::flags<PeerSetting>;
@@ -403,7 +405,7 @@ public:
 
 	// Returns true if about text was changed.
 	bool setAbout(const QString &newAbout);
-	const QString &about() const {
+	[[nodiscard]] const QString &about() const {
 		return _about;
 	}
 
@@ -412,15 +414,21 @@ public:
 	void setSettings(PeerSettings which) {
 		_settings.set(which);
 	}
-	auto settings() const {
+	[[nodiscard]] auto settings() const {
 		return (_settings.current() & PeerSetting::Unknown)
 			? std::nullopt
 			: std::make_optional(_settings.current());
 	}
-	auto settingsValue() const {
+	[[nodiscard]] auto settingsValue() const {
 		return (_settings.current() & PeerSetting::Unknown)
 			? _settings.changes()
 			: (_settings.value() | rpl::type_erased());
+	}
+	[[nodiscard]] QString requestChatTitle() const {
+		return _requestChatTitle;
+	}
+	[[nodiscard]] TimeId requestChatDate() const {
+		return _requestChatDate;
 	}
 
 	void setSettings(const MTPPeerSettings &data);
@@ -509,6 +517,9 @@ private:
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
+
+	QString _requestChatTitle;
+	TimeId _requestChatDate = 0;
 
 	QString _about;
 	QString _themeEmoticon;

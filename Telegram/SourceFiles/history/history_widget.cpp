@@ -7326,10 +7326,6 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-QRect HistoryWidget::historyRect() const {
-	return _scroll->geometry();
-}
-
 QPoint HistoryWidget::clampMousePosition(QPoint point) {
 	if (point.x() < 0) {
 		point.setX(0);

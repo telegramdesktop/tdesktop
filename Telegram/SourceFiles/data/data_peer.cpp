@@ -561,6 +561,9 @@ void PeerData::checkFolder(FolderId folderId) {
 
 void PeerData::setSettings(const MTPPeerSettings &data) {
 	data.match([&](const MTPDpeerSettings &data) {
+		_requestChatTitle = data.vrequest_chat_title().value_or_empty();
+		_requestChatDate = data.vrequest_chat_date().value_or_empty();
+
 		using Flag = PeerSetting;
 		setSettings((data.is_add_contact() ? Flag::AddContact : Flag())
 			| (data.is_autoarchived() ? Flag::AutoArchived : Flag())
@@ -571,7 +574,11 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 				: Flag())
 			//| (data.is_report_geo() ? Flag::ReportGeo : Flag())
 			| (data.is_report_spam() ? Flag::ReportSpam : Flag())
-			| (data.is_share_contact() ? Flag::ShareContact : Flag()));
+			| (data.is_share_contact() ? Flag::ShareContact : Flag())
+			| (data.vrequest_chat_title() ? Flag::RequestChat : Flag())
+			| (data.is_request_chat_broadcast()
+				? Flag::RequestChatIsBroadcast
+				: Flag()));
 	});
 }
 

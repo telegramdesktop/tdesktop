@@ -1857,13 +1857,6 @@ void MainWidget::orderWidgets() {
 	if (_hider) _hider->raise();
 }
 
-QRect MainWidget::historyRect() const {
-	QRect r(_history->historyRect());
-	r.moveLeft(r.left() + _history->x());
-	r.moveTop(r.top() + _history->y());
-	return r;
-}
-
 QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	QPixmap result;
 	floatPlayerHideAll();

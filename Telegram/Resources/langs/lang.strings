@@ -1537,6 +1537,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_add_name" = "Add {user} to contacts";
 "lng_new_contact_add_done" = "{user} is now in your contact list.";
 "lng_new_contact_unarchive" = "Unarchive";
+"lng_new_contact_from_request_channel" = "{user} is an admin of {name}, a channel you requested to join.";
+"lng_new_contact_from_request_group" = "{user} is an admin of {name}, a group you requested to join.";
+"lng_from_request_title_channel" = "Chat with channel's admin";
+"lng_from_request_title_group" = "Chat with group's admin";
+"lng_from_request_body" = "You received this message because you requested to join {name} on {date}.";
+"lng_from_request_understand" = "I understand";
 "lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
 "lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";

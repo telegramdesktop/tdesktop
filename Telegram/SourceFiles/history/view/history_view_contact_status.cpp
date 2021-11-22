@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -26,10 +28,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "main/main_session.h"
-#include "ui/boxes/confirm_box.h"
+#include "base/unixtime.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/style_info.h"
 
 namespace HistoryView {
 namespace {
@@ -56,7 +59,73 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 
 } // namespace
 
-ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
+class ContactStatus::BgButton final : public Ui::RippleButton {
+public:
+	BgButton(QWidget *parent, const style::FlatButton &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(State was, StateChangeSource source) override;
+
+private:
+	const style::FlatButton &_st;
+
+};
+
+class ContactStatus::Bar final : public Ui::RpWidget {
+public:
+	Bar(QWidget *parent, const QString &name);
+
+	void showState(State state);
+
+	[[nodiscard]] rpl::producer<> unarchiveClicks() const;
+	[[nodiscard]] rpl::producer<> addClicks() const;
+	[[nodiscard]] rpl::producer<> blockClicks() const;
+	[[nodiscard]] rpl::producer<> shareClicks() const;
+	[[nodiscard]] rpl::producer<> reportClicks() const;
+	[[nodiscard]] rpl::producer<> closeClicks() const;
+	[[nodiscard]] rpl::producer<> requestInfoClicks() const;
+
+private:
+	int resizeGetHeight(int newWidth) override;
+
+	QString _name;
+	object_ptr<Ui::FlatButton> _add;
+	object_ptr<Ui::FlatButton> _unarchive;
+	object_ptr<Ui::FlatButton> _block;
+	object_ptr<Ui::FlatButton> _share;
+	object_ptr<Ui::FlatButton> _report;
+	object_ptr<Ui::IconButton> _close;
+	object_ptr<BgButton> _requestChatBg;
+	object_ptr<Ui::FlatLabel> _requestChatInfo;
+
+};
+
+ContactStatus::BgButton::BgButton(
+	QWidget *parent,
+	const style::FlatButton &st)
+: RippleButton(parent, st.ripple)
+, _st(st) {
+}
+
+void ContactStatus::BgButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	update();
+}
+
+void ContactStatus::BgButton::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	p.fillRect(e->rect(), isOver() ? _st.overBgColor : _st.bgColor);
+	paintRipple(p, 0, 0);
+}
+
+ContactStatus::Bar::Bar(
+	QWidget *parent,
+	const QString &name)
 : RpWidget(parent)
 , _name(name)
 , _add(
@@ -79,26 +148,46 @@ ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 	this,
 	QString(),
 	st::historyContactStatusBlock)
-, _close(this, st::historyReplyCancel) {
-	resize(_close->size());
+, _close(this, st::historyReplyCancel)
+, _requestChatBg(this, st::historyContactStatusButton)
+, _requestChatInfo(
+		this,
+		QString(),
+		st::historyContactStatusLabel) {
+	_requestChatInfo->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 
 void ContactStatus::Bar::showState(State state) {
-	_add->setVisible(state == State::AddOrBlock || state == State::Add);
-	_unarchive->setVisible(state == State::UnarchiveOrBlock
-		|| state == State::UnarchiveOrReport);
-	_block->setVisible(state == State::AddOrBlock
-		|| state == State::UnarchiveOrBlock);
-	_share->setVisible(state == State::SharePhoneNumber);
-	_report->setVisible(state == State::ReportSpam
-		|| state == State::UnarchiveOrReport);
-	_add->setText((state == State::Add)
+	using Type = State::Type;
+	const auto type = state.type;
+	_add->setVisible(type == Type::AddOrBlock || type == Type::Add);
+	_unarchive->setVisible(type == Type::UnarchiveOrBlock
+		|| type == Type::UnarchiveOrReport);
+	_block->setVisible(type == Type::AddOrBlock
+		|| type == Type::UnarchiveOrBlock);
+	_share->setVisible(type == Type::SharePhoneNumber);
+	_close->setVisible(type != Type::RequestChatInfo);
+	_report->setVisible(type == Type::ReportSpam
+		|| type == Type::UnarchiveOrReport);
+	_requestChatInfo->setVisible(type == Type::RequestChatInfo);
+	_requestChatBg->setVisible(type == Type::RequestChatInfo);
+	_add->setText((type == Type::Add)
 		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
 		: tr::lng_new_contact_add(tr::now).toUpper());
-	_report->setText((state == State::ReportSpam)
+	_report->setText((type == Type::ReportSpam)
 		? tr::lng_report_spam_and_leave(tr::now).toUpper()
 		: tr::lng_report_spam(tr::now).toUpper());
-	updateButtonsGeometry();
+	_requestChatInfo->setMarkedText(
+		(state.requestChatIsBroadcast
+			? tr::lng_new_contact_from_request_channel
+			: tr::lng_new_contact_from_request_group)(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(_name),
+			lt_name,
+			Ui::Text::Bold(state.requestChatName),
+			Ui::Text::WithEntities));
+	resizeToWidth(width());
 }
 
 rpl::producer<> ContactStatus::Bar::unarchiveClicks() const {
@@ -125,16 +214,19 @@ rpl::producer<> ContactStatus::Bar::closeClicks() const {
 	return _close->clicks() | rpl::to_empty;
 }
 
-void ContactStatus::Bar::resizeEvent(QResizeEvent *e) {
-	_close->moveToRight(0, 0);
-	updateButtonsGeometry();
+rpl::producer<> ContactStatus::Bar::requestInfoClicks() const {
+	return _requestChatBg->clicks() | rpl::to_empty;
 }
 
-void ContactStatus::Bar::updateButtonsGeometry() {
-	const auto full = width();
+int ContactStatus::Bar::resizeGetHeight(int newWidth) {
+	_close->moveToRight(0, 0);
+
 	const auto closeWidth = _close->width();
-	const auto available = full - closeWidth;
+	const auto available = newWidth - closeWidth;
 	const auto skip = st::historyContactStatusMinSkip;
+	if (available <= 2 * skip) {
+		return _close->height();
+	}
 	const auto buttonWidth = [&](const object_ptr<Ui::FlatButton> &button) {
 		return button->textWidth() + 2 * skip;
 	};
@@ -157,18 +249,18 @@ void ContactStatus::Bar::updateButtonsGeometry() {
 			thatWidth + closeWidth - available,
 			0,
 			closeWidth);
-		placeButton(button, full, margin);
+		placeButton(button, newWidth, margin);
 	};
 	const auto &leftButton = _unarchive->isHidden() ? _add : _unarchive;
 	const auto &rightButton = _block->isHidden() ? _report : _block;
 	if (!leftButton->isHidden() && !rightButton->isHidden()) {
 		const auto leftWidth = buttonWidth(leftButton);
 		const auto rightWidth = buttonWidth(rightButton);
-		const auto half = full / 2;
+		const auto half = newWidth / 2;
 		if (leftWidth <= half
-			&& rightWidth + 2 * closeWidth <= full - half) {
+			&& rightWidth + 2 * closeWidth <= newWidth - half) {
 			placeButton(leftButton, half);
-			placeButton(rightButton, full - half);
+			placeButton(rightButton, newWidth - half);
 		} else if (leftWidth + rightWidth <= available) {
 			const auto margin = std::clamp(
 				leftWidth + rightWidth + closeWidth - available,
@@ -177,22 +269,31 @@ void ContactStatus::Bar::updateButtonsGeometry() {
 			const auto realBlockWidth = rightWidth + 2 * closeWidth - margin;
 			if (leftWidth > realBlockWidth) {
 				placeButton(leftButton, leftWidth);
-				placeButton(rightButton, full - leftWidth, margin);
+				placeButton(rightButton, newWidth - leftWidth, margin);
 			} else {
-				placeButton(leftButton, full - realBlockWidth);
+				placeButton(leftButton, newWidth - realBlockWidth);
 				placeButton(rightButton, realBlockWidth, margin);
 			}
 		} else {
 			const auto forLeft = (available * leftWidth)
 				/ (leftWidth + rightWidth);
 			placeButton(leftButton, forLeft);
-			placeButton(rightButton, full - forLeft, closeWidth);
+			placeButton(rightButton, newWidth - forLeft, closeWidth);
 		}
 	} else {
 		placeOne(_add);
 		placeOne(_share);
 		placeOne(_report);
 	}
+	if (_requestChatInfo->isHidden()) {
+		return _close->height();
+	}
+	const auto vskip = st::topBarArrowPadding.top();
+	_requestChatInfo->resizeToWidth(available - 2 * skip);
+	_requestChatInfo->move(skip, vskip);
+	const auto newHeight = _requestChatInfo->height() + 2 * vskip;
+	_requestChatBg->setGeometry(0, 0, newWidth, newHeight);
+	return newHeight;
 }
 
 ContactStatus::ContactStatus(
@@ -231,6 +332,7 @@ void ContactStatus::setupWidgets(not_null<Ui::RpWidget*> parent) {
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
 	using SettingsChange = PeerData::Settings::Change;
+	using Type = State::Type;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
 		using Flag = UserDataFlag;
@@ -245,34 +347,43 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 			user->settingsValue()
 		) | rpl::map([=](
 				FlagsChange flags,
-				SettingsChange settings) {
+				SettingsChange settings) -> State {
 			if (flags.value & Flag::Blocked) {
-				return State::None;
+				return { Type::None };
 			} else if (user->isContact()) {
 				if (settings.value & PeerSetting::ShareContact) {
-					return State::SharePhoneNumber;
+					return { Type::SharePhoneNumber };
 				} else {
-					return State::None;
+					return { Type::None };
 				}
+			} else if (settings.value & PeerSetting::RequestChat) {
+				return {
+					.type = Type::RequestChatInfo,
+					.requestChatName = peer->requestChatTitle(),
+					.requestChatIsBroadcast = !!(settings.value
+						& PeerSetting::RequestChatIsBroadcast),
+					.requestDate = peer->requestChatDate(),
+				};
 			} else if (settings.value & PeerSetting::AutoArchived) {
-				return State::UnarchiveOrBlock;
+				return { Type::UnarchiveOrBlock };
 			} else if (settings.value & PeerSetting::BlockContact) {
-				return State::AddOrBlock;
+				return { Type::AddOrBlock };
 			} else if (settings.value & PeerSetting::AddContact) {
-				return State::Add;
+				return { Type::Add };
 			} else {
-				return State::None;
+				return { Type::None };
 			}
 		});
 	}
 
 	return peer->settingsValue(
 	) | rpl::map([=](SettingsChange settings) {
+		using Type = State::Type;
 		return (settings.value & PeerSetting::AutoArchived)
-			? State::UnarchiveOrReport
+			? State{ Type::UnarchiveOrReport }
 			: (settings.value & PeerSetting::ReportSpam)
-			? State::ReportSpam
-			: State::None;
+			? State{ Type::ReportSpam }
+			: State{ Type::None };
 	});
 }
 
@@ -285,7 +396,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 		peer
 	) | rpl::start_with_next([=](State state) {
 		_state = state;
-		if (state == State::None) {
+		if (state.type == State::Type::None) {
 			_bar.hide(anim::type::normal);
 		} else {
 			_bar.entity()->showState(state);
@@ -303,6 +414,7 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 	setupUnarchiveHandler(peer);
 	setupReportHandler(peer);
 	setupCloseHandler(peer);
+	setupRequestInfoHandler(peer);
 }
 
 void ContactStatus::setupAddHandler(not_null<UserData*> user) {
@@ -420,8 +532,44 @@ void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
 	}, _bar.lifetime());
 }
 
+void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
+	const auto request = _bar.lifetime().make_state<mtpRequestId>(0);
+	_bar.entity()->requestInfoClicks(
+	) | rpl::filter([=] {
+		return !(*request);
+	}) | rpl::start_with_next([=] {
+		_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle((_state.requestChatIsBroadcast
+				? tr::lng_from_request_title_channel
+				: tr::lng_from_request_title_group)());
+
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_from_request_body(
+					lt_name,
+					rpl::single(Ui::Text::Bold(_state.requestChatName)),
+					lt_date,
+					rpl::single(langDateTimeFull(
+						base::unixtime::parse(_state.requestDate)
+					)) | Ui::Text::ToWithEntities(),
+					Ui::Text::WithEntities),
+				st::boxLabel));
+
+			box->addButton(tr::lng_from_request_understand(), [=] {
+				if (*request) {
+					return;
+				}
+				peer->setSettings(0);
+				*request = peer->session().api().request(
+					MTPmessages_HidePeerSettingsBar(peer->input)
+				).send();
+			});
+		}));
+	}, _bar.lifetime());
+}
+
 void ContactStatus::show() {
-	const auto visible = (_state != State::None);
+	const auto visible = (_state.type != State::Type::None);
 	if (!_shown) {
 		_shown = true;
 		if (visible) {

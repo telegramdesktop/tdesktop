@@ -268,6 +268,9 @@ historyContactStatusBlock: FlatButton(historyContactStatusButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFg;
 }
+historyContactStatusLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+}
 historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "chat/input_send", historySendIconFg }};
