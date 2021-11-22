@@ -101,8 +101,8 @@ public:
 	Element *findLastDisplayed() const;
 	bool hasOrphanMediaGroupPart() const;
 	bool removeOrphanMediaGroupPart();
-	QVector<MsgId> collectMessagesFromUserToDelete(
-		not_null<UserData*> user) const;
+	[[nodiscard]] std::vector<MsgId> collectMessagesFromParticipantToDelete(
+		not_null<PeerData*> participant) const;
 
 	enum class ClearType {
 		Unload,

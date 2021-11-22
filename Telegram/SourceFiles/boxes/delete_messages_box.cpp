@@ -39,7 +39,7 @@ DeleteMessagesBox::DeleteMessagesBox(
 		_moderateBan = item->suggestBanReport();
 		_moderateDeleteAll = item->suggestDeleteAllReport();
 		if (_moderateBan || _moderateDeleteAll) {
-			_moderateFrom = item->from()->asUser();
+			_moderateFrom = item->from();
 			_moderateInChannel = item->history()->peer->asChannel();
 		}
 	}
@@ -492,7 +492,7 @@ void DeleteMessagesBox::deleteAndClear() {
 			).send();
 		}
 		if (_deleteAll && _deleteAll->checked()) {
-			_moderateInChannel->session().api().deleteAllFromUser(
+			_moderateInChannel->session().api().deleteAllFromParticipant(
 				_moderateInChannel,
 				_moderateFrom);
 		}

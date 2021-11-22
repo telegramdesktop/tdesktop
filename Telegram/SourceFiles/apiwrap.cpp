@@ -1757,13 +1757,13 @@ void ApiWrap::unblockParticipant(
 	_kickRequests.emplace(kick, requestId);
 }
 
-void ApiWrap::deleteAllFromUser(
+void ApiWrap::deleteAllFromParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> from) {
+		not_null<PeerData*> from) {
 	const auto history = _session->data().historyLoaded(channel);
 	const auto ids = history
-		? history->collectMessagesFromUserToDelete(from)
-		: QVector<MsgId>();
+		? history->collectMessagesFromParticipantToDelete(from)
+		: std::vector<MsgId>();
 	const auto channelId = peerToChannel(channel->id);
 	for (const auto &msgId : ids) {
 		if (const auto item = _session->data().message(channelId, msgId)) {
@@ -1773,19 +1773,19 @@ void ApiWrap::deleteAllFromUser(
 
 	_session->data().sendHistoryChangeNotifications();
 
-	deleteAllFromUserSend(channel, from);
+	deleteAllFromParticipantSend(channel, from);
 }
 
-void ApiWrap::deleteAllFromUserSend(
+void ApiWrap::deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> from) {
+		not_null<PeerData*> from) {
 	request(MTPchannels_DeleteParticipantHistory(
 		channel->inputChannel,
 		from->input
 	)).done([=](const MTPmessages_AffectedHistory &result) {
 		const auto offset = applyAffectedHistory(channel, result);
 		if (offset > 0) {
-			deleteAllFromUserSend(channel, from);
+			deleteAllFromParticipantSend(channel, from);
 		} else if (const auto history = _session->data().historyLoaded(channel)) {
 			history->requestChatListMessage();
 		}

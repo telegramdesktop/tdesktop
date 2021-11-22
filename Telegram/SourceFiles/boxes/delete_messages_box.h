@@ -64,7 +64,7 @@ private:
 	const QDate _wipeHistoryFirstToDelete;
 	const QDate _wipeHistoryLastToDelete;
 	const MessageIdsList _ids;
-	UserData *_moderateFrom = nullptr;
+	PeerData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;
 	bool _moderateBan = false;
 	bool _moderateDeleteAll = false;

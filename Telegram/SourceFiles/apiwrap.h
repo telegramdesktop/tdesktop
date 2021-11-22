@@ -230,9 +230,9 @@ public:
 	void unblockParticipant(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant);
-	void deleteAllFromUser(
+	void deleteAllFromParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> from);
+		not_null<PeerData*> from);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -518,9 +518,9 @@ private:
 		bool revoke);
 	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
 
-	void deleteAllFromUserSend(
+	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> from);
+		not_null<PeerData*> from);
 
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,

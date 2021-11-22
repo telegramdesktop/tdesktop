@@ -3094,13 +3094,13 @@ bool History::removeOrphanMediaGroupPart() {
 	return false;
 }
 
-QVector<MsgId> History::collectMessagesFromUserToDelete(
-		not_null<UserData*> user) const {
-	auto result = QVector<MsgId>();
+std::vector<MsgId> History::collectMessagesFromParticipantToDelete(
+		not_null<PeerData*> participant) const {
+	auto result = std::vector<MsgId>();
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			const auto item = message->data();
-			if (item->from() == user && item->canDelete()) {
+			if (item->from() == participant && item->canDelete()) {
 				result.push_back(item->id);
 			}
 		}
