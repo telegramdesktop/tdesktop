@@ -392,6 +392,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 		peer->session().api().requestPeerSettings(peer);
 	}
 
+	_bar.entity()->showState(State());
 	PeerState(
 		peer
 	) | rpl::start_with_next([=](State state) {
