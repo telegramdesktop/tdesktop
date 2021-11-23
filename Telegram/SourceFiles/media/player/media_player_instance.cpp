@@ -796,8 +796,27 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		raw->nonPlayedIds.clear();
 		raw->playedIds.clear();
 		raw->indexInPlayedIds = 0;
-	} else if (raw->allLoaded || raw->nextSliceLifetime) {
+	} else if (raw->nextSliceLifetime) {
 		return;
+	} else if (raw->allLoaded) {
+		const auto universal = computeCurrentUniversalId(data);
+		if (!universal
+			|| (raw->indexInPlayedIds < raw->playedIds.size()
+				? (raw->playedIds[raw->indexInPlayedIds] == universal)
+				: ranges::contains(raw->nonPlayedIds, universal))) {
+			return;
+		}
+		// We started playing some track not from the tracks that are left.
+		// Start the whole playlist thing once again.
+		raw->playedIds.clear();
+		raw->indexInPlayedIds = 0;
+		if (ranges::contains(raw->playlist, universal)) {
+			raw->nonPlayedIds = raw->playlist;
+		} else {
+			raw->allLoaded = false;
+			raw->playlist.clear();
+			raw->nonPlayedIds.clear();
+		}
 	}
 	if (raw->scheduled) {
 		const auto count = data->playlistSlice
