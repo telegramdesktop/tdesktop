@@ -974,22 +974,29 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		}
 		return {};
 	}();
+	const auto fromSender = [](not_null<PeerData*> sender) {
+		return sender->isSelf()
+			? tr::lng_from_you(tr::now)
+			: sender->shortName();
+	};
+	const auto fromForwarded = [&]() -> std::optional<QString> {
+		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->originalSender
+				? fromSender(forwarded->originalSender)
+				: forwarded->hiddenSenderInfo->name;
+		}
+		return {};
+	};
 	const auto sender = [&]() -> std::optional<QString> {
-		const auto fromSender = [](not_null<PeerData*> sender) {
-			return sender->isSelf()
-				? tr::lng_from_you(tr::now)
-				: sender->shortName();
-		};
 		if (options.hideSender || isPost() || isEmpty()) {
 			return {};
 		} else if (!_history->peer->isUser()) {
-			return fromSender(displayFrom());
-		} else if (_history->peer->isSelf()) {
-			if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-				return forwarded->originalSender
-					? fromSender(forwarded->originalSender)
-					: forwarded->hiddenSenderInfo->name;
+			if (const auto from = displayFrom()) {
+				return fromSender(from);
 			}
+			return fromForwarded();
+		} else if (_history->peer->isSelf()) {
+			return fromForwarded();
 		}
 		return {};
 	}();
