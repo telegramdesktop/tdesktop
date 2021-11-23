@@ -167,6 +167,7 @@ private:
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;
 	struct Streamed;
+	struct ShuffleData;
 	struct Data {
 		Data(AudioMsgId::Type type, SharedMediaType overview);
 		Data(Data &&other);
@@ -195,6 +196,7 @@ private:
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
+		std::unique_ptr<ShuffleData> shuffleData;
 	};
 
 	struct SeekingChanges {
@@ -236,6 +238,11 @@ private:
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 	void stopAndClear(not_null<Data*> data);
+
+	[[nodiscard]] MsgId computeCurrentUniversalId(
+		not_null<const Data*> data) const;
+	void validateShuffleData(not_null<Data*> data);
+	void setupShuffleData(not_null<Data*> data);
 
 	void handleStreamingUpdate(
 		not_null<Data*> data,
