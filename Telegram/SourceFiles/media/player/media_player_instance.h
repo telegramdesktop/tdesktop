@@ -191,8 +191,6 @@ private:
 		History *history = nullptr;
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
-		rpl::variable<RepeatMode> repeat = RepeatMode::None;
-		rpl::variable<OrderMode> order = OrderMode::Default;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
@@ -243,6 +241,7 @@ private:
 		not_null<const Data*> data) const;
 	void validateShuffleData(not_null<Data*> data);
 	void setupShuffleData(not_null<Data*> data);
+	void ensureShuffleMove(not_null<Data*> data, int delta);
 
 	void handleStreamingUpdate(
 		not_null<Data*> data,
@@ -255,6 +254,13 @@ private:
 	void emitUpdate(AudioMsgId::Type type);
 	template <typename CheckCallback>
 	void emitUpdate(AudioMsgId::Type type, CheckCallback check);
+
+	[[nodiscard]] RepeatMode repeat(not_null<const Data*> data) const;
+	[[nodiscard]] rpl::producer<RepeatMode> repeatChanges(
+		not_null<const Data*> data) const;
+	[[nodiscard]] OrderMode order(not_null<const Data*> data) const;
+	[[nodiscard]] rpl::producer<OrderMode> orderChanges(
+		not_null<const Data*> data) const;
 
 	Data *getData(AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Song) {

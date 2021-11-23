@@ -45,6 +45,7 @@ constexpr auto kIdsLimit = 32;
 constexpr auto kIdsPreloadAfter = 28;
 
 constexpr auto kShufflePlaylistLimit = 10'000;
+constexpr auto kRememberShuffledOrderItems = 16;
 
 constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
 
@@ -123,10 +124,6 @@ Instance::Streamed::Streamed(
 Instance::Data::Data(AudioMsgId::Type type, SharedMediaType overview)
 : type(type)
 , overview(overview) {
-	if (type == AudioMsgId::Type::Song) {
-		repeat = Core::App().settings().playerRepeatModeValue();
-		order = Core::App().settings().playerOrderModeValue();
-	}
 }
 
 Instance::Data::Data(Data &&other) = default;
@@ -140,10 +137,20 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
-	_songData.repeat.changes(
+	repeatChanges(
+		&_songData
 	) | rpl::start_with_next([=](RepeatMode mode) {
 		if (mode == RepeatMode::All) {
 			refreshPlaylist(&_songData);
+		}
+	}, _lifetime);
+	orderChanges(
+		&_songData
+	) | rpl::start_with_next([=](OrderMode mode) {
+		if (mode == OrderMode::Shuffle) {
+			validateShuffleData(&_songData);
+		} else {
+			_songData.shuffleData = nullptr;
 		}
 	}, _lifetime);
 
@@ -296,10 +303,8 @@ void Instance::playlistUpdated(not_null<Data*> data) {
 	if (data->playlistSlice) {
 		const auto fullId = data->current.contextId();
 		data->playlistIndex = data->playlistSlice->indexOf(fullId);
-		if (data->order.current() == OrderMode::Shuffle) {
+		if (order(data) == OrderMode::Shuffle) {
 			validateShuffleData(data);
-		} else {
-			data->shuffleData = nullptr;
 		}
 	} else {
 		data->playlistIndex = std::nullopt;
@@ -422,8 +427,8 @@ void Instance::validateOtherPlaylist(not_null<Data*> data) {
 
 auto Instance::playlistOtherKey(not_null<const Data*> data) const
 -> std::optional<SliceKey> {
-	if (data->repeat.current() != RepeatMode::All
-		|| data->order.current() == OrderMode::Shuffle
+	if (repeat(data) != RepeatMode::All
+		|| order(data) == OrderMode::Shuffle
 		|| !data->playlistSlice
 		|| (data->playlistSlice->skippedBefore() != 0
 			&& data->playlistSlice->skippedAfter() != 0)
@@ -493,46 +498,52 @@ bool Instance::moveInPlaylist(
 		return jumpByItem(data->history->owner().message(id));
 	};
 
-	if (data->order.current() == OrderMode::Shuffle) {
+	if (order(data) == OrderMode::Shuffle) {
 		const auto raw = data->shuffleData.get();
 		if (!raw || !raw->history) {
 			return false;
 		}
+		const auto universal = computeCurrentUniversalId(data);
 		const auto byUniversal = [&](ShuffleData::UniversalMsgId id) {
 			return (id < 0)
 				? jumpById({ ChannelId(), id + ServerMaxMsgId })
 				: jumpById({ raw->history->channelId(), id });
 		};
+		if (universal && raw->indexInPlayedIds == raw->playedIds.size()) {
+			raw->playedIds.push_back(universal);
+			const auto i = ranges::find(raw->nonPlayedIds, universal);
+			if (i != end(raw->nonPlayedIds)) {
+				raw->nonPlayedIds.erase(i);
+			}
+		}
+		if (repeat(data) == RepeatMode::All) {
+			ensureShuffleMove(data, delta);
+		}
+		if (raw->nonPlayedIds.empty()
+			&& raw->indexInPlayedIds + 1 == raw->playedIds.size()) {
+			raw->nonPlayedIds.push_back(raw->playedIds.back());
+			raw->playedIds.pop_back();
+		}
+		const auto shuffleCompleted = raw->nonPlayedIds.empty()
+			|| (raw->nonPlayedIds.size() == 1
+				&& raw->nonPlayedIds.front() == universal);
 		if (delta < 0) {
 			return (raw->indexInPlayedIds > 0)
 				&& byUniversal(raw->playedIds[--raw->indexInPlayedIds]);
 		} else if (raw->indexInPlayedIds + 1 < raw->playedIds.size()) {
 			return byUniversal(raw->playedIds[++raw->indexInPlayedIds]);
-		} else {
-			if (raw->nonPlayedIds.empty()) {
-				return false;
-			}
-			if (const auto universal = computeCurrentUniversalId(data)) {
-				if (raw->nonPlayedIds.size() == 1
-					&& raw->nonPlayedIds.front() == universal) {
-					return false;
-				}
-				if (raw->indexInPlayedIds == raw->playedIds.size()) {
-					raw->playedIds.push_back(universal);
-				}
-				const auto i = ranges::find(raw->nonPlayedIds, universal);
-				if (i != end(raw->nonPlayedIds)) {
-					raw->nonPlayedIds.erase(i);
-				}
-				++raw->indexInPlayedIds;
-			}
-			const auto index = base::RandomIndex(raw->nonPlayedIds.size());
-			return byUniversal(raw->nonPlayedIds[index]);
 		}
+		if (shuffleCompleted) {
+			return false;
+		} else if (raw->indexInPlayedIds < raw->playedIds.size()) {
+			++raw->indexInPlayedIds;
+		}
+		const auto index = base::RandomIndex(raw->nonPlayedIds.size());
+		return byUniversal(raw->nonPlayedIds[index]);
 	}
 
 	const auto newIndex = *data->playlistIndex
-		+ (data->order.current() == OrderMode::Reverse ? -delta : delta);
+		+ (order(data) == OrderMode::Reverse ? -delta : delta);
 	const auto useIndex = (!data->playlistSlice
 		|| data->playlistSlice->skippedAfter() != 0
 		|| data->playlistSlice->skippedBefore() != 0
@@ -542,7 +553,7 @@ bool Instance::moveInPlaylist(
 			% int(data->playlistSlice->size()));
 	if (const auto item = itemByIndex(data, useIndex)) {
 		return jumpByItem(item);
-	} else if (data->repeat.current() == RepeatMode::All
+	} else if (repeat(data) == RepeatMode::All
 		&& data->playlistOtherSlice
 		&& data->playlistOtherSlice->size() > 0) {
 		const auto &other = *data->playlistOtherSlice;
@@ -553,6 +564,48 @@ bool Instance::moveInPlaylist(
 		}
 	}
 	return false;
+}
+
+void Instance::ensureShuffleMove(not_null<Data*> data, int delta) {
+	const auto raw = data->shuffleData.get();
+	if (delta < 0) {
+		if (raw->indexInPlayedIds > 0) {
+			return;
+		} else if (raw->nonPlayedIds.size() < 2) {
+			const auto freeUp = std::max(
+				int(raw->playedIds.size() / 2),
+				int(raw->playlist.size()) - kRememberShuffledOrderItems);
+			const auto till = end(raw->playedIds);
+			const auto from = end(raw->playedIds) - freeUp;
+			raw->nonPlayedIds.insert(end(raw->nonPlayedIds), from, till);
+			raw->playedIds.erase(from, till);
+		}
+		if (raw->nonPlayedIds.empty()) {
+			return;
+		}
+		const auto index = base::RandomIndex(raw->nonPlayedIds.size());
+		raw->playedIds.insert(
+			begin(raw->playedIds),
+			raw->nonPlayedIds[index]);
+		raw->nonPlayedIds.erase(begin(raw->nonPlayedIds) + index);
+		++raw->indexInPlayedIds;
+		if (raw->nonPlayedIds.empty() && raw->playedIds.size() > 1) {
+			raw->nonPlayedIds.push_back(raw->playedIds.back());
+			raw->playedIds.pop_back();
+		}
+		return;
+	} else if (raw->indexInPlayedIds + 1 < raw->playedIds.size()) {
+		return;
+	} else if (raw->nonPlayedIds.size() < 2) {
+		const auto freeUp = std::max(
+			int(raw->playedIds.size() / 2),
+			int(raw->playlist.size()) - kRememberShuffledOrderItems);
+		const auto from = begin(raw->playedIds);
+		const auto till = begin(raw->playedIds) + freeUp;
+		raw->nonPlayedIds.insert(end(raw->nonPlayedIds), from, till);
+		raw->playedIds.erase(from, till);
+		raw->indexInPlayedIds -= freeUp;
+	}
 }
 
 MsgId Instance::computeCurrentUniversalId(not_null<const Data*> data) const {
@@ -577,13 +630,13 @@ bool Instance::previousAvailable(AudioMsgId::Type type) const {
 
 	if (!data->playlistIndex || !data->playlistSlice) {
 		return false;
-	} else if (data->repeat.current() == RepeatMode::All) {
+	} else if (repeat(data) == RepeatMode::All) {
 		return true;
-	} else if (data->order.current() == OrderMode::Shuffle) {
+	} else if (order(data) == OrderMode::Shuffle) {
 		const auto raw = data->shuffleData.get();
 		return raw && (raw->indexInPlayedIds > 0);
 	}
-	return (data->order.current() == OrderMode::Reverse)
+	return (order(data) == OrderMode::Reverse)
 		? (*data->playlistIndex + 1 < data->playlistSlice->size())
 		: (*data->playlistIndex > 0);
 }
@@ -594,9 +647,9 @@ bool Instance::nextAvailable(AudioMsgId::Type type) const {
 
 	if (!data->playlistIndex || !data->playlistSlice) {
 		return false;
-	} else if (data->repeat.current() == RepeatMode::All) {
+	} else if (repeat(data) == RepeatMode::All) {
 		return true;
-	} else if (data->order.current() == OrderMode::Shuffle) {
+	} else if (order(data) == OrderMode::Shuffle) {
 		const auto raw = data->shuffleData.get();
 		const auto universal = computeCurrentUniversalId(data);
 		return raw
@@ -605,7 +658,7 @@ bool Instance::nextAvailable(AudioMsgId::Type type) const {
 				|| (!raw->nonPlayedIds.empty()
 					&& raw->nonPlayedIds.front() != universal));
 	}
-	return (data->order.current() == OrderMode::Reverse)
+	return (order(data) == OrderMode::Reverse)
 		? (*data->playlistIndex > 0)
 		: (*data->playlistIndex + 1 < data->playlistSlice->size());
 }
@@ -617,8 +670,8 @@ rpl::producer<> Media::Player::Instance::playlistChanges(
 
 	return rpl::merge(
 		data->playlistChanges.events(),
-		data->order.changes() | rpl::to_empty,
-		data->repeat.changes() | rpl::to_empty);
+		orderChanges(data) | rpl::to_empty,
+		repeatChanges(data) | rpl::to_empty);
 }
 
 rpl::producer<> Media::Player::Instance::stops(AudioMsgId::Type type) const {
@@ -1044,6 +1097,32 @@ void Instance::emitUpdate(AudioMsgId::Type type) {
 	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
 }
 
+RepeatMode Instance::repeat(not_null<const Data*> data) const {
+	return (data->type == AudioMsgId::Type::Song)
+		? Core::App().settings().playerRepeatMode()
+		: RepeatMode::None;
+}
+
+rpl::producer<RepeatMode> Instance::repeatChanges(
+		not_null<const Data*> data) const {
+	return (data->type == AudioMsgId::Type::Song)
+		? Core::App().settings().playerRepeatModeChanges()
+		: rpl::never<RepeatMode>();
+}
+
+OrderMode Instance::order(not_null<const Data*> data) const {
+	return (data->type == AudioMsgId::Type::Song)
+		? Core::App().settings().playerOrderMode()
+		: OrderMode::Default;
+}
+
+rpl::producer<OrderMode> Instance::orderChanges(
+		not_null<const Data*> data) const {
+	return (data->type == AudioMsgId::Type::Song)
+		? Core::App().settings().playerOrderModeChanges()
+		: rpl::never<OrderMode>();
+}
+
 TrackState Instance::getState(AudioMsgId::Type type) const {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
@@ -1092,7 +1171,7 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		auto finished = false;
 		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
-			if (data->repeat.current() == RepeatMode::One) {
+			if (repeat(data) == RepeatMode::One) {
 				play(data->current);
 			} else if (!moveInPlaylist(data, 1, true)) {
 				finished = true;
