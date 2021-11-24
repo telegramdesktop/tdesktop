@@ -135,7 +135,7 @@ private:
 	bool _wontBeOver = false;
 
 	class PlayButton;
-	class SpeedButton;
+	class SpeedController;
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
 	object_ptr<Ui::LabelSimple> _timeLabel;
@@ -145,11 +145,12 @@ private:
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatToggle;
 	object_ptr<Ui::IconButton> _orderToggle;
-	object_ptr<SpeedButton> _playbackSpeed;
+	object_ptr<Ui::IconButton> _playbackSpeed;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
 	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
+	std::unique_ptr<SpeedController> _speedController;
 
 	rpl::lifetime _playlistChangesLifetime;
 

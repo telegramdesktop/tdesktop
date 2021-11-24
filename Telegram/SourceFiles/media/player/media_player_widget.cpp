@@ -62,72 +62,38 @@ private:
 
 };
 
-class Widget::SpeedButton : public Ui::IconButton {
+class Widget::SpeedController final {
 public:
-	SpeedButton(QWidget *parent, const style::IconButton &st);
+	explicit SpeedController(not_null<Ui::IconButton*> button);
 
 	[[nodiscard]] rpl::producer<> saved() const;
 
-protected:
-	void contextMenuEvent(QContextMenuEvent *e) override;
-
 private:
-	class SpeedController final {
-	public:
-		SpeedController() {
-			setSpeed(Core::App().settings().voicePlaybackSpeed());
-			_speed = Core::App().settings().voicePlaybackSpeed(true);
-		}
+	[[nodiscard]] float64 speed() const;
+	[[nodiscard]] bool isDefault() const;
+	[[nodiscard]] float64 lastNonDefaultSpeed() const;
+	void toggleDefault();
+	void setSpeed(float64 newSpeed);
+	void save();
+	void showContextMenu(not_null<QContextMenuEvent*> e);
 
-		[[nodiscard]] rpl::producer<float64> speedValue() const {
-			return _speedChanged.events_starting_with(speed());
-		}
-		[[nodiscard]] rpl::producer<> saved() const {
-			return _saved.events();
-		}
-		[[nodiscard]] float64 speed() const {
-			return _isDefault ? 1. : _speed;
-		}
-		[[nodiscard]] bool isDefault() const {
-			return _isDefault;
-		}
-		[[nodiscard]] float64 lastNonDefaultSpeed() const {
-			return _speed;
-		}
-		void toggleDefault() {
-			_isDefault = !_isDefault;
-			_speedChanged.fire(speed());
-		}
-		void setSpeed(float64 newSpeed) {
-			if (!(_isDefault = (newSpeed == 1.))) {
-				_speed = newSpeed;
-			}
-			_speedChanged.fire(speed());
-		}
-		void save() {
-			Core::App().settings().setVoicePlaybackSpeed(speed());
-			Core::App().saveSettingsDelayed();
-			_saved.fire({});
-		}
-
-	private:
-		float64 _speed = 2.;
-		bool _isDefault = true;
-		rpl::event_stream<float64> _speedChanged;
-		rpl::event_stream<> _saved;
-	};
-
-	SpeedController _speed;
-
+	const not_null<Ui::IconButton*> _button;
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	float64 _speed = 2.;
+	bool _isDefault = true;
+	rpl::event_stream<float64> _speedChanged;
+	rpl::event_stream<> _saved;
 
 };
 
-Widget::SpeedButton::SpeedButton(QWidget *parent, const style::IconButton &st)
-: IconButton(parent, st) {
-	setClickedCallback([=] {
-		_speed.toggleDefault();
-		_speed.save();
+Widget::SpeedController::SpeedController(not_null<Ui::IconButton*> button)
+: _button(button) {
+	setSpeed(Core::App().settings().voicePlaybackSpeed());
+	_speed = Core::App().settings().voicePlaybackSpeed(true);
+
+	button->setClickedCallback([=] {
+		toggleDefault();
+		save();
 	});
 
 	struct Icons {
@@ -135,10 +101,11 @@ Widget::SpeedButton::SpeedButton(QWidget *parent, const style::IconButton &st)
 		const style::icon *over = nullptr;
 	};
 
-	_speed.speedValue(
+	_speedChanged.events_starting_with(
+		speed()
 	) | rpl::start_with_next([=](float64 speed) {
-		const auto isDefaultSpeed = _speed.isDefault();
-		const auto nonDefaultSpeed = _speed.lastNonDefaultSpeed();
+		const auto isDefaultSpeed = isDefault();
+		const auto nonDefaultSpeed = lastNonDefaultSpeed();
 
 		const auto icons = [&]() -> Icons {
 			if (nonDefaultSpeed == .5) {
@@ -171,24 +138,66 @@ Widget::SpeedButton::SpeedButton(QWidget *parent, const style::IconButton &st)
 			}
 		}();
 
-		setIconOverride(icons.icon, icons.over);
-		setRippleColorOverride(isDefaultSpeed
+		button->setIconOverride(icons.icon, icons.over);
+		button->setRippleColorOverride(isDefaultSpeed
 			? &st::mediaPlayerSpeedDisabledRippleBg
 			: nullptr);
-	}, lifetime());
+	}, button->lifetime());
+
+	button->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::ContextMenu);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		showContextMenu(static_cast<QContextMenuEvent*>(e.get()));
+	}, button->lifetime());
 }
 
-void Widget::SpeedButton::contextMenuEvent(QContextMenuEvent *e) {
+rpl::producer<> Widget::SpeedController::saved() const {
+	return _saved.events();
+}
+
+float64 Widget::SpeedController::speed() const {
+	return _isDefault ? 1. : _speed;
+}
+
+bool Widget::SpeedController::isDefault() const {
+	return _isDefault;
+}
+
+float64 Widget::SpeedController::lastNonDefaultSpeed() const {
+	return _speed;
+}
+
+void Widget::SpeedController::toggleDefault() {
+	_isDefault = !_isDefault;
+	_speedChanged.fire(speed());
+}
+
+void Widget::SpeedController::setSpeed(float64 newSpeed) {
+	if (!(_isDefault = (newSpeed == 1.))) {
+		_speed = newSpeed;
+	}
+	_speedChanged.fire(speed());
+}
+
+void Widget::SpeedController::save() {
+	Core::App().settings().setVoicePlaybackSpeed(speed());
+	Core::App().saveSettingsDelayed();
+	_saved.fire({});
+}
+
+void Widget::SpeedController::showContextMenu(
+		not_null<QContextMenuEvent*> e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
+		_button,
 		st::mediaPlayerPopupMenu);
 
 	const auto setPlaybackSpeed = [=](float64 speed) {
-		_speed.setSpeed(speed);
-		_speed.save();
+		setSpeed(speed);
+		save();
 	};
 
-	const auto currentSpeed = _speed.speed();
+	const auto currentSpeed = speed();
 	const auto addSpeed = [&](float64 speed, QString text = QString()) {
 		if (text.isEmpty()) {
 			text = QString::number(speed);
@@ -204,10 +213,6 @@ void Widget::SpeedButton::contextMenuEvent(QContextMenuEvent *e) {
 	addSpeed(2., tr::lng_voice_speed_very_fast(tr::now));
 
 	_menu->popup(e->globalPos());
-}
-
-rpl::producer<> Widget::SpeedButton::saved() const {
-	return _speed.saved();
 }
 
 Widget::PlayButton::PlayButton(QWidget *parent) : Ui::RippleButton(parent, st::mediaPlayerButton.ripple)
@@ -247,7 +252,10 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
-, _playbackProgress(std::make_unique<View::PlaybackProgress>()) {
+, _playbackProgress(std::make_unique<View::PlaybackProgress>())
+, _speedController(
+	std::make_unique<SpeedController>(
+		_playbackSpeed.data())) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -318,7 +326,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		Core::App().saveSettingsDelayed();
 	});
 
-	_playbackSpeed->saved(
+	_speedController->saved(
 	) | rpl::start_with_next([=] {
 		instance()->updateVoicePlaybackSpeed();
 	}, lifetime());
