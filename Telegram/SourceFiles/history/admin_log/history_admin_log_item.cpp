@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -454,33 +455,34 @@ auto GenerateParticipantString(
 		Ui::Text::WithEntities);
 }
 
-auto GenerateParticipantChangeTextInner(
+auto GenerateParticipantChangeText(
 		not_null<ChannelData*> channel,
-		const MTPChannelParticipant &participant,
-		const MTPChannelParticipant *oldParticipant) {
-	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
+		const Api::ChatParticipant &participant,
+		std::optional<Api::ChatParticipant> oldParticipant = std::nullopt) {
+	using Type = Api::ChatParticipant::Type;
+	const auto oldRights = oldParticipant
+		? oldParticipant->rights()
+		: ChatAdminRightsInfo();
+	const auto oldRestrictions = oldParticipant
+		? oldParticipant->restrictions()
+		: ChatRestrictionsInfo();
+
 	const auto generateOther = [&](PeerId participantId) {
 		auto user = GenerateParticipantString(
 			&channel->session(),
 			participantId);
-		if (oldType == mtpc_channelParticipantAdmin) {
+		if (oldParticipant && oldParticipant->type() == Type::Admin) {
 			return GenerateAdminChangeText(
 				channel,
 				user,
 				ChatAdminRightsInfo(),
-				ChatAdminRightsInfo(
-					oldParticipant
-						->c_channelParticipantAdmin()
-						.vadmin_rights()));
-		} else if (oldType == mtpc_channelParticipantBanned) {
+				oldRights);
+		} else if (oldParticipant && oldParticipant->type() == Type::Banned) {
 			return GenerateBannedChangeText(
 				participantId,
 				user,
 				ChatRestrictionsInfo(),
-				ChatRestrictionsInfo(
-					oldParticipant
-						->c_channelParticipantBanned()
-						.vbanned_rights()));
+				oldRestrictions);
 		}
 		return tr::lng_admin_log_invited(
 			tr::now,
@@ -488,62 +490,62 @@ auto GenerateParticipantChangeTextInner(
 			user,
 			Ui::Text::WithEntities);
 	};
-	return participant.match([&](const MTPDchannelParticipantCreator &data) {
-		// No valid string here :(
-		return tr::lng_admin_log_transferred(
-			tr::now,
-			lt_user,
-			GenerateParticipantString(
+
+	auto result = [&] {
+		const auto &peerId = participant.id();
+		switch (participant.type()) {
+		case Api::ChatParticipant::Type::Creator: {
+			// No valid string here :(
+			return tr::lng_admin_log_transferred(
+				tr::now,
+				lt_user,
+				GenerateParticipantString(&channel->session(), peerId),
+				Ui::Text::WithEntities);
+		}
+		case Api::ChatParticipant::Type::Admin: {
+			const auto user = GenerateParticipantString(
 				&channel->session(),
-				peerFromUser(data.vuser_id())),
-			Ui::Text::WithEntities);
-	}, [&](const MTPDchannelParticipantAdmin &data) {
-		const auto user = GenerateParticipantString(
-			&channel->session(),
-			peerFromUser(data.vuser_id()));
-		return GenerateAdminChangeText(
-			channel,
-			user,
-			ChatAdminRightsInfo(data.vadmin_rights()),
-			(oldType == mtpc_channelParticipantAdmin
-				? ChatAdminRightsInfo(
-					oldParticipant
-						->c_channelParticipantAdmin()
-						.vadmin_rights())
-				: ChatAdminRightsInfo()));
-	}, [&](const MTPDchannelParticipantBanned &data) {
-		const auto participantId = peerFromMTP(data.vpeer());
-		const auto user = GenerateParticipantString(
-			&channel->session(),
-			participantId);
-		return GenerateBannedChangeText(
-			participantId,
-			user,
-			ChatRestrictionsInfo(data.vbanned_rights()),
-			(oldType == mtpc_channelParticipantBanned
-				? ChatRestrictionsInfo(
-					oldParticipant
-						->c_channelParticipantBanned()
-						.vbanned_rights())
-				: ChatRestrictionsInfo()));
-	}, [&](const MTPDchannelParticipantLeft &data) {
-		return generateOther(peerFromMTP(data.vpeer()));
-	}, [&](const auto &data) {
-		return generateOther(peerFromUser(data.vuser_id()));
-	});
+				peerId);
+			return GenerateAdminChangeText(
+				channel,
+				user,
+				participant.rights(),
+				oldRights);
+		}
+		case Api::ChatParticipant::Type::Restricted:
+		case Api::ChatParticipant::Type::Banned: {
+			const auto user = GenerateParticipantString(
+				&channel->session(),
+				peerId);
+			return GenerateBannedChangeText(
+				peerId,
+				user,
+				participant.restrictions(),
+				oldRestrictions);
+		}
+		case Api::ChatParticipant::Type::Left:
+		case Api::ChatParticipant::Type::Member:
+			return generateOther(peerId);
+		};
+	}();
+
+	result.entities.push_front(
+		EntityInText(EntityType::Italic, 0, result.text.size()));
+	return result;
 }
 
 TextWithEntities GenerateParticipantChangeText(
 		not_null<ChannelData*> channel,
 		const MTPChannelParticipant &participant,
-		const MTPChannelParticipant *oldParticipant = nullptr) {
-	auto result = GenerateParticipantChangeTextInner(
+		std::optional<MTPChannelParticipant>oldParticipant = std::nullopt) {
+	return GenerateParticipantChangeText(
 		channel,
-		participant,
-		oldParticipant);
-	result.entities.push_front(
-		EntityInText(EntityType::Italic, 0, result.text.size()));
-	return result;
+		Api::ChatParticipant(participant, channel),
+		oldParticipant
+			? std::make_optional(Api::ChatParticipant(
+				*oldParticipant,
+				channel))
+			: std::nullopt);
 }
 
 TextWithEntities GenerateDefaultBannedRightsChangeText(
@@ -918,7 +920,7 @@ void GenerateItems(
 			GenerateParticipantChangeText(
 				channel,
 				action.vnew_participant(),
-				&action.vprev_participant()));
+				action.vprev_participant()));
 	};
 
 	const auto createParticipantToggleAdmin = [&](const LogPromote &action) {
@@ -933,7 +935,7 @@ void GenerateItems(
 			GenerateParticipantChangeText(
 				channel,
 				action.vnew_participant(),
-				&action.vprev_participant()));
+				action.vprev_participant()));
 	};
 
 	const auto createChangeStickerSet = [&](const LogSticker &action) {
