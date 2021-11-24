@@ -497,6 +497,7 @@ bool Instance::moveInPlaylist(
 	const auto jumpById = [&](FullMsgId id) {
 		return jumpByItem(data->history->owner().message(id));
 	};
+	const auto repeatAll = (repeat(data) == RepeatMode::All);
 
 	if (order(data) == OrderMode::Shuffle) {
 		const auto raw = data->shuffleData.get();
@@ -516,7 +517,7 @@ bool Instance::moveInPlaylist(
 				raw->nonPlayedIds.erase(i);
 			}
 		}
-		if (repeat(data) == RepeatMode::All) {
+		if (repeatAll) {
 			ensureShuffleMove(data, delta);
 		}
 		if (raw->nonPlayedIds.empty()
@@ -544,7 +545,8 @@ bool Instance::moveInPlaylist(
 
 	const auto newIndex = *data->playlistIndex
 		+ (order(data) == OrderMode::Reverse ? -delta : delta);
-	const auto useIndex = (!data->playlistSlice
+	const auto useIndex = (!repeatAll
+		|| !data->playlistSlice
 		|| data->playlistSlice->skippedAfter() != 0
 		|| data->playlistSlice->skippedBefore() != 0
 		|| !data->playlistSlice->size())
@@ -553,7 +555,7 @@ bool Instance::moveInPlaylist(
 			% int(data->playlistSlice->size()));
 	if (const auto item = itemByIndex(data, useIndex)) {
 		return jumpByItem(item);
-	} else if (repeat(data) == RepeatMode::All
+	} else if (repeatAll
 		&& data->playlistOtherSlice
 		&& data->playlistOtherSlice->size() > 0) {
 		const auto &other = *data->playlistOtherSlice;

@@ -53,8 +53,8 @@ void PrepareRepeatDropdown(not_null<Dropdown*> dropdown) {
 		const auto shuffled = (mode == OrderMode::Shuffle);
 		shuffle->setIconOverride(shuffled
 			? &st::mediaPlayerShuffleIcon
-			: &st::mediaPlayerShuffleDisabledIcon,
-			shuffled ? nullptr : &st::mediaPlayerShuffleDisabledIconOver);
+			: &st::mediaPlayerShuffleIcon,
+			shuffled ? nullptr : &st::mediaPlayerShuffleIcon);
 		shuffle->setRippleColorOverride(
 			shuffled ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 		const auto reversed = (mode == OrderMode::Reverse);

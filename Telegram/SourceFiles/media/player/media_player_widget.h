@@ -19,6 +19,8 @@ class LabelSimple;
 class IconButton;
 class PlainShadow;
 class FilledSlider;
+template <typename Widget>
+class FadeWrap;
 } // namespace Ui
 
 namespace Media {
@@ -72,19 +74,24 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	[[nodiscard]] not_null<Ui::RpWidget*> rightControls();
+
 	void handleSeekProgress(float64 progress);
 	void handleSeekFinished(float64 progress);
 
-	int getLabelsLeft() const;
-	int getLabelsRight() const;
+	[[nodiscard]] int getNameLeft() const;
+	[[nodiscard]] int getNameRight() const;
+	[[nodiscard]] int getTimeRight() const;
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
 	void updateRepeatToggleIcon();
+	void updateOrderToggleIcon();
 	void updateControlsVisibility();
 	void updateControlsGeometry();
+	void updateControlsWrapGeometry();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
 
@@ -123,12 +130,14 @@ private:
 	class PlayButton;
 	class SpeedButton;
 	object_ptr<Ui::FlatLabel> _nameLabel;
+	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
-	object_ptr<PlayButton> _playPause;
+	object_ptr<Ui::IconButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatToggle;
+	object_ptr<Ui::IconButton> _orderToggle;
 	object_ptr<SpeedButton> _playbackSpeed;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
