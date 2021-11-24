@@ -29,9 +29,9 @@ class PlaybackProgress;
 } // namespace Clip
 } // namespace Media
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Media {
 namespace Player {
@@ -43,20 +43,19 @@ struct TrackState;
 
 class Widget final : public Ui::RpWidget, private base::Subscriber {
 public:
-	Widget(QWidget *parent, not_null<Main::Session*> session);
+	Widget(
+		QWidget *parent,
+		not_null<Ui::RpWidget*> dropdownsParent,
+		not_null<Window::SessionController*> controller);
 
 	void setCloseCallback(Fn<void()> callback);
 	void setShowItemCallback(Fn<void(not_null<const HistoryItem*>)> callback);
 	void stopAndClose();
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
-	void showShadow();
-	void hideShadow();
-
-	[[nodiscard]] QPoint getPositionForVolumeWidget() const;
-	void volumeWidgetCreated(Dropdown *widget);
-
-	[[nodiscard]] QPoint getPositionForRepeatWidget() const;
-	void repeatWidgetCreated(Dropdown *widget);
+	void hideShadowAndDropdowns();
+	void showShadowAndDropdowns();
+	void updateDropdownsGeometry();
+	void raiseDropdowns();
 
 	[[nodiscard]] rpl::producer<bool> togglePlaylistRequests() const {
 		return _togglePlaylistRequests.events();
@@ -111,7 +110,7 @@ private:
 	void updateTimeLabel();
 	void markOver(bool over);
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
@@ -133,6 +132,7 @@ private:
 	bool _narrow = false;
 	bool _over = false;
 	bool _wontBeOver = false;
+	bool _volumeHidden = false;
 
 	class PlayButton;
 	class SpeedController;
@@ -149,6 +149,7 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
+	object_ptr<Dropdown> _volume;
 	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
 	std::unique_ptr<SpeedController> _speedController;
 

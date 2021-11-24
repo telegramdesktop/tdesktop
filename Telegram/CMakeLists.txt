@@ -813,8 +813,6 @@ PRIVATE
     media/player/media_player_instance.h
     media/player/media_player_panel.cpp
     media/player/media_player_panel.h
-    media/player/media_player_repeat_controls.cpp
-    media/player/media_player_repeat_controls.h
     media/player/media_player_volume_controller.cpp
     media/player/media_player_volume_controller.h
     media/player/media_player_widget.cpp

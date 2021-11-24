@@ -33,10 +33,12 @@ Dropdown::Dropdown(QWidget *parent)
 }
 
 QMargins Dropdown::getMargin() const {
-	const auto top = st::mediaPlayerHeight
+	const auto top1 = st::mediaPlayerHeight
 		+ st::lineWidth
 		- st::mediaPlayerPlayTop
 		- st::mediaPlayerVolumeToggle.height;
+	const auto top2 = st::mediaPlayerPlayback.fullWidth;
+	const auto top = std::max(top1, top2);
 	return QMargins(st::mediaPlayerVolumeMargin, top, st::mediaPlayerVolumeMargin, st::mediaPlayerVolumeMargin);
 }
 

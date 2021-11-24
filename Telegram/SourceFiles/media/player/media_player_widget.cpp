@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_dropdown.h"
+#include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
@@ -238,9 +239,12 @@ QPoint Widget::PlayButton::prepareRippleStartPosition() const {
 	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
 }
 
-Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Ui::RpWidget*> dropdownsParent,
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
-, _session(session)
+, _controller(controller)
 , _nameLabel(this, st::mediaPlayerName)
 , _rightControls(this, object_ptr<Ui::RpWidget>(this))
 , _timeLabel(rightControls(), st::mediaPlayerTime)
@@ -252,6 +256,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
+, _volume(dropdownsParent.get())
 , _playbackProgress(std::make_unique<View::PlaybackProgress>())
 , _speedController(
 	std::make_unique<SpeedController>(
@@ -357,6 +362,10 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		handleSongUpdate(state);
 	}, lifetime());
 
+	PrepareVolumeDropdown(_volume.data(), controller);
+	_volumeToggle->installEventFilter(_volume.data());
+	_volume->installEventFilter(this);
+
 	setType(AudioMsgId::Type::Song);
 }
 
@@ -419,37 +428,36 @@ void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {
 	_shadow->setGeometryToLeft(x, y, w, h);
 }
 
-void Widget::showShadow() {
+void Widget::showShadowAndDropdowns() {
 	_shadow->show();
 	_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
+	if (_volumeHidden) {
+		_volumeHidden = false;
+		_volume->show();
+	}
 }
 
-void Widget::hideShadow() {
+void Widget::updateDropdownsGeometry() {
+	const auto position = _volume->parentWidget()->mapFromGlobal(
+		_volumeToggle->mapToGlobal(
+			QPoint(
+				(_volumeToggle->width() - st::mediaPlayerVolumeSize.width()) / 2,
+				height())));
+	const auto playerMargins = _volume->getMargin();
+	_volume->move(position - QPoint(playerMargins.left(), playerMargins.top()));
+}
+
+void Widget::hideShadowAndDropdowns() {
 	_shadow->hide();
 	_playbackSlider->hide();
+	if (!_volume->isHidden()) {
+		_volumeHidden = true;
+		_volume->hide();
+	}
 }
 
-QPoint Widget::getPositionForVolumeWidget() const {
-	auto x = _volumeToggle->x() + _rightControls->x();
-	x += (_volumeToggle->width() - st::mediaPlayerVolumeSize.width()) / 2;
-	if (rtl()) x = width() - x - st::mediaPlayerVolumeSize.width();
-	return QPoint(x, height());
-}
-
-void Widget::volumeWidgetCreated(Dropdown *widget) {
-	_volumeToggle->installEventFilter(widget);
-	widget->installEventFilter(this);
-}
-
-QPoint Widget::getPositionForRepeatWidget() const {
-	auto x = _orderToggle->x() + _rightControls->x();
-	x += (_orderToggle->width() - st::mediaPlayerVolumeSize.width()) / 2;
-	if (rtl()) x = width() - x - st::mediaPlayerVolumeSize.width();
-	return QPoint(x, height());
-}
-
-void Widget::repeatWidgetCreated(Dropdown *widget) {
-	_orderToggle->installEventFilter(widget);
+void Widget::raiseDropdowns() {
+	_volume->raise();
 }
 
 Widget::~Widget() = default;
@@ -502,6 +510,8 @@ void Widget::updateControlsGeometry() {
 	updatePlayPrevNextPositions();
 
 	_playbackSlider->setGeometry(0, height() - st::mediaPlayerPlayback.fullWidth, width(), st::mediaPlayerPlayback.fullWidth);
+
+	updateDropdownsGeometry();
 }
 
 void Widget::updateControlsWrapGeometry() {
