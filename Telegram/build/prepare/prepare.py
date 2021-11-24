@@ -401,7 +401,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 85bce38ec7
+    git checkout eb843853be
 """)
 
 stage('depot_tools', """
