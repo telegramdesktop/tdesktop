@@ -7,15 +7,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_chat_participant_status.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
 class ApiWrap;
 class ChannelData;
 
-struct ChatRestrictionsInfo;
-
 namespace Api {
+
+class ChatParticipant final {
+public:
+	enum class Type {
+		Creator,
+		Admin,
+		Member,
+		Restricted,
+		Left,
+		Banned,
+	};
+
+	explicit ChatParticipant(
+		const MTPChannelParticipant &p,
+		not_null<PeerData*> peer);
+	ChatParticipant(
+		Type type,
+		PeerId peerId,
+		UserId by,
+		ChatRestrictionsInfo restrictions,
+		ChatAdminRightsInfo rights,
+		bool canBeEdited = false,
+		QString rank = QString());
+
+	bool isUser() const;
+	bool isCreator() const;
+	bool isCreatorOrAdmin() const;
+	bool isKicked() const;
+	bool canBeEdited() const;
+
+	UserId by() const;
+	PeerId id() const;
+	UserId userId() const;
+
+	ChatRestrictionsInfo restrictions() const;
+	ChatAdminRightsInfo rights() const;
+
+	Type type() const;
+	QString rank() const;
+
+	void tryApplyCreatorTo(not_null<ChannelData*> channel) const;
+private:
+	Type _type = Type::Member;
+
+	PeerId _peer;
+	UserId _by; // Banned/Restricted/Promoted.
+
+	bool _canBeEdited = false;
+
+	QString _rank;
+
+	ChatRestrictionsInfo _restrictions;
+	ChatAdminRightsInfo _rights;
+};
 
 class ChatParticipants final {
 public:

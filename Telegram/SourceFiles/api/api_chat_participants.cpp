@@ -270,6 +270,120 @@ void ApplyBotsList(
 
 } // namespace
 
+ChatParticipant::ChatParticipant(
+		const MTPChannelParticipant &p,
+		not_null<PeerData*> peer) {
+	_peer = p.match([](const MTPDchannelParticipantBanned &data) {
+		return peerFromMTP(data.vpeer());
+	}, [](const MTPDchannelParticipantLeft &data) {
+		return peerFromMTP(data.vpeer());
+	}, [](const auto &data) {
+		return peerFromUser(data.vuser_id());
+	});
+
+	p.match([&](const MTPDchannelParticipantCreator &data) {
+		_canBeEdited = (peer->session().userPeerId() == _peer);
+		_type = Type::Creator;
+		_rights = ChatAdminRightsInfo(data.vadmin_rights());
+		_rank = qs(data.vrank().value_or_empty());
+	}, [&](const MTPDchannelParticipantAdmin &data) {
+		_canBeEdited = data.is_can_edit();
+		_type = Type::Admin;
+		_rank = qs(data.vrank().value_or_empty());
+		_rights = ChatAdminRightsInfo(data.vadmin_rights());
+		_by = peerToUser(peerFromUser(data.vpromoted_by()));
+	}, [&](const MTPDchannelParticipantSelf &data) {
+		_type = Type::Member;
+		_by = peerToUser(peerFromUser(data.vinviter_id()));
+	}, [&](const MTPDchannelParticipant &data) {
+		_type = Type::Member;
+	}, [&](const MTPDchannelParticipantBanned &data) {
+		_restrictions = ChatRestrictionsInfo(data.vbanned_rights());
+		_by = peerToUser(peerFromUser(data.vkicked_by()));
+
+		_type = (_restrictions.flags & ChatRestriction::ViewMessages)
+			? Type::Banned
+			: Type::Restricted;
+	}, [&](const MTPDchannelParticipantLeft &data) {
+		_type = Type::Left;
+	});
+}
+
+ChatParticipant::ChatParticipant(
+	Type type,
+	PeerId peerId,
+	UserId by,
+	ChatRestrictionsInfo restrictions,
+	ChatAdminRightsInfo rights,
+	bool canBeEdited,
+	QString rank)
+: _type(type)
+, _peer(peerId)
+, _by(by)
+, _canBeEdited(canBeEdited)
+, _rank(rank)
+, _restrictions(std::move(restrictions))
+, _rights(std::move(rights)) {
+}
+
+void ChatParticipant::tryApplyCreatorTo(
+		not_null<ChannelData*> channel) const {
+	if (isCreator() && isUser()) {
+		if (const auto info = channel->mgInfo.get()) {
+			info->creator = channel->owner().userLoaded(userId());
+			info->creatorRank = rank();
+		}
+	}
+}
+
+bool ChatParticipant::isUser() const {
+	return peerIsUser(_peer);
+}
+
+bool ChatParticipant::isCreator() const {
+	return _type == Type::Creator;
+}
+
+bool ChatParticipant::isCreatorOrAdmin() const {
+	return _type == Type::Creator || _type == Type::Admin;
+}
+
+bool ChatParticipant::isKicked() const {
+	return _type == Type::Banned;
+}
+
+bool ChatParticipant::canBeEdited() const {
+	return _canBeEdited;
+}
+
+UserId ChatParticipant::by() const {
+	return _by;
+}
+
+PeerId ChatParticipant::id() const {
+	return _peer;
+}
+
+UserId ChatParticipant::userId() const {
+	return peerToUser(_peer);
+}
+
+ChatRestrictionsInfo ChatParticipant::restrictions() const {
+	return _restrictions;
+}
+
+ChatAdminRightsInfo ChatParticipant::rights() const {
+	return _rights;
+}
+
+ChatParticipant::Type ChatParticipant::type() const {
+	return _type;
+}
+
+QString ChatParticipant::rank() const {
+	return _rank;
+}
+
 ChatParticipants::ChatParticipants(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
 }
