@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_participants_box.h"
 
+#include "api/api_chat_participants.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
@@ -1396,12 +1397,12 @@ void ParticipantsBoxController::loadMoreRows() {
 			&& (_role == Role::Members || _role == Role::Profile);
 		auto parseParticipants = [&](auto &&result, auto &&callback) {
 			if (wasRecentRequest) {
-				channel->session().api().parseRecentChannelParticipants(
+				channel->session().api().chatParticipants().parseRecent(
 					channel,
 					result,
 					callback);
 			} else {
-				channel->session().api().parseChannelParticipants(
+				channel->session().api().chatParticipants().parse(
 					channel,
 					result,
 					callback);
@@ -1732,7 +1733,7 @@ void ParticipantsBoxController::unkickParticipant(not_null<UserData*> user) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
-	_peer->session().api().addChatParticipants(_peer, { 1, user });
+	_peer->session().api().chatParticipants().add(_peer, { 1, user });
 }
 
 void ParticipantsBoxController::kickParticipantSure(
@@ -1750,9 +1751,12 @@ void ParticipantsBoxController::kickParticipantSure(
 	}
 	auto &session = _peer->session();
 	if (const auto chat = _peer->asChat()) {
-		session.api().kickParticipant(chat, participant);
+		session.api().chatParticipants().kick(chat, participant);
 	} else if (const auto channel = _peer->asChannel()) {
-		session.api().kickParticipant(channel, participant, currentRights);
+		session.api().chatParticipants().kick(
+			channel,
+			participant,
+			currentRights);
 	}
 }
 
@@ -1803,7 +1807,9 @@ void ParticipantsBoxController::removeKickedWithRow(
 void ParticipantsBoxController::removeKicked(
 		not_null<PeerData*> participant) {
 	if (const auto channel = _peer->asChannel()) {
-		channel->session().api().unblockParticipant(channel, participant);
+		channel->session().api().chatParticipants().unblock(
+			channel,
+			participant);
 	}
 }
 
@@ -2010,7 +2016,7 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			channel->mgInfo->lastAdmins.clear();
 			channel->mgInfo->lastRestricted.clear();
 			channel->mgInfo->lastParticipants.clear();
-			api->parseRecentChannelParticipants(channel, result);
+			api->chatParticipants().parseRecent(channel, result);
 			if (weak) {
 				fullListRefresh();
 			}
@@ -2175,7 +2181,7 @@ void ParticipantsBoxSearchController::searchDone(
 				_queries.erase(it);
 			}
 		};
-		_channel->session().api().parseChannelParticipants(
+		_channel->session().api().chatParticipants().parse(
 			_channel,
 			result,
 			addToCache);

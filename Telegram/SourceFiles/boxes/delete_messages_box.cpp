@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -478,7 +479,7 @@ void DeleteMessagesBox::deleteAndClear() {
 	}
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
-			_moderateInChannel->session().api().kickParticipant(
+			_moderateInChannel->session().api().chatParticipants().kick(
 				_moderateInChannel,
 				_moderateFrom,
 				ChatRestrictionsInfo());

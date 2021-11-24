@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // PrepareMentionTag.
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "core/application.h"
@@ -431,7 +432,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->lastParticipantsRequestNeeded()) {
-				_channel->session().api().requestLastParticipants(_channel);
+				_channel->session().api().chatParticipants().requestLast(
+					_channel);
 			} else {
 				mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
 				for (const auto user : _channel->mgInfo->lastParticipants) {
@@ -489,7 +491,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
-					_channel->session().api().requestBots(_channel);
+					_channel->session().api().chatParticipants().requestBots(
+						_channel);
 				}
 			} else {
 				const auto &commands = _channel->mgInfo->botCommands();

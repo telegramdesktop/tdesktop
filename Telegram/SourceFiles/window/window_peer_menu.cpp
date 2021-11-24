@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
+#include "api/api_chat_participants.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
@@ -1090,9 +1091,9 @@ void PeerMenuAddChannelMembers(
 		return;
 	}
 	const auto api = &channel->session().api();
-	api->requestChannelMembersForAdd(channel, crl::guard(navigation, [=](
+	api->chatParticipants().requestForAdd(channel, crl::guard(navigation, [=](
 			const MTPchannels_ChannelParticipants &result) {
-		api->parseChannelParticipants(channel, result, [&](
+		api->chatParticipants().parse(channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto already = (

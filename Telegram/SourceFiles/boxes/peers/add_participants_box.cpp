@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/add_participants_box.h"
 
+#include "api/api_chat_participants.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -231,7 +232,7 @@ bool AddParticipantsBoxController::inviteSelectedUsers(
 	if (users.empty()) {
 		return false;
 	}
-	_peer->session().api().addChatParticipants(_peer, users);
+	_peer->session().api().chatParticipants().add(_peer, users);
 	return true;
 }
 
@@ -465,7 +466,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
 		auto &session = channel->session();
-		session.api().parseChannelParticipants(channel, result, [&](
+		session.api().chatParticipants().parse(channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			for (const auto &data : list) {
@@ -977,7 +978,7 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 				_participantsQueries.erase(it);
 			}
 		};
-		channel->session().api().parseChannelParticipants(
+		channel->session().api().chatParticipants().parse(
 			channel,
 			result,
 			addToCache);

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_invite_links.h"
 
+#include "api/api_chat_participants.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -478,7 +479,7 @@ void InviteLinks::processRequest(
 				++chat->count;
 			}
 		} else if (const auto channel = peer->asChannel()) {
-			_api->requestParticipantsCountDelayed(channel);
+			_api->chatParticipants().requestCountDelayed(channel);
 		}
 		_api->applyUpdates(result);
 		if (link.isEmpty() && approved) {

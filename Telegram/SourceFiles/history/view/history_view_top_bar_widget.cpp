@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "support/support_helper.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -1143,7 +1144,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			&& (channel->membersCount()
 				<= channel->session().serverConfig().chatSizeMax)) {
 			if (channel->lastParticipantsRequestNeeded()) {
-				session().api().requestLastParticipants(channel);
+				session().api().chatParticipants().requestLast(channel);
 			}
 			const auto self = session().user();
 			auto online = 0;

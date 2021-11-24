@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_controllers.h"
 
+#include "api/api_chat_participants.h"
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
@@ -71,7 +72,7 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	if (bot->isBot() && !bot->botInfo->startGroupToken.isEmpty()) {
 		chat->session().api().sendBotStart(bot, chat);
 	} else {
-		chat->session().api().addChatParticipants(chat, { 1, bot });
+		chat->session().api().chatParticipants().add(chat, { 1, bot });
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);

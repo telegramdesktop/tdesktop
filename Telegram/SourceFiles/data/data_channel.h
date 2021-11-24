@@ -481,8 +481,4 @@ void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
 
-void ApplyMegagroupAdmins(
-	not_null<ChannelData*> channel,
-	const MTPDchannels_channelParticipants &data);
-
 } // namespace Data

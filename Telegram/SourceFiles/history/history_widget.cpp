@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_editing.h"
 #include "api/api_bot.h"
+#include "api/api_chat_participants.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_send_progress.h"
@@ -5675,7 +5676,8 @@ void HistoryWidget::handlePeerMigration() {
 		showHistory(
 			channel->id,
 			(_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId);
-		channel->session().api().requestParticipantsCountDelayed(channel);
+		channel->session().api().chatParticipants().requestCountDelayed(
+			channel);
 	} else {
 		_migrated = _history->migrateFrom();
 		_list->notifyMigrateUpdated();
@@ -6737,10 +6739,10 @@ void HistoryWidget::handlePeerUpdate() {
 		session().api().requestFullPeer(_peer);
 	} else if (auto channel = _peer->asMegagroup()) {
 		if (!channel->mgInfo->botStatus) {
-			session().api().requestBots(channel);
+			session().api().chatParticipants().requestBots(channel);
 		}
 		if (channel->mgInfo->admins.empty()) {
-			session().api().requestAdmins(channel);
+			session().api().chatParticipants().requestAdmins(channel);
 		}
 	}
 	if (!_a_show.animating()) {

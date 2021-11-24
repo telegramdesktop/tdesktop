@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/crc32hash.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -644,7 +645,7 @@ void PeerData::updateFullForced() {
 	session().api().requestFullPeer(this);
 	if (const auto channel = asChannel()) {
 		if (!channel->amCreator() && !channel->inviter) {
-			session().api().requestSelfParticipant(channel);
+			session().api().chatParticipants().requestSelf(channel);
 		}
 	}
 }

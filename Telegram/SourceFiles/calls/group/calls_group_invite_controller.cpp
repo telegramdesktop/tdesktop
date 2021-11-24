@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_invite_controller.h"
 
+#include "api/api_chat_participants.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_menu.h"
 #include "boxes/peer_lists_box.h"
@@ -221,7 +222,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			const std::vector<not_null<UserData*>> &users,
 			const std::vector<not_null<UserData*>> &nonMembers,
 			Fn<void()> finish) {
-		peer->session().api().addChatParticipants(
+		peer->session().api().chatParticipants().add(
 			peer,
 			nonMembers,
 			[=](bool) { invite(users); finish(); });

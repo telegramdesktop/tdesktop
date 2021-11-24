@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "ui/boxes/confirm_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -672,7 +673,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		session().api().requestFullPeer(peer);
 	} else if (const auto channel = peer->asMegagroup()) {
 		if (!channel->mgInfo->botStatus) {
-			session().api().requestBots(channel);
+			session().api().chatParticipants().requestBots(channel);
 		}
 	} else if (hasSilentBroadcastToggle()) {
 		_silent = std::make_unique<Ui::SilentToggle>(

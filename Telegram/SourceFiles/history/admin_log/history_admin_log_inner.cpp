@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "api/api_attached_stickers.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -444,7 +445,7 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
-		session().api().parseChannelParticipants(_channel, result, [&](
+		session().api().chatParticipants().parse(_channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto filtered = (

@@ -112,6 +112,8 @@ PRIVATE
     api/api_chat_filters.h
     api/api_chat_invite.cpp
     api/api_chat_invite.h
+    api/api_chat_participants.cpp
+    api/api_chat_participants.h
     api/api_cloud_password.cpp
     api/api_cloud_password.h
     api/api_common.h

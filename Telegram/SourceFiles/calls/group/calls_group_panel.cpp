@@ -49,7 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
-#include "apiwrap.h" // api().kickParticipant.
+#include "apiwrap.h" // api().kick.
+#include "api/api_chat_participants.h" // api().kick.
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h" // UniqueDesktopCaptureSource.
 #include "webrtc/webrtc_audio_input_tester.h"
@@ -1344,7 +1345,7 @@ void Panel::showBox(
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 	if (const auto chat = _peer->asChat()) {
-		chat->session().api().kickParticipant(chat, participantPeer);
+		chat->session().api().chatParticipants().kick(chat, participantPeer);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto currentRestrictedRights = [&] {
 			const auto user = participantPeer->asUser();
@@ -1356,7 +1357,7 @@ void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 				? i->second.rights
 				: ChatRestrictionsInfo();
 		}();
-		channel->session().api().kickParticipant(
+		channel->session().api().chatParticipants().kick(
 			channel,
 			participantPeer,
 			currentRestrictedRights);
