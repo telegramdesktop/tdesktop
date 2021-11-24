@@ -6,21 +6,21 @@
 #include "../storage/serialize_common.h"
 
 MTP::AuthKeyPtr FakePasscode::FakePasscode::GetEncryptedPasscode() const {
-    return passcode_;
+    MTP::AuthKeyPtr passcode = Storage::details::CreateLocalKey(fake_passcode_, salt_);
+    return passcode;
 }
 
-void FakePasscode::FakePasscode::SetPasscode(const QByteArray& passcode) {
-    fake_passcode_ = passcode;
-    passcode_ = Storage::details::CreateLocalKey(passcode, salt_);
+void FakePasscode::FakePasscode::SetPasscode(QByteArray passcode) {
+    fake_passcode_ = std::move(passcode);
 }
 
 void FakePasscode::FakePasscode::SetSalt(QByteArray salt) {
     salt_ = std::move(salt);
-    passcode_ = Storage::details::CreateLocalKey(fake_passcode_, salt_);
 }
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
     actions_.push_back(std::move(action));
+    actions_changed_.fire({});
 }
 
 void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
@@ -28,14 +28,19 @@ void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
                                 [&action](const std::shared_ptr<Action>& lhsAction) {
         return typeid(action.get()) == typeid(lhsAction.get());
     }));
+    actions_changed_.fire({});
 }
 
 const std::shared_ptr<FakePasscode::Action>& FakePasscode::FakePasscode::operator[](size_t index) const {
     return actions_.at(index);
 }
 
-const std::vector<std::shared_ptr<FakePasscode::Action>>& FakePasscode::FakePasscode::GetActions() const {
-    return actions_;
+rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::FakePasscode::GetActions() const {
+    return rpl::single(
+            actions_
+    ) | rpl::then(
+            actions_changed_.events() | rpl::map([=] { return actions_; }));
+//    return actions_;
 }
 
 void FakePasscode::FakePasscode::Execute() const {
@@ -54,7 +59,8 @@ FakePasscode::FakePasscode::FakePasscode(
 
 bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const {
     const auto checkKey = Storage::details::CreateLocalKey(passcode, salt_);
-    return checkKey->equals(passcode_);
+    MTP::AuthKeyPtr fake_passcode = Storage::details::CreateLocalKey(fake_passcode_, salt_);
+    return checkKey->equals(fake_passcode);
 }
 
 const QByteArray &FakePasscode::FakePasscode::getSalt() const {
@@ -71,10 +77,6 @@ const QByteArray &FakePasscode::FakePasscode::getRealPasscode() const {
 
 void FakePasscode::FakePasscode::setRealPasscode(const QByteArray &realPasscode) {
     real_passcode_ = realPasscode;
-}
-
-void FakePasscode::FakePasscode::SetPasscode(MTP::AuthKeyPtr passcode) {
-    passcode_ = std::move(passcode);
 }
 
 QByteArray FakePasscode::FakePasscode::SerializeActions() const {
@@ -141,4 +143,26 @@ const QString &FakePasscode::FakePasscode::GetName() const {
 
 void FakePasscode::FakePasscode::SetName(QString name) {
     name_ = std::move(name);
+}
+
+FakePasscode::FakePasscode::FakePasscode(const FakePasscode &passcode)
+: salt_(passcode.salt_)
+, fake_passcode_(passcode.fake_passcode_)
+, actions_(passcode.actions_)
+, real_passcode_(passcode.real_passcode_)
+, name_(passcode.name_) {
+}
+
+FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(const FakePasscode& passcode) {
+    if (this == &passcode) {
+        return *this;
+    }
+
+    salt_ = passcode.salt_;
+    fake_passcode_ = passcode.fake_passcode_;
+    actions_ = passcode.actions_;
+    real_passcode_ = passcode.real_passcode_;
+    name_ = passcode.name_;
+
+    return *this;
 }

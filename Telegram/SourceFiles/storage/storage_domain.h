@@ -56,14 +56,19 @@ public:
     void ExecuteFake(qint32 index);
 
     const std::vector<FakePasscode::FakePasscode>& GetFakePasscodes() const;
-    std::vector<FakePasscode::FakePasscode>& GetFakePasscodesMutable();
+    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
+    rpl::producer<size_t> GetFakePasscodesSize();
 
 	QString GetFakePasscodeName(size_t fakeIndex) const;
     void AddFakePasscode(QByteArray passcode, QString name);
     void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
     void SetFakePasscode(QString name, size_t fakeIndex);
     void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
+    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
     void RemoveFakePasscode(const FakePasscode::FakePasscode& passcode);
+    void RemoveFakePasscode(size_t index);
+
+    rpl::producer<FakePasscode::FakePasscode> GetFakePasscode(size_t index);
 
 private:
 	enum class StartModernResult {
@@ -110,7 +115,7 @@ private:
 
 	bool _hasLocalPasscode = false;
 	rpl::event_stream<> _passcodeKeyChanged;
-
+    rpl::event_stream<> _fakePasscodeChanged;
 };
 
 } // namespace Storage

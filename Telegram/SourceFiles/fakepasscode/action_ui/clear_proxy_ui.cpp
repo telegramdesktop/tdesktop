@@ -8,19 +8,20 @@
 #include "styles/style_settings.h"
 
 void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
+    Settings::AddSubsectionTitle(content, tr::lng_clear_proxy());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto* button = Settings::AddButton(content, tr::lng_clear_proxy(), st::settingsButton)
-        ->toggleOn(toggled->events_starting_with_copy(_passcode->ContainsAction(FakePasscode::ActionType::ClearProxy)));
+        ->toggleOn(toggled->events_starting_with_copy(_passcode.ContainsAction(FakePasscode::ActionType::ClearProxy)));
     button->addClickHandler([=] {
         if (button->toggled()) {
-            _passcode->AddAction(_action);
+            _passcode.AddAction(_action);
         } else {
-            _passcode->RemoveAction(_action);
+            _passcode.RemoveAction(_action);
         }
     });
 }
 
 ClearProxyUI::ClearProxyUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,
-                           FakePasscode::FakePasscode* passcode)
-: ActionUI(parent, std::move(action), passcode) {
+                           FakePasscode::FakePasscode passcode, size_t index)
+: ActionUI(parent, std::move(action), std::move(passcode), index) {
 }

@@ -13,18 +13,19 @@
 class ActionUI: public Ui::RpWidget {
 public:
     ActionUI(QWidget* parent, std::shared_ptr<FakePasscode::Action> action,
-             FakePasscode::FakePasscode* passcode);
+             FakePasscode::FakePasscode passcode, size_t index);
 
     virtual void Create(not_null<Ui::VerticalLayout*> content) = 0;
 
 protected:
     QWidget* _parent;
     std::shared_ptr<FakePasscode::Action> _action;
-    FakePasscode::FakePasscode* _passcode;
+    FakePasscode::FakePasscode _passcode;
+    size_t _index;
 };
 
 object_ptr<ActionUI> GetUIByAction(std::shared_ptr<FakePasscode::Action> action,
-                                   FakePasscode::FakePasscode* passcode,
+                                   FakePasscode::FakePasscode passcode, size_t index,
                                    QWidget* parent);
 
 #endif //TELEGRAM_ACTION_UI_H
