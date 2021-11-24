@@ -41,7 +41,7 @@ class SpeedButton;
 class Dropdown;
 struct TrackState;
 
-class Widget : public Ui::RpWidget, private base::Subscriber {
+class Widget final : public Ui::RpWidget, private base::Subscriber {
 public:
 	Widget(QWidget *parent, not_null<Main::Session*> session);
 
@@ -64,17 +64,19 @@ public:
 
 	~Widget();
 
-protected:
+private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	bool eventFilter(QObject *o, QEvent *e) override;
 
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
-private:
 	[[nodiscard]] not_null<Ui::RpWidget*> rightControls();
+	void setupRightControls();
 
 	void handleSeekProgress(float64 progress);
 	void handleSeekFinished(float64 progress);
@@ -92,6 +94,7 @@ private:
 	void updateControlsVisibility();
 	void updateControlsGeometry();
 	void updateControlsWrapGeometry();
+	void updateControlsWrapVisibility();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
 
@@ -106,6 +109,7 @@ private:
 
 	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
+	void markOver(bool over);
 
 	const not_null<Main::Session*> _session;
 
@@ -126,6 +130,9 @@ private:
 	bool _labelsOver = false;
 	bool _labelsDown = false;
 	rpl::event_stream<bool> _togglePlaylistRequests;
+	bool _narrow = false;
+	bool _over = false;
+	bool _wontBeOver = false;
 
 	class PlayButton;
 	class SpeedButton;

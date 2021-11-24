@@ -30,6 +30,7 @@ mediaPlayerButtonSize: size(25px, 30px);
 
 mediaPlayerButtonPosition: point(5px, 10px);
 
+mediaPlayerWideWidth: 460px;
 mediaPlayerHeight: 35px;
 mediaPlayerPadding: 8px;
 mediaPlayerNameTop: 22px;
@@ -170,6 +171,8 @@ mediaPlayerVolumeToggle: IconButton(mediaPlayerRepeatButton) {
 }
 mediaPlayerVolumeMargin: 10px;
 mediaPlayerVolumeSize: size(27px, 100px);
+
+mediaPlayerControlsFade: icon {{ "fade_horizontal", mediaPlayerBg }};
 
 mediaPlayerNextButton: IconButton(mediaPlayerPlayButton) {
 	icon: icon {

@@ -252,7 +252,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
 
-	_rightControls->show(anim::type::instant);
+	setupRightControls();
 
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -350,7 +350,25 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 	}, lifetime());
 
 	setType(AudioMsgId::Type::Song);
-	//_playPause->finishTransform();
+}
+
+void Widget::setupRightControls() {
+	const auto raw = rightControls();
+	raw->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(raw);
+		const auto &icon = st::mediaPlayerControlsFade;
+		const auto fade = QRect(0, 0, icon.width(), raw->height());
+		if (fade.intersects(clip)) {
+			icon.fill(p, fade);
+		}
+		const auto fill = clip.intersected(
+			{ icon.width(), 0, raw->width() - icon.width(), raw->height() });
+		if (!fill.isEmpty()) {
+			p.fillRect(fill, st::mediaPlayerBg);
+		}
+	}, raw->lifetime());
+	_rightControls->show(anim::type::instant);
 }
 
 void Widget::updateVolumeToggleIcon() {
@@ -358,7 +376,7 @@ void Widget::updateVolumeToggleIcon() {
 		const auto volume = Core::App().settings().songVolume();
 		return (volume == 0.)
 			? &st::mediaPlayerVolumeIcon0
-			: (volume < 0.5)
+			: (volume < 0.66)
 			? &st::mediaPlayerVolumeIcon1
 			: nullptr;
 	}());
@@ -412,6 +430,7 @@ QPoint Widget::getPositionForVolumeWidget() const {
 
 void Widget::volumeWidgetCreated(Dropdown *widget) {
 	_volumeToggle->installEventFilter(widget);
+	widget->installEventFilter(this);
 }
 
 QPoint Widget::getPositionForRepeatWidget() const {
@@ -456,6 +475,8 @@ void Widget::handleSeekFinished(float64 progress) {
 
 void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
+	_narrow = (width() < st::mediaPlayerWideWidth);
+	updateControlsWrapVisibility();
 }
 
 void Widget::updateControlsGeometry() {
@@ -476,10 +497,19 @@ void Widget::updateControlsGeometry() {
 }
 
 void Widget::updateControlsWrapGeometry() {
-	rightControls()->resize(getTimeRight() + _timeLabel->width(), _repeatToggle->height());
+	const auto fade = st::mediaPlayerControlsFade.width();
+	rightControls()->resize(
+		getTimeRight() + _timeLabel->width() + fade,
+		_repeatToggle->height());
 	_rightControls->moveToRight(
 		st::mediaPlayerCloseRight + _close->width(),
 		st::mediaPlayerPlayTop);
+}
+
+void Widget::updateControlsWrapVisibility() {
+	_rightControls->toggle(
+		_over || !_narrow,
+		isHidden() ? anim::type::instant : anim::type::normal);
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -490,8 +520,41 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+bool Widget::eventFilter(QObject *o, QEvent *e) {
+	const auto type = e->type();
+	if (type == QEvent::Enter) {
+		markOver(true);
+	} else if (type == QEvent::Leave) {
+		markOver(false);
+	}
+	return RpWidget::eventFilter(o, e);
+}
+
+void Widget::enterEventHook(QEnterEvent *e) {
+	markOver(true);
+}
+
 void Widget::leaveEventHook(QEvent *e) {
-	updateOverLabelsState(false);
+	markOver(false);
+}
+
+void Widget::markOver(bool over) {
+	if (over) {
+		_over = true;
+		_wontBeOver = false;
+		updateControlsWrapVisibility();
+	} else {
+		_wontBeOver = true;
+		InvokeQueued(this, [=] {
+			if (!_wontBeOver) {
+				return;
+			}
+			_wontBeOver = false;
+			_over = false;
+			updateControlsWrapVisibility();
+			updateOverLabelsState(false);
+		});
+	}
 }
 
 void Widget::mouseMoveEvent(QMouseEvent *e) {
@@ -522,7 +585,10 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 
 void Widget::updateOverLabelsState(QPoint pos) {
 	const auto left = getNameLeft();
-	const auto right = getNameRight();
+	const auto right = width()
+		- _rightControls->x()
+		- _rightControls->width()
+		+ getTimeRight();
 	const auto labels = myrtlrect(left, 0, width() - right - left, height() - st::mediaPlayerPlayback.fullWidth);
 	const auto over = labels.contains(pos);
 	updateOverLabelsState(over);
