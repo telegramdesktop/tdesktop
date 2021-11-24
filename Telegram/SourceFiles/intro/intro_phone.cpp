@@ -175,7 +175,7 @@ void PhoneWidget::submit() {
 		MTP_string(_sentPhone),
 		MTP_int(ApiId),
 		MTP_string(ApiHash),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
 		phoneSubmitDone(result);
 	}).fail([=](const MTP::Error &error) {

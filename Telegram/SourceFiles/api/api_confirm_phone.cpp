@@ -30,7 +30,7 @@ void ConfirmPhone::resolve(
 	}
 	_sendRequestId = _api.request(MTPaccount_SendConfirmPhoneCode(
 		MTP_string(hash),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
 		_sendRequestId = 0;
 
@@ -45,6 +45,9 @@ void ConfirmPhone::resolve(
 				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &data) {
 				LOG(("Error: should not be flashcall!"));
+				return 0;
+			}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
+				LOG(("Error: should not be missedcall!"));
 				return 0;
 			});
 			const auto phoneHash = qs(data.vphone_code_hash());

@@ -1657,7 +1657,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 				finalize(
 					data.vinviter_id().v,
 					data.vdate().v,
-					data.is_via_invite());
+					data.is_via_request());
 			}, [&](const MTPDchannelParticipantCreator &) {
 				if (channel->mgInfo) {
 					channel->mgInfo->creator = _session->user();

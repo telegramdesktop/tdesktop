@@ -309,22 +309,20 @@ bool Step::paintAnimated(Painter &p, QRect clip) {
 }
 
 void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	const auto &type = data.vtype();
-	switch (type.type()) {
-	case mtpc_auth_sentCodeTypeApp: {
+	data.vtype().match([&](const MTPDauth_sentCodeTypeApp &data) {
 		getData()->codeByTelegram = true;
-		getData()->codeLength = type.c_auth_sentCodeTypeApp().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeSms: {
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeSms &data) {
 		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeSms().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeCall: {
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeCall &data) {
 		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeCall().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
-	}
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+		LOG(("Error: should not be flashcall!"));
+	}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
+		LOG(("Error: should not be missedcall!"));
+	});
 }
 
 void Step::showDescription() {

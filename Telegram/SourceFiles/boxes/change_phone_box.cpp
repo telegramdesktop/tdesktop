@@ -191,7 +191,7 @@ void ChangePhoneBox::EnterPhone::submit() {
 	const auto phoneNumber = _phone->getLastText().trimmed();
 	_requestId = _api.request(MTPaccount_SendChangePhoneCode(
 		MTP_string(phoneNumber),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
 		_requestId = 0;
 		sendPhoneDone(result, phoneNumber);
@@ -223,6 +223,10 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(
 		return true;
 	}, [&](const MTPDauth_sentCodeTypeFlashCall &typeData) {
 		LOG(("Error: should not be flashcall!"));
+		showError(Lang::Hard::ServerError());
+		return false;
+	}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
+		LOG(("Error: should not be missedcall!"));
 		showError(Lang::Hard::ServerError());
 		return false;
 	});

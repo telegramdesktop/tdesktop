@@ -2161,54 +2161,50 @@ QString FormController::getPlainTextFromValue(
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
-		Expects(result.type() == mtpc_auth_sentCode);
-
-		value->verification.requestId = 0;
-
-		const auto &data = result.c_auth_sentCode();
-		value->verification.phoneCodeHash = qs(data.vphone_code_hash());
-		switch (data.vtype().type()) {
-		case mtpc_auth_sentCodeTypeApp:
-			LOG(("API Error: sentCodeTypeApp not expected "
-				"in FormController::startPhoneVerification."));
-			return;
-		case mtpc_auth_sentCodeTypeFlashCall:
-			LOG(("API Error: sentCodeTypeFlashCall not expected "
-				"in FormController::startPhoneVerification."));
-			return;
-		case mtpc_auth_sentCodeTypeCall: {
-			const auto &type = data.vtype().c_auth_sentCodeTypeCall();
-			value->verification.codeLength = (type.vlength().v > 0)
-				? type.vlength().v
-				: -1;
-			value->verification.call = std::make_unique<Ui::SentCodeCall>(
-				[=] { requestPhoneCall(value); },
-				[=] { _verificationUpdate.fire_copy(value); });
-			value->verification.call->setStatus(
-				{ Ui::SentCodeCall::State::Called, 0 });
-			if (data.vnext_type()) {
-				LOG(("API Error: next_type is not supported for calls."));
-			}
-		} break;
-		case mtpc_auth_sentCodeTypeSms: {
-			const auto &type = data.vtype().c_auth_sentCodeTypeSms();
-			value->verification.codeLength = (type.vlength().v > 0)
-				? type.vlength().v
-				: -1;
+		result.match([&](const MTPDauth_sentCode &data) {
 			const auto next = data.vnext_type();
-			if (next && next->type() == mtpc_auth_codeTypeCall) {
+			const auto timeout = data.vtimeout();
+			value->verification.requestId = 0;
+			value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+			data.vtype().match([&](const MTPDauth_sentCodeTypeApp &) {
+				LOG(("API Error: sentCodeTypeApp not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+				LOG(("API Error: sentCodeTypeFlashCall not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
+				LOG(("API Error: sentCodeTypeMissedCall not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeCall &data) {
+				value->verification.codeLength = (data.vlength().v > 0)
+					? data.vlength().v
+					: -1;
 				value->verification.call = std::make_unique<Ui::SentCodeCall>(
 					[=] { requestPhoneCall(value); },
 					[=] { _verificationUpdate.fire_copy(value); });
-				value->verification.call->setStatus({
-					Ui::SentCodeCall::State::Waiting,
-					data.vtimeout().value_or(60) });
-			}
-		} break;
-		}
-		_verificationNeeded.fire_copy(value);
+				value->verification.call->setStatus(
+					{ Ui::SentCodeCall::State::Called, 0 });
+				if (next) {
+					LOG(("API Error: next_type is not supported for calls."));
+				}
+			}, [&](const MTPDauth_sentCodeTypeSms &data) {
+				value->verification.codeLength = (data.vlength().v > 0)
+					? data.vlength().v
+					: -1;
+				if (next && next->type() == mtpc_auth_codeTypeCall) {
+					value->verification.call = std::make_unique<Ui::SentCodeCall>(
+						[=] { requestPhoneCall(value); },
+						[=] { _verificationUpdate.fire_copy(value); });
+					value->verification.call->setStatus({
+						Ui::SentCodeCall::State::Waiting,
+						timeout.value_or(60),
+					});
+				}
+			});
+			_verificationNeeded.fire_copy(value);
+		});
 	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;
 		valueSaveShowError(value, error);
