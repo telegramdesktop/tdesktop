@@ -15,14 +15,12 @@ class ChannelData;
 
 struct ChatRestrictionsInfo;
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Api {
 
 class ChatParticipants final {
 public:
+	using TLMembers = MTPchannels_ChannelParticipants;
+	using TLMembersList = const QVector<MTPChannelParticipant> &;
 	explicit ChatParticipants(not_null<ApiWrap*> api);
 
 	void requestLast(not_null<ChannelData*> channel);
@@ -32,18 +30,12 @@ public:
 
 	void parse(
 		not_null<ChannelData*> channel,
-		const MTPchannels_ChannelParticipants &result,
-		Fn<void(
-			int availableCount,
-			const QVector<MTPChannelParticipant> &list)> callbackList,
-		Fn<void()> callbackNotModified = nullptr);
+		const TLMembers &result,
+		Fn<void(int availableCount, TLMembersList list)> callbackList);
 	void parseRecent(
 		not_null<ChannelData*> channel,
-		const MTPchannels_ChannelParticipants &result,
-		Fn<void(
-			int availableCount,
-			const QVector<MTPChannelParticipant> &list)> callbackList = nullptr,
-		Fn<void()> callbackNotModified = nullptr);
+		const TLMembers &result,
+		Fn<void(int availableCount, TLMembersList)> callbackList = nullptr);
 	void add(
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
@@ -53,7 +45,7 @@ public:
 
 	void requestForAdd(
 		not_null<ChannelData*> channel,
-		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
+		Fn<void(const TLMembers&)> callback);
 
 	void kick(
 		not_null<ChatData*> chat,
@@ -67,20 +59,6 @@ public:
 		not_null<PeerData*> participant);
 
 private:
-	void applyLastList(
-		not_null<ChannelData*> channel,
-		int availableCount,
-		const QVector<MTPChannelParticipant> &list);
-	void applyBotsList(
-		not_null<ChannelData*> channel,
-		int availableCount,
-		const QVector<MTPChannelParticipant> &list);
-
-	void refreshChannelAdmins(
-		not_null<ChannelData*> channel,
-		const QVector<MTPChannelParticipant> &participants);
-
-	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
@@ -90,10 +68,11 @@ private:
 	PeerRequests _adminsRequests;
 	base::DelayedCallTimer _participantsCountRequestTimer;
 
-	ChannelData *_channelMembersForAdd = nullptr;
-	mtpRequestId _channelMembersForAddRequestId = 0;
-	Fn<void(
-		const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
+	struct {
+		ChannelData *channel = nullptr;
+		mtpRequestId requestId = 0;
+		Fn<void(const TLMembers&)> callback;
+	} _forAdd;
 
 	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;
 

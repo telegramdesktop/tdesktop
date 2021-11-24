@@ -1396,16 +1396,11 @@ void ParticipantsBoxController::loadMoreRows() {
 		auto wasRecentRequest = firstLoad
 			&& (_role == Role::Members || _role == Role::Profile);
 		auto parseParticipants = [&](auto &&result, auto &&callback) {
+			auto &api = channel->session().api().chatParticipants();
 			if (wasRecentRequest) {
-				channel->session().api().chatParticipants().parseRecent(
-					channel,
-					result,
-					callback);
+				api.parseRecent(channel, result, callback);
 			} else {
-				channel->session().api().chatParticipants().parse(
-					channel,
-					result,
-					callback);
+				api.parse(channel, result, callback);
 			}
 		};
 		parseParticipants(result, [&](
