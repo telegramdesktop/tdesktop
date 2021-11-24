@@ -466,9 +466,10 @@ void AddSpecialBoxController::loadMoreRows() {
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
 		auto &session = channel->session();
-		session.api().chatParticipants().parse(channel, result, [&](
-				int availableCount,
-				const QVector<MTPChannelParticipant> &list) {
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list] = Api::ChatParticipants::Parse(
+				channel,
+				data);
 			for (const auto &data : list) {
 				if (const auto participant = _additional.applyParticipant(
 						data)) {
@@ -481,8 +482,9 @@ void AddSpecialBoxController::loadMoreRows() {
 				// To be sure - wait for a whole empty result list.
 				_allLoaded = true;
 			}
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: channels.channelParticipantsNotModified received!"));
 		});
-
 		if (delegate()->peerListFullRowsCount() > 0) {
 			setDescriptionText(QString());
 		} else if (_allLoaded) {
@@ -525,7 +527,8 @@ bool AddSpecialBoxController::checkInfoLoaded(
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		result.match([&](const MTPDchannels_channelParticipant &data) {
 			channel->owner().processUsers(data.vusers());
-			_additional.applyParticipant(data.vparticipant());
+			_additional.applyParticipant(
+				Api::ChatParticipant(data.vparticipant(), channel));
 		});
 		callback();
 	}).fail([=](const MTP::Error &error) {
@@ -966,7 +969,7 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 	const auto channel = _peer->asChannel();
 	auto query = _query;
 	if (requestId) {
-		const auto addToCache = [&](auto&&...) {
+		const auto addToCache = [&] {
 			auto it = _participantsQueries.find(requestId);
 			if (it != _participantsQueries.cend()) {
 				query = it->second.text;
@@ -978,10 +981,13 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 				_participantsQueries.erase(it);
 			}
 		};
-		channel->session().api().chatParticipants().parse(
-			channel,
-			result,
-			addToCache);
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			Api::ChatParticipants::Parse(channel, data);
+			addToCache();
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
+		});
 	}
 
 	if (_requestId != requestId) {
@@ -1001,7 +1007,8 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 			}
 		}
 		for (const auto &data : list) {
-			if (const auto user = _additional->applyParticipant(data)) {
+			if (const auto user = _additional->applyParticipant(
+					Api::ChatParticipant(data, channel))) {
 				delegate()->peerListSearchAddRow(user);
 			}
 		}

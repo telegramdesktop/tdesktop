@@ -1092,34 +1092,24 @@ void PeerMenuAddChannelMembers(
 	}
 	const auto api = &channel->session().api();
 	api->chatParticipants().requestForAdd(channel, crl::guard(navigation, [=](
-			const MTPchannels_ChannelParticipants &result) {
-		api->chatParticipants().parse(channel, result, [&](
-				int availableCount,
-				const QVector<MTPChannelParticipant> &list) {
-			auto already = (
-				list
-			) | ranges::views::transform([](const MTPChannelParticipant &p) {
-				return p.match([](const MTPDchannelParticipantBanned &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const MTPDchannelParticipantLeft &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const auto &data) {
-					return peerFromUser(data.vuser_id());
-				});
-			}) | ranges::views::transform([&](PeerId participantId) {
-				return peerIsUser(participantId)
-					? channel->owner().userLoaded(
-						peerToUser(participantId))
-					: nullptr;
-			}) | ranges::views::filter([](UserData *user) {
-				return (user != nullptr);
-			}) | ranges::to_vector;
+			const Api::ChatParticipants::TLMembers &data) {
+		const auto &[availableCount, list] = Api::ChatParticipants::Parse(
+			channel,
+			data);
+		const auto already = (
+			list
+		) | ranges::views::transform([&](const Api::ChatParticipant &p) {
+			return p.isUser()
+				? channel->owner().userLoaded(p.userId())
+				: nullptr;
+		}) | ranges::views::filter([](UserData *user) {
+			return (user != nullptr);
+		}) | ranges::to_vector;
 
-			AddParticipantsBoxController::Start(
-				navigation,
-				channel,
-				{ already.begin(), already.end() });
-		});
+		AddParticipantsBoxController::Start(
+			navigation,
+			channel,
+			{ already.begin(), already.end() });
 	}));
 }
 

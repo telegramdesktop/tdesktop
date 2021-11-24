@@ -21,6 +21,10 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+namespace Api {
+class ChatParticipant;
+} // namespace Api
+
 Fn<void(
 	ChatAdminRightsInfo oldRights,
 	ChatAdminRightsInfo newRights,
@@ -80,9 +84,9 @@ public:
 
 	ParticipantsAdditionalData(not_null<PeerData*> peer, Role role);
 
-	PeerData *applyParticipant(const MTPChannelParticipant &data);
+	PeerData *applyParticipant(const Api::ChatParticipant &data);
 	PeerData *applyParticipant(
-		const MTPChannelParticipant &data,
+		const Api::ChatParticipant &data,
 		Role overrideRole);
 	void setExternal(not_null<PeerData*> participant);
 	void checkForLoaded(not_null<PeerData*> participant);
@@ -117,10 +121,10 @@ public:
 		ChatRestrictionsInfo rights);
 
 private:
-	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
-	UserData *applyAdmin(const MTPDchannelParticipantAdmin &data);
-	UserData *applyRegular(MTPlong userId);
-	PeerData *applyBanned(const MTPDchannelParticipantBanned &data);
+	UserData *applyCreator(const Api::ChatParticipant &data);
+	UserData *applyAdmin(const Api::ChatParticipant &data);
+	UserData *applyRegular(UserId userId);
+	PeerData *applyBanned(const Api::ChatParticipant &data);
 	void fillFromChat(not_null<ChatData*> chat);
 	void fillFromChannel(not_null<ChannelData*> channel);
 

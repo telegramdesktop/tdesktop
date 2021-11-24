@@ -537,34 +537,33 @@ void ParticipantsAdditionalData::applyAdminLocally(
 		const QString &rank) {
 	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (isCreator(user) && user->isSelf()) {
-		using Flag = MTPDchannelParticipantCreator::Flag;
-		applyParticipant(MTP_channelParticipantCreator(
-			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
-			peerToBareMTPInt(user->id),
-			MTP_chatAdminRights(
-				MTP_flags(MTPDchatAdminRights::Flags::from_raw(
-					uint32(rights.flags)))),
-			MTP_string(rank)));
+		applyParticipant(Api::ChatParticipant(
+			Api::ChatParticipant::Type::Creator,
+			user->id,
+			UserId(),
+			ChatRestrictionsInfo(),
+			std::move(rights),
+			true, // As the creator is self.
+			rank));
 	} else if (!rights.flags) {
-		applyParticipant(MTP_channelParticipant(
-			peerToBareMTPInt(user->id),
-			MTP_int(date)));
+		applyParticipant(Api::ChatParticipant(
+			Api::ChatParticipant::Type::Member,
+			user->id,
+			UserId(),
+			ChatRestrictionsInfo(),
+			ChatAdminRightsInfo()));
 	} else {
-		using Flag = MTPDchannelParticipantAdmin::Flag;
 		const auto alreadyPromotedBy = adminPromotedBy(user);
-		applyParticipant(MTP_channelParticipantAdmin(
-			MTP_flags(Flag::f_can_edit
-				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
-			peerToBareMTPInt(user->id),
-			MTPlong(), // inviter_id
-			peerToBareMTPInt(alreadyPromotedBy
-				? alreadyPromotedBy->id
-				: user->session().userPeerId()),
-			MTP_int(date),
-			MTP_chatAdminRights(
-				MTP_flags(MTPDchatAdminRights::Flags::from_raw(
-					uint32(rights.flags)))),
-			MTP_string(rank)));
+		applyParticipant(Api::ChatParticipant(
+			Api::ChatParticipant::Type::Admin,
+			user->id,
+			alreadyPromotedBy
+				? peerToUser(alreadyPromotedBy->id)
+				: user->session().userId(),
+			ChatRestrictionsInfo(),
+			std::move(rights),
+			true,
+			rank));
 	}
 }
 
@@ -575,76 +574,73 @@ void ParticipantsAdditionalData::applyBannedLocally(
 	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (!rights.flags) {
 		if (user) {
-			applyParticipant(MTP_channelParticipant(
-				peerToBareMTPInt(user->id),
-				MTP_int(date)));
+			applyParticipant(Api::ChatParticipant(
+				Api::ChatParticipant::Type::Member,
+				user->id,
+				UserId(),
+				ChatRestrictionsInfo(),
+				ChatAdminRightsInfo()));
 		} else {
 			setExternal(participant);
 		}
 	} else {
 		const auto kicked = rights.flags & ChatRestriction::ViewMessages;
-		const auto alreadyRestrictedBy = restrictedBy(
-			participant);
-		applyParticipant(MTP_channelParticipantBanned(
-			MTP_flags(kicked
-				? MTPDchannelParticipantBanned::Flag::f_left
-				: MTPDchannelParticipantBanned::Flag(0)),
-			peerToMTP(participant->id),
-			peerToBareMTPInt(alreadyRestrictedBy
-				? alreadyRestrictedBy->id
-				: participant->session().userPeerId()),
-			MTP_int(date),
-			MTP_chatBannedRights(
-				MTP_flags(MTPDchatBannedRights::Flags::from_raw(
-					uint32(rights.flags))),
-				MTP_int(rights.until))));
+		const auto alreadyRestrictedBy = restrictedBy(participant);
+		applyParticipant(Api::ChatParticipant(
+			kicked
+				? Api::ChatParticipant::Type::Banned
+				: Api::ChatParticipant::Type::Restricted,
+			participant->id,
+			alreadyRestrictedBy
+				? peerToUser(alreadyRestrictedBy->id)
+				: participant->session().userId(),
+			std::move(rights),
+			ChatAdminRightsInfo()));
 	}
 }
 
 PeerData *ParticipantsAdditionalData::applyParticipant(
-		const MTPChannelParticipant &data) {
+		const Api::ChatParticipant &data) {
 	return applyParticipant(data, _role);
 }
 
 PeerData *ParticipantsAdditionalData::applyParticipant(
-		const MTPChannelParticipant &data,
+		const Api::ChatParticipant &data,
 		Role overrideRole) {
 	const auto logBad = [&]() -> PeerData* {
 		LOG(("API Error: Bad participant type %1 got "
 			"while requesting for participants, role: %2"
-			).arg(data.type()
+			).arg(static_cast<int>(data.type())
 			).arg(static_cast<int>(overrideRole)));
 		return nullptr;
 	};
 
-	return data.match([&](
-			const MTPDchannelParticipantCreator &data) -> PeerData* {
+	switch (data.type()) {
+	case Api::ChatParticipant::Type::Creator: {
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members
 			&& overrideRole != Role::Admins) {
 			return logBad();
 		}
 		return applyCreator(data);
-	}, [&](const MTPDchannelParticipantAdmin &data) -> PeerData* {
+	}
+	case Api::ChatParticipant::Type::Admin: {
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members
 			&& overrideRole != Role::Admins) {
 			return logBad();
 		}
 		return applyAdmin(data);
-	}, [&](const MTPDchannelParticipantSelf &data) -> PeerData* {
+	}
+	case Api::ChatParticipant::Type::Member: {
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members) {
 			return logBad();
 		}
-		return applyRegular(data.vuser_id());
-	}, [&](const MTPDchannelParticipant &data) -> PeerData* {
-		if (overrideRole != Role::Profile
-			&& overrideRole != Role::Members) {
-			return logBad();
-		}
-		return applyRegular(data.vuser_id());
-	}, [&](const MTPDchannelParticipantBanned &data) {
+		return applyRegular(data.userId());
+	}
+	case Api::ChatParticipant::Type::Restricted:
+	case Api::ChatParticipant::Type::Banned:
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members
 			&& overrideRole != Role::Restricted
@@ -652,23 +648,23 @@ PeerData *ParticipantsAdditionalData::applyParticipant(
 			return logBad();
 		}
 		return applyBanned(data);
-	}, [&](const MTPDchannelParticipantLeft &data) {
+	case Api::ChatParticipant::Type::Left:
 		return logBad();
-	});
+	};
 }
 
 UserData *ParticipantsAdditionalData::applyCreator(
-		const MTPDchannelParticipantCreator &data) {
-	if (const auto user = applyRegular(data.vuser_id())) {
+		const Api::ChatParticipant &data) {
+	if (const auto user = applyRegular(data.userId())) {
 		_creator = user;
-		_adminRights[user] = ChatAdminRightsInfo(data.vadmin_rights());
+		_adminRights[user] = data.rights();
 		if (user->isSelf()) {
 			_adminCanEdit.emplace(user);
 		} else {
 			_adminCanEdit.erase(user);
 		}
-		if (const auto rank = data.vrank()) {
-			_adminRanks[user] = qs(*rank);
+		if (data.rank().isEmpty()) {
+			_adminRanks[user] = data.rank();
 		} else {
 			_adminRanks.remove(user);
 		}
@@ -678,8 +674,8 @@ UserData *ParticipantsAdditionalData::applyCreator(
 }
 
 UserData *ParticipantsAdditionalData::applyAdmin(
-		const MTPDchannelParticipantAdmin &data) {
-	const auto user = _peer->owner().userLoaded(UserId(data.vuser_id().v));
+		const Api::ChatParticipant &data) {
+	const auto user = _peer->owner().userLoaded(data.userId());
 	if (!user) {
 		return nullptr;
 	} else if (const auto chat = _peer->asChat()) {
@@ -692,18 +688,18 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	_restrictedRights.erase(user);
 	_kicked.erase(user);
 	_restrictedBy.erase(user);
-	_adminRights[user] = ChatAdminRightsInfo(data.vadmin_rights());
-	if (data.is_can_edit()) {
+	_adminRights[user] = data.rights();
+	if (data.canBeEdited()) {
 		_adminCanEdit.emplace(user);
 	} else {
 		_adminCanEdit.erase(user);
 	}
-	if (const auto rank = data.vrank()) {
-		_adminRanks[user] = qs(*rank);
+	if (data.rank().isEmpty()) {
+		_adminRanks[user] = data.rank();
 	} else {
 		_adminRanks.remove(user);
 	}
-	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by())) {
+	if (const auto by = _peer->owner().userLoaded(data.by())) {
 		const auto i = _adminPromotedBy.find(user);
 		if (i == _adminPromotedBy.end()) {
 			_adminPromotedBy.emplace(user, by);
@@ -712,12 +708,12 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 		}
 	} else {
 		LOG(("API Error: No user %1 for admin promoted by."
-			).arg(data.vpromoted_by().v));
+			).arg(data.by().bare));
 	}
 	return user;
 }
 
-UserData *ParticipantsAdditionalData::applyRegular(MTPlong userId) {
+UserData *ParticipantsAdditionalData::applyRegular(UserId userId) {
 	const auto user = _peer->owner().userLoaded(userId);
 	if (!user) {
 		return nullptr;
@@ -738,9 +734,8 @@ UserData *ParticipantsAdditionalData::applyRegular(MTPlong userId) {
 }
 
 PeerData *ParticipantsAdditionalData::applyBanned(
-		const MTPDchannelParticipantBanned &data) {
-	const auto participant = _peer->owner().peerLoaded(
-		peerFromMTP(data.vpeer()));
+		const Api::ChatParticipant &data) {
+	const auto participant = _peer->owner().peerLoaded(data.id());
 	if (!participant) {
 		return nullptr;
 	}
@@ -751,14 +746,13 @@ PeerData *ParticipantsAdditionalData::applyBanned(
 		_adminCanEdit.erase(user);
 		_adminPromotedBy.erase(user);
 	}
-	if (data.is_left()) {
+	if (data.isKicked()) {
 		_kicked.emplace(participant);
 	} else {
 		_kicked.erase(participant);
 	}
-	_restrictedRights[participant] = ChatRestrictionsInfo(
-		data.vbanned_rights());
-	if (const auto by = _peer->owner().userLoaded(data.vkicked_by())) {
+	_restrictedRights[participant] = data.restrictions();
+	if (const auto by = _peer->owner().userLoaded(data.by())) {
 		const auto i = _restrictedBy.find(participant);
 		if (i == _restrictedBy.end()) {
 			_restrictedBy.emplace(participant, by);
@@ -1395,17 +1389,11 @@ void ParticipantsBoxController::loadMoreRows() {
 
 		auto wasRecentRequest = firstLoad
 			&& (_role == Role::Members || _role == Role::Profile);
-		auto parseParticipants = [&](auto &&result, auto &&callback) {
-			auto &api = channel->session().api().chatParticipants();
-			if (wasRecentRequest) {
-				api.parseRecent(channel, result, callback);
-			} else {
-				api.parse(channel, result, callback);
-			}
-		};
-		parseParticipants(result, [&](
-				int availableCount,
-				const QVector<MTPChannelParticipant> &list) {
+
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list] = wasRecentRequest
+				? Api::ChatParticipants::ParseRecent(channel, data)
+				: Api::ChatParticipants::Parse(channel, data);
 			for (const auto &data : list) {
 				if (const auto participant = _additional.applyParticipant(
 						data)) {
@@ -1418,6 +1406,9 @@ void ParticipantsBoxController::loadMoreRows() {
 				// To be sure - wait for a whole empty result list.
 				_allLoaded = true;
 			}
+		}, [](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
 		});
 
 		if (_allLoaded
@@ -2011,7 +2002,12 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			channel->mgInfo->lastAdmins.clear();
 			channel->mgInfo->lastRestricted.clear();
 			channel->mgInfo->lastParticipants.clear();
-			api->chatParticipants().parseRecent(channel, result);
+
+			result.match([&](const MTPDchannels_channelParticipants &data) {
+				Api::ChatParticipants::ParseRecent(channel, data);
+			}, [](const MTPDchannels_channelParticipantsNotModified &) {
+			});
+
 			if (weak) {
 				fullListRefresh();
 			}
@@ -2176,10 +2172,13 @@ void ParticipantsBoxSearchController::searchDone(
 				_queries.erase(it);
 			}
 		};
-		_channel->session().api().chatParticipants().parse(
-			_channel,
-			result,
-			addToCache);
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			Api::ChatParticipants::Parse(_channel, data);
+			addToCache();
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
+		});
 	}
 	if (_requestId != requestId) {
 		return;
@@ -2199,7 +2198,7 @@ void ParticipantsBoxSearchController::searchDone(
 			: _role;
 		for (const auto &data : list) {
 			const auto user = _additional->applyParticipant(
-				data,
+				Api::ChatParticipant(data, _channel),
 				overrideRole);
 			if (user) {
 				delegate()->peerListSearchAddRow(user);

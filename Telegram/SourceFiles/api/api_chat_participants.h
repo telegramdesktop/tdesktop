@@ -72,8 +72,13 @@ private:
 
 class ChatParticipants final {
 public:
-	using TLMembers = MTPchannels_ChannelParticipants;
-	using TLMembersList = const QVector<MTPChannelParticipant> &;
+	struct Parsed {
+		const int availableCount;
+		const std::vector<ChatParticipant> list;
+	};
+
+	using TLMembers = MTPDchannels_channelParticipants;
+	using Members = const std::vector<ChatParticipant> &;
 	explicit ChatParticipants(not_null<ApiWrap*> api);
 
 	void requestLast(not_null<ChannelData*> channel);
@@ -81,14 +86,12 @@ public:
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestCountDelayed(not_null<ChannelData*> channel);
 
-	void parse(
+	static Parsed Parse(
 		not_null<ChannelData*> channel,
-		const TLMembers &result,
-		Fn<void(int availableCount, TLMembersList list)> callbackList);
-	void parseRecent(
+		const TLMembers &data);
+	static Parsed ParseRecent(
 		not_null<ChannelData*> channel,
-		const TLMembers &result,
-		Fn<void(int availableCount, TLMembersList)> callbackList = nullptr);
+		const TLMembers &data);
 	void add(
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,

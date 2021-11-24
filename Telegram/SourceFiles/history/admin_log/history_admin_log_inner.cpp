@@ -445,44 +445,27 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
-		session().api().chatParticipants().parse(_channel, result, [&](
-				int availableCount,
-				const QVector<MTPChannelParticipant> &list) {
-			auto filtered = (
-				list
-			) | ranges::views::transform([&](const MTPChannelParticipant &p) {
-				const auto participantId = p.match([](
-						const MTPDchannelParticipantBanned &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const MTPDchannelParticipantLeft &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const auto &data) {
-					return peerFromUser(data.vuser_id());
-				});
-				const auto canEdit = p.match([](
-						const MTPDchannelParticipantAdmin &data) {
-					return data.is_can_edit();
-				}, [](const auto &) {
-					return false;
-				});
-				return std::make_pair(participantId, canEdit);
-			}) | ranges::views::transform([&](auto &&pair) {
-				return std::make_pair(
-					(peerIsUser(pair.first)
-						? session().data().userLoaded(
-							peerToUser(pair.first))
-						: nullptr),
-					pair.second);
-			}) | ranges::views::filter([&](auto &&pair) {
-				return (pair.first != nullptr);
-			});
-
-			for (auto [user, canEdit] : filtered) {
-				_admins.emplace_back(user);
-				if (canEdit) {
-					_adminsCanEdit.emplace_back(user);
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list] = Api::ChatParticipants::Parse(
+				_channel,
+				data);
+			_admins.clear();
+			_adminsCanEdit.clear();
+			for (const auto &parsed : list) {
+				if (parsed.isUser()) {
+					const auto user = _channel->owner().userLoaded(
+						parsed.userId());
+					if (user) {
+						_admins.emplace_back(user);
+						if (parsed.canBeEdited() && !parsed.isCreator()) {
+							_adminsCanEdit.emplace_back(user);
+						}
+					}
 				}
 			}
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: c"
+				"hannels.channelParticipantsNotModified received!"));
 		});
 		if (_admins.empty()) {
 			_admins.push_back(session().user());
