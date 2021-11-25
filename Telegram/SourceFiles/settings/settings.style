@@ -218,6 +218,22 @@ settingsAccentColorLine: 3px;
 settingsFilterIconSkip: 68px;
 settingsFilterIconLeft: 17px;
 
+settingsDeviceName: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(1px, 3px, 1px, 4px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(1px, 0px, 1px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 29px;
+
+	font: boxTextFont;
+}
+
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	font: font(14px semibold);
 }

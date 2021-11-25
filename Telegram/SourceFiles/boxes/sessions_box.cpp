@@ -16,10 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
-#include "styles/style_layers.h"
-#include "styles/style_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -30,6 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -39,13 +39,24 @@ constexpr auto kMaxDeviceModelLength = 32;
 void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->setTitle(tr::lng_settings_rename_device_title());
 
-	const auto name = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::defaultInputField,
-		tr::lng_settings_device_name(
-			lt_device,
-			rpl::single(Platform::DeviceModelPretty())),
-		Core::App().settings().customDeviceModel()));
+	const auto skip = st::settingsSubsectionTitlePadding.top();
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_settings_device_name(),
+			st::settingsSubsectionTitle),
+		st::boxRowPadding + style::margins(0, skip, 0, 0));
+	const auto name = box->addRow(
+		object_ptr<Ui::InputField>(
+			box,
+			st::settingsDeviceName,
+			rpl::single(Platform::DeviceModelPretty()),
+			Core::App().settings().customDeviceModel()),
+		st::boxRowPadding - style::margins(
+			st::settingsDeviceName.textMargins.left(),
+			0,
+			st::settingsDeviceName.textMargins.right(),
+			0));
 	name->setMaxLength(kMaxDeviceModelLength);
 	box->setFocusCallback([=] {
 		name->setFocusFast();
