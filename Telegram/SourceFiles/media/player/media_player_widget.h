@@ -18,7 +18,6 @@ class FlatLabel;
 class LabelSimple;
 class IconButton;
 class PlainShadow;
-class DropdownMenu;
 class FilledSlider;
 template <typename Widget>
 class FadeWrap;
@@ -67,7 +66,6 @@ public:
 private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	bool eventFilter(QObject *o, QEvent *e) override;
 
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -91,7 +89,6 @@ private:
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
 	void updateRepeatToggleIcon();
-	void updateOrderToggleIcon();
 	void updateControlsVisibility();
 	void updateControlsGeometry();
 	void updateControlsWrapGeometry();
@@ -111,8 +108,6 @@ private:
 	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 	void markOver(bool over);
-
-	void showOrderMenu();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Ui::RpWidget*> _orderMenuParent;
@@ -140,6 +135,7 @@ private:
 	bool _volumeHidden = false;
 
 	class PlayButton;
+	class OrderController;
 	class SpeedController;
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
@@ -150,13 +146,13 @@ private:
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatToggle;
 	object_ptr<Ui::IconButton> _orderToggle;
-	object_ptr<Ui::IconButton> _playbackSpeed;
+	object_ptr<Ui::IconButton> _speedToggle;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
 	base::unique_qptr<Dropdown> _volume;
-	base::unique_qptr<Ui::DropdownMenu> _orderMenu;
 	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
+	std::unique_ptr<OrderController> _orderController;
 	std::unique_ptr<SpeedController> _speedController;
 
 	rpl::lifetime _playlistChangesLifetime;

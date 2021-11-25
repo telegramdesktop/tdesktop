@@ -147,11 +147,15 @@ mediaPlayerSpeedFastDisabledIconOver: icon {
 };
 mediaPlayerSpeedDisabledRippleBg: windowBgOver;
 
-mediaPlayerPopupMenu: PopupMenu(defaultPopupMenu) {
-	menu: Menu(defaultMenu) {
-		itemIconPosition: point(6px, 5px);
-		itemPadding: margins(34px, 8px, 17px, 7px);
+mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
+	wrap: InnerDropdown(defaultInnerDropdown) {
+		scrollPadding: margins(0px, 8px, 0px, 8px);
+		padding: margins(10px, 2px, 10px, 10px);
 	}
+}
+mediaPlayerSpeedMenu: Menu(defaultMenu) {
+	itemIconPosition: point(6px, 5px);
+	itemPadding: margins(34px, 8px, 17px, 7px);
 }
 mediaPlayerMenuCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
 
@@ -287,7 +291,7 @@ mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 mediaPlayerFloatSize: 128px;
 mediaPlayerFloatMargin: 12px;
 
-mediaPlayerOrderMenuPosition: point(-2px, -4px);
+mediaPlayerMenuPosition: point(-2px, 0px);
 mediaPlayerOrderMenu: Menu(defaultMenu) {
 	itemIconPosition: point(13px, 8px);
 	itemPadding: margins(49px, 9px, 17px, 11px);

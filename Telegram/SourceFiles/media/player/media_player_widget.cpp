@@ -41,47 +41,69 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Player {
 
-using ButtonState = PlayButtonLayout::State;
-
-class Widget::PlayButton : public Ui::RippleButton {
+class WithDropdownController {
 public:
-	PlayButton(QWidget *parent);
+	WithDropdownController(
+		not_null<Ui::IconButton*> button,
+		not_null<Ui::RpWidget*> menuParent,
+		Fn<void(bool)> menuOverCallback);
+	virtual ~WithDropdownController() = default;
 
-	void setState(PlayButtonLayout::State state) {
-		_layout.setState(state);
-	}
-	void finishTransform() {
-		_layout.finishTransform();
-	}
+	[[nodiscard]] not_null<Ui::IconButton*> button() const;
+	Ui::DropdownMenu *menu() const;
+
+	void updateDropdownGeometry();
+
+	void hideTemporarily();
+	void showBack();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
+	void showMenu();
 
 private:
-	PlayButtonLayout _layout;
+	virtual void fillMenu(not_null<Ui::DropdownMenu*> menu) = 0;
+
+	const not_null<Ui::IconButton*> _button;
+	const not_null<Ui::RpWidget*> _menuParent;
+	const Fn<void(bool)> _menuOverCallback;
+	base::unique_qptr<Ui::DropdownMenu> _menu;
+	bool _temporarilyHidden = false;
 
 };
 
-class Widget::SpeedController final {
+class Widget::OrderController final : public WithDropdownController {
 public:
-	explicit SpeedController(not_null<Ui::IconButton*> button);
+	OrderController(
+		not_null<Ui::IconButton*> button,
+		not_null<Ui::RpWidget*> menuParent,
+		Fn<void(bool)> menuOverCallback);
+
+private:
+	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
+	void updateIcon();
+
+};
+
+class Widget::SpeedController final : public WithDropdownController {
+public:
+	SpeedController(
+		not_null<Ui::IconButton*> button,
+		not_null<Ui::RpWidget*> menuParent,
+		Fn<void(bool)> menuOverCallback);
 
 	[[nodiscard]] rpl::producer<> saved() const;
 
 private:
+	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
+	void updateIcon();
+
 	[[nodiscard]] float64 speed() const;
 	[[nodiscard]] bool isDefault() const;
 	[[nodiscard]] float64 lastNonDefaultSpeed() const;
 	void toggleDefault();
 	void setSpeed(float64 newSpeed);
 	void save();
-	void showContextMenu(not_null<QContextMenuEvent*> e);
 
-	const not_null<Ui::IconButton*> _button;
-	base::unique_qptr<Ui::PopupMenu> _menu;
 	float64 _speed = 2.;
 	bool _isDefault = true;
 	rpl::event_stream<float64> _speedChanged;
@@ -89,70 +111,216 @@ private:
 
 };
 
-Widget::SpeedController::SpeedController(not_null<Ui::IconButton*> button)
-: _button(button) {
-	setSpeed(Core::App().settings().voicePlaybackSpeed());
-	_speed = Core::App().settings().voicePlaybackSpeed(true);
+WithDropdownController::WithDropdownController(
+	not_null<Ui::IconButton*> button,
+	not_null<Ui::RpWidget*> menuParent,
+	Fn<void(bool)> menuOverCallback)
+: _button(button)
+, _menuParent(menuParent)
+, _menuOverCallback(std::move(menuOverCallback)) {
+	button->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::start_with_next([=] {
+		showMenu();
+	}, button->lifetime());
+}
 
+not_null<Ui::IconButton*> WithDropdownController::button() const {
+	return _button;
+}
+
+Ui::DropdownMenu *WithDropdownController::menu() const {
+	return _menu.get();
+}
+
+void WithDropdownController::updateDropdownGeometry() {
+	if (!_menu) {
+		return;
+	}
+	const auto position = _menu->parentWidget()->mapFromGlobal(
+		_button->mapToGlobal(
+			QPoint(_button->width(), _button->height())));
+	const auto padding = st::mediaPlayerMenu.wrap.padding;
+	_menu->move(position
+		- QPoint(_menu->width(), 0)
+		+ QPoint(padding.right(), -padding.top())
+		+ st::mediaPlayerMenuPosition);
+}
+
+void WithDropdownController::hideTemporarily() {
+	if (_menu && !_menu->isHidden()) {
+		_temporarilyHidden = true;
+		_menu->hide();
+	}
+}
+
+void WithDropdownController::showBack() {
+	if (_temporarilyHidden) {
+		_temporarilyHidden = false;
+		if (_menu && _menu->isHidden()) {
+			_menu->show();
+		}
+	}
+}
+
+void WithDropdownController::showMenu() {
+	if (_menu) {
+		return;
+	}
+	_menu.emplace(_menuParent, st::mediaPlayerMenu);
+	const auto raw = _menu.get();
+	_menu->events(
+	) | rpl::start_with_next([this](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			_menuOverCallback(true);
+		} else if (type == QEvent::Leave) {
+			_menuOverCallback(false);
+		}
+	}, _menu->lifetime());
+	_menu->setHiddenCallback([=]{
+		Ui::PostponeCall(raw, [this] {
+			_menu = nullptr;
+		});
+	});
+	_button->installEventFilter(raw);
+	fillMenu(raw);
+	updateDropdownGeometry();
+	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+}
+
+Widget::OrderController::OrderController(
+	not_null<Ui::IconButton*> button,
+	not_null<Ui::RpWidget*> menuParent,
+	Fn<void(bool)> menuOverCallback)
+: WithDropdownController(button, menuParent, std::move(menuOverCallback)) {
+	button->setClickedCallback([=] {
+		showMenu();
+	});
+
+	Core::App().settings().playerOrderModeValue(
+	) | rpl::start_with_next([=] {
+		updateIcon();
+	}, button->lifetime());
+}
+
+void Widget::OrderController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
+	const auto addOrderAction = [&](OrderMode mode) {
+		struct Fields {
+			QString label;
+			const style::icon &icon;
+			const style::icon &activeIcon;
+		};
+		const auto current = Core::App().settings().playerOrderMode();
+		const auto active = (current == mode);
+		const auto callback = [=] {
+			Core::App().settings().setPlayerOrderMode(active
+				? OrderMode::Default
+				: mode);
+			Core::App().saveSettingsDelayed();
+		};
+		const auto fields = [&]() -> Fields {
+			switch (mode) {
+			case OrderMode::Reverse: return {
+				.label = tr::lng_audio_player_reverse(tr::now),
+				.icon = st::mediaPlayerOrderIconReverse,
+				.activeIcon = st::mediaPlayerOrderIconReverseActive,
+			};
+			case OrderMode::Shuffle: return {
+				.label = tr::lng_audio_player_shuffle(tr::now),
+				.icon = st::mediaPlayerOrderIconShuffle,
+				.activeIcon = st::mediaPlayerOrderIconShuffleActive,
+			};
+			}
+			Unexpected("Order mode in addOrderAction.");
+		}();
+		menu->addAction(base::make_unique_q<Ui::Menu::Action>(
+			menu,
+			(active
+				? st::mediaPlayerOrderMenuActive
+				: st::mediaPlayerOrderMenu),
+			Ui::Menu::CreateAction(menu, fields.label, callback),
+			&(active ? fields.activeIcon : fields.icon),
+			&(active ? fields.activeIcon : fields.icon)));
+	};
+	addOrderAction(OrderMode::Reverse);
+	addOrderAction(OrderMode::Shuffle);
+}
+
+void Widget::OrderController::updateIcon() {
+	switch (Core::App().settings().playerOrderMode()) {
+	case OrderMode::Default:
+		button()->setIconOverride(
+			&st::mediaPlayerReverseDisabledIcon,
+			&st::mediaPlayerReverseDisabledIconOver);
+		button()->setRippleColorOverride(
+			&st::mediaPlayerRepeatDisabledRippleBg);
+		break;
+	case OrderMode::Reverse:
+		button()->setIconOverride(&st::mediaPlayerReverseIcon);
+		button()->setRippleColorOverride(nullptr);
+		break;
+	case OrderMode::Shuffle:
+		button()->setIconOverride(&st::mediaPlayerShuffleIcon);
+		button()->setRippleColorOverride(nullptr);
+		break;
+	}
+}
+
+Widget::SpeedController::SpeedController(
+	not_null<Ui::IconButton*> button,
+	not_null<Ui::RpWidget*> menuParent,
+	Fn<void(bool)> menuOverCallback)
+: WithDropdownController(button, menuParent, std::move(menuOverCallback)) {
 	button->setClickedCallback([=] {
 		toggleDefault();
 		save();
+		if (const auto current = menu()) {
+			current->otherEnter();
+		}
 	});
 
-	struct Icons {
-		const style::icon *icon = nullptr;
-		const style::icon *over = nullptr;
-	};
+	setSpeed(Core::App().settings().voicePlaybackSpeed());
+	_speed = Core::App().settings().voicePlaybackSpeed(true);
 
 	_speedChanged.events_starting_with(
 		speed()
-	) | rpl::start_with_next([=](float64 speed) {
-		const auto isDefaultSpeed = isDefault();
-		const auto nonDefaultSpeed = lastNonDefaultSpeed();
-
-		const auto icons = [&]() -> Icons {
-			if (nonDefaultSpeed == .5) {
-				return {
-					.icon = isDefaultSpeed
-						? &st::mediaPlayerSpeedSlowDisabledIcon
-						: &st::mediaPlayerSpeedSlowIcon,
-					.over = isDefaultSpeed
-						? &st::mediaPlayerSpeedSlowDisabledIconOver
-						: &st::mediaPlayerSpeedSlowIcon,
-				};
-			} else if (nonDefaultSpeed == 1.5) {
-				return {
-					.icon = isDefaultSpeed
-						? &st::mediaPlayerSpeedFastDisabledIcon
-						: &st::mediaPlayerSpeedFastIcon,
-					.over = isDefaultSpeed
-						? &st::mediaPlayerSpeedFastDisabledIconOver
-						: &st::mediaPlayerSpeedFastIcon,
-				};
-			} else {
-				return {
-					.icon = isDefaultSpeed
-						? &st::mediaPlayerSpeedDisabledIcon
-						: nullptr, // 2x icon.
-					.over = isDefaultSpeed
-						? &st::mediaPlayerSpeedDisabledIconOver
-						: nullptr, // 2x icon.
-				};
-			}
-		}();
-
-		button->setIconOverride(icons.icon, icons.over);
-		button->setRippleColorOverride(isDefaultSpeed
-			? &st::mediaPlayerSpeedDisabledRippleBg
-			: nullptr);
+	) | rpl::start_with_next([=] {
+		updateIcon();
 	}, button->lifetime());
+}
 
-	button->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::ContextMenu);
-	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		showContextMenu(static_cast<QContextMenuEvent*>(e.get()));
-	}, button->lifetime());
+void Widget::SpeedController::updateIcon() {
+	const auto isDefaultSpeed = isDefault();
+	const auto nonDefaultSpeed = lastNonDefaultSpeed();
+
+	if (nonDefaultSpeed == .5) {
+		button()->setIconOverride(
+			(isDefaultSpeed
+				? &st::mediaPlayerSpeedSlowDisabledIcon
+				: &st::mediaPlayerSpeedSlowIcon),
+			(isDefaultSpeed
+				? &st::mediaPlayerSpeedSlowDisabledIconOver
+				: &st::mediaPlayerSpeedSlowIcon));
+	} else if (nonDefaultSpeed == 1.5) {
+		button()->setIconOverride(
+			(isDefaultSpeed
+				? &st::mediaPlayerSpeedFastDisabledIcon
+				: &st::mediaPlayerSpeedFastIcon),
+			(isDefaultSpeed
+				? &st::mediaPlayerSpeedFastDisabledIconOver
+				: &st::mediaPlayerSpeedFastIcon));
+	} else {
+		button()->setIconOverride(
+			isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
+			(isDefaultSpeed
+				? &st::mediaPlayerSpeedDisabledIconOver
+				: nullptr));
+	}
+	button()->setRippleColorOverride(isDefaultSpeed
+		? &st::mediaPlayerSpeedDisabledRippleBg
+		: nullptr);
 }
 
 rpl::producer<> Widget::SpeedController::saved() const {
@@ -189,56 +357,36 @@ void Widget::SpeedController::save() {
 	_saved.fire({});
 }
 
-void Widget::SpeedController::showContextMenu(
-		not_null<QContextMenuEvent*> e) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		_button,
-		st::mediaPlayerPopupMenu);
-
-	const auto setPlaybackSpeed = [=](float64 speed) {
-		setSpeed(speed);
-		save();
-	};
-
+void Widget::SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 	const auto currentSpeed = speed();
-	const auto addSpeed = [&](float64 speed, QString text = QString()) {
-		if (text.isEmpty()) {
-			text = QString::number(speed);
-		}
-		_menu->addAction(
-			text,
-			[=] { setPlaybackSpeed(speed); },
-			(speed == currentSpeed) ? &st::mediaPlayerMenuCheck : nullptr);
+	const auto addSpeedAction = [&](float64 speed, QString text) {
+		const auto callback = [=] {
+			setSpeed(speed);
+			save();
+		};
+		const auto icon = (speed == currentSpeed)
+			? &st::mediaPlayerMenuCheck
+			: nullptr;
+		auto action = base::make_unique_q<Ui::Menu::Action>(
+			menu,
+			st::mediaPlayerSpeedMenu,
+			Ui::Menu::CreateAction(menu, text, callback),
+			icon,
+			icon);
+		const auto raw = action.get();
+		_speedChanged.events(
+		) | rpl::start_with_next([=](float64 updatedSpeed) {
+			const auto icon = (speed == updatedSpeed)
+				? &st::mediaPlayerMenuCheck
+				: nullptr;
+			raw->setIcon(icon, icon);
+		}, raw->lifetime());
+		menu->addAction(std::move(action));
 	};
-	addSpeed(0.5, tr::lng_voice_speed_slow(tr::now));
-	addSpeed(1., tr::lng_voice_speed_normal(tr::now));
-	addSpeed(1.5, tr::lng_voice_speed_fast(tr::now));
-	addSpeed(2., tr::lng_voice_speed_very_fast(tr::now));
-
-	_menu->popup(e->globalPos());
-}
-
-Widget::PlayButton::PlayButton(QWidget *parent) : Ui::RippleButton(parent, st::mediaPlayerButton.ripple)
-, _layout(st::mediaPlayerButton, [this] { update(); }) {
-	resize(st::mediaPlayerButtonSize);
-	setCursor(style::cur_pointer);
-}
-
-void Widget::PlayButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	paintRipple(p, st::mediaPlayerButton.rippleAreaPosition.x(), st::mediaPlayerButton.rippleAreaPosition.y());
-	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
-	_layout.paint(p, st::mediaPlayerActiveFg);
-}
-
-QImage Widget::PlayButton::prepareRippleMask() const {
-	auto size = QSize(st::mediaPlayerButton.rippleAreaSize, st::mediaPlayerButton.rippleAreaSize);
-	return Ui::RippleAnimation::ellipseMask(size);
-}
-
-QPoint Widget::PlayButton::prepareRippleStartPosition() const {
-	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
+	addSpeedAction(0.5, tr::lng_voice_speed_slow(tr::now));
+	addSpeedAction(1., tr::lng_voice_speed_normal(tr::now));
+	addSpeedAction(1.5, tr::lng_voice_speed_fast(tr::now));
+	addSpeedAction(2., tr::lng_voice_speed_very_fast(tr::now));
 }
 
 Widget::Widget(
@@ -255,15 +403,22 @@ Widget::Widget(
 , _volumeToggle(rightControls(), st::mediaPlayerVolumeToggle)
 , _repeatToggle(rightControls(), st::mediaPlayerRepeatButton)
 , _orderToggle(rightControls(), st::mediaPlayerRepeatButton)
-, _playbackSpeed(rightControls(), st::mediaPlayerSpeedButton)
+, _speedToggle(rightControls(), st::mediaPlayerSpeedButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
 , _volume(std::in_place, dropdownsParent.get())
 , _playbackProgress(std::make_unique<View::PlaybackProgress>())
+, _orderController(
+	std::make_unique<OrderController>(
+		_orderToggle.data(),
+		dropdownsParent,
+		[=](bool over) { markOver(over); }))
 , _speedController(
 	std::make_unique<SpeedController>(
-		_playbackSpeed.data())) {
+		_speedToggle.data(),
+		dropdownsParent,
+		[=](bool over) { markOver(over); })) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -316,21 +471,6 @@ Widget::Widget(
 		updateRepeatToggleIcon();
 	}, lifetime());
 
-	_orderToggle->setClickedCallback([=] {
-		showOrderMenu();
-	});
-	_orderToggle->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return e->type() == QEvent::Enter;
-	}) | rpl::start_with_next([=] {
-		showOrderMenu();
-	}, _orderToggle->lifetime());
-
-	Core::App().settings().playerOrderModeValue(
-	) | rpl::start_with_next([=] {
-		updateOrderToggleIcon();
-	}, lifetime());
-
 	_repeatToggle->setClickedCallback([=] {
 		auto &settings = Core::App().settings();
 		settings.setPlayerRepeatMode([&] {
@@ -377,7 +517,14 @@ Widget::Widget(
 
 	PrepareVolumeDropdown(_volume.get(), controller);
 	_volumeToggle->installEventFilter(_volume.get());
-	_volume->installEventFilter(this);
+	_volume->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Enter) {
+			markOver(true);
+		} else if (e->type() == QEvent::Leave) {
+			markOver(false);
+		}
+	}, _volume->lifetime());
 
 	hidePlaylistOn(_playPause);
 	hidePlaylistOn(_close);
@@ -460,80 +607,8 @@ void Widget::showShadowAndDropdowns() {
 		_volumeHidden = false;
 		_volume->show();
 	}
-}
-
-void Widget::showOrderMenu() {
-	if (_orderMenu) {
-		return;
-	}
-	_orderMenu.emplace(_orderMenuParent);
-	_orderMenu->installEventFilter(this);
-	_orderMenu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _orderMenu.get()] {
-		menu->deleteLater();
-		if (weak && weak->_orderMenu == menu) {
-			weak->_orderMenu = nullptr;
-			weak->_orderToggle->setForceRippled(false);
-		}
-	});
-	_orderMenu->setShowStartCallback(crl::guard(this, [this, menu = _orderMenu.get()] {
-		if (_orderMenu == menu) {
-			_orderToggle->setForceRippled(true);
-		}
-	}));
-	_orderMenu->setHideStartCallback(crl::guard(this, [this, menu = _orderMenu.get()] {
-		if (_orderMenu == menu) {
-			_orderToggle->setForceRippled(false);
-		}
-	}));
-	_orderToggle->installEventFilter(_orderMenu);
-	const auto addOrderAction = [&](OrderMode mode) {
-		struct Fields {
-			QString label;
-			const style::icon &icon;
-			const style::icon &activeIcon;
-		};
-		const auto current = Core::App().settings().playerOrderMode();
-		const auto active = (current == mode);
-		const auto callback = [=] {
-			Core::App().settings().setPlayerOrderMode(active
-				? OrderMode::Default
-				: mode);
-			Core::App().saveSettingsDelayed();
-		};
-		const auto fields = [&]() -> Fields {
-			switch (mode) {
-			case OrderMode::Reverse: return {
-				.label = tr::lng_audio_player_reverse(tr::now),
-				.icon = st::mediaPlayerOrderIconReverse,
-				.activeIcon = st::mediaPlayerOrderIconReverseActive,
-			};
-			case OrderMode::Shuffle: return {
-				.label = tr::lng_audio_player_shuffle(tr::now),
-				.icon = st::mediaPlayerOrderIconShuffle,
-				.activeIcon = st::mediaPlayerOrderIconShuffleActive,
-			};
-			}
-			Unexpected("Order mode in addOrderAction.");
-		}();
-		const auto parent = _orderMenu.get();
-		const auto action = Ui::Menu::CreateAction(
-			parent,
-			fields.label,
-			callback);
-		auto item = base::make_unique_q<Ui::Menu::Action>(
-			parent,
-			(active
-				? st::mediaPlayerOrderMenuActive
-				: st::mediaPlayerOrderMenu),
-			std::move(action),
-			&(active ? fields.activeIcon : fields.icon),
-			&(active ? fields.activeIcon : fields.icon));
-		_orderMenu->addAction(std::move(item));
-	};
-	addOrderAction(OrderMode::Reverse);
-	addOrderAction(OrderMode::Shuffle);
-	updateDropdownsGeometry();
-	_orderMenu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+	_speedController->showBack();
+	_orderController->showBack();
 }
 
 void Widget::updateDropdownsGeometry() {
@@ -547,16 +622,8 @@ void Widget::updateDropdownsGeometry() {
 	const auto shift = QPoint(playerMargins.left(), playerMargins.top());
 	_volume->move(position - shift);
 
-	if (_orderMenu) {
-		const auto position = _orderMenu->parentWidget()->mapFromGlobal(
-			_orderToggle->mapToGlobal(
-				QPoint(_orderToggle->width(), _orderToggle->height())));
-		const auto padding = st::defaultInnerDropdown.padding;
-		_orderMenu->move(position
-			- QPoint(_orderMenu->width(), 0)
-			+ QPoint(padding.right(), -padding.top())
-			+ st::mediaPlayerOrderMenuPosition);
-	}
+	_orderController->updateDropdownGeometry();
+	_speedController->updateDropdownGeometry();
 }
 
 void Widget::hideShadowAndDropdowns() {
@@ -566,6 +633,8 @@ void Widget::hideShadowAndDropdowns() {
 		_volumeHidden = true;
 		_volume->hide();
 	}
+	_speedController->hideTemporarily();
+	_orderController->hideTemporarily();
 }
 
 void Widget::raiseDropdowns() {
@@ -611,7 +680,7 @@ void Widget::updateControlsGeometry() {
 	_close->moveToRight(st::mediaPlayerCloseRight, st::mediaPlayerPlayTop);
 	auto right = 0;
 	if (hasPlaybackSpeedControl()) {
-		_playbackSpeed->moveToRight(right, 0); right += _playbackSpeed->width();
+		_speedToggle->moveToRight(right, 0); right += _speedToggle->width();
 	}
 	_repeatToggle->moveToRight(right, 0); right += _repeatToggle->width();
 	_orderToggle->moveToRight(right, 0); right += _orderToggle->width();
@@ -621,7 +690,11 @@ void Widget::updateControlsGeometry() {
 
 	updatePlayPrevNextPositions();
 
-	_playbackSlider->setGeometry(0, height() - st::mediaPlayerPlayback.fullWidth, width(), st::mediaPlayerPlayback.fullWidth);
+	_playbackSlider->setGeometry(
+		0,
+		height() - st::mediaPlayerPlayback.fullWidth,
+		width(),
+		st::mediaPlayerPlayback.fullWidth);
 
 	updateDropdownsGeometry();
 }
@@ -647,16 +720,6 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (!fill.isEmpty()) {
 		p.fillRect(fill, st::mediaPlayerBg);
 	}
-}
-
-bool Widget::eventFilter(QObject *o, QEvent *e) {
-	const auto type = e->type();
-	if (type == QEvent::Enter) {
-		markOver(true);
-	} else if (type == QEvent::Leave) {
-		markOver(false);
-	}
-	return RpWidget::eventFilter(o, e);
 }
 
 void Widget::enterEventHook(QEnterEvent *e) {
@@ -767,7 +830,7 @@ int Widget::getTimeRight() const {
 			+ _volumeToggle->width();
 	}
 	if (hasPlaybackSpeedControl()) {
-		result += _playbackSpeed->width();
+		result += _speedToggle->width();
 	}
 	result += st::mediaPlayerPadding;
 	return result;
@@ -807,26 +870,6 @@ void Widget::updateRepeatToggleIcon() {
 	}
 }
 
-void Widget::updateOrderToggleIcon() {
-	switch (Core::App().settings().playerOrderMode()) {
-	case OrderMode::Default:
-		_orderToggle->setIconOverride(
-			&st::mediaPlayerReverseDisabledIcon,
-			&st::mediaPlayerReverseDisabledIconOver);
-		_orderToggle->setRippleColorOverride(
-			&st::mediaPlayerRepeatDisabledRippleBg);
-		break;
-	case OrderMode::Reverse:
-		_orderToggle->setIconOverride(&st::mediaPlayerReverseIcon);
-		_orderToggle->setRippleColorOverride(nullptr);
-		break;
-	case OrderMode::Shuffle:
-		_orderToggle->setIconOverride(&st::mediaPlayerShuffleIcon);
-		_orderToggle->setRippleColorOverride(nullptr);
-		break;
-	}
-}
-
 void Widget::checkForTypeChange() {
 	auto hasActiveType = [](AudioMsgId::Type type) {
 		const auto current = instance()->current(type);
@@ -850,7 +893,7 @@ void Widget::updateControlsVisibility() {
 	_repeatToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_orderToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
-	_playbackSpeed->setVisible(hasPlaybackSpeedControl());
+	_speedToggle->setVisible(hasPlaybackSpeedControl());
 	if (!_shadow->isHidden()) {
 		_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
 	}
