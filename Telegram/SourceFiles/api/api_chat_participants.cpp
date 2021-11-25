@@ -411,7 +411,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 		_botsRequests.remove(channel);
 		result.match([&](const MTPDchannels_channelParticipants &data) {
 			const auto &[availableCount, list] = Parse(channel, data);
-			ApplyLastList(channel, availableCount, list);
+			ApplyBotsList(channel, availableCount, list);
 		}, [](const MTPDchannels_channelParticipantsNotModified &) {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
@@ -518,6 +518,7 @@ ChatParticipants::Parsed ChatParticipants::Parse(
 		not_null<ChannelData*> channel,
 		const TLMembers &data) {
 	channel->owner().processUsers(data.vusers());
+	channel->owner().processChats(data.vchats());
 	auto list = ParseList(data, channel);
 	if (channel->mgInfo) {
 		RefreshChannelAdmins(channel, list);
