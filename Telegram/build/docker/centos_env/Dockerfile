@@ -26,11 +26,11 @@ RUN yum -y install centos-release-scl && yum clean all
 
 RUN yum -y install git meson ninja-build autoconf automake libtool \
 	fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
-	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel libudev-devel \
-	gtk3-devel pkgconfig bison yasm file which xorg-x11-util-macros \
+	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel gtk3-devel \
+	perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 	devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
-	llvm-toolset-7.0-llvm-devel perl-XML-Parser && yum clean all
+	llvm-toolset-7.0-llvm-devel && yum clean all
 
 SHELL [ "bash", "-c", ". /opt/rh/devtoolset-10/enable; exec bash -c \"$@\"", "-s"]
 
@@ -835,7 +835,7 @@ RUN git submodule init
 RUN git submodule update
 
 WORKDIR src/third_party/pipewire
-RUN meson build
+RUN meson build -Dspa-plugins=disabled
 
 WORKDIR ../../..
 
