@@ -2320,6 +2320,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
 
+"lng_audio_player_reverse" = "Reverse order";
+"lng_audio_player_shuffle" = "Shuffle";
+
 "lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";
 "lng_rights_edit_admin_rank_name" = "Custom title";

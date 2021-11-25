@@ -286,3 +286,18 @@ mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 
 mediaPlayerFloatSize: 128px;
 mediaPlayerFloatMargin: 12px;
+
+mediaPlayerOrderMenuPosition: point(-2px, -4px);
+mediaPlayerOrderMenu: Menu(defaultMenu) {
+	itemIconPosition: point(13px, 8px);
+	itemPadding: margins(49px, 9px, 17px, 11px);
+	itemStyle: boxTextStyle;
+}
+mediaPlayerOrderMenuActive: Menu(mediaPlayerOrderMenu) {
+	itemFg: windowActiveTextFg;
+	itemFgOver: windowActiveTextFg;
+}
+mediaPlayerOrderIconReverse: icon{{ "player/player_order", windowFg }};
+mediaPlayerOrderIconReverseActive: icon{{ "player/player_order", windowActiveTextFg }};
+mediaPlayerOrderIconShuffle: icon{{ "player/player_shuffle", windowFg }};
+mediaPlayerOrderIconShuffleActive: icon{{ "player/player_shuffle", windowActiveTextFg }};

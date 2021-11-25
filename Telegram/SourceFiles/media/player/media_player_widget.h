@@ -18,6 +18,7 @@ class FlatLabel;
 class LabelSimple;
 class IconButton;
 class PlainShadow;
+class DropdownMenu;
 class FilledSlider;
 template <typename Widget>
 class FadeWrap;
@@ -85,6 +86,7 @@ private:
 	[[nodiscard]] int getTimeRight() const;
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
+	void hidePlaylistOn(const object_ptr<Ui::IconButton> &button);
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
@@ -110,7 +112,10 @@ private:
 	void updateTimeLabel();
 	void markOver(bool over);
 
+	void showOrderMenu();
+
 	const not_null<Window::SessionController*> _controller;
+	const not_null<Ui::RpWidget*> _orderMenuParent;
 
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
@@ -149,7 +154,8 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
-	object_ptr<Dropdown> _volume;
+	base::unique_qptr<Dropdown> _volume;
+	base::unique_qptr<Ui::DropdownMenu> _orderMenu;
 	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
 	std::unique_ptr<SpeedController> _speedController;
 
