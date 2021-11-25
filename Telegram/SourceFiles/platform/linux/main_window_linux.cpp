@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QSize>
 #include <QtCore/QTemporaryFile>
+#include <QtCore/QMimeData>
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1299,8 +1300,8 @@ void MainWindow::updateGlobalMenuHook() {
 	auto canPaste = false;
 	auto canDelete = false;
 	auto canSelectAll = false;
-	const auto clipboardHasText = QGuiApplication::clipboard()
-		->ownsClipboard();
+	const auto mimeData = QGuiApplication::clipboard()->mimeData();
+	const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
 	auto markdownEnabled = false;
 	if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
