@@ -379,7 +379,7 @@ bool ResolveSettings(
 	}
 	if (section == qstr("devices")) {
 		controller->session().api().authorizations().reload();
-		controller->show(Box<SessionsBox>(&controller->session()));
+		controller->show(Box<SessionsBox>(controller));
 		return true;
 	} else if (section == qstr("language")) {
 		ShowLanguagesBox();

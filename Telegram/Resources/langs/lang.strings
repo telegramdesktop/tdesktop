@@ -695,6 +695,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_destroy_if" = "If away for...";
 "lng_settings_change_phone" = "Change phone number";
 
+"lng_settings_terminate_title" = "Terminate old sessions";
+"lng_settings_terminate_if" = "If inactive for...";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
@@ -816,6 +818,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
+"lng_self_destruct_sessions_title" = "Session termination";
+"lng_self_destruct_sessions_description" = "If you don't come online from a specific session at least once within this period, it will be terminated.";
+"lng_self_destruct_weeks#one" = "{count} week";
+"lng_self_destruct_weeks#other" = "{count} weeks";
 "lng_self_destruct_months#one" = "{count} month";
 "lng_self_destruct_months#other" = "{count} months";
 "lng_self_destruct_years#one" = "{count} year";

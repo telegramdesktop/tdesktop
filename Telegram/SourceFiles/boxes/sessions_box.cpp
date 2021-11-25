@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/algorithm.h"
 #include "base/platform/base_platform_info.h"
+#include "boxes/self_destruction_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -77,7 +78,9 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 
 class SessionsContent : public Ui::RpWidget {
 public:
-	SessionsContent(QWidget*, not_null<Main::Session*> session);
+	SessionsContent(
+		QWidget*,
+		not_null<Window::SessionController*> controller);
 
 	void setupContent();
 
@@ -165,7 +168,10 @@ private:
 
 class SessionsContent::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent);
+	Inner(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		rpl::producer<int> ttlDays);
 
 	void showData(const Full &data);
 	rpl::producer<uint64> terminateOne() const;
@@ -177,16 +183,20 @@ public:
 private:
 	void setupContent();
 
+	const not_null<Window::SessionController*> _controller;
 	QPointer<List> _current;
 	QPointer<Ui::SettingsButton> _terminateAll;
 	QPointer<List> _incomplete;
 	QPointer<List> _list;
+	rpl::variable<int> _ttlDays;
 
 };
 
-SessionsContent::SessionsContent(QWidget*, not_null<Main::Session*> session)
-: _authorizations(&session->api().authorizations())
-, _inner(this)
+SessionsContent::SessionsContent(
+	QWidget*,
+	not_null<Window::SessionController*> controller)
+: _authorizations(&controller->session().api().authorizations())
+, _inner(this, controller, _authorizations->ttlDays())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
@@ -347,8 +357,13 @@ void SessionsContent::terminateAll() {
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));
 }
 
-SessionsContent::Inner::Inner(QWidget *parent)
-: RpWidget(parent) {
+SessionsContent::Inner::Inner(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	rpl::producer<int> ttlDays)
+: RpWidget(parent)
+, _controller(controller)
+, _ttlDays(std::move(ttlDays)) {
 	setupContent();
 }
 
@@ -415,6 +430,31 @@ void SessionsContent::Inner::setupContent() {
 	_list = listInner->add(object_ptr<List>(listInner));
 	AddSkip(listInner);
 
+	const auto ttlWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
+	const auto ttlInner = ttlWrap->entity();
+	AddDivider(ttlInner);
+	AddSkip(ttlInner);
+
+	AddSubsectionTitle(ttlInner, tr::lng_settings_terminate_title());
+
+	AddButtonWithLabel(
+		ttlInner,
+		tr::lng_settings_terminate_if(),
+		_ttlDays.value(
+	) | rpl::map(SelfDestructionBox::DaysLabel),
+		st::settingsButton
+	)->addClickHandler([=] {
+		_controller->show(Box<SelfDestructionBox>(
+			&_controller->session(),
+			SelfDestructionBox::Type::Sessions,
+			_ttlDays.value()));
+	});
+
+	AddSkip(ttlInner);
+
 	const auto placeholder = content->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			content,
@@ -431,6 +471,7 @@ void SessionsContent::Inner::setupContent() {
 			(_1 + _2) > 0));
 	incompleteWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
 	listWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
+	ttlWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
 	placeholder->toggleOn(_list->itemsCount() | rpl::map(_1 == 0));
 
 	Ui::ResizeFitChild(this, content);
@@ -592,8 +633,10 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	}
 }
 
-SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
-: _session(session) {
+SessionsBox::SessionsBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
 }
 
 void SessionsBox::prepare() {
@@ -604,7 +647,7 @@ void SessionsBox::prepare() {
 	const auto w = st::boxWideWidth;
 
 	const auto content = setInnerWidget(
-		object_ptr<SessionsContent>(this, _session),
+		object_ptr<SessionsContent>(this, _controller),
 		st::sessionsScroll);
 	content->resize(w, st::noContactsHeight);
 	content->setupContent();
@@ -624,7 +667,7 @@ Sessions::Sessions(
 void Sessions::setupContent(not_null<Window::SessionController*> controller) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto content = container->add(
-		object_ptr<SessionsContent>(container, &controller->session()));
+		object_ptr<SessionsContent>(container, controller));
 	content->setupContent();
 
 	Ui::ResizeFitChild(this, container);

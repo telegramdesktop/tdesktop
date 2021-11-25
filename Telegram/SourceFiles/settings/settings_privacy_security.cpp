@@ -693,6 +693,7 @@ void SetupSelfDestruction(
 	)->addClickHandler([=] {
 		controller->show(Box<SelfDestructionBox>(
 			session,
+			SelfDestructionBox::Type::Account,
 			session->api().selfDestruct().days()));
 	});
 
@@ -800,7 +801,7 @@ void SetupSessionsList(
 		std::move(count),
 		st::settingsButton
 	)->addClickHandler([=] {
-		controller->show(Box<SessionsBox>(&controller->session()));
+		controller->show(Box<SessionsBox>(controller));
 	});
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_sessions_about());

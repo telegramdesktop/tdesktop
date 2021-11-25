@@ -31,12 +31,12 @@ private:
 
 class SessionsBox : public Ui::BoxContent {
 public:
-	SessionsBox(QWidget*, not_null<Main::Session*> session);
+	SessionsBox(QWidget*, not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;
 
 private:
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 
 };

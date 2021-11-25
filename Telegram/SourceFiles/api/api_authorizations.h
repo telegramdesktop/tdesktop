@@ -40,12 +40,18 @@ public:
 	[[nodiscard]] int total() const;
 	[[nodiscard]] rpl::producer<int> totalChanges() const;
 
+	void updateTTL(int days);
+	[[nodiscard]] rpl::producer<int> ttlDays() const;
+
 private:
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 
 	List _list;
 	rpl::event_stream<> _listChanges;
+
+	mtpRequestId _ttlRequestId = 0;
+	rpl::variable<int> _ttlDays = 0;
 
 	crl::time _lastReceived = 0;
 	rpl::lifetime _lifetime;

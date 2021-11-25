@@ -119,6 +119,7 @@ void Authorizations::reload() {
 		_requestId = 0;
 		_lastReceived = crl::now();
 		result.match([&](const MTPDaccount_authorizations &auths) {
+			_ttlDays = auths.vauthorization_ttl_days().v;
 			_list = (
 				auths.vauthorizations().v
 			) | ranges::views::transform([](const MTPAuthorization &d) {
@@ -182,6 +183,22 @@ rpl::producer<int> Authorizations::totalChanges() const {
 		total()
 	) | rpl::then(
 		_listChanges.events() | rpl::map([=] { return total(); }));
+}
+
+void Authorizations::updateTTL(int days) {
+	_api.request(_ttlRequestId).cancel();
+	_ttlRequestId = _api.request(MTPaccount_SetAuthorizationTTL(
+		MTP_int(days)
+	)).done([=](const MTPBool &result) {
+		_ttlRequestId = 0;
+	}).fail([=](const MTP::Error &result) {
+		_ttlRequestId = 0;
+	}).send();
+	_ttlDays = days;
+}
+
+rpl::producer<int> Authorizations::ttlDays() const {
+	return _ttlDays.value() | rpl::filter(rpl::mappers::_1 != 0);
 }
 
 int Authorizations::total() const {
