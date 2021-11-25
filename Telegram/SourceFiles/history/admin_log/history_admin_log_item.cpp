@@ -527,6 +527,7 @@ auto GenerateParticipantChangeText(
 		case Api::ChatParticipant::Type::Member:
 			return generateOther(peerId);
 		};
+		Unexpected("Participant type in GenerateParticipantChangeText.");
 	}();
 
 	result.entities.push_front(

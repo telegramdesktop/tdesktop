@@ -651,6 +651,7 @@ PeerData *ParticipantsAdditionalData::applyParticipant(
 	case Api::ChatParticipant::Type::Left:
 		return logBad();
 	};
+	Unexpected("Api::ChatParticipant::type in applyParticipant.");
 }
 
 UserData *ParticipantsAdditionalData::applyCreator(
