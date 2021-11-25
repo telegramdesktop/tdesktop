@@ -308,7 +308,7 @@ historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconF
 historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
 historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
 historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
-historyAttachEmojiFgActive: windowActiveTextFg;
+historyAttachEmojiFgActive: windowBgActive;
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
 historyEmojiCircle: size(20px, 20px);
