@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
-constexpr auto kMaxDeviceModelLength = 16;
+constexpr auto kMaxDeviceModelLength = 32;
 
 void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->setTitle(tr::lng_settings_rename_device_title());
