@@ -1039,6 +1039,7 @@ void HistoryMessage::applySentMessage(
 
 bool HistoryMessage::allowsForward() const {
 	return isRegular()
+		&& !forbidsForward()
 		&& history()->peer->allowsForwarding()
 		&& (!_media || _media->allowsForward());
 }

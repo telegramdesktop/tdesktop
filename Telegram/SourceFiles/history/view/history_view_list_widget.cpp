@@ -1169,12 +1169,13 @@ bool ListWidget::isEmpty() const {
 		&& (_itemsHeight + _itemsRevealHeight == 0);
 }
 
-bool ListWidget::hasCopyRestriction() const {
-	return _delegate->listCopyRestrictionType() != CopyRestrictionType::None;
+bool ListWidget::hasCopyRestriction(HistoryItem *item) const {
+	return _delegate->listCopyRestrictionType(item)
+		!= CopyRestrictionType::None;
 }
 
-bool ListWidget::showCopyRestriction() {
-	const auto type = _delegate->listCopyRestrictionType();
+bool ListWidget::showCopyRestriction(HistoryItem *item) {
+	const auto type = _delegate->listCopyRestrictionType(item);
 	if (type == CopyRestrictionType::None) {
 		return false;
 	}
@@ -1184,6 +1185,29 @@ bool ListWidget::showCopyRestriction() {
 			: tr::lng_error_nocopy_group(tr::now) },
 	});
 	return true;
+}
+
+bool ListWidget::hasCopyRestrictionForSelected() const {
+	if (hasCopyRestriction()) {
+		return true;
+	}
+	for (const auto [itemId, selection] : _selected) {
+		if (const auto item = session().data().message(itemId)) {
+			if (item->forbidsForward()) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool ListWidget::showCopyRestrictionForSelected() {
+	for (const auto [itemId, selection] : _selected) {
+		if (showCopyRestriction(session().data().message(itemId))) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool ListWidget::hasSelectRestriction() const {
@@ -1922,12 +1946,14 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Copy
 		&& (hasSelectedText() || hasSelectedItems())
-		&& !showCopyRestriction()) {
+		&& !showCopyRestriction()
+		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
-		&& !showCopyRestriction()) {
+		&& !showCopyRestriction()
+		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
@@ -2451,7 +2477,7 @@ void ListWidget::mouseActionFinish(
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& _selectedTextItem
 		&& _selectedTextRange.from != _selectedTextRange.to
-		&& !hasCopyRestriction()) {
+		&& !hasCopyRestriction(_selectedTextItem)) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
 			TextUtilities::SetClipboardText(
 				view->selectedText(_selectedTextRange),
@@ -3091,8 +3117,9 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 }
 
 CopyRestrictionType CopyRestrictionTypeFor(
-		not_null<PeerData*> peer) {
-	return peer->allowsForwarding()
+		not_null<PeerData*> peer,
+		HistoryItem *item) {
+	return (peer->allowsForwarding() && (!item || !item->forbidsForward()))
 		? CopyRestrictionType::None
 		: peer->isBroadcast()
 		? CopyRestrictionType::Channel

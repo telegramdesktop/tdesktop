@@ -1165,7 +1165,7 @@ bool DocumentData::canBeStreamed(HistoryItem *item) const {
 		&& supportsStreaming()
 		&& (!isVideoFile()
 			|| !cUseExternalVideoPlayer()
-			|| (item && !item->history()->peer->allowsForwarding()));
+			|| (item && !item->allowsForward()));
 }
 
 void DocumentData::setInappPlaybackFailed() {

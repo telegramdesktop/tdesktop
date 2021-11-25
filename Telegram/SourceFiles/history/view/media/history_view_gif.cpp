@@ -264,10 +264,9 @@ QSize Gif::videoSize() const {
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
-		&& _realParent->history()->peer->allowsForwarding()
+		&& _realParent->allowsForward()
 		&& _data->canBeStreamed(_realParent)
-		&& !_data->inappPlaybackFailed()
-		&& !_parent->data()->isSending();
+		&& !_data->inappPlaybackFailed();
 }
 
 bool Gif::autoplayEnabled() const {

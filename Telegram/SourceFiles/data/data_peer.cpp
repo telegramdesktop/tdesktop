@@ -521,8 +521,7 @@ bool PeerData::canEditMessagesIndefinitely() const {
 bool PeerData::canExportChatHistory() const {
 	if (isRepliesChat() || !allowsForwarding()) {
 		return false;
-	}
-	if (const auto channel = asChannel()) {
+	} else if (const auto channel = asChannel()) {
 		if (!channel->amIn() && channel->invitePeekExpires()) {
 			return false;
 		}

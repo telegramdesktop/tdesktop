@@ -236,52 +236,53 @@ enum class MessageFlag : uint32 {
 	MediaIsUnread         = (1U << 13),
 	MentionsMe            = (1U << 14),
 	IsOrWasScheduled      = (1U << 15),
+	NoForwards            = (1U << 16),
 
 	// Needs to return back to inline mode.
-	HasSwitchInlineButton = (1U << 16),
+	HasSwitchInlineButton = (1U << 17),
 
 	// For "shared links" indexing.
-	HasTextLinks          = (1U << 17),
+	HasTextLinks          = (1U << 18),
 
 	// Group / channel create or migrate service message.
-	IsGroupEssential      = (1U << 18),
+	IsGroupEssential      = (1U << 19),
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1U << 19),
+	IsLocalUpdateMedia    = (1U << 20),
 
 	// Sent from inline bot, need to re-set media when sent.
-	FromInlineBot         = (1U << 20),
+	FromInlineBot         = (1U << 21),
 
 	// Generated on the client side and should be unread.
-	ClientSideUnread      = (1U << 21),
+	ClientSideUnread      = (1U << 22),
 
 	// In a supergroup.
-	HasAdminBadge         = (1U << 22),
+	HasAdminBadge         = (1U << 23),
 
 	// Outgoing message that is being sent.
-	BeingSent             = (1U << 23),
+	BeingSent             = (1U << 24),
 
 	// Outgoing message and failed to be sent.
-	SendingFailed         = (1U << 24),
+	SendingFailed         = (1U << 25),
 
 	// No media and only a several emoji text.
-	IsolatedEmoji         = (1U << 25),
+	IsolatedEmoji         = (1U << 26),
 
 	// Message existing in the message history.
-	HistoryEntry          = (1U << 26),
+	HistoryEntry          = (1U << 27),
 
 	// Local message, not existing on the server.
-	Local                 = (1U << 27),
+	Local                 = (1U << 28),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1U << 28),
+	FakeHistoryItem       = (1U << 29),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1U << 29),
+	IsContactSignUp       = (1U << 30),
 
 	// In channels.
-	IsSponsored           = (1U << 30),
+	IsSponsored           = (1U << 31),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

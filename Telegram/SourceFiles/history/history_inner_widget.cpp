@@ -1546,7 +1546,7 @@ void HistoryInner::mouseActionFinish(
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& !_selected.empty()
 		&& _selected.cbegin()->second != FullSelection
-		&& !hasCopyRestriction()) {
+		&& !hasCopyRestriction(_selected.cbegin()->first)) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
 			TextUtilities::SetClipboardText(
@@ -1723,14 +1723,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}));
 		}
 	};
-	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
+	const auto addPhotoActions = [&](not_null<PhotoData*> photo, HistoryItem *item) {
 		const auto media = photo->activeMediaView();
-		if (!photo->isNull() && media && media->loaded() && !hasCopyRestriction()) {
+		const auto itemId = item ? item->fullId() : FullMsgId();
+		if (!photo->isNull() && media && media->loaded() && !hasCopyRestriction(item)) {
 			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}));
 			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-				copyContextImage(photo);
+				copyContextImage(photo, itemId);
 			});
 		}
 		if (photo->hasAttachedStickers()) {
@@ -1741,14 +1742,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 	};
-	const auto addDocumentActions = [&](not_null<DocumentData*> document) {
+	const auto addDocumentActions = [&](not_null<DocumentData*> document, HistoryItem *item) {
 		if (document->loading()) {
 			_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 				cancelContextDownload(document);
 			});
 			return;
 		}
-		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		const auto lnkIsVideo = document->isVideoFile();
 		const auto lnkIsVoice = document->isVoiceMessage();
@@ -1767,7 +1767,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					openContextGif(itemId);
 				});
 			}
-			if (!hasCopyRestriction()) {
+			if (!hasCopyRestriction(item)) {
 				_menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 					saveContextGif(itemId);
 				});
@@ -1778,7 +1778,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				showContextInFolder(document);
 			});
 		}
-		if (!hasCopyRestriction()) {
+		if (!hasCopyRestriction(item)) {
 			_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				saveDocumentToFile(itemId, document);
 			}));
@@ -1832,7 +1832,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		if (isUponSelected > 0 && !hasCopyRestriction()) {
+		if (isUponSelected > 0 && !hasCopyRestrictionForSelected()) {
 			_menu->addAction(
 				(isUponSelected > 1
 					? tr::lng_context_copy_selected_items(tr::now)
@@ -1841,9 +1841,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		addItemActions(item, item);
 		if (lnkPhoto) {
-			addPhotoActions(lnkPhoto->photo());
+			addPhotoActions(lnkPhoto->photo(), item);
 		} else {
-			addDocumentActions(lnkDocument->document());
+			addDocumentActions(lnkDocument->document(), item);
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
@@ -1913,7 +1913,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto view = item ? item->mainView() : nullptr;
 
 		if (isUponSelected > 0) {
-			if (!hasCopyRestriction()) {
+			if (!hasCopyRestrictionForSelected()) {
 				_menu->addAction(
 					((isUponSelected > 1)
 						? tr::lng_context_copy_selected_items(tr::now)
@@ -1936,7 +1936,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Api::ToggleFavedSticker(document, itemId);
 							});
 						}
-						if (!hasCopyRestriction()) {
+						if (!hasCopyRestriction(item)) {
 							_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 								saveDocumentToFile(itemId, document);
 							}));
@@ -1965,7 +1965,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (!item->isService()
 					&& view
 					&& !link
-					&& !hasCopyRestriction()
+					&& !hasCopyRestriction(item)
 					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
@@ -2048,12 +2048,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 }
 
-bool HistoryInner::hasCopyRestriction() const {
-	return !_peer->allowsForwarding();
+bool HistoryInner::hasCopyRestriction(HistoryItem *item) const {
+	return !_peer->allowsForwarding() || (item && item->forbidsForward());
 }
 
-bool HistoryInner::showCopyRestriction() {
-	if (!hasCopyRestriction()) {
+bool HistoryInner::showCopyRestriction(HistoryItem *item) {
+	if (!hasCopyRestriction(item)) {
 		return false;
 	}
 	Ui::ShowMultilineToast({
@@ -2064,8 +2064,29 @@ bool HistoryInner::showCopyRestriction() {
 	return true;
 }
 
+bool HistoryInner::hasCopyRestrictionForSelected() const {
+	if (hasCopyRestriction()) {
+		return true;
+	}
+	for (const auto &[item, selection] : _selected) {
+		if (item && item->forbidsForward()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool HistoryInner::showCopyRestrictionForSelected() {
+	for (const auto &[item, selection] : _selected) {
+		if (showCopyRestriction(item)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void HistoryInner::copySelectedText() {
-	if (!showCopyRestriction()) {
+	if (!showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 	}
 }
@@ -2092,11 +2113,14 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 		}));
 }
 
-void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
+void HistoryInner::copyContextImage(
+		not_null<PhotoData*> photo,
+		FullMsgId itemId) {
+	const auto item = session().data().message(itemId);
 	const auto media = photo->activeMediaView();
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
-	} else if (!showCopyRestriction()) {
+	} else if (!showCopyRestriction(item)) {
 		const auto image = media->image(Data::PhotoSize::Large)->original();
 		QGuiApplication::clipboard()->setImage(image);
 	}
@@ -2137,25 +2161,25 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 }
 
 void HistoryInner::saveContextGif(FullMsgId itemId) {
-	if (hasCopyRestriction()) {
-		return;
-	} else if (const auto item = session().data().message(itemId)) {
-		if (const auto media = item->media()) {
-			if (const auto document = media->document()) {
-				Api::ToggleSavedGif(document, item->fullId(), true);
+	if (const auto item = session().data().message(itemId)) {
+		if (!hasCopyRestriction(item)) {
+			if (const auto media = item->media()) {
+				if (const auto document = media->document()) {
+					Api::ToggleSavedGif(document, item->fullId(), true);
+				}
 			}
 		}
 	}
 }
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
-	if (showCopyRestriction()) {
-		return;
-	} else if (const auto item = session().data().message(itemId)) {
-		if (const auto group = session().data().groups().find(item)) {
-			TextUtilities::SetClipboardText(HistoryGroupText(group));
-		} else {
-			TextUtilities::SetClipboardText(HistoryItemText(item));
+	if (const auto item = session().data().message(itemId)) {
+		if (!showCopyRestriction(item)) {
+			if (const auto group = session().data().groups().find(item)) {
+				TextUtilities::SetClipboardText(HistoryGroupText(group));
+			} else {
+				TextUtilities::SetClipboardText(HistoryItemText(item));
+			}
 		}
 	}
 }
@@ -2248,7 +2272,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
-		&& !showCopyRestriction()) {
+		&& !showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {

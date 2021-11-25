@@ -1921,8 +1921,9 @@ not_null<Ui::ChatTheme*> RepliesWidget::listChatTheme() {
 	return _theme.get();
 }
 
-CopyRestrictionType RepliesWidget::listCopyRestrictionType() {
-	return CopyRestrictionTypeFor(_history->peer);
+CopyRestrictionType RepliesWidget::listCopyRestrictionType(
+		HistoryItem *item) {
+	return CopyRestrictionTypeFor(_history->peer, item);
 }
 
 CopyRestrictionType RepliesWidget::listSelectRestrictionType() {

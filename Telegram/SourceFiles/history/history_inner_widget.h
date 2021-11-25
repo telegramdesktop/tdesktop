@@ -265,7 +265,7 @@ private:
 	void saveDocumentToFile(
 		FullMsgId contextId,
 		not_null<DocumentData*> document);
-	void copyContextImage(not_null<PhotoData*> photo);
+	void copyContextImage(not_null<PhotoData*> photo, FullMsgId itemId);
 	void showStickerPackInfo(not_null<DocumentData*> document);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -343,8 +343,10 @@ private:
 	void copySelectedText();
 
 	void setupSharingDisallowed();
-	[[nodiscard]] bool hasCopyRestriction() const;
-	bool showCopyRestriction();
+	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	bool showCopyRestriction(HistoryItem *item = nullptr);
+	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
+	bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
 
 	// Does any of the shown histories has this flag set.

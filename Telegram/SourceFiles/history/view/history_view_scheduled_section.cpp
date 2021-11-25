@@ -1232,7 +1232,8 @@ not_null<Ui::ChatTheme*> ScheduledWidget::listChatTheme() {
 	return _theme.get();
 }
 
-CopyRestrictionType ScheduledWidget::listCopyRestrictionType() {
+CopyRestrictionType ScheduledWidget::listCopyRestrictionType(
+		HistoryItem *item) {
 	return CopyRestrictionType::None;
 }
 

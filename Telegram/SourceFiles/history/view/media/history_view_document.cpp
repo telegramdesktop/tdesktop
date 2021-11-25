@@ -593,10 +593,9 @@ void Document::ensureDataMediaCreated() const {
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& _realParent->history()->peer->allowsForwarding()
+		&& _realParent->allowsForward()
 		&& _data->canBeStreamed(_realParent)
-		&& !_data->inappPlaybackFailed()
-		&& _realParent->isRegular();
+		&& !_data->inappPlaybackFailed();
 }
 
 void Document::drawCornerDownload(

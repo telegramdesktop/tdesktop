@@ -676,8 +676,9 @@ not_null<Ui::ChatTheme*> PinnedWidget::listChatTheme() {
 	return _theme.get();
 }
 
-CopyRestrictionType PinnedWidget::listCopyRestrictionType() {
-	return CopyRestrictionTypeFor(_history->peer);
+CopyRestrictionType PinnedWidget::listCopyRestrictionType(
+		HistoryItem *item) {
+	return CopyRestrictionTypeFor(_history->peer, item);
 }
 
 CopyRestrictionType PinnedWidget::listSelectRestrictionType() {

@@ -969,10 +969,9 @@ Document::Document(
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& parent()->history()->peer->allowsForwarding()
+		&& parent()->allowsForward()
 		&& _data->canBeStreamed(parent())
-		&& !_data->inappPlaybackFailed()
-		&& parent()->isRegular();
+		&& !_data->inappPlaybackFailed();
 }
 
 void Document::initDimensions() {

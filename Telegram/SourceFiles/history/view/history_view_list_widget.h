@@ -100,7 +100,11 @@ public:
 		const FullMsgId &context) = 0;
 	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual not_null<Ui::ChatTheme*> listChatTheme() = 0;
-	virtual CopyRestrictionType listCopyRestrictionType() = 0;
+	virtual CopyRestrictionType listCopyRestrictionType(
+		HistoryItem *item) = 0;
+	CopyRestrictionType listCopyRestrictionType() {
+		return listCopyRestrictionType(nullptr);
+	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 
 };
@@ -212,8 +216,10 @@ public:
 	[[nodiscard]] bool loadedAtBottom() const;
 	[[nodiscard]] bool isEmpty() const;
 
-	[[nodiscard]] bool hasCopyRestriction() const;
-	[[nodiscard]] bool showCopyRestriction();
+	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	[[nodiscard]] bool showCopyRestriction(HistoryItem *item = nullptr);
+	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
+	[[nodiscard]] bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
 
 	// AbstractTooltipShower interface
@@ -617,7 +623,8 @@ void ConfirmForwardSelectedItems(not_null<ListWidget*> widget);
 void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
 
 [[nodiscard]] CopyRestrictionType CopyRestrictionTypeFor(
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	HistoryItem *item = nullptr);
 [[nodiscard]] CopyRestrictionType SelectRestrictionTypeFor(
 	not_null<PeerData*> peer);
 

@@ -556,7 +556,8 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 }
 
 bool OverlayWidget::hasCopyRestriction() const {
-	return _history && !_history->peer->allowsForwarding();
+	return (_history && !_history->peer->allowsForwarding())
+		|| (_message && _message->forbidsForward());
 }
 
 bool OverlayWidget::showCopyRestriction() {
