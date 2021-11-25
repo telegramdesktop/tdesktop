@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QLocalSocket>
 #include <QtCore/QAbstractNativeEventFilter>
 
+class QLockFile;
+
 namespace Core {
 
 class Launcher;
@@ -119,6 +121,7 @@ private:
 	QLocalServer _localServer;
 	QLocalSocket _localSocket;
 	LocalClients _localClients;
+	std::unique_ptr<QLockFile> _lockFile;
 	bool _secondInstance = false;
 	bool _started = false;
 	static bool QuitOnStartRequested;

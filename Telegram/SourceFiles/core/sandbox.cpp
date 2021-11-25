@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "app.h"
 
+#include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
 #include <qpa/qplatformscreen.h>
@@ -99,10 +100,35 @@ int Sandbox::start() {
 	if (!Core::UpdaterDisabled()) {
 		_updateChecker = std::make_unique<Core::UpdateChecker>();
 	}
-	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
-	char h[33] = { 0 };
-	hashMd5Hex(d.constData(), d.size(), h);
-	_localServerName = Platform::SingleInstanceLocalServerName(h);
+
+	{
+		const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+		char h[33] = { 0 };
+		hashMd5Hex(d.constData(), d.size(), h);
+		_localServerName = Platform::SingleInstanceLocalServerName(h);
+	}
+
+	{
+		const auto d = QFile::encodeName(cExeDir() + cExeName());
+		QByteArray h;
+		h.resize(32);
+		hashMd5Hex(d.constData(), d.size(), h.data());
+		_lockFile = std::make_unique<QLockFile>(QDir::tempPath() + '/' + h + '-' + cGUIDStr());
+		_lockFile->setStaleLockTime(0);
+		if (!_lockFile->tryLock() && _launcher->customWorkingDir()) {
+			// On Windows, QLockFile has problems detecting a stale lock
+			// if the machine's hostname contains characters outside the US-ASCII character set.
+			if constexpr (Platform::IsWindows()) {
+				// QLockFile::removeStaleLockFile returns false on Windows,
+				// when the application owning the lock is still running.
+				if (!_lockFile->removeStaleLockFile()) {
+					gManyInstance = true;
+				}
+			} else {
+				gManyInstance = true;
+			}
+		}
+	}
 
 	connect(
 		&_localSocket,
@@ -149,13 +175,8 @@ int Sandbox::start() {
 		restartHint,
 		Qt::DirectConnection);
 
-	if (cManyInstance()) {
-		LOG(("Many instance allowed, starting..."));
-		singleInstanceChecked();
-	} else {
-		LOG(("Connecting local socket to %1...").arg(_localServerName));
-		_localSocket.connectToServer(_localServerName);
-	}
+	LOG(("Connecting local socket to %1...").arg(_localServerName));
+	_localSocket.connectToServer(_localServerName);
 
 	if (QuitOnStartRequested) {
 		closeApplication();
@@ -339,12 +360,12 @@ void Sandbox::socketError(QLocalSocket::LocalSocketError e) {
 
 void Sandbox::singleInstanceChecked() {
 	if (cManyInstance()) {
-		Logs::multipleInstances();
+		LOG(("App Info: Detected another instance"));
 	}
 
 	Ui::DisableCustomScaling();
 	refreshGlobalProxy();
-	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
+	if (!Logs::started() || !Logs::instanceChecked()) {
 		new NotStartedWindow();
 		return;
 	}
