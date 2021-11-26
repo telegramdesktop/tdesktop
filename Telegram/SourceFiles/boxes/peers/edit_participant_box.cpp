@@ -451,15 +451,12 @@ void EditAdminBox::transferOwnership() {
 		MTP_inputCheckPasswordEmpty()
 	)).fail([=](const MTP::Error &error) {
 		_checkTransferRequestId = 0;
-		if (!handleTransferPasswordError(error)) {
-			const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-			const auto callback = crl::guard(this, [=] {
+		if (!handleTransferPasswordError(error.type())) {
+			const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
 				transferOwnershipChecked();
-				if (*box) {
-					(*box)->closeBox();
-				}
+				close();
 			});
-			*box = getDelegate()->show(Box<Ui::ConfirmBox>(
+			getDelegate()->show(Box<Ui::ConfirmBox>(
 				tr::lng_rights_transfer_about(
 					tr::now,
 					lt_group,
@@ -473,7 +470,7 @@ void EditAdminBox::transferOwnership() {
 	}).send();
 }
 
-bool EditAdminBox::handleTransferPasswordError(const MTP::Error &error) {
+bool EditAdminBox::handleTransferPasswordError(const QString &error) {
 	const auto session = &user()->session();
 	auto about = tr::lng_rights_transfer_check_about(
 		tr::now,

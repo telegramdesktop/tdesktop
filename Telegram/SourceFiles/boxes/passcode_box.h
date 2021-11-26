@@ -244,6 +244,6 @@ struct RecoveryEmailValidation {
 	const QString &pattern);
 
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
-	const MTP::Error &error,
+	const QString &error,
 	not_null<Main::Session*> session,
 	TextWithEntities &&about);

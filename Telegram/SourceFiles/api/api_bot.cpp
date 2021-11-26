@@ -172,7 +172,7 @@ void SendBotCallbackDataWithPassword(
 	api->cloudPassword().reload();
 	SendBotCallbackData(item, row, column, MTP_inputCheckPasswordEmpty(), [=](const MTP::Error &error) {
 		auto box = PrePasswordErrorBox(
-			error,
+			error.type(),
 			session,
 			tr::lng_bots_password_confirm_check_about(
 				tr::now,

@@ -11,10 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "data/data_chat_participant_status.h"
 
-namespace MTP {
-class Error;
-} // namespace MTP
-
 namespace Ui {
 class FlatLabel;
 class LinkButton;
@@ -94,7 +90,7 @@ private:
 	not_null<Ui::InputField*> addRankInput();
 	void transferOwnership();
 	void transferOwnershipChecked();
-	bool handleTransferPasswordError(const MTP::Error &error);
+	bool handleTransferPasswordError(const QString &error);
 	void requestTransferPassword(not_null<ChannelData*> channel);
 	void sendTransferRequestFrom(
 		QPointer<PasscodeBox> box,

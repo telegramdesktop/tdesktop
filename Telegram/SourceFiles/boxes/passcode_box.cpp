@@ -1438,15 +1438,14 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 }
 
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
-		const MTP::Error &error,
+		const QString &error,
 		not_null<Main::Session*> session,
 		TextWithEntities &&about) {
 	const auto type = [&] {
-		const auto &type = error.type();
-		if (type == qstr("PASSWORD_MISSING")) {
+		if (error == u"PASSWORD_MISSING"_q) {
 			return PasswordErrorType::NoPassword;
-		} else if (type.startsWith(qstr("PASSWORD_TOO_FRESH_"))
-			|| type.startsWith(qstr("SESSION_TOO_FRESH_"))) {
+		} else if (error.startsWith(u"PASSWORD_TOO_FRESH_"_q)
+			|| error.startsWith(u"SESSION_TOO_FRESH_"_q)) {
 			return PasswordErrorType::Later;
 		}
 		return PasswordErrorType::None;
