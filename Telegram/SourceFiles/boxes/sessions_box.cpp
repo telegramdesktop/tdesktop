@@ -37,6 +37,8 @@ namespace {
 constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
 constexpr auto kMaxDeviceModelLength = 32;
 
+using EntryData = Api::Authorizations::Entry;
+
 void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->setTitle(tr::lng_settings_rename_device_title());
 
@@ -74,6 +76,63 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+void SessionInfoBox(
+		not_null<Ui::GenericBox*> box,
+		const EntryData &data,
+		Fn<void(uint64)> terminate) {
+	box->setTitle(rpl::single(data.name));
+	box->setWidth(st::boxWidth);
+
+	const auto skips = style::margins(0, 0, 0, st::settingsSectionSkip);
+	const auto date = base::unixtime::parse(data.activeTime);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			rpl::single(langDateTimeFull(date)),
+			st::boxDividerLabel),
+		st::boxRowPadding + skips);
+
+	const auto add = [&](rpl::producer<QString> label, QString value) {
+		if (value.isEmpty()) {
+			return;
+		}
+		Settings::AddSubsectionTitle(
+			box->verticalLayout(),
+			std::move(label));
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(value),
+				st::boxDividerLabel),
+			st::boxRowPadding + skips);
+	};
+	add(tr::lng_sessions_application(), data.info);
+	add(tr::lng_sessions_system(), data.system);
+	add(tr::lng_sessions_ip(), data.ip);
+	add(tr::lng_sessions_location(), data.location);
+	if (!data.location.isEmpty()) {
+		Settings::AddDividerText(
+			box->verticalLayout(),
+			tr::lng_sessions_location_about());
+	}
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+	box->addLeftButton(tr::lng_sessions_terminate(), [=, hash = data.hash] {
+		const auto weak = Ui::MakeWeak(box.get());
+		terminate(hash);
+		if (weak) {
+			box->closeBox();
+		}
+	}, st::attentionBoxButton);
+}
+
+[[nodiscard]] QString LocationAndDate(const EntryData &entry) {
+	return (entry.location.isEmpty() ? entry.ip : entry.location)
+		+ (entry.hash
+			? (QString::fromUtf8(" \xe2\x80\x93 ") + entry.active)
+			: QString());
+}
+
 } // namespace
 
 class SessionsContent : public Ui::RpWidget {
@@ -91,20 +150,20 @@ protected:
 private:
 	struct Entry {
 		Entry() = default;
-		Entry(const Api::Authorizations::Entry &entry)
-		: hash(entry.hash)
+		Entry(const EntryData &entry)
+		: data(entry)
 		, incomplete(entry.incomplete)
 		, activeTime(entry.activeTime)
 		, name(st::sessionNameStyle, entry.name)
 		, info(st::sessionInfoStyle, entry.info)
-		, ip(st::sessionInfoStyle, entry.location) {
+		, location(st::sessionInfoStyle, LocationAndDate(entry)) {
 		};
 
-		uint64 hash = 0;
+		EntryData data;
 
 		bool incomplete = false;
 		TimeId activeTime = 0;
-		Ui::Text::String name, info, ip;
+		Ui::Text::String name, info, location;
 	};
 	struct Full {
 		Entry current;
@@ -121,6 +180,7 @@ private:
 	void terminateOne(uint64 hash);
 	void terminateAll();
 
+	const not_null<Window::SessionController*> _controller;
 	const not_null<Api::Authorizations*> _authorizations;
 
 	rpl::variable<bool> _loading = false;
@@ -139,13 +199,17 @@ public:
 
 	void showData(gsl::span<const Entry> items);
 	rpl::producer<int> itemsCount() const;
-	rpl::producer<uint64> terminate() const;
+	rpl::producer<uint64> terminateRequests() const;
+	[[nodiscard]] rpl::producer<EntryData> showRequests() const;
 
 	void terminating(uint64 hash, bool terminating);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -161,8 +225,11 @@ private:
 	RowWidth _rowWidth;
 	std::vector<Entry> _items;
 	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
-	rpl::event_stream<uint64> _terminate;
+	rpl::event_stream<uint64> _terminateRequests;
 	rpl::event_stream<int> _itemsCount;
+	rpl::event_stream<EntryData> _showRequests;
+
+	int _pressed = -1;
 
 };
 
@@ -174,9 +241,10 @@ public:
 		rpl::producer<int> ttlDays);
 
 	void showData(const Full &data);
-	rpl::producer<uint64> terminateOne() const;
-	rpl::producer<> terminateAll() const;
-	rpl::producer<> renameCurrentRequests() const;
+	[[nodiscard]] rpl::producer<EntryData> showRequests() const;
+	[[nodiscard]] rpl::producer<uint64> terminateOne() const;
+	[[nodiscard]] rpl::producer<> terminateAll() const;
+	[[nodiscard]] rpl::producer<> renameCurrentRequests() const;
 
 	void terminatingOne(uint64 hash, bool terminating);
 
@@ -195,7 +263,8 @@ private:
 SessionsContent::SessionsContent(
 	QWidget*,
 	not_null<Window::SessionController*> controller)
-: _authorizations(&controller->session().api().authorizations())
+: _controller(controller)
+, _authorizations(&controller->session().api().authorizations())
 , _inner(this, controller, _authorizations->ttlDays())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
@@ -208,6 +277,14 @@ void SessionsContent::setupContent() {
 	) | rpl::start_with_next([=](int height) {
 		resize(width(), height);
 	}, _inner->lifetime());
+
+	_inner->showRequests(
+	) | rpl::start_with_next([=](const EntryData &data) {
+		_controller->show(Box(
+			SessionInfoBox,
+			data,
+			[=](uint64 hash) { terminateOne(hash); }));
+	}, lifetime());
 
 	_inner->terminateOne(
 	) | rpl::start_with_next([=](uint64 hash) {
@@ -240,7 +317,7 @@ void SessionsContent::parse(const Api::Authorizations::List &list) {
 	_data = Full();
 	for (const auto &auth : list) {
 		auto entry = Entry(auth);
-		if (!entry.hash) {
+		if (!entry.data.hash) {
 			_data.current = std::move(entry);
 		} else if (entry.incomplete) {
 			_data.incomplete.push_back(std::move(entry));
@@ -323,7 +400,10 @@ void SessionsContent::terminateOne(uint64 hash) {
 			_inner->terminatingOne(hash, false);
 			const auto removeByHash = [&](std::vector<Entry> &list) {
 				list.erase(
-					ranges::remove(list, hash, &Entry::hash),
+					ranges::remove(
+						list,
+						hash,
+						[](const Entry &entry) { return entry.data.hash; }),
 					end(list));
 			};
 			removeByHash(_data.incomplete);
@@ -489,8 +569,14 @@ rpl::producer<> SessionsContent::Inner::terminateAll() const {
 
 rpl::producer<uint64> SessionsContent::Inner::terminateOne() const {
 	return rpl::merge(
-		_incomplete->terminate(),
-		_list->terminate());
+		_incomplete->terminateRequests(),
+		_list->terminateRequests());
+}
+
+rpl::producer<EntryData> SessionsContent::Inner::showRequests() const {
+	return rpl::merge(
+		_incomplete->showRequests(),
+		_list->showRequests());
 }
 
 void SessionsContent::Inner::terminatingOne(uint64 hash, bool terminating) {
@@ -512,7 +598,7 @@ void SessionsContent::List::subscribeToCustomDeviceModel() {
 	Core::App().settings().deviceModelChanges(
 	) | rpl::start_with_next([=](const QString &model) {
 		for (auto &entry : _items) {
-			if (!entry.hash) {
+			if (!entry.data.hash) {
 				entry.name.setText(st::sessionNameStyle, model);
 			}
 		}
@@ -527,7 +613,7 @@ void SessionsContent::List::showData(gsl::span<const Entry> items) {
 	_items.clear();
 	_items.insert(begin(_items), items.begin(), items.end());
 	for (const auto &entry : _items) {
-		const auto hash = entry.hash;
+		const auto hash = entry.data.hash;
 		if (!hash) {
 			continue;
 		}
@@ -542,7 +628,7 @@ void SessionsContent::List::showData(gsl::span<const Entry> items) {
 						st::sessionTerminate))).first->second.get();
 		}();
 		button->setClickedCallback([=] {
-			_terminate.fire_copy(hash);
+			_terminateRequests.fire_copy(hash);
 		});
 		button->show();
 		const auto number = _terminateButtons.size() - 1;
@@ -557,12 +643,16 @@ void SessionsContent::List::showData(gsl::span<const Entry> items) {
 	_itemsCount.fire(_items.size());
 }
 
+rpl::producer<EntryData> SessionsContent::List::showRequests() const {
+	return _showRequests.events();
+}
+
 rpl::producer<int> SessionsContent::List::itemsCount() const {
 	return _itemsCount.events_starting_with(_items.size());
 }
 
-rpl::producer<uint64> SessionsContent::List::terminate() const {
-	return _terminate.events();
+rpl::producer<uint64> SessionsContent::List::terminateRequests() const {
+	return _terminateRequests.events();
 }
 
 void SessionsContent::List::terminating(uint64 hash, bool terminating) {
@@ -617,7 +707,7 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 
 		const auto nameW = _rowWidth.info;
 		const auto nameH = entry.name.style()->font->height;
-		const auto infoW = entry.hash ? _rowWidth.info : available;
+		const auto infoW = entry.data.hash ? _rowWidth.info : available;
 		const auto infoH = entry.info.style()->font->height;
 
 		p.setPen(st::sessionNameFg);
@@ -627,10 +717,24 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 		entry.info.drawLeftElided(p, x, y + nameH, infoW, w);
 
 		p.setPen(st::sessionInfoFg);
-		entry.ip.drawLeftElided(p, x, y + nameH + infoH, available, w);
+		entry.location.drawLeftElided(p, x, y + nameH + infoH, available, w);
 
 		p.translate(0, st::sessionHeight);
 	}
+}
+
+void SessionsContent::List::mousePressEvent(QMouseEvent *e) {
+	const auto index = e->pos().y() / st::sessionHeight;
+	_pressed = (index >= 0 && index < _items.size()) ? index : -1;
+}
+
+void SessionsContent::List::mouseReleaseEvent(QMouseEvent *e) {
+	const auto index = e->pos().y() / st::sessionHeight;
+	const auto released = (index >= 0 && index < _items.size()) ? index : -1;
+	if (released == _pressed && released >= 0) {
+		_showRequests.fire_copy(_items[released].data);
+	}
+	_pressed = -1;
 }
 
 SessionsBox::SessionsBox(

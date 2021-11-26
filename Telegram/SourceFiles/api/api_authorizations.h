@@ -22,7 +22,7 @@ public:
 
 		bool incomplete = false;
 		TimeId activeTime = 0;
-		QString name, active, info, ip, location;
+		QString name, active, info, ip, location, system;
 	};
 	using List = std::vector<Entry>;
 

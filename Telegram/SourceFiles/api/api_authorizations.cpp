@@ -58,7 +58,7 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	//if (j != countries.cend()) {
 	//	country = QString::fromUtf8(j.value()->name);
 	//}
-
+	result.system = qs(data.vsystem_version());
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
@@ -82,10 +82,7 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 			result.active = lastDate.toString(cDateFormat());
 		}
 	}
-	result.location = (country.isEmpty() ? result.ip : country)
-		+ (result.hash
-			? (QString::fromUtf8(" \xe2\x80\x93 ") + result.active)
-			: QString());
+	result.location = country;
 
 	return result;
 }
