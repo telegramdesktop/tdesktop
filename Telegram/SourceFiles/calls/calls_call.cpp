@@ -286,7 +286,7 @@ void Call::startIncoming() {
 
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		if (_state.current() == State::Starting) {
 			setState(State::WaitingIncoming);
 		}

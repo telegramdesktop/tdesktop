@@ -333,7 +333,7 @@ void ApiWrap::requestTermsUpdate() {
 void ApiWrap::acceptTerms(bytes::const_span id) {
 	request(MTPhelp_AcceptTermsOfService(
 		MTP_dataJSON(MTP_bytes(id))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		requestTermsUpdate();
 	}).send();
 }
@@ -1478,7 +1478,7 @@ void ApiWrap::saveStickerSets(
 		reorderRequestId() = request(MTPmessages_ReorderStickerSets(
 			MTP_flags(flags),
 			MTP_vector<MTPlong>(mtpOrder)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			reorderRequestId() = 0;
 		}).fail([=] {
 			reorderRequestId() = 0;
@@ -1551,11 +1551,7 @@ void ApiWrap::saveStickerSets(
 			};
 			requestId = request(MTPmessages_ClearRecentStickers(
 				MTP_flags(flags)
-			)).done([=](const MTPBool &result) {
-				finish();
-			}).fail([=] {
-				finish();
-			}).send();
+			)).done(finish).fail(finish).send();
 			continue;
 		}
 
@@ -2799,7 +2795,7 @@ void ApiWrap::readFeaturedSets() {
 	if (!wrappedIds.empty()) {
 		auto requestData = MTPmessages_ReadFeaturedStickers(
 			MTP_vector<MTPlong>(wrappedIds));
-		request(std::move(requestData)).done([=](const MTPBool &result) {
+		request(std::move(requestData)).done([=] {
 			local().writeFeaturedStickers();
 			_session->data().stickers().notifyUpdated();
 		}).send();
@@ -4056,7 +4052,7 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 
 	const auto requestId = request(MTPaccount_SetContactSignUpNotification(
 		MTP_bool(silent)
-	)).done([=](const MTPBool &) {
+	)).done([=] {
 		_contactSignupSilentRequestId = 0;
 		_contactSignupSilent = silent;
 		_contactSignupSilentChanges.fire_copy(silent);

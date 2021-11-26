@@ -363,7 +363,7 @@ void InviteLinks::destroy(
 	_api->request(MTPmessages_DeleteExportedChatInvite(
 		peer->input,
 		MTP_string(link)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		const auto callbacks = _deleteCallbacks.take(key);
 		if (callbacks) {
 			for (const auto &callback : *callbacks) {
@@ -398,7 +398,7 @@ void InviteLinks::destroyAllRevoked(
 	_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
 		peer->input,
 		admin->inputUser
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
 			for (const auto &callback : *callbacks) {
 				callback();

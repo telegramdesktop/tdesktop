@@ -61,7 +61,7 @@ void SensitiveContent::update(bool enabled) {
 	_api.request(_requestId).cancel();
 	_requestId = _api.request(MTPaccount_SetContentSettings(
 		MTP_flags(enabled ? Flag::f_sensitive_enabled : Flag(0))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_requestId = 0;
 	}).fail([=] {
 		_requestId = 0;

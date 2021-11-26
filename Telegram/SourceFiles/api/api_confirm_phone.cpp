@@ -83,7 +83,7 @@ void ConfirmPhone::resolve(
 				_checkRequestId = _api.request(MTPaccount_ConfirmPhone(
 					MTP_string(phoneHash),
 					MTP_string(code)
-				)).done([=](const MTPBool &result) {
+				)).done([=] {
 					_checkRequestId = 0;
 					controller->show(
 						Box<Ui::InformBox>(

@@ -101,7 +101,7 @@ void SaveChatAdmin(
 		chat->inputChat,
 		user->inputUser,
 		MTP_bool(isAdmin)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		chat->applyEditAdmin(user, isAdmin);
 		if (onDone) {
 			onDone();

@@ -194,7 +194,7 @@ void Authorizations::updateTTL(int days) {
 	_api.request(_ttlRequestId).cancel();
 	_ttlRequestId = _api.request(MTPaccount_SetAuthorizationTTL(
 		MTP_int(days)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_ttlRequestId = 0;
 	}).fail([=] {
 		_ttlRequestId = 0;
@@ -216,7 +216,7 @@ void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
 		MTP_long(hash),
 		MTPBool(), // encrypted_requests_disabled
 		MTP_bool(disabled)
-	)).done([=](const MTPBool &) {
+	)).done([=] {
 		_toggleCallsDisabledRequests.remove(hash);
 	}).fail([=] {
 		_toggleCallsDisabledRequests.remove(hash);

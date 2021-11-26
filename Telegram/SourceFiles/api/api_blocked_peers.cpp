@@ -80,7 +80,7 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 	} else if (_blockRequests.find(peer) == end(_blockRequests)) {
 		const auto requestId = _api.request(MTPcontacts_Block(
 			peer->input
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			_blockRequests.erase(peer);
 			peer->setIsBlocked(true);
 			if (_slice) {
@@ -109,7 +109,7 @@ void BlockedPeers::unblock(not_null<PeerData*> peer, Fn<void()> onDone) {
 	}
 	const auto requestId = _api.request(MTPcontacts_Unblock(
 		peer->input
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_blockRequests.erase(peer);
 		peer->setIsBlocked(false);
 		if (_slice) {

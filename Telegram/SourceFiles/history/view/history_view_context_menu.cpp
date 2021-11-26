@@ -1122,7 +1122,7 @@ void SendReport(
 			peer->input,
 			apiReason,
 			MTP_string(comment)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
 		}).send();
 	} else {
@@ -1136,7 +1136,7 @@ void SendReport(
 			MTP_vector<MTPint>(apiIds),
 			apiReason,
 			MTP_string(comment)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
 		}).send();
 	}

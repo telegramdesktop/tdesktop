@@ -919,7 +919,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		} else {
 			_onlineRequest = api().request(MTPaccount_UpdateStatus(
 				MTP_bool(!isOnline)
-			)).done([=](const MTPBool &result) {
+			)).done([=] {
 				Core::App().quitPreventFinished();
 			}).fail([=] {
 				Core::App().quitPreventFinished();

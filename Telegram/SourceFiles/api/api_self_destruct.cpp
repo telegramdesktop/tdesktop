@@ -40,7 +40,7 @@ void SelfDestruct::update(int days) {
 	_api.request(_requestId).cancel();
 	_requestId = _api.request(MTPaccount_SetAccountTTL(
 		MTP_accountDaysTTL(MTP_int(days))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_requestId = 0;
 	}).fail([=] {
 		_requestId = 0;

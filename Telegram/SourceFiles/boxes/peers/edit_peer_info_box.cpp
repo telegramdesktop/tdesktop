@@ -1303,7 +1303,7 @@ void Controller::saveUsername() {
 	_api.request(MTPchannels_UpdateUsername(
 		channel->inputChannel,
 		MTP_string(*_savingData.username)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		channel->setName(
 			TextUtilities::SingleLine(channel->name),
 			*_savingData.username);
@@ -1358,7 +1358,7 @@ void Controller::saveLinkedChat() {
 	_api.request(MTPchannels_SetDiscussionGroup(
 		(channel->isBroadcast() ? channel->inputChannel : input),
 		(channel->isBroadcast() ? input : channel->inputChannel)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		channel->setLinkedChat(*_savingData.linkedChat);
 		continueSave();
 	}).fail([=] {
@@ -1425,7 +1425,7 @@ void Controller::saveDescription() {
 	_api.request(MTPmessages_EditChatAbout(
 		_peer->input,
 		MTP_string(*_savingData.description)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		successCallback();
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();

@@ -546,7 +546,7 @@ void PasscodeBox::validateEmail(
 		}
 		_setRequest = _api.request(MTPaccount_ConfirmPasswordEmail(
 			MTP_string(code)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			*set = true;
 			setPasswordDone(newPasswordBytes);
 		}).fail([=](const MTP::Error &error) {
@@ -575,7 +575,7 @@ void PasscodeBox::validateEmail(
 			return;
 		}
 		_setRequest = _api.request(MTPaccount_ResendPasswordEmail(
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			_setRequest = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
 		}).fail([=] {
@@ -830,7 +830,7 @@ void PasscodeBox::sendClearCloudPassword(
 			MTP_string(hint),
 			MTP_string(email),
 			MTPSecureSecretSettings())
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		setPasswordDone({});
 	}).fail([=](const MTP::Error &error) mutable {
 		setPasswordFail({}, QString(), error);
@@ -865,7 +865,7 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 		_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 			MTP_inputCheckPasswordEmpty(),
 			settings
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			setPasswordDone(newPasswordBytes);
 		}).fail([=](const MTP::Error &error) {
 			setPasswordFail(newPasswordBytes, email, error);
@@ -972,7 +972,7 @@ void PasscodeBox::resetSecret(
 				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
 				MTP_bytes(), // secure_secret
 				MTP_long(0))) // secure_secret_id
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_setRequest = 0;
 		callback();
 		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
@@ -1026,7 +1026,7 @@ void PasscodeBox::sendChangeCloudPassword(
 				Core::PrepareSecureSecretAlgo(_cloudFields.newSecureSecretAlgo),
 				MTP_bytes(newSecureSecret),
 				MTP_long(newSecureSecretId)))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		setPasswordDone(newPasswordBytes);
 	}).fail([=](const MTP::Error &error) {
 		setPasswordFail(newPasswordBytes, QString(), error);
@@ -1257,7 +1257,7 @@ void RecoverBox::submit() {
 			// From "Change cloud password".
 			_submitRequest = _api.request(MTPauth_CheckRecoveryPassword(
 				MTP_string(code)
-			)).done([=](const MTPBool &result) {
+			)).done([=] {
 				proceedToChange(code);
 			}).fail([=](const MTP::Error &error) {
 				checkSubmitFail(error);
@@ -1378,7 +1378,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 		}
 		*requestId = session->api().request(MTPaccount_ConfirmPasswordEmail(
 			MTP_string(code)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			*requestId = 0;
 			reloads->fire({});
 			if (*weak) {
@@ -1412,7 +1412,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 			return;
 		}
 		*requestId = session->api().request(MTPaccount_ResendPasswordEmail(
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			*requestId = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
 		}).fail([=] {

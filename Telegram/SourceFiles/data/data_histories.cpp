@@ -553,11 +553,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			return session().api().request(MTPchannels_ReadHistory(
 				channel->inputChannel,
 				MTP_int(tillId)
-			)).done([=](const MTPBool &result) {
-				finished();
-			}).fail([=] {
-				finished();
-			}).send();
+			)).done(finished).fail(finished).send();
 		} else {
 			return session().api().request(MTPmessages_ReadHistory(
 				history->peer->input,
@@ -648,15 +644,11 @@ void Histories::deleteAllMessages(
 			return session().api().request(MTPchannels_DeleteHistory(
 				channel->inputChannel,
 				MTP_int(deleteTillId)
-			)).done([=](const MTPBool &result) {
-				finish();
-			}).fail(finish).send();
+			)).done(finish).fail(finish).send();
 		} else if (revoke && chat && chat->amCreator()) {
 			return session().api().request(MTPmessages_DeleteChat(
 				chat->inputChat
-			)).done([=](const MTPBool &result) {
-				finish();
-			}).fail([=](const MTP::Error &error) {
+			)).done(finish).fail([=](const MTP::Error &error) {
 				if (error.type() == "PEER_ID_INVALID") {
 					// Try to join and delete,
 					// while delete fails for non-joined.

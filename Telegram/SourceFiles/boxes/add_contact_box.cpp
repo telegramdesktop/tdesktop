@@ -1112,7 +1112,7 @@ void SetupChannelBox::save() {
 		_saveRequestId = _api.request(MTPchannels_UpdateUsername(
 			_channel->inputChannel,
 			MTP_string(_sentUsername)
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			_channel->setName(
 				TextUtilities::SingleLine(_channel->name),
 				_sentUsername);
@@ -1604,7 +1604,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			_revokeRequestId = _api.request(MTPchannels_UpdateUsername(
 				pressed->asChannel()->inputChannel,
 				MTP_string()
-			)).done([=, close = std::move(close)](const MTPBool &result) {
+			)).done([=, close = std::move(close)] {
 				close();
 				if (const auto callback = _revokeCallback) {
 					callback();

@@ -747,7 +747,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 			MTP_bytes(credentialsEncryptedData.bytes),
 			MTP_bytes(credentialsEncryptedData.hash),
 			MTP_bytes(credentialsEncryptedSecret))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_submitRequestId = 0;
 		_submitSuccess = true;
 
@@ -1035,7 +1035,7 @@ void FormController::cancelPassword() {
 		return;
 	}
 	_passwordRequestId = _api.request(MTPaccount_CancelPasswordEmail(
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_passwordRequestId = 0;
 		reloadPassword();
 	}).fail([=] {
@@ -1115,7 +1115,7 @@ void FormController::resetSecret(
 				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
 				MTP_bytes(), // secure_secret
 				MTP_long(0))) // secure_secret_id
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_saveSecretRequestId = 0;
 		generateSecret(password);
 	}).fail([=](const MTP::Error &error) {
@@ -1941,7 +1941,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	const auto nonconst = findValue(value);
 	nonconst->saveRequestId = _api.request(MTPaccount_DeleteSecureValue(
 		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		resetValue(*nonconst);
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const MTP::Error &error) {
@@ -2297,7 +2297,7 @@ void FormController::saveSecret(
 				Core::PrepareSecureSecretAlgo(_password.newSecureAlgo),
 				MTP_bytes(encryptedSecret),
 				MTP_long(saved.secretId)))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		session().data().rememberPassportCredentials(
 			std::move(saved),
 			kRememberCredentialsDelay);

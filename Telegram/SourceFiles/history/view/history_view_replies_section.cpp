@@ -353,7 +353,7 @@ void RepliesWidget::sendReadTillRequest() {
 		_root->history()->peer->input,
 		MTP_int(_root->id),
 		MTP_int(_root->computeRepliesInboxReadTillFull())
-	)).done(crl::guard(this, [=](const MTPBool &) {
+	)).done(crl::guard(this, [=] {
 		_readRequestId = 0;
 		reloadUnreadCountIfNeeded();
 	})).send();
