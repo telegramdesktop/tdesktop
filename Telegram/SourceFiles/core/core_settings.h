@@ -265,11 +265,8 @@ public:
 		_callAudioDuckingEnabled = value;
 	}
 	[[nodiscard]] Webrtc::Backend callAudioBackend() const;
-	void setDisableCalls(bool value) {
-		_disableCalls = value;
-	}
-	[[nodiscard]] bool disableCalls() const {
-		return _disableCalls;
+	[[nodiscard]] bool disableCallsLegacy() const {
+		return _disableCallsLegacy;
 	}
 	[[nodiscard]] bool groupCallPushToTalk() const {
 		return _groupCallPushToTalk;
@@ -714,7 +711,7 @@ private:
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;
-	bool _disableCalls = false;
+	bool _disableCallsLegacy = false;
 	bool _groupCallPushToTalk = false;
 	bool _groupCallNoiseSuppression = false;
 	QByteArray _groupCallPushToTalkShortcut;

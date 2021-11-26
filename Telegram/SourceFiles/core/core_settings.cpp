@@ -203,7 +203,7 @@ QByteArray Settings::serialize() const {
 			<< _groupCallPushToTalkShortcut
 			<< qint64(_groupCallPushToTalkDelay)
 			<< qint32(0) // Call audio backend
-			<< qint32(_disableCalls ? 1 : 0)
+			<< qint32(0) // Legacy disable calls, now in session settings
 			<< windowPosition
 			<< qint32(recentEmojiPreloadData.size());
 		for (const auto &[id, rating] : recentEmojiPreloadData) {
@@ -300,7 +300,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
 	qint32 callAudioBackend = 0;
-	qint32 disableCalls = _disableCalls ? 1 : 0;
+	qint32 disableCallsLegacy = 0;
 	QByteArray windowPosition;
 	std::vector<RecentEmojiId> recentEmojiPreload;
 	base::flat_map<QString, uint8> emojiVariants;
@@ -413,7 +413,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> callAudioBackend;
 	}
 	if (!stream.atEnd()) {
-		stream >> disableCalls;
+		stream >> disableCallsLegacy;
 	}
 	if (!stream.atEnd()) {
 		stream >> windowPosition;
@@ -593,7 +593,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_groupCallPushToTalk = (groupCallPushToTalk == 1);
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
-	_disableCalls = (disableCalls == 1);
+	_disableCallsLegacy = (disableCallsLegacy == 1);
 	if (!windowPosition.isEmpty()) {
 		_windowPosition = Deserialize(windowPosition);
 	}
@@ -870,7 +870,7 @@ void Settings::resetOnLastLogout() {
 	//_callInputVolume = 100;
 	//_callAudioDuckingEnabled = true;
 
-	_disableCalls = false;
+	_disableCallsLegacy = false;
 
 	_groupCallPushToTalk = false;
 	_groupCallPushToTalkShortcut = QByteArray();

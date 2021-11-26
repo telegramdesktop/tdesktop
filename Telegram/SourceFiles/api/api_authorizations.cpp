@@ -104,6 +104,10 @@ Authorizations::Authorizations(not_null<ApiWrap*> api)
 			_listChanges.fire({});
 		}
 	}, _lifetime);
+
+	if (Core::App().settings().disableCallsLegacy()) {
+		toggleCallsDisabledHere(true);
+	}
 }
 
 void Authorizations::reload() {
@@ -196,6 +200,39 @@ void Authorizations::updateTTL(int days) {
 
 rpl::producer<int> Authorizations::ttlDays() const {
 	return _ttlDays.value() | rpl::filter(rpl::mappers::_1 != 0);
+}
+
+void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
+	if (const auto sent = _toggleCallsDisabledRequests.take(hash)) {
+		_api.request(*sent).cancel();
+	}
+	using Flag = MTPaccount_ChangeAuthorizationSettings::Flag;
+	const auto id = _api.request(MTPaccount_ChangeAuthorizationSettings(
+		MTP_flags(Flag::f_call_requests_disabled),
+		MTP_long(hash),
+		MTPBool(), // encrypted_requests_disabled
+		MTP_bool(disabled)
+	)).done([=](const MTPBool &) {
+		_toggleCallsDisabledRequests.remove(hash);
+	}).fail([=](const MTP::Error &) {
+		_toggleCallsDisabledRequests.remove(hash);
+	}).send();
+	_toggleCallsDisabledRequests.emplace(hash, id);
+	if (!hash) {
+		_callsDisabledHere = disabled;
+	}
+}
+
+bool Authorizations::callsDisabledHere() const {
+	return _callsDisabledHere.current();
+}
+
+rpl::producer<bool> Authorizations::callsDisabledHereValue() const {
+	return _callsDisabledHere.value();
+}
+
+rpl::producer<bool> Authorizations::callsDisabledHereChanges() const {
+	return _callsDisabledHere.changes();
 }
 
 int Authorizations::total() const {

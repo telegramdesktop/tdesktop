@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
+#include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_settings.h"
@@ -670,15 +671,19 @@ void SetupNotificationsContent(
 	AddSubsectionTitle(
 		container,
 		tr::lng_settings_notifications_calls_title());
-	addCheckbox(
+	const auto authorizations = &session->api().authorizations();
+	const auto acceptCalls = addCheckbox(
 		tr::lng_settings_call_accept_calls(tr::now),
-		!settings.disableCalls()
-	)->checkedChanges(
-	) | rpl::filter([&settings](bool value) {
-		return (settings.disableCalls() == value);
-	}) | rpl::start_with_next([=](bool value) {
-		Core::App().settings().setDisableCalls(!value);
-		Core::App().saveSettingsDelayed();
+		!authorizations->callsDisabledHere());
+	session->api().authorizations().callsDisabledHereChanges(
+	) | rpl::start_with_next([=](bool disabled) {
+		acceptCalls->setChecked(
+			!disabled,
+			Ui::Checkbox::NotifyAboutChange::DontNotify);
+	}, acceptCalls->lifetime());
+	acceptCalls->checkedChanges(
+	) | rpl::start_with_next([=](bool value) {
+		authorizations->toggleCallsDisabledHere(!value);
 	}, container->lifetime());
 
 	AddSkip(container, st::settingsCheckboxesSkip);

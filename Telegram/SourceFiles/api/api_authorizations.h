@@ -43,6 +43,14 @@ public:
 	void updateTTL(int days);
 	[[nodiscard]] rpl::producer<int> ttlDays() const;
 
+	void toggleCallsDisabledHere(bool disabled) {
+		toggleCallsDisabled(0, disabled);
+	}
+	void toggleCallsDisabled(uint64 hash, bool disabled);
+	[[nodiscard]] bool callsDisabledHere() const;
+	[[nodiscard]] rpl::producer<bool> callsDisabledHereValue() const;
+	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
+
 private:
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
@@ -52,6 +60,9 @@ private:
 
 	mtpRequestId _ttlRequestId = 0;
 	rpl::variable<int> _ttlDays = 0;
+
+	base::flat_map<uint64, mtpRequestId> _toggleCallsDisabledRequests;
+	rpl::variable<bool> _callsDisabledHere;
 
 	crl::time _lastReceived = 0;
 	rpl::lifetime _lifetime;
