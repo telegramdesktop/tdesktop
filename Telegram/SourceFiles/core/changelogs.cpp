@@ -125,6 +125,13 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Several crash fixes.\n"
 	},
+	{
+		3002006,
+		"- Try out the new audio player with playlist shuffle and repeat.\n"
+
+		"- Give a custom name to your desktop session "
+		"to distinguish it in the sessions list.\n"
+	}
 	};
 };
 
