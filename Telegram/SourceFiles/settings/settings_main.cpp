@@ -329,7 +329,7 @@ void SetupHelp(
 						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 					}
 				});
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				*requestId = 0;
 			}).send();
 		});

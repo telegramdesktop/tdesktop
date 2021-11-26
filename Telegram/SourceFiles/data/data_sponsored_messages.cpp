@@ -124,7 +124,7 @@ void SponsoredMessages::request(not_null<History*> history) {
 			channel->inputChannel)
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requests.remove(history);
 	}).send();
 }
@@ -228,7 +228,7 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 		auto &request = _viewRequests[randomId];
 		request.lastReceived = crl::now();
 		request.requestId = 0;
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_viewRequests.remove(randomId);
 	}).send();
 }

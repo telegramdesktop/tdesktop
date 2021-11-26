@@ -135,7 +135,7 @@ void GroupCall::requestParticipants() {
 				_participantsReloaded.fire({});
 			}
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_participantsRequestId = 0;
 		const auto reloaded = processSavedFullCall();
 		setServerParticipantsCount(_participants.size());
@@ -511,7 +511,7 @@ void GroupCall::reload() {
 		}
 		_reloadRequestId = 0;
 		processFullCall(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_reloadRequestId = 0;
 	}).send();
 }
@@ -898,7 +898,7 @@ void GroupCall::requestUnknownParticipants() {
 			_participantsResolved.fire(&ssrcs);
 		}
 		requestUnknownParticipants();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_unknownParticipantPeersRequestId = 0;
 		for (const auto &[ssrc, when] : ssrcs) {
 			_unknownSpokenSsrcs.remove(ssrc);

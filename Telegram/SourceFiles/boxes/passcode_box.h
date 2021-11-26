@@ -98,7 +98,6 @@ private:
 	void recoverPasswordDone(
 		const QByteArray &newPasswordBytes,
 		const MTPauth_Authorization &result);
-	void setPasswordFail(const MTP::Error &error);
 	void setPasswordFail(const QString &type);
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,

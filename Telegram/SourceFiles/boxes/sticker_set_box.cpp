@@ -371,7 +371,7 @@ StickerSetBox::Inner::Inner(
 		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		gotSet(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_loaded = true;
 		_errors.fire(Error::NotFound);
 	}).send();
@@ -934,7 +934,7 @@ void StickerSetBox::Inner::install() {
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 		installDone(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_errors.fire(Error::NotFound);
 	}).send();
 }
@@ -947,7 +947,7 @@ void StickerSetBox::Inner::archiveStickers() {
 		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
 			_setArchived.fire_copy(_setId);
 		}
-	}).fail([](const MTP::Error &error) {
+	}).fail([] {
 		Ui::Toast::Show(Lang::Hard::ServerError());
 	}).send();
 }

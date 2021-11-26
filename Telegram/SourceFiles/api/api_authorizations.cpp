@@ -132,7 +132,7 @@ void Authorizations::reload() {
 			}) | ranges::to<List>;
 			_listChanges.fire({});
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }
@@ -196,7 +196,7 @@ void Authorizations::updateTTL(int days) {
 		MTP_int(days)
 	)).done([=](const MTPBool &result) {
 		_ttlRequestId = 0;
-	}).fail([=](const MTP::Error &result) {
+	}).fail([=] {
 		_ttlRequestId = 0;
 	}).send();
 	_ttlDays = days;
@@ -218,7 +218,7 @@ void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
 		MTP_bool(disabled)
 	)).done([=](const MTPBool &) {
 		_toggleCallsDisabledRequests.remove(hash);
-	}).fail([=](const MTP::Error &) {
+	}).fail([=] {
 		_toggleCallsDisabledRequests.remove(hash);
 	}).send();
 	_toggleCallsDisabledRequests.emplace(hash, id);

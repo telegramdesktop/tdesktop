@@ -769,7 +769,7 @@ void Updates::channelRangeDifferenceSend(
 	)).done([=](const MTPupdates_ChannelDifference &result) {
 		_rangeDifferenceRequests.remove(channel);
 		channelRangeDifferenceDone(channel, range, result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_rangeDifferenceRequests.remove(channel);
 	}).send();
 	_rangeDifferenceRequests.emplace(channel, requestId);
@@ -921,7 +921,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 				MTP_bool(!isOnline)
 			)).done([=](const MTPBool &result) {
 				Core::App().quitPreventFinished();
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				Core::App().quitPreventFinished();
 			}).send();
 		}

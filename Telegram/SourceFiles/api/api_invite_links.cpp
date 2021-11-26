@@ -128,7 +128,7 @@ void InviteLinks::performCreate(
 				callback(link);
 			}
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_createCallbacks.erase(peer);
 	}).send();
 }
@@ -313,7 +313,7 @@ void InviteLinks::performEdit(
 				prepend(peer, admin, data.vnew_invite());
 			}
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_editCallbacks.erase(key);
 	}).send();
 }
@@ -375,7 +375,7 @@ void InviteLinks::destroy(
 			.admin = admin,
 			.was = key.link,
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_deleteCallbacks.erase(key);
 	}).send();
 }
@@ -405,7 +405,6 @@ void InviteLinks::destroyAllRevoked(
 			}
 		}
 		_allRevokedDestroyed.fire({ peer, admin });
-	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -446,7 +445,7 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 			i->second.count = std::max(slice.count, int(existing.size()));
 		}
 		notify(peer);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_firstSliceRequests.remove(peer);
 	}).send();
 	_firstSliceRequests.emplace(peer, requestId);
@@ -507,7 +506,7 @@ void InviteLinks::processRequest(
 				done();
 			}
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		if (const auto callbacks = _processRequests.take({ peer, user })) {
 			if (const auto &fail = callbacks->fail) {
 				fail();
@@ -608,7 +607,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 		_firstJoinedRequests.remove(key);
 		_firstJoined[key] = ParseJoinedByLinkSlice(key.peer, result);
 		_joinedFirstSliceLoaded.fire_copy(key);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_firstJoinedRequests.remove(key);
 	}).send();
 	_firstJoinedRequests.emplace(key, requestId);
@@ -771,7 +770,7 @@ void InviteLinks::requestMoreLinks(
 		MTP_int(kPerPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
 		done(parseSlice(peer, result));
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		done(Links());
 	}).send();
 }

@@ -387,7 +387,7 @@ void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
-	}).fail([this, channel](const MTP::Error &error) {
+	}).fail([this, channel] {
 		_participantsRequests.remove(channel);
 	}).send();
 
@@ -416,7 +416,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_botsRequests.remove(channel);
 	}).send();
 
@@ -445,7 +445,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_adminsRequests.remove(channel);
 	}).send();
 
@@ -638,7 +638,7 @@ void ChatParticipants::kick(
 
 		_kickRequests.remove(KickRequest(channel, participant));
 		channel->applyEditBanned(participant, currentRights, rights);
-	}).fail([this, kick](const MTP::Error &error) {
+	}).fail([this, kick] {
 		_kickRequests.remove(kick);
 	}).send();
 
@@ -666,7 +666,7 @@ void ChatParticipants::unblock(
 		} else {
 			channel->updateFullForced();
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_kickRequests.remove(kick);
 	}).send();
 

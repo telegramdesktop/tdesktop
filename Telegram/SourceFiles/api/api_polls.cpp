@@ -150,7 +150,7 @@ void Polls::sendVotes(
 		_pollVotesRequestIds.erase(itemId);
 		hideSending();
 		_session->updates().applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_pollVotesRequestIds.erase(itemId);
 		hideSending();
 	}).send();
@@ -179,7 +179,7 @@ void Polls::close(not_null<HistoryItem*> item) {
 	)).done([=](const MTPUpdates &result) {
 		_pollCloseRequestIds.erase(itemId);
 		_session->updates().applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_pollCloseRequestIds.erase(itemId);
 	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
@@ -196,7 +196,7 @@ void Polls::reloadResults(not_null<HistoryItem*> item) {
 	)).done([=](const MTPUpdates &result) {
 		_pollReloadRequestIds.erase(itemId);
 		_session->updates().applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_pollReloadRequestIds.erase(itemId);
 	}).send();
 	_pollReloadRequestIds.emplace(itemId, requestId);

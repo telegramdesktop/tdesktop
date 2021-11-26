@@ -467,7 +467,7 @@ void ChooseJoinAsProcess::start(
 
 		_request->box = box.data();
 		_request->showBox(std::move(box));
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		finish({
 			.peer = _request->peer,
 			.joinAs = _request->peer->session().user(),

@@ -59,7 +59,7 @@ void AttachedStickers::request(
 		strongController->show(
 			Box<StickerSetBox>(strongController, setId),
 			Ui::LayerOption::KeepOther);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 		if (const auto strongController = weak.get()) {
 			strongController->show(

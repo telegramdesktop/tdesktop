@@ -478,10 +478,6 @@ void PasscodeBox::closeReplacedBy() {
 	}
 }
 
-void PasscodeBox::setPasswordFail(const MTP::Error &error) {
-	setPasswordFail(error.type());
-}
-
 void PasscodeBox::setPasswordFail(const QString &type) {
 	if (MTP::IsFloodError(type)) {
 		closeReplacedBy();
@@ -533,7 +529,7 @@ void PasscodeBox::setPasswordFail(
 
 		validateEmail(email, codeLength, newPasswordBytes);
 	} else {
-		setPasswordFail(error);
+		setPasswordFail(error.type());
 	}
 }
 
@@ -582,7 +578,7 @@ void PasscodeBox::validateEmail(
 		)).done([=](const MTPBool &result) {
 			_setRequest = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_setRequest = 0;
 			errors->fire(Lang::Hard::ServerError());
 		}).send();
@@ -942,7 +938,7 @@ void PasscodeBox::changeCloudPassword(
 			});
 		}
 	}).fail([=](const MTP::Error &error) {
-		setPasswordFail(error);
+		setPasswordFail(error.type());
 	}).handleFloodErrors().send();
 }
 
@@ -1419,7 +1415,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 		)).done([=](const MTPBool &result) {
 			*requestId = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			*requestId = 0;
 			errors->fire(Lang::Hard::ServerError());
 		}).send();

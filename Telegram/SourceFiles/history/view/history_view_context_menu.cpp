@@ -1124,7 +1124,6 @@ void SendReport(
 			MTP_string(comment)
 		)).done([=](const MTPBool &result) {
 			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).fail([=](const MTP::Error &error) {
 		}).send();
 	} else {
 		auto apiIds = QVector<MTPint>();
@@ -1139,7 +1138,6 @@ void SendReport(
 			MTP_string(comment)
 		)).done([=](const MTPBool &result) {
 			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).fail([=](const MTP::Error &error) {
 		}).send();
 	}
 }

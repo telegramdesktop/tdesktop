@@ -490,7 +490,7 @@ void AddSpecialBoxController::loadMoreRows() {
 			setDescriptionText(tr::lng_blocked_list_not_found(tr::now));
 		}
 		delegate()->peerListRefreshRows();
-	}).fail([this](const MTP::Error &error) {
+	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
 }
@@ -530,7 +530,7 @@ bool AddSpecialBoxController::checkInfoLoaded(
 				Api::ChatParticipant(data.vparticipant(), channel));
 		});
 		callback();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_additional.setExternal(participant);
 		callback();
 	}).send();

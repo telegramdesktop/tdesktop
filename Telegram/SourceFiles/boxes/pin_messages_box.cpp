@@ -123,7 +123,7 @@ void PinMessageBox::pinMessage() {
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		Ui::hideLayer();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		Ui::hideLayer();
 	}).send();
 }

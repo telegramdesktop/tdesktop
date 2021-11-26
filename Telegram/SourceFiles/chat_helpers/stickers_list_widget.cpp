@@ -1106,7 +1106,6 @@ void StickersListWidget::preloadMoreOfficial() {
 		});
 		resizeToWidth(width());
 		update();
-	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -1276,7 +1275,7 @@ void StickersListWidget::sendSearchRequest() {
 		MTP_long(hash)
 	)).done([=](const MTPmessages_FoundStickerSets &result) {
 		searchResultsDone(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		// show error?
 		_footer->setLoading(false);
 		_searchRequestId = 0;
@@ -3149,7 +3148,7 @@ void StickersListWidget::sendInstallRequest(
 			session().data().stickers().applyArchivedResult(
 				result.c_messages_stickerSetInstallResultArchive());
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		notInstalledLocally(setId);
 		session().data().stickers().undoInstallLocally(setId);
 	}).send();

@@ -539,7 +539,7 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
 	}).send();

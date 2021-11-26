@@ -332,7 +332,7 @@ void Instance::refreshDhConfig() {
 		} else {
 			_delegate->callFailed(call);
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		const auto call = weak.get();
 		if (!call) {
 			return;
@@ -391,7 +391,7 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 
 		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_serverConfigRequestSession = nullptr;
 	}).send();
 }

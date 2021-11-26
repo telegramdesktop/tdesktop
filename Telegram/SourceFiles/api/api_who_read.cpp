@@ -164,7 +164,7 @@ struct State {
 					peers.push_back(UserId(id));
 				}
 				entry.list = std::move(peers);
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				auto &entry = context->cache(item);
 				entry.requestId = 0;
 				if (ListUnknown(entry.list.current(), item)) {

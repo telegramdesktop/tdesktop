@@ -25,7 +25,7 @@ void SelfDestruct::reload() {
 		result.match([&](const MTPDaccountDaysTTL &data) {
 			_days = data.vdays().v;
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }
@@ -42,7 +42,7 @@ void SelfDestruct::update(int days) {
 		MTP_accountDaysTTL(MTP_int(days))
 	)).done([=](const MTPBool &result) {
 		_requestId = 0;
-	}).fail([=](const MTP::Error &result) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 	_days = days;

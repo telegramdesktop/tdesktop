@@ -1604,7 +1604,7 @@ void GroupCall::discard() {
 		// updates being handled, but in a guarded way.
 		crl::on_main(this, [=] { hangup(); });
 		_peer->session().api().applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		hangup();
 	}).send();
 }
@@ -1672,7 +1672,7 @@ void GroupCall::leave() {
 		// updates being handled, but in a guarded way.
 		crl::on_main(weak, [=] { setState(finalState); });
 		session->api().applyUpdates(result);
-	}).fail(crl::guard(weak, [=](const MTP::Error &error) {
+	}).fail(crl::guard(weak, [=] {
 		setState(finalState);
 	})).send();
 }
@@ -2225,7 +2225,6 @@ void GroupCall::changeTitle(const QString &title) {
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		_titleChanged.fire({});
-	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -2258,7 +2257,7 @@ void GroupCall::toggleRecording(
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		_recordingStoppedByMe = false;
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_recordingStoppedByMe = false;
 	}).send();
 }

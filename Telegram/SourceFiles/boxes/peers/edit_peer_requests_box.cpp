@@ -340,7 +340,7 @@ void RequestsBoxController::loadMoreRows() {
 			refreshDescription();
 		}
 		delegate()->peerListRefreshRows();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_loadRequestId = 0;
 		_allLoaded = true;
 	}).send();

@@ -767,7 +767,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!loadedFlag) {
 			addEvents(direction, results.vevents().v);
 		}
-	}).fail([this, &requestId, &loadedFlag](const MTP::Error &error) {
+	}).fail([this, &requestId, &loadedFlag] {
 		requestId = 0;
 		loadedFlag = true;
 		update();
@@ -1431,7 +1431,7 @@ void InnerWidget::suggestRestrictParticipant(
 						|| (type == mtpc_channelParticipantCreator);
 					editRestrictions(hasAdminRights, ChatRestrictionsInfo());
 				}
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}

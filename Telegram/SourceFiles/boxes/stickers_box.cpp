@@ -1897,7 +1897,7 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			}, [](const MTPDmessages_stickerSetNotModified &) {
 				LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 			});
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet({});
 		}).send();

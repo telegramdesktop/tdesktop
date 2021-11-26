@@ -242,7 +242,7 @@ void ShowEditPermissions(
 		const auto api = &peer->session().api();
 		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
 			save(channel, result);
-		}, [=](const MTP::Error &error) {
+		}, [=](const MTP::Error &) {
 			*saving = false;
 		});
 	}, box->lifetime());
@@ -685,7 +685,7 @@ void Controller::showEditLinkedChatBox() {
 				std::move(chats),
 				callback),
 			Ui::LayerOption::KeepOther);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_linkedChatsRequestId = 0;
 	}).send();
 }
@@ -1361,7 +1361,7 @@ void Controller::saveLinkedChat() {
 	)).done([=](const MTPBool &result) {
 		channel->setLinkedChat(*_savingData.linkedChat);
 		continueSave();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		cancelSave();
 	}).send();
 }

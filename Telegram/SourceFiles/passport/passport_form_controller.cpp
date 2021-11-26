@@ -1038,7 +1038,7 @@ void FormController::cancelPassword() {
 	)).done([=](const MTPBool &result) {
 		_passwordRequestId = 0;
 		reloadPassword();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_passwordRequestId = 0;
 		reloadPassword();
 	}).send();
@@ -1259,7 +1259,7 @@ rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
 			});
 			consumer.put_next({ countryCode, findLang() });
 			consumer.put_done();
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			consumer.put_next({ countryCode, QString() });
 			consumer.put_done();
 		}).send();

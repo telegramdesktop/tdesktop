@@ -743,7 +743,7 @@ void SaveTheme(
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));
 			});
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			save(CloudTheme());
 		}).send();
 	} else {

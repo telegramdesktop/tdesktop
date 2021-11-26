@@ -90,7 +90,7 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 				++_slice->total;
 				_changes.fire_copy(*_slice);
 			}
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_blockRequests.erase(peer);
 		}).send();
 
@@ -128,7 +128,7 @@ void BlockedPeers::unblock(not_null<PeerData*> peer, Fn<void()> onDone) {
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_blockRequests.erase(peer);
 	}).send();
 	_blockRequests.emplace(peer, requestId);
@@ -165,7 +165,7 @@ void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
 	)).done([=](const MTPcontacts_Blocked &result) {
 		_requestId = 0;
 		onDone(TLToSlice(result, _session->data()));
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }

@@ -234,7 +234,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			packRequestId(pack) = 0;
 		}).send();
 	} else {
@@ -244,7 +244,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			packRequestId(pack) = 0;
 		}).send();
 	}
@@ -322,7 +322,7 @@ void CloudManager::requestLanguageList() {
 			_languageListChanged.fire({});
 		}
 		_languagesRequestId = 0;
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_languagesRequestId = 0;
 	}).send();
 }
@@ -509,7 +509,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 					tr::lng_cancel(tr::now),
 					[=] { performSwitchAndRestart(data); }),
 				Ui::LayerOption::KeepOther);
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_getKeysForSwitchRequestId = 0;
 		}).send();
 	}

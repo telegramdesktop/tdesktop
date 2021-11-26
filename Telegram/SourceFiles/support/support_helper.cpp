@@ -263,7 +263,7 @@ Helper::Helper(not_null<Main::Session*> session)
 		result.match([&](const MTPDhelp_supportName &data) {
 			setSupportName(qs(data.vname()));
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		setSupportName(
 			qsl("[rand^")
 			+ QString::number(Core::Sandbox::Instance().installationTag())
@@ -529,7 +529,7 @@ void Helper::saveInfo(
 	)).done([=](const MTPhelp_UserInfo &result) {
 		applyInfo(user, result);
 		done(true);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		done(false);
 	}).send();
 }
