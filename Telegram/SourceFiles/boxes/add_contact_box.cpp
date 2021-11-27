@@ -128,7 +128,7 @@ void ShowAddParticipantsError(
 		const QString &error,
 		not_null<PeerData*> chat,
 		const std::vector<not_null<UserData*>> &users) {
-	if (error == qstr("USER_BOT")) {
+	if (error == u"USER_BOT"_q) {
 		const auto channel = chat->asChannel();
 		if ((users.size() == 1)
 			&& users.front()->isBot()
@@ -168,28 +168,28 @@ void ShowAddParticipantsError(
 	}
 	const auto hasBot = ranges::any_of(users, &UserData::isBot);
 	const auto text = [&] {
-		if (error == qstr("USER_BOT")) {
+		if (error == u"USER_BOT"_q) {
 			return tr::lng_cant_invite_bot_to_channel(tr::now);
-		} else if (error == qstr("USER_LEFT_CHAT")) {
+		} else if (error == u"USER_LEFT_CHAT"_q) {
 			// Trying to return a user who has left.
-		} else if (error == qstr("USER_KICKED")) {
+		} else if (error == u"USER_KICKED"_q) {
 			// Trying to return a user who was kicked by admin.
 			return tr::lng_cant_invite_banned(tr::now);
-		} else if (error == qstr("USER_PRIVACY_RESTRICTED")) {
+		} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
 			return tr::lng_cant_invite_privacy(tr::now);
-		} else if (error == qstr("USER_NOT_MUTUAL_CONTACT")) {
+		} else if (error == u"USER_NOT_MUTUAL_CONTACT"_q) {
 			// Trying to return user who does not have me in contacts.
 			return tr::lng_failed_add_not_mutual(tr::now);
-		} else if (error == qstr("USER_ALREADY_PARTICIPANT") && hasBot) {
+		} else if (error == u"USER_ALREADY_PARTICIPANT"_q && hasBot) {
 			return tr::lng_bot_already_in_group(tr::now);
-		} else if (error == qstr("BOT_GROUPS_BLOCKED")) {
+		} else if (error == u"BOT_GROUPS_BLOCKED"_q) {
 			return tr::lng_error_cant_add_bot(tr::now);
-		} else if (error == qstr("PEER_FLOOD")) {
+		} else if (error == u"PEER_FLOOD"_q) {
 			const auto type = (chat->isChat() || chat->isMegagroup())
 				? PeerFloodType::InviteGroup
 				: PeerFloodType::InviteChannel;
 			return PeerFloodErrorText(&chat->session(), type);
-		} else if (error == qstr("ADMINS_TOO_MUCH")) {
+		} else if (error == u"ADMINS_TOO_MUCH"_q) {
 			return ((chat->isChat() || chat->isMegagroup())
 				? tr::lng_error_admin_limit
 				: tr::lng_error_admin_limit_channel)(tr::now);
@@ -609,9 +609,11 @@ void GroupInfoBox::createGroup(
 		not_null<PeerListBox*> selectUsersBox,
 		const QString &title,
 		const std::vector<not_null<PeerData*>> &users) {
-	if (_creationRequestId) return;
-
-	auto inputs = QVector<MTPInputUser>();
+	if (_creationRequestId) {
+		return;
+	}
+	using TLUsers = MTPInputUser;
+	auto inputs = QVector<TLUsers>();
 	inputs.reserve(users.size());
 	for (auto peer : users) {
 		auto user = peer->asUser();
@@ -624,7 +626,7 @@ void GroupInfoBox::createGroup(
 		return;
 	}
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
-		MTP_vector<MTPInputUser>(inputs),
+		MTP_vector<TLUsers>(inputs),
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		auto image = _photo->takeResultImage();
@@ -633,26 +635,28 @@ void GroupInfoBox::createGroup(
 		Ui::hideLayer(); // Destroys 'this'.
 		ChatCreateDone(navigation, std::move(image), result);
 	}).fail([=](const MTP::Error &error) {
+		const auto &type = error.type();
 		_creationRequestId = 0;
-		if (error.type() == qstr("NO_CHAT_TITLE")) {
-			auto weak = Ui::MakeWeak(this);
+		const auto controller = _navigation->parentController();
+		if (type == u"NO_CHAT_TITLE"_q) {
+			const auto weak = Ui::MakeWeak(this);
 			selectUsersBox->closeBox();
 			if (weak) {
 				_title->showError();
 			}
-		} else if (error.type() == qstr("USERS_TOO_FEW")) {
-			Ui::show(
+		} else if (type == u"USERS_TOO_FEW"_q) {
+			controller->show(
 				Box<Ui::InformBox>(tr::lng_cant_invite_privacy(tr::now)),
 				Ui::LayerOption::KeepOther);
-		} else if (error.type() == qstr("PEER_FLOOD")) {
-			Ui::show(
+		} else if (type == u"PEER_FLOOD"_q) {
+			controller->show(
 				Box<Ui::InformBox>(
 					PeerFloodErrorText(
 						&_navigation->session(),
 						PeerFloodType::InviteGroup)),
 				Ui::LayerOption::KeepOther);
-		} else if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::show(
+		} else if (type == u"USER_RESTRICTED"_q) {
+			controller->show(
 				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
 				Ui::LayerOption::KeepOther);
 		}
@@ -756,14 +760,20 @@ void GroupInfoBox::createChannel(
 			closeBox();
 		}
 	}).fail([this](const MTP::Error &error) {
+		const auto &type = error.type();
 		_creationRequestId = 0;
-		if (error.type() == "NO_CHAT_TITLE") {
+		const auto controller = _navigation->parentController();
+		if (type == u"NO_CHAT_TITLE"_q) {
 			_title->setFocus();
 			_title->showError();
-		} else if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)));
-		} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-			Ui::show(Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
+		} else if (type == u"USER_RESTRICTED"_q) {
+			controller->show(
+				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
+				Ui::LayerOption::CloseOther);
+		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+			controller->show(
+				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
+				Ui::LayerOption::CloseOther); // TODO
 		}
 	}).send();
 }
@@ -795,9 +805,9 @@ void GroupInfoBox::channelReady() {
 		closeBox();
 		callback(argument);
 	} else {
-		Ui::show(Box<SetupChannelBox>(
-			_navigation,
-			_createdChannel));
+		_navigation->parentController()->show(
+			Box<SetupChannelBox>(_navigation, _createdChannel),
+			Ui::LayerOption::CloseOther);
 	}
 }
 
@@ -890,7 +900,7 @@ void SetupChannelBox::prepare() {
 		MTP_string("preston")
 	)).fail([=](const MTP::Error &error) {
 		_checkRequestId = 0;
-		firstCheckFail(error.type());
+		firstCheckFail(parseError(error.type()));
 	}).send();
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
@@ -1119,7 +1129,7 @@ void SetupChannelBox::save() {
 			closeBox();
 		}).fail([=](const MTP::Error &error) {
 			_saveRequestId = 0;
-			updateFail(error.type());
+			updateFail(parseError(error.type()));
 		}).send();
 	};
 	if (_saveRequestId) {
@@ -1207,7 +1217,7 @@ void SetupChannelBox::check() {
 			update();
 		}).fail([=](const MTP::Error &error) {
 			_checkRequestId = 0;
-			checkFail(error.type());
+			checkFail(parseError(error.type()));
 		}).send();
 	}
 }
@@ -1241,20 +1251,38 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 	update();
 }
 
-void SetupChannelBox::updateFail(const QString &error) {
-	if ((error == "USERNAME_NOT_MODIFIED")
+SetupChannelBox::UsernameResult SetupChannelBox::parseError(
+		const QString &error) {
+	if (error == u"USERNAME_NOT_MODIFIED"_q) {
+		return UsernameResult::Ok;
+	} else if (error == u"USERNAME_INVALID"_q) {
+		return UsernameResult::Invalid;
+	} else if (error == u"USERNAME_OCCUPIED"_q) {
+		return UsernameResult::Occupied;
+	} else if (error == u"USERNAMES_UNAVAILABLE"_q) {
+		return UsernameResult::Occupied;
+	} else if (error == u"CHANNEL_PUBLIC_GROUP_NA"_q) {
+		return UsernameResult::NA;
+	} else if (error == u"CHANNELS_ADMIN_PUBLIC_TOO_MUCH"_q) {
+		return UsernameResult::ChatsTooMuch;
+	} else {
+		return UsernameResult::Unknown;
+	}
+}
+
+void SetupChannelBox::updateFail(UsernameResult result) {
+	if ((result == UsernameResult::Ok)
 		|| (_sentUsername == _channel->username)) {
 		_channel->setName(
 			TextUtilities::SingleLine(_channel->name),
 			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
-	} else if (error == "USERNAME_INVALID") {
+	} else if (result == UsernameResult::Invalid) {
 		_link->setFocus();
 		_link->showError();
 		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
-	} else if ((error == "USERNAME_OCCUPIED")
-		|| (error == "USERNAMES_UNAVAILABLE")) {
+	} else if (result == UsernameResult::Occupied) {
 		_link->setFocus();
 		_link->showError();
 		_errorText = tr::lng_create_channel_link_occupied(tr::now);
@@ -1264,20 +1292,20 @@ void SetupChannelBox::updateFail(const QString &error) {
 	}
 }
 
-void SetupChannelBox::checkFail(const QString &error) {
-	if (error == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+void SetupChannelBox::checkFail(UsernameResult result) {
+	if (result == UsernameResult::NA) {
 		Ui::hideLayer();
-	} else if (error == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+	} else if (result == UsernameResult::ChatsTooMuch) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
 			_privacyGroup->setValue(Privacy::Private);
 		}
-	} else if (error == qstr("USERNAME_INVALID")) {
+	} else if (result == UsernameResult::Invalid) {
 		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
-	} else if (error == qstr("USERNAME_OCCUPIED")
+	} else if ((result == UsernameResult::Occupied)
 			&& _checkUsername != _channel->username) {
 		_errorText = tr::lng_create_channel_link_occupied(tr::now);
 		update();
@@ -1304,10 +1332,10 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 		Ui::LayerOption::KeepOther);
 }
 
-void SetupChannelBox::firstCheckFail(const QString &error) {
-	if (error == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+void SetupChannelBox::firstCheckFail(UsernameResult result) {
+	if (result == UsernameResult::NA) {
 		Ui::hideLayer();
-	} else if (error == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+	} else if (result == UsernameResult::ChatsTooMuch) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();
 		} else {

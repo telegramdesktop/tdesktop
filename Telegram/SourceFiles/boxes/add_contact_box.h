@@ -171,16 +171,26 @@ private:
 		Public,
 		Private,
 	};
+	enum class UsernameResult {
+		Ok,
+		Invalid,
+		Occupied,
+		ChatsTooMuch,
+		NA,
+		Unknown,
+	};
+	[[nodiscard]] UsernameResult parseError(const QString &error);
+
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void handleChange();
 	void check();
 	void save();
 
-	void updateFail(const QString &error);
+	void updateFail(UsernameResult result);
 
-	void checkFail(const QString &error);
-	void firstCheckFail(const QString &error);
+	void checkFail(UsernameResult result);
+	void firstCheckFail(UsernameResult result);
 
 	void updateMaxHeight();
 
