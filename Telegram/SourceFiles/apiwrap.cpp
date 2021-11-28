@@ -1024,7 +1024,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 	const auto requestId = [&] {
 		const auto failHandler = [=](const MTP::Error &error) {
 			_fullPeerRequests.remove(peer);
-			migrateFail(peer, error);
+			migrateFail(peer, error.type());
 		};
 		if (const auto user = peer->asUser()) {
 			if (_session->supportMode()) {
@@ -1191,7 +1191,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 void ApiWrap::migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
-		Fn<void(const MTP::Error &)> fail) {
+		Fn<void(const QString &)> fail) {
 	const auto callback = [&] {
 		return MigrateCallbacks{ std::move(done), std::move(fail) };
 	};
@@ -1214,7 +1214,7 @@ void ApiWrap::migrateChat(
 				chat,
 				MTP::Error::Local(
 					"BAD_MIGRATION",
-					"Chat is already deactivated"));
+					"Chat is already deactivated").type());
 		});
 		return;
 	} else if (!chat->amCreator()) {
@@ -1223,7 +1223,7 @@ void ApiWrap::migrateChat(
 				chat,
 				MTP::Error::Local(
 					"BAD_MIGRATION",
-					"Current user is not the creator of that chat"));
+					"Current user is not the creator of that chat").type());
 		});
 		return;
 	}
@@ -1242,10 +1242,10 @@ void ApiWrap::migrateChat(
 		} else {
 			migrateFail(
 				chat,
-				MTP::Error::Local("MIGRATION_FAIL", "No channel"));
+				MTP::Error::Local("MIGRATION_FAIL", "No channel").type());
 		}
 	}).fail([=](const MTP::Error &error) {
-		migrateFail(chat, error);
+		migrateFail(chat, error.type());
 	}).send();
 }
 
@@ -1262,9 +1262,8 @@ void ApiWrap::migrateDone(
 	}
 }
 
-void ApiWrap::migrateFail(not_null<PeerData*> peer, const MTP::Error &error) {
-	const auto &type = error.type();
-	if (type == qstr("CHANNELS_TOO_MUCH")) {
+void ApiWrap::migrateFail(not_null<PeerData*> peer, const QString &error) {
+	if (error == u"CHANNELS_TOO_MUCH"_q) {
 		Ui::show(Box<Ui::InformBox>(tr::lng_migrate_error(tr::now)));
 	}
 	if (auto handlers = _migrateCallbacks.take(peer)) {

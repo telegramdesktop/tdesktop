@@ -242,7 +242,7 @@ void ShowEditPermissions(
 		const auto api = &peer->session().api();
 		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
 			save(channel, result);
-		}, [=](const MTP::Error &) {
+		}, [=](const QString &) {
 			*saving = false;
 		});
 	}, box->lifetime());

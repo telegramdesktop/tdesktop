@@ -208,7 +208,7 @@ public:
 	void migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
-		Fn<void(const MTP::Error &)> fail = nullptr);
+		Fn<void(const QString &)> fail = nullptr);
 
 	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void markMediaRead(not_null<HistoryItem*> item);
@@ -512,7 +512,7 @@ private:
 	void migrateDone(
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
-	void migrateFail(not_null<PeerData*> peer, const MTP::Error &error);
+	void migrateFail(not_null<PeerData*> peer, const QString &error);
 
 	not_null<Main::Session*> _session;
 
@@ -613,7 +613,7 @@ private:
 
 	struct MigrateCallbacks {
 		FnMut<void(not_null<ChannelData*>)> done;
-		Fn<void(const MTP::Error&)> fail;
+		Fn<void(const QString&)> fail;
 	};
 	base::flat_map<
 		not_null<PeerData*>,
