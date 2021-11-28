@@ -68,10 +68,6 @@ plugs:
     default-provider: gtk-common-themes
 
 slots:
-  tdesktop-dbus:
-    interface: dbus
-    bus: session
-    name: org.telegram.desktop
   tdesktop-mpris:
     interface: mpris
     name: tdesktop
