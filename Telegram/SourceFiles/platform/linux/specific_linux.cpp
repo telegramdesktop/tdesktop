@@ -709,6 +709,9 @@ void start() {
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	Glib::init();
+	Gio::init();
+
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
 
@@ -742,8 +745,11 @@ void start() {
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 
-	Webview::WebKit2Gtk::SetServiceName(
-		kWebviewService.utf16().arg(h).arg("%1").toStdString());
+	Webview::WebKit2Gtk::SetSocketPath(qsl("%1/%2-%3-webview-%4").arg(
+		QDir::tempPath(),
+		h,
+		cGUIDStr(),
+		qsl("%1")).toStdString());
 }
 
 void finish() {

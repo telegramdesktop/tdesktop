@@ -13,11 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <glibmm.h>
-#include <giomm.h>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -56,15 +51,10 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 int Launcher::exec() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	Glib::init();
-	Gio::init();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
-		if (*i == "-webviewhelper" && std::distance(i, e) > 2) {
-			Webview::WebKit2Gtk::SetServiceName(*(i + 2));
-			return Webview::WebKit2Gtk::Exec(*(i + 1));
+		if (*i == "-webviewhelper" && std::distance(i, e) > 1) {
+			Webview::WebKit2Gtk::SetSocketPath(*(i + 1));
+			return Webview::WebKit2Gtk::Exec();
 		}
 	}
 
