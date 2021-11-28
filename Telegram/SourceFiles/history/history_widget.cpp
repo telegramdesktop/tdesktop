@@ -2270,6 +2270,9 @@ void HistoryWidget::registerDraftSource() {
 void HistoryWidget::setEditMsgId(MsgId msgId) {
 	unregisterDraftSources();
 	_editMsgId = msgId;
+	if (_history) {
+		refreshSendAsToggle();
+	}
 	registerDraftSource();
 }
 
@@ -2388,7 +2391,7 @@ void HistoryWidget::setupSendAsToggle() {
 void HistoryWidget::refreshSendAsToggle() {
 	Expects(_peer != nullptr);
 
-	if (!session().sendAsPeers().shouldChoose(_peer)) {
+	if (_editMsgId || !session().sendAsPeers().shouldChoose(_peer)) {
 		_sendAs.destroy();
 		return;
 	} else if (_sendAs) {

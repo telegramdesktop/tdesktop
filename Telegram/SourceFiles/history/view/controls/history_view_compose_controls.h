@@ -206,7 +206,7 @@ private:
 	void updateSubmitSettings();
 	void updateSendButtonType();
 	void updateMessagesTTLShown();
-	void updateSendAsButton();
+	bool updateSendAsButton();
 	void updateHeight();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
