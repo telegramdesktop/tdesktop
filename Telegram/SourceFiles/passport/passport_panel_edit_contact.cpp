@@ -281,7 +281,8 @@ void PanelEditContact::setupControls(
 			std::move(fieldPlaceholder),
 			Countries::ExtractPhoneCode(
 				_controller->bot()->session().user()->phone()),
-			data);
+			data,
+			[](const QString &s) { return Countries::Groups(s); });
 	} else {
 		_field = Ui::CreateChild<Ui::MaskedInputField>(
 			wrap.data(),

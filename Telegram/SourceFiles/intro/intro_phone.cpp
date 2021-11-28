@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/phone_banned_box.h"
 #include "core/application.h"
+#include "countries/countries_instance.h" // Countries::Groups
 
 namespace Intro {
 namespace details {
@@ -44,7 +45,10 @@ PhoneWidget::PhoneWidget(
 : Step(parent, account, data)
 , _country(this, st::introCountry)
 , _code(this, st::introCountryCode)
-, _phone(this, st::introPhone)
+, _phone(
+	this,
+	st::introPhone,
+	[](const QString &s) { return Countries::Groups(s); })
 , _checkRequestTimer([=] { checkRequest(); }) {
 	_phone->frontBackspaceEvent(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {

@@ -470,4 +470,12 @@ QString ExtractPhoneCode(const QString &phone) {
 	return Instance().format({ .phone = phone, .onlyCode = true }).code;
 }
 
+QVector<int> Groups(const QString &phone) {
+	return Instance().format({
+		.phone = phone,
+		.onlyGroups = true,
+		.incomplete = true,
+	}).groups;
+}
+
 } // namespace Countries

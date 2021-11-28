@@ -407,7 +407,8 @@ struct SimpleFieldState {
 			st::paymentsField,
 			std::move(config.placeholder),
 			Countries::ExtractPhoneCode(config.defaultPhone),
-			Parse(config));
+			Parse(config),
+			[](const QString &s) { return Countries::Groups(s); });
 	case FieldType::Money:
 		return CreateMoneyField(
 			wrap,

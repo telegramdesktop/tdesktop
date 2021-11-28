@@ -156,7 +156,8 @@ void ChangePhoneBox::EnterPhone::prepare() {
 		st::defaultInputField,
 		tr::lng_change_phone_new_title(),
 		Countries::ExtractPhoneCode(_controller->session().user()->phone()),
-		phoneValue);
+		phoneValue,
+		[](const QString &s) { return Countries::Groups(s); });
 
 	_phone->resize(
 		st::boxWidth - 2 * st::boxPadding.left(),

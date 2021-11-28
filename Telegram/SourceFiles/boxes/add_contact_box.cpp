@@ -261,7 +261,8 @@ AddContactBox::AddContactBox(
 	st::defaultInputField,
 	tr::lng_contact_phone(),
 	Countries::ExtractPhoneCode(session->user()->phone()),
-	phone)
+	phone,
+	[](const QString &s) { return Countries::Groups(s); })
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
