@@ -34,8 +34,8 @@ void SendBotCallbackData(
 		not_null<HistoryItem*> item,
 		int row,
 		int column,
-		std::optional<MTPInputCheckPasswordSRP> password = std::nullopt,
-		Fn<void(const MTP::Error &)> handleError = nullptr) {
+		std::optional<Core::CloudPasswordResult> password = std::nullopt,
+		Fn<void(const QString &)> handleError = nullptr) {
 	if (!item->isRegular()) {
 		return;
 	}
@@ -78,7 +78,7 @@ void SendBotCallbackData(
 		history->peer->input,
 		MTP_int(item->id),
 		MTP_bytes(sendData),
-		password.value_or(MTP_inputCheckPasswordEmpty())
+		password ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
 		const auto item = owner->message(fullId);
 		if (!item) {
@@ -88,34 +88,41 @@ void SendBotCallbackData(
 			button->requestId = 0;
 			owner->requestItemRepaint(item);
 		}
-		result.match([&](const MTPDmessages_botCallbackAnswer &data) {
-			if (const auto message = data.vmessage()) {
-				if (data.is_alert()) {
-					Ui::show(Box<Ui::InformBox>(qs(*message)));
-				} else {
-					if (withPassword) {
-						Ui::hideLayer();
-					}
-					Ui::Toast::Show(qs(*message));
-				}
-			} else if (const auto url = data.vurl()) {
-				const auto link = qs(*url);
-				if (!isGame) {
-					UrlClickHandler::Open(link);
-					return;
-				}
-				const auto scoreLink = AppendShareGameScoreUrl(
-					session,
-					link,
-					item->fullId());
-				BotGameUrlClickHandler(bot, scoreLink).onClick({});
-				session->sendProgressManager().update(
-					history,
-					Api::SendProgressType::PlayGame);
-			} else if (withPassword) {
-				Ui::hideLayer();
-			}
+		const auto &data = result.match([](
+				const auto &data) -> const MTPDmessages_botCallbackAnswer& {
+			return data;
 		});
+		const auto message = data.vmessage()
+			? qs(*data.vmessage())
+			: QString();
+		const auto link = data.vurl() ? qs(*data.vurl()) : QString();
+		const auto showAlert = data.is_alert();
+
+		if (!message.isEmpty()) {
+			if (showAlert) {
+				Ui::show(Box<Ui::InformBox>(message));
+			} else {
+				if (withPassword) {
+					Ui::hideLayer();
+				}
+				Ui::Toast::Show(message);
+			}
+		} else if (!link.isEmpty()) {
+			if (!isGame) {
+				UrlClickHandler::Open(link);
+				return;
+			}
+			const auto scoreLink = AppendShareGameScoreUrl(
+				session,
+				link,
+				item->fullId());
+			BotGameUrlClickHandler(bot, scoreLink).onClick({});
+			session->sendProgressManager().update(
+				history,
+				Api::SendProgressType::PlayGame);
+		} else if (withPassword) {
+			Ui::hideLayer();
+		}
 	}).fail([=](const MTP::Error &error) {
 		const auto item = owner->message(fullId);
 		if (!item) {
@@ -127,7 +134,7 @@ void SendBotCallbackData(
 			owner->requestItemRepaint(item);
 		}
 		if (handleError) {
-			handleError(error);
+			handleError(error.type());
 		}
 	}).send();
 
@@ -143,7 +150,7 @@ void SendBotCallbackData(
 		not_null<HistoryItem*> item,
 		int row,
 		int column) {
-	SendBotCallbackData(item, row, column, MTP_inputCheckPasswordEmpty());
+	SendBotCallbackData(item, row, column, std::nullopt);
 }
 
 void SendBotCallbackDataWithPassword(
@@ -170,9 +177,9 @@ void SendBotCallbackDataWithPassword(
 		return;
 	}
 	api->cloudPassword().reload();
-	SendBotCallbackData(item, row, column, MTP_inputCheckPasswordEmpty(), [=](const MTP::Error &error) {
+	SendBotCallbackData(item, row, column, std::nullopt, [=](const QString &error) {
 		auto box = PrePasswordErrorBox(
-			error.type(),
+			error,
 			session,
 			tr::lng_bots_password_confirm_check_about(
 				tr::now,
@@ -212,7 +219,7 @@ void SendBotCallbackDataWithPassword(
 						return;
 					}
 					if (const auto item = owner->message(fullId)) {
-						SendBotCallbackData(item, row, column, result.result, [=](const MTP::Error &error) {
+						SendBotCallbackData(item, row, column, result, [=](const QString &error) {
 							if (*box) {
 								(*box)->handleCustomCheckError(error);
 							}
