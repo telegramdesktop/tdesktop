@@ -4445,9 +4445,12 @@ void HistoryWidget::moveFieldControls() {
 
 void HistoryWidget::updateFieldSize() {
 	auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
-	auto fieldWidth = width() - _attachToggle->width() - st::historySendRight;
-	fieldWidth -= _send->width();
-	fieldWidth -= _tabbedSelectorToggle->width();
+	auto fieldWidth = width()
+		- _attachToggle->width()
+		- st::historySendRight
+		- _send->width()
+		- _tabbedSelectorToggle->width();
+	if (_sendAs) fieldWidth -= _sendAs->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
 	if (_silent) fieldWidth -= _silent->width();
