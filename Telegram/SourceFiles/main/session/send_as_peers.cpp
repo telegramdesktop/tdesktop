@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/send_as_peers.h"
 
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 
@@ -22,6 +24,21 @@ constexpr auto kRequestEach = 30 * crl::time(1000);
 SendAsPeers::SendAsPeers(not_null<Session*> session)
 : _session(session)
 , _onlyMe({ session->user() }) {
+	_session->changes().peerUpdates(
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::map([=](const Data::PeerUpdate &update) {
+		const auto peer = update.peer;
+		const auto channel = peer->asChannel();
+		return std::tuple(
+			peer,
+			peer->amAnonymous(),
+			channel ? channel->isPublic() : false);
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter([=](not_null<PeerData*> peer, bool, bool) {
+		return _lists.contains(peer);
+	}) | rpl::start_with_next([=](not_null<PeerData*> peer, bool, bool) {
+		refresh(peer);
+	}, _lifetime);
 }
 
 bool SendAsPeers::shouldChoose(not_null<PeerData*> peer) {
@@ -96,6 +113,8 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 	const auto i = ranges::find(list, chosen, &PeerData::id);
 	return (i != end(list))
 		? (*i)
+		: !list.empty()
+		? list.front()
 		: (peer->isMegagroup() && peer->amAnonymous())
 		? peer
 		: peer->session().user();

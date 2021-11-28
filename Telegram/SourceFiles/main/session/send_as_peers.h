@@ -26,6 +26,8 @@ public:
 	void saveChosen(not_null<PeerData*> peer, not_null<PeerData*> chosen);
 	void setChosen(not_null<PeerData*> peer, PeerId chosenId);
 	[[nodiscard]] PeerId chosen(not_null<PeerData*> peer) const;
+
+	// If !list(peer).empty() then the result will be from that list.
 	[[nodiscard]] not_null<PeerData*> resolveChosen(
 		not_null<PeerData*> peer) const;
 
@@ -47,6 +49,8 @@ private:
 	base::flat_map<not_null<PeerData*>, PeerId> _chosen;
 
 	rpl::event_stream<not_null<PeerData*>> _updates;
+
+	rpl::lifetime _lifetime;
 
 };
 
