@@ -18,7 +18,7 @@ public:
 	explicit SendAsPeers(not_null<Session*> session);
 
 	bool shouldChoose(not_null<PeerData*> peer);
-	void refresh(not_null<PeerData*> peer);
+	void refresh(not_null<PeerData*> peer, bool force = false);
 	[[nodiscard]] const std::vector<not_null<PeerData*>> &list(
 		not_null<PeerData*> peer) const;
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> updated() const;

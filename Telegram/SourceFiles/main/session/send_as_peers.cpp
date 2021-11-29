@@ -37,7 +37,7 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 	) | rpl::filter([=](not_null<PeerData*> peer, bool, bool) {
 		return _lists.contains(peer);
 	}) | rpl::start_with_next([=](not_null<PeerData*> peer, bool, bool) {
-		refresh(peer);
+		refresh(peer, true);
 	}, _lifetime);
 }
 
@@ -46,14 +46,14 @@ bool SendAsPeers::shouldChoose(not_null<PeerData*> peer) {
 	return peer->canWrite() && (list(peer).size() > 1);
 }
 
-void SendAsPeers::refresh(not_null<PeerData*> peer) {
+void SendAsPeers::refresh(not_null<PeerData*> peer, bool force) {
 	if (!peer->isMegagroup()) {
 		return;
 	}
 	const auto now = crl::now();
 	const auto i = _lastRequestTime.find(peer);
 	const auto when = (i == end(_lastRequestTime)) ? -1 : i->second;
-	if (when >= 0 && now < when + kRequestEach) {
+	if (!force && (when >= 0 && now < when + kRequestEach)) {
 		return;
 	}
 	_lastRequestTime[peer] = now;
