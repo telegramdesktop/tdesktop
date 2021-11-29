@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
+class QWheelEvent;
+
 namespace Ui {
 class MediaSlider;
 } // namespace Ui
@@ -29,6 +31,7 @@ public:
 		not_null<Window::SessionController*> controller);
 
 	void setIsVertical(bool vertical);
+	void outerWheelEvent(not_null<QWheelEvent*> e);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -43,6 +46,7 @@ private:
 
 void PrepareVolumeDropdown(
 	not_null<Dropdown*> dropdown,
-	not_null<Window::SessionController*> controller);
+	not_null<Window::SessionController*> controller,
+	rpl::producer<not_null<QWheelEvent*>> outerWheelEvents);
 
 } // namespace Media::Player

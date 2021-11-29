@@ -515,7 +515,12 @@ Widget::Widget(
 		handleSongUpdate(state);
 	}, lifetime());
 
-	PrepareVolumeDropdown(_volume.get(), controller);
+	PrepareVolumeDropdown(_volume.get(), controller, _volumeToggle->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Wheel);
+	}) | rpl::map([=](not_null<QEvent*> e) {
+		return not_null{ static_cast<QWheelEvent*>(e.get()) };
+	}));
 	_volumeToggle->installEventFilter(_volume.get());
 	_volume->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {

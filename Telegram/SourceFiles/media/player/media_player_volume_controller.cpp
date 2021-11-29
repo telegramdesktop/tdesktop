@@ -57,6 +57,10 @@ void VolumeController::setIsVertical(bool vertical) {
 	_slider->setAlwaysDisplayMarker(vertical);
 }
 
+void VolumeController::outerWheelEvent(not_null<QWheelEvent*> e) {
+	QGuiApplication::sendEvent(_slider.data(), e);
+}
+
 void VolumeController::resizeEvent(QResizeEvent *e) {
 	_slider->setGeometry(rect());
 }
@@ -78,7 +82,8 @@ void VolumeController::applyVolumeChange(float64 volume) {
 
 void PrepareVolumeDropdown(
 		not_null<Dropdown*> dropdown,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		rpl::producer<not_null<QWheelEvent*>> outerWheelEvents) {
 	const auto volume = Ui::CreateChild<VolumeController>(
 		dropdown.get(),
 		controller);
@@ -97,6 +102,12 @@ void PrepareVolumeDropdown(
 				+ st::lineWidth
 				- ((st::mediaPlayerVolumeSize.width()
 					- st::mediaPlayerPanelPlayback.width) / 2)));
+	}, volume->lifetime());
+
+	std::move(
+		outerWheelEvents
+	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+		volume->outerWheelEvent(e);
 	}, volume->lifetime());
 }
 
