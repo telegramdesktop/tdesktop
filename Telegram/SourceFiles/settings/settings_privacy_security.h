@@ -39,8 +39,12 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
+	rpl::producer<Type> sectionShowOther() override;
+
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
+
+	rpl::event_stream<Type> _showOther;
 
 };
 

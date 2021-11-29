@@ -617,6 +617,8 @@ rpl::producer<QString> TitleValue(
 			return tr::lng_settings_section_notify();
 		case Section::SettingsType::PrivacySecurity:
 			return tr::lng_settings_section_privacy();
+		case Section::SettingsType::Sessions:
+			return tr::lng_settings_sessions_title();
 		case Section::SettingsType::Advanced:
 			return tr::lng_settings_advanced();
 		case Section::SettingsType::Chat:

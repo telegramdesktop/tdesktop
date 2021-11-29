@@ -129,7 +129,7 @@ void SessionInfoBox(
 [[nodiscard]] QString LocationAndDate(const EntryData &entry) {
 	return (entry.location.isEmpty() ? entry.ip : entry.location)
 		+ (entry.hash
-			? (QString::fromUtf8(" \xe2\x80\x93 ") + entry.active)
+			? (QString::fromUtf8(" \xE2\x80\xA2 ") + entry.active)
 			: QString());
 }
 
@@ -768,6 +768,7 @@ Sessions::Sessions(
 
 void Sessions::setupContent(not_null<Window::SessionController*> controller) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
+	AddSkip(container, st::settingsPrivacySkip);
 	const auto content = container->add(
 		object_ptr<SessionsContent>(container, controller));
 	content->setupContent();

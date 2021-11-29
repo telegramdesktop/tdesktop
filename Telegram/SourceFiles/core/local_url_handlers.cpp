@@ -376,17 +376,16 @@ bool ResolveSettings(
 	if (section.isEmpty()) {
 		controller->window().showSettings();
 		return true;
-	}
-	if (section == qstr("devices")) {
-		controller->session().api().authorizations().reload();
-		controller->show(Box<SessionsBox>(controller));
-		return true;
 	} else if (section == qstr("language")) {
 		ShowLanguagesBox();
 		return true;
+	} else if (section == qstr("devices")) {
+		controller->session().api().authorizations().reload();
 	}
 	const auto type = (section == qstr("folders"))
 		? ::Settings::Type::Folders
+		: (section == qstr("devices"))
+		? ::Settings::Type::Sessions
 		: ::Settings::Type::Main;
 	controller->showSettings(type);
 	return true;
