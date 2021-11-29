@@ -68,6 +68,7 @@ private:
 	const Fn<void(bool)> _menuOverCallback;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 	bool _temporarilyHidden = false;
+	bool _overButton = false;
 
 };
 
@@ -120,9 +121,17 @@ WithDropdownController::WithDropdownController(
 , _menuOverCallback(std::move(menuOverCallback)) {
 	button->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::Enter);
-	}) | rpl::start_with_next([=] {
-		showMenu();
+		return (e->type() == QEvent::Enter)
+			|| (e->type() == QEvent::Leave);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_overButton = (e->type() == QEvent::Enter);
+		if (_overButton) {
+			InvokeQueued(button, [=] {
+				if (_overButton) {
+					showMenu();
+				}
+			});
+		}
 	}, button->lifetime());
 }
 
@@ -740,7 +749,9 @@ void Widget::markOver(bool over) {
 	if (over) {
 		_over = true;
 		_wontBeOver = false;
-		updateControlsWrapVisibility();
+		InvokeQueued(this, [=] {
+			updateControlsWrapVisibility();
+		});
 	} else {
 		_wontBeOver = true;
 		InvokeQueued(this, [=] {
