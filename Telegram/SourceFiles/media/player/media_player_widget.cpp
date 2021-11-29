@@ -741,7 +741,6 @@ void Widget::markOver(bool over) {
 		_over = true;
 		_wontBeOver = false;
 		updateControlsWrapVisibility();
-		updateOverLabelsState(true);
 	} else {
 		_wontBeOver = true;
 		InvokeQueued(this, [=] {
