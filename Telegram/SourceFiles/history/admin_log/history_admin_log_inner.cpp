@@ -1156,10 +1156,11 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: App::hoveredLinkItem();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
-	auto lnkPeer = dynamic_cast<PeerClickHandler*>(link.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
+	const auto fromId = PeerId(
+		link->property(kPeerLinkPeerIdProperty).toULongLong());
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(tr::lng_context_copy_selected(tr::now), [=] {
@@ -1231,9 +1232,11 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 		}
-	} else if (lnkPeer) { // suggest to block
-		if (auto user = lnkPeer->peer()->asUser()) {
-			suggestRestrictUser(user);
+	} else if (fromId) { // suggest to block
+		if (const auto userId = peerToUser(fromId)) {
+			if (const auto user = session().data().user(userId)) {
+				suggestRestrictUser(user);
+			}
 		}
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;

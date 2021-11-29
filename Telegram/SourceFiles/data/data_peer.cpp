@@ -163,6 +163,7 @@ bool UpdateBotCommands(
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 : _peer(peer) {
+	setProperty(kPeerLinkPeerIdProperty, peer->id.value);
 }
 
 void PeerClickHandler::onClick(ClickContext context) const {

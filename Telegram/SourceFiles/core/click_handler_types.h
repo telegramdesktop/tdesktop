@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/basic_click_handlers.h"
 
+constexpr auto kPeerLinkPeerIdProperty = 0x01;
+
 namespace Main {
 class Session;
 } // namespace Main

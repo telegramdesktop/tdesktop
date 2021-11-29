@@ -421,6 +421,7 @@ private:
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<Media> _media;
+	mutable ClickHandlerPtr _fromLink;
 	bool _isScheduledUntilOnline = false;
 	const QDateTime _dateTime;
 
