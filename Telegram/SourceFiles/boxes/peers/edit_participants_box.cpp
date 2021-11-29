@@ -535,7 +535,6 @@ void ParticipantsAdditionalData::applyAdminLocally(
 		UserData *user,
 		ChatAdminRightsInfo rights,
 		const QString &rank) {
-	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (isCreator(user) && user->isSelf()) {
 		applyParticipant(Api::ChatParticipant(
 			Api::ChatParticipant::Type::Creator,
@@ -571,7 +570,6 @@ void ParticipantsAdditionalData::applyBannedLocally(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo rights) {
 	const auto user = participant->asUser();
-	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (!rights.flags) {
 		if (user) {
 			applyParticipant(Api::ChatParticipant(

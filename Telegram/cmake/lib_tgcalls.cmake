@@ -105,8 +105,6 @@ PRIVATE
     platform/darwin/DarwinInterface.mm
     platform/darwin/DarwinVideoSource.h
     platform/darwin/DarwinVideoSource.mm
-    platform/darwin/DesktopCaptureSourceView.h
-    platform/darwin/DesktopCaptureSourceView.mm
     platform/darwin/DesktopSharingCapturer.h
     platform/darwin/DesktopSharingCapturer.mm
     platform/darwin/GLVideoView.h
@@ -147,7 +145,7 @@ PRIVATE
     platform/darwin/VideoMetalView.mm
     platform/darwin/VideoMetalViewMac.h
     platform/darwin/VideoMetalViewMac.mm
-    
+
     # POSIX
 
     # Teleram Desktop
@@ -187,8 +185,6 @@ elseif (APPLE)
         -fobjc-arc
     )
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
-        platform/darwin/DesktopCaptureSourceView.h
-        platform/darwin/DesktopCaptureSourceView.mm
         platform/darwin/GLVideoView.h
         platform/darwin/GLVideoView.mm
         platform/darwin/GLVideoViewMac.h

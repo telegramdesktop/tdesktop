@@ -465,7 +465,6 @@ void AddSpecialBoxController::loadMoreRows() {
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
-		auto &session = channel->session();
 		result.match([&](const MTPDchannels_channelParticipants &data) {
 			const auto &[availableCount, list] = Api::ChatParticipants::Parse(
 				channel,

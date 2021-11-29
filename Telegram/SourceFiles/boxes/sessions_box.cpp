@@ -699,8 +699,6 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	const auto x = st::sessionPadding.left();
 	const auto y = st::sessionPadding.top();
 	const auto w = width();
-	const auto xact = st::sessionTerminateSkip
-		+ st::sessionTerminate.iconPosition.x();
 	p.translate(0, from * st::sessionHeight);
 	for (auto i = from; i != till; ++i) {
 		const auto &entry = _items[i];
