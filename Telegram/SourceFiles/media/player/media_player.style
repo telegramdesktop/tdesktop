@@ -291,7 +291,7 @@ mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 mediaPlayerFloatSize: 128px;
 mediaPlayerFloatMargin: 12px;
 
-mediaPlayerMenuPosition: point(-2px, 0px);
+mediaPlayerMenuPosition: point(-2px, -2px);
 mediaPlayerOrderMenu: Menu(defaultMenu) {
 	itemIconPosition: point(13px, 8px);
 	itemPadding: margins(49px, 9px, 17px, 11px);

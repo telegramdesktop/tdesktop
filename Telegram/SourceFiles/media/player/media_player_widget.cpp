@@ -528,17 +528,18 @@ Widget::Widget(
 
 	hidePlaylistOn(_playPause);
 	hidePlaylistOn(_close);
+	hidePlaylistOn(_rightControls);
 
 	setType(AudioMsgId::Type::Song);
 }
 
-void Widget::hidePlaylistOn(const object_ptr<Ui::IconButton> &button) {
-	button->events(
+void Widget::hidePlaylistOn(not_null<Ui::RpWidget*> widget) {
+	widget->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return (e->type() == QEvent::Enter);
 	}) | rpl::start_with_next([=] {
 		updateOverLabelsState(false);
-	}, button->lifetime());
+	}, widget->lifetime());
 }
 
 void Widget::setupRightControls() {

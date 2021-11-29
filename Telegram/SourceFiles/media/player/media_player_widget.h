@@ -84,7 +84,7 @@ private:
 	[[nodiscard]] int getTimeRight() const;
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
-	void hidePlaylistOn(const object_ptr<Ui::IconButton> &button);
+	void hidePlaylistOn(not_null<Ui::RpWidget*> widget);
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
