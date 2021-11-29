@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
@@ -1233,10 +1234,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 	} else if (fromId) { // suggest to block
-		if (const auto userId = peerToUser(fromId)) {
-			if (const auto user = session().data().user(userId)) {
-				suggestRestrictUser(user);
-			}
+		if (const auto participant = session().data().peer(fromId)) {
+			suggestRestrictParticipant(participant);
 		}
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;
@@ -1360,38 +1359,57 @@ void InnerWidget::copyContextText(FullMsgId itemId) {
 	}
 }
 
-void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
+void InnerWidget::suggestRestrictParticipant(
+		not_null<PeerData*> participant) {
 	Expects(_menu != nullptr);
 
-	if (!_channel->isMegagroup() || !_channel->canBanMembers() || _admins.empty()) {
+	if (!_channel->isMegagroup()
+		|| !_channel->canBanMembers()
+		|| _admins.empty()) {
 		return;
 	}
-	if (base::contains(_admins, user)) {
-		if (!base::contains(_adminsCanEdit, user)) {
+	if (ranges::contains(_admins, participant)) {
+		if (!ranges::contains(_adminsCanEdit, participant)) {
 			return;
 		}
 	}
 	_menu->addAction(tr::lng_context_restrict_user(tr::now), [=] {
+		const auto user = participant->asUser();
 		auto editRestrictions = [=](bool hasAdminRights, ChatRestrictionsInfo currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
-			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();
+			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
 			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
 			box->setSaveCallback([=](
 					ChatRestrictionsInfo oldRights,
 					ChatRestrictionsInfo newRights) {
 				if (weak) {
-					weak->restrictUser(user, oldRights, newRights);
+					weak->restrictParticipant(participant, oldRights, newRights);
 				}
 				if (*weakBox) {
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = QPointer<EditRestrictedBox>(box.data());
-			_controller->show(
-				std::move(box),
-				Ui::LayerOption::KeepOther);
+			*weakBox = _controller->show(std::move(box));
 		};
-		if (base::contains(_admins, user)) {
+		if (!user) {
+			const auto text = (_channel->isBroadcast()
+				? tr::lng_profile_sure_kick_channel
+				: tr::lng_profile_sure_kick)(
+					tr::now,
+					lt_user,
+					participant->name);
+			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
+			const auto sure = crl::guard(this, [=] {
+				restrictParticipant(
+					participant,
+					ChatRestrictionsInfo(),
+					ChannelData::KickedRestrictedRights(participant));
+				if (*weakBox) {
+					(*weakBox)->closeBox();
+				}
+			});
+			*weakBox = _controller->show(Box<Ui::ConfirmBox>(text, sure));
+		} else if (base::contains(_admins, user)) {
 			editRestrictions(true, ChatRestrictionsInfo());
 		} else {
 			_api.request(MTPchannels_GetParticipant(
@@ -1420,30 +1438,33 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 	});
 }
 
-void InnerWidget::restrictUser(
-		not_null<UserData*> user,
+void InnerWidget::restrictParticipant(
+		not_null<PeerData*> participant,
 		ChatRestrictionsInfo oldRights,
 		ChatRestrictionsInfo newRights) {
 	const auto done = [=](ChatRestrictionsInfo newRights) {
-		restrictUserDone(user, newRights);
+		restrictParticipantDone(participant, newRights);
 	};
 	const auto callback = SaveRestrictedCallback(
 		_channel,
-		user,
+		participant,
 		crl::guard(this, done),
 		nullptr);
 	callback(oldRights, newRights);
 }
 
-void InnerWidget::restrictUserDone(
-		not_null<UserData*> user,
+void InnerWidget::restrictParticipantDone(
+		not_null<PeerData*> participant,
 		ChatRestrictionsInfo rights) {
 	if (rights.flags) {
 		_admins.erase(
-			std::remove(_admins.begin(), _admins.end(), user),
+			std::remove(_admins.begin(), _admins.end(), participant),
 			_admins.end());
 		_adminsCanEdit.erase(
-			std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user),
+			std::remove(
+				_adminsCanEdit.begin(),
+				_adminsCanEdit.end(),
+				participant),
 			_adminsCanEdit.end());
 	}
 	_downLoaded = false;
