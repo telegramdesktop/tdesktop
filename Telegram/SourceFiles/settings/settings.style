@@ -249,23 +249,13 @@ sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
 }
 sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
 sessionsTerminateAllIconLeft: 30px;
-sessionHeight: 84px;
-sessionInfoTop: 21px;
-sessionLocationTop: 43px;
+sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
-sessionPadding: margins(77px, 11px, 22px, 0px);
-sessionNameFont: msgNameFont;
-sessionNameFg: boxTextFg;
-sessionWhenFont: msgDateFont;
-sessionWhenFg: windowSubTextFg;
-sessionInfoFont: msgFont;
+sessionLocationFg: windowSubTextFg;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 9px;
 sessionTerminateSkip: 22px;
-sessionUserpicSize: 42px;
-sessionUserpicPosition: point(21px, 10px);
-sessionNamePadding: margins(0px, 0px, 5px, 0px);
 sessionTerminate: IconButton {
 	width: 20px;
 	height: 20px;
@@ -279,15 +269,6 @@ sessionTerminate: IconButton {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
-}
-sessionNameStyle: TextStyle(defaultTextStyle) {
-	font: sessionNameFont;
-}
-sessionWhenStyle: TextStyle(defaultTextStyle) {
-	font: sessionWhenFont;
-}
-sessionInfoStyle: TextStyle(defaultTextStyle) {
-	font: sessionInfoFont;
 }
 sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
 sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
@@ -327,3 +308,27 @@ sessionValueLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 sessionValueSkip: 8px;
+
+sessionListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+	}
+	height: 84px;
+	photoPosition: point(21px, 10px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: msgNameFont;
+	}
+	namePosition: point(77px, 11px);
+	statusPosition: point(77px, 32px);
+	photoSize: 42px;
+	statusFg: boxTextFg;
+	statusFgOver: boxTextFg;
+}
+sessionList: PeerList(defaultPeerList) {
+	item: sessionListItem;
+	padding: margins(0px, 4px, 0px, 0px);
+}
+sessionListThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
+sessionListThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
+sessionListThreeDotsSkip: 12px;

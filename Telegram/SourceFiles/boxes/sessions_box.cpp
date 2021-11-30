@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/self_destruction_box.h"
+#include "boxes/peer_lists_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -55,6 +56,50 @@ enum class Type {
 	Firefox,
 	Safari,
 	Other,
+};
+
+class Row;
+
+class RowDelegate {
+public:
+	virtual void rowUpdateRow(not_null<Row*> row) = 0;
+};
+
+class Row final : public PeerListRow {
+public:
+	Row(not_null<RowDelegate*> delegate, const EntryData &data);
+
+	void update(const EntryData &data);
+	void updateName(const QString &name);
+
+	[[nodiscard]] EntryData data() const;
+
+	QString generateName() override;
+	QString generateShortName() override;
+	PaintRoundImageCallback generatePaintUserpicCallback() override;
+
+	int elementsCount() const override;
+	QRect elementGeometry(int element, int outerWidth) const override;
+	bool elementDisabled(int element) const override;
+	bool elementOnlySelect(int element) const override;
+	void elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void elementsStopLastRipple() override;
+	void elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) override;
+
+private:
+	const not_null<RowDelegate*> _delegate;
+	Ui::Text::String _location;
+	Type _type = Type::Other;
+	EntryData _data;
+	QImage _userpic;
+
 };
 
 void RenameBox(not_null<Ui::GenericBox*> box) {
@@ -255,7 +300,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 }
 
 [[nodiscard]] QImage GenerateUserpic(Type type) {
-	const auto size = st::sessionUserpicSize;
+	const auto size = st::sessionListItem.photoSize;
 	const auto full = size * style::DevicePixelRatio();
 	const auto rect = QRect(0, 0, size, size);
 
@@ -440,6 +485,125 @@ void SessionInfoBox(
 	}
 }
 
+Row::Row(not_null<RowDelegate*> delegate, const EntryData &data)
+: PeerListRow(data.hash)
+, _delegate(delegate)
+, _location(st::defaultTextStyle, LocationAndDate(data))
+, _type(TypeFromEntry(data))
+, _data(data)
+, _userpic(GenerateUserpic(_type)) {
+	setCustomStatus(_data.info);
+}
+
+void Row::update(const EntryData &data) {
+	_data = data;
+	setCustomStatus(_data.info);
+	refreshName(st::sessionListItem);
+	_location.setText(st::defaultTextStyle, LocationAndDate(_data));
+	_delegate->rowUpdateRow(this);
+}
+
+void Row::updateName(const QString &name) {
+	_data.name = name;
+	refreshName(st::sessionListItem);
+	_delegate->rowUpdateRow(this);
+}
+
+EntryData Row::data() const {
+	return _data;
+}
+
+QString Row::generateName() {
+	return _data.name;
+}
+
+QString Row::generateShortName() {
+	return generateName();
+}
+
+PaintRoundImageCallback Row::generatePaintUserpicCallback() {
+	return [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) {
+		p.drawImage(x, y, _userpic);
+	};
+}
+
+int Row::elementsCount() const {
+	return 2;
+}
+
+QRect Row::elementGeometry(int element, int outerWidth) const {
+	switch (element) {
+	case 1: {
+		return QRect(
+			st::sessionListItem.namePosition.x(),
+			st::sessionLocationTop,
+			outerWidth,
+			st::normalFont->height);
+	} break;
+	case 2: {
+		const auto size = QSize(
+			st::sessionListThreeDotsIcon.width(),
+			st::sessionListThreeDotsIcon.height());
+		const auto margins = QMargins(
+			0,
+			(st::sessionListItem.height - size.height()) / 2,
+			st::sessionListThreeDotsSkip,
+			0);
+		const auto right = margins.right();
+		const auto top = margins.top();
+		const auto left = outerWidth - right - size.width();
+		return QRect(QPoint(left, top), size);
+	} break;
+	}
+	return QRect();
+}
+
+bool Row::elementDisabled(int element) const {
+	return !id() || (element == 1);
+}
+
+bool Row::elementOnlySelect(int element) const {
+	return false;
+}
+
+void Row::elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) {
+}
+
+void Row::elementsStopLastRipple() {
+}
+
+void Row::elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) {
+	if (id()) {
+		const auto geometry = elementGeometry(2, outerWidth);
+		const auto &icon = (selectedElement == 2)
+			? st::sessionListThreeDotsIconOver
+			: st::sessionListThreeDotsIcon;
+		icon.paint(p, geometry.x(), geometry.y(), outerWidth);
+	}
+	p.setFont(st::msgFont);
+	p.setPen(st::sessionInfoFg);
+	const auto locationLeft = st::sessionListItem.namePosition.x();
+	const auto available = outerWidth - locationLeft;
+	_location.drawLeftElided(
+		p,
+		locationLeft,
+		st::sessionLocationTop,
+		available,
+		outerWidth);
+}
+
 } // namespace
 
 class SessionsContent : public Ui::RpWidget {
@@ -455,25 +619,13 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	struct Entry {
-		Entry() = default;
-		explicit Entry(const EntryData &entry);
-
-		EntryData data;
-
-		bool incomplete = false;
-		Type type = Type::Other;
-		TimeId activeTime = 0;
-		Ui::Text::String name, info, location;
-		QImage userpic;
-	};
 	struct Full {
-		Entry current;
-		std::vector<Entry> incomplete;
-		std::vector<Entry> list;
+		EntryData current;
+		std::vector<EntryData> incomplete;
+		std::vector<EntryData> list;
 	};
 	class Inner;
-	class List;
+	class ListController;
 
 	void shortPollSessions();
 	void parse(const Api::Authorizations::List &list);
@@ -495,43 +647,38 @@ private:
 
 };
 
-class SessionsContent::List : public Ui::RpWidget {
+class SessionsContent::ListController final
+	: public PeerListController
+	, public RowDelegate
+	, public base::has_weak_ptr {
 public:
-	List(QWidget *parent);
+	explicit ListController(not_null<Main::Session*> session);
 
-	void showData(gsl::span<const Entry> items);
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+
+	void rowUpdateRow(not_null<Row*> row) override;
+
+	void showData(gsl::span<const EntryData> items);
 	rpl::producer<int> itemsCount() const;
 	rpl::producer<uint64> terminateRequests() const;
 	[[nodiscard]] rpl::producer<EntryData> showRequests() const;
 
-	void terminating(uint64 hash, bool terminating);
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-
-	int resizeGetHeight(int newWidth) override;
+	[[nodiscard]] static std::unique_ptr<ListController> Add(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
+		style::margins margins = {});
 
 private:
-	struct RowWidth {
-		int available = 0;
-		int info = 0;
-	};
-
 	void subscribeToCustomDeviceModel();
-	void computeRowWidth();
 
-	RowWidth _rowWidth;
-	std::vector<Entry> _items;
-	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
+	const not_null<Main::Session*> _session;
+
 	rpl::event_stream<uint64> _terminateRequests;
 	rpl::event_stream<int> _itemsCount;
 	rpl::event_stream<EntryData> _showRequests;
-
-	int _pressed = -1;
 
 };
 
@@ -546,32 +693,20 @@ public:
 	[[nodiscard]] rpl::producer<EntryData> showRequests() const;
 	[[nodiscard]] rpl::producer<uint64> terminateOne() const;
 	[[nodiscard]] rpl::producer<> terminateAll() const;
-	[[nodiscard]] rpl::producer<> renameCurrentRequests() const;
-
-	void terminatingOne(uint64 hash, bool terminating);
 
 private:
 	void setupContent();
 
 	const not_null<Window::SessionController*> _controller;
-	QPointer<List> _current;
+	std::unique_ptr<ListController> _current;
 	QPointer<Ui::SettingsButton> _terminateAll;
-	QPointer<List> _incomplete;
-	QPointer<List> _list;
+	std::unique_ptr<ListController> _incomplete;
+	std::unique_ptr<ListController> _list;
 	rpl::variable<int> _ttlDays;
 
 };
 
-SessionsContent::Entry::Entry(const EntryData &entry)
-: data(entry)
-, incomplete(entry.incomplete)
-, type(TypeFromEntry(entry))
-, activeTime(entry.activeTime)
-, name(st::sessionNameStyle, entry.name)
-, info(st::sessionInfoStyle, entry.info)
-, location(st::sessionInfoStyle, LocationAndDate(entry))
-, userpic(GenerateUserpic(type)) {
-};
+//, location(st::sessionInfoStyle, LocationAndDate(entry))
 
 SessionsContent::SessionsContent(
 	QWidget*,
@@ -629,20 +764,19 @@ void SessionsContent::parse(const Api::Authorizations::List &list) {
 	}
 	_data = Full();
 	for (const auto &auth : list) {
-		auto entry = Entry(auth);
-		if (!entry.data.hash) {
-			_data.current = std::move(entry);
-		} else if (entry.incomplete) {
-			_data.incomplete.push_back(std::move(entry));
+		if (!auth.hash) {
+			_data.current = auth;
+		} else if (auth.incomplete) {
+			_data.incomplete.push_back(auth);
 		} else {
-			_data.list.push_back(std::move(entry));
+			_data.list.push_back(auth);
 		}
 	}
 
 	_loading = false;
 
-	ranges::sort(_data.list, std::greater<>(), &Entry::activeTime);
-	ranges::sort(_data.incomplete, std::greater<>(), &Entry::activeTime);
+	ranges::sort(_data.list, std::greater<>(), &EntryData::activeTime);
+	ranges::sort(_data.incomplete, std::greater<>(), &EntryData::activeTime);
 
 	_inner->showData(_data);
 
@@ -710,13 +844,12 @@ void SessionsContent::terminateOne(uint64 hash) {
 			if (mtpIsFalse(result)) {
 				return;
 			}
-			_inner->terminatingOne(hash, false);
-			const auto removeByHash = [&](std::vector<Entry> &list) {
+			const auto removeByHash = [&](std::vector<EntryData> &list) {
 				list.erase(
 					ranges::remove(
 						list,
 						hash,
-						[](const Entry &entry) { return entry.data.hash; }),
+						[](const EntryData &entry) { return entry.hash; }),
 					end(list));
 			};
 			removeByHash(_data.incomplete);
@@ -724,13 +857,11 @@ void SessionsContent::terminateOne(uint64 hash) {
 			_inner->showData(_data);
 		});
 		auto fail = crl::guard(weak, [=](const MTP::Error &error) {
-			_inner->terminatingOne(hash, false);
 		});
 		_authorizations->requestTerminate(
 			std::move(done),
 			std::move(fail),
 			hash);
-		_inner->terminatingOne(hash, true);
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
@@ -788,8 +919,10 @@ void SessionsContent::Inner::setupContent() {
 		Ui::show(Box(RenameBox), Ui::LayerOption::KeepOther);
 	});
 
-	_current = content->add(
-		object_ptr<List>(content),
+	const auto session = &_controller->session();
+	_current = ListController::Add(
+		content,
+		session,
 		style::margins{ 0, 0, 0, st::sessionCurrentSkip });
 	const auto terminateWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -814,7 +947,7 @@ void SessionsContent::Inner::setupContent() {
 	const auto incompleteInner = incompleteWrap->entity();
 	AddSkip(incompleteInner, st::sessionSubtitleSkip);
 	AddSubsectionTitle(incompleteInner, tr::lng_sessions_incomplete());
-	_incomplete = incompleteInner->add(object_ptr<List>(incompleteInner));
+	_incomplete = ListController::Add(incompleteInner, session);
 	AddSkip(incompleteInner);
 	AddDividerText(incompleteInner, tr::lng_sessions_incomplete_about());
 
@@ -825,7 +958,7 @@ void SessionsContent::Inner::setupContent() {
 	const auto listInner = listWrap->entity();
 	AddSkip(listInner, st::sessionSubtitleSkip);
 	AddSubsectionTitle(listInner, tr::lng_sessions_other_header());
-	_list = listInner->add(object_ptr<List>(listInner));
+	_list = ListController::Add(listInner, session);
 	AddSkip(listInner);
 	AddDividerText(listInner, tr::lng_sessions_about_apps());
 
@@ -897,165 +1030,113 @@ rpl::producer<EntryData> SessionsContent::Inner::showRequests() const {
 		_list->showRequests());
 }
 
-void SessionsContent::Inner::terminatingOne(uint64 hash, bool terminating) {
-	_incomplete->terminating(hash, terminating);
-	_list->terminating(hash, terminating);
+SessionsContent::ListController::ListController(
+	not_null<Main::Session*> session)
+: _session(session) {
 }
 
-SessionsContent::List::List(QWidget *parent) : RpWidget(parent) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
+Main::Session &SessionsContent::ListController::session() const {
+	return *_session;
 }
 
-void SessionsContent::List::resizeEvent(QResizeEvent *e) {
-	RpWidget::resizeEvent(e);
-
-	computeRowWidth();
-}
-
-void SessionsContent::List::subscribeToCustomDeviceModel() {
+void SessionsContent::ListController::subscribeToCustomDeviceModel() {
 	Core::App().settings().deviceModelChanges(
 	) | rpl::start_with_next([=](const QString &model) {
-		for (auto &entry : _items) {
-			if (!entry.data.hash) {
-				entry.name.setText(st::sessionNameStyle, model);
+		for (auto i = 0; i != delegate()->peerListFullRowsCount(); ++i) {
+			const auto row = delegate()->peerListRowAt(i);
+			if (!row->id()) {
+				static_cast<Row*>(row.get())->updateName(model);
 			}
 		}
-		update();
 	}, lifetime());
 }
 
-void SessionsContent::List::showData(gsl::span<const Entry> items) {
-	computeRowWidth();
+void SessionsContent::ListController::prepare() {
+}
 
-	auto buttons = base::take(_terminateButtons);
-	_items.clear();
-	_items.insert(begin(_items), items.begin(), items.end());
-	for (const auto &entry : _items) {
-		const auto hash = entry.data.hash;
-		if (!hash) {
+void SessionsContent::ListController::rowClicked(
+		not_null<PeerListRow*> row) {
+	_showRequests.fire_copy(static_cast<Row*>(row.get())->data());
+}
+
+void SessionsContent::ListController::rowElementClicked(
+		not_null<PeerListRow*> row,
+		int element) {
+	if (element == 1) {
+		if (const auto hash = static_cast<Row*>(row.get())->data().hash) {
+			_terminateRequests.fire_copy(hash);
+		}
+	}
+}
+
+void SessionsContent::ListController::rowUpdateRow(not_null<Row*> row) {
+	delegate()->peerListUpdateRow(row);
+}
+
+void SessionsContent::ListController::showData(
+		gsl::span<const EntryData> items) {
+	auto index = 0;
+	auto positions = base::flat_map<uint64, int>();
+	positions.reserve(items.size());
+	for (const auto &entry : items) {
+		const auto id = entry.hash;
+		positions.emplace(id, index++);
+		if (const auto row = delegate()->peerListFindRow(id)) {
+			static_cast<Row*>(row)->update(entry);
+		} else {
+			delegate()->peerListAppendRow(
+				std::make_unique<Row>(this, entry));
+		}
+	}
+	for (auto i = 0; i != delegate()->peerListFullRowsCount();) {
+		const auto row = delegate()->peerListRowAt(i);
+		if (positions.contains(row->id())) {
+			++i;
 			continue;
 		}
-		const auto button = [&] {
-			const auto i = buttons.find(hash);
-			return _terminateButtons.emplace(
-				hash,
-				(i != end(buttons)
-					? std::move(i->second)
-					: std::make_unique<Ui::IconButton>(
-						this,
-						st::sessionTerminate))).first->second.get();
-		}();
-		button->setClickedCallback([=] {
-			_terminateRequests.fire_copy(hash);
-		});
-		button->show();
-		const auto number = _terminateButtons.size() - 1;
-		widthValue(
-		) | rpl::start_with_next([=] {
-			button->moveToRight(
-				st::sessionTerminateSkip,
-				(number * st::sessionHeight + st::sessionTerminateTop));
-		}, lifetime());
+		delegate()->peerListRemoveRow(row);
 	}
-	resizeToWidth(width());
-	_itemsCount.fire(_items.size());
+	delegate()->peerListSortRows([&](
+			const PeerListRow &a,
+			const PeerListRow &b) {
+		return positions[a.id()] < positions[b.id()];
+	});
+	delegate()->peerListRefreshRows();
+	_itemsCount.fire(delegate()->peerListFullRowsCount());
 }
 
-rpl::producer<EntryData> SessionsContent::List::showRequests() const {
-	return _showRequests.events();
+rpl::producer<int> SessionsContent::ListController::itemsCount() const {
+	return _itemsCount.events_starting_with(
+		delegate()->peerListFullRowsCount());
 }
 
-rpl::producer<int> SessionsContent::List::itemsCount() const {
-	return _itemsCount.events_starting_with(_items.size());
-}
-
-rpl::producer<uint64> SessionsContent::List::terminateRequests() const {
+rpl::producer<uint64> SessionsContent::ListController::terminateRequests() const {
 	return _terminateRequests.events();
 }
 
-void SessionsContent::List::terminating(uint64 hash, bool terminating) {
-	const auto i = _terminateButtons.find(hash);
-	if (i != _terminateButtons.cend()) {
-		if (terminating) {
-			i->second->clearState();
-			i->second->hide();
-		} else {
-			i->second->show();
-		}
-	}
+rpl::producer<EntryData> SessionsContent::ListController::showRequests() const {
+	return _showRequests.events();
 }
 
-int SessionsContent::List::resizeGetHeight(int newWidth) {
-	return _items.size() * st::sessionHeight;
-}
-
-void SessionsContent::List::computeRowWidth() {
-	const auto available = width()
-		- st::sessionPadding.left()
-		- st::sessionTerminateSkip;
-	_rowWidth = {
-		.available = available,
-		.info = available - st::sessionTerminate.width,
-	};
-}
-
-void SessionsContent::List::paintEvent(QPaintEvent *e) {
-	QRect r(e->rect());
-	Painter p(this);
-
-	p.fillRect(r, st::boxBg);
-	p.setFont(st::linkFont);
-	const auto count = int(_items.size());
-	const auto from = floorclamp(r.y(), st::sessionHeight, 0, count);
-	const auto till = ceilclamp(
-		r.y() + r.height(),
-		st::sessionHeight,
-		0,
-		count);
-
-	const auto available = _rowWidth.available;
-	const auto x = st::sessionPadding.left();
-	const auto y = st::sessionPadding.top();
-	const auto w = width();
-	p.translate(0, from * st::sessionHeight);
-	for (auto i = from; i != till; ++i) {
-		const auto &entry = _items[i];
-
-		p.drawImage(st::sessionUserpicPosition, entry.userpic);
-
-		const auto nameW = _rowWidth.info;
-		const auto infoW = entry.data.hash ? _rowWidth.info : available;
-
-		p.setPen(st::sessionNameFg);
-		entry.name.drawLeftElided(p, x, y, nameW, w);
-
-		p.setPen(st::boxTextFg);
-		entry.info.drawLeftElided(p, x, y + st::sessionInfoTop, infoW, w);
-
-		p.setPen(st::sessionInfoFg);
-		entry.location.drawLeftElided(
-			p,
-			x,
-			y + st::sessionLocationTop,
-			available,
-			w);
-
-		p.translate(0, st::sessionHeight);
-	}
-}
-
-void SessionsContent::List::mousePressEvent(QMouseEvent *e) {
-	const auto index = e->pos().y() / st::sessionHeight;
-	_pressed = (index >= 0 && index < _items.size()) ? index : -1;
-}
-
-void SessionsContent::List::mouseReleaseEvent(QMouseEvent *e) {
-	const auto index = e->pos().y() / st::sessionHeight;
-	const auto released = (index >= 0 && index < _items.size()) ? index : -1;
-	if (released == _pressed && released >= 0) {
-		_showRequests.fire_copy(_items[released].data);
-	}
-	_pressed = -1;
+auto SessionsContent::ListController::Add(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Main::Session*> session,
+	style::margins margins)
+-> std::unique_ptr<ListController> {
+	auto &lifetime = container->lifetime();
+	const auto delegate = lifetime.make_state<
+		PeerListContentDelegateSimple
+	>();
+	auto controller = std::make_unique<ListController>(session);
+	controller->setStyleOverrides(&st::sessionList);
+	const auto content = container->add(
+		object_ptr<PeerListContent>(
+			container,
+			controller.get()),
+		margins);
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+	return controller;
 }
 
 SessionsBox::SessionsBox(
