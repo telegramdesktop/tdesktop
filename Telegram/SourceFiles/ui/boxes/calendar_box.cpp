@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/chat/chat_style.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 
@@ -383,6 +385,78 @@ private:
 	bool _mouseMoved = false;
 
 };
+
+class CalendarBox::FloatingDate final {
+public:
+	FloatingDate(QWidget *parent, not_null<Context*> context);
+
+	[[nodiscard]] rpl::producer<int> widthValue() const;
+	void move(int x, int y);
+
+	[[nodiscard]] rpl::lifetime &lifetime();
+
+private:
+	void paint();
+
+	const not_null<Context*> _context;
+	RpWidget _widget;
+	CornersPixmaps _corners;
+	QString _text;
+
+};
+
+CalendarBox::FloatingDate::FloatingDate(
+	QWidget *parent,
+	not_null<Context*> context)
+: _context(context)
+, _widget(parent)
+, _corners(
+	PrepareCornerPixmaps(
+		HistoryServiceMsgRadius(),
+		st::roundedBg,
+		nullptr)) {
+	_context->monthValue(
+	) | rpl::start_with_next([=](QDate month) {
+		_text = langMonthOfYearFull(month.month(), month.year());
+		const auto width = st::msgServiceFont->width(_text);
+		const auto rect = QRect(0, 0, width, st::msgServiceFont->height);
+		_widget.resize(rect.marginsAdded(st::msgServicePadding).size());
+		_widget.update();
+	}, _widget.lifetime());
+
+	_widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		paint();
+	}, _widget.lifetime());
+
+	_widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+	_widget.show();
+}
+
+rpl::producer<int> CalendarBox::FloatingDate::widthValue() const {
+	return _widget.widthValue();
+}
+
+void CalendarBox::FloatingDate::move(int x, int y) {
+	_widget.move(x, y);
+}
+
+rpl::lifetime &CalendarBox::FloatingDate::lifetime() {
+	return _widget.lifetime();
+}
+
+void CalendarBox::FloatingDate::paint() {
+	auto p = Painter(&_widget);
+
+	FillRoundRect(p, _widget.rect(), st::roundedBg, _corners);
+
+	p.setFont(st::msgServiceFont);
+	p.setPen(st::roundedFg);
+	p.drawText(
+		st::msgServicePadding.left(),
+		st::msgServicePadding.top() + st::msgServiceFont->ascent,
+		_text);
+}
 
 CalendarBox::Inner::Inner(
 	QWidget *parent,
@@ -801,6 +875,28 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 	};
 	setupJumps(_previous.data(), &_previousEnabled);
 	setupJumps(_next.data(), &_nextEnabled);
+
+	_context->selectionUpdates(
+	) | rpl::start_with_next([=] {
+		if (!_context->selectionMode()) {
+			_floatingDate = nullptr;
+		} else if (!_floatingDate) {
+			_floatingDate = std::make_unique<FloatingDate>(
+				this,
+				_context.get());
+			rpl::combine(
+				_scroll->geometryValue(),
+				_floatingDate->widthValue()
+			) | rpl::start_with_next([=](QRect scroll, int width) {
+				const auto shift = _st.daysHeight
+					- _st.padding.top()
+					- st::calendarDaysFont->height;
+				_floatingDate->move(
+					scroll.x() + (scroll.width() - width) / 2,
+					scroll.y() - shift);
+			}, _floatingDate->lifetime());
+		}
+	}, lifetime());
 }
 
 CalendarBox::~CalendarBox() = default;
