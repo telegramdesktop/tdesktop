@@ -18,7 +18,6 @@ SendAsButton::SendAsButton(QWidget *parent, const style::SendAsButton &st)
 	resize(_st.width, _st.height);
 }
 
-
 void SendAsButton::setUserpic(QImage userpic) {
 	_userpic = std::move(userpic);
 	update();
@@ -44,7 +43,7 @@ void SendAsButton::paintEvent(QPaintEvent *e) {
 
 	const auto active = _activeAnimation.value(_active ? 1. : 0.);
 	if (active < 1. && !_userpic.isNull()) {
-		p.drawImage(left, top, _userpic);
+		p.drawImage(QRect(left, top, _st.size, _st.size), _userpic);
 	}
 	if (active > 0.) {
 		p.setOpacity(active);
