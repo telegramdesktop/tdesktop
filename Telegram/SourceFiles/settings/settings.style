@@ -237,3 +237,93 @@ settingsDeviceName: InputField(defaultInputField) {
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	font: font(14px semibold);
 }
+
+sessionsScroll: boxScroll;
+sessionsHeight: 350px;
+sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	font: font(boxFontSize semibold);
+	height: 20px;
+	padding: margins(77px, 12px, 22px, 10px);
+}
+sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
+sessionsTerminateAllIconLeft: 30px;
+sessionHeight: 84px;
+sessionInfoTop: 21px;
+sessionLocationTop: 43px;
+sessionCurrentSkip: 8px;
+sessionSubtitleSkip: 14px;
+sessionPadding: margins(77px, 11px, 22px, 0px);
+sessionNameFont: msgNameFont;
+sessionNameFg: boxTextFg;
+sessionWhenFont: msgDateFont;
+sessionWhenFg: windowSubTextFg;
+sessionInfoFont: msgFont;
+sessionInfoFg: windowSubTextFg;
+sessionTerminateTop: 9px;
+sessionTerminateSkip: 22px;
+sessionUserpicSize: 42px;
+sessionUserpicPosition: point(21px, 10px);
+sessionNamePadding: margins(0px, 0px, 5px, 0px);
+sessionTerminate: IconButton {
+	width: 20px;
+	height: 20px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(5px, 5px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+sessionNameStyle: TextStyle(defaultTextStyle) {
+	font: sessionNameFont;
+}
+sessionWhenStyle: TextStyle(defaultTextStyle) {
+	font: sessionWhenFont;
+}
+sessionInfoStyle: TextStyle(defaultTextStyle) {
+	font: sessionInfoFont;
+}
+sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
+sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
+sessionIconUbuntu: icon{{ "settings/devices/device_linux_ubuntu", historyPeerUserpicFg }};
+sessionIconLinux: icon{{ "settings/devices/device_linux", historyPeerUserpicFg }};
+sessionIconiPhone: icon{{ "settings/devices/device_phone_ios", historyPeerUserpicFg }};
+sessionIconiPad: icon{{ "settings/devices/device_tablet_ios", historyPeerUserpicFg }};
+sessionIconAndroid: icon{{ "settings/devices/device_phone_android", historyPeerUserpicFg }};
+sessionIconWeb: icon{{ "settings/devices/device_web_other", historyPeerUserpicFg }};
+sessionIconChrome: icon{{ "settings/devices/device_web_chrome", historyPeerUserpicFg }};
+sessionIconEdge: icon{{ "settings/devices/device_web_edge", historyPeerUserpicFg }};
+sessionIconFirefox: icon{{ "settings/devices/device_web_firefox", historyPeerUserpicFg }};
+sessionIconSafari: icon{{ "settings/devices/device_web_safari", historyPeerUserpicFg }};
+sessionIconOther: icon{{ "settings/devices/device_other", historyPeerUserpicFg }};
+sessionBigUserpicSize: 70px;
+sessionBigLottieSize: 52px;
+sessionBigIconOther: icon{{ "settings/devices/device_other_large", historyPeerUserpicFg }};
+sessionBigIconWeb: icon{{ "settings/devices/device_web_other_large", historyPeerUserpicFg }};
+sessionBigCoverPadding: margins(0px, 18px, 0px, 7px);
+sessionBigName: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 29px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+	align: align(top);
+}
+sessionDateLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+}
+sessionDateSkip: 19px;
+sessionValuePadding: margins(0px, 5px, 0px, 2px);
+sessionValueLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+sessionValueSkip: 8px;

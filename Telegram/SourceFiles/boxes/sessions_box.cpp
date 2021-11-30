@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
 #include "lottie/lottie_icon.h"
@@ -91,56 +92,6 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	QObject::connect(name, &Ui::InputField::submitted, submit);
 	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void SessionInfoBox(
-		not_null<Ui::GenericBox*> box,
-		const EntryData &data,
-		Fn<void(uint64)> terminate) {
-	box->setTitle(rpl::single(data.name));
-	box->setWidth(st::boxWidth);
-
-	const auto skips = style::margins(0, 0, 0, st::settingsSectionSkip);
-	const auto date = base::unixtime::parse(data.activeTime);
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			rpl::single(langDateTimeFull(date)),
-			st::boxDividerLabel),
-		st::boxRowPadding + skips);
-
-	const auto add = [&](rpl::producer<QString> label, QString value) {
-		if (value.isEmpty()) {
-			return;
-		}
-		Settings::AddSubsectionTitle(
-			box->verticalLayout(),
-			std::move(label));
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				rpl::single(value),
-				st::boxDividerLabel),
-			st::boxRowPadding + skips);
-	};
-	add(tr::lng_sessions_application(), data.info);
-	add(tr::lng_sessions_system(), data.system);
-	add(tr::lng_sessions_ip(), data.ip);
-	add(tr::lng_sessions_location(), data.location);
-	if (!data.location.isEmpty()) {
-		Settings::AddDividerText(
-			box->verticalLayout(),
-			tr::lng_sessions_location_about());
-	}
-
-	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
-	box->addLeftButton(tr::lng_sessions_terminate(), [=, hash = data.hash] {
-		const auto weak = Ui::MakeWeak(box.get());
-		terminate(hash);
-		if (weak) {
-			box->closeBox();
-		}
-	}, st::attentionBoxButton);
 }
 
 [[nodiscard]] QString LocationAndDate(const EntryData &entry) {
@@ -265,6 +216,44 @@ void SessionInfoBox(
 	Unexpected("Type in IconForType.");
 }
 
+[[nodiscard]] const style::icon *IconBigForType(Type type) {
+	switch (type) {
+	case Type::Web: return &st::sessionBigIconWeb;
+	case Type::Other: return &st::sessionBigIconOther;
+	}
+	return nullptr;
+}
+
+[[nodiscard]] std::unique_ptr<Lottie::Icon> LottieForType(Type type) {
+	if (IconBigForType(type)) {
+		return nullptr;
+	}
+	const auto path = [&] {
+		switch (type) {
+		case Type::Windows: return "device_desktop_win";
+		case Type::Mac: return "device_desktop_mac";
+		case Type::Ubuntu: return "device_linux_ubuntu";
+		case Type::Linux: return "device_linux";
+		case Type::iPhone: return "device_phone_ios";
+		case Type::iPad: return "device_tablet_ios";
+		case Type::Android: return "device_phone_android";
+		case Type::Chrome: return "device_web_chrome";
+		case Type::Edge: return "device_web_edge";
+		case Type::Firefox: return "device_web_firefox";
+		case Type::Safari: return "device_web_safari";
+		}
+		Unexpected("Type in LottieForType.");
+	}();
+	const auto size = st::sessionBigLottieSize;
+	static const auto kWhite = style::owned_color(Qt::white);
+	return std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = u":/icons/settings/devices/"_q + path + u".lottie"_q,
+		.color = kWhite.color(),
+		.sizeOverride = QSize(size, size),
+		.frame = 1,
+	});
+}
+
 [[nodiscard]] QImage GenerateUserpic(Type type) {
 	const auto size = st::sessionUserpicSize;
 	const auto full = size * style::DevicePixelRatio();
@@ -283,6 +272,172 @@ void SessionInfoBox(
 	p.end();
 
 	return result;
+}
+
+[[nodiscard]] not_null<Ui::RpWidget*> GenerateUserpicBig(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<> shown,
+		Type type) {
+	const auto size = st::sessionBigUserpicSize;
+	const auto full = size * style::DevicePixelRatio();
+	const auto rect = QRect(0, 0, size, size);
+
+	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->resize(rect.size());
+	struct State {
+		QImage background;
+		std::unique_ptr<Lottie::Icon> lottie;
+		QImage lottieFrame;
+		QImage colorizedFrame;
+	};
+	const auto state = result->lifetime().make_state<State>();
+	state->background = QImage(
+		full,
+		full,
+		QImage::Format_ARGB32_Premultiplied);
+	state->background.fill(Qt::transparent);
+	state->background.setDevicePixelRatio(style::DevicePixelRatio());
+	state->colorizedFrame = state->lottieFrame = state->background;
+
+	auto p = QPainter(&state->background);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(ColorForType(type));
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+	if (const auto icon = IconBigForType(type)) {
+		icon->paintInCenter(p, rect);
+	}
+	p.end();
+
+	if ((state->lottie = LottieForType(type))) {
+		std::move(
+			shown
+		) | rpl::start_with_next([=] {
+			state->lottie->animate(
+				[=] { result->update(); },
+				0,
+				state->lottie->framesCount());
+		}, result->lifetime());
+	}
+
+	result->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(result);
+		p.drawImage(QPoint(0, 0), state->background);
+		if (state->lottie) {
+			state->lottieFrame.fill(Qt::black);
+			auto q = QPainter(&state->lottieFrame);
+			state->lottie->paintInCenter(q, result->rect());
+			q.end();
+			style::colorizeImage(
+				state->lottieFrame,
+				st::historyPeerUserpicFg->c,
+				&state->colorizedFrame);
+			p.drawImage(QPoint(0, 0), state->colorizedFrame);
+
+		}
+	}, result->lifetime());
+
+	return result;
+}
+
+void SessionInfoBox(
+		not_null<Ui::GenericBox*> box,
+		const EntryData &data,
+		Fn<void(uint64)> terminate) {
+	box->setWidth(st::boxWideWidth);
+
+	const auto shown = box->lifetime().make_state<rpl::event_stream<>>();
+	box->setShowFinishedCallback([=] {
+		shown->fire({});
+	});
+
+	const auto userpicWrap = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(box, st::sessionBigUserpicSize),
+		st::sessionBigCoverPadding);
+	const auto big = GenerateUserpicBig(
+		userpicWrap,
+		shown->events(),
+		TypeFromEntry(data));
+	userpicWrap->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		big->move((size.width() - big->width()) / 2, 0);
+	}, userpicWrap->lifetime());
+
+	const auto nameWrap = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::sessionBigName.maxHeight));
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(
+		nameWrap,
+		rpl::single(data.name),
+		st::sessionBigName);
+	nameWrap->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		name->resizeToWidth(width);
+		name->move((width - name->width()) / 2, 0);
+	}, name->lifetime());
+
+	const auto dateWrap = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::sessionDateLabel.style.font->height),
+		style::margins(0, 0, 0, st::sessionDateSkip));
+	const auto date = Ui::CreateChild<Ui::FlatLabel>(
+		dateWrap,
+		rpl::single(
+			langDateTimeFull(base::unixtime::parse(data.activeTime))),
+		st::sessionDateLabel);
+	rpl::combine(
+		dateWrap->widthValue(),
+		date->widthValue()
+	) | rpl::start_with_next([=](int outer, int inner) {
+		date->move((outer - inner) / 2, 0);
+	}, date->lifetime());
+
+	using namespace Settings;
+	const auto container = box->verticalLayout();
+	AddDivider(container);
+	AddSkip(container, st::sessionSubtitleSkip);
+	AddSubsectionTitle(container, tr::lng_sessions_info());
+
+	const auto add = [&](rpl::producer<QString> label, QString value) {
+		if (value.isEmpty()) {
+			return;
+		}
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				rpl::single(value),
+				st::boxLabel),
+			st::boxRowPadding + st::sessionValuePadding);
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(label),
+				st::sessionValueLabel),
+			(st::boxRowPadding
+				+ style::margins{ 0, 0, 0, st::sessionValueSkip }));
+	};
+	add(tr::lng_sessions_application(), data.info);
+	add(tr::lng_sessions_system(), data.system);
+	add(tr::lng_sessions_ip(), data.ip);
+	add(tr::lng_sessions_location(), data.location);
+	AddSkip(container, st::sessionValueSkip);
+	if (!data.location.isEmpty()) {
+		AddDividerText(container, tr::lng_sessions_location_about());
+	}
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+	if (const auto hash = data.hash) {
+		box->addLeftButton(tr::lng_sessions_terminate(), [=] {
+			const auto weak = Ui::MakeWeak(box.get());
+			terminate(hash);
+			if (weak) {
+				box->closeBox();
+			}
+		}, st::attentionBoxButton);
+	}
 }
 
 } // namespace
@@ -737,6 +892,7 @@ rpl::producer<uint64> SessionsContent::Inner::terminateOne() const {
 
 rpl::producer<EntryData> SessionsContent::Inner::showRequests() const {
 	return rpl::merge(
+		_current->showRequests(),
 		_incomplete->showRequests(),
 		_list->showRequests());
 }
