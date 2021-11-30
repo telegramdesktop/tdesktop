@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
+#include "lottie/lottie_icon.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "window/window_session_controller.h"
@@ -38,6 +39,22 @@ constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
 constexpr auto kMaxDeviceModelLength = 32;
 
 using EntryData = Api::Authorizations::Entry;
+
+enum class Type {
+	Windows,
+	Mac,
+	Ubuntu,
+	Linux,
+	iPhone,
+	iPad,
+	Android,
+	Web,
+	Chrome,
+	Edge,
+	Firefox,
+	Safari,
+	Other,
+};
 
 void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->setTitle(tr::lng_settings_rename_device_title());
@@ -133,6 +150,141 @@ void SessionInfoBox(
 			: QString());
 }
 
+[[nodiscard]] Type TypeFromEntry(const EntryData &entry) {
+	using List = std::vector<int>;
+	const auto platform = entry.platform.toLower();
+	const auto device = entry.name.toLower();
+	const auto system = entry.system.toLower();
+	const auto apiId = entry.apiId;
+	const auto kDesktop = std::array{ 2040, 17349, 611335 };
+	const auto kMac = std::array{ 2834 };
+	const auto kAndroid
+		= std::array{ 5, 6, 24, 1026, 1083, 2458, 2521, 21724 };
+	const auto kiOS = std::array{ 1, 7, 10840, 16352 };
+	const auto kWeb = std::array{ 2496, 739222, 1025907 };
+
+	const auto detectBrowser = [&]() -> std::optional<Type> {
+		if (device.contains("edg/")
+			|| device.contains("edgios/")
+			|| device.contains("edga/")) {
+			return Type::Edge;
+		} else if (device.contains("chrome")) {
+			return Type::Chrome;
+		} else if (device.contains("safari")) {
+			return Type::Safari;
+		} else if (device.contains("firefox")) {
+			return Type::Firefox;
+		}
+		return {};
+	};
+	const auto detectDesktop = [&]() -> std::optional<Type> {
+		if (platform.contains("windows") || system.contains("windows")) {
+			return Type::Windows;
+		} else if (platform.contains("macos") || system.contains("macos")) {
+			return Type::Mac;
+		} else if (platform.contains("ubuntu")
+			|| system.contains("ubuntu")
+			|| platform.contains("unity")
+			|| system.contains("unity")) {
+			return Type::Ubuntu;
+		} else if (platform.contains("linux") || system.contains("linux")) {
+			return Type::Linux;
+		}
+		return {};
+	};
+
+	if (ranges::contains(kAndroid, apiId)) {
+		return Type::Android;
+	} else if (ranges::contains(kDesktop, apiId)) {
+		return detectDesktop().value_or(Type::Linux);
+	} else if (ranges::contains(kMac, apiId)) {
+		return Type::Mac;
+	} else if (ranges::contains(kWeb, apiId)) {
+		return detectBrowser().value_or(Type::Web);
+	} else if (device.contains("chromebook")) {
+		return Type::Other;
+	} else if (const auto browser = detectBrowser()) {
+		return *browser;
+    } else if (device.contains("iphone")) {
+		return Type::iPhone;
+	} else if (device.contains("ipad")) {
+		return Type::iPad;
+	} else if (ranges::contains(kiOS, apiId)) {
+		return Type::iPhone;
+	} else if (const auto desktop = detectDesktop()) {
+		return *desktop;
+	} else if (platform.contains("android") || system.contains("android")) {
+		return Type::Android;
+    } else if (platform.contains("ios") || system.contains("ios")) {
+		return Type::iPhone;
+    }
+	return Type::Other;
+}
+
+[[nodiscard]] style::color ColorForType(Type type) {
+	switch (type) {
+	case Type::Windows:
+	case Type::Mac:
+	case Type::Other:
+		return st::historyPeer4UserpicBg; // blue
+	case Type::Ubuntu:
+		return st::historyPeer8UserpicBg; // orange
+	case Type::Linux:
+		return st::historyPeer5UserpicBg; // purple
+	case Type::iPhone:
+	case Type::iPad:
+		return st::historyPeer7UserpicBg; // sea
+	case Type::Android:
+		return st::historyPeer2UserpicBg; // green
+	case Type::Web:
+	case Type::Chrome:
+	case Type::Edge:
+	case Type::Firefox:
+	case Type::Safari:
+		return st::historyPeer6UserpicBg; // pink
+	}
+	Unexpected("Type in ColorForType.");
+}
+
+[[nodiscard]] const style::icon &IconForType(Type type) {
+	switch (type) {
+	case Type::Windows: return st::sessionIconWindows;
+	case Type::Mac: return st::sessionIconMac;
+	case Type::Ubuntu: return st::sessionIconUbuntu;
+	case Type::Linux: return st::sessionIconLinux;
+	case Type::iPhone: return st::sessionIconiPhone;
+	case Type::iPad: return st::sessionIconiPad;
+	case Type::Android: return st::sessionIconAndroid;
+	case Type::Web: return st::sessionIconWeb;
+	case Type::Chrome: return st::sessionIconChrome;
+	case Type::Edge: return st::sessionIconEdge;
+	case Type::Firefox: return st::sessionIconFirefox;
+	case Type::Safari: return st::sessionIconSafari;
+	case Type::Other: return st::sessionIconOther;
+	}
+	Unexpected("Type in IconForType.");
+}
+
+[[nodiscard]] QImage GenerateUserpic(Type type) {
+	const auto size = st::sessionUserpicSize;
+	const auto full = size * style::DevicePixelRatio();
+	const auto rect = QRect(0, 0, size, size);
+
+	auto result = QImage(full, full, QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+
+	auto p = QPainter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(ColorForType(type));
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+	IconForType(type).paintInCenter(p, rect);
+	p.end();
+
+	return result;
+}
+
 } // namespace
 
 class SessionsContent : public Ui::RpWidget {
@@ -150,20 +302,15 @@ protected:
 private:
 	struct Entry {
 		Entry() = default;
-		Entry(const EntryData &entry)
-		: data(entry)
-		, incomplete(entry.incomplete)
-		, activeTime(entry.activeTime)
-		, name(st::sessionNameStyle, entry.name)
-		, info(st::sessionInfoStyle, entry.info)
-		, location(st::sessionInfoStyle, LocationAndDate(entry)) {
-		};
+		explicit Entry(const EntryData &entry);
 
 		EntryData data;
 
 		bool incomplete = false;
+		Type type = Type::Other;
 		TimeId activeTime = 0;
 		Ui::Text::String name, info, location;
+		QImage userpic;
 	};
 	struct Full {
 		Entry current;
@@ -258,6 +405,17 @@ private:
 	QPointer<List> _list;
 	rpl::variable<int> _ttlDays;
 
+};
+
+SessionsContent::Entry::Entry(const EntryData &entry)
+: data(entry)
+, incomplete(entry.incomplete)
+, type(TypeFromEntry(entry))
+, activeTime(entry.activeTime)
+, name(st::sessionNameStyle, entry.name)
+, info(st::sessionInfoStyle, entry.info)
+, location(st::sessionInfoStyle, LocationAndDate(entry))
+, userpic(GenerateUserpic(type)) {
 };
 
 SessionsContent::SessionsContent(
@@ -475,17 +633,22 @@ void SessionsContent::Inner::setupContent() {
 		Ui::show(Box(RenameBox), Ui::LayerOption::KeepOther);
 	});
 
-	_current = content->add(object_ptr<List>(content));
+	_current = content->add(
+		object_ptr<List>(content),
+		style::margins{ 0, 0, 0, st::sessionCurrentSkip });
 	const auto terminateWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			content,
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		object_ptr<Ui::SettingsButton>(
+		CreateButton(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
-			st::terminateSessionsButton));
+			st::sessionsTerminateAll,
+			&st::sessionsTerminateAllIcon,
+			st::sessionsTerminateAllIconLeft,
+			&st::attentionButtonFg));
 	AddSkip(terminateInner);
 	AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 
@@ -494,7 +657,7 @@ void SessionsContent::Inner::setupContent() {
 			content,
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto incompleteInner = incompleteWrap->entity();
-	AddSkip(incompleteInner);
+	AddSkip(incompleteInner, st::sessionSubtitleSkip);
 	AddSubsectionTitle(incompleteInner, tr::lng_sessions_incomplete());
 	_incomplete = incompleteInner->add(object_ptr<List>(incompleteInner));
 	AddSkip(incompleteInner);
@@ -505,19 +668,18 @@ void SessionsContent::Inner::setupContent() {
 			content,
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto listInner = listWrap->entity();
-	AddSkip(listInner);
+	AddSkip(listInner, st::sessionSubtitleSkip);
 	AddSubsectionTitle(listInner, tr::lng_sessions_other_header());
 	_list = listInner->add(object_ptr<List>(listInner));
 	AddSkip(listInner);
+	AddDividerText(listInner, tr::lng_sessions_about_apps());
 
 	const auto ttlWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			content,
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto ttlInner = ttlWrap->entity();
-	AddDivider(ttlInner);
-	AddSkip(ttlInner);
-
+	AddSkip(ttlInner, st::sessionSubtitleSkip);
 	AddSubsectionTitle(ttlInner, tr::lng_settings_terminate_title());
 
 	AddButtonWithLabel(
@@ -703,19 +865,24 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	for (auto i = from; i != till; ++i) {
 		const auto &entry = _items[i];
 
+		p.drawImage(st::sessionUserpicPosition, entry.userpic);
+
 		const auto nameW = _rowWidth.info;
-		const auto nameH = entry.name.style()->font->height;
 		const auto infoW = entry.data.hash ? _rowWidth.info : available;
-		const auto infoH = entry.info.style()->font->height;
 
 		p.setPen(st::sessionNameFg);
 		entry.name.drawLeftElided(p, x, y, nameW, w);
 
 		p.setPen(st::boxTextFg);
-		entry.info.drawLeftElided(p, x, y + nameH, infoW, w);
+		entry.info.drawLeftElided(p, x, y + st::sessionInfoTop, infoW, w);
 
 		p.setPen(st::sessionInfoFg);
-		entry.location.drawLeftElided(p, x, y + nameH + infoH, available, w);
+		entry.location.drawLeftElided(
+			p,
+			x,
+			y + st::sessionLocationTop,
+			available,
+			w);
 
 		p.translate(0, st::sessionHeight);
 	}

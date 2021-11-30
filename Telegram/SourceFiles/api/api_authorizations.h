@@ -21,8 +21,9 @@ public:
 		uint64 hash = 0;
 
 		bool incomplete = false;
+		int apiId = 0;
 		TimeId activeTime = 0;
-		QString name, active, info, ip, location, system;
+		QString name, active, info, ip, location, system, platform;
 	};
 	using List = std::vector<Entry>;
 

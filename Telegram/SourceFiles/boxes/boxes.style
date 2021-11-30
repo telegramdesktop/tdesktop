@@ -281,10 +281,21 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 
 sessionsScroll: boxScroll;
 sessionsHeight: 350px;
-sessionHeight: 70px;
-sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
-sessionCurrentHeight: 118px;
-sessionPadding: margins(22px, 10px, 22px, 0px);
+sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	font: font(boxFontSize semibold);
+	height: 20px;
+	padding: margins(77px, 12px, 22px, 10px);
+}
+sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
+sessionsTerminateAllIconLeft: 30px;
+sessionHeight: 84px;
+sessionInfoTop: 21px;
+sessionLocationTop: 43px;
+sessionCurrentSkip: 8px;
+sessionSubtitleSkip: 14px;
+sessionPadding: margins(77px, 11px, 22px, 0px);
 sessionNameFont: msgNameFont;
 sessionNameFg: boxTextFg;
 sessionWhenFont: msgDateFont;
@@ -293,6 +304,8 @@ sessionInfoFont: msgFont;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 9px;
 sessionTerminateSkip: 22px;
+sessionUserpicSize: 42px;
+sessionUserpicPosition: point(21px, 10px);
 sessionNamePadding: margins(0px, 0px, 5px, 0px);
 sessionTerminate: IconButton {
 	width: 20px;
@@ -308,10 +321,6 @@ sessionTerminate: IconButton {
 		color: windowBgOver;
 	}
 }
-sessionTerminateAllButton: LinkButton(boxLinkButton) {
-	color: attentionButtonFg;
-	overColor: attentionButtonFg;
-}
 sessionNameStyle: TextStyle(defaultTextStyle) {
 	font: sessionNameFont;
 }
@@ -321,6 +330,19 @@ sessionWhenStyle: TextStyle(defaultTextStyle) {
 sessionInfoStyle: TextStyle(defaultTextStyle) {
 	font: sessionInfoFont;
 }
+sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
+sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
+sessionIconUbuntu: icon{{ "settings/devices/device_linux_ubuntu", historyPeerUserpicFg }};
+sessionIconLinux: icon{{ "settings/devices/device_linux", historyPeerUserpicFg }};
+sessionIconiPhone: icon{{ "settings/devices/device_phone_ios", historyPeerUserpicFg }};
+sessionIconiPad: icon{{ "settings/devices/device_tablet_ios", historyPeerUserpicFg }};
+sessionIconAndroid: icon{{ "settings/devices/device_phone_android", historyPeerUserpicFg }};
+sessionIconWeb: icon{{ "settings/devices/device_web_other", historyPeerUserpicFg }};
+sessionIconChrome: icon{{ "settings/devices/device_web_chrome", historyPeerUserpicFg }};
+sessionIconEdge: icon{{ "settings/devices/device_web_edge", historyPeerUserpicFg }};
+sessionIconFirefox: icon{{ "settings/devices/device_web_firefox", historyPeerUserpicFg }};
+sessionIconSafari: icon{{ "settings/devices/device_web_safari", historyPeerUserpicFg }};
+sessionIconOther: icon{{ "settings/devices/device_other", historyPeerUserpicFg }};
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;

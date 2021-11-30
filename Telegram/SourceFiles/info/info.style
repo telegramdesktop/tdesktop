@@ -632,10 +632,6 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
 editPeerSkip: 7px;
 editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
-terminateSessionsButton: SettingsButton(infoBlockButton) {
-	padding: margins(22px, 12px, 22px, 10px);
-}
-
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};
@@ -662,8 +658,6 @@ editPeerTopButtonsLayoutSkipCustomBottom: 11px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
-editPeerDeleteButtonMargins: margins(25px, 11px, 22px, 16px);
-editPeerDeleteButton: sessionTerminateAllButton;
 editPeerPhotoMargins: margins(22px, 16px, 22px, 8px);
 editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 21px, 22px, 8px);
