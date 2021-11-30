@@ -255,7 +255,7 @@ sessionSubtitleSkip: 14px;
 sessionLocationFg: windowSubTextFg;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 9px;
-sessionTerminateSkip: 22px;
+sessionTerminateSkip: 12px;
 sessionTerminate: IconButton {
 	width: 20px;
 	height: 20px;

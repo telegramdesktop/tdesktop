@@ -147,7 +147,6 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 }
 
 [[nodiscard]] Type TypeFromEntry(const EntryData &entry) {
-	using List = std::vector<int>;
 	const auto platform = entry.platform.toLower();
 	const auto device = entry.name.toLower();
 	const auto system = entry.system.toLower();
@@ -500,6 +499,8 @@ void Row::update(const EntryData &data) {
 	setCustomStatus(_data.info);
 	refreshName(st::sessionListItem);
 	_location.setText(st::defaultTextStyle, LocationAndDate(_data));
+	_type = TypeFromEntry(_data);
+	_userpic = GenerateUserpic(_type);
 	_delegate->rowUpdateRow(this);
 }
 
@@ -547,15 +548,15 @@ QRect Row::elementGeometry(int element, int outerWidth) const {
 	} break;
 	case 2: {
 		const auto size = QSize(
-			st::sessionListThreeDotsIcon.width(),
-			st::sessionListThreeDotsIcon.height());
+			st::sessionTerminate.width,
+			st::sessionTerminate.height);
 		const auto margins = QMargins(
 			0,
 			(st::sessionListItem.height - size.height()) / 2,
 			st::sessionListThreeDotsSkip,
 			0);
-		const auto right = margins.right();
-		const auto top = margins.top();
+		const auto right = st::sessionTerminateSkip;
+		const auto top = st::sessionTerminateTop;
 		const auto left = outerWidth - right - size.width();
 		return QRect(QPoint(left, top), size);
 	} break;
@@ -587,10 +588,12 @@ void Row::elementsPaint(
 		int selectedElement) {
 	if (id()) {
 		const auto geometry = elementGeometry(2, outerWidth);
+		const auto position = geometry.topLeft()
+			+ st::sessionTerminate.iconPosition;
 		const auto &icon = (selectedElement == 2)
-			? st::sessionListThreeDotsIconOver
-			: st::sessionListThreeDotsIcon;
-		icon.paint(p, geometry.x(), geometry.y(), outerWidth);
+			? st::sessionTerminate.iconOver
+			: st::sessionTerminate.icon;
+		icon.paint(p, position.x(), position.y(), outerWidth);
 	}
 	p.setFont(st::msgFont);
 	p.setPen(st::sessionInfoFg);
@@ -1062,7 +1065,7 @@ void SessionsContent::ListController::rowClicked(
 void SessionsContent::ListController::rowElementClicked(
 		not_null<PeerListRow*> row,
 		int element) {
-	if (element == 1) {
+	if (element == 2) {
 		if (const auto hash = static_cast<Row*>(row.get())->data().hash) {
 			_terminateRequests.fire_copy(hash);
 		}
