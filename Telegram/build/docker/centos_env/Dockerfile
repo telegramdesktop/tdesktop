@@ -46,7 +46,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 19e5e028c7
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout b6c29e99da
 
 FROM builder AS extra-cmake-modules
 
