@@ -492,7 +492,7 @@ void StickersBox::getArchivedDone(
 			const auto index = archived.indexOf(set->id);
 			if (archived.isEmpty() || index != archived.size() - 1) {
 				changedSets = true;
-				if (index < archived.size() - 1) {
+				if (index >= 0 && index < archived.size() - 1) {
 					archived.removeAt(index);
 				}
 				archived.push_back(set->id);
