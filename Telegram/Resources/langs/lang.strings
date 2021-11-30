@@ -1020,7 +1020,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_public_peer_title" = "Public";
 "lng_manage_peer_no_forwards_title" = "Saving content";
 "lng_manage_peer_no_forwards" = "Restrict saving content";
-"lng_manage_peer_no_forwards_about" = "Participants won't be able to forward messages from this channel or save media files.";
+"lng_manage_peer_no_forwards_about" = "Members won't be able to forward messages from this group or save media files.";
+"lng_manage_peer_no_forwards_about_channel" = "Subscribers won't be able to forward messages from this channel or save media files.";
 
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";
