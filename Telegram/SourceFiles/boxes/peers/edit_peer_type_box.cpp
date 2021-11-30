@@ -224,7 +224,11 @@ void Controller::createContent() {
 			_noForwardsSavedValue = toggled;
 		}, _wrap->lifetime());
 		AddSkip(_wrap.get());
-		AddDividerText(_wrap.get(), tr::lng_manage_peer_no_forwards_about());
+		AddDividerText(
+			_wrap.get(),
+			(_isGroup
+				? tr::lng_manage_peer_no_forwards_about
+				: tr::lng_manage_peer_no_forwards_about_channel)());
 	}
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);
