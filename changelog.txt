@@ -1,3 +1,10 @@
+3.2.7 beta (30.11.21)
+
+- Active sessions list redesign.
+- Fix disappearing emoji selector button.
+- Fix a crash in archived stickers loading.
+- Fix a crash in calls to old Telegram versions.
+
 3.2.6 beta (26.11.21)
 
 - Try out the new audio player with playlist shuffle and repeat.
