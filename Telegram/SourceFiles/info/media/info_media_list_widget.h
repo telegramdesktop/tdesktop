@@ -176,6 +176,9 @@ private:
 	int recountHeight();
 	void refreshHeight();
 
+	void setupSelectRestriction();
+	[[nodiscard]] bool hasSelectRestriction() const;
+
 	QMargins padding() const;
 	bool isMyItem(not_null<const HistoryItem*> item) const;
 	bool isItemLayout(
