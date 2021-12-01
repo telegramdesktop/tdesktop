@@ -491,16 +491,18 @@ mac:
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
     cmake --build build.arm64 $MAKE_THREADS_CNT
-    cmake -B build . \\
+    CFLAGS="-arch x86_64" cmake -B build.x86_64 . \\
+        -D CMAKE_SYSTEM_NAME=Darwin \\
+        -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
-    cmake --build build $MAKE_THREADS_CNT
-    lipo -create build.arm64/libjpeg.a build/libjpeg.a -output build/libjpeg.a
-    lipo -create build.arm64/libturbojpeg.a build/libturbojpeg.a -output build/libturbojpeg.a
+    cmake --build build.x86_64 $MAKE_THREADS_CNT
+    lipo -create build.arm64/libjpeg.a build.x86_64/libjpeg.a -output build/libjpeg.a
+    lipo -create build.arm64/libturbojpeg.a build.x86_64/libturbojpeg.a -output build/libturbojpeg.a
     cmake --install build
 """)
 
@@ -612,9 +614,11 @@ mac:
     mkdir out.arm64
     mv lib/.libs/libiconv.a out.arm64
     make clean
-    CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --enable-static --prefix=$USED_PREFIX
+    CFLAGS="$MIN_VER $UNGUARDED -arch x86_64" CPPFLAGS="$MIN_VER $UNGUARDED -arch x86_64" LDFLAGS="$MIN_VER" ./configure --enable-static --host=x86_64 --prefix=$USED_PREFIX
     make $MAKE_THREADS_CNT
-    lipo -create out.arm64/libiconv.a lib/.libs/libiconv.a -output lib/.libs/libiconv.a
+    mkdir out.x86_64
+    mv lib/.libs/libiconv.a out.x86_64
+    lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
     make install
 """)
 
@@ -751,9 +755,12 @@ depends:yasm/yasm
     make clean
 
     ./configure --prefix=$USED_PREFIX \
-    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER $USED_PREFIX/lib/libopus.a" \
+    --enable-cross-compile \
+    --target-os=darwin \
+    --arch="x86_64" \
+    --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
     --enable-protocol=file \
     --enable-libopus \
     --disable-programs \
@@ -852,12 +859,19 @@ depends:yasm/yasm
     --enable-muxer=opus
 
     make $MAKE_THREADS_CNT
-
-    lipo -create out.arm64/libavformat.a libavformat/libavformat.a -output libavformat/libavformat.a
-    lipo -create out.arm64/libavcodec.a libavcodec/libavcodec.a -output libavcodec/libavcodec.a
-    lipo -create out.arm64/libswresample.a libswresample/libswresample.a -output libswresample/libswresample.a
-    lipo -create out.arm64/libswscale.a libswscale/libswscale.a -output libswscale/libswscale.a
-    lipo -create out.arm64/libavutil.a libavutil/libavutil.a -output libavutil/libavutil.a
+    
+    mkdir out.x86_64
+    mv libavformat/libavformat.a out.x86_64
+    mv libavcodec/libavcodec.a out.x86_64
+    mv libswresample/libswresample.a out.x86_64
+    mv libswscale/libswscale.a out.x86_64
+    mv libavutil/libavutil.a out.x86_64
+    
+    lipo -create out.arm64/libavformat.a out.x86_64/libavformat.a -output libavformat/libavformat.a
+    lipo -create out.arm64/libavcodec.a out.x86_64/libavcodec.a -output libavcodec/libavcodec.a
+    lipo -create out.arm64/libswresample.a out.x86_64/libswresample.a -output libswresample/libswresample.a
+    lipo -create out.arm64/libswscale.a out.x86_64/libswscale.a -output libswscale/libswscale.a
+    lipo -create out.arm64/libavutil.a out.x86_64/libavutil.a -output libavutil/libavutil.a
 
     make install
 """)
