@@ -135,6 +135,8 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
+	Expects(!name.isEmpty());
+
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
 	firstName = parts[0];

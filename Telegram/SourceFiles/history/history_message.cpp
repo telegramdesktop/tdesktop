@@ -1176,8 +1176,13 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 		return;
 	}
 	forwarded->originalDate = config.originalDate;
-	forwarded->originalSender = config.senderOriginal
-		? history()->owner().peer(config.senderOriginal).get()
+	const auto originalSender = config.senderOriginal
+		? config.senderOriginal
+		: !config.senderNameOriginal.isEmpty()
+		? PeerId()
+		: from()->id;
+	forwarded->originalSender = originalSender
+		? history()->owner().peer(originalSender).get()
 		: nullptr;
 	if (!forwarded->originalSender) {
 		forwarded->hiddenSenderInfo = std::make_unique<HiddenSenderInfo>(
