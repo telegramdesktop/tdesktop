@@ -742,6 +742,9 @@ void ListWidget::start() {
 }
 
 void ListWidget::setupSelectRestriction() {
+	if (_peer->isUser()) {
+		return;
+	}
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	auto noForwards = chat
