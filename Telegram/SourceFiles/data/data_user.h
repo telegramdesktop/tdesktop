@@ -37,6 +37,7 @@ enum class UserDataFlag {
 	Support = (1 << 10),
 	CanPinMessages = (1 << 11),
 	DiscardMinPhoto = (1 << 12),
+	Self = (1 << 13),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -68,21 +69,15 @@ public:
 	}
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(UserDataFlags which) {
-		_flags.set(which);
-	}
-	void addFlags(UserDataFlags which) {
-		_flags.add(which);
-	}
-	void removeFlags(UserDataFlags which) {
-		_flags.remove(which);
-	}
 	auto flags() const {
 		return _flags.current();
 	}
 	auto flagsValue() const {
 		return _flags.value();
 	}
+	void setFlags(UserDataFlags which);
+	void addFlags(UserDataFlags which);
+	void removeFlags(UserDataFlags which);
 
 	[[nodiscard]] bool isVerified() const {
 		return flags() & UserDataFlag::Verified;

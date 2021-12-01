@@ -795,6 +795,13 @@ QString PeerData::userName() const {
 	return QString();
 }
 
+bool PeerData::isSelf() const {
+	if (const auto user = asUser()) {
+		return (user->flags() & UserDataFlag::Self);
+	}
+	return false;
+}
+
 bool PeerData::isVerified() const {
 	if (const auto user = asUser()) {
 		return user->isVerified();

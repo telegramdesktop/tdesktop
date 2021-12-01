@@ -164,9 +164,7 @@ public:
 	[[nodiscard]] bool isChannel() const {
 		return peerIsChannel(id);
 	}
-	[[nodiscard]] bool isSelf() const {
-		return (input.type() == mtpc_inputPeerSelf);
-	}
+	[[nodiscard]] bool isSelf() const;
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isFake() const;

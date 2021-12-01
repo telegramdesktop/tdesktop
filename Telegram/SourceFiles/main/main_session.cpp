@@ -78,6 +78,7 @@ Session::Session(
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _data(std::make_unique<Data::Session>(this))
+, _userId(user.c_user().vid())
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
@@ -213,11 +214,11 @@ uint64 Session::uniqueId() const {
 }
 
 UserId Session::userId() const {
-	return peerToUser(_user->id);
+	return _userId;
 }
 
 PeerId Session::userPeerId() const {
-	return _user->id;
+	return _userId;
 }
 
 bool Session::validateSelf(UserId id) {

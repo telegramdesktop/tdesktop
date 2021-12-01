@@ -179,6 +179,7 @@ private:
 
 	// _data depends on _downloader / _uploader.
 	const std::unique_ptr<Data::Session> _data;
+	const UserId _userId;
 	const not_null<UserData*> _user;
 
 	// _emojiStickersPack depends on _data.
