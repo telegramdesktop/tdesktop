@@ -78,8 +78,8 @@ public:
 			: tr::lng_manage_peer_channel_type();
 	}
 
-	[[nodiscard]] bool isAllowSave() {
-		return _isAllowSave;
+	[[nodiscard]] bool goodUsername() const {
+		return _goodUsername;
 	}
 
 	[[nodiscard]] Privacy getPrivacy() const {
@@ -144,7 +144,7 @@ private:
 
 	bool _useLocationPhrases = false;
 	bool _isGroup = false;
-	bool _isAllowSave = false;
+	bool _goodUsername = false;
 
 	base::unique_qptr<Ui::VerticalLayout> _wrap;
 	base::Timer _checkUsernameTimer;
@@ -171,7 +171,8 @@ Controller::Controller(
 , _noForwardsSavedValue(noForwardsSavedValue)
 , _useLocationPhrases(useLocationPhrases)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
-, _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
+, _goodUsername(!_usernameSavedValue.value_or(
+	_peer->isChannel() ? _peer->asChannel()->username : QString()).isEmpty())
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
 	_peer->updateFull();
@@ -236,7 +237,8 @@ void Controller::createContent() {
 		if (_controls.privacy->value() == Privacy::NoUsername) {
 			checkUsernameAvailability();
 		}
-		const auto forShowing = _privacySavedValue.value_or(Privacy::NoUsername);
+		const auto forShowing = _privacySavedValue.value_or(
+			Privacy::NoUsername);
 		_controls.inviteLinkWrap->toggle(
 			(forShowing != Privacy::HasUsername),
 			anim::type::instant);
@@ -333,8 +335,8 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
-	const auto username =
-		_usernameSavedValue.value_or(channel ? channel->username : QString());
+	const auto username = _usernameSavedValue.value_or(
+		channel ? channel->username : QString());
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -505,7 +507,7 @@ void Controller::askUsernameRevoke() {
 }
 
 void Controller::usernameChanged() {
-	_isAllowSave = false;
+	_goodUsername = false;
 	const auto username = getUsernameInput();
 	if (username.isEmpty()) {
 		_controls.usernameResult = nullptr;
@@ -529,12 +531,12 @@ void Controller::usernameChanged() {
 }
 
 void Controller::showUsernameError(rpl::producer<QString> &&error) {
-	_isAllowSave = false;
+	_goodUsername = false;
 	showUsernameResult(std::move(error), &st::editPeerUsernameError);
 }
 
 void Controller::showUsernameGood() {
-	_isAllowSave = true;
+	_goodUsername = true;
 	showUsernameResult(
 		tr::lng_create_channel_link_available(),
 		&st::editPeerUsernameGood);
@@ -655,7 +657,7 @@ void EditPeerTypeBox::prepare() {
 	if (_savedCallback.has_value()) {
 		addButton(tr::lng_settings_save(), [=] {
 			const auto v = controller->getPrivacy();
-			if (!controller->isAllowSave() && (v == Privacy::HasUsername)) {
+			if ((v == Privacy::HasUsername) && !controller->goodUsername()) {
 				controller->setFocusUsername();
 				return;
 			}
