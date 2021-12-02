@@ -297,9 +297,7 @@ public:
 protected:
 	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
 	[[nodiscard]] Ui::Text::String createCaption(
-		not_null<HistoryItem*> item,
-		TimeId timestampLinksDuration = 0,
-		const QString &timestampLinkBase = QString()) const;
+		not_null<HistoryItem*> item) const;
 
 	virtual void playAnimation(bool autoplay) {
 	}

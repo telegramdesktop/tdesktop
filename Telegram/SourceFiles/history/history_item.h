@@ -343,6 +343,10 @@ public:
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}
+	[[nodiscard]] virtual auto originalTextWithLocalEntities() const
+	-> TextWithEntities {
+		return TextWithEntities();
+	}
 	[[nodiscard]] virtual TextForMimeData clipboardText() const {
 		return TextForMimeData();
 	}

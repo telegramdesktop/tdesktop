@@ -672,28 +672,7 @@ void GroupedMedia::updateNeedBubbleState() {
 	}();
 	if (captionPart) {
 		const auto &part = (*captionPart);
-		struct Timestamp {
-			int duration = 0;
-			QString base;
-		};
-		const auto timestamp = [&]() -> Timestamp {
-			const auto document = part->content->getDocument();
-			const auto duration = document
-				? DurationForTimestampLinks(document)
-				: TimeId(0);
-			if (!duration) {
-				return {};
-			}
-			return {
-				.duration = duration,
-				.base = TimestampLinkBase(document, part->item->fullId()),
-			};
-		}();
-		_caption = createCaption(
-			part->item,
-			timestamp.duration,
-			timestamp.base);
-
+		_caption = createCaption(part->item);
 		_captionItem = part->item;
 	} else {
 		_captionItem = nullptr;

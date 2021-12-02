@@ -1536,19 +1536,31 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 }
 
 bool HistoryMessage::generateLocalEntitiesByReply() const {
+	using namespace HistoryView;
 	if (!_media) {
 		return true;
+	} else if (const auto document = _media->document()) {
+		return !DurationForTimestampLinks(document);
 	} else if (const auto webpage = _media->webpage()) {
-		return !webpage->document && webpage->type != WebPageType::Video;
+		return (webpage->type != WebPageType::Video)
+			&& !DurationForTimestampLinks(webpage);
 	}
-	return false;
+	return true;
 }
 
 TextWithEntities HistoryMessage::withLocalEntities(
 		const TextWithEntities &textWithEntities) const {
 	using namespace HistoryView;
 	if (!generateLocalEntitiesByReply()) {
-		if (const auto webpage = _media ? _media->webpage() : nullptr) {
+		if (!_media) {
+		} else if (const auto document = _media->document()) {
+			if (const auto duration = DurationForTimestampLinks(document)) {
+				return AddTimestampLinks(
+					textWithEntities,
+					duration,
+					TimestampLinkBase(document, fullId()));
+			}
+		} else if (const auto webpage = _media->webpage()) {
 			if (const auto duration = DurationForTimestampLinks(webpage)) {
 				return AddTimestampLinks(
 					textWithEntities,
@@ -1710,6 +1722,10 @@ TextWithEntities HistoryMessage::originalText() const {
 		return { QString(), EntitiesInText() };
 	}
 	return _text.toTextWithEntities();
+}
+
+TextWithEntities HistoryMessage::originalTextWithLocalEntities() const {
+	return withLocalEntities(originalText());
 }
 
 TextForMimeData HistoryMessage::clipboardText() const {

@@ -1084,14 +1084,7 @@ TextWithEntities Document::getCaption() const {
 }
 
 Ui::Text::String Document::createCaption() {
-	const auto timestampLinksDuration = DurationForTimestampLinks(_data);
-	const auto timestampLinkBase = timestampLinksDuration
-		? TimestampLinkBase(_data, _realParent->fullId())
-		: QString();
-	return File::createCaption(
-		_realParent,
-		timestampLinksDuration,
-		timestampLinkBase);
+	return File::createCaption(_realParent);
 }
 
 bool DrawThumbnailAsSongCover(

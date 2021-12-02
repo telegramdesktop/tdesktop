@@ -64,7 +64,7 @@ QString TimestampLinkBase(
 
 TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {
 	if (!webpage->collage.items.empty()) {
-		return false;
+		return 0;
 	} else if (const auto document = webpage->document) {
 		return DurationForTimestampLinks(document);
 	} else if (webpage->type != WebPageType::Video
@@ -185,12 +185,7 @@ QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
 }
 
-Ui::Text::String Media::createCaption(
-		not_null<HistoryItem*> item,
-		TimeId timestampLinksDuration,
-		const QString &timestampLinkBase) const {
-	Expects(timestampLinksDuration >= 0);
-
+Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	if (item->emptyText()) {
 		return {};
 	}
@@ -203,12 +198,7 @@ Ui::Text::String Media::createCaption(
 	};
 	result.setMarkedText(
 		st::messageTextStyle,
-		(timestampLinksDuration
-			? AddTimestampLinks(
-				item->originalText(),
-				timestampLinksDuration,
-				timestampLinkBase)
-			: item->originalText()),
+		item->originalTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
 	if (const auto width = _parent->skipBlockWidth()) {

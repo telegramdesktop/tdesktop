@@ -173,6 +173,8 @@ public:
 	void setText(const TextWithEntities &textWithEntities) override;
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
+	[[nodiscard]] auto originalTextWithLocalEntities() const
+		-> TextWithEntities override;
 	[[nodiscard]] TextForMimeData clipboardText() const override;
 	[[nodiscard]] bool textHasLinks() const override;
 

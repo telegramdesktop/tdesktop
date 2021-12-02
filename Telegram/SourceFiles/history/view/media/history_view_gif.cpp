@@ -1322,14 +1322,7 @@ void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Gif::refreshCaption() {
-	const auto timestampLinksDuration = DurationForTimestampLinks(_data);
-	const auto timestampLinkBase = timestampLinksDuration
-		? TimestampLinkBase(_data, _realParent->fullId())
-		: QString();
-	_caption = createCaption(
-			_parent->data(),
-			timestampLinksDuration,
-			timestampLinkBase);
+	_caption = createCaption(_parent->data());
 }
 
 int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
