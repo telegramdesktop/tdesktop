@@ -322,7 +322,8 @@ void Gif::validateThumbnail(
 		frame.width() * cIntRetinaFactor(),
 		frame.height() * cIntRetinaFactor(),
 		(Images::Option::Smooth
-			| (good ? Images::Option::None : Images::Option::Blurred)),
+			| (good ? Images::Option::None : Images::Option::Blurred)
+			| Images::Option::TransparentBackground),
 		size.width(),
 		size.height());
 }
@@ -663,7 +664,9 @@ void Photo::validateThumbnail(
 	_thumb = image->pixNoCache(
 		frame.width() * cIntRetinaFactor(),
 		frame.height() * cIntRetinaFactor(),
-		Images::Option::Smooth | (good ? Images::Option(0) : Images::Option::Blurred),
+		(Images::Option::Smooth
+			| (good ? Images::Option(0) : Images::Option::Blurred)
+			| Images::Option::TransparentBackground),
 		size.width(),
 		size.height());
 	_thumbGood = good;
@@ -819,7 +822,12 @@ void Video::prepareThumbnail(QSize size) const {
 				w = width;
 			}
 		}
-		_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+		_thumb = thumb->pixNoCache(
+			w * cIntRetinaFactor(),
+			h * cIntRetinaFactor(),
+			Images::Option::Smooth | Images::Option::TransparentBackground,
+			width,
+			height);
 	}
 }
 
@@ -1153,7 +1161,12 @@ void Contact::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	_thumb = thumb->pixNoCache(
+		w * cIntRetinaFactor(),
+		h * cIntRetinaFactor(),
+		Images::Option::Smooth | Images::Option::TransparentBackground,
+		width,
+		height);
 }
 
 Article::Article(
@@ -1306,7 +1319,12 @@ void Article::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	_thumb = thumb->pixNoCache(
+		w * cIntRetinaFactor(),
+		h * cIntRetinaFactor(),
+		Images::Option::Smooth | Images::Option::TransparentBackground,
+		width,
+		height);
 }
 
 Game::Game(not_null<Context*> context, not_null<Result*> result)
@@ -1524,7 +1542,8 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 		w * cIntRetinaFactor(),
 		h * cIntRetinaFactor(),
 		(Images::Option::Smooth
-			| (good ? Images::Option::None : Images::Option::Blurred)),
+			| (good ? Images::Option::None : Images::Option::Blurred)
+			| Images::Option::TransparentBackground),
 		size.width(),
 		size.height());
 }
