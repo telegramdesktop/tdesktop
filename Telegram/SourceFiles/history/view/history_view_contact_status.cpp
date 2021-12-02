@@ -564,6 +564,7 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				*request = peer->session().api().request(
 					MTPmessages_HidePeerSettingsBar(peer->input)
 				).send();
+				box->closeBox();
 			});
 		}));
 	}, _bar.lifetime());
