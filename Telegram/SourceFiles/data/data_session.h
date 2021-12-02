@@ -782,10 +782,6 @@ private:
 		PhotoData *photo,
 		DocumentData *document);
 
-	void folderApplyFields(
-		not_null<Folder*> folder,
-		const MTPDfolder &data);
-
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
 
 	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);

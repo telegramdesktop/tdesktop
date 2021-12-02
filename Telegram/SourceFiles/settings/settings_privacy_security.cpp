@@ -945,7 +945,6 @@ void PrivacySecurity::setupContent(
 	};
 
 	SetupPrivacy(controller, content, trigger());
-	SetupArchiveAndMute(controller, content);
 	SetupSessionsList(controller, content, trigger(), [=](Type type) {
 		_showOther.fire_copy(type);
 	});
@@ -956,6 +955,7 @@ void PrivacySecurity::setupContent(
 #else // !OS_MAC_STORE && !OS_WIN_STORE
 	AddDivider(content);
 #endif // !OS_MAC_STORE && !OS_WIN_STORE
+	SetupArchiveAndMute(controller, content);
 	SetupSelfDestruction(controller, content, trigger());
 	AddDivider(content);
 	SetupBotsAndWebsites(controller, content);
