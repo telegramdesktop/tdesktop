@@ -205,7 +205,7 @@ protected:
 
 private:
 	virtual void changedChatListPinHook();
-	void pinnedIndexChanged(int was, int now);
+	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
 
 	void setChatListExistence(bool exists);
