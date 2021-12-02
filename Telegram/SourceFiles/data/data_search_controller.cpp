@@ -85,6 +85,10 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 	}();
 	const auto hash = uint64(0);
 
+	const auto mtpOffsetId = int(std::clamp(
+		offsetId.bare,
+		int64(0),
+		int64(0x3FFFFFFF)));
 	return MTPmessages_Search(
 		MTP_flags(0),
 		peer->input,
@@ -94,7 +98,7 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 		filter,
 		MTP_int(0), // min_date
 		MTP_int(0), // max_date
-		MTP_int(offsetId),
+		MTP_int(mtpOffsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(maxId),
