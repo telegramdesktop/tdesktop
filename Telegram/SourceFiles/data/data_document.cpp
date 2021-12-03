@@ -1084,13 +1084,19 @@ bool DocumentData::isStickerSetInstalled() const {
 	}
 }
 
-Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
+Image *DocumentData::getReplyPreview(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context) {
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin);
+	return _replyPreview->image(origin, context);
+}
+
+Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
+	return getReplyPreview(item->fullId(), item->history()->peer);
 }
 
 bool DocumentData::replyPreviewLoaded() const {

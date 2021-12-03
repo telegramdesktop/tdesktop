@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 #include "mainwidget.h"
@@ -206,11 +208,17 @@ bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
+Image *PhotoData::getReplyPreview(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context) {
 	if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin);
+	return _replyPreview->image(origin, context);
+}
+
+Image *PhotoData::getReplyPreview(not_null<HistoryItem*> item) {
+	return getReplyPreview(item->fullId(), item->history()->peer);
 }
 
 bool PhotoData::replyPreviewLoaded() const {

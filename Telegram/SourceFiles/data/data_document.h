@@ -115,7 +115,8 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	[[nodiscard]] const Core::FileLocation &location(bool check = false) const;
+	[[nodiscard]] const Core::FileLocation &location(
+		bool check = false) const;
 	void setLocation(const Core::FileLocation &loc);
 
 	bool saveFromData();
@@ -124,7 +125,10 @@ public:
 
 	[[nodiscard]] bool saveToCache() const;
 
-	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] Image *getReplyPreview(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context);
+	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
 	[[nodiscard]] bool replyPreviewLoaded() const;
 
 	[[nodiscard]] StickerData *sticker() const;

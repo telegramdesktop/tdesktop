@@ -7162,7 +7162,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			textTop,
 			st::msgReplyBarSize.height(),
 			st::msgReplyBarSize.height());
-		if (HistoryView::DrawWebPageDataPreview(p, _previewData, to)) {
+		if (HistoryView::DrawWebPageDataPreview(p, _previewData, _peer, to)) {
 			previewLeft += st::msgReplyBarSize.height()
 				+ st::msgReplyBarSkip
 				- st::msgReplyBarSize.width()

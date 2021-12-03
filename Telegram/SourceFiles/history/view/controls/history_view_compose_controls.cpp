@@ -105,6 +105,7 @@ class FieldHeader final : public Ui::RpWidget {
 public:
 	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
 
+	void setHistory(const SetHistoryArgs &args);
 	void init();
 
 	void editMessage(FullMsgId id);
@@ -142,7 +143,7 @@ private:
 	void resolveMessageData();
 	void updateShownMessageText();
 
-	void paintWebPage(Painter &p);
+	void paintWebPage(Painter &p, not_null<PeerData*> peer);
 	void paintEditOrReplyToMessage(Painter &p);
 
 	struct Preview {
@@ -152,6 +153,7 @@ private:
 		bool cancelled = false;
 	};
 
+	History *_history = nullptr;
 	rpl::variable<QString> _title;
 	rpl::variable<QString> _description;
 
@@ -188,6 +190,10 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 	init();
 }
 
+void FieldHeader::setHistory(const SetHistoryArgs &args) {
+	_history = *args.history;
+}
+
 void FieldHeader::init() {
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -209,7 +215,9 @@ void FieldHeader::init() {
 
 		(!ShowWebPagePreview(_preview.data) || *leftIconPressed)
 			? paintEditOrReplyToMessage(p)
-			: paintWebPage(p);
+			: paintWebPage(
+				p,
+				_history ? _history->peer : _data->session().user());
 	}, lifetime());
 
 	_editMsgId.value(
@@ -415,7 +423,7 @@ void FieldHeader::previewRequested(
 
 }
 
-void FieldHeader::paintWebPage(Painter &p) {
+void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 	Expects(ShowWebPagePreview(_preview.data));
 
 	const auto textTop = st::msgReplyPadding.top();
@@ -432,7 +440,7 @@ void FieldHeader::paintWebPage(Painter &p) {
 		textTop,
 		st::msgReplyBarSize.height(),
 		st::msgReplyBarSize.height());
-	if (HistoryView::DrawWebPageDataPreview(p, _preview.data, to)) {
+	if (HistoryView::DrawWebPageDataPreview(p, _preview.data, context, to)) {
 		previewLeft += st::msgReplyBarSize.height()
 			+ st::msgReplyBarSkip
 			- st::msgReplyBarSize.width()
@@ -655,6 +663,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	//}
 	unregisterDraftSources();
 	_history = history;
+	_header->setHistory(args);
 	registerDraftSource();
 	_window->tabbedSelector()->setCurrentPeer(
 		history ? history->peer.get() : nullptr);

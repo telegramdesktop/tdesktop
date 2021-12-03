@@ -164,18 +164,8 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 	} else if (const auto large = media->image(PhotoSize::Large)) {
 		return { PreparePreviewImage(large, radius), readyCacheKey };
 	}
-	const auto allowedToDownload = [&] {
-		const auto photo = media->owner();
-		if (media->loaded() || photo->cancelled()) {
-			return false;
-		}
-		return photo->hasExact(PhotoSize::Small)
-			|| photo->hasExact(PhotoSize::Thumbnail)
-			|| AutoDownload::Should(
-				photo->session().settings().autoDownload(),
-				item->history()->peer,
-				photo);
-	}();
+	const auto allowedToDownload = media->autoLoadThumbnailAllowed(
+		item->history()->peer);
 	const auto cacheKey = allowedToDownload ? 0 : readyCacheKey;
 	if (allowedToDownload) {
 		media->owner()->load(PhotoSize::Small, item->fullId());
@@ -533,7 +523,7 @@ bool MediaPhoto::hasReplyPreview() const {
 }
 
 Image *MediaPhoto::replyPreview() const {
-	return _photo->getReplyPreview(parent()->fullId());
+	return _photo->getReplyPreview(parent());
 }
 
 bool MediaPhoto::replyPreviewLoaded() const {
@@ -738,7 +728,7 @@ bool MediaFile::hasReplyPreview() const {
 }
 
 Image *MediaFile::replyPreview() const {
-	return _document->getReplyPreview(parent()->fullId());
+	return _document->getReplyPreview(parent());
 }
 
 bool MediaFile::replyPreviewLoaded() const {
@@ -1295,9 +1285,9 @@ bool MediaWebPage::hasReplyPreview() const {
 
 Image *MediaWebPage::replyPreview() const {
 	if (const auto document = MediaWebPage::document()) {
-		return document->getReplyPreview(parent()->fullId());
+		return document->getReplyPreview(parent());
 	} else if (const auto photo = MediaWebPage::photo()) {
-		return photo->getReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent());
 	}
 	return nullptr;
 }
@@ -1368,9 +1358,9 @@ bool MediaGame::hasReplyPreview() const {
 
 Image *MediaGame::replyPreview() const {
 	if (const auto document = _game->document) {
-		return document->getReplyPreview(parent()->fullId());
+		return document->getReplyPreview(parent());
 	} else if (const auto photo = _game->photo) {
-		return photo->getReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent());
 	}
 	return nullptr;
 }
@@ -1478,7 +1468,7 @@ bool MediaInvoice::hasReplyPreview() const {
 
 Image *MediaInvoice::replyPreview() const {
 	if (const auto photo = _invoice.photo) {
-		return photo->getReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent());
 	}
 	return nullptr;
 }
