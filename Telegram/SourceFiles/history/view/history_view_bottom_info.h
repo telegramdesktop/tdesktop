@@ -42,7 +42,7 @@ public:
 	};
 	explicit BottomInfo(Data &&data);
 
-	void update(Data &&data);
+	void update(Data &&data, int availableWidth);
 
 	[[nodiscard]] QSize optimalSize() const;
 	[[nodiscard]] QSize size() const;

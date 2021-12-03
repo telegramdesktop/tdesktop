@@ -1808,7 +1808,7 @@ bool Message::isSignedAuthorElided() const {
 
 void Message::itemDataChanged() {
 	const auto was = _bottomInfo.size();
-	_bottomInfo.update(BottomInfoDataFromMessage(this));
+	_bottomInfo.update(BottomInfoDataFromMessage(this), width());
 	if (was != _bottomInfo.size()) {
 		history()->owner().requestViewResize(this);
 	} else {

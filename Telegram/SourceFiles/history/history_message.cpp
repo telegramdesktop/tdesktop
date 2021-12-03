@@ -1900,6 +1900,7 @@ void HistoryMessage::changeRepliesCount(
 		}
 	}
 	refreshRepliesText(views);
+	history()->owner().notifyItemDataChange(this);
 }
 
 void HistoryMessage::setUnreadRepliesCount(

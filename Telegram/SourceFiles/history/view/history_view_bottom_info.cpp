@@ -23,11 +23,11 @@ BottomInfo::BottomInfo(Data &&data) : _data(std::move(data)) {
 	layout();
 }
 
-void BottomInfo::update(Data &&data) {
+void BottomInfo::update(Data &&data, int availableWidth) {
 	_data = std::move(data);
 	layout();
 	if (!_size.isEmpty()) {
-		resizeToWidth(_size.width());
+		resizeToWidth(std::min(optimalSize().width(), availableWidth));
 	}
 }
 
@@ -165,6 +165,7 @@ int BottomInfo::resizeToWidth(int newWidth) {
 void BottomInfo::layout() {
 	layoutDateText();
 	layoutViewsText();
+	layoutRepliesText();
 	layoutReactionsText();
 	countOptimalSize();
 }
@@ -250,6 +251,11 @@ void BottomInfo::countOptimalSize() {
 	if (!_views.isEmpty()) {
 		width += st::historyViewsSpace
 			+ _views.maxWidth()
+			+ st::historyViewsWidth;
+	}
+	if (!_replies.isEmpty()) {
+		width += st::historyViewsSpace
+			+ _replies.maxWidth()
 			+ st::historyViewsWidth;
 	}
 	if (!_reactions.isEmpty()) {
