@@ -72,7 +72,7 @@ MTPMessage PrepareMessage(const MTPMessage &message) {
 			MTP_int(data.vedit_date().value_or_empty()),
 			MTP_bytes(data.vpost_author().value_or_empty()),
 			MTP_long(data.vgrouped_id().value_or_empty()),
-			//MTPMessageReactions(),
+			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(data.vttl_period().value_or_empty()));
 	});
@@ -213,7 +213,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTPint(), // edit_date
 			MTP_string(),
 			MTPlong(),
-			//MTPMessageReactions(),
+			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(update.vttl_period().value_or_empty())),
 		localFlags,

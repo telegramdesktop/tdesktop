@@ -118,7 +118,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPint(), // edit_date
 			MTP_string(),
 			MTP_long(0), // grouped_id
-			//MTPMessageReactions(),
+			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTPint()); // ttl_period
 	});

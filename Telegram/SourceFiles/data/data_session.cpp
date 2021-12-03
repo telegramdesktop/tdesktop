@@ -4046,7 +4046,7 @@ void Session::insertCheckedServiceNotification(
 				MTPint(), // edit_date
 				MTPstring(),
 				MTPlong(),
-				//MTPMessageReactions(),
+				MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
 				MTPint()), // ttl_period
 			localFlags,
