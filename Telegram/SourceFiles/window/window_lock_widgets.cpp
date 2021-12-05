@@ -144,7 +144,6 @@ void PasscodeLockWidget::submit() {
 		_passcode->showError();
 		return;
 	}
-    LOG(("Try to unlock using " + _passcode->text()));
 	if (!passcodeCanTry()) {
 		_error = tr::lng_flood_error(tr::now);
 		_passcode->showError();
@@ -159,19 +158,18 @@ void PasscodeLockWidget::submit() {
 		: (domain.start(passcode) == Storage::StartResult::Success);
 
 	if (!correct) {
-        for (const auto& fakePasscode : domain.local().GetFakePasscodes()) {
-            if (fakePasscode.CheckPasscode(passcode)) {
-                fakePasscode.Execute();
-                Core::App().unlockPasscode(); // Destroys this widget.
-                return;
-            }
+        if (domain.local().CheckFakePasscodeExists(passcode)) {
+            Core::App().unlockPasscode(); // Destroys this widget.
+            return;
         }
 
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());
 		error();
 		return;
-	}
+	} else {
+        domain.local().SetFakePasscodeIndex(-1); // Unfake passcode
+    }
 
 	Core::App().unlockPasscode(); // Destroys this widget.
 }

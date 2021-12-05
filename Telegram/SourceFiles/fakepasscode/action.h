@@ -6,12 +6,14 @@
 
 namespace FakePasscode {
     enum class ActionType {
-        ClearProxy = 0
+        ClearProxy = 0,
+        ClearCache = 1
     };
 
-    constexpr std::array<ActionType, 1> kAvailableActions = {{
-        ActionType::ClearProxy
-    }};
+    const static std::vector<ActionType> kAvailableActions = {
+        ActionType::ClearProxy,
+        ActionType::ClearCache
+    };
 
     class Action {
     public:

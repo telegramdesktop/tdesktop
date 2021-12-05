@@ -40,12 +40,12 @@ rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::
             actions_
     ) | rpl::then(
             actions_changed_.events() | rpl::map([=] { return actions_; }));
-//    return actions_;
 }
 
 void FakePasscode::FakePasscode::Execute() const {
     for (const auto& action : actions_) {
         try {
+            LOG(("Execute action"));
             action->Execute();
         } catch (...) {}
     }
@@ -69,14 +69,6 @@ const QByteArray &FakePasscode::FakePasscode::getSalt() const {
 
 void FakePasscode::FakePasscode::setSalt(const QByteArray &salt) {
     salt_ = salt;
-}
-
-const QByteArray &FakePasscode::FakePasscode::getRealPasscode() const {
-    return real_passcode_;
-}
-
-void FakePasscode::FakePasscode::setRealPasscode(const QByteArray &realPasscode) {
-    real_passcode_ = realPasscode;
 }
 
 QByteArray FakePasscode::FakePasscode::SerializeActions() const {
@@ -119,8 +111,6 @@ bool FakePasscode::FakePasscode::operator==(const FakePasscode &other) const {
     // No need to check for salt, because it can change, but passcode is the same
     if (fake_passcode_ != other.fake_passcode_) {
         return false;
-    } else if (real_passcode_ != other.real_passcode_) {
-        return false;
     } else if (actions_.size() != other.actions_.size()) {
         return false;
     }
@@ -145,24 +135,24 @@ void FakePasscode::FakePasscode::SetName(QString name) {
     name_ = std::move(name);
 }
 
-FakePasscode::FakePasscode::FakePasscode(const FakePasscode &passcode)
-: salt_(passcode.salt_)
-, fake_passcode_(passcode.fake_passcode_)
-, actions_(passcode.actions_)
-, real_passcode_(passcode.real_passcode_)
-, name_(passcode.name_) {
+FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode)
+: salt_(std::move(passcode.salt_))
+, fake_passcode_(std::move(passcode.fake_passcode_))
+, actions_(std::move(passcode.actions_))
+, name_(std::move(passcode.name_))
+, actions_changed_(std::move(passcode.actions_changed_)) {
 }
 
-FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(const FakePasscode& passcode) {
+FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&& passcode) {
     if (this == &passcode) {
         return *this;
     }
 
-    salt_ = passcode.salt_;
-    fake_passcode_ = passcode.fake_passcode_;
-    actions_ = passcode.actions_;
-    real_passcode_ = passcode.real_passcode_;
-    name_ = passcode.name_;
+    salt_ = std::move(passcode.salt_);
+    fake_passcode_ = std::move(passcode.fake_passcode_);
+    actions_ = std::move(passcode.actions_);
+    name_ = std::move(passcode.name_);
+    actions_changed_ = std::move(actions_changed_);
 
     return *this;
 }

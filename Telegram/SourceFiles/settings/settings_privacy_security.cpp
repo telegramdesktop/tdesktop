@@ -285,14 +285,16 @@ void SetupLocalPasscode(
 		controller->show(Box<PasscodeBox>(&controller->session(), true));
 	});
 
-    inner->add(
-        object_ptr<Button>(
-                inner,
-                tr::lng_show_fakes(),
-                st::settingsButton)
-    )->addClickHandler([=] {
-        controller->show(Box<FakePasscodeListBox>(&controller->session().domain(), controller));
-    });
+    if (!controller->session().domain().local().IsFake()) {
+        inner->add(
+                object_ptr<Button>(
+                        inner,
+                        tr::lng_show_fakes(),
+                        st::settingsButton)
+        )->addClickHandler([=] {
+            controller->show(Box<FakePasscodeListBox>(&controller->session().domain(), controller));
+        });
+    }
 
 	const auto autoLockBoxClosing =
 		container->lifetime().make_state<rpl::event_stream<>>();

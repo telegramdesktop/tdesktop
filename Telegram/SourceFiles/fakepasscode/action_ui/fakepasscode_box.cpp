@@ -182,6 +182,7 @@ FakePasscodeBox::FakePasscodeBox(
         , _passwordHint(this, st::defaultInputField, tr::lng_cloud_password_hint())
         , _recoverEmail(this, st::defaultInputField, tr::lng_cloud_password_email())
         , _recover(this, tr::lng_signin_recover(tr::now)) {
+    _recover->hide();
 }
 
 FakePasscodeBox::FakePasscodeBox(
@@ -325,6 +326,9 @@ void FakePasscodeBox::submit() {
             _reenterPasscode->showError();
         } else if (!_passwordHint->isHidden()) {
             _passwordHint->setFocus();
+        } else if (_session->domain().local().CheckFakePasscodeExists(_newPasscode->text().toUtf8())) {
+            _newPasscode->setFocus();
+            _newPasscode->showError();
         } else {
             save();
         }
@@ -647,6 +651,14 @@ void FakePasscodeBox::save(bool force) {
         _passwordName->showError();
         closeReplacedBy();
         return;
+    } else if (_session->domain().local().CheckFakePasscodeExists(pwd.toUtf8())) {
+        _newPasscode->selectAll();
+        _newPasscode->setFocus();
+        _newPasscode->showError();
+        _newError = tr::lng_passcode_exists(tr::now);
+        update();
+        closeReplacedBy();
+        return;
     } else {
         closeReplacedBy();
         const auto weak = Ui::MakeWeak(this);
@@ -656,7 +668,6 @@ void FakePasscodeBox::save(bool force) {
         } else {
             _session->domain().local().SetFakePasscode(pwd.toUtf8(), name, _fakeIndex);
         }
-//        Core::App().localPasscodeChanged();
         if (weak) {
             closeBox();
         }
@@ -685,6 +696,7 @@ void FakePasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
     } else {
         send();
     }
+
 }
 
 void FakePasscodeBox::sendOnlyCheckCloudPassword(const QString &oldPassword) {

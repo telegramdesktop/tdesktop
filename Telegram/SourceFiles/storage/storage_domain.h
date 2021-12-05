@@ -53,22 +53,29 @@ public:
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 
-    void ExecuteFake(qint32 index);
+    void ExecuteIfFake();
+    bool CheckAndExecuteIfFake(const QByteArray& passcode);
+    bool IsFake() const;
+    void SetFakePasscodeIndex(qint32 index);
 
     const std::vector<FakePasscode::FakePasscode>& GetFakePasscodes() const;
-    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
+//    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
     rpl::producer<size_t> GetFakePasscodesSize();
 
 	QString GetFakePasscodeName(size_t fakeIndex) const;
+    bool CheckFakePasscodeExists(QByteArray passcode) const;
     void AddFakePasscode(QByteArray passcode, QString name);
     void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
     void SetFakePasscode(QString name, size_t fakeIndex);
     void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
-    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
+//    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
     void RemoveFakePasscode(const FakePasscode::FakePasscode& passcode);
     void RemoveFakePasscode(size_t index);
 
-    rpl::producer<FakePasscode::FakePasscode> GetFakePasscode(size_t index);
+    rpl::producer<FakePasscode::FakePasscode*> GetFakePasscode(size_t index);
+    void AddAction(size_t index, std::shared_ptr<FakePasscode::Action>);
+    void RemoveAction(size_t index, std::shared_ptr<FakePasscode::Action>);
+    bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
 
 private:
 	enum class StartModernResult {

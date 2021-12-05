@@ -61,31 +61,31 @@ private:
 };
 
 void FakePasscodeContent::setupContent() {
-    auto passcode = _domain->local().GetFakePasscode(_passcodeIndex);
-    std::move(passcode) | rpl::start_with_next([this](FakePasscode::FakePasscode&& value) {
-        const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-        Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
+//    auto passcode = _domain->local().GetFakePasscode(_passcodeIndex);
+//    std::move(passcode) | rpl::start_with_next([this](FakePasscode::FakePasscode&& value) {
+    const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+    Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
-        for (const auto& type : FakePasscode::kAvailableActions) {
-            std::shared_ptr<FakePasscode::Action> action = FakePasscode::CreateAction(type);
-            const auto ui = GetUIByAction(action, value, _passcodeIndex, this);
-            ui->Create(content);
-            Settings::AddDivider(content);
-        }
-        Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton)
-                ->addClickHandler([this] {
-                    _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, false,
-                                                           _passcodeIndex),
-                                      Ui::LayerOption::KeepOther);
-                });
-        Settings::AddButton(content, tr::lng_remove_fakepasscode(), st::terminateSessionsButton)
-                ->addClickHandler([this] {
-                    destroy();
-                    _domain->local().RemoveFakePasscode(_passcodeIndex);
-                    _outerBox->closeBox();
-                });
-        Ui::ResizeFitChild(this, content);
-    }, lifetime());
+    for (const auto& type : FakePasscode::kAvailableActions) {
+        std::shared_ptr<FakePasscode::Action> action = FakePasscode::CreateAction(type);
+        const auto ui = GetUIByAction(action, _domain, _passcodeIndex, this);
+        ui->Create(content);
+        Settings::AddDivider(content);
+    }
+    Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton)
+            ->addClickHandler([this] {
+                _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, false,
+                                                       _passcodeIndex),
+                                  Ui::LayerOption::KeepOther);
+            });
+    Settings::AddButton(content, tr::lng_remove_fakepasscode(), st::terminateSessionsButton)
+            ->addClickHandler([this] {
+                destroy();
+                _domain->local().RemoveFakePasscode(_passcodeIndex);
+                _outerBox->closeBox();
+            });
+    Ui::ResizeFitChild(this, content);
+//    }, lifetime());
 }
 
 class FakePasscodeList : public Ui::RpWidget {

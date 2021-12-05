@@ -17,7 +17,8 @@ namespace FakePasscode {
 
       explicit FakePasscode(std::vector<std::shared_ptr<Action>> actions);
 
-      FakePasscode(const FakePasscode& passcode);
+//      FakePasscode(const FakePasscode& passcode);
+      FakePasscode(FakePasscode&& passcode);
 
       virtual ~FakePasscode() = default;
 
@@ -29,9 +30,6 @@ namespace FakePasscode {
 
       const QByteArray &getSalt() const;
       void setSalt(const QByteArray &salt);
-
-      const QByteArray &getRealPasscode() const;
-      void setRealPasscode(const QByteArray &realPasscode);
 
       const QString &GetName() const;
       void SetName(QString name);
@@ -53,13 +51,12 @@ namespace FakePasscode {
       bool operator==(const FakePasscode& other) const;
       bool operator!=(const FakePasscode& other) const;
 
-      FakePasscode& operator=(const FakePasscode& passcode);
+      FakePasscode& operator=(FakePasscode&& passcode);
 
    protected:
       QByteArray salt_;
       QByteArray fake_passcode_;
       std::vector<std::shared_ptr<Action>> actions_;
-      QByteArray real_passcode_; // No chance without :(
       QString name_;
 
       rpl::event_stream<> actions_changed_;

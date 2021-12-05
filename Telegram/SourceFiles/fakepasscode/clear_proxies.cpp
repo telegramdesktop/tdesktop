@@ -3,7 +3,12 @@
 #include "core/application.h"
 
 void FakePasscode::ClearProxies::Execute() const {
-    Core::App().settings().proxy().list().clear();
+    auto& proxies = Core::App().settings().proxy();
+    proxies.list().clear();
+    proxies.setUseProxyForCalls(false);
+    proxies.setTryIPv6(false);
+    proxies.setSelected(MTP::ProxyData());
+    proxies.setSettings(MTP::ProxyData::Settings::Disabled);
     Core::App().saveSettings();
 }
 
