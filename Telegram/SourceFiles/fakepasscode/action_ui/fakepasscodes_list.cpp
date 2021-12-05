@@ -78,7 +78,7 @@ void FakePasscodeContent::setupContent() {
                                                        _passcodeIndex),
                                   Ui::LayerOption::KeepOther);
             });
-    Settings::AddButton(content, tr::lng_remove_fakepasscode(), st::terminateSessionsButton)
+    Settings::AddButton(content, tr::lng_remove_fakepasscode(), st::settingsAttentionButton)
             ->addClickHandler([this] {
                 destroy();
                 _domain->local().RemoveFakePasscode(_passcodeIndex);
