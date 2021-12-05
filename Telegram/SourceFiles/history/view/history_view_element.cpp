@@ -19,7 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "main/main_domain.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -535,11 +537,13 @@ void Element::refreshDataId() {
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
-	const auto mayBeAttached = [](not_null<HistoryItem*> item) {
-		return !item->serviceMsg()
+	const auto mayBeAttached = [](not_null<Element*> view) {
+		const auto item = view->data();
+		return !item->isService()
 			&& !item->isEmpty()
 			&& !item->isPost()
-			&& (item->from() != item->history()->peer
+			&& (!item->history()->peer->isMegagroup()
+				|| !view->hasOutLayout()
 				|| !item->from()->isChannel());
 	};
 	const auto item = data();
@@ -547,8 +551,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto prev = previous->data();
 		const auto possible = (std::abs(prev->date() - item->date())
 				< kAttachMessageToPreviousSecondsDelta)
-			&& mayBeAttached(item)
-			&& mayBeAttached(prev);
+			&& mayBeAttached(this)
+			&& mayBeAttached(previous);
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
@@ -570,10 +574,37 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 }
 
 ClickHandlerPtr Element::fromLink() const {
+	if (_fromLink) {
+		return _fromLink;
+	}
 	const auto item = data();
-	const auto from = item->displayFrom();
-	if (from) {
-		return from->openLink();
+	if (const auto from = item->displayFrom()) {
+		_fromLink = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			if (context.button != Qt::LeftButton) {
+				return;
+			}
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto window = [&]() -> Window::SessionController* {
+				if (const auto controller = my.sessionWindow.get()) {
+					return controller;
+				}
+				const auto session = &from->session();
+				const auto &windows = session->windows();
+				if (windows.empty()) {
+					session->domain().activate(&session->account());
+					if (windows.empty()) {
+						return nullptr;
+					}
+				}
+				return windows.front();
+			}();
+			if (window) {
+				window->showPeerInfo(from);
+			}
+		});
+		_fromLink->setProperty(kPeerLinkPeerIdProperty, from->id.value);
+		return _fromLink;
 	}
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		if (forwarded->imported) {
@@ -588,7 +619,8 @@ ClickHandlerPtr Element::fromLink() const {
 	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
 		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 	});
-	return hidden;
+	_fromLink = hidden;
+	return _fromLink;
 }
 
 void Element::createUnreadBar(rpl::producer<QString> text) {

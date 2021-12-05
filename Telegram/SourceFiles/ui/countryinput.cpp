@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/boxes/country_select_box.h"
 #include "countries/countries_instance.h"
-#include "base/qt_adapters.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
@@ -143,7 +142,7 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void CountryInput::enterEventHook(QEvent *e) {
+void CountryInput::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 

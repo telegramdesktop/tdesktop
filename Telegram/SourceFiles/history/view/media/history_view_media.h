@@ -52,9 +52,18 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
-[[nodiscard]] QString DocumentTimestampLinkBase(
+[[nodiscard]] TimeId DurationForTimestampLinks(
+	not_null<DocumentData*> document);
+[[nodiscard]] QString TimestampLinkBase(
 	not_null<DocumentData*> document,
 	FullMsgId context);
+
+[[nodiscard]] TimeId DurationForTimestampLinks(
+	not_null<WebPageData*> webpage);
+[[nodiscard]] QString TimestampLinkBase(
+	not_null<WebPageData*> webpage,
+	FullMsgId context);
+
 [[nodiscard]] TextWithEntities AddTimestampLinks(
 	TextWithEntities text,
 	TimeId duration,
@@ -288,9 +297,7 @@ public:
 protected:
 	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
 	[[nodiscard]] Ui::Text::String createCaption(
-		not_null<HistoryItem*> item,
-		TimeId timestampLinksDuration = 0,
-		const QString &timestampLinkBase = QString()) const;
+		not_null<HistoryItem*> item) const;
 
 	virtual void playAnimation(bool autoplay) {
 	}

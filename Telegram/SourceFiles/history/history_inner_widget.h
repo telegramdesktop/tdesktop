@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
@@ -85,7 +85,6 @@ public:
 	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelected(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
-	void selectItem(not_null<HistoryItem*> item);
 	bool inSelectionMode() const;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -167,7 +166,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -266,7 +265,7 @@ private:
 	void saveDocumentToFile(
 		FullMsgId contextId,
 		not_null<DocumentData*> document);
-	void copyContextImage(not_null<PhotoData*> photo);
+	void copyContextImage(not_null<PhotoData*> photo, FullMsgId itemId);
 	void showStickerPackInfo(not_null<DocumentData*> document);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -343,6 +342,13 @@ private:
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
 
+	void setupSharingDisallowed();
+	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	bool showCopyRestriction(HistoryItem *item = nullptr);
+	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
+	bool showCopyRestrictionForSelected();
+	[[nodiscard]] bool hasSelectRestriction() const;
+
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
 
@@ -412,6 +418,10 @@ private:
 	bool _touchInProgress = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	base::Timer _touchSelectTimer;
+
+	Ui::SelectScrollManager _selectScroll;
+
+	rpl::variable<bool> _sharingDisallowed = false;
 
 	Ui::TouchScrollState _touchScrollState = Ui::TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;

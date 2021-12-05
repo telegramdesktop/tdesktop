@@ -674,15 +674,14 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
 	mainRequest(MTPusers_GetFullUser(
 		_user
-	)).done([=, done = std::move(done)](const MTPUserFull &result) mutable {
-		Expects(result.type() == mtpc_userFull);
-
-		const auto &full = result.c_userFull();
-		if (full.vuser().type() == mtpc_user) {
-			done(Data::ParsePersonalInfo(result));
-		} else {
-			error("Bad user type.");
-		}
+	)).done([=, done = std::move(done)](const MTPusers_UserFull &result) mutable {
+		result.match([&](const MTPDusers_userFull &data) {
+			if (!data.vusers().v.empty()) {
+				done(Data::ParsePersonalInfo(data));
+			} else {
+				error("Bad user type.");
+			}
+		});
 	}).send();
 }
 
@@ -736,7 +735,7 @@ void ApiWrap::requestUserpics(
 
 		auto startInfo = result.match(
 		[](const MTPDphotos_photos &data) {
-			return Data::UserpicsInfo{ data.vphotos().v.size() };
+			return Data::UserpicsInfo{ int(data.vphotos().v.size()) };
 		}, [](const MTPDphotos_photosSlice &data) {
 			return Data::UserpicsInfo{ data.vcount().v };
 		});
@@ -968,7 +967,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 
 		const auto count = result.match(
 			[](const MTPDmessages_messages &data) {
-			return data.vmessages().v.size();
+			return int(data.vmessages().v.size());
 		}, [](const MTPDmessages_messagesSlice &data) {
 			return data.vcount().v;
 		}, [](const MTPDmessages_channelMessages &data) {

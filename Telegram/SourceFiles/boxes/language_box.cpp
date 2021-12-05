@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "storage/localstorage.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
@@ -478,7 +478,7 @@ void Rows::showMenu(int index) {
 		}
 	}
 	const auto toggle = menuToggleArea(row);
-	const auto parentTopLeft = window()->mapToGlobal({ 0, 0 });
+	const auto parentTopLeft = window()->mapToGlobal(QPoint());
 	const auto buttonTopLeft = mapToGlobal(toggle.topLeft());
 	const auto parent = QRect(parentTopLeft, window()->size());
 	const auto button = QRect(buttonTopLeft, toggle.size());

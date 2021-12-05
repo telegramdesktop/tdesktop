@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
 #include "mtproto/mtproto_config.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_account.h"
 #include "core/application.h"
@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
 
@@ -219,7 +220,8 @@ void PanelController::showError(const ApiErrorState &error) {
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
 		showError(tr::lng_export_invalid(tr::now));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
-		const auto seconds = std::max(error.data.type().midRef(
+		const auto seconds = std::max(base::StringViewMid(
+			error.data.type(),
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
@@ -271,7 +273,7 @@ void PanelController::showCriticalError(const QString &text) {
 }
 
 void PanelController::showError(const QString &text) {
-	auto box = Box<InformBox>(text);
+	auto box = Box<Ui::InformBox>(text);
 	const auto weak = Ui::MakeWeak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
@@ -347,7 +349,7 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	};
 	const auto hidden = _panel->isHidden();
 	const auto old = _confirmStopBox;
-	auto box = Box<ConfirmBox>(
+	auto box = Box<Ui::ConfirmBox>(
 		tr::lng_export_sure_stop(tr::now),
 		tr::lng_export_stop(tr::now),
 		st::attentionBoxButton,

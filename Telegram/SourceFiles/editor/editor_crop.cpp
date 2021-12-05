@@ -92,7 +92,7 @@ void Crop::applyTransform(
 	const auto cropHolder = QRectF(QPointF(), scaledImageSize);
 	const auto cropHolderCenter = cropHolder.center();
 
-	auto matrix = QMatrix()
+	auto matrix = QTransform()
 		.translate(cropHolderCenter.x(), cropHolderCenter.y())
 		.scale(flipped ? -1 : 1, 1)
 		.rotate(angle)
@@ -151,12 +151,12 @@ void Crop::setCropPaint(QRectF &&rect) {
 }
 
 void Crop::convertCropPaintToOriginal() {
-	const auto cropHolder = QMatrix()
+	const auto cropHolder = QTransform()
 		.scale(_ratio.w, _ratio.h)
 		.mapRect(QRectF(QPointF(), FlipSizeByRotation(_imageSize, _angle)));
 	const auto cropHolderCenter = cropHolder.center();
 
-	const auto matrix = QMatrix()
+	const auto matrix = QTransform()
 		.translate(cropHolderCenter.x(), cropHolderCenter.y())
 		.rotate(-_angle)
 		.scale((_flipped ? -1 : 1) * 1. / _ratio.w, 1. / _ratio.h)

@@ -17,75 +17,7 @@ class UserData;
 class ChatData;
 class ChannelData;
 
-enum class ChatAdminRight {
-	ChangeInfo = (1 << 0),
-	PostMessages = (1 << 1),
-	EditMessages = (1 << 2),
-	DeleteMessages = (1 << 3),
-	BanUsers = (1 << 4),
-	InviteUsers = (1 << 5),
-	PinMessages = (1 << 7),
-	AddAdmins = (1 << 9),
-	Anonymous = (1 << 10),
-	ManageCall = (1 << 11),
-	Other = (1 << 12),
-};
-inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
-using ChatAdminRights = base::flags<ChatAdminRight>;
-
-enum class ChatRestriction {
-	ViewMessages = (1 << 0),
-	SendMessages = (1 << 1),
-	SendMedia = (1 << 2),
-	SendStickers = (1 << 3),
-	SendGifs = (1 << 4),
-	SendGames = (1 << 5),
-	SendInline = (1 << 6),
-	EmbedLinks = (1 << 7),
-	SendPolls = (1 << 8),
-	ChangeInfo = (1 << 10),
-	InviteUsers = (1 << 15),
-	PinMessages = (1 << 17),
-};
-inline constexpr bool is_flag_type(ChatRestriction) { return true; }
-using ChatRestrictions = base::flags<ChatRestriction>;
-
-namespace Data {
-
-[[nodiscard]] ChatAdminRights ChatAdminRightsFlags(
-	const MTPChatAdminRights &rights);
-[[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
-	const MTPChatBannedRights &rights);
-[[nodiscard]] TimeId ChatBannedRightsUntilDate(
-	const MTPChatBannedRights &rights);
-
-} // namespace Data
-
-struct ChatAdminRightsInfo {
-	ChatAdminRightsInfo() = default;
-	explicit ChatAdminRightsInfo(ChatAdminRights flags) : flags(flags) {
-	}
-	explicit ChatAdminRightsInfo(const MTPChatAdminRights &rights)
-	: flags(Data::ChatAdminRightsFlags(rights)) {
-	}
-
-	ChatAdminRights flags;
-};
-
-struct ChatRestrictionsInfo {
-	ChatRestrictionsInfo() = default;
-	ChatRestrictionsInfo(ChatRestrictions flags, TimeId until)
-	: flags(flags)
-	, until(until) {
-	}
-	explicit ChatRestrictionsInfo(const MTPChatBannedRights &rights)
-	: flags(Data::ChatBannedRightsFlags(rights))
-	, until(Data::ChatBannedRightsUntilDate(rights)) {
-	}
-
-	ChatRestrictions flags;
-	TimeId until = 0;
-};
+enum class ChatRestriction;
 
 struct BotCommand {
 	QString command;
@@ -199,7 +131,9 @@ enum class PeerSetting {
 	ShareContact = (1 << 3),
 	NeedContactsException = (1 << 4),
 	AutoArchived = (1 << 5),
-	Unknown = (1 << 6),
+	RequestChat = (1 << 6),
+	RequestChatIsBroadcast = (1 << 7),
+	Unknown = (1 << 8),
 };
 inline constexpr bool is_flag_type(PeerSetting) { return true; };
 using PeerSettings = base::flags<PeerSetting>;
@@ -230,9 +164,7 @@ public:
 	[[nodiscard]] bool isChannel() const {
 		return peerIsChannel(id);
 	}
-	[[nodiscard]] bool isSelf() const {
-		return (input.type() == mtpc_inputPeerSelf);
-	}
+	[[nodiscard]] bool isSelf() const;
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isFake() const;
@@ -274,6 +206,7 @@ public:
 	}
 
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
 	[[nodiscard]] bool amAnonymous() const;
@@ -402,7 +335,7 @@ public:
 
 	// Returns true if about text was changed.
 	bool setAbout(const QString &newAbout);
-	const QString &about() const {
+	[[nodiscard]] const QString &about() const {
 		return _about;
 	}
 
@@ -411,15 +344,21 @@ public:
 	void setSettings(PeerSettings which) {
 		_settings.set(which);
 	}
-	auto settings() const {
+	[[nodiscard]] auto settings() const {
 		return (_settings.current() & PeerSetting::Unknown)
 			? std::nullopt
 			: std::make_optional(_settings.current());
 	}
-	auto settingsValue() const {
+	[[nodiscard]] auto settingsValue() const {
 		return (_settings.current() & PeerSetting::Unknown)
 			? _settings.changes()
 			: (_settings.value() | rpl::type_erased());
+	}
+	[[nodiscard]] QString requestChatTitle() const {
+		return _requestChatTitle;
+	}
+	[[nodiscard]] TimeId requestChatDate() const {
+		return _requestChatDate;
 	}
 
 	void setSettings(const MTPPeerSettings &data);
@@ -440,6 +379,7 @@ public:
 	enum class LoadedStatus : char {
 		Not,
 		Minimal,
+		Normal,
 		Full,
 	};
 	[[nodiscard]] LoadedStatus loadedStatus() const {
@@ -447,6 +387,9 @@ public:
 	}
 	[[nodiscard]] bool isMinimalLoaded() const {
 		return (loadedStatus() != LoadedStatus::Not);
+	}
+	[[nodiscard]] bool isLoaded() const {
+		return (loadedStatus() == LoadedStatus::Normal) || isFullLoaded();
 	}
 	[[nodiscard]] bool isFullLoaded() const {
 		return (loadedStatus() == LoadedStatus::Full);
@@ -505,14 +448,15 @@ private:
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 
+	QString _requestChatTitle;
+	TimeId _requestChatDate = 0;
+
 	QString _about;
 	QString _themeEmoticon;
 
 };
 
 namespace Data {
-
-std::vector<ChatRestrictions> ListOfRestrictions();
 
 std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,

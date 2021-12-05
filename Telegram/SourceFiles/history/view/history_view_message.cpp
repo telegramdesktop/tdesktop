@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/view/history_view_group_call_tracker.h" // UserpicInRow.
+#include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"
@@ -312,17 +312,10 @@ QSize Message::performCountOptimalSize() {
 	auto maxWidth = 0;
 	auto minHeight = 0;
 
+	updateViewButtonExistence();
 	updateMediaInBubbleState();
 	refreshEditedBadge();
 	refreshRightBadge();
-
-	auto mediaOnBottom = (logEntryOriginal() != nullptr)
-		|| (media && media->isDisplayed() && media->isBubbleBottom());
-	if (mediaOnBottom) {
-		// remove skip
-	} else {
-		// add skip
-	}
 
 	if (drawBubble()) {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -349,7 +342,7 @@ QSize Message::performCountOptimalSize() {
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		if (mediaOnBottom) {
+		if (mediaOnBottom || (mediaDisplayed && _viewButton)) {
 			if (item->_text.removeSkipBlock()) {
 				item->_textWidth = -1;
 				item->_textHeight = 0;
@@ -531,6 +524,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (data()->repliesAreComments() || data()->externalReply()) {
 			localMediaBottom -= st::historyCommentsButtonHeight;
 		}
+		if (_viewButton) {
+			localMediaBottom -= st::mediaInBubbleSkip + _viewButton->height();
+		}
 		if (!mediaOnBottom) {
 			localMediaBottom -= st::msgPadding.bottom();
 		}
@@ -605,18 +601,25 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
-		if (ensureViewButton()) {
+
+		auto trect = inner.marginsRemoved(st::msgPadding);
+		if (_viewButton) {
 			_viewButton->draw(
 				p,
 				_viewButton->countRect(inner),
 				context);
+			// Inner should contain _viewButton height, because info is
+			// painted below the _viewButton.
+			//
+			// inner.setHeight(inner.height() - _viewButton->height());
+			trect.setHeight(trect.height() - _viewButton->height());
+			if (mediaDisplayed) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+			}
 		}
 
-		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
-			trect.setHeight(trect.height()
-				+ st::msgPadding.bottom()
-				- viewButtonHeight());
+			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
@@ -1035,6 +1038,12 @@ PointState Message::pointState(QPoint point) const {
 			}
 
 			auto trect = g.marginsRemoved(st::msgPadding);
+			if (_viewButton) {
+				trect.setHeight(trect.height() - _viewButton->height());
+				if (mediaDisplayed) {
+					trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+				}
+			}
 			if (mediaOnBottom) {
 				trect.setHeight(trect.height() + st::msgPadding.bottom());
 			}
@@ -1210,6 +1219,12 @@ TextState Message::textState(
 		}
 
 		auto trect = bubble.marginsRemoved(st::msgPadding);
+		if (_viewButton) {
+			trect.setHeight(trect.height() - _viewButton->height());
+			if (mediaDisplayed) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+			}
+		}
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height()
 				+ st::msgPadding.bottom()
@@ -1768,14 +1783,14 @@ void Message::drawInfo(
 		if (views->replies.count > 0
 			&& !views->commentsMegagroupId
 			&& this->context() != Context::Replies) {
-			const auto &icon = (item->id > 0)
+			const auto &icon = (!item->isSending() && !item->hasFailed())
 				? (invertedsprites
 					? st->historyRepliesInvertedIcon()
 					: stm->historyRepliesIcon)
 				: (invertedsprites
 					? st->historyViewsSendingInvertedIcon()
 					: st->historyViewsSendingIcon());
-			if (item->id > 0) {
+			if (!item->isSending() && !item->hasFailed()) {
 				icon.paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->replies.text);
 			} else if (!context.outbg && views->views.count < 0) { // sending outbg icon will be painted below
@@ -1787,14 +1802,14 @@ void Message::drawInfo(
 				+ st::historyViewsWidth;
 		}
 		if (views->views.count >= 0) {
-			const auto &icon = (item->id > 0)
+			const auto &icon = (!item->isSending() && !item->hasFailed())
 				? (invertedsprites
 					? st->historyViewsInvertedIcon()
 					: stm->historyViewsIcon)
 				: (invertedsprites
 					? st->historyViewsSendingInvertedIcon()
 					: st->historyViewsSendingIcon());
-			if (item->id > 0) {
+			if (!item->isSending() && !item->hasFailed()) {
 				icon.paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->views.text);
 			} else if (!context.outbg) { // sending outbg icon will be painted below
@@ -1805,7 +1820,9 @@ void Message::drawInfo(
 				+ views->views.textWidth
 				+ st::historyViewsWidth;
 		}
-	} else if (item->id < 0 && item->history()->peer->isSelf() && !context.outbg) {
+	} else if ((item->isSending() || item->hasFailed())
+		&& item->history()->peer->isSelf()
+		&& !context.outbg) {
 		const auto &icon = invertedsprites
 			? st->historyViewsSendingInvertedIcon()
 			: st->historyViewsSendingIcon();
@@ -1819,7 +1836,7 @@ void Message::drawInfo(
 		left += st::historyPinWidth;
 	}
 	if (context.outbg) {
-		const auto &icon = (item->id <= 0)
+		const auto &icon = (item->isSending() || item->hasFailed())
 			? (invertedsprites
 				? st->historySendingInvertedIcon()
 				: st->historySendingIcon())
@@ -1881,7 +1898,8 @@ int Message::infoWidth() const {
 				+ views->replies.textWidth
 				+ st::historyViewsWidth;
 		}
-	} else if (item->id < 0 && item->history()->peer->isSelf()) {
+	} else if ((item->isSending() || item->hasFailed())
+		&& item->history()->peer->isSelf()) {
 		if (!hasOutLayout()) {
 			result += st::historySendStateSpace;
 		}
@@ -1933,7 +1951,8 @@ int Message::timeLeft() const {
 			&& context() != Context::Replies) {
 			result += st::historyViewsSpace + views->replies.textWidth + st::historyViewsWidth;
 		}
-	} else if (item->id < 0 && item->history()->peer->isSelf()) {
+	} else if ((item->isSending() || item->hasFailed())
+		&& item->history()->peer->isSelf()) {
 		if (!hasOutLayout()) {
 			result += st::historySendStateSpace;
 		}
@@ -1960,27 +1979,29 @@ int Message::viewButtonHeight() const {
 	return _viewButton ? _viewButton->height() : 0;
 }
 
-bool Message::ensureViewButton() const {
-	if (data()->isSponsored()
-		|| (data()->media()
-			&& ViewButton::MediaHasViewButton(data()->media()))) {
-		if (_viewButton) {
+void Message::updateViewButtonExistence() {
+	const auto has = [&] {
+		const auto item = data();
+		if (item->isSponsored()) {
 			return true;
 		}
-		auto callback = [=] { history()->owner().requestViewRepaint(this); };
-		_viewButton = data()->isSponsored()
-			? std::make_unique<ViewButton>(
-				data()->displayFrom(),
-				std::move(callback))
-			: std::make_unique<ViewButton>(
-				data()->media(),
-				std::move(callback));
-		return true;
+		const auto media = item->media();
+		return media && ViewButton::MediaHasViewButton(media);
+	}();
+	if (!has) {
+		_viewButton = nullptr;
+		return;
+	} else if (_viewButton) {
+		return;
 	}
-	if (_viewButton) {
-		_viewButton.reset(nullptr);
-	}
-	return false;
+	auto callback = [=] { history()->owner().requestViewRepaint(this); };
+	_viewButton = data()->isSponsored()
+		? std::make_unique<ViewButton>(
+			data()->displayFrom(),
+			std::move(callback))
+		: std::make_unique<ViewButton>(
+			data()->media(),
+			std::move(callback));
 }
 
 void Message::initLogEntryOriginal() {
@@ -2041,7 +2062,7 @@ bool Message::hasFromName() const {
 	case Context::Replies: {
 		const auto item = message();
 		const auto peer = item->history()->peer;
-		if (hasOutLayout() && !item->from()->isMegagroup()) {
+		if (hasOutLayout() && !item->from()->isChannel()) {
 			return false;
 		} else if (!peer->isUser()) {
 			return true;
@@ -2163,7 +2184,7 @@ bool Message::hasFastReply() const {
 
 bool Message::displayFastReply() const {
 	return hasFastReply()
-		&& IsServerMsgId(data()->id)
+		&& data()->isRegular()
 		&& data()->history()->peer->canWrite()
 		&& !delegate()->elementInSelectionMode();
 }
@@ -2196,7 +2217,7 @@ std::optional<QSize> Message::rightActionSize() const {
 bool Message::displayFastShare() const {
 	const auto item = message();
 	const auto peer = item->history()->peer;
-	if (!IsServerMsgId(item->id)) {
+	if (!item->allowsForward()) {
 		return false;
 	} else if (peer->isChannel()) {
 		return !peer->isMegagroup();
@@ -2384,7 +2405,7 @@ void Message::updateMediaInBubbleState() {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto mediaHasSomethingBelow = false;
+	auto mediaHasSomethingBelow = (_viewButton != nullptr);
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
@@ -2643,9 +2664,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
 		}
-		if (ensureViewButton()) {
-			newHeight += viewButtonHeight();
-		}
+		newHeight += viewButtonHeight();
 	} else if (mediaDisplayed) {
 		newHeight = media->height();
 	} else {
@@ -2729,7 +2748,8 @@ bool Message::displayEditedBadge() const {
 
 TimeId Message::displayedEditDate() const {
 	const auto item = message();
-	if (item->hideEditedBadge()) {
+	const auto overrided = media() && media()->overrideEditedDate();
+	if (item->hideEditedBadge() && !overrided) {
 		return TimeId(0);
 	} else if (const auto edited = displayedEditBadge()) {
 		return edited->date;

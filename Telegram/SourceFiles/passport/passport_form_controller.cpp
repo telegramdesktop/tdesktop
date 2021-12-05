@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_edit_document.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/sent_code_field.h"
 #include "main/main_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
@@ -41,8 +42,6 @@ constexpr auto kDocumentScansLimit = 20;
 constexpr auto kTranslationScansLimit = 20;
 constexpr auto kShortPollTimeout = crl::time(3000);
 constexpr auto kRememberCredentialsDelay = crl::time(1800 * 1000);
-
-Config GlobalConfig;
 
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == qstr("BOT_INVALID"))
@@ -239,45 +238,34 @@ QString ValidateUrl(const QString &url) {
 		: result;
 }
 
+auto ParseConfig(const QByteArray &json) {
+	auto languagesByCountryCode = std::map<QString, QString>();
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(json, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("API Error: Failed to parse passport config, error: %1."
+			).arg(error.errorString()));
+		return languagesByCountryCode;
+	} else if (!document.isObject()) {
+		LOG(("API Error: Not an object received in passport config."));
+		return languagesByCountryCode;
+	}
+	const auto object = document.object();
+	for (auto i = object.constBegin(); i != object.constEnd(); ++i) {
+		const auto countryCode = i.key();
+		const auto language = i.value();
+		if (!language.isString()) {
+			LOG(("API Error: Not a string in passport config item."));
+			continue;
+		}
+		languagesByCountryCode.emplace(
+			countryCode,
+			language.toString());
+	}
+	return languagesByCountryCode;
+}
+
 } // namespace
-
-Config &ConfigInstance() {
-	return GlobalConfig;
-}
-
-Config ParseConfig(const MTPhelp_PassportConfig &data) {
-	return data.match([](const MTPDhelp_passportConfig &data) {
-		auto result = Config();
-		result.hash = data.vhash().v;
-		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-		const auto document = QJsonDocument::fromJson(
-			data.vcountries_langs().c_dataJSON().vdata().v,
-			&error);
-		if (error.error != QJsonParseError::NoError) {
-			LOG(("API Error: Failed to parse passport config, error: %1."
-				).arg(error.errorString()));
-			return result;
-		} else if (!document.isObject()) {
-			LOG(("API Error: Not an object received in passport config."));
-			return result;
-		}
-		const auto object = document.object();
-		for (auto i = object.constBegin(); i != object.constEnd(); ++i) {
-			const auto countryCode = i.key();
-			const auto language = i.value();
-			if (!language.isString()) {
-				LOG(("API Error: Not a string in passport config item."));
-				continue;
-			}
-			result.languagesByCountryCode.emplace(
-				countryCode,
-				language.toString());
-		}
-		return result;
-	}, [](const MTPDhelp_passportConfigNotModified &data) {
-		return ConfigInstance();
-	});
-}
 
 QString NonceNameByScope(const QString &scope) {
 	if (scope.startsWith('{') && scope.endsWith('}')) {
@@ -638,7 +626,6 @@ Main::Session &FormController::session() const {
 void FormController::show() {
 	requestForm();
 	requestPassword();
-	requestConfig();
 }
 
 UserData *FormController::bot() const {
@@ -760,7 +747,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 			MTP_bytes(credentialsEncryptedData.bytes),
 			MTP_bytes(credentialsEncryptedData.hash),
 			MTP_bytes(credentialsEncryptedSecret))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_submitRequestId = 0;
 		_submitSuccess = true;
 
@@ -778,7 +765,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		} else if (AcceptErrorRequiresRestart(error.type())) {
 			suggestRestart();
 		} else {
-			_view->show(Box<InformBox>(
+			_view->show(Box<Ui::InformBox>(
 				Lang::Hard::SecureAcceptError() + "\n" + error.type()));
 		}
 	}).send();
@@ -987,7 +974,8 @@ void FormController::checkSavedPasswordSettings(
 
 void FormController::recoverPassword() {
 	if (!_password.hasRecovery) {
-		_view->show(Box<InformBox>(tr::lng_signin_no_email_forgot(tr::now)));
+		_view->show(Box<Ui::InformBox>(
+			tr::lng_signin_no_email_forgot(tr::now)));
 		return;
 	} else if (_recoverRequestId) {
 		return;
@@ -1027,7 +1015,7 @@ void FormController::recoverPassword() {
 		}, box->lifetime());
 	}).fail([=](const MTP::Error &error) {
 		_recoverRequestId = 0;
-		_view->show(Box<InformBox>(Lang::Hard::ServerError()
+		_view->show(Box<Ui::InformBox>(Lang::Hard::ServerError()
 			+ '\n'
 			+ error.type()));
 	}).send();
@@ -1047,10 +1035,10 @@ void FormController::cancelPassword() {
 		return;
 	}
 	_passwordRequestId = _api.request(MTPaccount_CancelPasswordEmail(
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_passwordRequestId = 0;
 		reloadPassword();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_passwordRequestId = 0;
 		reloadPassword();
 	}).send();
@@ -1127,7 +1115,7 @@ void FormController::resetSecret(
 				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
 				MTP_bytes(), // secure_secret
 				MTP_long(0))) // secure_secret_id
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_saveSecretRequestId = 0;
 		generateSecret(password);
 	}).fail([=](const MTP::Error &error) {
@@ -1242,6 +1230,44 @@ void FormController::fillErrors() {
 	}
 }
 
+rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
+		const QString &countryCode) {
+	const auto findLang = [=] {
+		if (countryCode.isEmpty()) {
+			return QString();
+		}
+		auto &langs = _passportConfig.languagesByCountryCode;
+		const auto i = langs.find(countryCode);
+		return (i == end(langs)) ? QString() : i->second;
+	};
+	return [=](auto consumer) {
+		const auto hash = _passportConfig.hash;
+		if (hash) {
+			consumer.put_next({ countryCode, findLang() });
+			consumer.put_done();
+			return rpl::lifetime() ;
+		}
+
+		_api.request(MTPhelp_GetPassportConfig(
+			MTP_int(hash)
+		)).done([=](const MTPhelp_PassportConfig &result) {
+			result.match([&](const MTPDhelp_passportConfig &data) {
+				_passportConfig.hash = data.vhash().v;
+				_passportConfig.languagesByCountryCode = ParseConfig(
+					data.vcountries_langs().c_dataJSON().vdata().v);
+			}, [](const MTPDhelp_passportConfigNotModified &data) {
+			});
+			consumer.put_next({ countryCode, findLang() });
+			consumer.put_done();
+		}).fail([=] {
+			consumer.put_next({ countryCode, QString() });
+			consumer.put_done();
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
 void FormController::fillNativeFromFallback() {
 	// Check if additional values (*_name_native) were requested.
 	const auto i = _form.values.find(Value::Type::PersonalDetails);
@@ -1254,48 +1280,58 @@ void FormController::fillNativeFromFallback() {
 	const auto scheme = GetDocumentScheme(
 		Scope::Type::PersonalDetails,
 		std::nullopt,
-		true);
+		true,
+		[=](const QString &code) { return preferredLanguage(code); });
 	const auto dependencyIt = values.fields.find(
 		scheme.additionalDependencyKey);
 	const auto dependency = (dependencyIt == end(values.fields))
 		? QString()
 		: dependencyIt->second.text;
-	if (scheme.additionalShown(dependency)
-		!= EditDocumentScheme::AdditionalVisibility::OnlyIfError) {
-		return;
-	}
 
 	// Copy additional values from fallback if they're not filled yet.
-	auto changed = false;
 	using Scheme = EditDocumentScheme;
-	for (const auto &row : scheme.rows) {
-		if (row.valueClass == Scheme::ValueClass::Additional) {
-			const auto nativeIt = values.fields.find(row.key);
-			const auto native = (nativeIt == end(values.fields))
-				? QString()
-				: nativeIt->second.text;
-			if (!native.isEmpty()
-				|| (nativeIt != end(values.fields)
-					&& !nativeIt->second.error.isEmpty())) {
-				return;
-			}
-			const auto latinIt = values.fields.find(
-				row.additionalFallbackKey);
-			const auto latin = (latinIt == end(values.fields))
-				? QString()
-				: latinIt->second.text;
-			if (row.error(latin).has_value()) {
-				return;
-			} else if (native != latin) {
-				values.fields[row.key].text = latin;
-				changed = true;
+	scheme.preferredLanguage(
+		dependency
+	) | rpl::map(
+		scheme.additionalShown
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](Scheme::AdditionalVisibility v) {
+		if (v != Scheme::AdditionalVisibility::OnlyIfError) {
+			return;
+		}
+		auto values = i->second.data.parsed;
+		auto changed = false;
+
+		for (const auto &row : scheme.rows) {
+			if (row.valueClass == Scheme::ValueClass::Additional) {
+				const auto nativeIt = values.fields.find(row.key);
+				const auto native = (nativeIt == end(values.fields))
+					? QString()
+					: nativeIt->second.text;
+				if (!native.isEmpty()
+					|| (nativeIt != end(values.fields)
+						&& !nativeIt->second.error.isEmpty())) {
+					return;
+				}
+				const auto latinIt = values.fields.find(
+					row.additionalFallbackKey);
+				const auto latin = (latinIt == end(values.fields))
+					? QString()
+					: latinIt->second.text;
+				if (row.error(latin).has_value()) {
+					return;
+				} else if (native != latin) {
+					values.fields[row.key].text = latin;
+					changed = true;
+				}
 			}
 		}
-	}
-	if (changed) {
-		startValueEdit(&i->second);
-		saveValueEdit(&i->second, std::move(values));
-	}
+		if (changed) {
+			startValueEdit(&i->second);
+			saveValueEdit(&i->second, std::move(values));
+		}
+	}, _lifetime);
 }
 
 void FormController::decryptValue(Value &value) const {
@@ -1545,7 +1581,7 @@ void FormController::uploadEncryptedFile(
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
 		file.uploadData->fileId,
-		FileLoadTo(PeerId(0), Api::SendOptions(), MsgId(0), MsgId(0)),
+		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId()),
 		TextWithTags(),
 		std::shared_ptr<SendingAlbum>(nullptr));
 	prepared->type = SendMediaType::Secure;
@@ -1905,7 +1941,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	const auto nonconst = findValue(value);
 	nonconst->saveRequestId = _api.request(MTPaccount_DeleteSecureValue(
 		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		resetValue(*nonconst);
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const MTP::Error &error) {
@@ -2125,54 +2161,50 @@ QString FormController::getPlainTextFromValue(
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
-		Expects(result.type() == mtpc_auth_sentCode);
-
-		value->verification.requestId = 0;
-
-		const auto &data = result.c_auth_sentCode();
-		value->verification.phoneCodeHash = qs(data.vphone_code_hash());
-		switch (data.vtype().type()) {
-		case mtpc_auth_sentCodeTypeApp:
-			LOG(("API Error: sentCodeTypeApp not expected "
-				"in FormController::startPhoneVerification."));
-			return;
-		case mtpc_auth_sentCodeTypeFlashCall:
-			LOG(("API Error: sentCodeTypeFlashCall not expected "
-				"in FormController::startPhoneVerification."));
-			return;
-		case mtpc_auth_sentCodeTypeCall: {
-			const auto &type = data.vtype().c_auth_sentCodeTypeCall();
-			value->verification.codeLength = (type.vlength().v > 0)
-				? type.vlength().v
-				: -1;
-			value->verification.call = std::make_unique<SentCodeCall>(
-				[=] { requestPhoneCall(value); },
-				[=] { _verificationUpdate.fire_copy(value); });
-			value->verification.call->setStatus(
-				{ SentCodeCall::State::Called, 0 });
-			if (data.vnext_type()) {
-				LOG(("API Error: next_type is not supported for calls."));
-			}
-		} break;
-		case mtpc_auth_sentCodeTypeSms: {
-			const auto &type = data.vtype().c_auth_sentCodeTypeSms();
-			value->verification.codeLength = (type.vlength().v > 0)
-				? type.vlength().v
-				: -1;
+		result.match([&](const MTPDauth_sentCode &data) {
 			const auto next = data.vnext_type();
-			if (next && next->type() == mtpc_auth_codeTypeCall) {
-				value->verification.call = std::make_unique<SentCodeCall>(
+			const auto timeout = data.vtimeout();
+			value->verification.requestId = 0;
+			value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+			data.vtype().match([&](const MTPDauth_sentCodeTypeApp &) {
+				LOG(("API Error: sentCodeTypeApp not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+				LOG(("API Error: sentCodeTypeFlashCall not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
+				LOG(("API Error: sentCodeTypeMissedCall not expected "
+					"in FormController::startPhoneVerification."));
+			}, [&](const MTPDauth_sentCodeTypeCall &data) {
+				value->verification.codeLength = (data.vlength().v > 0)
+					? data.vlength().v
+					: -1;
+				value->verification.call = std::make_unique<Ui::SentCodeCall>(
 					[=] { requestPhoneCall(value); },
 					[=] { _verificationUpdate.fire_copy(value); });
-				value->verification.call->setStatus({
-					SentCodeCall::State::Waiting,
-					data.vtimeout().value_or(60) });
-			}
-		} break;
-		}
-		_verificationNeeded.fire_copy(value);
+				value->verification.call->setStatus(
+					{ Ui::SentCodeCall::State::Called, 0 });
+				if (next) {
+					LOG(("API Error: next_type is not supported for calls."));
+				}
+			}, [&](const MTPDauth_sentCodeTypeSms &data) {
+				value->verification.codeLength = (data.vlength().v > 0)
+					? data.vlength().v
+					: -1;
+				if (next && next->type() == mtpc_auth_codeTypeCall) {
+					value->verification.call = std::make_unique<Ui::SentCodeCall>(
+						[=] { requestPhoneCall(value); },
+						[=] { _verificationUpdate.fire_copy(value); });
+					value->verification.call->setStatus({
+						Ui::SentCodeCall::State::Waiting,
+						timeout.value_or(60),
+					});
+				}
+			});
+			_verificationNeeded.fire_copy(value);
+		});
 	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;
 		valueSaveShowError(value, error);
@@ -2201,7 +2233,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	Expects(value->verification.call != nullptr);
 
 	value->verification.call->setStatus(
-		{ SentCodeCall::State::Calling, 0 });
+		{ Ui::SentCodeCall::State::Calling, 0 });
 	_api.request(MTPauth_ResendCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_string(value->verification.phoneCodeHash)
@@ -2213,7 +2245,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 void FormController::valueSaveShowError(
 		not_null<Value*> value,
 		const MTP::Error &error) {
-	_view->show(Box<InformBox>(
+	_view->show(Box<Ui::InformBox>(
 		Lang::Hard::SecureSaveError() + "\n" + error.type()));
 	valueSaveFailed(value);
 }
@@ -2265,7 +2297,7 @@ void FormController::saveSecret(
 				Core::PrepareSecureSecretAlgo(_password.newSecureAlgo),
 				MTP_bytes(encryptedSecret),
 				MTP_long(saved.secretId)))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		session().data().rememberPassportCredentials(
 			std::move(saved),
 			kRememberCredentialsDelay);
@@ -2288,7 +2320,7 @@ void FormController::saveSecret(
 
 void FormController::suggestRestart() {
 	_suggestingRestart = true;
-	_view->show(Box<ConfirmBox>(
+	_view->show(Box<Ui::ConfirmBox>(
 		tr::lng_passport_restart_sure(tr::now),
 		tr::lng_passport_restart(tr::now),
 		[=] { _controller->showPassportForm(_request); },
@@ -2507,20 +2539,6 @@ void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	}
 }
 
-void FormController::requestConfig() {
-	const auto hash = ConfigInstance().hash;
-	_configRequestId = _api.request(MTPhelp_GetPassportConfig(
-		MTP_int(hash)
-	)).done([=](const MTPhelp_PassportConfig &result) {
-		_configRequestId = 0;
-		ConfigInstance() = ParseConfig(result);
-		showForm();
-	}).fail([=](const MTP::Error &error) {
-		_configRequestId = 0;
-		showForm();
-	}).send();
-}
-
 bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	Expects(result.type() == mtpc_account_authorizationForm);
 
@@ -2614,7 +2632,7 @@ void FormController::shortPollEmailConfirmation() {
 }
 
 void FormController::showForm() {
-	if (_formRequestId || _passwordRequestId || _configRequestId) {
+	if (_formRequestId || _passwordRequestId) {
 		return;
 	} else if (!_bot) {
 		formFail(Lang::Hard::NoAuthorizationBot());
@@ -2666,7 +2684,7 @@ bool FormController::applyPassword(PasswordSettings &&settings) {
 
 void FormController::cancel() {
 	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
-		_view->show(Box<ConfirmBox>(
+		_view->show(Box<Ui::ConfirmBox>(
 			tr::lng_passport_stop_sure(tr::now),
 			tr::lng_passport_stop(tr::now),
 			[=] { cancelSure(); },

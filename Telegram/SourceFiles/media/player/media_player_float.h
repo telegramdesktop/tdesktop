@@ -262,6 +262,8 @@ private:
 	rpl::event_stream<FullMsgId> _closeEvents;
 	rpl::lifetime _delegateLifetime;
 
+	rpl::lifetime _lifetime;
+
 };
 
 } // namespace Player

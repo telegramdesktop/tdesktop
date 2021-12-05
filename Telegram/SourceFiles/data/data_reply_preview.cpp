@@ -55,7 +55,9 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 	_good = ((options & Images::Option::Blurred) == 0);
 }
 
-Image *ReplyPreview::image(Data::FileOrigin origin) {
+Image *ReplyPreview::image(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context) {
 	if (_checked) {
 		return _image.get();
 	}
@@ -84,8 +86,14 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 	} else {
 		Assert(_photo != nullptr);
 		if (!_image || !_good) {
+			const auto createMedia = !_photoMedia;
+			const auto inlineThumbnailBytes = _photo->inlineThumbnailBytes();
 			if (!_photoMedia) {
 				_photoMedia = _photo->createMediaView();
+			}
+			const auto loadThumbnail = inlineThumbnailBytes.isEmpty()
+				|| _photoMedia->autoLoadThumbnailAllowed(context);
+			if (loadThumbnail) {
 				_photoMedia->wanted(PhotoSize::Small, origin);
 			}
 			if (const auto small = _photoMedia->image(PhotoSize::Small)) {

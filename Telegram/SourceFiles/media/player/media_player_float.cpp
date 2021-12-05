@@ -299,12 +299,12 @@ FloatController::Item::Item(
 FloatController::FloatController(not_null<FloatDelegate*> delegate)
 : _delegate(delegate)
 , _parent(_delegate->floatPlayerWidget()) {
-	subscribe(Media::Player::instance()->trackChangedNotifier(), [=](
-			AudioMsgId::Type type) {
-		if (type == AudioMsgId::Type::Voice) {
-			checkCurrent();
-		}
-	});
+	Media::Player::instance()->trackChanged(
+	) | rpl::filter([=](AudioMsgId::Type type) {
+		return (type == AudioMsgId::Type::Voice);
+	}) | rpl::start_with_next([=] {
+		checkCurrent();
+	}, _lifetime);
 
 	startDelegateHandling();
 }

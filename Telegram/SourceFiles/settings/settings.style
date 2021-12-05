@@ -218,6 +218,117 @@ settingsAccentColorLine: 3px;
 settingsFilterIconSkip: 68px;
 settingsFilterIconLeft: 17px;
 
+settingsDeviceName: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(1px, 3px, 1px, 4px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(1px, 0px, 1px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 29px;
+
+	font: boxTextFont;
+}
+
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	font: font(14px semibold);
 }
+
+sessionsScroll: boxScroll;
+sessionsHeight: 350px;
+sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	font: font(boxFontSize semibold);
+	height: 20px;
+	padding: margins(77px, 12px, 22px, 10px);
+}
+sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
+sessionsTerminateAllIconLeft: 30px;
+sessionLocationTop: 54px;
+sessionCurrentSkip: 8px;
+sessionSubtitleSkip: 14px;
+sessionLocationFg: windowSubTextFg;
+sessionInfoFg: windowSubTextFg;
+sessionTerminateTop: 9px;
+sessionTerminateSkip: 12px;
+sessionTerminate: IconButton {
+	width: 20px;
+	height: 20px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(5px, 5px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
+sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
+sessionIconUbuntu: icon{{ "settings/devices/device_linux_ubuntu", historyPeerUserpicFg }};
+sessionIconLinux: icon{{ "settings/devices/device_linux", historyPeerUserpicFg }};
+sessionIconiPhone: icon{{ "settings/devices/device_phone_ios", historyPeerUserpicFg }};
+sessionIconiPad: icon{{ "settings/devices/device_tablet_ios", historyPeerUserpicFg }};
+sessionIconAndroid: icon{{ "settings/devices/device_phone_android", historyPeerUserpicFg }};
+sessionIconWeb: icon{{ "settings/devices/device_web_other", historyPeerUserpicFg }};
+sessionIconChrome: icon{{ "settings/devices/device_web_chrome", historyPeerUserpicFg }};
+sessionIconEdge: icon{{ "settings/devices/device_web_edge", historyPeerUserpicFg }};
+sessionIconFirefox: icon{{ "settings/devices/device_web_firefox", historyPeerUserpicFg }};
+sessionIconSafari: icon{{ "settings/devices/device_web_safari", historyPeerUserpicFg }};
+sessionIconOther: icon{{ "settings/devices/device_other", historyPeerUserpicFg }};
+sessionBigUserpicSize: 70px;
+sessionBigLottieSize: 52px;
+sessionBigIconOther: icon{{ "settings/devices/device_other_large", historyPeerUserpicFg }};
+sessionBigIconWeb: icon{{ "settings/devices/device_web_other_large", historyPeerUserpicFg }};
+sessionBigCoverPadding: margins(0px, 18px, 0px, 7px);
+sessionBigName: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 29px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+	align: align(top);
+}
+sessionDateLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+}
+sessionDateSkip: 19px;
+sessionValuePadding: margins(0px, 5px, 0px, 2px);
+sessionValueLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+sessionValueSkip: 8px;
+
+sessionListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+	}
+	height: 84px;
+	photoPosition: point(21px, 10px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: msgNameFont;
+	}
+	namePosition: point(77px, 11px);
+	statusPosition: point(77px, 32px);
+	photoSize: 42px;
+	statusFg: boxTextFg;
+	statusFgOver: boxTextFg;
+}
+sessionList: PeerList(defaultPeerList) {
+	item: sessionListItem;
+	padding: margins(0px, 4px, 0px, 0px);
+}
+sessionListThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
+sessionListThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
+sessionListThreeDotsSkip: 12px;

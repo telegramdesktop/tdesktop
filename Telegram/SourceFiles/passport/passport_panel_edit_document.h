@@ -39,6 +39,11 @@ class EditScans;
 enum class FileType;
 struct ScanListData;
 
+struct EditDocumentCountry {
+	QString countryCode;
+	QString languageCode;
+};
+
 struct EditDocumentScheme {
 	enum class ValueClass {
 		Fields,
@@ -50,6 +55,7 @@ struct EditDocumentScheme {
 		OnlyIfError,
 		Shown,
 	};
+	using CountryInfo = EditDocumentCountry;
 	struct Row {
 		using Validator = Fn<std::optional<QString>(const QString &value)>;
 		using Formatter = Fn<QString(const QString &value)>;
@@ -69,9 +75,10 @@ struct EditDocumentScheme {
 	QString scansHeader;
 
 	QString additionalDependencyKey;
-	Fn<AdditionalVisibility(const QString &dependency)> additionalShown;
-	Fn<QString(const QString &dependency)> additionalHeader;
-	Fn<QString(const QString &dependency)> additionalDescription;
+	Fn<AdditionalVisibility(const CountryInfo &dependency)> additionalShown;
+	Fn<QString(const CountryInfo &dependency)> additionalHeader;
+	Fn<QString(const CountryInfo &dependency)> additionalDescription;
+	Fn<rpl::producer<CountryInfo>(const QString &)> preferredLanguage;
 
 };
 

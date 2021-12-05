@@ -11,13 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/stickers/data_stickers.h"
 
-class ConfirmBox;
-
 namespace Window {
 class SessionController;
 } // namespace Window
 
 namespace Ui {
+class ConfirmBox;
 class PlainShadow;
 } // namespace Ui
 

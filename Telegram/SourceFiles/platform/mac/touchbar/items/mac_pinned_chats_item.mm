@@ -192,7 +192,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	rpl::event_stream<not_null<NSEvent*>> _touches;
 	rpl::event_stream<not_null<NSPressGestureRecognizer*>> _gestures;
 
-	double _r, _g, _b, _a; // The online circle color.
+	CGFloat _r, _g, _b, _a; // The online circle color.
 }
 
 - (void)processHorizontalReorder {
@@ -575,7 +575,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			if (pin->onlineTill) {
 				const auto time = pin->onlineTill - base::unixtime::now();
 				if (time > 0) {
-					onlineTimer->callOnce(time * crl::time(1000));
+					onlineTimer->callOnce(std::min(86400, time)
+						* crl::time(1000));
 				}
 			}
 		};
@@ -710,7 +711,12 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	}, _lifetime);
 
 	const auto updateOnlineColor = [=] {
-		st::dialogsOnlineBadgeFg->c.getRgbF(&_r, &_g, &_b, &_a);
+		auto r = 0, g = 0, b = 0, a = 0;
+		st::dialogsOnlineBadgeFg->c.getRgb(&r, &g, &b, &a);
+		_r = r / 255.;
+		_g = g / 255.;
+		_b = b / 255.;
+		_a = a / 255.;
 	};
 	updateOnlineColor();
 

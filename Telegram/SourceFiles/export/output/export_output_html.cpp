@@ -283,12 +283,12 @@ bool DisplayDate(TimeId date, TimeId previousDate) {
 	if (!previousDate) {
 		return true;
 	}
-	return QDateTime::fromTime_t(date).date()
-		!= QDateTime::fromTime_t(previousDate).date();
+	return QDateTime::fromSecsSinceEpoch(date).date()
+		!= QDateTime::fromSecsSinceEpoch(previousDate).date();
 }
 
 QByteArray FormatDateText(TimeId date) {
-	const auto parsed = QDateTime::fromTime_t(date).date();
+	const auto parsed = QDateTime::fromSecsSinceEpoch(date).date();
 	const auto month = [](int index) {
 		switch (index) {
 		case 1: return "January";
@@ -314,7 +314,7 @@ QByteArray FormatDateText(TimeId date) {
 }
 
 QByteArray FormatTimeText(TimeId date) {
-	const auto parsed = QDateTime::fromTime_t(date).time();
+	const auto parsed = QDateTime::fromSecsSinceEpoch(date).time();
 	return Data::NumberToString(parsed.hour(), 2)
 		+ ':'
 		+ Data::NumberToString(parsed.minute(), 2);
@@ -1106,6 +1106,9 @@ auto HtmlWriter::Wrap::pushMessage(
 		return isChannel
 			? ("Channel theme was changed to " + data.emoji).toUtf8()
 			: (serviceFrom + " changed chat theme to " + data.emoji).toUtf8();
+	}, [&](const ActionChatJoinedByRequest &data) {
+		return serviceFrom
+			+ " joined group by request";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -1256,8 +1259,8 @@ bool HtmlWriter::Wrap::messageNeedsWrap(
 		return true;
 	} else if (message.viaBotId != previous->viaBotId) {
 		return true;
-	} else if (QDateTime::fromTime_t(previous->date).date()
-		!= QDateTime::fromTime_t(message.date).date()) {
+	} else if (QDateTime::fromSecsSinceEpoch(previous->date).date()
+		!= QDateTime::fromSecsSinceEpoch(message.date).date()) {
 		return true;
 	} else if (message.forwarded != previous->forwarded
 		|| message.showForwardedAsOriginal != previous->showForwardedAsOriginal

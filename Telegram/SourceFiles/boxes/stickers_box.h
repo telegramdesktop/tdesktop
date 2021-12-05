@@ -14,13 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/special_fields.h"
 
-class ConfirmBox;
-
 namespace style {
 struct RippleAnimation;
 } // namespace style
 
 namespace Ui {
+class ConfirmBox;
 class PlainShadow;
 class RippleAnimation;
 class SettingsSlider;

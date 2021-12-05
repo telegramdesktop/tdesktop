@@ -33,7 +33,7 @@ Token Token::DecodedObjectFromAPIResponse(QJsonObject object) {
 	}
 	const auto tokenId = object.value("id").toString();
 	const auto livemode = object.value("livemode").toBool();
-	const auto created = QDateTime::fromTime_t(
+	const auto created = QDateTime::fromSecsSinceEpoch(
 		object.value("created").toDouble());
 	auto result = Token(tokenId, livemode, created);
 	const auto card = object.value("card");

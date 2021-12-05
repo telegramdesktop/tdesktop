@@ -255,7 +255,7 @@ struct PersonalInfo {
 	Utf8String bio;
 };
 
-PersonalInfo ParsePersonalInfo(const MTPUserFull &data);
+PersonalInfo ParsePersonalInfo(const MTPDusers_userFull &data);
 
 struct TopPeer {
 	Peer peer;
@@ -479,6 +479,9 @@ struct ActionSetChatTheme {
 	QString emoji;
 };
 
+struct ActionChatJoinedByRequest {
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -508,7 +511,8 @@ struct ServiceAction {
 		ActionInviteToGroupCall,
 		ActionSetMessagesTTL,
 		ActionGroupCallScheduled,
-		ActionSetChatTheme> content;
+		ActionSetChatTheme,
+		ActionChatJoinedByRequest> content;
 };
 
 ServiceAction ParseServiceAction(

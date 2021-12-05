@@ -36,10 +36,13 @@ public:
 	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
 
+	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] MsgId channelPost(const FullMsgId &fullId) const;
+
+	void view(const FullMsgId &fullId);
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
@@ -50,6 +53,7 @@ private:
 	struct List {
 		std::vector<Entry> entries;
 		bool showedAll = false;
+		crl::time received = 0;
 	};
 	struct Request {
 		mtpRequestId requestId = 0;
@@ -65,7 +69,7 @@ private:
 		const MTPSponsoredMessage &message);
 	void clearOldRequests();
 
-	void view(const std::vector<Entry>::iterator entryIt);
+	const Entry *find(const FullMsgId &fullId) const;
 
 	const not_null<Main::Session*> _session;
 

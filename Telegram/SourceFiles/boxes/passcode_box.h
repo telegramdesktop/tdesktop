@@ -98,7 +98,6 @@ private:
 	void recoverPasswordDone(
 		const QByteArray &newPasswordBytes,
 		const MTPauth_Authorization &result);
-	void setPasswordFail(const MTP::Error &error);
 	void setPasswordFail(const QString &type);
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
@@ -244,6 +243,6 @@ struct RecoveryEmailValidation {
 	const QString &pattern);
 
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
-	const MTP::Error &error,
+	const QString &error,
 	not_null<Main::Session*> session,
 	TextWithEntities &&about);

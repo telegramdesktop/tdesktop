@@ -130,6 +130,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		replyToMsgId = other.replyToMsgId;
 		replyToMsgTop = other.replyToMsgTop;
 		replyToDocumentId = other.replyToDocumentId;
+		replyToWebPageId = other.replyToWebPageId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
 		replyToName = std::move(other.replyToName);
@@ -182,13 +183,14 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
-	void refreshReplyToDocument();
+	void refreshReplyToMedia();
 
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
 	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
+	WebPageId replyToWebPageId = 0;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;

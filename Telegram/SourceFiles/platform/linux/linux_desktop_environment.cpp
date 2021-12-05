@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
-#include "base/qt_adapters.h"
-
 namespace Platform {
 namespace DesktopEnvironment {
 namespace {
@@ -21,7 +19,7 @@ QString GetEnv(const char *name) {
 
 Type Compute() {
 	auto xdgCurrentDesktop = GetEnv("XDG_CURRENT_DESKTOP").toLower();
-	auto list = xdgCurrentDesktop.split(':', base::QStringSkipEmptyParts);
+	auto list = xdgCurrentDesktop.split(':', Qt::SkipEmptyParts);
 	auto desktopSession = GetEnv("DESKTOP_SESSION").toLower();
 	auto slash = desktopSession.lastIndexOf('/');
 	auto kdeSession = GetEnv("KDE_SESSION_VERSION");

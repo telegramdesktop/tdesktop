@@ -82,29 +82,40 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
+		font: font(18px semibold);
+		linkFont: font(18px semibold);
+		linkFontOver: font(18px semibold underline);
 	}
 }
-confirmInviteStatus: FlatLabel(boxLabel) {
+confirmInviteAbout: FlatLabel(boxLabel) {
 	align: align(center);
 	minWidth: 320px;
-	textFg: windowSubTextFg;
+	maxHeight: 60px;
+	style: TextStyle(boxLabelStyle) {
+		lineHeight: 19px;
+	}
 }
-confirmInviteTitleTop: 106px;
-confirmInvitePhotoSize: 76px;
-confirmInvitePhotoTop: 20px;
-confirmInviteStatusTop: 136px;
-confirmInviteUserHeight: 84px;
-confirmInviteUserPhotoSize: 56px;
-confirmInviteUserPhotoTop: 166px;
+confirmInviteStatus: FlatLabel(confirmInviteAbout) {
+	textFg: windowSubTextFg;
+	style: boxLabelStyle;
+	maxHeight: 0px;
+}
+confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
+confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
+confirmInviteTitleTop: 141px;
+confirmInvitePhotoSize: 96px;
+confirmInvitePhotoTop: 33px;
+confirmInviteStatusTop: 164px;
+confirmInviteUserHeight: 100px;
+confirmInviteUserPhotoSize: 50px;
+confirmInviteUserPhotoTop: 210px;
+confirmInviteUsersWidth: 320px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	minWidth: 66px;
 	maxHeight: 20px;
 }
-confirmInviteUserNameTop: 227px;
+confirmInviteUserNameTop: 264px;
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 272px;
@@ -268,49 +279,6 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 	style: boxLabelStyle;
 }
 
-sessionsScroll: boxScroll;
-sessionsHeight: 350px;
-sessionHeight: 70px;
-sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
-sessionCurrentHeight: 118px;
-sessionPadding: margins(22px, 10px, 22px, 0px);
-sessionNameFont: msgNameFont;
-sessionNameFg: boxTextFg;
-sessionWhenFont: msgDateFont;
-sessionWhenFg: windowSubTextFg;
-sessionInfoFont: msgFont;
-sessionInfoFg: windowSubTextFg;
-sessionTerminateTop: 28px;
-sessionTerminateSkip: 22px;
-sessionNamePadding: margins(0px, 0px, 5px, 0px);
-sessionTerminate: IconButton {
-	width: 20px;
-	height: 20px;
-
-	icon: smallCloseIcon;
-	iconOver: smallCloseIconOver;
-	iconPosition: point(5px, 5px);
-
-	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: 20px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
-sessionTerminateAllButton: LinkButton(boxLinkButton) {
-	color: attentionButtonFg;
-	overColor: attentionButtonFg;
-}
-sessionNameStyle: TextStyle(defaultTextStyle) {
-	font: sessionNameFont;
-}
-sessionWhenStyle: TextStyle(defaultTextStyle) {
-	font: sessionWhenFont;
-}
-sessionInfoStyle: TextStyle(defaultTextStyle) {
-	font: sessionInfoFont;
-}
-
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
 passcodeInput: InputField(introPhone) {
@@ -363,7 +331,7 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 aboutTextTop: 34px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 330px;
+	minWidth: 300px;
 	align: align(topleft);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 22px;
@@ -481,8 +449,8 @@ calendarPrevious: IconButton {
 	width: calendarTitleHeight;
 	height: calendarTitleHeight;
 
-	icon: icon {{ "title_back", boxTitleFg }};
-	iconPosition: point(20px, 20px);
+	icon: icon {{ "calendar_down-flip_vertical", boxTitleFg }};
+	iconPosition: point(-1px, -1px);
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 44px;
@@ -490,9 +458,9 @@ calendarPrevious: IconButton {
 		color: windowBgOver;
 	}
 }
-calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
+calendarPreviousDisabled: icon {{ "calendar_down-flip_vertical", menuIconFg }};
 calendarNext: IconButton(calendarPrevious) {
-	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
+	icon: icon {{ "calendar_down", boxTitleFg }};
 }
 CalendarSizes {
 	width: pixels;
@@ -501,18 +469,25 @@ CalendarSizes {
 	cellInner: pixels;
 	padding: margins;
 }
-calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
+calendarNextDisabled: icon {{ "calendar_down", menuIconFg }};
 calendarTitleFont: boxTitleFont;
 defaultCalendarSizes: CalendarSizes {
 	width: boxWideWidth;
-	daysHeight: 32px;
+	daysHeight: 40px;
 	cellSize: size(48px, 40px);
 	cellInner: 34px;
-	padding: margins(14px, 15px, 14px, 10px);
+	padding: margins(14px, 0px, 14px, 0px);
 }
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;
-calendarScroll: backgroundScroll;
+calendarScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 3px;
+	deltab: 3px;
+	round: 1px;
+	width: 8px;
+	deltax: 3px;
+	hiding: 1000;
+}
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
@@ -991,3 +966,30 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 		color: windowBgOver;
 	}
 }
+
+requestsBoxItem: PeerListItem(peerListBoxItem) {
+	height: 99px;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBg;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: contactsBgOver;
+		}
+	}
+}
+requestsBoxList: PeerList(peerListBox) {
+	padding: margins(0px, 12px, 0px, 12px);
+	item: requestsBoxItem;
+}
+requestsAcceptButton: RoundButton(defaultActiveButton) {
+	width: -28px;
+	height: 30px;
+	textTop: 6px;
+}
+requestsRejectButton: RoundButton(defaultLightButton) {
+	width: -28px;
+	height: 30px;
+	textTop: 6px;
+}
+requestAcceptPosition: point(71px, 58px);
+requestButtonsSkip: 9px;

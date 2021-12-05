@@ -42,7 +42,12 @@ private:
 
 class PhonePartInput : public MaskedInputField {
 public:
-	PhonePartInput(QWidget *parent, const style::InputField &st);
+	using GroupsCallback = Fn<QVector<int>(const QString &)>;
+
+	PhonePartInput(
+		QWidget *parent,
+		const style::InputField &st,
+		GroupsCallback groupsCallback);
 
 	[[nodiscard]] auto frontBackspaceEvent() const
 	-> rpl::producer<not_null<QKeyEvent*>> {
@@ -66,6 +71,7 @@ private:
 	QVector<int> _pattern;
 	QString _additionalPlaceholder;
 	rpl::event_stream<not_null<QKeyEvent*>> _frontBackspaceEvent;
+	GroupsCallback _groupsCallback;
 
 };
 
@@ -95,12 +101,15 @@ private:
 
 class PhoneInput : public MaskedInputField {
 public:
+	using GroupsCallback = Fn<QVector<int>(const QString &)>;
+
 	PhoneInput(
 		QWidget *parent,
 		const style::InputField &st,
 		rpl::producer<QString> placeholder,
 		const QString &defaultValue,
-		QString value);
+		QString value,
+		GroupsCallback groupsCallback);
 
 	void clearText();
 
@@ -118,6 +127,8 @@ private:
 	QString _defaultValue;
 	QVector<int> _pattern;
 	QString _additionalPlaceholder;
+
+	GroupsCallback _groupsCallback;
 
 };
 

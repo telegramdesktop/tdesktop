@@ -23,7 +23,9 @@ public:
 	explicit ReplyPreview(not_null<PhotoData*> photo);
 	~ReplyPreview();
 
-	[[nodiscard]] Image *image(Data::FileOrigin origin);
+	[[nodiscard]] Image *image(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context);
 	[[nodiscard]] bool loaded() const;
 
 private:

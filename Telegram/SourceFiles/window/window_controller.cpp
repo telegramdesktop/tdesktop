@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"
@@ -195,7 +195,7 @@ void Controller::showTermsDelete() {
 		}
 	};
 	show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			tr::lng_terms_delete_warning(tr::now),
 			tr::lng_terms_delete_now(tr::now),
 			st::attentionBoxButton,
@@ -371,7 +371,7 @@ void Controller::showLogoutConfirmation() {
 			Core::App().logout(account);
 		}
 	};
-	show(Box<ConfirmBox>(
+	show(Box<Ui::ConfirmBox>(
 		tr::lng_sure_logout(tr::now),
 		tr::lng_settings_logout(tr::now),
 		st::attentionBoxButton,

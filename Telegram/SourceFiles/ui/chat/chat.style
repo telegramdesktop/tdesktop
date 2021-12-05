@@ -268,6 +268,9 @@ historyContactStatusBlock: FlatButton(historyContactStatusButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFg;
 }
+historyContactStatusLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+}
 historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "chat/input_send", historySendIconFg }};
@@ -305,7 +308,7 @@ historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconF
 historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
 historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
 historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
-historyAttachEmojiFgActive: windowActiveTextFg;
+historyAttachEmojiFgActive: windowBgActive;
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
 historyEmojiCircle: size(20px, 20px);
@@ -782,10 +785,10 @@ historyGroupAboutSkip: 8px;
 
 historyVideoDownloadSize: 44px;
 historyVideoMuteSize: 22px;
-historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
-historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
-historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
-historyVideoDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
+historyVideoCancel: icon {{ "player/playlist_cancel", historyFileThumbIconFg }};
+historyVideoCancelSelected: icon {{ "player/playlist_cancel", historyFileThumbIconFgSelected }};
+historyVideoDownload: icon {{ "player/playlist_download", historyFileThumbIconFg }};
+historyVideoDownloadSelected: icon {{ "player/playlist_download", historyFileThumbIconFgSelected }};
 historyVideoRadialLine: msgFileRadialLine;
 
 historyAudioDownloadSize: 20px;
@@ -909,3 +912,36 @@ whoReadChecksDisabled: icon{{ "chat/seen_checks", menuFgDisabled }};
 whoReadPlayed: icon{{ "chat/seen_played", windowFg }};
 whoReadPlayedOver: icon{{ "chat/seen_played", windowFgOver }};
 whoReadPlayedDisabled: icon {{ "chat/seen_played", menuFgDisabled }};
+
+historyRequestsUserpics: GroupCallUserpics {
+	size: 22px;
+	shift: 8px;
+	stroke: 4px;
+	align: align(left);
+}
+historyRequestsHeight: 33px;
+
+SendAsButton {
+	width: pixels;
+	height: pixels;
+	size: pixels;
+	activeBg: color;
+	activeFg: color;
+	cross: CrossAnimation;
+	duration: int;
+}
+
+sendAsButton: SendAsButton {
+	width: 44px;
+	height: 46px;
+	size: 28px;
+	activeBg: activeButtonBg;
+	activeFg: activeButtonFg;
+	cross: CrossAnimation {
+		size: 28px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	duration: 150;
+}

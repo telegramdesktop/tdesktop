@@ -38,6 +38,9 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user);
+[[nodiscard]] TextWithEntities AboutWithEntities(
+	not_null<PeerData*> peer,
+	const QString &value);
 rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer);
 rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
 rpl::producer<const ChannelLocation*> LocationValue(
@@ -49,6 +52,7 @@ rpl::producer<bool> CanShareContactValue(not_null<UserData*> user);
 rpl::producer<bool> CanAddContactValue(not_null<UserData*> user);
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel);
 rpl::producer<int> MembersCountValue(not_null<PeerData*> peer);
+rpl::producer<int> PendingRequestsCountValue(not_null<PeerData*> peer);
 rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer);
 rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer);
 rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel);

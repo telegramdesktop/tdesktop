@@ -66,8 +66,8 @@ TextWithEntities FormatSongName::textWithEntities(
 			EntityType::Semibold,
 			0,
 			_composedName.performer.isEmpty()
-				? result.text.size()
-				: _composedName.performer.size(),
+				? int(result.text.size())
+				: int(_composedName.performer.size()),
 		});
 	}
 	return result;

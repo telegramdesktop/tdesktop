@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "api/api_updates.h"
 #include "boxes/share_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_histories.h"
+#include "data/data_web_page.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
@@ -58,7 +59,7 @@ namespace {
 [[nodiscard]] MessageFlags NewForwardedFlags(
 		not_null<PeerData*> peer,
 		PeerId from,
-		not_null<HistoryMessage*> fwd) {
+		not_null<HistoryItem*> fwd) {
 	auto result = NewMessageFlags(peer);
 	if (from) {
 		result |= MessageFlag::HasFromId;
@@ -264,7 +265,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 			text.append(error.first);
 			Ui::show(
-				Box<InformBox>(text),
+				Box<Ui::InformBox>(text),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -292,9 +293,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
 			if (!comment.text.isEmpty()) {
-				auto message = ApiWrap::MessageToSend(history);
+				auto message = Api::MessageToSend(
+					Api::SendAction(history, options));
 				message.textWithTags = comment;
-				message.action.options = options;
 				message.action.clearDraft = false;
 				api.sendMessage(std::move(message));
 			}
@@ -310,7 +311,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					MTP_vector<MTPint>(msgIds),
 					MTP_vector<MTPlong>(generateRandom()),
 					peer->input,
-					MTP_int(options.scheduled)
+					MTP_int(options.scheduled),
+					MTP_inputPeerEmpty() // send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId requestId) {
 					history->session().api().applyUpdates(updates);
 					data->requests.remove(requestId);
@@ -319,7 +321,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 						Ui::hideLayer();
 					}
 					finish();
-				}).fail([=](const MTP::Error &error) {
+				}).fail([=] {
 					finish();
 				}).afterRequest(history->sendRequestId).send();
 				return history->sendRequestId;
@@ -347,15 +349,23 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		.navigation = App::wnd()->sessionController() }));
 }
 
-Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
-		not_null<HistoryItem*> item) {
-	const auto session = &item->history()->session();
-	const auto dependent = item->fullId();
-	return [=](ChannelData *channel, MsgId msgId) {
-		if (const auto item = session->data().message(dependent)) {
-			item->updateDependencyItem();
-		}
-	};
+void RequestDependentMessageData(
+		not_null<HistoryItem*> item,
+		PeerId peerId,
+		MsgId msgId) {
+	const auto fullId = item->fullId();
+	const auto history = item->history();
+	const auto session = &history->session();
+	history->session().api().requestMessageData(
+		(peerIsChannel(peerId)
+			? history->owner().channel(peerToChannel(peerId)).get()
+			: history->peer->asChannel()),
+		msgId,
+		[=](ChannelData *channel, MsgId msgId) {
+			if (const auto item = session->data().message(fullId)) {
+				item->updateDependencyItem();
+			}
+		});
 }
 
 MessageFlags NewMessageFlags(not_null<PeerData*> peer) {
@@ -458,7 +468,7 @@ HistoryMessage::HistoryMessage(
 : HistoryItem(
 		history,
 		id,
-		FlagsFromMTP(data.vflags().v) | localFlags,
+		FlagsFromMTP(id, data.vflags().v, localFlags),
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	auto config = CreateConfig();
@@ -516,7 +526,7 @@ HistoryMessage::HistoryMessage(
 : HistoryItem(
 		history,
 		id,
-		FlagsFromMTP(data.vflags().v) | localFlags,
+		FlagsFromMTP(id, data.vflags().v, localFlags),
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	auto config = CreateConfig();
@@ -553,11 +563,11 @@ HistoryMessage::HistoryMessage(
 	TimeId date,
 	PeerId from,
 	const QString &postAuthor,
-	not_null<HistoryMessage*> original)
+	not_null<HistoryItem*> original)
 : HistoryItem(
 		history,
 		id,
-		NewForwardedFlags(history->peer, from, original) | flags,
+		(NewForwardedFlags(history->peer, from, original) | flags),
 		date,
 		from) {
 	const auto peer = history->peer;
@@ -992,9 +1002,11 @@ void HistoryMessage::setCommentsItemId(FullMsgId id) {
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto documentId = reply->replyToDocumentId;
+		const auto webpageId = reply->replyToWebPageId;
 		const auto result = reply->updateData(this, true);
-		if (documentId != reply->replyToDocumentId
-			&& generateLocalEntitiesByReply()) {
+		const auto mediaIdChanged = (documentId != reply->replyToDocumentId)
+			|| (webpageId != reply->replyToWebPageId);
+		if (mediaIdChanged && generateLocalEntitiesByReply()) {
 			reapplyText();
 		}
 		return result;
@@ -1026,10 +1038,10 @@ void HistoryMessage::applySentMessage(
 }
 
 bool HistoryMessage::allowsForward() const {
-	if (id < 0 || !isHistoryEntry()) {
-		return false;
-	}
-	return !_media || _media->allowsForward();
+	return isRegular()
+		&& !forbidsForward()
+		&& history()->peer->allowsForwarding()
+		&& (!_media || _media->allowsForward());
 }
 
 bool HistoryMessage::allowsSendNow() const {
@@ -1043,15 +1055,11 @@ bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 }
 
 bool HistoryMessage::allowsEdit(TimeId now) const {
-	return canStopPoll()
+	return canBeEdited()
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
 		&& !isEditingMedia();
-}
-
-bool HistoryMessage::uploading() const {
-	return _media && _media->uploading();
 }
 
 void HistoryMessage::createComponents(CreateConfig &&config) {
@@ -1101,13 +1109,10 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 		reply->replyToMsgId = config.replyTo;
 		reply->replyToMsgTop = isScheduled() ? 0 : config.replyToTop;
 		if (!reply->updateData(this)) {
-			history()->session().api().requestMessageData(
-				(peerIsChannel(reply->replyToPeerId)
-					? history()->owner().channel(
-						peerToChannel(reply->replyToPeerId)).get()
-					: history()->peer->asChannel()),
-				reply->replyToMsgId,
-				HistoryDependentItemCallback(this));
+			RequestDependentMessageData(
+				this,
+				reply->replyToPeerId,
+				reply->replyToMsgId);
 		}
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {
@@ -1171,8 +1176,13 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 		return;
 	}
 	forwarded->originalDate = config.originalDate;
-	forwarded->originalSender = config.senderOriginal
-		? history()->owner().peer(config.senderOriginal).get()
+	const auto originalSender = config.senderOriginal
+		? config.senderOriginal
+		: !config.senderNameOriginal.isEmpty()
+		? PeerId()
+		: from()->id;
+	forwarded->originalSender = originalSender
+		? history()->owner().peer(originalSender).get()
 		: nullptr;
 	if (!forwarded->originalSender) {
 		forwarded->hiddenSenderInfo = std::make_unique<HiddenSenderInfo>(
@@ -1486,14 +1496,14 @@ void HistoryMessage::updateReplyMarkup(HistoryMessageMarkupData &&markup) {
 
 void HistoryMessage::contributeToSlowmode(TimeId realDate) {
 	if (const auto channel = history()->peer->asChannel()) {
-		if (out() && IsServerMsgId(id)) {
+		if (out() && isRegular()) {
 			channel->growSlowmodeLastMessage(realDate ? realDate : date());
 		}
 	}
 }
 
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
-	if (IsServerMsgId(id) && isUnreadMention()) {
+	if (isRegular() && isUnreadMention()) {
 		if (history()->addToUnreadMentions(id, type)) {
 			history()->session().changes().historyUpdated(
 				history(),
@@ -1526,34 +1536,62 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 }
 
 bool HistoryMessage::generateLocalEntitiesByReply() const {
-	return !_media || _media->webpage();
+	using namespace HistoryView;
+	if (!_media) {
+		return true;
+	} else if (const auto document = _media->document()) {
+		return !DurationForTimestampLinks(document);
+	} else if (const auto webpage = _media->webpage()) {
+		return (webpage->type != WebPageType::Video)
+			&& !DurationForTimestampLinks(webpage);
+	}
+	return true;
 }
 
 TextWithEntities HistoryMessage::withLocalEntities(
 		const TextWithEntities &textWithEntities) const {
+	using namespace HistoryView;
 	if (!generateLocalEntitiesByReply()) {
+		if (!_media) {
+		} else if (const auto document = _media->document()) {
+			if (const auto duration = DurationForTimestampLinks(document)) {
+				return AddTimestampLinks(
+					textWithEntities,
+					duration,
+					TimestampLinkBase(document, fullId()));
+			}
+		} else if (const auto webpage = _media->webpage()) {
+			if (const auto duration = DurationForTimestampLinks(webpage)) {
+				return AddTimestampLinks(
+					textWithEntities,
+					duration,
+					TimestampLinkBase(webpage, fullId()));
+			}
+		}
 		return textWithEntities;
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto document = reply->replyToDocumentId
 			? history()->owner().document(reply->replyToDocumentId).get()
 			: nullptr;
-		if (document
-			&& (document->isVideoFile()
-				|| document->isSong()
-				|| document->isVoiceMessage())) {
-			using namespace HistoryView;
-			const auto duration = document->getDuration();
-			const auto base = (duration > 0)
-				? DocumentTimestampLinkBase(
-					document,
-					reply->replyToMsg->fullId())
-				: QString();
-			if (!base.isEmpty()) {
+		const auto webpage = reply->replyToWebPageId
+			? history()->owner().webpage(reply->replyToWebPageId).get()
+			: nullptr;
+		if (document) {
+			if (const auto duration = DurationForTimestampLinks(document)) {
+				const auto context = reply->replyToMsg->fullId();
 				return AddTimestampLinks(
 					textWithEntities,
 					duration,
-					base);
+					TimestampLinkBase(document, context));
+			}
+		} else if (webpage) {
+			if (const auto duration = DurationForTimestampLinks(webpage)) {
+				const auto context = reply->replyToMsg->fullId();
+				return AddTimestampLinks(
+					textWithEntities,
+					duration,
+					TimestampLinkBase(webpage, context));
 			}
 		}
 	}
@@ -1684,6 +1722,10 @@ TextWithEntities HistoryMessage::originalText() const {
 		return { QString(), EntitiesInText() };
 	}
 	return _text.toTextWithEntities();
+}
+
+TextWithEntities HistoryMessage::originalTextWithLocalEntities() const {
+	return withLocalEntities(originalText());
 }
 
 TextForMimeData HistoryMessage::clipboardText() const {
@@ -1921,7 +1963,7 @@ void HistoryMessage::incrementReplyToTopCounter() {
 void HistoryMessage::changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,
 		int delta) {
-	if (!IsServerMsgId(id) || !reply->replyToTop()) {
+	if (!isRegular() || !reply->replyToTop()) {
 		return;
 	}
 	const auto channelId = history()->channelId();

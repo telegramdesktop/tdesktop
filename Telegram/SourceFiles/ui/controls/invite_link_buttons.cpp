@@ -118,6 +118,9 @@ not_null<AbstractButton*> AddJoinedCountButton(
 		result->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			!state->content.count);
+		if (!state->content.count) {
+			result->clearState();
+		}
 		const auto &st = st::inviteLinkUserpics;
 		const auto imageWidth = !state->content.userpics.isNull()
 			? state->content.userpics.width() / style::DevicePixelRatio()

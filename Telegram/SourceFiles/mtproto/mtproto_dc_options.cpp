@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 #include "mtproto/connection_tcp.h"
 #include "storage/serialize_common.h"
-#include "base/qt_adapters.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QRegularExpression>
@@ -754,10 +753,12 @@ bool DcOptions::loadFromFile(const QString &path) {
 		return false;
 	}
 	QTextStream stream(&f);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	stream.setCodec("UTF-8");
+#endif // Qt < 6.0.0
 	while (!stream.atEnd()) {
 		auto line = stream.readLine();
-		auto components = line.split(QRegularExpression(R"(\s)"), base::QStringSkipEmptyParts);
+		auto components = line.split(QRegularExpression(R"(\s)"), Qt::SkipEmptyParts);
 		if (components.isEmpty() || components[0].startsWith('#')) {
 			continue;
 		}
@@ -816,7 +817,9 @@ bool DcOptions::writeToFile(const QString &path) const {
 		return false;
 	}
 	QTextStream stream(&f);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	stream.setCodec("UTF-8");
+#endif // Qt < 6.0.0
 
 	ReadLocker lock(this);
 	for (const auto &item : _data) {

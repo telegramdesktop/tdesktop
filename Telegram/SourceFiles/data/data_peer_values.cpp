@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
+#include "main/main_session.h"
+#include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
 
 namespace Data {
 namespace {
@@ -40,7 +42,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 		return (hours + 1) * 3600 - (now - online);
 	}
 	const auto nowFull = base::unixtime::parse(now);
-	const auto tomorrow = base::QDateToDateTime(nowFull.date().addDays(1));
+	const auto tomorrow = nowFull.date().addDays(1).startOfDay();
 	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 
@@ -444,6 +446,53 @@ bool IsUserOnline(not_null<UserData*> user) {
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
 	return (channel->flags() & ChannelDataFlag::CallNotEmpty);
+}
+
+rpl::producer<QImage> PeerUserpicImageValue(
+		not_null<PeerData*> peer,
+		int size) {
+	return PeerUserpicImageValue(peer, size, ImageRoundRadius::Ellipse);
+}
+
+rpl::producer<QImage> PeerUserpicImageValue(
+		not_null<PeerData*> peer,
+		int size,
+		ImageRoundRadius radius) {
+	return [=](auto consumer) {
+		auto result = rpl::lifetime();
+		struct State {
+			std::shared_ptr<CloudImageView> view;
+			rpl::lifetime waiting;
+			InMemoryKey key = {};
+			bool empty = true;
+			Fn<void()> push;
+		};
+		const auto state = result.make_state<State>();
+		state->push = [=] {
+			const auto key = peer->userpicUniqueKey(state->view);
+			const auto loading = state->view && !state->view->image();
+
+			if (loading && !state->waiting) {
+				peer->session().downloaderTaskFinished(
+				) | rpl::start_with_next(state->push, state->waiting);
+			} else if (!loading && state->waiting) {
+				state->waiting.destroy();
+			}
+
+			if (!state->empty && (loading || key == state->key)) {
+				return;
+			}
+			state->key = key;
+			state->empty = false;
+			consumer.put_next(
+				peer->generateUserpicImage(state->view, size, radius));
+		};
+		peer->session().changes().peerFlagsValue(
+			peer,
+			PeerUpdate::Flag::Photo
+		) | rpl::start_with_next(state->push, result);
+		return result;
+	};
 }
 
 } // namespace Data

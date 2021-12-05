@@ -348,7 +348,7 @@ PeerData *Session::peerLoaded(PeerId id) const {
 	const auto i = _peers.find(id);
 	if (i == end(_peers)) {
 		return nullptr;
-	} else if (!i->second->isFullLoaded()) {
+	} else if (!i->second->isLoaded()) {
 		return nullptr;
 	}
 	return i->second.get();
@@ -556,9 +556,9 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (!result->isMinimalLoaded()) {
 			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
 		}
-	} else if (!result->isFullLoaded()
+	} else if (!result->isLoaded()
 		&& (!result->isSelf() || !result->phone().isEmpty())) {
-		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 
 	if (status && !minimal) {
@@ -641,7 +641,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::Deactivated
 			| Flag::Forbidden
 			| Flag::CallActive
-			| Flag::CallNotEmpty;
+			| Flag::CallNotEmpty
+			| Flag::NoForwards;
 		const auto flagsSet = (data.is_left() ? Flag::Left : Flag())
 			| (data.is_kicked() ? Flag::Kicked : Flag())
 			| (data.is_creator() ? Flag::Creator : Flag())
@@ -651,7 +652,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				|| (chat->groupCall()
 					&& chat->groupCall()->fullCount() > 0))
 				? Flag::CallNotEmpty
-				: Flag());
+				: Flag())
+			| (data.is_noforwards() ? Flag::NoForwards : Flag());
 		chat->setFlags((chat->flags() & ~flagsMask) | flagsSet);
 		chat->count = data.vparticipants_count().v;
 
@@ -680,7 +682,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto channel = result->asChannel();
 
 		minimal = data.is_min();
-		if (minimal && !result->isFullLoaded()) {
+		if (minimal && !result->isLoaded()) {
 			LOG(("API Warning: not loaded minimal channel applied."));
 		}
 
@@ -739,10 +741,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallActive
 			| Flag::CallNotEmpty
 			| Flag::Forbidden
-			| (!minimal
-				? Flag::Left
-				| Flag::Creator
-				: Flag());
+			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
+			| Flag::NoForwards;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -762,7 +762,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (!minimal
 				? (data.is_left() ? Flag::Left : Flag())
 				| (data.is_creator() ? Flag::Creator : Flag())
-				: Flag());
+				: Flag())
+			| (data.is_noforwards() ? Flag::NoForwards : Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		channel->setName(
@@ -825,8 +826,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (!result->isMinimalLoaded()) {
 			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
 		}
-	} else if (!result->isFullLoaded()) {
-		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+	} else if (!result->isLoaded()) {
+		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
@@ -871,12 +872,12 @@ void Session::unregisterGroupCall(not_null<GroupCall*> call) {
 	_groupCalls.remove(call->id());
 }
 
-GroupCall *Session::groupCall(uint64 callId) const {
+GroupCall *Session::groupCall(CallId callId) const {
 	const auto i = _groupCalls.find(callId);
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
-auto Session::invitedToCallUsers(uint64 callId) const
+auto Session::invitedToCallUsers(CallId callId) const
 -> const base::flat_set<not_null<UserData*>> & {
 	static const base::flat_set<not_null<UserData*>> kEmpty;
 	const auto i = _invitedToCallUsers.find(callId);
@@ -884,7 +885,7 @@ auto Session::invitedToCallUsers(uint64 callId) const
 }
 
 void Session::registerInvitedToCallUser(
-		uint64 callId,
+		CallId callId,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user) {
 	const auto call = peer->groupCall();
@@ -902,7 +903,7 @@ void Session::registerInvitedToCallUser(
 }
 
 void Session::unregisterInvitedToCallUser(
-		uint64 callId,
+		CallId callId,
 		not_null<UserData*> user) {
 	const auto i = _invitedToCallUsers.find(callId);
 	if (i != _invitedToCallUsers.end()) {
@@ -1171,7 +1172,7 @@ void Session::setupUserIsContactViewer() {
 				requestViewResize(view);
 			}
 		}
-		if (!user->isFullLoaded()) {
+		if (!user->isLoaded()) {
 			LOG(("API Error: "
 				"userIsContactChanged() called for a not loaded user!"));
 			return;
@@ -2213,7 +2214,7 @@ HistoryItem *Session::addNewMessage(
 		data,
 		localFlags,
 		type);
-	if (result && type == NewMessageType::Unread) {
+	if (type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
 	}
 	return result;
@@ -3496,7 +3497,7 @@ HistoryItem *Session::findWebPageItem(not_null<WebPageData*> page) const {
 	const auto i = _webpageItems.find(page);
 	if (i != _webpageItems.end()) {
 		for (const auto &item : i->second) {
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				return item;
 			}
 		}
@@ -3983,7 +3984,7 @@ void Session::insertCheckedServiceNotification(
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage::Flag::f_media;
 	const auto localFlags = MessageFlag::ClientSideUnread
-		| MessageFlag::LocalHistoryEntry;
+		| MessageFlag::Local;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		const auto id = nextLocalMessageId();

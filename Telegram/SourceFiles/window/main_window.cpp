@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
@@ -50,12 +49,14 @@ constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
 } // namespace
 
-QImage LoadLogo() {
-	return QImage(qsl(":/gui/art/logo_256.png"));
+const QImage &Logo() {
+	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
+	return result;
 }
 
-QImage LoadLogoNoMargin() {
-	return QImage(qsl(":/gui/art/logo_256_no_margin.png"));
+const QImage &LogoNoMargin() {
+	static const auto result = QImage(u":/gui/art/logo_256_no_margin.png"_q);
+	return result;
 }
 
 void ConvertIconToBlack(QImage &image) {
@@ -106,7 +107,7 @@ void ConvertIconToBlack(QImage &image) {
 }
 
 QIcon CreateOfficialIcon(Main::Session *session) {
-	auto image = Core::IsAppLaunched() ? Core::App().logo() : LoadLogo();
+	auto image = Logo();
 	if (session && session->supportMode()) {
 		ConvertIconToBlack(image);
 	}
@@ -157,6 +158,144 @@ QIcon CreateIcon(Main::Session *session) {
 	return result;
 }
 
+QImage GenerateCounterLayer(CounterLayerArgs &&args) {
+	// platform/linux/main_window_linux depends on count used the same
+	// way for all the same (count % 1000) values.
+	const auto count = args.count.value();
+	const auto text = (count < 1000)
+		? QString::number(count)
+		: u"..%1"_q.arg(count % 100, 2, 10, QChar('0'));
+	const auto textSize = text.size();
+
+	struct Dimensions {
+		int size = 0;
+		int font = 0;
+		int delta = 0;
+		int radius = 0;
+	};
+	const auto d = [&]() -> Dimensions {
+		switch (args.size.value()) {
+		case 16:
+			return {
+				.size = 16,
+				.font = ((textSize < 2) ? 11 : (textSize < 3) ? 11 : 8),
+				.delta = ((textSize < 2) ? 5 : (textSize < 3) ? 2 : 1),
+				.radius = ((textSize < 2) ? 8 : (textSize < 3) ? 7 : 3),
+			};
+		case 20:
+			return {
+				.size = 20,
+				.font = ((textSize < 2) ? 14 : (textSize < 3) ? 13 : 10),
+				.delta = ((textSize < 2) ? 6 : (textSize < 3) ? 2 : 1),
+				.radius = ((textSize < 2) ? 10 : (textSize < 3) ? 9 : 5),
+			};
+		case 24:
+			return {
+				.size = 24,
+				.font = ((textSize < 2) ? 17 : (textSize < 3) ? 16 : 12),
+				.delta = ((textSize < 2) ? 7 : (textSize < 3) ? 3 : 1),
+				.radius = ((textSize < 2) ? 12 : (textSize < 3) ? 11 : 6),
+			};
+		default:
+			return {
+				.size = 32,
+				.font = ((textSize < 2) ? 22 : (textSize < 3) ? 20 : 16),
+				.delta = ((textSize < 2) ? 9 : (textSize < 3) ? 4 : 2),
+				.radius = ((textSize < 2) ? 16 : (textSize < 3) ? 14 : 8),
+			};
+		}
+	}();
+
+	auto result = QImage(d.size, d.size, QImage::Format_ARGB32);
+	result.fill(Qt::transparent);
+
+	auto p = QPainter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto f = style::font{ d.font, 0, 0 };
+	const auto w = f->width(text);
+
+	p.setBrush(args.bg.value());
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(
+		QRect(
+			d.size - w - d.delta * 2,
+			d.size - f->height,
+			w + d.delta * 2,
+			f->height),
+		d.radius,
+		d.radius);
+
+	p.setFont(f);
+	p.setPen(args.fg.value());
+	p.drawText(d.size - w - d.delta, d.size - f->height + f->ascent, text);
+	p.end();
+
+	return result;
+}
+
+QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
+	const auto count = args.count.value();
+	const auto text = (count < 100)
+		? QString::number(count)
+		: QString("..%1").arg(count % 10, 1, 10, QChar('0'));
+	const auto textSize = text.size();
+
+	struct Dimensions {
+		int size = 0;
+		int font = 0;
+		int delta = 0;
+		int radius = 0;
+	};
+	const auto d = [&]() -> Dimensions {
+		switch (args.size.value()) {
+		case 16:
+			return {
+				.size = 16,
+				.font = 8,
+				.delta = ((textSize < 2) ? 2 : 1),
+				.radius = ((textSize < 2) ? 4 : 3),
+			};
+		case 32:
+			return {
+				.size = 32,
+				.font = 12,
+				.delta = ((textSize < 2) ? 5 : 2),
+				.radius = ((textSize < 2) ? 8 : 7),
+			};
+		default:
+			return {
+				.size = 64,
+				.font = 22,
+				.delta = ((textSize < 2) ? 9 : 4),
+				.radius = ((textSize < 2) ? 16 : 14),
+			};
+		}
+	}();
+
+	auto p = QPainter(&image);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto f = style::font{ d.font, 0, 0 };
+	const auto w = f->width(text);
+
+	p.setBrush(args.bg.value());
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(
+		QRect(
+			d.size - w - d.delta * 2,
+			d.size - f->height,
+			w + d.delta * 2,
+			f->height),
+		d.radius,
+		d.radius);
+
+	p.setFont(f);
+	p.setPen(args.fg.value());
+	p.drawText(d.size - w - d.delta, d.size - f->height + f->ascent, text);
+	p.end();
+
+	return image;
+}
+
 MainWindow::MainWindow(not_null<Controller*> controller)
 : _controller(controller)
 , _positionUpdatedTimer([=] { savePosition(); })
@@ -178,6 +317,11 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	}, lifetime());
 
 	Ui::Toast::SetDefaultParent(_body.data());
+
+	body()->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		updateControlsGeometry();
+	}, lifetime());
 
 	if (_outdated) {
 		_outdated->heightValue(
@@ -610,10 +754,6 @@ void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
 	});
 }
 
-void MainWindow::resizeEvent(QResizeEvent *e) {
-	updateControlsGeometry();
-}
-
 rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
 }
@@ -655,7 +795,7 @@ void MainWindow::updateUnreadCounter() {
 }
 
 QRect MainWindow::computeDesktopRect() const {
-	return QApplication::desktop()->availableGeometry(this);
+	return (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 }
 
 void MainWindow::savePosition(Qt::WindowState state) {
@@ -791,12 +931,12 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 }
 
 int MainWindow::maximalExtendBy() const {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	return std::max(desktop.width() - body()->width(), 0);
 }
 
 bool MainWindow::canExtendNoMove(int extendBy) const {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	auto innerRight = (inner.x() + inner.width() + extendBy);
 	auto desktopRight = (desktop.x() + desktop.width());
@@ -804,7 +944,7 @@ bool MainWindow::canExtendNoMove(int extendBy) const {
 }
 
 int MainWindow::tryToExtendWidthBy(int addToWidth) {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	accumulate_min(
 		addToWidth,

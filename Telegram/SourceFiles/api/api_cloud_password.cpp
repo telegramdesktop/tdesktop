@@ -36,17 +36,17 @@ void CloudPassword::reload() {
 			}
 			_stateChanges.fire_copy(*_state);
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }
 
 void CloudPassword::clearUnconfirmedPassword() {
 	_requestId = _api.request(MTPaccount_CancelPasswordEmail(
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_requestId = 0;
 		reload();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 		reload();
 	}).send();

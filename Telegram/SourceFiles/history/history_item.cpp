@@ -164,6 +164,15 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	});
 }
 
+[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags) {
+	if (!(flags & MessageFlag::FakeHistoryItem)
+		&& !(flags & MessageFlag::IsOrWasScheduled)
+		&& !(flags & MessageFlag::AdminLogEntry)) {
+		flags |= MessageFlag::HistoryEntry;
+	}
+	return flags;
+}
+
 } // namespace
 
 void HistoryItem::HistoryItem::Destroyer::operator()(HistoryItem *value) {
@@ -181,10 +190,10 @@ HistoryItem::HistoryItem(
 : id(id)
 , _history(history)
 , _from(from ? history->owner().peer(from) : history->peer)
-, _flags(flags)
+, _flags(FinalizeMessageFlags(flags))
 , _date(date) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
-		_history->registerLocalMessage(this);
+		_history->registerClientSideMessage(this);
 	}
 }
 
@@ -433,8 +442,7 @@ UserData *HistoryItem::getMessageBot() const {
 }
 
 bool HistoryItem::isHistoryEntry() const {
-	return IsServerMsgId(id)
-		|| (_flags & MessageFlag::LocalHistoryEntry);
+	return (_flags & MessageFlag::HistoryEntry);
 }
 
 bool HistoryItem::isAdminLogEntry() const {
@@ -553,7 +561,7 @@ void HistoryItem::applySentMessage(
 }
 
 void HistoryItem::indexAsNewItem() {
-	if (IsServerMsgId(id)) {
+	if (isRegular()) {
 		addToUnreadMentions(UnreadMentionType::New);
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
@@ -572,9 +580,9 @@ void HistoryItem::setRealId(MsgId newId) {
 	Expects(IsClientMsgId(id));
 
 	const auto oldId = std::exchange(id, newId);
-	_flags &= ~MessageFlag::BeingSent;
-	if (IsServerMsgId(id)) {
-		_history->unregisterLocalMessage(this);
+	_flags &= ~(MessageFlag::BeingSent | MessageFlag::Local);
+	if (isRegular()) {
+		_history->unregisterClientSideMessage(this);
 	}
 	_history->owner().notifyItemIdChange({ this, oldId });
 
@@ -591,7 +599,7 @@ void HistoryItem::setRealId(MsgId newId) {
 }
 
 bool HistoryItem::canPin() const {
-	if (id < 0 || !toHistoryMessage()) {
+	if (!isRegular() || isService()) {
 		return false;
 	} else if (const auto m = media(); m && m->call()) {
 		return false;
@@ -611,8 +619,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 	return false;
 }
 
-bool HistoryItem::canStopPoll() const {
-	if (id < 0
+bool HistoryItem::canBeEdited() const {
+	if ((!isRegular() && !isScheduled())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;
@@ -633,8 +641,18 @@ bool HistoryItem::canStopPoll() const {
 	return out();
 }
 
+bool HistoryItem::canStopPoll() const {
+	return canBeEdited() && isRegular();
+}
+
+bool HistoryItem::forbidsForward() const {
+	return (_flags & MessageFlag::NoForwards);
+}
+
 bool HistoryItem::canDelete() const {
-	if (!IsServerMsgId(id) && serviceMsg()) {
+	if (isSponsored()) {
+		return false;
+	} else if (isService() && !isRegular()) {
 		return false;
 	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
@@ -650,7 +668,7 @@ bool HistoryItem::canDelete() const {
 	if (channel->canDeleteMessages()) {
 		return true;
 	}
-	if (out() && toHistoryMessage()) {
+	if (out() && !isService()) {
 		return isPost() ? channel->canPublish() : true;
 	}
 	return false;
@@ -665,7 +683,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 		: peer->isUser()
 		? (now - date() >= config.revokePrivateTimeLimit)
 		: (now - date() >= config.revokeTimeLimit);
-	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
+	if (!isRegular() || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
 	if (peer->isChannel()) {
@@ -697,7 +715,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 }
 
 bool HistoryItem::suggestReport() const {
-	if (out() || serviceMsg() || !IsServerMsgId(id)) {
+	if (out() || isService() || !isRegular()) {
 		return false;
 	} else if (const auto channel = history()->peer->asChannel()) {
 		return true;
@@ -709,10 +727,7 @@ bool HistoryItem::suggestReport() const {
 
 bool HistoryItem::suggestBanReport() const {
 	const auto channel = history()->peer->asChannel();
-	const auto fromUser = from()->asUser();
-	if (!channel
-		|| !fromUser
-		|| !channel->canRestrictParticipant(fromUser)) {
+	if (!channel || !channel->canRestrictParticipant(from())) {
 		return false;
 	}
 	return !isPost() && !out();
@@ -723,11 +738,11 @@ bool HistoryItem::suggestDeleteAllReport() const {
 	if (!channel || !channel->canDeleteMessages()) {
 		return false;
 	}
-	return !isPost() && !out() && from()->isUser();
+	return !isPost() && !out();
 }
 
 bool HistoryItem::hasDirectLink() const {
-	return IsServerMsgId(id) && _history->peer->isChannel();
+	return isRegular() && _history->peer->isChannel();
 }
 
 ChannelId HistoryItem::channelId() const {
@@ -853,6 +868,14 @@ void HistoryItem::applyTTL(TimeId destroyAt) {
 	}
 }
 
+bool HistoryItem::isUploading() const {
+	return _media && _media->uploading();
+}
+
+bool HistoryItem::isRegular() const {
+	return isHistoryEntry() && !isLocal();
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_flags & MessageFlag::BeingSent);
 	Expects(!(_flags & MessageFlag::SendingFailed));
@@ -860,11 +883,11 @@ void HistoryItem::sendFailed() {
 	_flags = (_flags | MessageFlag::SendingFailed) & ~MessageFlag::BeingSent;
 	history()->session().changes().historyUpdated(
 		history(),
-		Data::HistoryUpdate::Flag::LocalMessages);
+		Data::HistoryUpdate::Flag::ClientSideMessages);
 }
 
 bool HistoryItem::needCheck() const {
-	return (out() && !isEmpty()) || (id < 0 && history()->peer->isSelf());
+	return (out() && !isEmpty()) || (!isRegular() && history()->peer->isSelf());
 }
 
 bool HistoryItem::unread() const {
@@ -879,7 +902,7 @@ bool HistoryItem::unread() const {
 			return false;
 		}
 
-		if (IsServerMsgId(id)) {
+		if (isRegular()) {
 			if (!history()->isServerSideUnread(this)) {
 				return false;
 			}
@@ -896,7 +919,7 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 
-	if (IsServerMsgId(id)) {
+	if (isRegular()) {
 		if (!history()->isServerSideUnread(this)) {
 			return false;
 		}
@@ -931,7 +954,7 @@ bool HistoryItem::isEmpty() const {
 
 QString HistoryItem::notificationText() const {
 	const auto result = [&] {
-		if (_media && !serviceMsg()) {
+		if (_media && !isService()) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
 			return _text.toString();
@@ -952,28 +975,41 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		}
 		return {};
 	}();
-	const auto sender = [&]() -> PeerData* {
-		if (options.hideSender || isPost() || isEmpty()) {
-			return nullptr;
-		} else if (!_history->peer->isUser() || out()) {
-			return displayFrom();
-		} else if (_history->peer->isSelf() && !Has<HistoryMessageForwarded>()) {
-			return senderOriginal();
+	const auto fromSender = [](not_null<PeerData*> sender) {
+		return sender->isSelf()
+			? tr::lng_from_you(tr::now)
+			: sender->shortName();
+	};
+	const auto fromForwarded = [&]() -> std::optional<QString> {
+		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->originalSender
+				? fromSender(forwarded->originalSender)
+				: forwarded->hiddenSenderInfo->name;
 		}
-		return nullptr;
+		return {};
+	};
+	const auto sender = [&]() -> std::optional<QString> {
+		if (options.hideSender || isPost() || isEmpty()) {
+			return {};
+		} else if (!_history->peer->isUser()) {
+			if (const auto from = displayFrom()) {
+				return fromSender(from);
+			}
+			return fromForwarded();
+		} else if (_history->peer->isSelf()) {
+			return fromForwarded();
+		}
+		return {};
 	}();
 	if (!sender) {
 		return result;
 	}
-	const auto fromText = sender->isSelf()
-		? tr::lng_from_you(tr::now)
-		: sender->shortName();
 	const auto fromWrapped = textcmdLink(
 		1,
 		tr::lng_dialogs_text_from_wrapped(
 			tr::now,
 			lt_from,
-			TextUtilities::Clean(fromText)));
+			TextUtilities::Clean(*sender)));
 	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
 }
 
@@ -1032,10 +1068,14 @@ ClickHandlerPtr goToMessageClickHandler(
 	});
 }
 
-MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
+MessageFlags FlagsFromMTP(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		MessageFlags localFlags) {
 	using Flag = MessageFlag;
 	using MTP = MTPDmessage::Flag;
-	return Flag()
+	return localFlags
+		| (IsServerMsgId(id) ? Flag::HistoryEntry : Flag())
 		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
 		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
 		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
@@ -1049,13 +1089,18 @@ MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
 		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())
-		| ((flags & MTP::f_views) ? Flag::HasViews : Flag());
+		| ((flags & MTP::f_views) ? Flag::HasViews : Flag())
+		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag());
 }
 
-MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags) {
+MessageFlags FlagsFromMTP(
+		MsgId id,
+		MTPDmessageService::Flags flags,
+		MessageFlags localFlags) {
 	using Flag = MessageFlag;
 	using MTP = MTPDmessageService::Flag;
-	return Flag()
+	return localFlags
+		| (IsServerMsgId(id) ? Flag::HistoryEntry : Flag())
 		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
 		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
 		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
@@ -1080,7 +1125,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			return CreateUnsupportedMessage(
 				history,
 				id,
-				FlagsFromMTP(data.vflags().v) | localFlags,
+				FlagsFromMTP(id, data.vflags().v, localFlags),
 				MsgId(0), // No need to pass reply_to data here.
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
@@ -1091,7 +1136,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			};
 			return history->makeServiceMessage(
 				id,
-				FlagsFromMTP(data.vflags().v) | localFlags,
+				FlagsFromMTP(id, data.vflags().v, localFlags),
 				data.vdate().v,
 				text,
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));

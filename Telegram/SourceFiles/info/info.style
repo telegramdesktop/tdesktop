@@ -345,6 +345,7 @@ infoProfileSeparatorPadding: margins(
 infoIconFg: menuIconFg;
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info/edit/group_manage_members", infoIconFg, point(-2px, 0px) }};
+infoIconRequests: icon {{ "info_add_member", infoIconFg, point(0px, 2px) }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
@@ -631,10 +632,6 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
 editPeerSkip: 7px;
 editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
-terminateSessionsButton: SettingsButton(infoBlockButton) {
-	padding: margins(22px, 12px, 22px, 10px);
-}
-
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};
@@ -661,8 +658,6 @@ editPeerTopButtonsLayoutSkipCustomBottom: 11px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
-editPeerDeleteButtonMargins: margins(25px, 11px, 22px, 16px);
-editPeerDeleteButton: sessionTerminateAllButton;
 editPeerPhotoMargins: margins(22px, 16px, 22px, 8px);
 editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 21px, 22px, 8px);
@@ -951,3 +946,55 @@ infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 
 infoScrollDateHideTimeout: historyScrollDateHideTimeout;
 infoDateFadeDuration: historyDateFadeDuration;
+
+shortInfoWidth: 304px;
+shortInfoLabeledPadding: margins(20px, 16px, 20px, 0px);
+shortInfoScroll: ScrollArea(defaultScrollArea) {
+	deltat: 3px;
+	deltab: 0px;
+	round: 1px;
+	width: 8px;
+	deltax: 3px;
+
+	duration: 150;
+	hiding: 1000;
+}
+
+ShortInfoCover {
+	size: pixels;
+	name: FlatLabel;
+	namePosition: point;
+	status: FlatLabel;
+	statusPosition: point;
+	linePadding: pixels;
+	lineSkip: pixels;
+	line: pixels;
+	shadowHeight: pixels;
+	radialAnimation: InfiniteRadialAnimation;
+}
+shortInfoCover: ShortInfoCover {
+	size: shortInfoWidth;
+	name: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallVideoTextFg;
+		maxHeight: 19px;
+		style: TextStyle(defaultTextStyle) {
+			font: font(15px semibold);
+			linkFont: font(15px semibold);
+			linkFontOver: font(15px semibold underline);
+		}
+	}
+	namePosition: point(25px, 37px);
+	status: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallVideoSubTextFg;
+		maxHeight: 18px;
+	}
+	statusPosition: point(25px, 14px);
+	linePadding: 8px;
+	lineSkip: 4px;
+	line: 2px;
+	shadowHeight: 80px;
+	radialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+		color: radialFg;
+		thickness: 2px;
+	}
+}

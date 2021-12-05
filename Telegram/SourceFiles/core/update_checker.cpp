@@ -244,6 +244,7 @@ QString FindUpdateFile() {
 			"tupdate|"
 			"tx64upd|"
 			"tmacupd|"
+			"tarmacupd|"
 			"tlinuxupd|"
 			")\\d+(_[a-z\\d]+)?$",
 			QRegularExpression::CaseInsensitiveOption
@@ -582,7 +583,7 @@ bool ParseCommonMap(
 			if ((*version).isString()) {
 				const auto string = (*version).toString();
 				if (const auto index = string.indexOf(':'); index > 0) {
-					return string.midRef(0, index).toULongLong();
+					return base::StringViewMid(string, 0, index).toULongLong();
 				}
 				return string.toULongLong();
 			} else if ((*version).isDouble()) {
@@ -1014,7 +1015,7 @@ auto MtpChecker::parseText(const QByteArray &text) const
 			return false;
 		}
 		bestLocation.username = full.mid(start + 1, post - start - 1);
-		bestLocation.postId = full.midRef(post + 1).toInt();
+		bestLocation.postId = base::StringViewMid(full, post + 1).toInt();
 		if (bestLocation.username.isEmpty() || !bestLocation.postId) {
 			LOG(("Update Error: MTP entry '%1' is bad for version %2."
 				).arg(full

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
 
 namespace Ui {
 class RoundButton;

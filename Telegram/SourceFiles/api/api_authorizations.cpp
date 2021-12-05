@@ -10,12 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/changelogs.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 
 namespace Api {
 namespace {
 
 constexpr auto TestApiId = 17349;
+constexpr auto SnapApiId = 611335;
 constexpr auto DesktopApiId = 2040;
 
 Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
@@ -24,9 +26,11 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	result.hash = data.is_current() ? 0 : data.vhash().v;
 	result.incomplete = data.is_password_pending();
 
-	const auto apiId = data.vapi_id().v;
+	const auto apiId = result.apiId = data.vapi_id().v;
 	const auto isTest = (apiId == TestApiId);
-	const auto isDesktop = (apiId == DesktopApiId) || isTest;
+	const auto isDesktop = (apiId == DesktopApiId)
+		|| (apiId == SnapApiId)
+		|| isTest;
 
 	const auto appName = isDesktop
 		? QString("Telegram Desktop%1").arg(isTest ? " (GitHub)" : QString())
@@ -46,29 +50,26 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		return version;
 	}();
 
-	result.name = QString("%1%2").arg(
-		appName,
-		appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.name = result.hash
+		? qs(data.vdevice_model())
+		: Core::App().settings().deviceModel();
 
 	const auto country = qs(data.vcountry());
-	const auto platform = qs(data.vplatform());
+	//const auto platform = qs(data.vplatform());
 	//const auto &countries = countriesByISO2();
 	//const auto j = countries.constFind(country);
 	//if (j != countries.cend()) {
 	//	country = QString::fromUtf8(j.value()->name);
 	//}
-
+	result.system = qs(data.vsystem_version());
+	result.platform = qs(data.vplatform());
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
-	result.info = QString("%1, %2%3").arg(
-		qs(data.vdevice_model()),
-		platform.isEmpty() ? QString() : platform + ' ',
-		qs(data.vsystem_version()));
-	result.ip = qs(data.vip())
-		+ (country.isEmpty()
-			? QString()
-			: QString::fromUtf8(" \xe2\x80\x93 ") + country);
+	result.info = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.ip = qs(data.vip());
 	if (!result.hash) {
 		result.active = tr::lng_status_online(tr::now);
 	} else {
@@ -85,6 +86,7 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 			result.active = lastDate.toString(cDateFormat());
 		}
 	}
+	result.location = country;
 
 	return result;
 }
@@ -93,6 +95,23 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 
 Authorizations::Authorizations(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
+	Core::App().settings().deviceModelChanges(
+	) | rpl::start_with_next([=](const QString &model) {
+		auto changed = false;
+		for (auto &entry : _list) {
+			if (!entry.hash) {
+				entry.name = model;
+				changed = true;
+			}
+		}
+		if (changed) {
+			_listChanges.fire({});
+		}
+	}, _lifetime);
+
+	if (Core::App().settings().disableCallsLegacy()) {
+		toggleCallsDisabledHere(true);
+	}
 }
 
 void Authorizations::reload() {
@@ -105,6 +124,7 @@ void Authorizations::reload() {
 		_requestId = 0;
 		_lastReceived = crl::now();
 		result.match([&](const MTPDaccount_authorizations &auths) {
+			_ttlDays = auths.vauthorization_ttl_days().v;
 			_list = (
 				auths.vauthorizations().v
 			) | ranges::views::transform([](const MTPAuthorization &d) {
@@ -112,7 +132,7 @@ void Authorizations::reload() {
 			}) | ranges::to<List>;
 			_listChanges.fire({});
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }
@@ -168,6 +188,55 @@ rpl::producer<int> Authorizations::totalChanges() const {
 		total()
 	) | rpl::then(
 		_listChanges.events() | rpl::map([=] { return total(); }));
+}
+
+void Authorizations::updateTTL(int days) {
+	_api.request(_ttlRequestId).cancel();
+	_ttlRequestId = _api.request(MTPaccount_SetAuthorizationTTL(
+		MTP_int(days)
+	)).done([=] {
+		_ttlRequestId = 0;
+	}).fail([=] {
+		_ttlRequestId = 0;
+	}).send();
+	_ttlDays = days;
+}
+
+rpl::producer<int> Authorizations::ttlDays() const {
+	return _ttlDays.value() | rpl::filter(rpl::mappers::_1 != 0);
+}
+
+void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
+	if (const auto sent = _toggleCallsDisabledRequests.take(hash)) {
+		_api.request(*sent).cancel();
+	}
+	using Flag = MTPaccount_ChangeAuthorizationSettings::Flag;
+	const auto id = _api.request(MTPaccount_ChangeAuthorizationSettings(
+		MTP_flags(Flag::f_call_requests_disabled),
+		MTP_long(hash),
+		MTPBool(), // encrypted_requests_disabled
+		MTP_bool(disabled)
+	)).done([=] {
+		_toggleCallsDisabledRequests.remove(hash);
+	}).fail([=] {
+		_toggleCallsDisabledRequests.remove(hash);
+	}).send();
+	_toggleCallsDisabledRequests.emplace(hash, id);
+	if (!hash) {
+		_callsDisabledHere = disabled;
+	}
+}
+
+bool Authorizations::callsDisabledHere() const {
+	return _callsDisabledHere.current();
+}
+
+rpl::producer<bool> Authorizations::callsDisabledHereValue() const {
+	return _callsDisabledHere.value();
+}
+
+rpl::producer<bool> Authorizations::callsDisabledHereChanges() const {
+	return _callsDisabledHere.changes();
 }
 
 int Authorizations::total() const {

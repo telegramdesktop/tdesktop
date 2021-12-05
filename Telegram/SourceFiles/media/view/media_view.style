@@ -46,12 +46,12 @@ mediaviewPlayButton: IconButton(mediaviewControlsButton) {
 	height: 42px;
 	rippleAreaSize: 42px;
 
-	icon: icon {{ "player_play", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player_play", mediaviewPlaybackIconFgOver }};
+	icon: icon {{ "player/player_play", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player/player_play", mediaviewPlaybackIconFgOver }};
 	iconPosition: point(9px, 9px);
 }
-mediaviewPauseIcon: icon {{ "player_pause", mediaviewPlaybackIconFg }};
-mediaviewPauseIconOver: icon {{ "player_pause", mediaviewPlaybackIconFgOver }};
+mediaviewPauseIcon: icon {{ "player/player_pause", mediaviewPlaybackIconFg }};
+mediaviewPauseIconOver: icon {{ "player/player_pause", mediaviewPlaybackIconFgOver }};
 
 mediaviewButtonsTop: 7px;
 
@@ -60,34 +60,34 @@ mediaviewMenuToggle: IconButton(mediaviewControlsButton) {
 	width: 34px;
 	height: 34px;
 	rippleAreaSize: 34px;
-	icon: icon {{ "player_more", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player_more", mediaviewPlaybackIconFgOver }};
+	icon: icon {{ "player/player_more", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player/player_more", mediaviewPlaybackIconFgOver }};
 	iconPosition: point(5px, 5px);
 }
 
 mediaviewPipButtonSkip: 5px;
 mediaviewPipButton: IconButton(mediaviewMenuToggle) {
-	icon: icon {{ "player_pip", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player_pip", mediaviewPlaybackIconFgOver }};
+	icon: icon {{ "player/player_pip", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player/player_pip", mediaviewPlaybackIconFgOver }};
 }
 
 mediaviewFullScreenButtonSkip: 8px;
 mediaviewFullScreenButton: IconButton(mediaviewMenuToggle) {
-	icon: icon {{ "player_fullscreen", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player_fullscreen", mediaviewPlaybackIconFgOver }};
+	icon: icon {{ "player/player_fullscreen", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player/player_fullscreen", mediaviewPlaybackIconFgOver }};
 }
-mediaviewFullScreenOutIcon: icon {{ "player_minimize", mediaviewPlaybackIconFg }};
-mediaviewFullScreenOutIconOver: icon {{ "player_minimize", mediaviewPlaybackIconFgOver }};
+mediaviewFullScreenOutIcon: icon {{ "player/player_minimize", mediaviewPlaybackIconFg }};
+mediaviewFullScreenOutIconOver: icon {{ "player/player_minimize", mediaviewPlaybackIconFgOver }};
 
 mediaviewVolumeWidth: 75px;
 mediaviewControllerRadius: 9px;
 
-mediaviewVolumeIcon0: icon {{ "player_volume_off", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon0Over: icon {{ "player_volume_off", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeIcon1: icon {{ "player_volume_small", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon1Over: icon {{ "player_volume_small", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeIcon2: icon {{ "player_volume_on", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon2Over: icon {{ "player_volume_on", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon0: icon {{ "player/player_volume_off", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon0Over: icon {{ "player/player_volume_off", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon1: icon {{ "player/player_volume_small", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon1Over: icon {{ "player/player_volume_small", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPlaybackIconFgOver }};
 mediaviewVolumeTop: 10px;
 mediaviewVolumeToggleSkip: 11px;
 mediaviewVolumeToggle: IconButton(mediaviewControlsButton) {
@@ -205,7 +205,7 @@ mediaviewControlsPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: mediaviewControlsMenu;
 	animation: mediaviewControlsPanelAnimation;
 }
-mediaviewMenuCheck: icon {{ "player_check", mediaviewPlaybackProgressFg }};
+mediaviewMenuCheck: icon {{ "player/player_check", mediaviewPlaybackProgressFg }};
 
 mediaviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
 mediaviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
@@ -293,19 +293,19 @@ pipPlaybackWide: 4px;
 pipPlaybackSkip: 4px;
 pipPlaybackTextSkip: 6px;
 pipPlaybackFont: font(11px);
-pipPlayIcon: icon {{ "player_pip_play", mediaviewPipControlsFg }};
-pipPlayIconOver: icon {{ "player_pip_play", mediaviewPipControlsFgOver }};
-pipPauseIcon: icon {{ "player_pip_pause", mediaviewPipControlsFg }};
-pipPauseIconOver: icon {{ "player_pip_pause", mediaviewPipControlsFgOver }};
-pipCloseIcon: icon {{ "player_pip_close", mediaviewPipControlsFg }};
-pipCloseIconOver: icon {{ "player_pip_close", mediaviewPipControlsFgOver }};
-pipEnlargeIcon: icon {{ "player_pip_enlarge", mediaviewPipControlsFg }};
-pipEnlargeIconOver: icon {{ "player_pip_enlarge", mediaviewPipControlsFgOver }};
-pipVolumeIcon0: icon {{ "player_volume_off", mediaviewPipControlsFg }};
-pipVolumeIcon0Over: icon {{ "player_volume_off", mediaviewPipControlsFgOver }};
-pipVolumeIcon1: icon {{ "player_volume_small", mediaviewPipControlsFg }};
-pipVolumeIcon1Over: icon {{ "player_volume_small", mediaviewPipControlsFgOver }};
-pipVolumeIcon2: icon {{ "player_volume_on", mediaviewPipControlsFg }};
-pipVolumeIcon2Over: icon {{ "player_volume_on", mediaviewPipControlsFgOver }};
+pipPlayIcon: icon {{ "player/player_pip_play", mediaviewPipControlsFg }};
+pipPlayIconOver: icon {{ "player/player_pip_play", mediaviewPipControlsFgOver }};
+pipPauseIcon: icon {{ "player/player_pip_pause", mediaviewPipControlsFg }};
+pipPauseIconOver: icon {{ "player/player_pip_pause", mediaviewPipControlsFgOver }};
+pipCloseIcon: icon {{ "player/player_pip_close", mediaviewPipControlsFg }};
+pipCloseIconOver: icon {{ "player/player_pip_close", mediaviewPipControlsFgOver }};
+pipEnlargeIcon: icon {{ "player/player_pip_enlarge", mediaviewPipControlsFg }};
+pipEnlargeIconOver: icon {{ "player/player_pip_enlarge", mediaviewPipControlsFgOver }};
+pipVolumeIcon0: icon {{ "player/player_volume_off", mediaviewPipControlsFg }};
+pipVolumeIcon0Over: icon {{ "player/player_volume_off", mediaviewPipControlsFgOver }};
+pipVolumeIcon1: icon {{ "player/player_volume_small", mediaviewPipControlsFg }};
+pipVolumeIcon1Over: icon {{ "player/player_volume_small", mediaviewPipControlsFgOver }};
+pipVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPipControlsFg }};
+pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOver }};
 
 speedSliderDividerSize: size(2px, 8px);

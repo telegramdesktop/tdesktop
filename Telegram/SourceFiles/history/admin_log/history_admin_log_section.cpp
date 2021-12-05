@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "base/timer.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -328,7 +328,7 @@ Widget::Widget(
 	}, lifetime());
 
 	_whatIsThis->setClickedCallback([=] {
-		controller->show(Box<InformBox>(channel->isMegagroup()
+		controller->show(Box<Ui::InformBox>(channel->isMegagroup()
 			? tr::lng_admin_log_about_text(tr::now)
 			: tr::lng_admin_log_about_text_channel(tr::now)));
 	});

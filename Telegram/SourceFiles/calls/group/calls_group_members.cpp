@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_members.h"
 
+#include "calls/group/calls_cover_item.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_menu.h"
 #include "calls/group/calls_volume_item.h"
@@ -31,7 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h" // account().appConfig().
 #include "main/main_app_config.h" // appConfig().get<double>().
+#include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
+#include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfo...
 #include "window/window_controller.h" // Controller::sessionController.
 #include "window/window_session_controller.h"
 #include "webrtc/webrtc_video_track.h"
@@ -65,7 +68,7 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
@@ -1159,7 +1162,7 @@ void Members::Controller::showRowMenu(
 	delegate()->peerListShowRowMenu(row, highlightRow, cleanup);
 }
 
-void Members::Controller::rowActionClicked(
+void Members::Controller::rowRightActionClicked(
 		not_null<PeerListRow*> row) {
 	showRowMenu(row, true);
 }
@@ -1189,6 +1192,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto muteState = real->state();
 	const auto muted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::RaisedHand);
+	const auto addCover = true;
 	const auto addVolumeItem = !muted || isMe(participantPeer);
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
@@ -1213,7 +1217,9 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
-		(addVolumeItem
+		(addCover
+			? st::groupCallPopupMenuWithCover
+			: addVolumeItem
 			? st::groupCallPopupMenuWithVolume
 			: st::groupCallPopupMenu));
 	const auto weakMenu = Ui::MakeWeak(result.get());
@@ -1246,6 +1252,25 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto removeFromVoiceChat = crl::guard(this, [=] {
 		_kickParticipantRequests.fire_copy(participantPeer);
 	});
+
+	if (addCover) {
+		result->addAction(base::make_unique_q<CoverItem>(
+			result->menu(),
+			st::groupCallPopupCoverMenu,
+			st::groupCallMenuCover,
+			Info::Profile::NameValue(
+				participantPeer
+			) | rpl::map([](const auto &text) { return text.text; }),
+			PrepareShortInfoStatus(participantPeer),
+			PrepareShortInfoUserpic(participantPeer)));
+
+		if (const auto about = participantPeer->about(); !about.isEmpty()) {
+			result->addAction(base::make_unique_q<AboutItem>(
+				result->menu(),
+				st::groupCallPopupCoverMenu,
+				Info::Profile::AboutWithEntities(participantPeer, about)));
+		}
+	}
 
 	if (const auto real = _call->lookupReal()) {
 		auto oneFound = false;
@@ -1357,7 +1382,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				removeFromVoiceChat));
 		}
 	}
-	if (result->empty()) {
+	if (result->actions().size() < (addCover ? 2 : 1)) {
 		return nullptr;
 	}
 	return result;
@@ -1451,7 +1476,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 			}
 		}, volumeItem->lifetime());
 
-		if (!menu->empty()) {
+		if (menu->actions().size() > 1) { // First - cover.
 			menu->addSeparator();
 		}
 

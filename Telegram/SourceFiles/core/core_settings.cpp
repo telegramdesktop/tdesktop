@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
+#include "media/player/media_player_instance.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
 #include "facades.h"
@@ -124,7 +125,9 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(proxy)
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(_photoEditorBrush)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 3
+		+ Serialize::stringSize(_customDeviceModel.current())
+		+ sizeof(qint32) * 2;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -200,7 +203,7 @@ QByteArray Settings::serialize() const {
 			<< _groupCallPushToTalkShortcut
 			<< qint64(_groupCallPushToTalkDelay)
 			<< qint32(0) // Call audio backend
-			<< qint32(_disableCalls ? 1 : 0)
+			<< qint32(0) // Legacy disable calls, now in session settings
 			<< windowPosition
 			<< qint32(recentEmojiPreloadData.size());
 		for (const auto &[id, rating] : recentEmojiPreloadData) {
@@ -221,7 +224,10 @@ QByteArray Settings::serialize() const {
 			<< _photoEditorBrush
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(_voicePlaybackSpeed * 100)
-			<< qint32(_closeToTaskbar.current() ? 1 : 0);
+			<< qint32(_closeToTaskbar.current() ? 1 : 0)
+			<< _customDeviceModel.current()
+			<< qint32(_playerRepeatMode.current())
+			<< qint32(_playerOrderMode.current());
 	}
 	return result;
 }
@@ -294,7 +300,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
 	qint32 callAudioBackend = 0;
-	qint32 disableCalls = _disableCalls ? 1 : 0;
+	qint32 disableCallsLegacy = 0;
 	QByteArray windowPosition;
 	std::vector<RecentEmojiId> recentEmojiPreload;
 	base::flat_map<QString, uint8> emojiVariants;
@@ -305,6 +311,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
 	QByteArray photoEditorBrush = _photoEditorBrush;
 	qint32 closeToTaskbar = _closeToTaskbar.current() ? 1 : 0;
+	QString customDeviceModel = _customDeviceModel.current();
+	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
+	qint32 playerOrderMode = static_cast<qint32>(_playerOrderMode.current());
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -404,7 +413,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> callAudioBackend;
 	}
 	if (!stream.atEnd()) {
-		stream >> disableCalls;
+		stream >> disableCallsLegacy;
 	}
 	if (!stream.atEnd()) {
 		stream >> windowPosition;
@@ -464,6 +473,14 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> closeToTaskbar;
+	}
+	if (!stream.atEnd()) {
+		stream >> customDeviceModel;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> playerRepeatMode
+			>> playerOrderMode;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -576,7 +593,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_groupCallPushToTalk = (groupCallPushToTalk == 1);
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
-	_disableCalls = (disableCalls == 1);
+	_disableCallsLegacy = (disableCallsLegacy == 1);
 	if (!windowPosition.isEmpty()) {
 		_windowPosition = Deserialize(windowPosition);
 	}
@@ -606,6 +623,19 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}();
 	_photoEditorBrush = photoEditorBrush;
 	_closeToTaskbar = (closeToTaskbar == 1);
+	_customDeviceModel = customDeviceModel;
+	const auto uncheckedPlayerRepeatMode = static_cast<Media::Player::RepeatMode>(playerRepeatMode);
+	switch (uncheckedPlayerRepeatMode) {
+	case Media::Player::RepeatMode::None:
+	case Media::Player::RepeatMode::One:
+	case Media::Player::RepeatMode::All: _playerRepeatMode = uncheckedPlayerRepeatMode; break;
+	}
+	const auto uncheckedPlayerOrderMode = static_cast<Media::Player::OrderMode>(playerOrderMode);
+	switch (uncheckedPlayerOrderMode) {
+	case Media::Player::OrderMode::Default:
+	case Media::Player::OrderMode::Reverse:
+	case Media::Player::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -670,6 +700,23 @@ rpl::producer<float64> Settings::dialogsWidthRatioChanges() const {
 
 void Settings::setThirdColumnWidth(int width) {
 	_thirdColumnWidth = width;
+}
+
+QString Settings::deviceModel() const {
+	const auto custom = customDeviceModel();
+	return custom.isEmpty() ? Platform::DeviceModelPretty() : custom;
+}
+
+rpl::producer<QString> Settings::deviceModelChanges() const {
+	return customDeviceModelChanges() | rpl::map([=] {
+		return deviceModel();
+	});
+}
+
+rpl::producer<QString> Settings::deviceModelValue() const {
+	return customDeviceModelValue() | rpl::map([=] {
+		return deviceModel();
+	});
 }
 
 int Settings::thirdColumnWidth() const {
@@ -823,7 +870,7 @@ void Settings::resetOnLastLogout() {
 	//_callInputVolume = 100;
 	//_callAudioDuckingEnabled = true;
 
-	_disableCalls = false;
+	_disableCallsLegacy = false;
 
 	_groupCallPushToTalk = false;
 	_groupCallPushToTalkShortcut = QByteArray();

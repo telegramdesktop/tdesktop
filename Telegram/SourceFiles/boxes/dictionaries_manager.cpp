@@ -39,11 +39,6 @@ using DictState = BlobState;
 using QueryCallback = Fn<void(const QString &)>;
 constexpr auto kMaxQueryLength = 15;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
-#define OLD_QT
-using QStringView = QString;
-#endif
-
 class Inner : public Ui::RpWidget {
 public:
 	Inner(

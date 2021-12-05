@@ -128,6 +128,18 @@ float64 PhotoMedia::progress() const {
 		: (loaded() ? 1. : 0.);
 }
 
+bool PhotoMedia::autoLoadThumbnailAllowed(not_null<PeerData*> peer) const {
+	if (loaded() || _owner->cancelled()) {
+		return false;
+	}
+	return _owner->hasExact(PhotoSize::Small)
+		|| _owner->hasExact(PhotoSize::Thumbnail)
+		|| AutoDownload::Should(
+			_owner->session().settings().autoDownload(),
+			peer,
+			_owner);
+}
+
 void PhotoMedia::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {

@@ -77,7 +77,8 @@ QSize UnwrappedMedia::countOptimalSize() {
 QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
-	if (_parent->media() == this) {
+	const auto isPageAttach = (_parent->media() != this);
+	if (!isPageAttach) {
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();
@@ -93,8 +94,9 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		}
 	}
 	auto newHeight = minHeight();
-	if (_parent->hasOutLayout()
-			&& !_parent->delegate()->elementIsChatWide()) {
+	if (!isPageAttach
+		&& _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide()) {
 		// Add some height to isolated emoji for the timestamp info.
 		const auto infoHeight = st::msgDateImgPadding.y() * 2
 			+ st::msgDateFont->height;
@@ -211,10 +213,17 @@ void UnwrappedMedia::drawSurrounding(
 			p.setTextPalette(st->serviceTextPalette());
 			forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
 			p.restoreTextPalette();
+
+			const auto skip = std::min(
+				forwarded->text.countHeight(rectw),
+				kMaxForwardedBarLines * st::msgServiceNameFont->height);
+			recty += skip;
 		} else if (via) {
 			p.setFont(st::msgDateFont);
 			p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
-			int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+
+			const auto skip = st::msgServiceNameFont->height
+				+ (reply ? st::msgReplyPadding.top() : 0);
 			recty += skip;
 		}
 		if (reply) {
@@ -435,10 +444,11 @@ QPoint UnwrappedMedia::calculateFastActionPosition(
 }
 
 bool UnwrappedMedia::needInfoDisplay() const {
-	return (_parent->data()->id < 0)
-		|| (_parent->isUnderCursor())
-		|| (_parent->rightActionSize())
-		|| (_parent->isLastAndSelfMessage())
+	return _parent->data()->isSending()
+		|| _parent->data()->hasFailed()
+		|| _parent->isUnderCursor()
+		|| _parent->rightActionSize()
+		|| _parent->isLastAndSelfMessage()
 		|| (_parent->hasOutLayout()
 			&& !_parent->delegate()->elementIsChatWide()
 			&& _content->alwaysShowOutTimestamp());
@@ -462,7 +472,9 @@ int UnwrappedMedia::additionalWidth(
 
 auto UnwrappedMedia::getDisplayedForwardedInfo() const
 -> const HistoryMessageForwarded * {
-	return _parent->data()->Get<HistoryMessageForwarded>();
+	return _parent->displayForwardedFrom()
+		? _parent->data()->Get<HistoryMessageForwarded>()
+		: nullptr;
 }
 
 } // namespace HistoryView

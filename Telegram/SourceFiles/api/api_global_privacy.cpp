@@ -33,7 +33,7 @@ void GlobalPrivacy::reload(Fn<void()> callback) {
 		for (const auto &callback : base::take(_callbacks)) {
 			callback();
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 		for (const auto &callback : base::take(_callbacks)) {
 			callback();
@@ -86,7 +86,7 @@ void GlobalPrivacy::update(bool archiveAndMute) {
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 	_archiveAndMute = archiveAndMute;

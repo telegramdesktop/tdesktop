@@ -650,8 +650,8 @@ void Manager::notificationActivated(
 					reply,
 					replyToId,
 					MessageCursor{
-						reply.text.size(),
-						reply.text.size(),
+						int(reply.text.size()),
+						int(reply.text.size()),
 						QFIXED_MAX,
 					},
 					Data::PreviewState::Allowed);
@@ -674,13 +674,13 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isUser()
-			|| history->peer->isChannel()
-			|| !IsServerMsgId(messageId)) {
+		if (history->peer->isUser() || history->peer->isChannel()) {
 			return false;
 		}
-		const auto item = history->owner().message(history->channelId(), messageId);
-		if (!item || !item->mentionsMe()) {
+		const auto item = history->owner().message(
+			history->channelId(),
+			messageId);
+		if (!item || !item->isRegular() || !item->mentionsMe()) {
 			return false;
 		}
 		return true;
@@ -706,7 +706,7 @@ void Manager::notificationReplied(
 	}
 	const auto history = session->data().history(id.full.peerId);
 
-	auto message = Api::MessageToSend(history);
+	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
 	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
 		? id.msgId

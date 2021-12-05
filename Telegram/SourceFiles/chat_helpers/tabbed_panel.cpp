@@ -207,7 +207,7 @@ void TabbedPanel::moveByBottom() {
 	updateContentHeight();
 }
 
-void TabbedPanel::enterEventHook(QEvent *e) {
+void TabbedPanel::enterEventHook(QEnterEvent *e) {
 	Core::App().registerLeaveSubscription(this);
 	showAnimated();
 }

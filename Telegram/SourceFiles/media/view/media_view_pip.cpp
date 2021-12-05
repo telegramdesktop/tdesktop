@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
-#include "base/qt_adapters.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -51,7 +50,7 @@ constexpr auto kMsInSecond = 1000;
 }
 
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
-	const auto screen = base::QScreenNearestTo(point);
+	const auto screen = QGuiApplication::screenAt(point);
 	const auto use = screen ? screen : QGuiApplication::primaryScreen();
 	return use
 		? use->availableGeometry()

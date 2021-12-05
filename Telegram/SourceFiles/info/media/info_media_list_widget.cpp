@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/layout_selection.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
+#include "data/data_chat.h"
+#include "data/data_channel.h"
+#include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_click_handler.h"
@@ -38,8 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/weak_ptr.h"
 #include "media/player/media_player_instance.h"
+#include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
-#include "boxes/confirm_box.h"
 #include "core/file_utilities.h"
 #include "facades.h"
 
@@ -731,8 +734,46 @@ void ListWidget::start() {
 	}, lifetime());
 
 	_controller->mediaSourceQueryValue(
-	) | rpl::start_with_next([this]{
+	) | rpl::start_with_next([this] {
 		restart();
+	}, lifetime());
+
+	setupSelectRestriction();
+}
+
+void ListWidget::setupSelectRestriction() {
+	if (_peer->isUser()) {
+		return;
+	}
+	const auto chat = _peer->asChat();
+	const auto channel = _peer->asChannel();
+	auto noForwards = chat
+		? Data::PeerFlagValue(chat, ChatDataFlag::NoForwards)
+		: Data::PeerFlagValue(
+			channel,
+			ChannelDataFlag::NoForwards
+		) | rpl::type_erased();
+
+	auto rights = chat
+		? chat->adminRightsValue()
+		: channel->adminRightsValue();
+	auto canDelete = std::move(
+		rights
+	) | rpl::map([=] {
+		return chat
+			? chat->canDeleteMessages()
+			: channel->canDeleteMessages();
+	});
+	rpl::combine(
+		std::move(noForwards),
+		std::move(canDelete)
+	) | rpl::filter([=] {
+		return hasSelectRestriction() && hasSelectedItems();
+	}) | rpl::start_with_next([=] {
+		clearSelected();
+		if (_mouseAction == MouseAction::PrepareSelect) {
+			mouseActionCancel();
+		}
 	}, lifetime());
 }
 
@@ -1595,15 +1636,17 @@ void ListWidget::showContextMenu(
 								document,
 								DocumentSaveClickHandler::Mode::ToNewFile);
 						});
-					_contextMenu->addAction(
-						(isVideo
-							? tr::lng_context_save_video(tr::now)
-							: isVoice
-							? tr::lng_context_save_audio(tr::now)
-							: isAudio
-							? tr::lng_context_save_audio_file(tr::now)
-							: tr::lng_context_save_file(tr::now)),
-						std::move(handler));
+					if (_peer->allowsForwarding()) {
+						_contextMenu->addAction(
+							(isVideo
+								? tr::lng_context_save_video(tr::now)
+								: isVoice
+								? tr::lng_context_save_audio(tr::now)
+								: isAudio
+								? tr::lng_context_save_audio_file(tr::now)
+								: tr::lng_context_save_file(tr::now)),
+							std::move(handler));
+					}
 				}
 			}
 		}
@@ -1654,18 +1697,20 @@ void ListWidget::showContextMenu(
 					[=] { _contextMenu = nullptr; }));
 			}
 		}
-		_contextMenu->addAction(
-			tr::lng_context_select_msg(tr::now),
-			crl::guard(this, [this, universalId] {
-				if (hasSelectedText()) {
-					clearSelected();
-				} else if (_selected.size() == MaxSelectedItems) {
-					return;
-				} else if (_selected.empty()) {
-					update();
-				}
-				applyItemSelection(universalId, FullSelection);
-			}));
+		if (!hasSelectRestriction()) {
+			_contextMenu->addAction(
+				tr::lng_context_select_msg(tr::now),
+				crl::guard(this, [this, universalId] {
+					if (hasSelectedText()) {
+						clearSelected();
+					} else if (_selected.size() == MaxSelectedItems) {
+						return;
+					} else if (_selected.empty()) {
+						update();
+					}
+					applyItemSelection(universalId, FullSelection);
+				}));
+		}
 	}
 
 	_contextMenu->setDestroyedCallback(crl::guard(
@@ -1713,12 +1758,9 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 
 void ListWidget::deleteSelected() {
 	if (const auto box = deleteItems(collectSelectedIds())) {
-		const auto weak = Ui::MakeWeak(this);
-		box->setDeleteConfirmedCallback([=]{
-			if (const auto strong = weak.data()) {
-				strong->clearSelected();
-			}
-		});
+		box->setDeleteConfirmedCallback(crl::guard(this, [=]{
+			clearSelected();
+		}));
 	}
 }
 
@@ -1738,6 +1780,17 @@ DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 		return box;
 	}
 	return nullptr;
+}
+
+bool ListWidget::hasSelectRestriction() const {
+	if (_peer->allowsForwarding()) {
+		return false;
+	} else if (const auto chat = _peer->asChat()) {
+		return !chat->canDeleteMessages();
+	} else if (const auto channel = _peer->asChannel()) {
+		return !channel->canDeleteMessages();
+	}
+	return true;
 }
 
 void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
@@ -1906,7 +1959,7 @@ void ListWidget::validateTrippleClickStartTime() {
 	}
 }
 
-void ListWidget::enterEventHook(QEvent *e) {
+void ListWidget::enterEventHook(QEnterEvent *e) {
 	mouseActionUpdate(QCursor::pos());
 	return RpWidget::enterEventHook(e);
 }
@@ -2048,7 +2101,7 @@ void ListWidget::updateDragSelection() {
 	if (swapStates) {
 		std::swap(fromState, tillState);
 	}
-	if (!fromState.itemId || !tillState.itemId) {
+	if (!fromState.itemId || !tillState.itemId || hasSelectRestriction()) {
 		clearDragSelection();
 		return;
 	}
@@ -2184,12 +2237,12 @@ void ListWidget::mouseActionStart(
 							applyItemSelection(_pressState.itemId, selStatus);
 							_mouseAction = MouseAction::Selecting;
 							repaintItem(pressLayout);
-						} else {
+						} else if (!hasSelectRestriction()) {
 							_mouseAction = MouseAction::PrepareSelect;
 						}
 					}
 				}
-			} else if (!_pressWasInactive) {
+			} else if (!_pressWasInactive && !hasSelectRestriction()) {
 				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
@@ -2366,7 +2419,9 @@ void ListWidget::mouseActionFinish(
 }
 
 void ListWidget::applyDragSelection() {
-	applyDragSelection(_selected);
+	if (!hasSelectRestriction()) {
+		applyDragSelection(_selected);
+	}
 	clearDragSelection();
 	pushSelectedItems();
 }

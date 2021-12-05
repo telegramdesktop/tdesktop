@@ -20,12 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_chat_participants.h"
 #include "api/api_attached_stickers.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -147,8 +149,9 @@ void InnerWidget::enumerateUserpics(Method method) {
 
 	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		const auto message = view->data()->toHistoryMessage();
-		if (!message) return true;
+		if (view->data()->isService()) {
+			return true;
+		}
 
 		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
 			lowestAttachedItemTop = itemtop + view->marginTop();
@@ -443,44 +446,27 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
-		session().api().parseChannelParticipants(_channel, result, [&](
-				int availableCount,
-				const QVector<MTPChannelParticipant> &list) {
-			auto filtered = (
-				list
-			) | ranges::views::transform([&](const MTPChannelParticipant &p) {
-				const auto participantId = p.match([](
-						const MTPDchannelParticipantBanned &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const MTPDchannelParticipantLeft &data) {
-					return peerFromMTP(data.vpeer());
-				}, [](const auto &data) {
-					return peerFromUser(data.vuser_id());
-				});
-				const auto canEdit = p.match([](
-						const MTPDchannelParticipantAdmin &data) {
-					return data.is_can_edit();
-				}, [](const auto &) {
-					return false;
-				});
-				return std::make_pair(participantId, canEdit);
-			}) | ranges::views::transform([&](auto &&pair) {
-				return std::make_pair(
-					(peerIsUser(pair.first)
-						? session().data().userLoaded(
-							peerToUser(pair.first))
-						: nullptr),
-					pair.second);
-			}) | ranges::views::filter([&](auto &&pair) {
-				return (pair.first != nullptr);
-			});
-
-			for (auto [user, canEdit] : filtered) {
-				_admins.emplace_back(user);
-				if (canEdit) {
-					_adminsCanEdit.emplace_back(user);
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list] = Api::ChatParticipants::Parse(
+				_channel,
+				data);
+			_admins.clear();
+			_adminsCanEdit.clear();
+			for (const auto &parsed : list) {
+				if (parsed.isUser()) {
+					const auto user = _channel->owner().userLoaded(
+						parsed.userId());
+					if (user) {
+						_admins.emplace_back(user);
+						if (parsed.canBeEdited() && !parsed.isCreator()) {
+							_adminsCanEdit.emplace_back(user);
+						}
+					}
 				}
 			}
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: c"
+				"hannels.channelParticipantsNotModified received!"));
 		});
 		if (_admins.empty()) {
 			_admins.push_back(session().user());
@@ -722,7 +708,29 @@ void InnerWidget::preloadMore(Direction direction) {
 	}
 
 	auto flags = MTPchannels_GetAdminLog::Flags(0);
-	auto filter = MTP_channelAdminLogEventsFilter(MTP_flags(_filter.flags));
+	const auto filter = [&] {
+		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
+		using LocalFlag = FilterValue::Flag;
+		const auto empty = MTPDchannelAdminLogEventsFilter::Flags(0);
+		const auto f = _filter.flags;
+		return empty
+			| ((f & LocalFlag::Join) ? Flag::f_join : empty)
+			| ((f & LocalFlag::Leave) ? Flag::f_leave : empty)
+			| ((f & LocalFlag::Invite) ? Flag::f_invite : empty)
+			| ((f & LocalFlag::Ban) ? Flag::f_ban : empty)
+			| ((f & LocalFlag::Unban) ? Flag::f_unban : empty)
+			| ((f & LocalFlag::Kick) ? Flag::f_kick : empty)
+			| ((f & LocalFlag::Unkick) ? Flag::f_unkick : empty)
+			| ((f & LocalFlag::Promote) ? Flag::f_promote : empty)
+			| ((f & LocalFlag::Demote) ? Flag::f_demote : empty)
+			| ((f & LocalFlag::Info) ? Flag::f_info : empty)
+			| ((f & LocalFlag::Settings) ? Flag::f_settings : empty)
+			| ((f & LocalFlag::Pinned) ? Flag::f_pinned : empty)
+			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
+			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
+			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
+			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty);
+	}();
 	if (_filter.flags != 0) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
 	}
@@ -743,7 +751,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		MTP_flags(flags),
 		_channel->inputChannel,
 		MTP_string(_searchQuery),
-		filter,
+		MTP_channelAdminLogEventsFilter(MTP_flags(filter)),
 		MTP_vector<MTPInputUser>(admins),
 		MTP_long(maxId),
 		MTP_long(minId),
@@ -759,7 +767,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!loadedFlag) {
 			addEvents(direction, results.vevents().v);
 		}
-	}).fail([this, &requestId, &loadedFlag](const MTP::Error &error) {
+	}).fail([this, &requestId, &loadedFlag] {
 		requestId = 0;
 		loadedFlag = true;
 		update();
@@ -787,37 +795,39 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for (const auto &event : events) {
-		event.match([&](const MTPDchannelAdminLogEvent &data) {
-			const auto id = data.vid().v;
-			if (_eventIds.find(id) != _eventIds.end()) {
-				return;
-			}
-
-			auto count = 0;
-			const auto addOne = [&](OwnedItem item, TimeId sentDate) {
-				if (sentDate) {
-					_itemDates.emplace(item->data(), sentDate);
-				}
-				_eventIds.emplace(id);
-				_itemsByData.emplace(item->data(), item.get());
-				addToItems.push_back(std::move(item));
-				++count;
-			};
-			GenerateItems(
-				this,
-				_history,
-				data,
-				addOne);
-			if (count > 1) {
-				// Reverse the inner order of the added messages, because we load events
-				// from bottom to top but inside one event they go from top to bottom.
-				auto full = addToItems.size();
-				auto from = full - count;
-				for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
-					std::swap(addToItems[from + i], addToItems[full - i - 1]);
-				}
-			}
+		const auto &data = event.match([](const MTPDchannelAdminLogEvent &d)
+				-> const MTPDchannelAdminLogEvent & {
+			return d;
 		});
+		const auto id = data.vid().v;
+		if (_eventIds.find(id) != _eventIds.end()) {
+			return;
+		}
+
+		auto count = 0;
+		const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+			if (sentDate) {
+				_itemDates.emplace(item->data(), sentDate);
+			}
+			_eventIds.emplace(id);
+			_itemsByData.emplace(item->data(), item.get());
+			addToItems.push_back(std::move(item));
+			++count;
+		};
+		GenerateItems(
+			this,
+			_history,
+			data,
+			addOne);
+		if (count > 1) {
+			// Reverse the inner order of the added messages, because we load events
+			// from bottom to top but inside one event they go from top to bottom.
+			auto full = addToItems.size();
+			auto from = full - count;
+			for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
+				std::swap(addToItems[from + i], addToItems[full - i - 1]);
+			}
+		}
 	}
 	auto newItemsCount = _items.size() + ((direction == Direction::Up) ? 0 : newItemsForDownDirection.size());
 	if (newItemsCount != oldItemsCount) {
@@ -963,10 +973,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
-					const auto message = view->data()->toHistoryMessage();
-					Assert(message != nullptr);
-
-					const auto from = message->from();
+					const auto from = view->data()->from();
 					from->paintUserpicLeft(
 						p,
 						_userpics[from],
@@ -1150,10 +1157,11 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: App::hoveredLinkItem();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
-	auto lnkPeer = dynamic_cast<PeerClickHandler*>(link.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
+	const auto fromId = PeerId(
+		link->property(kPeerLinkPeerIdProperty).toULongLong());
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(tr::lng_context_copy_selected(tr::now), [=] {
@@ -1225,9 +1233,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 		}
-	} else if (lnkPeer) { // suggest to block
-		if (auto user = lnkPeer->peer()->asUser()) {
-			suggestRestrictUser(user);
+	} else if (fromId) { // suggest to block
+		if (const auto participant = session().data().peer(fromId)) {
+			suggestRestrictParticipant(participant);
 		}
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;
@@ -1351,38 +1359,57 @@ void InnerWidget::copyContextText(FullMsgId itemId) {
 	}
 }
 
-void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
+void InnerWidget::suggestRestrictParticipant(
+		not_null<PeerData*> participant) {
 	Expects(_menu != nullptr);
 
-	if (!_channel->isMegagroup() || !_channel->canBanMembers() || _admins.empty()) {
+	if (!_channel->isMegagroup()
+		|| !_channel->canBanMembers()
+		|| _admins.empty()) {
 		return;
 	}
-	if (base::contains(_admins, user)) {
-		if (!base::contains(_adminsCanEdit, user)) {
+	if (ranges::contains(_admins, participant)) {
+		if (!ranges::contains(_adminsCanEdit, participant)) {
 			return;
 		}
 	}
 	_menu->addAction(tr::lng_context_restrict_user(tr::now), [=] {
+		const auto user = participant->asUser();
 		auto editRestrictions = [=](bool hasAdminRights, ChatRestrictionsInfo currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
-			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();
+			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
 			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
 			box->setSaveCallback([=](
 					ChatRestrictionsInfo oldRights,
 					ChatRestrictionsInfo newRights) {
 				if (weak) {
-					weak->restrictUser(user, oldRights, newRights);
+					weak->restrictParticipant(participant, oldRights, newRights);
 				}
 				if (*weakBox) {
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = QPointer<EditRestrictedBox>(box.data());
-			_controller->show(
-				std::move(box),
-				Ui::LayerOption::KeepOther);
+			*weakBox = _controller->show(std::move(box));
 		};
-		if (base::contains(_admins, user)) {
+		if (!user) {
+			const auto text = (_channel->isBroadcast()
+				? tr::lng_profile_sure_kick_channel
+				: tr::lng_profile_sure_kick)(
+					tr::now,
+					lt_user,
+					participant->name);
+			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
+			const auto sure = crl::guard(this, [=] {
+				restrictParticipant(
+					participant,
+					ChatRestrictionsInfo(),
+					ChannelData::KickedRestrictedRights(participant));
+				if (*weakBox) {
+					(*weakBox)->closeBox();
+				}
+			});
+			*weakBox = _controller->show(Box<Ui::ConfirmBox>(text, sure));
+		} else if (base::contains(_admins, user)) {
 			editRestrictions(true, ChatRestrictionsInfo());
 		} else {
 			_api.request(MTPchannels_GetParticipant(
@@ -1404,37 +1431,40 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						|| (type == mtpc_channelParticipantCreator);
 					editRestrictions(hasAdminRights, ChatRestrictionsInfo());
 				}
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}
 	});
 }
 
-void InnerWidget::restrictUser(
-		not_null<UserData*> user,
+void InnerWidget::restrictParticipant(
+		not_null<PeerData*> participant,
 		ChatRestrictionsInfo oldRights,
 		ChatRestrictionsInfo newRights) {
 	const auto done = [=](ChatRestrictionsInfo newRights) {
-		restrictUserDone(user, newRights);
+		restrictParticipantDone(participant, newRights);
 	};
 	const auto callback = SaveRestrictedCallback(
 		_channel,
-		user,
+		participant,
 		crl::guard(this, done),
 		nullptr);
 	callback(oldRights, newRights);
 }
 
-void InnerWidget::restrictUserDone(
-		not_null<UserData*> user,
+void InnerWidget::restrictParticipantDone(
+		not_null<PeerData*> participant,
 		ChatRestrictionsInfo rights) {
 	if (rights.flags) {
 		_admins.erase(
-			std::remove(_admins.begin(), _admins.end(), user),
+			std::remove(_admins.begin(), _admins.end(), participant),
 			_admins.end());
 		_adminsCanEdit.erase(
-			std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user),
+			std::remove(
+				_adminsCanEdit.begin(),
+				_adminsCanEdit.end(),
+				participant),
 			_adminsCanEdit.end());
 	}
 	_downLoaded = false;
@@ -1464,7 +1494,7 @@ void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void InnerWidget::enterEventHook(QEvent *e) {
+void InnerWidget::enterEventHook(QEnterEvent *e) {
 	mouseActionUpdate(QCursor::pos());
 	return TWidget::enterEventHook(e);
 }
@@ -1677,26 +1707,21 @@ void InnerWidget::updateSelected() {
 		dragState = view->textState(itemPoint, request);
 		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (item->toHistoryMessage()) {
-				if (view->hasFromPhoto()) {
-					enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
-						// stop enumeration if the userpic is below our point
-						if (userpicTop > point.y()) {
-							return false;
-						}
+			if (!item->isService() && view->hasFromPhoto()) {
+				enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+					// stop enumeration if the userpic is below our point
+					if (userpicTop > point.y()) {
+						return false;
+					}
 
-						// stop enumeration if we've found a userpic under the cursor
-						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-							const auto message = view->data()->toHistoryMessage();
-							Assert(message != nullptr);
-
-							dragState.link = message->from()->openLink();
-							lnkhost = view;
-							return false;
-						}
-						return true;
-					});
-				}
+					// stop enumeration if we've found a userpic under the cursor
+					if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+						dragState.link = view->data()->from()->openLink();
+						lnkhost = view;
+						return false;
+					}
+					return true;
+				});
 			}
 		}
 	}

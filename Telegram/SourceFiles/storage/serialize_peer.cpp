@@ -206,10 +206,10 @@ PeerData *readPeer(
 	const auto loaded = (peerId == selfId)
 		? session->user().get()
 		: session->data().peerLoaded(peerId);
-	const auto apply = !loaded || !loaded->isFullLoaded();
+	const auto apply = !loaded || !loaded->isLoaded();
 	const auto result = loaded ? loaded : session->data().peer(peerId).get();
 	if (apply) {
-		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 	if (const auto user = result->asUser()) {
 		QString first, last, phone, username, inlinePlaceholder;

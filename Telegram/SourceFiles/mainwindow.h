@@ -71,9 +71,6 @@ public:
 
 	void sendPaths();
 
-	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
-	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) override;
-
 	bool contentOverlapped(const QRect &globalRect);
 	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
 		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
@@ -147,8 +144,6 @@ private:
 	QPixmap grabInner();
 
 	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
-
-	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	crl::time _lastTrayClickTime = 0;
 	QPoint _lastMousePosition;

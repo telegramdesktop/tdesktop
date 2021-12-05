@@ -447,7 +447,7 @@ void Widget::onInlineRequest() {
 		MTP_string(nextOffset)
 	)).done([=](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		// show error?
 		_requesting.fire(false);
 		_inlineRequestId = 0;

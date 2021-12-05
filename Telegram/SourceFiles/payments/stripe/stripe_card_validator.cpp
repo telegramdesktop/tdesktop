@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "stripe/stripe_card_validator.h"
 
+#include "base/qt_adapters.h"
+
 #include <QtCore/QDate>
 #include <QtCore/QRegularExpression>
 
@@ -75,13 +77,13 @@ struct BinRange {
 		const BinRange &range,
 		const QString &sanitized) {
 	const auto minWithLow = std::min(sanitized.size(), range.low.size());
-	if (sanitized.midRef(0, minWithLow).toInt()
-		< range.low.midRef(0, minWithLow).toInt()) {
+	if (base::StringViewMid(sanitized, 0, minWithLow).toInt()
+		< base::StringViewMid(range.low, 0, minWithLow).toInt()) {
 		return false;
 	}
 	const auto minWithHigh = std::min(sanitized.size(), range.high.size());
-	if (sanitized.midRef(0, minWithHigh).toInt()
-		> range.high.midRef(0, minWithHigh).toInt()) {
+	if (base::StringViewMid(sanitized, 0, minWithHigh).toInt()
+		> base::StringViewMid(range.high, 0, minWithHigh).toInt()) {
 		return false;
 	}
 	return true;

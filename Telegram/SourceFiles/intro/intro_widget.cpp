@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_user.h"
 #include "countries/countries_instance.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"
+#include "base/qt_adapters.h"
 
 namespace Intro {
 namespace {
@@ -237,7 +238,7 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(nullptr, data.ventities().v)
 		};
-		Ui::show(Box<InformBox>(text));
+		Ui::show(Box<Ui::InformBox>(text));
 	}, [](const auto &) {});
 }
 
@@ -486,13 +487,13 @@ void Widget::resetAccount() {
 		return;
 	}
 
-	Ui::show(Box<ConfirmBox>(tr::lng_signin_sure_reset(tr::now), tr::lng_signin_reset(tr::now), st::attentionBoxButton, crl::guard(this, [this] {
+	const auto callback = crl::guard(this, [this] {
 		if (_resetRequest) {
 			return;
 		}
 		_resetRequest = _api->request(MTPaccount_DeleteAccount(
 			MTP_string("Forgot password")
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
@@ -512,7 +513,9 @@ void Widget::resetAccount() {
 
 			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				const auto seconds = type.midRef(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				const auto seconds = base::StringViewMid(
+					type,
+					qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;
@@ -549,21 +552,27 @@ void Widget::resetAccount() {
 						lt_minutes_count,
 						when);
 				}
-				Ui::show(Box<InformBox>(tr::lng_signin_reset_wait(
+				Ui::show(Box<Ui::InformBox>(tr::lng_signin_reset_wait(
 					tr::now,
 					lt_phone_number,
 					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-				Ui::show(Box<InformBox>(
+				Ui::show(Box<Ui::InformBox>(
 					tr::lng_signin_reset_cancelled(tr::now)));
 			} else {
 				Ui::hideLayer();
 				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
 			}
 		}).send();
-	})));
+	});
+
+	Ui::show(Box<Ui::ConfirmBox>(
+		tr::lng_signin_sure_reset(tr::now),
+		tr::lng_signin_reset(tr::now),
+		st::attentionBoxButton,
+		callback));
 }
 
 void Widget::getNearestDC() {

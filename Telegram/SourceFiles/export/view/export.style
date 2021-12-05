@@ -97,8 +97,8 @@ exportTopBarLabel: FlatLabel(defaultFlatLabel) {
 }
 exportCalendarSizes: CalendarSizes(defaultCalendarSizes) {
 	width: 320px;
-	daysHeight: 32px;
+	daysHeight: 40px;
 	cellSize: size(42px, 38px);
 	cellInner: 32px;
-	padding: margins(14px, 15px, 14px, 10px);
+	padding: margins(14px, 0px, 14px, 0px);
 }

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/widgets/popup_menu.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "settings/settings_common.h"
 #include "api/api_chat_filters.h"
@@ -336,7 +336,7 @@ void FiltersMenu::showEditBox(FilterId id) {
 }
 
 void FiltersMenu::showRemoveBox(FilterId id) {
-	_session->window().show(Box<ConfirmBox>(
+	_session->window().show(Box<Ui::ConfirmBox>(
 		tr::lng_filters_remove_sure(tr::now),
 		tr::lng_filters_remove_yes(tr::now),
 		[=](Fn<void()> &&close) { close(); remove(id); }));

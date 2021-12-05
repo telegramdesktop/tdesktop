@@ -29,7 +29,6 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
-	UsernameCheckTimeout = 200,
 
 	MaxMessageSize = 4096,
 

@@ -241,7 +241,7 @@ void UserPrivacy::save(
 			_privacySaveRequests.remove(keyTypeId);
 			apply(keyTypeId, data.vrules(), true);
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_privacySaveRequests.remove(keyTypeId);
 	}).send();
 
@@ -277,7 +277,7 @@ void UserPrivacy::reload(Key key) {
 			_session->data().processChats(data.vchats());
 			pushPrivacy(key, data.vrules());
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_privacyRequestIds.erase(key);
 	}).send();
 	_privacyRequestIds.emplace(key, requestId);

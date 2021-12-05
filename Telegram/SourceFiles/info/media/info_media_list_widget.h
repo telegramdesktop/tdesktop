@@ -169,12 +169,15 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 	void start();
 	int recountHeight();
 	void refreshHeight();
+
+	void setupSelectRestriction();
+	[[nodiscard]] bool hasSelectRestriction() const;
 
 	QMargins padding() const;
 	bool isMyItem(not_null<const HistoryItem*> item) const;

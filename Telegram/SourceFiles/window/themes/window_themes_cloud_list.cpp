@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "ui/style/style_palette_colorizer.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "core/application.h"
@@ -617,7 +617,7 @@ void CloudList::showMenu(Element &element) {
 				_window->session().data().cloudThemes().remove(id);
 			}
 		};
-		_window->window().show(Box<ConfirmBox>(
+		_window->window().show(Box<Ui::ConfirmBox>(
 			tr::lng_theme_delete_sure(tr::now),
 			tr::lng_theme_delete(tr::now),
 			remove));

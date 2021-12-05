@@ -190,7 +190,7 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 			_result->_content_url,
 			false);
 	} else if (const auto document = _result->_document
-		; document && document->createMediaView()->canBePlayed()) {
+		; document && document->createMediaView()->canBePlayed(nullptr)) {
 		return std::make_shared<OpenFileClickHandler>();
 	} else if (_result->_photo) {
 		return std::make_shared<OpenFileClickHandler>();
@@ -199,7 +199,7 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 }
 
 QString ItemBase::getResultThumbLetter() const {
-	auto parts = _result->_url.splitRef('/');
+	auto parts = QStringView(_result->_url).split('/');
 	if (!parts.isEmpty()) {
 		auto domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others

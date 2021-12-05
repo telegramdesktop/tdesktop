@@ -71,6 +71,17 @@ public:
 		bool justClear,
 		bool revoke);
 
+	void deleteMessagesByDates(
+		not_null<History*> history,
+		QDate firstDayToDelete,
+		QDate lastDayToDelete,
+		bool revoke);
+	void deleteMessagesByDates(
+		not_null<History*> history,
+		TimeId minDate,
+		TimeId maxDate,
+		bool revoke);
+
 	void deleteMessages(const MessageIdsList &ids, bool revoke);
 
 	int sendRequest(

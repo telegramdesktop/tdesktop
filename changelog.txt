@@ -1,3 +1,77 @@
+3.2.8 beta (01.12.21)
+
+- Fix crash in opening shared media with another user.
+
+3.2.7 beta (30.11.21)
+
+- Active sessions list redesign.
+- Fix disappearing emoji selector button.
+- Fix a crash in archived stickers loading.
+- Fix a crash in calls to old Telegram versions.
+
+3.2.6 beta (26.11.21)
+
+- Try out the new audio player with playlist shuffle and repeat.
+- Give a custom name to your desktop session to distinguish it in the sessions list.
+
+3.2.5 (16.11.21) [Windows, macOS]
+
+- Fix connecting in case bad characters appear in device name on Windows.
+- Fix custom input methods on macOS.
+
+3.2.4 (13.11.21)
+
+- Fix editing of scheduled messages on macOS.
+- Fix launching on Chrome OS in Crostini container. 
+
+3.2.3 (08.11.21)
+
+- Fix autoupdater launch on macOS.
+
+3.2.2 (05.11.21)
+
+- Fix webpage preview links when View Button is present.
+- Fixed possible crash on sponsored messages.
+
+3.2.1 (03.11.21)
+
+- Remove AppImage icon hack and -pie.
+
+3.2 (03.11.21)
+
+- Create special invite links that require admins to approve users before they become members.
+- Admins can view the applicants' profiles and bios by tapping the Join Requests bar at the top of the chat.
+- Add internal labels to your chat's Invite Links to keep them organized.
+- More Interactive Emoji - :ghost:, :dislike:, :face_vomiting:, :joy:, :money_with_wings: or :jack_o_lantern:
+
+3.1.13 beta (02.11.21)
+
+- Fix requests to groups / channels processing.
+- Fix internal link previews with View Content button layout.
+- Fix crash in messages search with imported messages results.
+- Don't use fractional system UI scaling on Linux.
+- Fix invite link icons on macOS.
+- Several crash fixes.
+
+3.1.12 beta (30.10.21)
+
+- Create special invite links that require admins to approve users before they become members.
+- Admins can view the applicants' profiles and bios by tapping the Join Requests bar at the top of the chat.
+- Add internal labels to your chat's Invite Links to keep them organized.
+- Run natively on Apple Silicon (macOS only).
+
+3.1.11 (29.10.21)
+
+- Create special invite links that require admins to approve users before they become members.
+- Admins can view the applicants' profiles and bios by tapping the Join Requests bar at the top of the chat.
+- Add internal labels to your chat's Invite Links to keep them organized.
+- Run natively on Apple Silicon (macOS only).
+
+3.1.10 beta (29.10.21)
+
+- Native support for M1 on macOS.
+- Build macOS and Linux versions on Qt 6.2.
+
 3.1.9 (08.10.21)
 
 - Fix crash in chat closing while scrolling (macOS only).
@@ -485,7 +559,7 @@
 
 - Pin several messages in any chat, including one-on-one chats.
 - Jump between pinned messages or open them all on a separate page via the top bar.
-- Send several music tracks as a playlist. 
+- Send several music tracks as a playlist.
 - Send several files as an album in one chat bubble.
 - Send a :slot_machine: emoji to any chat to see if you hit the jackpot.
 - Hide Telegram taskbar icon on Linux in Settings > Advanced.

@@ -160,7 +160,7 @@ void SetupUnreadMentionsMenu(
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				state->sentForPeers.remove(peer);
 				peer->session().api().applyAffectedHistory(peer, result);
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				state->sentForPeers.remove(peer);
 			}).send();
 		});

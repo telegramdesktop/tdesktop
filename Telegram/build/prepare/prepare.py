@@ -35,12 +35,26 @@ libsDir = rootDir + dirSep + libsLoc
 thirdPartyDir = rootDir + dirSep + 'ThirdParty'
 usedPrefix = libsDir + dirSep + 'local'
 
-processedArgs = []
-skipReleaseBuilds = False
+optionsList = [
+    'skip-release',
+    'build-qt5',
+    'skip-qt5',
+    'build-qt6',
+    'skip-qt6',
+    'build-stackwalk',
+]
+options = []
+runCommand = []
+customRunCommand = False
 for arg in sys.argv[1:]:
-    if arg == 'skip-release':
-        processedArgs.append(arg)
-        skipReleaseBuilds = True
+    if customRunCommand:
+        runCommand.append(arg)
+    if arg in optionsList:
+        options.append(arg)
+    elif arg == 'run':
+        customRunCommand = True
+buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
+buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
 if not os.path.isdir(libsDir + '/' + keysLoc):
     pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
@@ -49,7 +63,7 @@ if not os.path.isdir(thirdPartyDir + '/' + keysLoc):
 
 pathPrefixes = [
     'ThirdParty\\Strawberry\\perl\\bin',
-    'ThirdParty\\Python27',
+    'ThirdParty\\Python39',
     'ThirdParty\\NASM',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
@@ -193,12 +207,12 @@ def filterByPlatform(commands):
             # if linux and 'linux' in scopes:
             #     inscope = True
             if 'release' in scopes:
-                if skipReleaseBuilds:
+                if 'skip-release' in options:
                     inscope = False
                 elif len(scopes) == 1:
                     continue
             skip = inscope if m.group(1) == '!' else not inscope
-        elif not skip:
+        elif not skip and not re.match(r'\s*#', command):
             if m and m.group(2) == 'version':
                 version = version + '.' + command[len(m.group(0)):].strip()
             elif m and m.group(2) == 'depends':
@@ -308,7 +322,7 @@ def runStages():
     onlyStages = []
     rebuildStale = False
     for arg in sys.argv[1:]:
-        if arg in processedArgs:
+        if arg in options:
             continue
         elif arg == 'silent':
             rebuildStale = True
@@ -376,10 +390,18 @@ def runStages():
             finish(1)
         writeCacheKey(stage)
 
+if customRunCommand:
+    os.chdir(executePath)
+    command = ' '.join(runCommand) + '\n'
+    if not run(command):
+        print('FAILED :(')
+        finish(1)
+    finish(0)
+
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 5210855985
+    git checkout 4c21dfa0db
 """)
 
 stage('depot_tools', """
@@ -387,7 +409,8 @@ mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 """, 'ThirdParty')
 
-stage('gyp', """
+if not mac or 'build-stackwalk' in options:
+    stage('gyp', """
 win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -395,7 +418,7 @@ win:
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
-    python3 -m pip install git+https://github.com/nodejs/gyp-next@v0.10.0
+    python3 -m pip install --ignore-installed git+https://github.com/desktop-app/gyp-next@main
     mkdir gyp
 """, 'ThirdParty')
 
@@ -423,6 +446,7 @@ stage('xz', """
     cd xz
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
@@ -438,13 +462,15 @@ release:
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="%X8664%"
 mac:
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
-        --prefix=$USED_PREFIX
+        --static \\
+        --prefix=$USED_PREFIX \\
+        --archs="-arch x86_64 -arch arm64"
     make $MAKE_THREADS_CNT
     make install
 """)
 
 stage('mozjpeg', """
-    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    git clone -b v4.0.3 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
 win:
     cmake . ^
@@ -456,13 +482,26 @@ win:
 release:
     cmake --build . --config Release
 mac:
+    CFLAGS="-arch arm64" cmake -B build.arm64 . \\
+        -D CMAKE_SYSTEM_NAME=Darwin \\
+        -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
+        -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D WITH_JPEG8=ON \\
+        -D ENABLE_SHARED=OFF \\
+        -D PNG_SUPPORTED=OFF
+    cmake --build build.arm64 $MAKE_THREADS_CNT
     cmake -B build . \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
+        -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
     cmake --build build $MAKE_THREADS_CNT
+    lipo -create build.arm64/libjpeg.a build/libjpeg.a -output build/libjpeg.a
+    lipo -create build.arm64/libturbojpeg.a build/libturbojpeg.a -output build/libturbojpeg.a
     cmake --install build
 """)
 
@@ -494,8 +533,19 @@ win:
     move libssl.lib out
     move ossl_static.pdb out
 mac:
+    ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-arm64-cc $MIN_VER
+    make build_libs $MAKE_THREADS_CNT
+    mkdir out.arm64
+    mv libssl.a out.arm64
+    mv libcrypto.a out.arm64
+    make clean
     ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-x86_64-cc $MIN_VER
     make build_libs $MAKE_THREADS_CNT
+    mkdir out.x86_64
+    mv libssl.a out.x86_64
+    mv libcrypto.a out.x86_64
+    lipo -create out.arm64/libcrypto.a out.x86_64/libcrypto.a -output libcrypto.a
+    lipo -create out.arm64/libssl.a out.x86_64/libssl.a -output libssl.a
 """)
 
 stage('opus', """
@@ -513,10 +563,12 @@ release:
     cmake --build out --config Release
     cmake --install out --config Release
 mac:
-    ./autogen.sh
-    CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=$USED_PREFIX
-    make $MAKE_THREADS_CNT
-    make install
+    CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
+        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
+    cmake --build build $MAKE_THREADS_CNT
+    cmake --install build
 """)
 
 stage('rnnoise', """
@@ -532,13 +584,17 @@ release:
 !win:
     mkdir Debug
     cd Debug
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
+    cmake -G Ninja ../.. \\
+        -D CMAKE_BUILD_TYPE=Debug \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 release:
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../..
+    cmake -G Ninja ../.. \\
+        -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 """)
 
@@ -552,8 +608,14 @@ mac:
     rm libiconv.tar.gz
     mv libiconv-$VERSION libiconv
     cd libiconv
+    CFLAGS="$MIN_VER $UNGUARDED -arch arm64" CPPFLAGS="$MIN_VER $UNGUARDED -arch arm64" LDFLAGS="$MIN_VER" ./configure --enable-static --host=arm --prefix=$USED_PREFIX
+    make $MAKE_THREADS_CNT
+    mkdir out.arm64
+    mv lib/.libs/libiconv.a out.arm64
+    make clean
     CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --enable-static --prefix=$USED_PREFIX
     make $MAKE_THREADS_CNT
+    lipo -create out.arm64/libiconv.a lib/.libs/libiconv.a -output lib/.libs/libiconv.a
     make install
 """)
 
@@ -573,15 +635,14 @@ depends:patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
-    CFLAGS=`freetype-config --cflags`
-    LDFLAGS=`freetype-config --libs`
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
-
 depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
-    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
-    --extra-ldflags="$MIN_VER" \
+    --enable-cross-compile \
+    --target-os=darwin \
+    --arch="arm64" \
+    --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
     --enable-protocol=file \
     --enable-libopus \
     --disable-programs \
@@ -680,6 +741,125 @@ depends:yasm/yasm
     --enable-muxer=opus
 
     make $MAKE_THREADS_CNT
+
+    mkdir out.arm64
+    mv libavformat/libavformat.a out.arm64
+    mv libavcodec/libavcodec.a out.arm64
+    mv libswresample/libswresample.a out.arm64
+    mv libswscale/libswscale.a out.arm64
+    mv libavutil/libavutil.a out.arm64
+
+    make clean
+
+    ./configure --prefix=$USED_PREFIX \
+    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER $USED_PREFIX/lib/libopus.a" \
+    --enable-protocol=file \
+    --enable-libopus \
+    --disable-programs \
+    --disable-doc \
+    --disable-network \
+    --disable-everything \
+    --enable-hwaccel=h264_videotoolbox \
+    --enable-hwaccel=hevc_videotoolbox \
+    --enable-hwaccel=mpeg1_videotoolbox \
+    --enable-hwaccel=mpeg2_videotoolbox \
+    --enable-hwaccel=mpeg4_videotoolbox \
+    --enable-decoder=aac \
+    --enable-decoder=aac_at \
+    --enable-decoder=aac_fixed \
+    --enable-decoder=aac_latm \
+    --enable-decoder=aasc \
+    --enable-decoder=alac \
+    --enable-decoder=alac_at \
+    --enable-decoder=flac \
+    --enable-decoder=gif \
+    --enable-decoder=h264 \
+    --enable-decoder=hevc \
+    --enable-decoder=mp1 \
+    --enable-decoder=mp1float \
+    --enable-decoder=mp2 \
+    --enable-decoder=mp2float \
+    --enable-decoder=mp3 \
+    --enable-decoder=mp3adu \
+    --enable-decoder=mp3adufloat \
+    --enable-decoder=mp3float \
+    --enable-decoder=mp3on4 \
+    --enable-decoder=mp3on4float \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=msmpeg4v2 \
+    --enable-decoder=msmpeg4v3 \
+    --enable-decoder=opus \
+    --enable-decoder=pcm_alaw \
+    --enable-decoder=pcm_alaw_at \
+    --enable-decoder=pcm_f32be \
+    --enable-decoder=pcm_f32le \
+    --enable-decoder=pcm_f64be \
+    --enable-decoder=pcm_f64le \
+    --enable-decoder=pcm_lxf \
+    --enable-decoder=pcm_mulaw \
+    --enable-decoder=pcm_mulaw_at \
+    --enable-decoder=pcm_s16be \
+    --enable-decoder=pcm_s16be_planar \
+    --enable-decoder=pcm_s16le \
+    --enable-decoder=pcm_s16le_planar \
+    --enable-decoder=pcm_s24be \
+    --enable-decoder=pcm_s24daud \
+    --enable-decoder=pcm_s24le \
+    --enable-decoder=pcm_s24le_planar \
+    --enable-decoder=pcm_s32be \
+    --enable-decoder=pcm_s32le \
+    --enable-decoder=pcm_s32le_planar \
+    --enable-decoder=pcm_s64be \
+    --enable-decoder=pcm_s64le \
+    --enable-decoder=pcm_s8 \
+    --enable-decoder=pcm_s8_planar \
+    --enable-decoder=pcm_u16be \
+    --enable-decoder=pcm_u16le \
+    --enable-decoder=pcm_u24be \
+    --enable-decoder=pcm_u24le \
+    --enable-decoder=pcm_u32be \
+    --enable-decoder=pcm_u32le \
+    --enable-decoder=pcm_u8 \
+    --enable-decoder=vorbis \
+    --enable-decoder=wavpack \
+    --enable-decoder=wmalossless \
+    --enable-decoder=wmapro \
+    --enable-decoder=wmav1 \
+    --enable-decoder=wmav2 \
+    --enable-decoder=wmavoice \
+    --enable-encoder=libopus \
+    --enable-parser=aac \
+    --enable-parser=aac_latm \
+    --enable-parser=flac \
+    --enable-parser=h264 \
+    --enable-parser=hevc \
+    --enable-parser=mpeg4video \
+    --enable-parser=mpegaudio \
+    --enable-parser=opus \
+    --enable-parser=vorbis \
+    --enable-demuxer=aac \
+    --enable-demuxer=flac \
+    --enable-demuxer=gif \
+    --enable-demuxer=h264 \
+    --enable-demuxer=hevc \
+    --enable-demuxer=m4v \
+    --enable-demuxer=mov \
+    --enable-demuxer=mp3 \
+    --enable-demuxer=ogg \
+    --enable-demuxer=wav \
+    --enable-muxer=ogg \
+    --enable-muxer=opus
+
+    make $MAKE_THREADS_CNT
+
+    lipo -create out.arm64/libavformat.a libavformat/libavformat.a -output libavformat/libavformat.a
+    lipo -create out.arm64/libavcodec.a libavcodec/libavcodec.a -output libavcodec/libavcodec.a
+    lipo -create out.arm64/libswresample.a libswresample/libswresample.a -output libswresample/libswresample.a
+    lipo -create out.arm64/libswscale.a libswscale/libswscale.a -output libswscale/libswscale.a
+    lipo -create out.arm64/libavutil.a libavutil/libavutil.a -output libavutil/libavutil.a
+
     make install
 """)
 
@@ -698,22 +878,41 @@ win:
 release:
     msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="%WIN32X64%"
 mac:
-    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake \
-        -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \
-        -D ALSOFT_EXAMPLES=OFF \
-        -D LIBTYPE:STRING=STATIC \
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET ..
+    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake .. \\
+        -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
+        -D ALSOFT_EXAMPLES=OFF \\
+        -D LIBTYPE:STRING=STATIC \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     make $MAKE_THREADS_CNT
     make install
+""")
+
+if 'build-stackwalk' in options:
+    stage('stackwalk', """
+mac:
+    git clone https://chromium.googlesource.com/breakpad/breakpad stackwalk
+    cd stackwalk
+    git checkout dfcb7b6799
+depends:patches/breakpad.diff
+    git apply ../patches/breakpad.diff
+    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
+    git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
+    cd src/third_party/lss
+    git checkout e1e7b0ad8e
+    cd ../../build
+    python3 gyp_breakpad
+    cd ../processor
+    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
 
 stage('breakpad', """
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
-    git checkout bc8fb886
+    git checkout dfcb7b6799
 depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
-    git clone https://github.com/google/googletest src/testing
+    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
 win:
     if "%X8664%" equ "x64" (
         set "FolderPostfix=_x64"
@@ -733,7 +932,7 @@ release:
 mac:
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
-    git checkout a91633d1
+    git checkout e1e7b0ad8e
     cd ../../..
     cd src/client/mac
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
@@ -741,35 +940,66 @@ release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
-    cd ../../../build
-    ./gyp_breakpad
-    cd ../processor
-    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
 
 stage('crashpad', """
 mac:
-    git clone https://chromium.googlesource.com/crashpad/crashpad.git
+    git clone https://github.com/desktop-app/crashpad.git
     cd crashpad
-    git checkout feb3aa3923
-depends:patches/crashpad.diff
-    git apply ../patches/crashpad.diff
-    cd third_party/mini_chromium
-    git clone https://chromium.googlesource.com/chromium/mini_chromium
-    cd mini_chromium
-    git checkout 7c5b0c1ab4
-depends:patches/mini_chromium.diff
-    git apply ../../../../patches/mini_chromium.diff
-    cd ../../gtest
-    git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
-    cd gtest
-    git checkout d62d6c6556
-    cd ../../..
-
-    python3 build/gyp_crashpad.py -Dmac_deployment_target=10.10
-    ninja -C out/Debug base crashpad_util crashpad_client crashpad_handler
+    git checkout c1b7afa2fd
+    git submodule init
+    git submodule update third_party/mini_chromium
+    ZLIB_PATH=$USED_PREFIX/include
+    ZLIB_LIB=$USED_PREFIX/lib/libz.a
+    mkdir out
+    cd out
+    mkdir Debug.x86_64
+    cd Debug.x86_64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
+        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
+    ninja
+    cd ..
+    mkdir Debug.arm64
+    cd Debug.arm64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
+        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
+    ninja
+    cd ..
+    mkdir Debug
+    lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
+    lipo -create Debug.arm64/libcrashpad_client.a Debug.x86_64/libcrashpad_client.a -output Debug/libcrashpad_client.a
 release:
-    ninja -C out/Release base crashpad_util crashpad_client crashpad_handler
+    mkdir Release.x86_64
+    cd Release.x86_64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
+        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
+    ninja
+    cd ..
+    mkdir Release.arm64
+    cd Release.arm64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
+        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
+    ninja
+    cd ..
+    mkdir Release
+    lipo -create Release.arm64/crashpad_handler Release.x86_64/crashpad_handler -output Release/crashpad_handler
+    lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
 """)
 
 stage('tg_angle', """
@@ -798,7 +1028,8 @@ release:
     cd ..\\..\\..
 """)
 
-stage('qt_5_15_2', """
+if buildQt5:
+    stage('qt_5_15_2', """
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
     cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
@@ -879,21 +1110,57 @@ mac:
     make install
 """)
 
+if buildQt6:
+    stage('qt_6_2_0', """
+mac:
+    git clone -b v6.2.0 git://code.qt.io/qt/qt5.git qt_6_2_0
+    cd qt_6_2_0
+    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
+depends:patches/qtbase_6_2_0/*.patch
+    cd qtbase
+
+    find ../../patches/qtbase_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    cd ..
+
+depends:patches/qt5compat_6_2_0/*.patch
+    cd qt5compat
+
+    find ../../patches/qt5compat_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    cd ..
+
+    CONFIGURATIONS=-debug
+release:
+    CONFIGURATIONS=-debug-and-release
+mac:
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.0" \
+        $CONFIGURATIONS \
+        -force-debug-info \
+        -opensource \
+        -confirm-license \
+        -static \
+        -opengl desktop \
+        -no-openssl \
+        -securetransport \
+        -I "$USED_PREFIX/include" \
+        -no-feature-futimens \
+        -nomake examples \
+        -nomake tests \
+        -platform macx-clang -- -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+
+    ninja
+    ninja install
+""")
+
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 91d836dc84
+    git checkout b02478677b
     git submodule init
     git submodule update src/third_party/libvpx/source/libvpx src/third_party/libyuv
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$LIBS_DIR/opus/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
-mac:
-    MOZJPEG_PATH=$USED_PREFIX/include
-    OPUS_PATH=$USED_PREFIX/include/opus
-    FFMPEG_PATH=$USED_PREFIX/include
-common:
     mkdir out
     cd out
     mkdir Debug
@@ -920,6 +1187,69 @@ release:
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
+mac:
+    MOZJPEG_PATH=$USED_PREFIX/include
+    OPUS_PATH=$USED_PREFIX/include/opus
+    FFMPEG_PATH=$USED_PREFIX/include
+    mkdir out
+    cd out
+    mkdir Debug.x86_64
+    cd Debug.x86_64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
+    cd ..
+    mkdir Debug.arm64
+    cd Debug.arm64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
+    cd ..
+    mkdir Debug
+    lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
+release:
+    mkdir Release.x86_64
+    cd Release.x86_64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
+    cd ..
+    mkdir Release.arm64
+    cd Release.arm64
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+    ninja
+    cd ..
+    mkdir Release
+    lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
 """)
 
 runStages()

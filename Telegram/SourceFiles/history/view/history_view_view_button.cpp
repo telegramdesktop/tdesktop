@@ -57,6 +57,9 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		? tr::lng_view_button_background(tr::now)
 		: (type == WebPageType::Channel)
 		? tr::lng_view_button_channel(tr::now)
+		: (type == WebPageType::GroupWithRequest
+			|| type == WebPageType::ChannelWithRequest)
+		? tr::lng_view_button_request_join(tr::now)
 		: (type == WebPageType::VoiceChat)
 		? tr::lng_view_button_voice_chat(tr::now)
 		: (type == WebPageType::Livestream)
@@ -132,7 +135,6 @@ ViewButton::Inner::Inner(
 , link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
-		const auto &data = controller->session().data();
 		const auto webpage = media->webpage();
 		if (!webpage) {
 			return;
@@ -206,7 +208,9 @@ void ViewButton::draw(
 		pen.setWidth(st::lineWidth);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
-		p.drawRoundedRect(r, st::roundRadiusLarge, st::roundRadiusLarge);
+		const auto half = st::lineWidth / 2.;
+		const auto rf = QRectF(r).marginsRemoved({ half, half, half, half });
+		p.drawRoundedRect(rf, st::roundRadiusLarge, st::roundRadiusLarge);
 
 		_inner->text.drawElided(
 			p,

@@ -101,8 +101,8 @@ dialogsMenuToggle: IconButton {
 	width: 40px;
 	height: 40px;
 
-	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs_menu", dialogsMenuIconFgOver }};
+	icon: icon {{ "dialogs/dialogs_menu", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_menu", dialogsMenuIconFgOver }};
 	iconPosition: point(-1px, -1px);
 
 	rippleAreaPosition: point(0px, 0px);
@@ -112,32 +112,32 @@ dialogsMenuToggle: IconButton {
 	}
 }
 dialogsMenuToggleUnread: icon {
-	{ "dialogs_menu_unread", dialogsMenuIconFg },
-	{ "dialogs_menu_unread_dot", dialogsUnreadBg },
+	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", dialogsUnreadBg },
 };
 dialogsMenuToggleUnreadMuted: icon {
-	{ "dialogs_menu_unread", dialogsMenuIconFg },
-	{ "dialogs_menu_unread_dot", dialogsMenuIconFg },
+	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
 };
 
 dialogsLock: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs_lock", dialogsMenuIconFgOver }};
+	icon: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFgOver }};
 }
-dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
-dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
+dialogsUnlockIcon: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
 	width: 29px;
 	height: 32px;
 
-	icon: icon {{ "dialogs_calendar", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs_calendar", dialogsMenuIconFgOver }};
+	icon: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFgOver }};
 	iconPosition: point(0px, 5px);
 }
 dialogsSearchFrom: IconButton(dialogsCalendar) {
 	width: 26px;
-	icon: icon {{ "dialogs_search_from", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
+	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
 dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "top_bar_search", menuIconFg }};
@@ -154,8 +154,8 @@ dialogsFilter: FlatInput(defaultFlatInput) {
 	textMrg: margins(12px, 3px, 30px, 3px);
 }
 dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
+	icon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
 	iconPosition: point(11px, 11px);
 	rippleAreaPosition: point(3px, 3px);
 	rippleAreaSize: 34px;
@@ -180,49 +180,49 @@ dialogsCancelSearch: CrossButton {
 }
 
 dialogsChatTypeSkip: 22px;
-dialogsChatIcon: icon {{ "dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
-dialogsChatIconOver: icon {{ "dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
-dialogsChatIconActive: icon {{ "dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
-dialogsChannelIcon: icon {{ "dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
-dialogsChannelIconOver: icon {{ "dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
-dialogsChannelIconActive: icon {{ "dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
-dialogsBotIcon: icon {{ "dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
-dialogsBotIconOver: icon {{ "dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
-dialogsBotIconActive: icon {{ "dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
+dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
+dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
+dialogsChannelIcon: icon {{ "dialogs/dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
+dialogsChannelIconOver: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
+dialogsChannelIconActive: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
+dialogsBotIcon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
+dialogsBotIconOver: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
+dialogsBotIconActive: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
-dialogsSendingIcon: icon {{ "dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
-dialogsSendingIconOver: icon {{ "dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
-dialogsSendingIconActive: icon {{ "dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
-dialogsSentIcon: icon {{ "dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
-dialogsSentIconOver: icon {{ "dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
-dialogsSentIconActive: icon {{ "dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
-dialogsReceivedIcon: icon {{ "dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
-dialogsReceivedIconOver: icon {{ "dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
-dialogsReceivedIconActive: icon {{ "dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
-dialogsPinnedIcon: icon {{ "dialogs_pinned", dialogsUnreadBgMuted }};
-dialogsPinnedIconOver: icon {{ "dialogs_pinned", dialogsUnreadBgMutedOver }};
-dialogsPinnedIconActive: icon {{ "dialogs_pinned", dialogsUnreadBgMutedActive }};
+dialogsSendingIcon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
+dialogsSendingIconOver: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
+dialogsSendingIconActive: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
+dialogsSentIcon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
+dialogsSentIconOver: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
+dialogsSentIconActive: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
+dialogsReceivedIcon: icon {{ "dialogs/dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
+dialogsReceivedIconOver: icon {{ "dialogs/dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
+dialogsReceivedIconActive: icon {{ "dialogs/dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
+dialogsPinnedIcon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
+dialogsPinnedIconOver: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
+dialogsPinnedIconActive: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
 
 dialogsVerifiedIcon: icon {
-	{ "dialogs_verified_star", dialogsVerifiedIconBg, point(4px, 2px) },
-	{ "dialogs_verified_check", dialogsVerifiedIconFg, point(7px, 7px) },
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFg },
 };
 dialogsVerifiedIconOver: icon {
-	{ "dialogs_verified_star", dialogsVerifiedIconBgOver, point(4px, 2px) },
-	{ "dialogs_verified_check", dialogsVerifiedIconFgOver, point(7px, 7px) },
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgOver },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgOver },
 };
 dialogsVerifiedIconActive: icon {
-	{ "dialogs_verified_star", dialogsVerifiedIconBgActive, point(4px, 2px) },
-	{ "dialogs_verified_check", dialogsVerifiedIconFgActive, point(7px, 7px) },
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgActive },
 };
 
-historySendingIcon: icon {{ "dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
-historySendingInvertedIcon: icon {{ "dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
-historyViewsSendingIcon: icon {{ "dialogs_sending", historySendingInIconFg, point(3px, 0px) }};
-historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
+historySendingIcon: icon {{ "dialogs/dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
+historySendingInvertedIcon: icon {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
+historyViewsSendingIcon: icon {{ "dialogs/dialogs_sending", historySendingInIconFg, point(3px, 0px) }};
+historyViewsSendingInvertedIcon: icon  {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
 
 dialogsUpdateButton: FlatButton {
 	color: activeButtonFg;

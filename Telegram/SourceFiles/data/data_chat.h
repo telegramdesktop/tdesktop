@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
+
+enum class ChatAdminRight;
 
 enum class ChatDataFlag {
 	Left = (1 << 0),
@@ -18,6 +21,7 @@ enum class ChatDataFlag {
 	CallActive = (1 << 5),
 	CallNotEmpty = (1 << 6),
 	CanSetUsername = (1 << 7),
+	NoForwards = (1 << 8),
 };
 inline constexpr bool is_flag_type(ChatDataFlag) { return true; };
 using ChatDataFlags = base::flags<ChatDataFlag>;
@@ -26,13 +30,6 @@ class ChatData : public PeerData {
 public:
 	using Flag = ChatDataFlag;
 	using Flags = Data::Flags<ChatDataFlags>;
-
-	using AdminRight = ChatAdminRight;
-	using Restriction = ChatRestriction;
-	using AdminRights = ChatAdminRights;
-	using Restrictions = ChatRestrictions;
-	using AdminRightFlags = Data::Flags<AdminRights>;
-	using RestrictionFlags = Data::Flags<Restrictions>;
 
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
@@ -109,6 +106,7 @@ public:
 
 	// Like in ChannelData.
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
 	[[nodiscard]] bool canEditUsername() const;
@@ -164,6 +162,19 @@ public:
 		return _botCommands;
 	}
 
+	[[nodiscard]] int pendingRequestsCount() const {
+		return _pendingRequestsCount;
+	}
+	[[nodiscard]] const std::vector<UserId> &recentRequesters() const {
+		return _recentRequesters;
+	}
+	void setPendingRequestsCount(
+		int count,
+		const QVector<MTPlong> &recentRequesters);
+	void setPendingRequestsCount(
+		int count,
+		std::vector<UserId> recentRequesters);
+
 	// Still public data members.
 	const MTPlong inputChat;
 
@@ -182,9 +193,11 @@ private:
 	Flags _flags;
 	QString _inviteLink;
 
-	RestrictionFlags _defaultRestrictions;
-	AdminRightFlags _adminRights;
+	Data::Flags<ChatRestrictions> _defaultRestrictions;
+	Data::Flags<ChatAdminRights> _adminRights;
 	int _version = 0;
+	int _pendingRequestsCount = 0;
+	std::vector<UserId> _recentRequesters;
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;

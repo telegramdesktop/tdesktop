@@ -36,6 +36,7 @@ enum class Type {
 	Information,
 	Notifications,
 	PrivacySecurity,
+	Sessions,
 	Advanced,
 	Chat,
 	Folders,

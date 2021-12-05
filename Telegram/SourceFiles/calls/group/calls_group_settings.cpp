@@ -64,7 +64,7 @@ constexpr auto kCheckAccessibilityInterval = crl::time(500);
 
 void SaveCallJoinMuted(
 		not_null<PeerData*> peer,
-		uint64 callId,
+		CallId callId,
 		bool joinMuted) {
 	const auto call = peer->groupCall();
 	if (!call
@@ -175,9 +175,9 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		auto &api = peer->session().api();
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
-			auto message = ApiWrap::MessageToSend(history);
+			auto message = Api::MessageToSend(
+				Api::SendAction(history, options));
 			message.textWithTags = comment;
-			message.action.options = options;
 			message.action.clearDraft = false;
 			api.sendMessage(std::move(message));
 		}
@@ -584,7 +584,12 @@ void SettingsBox(
 			}
 			return false;
 		};
-		if (!lookupLink().isEmpty() || canCreateLink()) {
+		const auto alreadyHasLink = !lookupLink().isEmpty();
+		if (alreadyHasLink || canCreateLink()) {
+			if (!alreadyHasLink) {
+				// Request invite link.
+				peer->session().api().requestFullPeer(peer);
+			}
 			const auto copyLink = [=] {
 				const auto link = lookupLink();
 				if (link.isEmpty()) {

@@ -71,7 +71,7 @@ QByteArray SerializeString(const QByteArray &value) {
 
 QByteArray SerializeDate(TimeId date) {
 	return SerializeString(
-		QDateTime::fromTime_t(date).toString(Qt::ISODate).toUtf8());
+		QDateTime::fromSecsSinceEpoch(date).toString(Qt::ISODate).toUtf8());
 }
 
 QByteArray StringAllowEmpty(const Data::Utf8String &data) {
@@ -523,6 +523,9 @@ QByteArray SerializeMessage(
 		if (!data.emoji.isEmpty()) {
 			push("emoticon", data.emoji.toUtf8());
 		}
+	}, [&](const ActionChatJoinedByRequest &data) {
+		pushActor();
+		pushAction("join_group_by_request");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

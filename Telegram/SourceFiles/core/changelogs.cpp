@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
 #include "data/data_session.h"
+#include "base/qt_adapters.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 
@@ -96,6 +97,50 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Add \"Quick Reply\" and \"Mark as Read\" "
 		"to native Windows notifications.\n"
+	},
+	{
+		3001012,
+		"- Create special invite links that require admins "
+		"to approve users before they become members.\n"
+
+		"- Admins can view the applicants' profiles and bios "
+		"by tapping the Join Requests bar at the top of the chat.\n"
+
+		"- Add internal labels to your chat's Invite Links "
+		"to keep them organized.\n"
+
+		"- Run natively on Apple Silicon (macOS only).\n"
+	},
+	{
+		3001013,
+		"- Fix requests to groups / channels processing.\n"
+
+		"- Fix internal link previews with View Content button layout.\n"
+
+		"- Fix crash in messages search with imported messages results.\n"
+
+		"- Don't use fractional system UI scaling on Linux.\n"
+
+		"- Fix invite link icons on macOS.\n"
+
+		"- Several crash fixes.\n"
+	},
+	{
+		3002006,
+		"- Try out the new audio player with playlist shuffle and repeat.\n"
+
+		"- Give a custom name to your desktop session "
+		"to distinguish it in the sessions list.\n"
+	},
+	{
+		3002007,
+		"- Active sessions list redesign.\n"
+
+		"- Fix disappearing emoji selector button.\n"
+
+		"- Fix a crash in archived stickers loading.\n"
+		
+		"- Fix a crash in calls to old Telegram versions.\n"
 	}
 	};
 };
@@ -194,7 +239,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		static const auto simple = u"\n- "_q;
 		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		auto result = QString::fromUtf8(changes).trimmed();
-		if (result.startsWith(simple.midRef(1))) {
+		if (result.startsWith(base::StringViewMid(simple, 1))) {
 			result = separator.mid(1) + result.mid(simple.size() - 1);
 		}
 		return result.replace(simple, separator);

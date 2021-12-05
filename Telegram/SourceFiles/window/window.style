@@ -281,17 +281,17 @@ windowFiltersButton: SideBarButton(defaultSideBarButton) {
 	iconPosition: point(-1px, 6px);
 }
 windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "dialogs_menu", sideBarIconFg }};
+	icon: icon {{ "dialogs/dialogs_menu", sideBarIconFg }};
 	iconPosition: point(-1px, -1px);
 	minHeight: 54px;
 }
 windowFiltersMainMenuUnread: icon {
-	{ "dialogs_menu_unread", sideBarIconFg },
-	{ "dialogs_menu_unread_dot", sideBarBadgeBg },
+	{ "dialogs/dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", sideBarBadgeBg },
 };
 windowFiltersMainMenuUnreadMuted: icon {
-	{ "dialogs_menu_unread", sideBarIconFg },
-	{ "dialogs_menu_unread_dot", sideBarBadgeBgMuted },
+	{ "dialogs/dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", sideBarBadgeBgMuted },
 };
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;

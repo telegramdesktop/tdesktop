@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
 #include "styles/style_intro.h"
@@ -351,7 +351,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 			Core::UpdateApplication();
 			close();
 		};
-		Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<Ui::ConfirmBox>(
 			tr::lng_passport_app_out_of_date(tr::now),
 			tr::lng_menu_update(tr::now),
 			callback));

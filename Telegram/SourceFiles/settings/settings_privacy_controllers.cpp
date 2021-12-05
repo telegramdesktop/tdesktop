@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "settings/settings_privacy_security.h"
 #include "facades.h"
 #include "styles/style_chat.h"
@@ -228,7 +228,7 @@ void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-void BlockedBoxController::rowActionClicked(not_null<PeerListRow*> row) {
+void BlockedBoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	session().api().blockedPeers().unblock(row->peer());
 }
 
@@ -480,7 +480,7 @@ void LastSeenPrivacyController::confirmSave(
 			Core::App().settings().setLastSeenWarningSeen(true);
 			Core::App().saveSettingsDelayed();
 		};
-		auto box = Box<ConfirmBox>(
+		auto box = Box<Ui::ConfirmBox>(
 			tr::lng_edit_privacy_lastseen_warning(tr::now),
 			tr::lng_continue(tr::now),
 			tr::lng_cancel(tr::now),

@@ -198,8 +198,8 @@ public:
 		not_null<DocumentData*> document);
 
 	StickersSet *feedSet(const MTPDstickerSet &data);
-	StickersSet *feedSetFull(const MTPmessages_StickerSet &data);
-	void newSetReceived(const MTPmessages_StickerSet &data);
+	StickersSet *feedSetFull(const MTPDmessages_stickerSet &d);
+	void newSetReceived(const MTPDmessages_stickerSet &set);
 
 	QString getSetTitle(const MTPDstickerSet &s);
 

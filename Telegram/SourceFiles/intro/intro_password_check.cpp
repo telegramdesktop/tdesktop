@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_widget.h"
 #include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_signup.h"
@@ -311,14 +311,14 @@ void PasswordCheckWidget::toRecover() {
 			}).send();
 		}
 	} else {
-		Ui::show(Box<InformBox>(
+		Ui::show(Box<Ui::InformBox>(
 			tr::lng_signin_no_email_forgot(tr::now),
 			[=] { showReset(); }));
 	}
 }
 
 void PasswordCheckWidget::toPassword() {
-	Ui::show(Box<InformBox>(
+	Ui::show(Box<Ui::InformBox>(
 		tr::lng_signin_cant_email_forgot(tr::now),
 		[=] { showReset(); }));
 }
@@ -372,7 +372,7 @@ void PasswordCheckWidget::submit() {
 				send();
 				close();
 			};
-			Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<Ui::ConfirmBox>(
 				tr::lng_cloud_password_passport_losing(tr::now),
 				tr::lng_continue(tr::now),
 				confirmed));

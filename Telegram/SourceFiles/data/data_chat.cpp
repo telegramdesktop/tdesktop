@@ -28,7 +28,7 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 , inputChat(MTP_long(peerToChat(id).bare)) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
-		if (change.diff & ChatDataFlag::CallNotEmpty) {
+		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
 			}
@@ -47,7 +47,7 @@ void ChatData::setPhoto(const MTPChatPhoto &photo) {
 ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 	const auto isCreator = (creator == peerToUser(user->id))
 		|| (user->isSelf() && amCreator());
-	using Flag = AdminRight;
+	using Flag = ChatAdminRight;
 	return ChatAdminRightsInfo(Flag::Other
 		| Flag::ChangeInfo
 		| Flag::DeleteMessages
@@ -60,21 +60,25 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 
 bool ChatData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	return amIn() && !amRestricted(Restriction::SendMessages);
+	return amIn() && !amRestricted(ChatRestriction::SendMessages);
+}
+
+bool ChatData::allowsForwarding() const {
+	return !(flags() & Flag::NoForwards);
 }
 
 bool ChatData::canEditInformation() const {
-	return amIn() && !amRestricted(Restriction::ChangeInfo);
+	return amIn() && !amRestricted(ChatRestriction::ChangeInfo);
 }
 
 bool ChatData::canEditPermissions() const {
 	return amIn()
-		&& (amCreator() || (adminRights() & AdminRight::BanUsers));
+		&& (amCreator() || (adminRights() & ChatAdminRight::BanUsers));
 }
 
 bool ChatData::canEditUsername() const {
 	return amCreator()
-		&& (flags() & ChatDataFlag::CanSetUsername);
+		&& (flags() & Flag::CanSetUsername);
 }
 
 bool ChatData::canEditPreHistoryHidden() const {
@@ -83,15 +87,15 @@ bool ChatData::canEditPreHistoryHidden() const {
 
 bool ChatData::canDeleteMessages() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::DeleteMessages);
+		|| (adminRights() & ChatAdminRight::DeleteMessages);
 }
 
 bool ChatData::canAddMembers() const {
-	return amIn() && !amRestricted(Restriction::InviteUsers);
+	return amIn() && !amRestricted(ChatRestriction::InviteUsers);
 }
 
 bool ChatData::canSendPolls() const {
-	return amIn() && !amRestricted(Restriction::SendPolls);
+	return amIn() && !amRestricted(ChatRestriction::SendPolls);
 }
 
 bool ChatData::canAddAdmins() const {
@@ -100,11 +104,11 @@ bool ChatData::canAddAdmins() const {
 
 bool ChatData::canBanMembers() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::BanUsers);
+		|| (adminRights() & ChatAdminRight::BanUsers);
 }
 
 bool ChatData::anyoneCanAddMembers() const {
-	return !(defaultRestrictions() & Restriction::InviteUsers);
+	return !(defaultRestrictions() & ChatRestriction::InviteUsers);
 }
 
 void ChatData::setName(const QString &newName) {
@@ -138,7 +142,7 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 
 bool ChatData::canHaveInviteLink() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::InviteUsers);
+		|| (adminRights() & ChatAdminRight::InviteUsers);
 }
 
 void ChatData::setAdminRights(ChatAdminRights rights) {
@@ -146,6 +150,9 @@ void ChatData::setAdminRights(ChatAdminRights rights) {
 		return;
 	}
 	_adminRights.set(rights);
+	if (!canHaveInviteLink()) {
+		setPendingRequestsCount(0, std::vector<UserId>{});
+	}
 	session().changes().peerUpdated(
 		this,
 		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
@@ -219,7 +226,7 @@ void ChatData::setGroupCall(
 			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-		addFlags(ChatDataFlag::CallActive);
+		addFlags(Flag::CallActive);
 	});
 }
 
@@ -233,7 +240,7 @@ void ChatData::clearGroupCall() {
 		_call = nullptr;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	removeFlags(ChatDataFlag::CallActive | ChatDataFlag::CallNotEmpty);
+	removeFlags(Flag::CallActive | Flag::CallNotEmpty);
 }
 
 void ChatData::setGroupCallDefaultJoinAs(PeerId peerId) {
@@ -255,6 +262,27 @@ void ChatData::setBotCommands(
 		const MTPVector<MTPBotCommand> &data) {
 	if (Data::UpdateBotCommands(_botCommands, botId, data)) {
 		owner().botCommandsChanged(this);
+	}
+}
+
+void ChatData::setPendingRequestsCount(
+		int count,
+		const QVector<MTPlong> &recentRequesters) {
+	setPendingRequestsCount(count, ranges::views::all(
+		recentRequesters
+	) | ranges::views::transform([&](const MTPlong &value) {
+		return UserId(value);
+	}) | ranges::to_vector);
+}
+
+void ChatData::setPendingRequestsCount(
+		int count,
+		std::vector<UserId> recentRequesters) {
+	if (_pendingRequestsCount != count
+		|| _recentRequesters != recentRequesters) {
+		_pendingRequestsCount = count;
+		_recentRequesters = std::move(recentRequesters);
+		session().changes().peerUpdated(this, UpdateFlag::PendingRequests);
 	}
 }
 
@@ -386,8 +414,8 @@ void ApplyChatUpdate(
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	}
-	chat->setDefaultRestrictions(Data::ChatBannedRightsFlags(
-		update.vdefault_banned_rights()));
+	chat->setDefaultRestrictions(ChatRestrictionsInfo(
+		update.vdefault_banned_rights()).flags);
 }
 
 void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
@@ -431,6 +459,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	chat->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	chat->fullUpdated();
 	chat->setAbout(qs(update.vabout()));
+	chat->setPendingRequestsCount(
+		update.vrequests_pending().value_or_empty(),
+		update.vrecent_requesters().value_or_empty());
 
 	chat->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(chat->input),

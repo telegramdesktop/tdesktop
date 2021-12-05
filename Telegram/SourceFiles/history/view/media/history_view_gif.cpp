@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_playback_progress.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -264,9 +264,9 @@ QSize Gif::videoSize() const {
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
-		&& _data->canBeStreamed()
-		&& !_data->inappPlaybackFailed()
-		&& !_parent->data()->isSending();
+		&& _realParent->allowsForward()
+		&& _data->canBeStreamed(_realParent)
+		&& !_data->inappPlaybackFailed();
 }
 
 bool Gif::autoplayEnabled() const {
@@ -288,7 +288,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto stm = context.messageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = autoplayEnabled()
 		&& canBePlayed
 		&& CanPlayInline(_data);
@@ -836,7 +836,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			? _cancell
 			: _realParent->isSending()
 			? nullptr
-			: (dataLoaded() || _dataMedia->canBePlayed())
+			: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 			? _openl
 			: _data->loading()
 			? _cancell
@@ -909,13 +909,15 @@ void Gif::drawGrouped(
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
-	const auto displayLoading = (item->id < 0) || _data->displayLoading();
+	const auto displayLoading = item->isSending()
+		|| item->hasFailed()
+		|| _data->displayLoading();
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = fullFeatured
 		&& autoplayEnabled()
 		&& canBePlayed
@@ -1107,7 +1109,7 @@ TextState Gif::getStateGrouped(
 		? _cancell
 		: _realParent->isSending()
 		? nullptr
-		: (dataLoaded() || _dataMedia->canBePlayed())
+		: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 		? _openl
 		: _data->loading()
 		? _cancell
@@ -1256,7 +1258,7 @@ void Gif::updateStatusText() const {
 		statusSize = _data->uploadingData->offset;
 	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (dataLoaded() || _dataMedia->canBePlayed()) {
+	} else if (dataLoaded() || _dataMedia->canBePlayed(_realParent)) {
 		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
 		statusSize = Ui::FileStatusSizeReady;
@@ -1320,16 +1322,7 @@ void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Gif::refreshCaption() {
-	const auto timestampLinksDuration = _data->isVideoFile()
-		? _data->getDuration()
-		: 0;
-	const auto timestampLinkBase = timestampLinksDuration
-		? DocumentTimestampLinkBase(_data, _realParent->fullId())
-		: QString();
-	_caption = createCaption(
-			_parent->data(),
-			timestampLinksDuration,
-			timestampLinkBase);
+	_caption = createCaption(_parent->data());
 }
 
 int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
@@ -1386,7 +1379,7 @@ void Gif::playAnimation(bool autoplay) {
 	}
 	if (_streamed) {
 		stopAnimation();
-	} else if (_dataMedia->canBePlayed()) {
+	} else if (_dataMedia->canBePlayed(_realParent)) {
 		if (!autoplayEnabled()) {
 			history()->owner().checkPlayingAnimations();
 		}
@@ -1508,20 +1501,23 @@ void Gif::checkAnimation() {
 
 float64 Gif::dataProgress() const {
 	ensureDataMediaCreated();
-	return (_data->uploading() || _parent->data()->id > 0)
+	return (_data->uploading()
+		|| (!_parent->data()->isSending() && !_parent->data()->hasFailed()))
 		? _dataMedia->progress()
 		: 0;
 }
 
 bool Gif::dataFinished() const {
-	return (_parent->data()->id > 0)
+	return (!_parent->data()->isSending() && !_parent->data()->hasFailed())
 		? (!_data->loading() && !_data->uploading())
 		: false;
 }
 
 bool Gif::dataLoaded() const {
 	ensureDataMediaCreated();
-	return (_parent->data()->id > 0) ? _dataMedia->loaded() : false;
+	return !_parent->data()->isSending()
+		&& !_parent->data()->hasFailed()
+		&& _dataMedia->loaded();
 }
 
 bool Gif::needInfoDisplay() const {

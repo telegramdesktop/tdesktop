@@ -40,6 +40,7 @@ struct HistoryMessageMarkupButton {
 		Game,
 		Buy,
 		Auth,
+		UserProfile,
 	};
 
 	HistoryMessageMarkupButton(

@@ -57,6 +57,7 @@ public:
 	void updateControlsVisibility();
 	void finishAnimating();
 	void showSelected(SelectedState state);
+	[[nodiscard]] bool showSelectedState() const;
 	rpl::producer<bool> membersShowAreaActive() const {
 		return _membersShowAreaActive.events();
 	}

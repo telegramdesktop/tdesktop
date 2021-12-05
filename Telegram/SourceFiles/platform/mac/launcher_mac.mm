@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "base/base_file_utilities.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/platform/mac/base_utilities_mac.h"
 
@@ -25,6 +26,8 @@ Launcher::Launcher(int argc, char *argv[])
 void Launcher::initHook() {
 	// macOS Retina display support is working fine, others are not.
 	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, false);
+
+	base::RegisterBundledResources(u"Telegram.rcc"_q);
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

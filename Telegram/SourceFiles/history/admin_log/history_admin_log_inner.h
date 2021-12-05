@@ -153,7 +153,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
@@ -204,9 +204,14 @@ private:
 	void copyContextText(FullMsgId itemId);
 	void copySelectedText();
 	TextForMimeData getSelectedText() const;
-	void suggestRestrictUser(not_null<UserData*> user);
-	void restrictUser(not_null<UserData*> user, ChatRestrictionsInfo oldRights, ChatRestrictionsInfo newRights);
-	void restrictUserDone(not_null<UserData*> user, ChatRestrictionsInfo rights);
+	void suggestRestrictParticipant(not_null<PeerData*> participant);
+	void restrictParticipant(
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights);
+	void restrictParticipantDone(
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo rights);
 
 	void requestAdmins();
 	void checkPreloadMore();

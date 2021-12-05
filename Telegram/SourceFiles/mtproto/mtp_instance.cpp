@@ -224,8 +224,11 @@ private:
 	std::unique_ptr<QThread> _otherSessionsThread;
 	std::vector<std::unique_ptr<QThread>> _fileSessionThreads;
 
-	QString _deviceModel;
+	QString _deviceModelDefault;
 	QString _systemVersion;
+
+	mutable QMutex _deviceModelMutex;
+	QString _customDeviceModel;
 
 	rpl::variable<DcId> _mainDcId = Fields::kDefaultMainDc;
 	bool _mainDcIdForced = false;
@@ -321,8 +324,18 @@ Instance::Private::Private(
 		restart();
 	}, _lifetime);
 
-	_deviceModel = std::move(fields.deviceModel);
+	_deviceModelDefault = std::move(fields.deviceModel);
 	_systemVersion = std::move(fields.systemVersion);
+
+	_customDeviceModel = Core::App().settings().customDeviceModel();
+	Core::App().settings().customDeviceModelChanges(
+	) | rpl::start_with_next([=](const QString &value) {
+		QMutexLocker lock(&_deviceModelMutex);
+		_customDeviceModel = value;
+		lock.unlock();
+
+		reInitConnection(mainDcId());
+	}, _lifetime);
 
 	for (auto &key : fields.keys) {
 		auto dcId = key->dcId();
@@ -874,7 +887,10 @@ bool Instance::Private::isTestMode() const {
 }
 
 QString Instance::Private::deviceModel() const {
-	return _deviceModel;
+	QMutexLocker lock(&_deviceModelMutex);
+	return _customDeviceModel.isEmpty()
+		? _deviceModelDefault
+		: _customDeviceModel;
 }
 
 QString Instance::Private::systemVersion() const {

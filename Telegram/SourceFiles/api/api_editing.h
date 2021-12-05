@@ -16,6 +16,7 @@ class Error;
 namespace Api {
 
 struct SendOptions;
+struct RemoteFileInfo;
 
 const auto kDefaultEditMessagesErrors = {
 	u"MESSAGE_ID_INVALID"_q,
@@ -29,16 +30,13 @@ void RescheduleMessage(
 
 void EditMessageWithUploadedDocument(
 	HistoryItem *item,
-	const MTPInputFile &file,
-	const std::optional<MTPInputFile> &thumb,
-	SendOptions options,
-	std::vector<MTPInputDocument> attachedStickers);
+	RemoteFileInfo info,
+	SendOptions options);
 
 void EditMessageWithUploadedPhoto(
 	HistoryItem *item,
-	const MTPInputFile &file,
-	SendOptions options,
-	std::vector<MTPInputDocument> attachedStickers);
+	RemoteFileInfo info,
+	SendOptions options);
 
 mtpRequestId EditCaption(
 	not_null<HistoryItem*> item,

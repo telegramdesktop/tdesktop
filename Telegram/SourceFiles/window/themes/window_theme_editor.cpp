@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
@@ -422,7 +422,7 @@ Editor::Inner::Inner(QWidget *parent, const QString &path)
 		if (update.type == BackgroundUpdate::Type::TestingTheme) {
 			Revert();
 			base::call_delayed(st::slideDuration, this, [] {
-				Ui::show(Box<InformBox>(
+				Ui::show(Box<Ui::InformBox>(
 					tr::lng_theme_editor_cant_change_theme(tr::now)));
 			});
 		}
@@ -667,7 +667,7 @@ Editor::Editor(
 		[=] { save(); }));
 
 	_inner->setErrorCallback([=] {
-		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+		window->show(Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
 
 		// This could be from inner->_context observable notification.
 		// We should not destroy it while iterating in subscribers.
@@ -750,13 +750,13 @@ void Editor::exportTheme() {
 		if (!f.open(QIODevice::WriteOnly)) {
 			LOG(("Theme Error: could not open zip-ed theme file '%1' for writing").arg(path));
 			_window->show(
-				Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+				Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
 			return;
 		}
 		if (f.write(result) != result.size()) {
 			LOG(("Theme Error: could not write zip-ed theme to file '%1'").arg(path));
 			_window->show(
-				Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+				Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
 			return;
 		}
 		Ui::Toast::Show(tr::lng_theme_editor_done(tr::now));
@@ -903,7 +903,7 @@ void Editor::closeWithConfirmation() {
 		closeEditor();
 		close();
 	});
-	_window->show(Box<ConfirmBox>(
+	_window->show(Box<Ui::ConfirmBox>(
 		tr::lng_theme_editor_sure_close(tr::now),
 		tr::lng_close(tr::now),
 		close));

@@ -38,6 +38,18 @@ enum class Error;
 namespace Media {
 namespace Player {
 
+enum class RepeatMode {
+	None,
+	One,
+	All,
+};
+
+enum class OrderMode {
+	Default,
+	Reverse,
+	Shuffle,
+};
+
 class Instance;
 struct TrackState;
 
@@ -104,19 +116,6 @@ public:
 		return AudioMsgId();
 	}
 
-	[[nodiscard]] bool repeatEnabled(AudioMsgId::Type type) const {
-		if (const auto data = getData(type)) {
-			return data->repeatEnabled;
-		}
-		return false;
-	}
-	void toggleRepeat(AudioMsgId::Type type) {
-		if (const auto data = getData(type)) {
-			data->repeatEnabled = !data->repeatEnabled;
-			_repeatChangedNotifier.notify(type);
-		}
-	}
-
 	[[nodiscard]] bool isSeeking(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
 			return (data->seeking == data->current);
@@ -137,34 +136,30 @@ public:
 		FullMsgId to;
 	};
 
-	base::Observable<Switch> &switchToNextNotifier() {
-		return _switchToNextNotifier;
+	[[nodiscard]] rpl::producer<Switch> switchToNextEvents() const {
+		return _switchToNext.events();
 	}
-	base::Observable<bool> &playerWidgetOver() {
-		return _playerWidgetOver;
+	[[nodiscard]] rpl::producer<AudioMsgId::Type> tracksFinished() const {
+		return _tracksFinished.events();
 	}
-	base::Observable<AudioMsgId::Type> &tracksFinishedNotifier() {
-		return _tracksFinishedNotifier;
-	}
-	base::Observable<AudioMsgId::Type> &trackChangedNotifier() {
-		return _trackChangedNotifier;
-	}
-	base::Observable<AudioMsgId::Type> &repeatChangedNotifier() {
-		return _repeatChangedNotifier;
+	[[nodiscard]] rpl::producer<AudioMsgId::Type> trackChanged() const {
+		return _trackChanged.events();
 	}
 
-	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> playlistChanges(
+		AudioMsgId::Type type) const;
 
-	rpl::producer<TrackState> updatedNotifier() const {
+	[[nodiscard]] rpl::producer<TrackState> updatedNotifier() const {
 		return _updatedNotifier.events();
 	}
 
-	rpl::producer<> stops(AudioMsgId::Type type) const;
-	rpl::producer<> startsPlay(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> stops(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<> startsPlay(AudioMsgId::Type type) const;
 
-	rpl::producer<Seeking> seekingChanges(AudioMsgId::Type type) const;
+	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
+		AudioMsgId::Type type) const;
 
-	bool pauseGifByRoundVideo() const;
+	[[nodiscard]] bool pauseGifByRoundVideo() const;
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -172,6 +167,7 @@ private:
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;
 	struct Streamed;
+	struct ShuffleData;
 	struct Data {
 		Data(AudioMsgId::Type type, SharedMediaType overview);
 		Data(Data &&other);
@@ -185,17 +181,20 @@ private:
 		std::optional<SparseIdsMergedSlice> playlistSlice;
 		std::optional<SliceKey> playlistSliceKey;
 		std::optional<SliceKey> playlistRequestedKey;
+		std::optional<SparseIdsMergedSlice> playlistOtherSlice;
+		std::optional<SliceKey> playlistOtherRequestedKey;
 		std::optional<int> playlistIndex;
 		rpl::lifetime playlistLifetime;
+		rpl::lifetime playlistOtherLifetime;
 		rpl::lifetime sessionLifetime;
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
-		bool repeatEnabled = false;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
+		std::unique_ptr<ShuffleData> shuffleData;
 	};
 
 	struct SeekingChanges {
@@ -225,13 +224,24 @@ private:
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
-	std::optional<SliceKey> playlistKey(not_null<Data*> data) const;
-	bool validPlaylist(not_null<Data*> data);
+	void refreshOtherPlaylist(not_null<Data*> data);
+	std::optional<SliceKey> playlistKey(not_null<const Data*> data) const;
+	bool validPlaylist(not_null<const Data*> data) const;
 	void validatePlaylist(not_null<Data*> data);
+	std::optional<SliceKey> playlistOtherKey(
+		not_null<const Data*> data) const;
+	bool validOtherPlaylist(not_null<const Data*> data) const;
+	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 	void stopAndClear(not_null<Data*> data);
+
+	[[nodiscard]] MsgId computeCurrentUniversalId(
+		not_null<const Data*> data) const;
+	void validateShuffleData(not_null<Data*> data);
+	void setupShuffleData(not_null<Data*> data);
+	void ensureShuffleMove(not_null<Data*> data, int delta);
 
 	void handleStreamingUpdate(
 		not_null<Data*> data,
@@ -244,6 +254,13 @@ private:
 	void emitUpdate(AudioMsgId::Type type);
 	template <typename CheckCallback>
 	void emitUpdate(AudioMsgId::Type type, CheckCallback check);
+
+	[[nodiscard]] RepeatMode repeat(not_null<const Data*> data) const;
+	[[nodiscard]] rpl::producer<RepeatMode> repeatChanges(
+		not_null<const Data*> data) const;
+	[[nodiscard]] OrderMode order(not_null<const Data*> data) const;
+	[[nodiscard]] rpl::producer<OrderMode> orderChanges(
+		not_null<const Data*> data) const;
 
 	Data *getData(AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Song) {
@@ -274,12 +291,9 @@ private:
 	Data _voiceData;
 	bool _roundPlaying = false;
 
-	base::Observable<Switch> _switchToNextNotifier;
-	base::Observable<bool> _playerWidgetOver;
-	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
-	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
-	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
-
+	rpl::event_stream<Switch> _switchToNext;
+	rpl::event_stream<AudioMsgId::Type> _tracksFinished;
+	rpl::event_stream<AudioMsgId::Type> _trackChanged;
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;

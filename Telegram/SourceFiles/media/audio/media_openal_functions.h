@@ -7,48 +7,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <alext.h>
+#include <al.h>
 
 namespace OpenAL {
 
 /* Effect object functions */
-inline LPALGENEFFECTS alGenEffects;
-inline LPALDELETEEFFECTS alDeleteEffects;
-inline LPALISEFFECT alIsEffect;
-inline LPALEFFECTI alEffecti;
-inline LPALEFFECTIV alEffectiv;
-inline LPALEFFECTF alEffectf;
-inline LPALEFFECTFV alEffectfv;
-inline LPALGETEFFECTI alGetEffecti;
-inline LPALGETEFFECTIV alGetEffectiv;
-inline LPALGETEFFECTF alGetEffectf;
-inline LPALGETEFFECTFV alGetEffectfv;
+inline void (AL_APIENTRY *alGenEffects)(ALsizei, ALuint*);
+inline void (AL_APIENTRY *alDeleteEffects)(ALsizei, const ALuint*);
+inline ALboolean (AL_APIENTRY *alIsEffect)(ALuint);
+inline void (AL_APIENTRY *alEffecti)(ALuint, ALenum, ALint);
+inline void (AL_APIENTRY *alEffectiv)(ALuint, ALenum, const ALint*);
+inline void (AL_APIENTRY *alEffectf)(ALuint, ALenum, ALfloat);
+inline void (AL_APIENTRY *alEffectfv)(ALuint, ALenum, const ALfloat*);
+inline void (AL_APIENTRY *alGetEffecti)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetEffectiv)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetEffectf)(ALuint, ALenum, ALfloat*);
+inline void (AL_APIENTRY *alGetEffectfv)(ALuint, ALenum, ALfloat*);
 
 /* Filter object functions */
-inline LPALGENFILTERS alGenFilters;
-inline LPALDELETEFILTERS alDeleteFilters;
-inline LPALISFILTER alIsFilter;
-inline LPALFILTERI alFilteri;
-inline LPALFILTERIV alFilteriv;
-inline LPALFILTERF alFilterf;
-inline LPALFILTERFV alFilterfv;
-inline LPALGETFILTERI alGetFilteri;
-inline LPALGETFILTERIV alGetFilteriv;
-inline LPALGETFILTERF alGetFilterf;
-inline LPALGETFILTERFV alGetFilterfv;
+inline void (AL_APIENTRY *alGenFilters)(ALsizei, ALuint*);
+inline void (AL_APIENTRY *alDeleteFilters)(ALsizei, const ALuint*);
+inline ALboolean (AL_APIENTRY *alIsFilter)(ALuint);
+inline void (AL_APIENTRY *alFilteri)(ALuint, ALenum, ALint);
+inline void (AL_APIENTRY *alFilteriv)(ALuint, ALenum, const ALint*);
+inline void (AL_APIENTRY *alFilterf)(ALuint, ALenum, ALfloat);
+inline void (AL_APIENTRY *alFilterfv)(ALuint, ALenum, const ALfloat*);
+inline void (AL_APIENTRY *alGetFilteri)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetFilteriv)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetFilterf)(ALuint, ALenum, ALfloat*);
+inline void (AL_APIENTRY *alGetFilterfv)(ALuint, ALenum, ALfloat*);
 
 /* Auxiliary Effect Slot object functions */
-inline LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots;
-inline LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots;
-inline LPALISAUXILIARYEFFECTSLOT alIsAuxiliaryEffectSlot;
-inline LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti;
-inline LPALAUXILIARYEFFECTSLOTIV alAuxiliaryEffectSlotiv;
-inline LPALAUXILIARYEFFECTSLOTF alAuxiliaryEffectSlotf;
-inline LPALAUXILIARYEFFECTSLOTFV alAuxiliaryEffectSlotfv;
-inline LPALGETAUXILIARYEFFECTSLOTI alGetAuxiliaryEffectSloti;
-inline LPALGETAUXILIARYEFFECTSLOTIV alGetAuxiliaryEffectSlotiv;
-inline LPALGETAUXILIARYEFFECTSLOTF alGetAuxiliaryEffectSlotf;
-inline LPALGETAUXILIARYEFFECTSLOTFV alGetAuxiliaryEffectSlotfv;
+inline void (AL_APIENTRY *alGenAuxiliaryEffectSlots)(ALsizei, ALuint*);
+inline void (AL_APIENTRY *alDeleteAuxiliaryEffectSlots)(ALsizei, const ALuint*);
+inline ALboolean (AL_APIENTRY *alIsAuxiliaryEffectSlot)(ALuint);
+inline void (AL_APIENTRY *alAuxiliaryEffectSloti)(ALuint, ALenum, ALint);
+inline void (AL_APIENTRY *alAuxiliaryEffectSlotiv)(ALuint, ALenum, const ALint*);
+inline void (AL_APIENTRY *alAuxiliaryEffectSlotf)(ALuint, ALenum, ALfloat);
+inline void (AL_APIENTRY *alAuxiliaryEffectSlotfv)(ALuint, ALenum, const ALfloat*);
+inline void (AL_APIENTRY *alGetAuxiliaryEffectSloti)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetAuxiliaryEffectSlotiv)(ALuint, ALenum, ALint*);
+inline void (AL_APIENTRY *alGetAuxiliaryEffectSlotf)(ALuint, ALenum, ALfloat*);
+inline void (AL_APIENTRY *alGetAuxiliaryEffectSlotfv)(ALuint, ALenum, ALfloat*);
 
 void LoadEFXExtension();
 bool HasEFXExtension();

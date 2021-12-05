@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
@@ -492,7 +492,7 @@ void StickersBox::getArchivedDone(
 			const auto index = archived.indexOf(set->id);
 			if (archived.isEmpty() || index != archived.size() - 1) {
 				changedSets = true;
-				if (index < archived.size() - 1) {
+				if (index >= 0 && index < archived.size() - 1) {
 					archived.removeAt(index);
 				}
 				archived.push_back(set->id);
@@ -1887,12 +1887,17 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 		}
 	} else if (!_megagroupSetRequestId) {
 		_megagroupSetRequestId = _api.request(MTPmessages_GetStickerSet(
-			MTP_inputStickerSetShortName(MTP_string(text))
+			MTP_inputStickerSetShortName(MTP_string(text)),
+			MTP_int(0) // hash
 		)).done([=](const MTPmessages_StickerSet &result) {
 			_megagroupSetRequestId = 0;
-			auto set = session().data().stickers().feedSetFull(result);
-			setMegagroupSelectedSet(set->identifier());
-		}).fail([=](const MTP::Error &error) {
+			result.match([&](const MTPDmessages_stickerSet &data) {
+				const auto set = session().data().stickers().feedSetFull(data);
+				setMegagroupSelectedSet(set->identifier());
+			}, [](const MTPDmessages_stickerSetNotModified &) {
+				LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+			});
+		}).fail([=] {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet({});
 		}).send();

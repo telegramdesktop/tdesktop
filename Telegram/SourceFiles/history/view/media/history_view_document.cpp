@@ -89,7 +89,7 @@ void PaintWaveform(
 	const auto active = stm->msgWaveformActive;
 	const auto inactive = stm->msgWaveformInactive;
 	const auto wfSize = wf
-		? wf->size()
+		? int(wf->size())
 		: ::Media::Player::kWaveformSamplesCount;
 	const auto activeWidth = base::SafeRound(availableWidth * progress);
 
@@ -329,7 +329,7 @@ void Document::draw(
 
 	const auto cornerDownload = downloadInCorner();
 
-	if (!_dataMedia->canBePlayed()) {
+	if (!_dataMedia->canBePlayed(_realParent)) {
 		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
@@ -452,8 +452,8 @@ void Document::draw(
 				return _data->isSongWithCover()
 					? sti->historyFileThumbPause
 					: stm->historyFilePause;
-			} else if (loaded || _dataMedia->canBePlayed()) {
-				return _dataMedia->canBePlayed()
+			} else if (loaded || _dataMedia->canBePlayed(_realParent)) {
+				return _dataMedia->canBePlayed(_realParent)
 					? (_data->isSongWithCover()
 						? sti->historyFileThumbPlay
 						: stm->historyFilePlay)
@@ -593,9 +593,9 @@ void Document::ensureDataMediaCreated() const {
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& _data->canBeStreamed()
-		&& !_data->inappPlaybackFailed()
-		&& IsServerMsgId(_realParent->id);
+		&& _realParent->allowsForward()
+		&& _data->canBeStreamed(_realParent)
+		&& !_data->inappPlaybackFailed();
 }
 
 void Document::drawCornerDownload(
@@ -782,7 +782,7 @@ TextState Document::textState(
 		&& (!_data->loading() || downloadInCorner())
 		&& !_data->uploading()
 		&& !_data->isNull()) {
-		if (loaded || _dataMedia->canBePlayed()) {
+		if (loaded || _dataMedia->canBePlayed(_realParent)) {
 			result.link = _openl;
 		} else {
 			result.link = _savel;
@@ -1084,17 +1084,7 @@ TextWithEntities Document::getCaption() const {
 }
 
 Ui::Text::String Document::createCaption() {
-	const auto timestampLinksDuration = (_data->isSong()
-			|| _data->isVoiceMessage())
-		? _data->getDuration()
-		: 0;
-	const auto timestampLinkBase = timestampLinksDuration
-		? DocumentTimestampLinkBase(_data, _realParent->fullId())
-		: QString();
-	return File::createCaption(
-		_realParent,
-		timestampLinksDuration,
-		timestampLinkBase);
+	return File::createCaption(_realParent);
 }
 
 bool DrawThumbnailAsSongCover(
