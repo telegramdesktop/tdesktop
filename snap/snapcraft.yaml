@@ -85,7 +85,7 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
+    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.metainfo.xml]
     build-environment:
       - CC: gcc-10
       - CXX: g++-10
