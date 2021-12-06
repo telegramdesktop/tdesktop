@@ -31,6 +31,7 @@ struct CloudFile final {
 	enum class Flag : uchar {
 		Cancelled = 0x01,
 		Failed = 0x02,
+		Loaded = 0x04,
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 
@@ -73,6 +74,7 @@ public:
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool failed() const;
+	[[nodiscard]] bool loadedOnce() const;
 	void load(not_null<Main::Session*> session, FileOrigin origin);
 	[[nodiscard]] const ImageLocation &location() const;
 	[[nodiscard]] int byteSize() const;

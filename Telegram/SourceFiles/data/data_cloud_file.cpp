@@ -99,13 +99,19 @@ bool CloudImage::failed() const {
 	return (_file.flags & CloudFile::Flag::Failed);
 }
 
+bool CloudImage::loadedOnce() const {
+	return (_file.flags & CloudFile::Flag::Loaded);
+}
+
 void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 	const auto autoLoading = false;
 	const auto finalCheck = [=] {
 		if (const auto active = activeView()) {
 			return !active->image();
+		} else if (_file.flags & CloudFile::Flag::Loaded) {
+			return false;
 		}
-		return true;
+		return !(_file.flags & CloudFile::Flag::Loaded);
 	};
 	const auto done = [=](QImage result) {
 		if (const auto active = activeView()) {
@@ -247,6 +253,7 @@ void LoadCloudFile(
 		if (!file.loader || file.loader->cancelled()) {
 			file.flags |= CloudFile::Flag::Cancelled;
 		} else {
+			file.flags |= CloudFile::Flag::Loaded;
 			done(file);
 		}
 		// NB! file.loader may be in ~FileLoader() already.
