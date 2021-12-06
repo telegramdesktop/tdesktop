@@ -1257,8 +1257,9 @@ void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
-
-	if (auto peer = session().data().peerLoaded(peerId)) {
+	if (peerId && _controller->window().locked()) {
+		return;
+	} else if (auto peer = session().data().peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
 			peerId = peer->id;
@@ -1579,6 +1580,9 @@ void MainWidget::showNewSection(
 		const SectionShow &params) {
 	using Column = Window::Column;
 
+	if (_controller->window().locked()) {
+		return;
+	}
 	auto saveInStack = (params.way == SectionShow::Way::Forward);
 	const auto thirdSectionTop = getThirdSectionTop();
 	const auto newThirdGeometry = QRect(

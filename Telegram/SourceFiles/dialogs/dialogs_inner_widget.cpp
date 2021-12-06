@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
@@ -3011,7 +3012,9 @@ void InnerWidget::updateRowCornerStatusShown(
 void InnerWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return isActiveWindow() && !Ui::isLayerShown();
+		return isActiveWindow()
+			&& !Ui::isLayerShown()
+			&& !_controller->window().locked();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 

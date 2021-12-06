@@ -485,17 +485,15 @@ void MainWindow::createGlobalMenu() {
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
-		if (isHidden()) {
-			showFromTray();
-		}
-		if (!sessionController()) {
-			return;
-		}
+		Expects(sessionController() != nullptr && !controller().locked());
+
+		ensureWindowShown();
 		sessionController()->show(PrepareContactsBox(sessionController()));
 	}));
 	{
 		auto callback = [=] {
-			Expects(sessionController() != nullptr);
+			Expects(sessionController() != nullptr && !controller().locked());
+
 			ensureWindowShown();
 			sessionController()->showAddContact();
 		};
@@ -507,7 +505,8 @@ void MainWindow::createGlobalMenu() {
 	window->addSeparator();
 	{
 		auto callback = [=] {
-			Expects(sessionController() != nullptr);
+			Expects(sessionController() != nullptr && !controller().locked());
+
 			ensureWindowShown();
 			sessionController()->showNewGroup();
 		};
@@ -518,7 +517,8 @@ void MainWindow::createGlobalMenu() {
 	}
 	{
 		auto callback = [=] {
-			Expects(sessionController() != nullptr);
+			Expects(sessionController() != nullptr && !controller().locked());
+
 			ensureWindowShown();
 			sessionController()->showNewChannel();
 		};
