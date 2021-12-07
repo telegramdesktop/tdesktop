@@ -1160,8 +1160,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
-	const auto fromId = PeerId(
-		link->property(kPeerLinkPeerIdProperty).toULongLong());
+	const auto fromId = PeerId(link
+		? link->property(kPeerLinkPeerIdProperty).toULongLong()
+		: 0);
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(tr::lng_context_copy_selected(tr::now), [=] {
