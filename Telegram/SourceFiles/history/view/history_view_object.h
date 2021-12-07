@@ -23,16 +23,23 @@ public:
 		return _height;
 	}
 
-	int maxWidth() const {
+	[[nodiscard]] QSize optimalSize() const {
+		return { _maxWidth, _minHeight };
+	}
+	[[nodiscard]] QSize currentSize() const {
+		return { _width, _height };
+	}
+
+	[[nodiscard]] int maxWidth() const {
 		return _maxWidth;
 	}
-	int minHeight() const {
+	[[nodiscard]] int minHeight() const {
 		return _minHeight;
 	}
-	int width() const {
+	[[nodiscard]] int width() const {
 		return _width;
 	}
-	int height() const {
+	[[nodiscard]] int height() const {
 		return _height;
 	}
 

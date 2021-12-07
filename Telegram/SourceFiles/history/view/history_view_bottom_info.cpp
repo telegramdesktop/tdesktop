@@ -33,25 +33,17 @@ void BottomInfo::update(Data &&data, Context &&context, int availableWidth) {
 	_data = std::move(data);
 	_context = std::move(context);
 	layout();
-	if (!_size.isEmpty()) {
-		resizeToWidth(std::min(optimalSize().width(), availableWidth));
+	if (width() > 0) {
+		resizeGetHeight(std::min(maxWidth(), availableWidth));
 	}
-}
-
-QSize BottomInfo::optimalSize() const {
-	return _optimalSize;
-}
-
-QSize BottomInfo::size() const {
-	return _size;
 }
 
 int BottomInfo::firstLineWidth() const {
-	if (_size.height() == _optimalSize.height()) {
-		return _size.width();
+	if (height() == minHeight()) {
+		return width();
 	}
 	const auto reactionsWidth = _reactions.maxWidth();
-	const auto noReactionsWidth = _optimalSize.width()
+	const auto noReactionsWidth = maxWidth()
 		- st::historyReactionsSkip
 		- reactionsWidth;
 	return noReactionsWidth;
@@ -63,24 +55,24 @@ TextState BottomInfo::textState(
 	auto result = TextState(item);
 	if (!_reactions.isEmpty()) {
 		const auto reactionsPosition = [&] {
-			if (_size.height() == _optimalSize.height()) {
+			if (height() == minHeight()) {
 				return QPoint(0, 0);
 			}
-			const auto available = _size.width();
+			const auto available = width();
 			const auto use = std::min(available, _reactions.maxWidth());
-			return QPoint(_size.width() - use, st::msgDateFont->height);
+			return QPoint(width() - use, st::msgDateFont->height);
 		}();
 		const auto state = _reactions.getStateLeft(
 			position - reactionsPosition,
-			std::min(_size.width(), _reactions.maxWidth()),
-			_size.width());
+			std::min(width(), _reactions.maxWidth()),
+			width());
 		if (state.uponSymbol) {
 			result.link = _context.reactions;
 			return result;
 		}
 	}
 	const auto inTime = QRect(
-		_size.width() - _dateWidth,
+		width() - _dateWidth,
 		0,
 		_dateWidth,
 		st::msgDateFont->height
@@ -106,7 +98,7 @@ void BottomInfo::paint(
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
-	auto right = position.x() + _size.width();
+	auto right = position.x() + width();
 	const auto firstLineBottom = position.y() + st::msgDateFont->height;
 	if (_data.flags & Data::Flag::OutLayout) {
 		const auto &icon = (_data.flags & Data::Flag::Sending)
@@ -177,7 +169,7 @@ void BottomInfo::paint(
 			outerWidth);
 	}
 	if (!_reactions.isEmpty()) {
-		if (_size.height() == _optimalSize.height()) {
+		if (height() == minHeight()) {
 			_reactions.drawLeft(
 				p,
 				position.x(),
@@ -185,11 +177,11 @@ void BottomInfo::paint(
 				_reactions.maxWidth(),
 				outerWidth);
 		} else {
-			const auto available = _size.width();
+			const auto available = width();
 			const auto use = std::min(available, _reactions.maxWidth());
 			_reactions.drawLeft(
 				p,
-				position.x() + _size.width() - use,
+				position.x() + width() - use,
 				position.y() + st::msgDateFont->height,
 				use,
 				outerWidth);
@@ -197,20 +189,18 @@ void BottomInfo::paint(
 	}
 }
 
-int BottomInfo::resizeToWidth(int newWidth) {
-	if (newWidth >= _optimalSize.width()) {
-		_size = _optimalSize;
-	} else {
-		const auto reactionsWidth = _reactions.maxWidth();
-		const auto noReactionsWidth = _optimalSize.width()
-			- st::historyReactionsSkip
-			- reactionsWidth;
-		accumulate_min(newWidth, std::max(noReactionsWidth, reactionsWidth));
-		_size = QSize(
-			newWidth,
-			st::msgDateFont->height + _reactions.countHeight(newWidth));
+QSize BottomInfo::countCurrentSize(int newWidth) {
+	if (newWidth >= maxWidth()) {
+		return optimalSize();
 	}
-	return _size.height();
+	const auto reactionsWidth = _reactions.maxWidth();
+	const auto noReactionsWidth = maxWidth()
+		- st::historyReactionsSkip
+		- reactionsWidth;
+	accumulate_min(newWidth, std::max(noReactionsWidth, reactionsWidth));
+	return QSize(
+		newWidth,
+		st::msgDateFont->height + _reactions.countHeight(newWidth));
 }
 
 void BottomInfo::layout() {
@@ -218,7 +208,7 @@ void BottomInfo::layout() {
 	layoutViewsText();
 	layoutRepliesText();
 	layoutReactionsText();
-	countOptimalSize();
+	initDimensions();
 }
 
 void BottomInfo::layoutDateText() {
@@ -304,7 +294,7 @@ void BottomInfo::layoutReactionsText() {
 		Ui::NameTextOptions());
 }
 
-void BottomInfo::countOptimalSize() {
+QSize BottomInfo::countOptimalSize() {
 	auto width = 0;
 	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {
 		width += st::historySendStateSpace;
@@ -323,7 +313,7 @@ void BottomInfo::countOptimalSize() {
 	if (!_reactions.isEmpty()) {
 		width += st::historyReactionsSkip + _reactions.maxWidth();
 	}
-	_optimalSize = QSize(width, st::msgDateFont->height);
+	return QSize(width, st::msgDateFont->height);
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {

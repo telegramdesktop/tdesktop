@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_object.h"
 #include "ui/text/text.h"
 #include "base/flags.h"
 
@@ -21,7 +22,7 @@ using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
 
-class BottomInfo {
+class BottomInfo final : public Object {
 public:
 	struct Data {
 		enum class Flag {
@@ -50,8 +51,6 @@ public:
 
 	void update(Data &&data, Context &&context, int availableWidth);
 
-	[[nodiscard]] QSize optimalSize() const;
-	[[nodiscard]] QSize size() const;
 	[[nodiscard]] int firstLineWidth() const;
 	[[nodiscard]] TextState textState(
 		not_null<const HistoryItem*> item,
@@ -66,20 +65,18 @@ public:
 		bool inverted,
 		const PaintContext &context) const;
 
-	int resizeToWidth(int newWidth);
-
 private:
 	void layout();
 	void layoutDateText();
 	void layoutViewsText();
 	void layoutRepliesText();
 	void layoutReactionsText();
-	void countOptimalSize();
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
 
 	Data _data;
 	Context _context;
-	QSize _optimalSize;
-	QSize _size;
 	Ui::Text::String _authorEditedDate;
 	Ui::Text::String _views;
 	Ui::Text::String _replies;

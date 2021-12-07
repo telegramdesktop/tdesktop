@@ -610,7 +610,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
-			const auto infoHeight = _bottomInfo.size().height();
+			const auto infoHeight = _bottomInfo.height();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			_viewButton->draw(
 				p,
@@ -642,7 +642,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setHeight(trect.height() - entry->height());
 		}
 		if (needDrawInfo) {
-			trect.setHeight(trect.height() - (_bottomInfo.size().height() - st::msgDateFont->height));
+			trect.setHeight(trect.height()
+				- (_bottomInfo.height() - st::msgDateFont->height));
 		}
 		paintText(p, trect, context);
 		if (mediaDisplayed) {
@@ -1219,7 +1220,7 @@ TextState Message::textState(
 		}
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
-			const auto infoHeight = _bottomInfo.size().height();
+			const auto infoHeight = _bottomInfo.height();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			if (_viewButton->getState(
 					point,
@@ -1765,7 +1766,7 @@ void Message::drawInfo(
 	break;
 	}
 
-	const auto size = _bottomInfo.size();
+	const auto size = _bottomInfo.currentSize();
 	const auto dateX = infoRight - size.width();
 	const auto dateY = infoBottom - size.height();
 	if (type == InfoDisplayType::Image) {
@@ -1807,7 +1808,7 @@ TextState Message::bottomInfoTextState(
 		infoBottom -= st::msgDateImgPadding.y();
 		break;
 	}
-	const auto size = _bottomInfo.size();
+	const auto size = _bottomInfo.currentSize();
 	const auto infoLeft = infoRight - size.width();
 	const auto infoTop = infoBottom - size.height();
 	return _bottomInfo.textState(
@@ -1828,12 +1829,13 @@ bool Message::isSignedAuthorElided() const {
 }
 
 void Message::itemDataChanged() {
-	const auto was = _bottomInfo.size();
+	const auto wasInfo = _bottomInfo.currentSize();
 	_bottomInfo.update(
 		BottomInfoDataFromMessage(this),
 		BottomInfoContextFromMessage(this),
 		width());
-	if (was != _bottomInfo.size()) {
+	const auto nowInfo = _bottomInfo.currentSize();
+	if (wasInfo != nowInfo) {
 		history()->owner().requestViewResize(this);
 	} else {
 		history()->owner().requestViewRepaint(this);
@@ -2488,7 +2490,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		}
 	}
-	const auto bottomInfoHeight = _bottomInfo.resizeToWidth(
+	const auto bottomInfoHeight = _bottomInfo.resizeGetHeight(
 		std::min(
 			_bottomInfo.optimalSize().width(),
 			contentWidth - st::msgPadding.left() - st::msgPadding.right() - 2 * st::msgDateDelta.x()));
