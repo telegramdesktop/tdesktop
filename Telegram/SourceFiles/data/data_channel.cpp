@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
+#include "data/data_message_reactions.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
 #include "base/unixtime.h"
@@ -760,6 +761,14 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
+void ChannelData::setAllowedReactions(std::vector<QString> list) {
+	_allowedReactions = std::move(list);
+}
+
+const std::vector<QString> &ChannelData::allowedReactions() const {
+	return _allowedReactions;
+}
+
 namespace Data {
 
 void ApplyMigration(
@@ -903,6 +912,8 @@ void ApplyChannelUpdate(
 		}
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	channel->setAllowedReactions(
+		Data::Reactions::ParseAllowed(update.vavailable_reactions()));
 	channel->fullUpdated();
 	channel->setPendingRequestsCount(
 		update.vrequests_pending().value_or_empty(),

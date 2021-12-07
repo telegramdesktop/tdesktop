@@ -11,9 +11,119 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "base/timer_rpl.h"
 #include "apiwrap.h"
 
 namespace Data {
+namespace {
+
+constexpr auto kRefreshEach = 60 * 60 * crl::time(1000);
+
+} // namespace
+
+Reactions::Reactions(not_null<Session*> owner) : _owner(owner) {
+	request();
+
+	base::timer_each(
+		kRefreshEach
+	) | rpl::start_with_next([=] {
+		request();
+	}, _lifetime);
+}
+
+const std::vector<Reaction> &Reactions::list() const {
+	return _available;
+}
+
+std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
+	if (const auto chat = peer->asChat()) {
+		return filtered(chat->allowedReactions());
+	} else if (const auto channel = peer->asChannel()) {
+		return filtered(channel->allowedReactions());
+	} else {
+		return list();
+	}
+}
+
+std::vector<Reaction> Reactions::Filtered(
+		const std::vector<Reaction> &reactions,
+		const std::vector<QString> &emoji) {
+	auto result = std::vector<Reaction>();
+	result.reserve(emoji.size());
+	for (const auto &single : emoji) {
+		const auto i = ranges::find(reactions, single, &Reaction::emoji);
+		if (i != end(reactions)) {
+			result.push_back(*i);
+		}
+	}
+	return result;
+}
+
+std::vector<Reaction> Reactions::filtered(
+		const std::vector<QString> &emoji) const {
+	return Filtered(list(), emoji);
+}
+
+std::vector<QString> Reactions::ParseAllowed(
+		const MTPVector<MTPstring> *list) {
+	if (!list) {
+		return {};
+	}
+	return list->v | ranges::view::transform([](const MTPstring &string) {
+		return qs(string);
+	}) | ranges::to_vector;
+}
+
+void Reactions::request() {
+	auto &api = _owner->session().api();
+	_requestId = api.request(MTPmessages_GetAvailableReactions(
+		MTP_int(_hash)
+	)).done([=](const MTPmessages_AvailableReactions &result) {
+		_requestId = 0;
+		result.match([&](const MTPDmessages_availableReactions &data) {
+			_hash = data.vhash().v;
+
+			const auto &list = data.vreactions().v;
+			_available.clear();
+			_available.reserve(data.vreactions().v.size());
+			for (const auto &reaction : list) {
+				if (const auto parsed = parse(reaction)) {
+					_available.push_back(*parsed);
+				}
+			}
+			_updated.fire({});
+		}, [&](const MTPDmessages_availableReactionsNotModified &) {
+		});
+	}).fail([=] {
+		_requestId = 0;
+		_hash = 0;
+	}).send();
+}
+
+std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
+	return entry.match([&](const MTPDavailableReaction &data) {
+		const auto emoji = qs(data.vreaction());
+		const auto known = (Ui::Emoji::Find(emoji) != nullptr);
+		if (!known) {
+			LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
+		}
+		return known
+			? std::make_optional(Reaction{
+				.emoji = emoji,
+				.title = qs(data.vtitle()),
+				.staticIcon = _owner->processDocument(data.vstatic_icon()),
+				.selectAnimation = _owner->processDocument(
+					data.vselect_animation()),
+				.activateAnimation = _owner->processDocument(
+					data.vactivate_animation()),
+				.activateEffects = _owner->processDocument(
+					data.veffect_animation()),
+			})
+			: std::nullopt;
+	});
+}
 
 std::vector<QString> MessageReactions::SuggestList() {
 	constexpr auto utf = [](const char *utf) {

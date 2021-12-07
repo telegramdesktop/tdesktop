@@ -745,7 +745,7 @@ bool HistoryItem::suggestDeleteAllReport() const {
 }
 
 bool HistoryItem::canReact() const {
-	return IsServerMsgId(id) && !out() && !_history->peer->isSelf();
+	return isRegular();
 }
 
 void HistoryItem::addReaction(const QString &reaction) {

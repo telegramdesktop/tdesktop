@@ -213,11 +213,6 @@ int BottomInfo::resizeToWidth(int newWidth) {
 }
 
 void BottomInfo::layout() {
-	//const auto good = ::Data::MessageReactions::SuggestList();
-	//for (const auto &item : good) {
-	//	_data.reactions.emplace(item, rand_value<uint8>() + 1);
-	//}
-
 	layoutDateText();
 	layoutViewsText();
 	layoutRepliesText();

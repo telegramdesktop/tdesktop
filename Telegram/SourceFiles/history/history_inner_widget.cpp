@@ -1698,9 +1698,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			auto reactionMenu = std::make_unique<Ui::PopupMenu>(
 				this,
 				st::reactionMenu);
-			for (const auto &text : Data::MessageReactions::SuggestList()) {
-				reactionMenu->addAction(text, [=] {
-					item->addReaction(text);
+			auto &reactions = item->history()->owner().reactions();
+			for (const auto &entry : reactions.list(item->history()->peer)) {
+				reactionMenu->addAction(entry.emoji, [=] {
+					item->addReaction(entry.emoji);
 				});
 			}
 			_menu->addAction("Reaction", std::move(reactionMenu));
@@ -3789,7 +3790,7 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				Instance->elementShowReactions(view);
 			}
 		}
-		
+
 	};
 
 	static Result result;
