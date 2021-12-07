@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
@@ -283,18 +284,24 @@ void BottomInfo::layoutReactionsText() {
 	}) | ranges::to_vector;
 	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
 
-	auto fullCount = 0;
-	auto text = QString();
+	auto text = TextWithEntities();
 	for (const auto &[string, count] : sorted) {
-		//for (auto i = 0, n = rand_value<uint8>() % 8 + 1; i != n; ++i) {
-		//	text.append(string);
-		//}
+		if (!text.text.isEmpty()) {
+			text.append(" - ");
+		}
+		const auto chosen = (_data.chosenReaction == string);
 		text.append(string);
-		fullCount += count;
+		if (_data.chosenReaction == string) {
+			text.append(Ui::Text::Bold(QString::number(count)));
+		} else {
+			text.append(QString::number(count));
+		}
 	}
-	text += QString::number(fullCount);
 
-	_reactions.setText(st::msgDateTextStyle, text, Ui::NameTextOptions());
+	_reactions.setMarkedText(
+		st::msgDateTextStyle,
+		text,
+		Ui::NameTextOptions());
 }
 
 void BottomInfo::countOptimalSize() {
@@ -327,6 +334,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	const auto item = message->message();
 	result.date = message->dateTime();
 	result.reactions = item->reactions();
+	result.chosenReaction = item->chosenReaction();
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;
 	}

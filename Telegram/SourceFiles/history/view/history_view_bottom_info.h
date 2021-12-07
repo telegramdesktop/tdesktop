@@ -38,6 +38,7 @@ public:
 		QDateTime date;
 		QString author;
 		base::flat_map<QString, int> reactions;
+		QString chosenReaction;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
