@@ -21,8 +21,13 @@ public:
 		NeedsAck,
 		NoAckNeeded,
 	};
+	enum class Result {
+		Success,
+		Duplicate,
+		TooOld,
+	};
 
-	bool registerMsgId(mtpMsgId msgId, bool needAck);
+	[[nodiscard]] Result registerMsgId(mtpMsgId msgId, bool needAck);
 	[[nodiscard]] mtpMsgId min() const;
 	[[nodiscard]] mtpMsgId max() const;
 	[[nodiscard]] State lookup(mtpMsgId msgId) const;
