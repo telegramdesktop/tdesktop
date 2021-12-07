@@ -84,17 +84,6 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-HistoryMessageSponsored::HistoryMessageSponsored() {
-	text.setText(
-		st::msgDateTextStyle,
-		tr::lng_sponsored(tr::now),
-		Ui::NameTextOptions());
-}
-
-int HistoryMessageSponsored::maxWidth() const {
-	return text.maxWidth();
-}
-
 HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))

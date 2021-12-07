@@ -31,6 +31,7 @@ public:
 		not_null<WebPageData*> webpage);
 
 	[[nodiscard]] int height() const;
+	[[nodiscard]] bool belowMessageInfo() const;
 
 	void draw(
 		Painter &p,

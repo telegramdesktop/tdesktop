@@ -68,15 +68,6 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	TimeId date = 0;
 };
 
-struct HistoryMessageSponsored : public RuntimeComponent<
-		HistoryMessageSponsored,
-		HistoryItem> {
-	HistoryMessageSponsored();
-	int maxWidth() const;
-
-	Ui::Text::String text;
-};
-
 struct HiddenSenderInfo {
 	HiddenSenderInfo(const QString &name, bool external);
 

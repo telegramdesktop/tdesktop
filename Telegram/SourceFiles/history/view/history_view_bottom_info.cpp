@@ -242,7 +242,9 @@ void BottomInfo::layoutDateText() {
 	const auto name = _authorElided
 		? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth)
 		: author;
-	const auto full = name + date;
+	const auto full = (_data.flags & Data::Flag::Sponsored)
+		? tr::lng_sponsored(tr::now)
+		: name + date;
 	_authorEditedDate.setText(
 		st::msgDateTextStyle,
 		full,
@@ -335,6 +337,9 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (message->context() == Context::Replies) {
 		result.flags |= Flag::RepliesContext;
+	}
+	if (item->isSponsored()) {
+		result.flags |= Flag::Sponsored;
 	}
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 		 if (!msgsigned->isAnonymousRank) {

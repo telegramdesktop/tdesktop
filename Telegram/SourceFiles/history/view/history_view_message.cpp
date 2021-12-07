@@ -606,16 +606,21 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
 
+		const auto needDrawInfo = needInfoDisplay();
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (_viewButton) {
+			const auto belowInfo = _viewButton->belowMessageInfo();
+			const auto infoHeight = _bottomInfo.size().height();
+			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			_viewButton->draw(
 				p,
-				_viewButton->countRect(inner),
+				_viewButton->countRect(belowInfo
+					? inner
+					: inner - heightMargins),
 				context);
-			// Inner should contain _viewButton height, because info is
-			// painted below the _viewButton.
-			//
-			// inner.setHeight(inner.height() - _viewButton->height());
+			if (belowInfo) {
+				inner.setHeight(inner.height() - _viewButton->height());
+			}
 			trect.setHeight(trect.height() - _viewButton->height());
 			if (mediaDisplayed) {
 				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
@@ -636,7 +641,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
 		}
-		const auto needDrawInfo = needInfoDisplay();
 		if (needDrawInfo) {
 			trect.setHeight(trect.height() - (_bottomInfo.size().height() - st::msgDateFont->height));
 		}
@@ -680,10 +684,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				inner.top() + inner.height(),
 				2 * inner.left() + inner.width(),
 				InfoDisplayType::Default);
-			if (g != inner) {
+			if (_comments) {
 				const auto o = p.opacity();
 				p.setOpacity(0.3);
-				p.fillRect(inner.left(), inner.top() + inner.height() - st::lineWidth, inner.width(), st::lineWidth, stm->msgDateFg);
+				p.fillRect(g.left(), g.top() + g.height() - st::historyCommentsButtonHeight - st::lineWidth, g.width(), st::lineWidth, stm->msgDateFg);
 				p.setOpacity(o);
 			}
 		}
@@ -1213,12 +1217,21 @@ TextState Message::textState(
 		if (getStateCommentsButton(point, bubble, &result)) {
 			return result;
 		}
-		if (_viewButton
-			&& _viewButton->getState(
-				point,
-				_viewButton->countRect(bubble),
-				&result)) {
-			return result;
+		if (_viewButton) {
+			const auto belowInfo = _viewButton->belowMessageInfo();
+			const auto infoHeight = _bottomInfo.size().height();
+			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
+			if (_viewButton->getState(
+					point,
+					_viewButton->countRect(belowInfo
+						? bubble
+						: bubble - heightMargins),
+					&result)) {
+				return result;
+			}
+			if (belowInfo) {
+				bubble -= heightMargins;
+			}
 		}
 
 		auto trect = bubble.marginsRemoved(st::msgPadding);
@@ -2623,16 +2636,6 @@ TimeId Message::displayedEditDate() const {
 		return edited->date;
 	}
 	return TimeId(0);
-}
-
-const HistoryMessageSponsored *Message::displayedSponsorBadge() const {
-	// Ignore media while sponsored messages are text only.
-	// if (const auto media = this->media()) {
-	// 	if (media->overrideEditedDate()) {
-	// 		return media->displayedEditBadge();
-	// 	}
-	// }
-	return message()->Get<HistoryMessageSponsored>();
 }
 
 HistoryMessageEdited *Message::displayedEditBadge() {

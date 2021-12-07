@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryMessage;
 struct HistoryMessageEdited;
-struct HistoryMessageSponsored;
 struct HistoryMessageForwarded;
 
 namespace HistoryView {
@@ -54,8 +53,8 @@ public:
 
 	not_null<HistoryMessage*> message() const;
 
-	const HistoryMessageEdited *displayedEditBadge() const;
-	HistoryMessageEdited *displayedEditBadge();
+	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
+	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
 
 	int marginTop() const override;
 	int marginBottom() const override;
@@ -210,8 +209,6 @@ private:
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
-	[[nodiscard]] auto displayedSponsorBadge() const
-		-> const HistoryMessageSponsored*;
 	[[nodiscard]] bool displayPinIcon() const;
 
 	void initTime() const;

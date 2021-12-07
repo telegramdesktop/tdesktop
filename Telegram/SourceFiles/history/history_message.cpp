@@ -433,7 +433,6 @@ struct HistoryMessage::CreateConfig {
 	HistoryMessageMarkupData markup;
 	HistoryMessageRepliesData replies;
 	bool imported = false;
-	bool sponsored = false;
 
 	// For messages created from existing messages (forwarded).
 	const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
@@ -787,9 +786,6 @@ void HistoryMessage::createComponentsHelper(
 	config.markup = std::move(markup);
 	if (flags & MessageFlag::HasPostAuthor) config.author = postAuthor;
 	if (flags & MessageFlag::HasViews) config.viewsCount = 1;
-	if (flags & MessageFlag::IsSponsored) {
-		config.sponsored = true;
-	}
 
 	createComponents(std::move(config));
 }
@@ -1094,9 +1090,6 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 	}
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
-	}
-	if (config.sponsored) {
-		mask |= HistoryMessageSponsored::Bit();
 	}
 	if (config.originalDate != 0) {
 		mask |= HistoryMessageForwarded::Bit();

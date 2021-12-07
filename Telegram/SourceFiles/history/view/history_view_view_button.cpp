@@ -82,7 +82,7 @@ struct ViewButton::Inner {
 	const style::margins &margins;
 	const ClickHandlerPtr link;
 	const Fn<void()> updateCallback;
-	bool underDate = true;
+	bool belowInfo = true;
 	int lastWidth = 0;
 	QPoint lastPoint;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
@@ -143,7 +143,7 @@ ViewButton::Inner::Inner(
 	}
 }))
 , updateCallback(std::move(updateCallback))
-, underDate(false)
+, belowInfo(false)
 , text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {
 }
 
@@ -185,6 +185,10 @@ void ViewButton::resized() const {
 
 int ViewButton::height() const {
 	return st::historyViewButtonHeight;
+}
+
+bool ViewButton::belowMessageInfo() const {
+	return _inner->belowInfo;
 }
 
 void ViewButton::draw(
@@ -252,10 +256,9 @@ bool ViewButton::getState(
 }
 
 QRect ViewButton::countRect(const QRect &r) const {
-	const auto dateHeight = (_inner->underDate ? 0 : st::msgDateFont->height);
 	return QRect(
 		r.left(),
-		r.top() + r.height() - height() - dateHeight,
+		r.top() + r.height() - height(),
 		r.width(),
 		height()) - _inner->margins;
 }
