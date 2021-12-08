@@ -550,11 +550,6 @@ QRect Row::elementGeometry(int element, int outerWidth) const {
 		const auto size = QSize(
 			st::sessionTerminate.width,
 			st::sessionTerminate.height);
-		const auto margins = QMargins(
-			0,
-			(st::sessionListItem.height - size.height()) / 2,
-			st::sessionListThreeDotsSkip,
-			0);
 		const auto right = st::sessionTerminateSkip;
 		const auto top = st::sessionTerminateTop;
 		const auto left = outerWidth - right - size.width();

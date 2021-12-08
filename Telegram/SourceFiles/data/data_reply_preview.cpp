@@ -86,7 +86,6 @@ Image *ReplyPreview::image(
 	} else {
 		Assert(_photo != nullptr);
 		if (!_image || !_good) {
-			const auto createMedia = !_photoMedia;
 			const auto inlineThumbnailBytes = _photo->inlineThumbnailBytes();
 			if (!_photoMedia) {
 				_photoMedia = _photo->createMediaView();
