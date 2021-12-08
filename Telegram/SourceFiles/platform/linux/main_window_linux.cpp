@@ -94,7 +94,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		return;
 	}
 
-	const auto root = base::Platform::XCB::GetRootWindowFromQt();
+	const auto root = base::Platform::XCB::GetRootWindow(connection);
 	if (!root.has_value()) {
 		return;
 	}
