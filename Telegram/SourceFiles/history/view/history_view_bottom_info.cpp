@@ -323,8 +323,10 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 
 	const auto item = message->message();
 	result.date = message->dateTime();
-	result.reactions = item->reactions();
-	result.chosenReaction = item->chosenReaction();
+	if (message->embedReactionsInBottomInfo()) {
+		result.reactions = item->reactions();
+		result.chosenReaction = item->chosenReaction();
+	}
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;
 	}

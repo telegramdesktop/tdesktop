@@ -1699,12 +1699,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				this,
 				st::reactionMenu);
 			auto &reactions = item->history()->owner().reactions();
-			for (const auto &entry : reactions.list(item->history()->peer)) {
-				reactionMenu->addAction(entry.emoji, [=] {
-					item->addReaction(entry.emoji);
-				});
+			const auto &list = reactions.list(item->history()->peer);
+			if (!list.empty()) {
+				for (const auto &entry : list) {
+					reactionMenu->addAction(entry.emoji, [=] {
+						item->addReaction(entry.emoji);
+					});
+				}
+				_menu->addAction("Reaction", std::move(reactionMenu));
 			}
-			_menu->addAction("Reaction", std::move(reactionMenu));
 		}
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {

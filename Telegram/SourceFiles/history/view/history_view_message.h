@@ -19,6 +19,7 @@ struct HistoryMessageForwarded;
 namespace HistoryView {
 
 class ViewButton;
+class Reactions;
 class WebPage;
 
 // Special type of Component for the channel actions log.
@@ -55,6 +56,8 @@ public:
 
 	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
 	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
+
+	[[nodiscard]] bool embedReactionsInBottomInfo() const;
 
 	int marginTop() const override;
 	int marginBottom() const override;
@@ -211,7 +214,7 @@ private:
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
 	[[nodiscard]] bool displayPinIcon() const;
 
-	void initTime() const;
+	void refreshInfoSkipBlock();
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
@@ -225,11 +228,13 @@ private:
 	void psaTooltipToggled(bool shown) const;
 
 	void refreshRightBadge();
+	void refreshReactions();
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
-	mutable std::unique_ptr<CommentsButton> _comments;
 	mutable std::unique_ptr<ViewButton> _viewButton;
+	std::unique_ptr<Reactions> _reactions;
+	mutable std::unique_ptr<CommentsButton> _comments;
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;

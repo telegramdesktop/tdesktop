@@ -531,6 +531,9 @@ TextForMimeData GroupedMedia::selectedText(
 auto GroupedMedia::getBubbleSelectionIntervals(
 	TextSelection selection) const
 -> std::vector<Ui::BubbleSelectionInterval> {
+	if (_mode != Mode::Column) {
+		return {};
+	}
 	auto result = std::vector<Ui::BubbleSelectionInterval>();
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];

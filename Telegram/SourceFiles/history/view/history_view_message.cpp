@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
+#include "history/view/history_view_reactions.h"
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
@@ -247,6 +248,7 @@ Message::Message(
 		BottomInfoContextFromMessage(this)) {
 	initLogEntryOriginal();
 	initPsa();
+	refreshReactions();
 }
 
 Message::~Message() {
@@ -319,8 +321,13 @@ QSize Message::performCountOptimalSize() {
 	updateViewButtonExistence();
 	updateMediaInBubbleState();
 	refreshRightBadge();
-	initTime();
+	refreshInfoSkipBlock();
 
+	const auto displayInfo = needInfoDisplay();
+	const auto reactionsInBubble = _reactions && displayInfo;
+	if (_reactions) {
+		_reactions->initDimensions();
+	}
 	if (drawBubble()) {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
 		const auto reply = displayedReply();
@@ -345,22 +352,19 @@ QSize Message::performCountOptimalSize() {
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
-
-		if (mediaOnBottom || (mediaDisplayed && _viewButton)) {
-			if (item->_text.removeSkipBlock()) {
-				item->_textWidth = -1;
-				item->_textHeight = 0;
-			}
-		} else if (item->_text.updateSkipBlock(skipBlockWidth(), skipBlockHeight())) {
-			item->_textWidth = -1;
-			item->_textHeight = 0;
-		}
-
 		maxWidth = plainMaxWidth();
 		if (context() == Context::Replies && item->isDiscussionPost()) {
 			maxWidth = std::max(maxWidth, st::msgMaxWidth);
 		}
 		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
+		if (reactionsInBubble) {
+			accumulate_max(maxWidth, std::min(
+				st::msgMaxWidth,
+				(st::msgPadding.left()
+					+ _reactions->maxWidth()
+					+ st::msgPadding.right())));
+			minHeight += st::mediaInBubbleSkip + _reactions->minHeight();
+		}
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
 			if (mediaDisplayed) minHeight += st::mediaInBubbleSkip;
@@ -374,9 +378,17 @@ QSize Message::performCountOptimalSize() {
 			// Parts don't participate in maxWidth() in case of media message.
 			if (media->enforceBubbleWidth()) {
 				maxWidth = media->maxWidth();
+				const auto innerWidth = maxWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right();
 				if (hasVisibleText() && maxWidth < plainMaxWidth()) {
 					minHeight -= item->_text.minHeight();
-					minHeight += item->_text.countHeight(maxWidth - st::msgPadding.left() - st::msgPadding.right());
+					minHeight += item->_text.countHeight(innerWidth);
+				}
+				if (reactionsInBubble) {
+					minHeight -= _reactions->minHeight();
+					minHeight
+						+= _reactions->countCurrentSize(innerWidth).height();
 				}
 			} else {
 				accumulate_max(maxWidth, media->maxWidth());
@@ -440,6 +452,13 @@ QSize Message::performCountOptimalSize() {
 	} else {
 		maxWidth = st::msgMinWidth;
 		minHeight = 0;
+	}
+	if (_reactions && !reactionsInBubble) {
+		// if we have a text bubble we can resize it to fit the keyboard
+		// but if we have only media we don't do that
+		if (hasVisibleText()) {
+			accumulate_max(maxWidth, _reactions->maxWidth());
+		}
 	}
 	if (const auto markup = item->inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
@@ -518,6 +537,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 	auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
+	const auto displayInfo = needInfoDisplay();
+	const auto reactionsInBubble = _reactions && displayInfo;
+
 	auto mediaSelectionIntervals = (!context.selected() && mediaDisplayed)
 		? media->getBubbleSelectionIntervals(context.selection)
 		: std::vector<Ui::BubbleSelectionInterval>();
@@ -530,6 +552,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 		if (_viewButton) {
 			localMediaBottom -= st::mediaInBubbleSkip + _viewButton->height();
+		}
+		if (reactionsInBubble) {
+			localMediaBottom -= st::mediaInBubbleSkip + _reactions->height();
 		}
 		if (!mediaOnBottom) {
 			localMediaBottom -= st::msgPadding.bottom();
@@ -562,12 +587,21 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 	auto keyboard = item->inlineReplyKeyboard();
 	if (keyboard) {
-		auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		g.setHeight(g.height() - keyboardHeight);
-		auto keyboardPosition = QPoint(g.left(), g.top() + g.height() + st::msgBotKbButton.margin);
+		const auto keyboardPosition = QPoint(g.left(), g.top() + g.height() + st::msgBotKbButton.margin);
 		p.translate(keyboardPosition);
 		keyboard->paint(p, context.st, g.width(), context.clip.translated(-keyboardPosition));
 		p.translate(-keyboardPosition);
+	}
+
+	if (_reactions && !reactionsInBubble) {
+		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
+		g.setHeight(g.height() - reactionsHeight);
+		const auto reactionsPosition = QPoint(g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
+		p.translate(reactionsPosition);
+		_reactions->paint(p, context.st, g.width(), context.clip.translated(-reactionsPosition));
+		p.translate(-reactionsPosition);
 	}
 
 	if (bubble) {
@@ -606,7 +640,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		auto inner = g;
 		paintCommentsButton(p, inner, context);
 
-		const auto needDrawInfo = needInfoDisplay();
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
@@ -627,6 +660,15 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 
+		if (reactionsInBubble) {
+			const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
+			trect.setHeight(trect.height() - reactionsHeight);
+			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + st::mediaInBubbleSkip);
+			p.translate(reactionsPosition);
+			_reactions->paint(p, context.st, g.width(), context.clip.translated(-reactionsPosition));
+			p.translate(-reactionsPosition);
+		}
+
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
@@ -641,7 +683,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
 		}
-		if (needDrawInfo) {
+		if (displayInfo) {
 			trect.setHeight(trect.height()
 				- (_bottomInfo.height() - st::msgDateFont->height));
 		}
@@ -671,7 +713,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			entry->draw(p, entryContext);
 			p.translate(-entryLeft, -entryTop);
 		}
-		if (needDrawInfo) {
+		if (displayInfo) {
 			const auto bottomSelected = context.selected()
 				|| (!mediaSelectionIntervals.empty()
 					&& (mediaSelectionIntervals.back().top
@@ -1030,6 +1072,7 @@ PointState Message::pointState(QPoint point) const {
 
 	const auto media = this->media();
 	const auto item = message();
+	const auto reactionsInBubble = _reactions && needInfoDisplay();
 	if (drawBubble()) {
 		if (!g.contains(point)) {
 			return PointState::Outside;
@@ -1051,6 +1094,11 @@ PointState Message::pointState(QPoint point) const {
 				if (mediaDisplayed) {
 					trect.setHeight(trect.height() - st::mediaInBubbleSkip);
 				}
+			}
+			if (reactionsInBubble) {
+				const auto reactionsHeight = st::mediaInBubbleSkip
+					+ _reactions->height();
+				trect.setHeight(trect.height() - reactionsHeight);
 			}
 			if (mediaOnBottom) {
 				trect.setHeight(trect.height() + st::msgPadding.bottom());
@@ -1198,6 +1246,7 @@ TextState Message::textState(
 		return result;
 	}
 
+	const auto reactionsInBubble = _reactions && needInfoDisplay();
 	auto keyboard = item->inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
@@ -1241,6 +1290,11 @@ TextState Message::textState(
 			if (mediaDisplayed) {
 				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
 			}
+		}
+		if (reactionsInBubble) {
+			const auto reactionsHeight = _reactions->height()
+				+ st::mediaInBubbleSkip;
+			trect.setHeight(trect.height() - reactionsHeight);
 		}
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height()
@@ -1828,14 +1882,38 @@ bool Message::isSignedAuthorElided() const {
 	return _bottomInfo.isSignedAuthorElided();
 }
 
+bool Message::embedReactionsInBottomInfo() const {
+	return data()->history()->peer->isUser();
+}
+
+void Message::refreshReactions() {
+	const auto item = data();
+	const auto &list = item->reactions();
+	if (list.empty() || embedReactionsInBottomInfo()) {
+		_reactions = nullptr;
+	} else if (!_reactions) {
+		_reactions = std::make_unique<Reactions>(
+			ReactionsDataFromMessage(this));
+	} else {
+		_reactions->update(ReactionsDataFromMessage(this), width());
+	}
+}
+
 void Message::itemDataChanged() {
 	const auto wasInfo = _bottomInfo.currentSize();
+	const auto wasReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	refreshReactions();
 	_bottomInfo.update(
 		BottomInfoDataFromMessage(this),
 		BottomInfoContextFromMessage(this),
 		width());
 	const auto nowInfo = _bottomInfo.currentSize();
-	if (wasInfo != nowInfo) {
+	const auto nowReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	if (wasInfo != nowInfo || wasReactions != nowReactions) {
 		history()->owner().requestViewResize(this);
 	} else {
 		history()->owner().requestViewRepaint(this);
@@ -2305,7 +2383,9 @@ void Message::updateMediaInBubbleState() {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto mediaHasSomethingBelow = (_viewButton != nullptr);
+	const auto reactionsInBubble = (_reactions && needInfoDisplay());
+	auto mediaHasSomethingBelow = (_viewButton != nullptr)
+		|| reactionsInBubble;
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
@@ -2490,10 +2570,13 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		}
 	}
+	const auto textWidth = qMax(contentWidth - st::msgPadding.left() - st::msgPadding.right(), 1);
+	const auto displayInfo = needInfoDisplay();
+	const auto reactionsInBubble = _reactions && displayInfo;
 	const auto bottomInfoHeight = _bottomInfo.resizeGetHeight(
 		std::min(
 			_bottomInfo.optimalSize().width(),
-			contentWidth - st::msgPadding.left() - st::msgPadding.right() - 2 * st::msgDateDelta.x()));
+			textWidth - 2 * st::msgDateDelta.x()));
 
 	if (bubble) {
 		auto reply = displayedReply();
@@ -2503,6 +2586,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+		if (reactionsInBubble) {
+			_reactions->resizeGetHeight(textWidth);
+		}
 
 		if (contentWidth == maxWidth()) {
 			if (mediaDisplayed) {
@@ -2515,7 +2602,6 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		} else {
 			if (hasVisibleText()) {
-				auto textWidth = qMax(contentWidth - st::msgPadding.left() - st::msgPadding.right(), 1);
 				if (textWidth != item->_textWidth) {
 					item->_textWidth = textWidth;
 					item->_textHeight = item->_text.countHeight(textWidth);
@@ -2541,6 +2627,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 			} else if (entry) {
 				newHeight += entry->resizeGetHeight(contentWidth);
 			}
+			if (reactionsInBubble) {
+				newHeight += st::mediaInBubbleSkip + _reactions->height();
+			}
 		}
 
 		if (displayFromName()) {
@@ -2564,7 +2653,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
-		if (needInfoDisplay()) {
+		if (displayInfo) {
 			newHeight += (bottomInfoHeight - st::msgDateFont->height);
 		}
 
@@ -2576,6 +2665,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 		newHeight = media->height();
 	} else {
 		newHeight = 0;
+	}
+	if (_reactions && !reactionsInBubble) {
+		newHeight += st::mediaInBubbleSkip + _reactions->resizeGetHeight(contentWidth);
 	}
 	if (const auto keyboard = item->inlineReplyKeyboard()) {
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
@@ -2591,9 +2683,6 @@ bool Message::needInfoDisplay() const {
 	const auto media = this->media();
 	const auto mediaDisplayed = media ? media->isDisplayed() : false;
 	const auto entry = logEntryOriginal();
-
-	// Entry page is always a bubble bottom.
-	const auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 	return entry
 		? !entry->customInfoLayout()
 		: (mediaDisplayed
@@ -2615,13 +2704,38 @@ QSize Message::performCountCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void Message::initTime() const {
+void Message::refreshInfoSkipBlock() {
 	const auto item = message();
-	if (item->_text.hasSkipBlock()) {
-		if (item->_text.updateSkipBlock(skipBlockWidth(), skipBlockHeight())) {
+	const auto media = this->media();
+	const auto hasTextSkipBlock = [&] {
+		if (item->_text.isEmpty()) {
+			return false;
+		} else if (item->Has<HistoryMessageLogEntryOriginal>()) {
+			return false;
+		} else if (media && media->isDisplayed()) {
+			return false;
+		} else if (_reactions) {
+			return false;
+		}
+		return true;
+	}();
+	const auto skipWidth = skipBlockWidth();
+	const auto skipHeight = skipBlockHeight();
+	if (_reactions) {
+		if (needInfoDisplay()) {
+			_reactions->updateSkipBlock(skipWidth, skipHeight);
+		} else {
+			_reactions->removeSkipBlock();
+		}
+	}
+	if (!hasTextSkipBlock) {
+		if (item->_text.removeSkipBlock()) {
 			item->_textWidth = -1;
 			item->_textHeight = 0;
 		}
+	} else if (item->_text.updateSkipBlock(skipWidth, skipHeight)) {
+		item->_textWidth = -1;
+		item->_textHeight = 0;
 	}
 }
 
