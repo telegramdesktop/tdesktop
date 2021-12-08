@@ -474,7 +474,6 @@ stage('mozjpeg', """
     cd mozjpeg
 win:
     cmake . ^
-        -G "Visual Studio 16 2019" ^
         -A %WIN32X64% ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
@@ -870,7 +869,6 @@ version: 2
     cd build
 win:
     cmake .. ^
-        -G "Visual Studio 16 2019" ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
