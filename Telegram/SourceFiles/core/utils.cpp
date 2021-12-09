@@ -86,7 +86,11 @@ namespace ThirdParty {
 	}
 
 	void finish() {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		EVP_default_properties_enable_fips(nullptr, 0);
+#else
 		FIPS_mode_set(0);
+#endif
 		CONF_modules_unload(1);
 
 		Platform::ThirdParty::finish();
