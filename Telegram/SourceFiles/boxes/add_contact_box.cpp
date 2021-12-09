@@ -418,32 +418,34 @@ void AddContactBox::save() {
 				MTP_string(lastName)))
 	)).done(crl::guard(this, [=](
 			const MTPcontacts_ImportedContacts &result) {
-		result.match([&](const MTPDcontacts_importedContacts &data) {
-			_session->data().processUsers(data.vusers());
-
-			const auto extractUser = [&](const MTPImportedContact &data) {
-				return data.match([&](const MTPDimportedContact &data) {
-					return (data.vclient_id().v == _contactId)
-						? _session->data().userLoaded(data.vuser_id())
-						: nullptr;
-				});
-			};
-			const auto &list = data.vimported().v;
-			const auto user = list.isEmpty()
-				? nullptr
-				: extractUser(list.front());
-			if (user) {
-				if (user->isContact() || user->session().supportMode()) {
-					Ui::showPeerHistory(user, ShowAtTheEndMsgId);
-				}
-				Ui::hideLayer();
-			} else if (isBoxShown()) {
-				hideChildren();
-				_retrying = true;
-				updateButtons();
-				update();
-			}
+		const auto &data = result.match([](
+				const auto &data) -> const MTPDcontacts_importedContacts& {
+			return data;
 		});
+		_session->data().processUsers(data.vusers());
+
+		const auto extractUser = [&](const MTPImportedContact &data) {
+			return data.match([&](const MTPDimportedContact &data) {
+				return (data.vclient_id().v == _contactId)
+					? _session->data().userLoaded(data.vuser_id())
+					: nullptr;
+			});
+		};
+		const auto &list = data.vimported().v;
+		const auto user = list.isEmpty()
+			? nullptr
+			: extractUser(list.front());
+		if (user) {
+			if (user->isContact() || user->session().supportMode()) {
+				Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+			}
+			Ui::hideLayer();
+		} else if (isBoxShown()) {
+			hideChildren();
+			_retrying = true;
+			updateButtons();
+			update();
+		}
 	})).send();
 }
 
