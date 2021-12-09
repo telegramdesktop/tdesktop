@@ -59,7 +59,7 @@ QString TimestampLinkBase(
 		FullMsgId context) {
 	return QString(
 		"media_timestamp?base=doc%1_%2_%3&t="
-	).arg(document->id).arg(context.channel.bare).arg(context.msg.bare);
+	).arg(document->id).arg(context.peer.value).arg(context.msg.bare);
 }
 
 TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {

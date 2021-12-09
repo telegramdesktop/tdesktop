@@ -439,8 +439,8 @@ bool OpenMediaTimestamp(
 		const auto parts = base.mid(3).split('_');
 		const auto documentId = parts.value(0).toULongLong();
 		const auto itemId = FullMsgId(
-			parts.value(1).toInt(),
-			parts.value(2).toInt());
+			PeerId(parts.value(1).toULongLong()),
+			MsgId(parts.value(2).toLongLong()));
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
 		session->settings().setMediaLastPlaybackPosition(

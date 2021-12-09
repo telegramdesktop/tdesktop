@@ -479,7 +479,7 @@ Fn<void()> SavePreparedTheme(
 	const auto api = &session->api();
 	const auto state = std::make_shared<State>();
 	state->id = FullMsgId(
-		0,
+		session->userPeerId(),
 		session->data().nextLocalMessageId());
 
 	const auto creating = !fields.id

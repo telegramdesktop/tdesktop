@@ -118,7 +118,7 @@ void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
 		std::move(image));
 
 	const auto fakeId = FullMsgId(
-		peerToChannel(peer->id),
+		peer->id,
 		_session->data().nextLocalMessageId());
 	const auto already = ranges::find(
 		_uploads,

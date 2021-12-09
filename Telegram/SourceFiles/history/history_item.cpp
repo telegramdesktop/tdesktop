@@ -285,7 +285,7 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 		return nullptr;
 	}
 	return _history->owner().message(
-		forwarded->savedFromPeer->asChannel(),
+		forwarded->savedFromPeer->id,
 		forwarded->savedFromMsgId);
 }
 
@@ -745,8 +745,8 @@ bool HistoryItem::hasDirectLink() const {
 	return isRegular() && _history->peer->isChannel();
 }
 
-ChannelId HistoryItem::channelId() const {
-	return _history->channelId();
+FullMsgId HistoryItem::fullId() const {
+	return FullMsgId(_history->peer->id, id);
 }
 
 Data::MessagePosition HistoryItem::position() const {

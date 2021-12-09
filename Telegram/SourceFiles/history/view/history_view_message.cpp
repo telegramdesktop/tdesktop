@@ -2318,7 +2318,9 @@ ClickHandlerPtr Message::rightActionLink() const {
 	const auto owner = &data()->history()->owner();
 	const auto itemId = data()->fullId();
 	const auto forwarded = data()->Get<HistoryMessageForwarded>();
-	const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
+	const auto savedFromPeer = forwarded
+		? forwarded->savedFromPeer
+		: nullptr;
 	const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
 
 	using Callback = FnMut<void(not_null<Window::SessionController*>)>;
@@ -2328,7 +2330,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 		*showByThread = [=, requested = 0](
 				not_null<Window::SessionController*> controller) mutable {
 			const auto original = savedFromPeer->owner().message(
-				savedFromPeer->asChannel(),
+				savedFromPeer,
 				savedFromMsgId);
 			if (original && original->replyToTop()) {
 				controller->showRepliesForMessage(
@@ -2337,14 +2339,12 @@ ClickHandlerPtr Message::rightActionLink() const {
 					original->id,
 					Window::SectionShow::Way::Forward);
 			} else if (!requested) {
-				const auto channel = savedFromPeer->asChannel();
 				const auto prequested = &requested;
 				requested = 1;
-				channel->session().api().requestMessageData(
-					channel,
+				savedFromPeer->session().api().requestMessageData(
+					savedFromPeer,
 					savedFromMsgId,
-					[=, weak = base::make_weak(controller.get())](
-							ChannelData *gotChannel, MsgId gotId) {
+					[=, weak = base::make_weak(controller.get())] {
 						if (const auto strong = showByThreadWeak.lock()) {
 							if (const auto strongController = weak.get()) {
 								*prequested = 2;

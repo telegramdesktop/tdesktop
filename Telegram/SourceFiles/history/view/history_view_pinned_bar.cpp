@@ -101,13 +101,9 @@ namespace {
 		consumer.put_next(Ui::MessageBarContent{
 			.text = { tr::lng_contacts_loading(tr::now) },
 		});
-		const auto channel = id.channel
-			? session->data().channel(id.channel).get()
-			: nullptr;
-		const auto callback = [=](ChannelData *channel, MsgId id) {
-			consumer.put_done();
-		};
-		session->api().requestMessageData(channel, id.msg, callback);
+		const auto peer = session->data().peer(id.peer);
+		const auto callback = [=] { consumer.put_done(); };
+		session->api().requestMessageData(peer, id.msg, callback);
 		return rpl::lifetime();
 	});
 	return std::move(

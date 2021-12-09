@@ -905,7 +905,7 @@ not_null<History*> ScheduledWidget::history() const {
 Dialogs::RowDescriptor ScheduledWidget::activeChat() const {
 	return {
 		_history,
-		FullMsgId(_history->channelId(), ShowAtUnreadMsgId)
+		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
 	};
 }
 

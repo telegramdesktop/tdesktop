@@ -95,9 +95,8 @@ void ViewsManager::done(
 			if (id != requestId) {
 				continue;
 			}
-			const auto channel = peerToChannel(peer->id);
 			for (auto j = 0, l = int(ids.size()); j < l; ++j) {
-				if (const auto item = owner.message(channel, ids[j].v)) {
+				if (const auto item = owner.message(peer->id, ids[j].v)) {
 					v[j].match([&](const MTPDmessageViews &data) {
 						if (const auto views = data.vviews()) {
 							item->setViewsCount(views->v);

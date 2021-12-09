@@ -730,7 +730,7 @@ void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 }
 
 void Updates::requestChannelRangeDifference(not_null<History*> history) {
-	Expects(history->isChannel());
+	Expects(history->peer->isChannel());
 
 	const auto channel = history->peer->asChannel();
 	if (const auto requestId = _rangeDifferenceRequests.take(channel)) {
@@ -1181,7 +1181,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		const auto &d = update.c_updateReadMessagesContents();
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
-			if (const auto item = _session->data().message(NoChannel, msgId.v)) {
+			if (const auto item = _session->data().nonChannelMessage(msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					_session->data().requestItemRepaint(item);
@@ -1249,7 +1249,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
-		_session->data().processMessagesDeleted(NoChannel, d.vmessages().v);
+		_session->data().processNonChannelMessagesDeleted(d.vmessages().v);
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
@@ -1278,9 +1278,9 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updatePinnedChannelMessages: {
 		const auto &d = update.c_updatePinnedChannelMessages();
-		const auto channelId = d.vchannel_id().v;
+		const auto peerId = peerFromChannel(d.vchannel_id());
 		for (const auto &msgId : d.vmessages().v) {
-			const auto item = session().data().message(channelId, msgId.v);
+			const auto item = session().data().message(peerId, msgId.v);
 			if (item) {
 				item->setIsPinned(d.is_pinned());
 			}
@@ -1299,13 +1299,16 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateDeleteChannelMessages: {
 		auto &d = update.c_updateDeleteChannelMessages();
-		_session->data().processMessagesDeleted(d.vchannel_id().v, d.vmessages().v);
+		_session->data().processMessagesDeleted(
+			peerFromChannel(d.vchannel_id().v),
+			d.vmessages().v);
 	} break;
 
 	case mtpc_updatePinnedMessages: {
 		const auto &d = update.c_updatePinnedMessages();
+		const auto peerId = peerFromMTP(d.vpeer());
 		for (const auto &msgId : d.vmessages().v) {
-			const auto item = session().data().message(0, msgId.v);
+			const auto item = session().data().message(peerId, msgId.v);
 			if (item) {
 				item->setIsPinned(d.is_pinned());
 			}
@@ -1424,7 +1427,7 @@ void Updates::applyUpdates(
 			const auto sent = owner.messageSentData(randomId);
 			const auto lookupMessage = [&] {
 				return sent.peerId
-					? owner.message(peerToChannel(sent.peerId), d.vid().v)
+					? owner.message(sent.peerId, d.vid().v)
 					: nullptr;
 			};
 			if (const auto id = owner.messageIdByRandomId(randomId)) {
@@ -1439,9 +1442,9 @@ void Updates::applyUpdates(
 				const auto list = d.ventities();
 				if (list && !MentionUsersLoaded(&session(), *list)) {
 					session().api().requestMessageData(
-						item->history()->peer->asChannel(),
+						item->history()->peer,
 						item->id,
-						ApiWrap::RequestMessageDataCallback());
+						nullptr);
 				}
 				item->applySentMessage(sent.text, d, wasAlready);
 			}
@@ -1527,9 +1530,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				if (local->isScheduled()) {
 					session().data().scheduledMessages().apply(d, local);
 				} else {
-					const auto channel = id.channel;
 					const auto existing = session().data().message(
-						channel,
+						id.peer,
 						newId);
 					if (existing && !local->mainView()) {
 						const auto history = local->history();
@@ -1566,7 +1568,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
-			if (auto item = session().data().message(channel, msgId.v)) {
+			if (auto item = session().data().message(channel->id, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					session().data().requestItemRepaint(item);
@@ -2146,24 +2148,26 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelMessageViews: {
 		const auto &d = update.c_updateChannelMessageViews();
-		if (const auto item = session().data().message(d.vchannel_id().v, d.vid().v)) {
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto item = session().data().message(peerId, d.vid().v)) {
 			item->setViewsCount(d.vviews().v);
 		}
 	} break;
 
 	case mtpc_updateChannelMessageForwards: {
 		const auto &d = update.c_updateChannelMessageForwards();
-		if (const auto item = session().data().message(d.vchannel_id().v, d.vid().v)) {
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto item = session().data().message(peerId, d.vid().v)) {
 			item->setForwardsCount(d.vforwards().v);
 		}
 	} break;
 
 	case mtpc_updateReadChannelDiscussionInbox: {
 		const auto &d = update.c_updateReadChannelDiscussionInbox();
-		const auto channelId = d.vchannel_id().v;
+		const auto peerId = peerFromChannel(d.vchannel_id());
 		const auto msgId = d.vtop_msg_id().v;
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(channelId, msgId);
+		const auto item = session().data().message(peerId, msgId);
 		const auto unreadCount = item
 			? session().data().countUnreadRepliesLocally(item, readTillId)
 			: std::nullopt;
@@ -2175,7 +2179,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 		if (const auto broadcastId = d.vbroadcast_id()) {
 			if (const auto post = session().data().message(
-					broadcastId->v,
+					peerFromChannel(*broadcastId),
 					d.vbroadcast_post()->v)) {
 				post->setRepliesInboxReadTill(readTillId, unreadCount);
 			}
@@ -2184,10 +2188,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadChannelDiscussionOutbox: {
 		const auto &d = update.c_updateReadChannelDiscussionOutbox();
-		const auto channelId = d.vchannel_id().v;
+		const auto peerId = peerFromChannel(d.vchannel_id());
 		const auto msgId = d.vtop_msg_id().v;
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(channelId, msgId);
+		const auto item = session().data().message(peerId, msgId);
 		if (item) {
 			item->setRepliesOutboxReadTill(readTillId);
 			if (const auto post = item->lookupDiscussionPostOriginal()) {

@@ -72,7 +72,7 @@ bool SponsoredMessages::append(not_null<History*> history) {
 	}
 
 	const auto flags = MessageFlags(0)
-		| (history->isChannel() ? MessageFlag::Post : MessageFlags(0))
+		| (history->peer->isChannel() ? MessageFlag::Post : MessageFlags(0))
 		| MessageFlag::HasFromId
 		| MessageFlag::IsSponsored
 		| MessageFlag::Local;
@@ -93,7 +93,7 @@ bool SponsoredMessages::append(not_null<History*> history) {
 }
 
 bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
-	return history->isChannel();
+	return history->peer->isChannel();
 }
 
 void SponsoredMessages::request(not_null<History*> history) {
@@ -189,11 +189,10 @@ void SponsoredMessages::clearItems(not_null<History*> history) {
 
 const SponsoredMessages::Entry *SponsoredMessages::find(
 		const FullMsgId &fullId) const {
-	if (!fullId.channel) {
+	if (!peerIsChannel(fullId.peer)) {
 		return nullptr;
 	}
-	const auto history = _session->data().history(
-		peerFromChannel(fullId.channel));
+	const auto history = _session->data().history(fullId.peer);
 	const auto it = _data.find(history);
 	if (it == end(_data)) {
 		return nullptr;

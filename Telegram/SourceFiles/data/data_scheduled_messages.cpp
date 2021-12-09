@@ -145,7 +145,7 @@ HistoryItem *ScheduledMessages::lookupItem(PeerId peer, MsgId msg) const {
 }
 
 HistoryItem *ScheduledMessages::lookupItem(FullMsgId itemId) const {
-	return lookupItem(peerFromChannel(itemId.channel), itemId.msg);
+	return lookupItem(itemId.peer, itemId.msg);
 }
 
 int ScheduledMessages::count(not_null<History*> history) const {

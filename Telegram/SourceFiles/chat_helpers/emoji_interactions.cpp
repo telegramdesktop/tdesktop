@@ -164,7 +164,7 @@ void EmojiInteractions::startIncoming(
 	if (!peer->isUser() || bunch.interactions.empty()) {
 		return;
 	}
-	const auto item = _session->data().message(nullptr, messageId);
+	const auto item = _session->data().message(peer->id, messageId);
 	if (!item || !item->isRegular()) {
 		return;
 	}

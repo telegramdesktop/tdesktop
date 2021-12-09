@@ -376,8 +376,8 @@ void SessionNavigation::showRepliesForMessage(
 	}
 	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
 
-	const auto channelId = history->channelId();
-	//const auto item = _session->data().message(channelId, rootId);
+	const auto postPeer = history->peer;
+	//const auto item = _session->data().message(postPeer, rootId);
 	//if (!commentId && (!item || !item->repliesAreComments())) {
 	//	showSection(std::make_shared<HistoryView::RepliesMemento>(history, rootId));
 	//	return;
@@ -411,9 +411,7 @@ void SessionNavigation::showRepliesForMessage(
 			if (!peer || !id) {
 				return;
 			}
-			auto item = _session->data().message(
-				peerToChannel(peer),
-				id);
+			auto item = _session->data().message(peer, id);
 			if (const auto group = _session->data().groups().find(item)) {
 				item = group->items.front();
 			}
@@ -426,8 +424,8 @@ void SessionNavigation::showRepliesForMessage(
 					data.vunread_count().v);
 				item->setRepliesOutboxReadTill(
 					data.vread_outbox_max_id().value_or_empty());
-				const auto post = _session->data().message(channelId, rootId);
-				if (post && item->history()->channelId() != channelId) {
+				const auto post = _session->data().message(postPeer, rootId);
+				if (post && item->history()->peer != postPeer) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
 						post->setRepliesMaxId(maxId->v);

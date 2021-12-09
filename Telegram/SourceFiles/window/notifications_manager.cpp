@@ -296,9 +296,7 @@ void System::checkDelayed() {
 			}
 		}
 		if (loaded) {
-			const auto fullId = FullMsgId(
-				history->channelId(),
-				i->second.msg);
+			const auto fullId = FullMsgId(history->peer->id, i->second.msg);
 			if (const auto item = peer->owner().message(fullId)) {
 				if (!item->notificationReady()) {
 					loaded = false;
@@ -677,9 +675,7 @@ void Manager::openNotificationMessage(
 		if (history->peer->isUser() || history->peer->isChannel()) {
 			return false;
 		}
-		const auto item = history->owner().message(
-			history->channelId(),
-			messageId);
+		const auto item = history->owner().message(history->peer, messageId);
 		if (!item || !item->isRegular() || !item->mentionsMe()) {
 			return false;
 		}
@@ -714,9 +710,7 @@ void Manager::notificationReplied(
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
-	const auto item = history->owner().message(
-		history->channelId(),
-		id.msgId);
+	const auto item = history->owner().message(history->peer, id.msgId);
 	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
 		history->session().api().markMediaRead(item);
 	}

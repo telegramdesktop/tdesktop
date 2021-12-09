@@ -4742,7 +4742,7 @@ void OverlayWidget::updateHeader() {
 			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		} else if (_user) {
 			_headerText = tr::lng_mediaview_profile_photo(tr::now);
-		} else if ((_history && _history->channelId() && !_history->isMegagroup())
+		} else if ((_history && _history->peer->isBroadcast())
 			|| (_peer && _peer->isChannel() && !_peer->isMegagroup())) {
 			_headerText = tr::lng_mediaview_channel_photo(tr::now);
 		} else if (_peer) {

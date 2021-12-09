@@ -26,9 +26,9 @@ namespace {
 	if (!top) {
 		return false;
 	} else if (peer == migrated) {
-		return top.channel || (id < top.msg);
+		return peerIsChannel(top.peer) || (id < top.msg);
 	} else if (migrated) {
-		return top.channel && (id < top.msg);
+		return peerIsChannel(top.peer) && (id < top.msg);
 	} else {
 		return (id < top.msg);
 	}

@@ -100,12 +100,10 @@ private:
 	}
 
 	static bool IsFromSlice(PeerId peerId, FullMsgId fullId) {
-		return peerIsChannel(peerId)
-			? (peerId == peerFromChannel(fullId.channel))
-			: !fullId.channel;
+		return (peerId == fullId.peer);
 	}
 	static FullMsgId ComputeId(PeerId peerId, MsgId msgId) {
-		return FullMsgId(peerToChannel(peerId), msgId);
+		return FullMsgId(peerId, msgId);
 	}
 	static FullMsgId ComputeId(const Key &key) {
 		return (key.universalId >= 0)

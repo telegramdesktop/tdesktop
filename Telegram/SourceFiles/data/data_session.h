@@ -348,18 +348,21 @@ public:
 	void processExistingMessages(
 		ChannelData *channel,
 		const MTPmessages_Messages &data);
+	void processNonChannelMessagesDeleted(const QVector<MTPint> &data);
 	void processMessagesDeleted(
-		ChannelId channelId,
+		PeerId peerId,
 		const QVector<MTPint> &data);
 
 	[[nodiscard]] MsgId nextLocalMessageId();
 	[[nodiscard]] HistoryItem *message(
-		ChannelId channelId,
+		PeerId peerId,
 		MsgId itemId) const;
 	[[nodiscard]] HistoryItem *message(
-		const ChannelData *channel,
+		not_null<const PeerData*> peer,
 		MsgId itemId) const;
 	[[nodiscard]] HistoryItem *message(FullMsgId itemId) const;
+
+	[[nodiscard]] HistoryItem *nonChannelMessage(MsgId itemId) const;
 
 	void updateDependentMessages(not_null<HistoryItem*> item);
 	void registerDependentMessage(
@@ -698,11 +701,11 @@ private:
 		Data::Folder *requestFolder,
 		const MTPDdialogFolder &data);
 
-	const Messages *messagesList(ChannelId channelId) const;
-	not_null<Messages*> messagesListForInsert(ChannelId channelId);
+	const Messages *messagesList(PeerId peerId) const;
+	not_null<Messages*> messagesListForInsert(PeerId peerId);
 	not_null<HistoryItem*> registerMessage(
 		std::unique_ptr<HistoryItem> item);
-	void changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId);
+	void changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
 	void removeDependencyMessage(not_null<HistoryItem*> item);
 
 	void photoApplyFields(
@@ -848,13 +851,14 @@ private:
 	Dialogs::IndexedList _contactsNoChatsList;
 
 	MsgId _localMessageIdCounter = StartClientMsgId;
-	Messages _messages;
-	std::map<ChannelId, Messages> _channelMessages;
+	std::unordered_map<PeerId, Messages> _messages;
 	std::map<
 		not_null<HistoryItem*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
+
+	std::unordered_map<MsgId, not_null<HistoryItem*>> _nonChannelMessages;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;

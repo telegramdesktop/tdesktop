@@ -69,7 +69,7 @@ void CheckoutProcess::Start(
 		return;
 	}
 	const auto id = (invoice && invoice->receiptMsgId)
-		? FullMsgId(item->history()->channelId(), invoice->receiptMsgId)
+		? FullMsgId(item->history()->peer->id, invoice->receiptMsgId)
 		: item->fullId();
 	if (invoice) {
 		mode = invoice->receiptMsgId ? Mode::Receipt : Mode::Payment;

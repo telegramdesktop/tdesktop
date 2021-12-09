@@ -605,8 +605,8 @@ bool HistoryService::updateDependent(bool force) {
 	if (!dependent->msg) {
 		dependent->msg = history()->owner().message(
 			(dependent->peerId
-				? peerToChannel(dependent->peerId)
-				: channelId()),
+				? dependent->peerId
+				: _history->peer->id),
 			dependent->msgId);
 		if (dependent->msg) {
 			if (dependent->msg->isEmpty()) {
@@ -1245,14 +1245,14 @@ HistoryService::PreparedText GenerateJoinedText(
 	if (inviter->id != history->session().userPeerId()) {
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(inviter->createOpenLink());
-		result.text = (history->isMegagroup()
+		result.text = (history->peer->isMegagroup()
 			? tr::lng_action_add_you_group
 			: tr::lng_action_add_you)(
 				tr::now,
 				lt_from,
 				textcmdLink(1, inviter->name));
 		return result;
-	} else if (history->isMegagroup()) {
+	} else if (history->peer->isMegagroup()) {
 		if (viaRequest) {
 			return { tr::lng_action_you_joined_by_request(tr::now) };
 		}

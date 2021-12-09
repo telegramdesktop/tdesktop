@@ -356,16 +356,15 @@ void RequestDependentMessageData(
 	const auto fullId = item->fullId();
 	const auto history = item->history();
 	const auto session = &history->session();
+	const auto done = [=] {
+		if (const auto item = session->data().message(fullId)) {
+			item->updateDependencyItem();
+		}
+	};
 	history->session().api().requestMessageData(
-		(peerIsChannel(peerId)
-			? history->owner().channel(peerToChannel(peerId)).get()
-			: history->peer->asChannel()),
+		(peerId ? history->owner().peer(peerId) : history->peer),
 		msgId,
-		[=](ChannelData *channel, MsgId msgId) {
-			if (const auto item = session->data().message(fullId)) {
-				item->updateDependencyItem();
-			}
-		});
+		done);
 }
 
 MessageFlags NewMessageFlags(not_null<PeerData*> peer) {
@@ -384,7 +383,7 @@ bool ShouldSendSilent(
 
 MsgId LookupReplyToTop(not_null<History*> history, MsgId replyToId) {
 	const auto &owner = history->owner();
-	if (const auto item = owner.message(history->channelId(), replyToId)) {
+	if (const auto item = owner.message(history->peer, replyToId)) {
 		return item->replyToTop();
 	}
 	return 0;
@@ -977,25 +976,28 @@ bool HistoryMessage::areRepliesUnread() const {
 
 FullMsgId HistoryMessage::commentsItemId() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return FullMsgId(views->commentsMegagroupId, views->commentsRootId);
+		return FullMsgId(
+			PeerId(views->commentsMegagroupId),
+			views->commentsRootId);
 	}
 	return FullMsgId();
 }
 
 void HistoryMessage::setCommentsItemId(FullMsgId id) {
-	if (id.channel == _history->channelId()) {
+	if (id.peer == _history->peer->id) {
 		if (id.msg != this->id) {
 			if (const auto reply = Get<HistoryMessageReply>()) {
 				reply->replyToMsgTop = id.msg;
 			}
 		}
-		return;
 	} else if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsMegagroupId != id.channel) {
-			views->commentsMegagroupId = id.channel;
-			history()->owner().requestItemResize(this);
+		if (const auto channelId = peerToChannel(id.peer)) {
+			if (views->commentsMegagroupId != channelId) {
+				views->commentsMegagroupId = channelId;
+				history()->owner().requestItemResize(this);
+			}
+			views->commentsRootId = id.msg;
 		}
-		views->commentsRootId = id.msg;
 	}
 }
 
@@ -1966,13 +1968,11 @@ void HistoryMessage::changeReplyToTopCounter(
 	if (!isRegular() || !reply->replyToTop()) {
 		return;
 	}
-	const auto channelId = history()->channelId();
-	if (!channelId) {
+	const auto peerId = _history->peer->id;
+	if (!peerIsChannel(peerId)) {
 		return;
 	}
-	const auto top = history()->owner().message(
-		channelId,
-		reply->replyToTop());
+	const auto top = _history->owner().message(peerId, reply->replyToTop());
 	if (!top) {
 		return;
 	}

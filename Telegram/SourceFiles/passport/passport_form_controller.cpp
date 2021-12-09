@@ -1592,7 +1592,7 @@ void FormController::uploadEncryptedFile(
 	prepared->filemd5 = file.uploadData->md5checksum;
 
 	file.uploadData->fullId = FullMsgId(
-		0,
+		session().userPeerId(),
 		session().data().nextLocalMessageId());
 	file.uploadData->status.set(LoadStatus::Status::InProgress, 0);
 	session().uploader().upload(

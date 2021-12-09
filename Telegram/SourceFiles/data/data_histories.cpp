@@ -469,7 +469,7 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 				result);
 			_chatListGroupRequests.remove(history);
 			history->migrateToOrMe()->applyChatListGroup(
-				history->channelId(),
+				history->peer->id,
 				result);
 			finish();
 		}).fail([=] {

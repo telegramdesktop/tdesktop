@@ -245,11 +245,12 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		return false;
 	}
 
-	if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
+	const auto peerId = to->history()->peer->id;
+	if (_wasForMsgId == FullMsgId(peerId, to->id) && !force) {
 		return false;
 	}
 
-	_wasForMsgId = FullMsgId(to->channelId(), to->id);
+	_wasForMsgId = FullMsgId(peerId, to->id);
 
 	auto markupFlags = to->replyKeyboardFlags();
 	_forceReply = markupFlags & ReplyMarkupFlag::ForceReply;

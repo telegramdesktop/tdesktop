@@ -366,7 +366,7 @@ not_null<HistoryItem*> History::createItem(
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		bool detachExistingItem) {
-	if (const auto result = owner().message(channelId(), id)) {
+	if (const auto result = owner().message(peer, id)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
@@ -2174,7 +2174,7 @@ bool History::isReadyFor(MsgId msgId) {
 		}
 		return loadedAtBottom();
 	}
-	const auto item = owner().message(channelId(), msgId);
+	const auto item = owner().message(peer, msgId);
 	return item && (item->history() == this) && item->mainView();
 }
 
@@ -2446,15 +2446,15 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 }
 
 void History::applyChatListGroup(
-		ChannelId channelId,
+		PeerId dataPeerId,
 		const MTPmessages_Messages &data) {
 	if (!isEmpty()
 		|| !_chatListMessage
 		|| !*_chatListMessage
-		|| (*_chatListMessage)->history()->channelId() != channelId
 		|| (*_chatListMessage)->history() != this
 		|| !_lastMessage
-		|| !*_lastMessage) {
+		|| !*_lastMessage
+		|| dataPeerId != peer->id) {
 		return;
 	}
 	// Apply loaded album as a last slice.
@@ -2463,7 +2463,7 @@ void History::applyChatListGroup(
 		items.reserve(messages.v.size());
 		for (const auto &message : messages.v) {
 			const auto id = IdFromMessage(message);
-			if (const auto message = owner().message(channelId, id)) {
+			if (const auto message = owner().message(dataPeerId, id)) {
 				items.push_back(message);
 			}
 		}
@@ -2584,7 +2584,7 @@ void History::applyDialog(
 		}
 		if (!channel->amCreator()) {
 			const auto topMessageId = FullMsgId(
-				peerToChannel(channel->id),
+				channel->id,
 				data.vtop_message().v);
 			if (const auto item = owner().message(topMessageId)) {
 				if (item->date() <= channel->date) {
@@ -2719,9 +2719,7 @@ void History::applyDialogFields(
 
 void History::applyDialogTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
-		const auto itemId = FullMsgId(
-			channelId(),
-			topMessageId);
+		const auto itemId = FullMsgId(peer->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
 		} else {
@@ -2824,18 +2822,6 @@ void History::resizeToWidth(int newWidth) {
 void History::forceFullResize() {
 	_width = 0;
 	_flags |= Flag::f_has_pending_resized_items;
-}
-
-ChannelId History::channelId() const {
-	return peerToChannel(peer->id);
-}
-
-bool History::isChannel() const {
-	return peerIsChannel(peer->id);
-}
-
-bool History::isMegagroup() const {
-	return peer->isMegagroup();
 }
 
 not_null<History*> History::migrateToOrMe() const {
@@ -2964,7 +2950,7 @@ void History::checkLocalMessages() {
 			insertMessageToBlocks(item);
 		}
 	}
-	if (isChannel()
+	if (peer->isChannel()
 		&& !_joinedMessage
 		&& peer->asChannel()->inviter
 		&& goodDate(peer->asChannel()->inviteDate)) {

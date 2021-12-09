@@ -391,10 +391,7 @@ public:
 
 	[[nodiscard]] bool hasDirectLink() const;
 
-	[[nodiscard]] ChannelId channelId() const;
-	[[nodiscard]] FullMsgId fullId() const {
-		return FullMsgId(channelId(), id);
-	}
+	[[nodiscard]] FullMsgId fullId() const;
 	[[nodiscard]] Data::MessagePosition position() const;
 	[[nodiscard]] TimeId date() const;
 
