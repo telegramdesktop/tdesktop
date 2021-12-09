@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
@@ -280,7 +281,7 @@ void TopBarWidget::showMenu() {
 	if (!_activeChat.key || _menu) {
 		return;
 	}
-	_menu.create(parentWidget());
+	_menu.create(parentWidget(), st::dropdownMenuWithIcons);
 	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
@@ -300,9 +301,10 @@ void TopBarWidget::showMenu() {
 	}));
 	_menuToggle->installEventFilter(_menu);
 	const auto addAction = [&](
-		const QString &text,
-		Fn<void()> callback) {
-		return _menu->addAction(text, std::move(callback));
+			const QString &text,
+			Fn<void()> callback,
+			const style::icon *icon) {
+		return _menu->addAction(text, std::move(callback), icon);
 	};
 	Window::FillDialogsEntryMenu(
 		_controller,

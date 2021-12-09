@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // st::boxDividerLabel.
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtCore/QMimeData>
@@ -349,28 +350,36 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	});
 
 	const auto createMenu = [=] {
-		auto result = base::make_unique_q<Ui::PopupMenu>(container);
+		auto result = base::make_unique_q<Ui::PopupMenu>(
+			container,
+			st::popupMenuWithIcons);
 		if (revoked) {
 			result->addAction(
 				tr::lng_group_invite_context_delete(tr::now),
-				deleteLink);
+				deleteLink,
+				&st::menuIconDelete);
 		} else {
 			result->addAction(
 				tr::lng_group_invite_context_copy(tr::now),
-				copyLink);
+				copyLink,
+				&st::menuIconCopy);
 			result->addAction(
 				tr::lng_group_invite_context_share(tr::now),
-				shareLink);
+				shareLink,
+				&st::menuIconShare);
 			result->addAction(
 				tr::lng_group_invite_context_qr(tr::now),
-				getLinkQr);
+				getLinkQr,
+				&st::menuIconQrCode);
 			if (!admin->isBot()) {
 				result->addAction(
 					tr::lng_group_invite_context_edit(tr::now),
-					editLink);
+					editLink,
+					&st::menuIconEdit);
 				result->addAction(
 					tr::lng_group_invite_context_revoke(tr::now),
-					revokeLink);
+					revokeLink,
+					&st::menuIconRemove);
 			}
 		}
 		return result;
@@ -745,16 +754,18 @@ base::unique_qptr<Ui::PopupMenu> Controller::createRowContextMenu(
 	const auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
 	const auto add = _peer->isBroadcast()
 		? tr::lng_group_requests_add_channel(tr::now)
 		: tr::lng_group_requests_add(tr::now);
 	result->addAction(add, [=] {
 		processRequest(user, true);
-	});
+	}, &st::menuIconInvite);
 	result->addAction(tr::lng_group_requests_dismiss(tr::now), [=] {
 		processRequest(user, false);
-	});
+	}, &st::menuIconRemove);
 	return result;
 }
 
@@ -960,20 +971,26 @@ void AddPermanentLinkBlock(
 			: data.link;
 	});
 	const auto createMenu = [=] {
-		auto result = base::make_unique_q<Ui::PopupMenu>(container);
+		auto result = base::make_unique_q<Ui::PopupMenu>(
+			container,
+			st::popupMenuWithIcons);
 		result->addAction(
 			tr::lng_group_invite_context_copy(tr::now),
-			copyLink);
+			copyLink,
+			&st::menuIconCopy);
 		result->addAction(
 			tr::lng_group_invite_context_share(tr::now),
-			shareLink);
+			shareLink,
+			&st::menuIconShare);
 		result->addAction(
 			tr::lng_group_invite_context_qr(tr::now),
-			getLinkQr);
+			getLinkQr,
+			&st::menuIconQrCode);
 		if (!admin->isBot()) {
 			result->addAction(
 				tr::lng_group_invite_context_revoke(tr::now),
-				revokeLink);
+				revokeLink,
+				&st::menuIconRemove);
 		}
 		return result;
 	};

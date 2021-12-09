@@ -37,7 +37,8 @@ class SessionNavigation;
 
 using PeerMenuCallback = Fn<QAction*(
 	const QString &text,
-	Fn<void()> handler)>;
+	Fn<void()> handler,
+	const style::icon *icon)>;
 
 void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,

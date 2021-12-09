@@ -37,12 +37,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
 #include "base/random.h"
+#include "base/qt_adapters.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
-#include "base/qt_adapters.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -1190,7 +1191,9 @@ void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		? _sendMenuType()
 		: SendMenu::Type::Disabled;
 	const auto method = FieldAutocomplete::ChooseMethod::ByClick;
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 
 	const auto send = [=](Api::SendOptions options) {
 		chooseAtIndex(method, index, options);

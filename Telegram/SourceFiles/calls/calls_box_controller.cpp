@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // st::boxLabel.
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Calls {
 namespace {
@@ -356,12 +357,14 @@ base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
 	const auto session = &this->session();
 	const auto ids = session->data().itemsToIds(items);
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
 	result->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		_window->show(
 			Box<DeleteMessagesBox>(session, base::duplicate(ids)),
 			Ui::LayerOption::KeepOther);
-	});
+	}, &st::menuIconDelete);
 	return result;
 }
 

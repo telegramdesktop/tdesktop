@@ -50,10 +50,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "api/api_chat_filters.h"
+#include "base/qt_adapters.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-#include "base/qt_adapters.h"
+#include "styles/style_menu_icons.h"
 
 namespace Dialogs {
 namespace {
@@ -1760,7 +1761,9 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 		mousePressReleased(e->globalPos(), _pressButton);
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		row.fullId ? st::defaultPopupMenu : st::popupMenuWithIcons);
 	if (row.fullId) {
 		if (session().supportMode()) {
 			fillSupportSearchMenu(_menu.get());
@@ -1775,8 +1778,11 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				.section = Dialogs::EntryState::Section::ChatsList,
 				.filterId = _filterId,
 			},
-			[&](const QString &text, Fn<void()> callback) {
-				return _menu->addAction(text, std::move(callback));
+			[&](
+					const QString &text,
+					Fn<void()> callback,
+					const style::icon *icon) {
+				return _menu->addAction(text, std::move(callback), icon);
 			});
 	}
 	connect(_menu.get(), &QObject::destroyed, [=] {

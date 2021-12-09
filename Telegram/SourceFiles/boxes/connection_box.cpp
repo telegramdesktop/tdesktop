@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -496,7 +497,9 @@ void ProxyRow::showMenu() {
 	if (_menu) {
 		return;
 	}
-	_menu = base::make_unique_q<Ui::DropdownMenu>(window());
+	_menu = base::make_unique_q<Ui::DropdownMenu>(
+		window(),
+		st::dropdownMenuWithIcons);
 	const auto weak = _menu.get();
 	_menu->setHiddenCallback([=] {
 		weak->deleteLater();
@@ -517,25 +520,26 @@ void ProxyRow::showMenu() {
 	_menuToggle->installEventFilter(_menu);
 	const auto addAction = [&](
 			const QString &text,
-			Fn<void()> callback) {
+			Fn<void()> callback,
+			const style::icon *icon) {
 		return _menu->addAction(text, std::move(callback));
 	};
 	addAction(tr::lng_proxy_menu_edit(tr::now), [=] {
 		_editClicks.fire({});
-	});
+	}, &st::menuIconEdit);
 	if (_view.supportsShare) {
 		addAction(tr::lng_proxy_edit_share(tr::now), [=] {
 			_shareClicks.fire({});
-		});
+		}, &st::menuIconShare);
 	}
 	if (_view.deleted) {
 		addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 			_restoreClicks.fire({});
-		});
+		}, &st::menuIconDelete);
 	} else {
 		addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 			_deleteClicks.fire({});
-		});
+		}, &st::menuIconDelete);
 	}
 	const auto parentTopLeft = window()->mapToGlobal(QPoint());
 	const auto buttonTopLeft = _menuToggle->mapToGlobal(QPoint());

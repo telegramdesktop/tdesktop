@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -583,21 +584,23 @@ void CloudList::showMenu(Element &element) {
 		_contextMenu = nullptr;
 		return;
 	}
-	_contextMenu = base::make_unique_q<Ui::PopupMenu>(element.button.get());
+	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+		element.button.get(),
+		st::popupMenuWithIcons);
 	const auto cloud = element.theme;
 	if (const auto slug = element.theme.slug; !slug.isEmpty()) {
 		_contextMenu->addAction(tr::lng_theme_share(tr::now), [=] {
 			QGuiApplication::clipboard()->setText(
 				_window->session().createInternalLinkFull("addtheme/" + slug));
 			Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
-		});
+		}, &st::menuIconShare);
 	}
 	if (cloud.documentId
 		&& cloud.createdBy == _window->session().userId()
 		&& Background()->themeObject().cloud.id == cloud.id) {
 		_contextMenu->addAction(tr::lng_theme_edit(tr::now), [=] {
 			StartEditor(&_window->window(), cloud);
-		});
+		}, &st::menuIconChangeColors);
 	}
 	const auto id = cloud.id;
 	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
@@ -621,7 +624,7 @@ void CloudList::showMenu(Element &element) {
 			tr::lng_theme_delete_sure(tr::now),
 			tr::lng_theme_delete(tr::now),
 			remove));
-	});
+	}, &st::menuIconDelete);
 	_contextMenu->popup(QCursor::pos());
 }
 

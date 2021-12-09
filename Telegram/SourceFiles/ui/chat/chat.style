@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
+using "ui/menu_icons.style";
 
 MessageBar {
 	title: TextStyle;
@@ -904,13 +905,13 @@ defaultWhoRead: WhoRead {
 	photoSize: 30px;
 	photoSkip: 5px;
 	nameLeft: 57px;
-	iconPosition: point(14px, 9px);
-	itemPadding: margins(38px, 8px, 17px, 6px);
+	iconPosition: point(22px, 11px);
+	itemPadding: margins(61px, 9px, 17px, 7px);
 }
-whoReadMenu: PopupMenu(defaultPopupMenu) {
+whoReadMenu: PopupMenu(popupMenuWithIcons) {
 	scrollPadding: margins(0px, 6px, 0px, 6px);
 	maxHeight: 387px;
-	menu: Menu(defaultMenu) {
+	menu: Menu(menuWithIcons) {
 		separatorPadding: margins(0px, 6px, 0px, 8px);
 	}
 }

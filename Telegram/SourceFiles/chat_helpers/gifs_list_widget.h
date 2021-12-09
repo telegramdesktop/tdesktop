@@ -41,7 +41,7 @@ enum class Type;
 namespace ChatHelpers {
 
 void AddGifAction(
-	Fn<void(QString, Fn<void()> &&)> callback,
+	Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
 	not_null<DocumentData*> document);
 
 class GifsListWidget

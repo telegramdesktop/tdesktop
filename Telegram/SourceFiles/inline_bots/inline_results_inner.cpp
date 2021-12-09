@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "history/view/history_view_cursor_state.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -296,7 +297,9 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		? _sendMenuType()
 		: SendMenu::Type::Disabled;
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 
 	const auto send = [=, selected = _selected](Api::SendOptions options) {
 		selectInlineResult(selected, options, false);
@@ -309,8 +312,11 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 
 	const auto item = _mosaic.itemAt(_selected);
 	if (const auto previewDocument = item->getPreviewDocument()) {
-		auto callback = [&](const QString &text, Fn<void()> &&done) {
-			_menu->addAction(text, std::move(done));
+		auto callback = [&](
+				const QString &text,
+				Fn<void()> &&done,
+				const style::icon *icon) {
+			_menu->addAction(text, std::move(done), icon);
 		};
 		ChatHelpers::AddGifAction(std::move(callback), previewDocument);
 	}

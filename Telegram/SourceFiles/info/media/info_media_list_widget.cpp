@@ -36,8 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "styles/style_overview.h"
-#include "styles/style_info.h"
 #include "base/platform/base_platform_info.h"
 #include "base/weak_ptr.h"
 #include "media/player/media_player_instance.h"
@@ -45,6 +43,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
 #include "facades.h"
+#include "styles/style_overview.h"
+#include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -1580,14 +1581,17 @@ void ListWidget::showContextMenu(
 
 	const auto itemFullId = item->fullId();
 	const auto owner = &session().data();
-	_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
+	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 	_contextMenu->addAction(
 		tr::lng_context_to_msg(tr::now),
 		[=] {
 			if (const auto item = owner->message(itemFullId)) {
 				_controller->parentController()->showPeerHistoryAtItem(item);
 			}
-		});
+		},
+		&st::menuIconShowInChat);
 
 	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.get());
@@ -1612,7 +1616,8 @@ void ListWidget::showContextMenu(
 						tr::lng_context_cancel_download(tr::now),
 						[document] {
 							document->cancel();
-						});
+						},
+						&st::menuIconCancel);
 				} else {
 					auto filepath = document->filepath(true);
 					if (!filepath.isEmpty()) {
@@ -1626,7 +1631,8 @@ void ListWidget::showContextMenu(
 							(Platform::IsMac()
 								? tr::lng_context_show_in_finder(tr::now)
 								: tr::lng_context_show_in_folder(tr::now)),
-							std::move(handler));
+							std::move(handler),
+							&st::menuIconShowInFolder);
 					}
 					auto handler = App::LambdaDelayed(
 						st::defaultDropdownMenu.menu.ripple.hideDuration,
@@ -1646,7 +1652,8 @@ void ListWidget::showContextMenu(
 								: isAudio
 								? tr::lng_context_save_audio_file(tr::now)
 								: tr::lng_context_save_file(tr::now)),
-							std::move(handler));
+							std::move(handler),
+							&st::menuIconDownload);
 					}
 				}
 			}
@@ -1658,7 +1665,8 @@ void ListWidget::showContextMenu(
 				actionText,
 				[text = link->copyToClipboardText()] {
 					QGuiApplication::clipboard()->setText(text);
-				});
+				},
+				&st::menuIconCopy);
 		}
 	}
 	if (overSelected == SelectionState::OverSelectedItems) {
@@ -1667,20 +1675,23 @@ void ListWidget::showContextMenu(
 				tr::lng_context_forward_selected(tr::now),
 				crl::guard(this, [this] {
 					forwardSelected();
-				}));
+				}),
+				&st::menuIconForward);
 		}
 		if (canDeleteAll()) {
 			_contextMenu->addAction(
 				tr::lng_context_delete_selected(tr::now),
 				crl::guard(this, [this] {
 					deleteSelected();
-				}));
+				}),
+				&st::menuIconDelete);
 		}
 		_contextMenu->addAction(
 			tr::lng_context_clear_selection(tr::now),
 			crl::guard(this, [this] {
 				clearSelected();
-			}));
+			}),
+			&st::menuIconSelect);
 	} else {
 		if (overSelected != SelectionState::NotOverSelectedItems) {
 			if (item->allowsForward()) {
@@ -1688,7 +1699,8 @@ void ListWidget::showContextMenu(
 					tr::lng_context_forward_msg(tr::now),
 					crl::guard(this, [this, universalId] {
 						forwardItem(universalId);
-					}));
+					}),
+					&st::menuIconForward);
 			}
 			if (item->canDelete()) {
 				_contextMenu->addAction(Ui::DeleteMessageContextAction(
@@ -1710,7 +1722,8 @@ void ListWidget::showContextMenu(
 						update();
 					}
 					applyItemSelection(universalId, FullSelection);
-				}));
+				}),
+				&st::menuIconSelect);
 		}
 	}
 

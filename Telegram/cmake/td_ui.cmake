@@ -14,6 +14,7 @@ include(cmake/generate_numbers.cmake)
 set(style_files
     ui/td_common.style
     ui/filter_icons.style
+    ui/menu_icons.style
     ui/chat/chat.style
     boxes/boxes.style
     dialogs/dialogs.style

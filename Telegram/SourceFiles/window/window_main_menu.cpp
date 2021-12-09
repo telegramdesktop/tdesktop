@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -316,11 +317,17 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 
 void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	if (!_menu && IsAltShift(e->modifiers())) {
-		_menu = base::make_unique_q<Ui::PopupMenu>(this);
-		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
 			return _menu->addAction(
 				text,
-				crl::guard(this, std::move(callback)));
+				crl::guard(this, std::move(callback)),
+				icon);
 		};
 		MenuAddMarkAsReadAllChatsAction(&_session->data(), addAction);
 		_menu->popup(QCursor::pos());
@@ -329,10 +336,12 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	if (&_session->account() == &Core::App().activeAccount() || _menu) {
 		return;
 	}
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 	_menu->addAction(tr::lng_menu_activate(tr::now), crl::guard(this, [=] {
 		Core::App().domain().activate(&_session->account());
-	}));
+	}), &st::menuIconProfile);
 	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
 		const auto session = _session;
 		const auto callback = [=](Fn<void()> &&close) {
@@ -344,7 +353,7 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 			tr::lng_settings_logout(tr::now),
 			st::attentionBoxButton,
 			crl::guard(session, callback)));
-	}));
+	}), &st::menuIconLeave);
 	_menu->popup(QCursor::pos());
 }
 
@@ -684,9 +693,17 @@ void MainMenu::setupArchiveButton() {
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
-		const auto addAction = [&](const QString &text, Fn<void()> callback) {
-			return _contextMenu->addAction(text, std::move(callback));
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
+			return _contextMenu->addAction(
+				text,
+				std::move(callback),
+				icon);
 		};
 
 		const auto hide = [=] {
@@ -694,7 +711,10 @@ void MainMenu::setupArchiveButton() {
 			controller->session().saveSettingsDelayed();
 			Ui::hideSettingsAndLayer();
 		};
-		addAction(tr::lng_context_archive_to_list(tr::now), std::move(hide));
+		addAction(
+			tr::lng_context_archive_to_list(tr::now),
+			std::move(hide),
+			&st::menuIconFromMainMenu);
 
 		MenuAddMarkAsReadChatListAction(
 			[f = folder()] { return f->chatsList(); },

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 namespace Settings {
 
@@ -210,22 +211,25 @@ void FillMenu(
 	if (type == Type::Chat) {
 		addAction(
 			tr::lng_settings_bg_theme_create(tr::now),
-			[=] { window->show(Box(Window::Theme::CreateBox, window)); });
+			[=] { window->show(Box(Window::Theme::CreateBox, window)); },
+			&st::menuIconChangeColors);
 	} else {
 		const auto &list = Core::App().domain().accounts();
 		if (list.size() < ::Main::Domain::kMaxAccounts) {
 			addAction(tr::lng_menu_add_account(tr::now), [=] {
 				Core::App().domain().addActivated(MTP::Environment{});
-			});
+			}, &st::menuIconAddAccount);
 		}
 		if (!controller->session().supportMode()) {
 			addAction(
 				tr::lng_settings_information(tr::now),
-				[=] { showOther(Type::Information); });
+				[=] { showOther(Type::Information); },
+				&st::menuIconInfo);
 		}
 		addAction(
 			tr::lng_settings_logout(tr::now),
-			[=] { window->showLogoutConfirmation(); });
+			[=] { window->showLogoutConfirmation(); },
+			&st::menuIconLeave);
 	}
 }
 

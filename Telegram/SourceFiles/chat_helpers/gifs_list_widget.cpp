@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "storage/storage_account.h" // Account::writeSavedGifs
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -48,7 +49,7 @@ constexpr auto kSearchBotUsername = "gif"_cs;
 } // namespace
 
 void AddGifAction(
-		Fn<void(QString, Fn<void()> &&)> callback,
+		Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
 		not_null<DocumentData*> document) {
 	if (!document->isGifv()) {
 		return;
@@ -71,7 +72,7 @@ void AddGifAction(
 			document->session().local().writeSavedGifs();
 		}
 		data.stickers().notifySavedGifsUpdated();
-	});
+	}, saved ? &st::menuIconDelete : &st::menuIconGif);
 }
 
 class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
@@ -386,8 +387,11 @@ void GifsListWidget::fillContextMenu(
 			? item->getDocument() // Saved GIF.
 			: item->getPreviewDocument(); // Searched GIF.
 		if (document) {
-			auto callback = [&](const QString &text, Fn<void()> &&done) {
-				menu->addAction(text, std::move(done));
+			auto callback = [&](
+					const QString &text,
+					Fn<void()> &&done,
+					const style::icon *icon) {
+				menu->addAction(text, std::move(done), icon);
 			};
 			AddGifAction(std::move(callback), document);
 		}
