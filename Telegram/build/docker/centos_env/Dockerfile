@@ -32,6 +32,9 @@ RUN yum -y install git meson ninja-build autoconf automake libtool patch \
 	devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
 	llvm-toolset-7.0-llvm-devel && yum clean all
 
+# Fix a bug with argument naming in CentOS 7 glibc
+RUN sed -i 's/char \*__block/char */' /usr/include/unistd.h
+
 SHELL [ "bash", "-c", ". /opt/rh/devtoolset-10/enable; exec bash -c \"$@\"", "-s"]
 
 ENV LibrariesPath /usr/src/Libraries
