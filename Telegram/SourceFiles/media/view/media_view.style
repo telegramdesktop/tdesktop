@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
+using "ui/menu_icons.style";
 
 mediaviewOverDuration: 150;
 
@@ -137,7 +138,7 @@ mediaviewFileIconSize: 80px;
 
 mediaviewFileLink: defaultLinkButton;
 
-mediaviewMenu: Menu(defaultMenu) {
+mediaviewMenu: Menu(menuWithIcons) {
 	itemBg: mediaviewMenuBg;
 	itemBgOver: mediaviewMenuBgOver;
 	itemFg: mediaviewMenuFg;

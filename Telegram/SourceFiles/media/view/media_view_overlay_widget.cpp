@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
+#include "base/qt_adapters.h"
 #include "base/event_filter.h"
 #include "main/main_account.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
@@ -75,7 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
-#include "base/qt_adapters.h"
+#include "styles/style_menu_icons.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
@@ -901,30 +902,46 @@ void OverlayWidget::refreshCaptionGeometry() {
 
 void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if (_document && _document->loading()) {
-		addAction(tr::lng_cancel(tr::now), [=] { saveCancel(); });
+		addAction(
+			tr::lng_cancel(tr::now),
+			[=] { saveCancel(); },
+			&st::mediaMenuIconCancel);
 	}
 	if (_message && _message->isRegular()) {
-		addAction(tr::lng_context_to_msg(tr::now), [=] { toMessage(); });
+		addAction(
+			tr::lng_context_to_msg(tr::now),
+			[=] { toMessage(); },
+			&st::mediaMenuIconShowInChat);
 	}
 	if (_document && !_document->filepath(true).isEmpty()) {
 		const auto text =  Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
-		addAction(text, [=] { showInFolder(); });
+		addAction(
+			text,
+			[=] { showInFolder(); },
+			&st::mediaMenuIconShowInFolder);
 	}
 	if (!hasCopyRestriction()) {
 		if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
-			addAction(tr::lng_mediaview_copy(tr::now), [=] { copyMedia(); });
+			addAction(
+				tr::lng_mediaview_copy(tr::now),
+				[=] { copyMedia(); },
+				&st::mediaMenuIconCopy);
 		}
 	}
 	if ((_photo && _photo->hasAttachedStickers())
 		|| (_document && _document->hasAttachedStickers())) {
 		addAction(
 			tr::lng_context_attached_stickers(tr::now),
-			[=] { showAttachedStickers(); });
+			[=] { showAttachedStickers(); },
+			&st::mediaMenuIconStickers);
 	}
 	if (_message && _message->allowsForward()) {
-		addAction(tr::lng_mediaview_forward(tr::now), [=] { forwardMedia(); });
+		addAction(
+			tr::lng_mediaview_forward(tr::now),
+			[=] { forwardMedia(); },
+			&st::mediaMenuIconForward);
 	}
 	const auto canDelete = [&] {
 		if (_message && _message->canDelete()) {
@@ -944,17 +961,26 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		return false;
 	}();
 	if (canDelete) {
-		addAction(tr::lng_mediaview_delete(tr::now), [=] { deleteMedia(); });
+		addAction(
+			tr::lng_mediaview_delete(tr::now),
+			[=] { deleteMedia(); },
+			&st::mediaMenuIconDelete);
 	}
 	if (!hasCopyRestriction()) {
-		addAction(tr::lng_mediaview_save_as(tr::now), [=] { saveAs(); });
+		addAction(
+			tr::lng_mediaview_save_as(tr::now),
+			[=] { saveAs(); },
+			&st::mediaMenuIconDownload);
 	}
 
 	if (const auto overviewType = computeOverviewType()) {
 		const auto text = _document
 			? tr::lng_mediaview_files_all(tr::now)
 			: tr::lng_mediaview_photos_all(tr::now);
-		addAction(text, [=] { showMediaOverview(); });
+		addAction(
+			text,
+			[=] { showMediaOverview(); },
+			&st::mediaMenuIconShowAll);
 	}
 }
 
@@ -4419,8 +4445,11 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		_widget,
 		st::mediaviewPopupMenu);
-	fillContextMenuActions([&] (const QString &text, Fn<void()> handler) {
-		_menu->addAction(text, std::move(handler));
+	fillContextMenuActions([&](
+			const QString &text,
+			Fn<void()> handler,
+			const style::icon *icon) {
+		_menu->addAction(text, std::move(handler), icon);
 	});
 	_menu->setDestroyedCallback(crl::guard(_widget, [=] {
 		activateControls();
@@ -4666,8 +4695,11 @@ void OverlayWidget::receiveMouse() {
 
 void OverlayWidget::showDropdown() {
 	_dropdown->clearActions();
-	fillContextMenuActions([&] (const QString &text, Fn<void()> handler) {
-		_dropdown->addAction(text, std::move(handler));
+	fillContextMenuActions([&](
+			const QString &text,
+			Fn<void()> handler,
+			const style::icon *icon) {
+		_dropdown->addAction(text, std::move(handler), icon);
 	});
 	_dropdown->moveToRight(0, height() - _dropdown->height());
 	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);

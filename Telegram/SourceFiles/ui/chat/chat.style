@@ -905,22 +905,22 @@ defaultWhoRead: WhoRead {
 	photoSize: 30px;
 	photoSkip: 5px;
 	nameLeft: 57px;
-	iconPosition: point(22px, 11px);
-	itemPadding: margins(61px, 9px, 17px, 7px);
+	iconPosition: point(10px, 7px);
+	itemPadding: margins(41px, 9px, 17px, 7px);
 }
 whoReadMenu: PopupMenu(popupMenuWithIcons) {
 	scrollPadding: margins(0px, 6px, 0px, 6px);
 	maxHeight: 387px;
 	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 6px, 0px, 8px);
+		separatorPadding: margins(0px, 6px, 0px, 5px);
 	}
 }
-whoReadChecks: icon{{ "chat/seen_checks", windowFg }};
-whoReadChecksOver: icon{{ "chat/seen_checks", windowFgOver }};
-whoReadChecksDisabled: icon{{ "chat/seen_checks", menuFgDisabled }};
-whoReadPlayed: icon{{ "chat/seen_played", windowFg }};
-whoReadPlayedOver: icon{{ "chat/seen_played", windowFgOver }};
-whoReadPlayedDisabled: icon {{ "chat/seen_played", menuFgDisabled }};
+whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecksOver: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
+whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
 
 historyRequestsUserpics: GroupCallUserpics {
 	size: 22px;

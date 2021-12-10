@@ -9,8 +9,8 @@ using "ui/colors.palette";
 using "ui/widgets/widgets.style";
 
 menuWithIcons: Menu(defaultMenu) {
-	itemIconPosition: point(20px, 7px);
-	itemPadding: margins(61px, 9px, 17px, 9px);
+	itemIconPosition: point(15px, 5px);
+	itemPadding: margins(56px, 8px, 17px, 8px);
 }
 popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
@@ -76,6 +76,23 @@ menuIconFromMainMenu: icon {{ "menu/move_from_menu", menuSubmenuArrowFg }};
 menuIconAddAccount: icon {{ "menu/add_account", menuSubmenuArrowFg }};
 menuIconMute: icon {{ "menu/mute", menuSubmenuArrowFg }};
 menuIconUnmute: icon {{ "menu/unmute", menuSubmenuArrowFg }};
-menuIconSchedule: icon {{ "menu/reschedule", menuSubmenuArrowFg }};
+menuIconSchedule: icon {{ "menu/calendar", menuSubmenuArrowFg }};
+menuIconReschedule: icon {{ "menu/reschedule", menuSubmenuArrowFg }};
 menuIconSend: icon {{ "menu/send", menuSubmenuArrowFg }};
-//menuIcon: icon {{ "menu/", menuSubmenuArrowFg }};
+menuIconFlip: icon {{ "menu/flip", menuSubmenuArrowFg }};
+menuIconWhenOnline: icon {{ "menu/send_when_online", menuSubmenuArrowFg }};
+menuIconPalette: icon {{ "menu/palette", menuSubmenuArrowFg }};
+menuIconImportTheme: icon {{ "menu/import_theme", menuSubmenuArrowFg }};
+menuIconExportTheme: icon {{ "menu/export_theme", menuSubmenuArrowFg }};
+menuIconRestore: icon {{ "menu/restore", menuSubmenuArrowFg }};
+menuIconSettings: icon {{ "menu/settings", menuSubmenuArrowFg }};
+
+mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
+mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
+mediaMenuIconShowInChat: icon {{ "menu/show_in_chat", mediaviewMenuFg }};
+mediaMenuIconShowInFolder: icon {{ "menu/show_in_folder", mediaviewMenuFg }};
+mediaMenuIconDownload: icon {{ "menu/download", mediaviewMenuFg }};
+mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
+mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
+mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
+mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};

@@ -535,7 +535,7 @@ void ProxyRow::showMenu() {
 	if (_view.deleted) {
 		addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 			_restoreClicks.fire({});
-		}, &st::menuIconDelete);
+		}, &st::menuIconRestore);
 	} else {
 		addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 			_deleteClicks.fire({});

@@ -553,7 +553,7 @@ bool AddRescheduleAction(
 				box->closeBox();
 			}
 		}, box->lifetime());
-	}, &st::menuIconSchedule);
+	}, &st::menuIconReschedule);
 	return true;
 }
 

@@ -346,7 +346,7 @@ void Filler::addTogglePin() {
 		pinToggle,
 		(history->isPinnedDialog(filterId)
 			? &st::menuIconUnpin
-			: &st::menuIconPin)); // #TODO icons dynamic
+			: &st::menuIconPin));
 
 	auto actionText = history->session().changes().historyUpdates(
 		history,
@@ -395,7 +395,7 @@ void Filler::addToggleUnreadMark() {
 		}
 	}, (IsUnreadHistory(history)
 		? &st::menuIconMarkRead
-		: &st::menuIconMarkUnread)); // #TODO icons dynamic
+		: &st::menuIconMarkUnread));
 
 	auto actionText = history->session().changes().historyUpdates(
 		history,
@@ -420,7 +420,7 @@ void Filler::addToggleArchive() {
 	};
 	const auto archiveAction = _addAction(
 		label(),
-		toggle, // #TODO icons dynamic
+		toggle,
 		isArchived() ? &st::menuIconUnarchive : &st::menuIconArchive);
 
 	auto actionText = history->session().changes().historyUpdates(
@@ -453,7 +453,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 				user,
 				v::null,
 				v::null));
-		} // #TODO icons dynamic
+		}
 	}, (!user->isBlocked()
 		? &st::menuIconBlock
 		: user->isBot()
@@ -1255,7 +1255,7 @@ void PeerMenuAddMuteAction(
 		}
 	}, (peer->owner().notifyIsMuted(peer)
 		? &st::menuIconUnmute
-		: &st::menuIconMute)); // #TODO icons dynamic
+		: &st::menuIconMute));
 
 	auto actionText = Info::Profile::NotificationsEnabledValue(
 		peer

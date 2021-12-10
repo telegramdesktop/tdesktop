@@ -42,7 +42,7 @@ void FillSendUntilOnlineMenu(
 		(*menu)->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
 			std::move(callback),
-			&st::menuIconSend);
+			&st::menuIconWhenOnline);
 		(*menu)->popup(QCursor::pos());
 		return true;
 	});

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Window {
 namespace Theme {
@@ -703,7 +704,9 @@ void Editor::showMenu() {
 	if (_menu) {
 		return;
 	}
-	_menu = base::make_unique_q<Ui::DropdownMenu>(this);
+	_menu = base::make_unique_q<Ui::DropdownMenu>(
+		this,
+		st::dropdownMenuWithIcons);
 	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.get()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
@@ -727,15 +730,15 @@ void Editor::showMenu() {
 		base::call_delayed(st::defaultRippleAnimation.hideDuration, this, [=] {
 			exportTheme();
 		});
-	});
+	}, &st::menuIconExportTheme);
 	_menu->addAction(tr::lng_theme_editor_menu_import(tr::now), [=] {
 		base::call_delayed(st::defaultRippleAnimation.hideDuration, this, [=] {
 			importTheme();
 		});
-	});
+	}, &st::menuIconImportTheme);
 	_menu->addAction(tr::lng_theme_editor_menu_show(tr::now), [=] {
 		File::ShowInFolder(EditingPalettePath());
-	});
+	}, &st::menuIconPalette);
 	_menu->moveToRight(st::themesMenuPosition.x(), st::themesMenuPosition.y());
 	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }

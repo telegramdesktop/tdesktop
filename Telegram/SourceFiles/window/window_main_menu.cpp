@@ -113,7 +113,9 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		const auto menu = std::make_shared<MenuPointer>();
 		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
 		menuButton->setClickedCallback([=] {
-			*menu = base::make_unique_q<Ui::PopupMenu>(menuButton);
+			*menu = base::make_unique_q<Ui::PopupMenu>(
+				menuButton,
+				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
 				window->showSettings(
 					Settings::Type::Calls,
@@ -124,11 +126,13 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			});
 			(*menu)->addAction(
 				tr::lng_settings_section_call_settings(tr::now),
-				showSettings);
+				showSettings,
+				&st::menuIconSettings);
 			if (controller->delegate()->peerListFullRowsCount() > 0) {
 				(*menu)->addAction(
 					tr::lng_call_box_clear_all(tr::now),
-					clearAll);
+					clearAll,
+					&st::menuIconDelete);
 			}
 			(*menu)->popup(QCursor::pos());
 			return true;

@@ -477,7 +477,7 @@ void Rows::showMenu(int index) {
 		if (row->removed) {
 			addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 				restore(row);
-			}, &st::menuIconDelete);
+			}, &st::menuIconRestore);
 		} else {
 			addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 				remove(row);
