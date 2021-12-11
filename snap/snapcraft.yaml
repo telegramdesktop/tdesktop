@@ -100,10 +100,12 @@ parts:
       - libopus-dev
       - libpulse-dev
       - libssl-dev
+      - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
+      - wayland-protocols
       - zlib1g-dev
     stage-packages:
       - libasound2
@@ -112,6 +114,7 @@ parts:
       - libopus0
       - libpulse0
       - libssl1.1
+      - libwayland-client0
       - libwebkit2gtk-4.0-37
       - libxcb1
       - libxcb-keysyms1
@@ -153,9 +156,9 @@ parts:
       - desktop-qt
       - extra-cmake-modules
       - ffmpeg
-      - kwayland
       - mozjpeg
       - openal
+      - plasma-wayland-protocols
       - rnnoise
       - webrtc
 
@@ -238,37 +241,6 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
-
-  kwayland:
-    source: https://github.com/KDE/kwayland.git
-    source-depth: 1
-    source-tag: v5.87.0
-    plugin: cmake
-    build-packages:
-      - libwayland-dev
-      - wayland-protocols
-    stage-packages:
-      - libwayland-client0
-      - libwayland-server0
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_TESTING=OFF
-    override-pull: |
-      snapcraftctl pull
-      patch -p1 < $SNAPCRAFT_STAGE/patches/kwayland-qt6.patch
-    prime:
-      - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libexec
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/mkspecs
-      - -./usr/share
-    after:
-      - extra-cmake-modules
-      - desktop-qt
-      - patches
-      - plasma-wayland-protocols
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
