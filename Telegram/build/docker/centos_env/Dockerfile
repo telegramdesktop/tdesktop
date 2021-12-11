@@ -19,6 +19,8 @@ ENV OPENSSL_ROOT_DIR ${OPENSSL_PREFIX}
 ENV CMAKE_VER 3.21.3
 ENV CMAKE_FILE cmake-$CMAKE_VER-Linux-x86_64.sh
 ENV PATH ${PATH}:${QT5_PREFIX}/bin:${QT6_PREFIX}/bin
+ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
+ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && yum clean all
 RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm && yum clean all
@@ -38,8 +40,6 @@ RUN sed -i 's/char \*__block/char */' /usr/include/unistd.h
 SHELL [ "bash", "-c", ". /opt/rh/devtoolset-10/enable; exec bash -c \"$@\"", "-s"]
 
 ENV LibrariesPath /usr/src/Libraries
-ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
-ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 WORKDIR $LibrariesPath
 
 RUN mkdir /opt/cmake
