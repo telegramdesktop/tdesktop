@@ -1407,7 +1407,7 @@ PRIVATE
     G_LOG_DOMAIN="Telegram"
 )
 
-if ("${CMAKE_GENERATOR}" STREQUAL "Xcode"
+if (APPLE
     OR "${CMAKE_GENERATOR}" STREQUAL "Ninja Multi-Config"
     OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
     OR NOT "${output_name}" STREQUAL "Telegram")
