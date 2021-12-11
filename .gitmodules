@@ -94,3 +94,6 @@
 [submodule "Telegram/ThirdParty/jemalloc"]
 	path = Telegram/ThirdParty/jemalloc
 	url = https://github.com/jemalloc/jemalloc
+[submodule "Telegram/ThirdParty/kwayland"]
+	path = Telegram/ThirdParty/kwayland
+	url = https://github.com/KDE/kwayland.git
