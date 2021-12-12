@@ -143,7 +143,7 @@ jobs:
           git clone %GIT%/telegramdesktop/lzma.git
           cd lzma
           cd C\Util\LzmaLib
-          msbuild -m LzmaLib.sln /property:Configuration=Debug
+          msbuild -m LzmaLib.sln /property:Configuration=Release
 
       - name: OpenSSL cache.
         id: cache-openssl
@@ -180,7 +180,7 @@ jobs:
           cd zlib
           git checkout tdesktop
           cd contrib\vstudio\vc14
-          msbuild -m zlibstat.vcxproj /property:Configuration=Debug
+          msbuild -m zlibstat.vcxproj /property:Configuration=Release
 
       - name: MozJPEG.
         shell: cmd
@@ -192,7 +192,7 @@ jobs:
           -A Win32 ^
           -DWITH_JPEG8=ON ^
           -DPNG_SUPPORTED=OFF
-          cmake --build . --config Debug
+          cmake --build . --config Release
 
       - name: OpenAL Soft cache.
         id: cache-openal
@@ -212,7 +212,7 @@ jobs:
           -D FORCE_STATIC_VCRT=ON ^
           -D ALSOFT_BACKEND_DSOUND=OFF
 
-          msbuild -m OpenAL.vcxproj /property:Configuration=Debug
+          msbuild -m OpenAL.vcxproj /property:Configuration=Release
 
       - name: Breakpad cache.
         id: cache-breakpad
@@ -267,7 +267,7 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=%LibrariesPath%/local/opus ^
           -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
           -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
-          cmake --build out --config Debug
+          cmake --build out --config Release
           cmake --build out --config Release
           cmake --install out --config Release
 
@@ -277,7 +277,7 @@ jobs:
           mkdir rnnoise\out
           cd rnnoise\out
           cmake -A Win32 ..
-          cmake --build . --config Debug
+          cmake --build . --config Release
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -309,20 +309,20 @@ jobs:
         if: steps.cache-angle.outputs.cache-hit != 'true'
         run: |
           git clone --recursive %GIT%/desktop-app/tg_angle.git
-          mkdir tg_angle\out\Debug
-          cd tg_angle\out\Debug
+          mkdir tg_angle\out\Release
+          cd tg_angle\out\Release
           cmake -G Ninja ^
-          -DCMAKE_BUILD_TYPE=Debug ^
+          -DCMAKE_BUILD_TYPE=Release ^
           -DTG_ANGLE_SPECIAL_TARGET=win64 ^
           -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
           ninja
 
           :: Cleanup.
           cd %LibrariesPath%\tg_angle
-          move out\Debug\tg_angle.lib tg_angle.lib
+          move out\Release\tg_angle.lib tg_angle.lib
           rmdir /S /Q out
-          mkdir out\Debug
-          move tg_angle.lib out\Debug\tg_angle.lib
+          mkdir out\Release
+          move tg_angle.lib out\Release\tg_angle.lib
 
       - name: Qt 5.15.2 cache.
         id: cache-qt
@@ -354,7 +354,7 @@ jobs:
 
           configure ^
           -prefix "%LibrariesPath%\Qt-%QT_VER%" ^
-          -debug ^
+          -release ^
           -force-debug-info ^
           -opensource ^
           -confirm-license ^
@@ -403,10 +403,10 @@ jobs:
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |
           git clone --recursive %GIT%/desktop-app/tg_owt.git
-          mkdir tg_owt\out\Debug
-          cd tg_owt\out\Debug
+          mkdir tg_owt\out\Release
+          cd tg_owt\out\Release
           cmake -G Ninja ^
-          -DCMAKE_BUILD_TYPE=Debug ^
+          -DCMAKE_BUILD_TYPE=Release ^
           -DTG_OWT_SPECIAL_TARGET=win ^
           -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
           -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
@@ -419,10 +419,10 @@ jobs:
 
           :: Cleanup.
           cd %LibrariesPath%\tg_owt
-          move out\Debug\tg_owt.lib tg_owt.lib
+          move out\Release\tg_owt.lib tg_owt.lib
           rmdir /S /Q out
-          mkdir out\Debug
-          move tg_owt.lib out\Debug\tg_owt.lib
+          mkdir out\Release
+          move tg_owt.lib out\Release\tg_owt.lib
 
       - name: Read defines.
         shell: bash
@@ -465,7 +465,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         working-directory: ${{ github.workspace }}
         run: |
-          cd %REPO_NAME%\out\Debug
+          cd %REPO_NAME%\out\Release
           mkdir artifact
           move Telegram.exe artifact/
       - uses: actions/upload-artifact@master
@@ -473,4 +473,4 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}\out\Debug\artifact\
+          path: ${{ env.REPO_NAME }}\out\Release\artifact\

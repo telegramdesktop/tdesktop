@@ -69,8 +69,9 @@ jobs:
           sudo snap run lxd init --auto
           sudo snap run lxd waitready
 
+          sudo pip3 install meson
       - name: Telegram Desktop snap build.
-        run: export PATH=$PATH:/home/runner/.local/bin; export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft
+        run: sg lxd -c 'snap run snapcraft'
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
