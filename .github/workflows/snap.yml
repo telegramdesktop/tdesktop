@@ -70,12 +70,11 @@ jobs:
           sudo snap run lxd waitready
 
       - name: Telegram Desktop snap build.
-        run: sg lxd -c 'snap run snapcraft --use-lxd'
+        run: sg lxd -c 'export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft'
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
           TEST_VAR: "test var snap"
-          SNAPCRAFT_BUILD_ENVIRONMENT: host
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'

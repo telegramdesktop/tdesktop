@@ -55,7 +55,7 @@ jobs:
       GIT: "https://github.com"
       QT_VER: "5.15.2"
       OPENSSL_VER: "1_1_1"
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "0"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -459,7 +459,7 @@ jobs:
 
           call vcvars32.bat
           cd ..\out
-          msbuild -m Telegram.sln /nologo /p:Configuration=Debug,Platform=Win32
+          msbuild -m Telegram.sln /nologo /p:Configuration=Release,Platform=Win32
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
