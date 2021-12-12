@@ -502,14 +502,14 @@ void FakePasscodeBox::setPasswordFail(
         const MTP::Error &error) {
     const auto prefix = qstr("EMAIL_UNCONFIRMED_");
     if (error.type().startsWith(prefix)) {
-        const auto codeLength = error.type().midRef(prefix.size()).toInt();
+        const auto codeLength = base::StringViewMid(error.type(), prefix.size()).toInt();
 
         closeReplacedBy();
         _setRequest = 0;
 
         validateEmail(email, codeLength, newPasswordBytes);
     } else {
-        setPasswordFail(error);
+        setPasswordFail(error.type());
     }
 }
 
@@ -526,7 +526,7 @@ void FakePasscodeBox::validateEmail(
         }
         _setRequest = _api.request(MTPaccount_ConfirmPasswordEmail(
                 MTP_string(code)
-        )).done([=](const MTPBool &result) {
+        )).done([=] {
             *set = true;
             setPasswordDone(newPasswordBytes);
         }).fail([=](const MTP::Error &error) {
@@ -555,10 +555,10 @@ void FakePasscodeBox::validateEmail(
             return;
         }
         _setRequest = _api.request(MTPaccount_ResendPasswordEmail(
-        )).done([=](const MTPBool &result) {
+        )).done([=] {
             _setRequest = 0;
             resent->fire(tr::lng_cloud_password_resent(tr::now));
-        }).fail([=](const MTP::Error &error) {
+        }).fail([=] {
             _setRequest = 0;
             errors->fire(Lang::Hard::ServerError());
         }).send();
@@ -796,7 +796,7 @@ void FakePasscodeBox::sendClearCloudPassword(
                     MTP_string(hint),
                     MTP_string(email),
                     MTPSecureSecretSettings())
-    )).done([=](const MTPBool &result) {
+    )).done([=] {
         setPasswordDone({});
     }).fail([=](const MTP::Error &error) mutable {
         setPasswordFail({}, QString(), error);
@@ -831,7 +831,7 @@ void FakePasscodeBox::setNewCloudPassword(const QString &newPassword) {
         _setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
                 MTP_inputCheckPasswordEmpty(),
                 settings
-        )).done([=](const MTPBool &result) {
+        )).done([=] {
             setPasswordDone(newPasswordBytes);
         }).fail([=](const MTP::Error &error) {
             setPasswordFail(newPasswordBytes, email, error);
@@ -904,7 +904,7 @@ void FakePasscodeBox::changeCloudPassword(
             });
         }
     }).fail([=](const MTP::Error &error) {
-        setPasswordFail(error);
+        setPasswordFail(error.type());
     }).handleFloodErrors().send();
 }
 
@@ -938,7 +938,7 @@ void FakePasscodeBox::resetSecret(
                             MTP_securePasswordKdfAlgoUnknown(), // secure_algo
                             MTP_bytes(), // secure_secret
                             MTP_long(0))) // secure_secret_id
-    )).done([=](const MTPBool &result) {
+    )).done([=] {
         _setRequest = 0;
         callback();
         checkPasswordHash([=](const Core::CloudPasswordResult &check) {
@@ -992,7 +992,7 @@ void FakePasscodeBox::sendChangeCloudPassword(
                             Core::PrepareSecureSecretAlgo(_cloudFields.newSecureSecretAlgo),
                             MTP_bytes(newSecureSecret),
                             MTP_long(newSecureSecretId)))
-    )).done([=](const MTPBool &result) {
+    )).done([=] {
         setPasswordDone(newPasswordBytes);
     }).fail([=](const MTP::Error &error) {
         setPasswordFail(newPasswordBytes, QString(), error);
