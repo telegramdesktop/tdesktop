@@ -16,7 +16,7 @@ architectures:
 apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
-    common-id: org.telegram.desktop
+    common-id: org.ptelegram.desktop
     desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
       # Tell glib to use portals on file associations handling.
@@ -90,9 +90,6 @@ parts:
       - CC: gcc-10
       - CXX: g++-10
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH
-      - API_ID: $API_ID
-      - API_HASH: $API_HASH
-      - TEST_VAR: $TEST_VAR
     build-packages:
       - clang
       - g++-10
@@ -208,6 +205,7 @@ parts:
       - -Dtests=false
     override-pull: |
       snapcraftctl pull
+      echo $TEST_VAR
       patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
     prime: [-./*]
     after:

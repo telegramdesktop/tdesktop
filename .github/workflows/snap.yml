@@ -69,7 +69,7 @@ jobs:
           sudo snap run lxd waitready
 
       - name: Telegram Desktop snap build.
-        run: sg lxd -c 'snap run snapcraft --use-lxd'
+        run: sg lxd -c 'set API_ID=$API_ID; set API_HASH=$API_HASH; set TEST_VAR=$TEST_VAR snap run snapcraft --use-lxd'
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
