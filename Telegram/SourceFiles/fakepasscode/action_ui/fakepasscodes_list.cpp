@@ -61,8 +61,6 @@ private:
 };
 
 void FakePasscodeContent::setupContent() {
-//    auto passcode = _domain->local().GetFakePasscode(_passcodeIndex);
-//    std::move(passcode) | rpl::start_with_next([this](FakePasscode::FakePasscode&& value) {
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
@@ -85,7 +83,6 @@ void FakePasscodeContent::setupContent() {
                 _outerBox->closeBox();
             });
     Ui::ResizeFitChild(this, content);
-//    }, lifetime());
 }
 
 class FakePasscodeList : public Ui::RpWidget {
