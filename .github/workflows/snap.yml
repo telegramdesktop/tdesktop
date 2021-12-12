@@ -71,7 +71,7 @@ jobs:
 
           sudo pip3 install meson
       - name: Telegram Desktop snap build.
-        run: sg lxd -c 'snap run snapcraft'
+        run: export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
