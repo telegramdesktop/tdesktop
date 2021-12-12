@@ -106,7 +106,7 @@ jobs:
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
 
-          cmake --build ../out --config Debug --parallel
+          cmake --build ../out --config Release --parallel
 
       - name: Check.
         run: |
