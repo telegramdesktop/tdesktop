@@ -69,6 +69,8 @@ jobs:
           sudo snap run lxd init --auto
           sudo snap run lxd waitready
 
+          export PATH=$PATH:/home/runner/.local/bin
+
       - name: Telegram Desktop snap build.
         run: sg lxd -c 'export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft'
         env:
