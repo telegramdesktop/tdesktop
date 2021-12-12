@@ -108,7 +108,9 @@ jobs:
           ./configure.sh \
           -D CMAKE_C_FLAGS="-Werror" \
           -D CMAKE_CXX_FLAGS="-Werror" \
-          -D TDESKTOP_API_TEST=ON \
+          -D TDESKTOP_API_TEST=OFF \
+          -D TDESKTOP_API_ID=${{ secrets.API_ID }} \
+          -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} \
           -D DESKTOP_APP_USE_PACKAGED=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE

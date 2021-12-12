@@ -25,7 +25,7 @@ void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
 
 void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
     actions_.erase(std::find_if(actions_.begin(), actions_.end(),
-                                [&action](const std::shared_ptr<Action>& lhsAction) {
+                                [&](const std::shared_ptr<Action>& lhsAction) {
         return typeid(action.get()) == typeid(lhsAction.get());
     }));
     actions_changed_.fire({});
@@ -152,7 +152,7 @@ FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&&
     fake_passcode_ = std::move(passcode.fake_passcode_);
     actions_ = std::move(passcode.actions_);
     name_ = std::move(passcode.name_);
-    actions_changed_ = std::move(actions_changed_);
+    actions_changed_ = std::move(passcode.actions_changed_);
 
     return *this;
 }
