@@ -122,8 +122,8 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DTDESKTOP_API_ID=${{ secrets.API_ID }}
-      - -DTDESKTOP_API_HASH=${{ secrets.API_HASH }}
+      - -DTDESKTOP_API_ID=$API_ID
+      - -DTDESKTOP_API_HASH=$API_HASH
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |

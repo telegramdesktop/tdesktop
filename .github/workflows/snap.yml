@@ -70,6 +70,9 @@ jobs:
 
       - name: Telegram Desktop snap build.
         run: sg lxd -c 'snap run snapcraft --use-lxd'
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
