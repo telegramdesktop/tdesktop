@@ -49,8 +49,9 @@ jobs:
         defines:
           - ""
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
+      ARTIFACT_NAME: "Mac-PTelegram"
 
     steps:
       - name: Get repository name.

@@ -43,7 +43,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
+      ARTIFACT_NAME: "Snap-PTelegram"
 
     steps:
       - name: Clone.
@@ -66,12 +67,6 @@ jobs:
           sudo usermod -aG lxd $USER
 
           sudo snap run lxd init --auto
-
-          sudo lxc list
-          sudo lxc config set ubuntu-latest environment.TEST_VAR $TEST_VAR
-          sudo lxc config set ubuntu-latest environment.API_ID $API_ID
-          sudo lxc config set ubuntu-latest environment.API_HASH $API_HASH
-
           sudo snap run lxd waitready
 
       - name: Telegram Desktop snap build.
@@ -80,6 +75,7 @@ jobs:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
           TEST_VAR: "test var snap"
+          SNAPCRAFT_BUILD_ENVIRONMENT: host
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
