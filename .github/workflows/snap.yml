@@ -67,10 +67,10 @@ jobs:
 
           sudo snap run lxd init --auto
 
-          sudo snap run lxc list
-          sudo snap run lxc config set ubuntu environment.TEST_VAR $TEST_VAR
-          sudo snap run lxc config set ubuntu environment.API_ID $API_ID
-          sudo snap run lxc config set ubuntu environment.API_HASH $API_HASH
+          sudo lxc list
+          sudo lxc config set ubuntu-latest environment.TEST_VAR $TEST_VAR
+          sudo lxc config set ubuntu-latest environment.API_ID $API_ID
+          sudo lxc config set ubuntu-latest environment.API_HASH $API_HASH
 
           sudo snap run lxd waitready
 
