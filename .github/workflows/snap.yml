@@ -73,6 +73,7 @@ jobs:
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
+          TEST_VAR: "test var snap"
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
