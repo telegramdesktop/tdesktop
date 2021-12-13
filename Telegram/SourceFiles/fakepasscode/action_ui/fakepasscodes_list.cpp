@@ -107,7 +107,6 @@ FakePasscodeList::FakePasscodeList(QWidget * parent, not_null<Main::Domain *> do
 void FakePasscodeList::draw(size_t passcodesSize) {
     using namespace Settings;
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-    LOG(("Draw " + QString::number(passcodesSize) + " passcodes"));
     for (size_t i = 0; i < passcodesSize; ++i) {
         AddButton(content, tr::lng_fakepasscode(lt_caption, rpl::single(_domain->local().GetFakePasscodeName(i))),
                   st::settingsButton)->addClickHandler([this, i]{
@@ -141,7 +140,6 @@ FakePasscodeContentBox::FakePasscodeContentBox(QWidget *,
 
 void FakePasscodeContentBox::prepare() {
     using namespace Settings;
-    LOG(("Prepare fake content"));
     addButton(tr::lng_close(), [=] { closeBox(); });
     const auto content =
             setInnerWidget(object_ptr<FakePasscodeContent>(this, _domain, _controller,

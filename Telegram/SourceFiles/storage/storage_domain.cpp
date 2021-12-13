@@ -108,7 +108,7 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_passcodeKeySalt.resize(LocalEncryptSaltSize);
 	base::RandomFill(_passcodeKeySalt.data(), _passcodeKeySalt.size());
 	_passcodeKey = CreateLocalKey(passcode, _passcodeKeySalt);
-
+    _passcode = passcode;
 	EncryptedDescriptor passKeyData(MTP::AuthKey::kSize);
 	_localKey->write(passKeyData.stream);
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
@@ -119,8 +119,6 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 Domain::StartModernResult Domain::startModern(
 		const QByteArray &passcode) {
 	const auto name = ComputeKeyName(_dataName);
-    LOG((QString("Try to startModern with passcode ") + passcode));
-    LOG(("Try to read from " + name));
 	FileReadDescriptor keyData;
 	if (!ReadFile(keyData, name, BaseGlobalPath())) {
 		return StartModernResult::Empty;
@@ -129,11 +127,8 @@ Domain::StartModernResult Domain::startModern(
 
 	QByteArray salt, keyEncrypted, infoEncrypted, fakePasscodeCountArray;
 	keyData.stream >> salt >> keyEncrypted >> infoEncrypted >> fakePasscodeCountArray;
-    LOG(("Fake bytearray size: " + QString::number(fakePasscodeCountArray.size())));
     std::vector<QByteArray> infoFakeEncrypted;
     qint32 fakePasscodeCount = fakePasscodeCountArray.toInt();
-
-    LOG(("Fake " + QString::number(fakePasscodeCount)));
 
     if (fakePasscodeCount > 0) {
         _fakePasscodeKeysEncrypted.resize(fakePasscodeCount);
@@ -159,8 +154,6 @@ Domain::StartModernResult Domain::startModern(
 
 	EncryptedDescriptor keyInnerData, info;
 	if (!DecryptLocal(keyInnerData, keyEncrypted, _passcodeKey)) {
-		LOG(("App Info: could not decrypt pass-protected key from info file, "
-			"maybe bad or fake password..."));
         return tryFakeStart(keyEncrypted, infoEncrypted, salt, passcode);
 	}
 
@@ -177,7 +170,6 @@ void Domain::writeAccounts() {
 		QDir().mkpath(path);
 	}
 
-    LOG(("Write to " + ComputeKeyName(_dataName)));
 	FileWriteDescriptor key(ComputeKeyName(_dataName), path);
 	key.writeData(_passcodeKeySalt);
 	key.writeData(_passcodeKeyEncrypted);
@@ -246,7 +238,6 @@ bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) con
 }
 
 void Domain::setPasscode(const QByteArray &passcode) {
-    LOG(("Passcode set!"));
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_localKey != nullptr);
 
@@ -289,17 +280,14 @@ bool Domain::hasLocalPasscode() const {
             LOG(("App Error: bad salt in info file, size: %1").arg(salt.size()));
             return StartModernResult::Failed;
         }
-        LOG(("Try passcode " + QString::number(i) + ". Fake size: " + QString::number(_fakePasscodeKeysEncrypted[i].size())));
 
         EncryptedDescriptor keyInnerData;
         if (!DecryptLocal(keyInnerData, _fakePasscodeKeysEncrypted[i], _passcodeKey)) {
-            LOG(("App Info: fake passcode " + QString::number(i) + " not accepted."));
             continue;
         }
         _isStartedWithFake = true;
         keyInnerData.stream >> sourcePasscode;
         _fakePasscodeIndex = i;
-        LOG(("Read src passcode: " + QString::fromUtf8(sourcePasscode)));
     }
 
     if (_isStartedWithFake) {
@@ -308,6 +296,8 @@ bool Domain::hasLocalPasscode() const {
         DecryptLocal(realKeyInnerData, keyEncrypted, _passcodeKey);
         return startUsingKeyStream(realKeyInnerData, infoEncrypted, salt, sourcePasscode);
     } else {
+        LOG(("App Info: could not decrypt pass-protected key from info file, "
+             "maybe bad password..."));
         return StartModernResult::IncorrectPasscode;
     }
 }
@@ -407,7 +397,6 @@ const std::vector<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const 
 
 void Domain::EncryptFakePasscodes() {
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
-    LOG(("Encrypt fake passcodes of size: " + QString::number(_fakePasscodes.size())));
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         _fakePasscodes[i].SetSalt(_passcodeKeySalt);
         const auto& fakePasscode = _fakePasscodes[i];
@@ -423,9 +412,7 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
     _fakePasscodes.push_back(std::move(fakePasscode));
-    LOG(("Start encryption"));
     writeAccounts();
-    LOG(("End encryption"));
     _fakePasscodeChanged.fire({});
 }
 
@@ -451,7 +438,6 @@ void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex
 void Domain::RemoveFakePasscode(const FakePasscode::FakePasscode& passcode) {
     auto pos = std::find(_fakePasscodes.begin(), _fakePasscodes.end(), passcode);
     if (pos == _fakePasscodes.end()) {
-        LOG(("Cannot remove passcode, because it's not exists"));
         return;
     }
     size_t index = pos - _fakePasscodes.begin();
@@ -531,7 +517,6 @@ bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
 }
 
 bool Domain::IsFake() const {
-    LOG(("We have IsFake: " + QString::number(_fakePasscodeIndex)));
     return _fakePasscodeIndex >= 0;
 }
 

@@ -17,10 +17,7 @@ void FakePasscode::ClearCache::Execute() const {
     auto download_path = Core::App().settings().downloadPath();
     QDir downloaded_cache(download_path);
     for (auto& entry : downloaded_cache.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
-        LOG(("Try to clear " + download_path + entry));
-        if (entry == "." || entry == "..") {
-            LOG(("Wrong dir!!"));
-        } else {
+        if (entry != "." && entry != "..") {
             QDir(download_path + entry).removeRecursively();
         }
     }

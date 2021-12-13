@@ -45,7 +45,6 @@ rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::
 void FakePasscode::FakePasscode::Execute() const {
     for (const auto& action : actions_) {
         try {
-            LOG(("Execute action"));
             action->Execute();
         } catch (...) {}
     }
