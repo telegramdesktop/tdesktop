@@ -135,8 +135,8 @@ editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-contactUserIcon: icon {{ "settings_name", menuIconFg }};
-contactPhoneIcon: icon {{ "settings_phone_number", menuIconFg }};
+contactUserIcon: icon {{ "settings/settings_name", menuIconFg }};
+contactPhoneIcon: icon {{ "settings/settings_phone_number", menuIconFg }};
 contactIconPosition: point(-5px, 23px);
 
 contactPadding: margins(49px, 2px, 0px, 12px);
@@ -667,8 +667,8 @@ proxyRowEdit: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
 
-	icon: icon {{ "settings_edit_name", menuIconFg }};
-	iconOver: icon {{ "settings_edit_name", menuIconFgOver }};
+	icon: icon {{ "settings/settings_edit_name", menuIconFg }};
+	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver }};
 	iconPosition: point(12px, 13px);
 
 	rippleAreaSize: 40px;

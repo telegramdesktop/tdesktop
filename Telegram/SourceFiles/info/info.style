@@ -519,8 +519,8 @@ infoMembersCancelSearch: CrossButton {
 infoMembersSearchTop: 15px;
 
 infoChannelsAddChannel: IconButton(infoMembersButton) {
-	icon: icon {{ "settings_edit_name", menuIconFg, point(9px, 9px) }};
-	iconOver: icon {{ "settings_edit_name", menuIconFgOver, point(9px, 9px) }};
+	icon: icon {{ "settings/settings_edit_name", menuIconFg, point(9px, 9px) }};
+	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver, point(9px, 9px) }};
 }
 
 infoMembersCreatorIcon: icon {{
