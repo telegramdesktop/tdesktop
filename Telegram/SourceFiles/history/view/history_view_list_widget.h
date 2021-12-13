@@ -279,6 +279,8 @@ public:
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementShowReactions(not_null<const Element*> view) override;
+	const Data::Reaction *elementCornerReaction(
+		not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 

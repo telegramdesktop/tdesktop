@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_reactions.h"
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -176,6 +177,8 @@ HistoryInner::HistoryInner(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
 		[=] { update(); }))
+, _reactionsMenus(
+	std::make_unique<HistoryView::ReactionsMenuManager>(historyWidget))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
@@ -222,6 +225,14 @@ HistoryInner::HistoryInner(
 		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
 	}, lifetime());
 
+	using ChosenReaction = HistoryView::ReactionsMenuManager::Chosen;
+	_reactionsMenus->chosen(
+	) | rpl::start_with_next([=](ChosenReaction reaction) {
+		if (const auto item = session().data().message(reaction.context)) {
+			item->addReaction(reaction.emoji);
+		}
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
@@ -261,6 +272,18 @@ HistoryInner::HistoryInner(
 		Data::HistoryUpdate::Flag::OutboxRead
 	) | rpl::start_with_next([=] {
 		update();
+	}, lifetime());
+
+	rpl::combine(
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(session().data().reactions().updates()),
+		session().changes().peerFlagsValue(
+			_peer,
+			Data::PeerUpdate::Flag::Reactions)
+	) | rpl::start_with_next([=] {
+		_reactions = session().data().reactions().list(_peer);
+		repaintItem(App::mousedItem());
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
@@ -1510,6 +1533,7 @@ void HistoryInner::mouseActionFinish(
 				.sessionWindow = base::make_weak(_controller.get()),
 			})
 		});
+		_reactionsMenus->hideAll(anim::type::normal);
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
@@ -2123,6 +2147,19 @@ void HistoryInner::copySelectedText() {
 	if (!showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 	}
+}
+
+void HistoryInner::showReactionsMenu(FullMsgId itemId, QRect area) {
+	const auto top = itemTop(session().data().message(itemId));
+	if (top < 0) {
+		area = QRect(); // Just hide.
+	}
+	const auto skip = st::reactionCornerOut.y();
+	area = area.marginsRemoved({ 0, skip, 0, skip });
+	_reactionsMenus->showReactionsMenu(
+		itemId,
+		{ mapToGlobal(area.translated(0, top).topLeft()), area.size() },
+		_reactions);
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
@@ -2884,6 +2921,13 @@ void HistoryInner::elementShowReactions(not_null<const Element*> view) {
 		view->data()));
 }
 
+const Data::Reaction *HistoryInner::elementCornerReaction(
+		not_null<const Element*> view) {
+	return (view == App::mousedItem() && !_reactions.empty())
+		? &_reactions.front()
+		: nullptr;
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -2960,7 +3004,16 @@ void HistoryInner::mouseActionUpdate() {
 		view = block->messages[_curItem].get();
 		item = view->data();
 
-		App::mousedItem(view);
+		const auto was = App::mousedItem();
+		if (was != view) {
+			if (!_reactions.empty()) {
+				repaintItem(was);
+			}
+			App::mousedItem(view);
+			if (!_reactions.empty()) {
+				repaintItem(view);
+			}
+		}
 		m = mapPointToItem(point, view);
 		if (view->pointState(m) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
@@ -3095,6 +3148,7 @@ void HistoryInner::mouseActionUpdate() {
 		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
+	showReactionsMenu(dragState.itemId, dragState.reactionArea);
 
 	Qt::CursorShape cur = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
@@ -3797,6 +3851,12 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			if (Instance) {
 				Instance->elementShowReactions(view);
 			}
+		}
+		const Data::Reaction *elementCornerReaction(
+				not_null<const Element*> view) override {
+			Expects(Instance != nullptr);
+
+			return Instance->elementCornerReaction(view);
 		}
 
 	};

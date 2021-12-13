@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 struct Group;
 class CloudImageView;
+struct Reaction;
 } // namespace Data
 
 namespace HistoryView {
@@ -28,6 +29,7 @@ enum class CursorState : char;
 enum class PointState : char;
 class EmptyPainter;
 class Element;
+class ReactionsMenuManager;
 } // namespace HistoryView
 
 namespace Window {
@@ -57,6 +59,7 @@ public:
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Window::SessionController*> controller,
 		not_null<History*> history);
+	~HistoryInner();
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
@@ -117,6 +120,7 @@ public:
 	void elementReplyTo(const FullMsgId &to);
 	void elementStartInteraction(not_null<const Element*> view);
 	void elementShowReactions(not_null<const Element*> view);
+	const Data::Reaction *elementCornerReaction(not_null<const Element*> view);
 
 	void updateBotInfo(bool recount = true);
 
@@ -154,8 +158,6 @@ public:
 
 	// HistoryView::ElementDelegate interface.
 	static not_null<HistoryView::ElementDelegate*> ElementDelegate();
-
-	~HistoryInner();
 
 protected:
 	bool focusNextPrevChild(bool next) override;
@@ -338,10 +340,10 @@ private:
 	void deleteAsGroup(FullMsgId itemId);
 	void reportItem(FullMsgId itemId);
 	void reportAsGroup(FullMsgId itemId);
-	void reportItems(MessageIdsList ids);
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
+	void showReactionsMenu(FullMsgId itemId, QRect area);
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -394,6 +396,9 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+
+	std::vector<Data::Reaction> _reactions;
+	std::unique_ptr<HistoryView::ReactionsMenuManager> _reactionsMenus;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

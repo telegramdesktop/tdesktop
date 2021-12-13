@@ -19,6 +19,7 @@ struct HistoryMessageForwarded;
 namespace HistoryView {
 
 class ViewButton;
+class ReactButton;
 class Reactions;
 class WebPage;
 
@@ -233,6 +234,7 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
+	mutable std::unique_ptr<ReactButton> _react;
 	std::unique_ptr<Reactions> _reactions;
 	mutable std::unique_ptr<CommentsButton> _comments;
 

@@ -962,7 +962,7 @@ void ListWidget::repaintItem(QRect itemGeometry) {
 }
 
 bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
-	auto peer = item->history()->peer;
+	const auto peer = item->history()->peer;
 	return (_peer == peer) || (_migrated == peer);
 }
 

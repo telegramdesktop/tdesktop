@@ -66,9 +66,7 @@ void AddReactionIcon(
 		document->session().downloaderTaskFinished(
 		) | rpl::map([=] {
 			return state->media->getStickerLarge();
-		}) | rpl::filter([=](Image *image) {
-			return (image != nullptr);
-		}) | rpl::take(
+		}) | rpl::filter_nullptr() | rpl::take(
 			1
 		) | rpl::start_with_next([=](not_null<Image*> image) {
 			setImage(image);

@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
+#include "data/data_message_reactions.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -604,6 +605,28 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(-reactionsPosition);
 	}
 
+	if (const auto reaction = delegate()->elementCornerReaction(this)) {
+		if (!_react) {
+			_react = std::make_unique<ReactButton>([=] {
+				history()->owner().requestViewRepaint(this);
+			}, [=] {
+				if (const auto reaction
+					= delegate()->elementCornerReaction(this)) {
+					data()->addReaction(reaction->emoji);
+				}
+			}, g);
+			_react->toggle(true);
+		} else {
+			_react->updateGeometry(g);
+		}
+		_react->show(reaction);
+	} else if (_react) {
+		_react->toggle(false);
+		if (_react->isHidden()) {
+			_react = nullptr;
+		}
+	}
+
 	if (bubble) {
 		if (displayFromName()
 			&& item->displayFrom()
@@ -742,6 +765,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
 			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
 			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
+		}
+
+		if (_react) {
+			_react->paint(p, context);
 		}
 
 		if (media) {
@@ -1070,6 +1097,12 @@ PointState Message::pointState(QPoint point) const {
 		return PointState::Outside;
 	}
 
+	if (_react) {
+		if (const auto state = _react->pointState(point)) {
+			return *state;
+		}
+	}
+
 	const auto media = this->media();
 	const auto item = message();
 	const auto reactionsInBubble = _reactions && needInfoDisplay();
@@ -1244,6 +1277,14 @@ TextState Message::textState(
 	auto g = countGeometry();
 	if (g.width() < 1 || isHidden()) {
 		return result;
+	}
+
+	if (_react) {
+		if (const auto state = _react->textState(point, request)) {
+			result.link = state->link;
+			result.reactionArea = state->reactionArea;
+			return result;
+		}
 	}
 
 	const auto reactionsInBubble = _reactions && needInfoDisplay();
@@ -1923,9 +1964,11 @@ void Message::itemDataChanged() {
 auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
 	const auto media = this->media();
 	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
+	const auto addBottom = add.bottom()
+		+ (_react ? std::max(_react->bottomOutsideMargin(height()), 0) : 0);
 	return {
 		.top = -add.top(),
-		.height = height() + add.top() + add.bottom()
+		.height = height() + add.top() + addBottom
 	};
 }
 
@@ -2669,6 +2712,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	if (_reactions && !reactionsInBubble) {
 		newHeight += st::mediaInBubbleSkip + _reactions->resizeGetHeight(contentWidth);
 	}
+
 	if (const auto keyboard = item->inlineReplyKeyboard()) {
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		newHeight += keyboardHeight;

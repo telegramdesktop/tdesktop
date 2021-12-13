@@ -188,6 +188,11 @@ void SimpleElementDelegate::elementShowReactions(
 	not_null<const Element*> view) {
 }
 
+const Data::Reaction *SimpleElementDelegate::elementCornerReaction(
+		not_null<const Element*> view) {
+	return nullptr;
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

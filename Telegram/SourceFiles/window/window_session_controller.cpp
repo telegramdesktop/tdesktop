@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_reactions.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "data/data_document_resolver.h"
