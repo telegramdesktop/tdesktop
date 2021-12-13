@@ -762,7 +762,10 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 }
 
 void ChannelData::setAllowedReactions(std::vector<QString> list) {
-	_allowedReactions = std::move(list);
+	if (_allowedReactions != list) {
+		_allowedReactions = std::move(list);
+		session().changes().peerUpdated(this, UpdateFlag::Reactions);
+	}
 }
 
 const std::vector<QString> &ChannelData::allowedReactions() const {

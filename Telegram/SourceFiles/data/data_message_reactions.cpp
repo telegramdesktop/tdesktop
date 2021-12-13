@@ -24,13 +24,17 @@ constexpr auto kRefreshEach = 60 * 60 * crl::time(1000);
 } // namespace
 
 Reactions::Reactions(not_null<Session*> owner) : _owner(owner) {
-	request();
+	refresh();
 
 	base::timer_each(
 		kRefreshEach
 	) | rpl::start_with_next([=] {
-		request();
+		refresh();
 	}, _lifetime);
+}
+
+void Reactions::refresh() {
+	request();
 }
 
 const std::vector<Reaction> &Reactions::list() const {
@@ -45,6 +49,10 @@ std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
 	} else {
 		return list();
 	}
+}
+
+rpl::producer<> Reactions::updates() const {
+	return _updated.events();
 }
 
 std::vector<Reaction> Reactions::Filtered(

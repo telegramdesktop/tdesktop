@@ -1005,8 +1005,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_removed_users" = "Removed users";
 "lng_manage_peer_permissions" = "Permissions";
 "lng_manage_peer_invite_links" = "Invite links";
+"lng_manage_peer_reactions" = "Reactions";
+"lng_manage_peer_reactions_off" = "Off";
 "lng_manage_peer_requests" = "Member Requests";
 "lng_manage_peer_requests_channel" = "Subscriber Requests";
+
+"lng_manage_peer_reactions_enable" = "Enable Reactions";
+"lng_manage_peer_reactions_about" = "Allow members to react to group messages.";
+"lng_manage_peer_reactions_about_channel" = "Allow subscribers to react to channel posts.";
+"lng_manage_peer_reactions_available" = "Available reactions";
 
 "lng_manage_peer_group_type" = "Group type";
 "lng_manage_peer_channel_type" = "Channel type";

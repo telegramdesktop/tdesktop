@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
+#include "data/data_message_reactions.h"
 #include "data/data_folder.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -399,6 +400,35 @@ rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
 		});
 	}
 	return rpl::single(false);
+}
+
+rpl::producer<int> FullReactionsCountValue(
+		not_null<Main::Session*> session) {
+	const auto reactions = &session->data().reactions();
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		reactions->updates()
+	) | rpl::map([=] {
+		return int(reactions->list().size());
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<int> AllowedReactionsCountValue(not_null<PeerData*> peer) {
+	if (peer->isUser()) {
+		return FullReactionsCountValue(&peer->session());
+	}
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		UpdateFlag::Reactions
+	) | rpl::map([=] {
+		if (const auto chat = peer->asChat()) {
+			return int(chat->allowedReactions().size());
+		} else if (const auto channel = peer->asChannel()) {
+			return int(channel->allowedReactions().size());
+		}
+		Unexpected("Peer type in AllowedReactionsCountValue.");
+	});
 }
 
 template <typename Flag, typename Peer>

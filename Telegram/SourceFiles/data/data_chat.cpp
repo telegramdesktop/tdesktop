@@ -288,7 +288,10 @@ void ChatData::setPendingRequestsCount(
 }
 
 void ChatData::setAllowedReactions(std::vector<QString> list) {
-	_allowedReactions = std::move(list);
+	if (_allowedReactions != list) {
+		_allowedReactions = std::move(list);
+		session().changes().peerUpdated(this, UpdateFlag::Reactions);
+	}
 }
 
 const std::vector<QString> &ChatData::allowedReactions() const {

@@ -180,6 +180,8 @@ PRIVATE
     boxes/peers/edit_peer_history_visibility_box.h
     boxes/peers/edit_peer_permissions_box.cpp
     boxes/peers/edit_peer_permissions_box.h
+    boxes/peers/edit_peer_reactions.cpp
+    boxes/peers/edit_peer_reactions.h
     boxes/peers/edit_peer_requests_box.cpp
     boxes/peers/edit_peer_requests_box.h
     boxes/peers/edit_peer_type_box.cpp

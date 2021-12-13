@@ -24,6 +24,8 @@ class Reactions final {
 public:
 	explicit Reactions(not_null<Session*> owner);
 
+	void refresh();
+
 	[[nodiscard]] const std::vector<Reaction> &list() const;
 	[[nodiscard]] std::vector<Reaction> list(not_null<PeerData*> peer) const;
 
