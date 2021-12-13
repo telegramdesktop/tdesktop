@@ -117,6 +117,7 @@ private:
     std::vector<QByteArray> _fakePasscodeKeysEncrypted;
     std::vector<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
+    bool _isStartedWithFake = false;
 
 	int _oldVersion = 0;
 

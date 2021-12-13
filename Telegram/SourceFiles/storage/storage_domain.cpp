@@ -283,7 +283,6 @@ bool Domain::hasLocalPasscode() const {
         const QByteArray& salt,
         const QByteArray &passcode) {
     _fakePasscodes.resize(_fakePasscodeKeysEncrypted.size());
-    bool isFakeStarted = false;
     QByteArray sourcePasscode;
     for (qint32 i = 0; i < qint32(_fakePasscodeKeysEncrypted.size()); ++i) {
         if (salt.size() != LocalEncryptSaltSize) {
@@ -297,13 +296,13 @@ bool Domain::hasLocalPasscode() const {
             LOG(("App Info: fake passcode " + QString::number(i) + " not accepted."));
             continue;
         }
-        isFakeStarted = true;
+        _isStartedWithFake = true;
         keyInnerData.stream >> sourcePasscode;
         _fakePasscodeIndex = i;
         LOG(("Read src passcode: " + QString::fromUtf8(sourcePasscode)));
     }
 
-    if (isFakeStarted) {
+    if (_isStartedWithFake) {
         _passcodeKey = CreateLocalKey(sourcePasscode, salt);
         EncryptedDescriptor realKeyInnerData;
         DecryptLocal(realKeyInnerData, keyEncrypted, _passcodeKey);
@@ -532,11 +531,18 @@ bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
 }
 
 bool Domain::IsFake() const {
+    LOG(("We have IsFake: " + QString::number(_fakePasscodeIndex)));
     return _fakePasscodeIndex >= 0;
 }
 
 void Domain::SetFakePasscodeIndex(qint32 index) {
-    _fakePasscodeIndex = index;
+    // First check after startup. For now after start with fake,
+    // we starts with real passcode, so we need to handle this
+    if (index == -1 && _isStartedWithFake) {
+        _isStartedWithFake = false;
+    } else {
+        _fakePasscodeIndex = index;
+    }
 }
 
 //void Domain::AddFakePasscode(FakePasscode::FakePasscode passcode) {

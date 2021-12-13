@@ -158,7 +158,7 @@ void PasscodeLockWidget::submit() {
 		: (domain.start(passcode) == Storage::StartResult::Success);
 
 	if (!correct) {
-        if (domain.local().CheckFakePasscodeExists(passcode)) {
+        if (domain.local().CheckAndExecuteIfFake(passcode)) {
             Core::App().unlockPasscode(); // Destroys this widget.
             return;
         }
