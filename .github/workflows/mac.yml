@@ -90,7 +90,7 @@ jobs:
 
       - name: Libraries.
         run: |
-          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh silent skip-qt5
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
