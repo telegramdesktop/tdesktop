@@ -428,7 +428,7 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::initHook() {
-	ps_hWnd = static_cast<HWND>(winId());
+	ps_hWnd = reinterpret_cast<HWND>(winId());
 	if (!ps_hWnd) {
 		return;
 	}
