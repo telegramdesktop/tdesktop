@@ -491,7 +491,7 @@ mac:
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
     cmake --build build.arm64 $MAKE_THREADS_CNT
-    CFLAGS="-arch x86_64" cmake -B build.x86_64 . \\
+    CFLAGS="-arch x86_64" cmake -B build . \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
@@ -500,9 +500,9 @@ mac:
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
-    cmake --build build.x86_64 $MAKE_THREADS_CNT
-    lipo -create build.arm64/libjpeg.a build.x86_64/libjpeg.a -output build/libjpeg.a
-    lipo -create build.arm64/libturbojpeg.a build.x86_64/libturbojpeg.a -output build/libturbojpeg.a
+    cmake --build build $MAKE_THREADS_CNT
+    lipo -create build.arm64/libjpeg.a build/libjpeg.a -output build/libjpeg.a
+    lipo -create build.arm64/libturbojpeg.a build/libturbojpeg.a -output build/libturbojpeg.a
     cmake --install build
 """)
 
@@ -638,6 +638,7 @@ depends:patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
+    export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --enable-cross-compile \

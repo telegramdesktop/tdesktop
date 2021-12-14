@@ -13,7 +13,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 Go to ***BuildPath*** and run
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install automake cmake fdk-aac git lame libass libtool libvorbis libvpx ninja opus sdl shtool texi2html theora wget x264 xvid yasm pkg-config gnu-tar
+    brew install git automake cmake wget pkg-config gnu-tar
 
     sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
