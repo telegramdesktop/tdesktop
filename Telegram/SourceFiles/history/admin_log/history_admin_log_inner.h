@@ -141,8 +141,6 @@ public:
 		not_null<const HistoryView::Element*> view) override;
 	void elementShowReactions(
 		not_null<const HistoryView::Element*> view) override;
-	const Data::Reaction *elementCornerReaction(
-		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 

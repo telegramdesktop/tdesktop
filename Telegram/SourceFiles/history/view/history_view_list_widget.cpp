@@ -1461,11 +1461,6 @@ void ListWidget::elementStartInteraction(not_null<const Element*> view) {
 void ListWidget::elementShowReactions(not_null<const Element*> view) {
 }
 
-const Data::Reaction *ListWidget::elementCornerReaction(
-		not_null<const Element*> view) {
-	return nullptr; // #TODO reactions
-}
-
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

@@ -19,9 +19,11 @@ struct HistoryMessageForwarded;
 namespace HistoryView {
 
 class ViewButton;
-class ReactButton;
-class Reactions;
 class WebPage;
+
+namespace Reactions {
+class InlineList;
+} // namespace Reactions
 
 // Special type of Component for the channel actions log.
 struct LogEntryOriginal
@@ -84,6 +86,9 @@ public:
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
+
+	Reactions::ButtonParameters reactionButtonParameters(
+		QPoint position) const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -234,8 +239,7 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
-	mutable std::unique_ptr<ReactButton> _react;
-	std::unique_ptr<Reactions> _reactions;
+	std::unique_ptr<Reactions::InlineList> _reactions;
 	mutable std::unique_ptr<CommentsButton> _comments;
 
 	Ui::Text::String _rightBadge;

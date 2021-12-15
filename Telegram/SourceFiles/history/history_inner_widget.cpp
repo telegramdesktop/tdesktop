@@ -177,8 +177,10 @@ HistoryInner::HistoryInner(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
 		[=] { update(); }))
-, _reactionsMenus(
-	std::make_unique<HistoryView::ReactionsMenuManager>(historyWidget))
+, _reactionsManager(
+	std::make_unique<HistoryView::Reactions::Manager>(
+		historyWidget,
+		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
@@ -225,8 +227,8 @@ HistoryInner::HistoryInner(
 		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
 	}, lifetime());
 
-	using ChosenReaction = HistoryView::ReactionsMenuManager::Chosen;
-	_reactionsMenus->chosen(
+	using ChosenReaction = HistoryView::Reactions::Manager::Chosen;
+	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
 		if (const auto item = session().data().message(reaction.context)) {
 			item->addReaction(reaction.emoji);
@@ -283,7 +285,7 @@ HistoryInner::HistoryInner(
 			Data::PeerUpdate::Flag::Reactions)
 	) | rpl::start_with_next([=] {
 		_reactions = session().data().reactions().list(_peer);
-		repaintItem(App::mousedItem());
+		_reactionsManager->applyList(_reactions);
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
@@ -799,8 +801,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				view = block->messages[iItem].get();
 				item = view->data();
 			}
-			p.translate(0, -top);
 			context.translate(0, top);
+			p.translate(0, -top);
 		}
 		if (htop >= 0) {
 			auto iBlock = (_curHistory == _history ? _curBlock : 0);
@@ -863,6 +865,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				view = block->messages[iItem].get();
 				item = view->data();
 			}
+			context.translate(0, top);
 			p.translate(0, -top);
 
 			if (readTill && _widget->doWeReadServerHistory()) {
@@ -959,6 +962,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				return true;
 			});
 			p.setOpacity(1.);
+
+			_reactionsManager->paintButtons(p, context);
+
 			p.translate(0, _historyPaddingTop);
 			_emojiInteractions->paint(p);
 		}
@@ -1533,7 +1539,7 @@ void HistoryInner::mouseActionFinish(
 				.sessionWindow = base::make_weak(_controller.get()),
 			})
 		});
-		_reactionsMenus->hideAll(anim::type::normal);
+		_reactionsManager->hideSelectors(anim::type::normal);
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
@@ -1719,21 +1725,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		if (item->canReact()) {
-			auto reactionMenu = std::make_unique<Ui::PopupMenu>(
-				this,
-				st::reactionMenu);
-			auto &reactions = item->history()->owner().reactions();
-			const auto &list = reactions.list(item->history()->peer);
-			if (!list.empty()) {
-				for (const auto &entry : list) {
-					reactionMenu->addAction(entry.emoji, [=] {
-						item->addReaction(entry.emoji);
-					});
-				}
-				_menu->addAction("Reaction", std::move(reactionMenu), &st::menuIconReactions);
-			}
-		}
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);
@@ -2147,19 +2138,6 @@ void HistoryInner::copySelectedText() {
 	if (!showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 	}
-}
-
-void HistoryInner::showReactionsMenu(FullMsgId itemId, QRect area) {
-	const auto top = itemTop(session().data().message(itemId));
-	if (top < 0) {
-		area = QRect(); // Just hide.
-	}
-	const auto skip = st::reactionCornerOut.y();
-	area = area.marginsRemoved({ 0, skip, 0, skip });
-	_reactionsMenus->showReactionsMenu(
-		itemId,
-		{ mapToGlobal(area.translated(0, top).topLeft()), area.size() },
-		_reactions);
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
@@ -2696,6 +2674,7 @@ void HistoryInner::enterEventHook(QEnterEvent *e) {
 }
 
 void HistoryInner::leaveEventHook(QEvent *e) {
+	_reactionsManager->showButton({});
 	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);
@@ -2807,13 +2786,13 @@ bool HistoryInner::canCopySelected() const {
 }
 
 bool HistoryInner::canDeleteSelected() const {
-	auto selectedState = getSelectionState();
-	return (selectedState.count > 0) && (selectedState.count == selectedState.canDeleteCount);
+	const auto selectedState = getSelectionState();
+	return (selectedState.count > 0)
+		&& (selectedState.count == selectedState.canDeleteCount);
 }
 
 bool HistoryInner::inSelectionMode() const {
-	if (!_selected.empty()
-		&& (_selected.begin()->second == FullSelection)) {
+	if (hasSelectedItems()) {
 		return true;
 	} else if (_mouseAction == MouseAction::Selecting
 		&& _dragSelFrom
@@ -2921,13 +2900,6 @@ void HistoryInner::elementShowReactions(not_null<const Element*> view) {
 		view->data()));
 }
 
-const Data::Reaction *HistoryInner::elementCornerReaction(
-		not_null<const Element*> view) {
-	return (view == App::mousedItem() && !_reactions.empty())
-		? &_reactions.front()
-		: nullptr;
-}
-
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -2955,10 +2927,14 @@ void HistoryInner::clearSelected(bool onlyTextSelection) {
 	}
 }
 
+bool HistoryInner::hasSelectedItems() const {
+	return !_selected.empty() && _selected.cbegin()->second == FullSelection;
+}
+
 MessageIdsList HistoryInner::getSelectedItems() const {
 	using namespace ranges;
 
-	if (_selected.empty() || _selected.cbegin()->second != FullSelection) {
+	if (!hasSelectedItems()) {
 		return {};
 	}
 
@@ -2983,6 +2959,21 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 void HistoryInner::onTouchSelect() {
 	_touchSelect = true;
 	mouseActionStart(_touchPos, Qt::LeftButton);
+}
+
+auto HistoryInner::reactionButtonParameters(
+	not_null<const Element*> view,
+	QPoint position) const
+-> HistoryView::Reactions::ButtonParameters {
+	const auto top = itemTop(view);
+	if (top < 0
+		|| !view->data()->canReact()
+		|| _mouseAction == MouseAction::Dragging
+		|| inSelectionMode()) {
+		return {};
+	}
+	const auto local = view->reactionButtonParameters(position);
+	return local.translated({ 0, itemTop(view) });
 }
 
 void HistoryInner::mouseActionUpdate() {
@@ -3015,6 +3006,7 @@ void HistoryInner::mouseActionUpdate() {
 			}
 		}
 		m = mapPointToItem(point, view);
+		_reactionsManager->showButton(reactionButtonParameters(view, m));
 		if (view->pointState(m) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
@@ -3025,6 +3017,8 @@ void HistoryInner::mouseActionUpdate() {
 			repaintItem(App::hoveredItem());
 			App::hoveredItem(nullptr);
 		}
+	} else {
+		_reactionsManager->showButton({});
 	}
 	if (_mouseActionItem && !_mouseActionItem->mainView()) {
 		mouseActionCancel();
@@ -3148,7 +3142,6 @@ void HistoryInner::mouseActionUpdate() {
 		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
-	showReactionsMenu(dragState.itemId, dragState.reactionArea);
 
 	Qt::CursorShape cur = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
@@ -3851,12 +3844,6 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			if (Instance) {
 				Instance->elementShowReactions(view);
 			}
-		}
-		const Data::Reaction *elementCornerReaction(
-				not_null<const Element*> view) override {
-			Expects(Instance != nullptr);
-
-			return Instance->elementCornerReaction(view);
 		}
 
 	};

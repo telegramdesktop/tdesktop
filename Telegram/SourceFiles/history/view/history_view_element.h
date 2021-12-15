@@ -43,6 +43,10 @@ class Media;
 
 using PaintContext = Ui::ChatPaintContext;
 
+namespace Reactions {
+struct ButtonParameters;
+} // namespace Reactions
+
 enum class Context : char {
 	History,
 	Replies,
@@ -96,8 +100,6 @@ public:
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
 	virtual void elementShowReactions(not_null<const Element*> view) = 0;
-	virtual const Data::Reaction *elementCornerReaction(
-		not_null<const Element*> view) = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -156,8 +158,6 @@ public:
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementShowReactions(not_null<const Element*> view) override;
-	const Data::Reaction *elementCornerReaction(
-		not_null<const Element*> view) override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -318,6 +318,9 @@ public:
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
+
+	[[nodiscard]] virtual auto reactionButtonParameters(
+		QPoint position) const -> Reactions::ButtonParameters;
 
 	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(

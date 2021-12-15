@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_message.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/image/image_prepare.h"
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -21,20 +23,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/palette.h"
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 namespace {
 
 constexpr auto kItemsPerRow = 5;
+constexpr auto kToggleDuration = crl::time(80);
+constexpr auto kActivateDuration = crl::time(150);
+constexpr auto kInCacheIndex = 0;
+constexpr auto kOutCacheIndex = 1;
+constexpr auto kShadowCacheIndex = 0;
+constexpr auto kEmojiCacheIndex = 1;
+constexpr auto kMaskCacheIndex = 2;
+constexpr auto kCacheColumsCount = 3;
+
+[[nodiscard]] QSize CountOuterSize() {
+	const auto extended = QRect(
+		QPoint(),
+		st::reactionCornerSize
+	).marginsAdded(st::reactionCornerShadow);
+	const auto scale = Button::ScaleForState(ButtonState::Active);
+	return QSize(
+		int(base::SafeRound(extended.width() * scale)),
+		int(base::SafeRound(extended.height() * scale)));
+}
 
 } // namespace
 
-Reactions::Reactions(Data &&data)
+InlineList::InlineList(Data &&data)
 : _data(std::move(data))
 , _reactions(st::msgMinWidth / 2) {
 	layout();
 }
 
-void Reactions::update(Data &&data, int availableWidth) {
+void InlineList::update(Data &&data, int availableWidth) {
 	_data = std::move(data);
 	layout();
 	if (width() > 0) {
@@ -42,20 +63,20 @@ void Reactions::update(Data &&data, int availableWidth) {
 	}
 }
 
-void Reactions::updateSkipBlock(int width, int height) {
+void InlineList::updateSkipBlock(int width, int height) {
 	_reactions.updateSkipBlock(width, height);
 }
 
-void Reactions::removeSkipBlock() {
+void InlineList::removeSkipBlock() {
 	_reactions.removeSkipBlock();
 }
 
-void Reactions::layout() {
+void InlineList::layout() {
 	layoutReactionsText();
 	initDimensions();
 }
 
-void Reactions::layoutReactionsText() {
+void InlineList::layoutReactionsText() {
 	if (_data.reactions.empty()) {
 		_reactions.clear();
 		return;
@@ -87,18 +108,18 @@ void Reactions::layoutReactionsText() {
 		Ui::NameTextOptions());
 }
 
-QSize Reactions::countOptimalSize() {
+QSize InlineList::countOptimalSize() {
 	return QSize(_reactions.maxWidth(), _reactions.minHeight());
 }
 
-QSize Reactions::countCurrentSize(int newWidth) {
+QSize InlineList::countCurrentSize(int newWidth) {
 	if (newWidth >= maxWidth()) {
 		return optimalSize();
 	}
 	return { newWidth, _reactions.countHeight(newWidth) };
 }
 
-void Reactions::paint(
+void InlineList::paint(
 		Painter &p,
 		const Ui::ChatStyle *st,
 		int outerWidth,
@@ -106,8 +127,8 @@ void Reactions::paint(
 	_reactions.draw(p, 0, 0, outerWidth);
 }
 
-Reactions::Data ReactionsDataFromMessage(not_null<Message*> message) {
-	auto result = Reactions::Data();
+InlineListData InlineListDataFromMessage(not_null<Message*> message) {
+	auto result = InlineListData();
 
 	const auto item = message->message();
 	result.reactions = item->reactions();
@@ -115,111 +136,84 @@ Reactions::Data ReactionsDataFromMessage(not_null<Message*> message) {
 	return result;
 }
 
-ReactButton::ReactButton(
-	Fn<void()> update,
-	Fn<void()> react,
-	QRect bubble)
-: _update(std::move(update))
-, _handler(std::make_shared<LambdaClickHandler>(react)) {
-	updateGeometry(bubble);
+Button::Button(
+	Fn<void(QRect)> update,
+	ButtonParameters parameters)
+: _update(std::move(update)) {
+	_geometry = QRect(QPoint(), CountOuterSize());
+	_outbg = parameters.outbg;
 }
 
-void ReactButton::updateGeometry(QRect bubble) {
-	const auto topLeft = bubble.topLeft()
-		+ QPoint(bubble.width(), bubble.height())
-		+ QPoint(st::reactionCornerOut.x(), st::reactionCornerOut.y())
-		- QPoint(
-			st::reactionCornerSize.width(),
-			st::reactionCornerSize.height());
-	_geometry = QRect(topLeft, st::reactionCornerSize);
-	_imagePosition = _geometry.topLeft() + QPoint(
-		(_geometry.width() - st::reactionCornerImage) / 2,
-		(_geometry.height() - st::reactionCornerImage) / 2);
+Button::~Button() = default;
+
+bool Button::outbg() const {
+	return _outbg;
 }
 
-int ReactButton::bottomOutsideMargin(int fullHeight) const {
-	return _geometry.y() + _geometry.height() - fullHeight;
+bool Button::isHidden() const {
+	return (_state == State::Hidden) && !_scaleAnimation.animating();
 }
 
-std::optional<PointState> ReactButton::pointState(QPoint point) const {
-	if (!_geometry.contains(point)) {
-		return std::nullopt;
+QRect Button::geometry() const {
+	return _geometry;
+}
+
+void Button::applyParameters(ButtonParameters parameters) {
+	const auto size = _geometry.size();
+	const auto geometry = QRect(
+		parameters.center - QPoint(size.width(), size.height()) / 2,
+		size);
+	if (_outbg != parameters.outbg) {
+		_outbg = parameters.outbg;
+		_update(_geometry);
 	}
-	return PointState::Inside;
-}
-
-std::optional<TextState> ReactButton::textState(
-		QPoint point,
-		const StateRequest &request) const {
-	if (!_geometry.contains(point)) {
-		return std::nullopt;
+	if (_geometry != geometry) {
+		if (!_geometry.isNull()) {
+			_update(_geometry);
+		}
+		_geometry = geometry;
+		_update(_geometry);
 	}
-	auto result = TextState(nullptr, _handler);
-	result.reactionArea = _geometry;
-	return result;
+	applyState(parameters.active ? State::Active : State::Shown);
 }
 
-void ReactButton::paint(Painter &p, const PaintContext &context) {
-	const auto shown = _shownAnimation.value(_shown ? 1. : 0.);
-	if (shown == 0.) {
+void Button::applyState(State state) {
+	if (_state == state) {
 		return;
 	}
-	p.setOpacity(shown);
-	p.setBrush(context.messageStyle()->msgBg);
-	p.setPen(st::shadowFg);
-	const auto radius = _geometry.height() / 2;
-	p.drawRoundedRect(_geometry, radius, radius);
-	if (!_image.isNull()) {
-		p.drawImage(_imagePosition, _image);
-	}
-	p.setOpacity(1.);
+	const auto duration = (state == State::Hidden
+		|| _state == State::Hidden)
+		? kToggleDuration
+		: kActivateDuration;
+	_scaleAnimation.start(
+		[=] { _update(_geometry); },
+		ScaleForState(_state),
+		ScaleForState(state),
+		duration);
+	_state = state;
 }
 
-void ReactButton::toggle(bool shown) {
-	if (_shown == shown) {
-		return;
+float64 Button::ScaleForState(State state) {
+	switch (state) {
+	case State::Hidden: return 0.7;
+	case State::Shown: return 1.;
+	case State::Active: return 1.4;
 	}
-	_shown = shown;
-	_shownAnimation.start(_update, _shown ? 0. : 1., _shown ? 1. : 0., 120);
+	Unexpected("State in ReactionButton::ScaleForState.");
 }
 
-bool ReactButton::isHidden() const {
-	return !_shown && !_shownAnimation.animating();
+float64 Button::OpacityForScale(float64 scale) {
+	return (scale >= 1.)
+		? 1.
+		: ((scale - ScaleForState(State::Hidden))
+			/ (ScaleForState(State::Shown) - ScaleForState(State::Hidden)));
 }
 
-void ReactButton::show(not_null<const Data::Reaction*> reaction) {
-	if (_media && _media->owner()  == reaction->staticIcon) {
-		return;
-	}
-	_handler->setProperty(kReactionIdProperty, reaction->emoji);
-	_media = reaction->staticIcon->createMediaView();
-	const auto setImage = [=](not_null<Image*> image) {
-		const auto size = st::reactionCornerImage;
-		_image = Images::prepare(
-			image->original(),
-			size * style::DevicePixelRatio(),
-			size * style::DevicePixelRatio(),
-			Images::Option::Smooth | Images::Option::TransparentBackground,
-			size,
-			size);
-		_image.setDevicePixelRatio(style::DevicePixelRatio());
-	};
-	if (const auto image = _media->getStickerLarge()) {
-		setImage(image);
-	} else {
-		reaction->staticIcon->session().downloaderTaskFinished(
-		) | rpl::map([=] {
-			return _media->getStickerLarge();
-		}) | rpl::filter_nullptr() | rpl::take(
-			1
-		) | rpl::start_with_next([=](not_null<Image*> image) {
-			setImage(image);
-			_update();
-		}, _downloadTaskLifetime);
-	}
+float64 Button::currentScale() const {
+	return _scaleAnimation.value(ScaleForState(_state));
 }
 
-ReactionsMenu::ReactionsMenu(
+Selector::Selector(
 	QWidget *parent,
 	const std::vector<Data::Reaction> &list)
 : _dropdown(parent) {
@@ -331,7 +325,7 @@ ReactionsMenu::ReactionsMenu(
 	_dropdown.resizeToContent();
 }
 
-void ReactionsMenu::showAround(QRect area) {
+void Selector::showAround(QRect area) {
 	const auto parent = _dropdown.parentWidget();
 	const auto left = std::min(
 		std::max(area.x() + (area.width() - _dropdown.width()) / 2, 0),
@@ -345,7 +339,7 @@ void ReactionsMenu::showAround(QRect area) {
 	_dropdown.move(left, top);
 }
 
-void ReactionsMenu::toggle(bool shown, anim::type animated) {
+void Selector::toggle(bool shown, anim::type animated) {
 	if (animated == anim::type::normal) {
 		if (shown) {
 			using Origin = Ui::PanelAnimation::Origin;
@@ -362,65 +356,351 @@ void ReactionsMenu::toggle(bool shown, anim::type animated) {
 	}
 }
 
-[[nodiscard]] rpl::producer<QString> ReactionsMenu::chosen() const {
+[[nodiscard]] rpl::producer<QString> Selector::chosen() const {
 	return _chosen.events();
 }
 
-[[nodiscard]] rpl::lifetime &ReactionsMenu::lifetime() {
+[[nodiscard]] rpl::lifetime &Selector::lifetime() {
 	return _dropdown.lifetime();
 }
 
-ReactionsMenuManager::ReactionsMenuManager(QWidget *parent)
-: _parent(parent) {
+Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
+: _outer(CountOuterSize())
+, _inner(QRectF(
+	(_outer.width() - st::reactionCornerSize.width()) / 2.,
+	(_outer.height() - st::reactionCornerSize.height()) / 2.,
+	st::reactionCornerSize.width(),
+	st::reactionCornerSize.height()))
+, _buttonUpdate(std::move(buttonUpdate))
+, _selectorParent(selectorParent) {
+	const auto ratio = style::DevicePixelRatio();
+	_cacheInOut = QImage(
+		_outer.width() * 2 * ratio,
+		_outer.height() * kFramesCount * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_cacheInOut.setDevicePixelRatio(ratio);
+	_cacheInOut.fill(Qt::transparent);
+	_cacheParts = QImage(
+		_outer.width() * kCacheColumsCount * ratio,
+		_outer.height() * kFramesCount * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_cacheParts.setDevicePixelRatio(ratio);
+	_cacheParts.fill(Qt::transparent);
+	_shadowBuffer = QImage(
+		_outer * ratio,
+		QImage::Format_ARGB32_Premultiplied);
 }
 
-ReactionsMenuManager::~ReactionsMenuManager() = default;
+Manager::~Manager() = default;
 
-void ReactionsMenuManager::showReactionsMenu(
-		FullMsgId context,
-		QRect globalReactionArea,
-		const std::vector<Data::Reaction> &list) {
-	if (globalReactionArea.isEmpty()) {
+void Manager::showButton(ButtonParameters parameters) {
+	if (_button && _buttonContext != parameters.context) {
+		_button->applyState(ButtonState::Hidden);
+		_buttonHiding.push_back(std::move(_button));
+	}
+	_buttonContext = parameters.context;
+	if (!_buttonContext || _list.size() < 2) {
+		return;
+	}
+	if (!_button) {
+		_button = std::make_unique<Button>(_buttonUpdate, parameters);
+	} else {
+		_button->applyParameters(parameters);
+	}
+}
+
+void Manager::applyList(std::vector<Data::Reaction> list) {
+	constexpr auto proj = &Data::Reaction::emoji;
+	if (ranges::equal(_list, list, ranges::equal_to{}, proj, proj)) {
+		return;
+	}
+	_list = std::move(list);
+	if (_list.size() < 2) {
+		hideSelectors(anim::type::normal);
+	}
+	if (_list.empty()) {
+		_mainReactionMedia = nullptr;
+		return;
+	}
+	const auto main = _list.front().staticIcon;
+	if (_mainReactionMedia && _mainReactionMedia->owner() == main) {
+		return;
+	}
+	_mainReactionMedia = main->createMediaView();
+	if (const auto image = _mainReactionMedia->getStickerLarge()) {
+		setMainReactionImage(image->original());
+	} else {
+		main->session().downloaderTaskFinished(
+		) | rpl::map([=] {
+			return _mainReactionMedia->getStickerLarge();
+		}) | rpl::filter_nullptr() | rpl::take(
+			1
+		) | rpl::start_with_next([=](not_null<Image*> image) {
+			setMainReactionImage(image->original());
+		}, _mainReactionLifetime);
+	}
+}
+
+void Manager::setMainReactionImage(QImage image) {
+	_mainReactionImage = std::move(image);
+	ranges::fill(_validIn, false);
+	ranges::fill(_validOut, false);
+	ranges::fill(_validEmoji, false);
+}
+
+void Manager::removeStaleButtons() {
+	_buttonHiding.erase(
+		ranges::remove_if(_buttonHiding, &Button::isHidden),
+		end(_buttonHiding));
+}
+
+void Manager::paintButtons(Painter &p, const PaintContext &context) {
+	removeStaleButtons();
+	for (const auto &button : _buttonHiding) {
+		paintButton(p, context, button.get());
+	}
+	if (const auto current = _button.get()) {
+		paintButton(p, context, current);
+	}
+}
+
+void Manager::paintButton(
+		Painter &p,
+		const PaintContext &context,
+		not_null<Button*> button) {
+	const auto geometry = button->geometry();
+	if (!context.clip.intersects(geometry)) {
+		return;
+	}
+	const auto scale = button->currentScale();
+	const auto scaleMin = Button::ScaleForState(ButtonState::Hidden);
+	const auto scaleMax = Button::ScaleForState(ButtonState::Active);
+	const auto progress = (scale - scaleMin) / (scaleMax - scaleMin);
+	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
+	const auto useScale = scaleMin
+		+ (frame / float64(kFramesCount - 1)) * (scaleMax - scaleMin);
+	paintButton(p, context, button, frame, useScale);
+}
+
+void Manager::paintButton(
+		Painter &p,
+		const PaintContext &context,
+		not_null<Button*> button,
+		int frameIndex,
+		float64 scale) {
+	const auto opacity = Button::OpacityForScale(scale);
+	if (opacity == 0.) {
+		return;
+	}
+	const auto geometry = button->geometry();
+	const auto position = geometry.topLeft();
+	const auto size = geometry.size();
+	const auto outbg = button->outbg();
+	const auto patterned = outbg
+		&& context.bubblesPattern
+		&& !context.viewport.isEmpty()
+		&& !context.bubblesPattern->pixmap.size().isEmpty();
+	const auto shadow = context.st->shadowFg()->c;
+	if (opacity != 1.) {
+		p.setOpacity(opacity);
+	}
+	if (patterned) {
+		p.drawImage(
+			position,
+			_cacheParts,
+			validateShadow(frameIndex, scale, shadow));
+		// #TODO reactions
+	} else {
+		const auto &stm = context.st->messageStyle(outbg, false);
+		const auto background = stm.msgBg->c;
+		const auto source = validateFrame(
+			outbg,
+			frameIndex,
+			scale,
+			stm.msgBg->c,
+			shadow);
+		p.drawImage(position, _cacheInOut, source);
+	}
+	if (opacity != 1.) {
+		p.setOpacity(1.);
+	}
+}
+
+void Manager::applyPatternedShadow(const QColor &shadow) {
+	if (_shadow == shadow) {
+		return;
+	}
+	_shadow = shadow;
+	ranges::fill(_validIn, false);
+	ranges::fill(_validOut, false);
+	ranges::fill(_validShadow, false);
+}
+
+QRect Manager::cacheRect(int frameIndex, int columnIndex) const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto origin = QPoint(
+		_outer.width() * columnIndex,
+		_outer.height() * frameIndex);
+	return QRect(ratio * origin, ratio * _outer);
+}
+
+QRect Manager::validateShadow(
+		int frameIndex,
+		float64 scale,
+		const QColor &shadow) {
+	applyPatternedShadow(shadow);
+	const auto result = cacheRect(frameIndex, kShadowCacheIndex);
+	if (_validShadow[frameIndex]) {
+		return result;
+	}
+
+	_shadowBuffer.fill(Qt::transparent);
+	auto p = QPainter(&_shadowBuffer);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = _inner.height() / 2;
+	const auto center = _inner.center();
+	const auto add = style::ConvertScale(1.5);
+	const auto shift = style::ConvertScale(1.);
+	const auto extended = _inner.marginsAdded({ add, add, add, add });
+	p.setPen(Qt::NoPen);
+	p.setBrush(shadow);
+	p.translate(center);
+	p.scale(scale, scale);
+	p.translate(-center);
+	p.drawRoundedRect(extended.translated(0, shift), radius, radius);
+	p.end();
+	_shadowBuffer = Images::prepareBlur(std::move(_shadowBuffer));
+
+	auto q = QPainter(&_cacheParts);
+	q.setCompositionMode(QPainter::CompositionMode_Source);
+	q.drawImage(result.topLeft() / style::DevicePixelRatio(), _shadowBuffer);
+
+	_validShadow[frameIndex] = true;
+	return result;
+}
+
+QRect Manager::validateEmoji(int frameIndex, float64 scale) {
+	const auto result = cacheRect(frameIndex, kEmojiCacheIndex);
+	if (_validEmoji[frameIndex]) {
+		return result;
+	}
+
+	auto p = QPainter(&_cacheParts);
+	const auto ratio = style::DevicePixelRatio();
+	const auto position = result.topLeft() / ratio;
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(QRect(position, result.size() / ratio), Qt::transparent);
+	if (!_mainReactionImage.isNull()) {
+		const auto size = st::reactionCornerImage * scale;
+		const auto inner = _inner.translated(position);
+		const auto target = QRectF(
+			inner.x() + (inner.width() - size) / 2,
+			inner.y() + (inner.height() - size) / 2,
+			size,
+			size);
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(target, _mainReactionImage);
+	}
+
+	_validEmoji[frameIndex] = true;
+	return result;
+}
+
+QRect Manager::validateFrame(
+		bool outbg,
+		int frameIndex,
+		float64 scale,
+		const QColor &background,
+		const QColor &shadow) {
+	applyPatternedShadow(shadow);
+	auto &valid = outbg ? _validOut : _validIn;
+	auto &color = outbg ? _backgroundOut : _backgroundIn;
+	if (color != background) {
+		color = background;
+		ranges::fill(valid, false);
+	}
+
+	const auto columnIndex = outbg ? kOutCacheIndex : kInCacheIndex;
+	const auto result = cacheRect(frameIndex, columnIndex);
+	if (valid[frameIndex]) {
+		return result;
+	}
+
+	const auto shadowSource = validateShadow(frameIndex, scale, shadow);
+	const auto emojiSource = validateEmoji(frameIndex, scale);
+	const auto position = result.topLeft() / style::DevicePixelRatio();
+	auto p = QPainter(&_cacheInOut);
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.drawImage(position, _cacheParts, shadowSource);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+
+	auto hq = PainterHighQualityEnabler(p);
+	const auto inner = _inner.translated(position);
+	const auto radius = inner.height() / 2;
+	const auto center = inner.center();
+	p.setPen(Qt::NoPen);
+	p.setBrush(background);
+	p.save();
+	p.translate(center);
+	p.scale(scale, scale);
+	p.translate(-center);
+	p.drawRoundedRect(inner, radius, radius);
+	p.restore();
+
+	p.drawImage(position, _cacheParts, emojiSource);
+
+	p.end();
+	valid[frameIndex] = true;
+	return result;
+}
+
+void Manager::showSelector(Fn<QPoint(QPoint)> mapToGlobal) {
+	if (!_button) {
+		showSelector({}, {});
+	} else {
+		const auto geometry = _button->geometry();
+		showSelector(
+			_buttonContext,
+			{ mapToGlobal(geometry.topLeft()), geometry.size() });
+	}
+}
+
+void Manager::showSelector(FullMsgId context, QRect globalButtonArea) {
+	if (globalButtonArea.isEmpty()) {
 		context = FullMsgId();
 	}
-	const auto listsEqual = ranges::equal(
-		_list,
-		list,
-		ranges::equal_to(),
-		&Data::Reaction::emoji,
-		&Data::Reaction::emoji);
-	const auto changed = (_context != context || !listsEqual);
-	if (_menu && changed) {
-		_menu->toggle(false, anim::type::normal);
-		_hiding.push_back(std::move(_menu));
+	const auto changed = (_selectorContext != context);
+	if (_selector && changed) {
+		_selector->toggle(false, anim::type::normal);
+		_selectorHiding.push_back(std::move(_selector));
 	}
-	_context = context;
-	_list = list;
-	if (list.size() < 2 || !context || (!changed && !_menu)) {
+	_selectorContext = context;
+	if (_list.size() < 2 || !context || (!changed && !_selector)) {
 		return;
-	} else if (!_menu) {
-		_menu = std::make_unique<ReactionsMenu>(_parent, list);
-		_menu->chosen(
+	} else if (!_selector) {
+		_selector = std::make_unique<Selector>(_selectorParent, _list);
+		_selector->chosen(
 		) | rpl::start_with_next([=](QString emoji) {
-			_menu->toggle(false, anim::type::normal);
-			_hiding.push_back(std::move(_menu));
+			_selector->toggle(false, anim::type::normal);
+			_selectorHiding.push_back(std::move(_selector));
 			_chosen.fire({ context, std::move(emoji) });
-		}, _menu->lifetime());
+		}, _selector->lifetime());
 	}
 	const auto area = QRect(
-		_parent->mapFromGlobal(globalReactionArea.topLeft()),
-		globalReactionArea.size());
-	_menu->showAround(area);
-	_menu->toggle(true, anim::type::normal);
+		_selectorParent->mapFromGlobal(globalButtonArea.topLeft()),
+		globalButtonArea.size());
+	_selector->showAround(area);
+	_selector->toggle(true, anim::type::normal);
 }
 
-void ReactionsMenuManager::hideAll(anim::type animated) {
+void Manager::hideSelectors(anim::type animated) {
 	if (animated == anim::type::instant) {
-		_hiding.clear();
-		_menu = nullptr;
-	} else if (_menu) {
-		_menu->toggle(false, anim::type::normal);
-		_hiding.push_back(std::move(_menu));
+		_selectorHiding.clear();
+		_selector = nullptr;
+	} else if (_selector) {
+		_selector->toggle(false, anim::type::normal);
+		_selectorHiding.push_back(std::move(_selector));
 	}
 }
 

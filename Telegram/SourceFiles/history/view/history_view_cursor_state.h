@@ -53,7 +53,6 @@ struct TextState {
 	bool customTooltip = false;
 	uint16 symbol = 0;
 	QString customTooltipText;
-	QRect reactionArea;
 
 };
 

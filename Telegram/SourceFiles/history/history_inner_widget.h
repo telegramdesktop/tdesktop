@@ -29,8 +29,12 @@ enum class CursorState : char;
 enum class PointState : char;
 class EmptyPainter;
 class Element;
-class ReactionsMenuManager;
 } // namespace HistoryView
+
+namespace HistoryView::Reactions {
+class Manager;
+struct ButtonParameters;
+} // namespace HistoryView::Reactions
 
 namespace Window {
 class SessionController;
@@ -69,7 +73,7 @@ public:
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	TextForMimeData getSelectedText() const;
+	[[nodiscard]] TextForMimeData getSelectedText() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
@@ -82,14 +86,16 @@ public:
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(const Element *view);
 
-	bool canCopySelected() const;
-	bool canDeleteSelected() const;
+	[[nodiscard]] bool canCopySelected() const;
+	[[nodiscard]] bool canDeleteSelected() const;
 
-	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
+	[[nodiscard]] auto getSelectionState() const
+		-> HistoryView::TopBarWidget::SelectedState;
 	void clearSelected(bool onlyTextSelection = false);
-	MessageIdsList getSelectedItems() const;
-	bool inSelectionMode() const;
-	bool elementIntersectsRange(
+	[[nodiscard]] MessageIdsList getSelectedItems() const;
+	[[nodiscard]] bool hasSelectedItems() const;
+	[[nodiscard]] bool inSelectionMode() const;
+	[[nodiscard]] bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
 		int till) const;
@@ -120,7 +126,6 @@ public:
 	void elementReplyTo(const FullMsgId &to);
 	void elementStartInteraction(not_null<const Element*> view);
 	void elementShowReactions(not_null<const Element*> view);
-	const Data::Reaction *elementCornerReaction(not_null<const Element*> view);
 
 	void updateBotInfo(bool recount = true);
 
@@ -343,7 +348,10 @@ private:
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
-	void showReactionsMenu(FullMsgId itemId, QRect area);
+
+	HistoryView::Reactions::ButtonParameters reactionButtonParameters(
+		not_null<const Element*> view,
+		QPoint position) const;
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -398,7 +406,7 @@ private:
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
 	std::vector<Data::Reaction> _reactions;
-	std::unique_ptr<HistoryView::ReactionsMenuManager> _reactionsMenus;
+	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

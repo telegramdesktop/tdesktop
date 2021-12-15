@@ -55,12 +55,7 @@ struct ChatThemeBackgroundData;
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
-struct Reaction;
 } // namespace Data
-
-namespace HistoryView {
-class ReactionsMenu;
-} // namespace HistoryView
 
 namespace Window {
 

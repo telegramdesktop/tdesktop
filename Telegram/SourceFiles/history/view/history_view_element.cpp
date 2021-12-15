@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
+#include "history/view/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "base/unixtime.h"
@@ -186,11 +187,6 @@ void SimpleElementDelegate::elementStartInteraction(
 
 void SimpleElementDelegate::elementShowReactions(
 	not_null<const Element*> view) {
-}
-
-const Data::Reaction *SimpleElementDelegate::elementCornerReaction(
-		not_null<const Element*> view) {
-	return nullptr;
 }
 
 TextSelection UnshiftItemSelection(
@@ -977,6 +973,11 @@ TextSelection Element::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
 	return selection;
+}
+
+Reactions::ButtonParameters Element::reactionButtonParameters(
+		QPoint position) const {
+	return {};
 }
 
 void Element::clickHandlerActiveChanged(
