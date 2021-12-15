@@ -1221,7 +1221,10 @@ bool DocumentData::hasWebLocation() const {
 }
 
 bool DocumentData::isNull() const {
-	return !hasRemoteLocation() && !hasWebLocation() && _url.isEmpty();
+	return !hasRemoteLocation()
+		&& !hasWebLocation()
+		&& _url.isEmpty()
+		&& !uploading();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {
