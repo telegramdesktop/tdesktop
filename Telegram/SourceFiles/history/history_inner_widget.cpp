@@ -1454,6 +1454,7 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 
 	_animatedStickersPlayed.remove(item);
+	_reactionsManager->remove(item->fullId());
 
 	auto i = _selected.find(item);
 	if (i != _selected.cend()) {
@@ -3034,7 +3035,8 @@ void HistoryInner::mouseActionUpdate() {
 		&& (view == App::hoveredItem())
 		&& !_selected.empty()
 		&& (_selected.cbegin()->second != FullSelection);
-	if (reactionView && reactionState.link) {
+	const auto overReaction = reactionView && reactionState.link;
+	if (overReaction) {
 		dragState = reactionState;
 		lnkhost = reactionView;
 		_reactionsManager->showSelector([=](QPoint local) {
@@ -3141,6 +3143,9 @@ void HistoryInner::mouseActionUpdate() {
 				}
 			}
 		}
+	}
+	if (!overReaction) {
+		_reactionsManager->hideSelectors(anim::type::normal);
 	}
 	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {

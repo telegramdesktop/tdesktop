@@ -77,11 +77,13 @@ struct ButtonParameters {
 	[[nodiscard]] ButtonParameters translated(QPoint delta) const {
 		auto result = *this;
 		result.center += delta;
+		result.pointer += delta;
 		return result;
 	}
 
 	FullMsgId context;
 	QPoint center;
+	QPoint pointer;
 	ButtonStyle style = ButtonStyle::Bubble;
 	bool inside = false;
 	bool active = false;
@@ -158,6 +160,7 @@ public:
 	void showButton(ButtonParameters parameters);
 	void paintButtons(Painter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
+	void remove(FullMsgId context);
 
 	void showSelector(Fn<QPoint(QPoint)> mapToGlobal);
 	void showSelector(FullMsgId context, QRect globalButtonArea);
@@ -174,6 +177,8 @@ public:
 
 private:
 	static constexpr auto kFramesCount = 30;
+
+	[[nodiscard]] bool overCurrentButton(QPoint position) const;
 
 	void removeStaleButtons();
 	void paintButton(
@@ -206,6 +211,7 @@ private:
 	std::vector<Data::Reaction> _list;
 	QSize _outer;
 	QRectF _inner;
+	QRect _innerActive;
 	QImage _cacheInOut;
 	QImage _cacheParts;
 	QImage _shadowBuffer;

@@ -1793,6 +1793,7 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	auto result = Reactions::ButtonParameters{ .context = data()->fullId() };
 	result.outbg = hasOutLayout();
 	const auto geometry = countGeometry();
+	result.pointer = position;
 	result.center = geometry.topLeft()
 		+ QPoint(geometry.width(), geometry.height())
 		+ st::reactionCornerCenter;

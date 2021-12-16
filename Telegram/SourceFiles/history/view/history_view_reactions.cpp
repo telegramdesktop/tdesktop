@@ -370,11 +370,8 @@ void Selector::toggle(bool shown, anim::type animated) {
 
 Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 : _outer(CountOuterSize())
-, _inner(QRectF(
-	(_outer.width() - st::reactionCornerSize.width()) / 2.,
-	(_outer.height() - st::reactionCornerSize.height()) / 2.,
-	st::reactionCornerSize.width(),
-	st::reactionCornerSize.height()))
+, _inner(QRectF({}, st::reactionCornerSize))
+, _innerActive(QRect({}, CountMaxSizeWithMargins({})))
 , _buttonUpdate(std::move(buttonUpdate))
 , _buttonLink(std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
 	if (_buttonContext && !_list.empty()) {
@@ -385,6 +382,10 @@ Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 	}
 })))
 , _selectorParent(selectorParent) {
+	_inner.translate(QRectF({}, _outer).center() - _inner.center());
+	_innerActive.translate(
+		QRect({}, _outer).center() - _innerActive.center());
+
 	const auto ratio = style::DevicePixelRatio();
 	_cacheInOut = QImage(
 		_outer.width() * 2 * ratio,
@@ -407,11 +408,17 @@ Manager::~Manager() = default;
 
 void Manager::showButton(ButtonParameters parameters) {
 	if (_button && _buttonContext != parameters.context) {
+		if (!parameters.context
+			&& _selector
+			&& _selectorContext == _buttonContext) {
+			return;
+		}
 		_button->applyState(ButtonState::Hidden);
 		_buttonHiding.push_back(std::move(_button));
 	}
 	_buttonContext = parameters.context;
 	if (!_buttonContext || _list.size() < 2) {
+		hideSelectors(anim::type::normal);
 		return;
 	}
 	if (!_button) {
@@ -477,19 +484,31 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 }
 
 TextState Manager::buttonTextState(QPoint position) const {
-	if (const auto current = _button.get()) {
-		const auto geometry = current->geometry();
-		if (geometry.contains(position)) {
-			const auto maxInner = QRect({}, CountMaxSizeWithMargins({}));
-			const auto shift = geometry.center() - maxInner.center();
-			if (maxInner.translated(shift).contains(position)) {
-				auto result = TextState(nullptr, _buttonLink);
-				result.itemId = _buttonContext;
-				return result;
-			}
-		}
+	if (overCurrentButton(position)) {
+		auto result = TextState(nullptr, _buttonLink);
+		result.itemId = _buttonContext;
+		return result;
 	}
 	return {};
+}
+
+bool Manager::overCurrentButton(QPoint position) const {
+	if (!_button) {
+		return false;
+	}
+	const auto geometry = _button->geometry();
+	return _innerActive.translated(geometry.topLeft()).contains(position);
+}
+
+void Manager::remove(FullMsgId context) {
+	if (_buttonContext == context) {
+		_buttonContext = {};
+		_button = nullptr;
+	}
+	if (_selectorContext == context) {
+		_selectorContext = {};
+		_selector = nullptr;
+	}
 }
 
 void Manager::paintButton(
@@ -687,7 +706,8 @@ void Manager::showSelector(Fn<QPoint(QPoint)> mapToGlobal) {
 	if (!_button) {
 		showSelector({}, {});
 	} else {
-		const auto geometry = _button->geometry();
+		const auto position = _button->geometry().topLeft();
+		const auto geometry = _innerActive.translated(position);
 		showSelector(
 			_buttonContext,
 			{ mapToGlobal(geometry.topLeft()), geometry.size() });
@@ -726,9 +746,11 @@ void Manager::hideSelectors(anim::type animated) {
 	if (animated == anim::type::instant) {
 		_selectorHiding.clear();
 		_selector = nullptr;
+		_selectorContext = {};
 	} else if (_selector) {
 		_selector->toggle(false, anim::type::normal);
 		_selectorHiding.push_back(std::move(_selector));
+		_selectorContext = {};
 	}
 }
 
