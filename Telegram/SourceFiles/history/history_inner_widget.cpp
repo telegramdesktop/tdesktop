@@ -2984,17 +2984,21 @@ void HistoryInner::mouseActionUpdate() {
 	auto mousePos = mapFromGlobal(_mousePosition);
 	auto point = _widget->clampMousePosition(mousePos);
 
-	auto block = (HistoryBlock*)nullptr;
-	auto item = (HistoryItem*)nullptr;
-	auto view = (Element*)nullptr;
 	QPoint m;
 
 	adjustCurrent(point.y());
-	if (_curHistory && !_curHistory->isEmpty()) {
-		block = _curHistory->blocks[_curBlock].get();
-		view = block->messages[_curItem].get();
-		item = view->data();
-
+	const auto reactionItemId = _reactionsManager->lookupButtonId(point);
+	const auto reactionItem = session().data().message(reactionItemId);
+	const auto reactionView = reactionItem
+		? reactionItem->mainView()
+		: nullptr;
+	const auto view = reactionView
+		? reactionView
+		: (_curHistory && !_curHistory->isEmpty())
+		? _curHistory->blocks[_curBlock]->messages[_curItem].get()
+		: nullptr;
+	const auto item = view ? view->data().get() : nullptr;
+	if (view) {
 		const auto was = App::mousedItem();
 		if (was != view) {
 			if (!_reactions.empty()) {

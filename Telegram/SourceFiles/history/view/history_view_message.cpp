@@ -1790,10 +1790,6 @@ TextSelection Message::adjustSelection(
 
 Reactions::ButtonParameters Message::reactionButtonParameters(
 		QPoint position) const {
-	const auto top = marginTop();
-	if (!QRect(0, top, width(), height() - top).contains(position)) {
-		return {};
-	}
 	auto result = Reactions::ButtonParameters{ .context = data()->fullId() };
 	result.outbg = hasOutLayout();
 	const auto geometry = countGeometry();
@@ -1807,6 +1803,12 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	result.active = button.marginsAdded(
 		st::reactionCornerActiveAreaPadding
 	).contains(position);
+	if (!result.active) {
+		const auto top = marginTop();
+		if (!QRect(0, top, width(), height() - top).contains(position)) {
+			return {};
+		}
+	}
 	return result;
 }
 

@@ -84,6 +84,7 @@ struct ButtonParameters {
 	FullMsgId context;
 	QPoint center;
 	ButtonStyle style = ButtonStyle::Bubble;
+	bool inside = false;
 	bool active = false;
 	bool outbg = false;
 };
@@ -157,6 +158,7 @@ public:
 
 	void showButton(ButtonParameters parameters);
 	void paintButtons(Painter &p, const PaintContext &context);
+	[[nodiscard]] FullMsgId lookupButtonId(QPoint position) const;
 
 	void showSelector(Fn<QPoint(QPoint)> mapToGlobal);
 	void showSelector(FullMsgId context, QRect globalButtonArea);

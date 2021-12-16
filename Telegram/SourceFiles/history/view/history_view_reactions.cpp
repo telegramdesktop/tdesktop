@@ -36,15 +36,19 @@ constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
 constexpr auto kCacheColumsCount = 3;
 
-[[nodiscard]] QSize CountOuterSize() {
+[[nodiscard]] QSize CountMaxSizeWithMargins(style::margins margins) {
 	const auto extended = QRect(
 		QPoint(),
 		st::reactionCornerSize
-	).marginsAdded(st::reactionCornerShadow);
+	).marginsAdded(margins);
 	const auto scale = Button::ScaleForState(ButtonState::Active);
 	return QSize(
 		int(base::SafeRound(extended.width() * scale)),
 		int(base::SafeRound(extended.height() * scale)));
+}
+
+[[nodiscard]] QSize CountOuterSize() {
+	return CountMaxSizeWithMargins(st::reactionCornerShadow);
 }
 
 } // namespace
@@ -140,8 +144,10 @@ Button::Button(
 	Fn<void(QRect)> update,
 	ButtonParameters parameters)
 : _update(std::move(update)) {
-	_geometry = QRect(QPoint(), CountOuterSize());
+	const auto initial = QRect(QPoint(), CountOuterSize());
+	_geometry = initial.translated(parameters.center - initial.center());
 	_outbg = parameters.outbg;
+	applyState(parameters.active ? State::Active : State::Shown);
 }
 
 Button::~Button() = default;
@@ -159,10 +165,8 @@ QRect Button::geometry() const {
 }
 
 void Button::applyParameters(ButtonParameters parameters) {
-	const auto size = _geometry.size();
-	const auto geometry = QRect(
-		parameters.center - QPoint(size.width(), size.height()) / 2,
-		size);
+	const auto geometry = _geometry.translated(
+		parameters.center - _geometry.center());
 	if (_outbg != parameters.outbg) {
 		_outbg = parameters.outbg;
 		_update(_geometry);
@@ -462,6 +466,20 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 	if (const auto current = _button.get()) {
 		paintButton(p, context, current);
 	}
+}
+
+FullMsgId Manager::lookupButtonId(QPoint position) const {
+	if (const auto current = _button.get()) {
+		const auto geometry = current->geometry();
+		if (geometry.contains(position)) {
+			const auto maxInner = QRect({}, CountMaxSizeWithMargins({}));
+			const auto shift = geometry.center() - maxInner.center();
+			if (maxInner.translated(shift).contains(position)) {
+				return _buttonContext;
+			}
+		}
+	}
+	return {};
 }
 
 void Manager::paintButton(
