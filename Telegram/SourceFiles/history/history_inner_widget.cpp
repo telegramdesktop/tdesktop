@@ -2987,8 +2987,8 @@ void HistoryInner::mouseActionUpdate() {
 	QPoint m;
 
 	adjustCurrent(point.y());
-	const auto reactionItemId = _reactionsManager->lookupButtonId(point);
-	const auto reactionItem = session().data().message(reactionItemId);
+	const auto reactionState = _reactionsManager->buttonTextState(point);
+	const auto reactionItem = session().data().message(reactionState.itemId);
 	const auto reactionView = reactionItem
 		? reactionItem->mainView()
 		: nullptr;
@@ -3034,7 +3034,13 @@ void HistoryInner::mouseActionUpdate() {
 		&& (view == App::hoveredItem())
 		&& !_selected.empty()
 		&& (_selected.cbegin()->second != FullSelection);
-	if (point.y() < _historyPaddingTop) {
+	if (reactionView && reactionState.link) {
+		dragState = reactionState;
+		lnkhost = reactionView;
+		_reactionsManager->showSelector([=](QPoint local) {
+			return mapToGlobal(local);
+		});
+	} else if (point.y() < _historyPaddingTop) {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 			dragState = TextState(nullptr, _botAbout->info->text.getState(
 				point - _botAbout->rect.topLeft() - QPoint(st::msgPadding.left(), st::msgPadding.top() + st::botDescSkip + st::msgNameFont->height),

@@ -28,7 +28,6 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 enum class PointState : char;
 struct TextState;
-struct StateRequest;
 class Message;
 } // namespace HistoryView
 
@@ -149,7 +148,7 @@ private:
 
 };
 
-class Manager final {
+class Manager final : public base::has_weak_ptr {
 public:
 	Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate);
 	~Manager();
@@ -158,7 +157,7 @@ public:
 
 	void showButton(ButtonParameters parameters);
 	void paintButtons(Painter &p, const PaintContext &context);
-	[[nodiscard]] FullMsgId lookupButtonId(QPoint position) const;
+	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 
 	void showSelector(Fn<QPoint(QPoint)> mapToGlobal);
 	void showSelector(FullMsgId context, QRect globalButtonArea);
@@ -227,6 +226,7 @@ private:
 	std::unique_ptr<Button> _button;
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
+	ClickHandlerPtr _buttonLink;
 
 	QWidget *_selectorParent = nullptr;
 	std::unique_ptr<Selector> _selector;

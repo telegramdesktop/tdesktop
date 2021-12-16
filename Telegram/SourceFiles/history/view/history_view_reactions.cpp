@@ -376,6 +376,14 @@ Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 	st::reactionCornerSize.width(),
 	st::reactionCornerSize.height()))
 , _buttonUpdate(std::move(buttonUpdate))
+, _buttonLink(std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+	if (_buttonContext && !_list.empty()) {
+		_chosen.fire({
+			.context = _buttonContext,
+			.emoji = _list.front().emoji,
+		});
+	}
+})))
 , _selectorParent(selectorParent) {
 	const auto ratio = style::DevicePixelRatio();
 	_cacheInOut = QImage(
@@ -468,14 +476,16 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 	}
 }
 
-FullMsgId Manager::lookupButtonId(QPoint position) const {
+TextState Manager::buttonTextState(QPoint position) const {
 	if (const auto current = _button.get()) {
 		const auto geometry = current->geometry();
 		if (geometry.contains(position)) {
 			const auto maxInner = QRect({}, CountMaxSizeWithMargins({}));
 			const auto shift = geometry.center() - maxInner.center();
 			if (maxInner.translated(shift).contains(position)) {
-				return _buttonContext;
+				auto result = TextState(nullptr, _buttonLink);
+				result.itemId = _buttonContext;
+				return result;
 			}
 		}
 	}
