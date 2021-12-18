@@ -51,6 +51,26 @@ constexpr auto kCacheColumsCount = 3;
 	return CountMaxSizeWithMargins(st::reactionCornerShadow);
 }
 
+void CopyImagePart(QImage &to, const QImage &from, QRect source) {
+	Expects(to.size() == source.size());
+	Expects(QRect(QPoint(), from.size()).contains(source));
+	Expects(to.format() == from.format());
+	Expects(to.bytesPerLine() == to.width() * 4);
+
+	const auto perPixel = 4;
+	const auto fromPerLine = from.bytesPerLine();
+	const auto toPerLine = to.bytesPerLine();
+	auto toBytes = reinterpret_cast<char*>(to.bits());
+	auto fromBytes = reinterpret_cast<const char*>(from.bits())
+		+ (source.y() * fromPerLine)
+		+ (source.x() * perPixel);
+	for (auto y = 0, height = source.height(); y != height; ++y) {
+		memcpy(toBytes, fromBytes, toPerLine);
+		toBytes += toPerLine;
+		fromBytes += fromPerLine;
+	}
+}
+
 } // namespace
 
 InlineList::InlineList(Data &&data)
@@ -399,6 +419,10 @@ Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 		QImage::Format_ARGB32_Premultiplied);
 	_cacheParts.setDevicePixelRatio(ratio);
 	_cacheParts.fill(Qt::transparent);
+	_cacheForPattern = QImage(
+		_outer * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_cacheForPattern.setDevicePixelRatio(ratio);
 	_shadowBuffer = QImage(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
@@ -556,7 +580,11 @@ void Manager::paintButton(
 			position,
 			_cacheParts,
 			validateShadow(frameIndex, scale, shadow));
-		// #TODO reactions
+
+		validateCacheForPattern(frameIndex, scale, geometry, context);
+		p.drawImage(geometry, _cacheForPattern);
+
+		p.drawImage(position, _cacheParts, validateEmoji(frameIndex, scale));
 	} else {
 		const auto &stm = context.st->messageStyle(outbg, false);
 		const auto background = stm.msgBg->c;
@@ -571,6 +599,24 @@ void Manager::paintButton(
 	if (opacity != 1.) {
 		p.setOpacity(1.);
 	}
+}
+
+void Manager::validateCacheForPattern(
+		int frameIndex,
+		float64 scale,
+		const QRect &geometry,
+		const PaintContext &context) {
+	CopyImagePart(
+		_cacheForPattern,
+		_cacheParts,
+		validateMask(frameIndex, scale));
+	auto q = QPainter(&_cacheForPattern);
+	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	Ui::PaintPatternBubblePart(
+		q,
+		context.viewport.translated(-geometry.topLeft()),
+		context.bubblesPattern->pixmap,
+		QRect(QPoint(), _outer));
 }
 
 void Manager::applyPatternedShadow(const QColor &shadow) {
@@ -699,6 +745,30 @@ QRect Manager::validateFrame(
 
 	p.end();
 	valid[frameIndex] = true;
+	return result;
+}
+
+QRect Manager::validateMask(int frameIndex, float64 scale) {
+	const auto result = cacheRect(frameIndex, kMaskCacheIndex);
+	if (_validMask[frameIndex]) {
+		return result;
+	}
+
+	auto p = QPainter(&_cacheParts);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto position = result.topLeft() / style::DevicePixelRatio();
+	const auto inner = _inner.translated(position);
+	const auto radius = inner.height() / 2;
+	const auto center = inner.center();
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::white);
+	p.save();
+	p.translate(center);
+	p.scale(scale, scale);
+	p.translate(-center);
+	p.drawRoundedRect(inner, radius, radius);
+
+	_validMask[frameIndex] = true;
 	return result;
 }
 

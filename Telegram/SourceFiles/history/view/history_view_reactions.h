@@ -206,6 +206,12 @@ private:
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow);
+	QRect validateMask(int frameIndex, float64 scale);
+	void validateCacheForPattern(
+		int frameIndex,
+		float64 scale,
+		const QRect &geometry,
+		const PaintContext &context);
 
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<Data::Reaction> _list;
@@ -214,12 +220,13 @@ private:
 	QRect _innerActive;
 	QImage _cacheInOut;
 	QImage _cacheParts;
+	QImage _cacheForPattern;
 	QImage _shadowBuffer;
-	std::array<bool, kFramesCount> _validIn;
-	std::array<bool, kFramesCount> _validOut;
-	std::array<bool, kFramesCount> _validShadow;
-	std::array<bool, kFramesCount> _validEmoji;
-	std::array<bool, kFramesCount> _validMask;
+	std::array<bool, kFramesCount> _validIn = { { false } };
+	std::array<bool, kFramesCount> _validOut = { { false } };
+	std::array<bool, kFramesCount> _validShadow = { { false } };
+	std::array<bool, kFramesCount> _validEmoji = { { false } };
+	std::array<bool, kFramesCount> _validMask = { { false } };
 	QColor _backgroundIn;
 	QColor _backgroundOut;
 	QColor _shadow;
