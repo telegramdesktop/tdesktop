@@ -80,9 +80,15 @@ void AboutBox::prepare() {
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
+	const auto available = width()
+		- st::boxPadding.left()
+		- st::boxPadding.right();
 	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
+	_text1->resizeToWidth(available);
 	_text1->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+	_text2->resizeToWidth(available);
 	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
+	_text3->resizeToWidth(available);
 	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
 }
 
