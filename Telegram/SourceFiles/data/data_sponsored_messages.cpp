@@ -161,7 +161,7 @@ void SponsoredMessages::append(
 		const auto randomId = data.vrandom_id().v;
 		auto sharedMessage = SponsoredMessage{
 			.randomId = randomId,
-			.fromId = peerFromMTP(data.vfrom_id()),
+			.fromId = peerFromMTP(*data.vfrom_id()), // #TODO ads
 			.textWithEntities = {
 				.text = qs(data.vmessage()),
 				.entities = Api::EntitiesFromMTP(

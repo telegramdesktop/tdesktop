@@ -615,6 +615,7 @@ messageEntityUnderline#9c4e7e8b offset:int length:int = MessageEntity;
 messageEntityStrike#bf0693d4 offset:int length:int = MessageEntity;
 messageEntityBlockquote#20df5d0 offset:int length:int = MessageEntity;
 messageEntityBankCard#761e6af4 offset:int length:int = MessageEntity;
+messageEntitySpoiler#32ca960f offset:int length:int = MessageEntity;
 
 inputChannelEmpty#ee8c1e86 = InputChannel;
 inputChannel#f35aec28 channel_id:long access_hash:long = InputChannel;
@@ -1283,7 +1284,7 @@ account.resetPasswordFailedWait#e3779861 retry_date:int = account.ResetPasswordR
 account.resetPasswordRequestedWait#e9effc7d until_date:int = account.ResetPasswordResult;
 account.resetPasswordOk#e926d63e = account.ResetPasswordResult;
 
-sponsoredMessage#d151e19a flags:# random_id:bytes from_id:Peer channel_post:flags.2?int start_param:flags.0?string message:string entities:flags.1?Vector<MessageEntity> = SponsoredMessage;
+sponsoredMessage#3a836df8 flags:# random_id:bytes from_id:flags.3?Peer chat_invite:flags.4?ChatInvite chat_invite_hash:flags.4?string channel_post:flags.2?int start_param:flags.0?string message:string entities:flags.1?Vector<MessageEntity> = SponsoredMessage;
 
 messages.sponsoredMessages#65a4c7d5 messages:Vector<SponsoredMessage> chats:Vector<Chat> users:Vector<User> = messages.SponsoredMessages;
 
@@ -1454,9 +1455,9 @@ messages.deleteHistory#b08f922a flags:# just_clear:flags.0?true revoke:flags.1?t
 messages.deleteMessages#e58e95d2 flags:# revoke:flags.0?true id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#58943ee2 flags:# peer:InputPeer top_msg_id:flags.0?int action:SendMessageAction = Bool;
-messages.sendMessage#d9d75a4 flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
-messages.sendMedia#e25ff8e0 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
-messages.forwardMessages#cc30290b flags:# silent:flags.5?true background:flags.6?true with_my_score:flags.8?true drop_author:flags.11?true drop_media_captions:flags.12?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMessage#d9d75a4 flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMedia#e25ff8e0 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.forwardMessages#cc30290b flags:# silent:flags.5?true background:flags.6?true with_my_score:flags.8?true drop_author:flags.11?true drop_media_captions:flags.12?true noforwards:flags.14?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getPeerSettings#efd9a6a2 peer:InputPeer = messages.PeerSettings;
 messages.report#8953ab4e peer:InputPeer id:Vector<int> reason:ReportReason message:string = Bool;
@@ -1535,7 +1536,7 @@ messages.faveSticker#b9ffc55b id:InputDocument unfave:Bool = Bool;
 messages.getUnreadMentions#46578472 peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readMentions#f0189d3 peer:InputPeer = messages.AffectedHistory;
 messages.getRecentLocations#702a40e0 peer:InputPeer limit:int hash:long = messages.Messages;
-messages.sendMultiMedia#f803138f flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true peer:InputPeer reply_to_msg_id:flags.0?int multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMultiMedia#f803138f flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true peer:InputPeer reply_to_msg_id:flags.0?int multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
 messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
 messages.getSplitRanges#1cff7e08 = Vector<MessageRange>;
