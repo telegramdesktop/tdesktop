@@ -547,7 +547,8 @@ void MessageLinksParser::parse() {
 		return (tag == Ui::InputField::kTagBold)
 			|| (tag == Ui::InputField::kTagItalic)
 			|| (tag == Ui::InputField::kTagUnderline)
-			|| (tag == Ui::InputField::kTagStrikeOut);
+			|| (tag == Ui::InputField::kTagStrikeOut)
+			|| (tag == Ui::InputField::kTagSpoiler);
 	};
 
 	auto ranges = QVector<LinkRange>();
