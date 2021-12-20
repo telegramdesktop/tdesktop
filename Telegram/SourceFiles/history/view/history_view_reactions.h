@@ -9,11 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_object.h"
 
-class DocumentData;
-
 namespace Data {
-class Session;
-class DocumentMedia;
+class Reactions;
 } // namespace Data
 
 namespace Ui {
@@ -35,7 +32,6 @@ struct InlineListData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	not_null<Data::Session*> owner;
 	base::flat_map<QString, int> reactions;
 	QString chosenReaction;
 	Flags flags = {};
@@ -44,7 +40,7 @@ struct InlineListData {
 class InlineList final : public Object {
 public:
 	using Data = InlineListData;
-	explicit InlineList(Data &&data);
+	InlineList(not_null<::Data::Reactions*> owner, Data &&data);
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
@@ -61,9 +57,8 @@ public:
 private:
 	struct Button {
 		QRect geometry;
-		QImage image;
+		mutable QImage image;
 		QString emoji;
-		std::shared_ptr<::Data::DocumentMedia> media;
 		ClickHandlerPtr link;
 		QString countText;
 		int count = 0;
@@ -74,23 +69,14 @@ private:
 	void layoutButtons();
 
 	void setButtonCount(Button &button, int count);
-	void loadButtonImage(Button &button, not_null<DocumentData*> document);
-	void setButtonImage(Button &button, QImage large);
 	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
-
-	void reactionsListLoaded();
-	void downloadTaskFinished();
-	[[nodiscard]] bool assetsLoaded() const;
 
 	QSize countOptimalSize() override;
 
+	const not_null<::Data::Reactions*> _owner;
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
-
-	rpl::lifetime _assetsLoadLifetime;
-	bool _waitingForReactionsList = false;
-	bool _waitingForDownloadTask = false;
 
 };
 

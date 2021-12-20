@@ -18,17 +18,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_message_reactions.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "main/main_session.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
 
-BottomInfo::BottomInfo(Data &&data)
-: _data(std::move(data)) {
+BottomInfo::BottomInfo(
+	not_null<::Data::Reactions*> reactionsOwner,
+	Data &&data)
+: _reactionsOwner(reactionsOwner)
+, _data(std::move(data)) {
 	layout();
 }
 
@@ -227,6 +226,11 @@ void BottomInfo::paintReactions(
 			y += st::msgDateFont->height;
 			widthLeft = availableWidth;
 		}
+		if (reaction.image.isNull()) {
+			reaction.image = _reactionsOwner->resolveImageFor(
+				reaction.emoji,
+				::Data::Reactions::ImageSize::BottomInfo);
+		}
 		if (!reaction.image.isNull()) {
 			p.drawImage(
 				x,
@@ -362,54 +366,8 @@ QSize BottomInfo::countOptimalSize() {
 BottomInfo::Reaction BottomInfo::prepareReactionWithEmoji(
 		const QString &emoji) {
 	auto result = Reaction{ .emoji = emoji };
-	auto &reactions = _data.owner->reactions();
-	const auto &list = reactions.list();
-	const auto i = ranges::find(
-		list,
-		emoji,
-		&::Data::Reaction::emoji);
-	const auto document = (i != end(list))
-		? i->staticIcon.get()
-		: nullptr;
-	if (document) {
-		loadReactionImage(result, document);
-	} else if (!_waitingForReactionsList) {
-		reactions.refresh();
-		reactions.updates(
-		) | rpl::filter([=] {
-			return _waitingForReactionsList;
-		}) | rpl::start_with_next([=] {
-			reactionsListLoaded();
-		}, _assetsLoadLifetime);
-	}
+	_reactionsOwner->preloadImageFor(emoji);
 	return result;
-}
-
-void BottomInfo::reactionsListLoaded() {
-	_waitingForReactionsList = false;
-	if (assetsLoaded()) {
-		_assetsLoadLifetime.destroy();
-	}
-
-	const auto &list = _data.owner->reactions().list();
-	for (auto &reaction : _reactions) {
-		if (!reaction.image.isNull() || reaction.media) {
-			continue;
-		}
-		const auto i = ranges::find(
-			list,
-			reaction.emoji,
-			&::Data::Reaction::emoji);
-		const auto document = (i != end(list))
-			? i->staticIcon.get()
-			: nullptr;
-		if (document) {
-			loadReactionImage(reaction, document);
-		} else {
-			LOG(("API Error: Reaction for emoji '%1' not found!"
-				).arg(reaction.emoji));
-		}
-	}
 }
 
 void BottomInfo::setReactionCount(Reaction &reaction, int count) {
@@ -425,72 +383,14 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 		: 0;
 }
 
-void BottomInfo::loadReactionImage(
-		Reaction &reaction,
-		not_null<DocumentData*> document) {
-	if (!reaction.image.isNull()) {
-		return;
-	} else if (!reaction.media) {
-		reaction.media = document->createMediaView();
-	}
-	if (const auto image = reaction.media->getStickerLarge()) {
-		setReactionImage(reaction, image->original());
-	} else if (!_waitingForDownloadTask) {
-		_waitingForDownloadTask = true;
-		document->session().downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
-			downloadTaskFinished();
-		}, _assetsLoadLifetime);
-	}
-}
-
-void BottomInfo::setReactionImage(Reaction &reaction, QImage large) {
-	reaction.media = nullptr;
-	const auto size = st::reactionInfoSize;
-	const auto factor = style::DevicePixelRatio();
-	reaction.image = Images::prepare(
-		std::move(large),
-		size * factor,
-		size * factor,
-		Images::Option::Smooth,
-		size,
-		size);
-}
-
-void BottomInfo::downloadTaskFinished() {
-	auto hasOne = false;
-	for (auto &reaction : _reactions) {
-		if (!reaction.media) {
-			continue;
-		} else if (const auto image = reaction.media->getStickerLarge()) {
-			setReactionImage(reaction, image->original());
-		} else {
-			hasOne = true;
-		}
-	}
-	if (!hasOne) {
-		_waitingForDownloadTask = false;
-		if (assetsLoaded()) {
-			_assetsLoadLifetime.destroy();
-		}
-	}
-}
-
-bool BottomInfo::assetsLoaded() const {
-	return !_waitingForReactionsList && !_waitingForDownloadTask;
-}
-
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	using Flag = BottomInfo::Data::Flag;
-
-	const auto owner = &message->data()->history()->owner();
-	auto result = BottomInfo::Data{ .owner = owner };
-
 	const auto item = message->message();
+
+	auto result = BottomInfo::Data();
 	result.date = message->dateTime();
 	if (message->embedReactionsInBottomInfo()) {
 		result.reactions = item->reactions();
-		result.chosenReaction = item->chosenReaction();
 	}
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;

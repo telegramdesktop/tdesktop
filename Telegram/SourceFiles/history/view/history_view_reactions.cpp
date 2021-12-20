@@ -10,11 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history.h"
 #include "history/view/history_view_message.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
 #include "data/data_message_reactions.h"
-#include "data/data_session.h"
-#include "main/main_session.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
@@ -27,8 +23,9 @@ constexpr auto kOutNonChosenOpacity = 0.18;
 
 } // namespace
 
-InlineList::InlineList(Data &&data)
-: _data(std::move(data)) {
+InlineList::InlineList(not_null<::Data::Reactions*> owner, Data &&data)
+: _owner(owner)
+, _data(std::move(data)) {
 	layout();
 }
 
@@ -79,54 +76,8 @@ void InlineList::layoutButtons() {
 
 InlineList::Button InlineList::prepareButtonWithEmoji(const QString &emoji) {
 	auto result = Button{ .emoji = emoji };
-	auto &reactions = _data.owner->reactions();
-	const auto &list = reactions.list();
-	const auto i = ranges::find(
-		list,
-		emoji,
-		&::Data::Reaction::emoji);
-	const auto document = (i != end(list))
-		? i->staticIcon.get()
-		: nullptr;
-	if (document) {
-		loadButtonImage(result, document);
-	} else if (!_waitingForReactionsList) {
-		reactions.refresh();
-		reactions.updates(
-		) | rpl::filter([=] {
-			return _waitingForReactionsList;
-		}) | rpl::start_with_next([=] {
-			reactionsListLoaded();
-		}, _assetsLoadLifetime);
-	}
+	_owner->preloadImageFor(emoji);
 	return result;
-}
-
-void InlineList::reactionsListLoaded() {
-	_waitingForReactionsList = false;
-	if (assetsLoaded()) {
-		_assetsLoadLifetime.destroy();
-	}
-
-	const auto &list = _data.owner->reactions().list();
-	for (auto &button : _buttons) {
-		if (!button.image.isNull() || button.media) {
-			continue;
-		}
-		const auto i = ranges::find(
-			list,
-			button.emoji,
-			&::Data::Reaction::emoji);
-		const auto document = (i != end(list))
-			? i->staticIcon.get()
-			: nullptr;
-		if (document) {
-			loadButtonImage(button, document);
-		} else {
-			LOG(("API Error: Reaction for emoji '%1' not found!"
-				).arg(button.emoji));
-		}
-	}
 }
 
 void InlineList::setButtonCount(Button &button, int count) {
@@ -136,61 +87,6 @@ void InlineList::setButtonCount(Button &button, int count) {
 	button.count = count;
 	button.countText = Lang::FormatCountToShort(count).string;
 	button.countTextWidth = st::semiboldFont->width(button.countText);
-}
-
-void InlineList::loadButtonImage(
-		Button &button,
-		not_null<DocumentData*> document) {
-	if (!button.image.isNull()) {
-		return;
-	} else if (!button.media) {
-		button.media = document->createMediaView();
-	}
-	if (const auto image = button.media->getStickerLarge()) {
-		setButtonImage(button, image->original());
-	} else if (!_waitingForDownloadTask) {
-		_waitingForDownloadTask = true;
-		document->session().downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
-			downloadTaskFinished();
-		}, _assetsLoadLifetime);
-	}
-}
-
-void InlineList::setButtonImage(Button &button, QImage large) {
-	button.media = nullptr;
-	const auto size = st::reactionBottomSize;
-	const auto factor = style::DevicePixelRatio();
-	button.image = Images::prepare(
-		std::move(large),
-		size * factor,
-		size * factor,
-		Images::Option::Smooth,
-		size,
-		size);
-}
-
-void InlineList::downloadTaskFinished() {
-	auto hasOne = false;
-	for (auto &button : _buttons) {
-		if (!button.media) {
-			continue;
-		} else if (const auto image = button.media->getStickerLarge()) {
-			setButtonImage(button, image->original());
-		} else {
-			hasOne = true;
-		}
-	}
-	if (!hasOne) {
-		_waitingForDownloadTask = false;
-		if (assetsLoaded()) {
-			_assetsLoadLifetime.destroy();
-		}
-	}
-}
-
-bool InlineList::assetsLoaded() const {
-	return !_waitingForReactionsList && !_waitingForDownloadTask;
 }
 
 QSize InlineList::countOptimalSize() {
@@ -282,7 +178,14 @@ void InlineList::paint(
 				p.setOpacity(1.);
 			}
 		}
-		p.drawImage(inner.topLeft(), button.image);
+		if (button.image.isNull()) {
+			button.image = _owner->resolveImageFor(
+				button.emoji,
+				::Data::Reactions::ImageSize::InlineList);
+		}
+		if (!button.image.isNull()) {
+			p.drawImage(inner.topLeft(), button.image);
+		}
 		p.setPen(!inbubble
 			? st->msgServiceFg()
 			: !chosen
@@ -304,11 +207,10 @@ void InlineList::paint(
 }
 
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {
-	const auto owner = &message->data()->history()->owner();
-	auto result = InlineListData{ .owner = owner };
-
 	using Flag = InlineListData::Flag;
 	const auto item = message->message();
+
+	auto result = InlineListData();
 	result.reactions = item->reactions();
 	result.chosenReaction = item->chosenReaction();
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())

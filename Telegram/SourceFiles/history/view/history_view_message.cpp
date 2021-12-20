@@ -245,7 +245,9 @@ Message::Message(
 	not_null<HistoryMessage*> data,
 	Element *replacing)
 : Element(delegate, data, replacing)
-, _bottomInfo(BottomInfoDataFromMessage(this)) {
+, _bottomInfo(
+		&data->history()->owner().reactions(),
+		BottomInfoDataFromMessage(this)) {
 	initLogEntryOriginal();
 	initPsa();
 	refreshReactions();
@@ -1924,7 +1926,9 @@ void Message::refreshReactions() {
 	using namespace Reactions;
 	auto data = InlineListDataFromMessage(this);
 	if (!_reactions) {
-		_reactions = std::make_unique<InlineList>(std::move(data));
+		_reactions = std::make_unique<InlineList>(
+			&item->history()->owner().reactions(),
+			std::move(data));
 	} else {
 		_reactions->update(std::move(data), width());
 	}

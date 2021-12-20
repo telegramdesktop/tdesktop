@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+class DocumentMedia;
 class Session;
 
 struct Reaction {
@@ -40,11 +41,31 @@ public:
 
 	[[nodiscard]] rpl::producer<> updates() const;
 
+	enum class ImageSize {
+		BottomInfo,
+		InlineList,
+	};
+	void preloadImageFor(const QString &emoji);
+	[[nodiscard]] QImage resolveImageFor(
+		const QString &emoji,
+		ImageSize size);
+
 private:
+	struct ImageSet {
+		QImage bottomInfo;
+		QImage inlineList;
+		std::shared_ptr<DocumentMedia> media;
+	};
+
 	void request();
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
+
+	void loadImage(ImageSet &set, not_null<DocumentData*> document);
+	void setImage(ImageSet &set, QImage large);
+	void resolveImages();
+	void downloadTaskFinished();
 
 	const not_null<Session*> _owner;
 
@@ -53,6 +74,10 @@ private:
 
 	mtpRequestId _requestId = 0;
 	int32 _hash = 0;
+
+	base::flat_map<QString, ImageSet> _images;
+	rpl::lifetime _imagesLoadLifetime;
+	bool _waitingForList = false;
 
 	rpl::lifetime _lifetime;
 

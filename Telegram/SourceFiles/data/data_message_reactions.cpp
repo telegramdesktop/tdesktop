@@ -13,8 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
+#include "styles/style_chat.h"
 
 namespace Data {
 namespace {
@@ -53,6 +56,105 @@ std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
 
 rpl::producer<> Reactions::updates() const {
 	return _updated.events();
+}
+
+void Reactions::preloadImageFor(const QString &emoji) {
+	if (_images.contains(emoji)) {
+		return;
+	}
+	auto &set = _images.emplace(emoji).first->second;
+	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+	const auto document = (i != end(_available))
+		? i->staticIcon.get()
+		: nullptr;
+	if (document) {
+		loadImage(set, document);
+	} else if (!_waitingForList) {
+		refresh();
+	}
+}
+
+QImage Reactions::resolveImageFor(
+		const QString &emoji,
+		ImageSize size) {
+	const auto i = _images.find(emoji);
+	if (i == end(_images)) {
+		preloadImageFor(emoji);
+	}
+	auto &set = (i != end(_images)) ? i->second : _images[emoji];
+	switch (size) {
+	case ImageSize::BottomInfo: return set.bottomInfo;
+	case ImageSize::InlineList: return set.inlineList;
+	}
+	Unexpected("ImageSize in Reactions::resolveImageFor.");
+}
+
+void Reactions::resolveImages() {
+	for (auto &[emoji, set] : _images) {
+		if (!set.bottomInfo.isNull() || set.media) {
+			continue;
+		}
+		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+		const auto document = (i != end(list()))
+			? i->staticIcon.get()
+			: nullptr;
+		if (document) {
+			loadImage(set, document);
+		} else {
+			LOG(("API Error: Reaction for emoji '%1' not found!"
+				).arg(emoji));
+		}
+	}
+}
+
+void Reactions::loadImage(
+		ImageSet &set,
+		not_null<DocumentData*> document) {
+	if (!set.bottomInfo.isNull()) {
+		return;
+	} else if (!set.media) {
+		set.media = document->createMediaView();
+	}
+	if (const auto image = set.media->getStickerLarge()) {
+		setImage(set, image->original());
+	} else if (!_imagesLoadLifetime) {
+		document->session().downloaderTaskFinished(
+		) | rpl::start_with_next([=] {
+			downloadTaskFinished();
+		}, _imagesLoadLifetime);
+	}
+}
+
+void Reactions::setImage(ImageSet &set, QImage large) {
+	set.media = nullptr;
+	const auto scale = [&](int size) {
+		const auto factor = style::DevicePixelRatio();
+		return Images::prepare(
+			large,
+			size * factor,
+			size * factor,
+			Images::Option::Smooth,
+			size,
+			size);
+	};
+	set.bottomInfo = scale(st::reactionInfoSize);
+	set.inlineList = scale(st::reactionBottomSize);
+}
+
+void Reactions::downloadTaskFinished() {
+	auto hasOne = false;
+	for (auto &[emoji, set] : _images) {
+		if (!set.media) {
+			continue;
+		} else if (const auto image = set.media->getStickerLarge()) {
+			setImage(set, image->original());
+		} else {
+			hasOne = true;
+		}
+	}
+	if (!hasOne) {
+		_imagesLoadLifetime.destroy();
+	}
 }
 
 std::vector<Reaction> Reactions::Filtered(
@@ -100,6 +202,10 @@ void Reactions::request() {
 				if (const auto parsed = parse(reaction)) {
 					_available.push_back(*parsed);
 				}
+			}
+			if (_waitingForList) {
+				_waitingForList = false;
+				resolveImages();
 			}
 			_updated.fire({});
 		}, [&](const MTPDmessages_availableReactionsNotModified &) {

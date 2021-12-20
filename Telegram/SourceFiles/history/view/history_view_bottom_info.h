@@ -16,8 +16,7 @@ struct ChatPaintContext;
 } // namespace Ui
 
 namespace Data {
-class Session;
-class DocumentMedia;
+class Reactions;
 } // namespace Data
 
 namespace HistoryView {
@@ -41,16 +40,14 @@ public:
 		friend inline constexpr bool is_flag_type(Flag) { return true; };
 		using Flags = base::flags<Flag>;
 
-		not_null<::Data::Session*> owner;
 		QDateTime date;
 		QString author;
 		base::flat_map<QString, int> reactions;
-		QString chosenReaction;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
 	};
-	explicit BottomInfo(Data &&data);
+	BottomInfo(not_null<::Data::Reactions*> reactionsOwner, Data &&data);
 
 	void update(Data &&data, int availableWidth);
 
@@ -70,9 +67,8 @@ public:
 
 private:
 	struct Reaction {
-		QImage image;
+		mutable QImage image;
 		QString emoji;
-		std::shared_ptr<::Data::DocumentMedia> media;
 		QString countText;
 		int count = 0;
 		int countTextWidth = 0;
@@ -96,14 +92,9 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	void setReactionCount(Reaction &reaction, int count);
-	void loadReactionImage(Reaction &reaction, not_null<DocumentData*> document);
-	void setReactionImage(Reaction &reaction, QImage large);
 	[[nodiscard]] Reaction prepareReactionWithEmoji(const QString &emoji);
 
-	void reactionsListLoaded();
-	void downloadTaskFinished();
-	[[nodiscard]] bool assetsLoaded() const;
-
+	const not_null<::Data::Reactions*> _reactionsOwner;
 	Data _data;
 	Ui::Text::String _authorEditedDate;
 	Ui::Text::String _views;
@@ -111,11 +102,6 @@ private:
 	std::vector<Reaction> _reactions;
 	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;
-
-	rpl::lifetime _assetsLoadLifetime;
-	bool _waitingForReactionsList = false;
-	bool _waitingForDownloadTask = false;
-
 	bool _authorElided = false;
 
 };
