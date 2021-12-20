@@ -15,6 +15,11 @@ namespace Ui {
 struct ChatPaintContext;
 } // namespace Ui
 
+namespace Data {
+class Session;
+class DocumentMedia;
+} // namespace Data
+
 namespace HistoryView {
 
 using PaintContext = Ui::ChatPaintContext;
@@ -36,6 +41,7 @@ public:
 		friend inline constexpr bool is_flag_type(Flag) { return true; };
 		using Flags = base::flags<Flag>;
 
+		not_null<::Data::Session*> owner;
 		QDateTime date;
 		QString author;
 		base::flat_map<QString, int> reactions;
@@ -44,12 +50,9 @@ public:
 		std::optional<int> replies;
 		Flags flags;
 	};
-	struct Context {
-		ClickHandlerPtr reactions;
-	};
-	BottomInfo(Data &&data, Context &&context);
+	explicit BottomInfo(Data &&data);
 
-	void update(Data &&data, Context &&context, int availableWidth);
+	void update(Data &&data, int availableWidth);
 
 	[[nodiscard]] int firstLineWidth() const;
 	[[nodiscard]] TextState textState(
@@ -66,30 +69,58 @@ public:
 		const PaintContext &context) const;
 
 private:
+	struct Reaction {
+		QImage image;
+		QString emoji;
+		std::shared_ptr<::Data::DocumentMedia> media;
+		QString countText;
+		int count = 0;
+		int countTextWidth = 0;
+	};
+
 	void layout();
 	void layoutDateText();
 	void layoutViewsText();
 	void layoutRepliesText();
 	void layoutReactionsText();
 
+	[[nodiscard]] int countReactionsMaxWidth() const;
+	[[nodiscard]] int countReactionsHeight(int newWidth) const;
+	void paintReactions(
+		Painter &p,
+		int left,
+		int top,
+		int availableWidth) const;
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	void setReactionCount(Reaction &reaction, int count);
+	void loadReactionImage(Reaction &reaction, not_null<DocumentData*> document);
+	void setReactionImage(Reaction &reaction, QImage large);
+	[[nodiscard]] Reaction prepareReactionWithEmoji(const QString &emoji);
+
+	void reactionsListLoaded();
+	void downloadTaskFinished();
+	[[nodiscard]] bool assetsLoaded() const;
+
 	Data _data;
-	Context _context;
 	Ui::Text::String _authorEditedDate;
 	Ui::Text::String _views;
 	Ui::Text::String _replies;
-	Ui::Text::String _reactions;
+	std::vector<Reaction> _reactions;
+	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;
+
+	rpl::lifetime _assetsLoadLifetime;
+	bool _waitingForReactionsList = false;
+	bool _waitingForDownloadTask = false;
+
 	bool _authorElided = false;
 
 };
 
 [[nodiscard]] BottomInfo::Data BottomInfoDataFromMessage(
-	not_null<Message*> message);
-
-[[nodiscard]] BottomInfo::Context BottomInfoContextFromMessage(
 	not_null<Message*> message);
 
 } // namespace HistoryView

@@ -69,6 +69,7 @@ private:
 		int count = 0;
 		int countTextWidth = 0;
 	};
+
 	void layout();
 	void layoutButtons();
 

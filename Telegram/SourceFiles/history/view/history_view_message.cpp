@@ -245,9 +245,7 @@ Message::Message(
 	not_null<HistoryMessage*> data,
 	Element *replacing)
 : Element(delegate, data, replacing)
-, _bottomInfo(
-		BottomInfoDataFromMessage(this),
-		BottomInfoContextFromMessage(this)) {
+, _bottomInfo(BottomInfoDataFromMessage(this)) {
 	initLogEntryOriginal();
 	initPsa();
 	refreshReactions();
@@ -1938,10 +1936,7 @@ void Message::itemDataChanged() {
 		? _reactions->currentSize()
 		: QSize();
 	refreshReactions();
-	_bottomInfo.update(
-		BottomInfoDataFromMessage(this),
-		BottomInfoContextFromMessage(this),
-		width());
+	_bottomInfo.update(BottomInfoDataFromMessage(this), width());
 	const auto nowInfo = _bottomInfo.currentSize();
 	const auto nowReactions = _reactions
 		? _reactions->currentSize()

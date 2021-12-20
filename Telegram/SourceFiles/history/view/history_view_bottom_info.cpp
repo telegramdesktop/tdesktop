@@ -14,63 +14,88 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
+#include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_message_reactions.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "main/main_session.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
 
-BottomInfo::BottomInfo(Data &&data, Context &&context)
-: _data(std::move(data))
-, _context(std::move(context))
-, _reactions(st::msgMinWidth / 2) {
+BottomInfo::BottomInfo(Data &&data)
+: _data(std::move(data)) {
 	layout();
 }
 
-void BottomInfo::update(Data &&data, Context &&context, int availableWidth) {
+void BottomInfo::update(Data &&data, int availableWidth) {
 	_data = std::move(data);
-	_context = std::move(context);
 	layout();
 	if (width() > 0) {
 		resizeGetHeight(std::min(maxWidth(), availableWidth));
 	}
 }
 
+int BottomInfo::countReactionsMaxWidth() const {
+	auto result = 0;
+	for (const auto &reaction : _reactions) {
+		result += st::reactionInfoSize;
+		if (reaction.countTextWidth > 0) {
+			result += st::reactionInfoSkip
+				+ reaction.countTextWidth
+				+ st::reactionInfoDigitSkip;
+		} else {
+			result += st::reactionInfoBetween;
+		}
+	}
+	if (result) {
+		result += (st::reactionInfoSkip - st::reactionInfoBetween);
+	}
+	return result;
+}
+
+int BottomInfo::countReactionsHeight(int newWidth) const {
+	const auto left = 0;
+	auto x = 0;
+	auto y = 0;
+	auto widthLeft = newWidth;
+	for (const auto &reaction : _reactions) {
+		const auto add = (reaction.countTextWidth > 0)
+			? st::reactionInfoDigitSkip
+			: st::reactionInfoBetween;
+		const auto width = st::reactionInfoSize
+			+ (reaction.countTextWidth > 0
+				? (st::reactionInfoSkip + reaction.countTextWidth)
+				: 0);
+		if (x > left && widthLeft < width) {
+			x = left;
+			y += st::msgDateFont->height;
+			widthLeft = newWidth;
+		}
+		x += width + add;
+		widthLeft -= width + add;
+	}
+	if (x > left) {
+		y += st::msgDateFont->height;
+	}
+	return y;
+}
+
 int BottomInfo::firstLineWidth() const {
 	if (height() == minHeight()) {
 		return width();
 	}
-	const auto reactionsWidth = _reactions.maxWidth();
-	const auto noReactionsWidth = maxWidth()
-		- st::historyReactionsSkip
-		- reactionsWidth;
-	return noReactionsWidth;
+	return maxWidth() - _reactionsMaxWidth;
 }
 
 TextState BottomInfo::textState(
 		not_null<const HistoryItem*> item,
 		QPoint position) const {
 	auto result = TextState(item);
-	if (!_reactions.isEmpty()) {
-		const auto reactionsPosition = [&] {
-			if (height() == minHeight()) {
-				return QPoint(0, 0);
-			}
-			const auto available = width();
-			const auto use = std::min(available, _reactions.maxWidth());
-			return QPoint(width() - use, st::msgDateFont->height);
-		}();
-		const auto state = _reactions.getStateLeft(
-			position - reactionsPosition,
-			std::min(width(), _reactions.maxWidth()),
-			width());
-		if (state.uponSymbol) {
-			result.link = _context.reactions;
-			return result;
-		}
-	}
 	const auto inTime = QRect(
 		width() - _dateWidth,
 		0,
@@ -168,24 +193,54 @@ void BottomInfo::paint(
 			firstLineBottom + st::historyViewsTop,
 			outerWidth);
 	}
-	if (!_reactions.isEmpty()) {
-		if (height() == minHeight()) {
-			_reactions.drawLeft(
-				p,
-				position.x(),
-				position.y(),
-				_reactions.maxWidth(),
-				outerWidth);
-		} else {
-			const auto available = width();
-			const auto use = std::min(available, _reactions.maxWidth());
-			_reactions.drawLeft(
-				p,
-				position.x() + width() - use,
-				position.y() + st::msgDateFont->height,
-				use,
-				outerWidth);
+	if (!_reactions.empty()) {
+		auto left = position.x();
+		auto top = position.y();
+		auto available = width();
+		if (height() != minHeight()) {
+			available = std::min(available, _reactionsMaxWidth);
+			left += width() - available;
+			top += st::msgDateFont->height;
 		}
+		paintReactions(p, left, top, available);
+	}
+}
+
+void BottomInfo::paintReactions(
+		Painter &p,
+		int left,
+		int top,
+		int availableWidth) const {
+	auto x = left;
+	auto y = top;
+	auto widthLeft = availableWidth;
+	for (const auto &reaction : _reactions) {
+		const auto add = (reaction.countTextWidth > 0)
+			? st::reactionInfoDigitSkip
+			: st::reactionInfoBetween;
+		const auto width = st::reactionInfoSize
+			+ (reaction.countTextWidth > 0
+				? (st::reactionInfoSkip + reaction.countTextWidth)
+				: 0);
+		if (x > left && widthLeft < width) {
+			x = left;
+			y += st::msgDateFont->height;
+			widthLeft = availableWidth;
+		}
+		if (!reaction.image.isNull()) {
+			p.drawImage(
+				x,
+				y + (st::msgDateFont->height - st::reactionInfoSize) / 2,
+				reaction.image);
+		}
+		if (reaction.countTextWidth > 0) {
+			p.drawText(
+				x + st::reactionInfoSize + st::reactionInfoSkip,
+				y + st::msgDateFont->ascent,
+				reaction.countText);
+		}
+		x += width + add;
+		widthLeft -= width + add;
 	}
 }
 
@@ -193,14 +248,11 @@ QSize BottomInfo::countCurrentSize(int newWidth) {
 	if (newWidth >= maxWidth()) {
 		return optimalSize();
 	}
-	const auto reactionsWidth = _reactions.maxWidth();
-	const auto noReactionsWidth = maxWidth()
-		- st::historyReactionsSkip
-		- reactionsWidth;
-	accumulate_min(newWidth, std::max(noReactionsWidth, reactionsWidth));
+	const auto noReactionsWidth = maxWidth() - _reactionsMaxWidth;
+	accumulate_min(newWidth, std::max(noReactionsWidth, _reactionsMaxWidth));
 	return QSize(
 		newWidth,
-		st::msgDateFont->height + _reactions.countHeight(newWidth));
+		st::msgDateFont->height + countReactionsHeight(newWidth));
 }
 
 void BottomInfo::layout() {
@@ -274,24 +326,16 @@ void BottomInfo::layoutReactionsText() {
 	}) | ranges::to_vector;
 	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
 
-	auto text = TextWithEntities();
-	for (const auto &[string, count] : sorted) {
-		if (!text.text.isEmpty()) {
-			text.append(" - ");
-		}
-		const auto chosen = (_data.chosenReaction == string);
-		text.append(string);
-		if (_data.chosenReaction == string) {
-			text.append(Ui::Text::Bold(QString::number(count)));
-		} else {
-			text.append(QString::number(count));
-		}
+	auto reactions = std::vector<Reaction>();
+	reactions.reserve(sorted.size());
+	for (const auto &[emoji, count] : sorted) {
+		const auto i = ranges::find(_reactions, emoji, &Reaction::emoji);
+		reactions.push_back((i != end(_reactions))
+			? std::move(*i)
+			: prepareReactionWithEmoji(emoji));
+		setReactionCount(reactions.back(), count);
 	}
-
-	_reactions.setMarkedText(
-		st::msgDateTextStyle,
-		text,
-		Ui::NameTextOptions());
+	_reactions = std::move(reactions);
 }
 
 QSize BottomInfo::countOptimalSize() {
@@ -310,16 +354,137 @@ QSize BottomInfo::countOptimalSize() {
 			+ _replies.maxWidth()
 			+ st::historyViewsWidth;
 	}
-	if (!_reactions.isEmpty()) {
-		width += st::historyReactionsSkip + _reactions.maxWidth();
-	}
+	_reactionsMaxWidth = countReactionsMaxWidth();
+	width += _reactionsMaxWidth;
 	return QSize(width, st::msgDateFont->height);
+}
+
+BottomInfo::Reaction BottomInfo::prepareReactionWithEmoji(
+		const QString &emoji) {
+	auto result = Reaction{ .emoji = emoji };
+	auto &reactions = _data.owner->reactions();
+	const auto &list = reactions.list();
+	const auto i = ranges::find(
+		list,
+		emoji,
+		&::Data::Reaction::emoji);
+	const auto document = (i != end(list))
+		? i->staticIcon.get()
+		: nullptr;
+	if (document) {
+		loadReactionImage(result, document);
+	} else if (!_waitingForReactionsList) {
+		reactions.refresh();
+		reactions.updates(
+		) | rpl::filter([=] {
+			return _waitingForReactionsList;
+		}) | rpl::start_with_next([=] {
+			reactionsListLoaded();
+		}, _assetsLoadLifetime);
+	}
+	return result;
+}
+
+void BottomInfo::reactionsListLoaded() {
+	_waitingForReactionsList = false;
+	if (assetsLoaded()) {
+		_assetsLoadLifetime.destroy();
+	}
+
+	const auto &list = _data.owner->reactions().list();
+	for (auto &reaction : _reactions) {
+		if (!reaction.image.isNull() || reaction.media) {
+			continue;
+		}
+		const auto i = ranges::find(
+			list,
+			reaction.emoji,
+			&::Data::Reaction::emoji);
+		const auto document = (i != end(list))
+			? i->staticIcon.get()
+			: nullptr;
+		if (document) {
+			loadReactionImage(reaction, document);
+		} else {
+			LOG(("API Error: Reaction for emoji '%1' not found!"
+				).arg(reaction.emoji));
+		}
+	}
+}
+
+void BottomInfo::setReactionCount(Reaction &reaction, int count) {
+	if (reaction.count == count) {
+		return;
+	}
+	reaction.count = count;
+	reaction.countText = (count > 1)
+		? Lang::FormatCountToShort(count).string
+		: QString();
+	reaction.countTextWidth = (count > 1)
+		? st::msgDateFont->width(reaction.countText)
+		: 0;
+}
+
+void BottomInfo::loadReactionImage(
+		Reaction &reaction,
+		not_null<DocumentData*> document) {
+	if (!reaction.image.isNull()) {
+		return;
+	} else if (!reaction.media) {
+		reaction.media = document->createMediaView();
+	}
+	if (const auto image = reaction.media->getStickerLarge()) {
+		setReactionImage(reaction, image->original());
+	} else if (!_waitingForDownloadTask) {
+		_waitingForDownloadTask = true;
+		document->session().downloaderTaskFinished(
+		) | rpl::start_with_next([=] {
+			downloadTaskFinished();
+		}, _assetsLoadLifetime);
+	}
+}
+
+void BottomInfo::setReactionImage(Reaction &reaction, QImage large) {
+	reaction.media = nullptr;
+	const auto size = st::reactionInfoSize;
+	const auto factor = style::DevicePixelRatio();
+	reaction.image = Images::prepare(
+		std::move(large),
+		size * factor,
+		size * factor,
+		Images::Option::Smooth,
+		size,
+		size);
+}
+
+void BottomInfo::downloadTaskFinished() {
+	auto hasOne = false;
+	for (auto &reaction : _reactions) {
+		if (!reaction.media) {
+			continue;
+		} else if (const auto image = reaction.media->getStickerLarge()) {
+			setReactionImage(reaction, image->original());
+		} else {
+			hasOne = true;
+		}
+	}
+	if (!hasOne) {
+		_waitingForDownloadTask = false;
+		if (assetsLoaded()) {
+			_assetsLoadLifetime.destroy();
+		}
+	}
+}
+
+bool BottomInfo::assetsLoaded() const {
+	return !_waitingForReactionsList && !_waitingForDownloadTask;
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	using Flag = BottomInfo::Data::Flag;
 
-	auto result = BottomInfo::Data();
+	const auto owner = &message->data()->history()->owner();
+	auto result = BottomInfo::Data{ .owner = owner };
 
 	const auto item = message->message();
 	result.date = message->dateTime();
@@ -361,15 +526,6 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	//if (item->unread()) {
 	//	result.flags |= Flag::Unread;
 	//}
-	return result;
-}
-
-BottomInfo::Context BottomInfoContextFromMessage(
-		not_null<Message*> message) {
-	auto result = BottomInfo::Context();
-	result.reactions = std::make_shared<LambdaClickHandler>([=] {
-		message->delegate()->elementShowReactions(message);
-	});
 	return result;
 }
 

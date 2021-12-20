@@ -210,8 +210,6 @@ historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
-historyReactionsSkip: 8px;
-
 historyComposeField: InputField(defaultInputField) {
 	font: msgFont;
 	textMargins: margins(0px, 0px, 0px, 0px);
@@ -960,6 +958,11 @@ reactionBottomSize: 16px;
 reactionBottomSkip: 3px;
 reactionBottomBetween: 4px;
 reactionBottomInBubbleLeft: -3px;
+
+reactionInfoSize: 15px;
+reactionInfoSkip: 3px;
+reactionInfoDigitSkip: 6px;
+reactionInfoBetween: 3px;
 
 reactionCornerSize: size(27px, 19px);
 reactionCornerCenter: point(-6px, -5px);
