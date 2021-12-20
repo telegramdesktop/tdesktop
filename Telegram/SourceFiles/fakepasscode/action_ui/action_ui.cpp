@@ -3,6 +3,7 @@
 #include <utility>
 #include "clear_proxy_ui.h"
 #include "clear_cache_ui.h"
+#include "logout_ui.h"
 #include "base/object_ptr.h"
 
 object_ptr<ActionUI> GetUIByAction(std::shared_ptr<FakePasscode::Action> action,
@@ -12,6 +13,8 @@ object_ptr<ActionUI> GetUIByAction(std::shared_ptr<FakePasscode::Action> action,
         return object_ptr<ClearProxyUI>(parent, std::move(action), domain, index);
     } else if (action->GetType() == FakePasscode::ActionType::ClearCache) {
         return object_ptr<ClearCacheUI>(parent, std::move(action), domain, index);
+    } else if (action->GetType() == FakePasscode::ActionType::Logout) {
+        return object_ptr<LogoutUI>(parent, std::move(action), domain, index);
     }
     return nullptr;
 }

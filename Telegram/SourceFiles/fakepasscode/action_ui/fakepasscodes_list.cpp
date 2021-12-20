@@ -65,7 +65,7 @@ void FakePasscodeContent::setupContent() {
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
     for (const auto& type : FakePasscode::kAvailableActions) {
-        std::shared_ptr<FakePasscode::Action> action = FakePasscode::CreateAction(type);
+        std::shared_ptr<FakePasscode::Action> action = FakePasscode::CreateAction(type, QByteArray());
         const auto ui = GetUIByAction(action, _domain, _passcodeIndex, this);
         ui->Create(content);
         Settings::AddDivider(content);

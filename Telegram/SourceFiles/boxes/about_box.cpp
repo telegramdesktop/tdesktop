@@ -60,7 +60,10 @@ AboutBox::AboutBox(QWidget *parent)
 : _version(this, tr::lng_about_version(tr::now, lt_version, currentVersionText()), st::aboutVersionLink)
 , _text1(this, Text1(), st::aboutLabel)
 , _text2(this, Text2(), st::aboutLabel)
-, _text3(this, Text3(), st::aboutLabel) {
+, _text3(this, Text3(), st::aboutLabel)
+, _ptelegram_version(this, tr::lng_ptelegram_version(tr::now, lt_version, currentPTelegramVersionText()),
+                     st::aboutLabel)
+{
 }
 
 void AboutBox::prepare() {
@@ -74,14 +77,15 @@ void AboutBox::prepare() {
 
 	_version->setClickedCallback([this] { showVersionHistory(); });
 
-	setDimensions(st::aboutWidth, st::aboutTextTop + _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height());
+	setDimensions(st::aboutWidth, st::aboutTextTop + _ptelegram_version->height() + st::aboutSkip + _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height());
 }
 
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
-	_text1->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+    _ptelegram_version->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+	_text1->moveToLeft(st::boxPadding.left(), _ptelegram_version->y() + _ptelegram_version->height() + st::aboutSkip);
 	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
 	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
 }
@@ -147,4 +151,15 @@ QString currentVersionText() {
 		result += " x64";
 	}
 	return result;
+}
+
+QString currentPTelegramVersionText() {
+    auto result = QString::fromLatin1(PTelegramAppVersionStr);
+    if (PTelegramAppBetaVersion) {
+        result += " beta";
+    }
+    if (Platform::IsWindows64Bit()) {
+        result += " x64";
+    }
+    return result;
 }

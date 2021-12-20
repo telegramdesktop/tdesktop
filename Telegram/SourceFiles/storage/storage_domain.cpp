@@ -194,7 +194,7 @@ void Domain::writeAccounts() {
         fakeNames.push_back(std::move(name));
     }
 
-	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + serializedSize;
+	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + serializedSize + sizeof(qint32);
 
 	EncryptedDescriptor keyData(keySize);
 	keyData.stream << qint32(list.size());
@@ -202,6 +202,7 @@ void Domain::writeAccounts() {
 		keyData.stream << qint32(index);
 	}
 
+    keyData.stream << qint32(PTelegramAppVersion);
     for (qint32 i = 0; i < serializedActions.size(); ++i) {
         keyData.stream << serializedActions[i];
         keyData.stream << fakePasscodes[i];
@@ -363,6 +364,12 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
         LOG(("App Error: no accounts read."));
         return StartModernResult::Failed;
     }
+
+    qint32 serialized_version;
+    info.stream >> serialized_version;
+
+    // Maybe some actions with migration
+    DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
 
     for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
         QByteArray serializedActions, pass;

@@ -3057,6 +3057,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
 "lng_fakepasscode" = "Passcode {caption}";
+"lng_ptelegram_version" = "PTelegram v. {version}";
 
 "lng_fakepasscodes_list" = "Fake passcodes list";
 "lng_fakeaction_list" = "Actions";
@@ -3071,5 +3072,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_clear_proxy" = "Clear proxies list";
 "lng_clear_cache" = "Clear cache";
+"lng_logout" = "Log out";
+"lng_logout_account" = "Log out {caption}";
 
 // Keys finished

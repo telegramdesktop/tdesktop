@@ -7,12 +7,14 @@
 namespace FakePasscode {
     enum class ActionType {
         ClearProxy = 0,
-        ClearCache = 1
+        ClearCache = 1,
+        Logout = 2
     };
 
     const static std::vector<ActionType> kAvailableActions = {
         ActionType::ClearProxy,
-        ActionType::ClearCache
+        ActionType::ClearCache,
+        ActionType::Logout
     };
 
     class Action {
@@ -28,7 +30,7 @@ namespace FakePasscode {
 
     std::shared_ptr<Action> DeSerialize(QByteArray serialized);
 
-    std::shared_ptr<Action> CreateAction(ActionType type);
+    std::shared_ptr<Action> CreateAction(ActionType type, const QByteArray& inner_data);
 }
 
 #endif //TELEGRAM_ACTION_H

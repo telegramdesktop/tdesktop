@@ -10,8 +10,6 @@
 #include "storage/storage_domain.h"
 
 void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
-//    auto passcode = _domain->local().GetFakePasscode(_index);
-//    std::move(passcode) | rpl::start_with_next([this, content](FakePasscode::FakePasscode&&) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_proxy());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto *button = Settings::AddButton(content, tr::lng_clear_proxy(), st::settingsButton)
@@ -24,7 +22,6 @@ void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
             _domain->local().RemoveAction(_index, _action);
         }
     });
-//    });
 }
 
 ClearProxyUI::ClearProxyUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,
