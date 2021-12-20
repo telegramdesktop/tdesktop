@@ -609,6 +609,7 @@ bool GroupedMedia::applyGroup(const DataMediaRange &medias) {
 	if (_parts.empty()) {
 		return false;
 	}
+	refreshCaption();
 
 	Ensures(_parts.size() <= kMaxSize);
 	return true;
@@ -626,6 +627,33 @@ bool GroupedMedia::validateGroupParts(
 		++i;
 	}
 	return (i == count);
+}
+
+void GroupedMedia::refreshCaption() {
+	using PartPtrOpt = std::optional<const Part*>;
+	const auto captionPart = [&]() -> PartPtrOpt {
+		if (_mode == Mode::Column) {
+			return std::nullopt;
+		}
+		auto result = PartPtrOpt();
+		for (const auto &part : _parts) {
+			if (!part.item->emptyText()) {
+				if (result) {
+					return std::nullopt;
+				} else {
+					result = &part;
+				}
+			}
+		}
+		return result;
+	}();
+	if (captionPart) {
+		const auto &part = (*captionPart);
+		_caption = createCaption(part->item);
+		_captionItem = part->item;
+	} else {
+		_captionItem = nullptr;
+	}
 }
 
 not_null<Media*> GroupedMedia::main() const {
@@ -662,30 +690,6 @@ HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
 }
 
 void GroupedMedia::updateNeedBubbleState() {
-	using PartPtrOpt = std::optional<const Part*>;
-	const auto captionPart = [&]() -> PartPtrOpt {
-		if (_mode == Mode::Column) {
-			return std::nullopt;
-		}
-		auto result = PartPtrOpt();
-		for (const auto &part : _parts) {
-			if (!part.item->emptyText()) {
-				if (result) {
-					return std::nullopt;
-				} else {
-					result = &part;
-				}
-			}
-		}
-		return result;
-	}();
-	if (captionPart) {
-		const auto &part = (*captionPart);
-		_caption = createCaption(part->item);
-		_captionItem = part->item;
-	} else {
-		_captionItem = nullptr;
-	}
 	_needBubble = computeNeedBubble();
 }
 

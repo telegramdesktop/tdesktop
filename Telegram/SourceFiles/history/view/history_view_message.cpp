@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
+#include "history/view/history_view_react_button.h"
 #include "history/view/history_view_reactions.h"
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
@@ -324,8 +325,7 @@ QSize Message::performCountOptimalSize() {
 	refreshRightBadge();
 	refreshInfoSkipBlock();
 
-	const auto displayInfo = needInfoDisplay();
-	const auto reactionsInBubble = _reactions && displayInfo;
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	if (_reactions) {
 		_reactions->initDimensions();
 	}
@@ -539,7 +539,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
 	const auto displayInfo = needInfoDisplay();
-	const auto reactionsInBubble = _reactions && displayInfo;
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 
 	auto mediaSelectionIntervals = (!context.selected() && mediaDisplayed)
 		? media->getBubbleSelectionIntervals(context.selection)
@@ -601,7 +601,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		p.translate(reactionsPosition);
-		_reactions->paint(p, context.st, g.width(), context.clip.translated(-reactionsPosition));
+		_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
 		p.translate(-reactionsPosition);
 	}
 
@@ -666,7 +666,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setHeight(trect.height() - reactionsHeight);
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + st::mediaInBubbleSkip);
 			p.translate(reactionsPosition);
-			_reactions->paint(p, context.st, g.width(), context.clip.translated(-reactionsPosition));
+			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
 			p.translate(-reactionsPosition);
 		}
 
@@ -1073,7 +1073,7 @@ PointState Message::pointState(QPoint point) const {
 
 	const auto media = this->media();
 	const auto item = message();
-	const auto reactionsInBubble = _reactions && needInfoDisplay();
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	if (drawBubble()) {
 		if (!g.contains(point)) {
 			return PointState::Outside;
@@ -1247,7 +1247,7 @@ TextState Message::textState(
 		return result;
 	}
 
-	const auto reactionsInBubble = _reactions && needInfoDisplay();
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	auto keyboard = item->inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
@@ -1912,6 +1912,10 @@ bool Message::embedReactionsInBottomInfo() const {
 	return data()->history()->peer->isUser();
 }
 
+bool Message::embedReactionsInBubble() const {
+	return needInfoDisplay();
+}
+
 void Message::refreshReactions() {
 	const auto item = data();
 	const auto &list = item->reactions();
@@ -2412,7 +2416,10 @@ void Message::updateMediaInBubbleState() {
 	const auto item = message();
 	const auto media = this->media();
 
-	const auto reactionsInBubble = (_reactions && needInfoDisplay());
+	if (media) {
+		media->updateNeedBubbleState();
+	}
+	const auto reactionsInBubble = (_reactions && embedReactionsInBubble());
 	auto mediaHasSomethingBelow = (_viewButton != nullptr)
 		|| reactionsInBubble;
 	auto mediaHasSomethingAbove = false;
@@ -2437,7 +2444,6 @@ void Message::updateMediaInBubbleState() {
 		return;
 	}
 
-	media->updateNeedBubbleState();
 	if (!drawBubble()) {
 		media->setInBubbleState(MediaInBubbleState::None);
 		return;
@@ -2600,8 +2606,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 		}
 	}
 	const auto textWidth = qMax(contentWidth - st::msgPadding.left() - st::msgPadding.right(), 1);
-	const auto displayInfo = needInfoDisplay();
-	const auto reactionsInBubble = _reactions && displayInfo;
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	const auto bottomInfoHeight = _bottomInfo.resizeGetHeight(
 		std::min(
 			_bottomInfo.optimalSize().width(),
@@ -2682,7 +2687,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
-		if (displayInfo) {
+		if (needInfoDisplay()) {
 			newHeight += (bottomInfoHeight - st::msgDateFont->height);
 		}
 

@@ -61,6 +61,7 @@ public:
 	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
 
 	[[nodiscard]] bool embedReactionsInBottomInfo() const;
+	[[nodiscard]] bool embedReactionsInBubble() const;
 
 	int marginTop() const override;
 	int marginBottom() const override;

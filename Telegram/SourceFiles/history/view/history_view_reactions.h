@@ -8,34 +8,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
-#include "ui/effects/animations.h"
-#include "ui/widgets/inner_dropdown.h"
 
-class Image;
-class Painter;
-
-namespace Ui {
-class ChatStyle;
-struct ChatPaintContext;
-} // namespace Ui
+class DocumentData;
 
 namespace Data {
-struct Reaction;
+class Session;
 class DocumentMedia;
 } // namespace Data
 
+namespace Ui {
+struct ChatPaintContext;
+} // namespace Ui
+
 namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
-enum class PointState : char;
-struct TextState;
 class Message;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
 struct InlineListData {
+	enum class Flag : uchar {
+		InBubble  = 0x01,
+		OutLayout = 0x02,
+	};
+	friend inline constexpr bool is_flag_type(Flag) { return true; };
+	using Flags = base::flags<Flag>;
+
+	not_null<Data::Session*> owner;
 	base::flat_map<QString, int> reactions;
 	QString chosenReaction;
+	Flags flags = {};
 };
 
 class InlineList final : public Object {
@@ -51,201 +54,46 @@ public:
 
 	void paint(
 		Painter &p,
-		const Ui::ChatStyle *st,
+		const PaintContext &context,
 		int outerWidth,
 		const QRect &clip) const;
 
 private:
+	struct Button {
+		QRect geometry;
+		QImage image;
+		QString emoji;
+		std::shared_ptr<::Data::DocumentMedia> media;
+		ClickHandlerPtr link;
+		QString countText;
+		int count = 0;
+		int countTextWidth = 0;
+	};
 	void layout();
-	void layoutReactionsText();
+	void layoutButtons();
+
+	void setButtonCount(Button &button, int count);
+	void loadButtonImage(Button &button, not_null<DocumentData*> document);
+	void setButtonImage(Button &button, QImage large);
+	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
+
+	void reactionsListLoaded();
+	void downloadTaskFinished();
+	[[nodiscard]] bool assetsLoaded() const;
 
 	QSize countOptimalSize() override;
 
 	Data _data;
-	Ui::Text::String _reactions;
+	std::vector<Button> _buttons;
+	QSize _skipBlock;
+
+	rpl::lifetime _assetsLoadLifetime;
+	bool _waitingForReactionsList = false;
+	bool _waitingForDownloadTask = false;
 
 };
 
 [[nodiscard]] InlineListData InlineListDataFromMessage(
 	not_null<Message*> message);
-
-enum class ButtonStyle {
-	Bubble,
-};
-
-struct ButtonParameters {
-	[[nodiscard]] ButtonParameters translated(QPoint delta) const {
-		auto result = *this;
-		result.center += delta;
-		result.pointer += delta;
-		return result;
-	}
-
-	FullMsgId context;
-	QPoint center;
-	QPoint pointer;
-	ButtonStyle style = ButtonStyle::Bubble;
-	bool inside = false;
-	bool active = false;
-	bool outbg = false;
-};
-
-enum class ButtonState {
-	Hidden,
-	Shown,
-	Active,
-};
-
-class Button final {
-public:
-	Button(Fn<void(QRect)> update, ButtonParameters parameters);
-	~Button();
-
-	void applyParameters(ButtonParameters parameters);
-
-	using State = ButtonState;
-	void applyState(State state);
-
-	[[nodiscard]] bool outbg() const;
-	[[nodiscard]] bool isHidden() const;
-	[[nodiscard]] QRect geometry() const;
-	[[nodiscard]] float64 currentScale() const;
-	[[nodiscard]] static float64 ScaleForState(State state);
-	[[nodiscard]] static float64 OpacityForScale(float64 scale);
-
-private:
-	const Fn<void(QRect)> _update;
-	State _state = State::Hidden;
-	Ui::Animations::Simple _scaleAnimation;
-
-	QRect _geometry;
-	ButtonStyle _style = ButtonStyle::Bubble;
-	bool _outbg = false;
-
-};
-
-class Selector final {
-public:
-	Selector(
-		QWidget *parent,
-		const std::vector<Data::Reaction> &list);
-
-	void showAround(QRect area);
-	void toggle(bool shown, anim::type animated);
-
-	[[nodiscard]] rpl::producer<QString> chosen() const;
-
-	[[nodiscard]] rpl::lifetime &lifetime();
-
-private:
-	struct Element {
-		QString emoji;
-		QRect geometry;
-	};
-	Ui::InnerDropdown _dropdown;
-	rpl::event_stream<QString> _chosen;
-	std::vector<Element> _elements;
-	bool _fromTop = true;
-	bool _fromLeft = true;
-
-};
-
-class Manager final : public base::has_weak_ptr {
-public:
-	Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate);
-	~Manager();
-
-	void applyList(std::vector<Data::Reaction> list);
-
-	void showButton(ButtonParameters parameters);
-	void paintButtons(Painter &p, const PaintContext &context);
-	[[nodiscard]] TextState buttonTextState(QPoint position) const;
-	void remove(FullMsgId context);
-
-	void showSelector(Fn<QPoint(QPoint)> mapToGlobal);
-	void showSelector(FullMsgId context, QRect globalButtonArea);
-
-	void hideSelectors(anim::type animated);
-
-	struct Chosen {
-		FullMsgId context;
-		QString emoji;
-	};
-	[[nodiscard]] rpl::producer<Chosen> chosen() const {
-		return _chosen.events();
-	}
-
-private:
-	static constexpr auto kFramesCount = 30;
-
-	[[nodiscard]] bool overCurrentButton(QPoint position) const;
-
-	void removeStaleButtons();
-	void paintButton(
-		Painter &p,
-		const PaintContext &context,
-		not_null<Button*> button);
-	void paintButton(
-		Painter &p,
-		const PaintContext &context,
-		not_null<Button*> button,
-		int frame,
-		float64 scale);
-
-	void setMainReactionImage(QImage image);
-	void applyPatternedShadow(const QColor &shadow);
-	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
-	QRect validateShadow(
-		int frameIndex,
-		float64 scale,
-		const QColor &shadow);
-	QRect validateEmoji(int frameIndex, float64 scale);
-	QRect validateFrame(
-		bool outbg,
-		int frameIndex,
-		float64 scale,
-		const QColor &background,
-		const QColor &shadow);
-	QRect validateMask(int frameIndex, float64 scale);
-	void validateCacheForPattern(
-		int frameIndex,
-		float64 scale,
-		const QRect &geometry,
-		const PaintContext &context);
-
-	rpl::event_stream<Chosen> _chosen;
-	std::vector<Data::Reaction> _list;
-	QSize _outer;
-	QRectF _inner;
-	QRect _innerActive;
-	QImage _cacheInOut;
-	QImage _cacheParts;
-	QImage _cacheForPattern;
-	QImage _shadowBuffer;
-	std::array<bool, kFramesCount> _validIn = { { false } };
-	std::array<bool, kFramesCount> _validOut = { { false } };
-	std::array<bool, kFramesCount> _validShadow = { { false } };
-	std::array<bool, kFramesCount> _validEmoji = { { false } };
-	std::array<bool, kFramesCount> _validMask = { { false } };
-	QColor _backgroundIn;
-	QColor _backgroundOut;
-	QColor _shadow;
-
-	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
-	QImage _mainReactionImage;
-	rpl::lifetime _mainReactionLifetime;
-
-	const Fn<void(QRect)> _buttonUpdate;
-	std::unique_ptr<Button> _button;
-	std::vector<std::unique_ptr<Button>> _buttonHiding;
-	FullMsgId _buttonContext;
-	ClickHandlerPtr _buttonLink;
-
-	QWidget *_selectorParent = nullptr;
-	std::unique_ptr<Selector> _selector;
-	std::vector<std::unique_ptr<Selector>> _selectorHiding;
-	FullMsgId _selectorContext;
-
-};
 
 } // namespace HistoryView

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
-#include "history/view/history_view_reactions.h"
+#include "history/view/history_view_react_button.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "base/unixtime.h"

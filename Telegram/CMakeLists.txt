@@ -654,6 +654,8 @@ PRIVATE
     history/view/history_view_pinned_section.h
     history/view/history_view_pinned_tracker.cpp
     history/view/history_view_pinned_tracker.h
+    history/view/history_view_react_button.cpp
+    history/view/history_view_react_button.h
     history/view/history_view_reactions.cpp
     history/view/history_view_reactions.h
     history/view/history_view_replies_section.cpp

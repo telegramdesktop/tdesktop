@@ -25,7 +25,7 @@ struct TextState;
 class BottomInfo final : public Object {
 public:
 	struct Data {
-		enum class Flag {
+		enum class Flag : uchar {
 			Edited         = 0x01,
 			OutLayout      = 0x02,
 			Sending        = 0x04,

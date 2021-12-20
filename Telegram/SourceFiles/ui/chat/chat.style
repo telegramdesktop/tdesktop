@@ -955,6 +955,12 @@ sendAsButton: SendAsButton {
 	duration: 150;
 }
 
+reactionBottomPadding: margins(5px, 2px, 7px, 2px);
+reactionBottomSize: 16px;
+reactionBottomSkip: 3px;
+reactionBottomBetween: 4px;
+reactionBottomInBubbleLeft: -3px;
+
 reactionCornerSize: size(27px, 19px);
 reactionCornerCenter: point(-6px, -5px);
 reactionCornerImage: 15px;
