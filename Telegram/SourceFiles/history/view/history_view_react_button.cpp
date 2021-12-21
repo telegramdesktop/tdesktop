@@ -232,7 +232,8 @@ Selector::Selector(
 		const auto activeIndex = (state->pressed >= 0)
 			? state->pressed
 			: state->selected;
-		const auto size = Ui::Emoji::GetSizeNormal();
+		const auto realSize = Ui::Emoji::GetSizeNormal();
+		const auto size = realSize / style::DevicePixelRatio();
 		for (const auto &element : _elements) {
 			const auto active = (index++ == activeIndex);
 			if (active) {
@@ -245,7 +246,7 @@ Selector::Selector(
 				Ui::Emoji::Draw(
 					p,
 					emoji,
-					size,
+					realSize,
 					element.geometry.x() + (width - size) / 2,
 					element.geometry.y() + (height - size) / 2);
 			}
