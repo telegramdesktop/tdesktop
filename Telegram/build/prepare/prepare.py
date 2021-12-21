@@ -401,7 +401,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4c21dfa0db
+    git checkout 5368789dc7
 """)
 
 stage('depot_tools', """
@@ -1124,28 +1124,28 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_0', """
+    stage('qt_6_2_2', """
 mac:
-    git clone -b v6.2.0 git://code.qt.io/qt/qt5.git qt_6_2_0
-    cd qt_6_2_0
+    git clone -b v6.2.2 git://code.qt.io/qt/qt5.git qt_6_2_2
+    cd qt_6_2_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
-depends:patches/qtbase_6_2_0/*.patch
+depends:patches/qtbase_6_2_2/*.patch
     cd qtbase
 
-    find ../../patches/qtbase_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-depends:patches/qt5compat_6_2_0/*.patch
+depends:patches/qt5compat_6_2_2/*.patch
     cd qt5compat
 
-    find ../../patches/qt5compat_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qt5compat_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.0" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.2" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
