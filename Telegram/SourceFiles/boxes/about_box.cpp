@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "main/main_domain.h"
+#include "storage/storage_domain.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -77,16 +80,29 @@ void AboutBox::prepare() {
 
 	_version->setClickedCallback([this] { showVersionHistory(); });
 
-	setDimensions(st::aboutWidth, st::aboutTextTop + _ptelegram_version->height() + st::aboutSkip + _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height());
+    int height = st::aboutTextTop;
+    if (Core::App().domain().local().IsFake()) {
+        _ptelegram_version->hide();
+        _ptelegram_version->mask();
+    } else {
+        height += _ptelegram_version->height() + st::aboutSkip;
+    }
+    height += _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height();
+	setDimensions(st::aboutWidth, height);
 }
 
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
-    _ptelegram_version->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
-	_text1->moveToLeft(st::boxPadding.left(), _ptelegram_version->y() + _ptelegram_version->height() + st::aboutSkip);
-	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
+
+    if (Core::App().domain().local().IsFake()) {
+        _text1->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+    } else {
+        _ptelegram_version->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+        _text1->moveToLeft(st::boxPadding.left(), _ptelegram_version->y() + _ptelegram_version->height() + st::aboutSkip);
+    }
+    _text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
 	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
 }
 
