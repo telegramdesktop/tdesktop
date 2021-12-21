@@ -227,7 +227,7 @@ enum class MessageFlag : uint32 {
 	HasPostAuthor         = (1U << 4),
 	HasViews              = (1U << 5),
 	HasReplyInfo          = (1U << 6),
-	HasViaBot             = (1U << 7),
+	CanViewReactions      = (1U << 7),
 	AdminLogEntry         = (1U << 8),
 	Post                  = (1U << 9),
 	Silent                = (1U << 10),

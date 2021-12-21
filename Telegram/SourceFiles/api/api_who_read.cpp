@@ -309,6 +309,10 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	return true;
 }
 
+bool WhoReactedExists(not_null<HistoryItem*> item) {
+	return item->canViewReactions() || WhoReadExists(item);
+}
+
 rpl::producer<Ui::WhoReadContent> WhoRead(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context,

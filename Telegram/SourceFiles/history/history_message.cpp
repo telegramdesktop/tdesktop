@@ -64,9 +64,6 @@ namespace {
 	if (from) {
 		result |= MessageFlag::HasFromId;
 	}
-	if (fwd->Has<HistoryMessageVia>()) {
-		result |= MessageFlag::HasViaBot;
-	}
 	if (const auto media = fwd->media()) {
 		if ((!peer->isChannel() || peer->isMegagroup())
 			&& media->forwardedBecomesUnread()) {
@@ -777,7 +774,7 @@ void HistoryMessage::createComponentsHelper(
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) {
 	auto config = CreateConfig();
-	if (flags & MessageFlag::HasViaBot) config.viaBotId = viaBotId;
+	config.viaBotId = viaBotId;
 	if (flags & MessageFlag::HasReplyInfo) {
 		config.replyTo = replyTo;
 		const auto replyToTop = LookupReplyToTop(history(), replyTo);

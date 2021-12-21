@@ -20,6 +20,7 @@ struct WhoReadContent;
 namespace Api {
 
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
+[[nodiscard]] bool WhoReactedExists(not_null<HistoryItem*> item);
 
 // The context must be destroyed before the session holding this item.
 [[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoRead(

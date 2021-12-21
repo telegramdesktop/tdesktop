@@ -3687,9 +3687,6 @@ void ApiWrap::sendInlineResult(
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
 	}
-	if (bot) {
-		flags |= MessageFlag::HasViaBot;
-	}
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;

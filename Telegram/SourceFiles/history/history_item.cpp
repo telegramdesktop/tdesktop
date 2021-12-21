@@ -773,6 +773,11 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 
 void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
 	reactions.match([&](const MTPDmessageReactions &data) {
+		if (data.is_can_see_list()) {
+			_flags |= MessageFlag::CanViewReactions;
+		} else {
+			_flags &= ~MessageFlag::CanViewReactions;
+		}
 		if (data.vresults().v.isEmpty()) {
 			_reactions = nullptr;
 			return;
@@ -787,6 +792,12 @@ void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
 const base::flat_map<QString, int> &HistoryItem::reactions() const {
 	static const auto kEmpty = base::flat_map<QString, int>();
 	return _reactions ? _reactions->list() : kEmpty;
+}
+
+bool HistoryItem::canViewReactions() const {
+	return (_flags & MessageFlag::CanViewReactions)
+		&& _reactions
+		&& !_reactions->list().empty();
 }
 
 QString HistoryItem::chosenReaction() const {
@@ -1138,7 +1149,6 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_edit_hide) ? Flag::HideEdited : Flag())
 		| ((flags & MTP::f_pinned) ? Flag::Pinned : Flag())
 		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
-		| ((flags & MTP::f_via_bot_id) ? Flag::HasViaBot : Flag())
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
 		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())

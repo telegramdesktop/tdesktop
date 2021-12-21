@@ -1702,7 +1702,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	const auto hasWhoReadItem = _dragStateItem
-		&& Api::WhoReadExists(_dragStateItem);
+		&& Api::WhoReactedExists(_dragStateItem);
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		hasWhoReadItem ? st::whoReadMenu : st::popupMenuWithIcons);
