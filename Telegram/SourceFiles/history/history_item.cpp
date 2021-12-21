@@ -1037,7 +1037,14 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		if (_media) {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
-			return { .text = TextUtilities::Clean(_text.toString()) };
+			return {
+				.text = TextUtilities::Clean(
+					options.ignoreSpoilers
+						? _text.toString()
+						: TextUtilities::TextWithSpoilerCommands(
+							_text.toTextWithEntities()),
+					!options.ignoreSpoilers),
+			};
 		}
 		return {};
 	}();

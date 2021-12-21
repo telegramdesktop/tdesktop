@@ -31,6 +31,7 @@ struct ToPreviewOptions {
 	bool hideCaption = false;
 	bool generateImages = true;
 	bool ignoreGroup = false;
+	bool ignoreSpoilers = false;
 };
 
 } // namespace HistoryView
