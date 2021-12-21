@@ -1861,17 +1861,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
-	if (hasWhoReadItem) {
-		const auto participantChosen = [=](uint64 id) {
-			controller->showPeerInfo(PeerId(id));
-		};
-		_menu->addAction(Ui::WhoReadContextAction(
-			_menu.get(),
-			Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
-			participantChosen));
-		_menu->addSeparator();
-	}
-
 	const auto link = ClickHandler::getActive();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
@@ -2088,6 +2077,19 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else if (App::mousedItem()) {
 			addSelectMessageAction(App::mousedItem()->data());
 		}
+	}
+
+	if (hasWhoReadItem) {
+		const auto participantChosen = [=](uint64 id) {
+			controller->showPeerInfo(PeerId(id));
+		};
+		if (!_menu->empty()) {
+			_menu->addSeparator();
+		}
+		_menu->addAction(Ui::WhoReadContextAction(
+			_menu.get(),
+			Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
+			participantChosen));
 	}
 
 	if (_menu->empty()) {

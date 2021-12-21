@@ -60,6 +60,7 @@ void InlineList::layoutButtons() {
 		_buttons.clear();
 		return;
 	}
+	_data.chosenReaction;
 	auto sorted = ranges::view::all(
 		_data.reactions
 	) | ranges::view::transform([](const auto &pair) {

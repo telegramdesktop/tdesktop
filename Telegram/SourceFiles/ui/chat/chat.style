@@ -903,14 +903,15 @@ defaultWhoRead: WhoRead {
 	photoSize: 30px;
 	photoSkip: 5px;
 	nameLeft: 57px;
-	iconPosition: point(10px, 7px);
-	itemPadding: margins(41px, 9px, 17px, 7px);
+	iconPosition: point(15px, 7px);
+	itemPadding: margins(44px, 9px, 17px, 7px);
 }
 whoReadMenu: PopupMenu(popupMenuWithIcons) {
-	scrollPadding: margins(0px, 6px, 0px, 6px);
+	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 387px;
 	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 6px, 0px, 5px);
+		separatorPadding: margins(0px, 4px, 0px, 4px);
+		separatorWidth: 6px;
 	}
 }
 whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};

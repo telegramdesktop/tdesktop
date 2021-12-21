@@ -10,7 +10,7 @@ using "ui/widgets/widgets.style";
 
 menuWithIcons: Menu(defaultMenu) {
 	itemIconPosition: point(15px, 5px);
-	itemPadding: margins(56px, 8px, 17px, 8px);
+	itemPadding: margins(54px, 8px, 17px, 8px);
 }
 popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
