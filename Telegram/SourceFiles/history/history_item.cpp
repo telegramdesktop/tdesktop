@@ -1022,7 +1022,8 @@ QString HistoryItem::notificationText() const {
 		if (_media && !isService()) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
-			return _text.toString();
+			return TextUtilities::TextWithSpoilerCommands(
+				_text.toTextWithEntities());
 		}
 		return QString();
 	}();

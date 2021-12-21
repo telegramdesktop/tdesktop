@@ -534,7 +534,7 @@ bool MediaPhoto::replyPreviewLoaded() const {
 QString MediaPhoto::notificationText() const {
 	return WithCaptionNotificationText(
 		tr::lng_in_dlg_photo(tr::now),
-		parent()->originalText().text);
+		TextUtilities::TextWithSpoilerCommands(parent()->originalText()));
 }
 
 ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
@@ -814,7 +814,9 @@ QString MediaFile::notificationText() const {
 		}
 		return tr::lng_in_dlg_file(tr::now);
 	}();
-	return WithCaptionNotificationText(type, parent()->originalText().text);
+	return WithCaptionNotificationText(
+		type,
+		TextUtilities::TextWithSpoilerCommands(parent()->originalText()));
 }
 
 QString MediaFile::pinnedTextSubstring() const {
@@ -1307,7 +1309,7 @@ ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
 }
 
 QString MediaWebPage::notificationText() const {
-	return parent()->originalText().text;
+	return TextUtilities::TextWithSpoilerCommands(parent()->originalText());
 }
 
 QString MediaWebPage::pinnedTextSubstring() const {
