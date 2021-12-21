@@ -634,7 +634,7 @@ void PasscodeBox::save(bool force) {
 			return;
 		}
 
-		if (_session->domain().local().checkPasscode(old.toUtf8())) {
+		if (_session->domain().local().checkRealOrFakePasscode(old.toUtf8())) {
 			cSetPasscodeBadTries(0);
 			if (_turningOff) pwd = conf = QString();
 		} else {

@@ -113,7 +113,6 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_localKey->write(passKeyData.stream);
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
 	_hasLocalPasscode = !passcode.isEmpty();
-    EncryptFakePasscodes();
 }
 
 Domain::StartModernResult Domain::startModern(
@@ -242,7 +241,11 @@ void Domain::setPasscode(const QByteArray &passcode) {
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_localKey != nullptr);
 
-	encryptLocalKey(passcode);
+    if (IsFake()) {
+        _fakePasscodes[_fakePasscodeIndex].SetPasscode(passcode);
+    } else {
+        encryptLocalKey(passcode);
+    }
 
 	writeAccounts();
 
@@ -534,6 +537,14 @@ void Domain::SetFakePasscodeIndex(qint32 index) {
         _isStartedWithFake = false;
     } else {
         _fakePasscodeIndex = index;
+    }
+}
+
+bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
+    if (IsFake()) {
+        return checkFakePasscode(passcode, _fakePasscodeIndex);
+    } else {
+        return checkPasscode(passcode);
     }
 }
 

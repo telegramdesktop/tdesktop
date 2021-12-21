@@ -43,6 +43,7 @@ public:
 
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
     [[nodiscard]] bool checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) const;
+    [[nodiscard]] bool checkRealOrFakePasscode(const QByteArray &passcode) const;
 	void setPasscode(const QByteArray &passcode);
 
 	[[nodiscard]] int oldVersion() const;
