@@ -364,7 +364,10 @@ QSize Message::performCountOptimalSize() {
 				(st::msgPadding.left()
 					+ _reactions->maxWidth()
 					+ st::msgPadding.right())));
-			minHeight += st::mediaInBubbleSkip + _reactions->minHeight();
+			if (!mediaDisplayed) {
+				minHeight += st::mediaInBubbleSkip;
+			}
+			minHeight += _reactions->minHeight();
 		}
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
@@ -1904,6 +1907,13 @@ int Message::bottomInfoFirstLineWidth() const {
 	return _bottomInfo.firstLineWidth();
 }
 
+bool Message::bottomInfoIsWide() const {
+	if (_reactions && embedReactionsInBubble()) {
+		return false;
+	}
+	return _bottomInfo.isWide();
+}
+
 bool Message::isSignedAuthorElided() const {
 	return _bottomInfo.isSignedAuthorElided();
 }
@@ -2661,7 +2671,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 				newHeight += entry->resizeGetHeight(contentWidth);
 			}
 			if (reactionsInBubble) {
-				newHeight += st::mediaInBubbleSkip + _reactions->height();
+				if (!mediaDisplayed) {
+					newHeight += st::mediaInBubbleSkip;
+				}
+				newHeight += _reactions->height();
 			}
 		}
 

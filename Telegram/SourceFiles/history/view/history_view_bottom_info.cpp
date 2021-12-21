@@ -91,6 +91,14 @@ int BottomInfo::firstLineWidth() const {
 	return maxWidth() - _reactionsMaxWidth;
 }
 
+bool BottomInfo::isWide() const {
+	return (_data.flags & Data::Flag::Edited)
+		|| !_data.author.isEmpty()
+		|| !_views.isEmpty()
+		|| !_replies.isEmpty()
+		|| !_reactions.empty();
+}
+
 TextState BottomInfo::textState(
 		not_null<const HistoryItem*> item,
 		QPoint position) const {
@@ -273,9 +281,9 @@ void BottomInfo::layoutDateText() {
 		: QString();
 	const auto author = _data.author;
 	const auto prefix = author.isEmpty() ? qsl(", ") : QString();
-	const auto date = _data.date.toString(cTimeFormat());
+	const auto date = edited + _data.date.toString(cTimeFormat());
 	_dateWidth = st::msgDateFont->width(date);
-	const auto afterAuthor = prefix + edited + date;
+	const auto afterAuthor = prefix + date;
 	const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor);
 	const auto authorWidth = st::msgDateFont->width(author);
 	const auto maxWidth = st::maxSignatureSize;
@@ -286,7 +294,7 @@ void BottomInfo::layoutDateText() {
 		: author;
 	const auto full = (_data.flags & Data::Flag::Sponsored)
 		? tr::lng_sponsored(tr::now)
-		: name + date;
+		: name.isEmpty() ? date : (name + afterAuthor);
 	_authorEditedDate.setText(
 		st::msgDateTextStyle,
 		full,

@@ -148,12 +148,7 @@ QSize Contact::countOptimalSize() {
 	accumulate_max(maxWidth, tleft + _name.maxWidth() + tright);
 	accumulate_min(maxWidth, st::msgMaxWidth);
 	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
-	const auto msgsigned = item->Get<HistoryMessageSigned>();
-	const auto views = item->Get<HistoryMessageViews>();
-	if ((msgsigned && !msgsigned->isAnonymousRank)
-		|| (views
-			&& (views->views.count >= 0 || views->replies.count > 0))
-		|| !item->reactions().empty()) {
+	if (_parent->bottomInfoIsWide()) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {

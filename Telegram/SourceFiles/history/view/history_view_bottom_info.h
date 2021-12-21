@@ -52,6 +52,7 @@ public:
 	void update(Data &&data, int availableWidth);
 
 	[[nodiscard]] int firstLineWidth() const;
+	[[nodiscard]] bool isWide() const;
 	[[nodiscard]] TextState textState(
 		not_null<const HistoryItem*> item,
 		QPoint position) const;

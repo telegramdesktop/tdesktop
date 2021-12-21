@@ -475,6 +475,10 @@ int Element::bottomInfoFirstLineWidth() const {
 	return 0;
 }
 
+bool Element::bottomInfoIsWide() const {
+	return false;
+}
+
 bool Element::isHiddenByGroup() const {
 	return _flags & Flag::HiddenByGroup;
 }
