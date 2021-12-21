@@ -9,9 +9,9 @@ ENV QT5_VER 5_15_2
 ENV QT5_TAG v5.15.2
 ENV QT5_PREFIX /usr/local/desktop-app/Qt-5.15.2
 ENV Qt5_DIR ${QT5_PREFIX}
-ENV QT6_VER 6_2_0
-ENV QT6_TAG v6.2.0
-ENV QT6_PREFIX /usr/local/desktop-app/Qt-6.2.0
+ENV QT6_VER 6_2_2
+ENV QT6_TAG v6.2.2
+ENV QT6_PREFIX /usr/local/desktop-app/Qt-6.2.2
 ENV Qt6_DIR ${QT6_PREFIX}
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
@@ -46,7 +46,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout b6c29e99da
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5368789dc7
 
 FROM builder AS extra-cmake-modules
 
