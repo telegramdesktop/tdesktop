@@ -51,38 +51,12 @@ class SessionController;
 } // namespace Window
 
 namespace HistoryView {
-
 struct TextState;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
-
-struct ItemPreviewImage {
-	QImage data;
-	uint64 cacheKey = 0;
-
-	explicit operator bool() const {
-		return !data.isNull();
-	}
-};
-
-struct ItemPreview {
-	QString text;
-	std::vector<ItemPreviewImage> images;
-	int imagesInTextPosition = 0;
-	std::any loadingContext;
-};
-
-struct ToPreviewOptions {
-	const std::vector<ItemPreviewImage> *existing = nullptr;
-	bool hideSender = false;
-	bool hideCaption = false;
-	bool generateImages = true;
-	bool ignoreGroup = false;
-};
-
 } // namespace HistoryView
 
 struct HiddenSenderInfo;
@@ -334,12 +308,7 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	[[nodiscard]] virtual ItemPreview toPreview(
 		ToPreviewOptions options) const;
-	[[nodiscard]] virtual QString inReplyText() const {
-		return toPreview({
-			.hideSender = true,
-			.generateImages = false,
-		}).text;
-	}
+	[[nodiscard]] virtual QString inReplyText() const;
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();

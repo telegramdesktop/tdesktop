@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/view/media/history_view_media_grouped.h"
@@ -1075,6 +1076,13 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			lt_from,
 			TextUtilities::Clean(*sender)));
 	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
+}
+
+QString HistoryItem::inReplyText() const {
+	return toPreview({
+		.hideSender = true,
+		.generateImages = false,
+	}).text;
 }
 
 Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
