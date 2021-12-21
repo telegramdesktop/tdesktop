@@ -393,6 +393,7 @@ public:
 
 	[[nodiscard]] bool canReact() const;
 	void addReaction(const QString &reaction);
+	void toggleReaction(const QString &reaction);
 	void updateReactions(const MTPMessageReactions &reactions);
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] QString chosenReaction() const;

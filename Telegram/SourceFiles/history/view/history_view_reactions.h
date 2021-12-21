@@ -20,6 +20,7 @@ struct ChatPaintContext;
 namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
+struct TextState;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -40,7 +41,10 @@ struct InlineListData {
 class InlineList final : public Object {
 public:
 	using Data = InlineListData;
-	InlineList(not_null<::Data::Reactions*> owner, Data &&data);
+	InlineList(
+		not_null<::Data::Reactions*> owner,
+		Fn<ClickHandlerPtr(QString)> handlerFactory,
+		Data &&data);
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
@@ -53,13 +57,16 @@ public:
 		const PaintContext &context,
 		int outerWidth,
 		const QRect &clip) const;
+	[[nodiscard]] bool getState(
+		QPoint point,
+		not_null<TextState*> outResult) const;
 
 private:
 	struct Button {
 		QRect geometry;
 		mutable QImage image;
+		mutable ClickHandlerPtr link;
 		QString emoji;
-		ClickHandlerPtr link;
 		QString countText;
 		int count = 0;
 		int countTextWidth = 0;
@@ -74,6 +81,7 @@ private:
 	QSize countOptimalSize() override;
 
 	const not_null<::Data::Reactions*> _owner;
+	const Fn<ClickHandlerPtr(QString)> _handlerFactory;
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;

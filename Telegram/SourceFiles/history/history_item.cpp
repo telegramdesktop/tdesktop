@@ -756,6 +756,21 @@ void HistoryItem::addReaction(const QString &reaction) {
 	history()->owner().notifyItemDataChange(this);
 }
 
+void HistoryItem::toggleReaction(const QString &reaction) {
+	if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+		_reactions->add(reaction);
+	} else if (_reactions->chosen() == reaction) {
+		_reactions->remove();
+		if (_reactions->empty()) {
+			_reactions = nullptr;
+		}
+	} else {
+		_reactions->add(reaction);
+	}
+	history()->owner().notifyItemDataChange(this);
+}
+
 void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
 	reactions.match([&](const MTPDmessageReactions &data) {
 		if (data.vresults().v.isEmpty()) {

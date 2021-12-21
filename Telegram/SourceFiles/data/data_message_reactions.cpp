@@ -276,6 +276,10 @@ void MessageReactions::add(const QString &reaction) {
 	_item->history()->owner().requestItemResize(_item);
 }
 
+void MessageReactions::remove() {
+	add(QString());
+}
+
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
 		bool ignoreChosen) {
@@ -311,6 +315,10 @@ void MessageReactions::set(
 
 const base::flat_map<QString, int> &MessageReactions::list() const {
 	return _list;
+}
+
+bool MessageReactions::empty() const {
+	return _list.empty();
 }
 
 QString MessageReactions::chosen() const {

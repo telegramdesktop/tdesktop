@@ -90,9 +90,11 @@ public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
 	void add(const QString &reaction);
+	void remove();
 	void set(const QVector<MTPReactionCount> &list, bool ignoreChosen);
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] QString chosen() const;
+	[[nodiscard]] bool empty() const;
 
 private:
 	void sendRequest();

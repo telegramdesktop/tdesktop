@@ -1258,6 +1258,15 @@ TextState Message::textState(
 		g.setHeight(g.height() - st::msgBotKbButton.margin - keyboardHeight);
 	}
 
+	if (_reactions && !reactionsInBubble) {
+		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
+		g.setHeight(g.height() - reactionsHeight);
+		const auto reactionsPosition = QPoint(g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
+		if (_reactions->getState(point - reactionsPosition, &result)) {
+			return result;
+		}
+	}
+
 	if (drawBubble()) {
 		const auto inBubble = g.contains(point);
 		auto entry = logEntryOriginal();
@@ -1299,6 +1308,10 @@ TextState Message::textState(
 			const auto reactionsHeight = _reactions->height()
 				+ st::mediaInBubbleSkip;
 			trect.setHeight(trect.height() - reactionsHeight);
+			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + st::mediaInBubbleSkip);
+			if (_reactions->getState(point - reactionsPosition, &result)) {
+				return result;
+			}
 		}
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height()
@@ -1934,13 +1947,27 @@ void Message::refreshReactions() {
 		return;
 	}
 	using namespace Reactions;
-	auto data = InlineListDataFromMessage(this);
+	auto reactionsData = InlineListDataFromMessage(this);
 	if (!_reactions) {
+		const auto handlerFactory = [=](QString emoji) {
+			const auto fullId = data()->fullId();
+			return std::make_shared<LambdaClickHandler>([=](
+					ClickContext context) {
+				const auto my = context.other.value<ClickHandlerContext>();
+				if (const auto controller = my.sessionWindow.get()) {
+					const auto &data = controller->session().data();
+					if (const auto item = data.message(fullId)) {
+						item->toggleReaction(emoji);
+					}
+				}
+			});
+		};
 		_reactions = std::make_unique<InlineList>(
 			&item->history()->owner().reactions(),
-			std::move(data));
+			handlerFactory,
+			std::move(reactionsData));
 	} else {
-		_reactions->update(std::move(data), width());
+		_reactions->update(std::move(reactionsData), width());
 	}
 }
 

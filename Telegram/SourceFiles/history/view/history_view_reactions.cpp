@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history.h"
 #include "history/view/history_view_message.h"
+#include "history/view/history_view_cursor_state.h"
 #include "data/data_message_reactions.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
@@ -23,8 +24,12 @@ constexpr auto kOutNonChosenOpacity = 0.18;
 
 } // namespace
 
-InlineList::InlineList(not_null<::Data::Reactions*> owner, Data &&data)
+InlineList::InlineList(
+	not_null<::Data::Reactions*> owner,
+	Fn<ClickHandlerPtr(QString)> handlerFactory,
+	Data &&data)
 : _owner(owner)
+, _handlerFactory(std::move(handlerFactory))
 , _data(std::move(data)) {
 	layout();
 }
@@ -204,6 +209,27 @@ void InlineList::paint(
 			textTop + st::semiboldFont->ascent,
 			button.countText);
 	}
+}
+
+bool InlineList::getState(
+		QPoint point,
+		not_null<TextState*> outResult) const {
+	const auto left = (_data.flags & InlineListData::Flag::InBubble)
+		? st::reactionBottomInBubbleLeft
+		: 0;
+	if (!QRect(left, 0, width() - left, height()).contains(point)) {
+		return false;
+	}
+	for (const auto &button : _buttons) {
+		if (button.geometry.contains(point)) {
+			if (!button.link) {
+				button.link = _handlerFactory(button.emoji);
+			}
+			outResult->link = button.link;
+			return true;
+		}
+	}
+	return false;
 }
 
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {
