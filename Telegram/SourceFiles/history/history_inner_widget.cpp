@@ -231,7 +231,7 @@ HistoryInner::HistoryInner(
 	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
 		if (const auto item = session().data().message(reaction.context)) {
-			item->addReaction(reaction.emoji);
+			item->toggleReaction(reaction.emoji);
 		}
 	}, lifetime());
 
