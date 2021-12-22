@@ -215,7 +215,7 @@ parts:
   extra-cmake-modules:
     source: https://github.com/KDE/extra-cmake-modules.git
     source-depth: 1
-    source-tag: v5.87.0
+    source-tag: v5.89.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -287,7 +287,7 @@ parts:
   plasma-wayland-protocols:
     source: https://github.com/KDE/plasma-wayland-protocols.git
     source-depth: 1
-    source-tag: v1.4.0
+    source-tag: v1.5.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
