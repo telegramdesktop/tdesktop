@@ -921,6 +921,7 @@ channelAdminLogEventActionChangeHistoryTTL#6e941a38 prev_value:int new_value:int
 channelAdminLogEventActionParticipantJoinByRequest#afb6144a invite:ExportedChatInvite approved_by:long = ChannelAdminLogEventAction;
 channelAdminLogEventActionToggleNoForwards#cb2ac766 new_value:Bool = ChannelAdminLogEventAction;
 channelAdminLogEventActionSendMessage#278f2868 message:Message = ChannelAdminLogEventAction;
+channelAdminLogEventActionChangeAvailableReactions#9cf7f76a prev_value:Vector<string> new_value:Vector<string> = ChannelAdminLogEventAction;
 
 channelAdminLogEvent#1fad68cd id:long date:int user_id:long action:ChannelAdminLogEventAction = ChannelAdminLogEvent;
 
@@ -1306,13 +1307,13 @@ auth.loggedOut#c3a2835f flags:# future_auth_token:flags.0?bytes = auth.LoggedOut
 
 reactionCount#6fb250d1 flags:# chosen:flags.0?true reaction:string count:int = ReactionCount;
 
-messageReactions#87b6e36 flags:# min:flags.0?true results:Vector<ReactionCount> recent_reactons:flags.1?Vector<MessageUserReaction> = MessageReactions;
+messageReactions#87b6e36 flags:# min:flags.0?true can_see_list:flags.2?true results:Vector<ReactionCount> recent_reactons:flags.1?Vector<MessageUserReaction> = MessageReactions;
 
 messageUserReaction#932844fa user_id:long reaction:string = MessageUserReaction;
 
 messages.messageReactionsList#a366923c flags:# count:int reactions:Vector<MessageUserReaction> users:Vector<User> next_offset:flags.0?string = messages.MessageReactionsList;
 
-availableReaction#64222f31 reaction:string title:string static_icon:Document select_animation:Document activate_animation:Document effect_animation:Document = AvailableReaction;
+availableReaction#21d7c4b flags:# inactive:flags.0?true reaction:string title:string static_icon:Document appear_animation:Document select_animation:Document activate_animation:Document effect_animation:Document = AvailableReaction;
 
 messages.availableReactionsNotModified#9f071957 = messages.AvailableReactions;
 messages.availableReactions#768e3aad hash:int reactions:Vector<AvailableReaction> = messages.AvailableReactions;
@@ -1600,6 +1601,7 @@ messages.getMessagesReactions#8bba90e6 peer:InputPeer id:Vector<int> = Updates;
 messages.getMessageReactionsList#e0ee6b77 flags:# peer:InputPeer id:int reaction:flags.0?string offset:flags.1?string limit:int = messages.MessageReactionsList;
 messages.setChatAvailableReactions#14050ea6 peer:InputPeer available_reactions:Vector<string> = Updates;
 messages.getAvailableReactions#18dea0ac hash:int = messages.AvailableReactions;
+messages.setDefaultReaction#d960c4d4 reaction:string = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;

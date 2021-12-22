@@ -16,9 +16,11 @@ struct Reaction {
 	QString emoji;
 	QString title;
 	not_null<DocumentData*> staticIcon;
+	not_null<DocumentData*> appearAnimation;
 	not_null<DocumentData*> selectAnimation;
 	not_null<DocumentData*> activateAnimation;
 	not_null<DocumentData*> activateEffects;
+	bool active = false;
 };
 
 class Reactions final {
@@ -27,7 +29,11 @@ public:
 
 	void refresh();
 
-	[[nodiscard]] const std::vector<Reaction> &list() const;
+	enum class Type {
+		Active,
+		All,
+	};
+	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
 	[[nodiscard]] std::vector<Reaction> list(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] static std::vector<Reaction> Filtered(
@@ -69,6 +75,7 @@ private:
 
 	const not_null<Session*> _owner;
 
+	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
 	rpl::event_stream<> _updated;
 

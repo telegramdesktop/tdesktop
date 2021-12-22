@@ -40,8 +40,12 @@ void Reactions::refresh() {
 	request();
 }
 
-const std::vector<Reaction> &Reactions::list() const {
-	return _available;
+const std::vector<Reaction> &Reactions::list(Type type) const {
+	switch (type) {
+	case Type::Active: return _active;
+	case Type::All: return _available;
+	}
+	Unexpected("Type in Reactions::list.");
 }
 
 std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
@@ -50,7 +54,7 @@ std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
 	} else if (const auto channel = peer->asChannel()) {
 		return filtered(channel->allowedReactions());
 	} else {
-		return list();
+		return list(Type::Active);
 	}
 }
 
@@ -95,7 +99,7 @@ void Reactions::resolveImages() {
 			continue;
 		}
 		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
-		const auto document = (i != end(list()))
+		const auto document = (i != end(_available))
 			? i->staticIcon.get()
 			: nullptr;
 		if (document) {
@@ -173,7 +177,7 @@ std::vector<Reaction> Reactions::Filtered(
 
 std::vector<Reaction> Reactions::filtered(
 		const std::vector<QString> &emoji) const {
-	return Filtered(list(), emoji);
+	return Filtered(list(Type::Active), emoji);
 }
 
 std::vector<QString> Reactions::ParseAllowed(
@@ -188,6 +192,9 @@ std::vector<QString> Reactions::ParseAllowed(
 
 void Reactions::request() {
 	auto &api = _owner->session().api();
+	if (_requestId) {
+		return;
+	}
 	_requestId = api.request(MTPmessages_GetAvailableReactions(
 		MTP_int(_hash)
 	)).done([=](const MTPmessages_AvailableReactions &result) {
@@ -196,11 +203,16 @@ void Reactions::request() {
 			_hash = data.vhash().v;
 
 			const auto &list = data.vreactions().v;
+			_active.clear();
 			_available.clear();
-			_available.reserve(data.vreactions().v.size());
+			_active.reserve(list.size());
+			_available.reserve(list.size());
 			for (const auto &reaction : list) {
 				if (const auto parsed = parse(reaction)) {
 					_available.push_back(*parsed);
+					if (parsed->active) {
+						_active.push_back(*parsed);
+					}
 				}
 			}
 			if (_waitingForList) {
@@ -228,12 +240,15 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				.emoji = emoji,
 				.title = qs(data.vtitle()),
 				.staticIcon = _owner->processDocument(data.vstatic_icon()),
+				.appearAnimation = _owner->processDocument(
+					data.vappear_animation()),
 				.selectAnimation = _owner->processDocument(
 					data.vselect_animation()),
 				.activateAnimation = _owner->processDocument(
 					data.vactivate_animation()),
 				.activateEffects = _owner->processDocument(
 					data.veffect_animation()),
+				.active = !data.is_inactive(),
 			})
 			: std::nullopt;
 	});

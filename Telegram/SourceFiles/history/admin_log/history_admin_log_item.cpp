@@ -652,6 +652,7 @@ void GenerateItems(
 		MTPDchannelAdminLogEventActionParticipantJoinByRequest;
 	using LogNoForwards = MTPDchannelAdminLogEventActionToggleNoForwards;
 	using LogActionSendMessage = MTPDchannelAdminLogEventActionSendMessage;
+	using LogEventActionChangeAvailableReactions = MTPDchannelAdminLogEventActionChangeAvailableReactions;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1370,6 +1371,10 @@ void GenerateItems(
 			ExtractSentDate(data.vmessage()));
 	};
 
+	const auto createChangeAvailableReactions = [&](const LogEventActionChangeAvailableReactions &data) {
+		// #TODO reactions
+	};
+
 	action.match([&](const LogTitle &data) {
 		createChangeTitle(data);
 	}, [&](const LogAbout &data) {
@@ -1440,6 +1445,8 @@ void GenerateItems(
 		createToggleNoForwards(data);
 	}, [&](const LogActionSendMessage &data) {
 		createSendMessage(data);
+	}, [&](const LogEventActionChangeAvailableReactions &data) {
+		createChangeAvailableReactions(data);
 	});
 }
 

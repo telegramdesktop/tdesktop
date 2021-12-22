@@ -1058,7 +1058,8 @@ void Controller::fillManageSection() {
 				_navigation->parentController()->show(Box(
 					EditAllowedReactionsBox,
 					!_peer->isBroadcast(),
-					session->data().reactions().list(),
+					session->data().reactions().list(
+						Data::Reactions::Type::Active),
 					session->data().reactions().list(_peer),
 					done));
 			},
