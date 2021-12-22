@@ -176,6 +176,7 @@ QByteArray SerializeText(
 			case Type::Strike: return "strikethrough";
 			case Type::Blockquote: return "blockquote";
 			case Type::BankCard: return "bank_card";
+			case Type::Spoiler: return "spoiler";
 			}
 			Unexpected("Type in SerializeText.");
 		}();
