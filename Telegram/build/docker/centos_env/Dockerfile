@@ -457,9 +457,13 @@ COPY --from=drm ${LibrariesPath}/drm-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 
-RUN git clone -b release/4.4 --depth=1 $GIT/FFmpeg/FFmpeg.git ffmpeg
-
+RUN mkdir ffmpeg
 WORKDIR ffmpeg
+RUN git init
+RUN git remote add origin $GIT/FFmpeg/FFmpeg.git
+RUN git fetch --depth=1 origin cc33e73618a981de7fd96385ecb34719de031f16
+RUN git reset --hard FETCH_HEAD
+
 RUN ./configure \
 	--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS" \
 	--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1 $HFLAGS" \
