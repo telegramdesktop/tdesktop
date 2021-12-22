@@ -6550,9 +6550,7 @@ void HistoryWidget::cancelEdit() {
 	fieldChanged();
 	_textUpdateEvents = old;
 
-	if (!canWriteMessage()) {
-		updateControlsVisibility();
-	}
+	updateControlsVisibility();
 	updateBotKeyboard();
 	updateFieldPlaceholder();
 
