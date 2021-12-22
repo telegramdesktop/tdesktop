@@ -29,6 +29,7 @@
 #include "statusnotifieritemadaptor.h"
 #include <QDBusServiceWatcher>
 #include <QDBusMessage>
+#include <utility>
 #include <dbusmenuexporter.h>
 
 int StatusNotifierItem::mServiceCounter = 0;
@@ -39,7 +40,7 @@ StatusNotifierItem::StatusNotifierItem(QString id, QObject *parent)
     mService(QString::fromLatin1("org.freedesktop.StatusNotifierItem-%1-%2")
              .arg(QCoreApplication::applicationPid())
              .arg(++mServiceCounter)),
-    mId(id),
+    mId(std::move(id)),
     mTitle(QLatin1String("Test")),
     mStatus(QLatin1String("Active")),
     mCategory(QLatin1String("ApplicationStatus")),
@@ -276,7 +277,7 @@ void StatusNotifierItem::SecondaryActivate(int x, int y)
 
 void StatusNotifierItem::ContextMenu(int x, int y)
 {
-    if (mMenu)
+    if (mMenu != nullptr)
     {
         if (mMenu->isVisible())
             mMenu->popup(QPoint(x, y));
