@@ -160,6 +160,21 @@ contactsAboutFg: windowSubTextFgOver;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
 
+contactsSortButton: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 54px;
+	icon: icon{{ "contacts_alphabet", boxTitleCloseFg }};
+	iconOver: icon{{ "contacts_alphabet", boxTitleCloseFgOver }};
+	iconPosition: point(10px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+contactsSortOnlineIcon: icon{{ "contacts_online", boxTitleCloseFg }};
+contactsSortOnlineIconOver: icon{{ "contacts_online", boxTitleCloseFgOver }};
+
 contactsMarginTop: 4px;
 contactsMarginBottom: 4px;
 membersMarginTop: 10px;
