@@ -853,11 +853,12 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 FullMsgId ListWidget::computeFullId(
 		UniversalMsgId universalId) const {
 	Expects(universalId != 0);
-	Expects(universalId > 0 || _migrated != nullptr);
 
 	return (universalId > 0)
 		? FullMsgId(_peer->id, universalId)
-		: FullMsgId(_migrated->id, ServerMaxMsgId + universalId);
+		: FullMsgId(
+			(_peer ? _peer.get() : _migrated)->id,
+			ServerMaxMsgId + universalId);
 }
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {
