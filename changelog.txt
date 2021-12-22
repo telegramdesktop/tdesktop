@@ -1,3 +1,14 @@
+3.3.1 beta (22.12.21)
+
+- Switch between contacts list sorting modes.
+- Sort contacts list by last seen time by default.
+- Fix disappearing Send As Channel button after message editing.
+- Fix file upload cancelling.
+- Fix crash in video capture on macOS.
+- Fix labels in the About box.
+- Use Qt 6.2.2 for macOS and Linux builds.
+- Allow installing x64 Windows version on Windows ARM.
+
 3.3 (07.12.21)
 
 - Content creators can restrict the ability to save media and forward messages from their groups and channels.
