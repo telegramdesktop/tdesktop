@@ -53,7 +53,7 @@ RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5368789
 
 FROM builder AS extra-cmake-modules
 
-RUN git clone -b v5.87.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
+RUN git clone -b v5.89.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
 
 WORKDIR extra-cmake-modules
 RUN cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
@@ -64,7 +64,7 @@ WORKDIR ..
 RUN rm -rf extra-cmake-modules
 
 FROM builder AS libffi
-RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
+RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
 
 WORKDIR libffi
 RUN ./autogen.sh
@@ -148,7 +148,7 @@ WORKDIR ..
 RUN rm -rf mozjpeg
 
 FROM builder AS opus
-RUN git clone -b v1.3 --depth=1 $GIT/xiph/opus.git
+RUN git clone -b v1.3.1 --depth=1 $GIT/xiph/opus.git
 
 WORKDIR opus
 RUN ./autogen.sh
@@ -176,7 +176,7 @@ WORKDIR ..
 RUN rm -rf rnnoise
 
 FROM builder AS xcb-proto
-RUN git clone -b xcb-proto-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
+RUN git clone -b xcb-proto-1.14.1 --depth=1 https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
 
 WORKDIR xcbproto
 RUN ./autogen.sh
@@ -338,16 +338,19 @@ RUN rm -rf libxcomposite
 FROM builder AS wayland
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 
-RUN git clone -b 1.19.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
+RUN git clone -b 1.20.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
 
 WORKDIR wayland
-RUN ./autogen.sh \
-	--enable-static \
-	--disable-documentation \
-	--disable-dtd-validation
+RUN meson build \
+	--buildtype=release \
+	--default-library=both \
+	-Dtests=false \
+	-Ddocumentation=false \
+	-Ddtd_validation=false \
+	-Dicon_directory=/usr/share/icons
 
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/wayland-cache" install
+RUN meson compile -C build
+RUN DESTDIR="$LibrariesPath/wayland-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf wayland
@@ -355,12 +358,16 @@ RUN rm -rf wayland
 FROM builder AS wayland-protocols
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 1.23 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+RUN git clone -b 1.24 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
 
 WORKDIR wayland-protocols
-RUN ./autogen.sh
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/wayland-protocols-cache" install
+RUN meson build \
+	--buildtype=release \
+	--default-library=both \
+	-Dtests=false
+
+RUN meson compile -C build
+RUN DESTDIR="$LibrariesPath/wayland-protocols-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf wayland-protocols
@@ -368,7 +375,7 @@ RUN rm -rf wayland-protocols
 FROM builder AS plasma-wayland-protocols
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 
-RUN git clone -b v1.4.0 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
+RUN git clone -b v1.5.0 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
 
 WORKDIR plasma-wayland-protocols
 RUN cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release
@@ -393,7 +400,7 @@ RUN rm -rf libpciaccess
 FROM builder AS drm
 COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
 
-RUN git clone -b libdrm-2.4.107 --depth=1 https://gitlab.freedesktop.org/mesa/drm.git
+RUN git clone -b libdrm-2.4.109 --depth=1 https://gitlab.freedesktop.org/mesa/drm.git
 
 WORKDIR drm
 RUN meson build \
@@ -414,7 +421,7 @@ COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=drm ${LibrariesPath}/drm-cache /
 
-RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
+RUN git clone -b 2.13.0 --depth=1 $GIT/intel/libva.git
 
 WORKDIR libva
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh \
@@ -611,7 +618,7 @@ RUN rm -rf $opensslDir
 FROM builder AS xkbcommon
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 
-RUN git clone -b xkbcommon-1.0.3 --depth=1 $GIT/xkbcommon/libxkbcommon.git
+RUN git clone -b xkbcommon-1.3.1 --depth=1 $GIT/xkbcommon/libxkbcommon.git
 
 WORKDIR libxkbcommon
 RUN meson build \
@@ -631,7 +638,7 @@ WORKDIR ..
 RUN rm -rf libxkbcommon
 
 FROM builder AS mm-common
-RUN git clone -b 1.0.2 --depth=1 $GIT/GNOME/mm-common.git
+RUN git clone -b 1.0.3 --depth=1 $GIT/GNOME/mm-common.git
 
 WORKDIR mm-common
 RUN NOCONFIGURE=1 ./autogen.sh
@@ -645,7 +652,7 @@ RUN rm -rf mm-common
 FROM builder AS libsigcplusplus
 COPY --from=mm-common ${LibrariesPath}/mm-common-cache /
 
-RUN git clone -b 2.10.6 --depth=1 $GIT/libsigcplusplus/libsigcplusplus.git
+RUN git clone -b 2.10.7 --depth=1 $GIT/libsigcplusplus/libsigcplusplus.git
 
 WORKDIR libsigcplusplus
 ENV ACLOCAL_PATH="/usr/local/share/aclocal"
