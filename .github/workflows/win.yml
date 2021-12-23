@@ -179,8 +179,6 @@ jobs:
           git clone %GIT%/telegramdesktop/zlib.git
           cd zlib
           git checkout tdesktop
-#          cd contrib\masmx86
-#          call bld_ml32.bat
           cd contrib\vstudio\vc14
           msbuild -m zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
 
