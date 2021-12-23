@@ -26,10 +26,15 @@ struct SponsoredMessage final {
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
 	MsgId msgId;
+	QString chatInviteHash;
 };
 
 class SponsoredMessages final {
 public:
+	struct ChannelPost {
+		MsgId msgId;
+		std::optional<QString> hash;
+	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
 	SponsoredMessages(const SponsoredMessages &other) = delete;
@@ -40,7 +45,7 @@ public:
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);
-	[[nodiscard]] MsgId channelPost(const FullMsgId &fullId) const;
+	[[nodiscard]] ChannelPost channelPost(const FullMsgId &fullId) const;
 
 	void view(const FullMsgId &fullId);
 

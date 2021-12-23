@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_element.h"
 
+#include "api/api_chat_invite.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
 #include "history/history_item_components.h"
@@ -33,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
+#include "data/data_sponsored_messages.h"
 #include "lang/lang_keys.h"
 #include "app.h"
 #include "styles/style_chat.h"
@@ -598,11 +600,11 @@ ClickHandlerPtr Element::fromLink() const {
 				return;
 			}
 			const auto my = context.other.value<ClickHandlerContext>();
+			const auto session = &from->session();
 			const auto window = [&]() -> Window::SessionController* {
 				if (const auto controller = my.sessionWindow.get()) {
 					return controller;
 				}
-				const auto session = &from->session();
 				const auto &windows = session->windows();
 				if (windows.empty()) {
 					session->domain().activate(&session->account());
@@ -613,7 +615,15 @@ ClickHandlerPtr Element::fromLink() const {
 				return windows.front();
 			}();
 			if (window) {
-				window->showPeerInfo(from);
+				const auto inviteHash = item->isSponsored()
+					? session->data().sponsoredMessages().channelPost(
+						my.itemId).hash
+					: std::nullopt;
+				if (inviteHash) {
+					Api::CheckChatInvite(window, *inviteHash);
+				} else {
+					window->showPeerInfo(from);
+				}
 			}
 		});
 		_fromLink->setProperty(kPeerLinkPeerIdProperty, from->id.value);

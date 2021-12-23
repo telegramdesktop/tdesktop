@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_view_button.h"
 
+#include "api/api_chat_invite.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_cloud_themes.h"
@@ -119,9 +120,12 @@ ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
 		const auto &data = controller->session().data();
-		controller->showPeer(
-			peer,
-			data.sponsoredMessages().channelPost(my.itemId));
+		const auto link = data.sponsoredMessages().channelPost(my.itemId);
+		if (link.hash) {
+			Api::CheckChatInvite(controller, *link.hash);
+		} else {
+			controller->showPeer(peer, link.msgId);
+		}
 	}
 }))
 , updateCallback(std::move(updateCallback))

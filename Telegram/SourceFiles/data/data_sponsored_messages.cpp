@@ -157,22 +157,53 @@ void SponsoredMessages::append(
 		not_null<History*> history,
 		List &list,
 		const MTPSponsoredMessage &message) {
-	message.match([&](const MTPDsponsoredMessage &data) {
-		const auto randomId = data.vrandom_id().v;
-		auto sharedMessage = SponsoredMessage{
-			.randomId = randomId,
-			.fromId = peerFromMTP(*data.vfrom_id()), // #TODO ads
-			.textWithEntities = {
-				.text = qs(data.vmessage()),
-				.entities = Api::EntitiesFromMTP(
-					_session,
-					data.ventities().value_or_empty()),
-			},
-			.history = history,
-			.msgId = data.vchannel_post().value_or_empty(),
-		};
-		list.entries.push_back({ nullptr, std::move(sharedMessage) });
+	const auto &data = message.match([](
+			const auto &data) -> const MTPDsponsoredMessage& {
+		return data;
 	});
+	const auto randomId = data.vrandom_id().v;
+	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
+	const auto fromId = [&] {
+		if (data.vfrom_id()) {
+			return peerFromMTP(*data.vfrom_id());
+		}
+		Assert(data.vchat_invite());
+		return data.vchat_invite()->match([](const MTPDchatInvite &data) {
+			return Data::FakePeerIdForJustName(qs(data.vtitle()));
+		}, [&](const MTPDchatInviteAlready &data) {
+			const auto chat = _session->data().processChat(data.vchat());
+			if (!chat) {
+				return PeerId(0);
+			}
+			if (const auto channel = chat->asChannel()) {
+				channel->clearInvitePeek();
+			}
+			return chat->id;
+		}, [&](const MTPDchatInvitePeek &data) {
+			const auto chat = _session->data().processChat(data.vchat());
+			if (!chat) {
+				return PeerId(0);
+			}
+			if (const auto channel = chat->asChannel()) {
+				channel->setInvitePeek(hash, data.vexpires().v);
+			}
+			return chat->id;
+		});
+	}();
+	auto sharedMessage = SponsoredMessage{
+		.randomId = randomId,
+		.fromId = fromId,
+		.textWithEntities = {
+			.text = qs(data.vmessage()),
+			.entities = Api::EntitiesFromMTP(
+				_session,
+				data.ventities().value_or_empty()),
+		},
+		.history = history,
+		.msgId = data.vchannel_post().value_or_empty(),
+		.chatInviteHash = hash,
+	};
+	list.entries.push_back({ nullptr, std::move(sharedMessage) });
 }
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
@@ -232,13 +263,18 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	}).send();
 }
 
-MsgId SponsoredMessages::channelPost(const FullMsgId &fullId) const {
+SponsoredMessages::ChannelPost SponsoredMessages::channelPost(
+		const FullMsgId &fullId) const {
 	const auto entryPtr = find(fullId);
 	if (!entryPtr) {
-		return ShowAtUnreadMsgId;
+		return { .msgId = ShowAtUnreadMsgId, .hash = std::nullopt };
 	}
 	const auto msgId = entryPtr->sponsored.msgId;
-	return msgId ? msgId : ShowAtUnreadMsgId;
+	const auto hash = entryPtr->sponsored.chatInviteHash;
+	return {
+		.msgId = msgId ? msgId : ShowAtUnreadMsgId,
+		.hash = hash.isEmpty() ? std::nullopt : std::make_optional(hash),
+	};
 }
 
 } // namespace Data
