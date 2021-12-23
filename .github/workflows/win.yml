@@ -179,7 +179,9 @@ jobs:
           git clone %GIT%/telegramdesktop/zlib.git
           cd zlib
           git checkout tdesktop
-          cd contrib\vstudio\vc14
+          cd contrib\masmx86
+          bld_ml32.bat
+          cd ..\vstudio\vc14
           msbuild -m zlibstat.vcxproj /property:Configuration=Release
 
       - name: MozJPEG.
