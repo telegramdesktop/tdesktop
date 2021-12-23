@@ -179,10 +179,10 @@ jobs:
           git clone %GIT%/telegramdesktop/zlib.git
           cd zlib
           git checkout tdesktop
-          cd contrib\masmx86
-          call bld_ml32.bat
-          cd ..\vstudio\vc14
-          msbuild -m zlibstat.vcxproj /property:Configuration=Release
+#          cd contrib\masmx86
+#          call bld_ml32.bat
+          cd contrib\vstudio\vc14
+          msbuild -m zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
 
       - name: MozJPEG.
         shell: cmd
@@ -371,7 +371,7 @@ jobs:
           -D "EGLAPI=" ^
           -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
           QMAKE_LIBS_EGL_DEBUG="%ANGLE%\out\Debug\tg_angle.lib %ZLIB%\ZlibStatDebug\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
-          QMAKE_LIBS_EGL_RELEASE="%ANGLE%\out\Release\tg_angle.lib %ZLIB%\ZlibStatRelease\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
+          QMAKE_LIBS_EGL_RELEASE="%ANGLE%\out\Release\tg_angle.lib %ZLIB%\ZlibStatReleaseWithoutAsm\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
           -openssl-linked ^
           -I "%SSL%\include" ^
           OPENSSL_LIBS_DEBUG="%SSL%\out.dbg\libssl.lib %SSL%\out.dbg\%SSL_LIBS%" ^
