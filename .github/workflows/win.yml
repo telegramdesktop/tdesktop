@@ -180,7 +180,8 @@ jobs:
           cd zlib
           git checkout tdesktop
           cd contrib\masmx86
-          bld_ml32.bat
+          ml /coff /Zi /c /Flmatch686.lst match686.asm
+          ml /coff /Zi /c /Flinffas32.lst inffas32.asm
           cd ..\vstudio\vc14
           msbuild -m zlibstat.vcxproj /property:Configuration=Release
 
