@@ -857,7 +857,7 @@ FullMsgId ListWidget::computeFullId(
 	return (universalId > 0)
 		? FullMsgId(_peer->id, universalId)
 		: FullMsgId(
-			(_peer ? _peer.get() : _migrated)->id,
+			(_migrated ? _migrated : _peer.get())->id,
 			ServerMaxMsgId + universalId);
 }
 
