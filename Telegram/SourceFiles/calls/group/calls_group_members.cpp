@@ -44,8 +44,6 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kKeepRaisedHandStatusDuration = 3 * crl::time(1000);
-constexpr auto kUserpicSizeForBlur = 40;
-constexpr auto kUserpicBlurRadius = 8;
 
 using Row = MembersRow;
 
