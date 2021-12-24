@@ -2903,6 +2903,11 @@ void HistoryInner::elementShowReactions(not_null<const Element*> view) {
 		view->data()));
 }
 
+void HistoryInner::elementShowSpoilerAnimation() {
+	_spoilerOpacity.stop();
+	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3860,6 +3865,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		void elementShowReactions(not_null<const Element*> view) override {
 			if (Instance) {
 				Instance->elementShowReactions(view);
+			}
+		}
+		void elementShowSpoilerAnimation() override {
+			if (Instance) {
+				Instance->elementShowSpoilerAnimation();
 			}
 		}
 

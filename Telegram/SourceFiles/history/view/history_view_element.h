@@ -100,6 +100,7 @@ public:
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
 	virtual void elementShowReactions(not_null<const Element*> view) = 0;
+	virtual void elementShowSpoilerAnimation() = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -158,6 +159,7 @@ public:
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementShowReactions(not_null<const Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {

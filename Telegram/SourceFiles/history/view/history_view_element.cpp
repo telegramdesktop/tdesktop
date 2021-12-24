@@ -191,6 +191,9 @@ void SimpleElementDelegate::elementShowReactions(
 	not_null<const Element*> view) {
 }
 
+void SimpleElementDelegate::elementShowSpoilerAnimation() {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

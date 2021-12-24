@@ -279,6 +279,7 @@ public:
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementShowReactions(not_null<const Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 
@@ -607,6 +608,8 @@ private:
 	crl::time _highlightStart = 0;
 	FullMsgId _highlightedMessageId;
 	base::Timer _highlightTimer;
+
+	Ui::Animations::Simple _spoilerOpacity;
 
 	Ui::SelectScrollManager _selectScroll;
 

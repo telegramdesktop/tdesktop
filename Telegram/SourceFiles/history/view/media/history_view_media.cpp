@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_spoiler_click_handler.h"
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
@@ -196,11 +197,13 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	const auto context = Core::MarkedTextContext{
 		.session = &history()->session()
 	};
+	const auto textWithEntities = item->originalTextWithLocalEntities();
 	result.setMarkedText(
 		st::messageTextStyle,
-		item->originalTextWithLocalEntities(),
+		textWithEntities,
 		Ui::ItemTextOptions(item),
 		context);
+	FillTextWithAnimatedSpoilers(result, textWithEntities);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}

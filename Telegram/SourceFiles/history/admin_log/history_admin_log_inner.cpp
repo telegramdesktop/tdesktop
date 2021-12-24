@@ -673,6 +673,11 @@ void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
 void InnerWidget::elementShowReactions(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementShowSpoilerAnimation() {
+	_spoilerOpacity.stop();
+	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

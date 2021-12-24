@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
+#include "history/view/history_view_spoiler_click_handler.h"
 #include "history/view/media/history_view_media.h" // AddTimestampLinks.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_session.h"
@@ -1618,6 +1619,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		withLocalEntities(textWithEntities),
 		Ui::ItemTextOptions(this),
 		context);
+	HistoryView::FillTextWithAnimatedSpoilers(_text, textWithEntities);
 	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
 		// If server has allowed some text that we've trim-ed entirely,
 		// just replace it with something so that UI won't look buggy.

@@ -1461,6 +1461,11 @@ void ListWidget::elementStartInteraction(not_null<const Element*> view) {
 void ListWidget::elementShowReactions(not_null<const Element*> view) {
 }
 
+void ListWidget::elementShowSpoilerAnimation() {
+	_spoilerOpacity.stop();
+	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

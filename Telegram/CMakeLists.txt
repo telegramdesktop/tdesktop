@@ -671,6 +671,8 @@ PRIVATE
     history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
+    history/view/history_view_spoiler_click_handler.cpp
+    history/view/history_view_spoiler_click_handler.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp

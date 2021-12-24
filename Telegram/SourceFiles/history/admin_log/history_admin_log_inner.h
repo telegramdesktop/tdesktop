@@ -141,6 +141,7 @@ public:
 		not_null<const HistoryView::Element*> view) override;
 	void elementShowReactions(
 		not_null<const HistoryView::Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 	~InnerWidget();
 
@@ -323,6 +324,8 @@ private:
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
+
+	Ui::Animations::Simple _spoilerOpacity;
 
 	FilterValue _filter;
 	QString _searchQuery;
