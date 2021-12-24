@@ -47,6 +47,32 @@ constexpr auto kSystemAlertDuration = crl::time(1000);
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
 
+QString TextWithPermanentSpoiler(QString textWithCommands) {
+	const auto start = textcmdStartSpoiler();
+	const auto stop = textcmdStopSpoiler();
+	while (true) {
+		const auto startIndex = textWithCommands.indexOf(start);
+		if (startIndex == -1) {
+			break;
+		}
+		const auto stopIndex = textWithCommands.indexOf(stop);
+		if (stopIndex == -1) {
+			break;
+		}
+		if (stopIndex < startIndex) {
+			break;
+		}
+		const auto length = stopIndex - startIndex - start.size();
+		textWithCommands.remove(stopIndex, stop.size());
+		textWithCommands.remove(startIndex, start.size());
+		textWithCommands.replace(
+			startIndex,
+			length,
+			QString(QChar(0x259A)).repeated(length));
+	}
+	return textWithCommands;
+}
+
 } // namespace
 
 System::System()
@@ -739,7 +765,7 @@ void NativeManager::doShowNotification(
 		: (forwardedCount < 2
 			? (item->groupId()
 				? tr::lng_in_dlg_album(tr::now)
-				: item->notificationText())
+				: TextWithPermanentSpoiler(item->notificationText()))
 			: tr::lng_forward_messages(tr::now, lt_count, forwardedCount));
 
 	// #TODO optimize
