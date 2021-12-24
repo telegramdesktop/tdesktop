@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
-#include "ui/controls/who_read_context_action.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
@@ -60,7 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_toggling_media.h"
-#include "api/api_who_read.h"
+#include "api/api_who_reacted.h"
 #include "api/api_views.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
@@ -1701,11 +1701,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	const auto hasWhoReadItem = _dragStateItem
+	const auto hasWhoReactedItem = _dragStateItem
 		&& Api::WhoReactedExists(_dragStateItem);
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		hasWhoReadItem ? st::whoReadMenu : st::popupMenuWithIcons);
+		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);
 	const auto session = &this->session();
 	const auto controller = _controller;
 	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {
@@ -2079,16 +2079,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	if (hasWhoReadItem) {
+	if (hasWhoReactedItem) {
 		const auto participantChosen = [=](uint64 id) {
 			controller->showPeerInfo(PeerId(id));
 		};
 		if (!_menu->empty()) {
 			_menu->addSeparator();
 		}
-		_menu->addAction(Ui::WhoReadContextAction(
+		_menu->addAction(Ui::WhoReactedContextAction(
 			_menu.get(),
-			Api::WhoRead(_dragStateItem, this, st::defaultWhoRead),
+			Api::WhoReacted(_dragStateItem, this, st::defaultWhoRead),
 			participantChosen));
 	}
 

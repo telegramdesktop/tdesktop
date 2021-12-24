@@ -23,7 +23,7 @@ namespace Api {
 [[nodiscard]] bool WhoReactedExists(not_null<HistoryItem*> item);
 
 // The context must be destroyed before the session holding this item.
-[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoRead(
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoReacted(
 	not_null<HistoryItem*> item,
 	not_null<QWidget*> context,
 	const style::WhoRead &st); // Cache results for this lifetime.

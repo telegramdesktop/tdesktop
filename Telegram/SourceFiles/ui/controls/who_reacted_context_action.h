@@ -18,6 +18,7 @@ class PopupMenu;
 
 struct WhoReadParticipant {
 	QString name;
+	QString reaction;
 	QImage userpicSmall;
 	QImage userpicLarge;
 	std::pair<uint64, uint64> userpicKey = {};
@@ -38,10 +39,11 @@ enum class WhoReadType {
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
+	QString mostPopularReaction;
 	bool unknown = false;
 };
 
-[[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReadContextAction(
+[[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 	not_null<PopupMenu*> menu,
 	rpl::producer<WhoReadContent> content,
 	Fn<void(uint64)> participantChosen);

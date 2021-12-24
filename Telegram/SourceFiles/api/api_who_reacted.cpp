@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "api/api_who_read.h"
+#include "api/api_who_reacted.h"
 
 #include "history/history_item.h"
 #include "history/history.h"
@@ -22,39 +22,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
-#include "ui/controls/who_read_context_action.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
 namespace Api {
 namespace {
 
-struct Cached {
-	explicit Cached(PeerId unknownFlag)
+constexpr auto kContextReactionsLimit = 50;
+
+struct PeerWithReaction {
+	PeerId peer = 0;
+	QString reaction;
+};
+bool operator==(const PeerWithReaction &a, const PeerWithReaction &b) {
+	return (a.peer == b.peer) && (a.reaction == b.reaction);
+}
+
+struct CachedRead {
+	explicit CachedRead(PeerId unknownFlag)
 	: list(std::vector<PeerId>{ unknownFlag }) {
 	}
 	rpl::variable<std::vector<PeerId>> list;
 	mtpRequestId requestId = 0;
 };
 
+struct CachedReacted {
+	explicit CachedReacted(PeerId unknownFlag)
+	: list(
+		std::vector<PeerWithReaction>{ PeerWithReaction{ unknownFlag } }) {
+	}
+	rpl::variable<std::vector<PeerWithReaction>> list;
+	mtpRequestId requestId = 0;
+};
+
 struct Context {
-	base::flat_map<not_null<HistoryItem*>, Cached> cached;
+	base::flat_map<not_null<HistoryItem*>, CachedRead> cachedRead;
+	base::flat_map<not_null<HistoryItem*>, CachedReacted> cachedReacted;
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> subscriptions;
 
-	[[nodiscard]] Cached &cache(not_null<HistoryItem*> item) {
-		const auto i = cached.find(item);
-		if (i != end(cached)) {
+	[[nodiscard]] CachedRead &cacheRead(not_null<HistoryItem*> item) {
+		const auto i = cachedRead.find(item);
+		if (i != end(cachedRead)) {
 			return i->second;
 		}
-		return cached.emplace(
+		return cachedRead.emplace(
 			item,
-			Cached(item->history()->session().userPeerId())
+			CachedRead(item->history()->session().userPeerId())
+		).first->second;
+	}
+
+	[[nodiscard]] CachedReacted &cacheReacted(not_null<HistoryItem*> item) {
+		const auto i = cachedReacted.find(item);
+		if (i != end(cachedReacted)) {
+			return i->second;
+		}
+		return cachedReacted.emplace(
+			item,
+			CachedReacted(item->history()->session().userPeerId())
 		).first->second;
 	}
 };
 
 struct Userpic {
 	not_null<PeerData*> peer;
+	QString reaction;
 	mutable std::shared_ptr<Data::CloudImageView> view;
 	mutable InMemoryKey uniqueKey;
 };
@@ -87,7 +119,12 @@ struct State {
 	QObject::connect(key.get(), &QObject::destroyed, [=] {
 		auto &contexts = Contexts();
 		const auto i = contexts.find(key);
-		for (auto &[item, entry] : i->second->cached) {
+		for (auto &[item, entry] : i->second->cachedRead) {
+			if (const auto requestId = entry.requestId) {
+				item->history()->session().api().request(requestId).cancel();
+			}
+		}
+		for (auto &[item, entry] : i->second->cachedReacted) {
 			if (const auto requestId = entry.requestId) {
 				item->history()->session().api().request(requestId).cancel();
 			}
@@ -95,6 +132,28 @@ struct State {
 		contexts.erase(i);
 	});
 	return result;
+}
+
+[[nodiscard]] not_null<Context*> PreparedContextAt(not_null<QWidget*> key, not_null<Main::Session*> session) {
+	const auto context = ContextAt(key);
+	if (context->subscriptions.contains(session)) {
+		return context;
+	}
+	session->changes().messageUpdates(
+		Data::MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		const auto i = context->cachedRead.find(update.item);
+		if (i != end(context->cachedRead)) {
+			session->api().request(i->second.requestId).cancel();
+			context->cachedRead.erase(i);
+		}
+		const auto j = context->cachedReacted.find(update.item);
+		if (j != end(context->cachedReacted)) {
+			session->api().request(j->second.requestId).cancel();
+			context->cachedReacted.erase(j);
+		}
+	}, context->subscriptions[session]);
+	return context;
 }
 
 [[nodiscard]] QImage GenerateUserpic(Userpic &userpic, int size) {
@@ -109,6 +168,14 @@ struct State {
 		not_null<HistoryItem*> item) {
 	return (list.size() == 1)
 		&& (list.front() == item->history()->session().userPeerId());
+}
+
+[[nodiscard]] bool ListUnknown(
+		const std::vector<PeerWithReaction> &list,
+		not_null<HistoryItem*> item) {
+	return (list.size() == 1)
+		&& list.front().reaction.isEmpty()
+		&& (list.front().peer == item->history()->session().userPeerId());
 }
 
 [[nodiscard]] Ui::WhoReadType DetectType(not_null<HistoryItem*> item) {
@@ -135,20 +202,8 @@ struct State {
 		if (!weak) {
 			return rpl::lifetime();
 		}
-		const auto context = ContextAt(weak.data());
-		if (!context->subscriptions.contains(session)) {
-			session->changes().messageUpdates(
-				Data::MessageUpdate::Flag::Destroyed
-			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-				const auto i = context->cached.find(update.item);
-				if (i == end(context->cached)) {
-					return;
-				}
-				session->api().request(i->second.requestId).cancel();
-				context->cached.erase(i);
-			}, context->subscriptions[session]);
-		}
-		auto &entry = context->cache(item);
+		const auto context = PreparedContextAt(weak.data(), session);
+		auto &entry = context->cacheRead(item);
 		if (!entry.requestId) {
 			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReadParticipants(
@@ -156,7 +211,7 @@ struct State {
 					MTP_int(item->id)
 				)
 			).done([=](const MTPVector<MTPlong> &result) {
-				auto &entry = context->cache(item);
+				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				auto peers = std::vector<PeerId>();
 				peers.reserve(std::max(int(result.v.size()), 1));
@@ -165,7 +220,7 @@ struct State {
 				}
 				entry.list = std::move(peers);
 			}).fail([=] {
-				auto &entry = context->cache(item);
+				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				if (ListUnknown(entry.list.current(), item)) {
 					entry.list = std::vector<PeerId>();
@@ -176,33 +231,123 @@ struct State {
 	};
 }
 
+[[nodiscard]] std::vector < PeerWithReaction> WithEmptyReactions(
+		const std::vector<PeerId> &peers) {
+	return peers | ranges::views::transform([](PeerId peer) {
+		return PeerWithReaction{ .peer = peer };
+	}) | ranges::to_vector;
+}
+
+[[nodiscard]] rpl::producer<std::vector<PeerWithReaction>> WhoReactedIds(
+		not_null<HistoryItem*> item,
+		not_null<QWidget*> context) {
+	auto unknown = item->history()->session().userPeerId();
+	auto weak = QPointer<QWidget>(context.get());
+	const auto session = &item->history()->session();
+	return [=](auto consumer) {
+		if (!weak) {
+			return rpl::lifetime();
+		}
+		const auto context = PreparedContextAt(weak.data(), session);
+		auto &entry = context->cacheReacted(item);
+		if (!entry.requestId) {
+			entry.requestId = session->api().request(
+				MTPmessages_GetMessageReactionsList(
+					MTP_flags(0),
+					item->history()->peer->input,
+					MTP_int(item->id),
+					MTPstring(), // reaction
+					MTPstring(), // offset
+					MTP_int(kContextReactionsLimit)
+				)
+			).done([=](const MTPmessages_MessageReactionsList &result) {
+				auto &entry = context->cacheReacted(item);
+				entry.requestId = 0;
+
+				result.match([&](
+						const MTPDmessages_messageReactionsList &data) {
+					session->data().processUsers(data.vusers());
+
+					auto peers = std::vector<PeerWithReaction>();
+					peers.reserve(data.vreactions().v.size());
+					for (const auto &vote : data.vreactions().v) {
+						vote.match([&](const auto &data) {
+							peers.push_back(PeerWithReaction{
+								.peer = peerFromUser(data.vuser_id()),
+								.reaction = qs(data.vreaction()),
+							});
+						});
+					}
+					entry.list = std::move(peers);
+				});
+			}).fail([=] {
+				auto &entry = context->cacheReacted(item);
+				entry.requestId = 0;
+				if (ListUnknown(entry.list.current(), item)) {
+					entry.list = std::vector<PeerWithReaction>();
+				}
+			}).send();
+		}
+		return entry.list.value().start_existing(consumer);
+	};
+}
+
+[[nodiscard]] auto WhoReadOrReactedIds(
+	not_null<HistoryItem*> item,
+	not_null<QWidget*> context)
+-> rpl::producer<std::vector<PeerWithReaction>> {
+	return rpl::combine(
+		WhoReactedIds(item, context),
+		WhoReadIds(item, context)
+	) | rpl::map([=](
+			std::vector<PeerWithReaction> reacted,
+			std::vector<PeerId> read) {
+		if (ListUnknown(reacted, item) || ListUnknown(read, item)) {
+			return reacted;
+		}
+		for (const auto &peer : read) {
+			if (!ranges::contains(reacted, peer, &PeerWithReaction::peer)) {
+				reacted.push_back({ .peer = peer });
+			}
+		}
+		return reacted;
+	});
+}
+
 bool UpdateUserpics(
 		not_null<State*> state,
 		not_null<HistoryItem*> item,
-		const std::vector<PeerId> &ids) {
+		const std::vector<PeerWithReaction> &ids) {
 	auto &owner = item->history()->owner();
 
+	struct ResolvedPeer {
+		PeerData *peer = nullptr;
+		QString reaction;
+	};
 	const auto peers = ranges::views::all(
 		ids
-	) | ranges::views::transform([&](PeerId id) {
-		return owner.peerLoaded(id);
-	}) | ranges::views::filter([](PeerData *peer) {
-		return peer != nullptr;
-	}) | ranges::views::transform([](PeerData *peer) {
-		return not_null(peer);
+	) | ranges::views::transform([&](PeerWithReaction id) {
+		return ResolvedPeer{
+			.peer = owner.peerLoaded(id.peer),
+			.reaction = id.reaction,
+		};
+	}) | ranges::views::filter([](ResolvedPeer resolved) {
+		return resolved.peer != nullptr;
 	}) | ranges::to_vector;
 
 	const auto same = ranges::equal(
 		state->userpics,
 		peers,
-		ranges::less(),
-		&Userpic::peer);
+		ranges::equal_to(),
+		&Userpic::peer,
+		[](const ResolvedPeer &r) { return not_null{ r.peer }; });
 	if (same) {
 		return false;
 	}
 	auto &was = state->userpics;
 	auto now = std::vector<Userpic>();
-	for (const auto &peer : peers) {
+	for (const auto &resolved : peers) {
+		const auto peer = not_null{ resolved.peer };
 		if (ranges::contains(now, peer, &Userpic::peer)) {
 			continue;
 		}
@@ -213,6 +358,7 @@ bool UpdateUserpics(
 		}
 		now.push_back(Userpic{
 			.peer = peer,
+			.reaction = resolved.reaction,
 		});
 		auto &userpic = now.back();
 		userpic.uniqueKey = peer->userpicUniqueKey(userpic.view);
@@ -261,6 +407,7 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 		}
 		now.push_back({
 			.name = peer->name,
+			.reaction = userpic.reaction,
 			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,
 			.id = id,
@@ -313,7 +460,7 @@ bool WhoReactedExists(not_null<HistoryItem*> item) {
 	return item->canViewReactions() || WhoReadExists(item);
 }
 
-rpl::producer<Ui::WhoReadContent> WhoRead(
+rpl::producer<Ui::WhoReadContent> WhoReacted(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context,
 		const style::WhoRead &st) {
@@ -341,10 +488,21 @@ rpl::producer<Ui::WhoReadContent> WhoRead(
 			consumer.put_next_copy(state->current);
 		};
 
-		WhoReadIds(
-			item,
-			context
-		) | rpl::start_with_next([=](const std::vector<PeerId> &peers) {
+		const auto resolveWhoRead = WhoReadExists(item);
+		const auto resolveWhoReacted = item->canViewReactions();
+		auto idsWithReactions = (resolveWhoRead && resolveWhoReacted)
+			? WhoReadOrReactedIds(item, context)
+			: resolveWhoRead
+			? (WhoReadIds(item, context) | rpl::map(WithEmptyReactions))
+			: WhoReactedIds(item, context);
+		if (resolveWhoReacted) {
+			// #TODO reactions
+			state->current.mostPopularReaction = item->reactions().front().first;
+		}
+		std::move(
+			idsWithReactions
+		) | rpl::start_with_next([=](
+				const std::vector<PeerWithReaction> &peers) {
 			if (ListUnknown(peers, item)) {
 				state->userpics.clear();
 				consumer.put_next(Ui::WhoReadContent{

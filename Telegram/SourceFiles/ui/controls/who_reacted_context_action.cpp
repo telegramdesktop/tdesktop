@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/controls/who_read_context_action.h"
+#include "ui/controls/who_reacted_context_action.h"
 
 #include "base/call_delayed.h"
 #include "ui/widgets/menu/menu_action.h"
@@ -20,6 +20,7 @@ namespace {
 
 struct EntryData {
 	QString text;
+	QString reaction;
 	QImage userpic;
 	Fn<void()> callback;
 };
@@ -46,6 +47,7 @@ private:
 	const int _height = 0;
 
 	Text::String _text;
+	EmojiPtr _emoji = nullptr;
 	int _textWidth = 0;
 	QImage _userpic;
 
@@ -140,11 +142,17 @@ void EntryAction::setData(EntryData &&data) {
 	setClickedCallback(std::move(data.callback));
 	_userpic = std::move(data.userpic);
 	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
+	_emoji = Emoji::Find(data.reaction);
 	const auto textWidth = _text.maxWidth();
 	const auto &padding = _st.itemPadding;
+	const auto rightSkip = padding.right()
+		+ (_emoji
+			? ((Emoji::GetSizeNormal() / style::DevicePixelRatio())
+				+ padding.right())
+			: 0);
 	const auto goodWidth = st::defaultWhoRead.nameLeft
 		+ textWidth
-		+ padding.right();
+		+ rightSkip;
 	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
 	_textWidth = w - (goodWidth - textWidth);
 	setMinWidth(w);
@@ -176,6 +184,18 @@ void EntryAction::paint(Painter &&p) {
 		(height() - _st.itemStyle.font->height) / 2,
 		_textWidth,
 		width());
+
+	if (_emoji) {
+		// #TODO reactions
+		const auto size = Emoji::GetSizeNormal();
+		const auto ratio = style::DevicePixelRatio();
+		Emoji::Draw(
+			p,
+			_emoji,
+			size,
+			width() - _st.itemPadding.right() - (size / ratio),
+			(height() - (size / ratio)) / 2);
+	}
 }
 
 Action::Action(
@@ -260,6 +280,7 @@ void Action::resolveMinWidth() {
 		return _st.itemStyle.font->width(text);
 	};
 	const auto maxTextWidth = std::max({
+		width(tr::lng_context_seen_text(tr::now, lt_count_short, 999999999)),
 		width(tr::lng_context_seen_text(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_watched(tr::now, lt_count, 999)) });
@@ -317,6 +338,7 @@ void Action::populateSubmenu() {
 		};
 		auto data = EntryData{
 			.text = participant.name,
+			.reaction = participant.reaction,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,
 		};
@@ -345,18 +367,28 @@ void Action::paint(Painter &p) {
 	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
-	const auto &icon = (_content.type == WhoReadType::Seen)
-		? (!enabled
-			? st::whoReadChecksDisabled
-			: selected
-			? st::whoReadChecksOver
-			: st::whoReadChecks)
-		: (!enabled
-			? st::whoReadPlayedDisabled
-			: selected
-			? st::whoReadPlayedOver
-			: st::whoReadPlayed);
-	icon.paint(p, st::defaultWhoRead.iconPosition, width());
+	if (const auto emoji = Emoji::Find(_content.mostPopularReaction)) {
+		// #TODO reactions
+		const auto ratio = style::DevicePixelRatio();
+		const auto size = Emoji::GetSizeNormal();
+		const auto x = st::defaultWhoRead.iconPosition.x()
+			+ (st::whoReadChecks.width() - (size / ratio)) / 2;
+		const auto y = (_height - (size / ratio)) / 2;
+		Emoji::Draw(p, emoji, size, x, y);
+	} else {
+		const auto &icon = (_content.type == WhoReadType::Seen)
+			? (!enabled
+				? st::whoReadChecksDisabled
+				: selected
+				? st::whoReadChecksOver
+				: st::whoReadChecks)
+			: (!enabled
+				? st::whoReadPlayedDisabled
+				: selected
+				? st::whoReadPlayedOver
+				: st::whoReadPlayed);
+		icon.paint(p, st::defaultWhoRead.iconPosition, width());
+	}
 	p.setPen(!enabled
 		? _st.itemFgDisabled
 		: selected
@@ -457,7 +489,7 @@ bool operator!=(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 	return !(a == b);
 }
 
-base::unique_qptr<Menu::ItemBase> WhoReadContextAction(
+base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		not_null<PopupMenu*> menu,
 		rpl::producer<WhoReadContent> content,
 		Fn<void(uint64)> participantChosen) {
