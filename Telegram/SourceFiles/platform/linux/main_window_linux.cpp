@@ -68,6 +68,7 @@ constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kTrayIconFilename = "tdesktop-trayicon-XXXXXX.png"_cs;
 
@@ -80,6 +81,7 @@ constexpr auto kAppMenuObjectPath = "/com/canonical/AppMenu/Registrar"_cs;
 constexpr auto kAppMenuInterface = kAppMenuService;
 
 constexpr auto kMainMenuObjectPath = "/MenuBar"_cs;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 bool TrayIconMuted = true;
 int32 TrayIconCount = 0;
