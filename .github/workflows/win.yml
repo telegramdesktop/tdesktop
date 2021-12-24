@@ -355,7 +355,6 @@ jobs:
           configure ^
           -prefix "%LibrariesPath%\Qt-%QT_VER%" ^
           -release ^
-          -force-debug-info ^
           -opensource ^
           -confirm-license ^
           -static ^
@@ -446,7 +445,9 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           cd %REPO_NAME%\Telegram
-
+          
+          SET CXXFLAGS="-bigobj"
+          
           call configure.bat ^
           -D TDESKTOP_API_TEST=OFF ^
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} ^
