@@ -76,7 +76,6 @@ private:
 	Ui::Animations::Simple _scaleAnimation;
 
 	QRect _geometry;
-	ButtonStyle _style = ButtonStyle::Bubble;
 	bool _outbg = false;
 
 };
