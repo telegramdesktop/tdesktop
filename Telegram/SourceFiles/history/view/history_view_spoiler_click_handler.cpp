@@ -38,15 +38,11 @@ void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
 
 } // namespace
 
-void FillTextWithAnimatedSpoilers(
-		Ui::Text::String &text,
-		const TextWithEntities &textWithEntities) {
-	for (auto i = 0; i < textWithEntities.entities.size(); i++) {
-		if (textWithEntities.entities[i].type() == EntityType::Spoiler) {
-			text.setSpoiler(
-				i + 1,
-				std::make_shared<AnimatedSpoilerClickHandler>());
-		}
+void FillTextWithAnimatedSpoilers(Ui::Text::String &text) {
+	for (auto i = 0; i < text.spoilersCount(); i++) {
+		text.setSpoiler(
+			i + 1,
+			std::make_shared<AnimatedSpoilerClickHandler>());
 	}
 }
 

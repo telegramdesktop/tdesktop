@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-void FillTextWithAnimatedSpoilers(
-	Ui::Text::String &text,
-	const TextWithEntities &textWithEntities);
+void FillTextWithAnimatedSpoilers(Ui::Text::String &text);
 
 } // namespace HistoryView

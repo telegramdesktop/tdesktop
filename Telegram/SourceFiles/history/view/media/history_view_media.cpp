@@ -197,13 +197,12 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	const auto context = Core::MarkedTextContext{
 		.session = &history()->session()
 	};
-	const auto textWithEntities = item->originalTextWithLocalEntities();
 	result.setMarkedText(
 		st::messageTextStyle,
-		textWithEntities,
+		item->originalTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
-	FillTextWithAnimatedSpoilers(result, textWithEntities);
+	FillTextWithAnimatedSpoilers(result);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}

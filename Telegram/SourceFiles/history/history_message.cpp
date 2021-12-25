@@ -1619,7 +1619,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		withLocalEntities(textWithEntities),
 		Ui::ItemTextOptions(this),
 		context);
-	HistoryView::FillTextWithAnimatedSpoilers(_text, textWithEntities);
+	HistoryView::FillTextWithAnimatedSpoilers(_text);
 	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
 		// If server has allowed some text that we've trim-ed entirely,
 		// just replace it with something so that UI won't look buggy.
