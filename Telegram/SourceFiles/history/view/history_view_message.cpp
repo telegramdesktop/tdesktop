@@ -1805,22 +1805,21 @@ TextSelection Message::adjustSelection(
 }
 
 Reactions::ButtonParameters Message::reactionButtonParameters(
-		QPoint position) const {
+		QPoint position,
+		const TextState &reactionState) const {
 	auto result = Reactions::ButtonParameters{ .context = data()->fullId() };
-	result.outbg = hasOutLayout();
+	const auto outbg = result.outbg = hasOutLayout();
 	const auto geometry = countGeometry();
 	result.pointer = position;
-	result.center = geometry.topLeft()
-		+ QPoint(geometry.width(), geometry.height())
-		+ st::reactionCornerCenter;
-	const auto size = st::reactionCornerSize;
-	const auto button = QRect(
-		result.center - QPoint(size.width() / 2, size.height() / 2),
-		size);
-	result.active = button.marginsAdded(
-		st::reactionCornerActiveAreaPadding
-	).contains(position);
-	if (!result.active) {
+	const auto onTheLeft = (outbg && !delegate()->elementIsChatWide());
+	const auto leftAdd = onTheLeft ? 0 : geometry.width();
+	result.center = geometry.topLeft() + (onTheLeft
+		? (QPoint(0, geometry.height()) + QPoint(
+			-st::reactionCornerCenter.x(),
+			st::reactionCornerCenter.y()))
+		: (QPoint(geometry.width(), geometry.height())
+			+ st::reactionCornerCenter));
+	if (reactionState.itemId != result.context) {
 		const auto top = marginTop();
 		if (!QRect(0, top, width(), height() - top).contains(position)) {
 			return {};

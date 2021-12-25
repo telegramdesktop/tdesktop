@@ -89,7 +89,8 @@ public:
 		TextSelectType type) const override;
 
 	Reactions::ButtonParameters reactionButtonParameters(
-		QPoint position) const override;
+		QPoint position,
+		const TextState &reactionState) const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

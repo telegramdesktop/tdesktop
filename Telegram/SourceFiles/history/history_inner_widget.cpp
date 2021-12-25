@@ -179,7 +179,6 @@ HistoryInner::HistoryInner(
 		[=] { update(); }))
 , _reactionsManager(
 	std::make_unique<HistoryView::Reactions::Manager>(
-		historyWidget,
 		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
@@ -1540,7 +1539,6 @@ void HistoryInner::mouseActionFinish(
 				.sessionWindow = base::make_weak(_controller.get()),
 			})
 		});
-		_reactionsManager->hideSelectors(anim::type::normal);
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
@@ -2677,7 +2675,7 @@ void HistoryInner::enterEventHook(QEnterEvent *e) {
 }
 
 void HistoryInner::leaveEventHook(QEvent *e) {
-	_reactionsManager->showButton({});
+	_reactionsManager->updateButton({});
 	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);
@@ -2971,7 +2969,8 @@ void HistoryInner::onTouchSelect() {
 
 auto HistoryInner::reactionButtonParameters(
 	not_null<const Element*> view,
-	QPoint position) const
+	QPoint position,
+	const HistoryView::TextState &reactionState) const
 -> HistoryView::Reactions::ButtonParameters {
 	const auto top = itemTop(view);
 	if (top < 0
@@ -2980,8 +2979,13 @@ auto HistoryInner::reactionButtonParameters(
 		|| inSelectionMode()) {
 		return {};
 	}
-	const auto local = view->reactionButtonParameters(position);
-	return local.translated({ 0, itemTop(view) });
+	auto result = view->reactionButtonParameters(
+		position,
+		reactionState
+	).translated({ 0, itemTop(view) });
+	result.visibleTop = _visibleAreaTop;
+	result.visibleBottom = _visibleAreaBottom;
+	return result;
 }
 
 void HistoryInner::mouseActionUpdate() {
@@ -3018,7 +3022,10 @@ void HistoryInner::mouseActionUpdate() {
 			}
 		}
 		m = mapPointToItem(point, view);
-		_reactionsManager->showButton(reactionButtonParameters(view, m));
+		_reactionsManager->updateButton(reactionButtonParameters(
+			view,
+			m,
+			reactionState));
 		if (view->pointState(m) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
@@ -3030,7 +3037,7 @@ void HistoryInner::mouseActionUpdate() {
 			App::hoveredItem(nullptr);
 		}
 	} else {
-		_reactionsManager->showButton({});
+		_reactionsManager->updateButton({});
 	}
 	if (_mouseActionItem && !_mouseActionItem->mainView()) {
 		mouseActionCancel();
@@ -3046,9 +3053,6 @@ void HistoryInner::mouseActionUpdate() {
 	if (overReaction) {
 		dragState = reactionState;
 		lnkhost = reactionView;
-		_reactionsManager->showSelector([=](QPoint local) {
-			return mapToGlobal(local);
-		});
 	} else if (point.y() < _historyPaddingTop) {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 			dragState = TextState(nullptr, _botAbout->info->text.getState(
@@ -3150,9 +3154,6 @@ void HistoryInner::mouseActionUpdate() {
 				}
 			}
 		}
-	}
-	if (!overReaction) {
-		_reactionsManager->hideSelectors(anim::type::normal);
 	}
 	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {

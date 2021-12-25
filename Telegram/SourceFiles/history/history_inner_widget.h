@@ -352,7 +352,8 @@ private:
 
 	HistoryView::Reactions::ButtonParameters reactionButtonParameters(
 		not_null<const Element*> view,
-		QPoint position) const;
+		QPoint position,
+		const HistoryView::TextState &reactionState) const;
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;

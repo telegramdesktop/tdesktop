@@ -323,7 +323,8 @@ public:
 		TextSelectType type) const;
 
 	[[nodiscard]] virtual auto reactionButtonParameters(
-		QPoint position) const -> Reactions::ButtonParameters;
+		QPoint position,
+		const TextState &reactionState) const -> Reactions::ButtonParameters;
 
 	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(

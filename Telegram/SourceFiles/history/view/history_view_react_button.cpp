@@ -22,6 +22,7 @@ namespace {
 constexpr auto kItemsPerRow = 5;
 constexpr auto kToggleDuration = crl::time(80);
 constexpr auto kActivateDuration = crl::time(150);
+constexpr auto kExpandDuration = crl::time(150);
 constexpr auto kInCacheIndex = 0;
 constexpr auto kOutCacheIndex = 1;
 constexpr auto kShadowCacheIndex = 0;
@@ -69,11 +70,10 @@ void CopyImagePart(QImage &to, const QImage &from, QRect source) {
 Button::Button(
 	Fn<void(QRect)> update,
 	ButtonParameters parameters)
-: _update(std::move(update)) {
-	const auto initial = QRect(QPoint(), CountOuterSize());
-	_geometry = initial.translated(parameters.center - initial.center());
-	_outbg = parameters.outbg;
-	applyState(parameters.active ? State::Active : State::Shown);
+: _update(std::move(update))
+, _collapsed(QPoint(), CountOuterSize())
+, _finalHeight(_collapsed.height()) {
+	applyParameters(parameters, nullptr);
 }
 
 Button::~Button() = default;
@@ -90,24 +90,97 @@ QRect Button::geometry() const {
 	return _geometry;
 }
 
+bool Button::expandUp() const {
+	return (_expandDirection == ExpandDirection::Up);
+}
+
 void Button::applyParameters(ButtonParameters parameters) {
-	const auto geometry = _geometry.translated(
-		parameters.center - _geometry.center());
+	applyParameters(std::move(parameters), _update);
+}
+
+void Button::applyParameters(
+		ButtonParameters parameters,
+		Fn<void(QRect)> update) {
+	const auto shift = parameters.center - _collapsed.center();
+	_collapsed = _collapsed.translated(shift);
+	updateGeometry(update);
+	const auto inner = _geometry.marginsRemoved(st::reactionCornerShadow);
+	const auto active = inner.marginsAdded(
+		st::reactionCornerActiveAreaPadding
+	).contains(parameters.pointer);
+	const auto inside = inner.contains(parameters.pointer)
+		|| (active && (_state == State::Inside));
+	if (_state != State::Inside && !_heightAnimation.animating()) {
+		updateExpandDirection(parameters);
+	}
+	const auto state = inside
+		? State::Inside
+		: active
+		? State::Active
+		: State::Shown;
+	applyState(state, update);
 	if (_outbg != parameters.outbg) {
 		_outbg = parameters.outbg;
-		_update(_geometry);
+		if (update) {
+			update(_geometry);
+		}
 	}
+}
+
+void Button::updateExpandDirection(const ButtonParameters &parameters) {
+	const auto maxAddedHeight = (parameters.reactionsCount - 1)
+		* (st::reactionCornerSize.height() + st::reactionCornerSkip);
+	const auto addedHeight = std::min(
+		maxAddedHeight,
+		st::reactionCornerAddedHeightMax);
+	_expandedHeight = _collapsed.height() + addedHeight;
+	if (parameters.reactionsCount < 2) {
+		return;
+	}
+	const auto up = (_collapsed.y() - addedHeight >= parameters.visibleTop)
+		|| (_collapsed.y() + _collapsed.height() + addedHeight
+			> parameters.visibleBottom);
+	_expandDirection = up ? ExpandDirection::Up : ExpandDirection::Down;
+}
+
+void Button::updateGeometry(Fn<void(QRect)> update) {
+	const auto added = int(base::SafeRound(
+		_heightAnimation.value(_finalHeight)
+	)) - _collapsed.height();
+	const auto geometry = _collapsed.marginsAdded({
+		0,
+		(_expandDirection == ExpandDirection::Up) ? added : 0,
+		0,
+		(_expandDirection == ExpandDirection::Down) ? added : 0,
+	});
 	if (_geometry != geometry) {
-		if (!_geometry.isNull()) {
-			_update(_geometry);
+		if (update) {
+			update(_geometry);
 		}
 		_geometry = geometry;
-		_update(_geometry);
+		if (update) {
+			update(_geometry);
+		}
 	}
-	applyState(parameters.active ? State::Active : State::Shown);
 }
 
 void Button::applyState(State state) {
+	applyState(state, _update);
+}
+
+void Button::applyState(State state, Fn<void(QRect)> update) {
+	const auto finalHeight = (state == State::Inside)
+		? _expandedHeight
+		: _collapsed.height();
+	if (_finalHeight != finalHeight) {
+		_heightAnimation.start(
+			[=] { updateGeometry(_update); },
+			_finalHeight,
+			finalHeight,
+			kExpandDuration);
+		_finalHeight = finalHeight;
+	}
+	updateGeometry(update);
 	if (_state == state) {
 		return;
 	}
@@ -125,177 +198,26 @@ void Button::applyState(State state) {
 
 float64 Button::ScaleForState(State state) {
 	switch (state) {
-	case State::Hidden: return 0.7;
-	case State::Shown: return 1.;
-	case State::Active: return 1.4;
+	case State::Hidden: return 0.5;
+	case State::Shown: return 0.7;
+	case State::Active:
+	case State::Inside: return 1.;
 	}
 	Unexpected("State in ReactionButton::ScaleForState.");
 }
 
 float64 Button::OpacityForScale(float64 scale) {
-	return (scale >= 1.)
-		? 1.
-		: ((scale - ScaleForState(State::Hidden))
-			/ (ScaleForState(State::Shown) - ScaleForState(State::Hidden)));
+	return std::max(
+		((scale - ScaleForState(State::Hidden))
+			/ (ScaleForState(State::Shown) - ScaleForState(State::Hidden))),
+		1.);
 }
 
 float64 Button::currentScale() const {
 	return _scaleAnimation.value(ScaleForState(_state));
 }
 
-Selector::Selector(
-	QWidget *parent,
-	const std::vector<Data::Reaction> &list)
-: _dropdown(parent) {
-	_dropdown.setAutoHiding(false);
-
-	const auto content = _dropdown.setOwnedWidget(
-		object_ptr<Ui::RpWidget>(&_dropdown));
-
-	const auto count = int(list.size());
-	const auto single = st::reactionPopupImage;
-	const auto padding = st::reactionPopupPadding;
-	const auto width = padding.left() + single + padding.right();
-	const auto height = padding.top() + single + padding.bottom();
-	const auto rows = (count + kItemsPerRow - 1) / kItemsPerRow;
-	const auto columns = (int(list.size()) + rows - 1) / rows;
-	const auto inner = QRect(0, 0, columns * width, rows * height);
-	const auto outer = inner.marginsAdded(padding);
-	content->resize(outer.size());
-
-	_elements.reserve(list.size());
-	auto x = padding.left();
-	auto y = padding.top();
-	auto row = -1;
-	auto perrow = 0;
-	while (_elements.size() != list.size()) {
-		if (!perrow) {
-			++row;
-			perrow = (list.size() - _elements.size()) / (rows - row);
-			x = (outer.width() - perrow * width) / 2;
-		}
-		auto &reaction = list[_elements.size()];
-		_elements.push_back({
-			.emoji = reaction.emoji,
-			.geometry = QRect(x, y + row * height, width, height),
-		});
-		x += width;
-		--perrow;
-	}
-
-	struct State {
-		int selected = -1;
-		int pressed = -1;
-	};
-	const auto state = content->lifetime().make_state<State>();
-	content->setMouseTracking(true);
-	content->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		const auto type = e->type();
-		if (type == QEvent::MouseMove) {
-			const auto position = static_cast<QMouseEvent*>(e.get())->pos();
-			const auto i = ranges::find_if(_elements, [&](const Element &e) {
-				return e.geometry.contains(position);
-			});
-			const auto selected = (i != end(_elements))
-				? int(i - begin(_elements))
-				: -1;
-			if (state->selected != selected) {
-				state->selected = selected;
-				content->update();
-			}
-		} else if (type == QEvent::MouseButtonPress) {
-			state->pressed = state->selected;
-			content->update();
-		} else if (type == QEvent::MouseButtonRelease) {
-			const auto pressed = std::exchange(state->pressed, -1);
-			if (pressed >= 0) {
-				content->update();
-				if (pressed == state->selected) {
-					_chosen.fire_copy(_elements[pressed].emoji);
-				}
-			}
-		}
-	}, content->lifetime());
-
-	content->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(content);
-		const auto radius = st::roundRadiusSmall;
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			p.setBrush(st::emojiPanBg);
-			p.setPen(Qt::NoPen);
-			p.drawRoundedRect(content->rect(), radius, radius);
-		}
-		auto index = 0;
-		const auto activeIndex = (state->pressed >= 0)
-			? state->pressed
-			: state->selected;
-		const auto realSize = Ui::Emoji::GetSizeNormal();
-		const auto size = realSize / style::DevicePixelRatio();
-		for (const auto &element : _elements) {
-			const auto active = (index++ == activeIndex);
-			if (active) {
-				auto hq = PainterHighQualityEnabler(p);
-				p.setBrush(st::windowBgOver);
-				p.setPen(Qt::NoPen);
-				p.drawRoundedRect(element.geometry, radius, radius);
-			}
-			if (const auto emoji = Ui::Emoji::Find(element.emoji)) {
-				Ui::Emoji::Draw(
-					p,
-					emoji,
-					realSize,
-					element.geometry.x() + (width - size) / 2,
-					element.geometry.y() + (height - size) / 2);
-			}
-		}
-	}, content->lifetime());
-
-	_dropdown.resizeToContent();
-}
-
-void Selector::showAround(QRect area) {
-	const auto parent = _dropdown.parentWidget();
-	const auto left = std::min(
-		std::max(area.x() + (area.width() - _dropdown.width()) / 2, 0),
-		parent->width() - _dropdown.width());
-	_fromTop = (area.y() >= _dropdown.height());
-	_fromLeft = (area.center().x() - left
-		<= left + _dropdown.width() - area.center().x());
-	const auto top = _fromTop
-		? (area.y() - _dropdown.height())
-		: (area.y() + area.height());
-	_dropdown.move(left, top);
-}
-
-void Selector::toggle(bool shown, anim::type animated) {
-	if (animated == anim::type::normal) {
-		if (shown) {
-			using Origin = Ui::PanelAnimation::Origin;
-			_dropdown.showAnimated(_fromTop
-				? (_fromLeft ? Origin::BottomLeft : Origin::BottomRight)
-				: (_fromLeft ? Origin::TopLeft : Origin::TopRight));
-		} else {
-			_dropdown.hideAnimated();
-		}
-	} else if (shown) {
-		_dropdown.showFast();
-	} else {
-		_dropdown.hideFast();
-	}
-}
-
-[[nodiscard]] rpl::producer<QString> Selector::chosen() const {
-	return _chosen.events();
-}
-
-[[nodiscard]] rpl::lifetime &Selector::lifetime() {
-	return _dropdown.lifetime();
-}
-
-Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
+Manager::Manager(Fn<void(QRect)> buttonUpdate)
 : _outer(CountOuterSize())
 , _inner(QRectF({}, st::reactionCornerSize))
 , _innerActive(QRect({}, CountMaxSizeWithMargins({})))
@@ -307,8 +229,7 @@ Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 			.emoji = _list.front().emoji,
 		});
 	}
-})))
-, _selectorParent(selectorParent) {
+}))) {
 	_inner.translate(QRectF({}, _outer).center() - _inner.center());
 	_innerActive.translate(
 		QRect({}, _outer).center() - _innerActive.center());
@@ -337,22 +258,16 @@ Manager::Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate)
 
 Manager::~Manager() = default;
 
-void Manager::showButton(ButtonParameters parameters) {
+void Manager::updateButton(ButtonParameters parameters) {
 	if (_button && _buttonContext != parameters.context) {
-		if (!parameters.context
-			&& _selector
-			&& _selectorContext == _buttonContext) {
-			return;
-		}
 		_button->applyState(ButtonState::Hidden);
 		_buttonHiding.push_back(std::move(_button));
 	}
 	_buttonContext = parameters.context;
-	if (!_buttonContext || _list.size() < 2) {
-		hideSelectors(anim::type::normal);
+	parameters.reactionsCount = _list.size();
+	if (!_buttonContext || _list.empty()) {
 		return;
-	}
-	if (!_button) {
+	} else if (!_button) {
 		_button = std::make_unique<Button>(_buttonUpdate, parameters);
 	} else {
 		_button->applyParameters(parameters);
@@ -365,9 +280,6 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 		return;
 	}
 	_list = std::move(list);
-	if (_list.size() < 2) {
-		hideSelectors(anim::type::normal);
-	}
 	if (_list.empty()) {
 		_mainReactionMedia = nullptr;
 		return;
@@ -428,17 +340,13 @@ bool Manager::overCurrentButton(QPoint position) const {
 		return false;
 	}
 	const auto geometry = _button->geometry();
-	return _innerActive.translated(geometry.topLeft()).contains(position);
+	return geometry.marginsRemoved(st::reactionCornerShadow).contains(position);
 }
 
 void Manager::remove(FullMsgId context) {
 	if (_buttonContext == context) {
 		_buttonContext = {};
 		_button = nullptr;
-	}
-	if (_selectorContext == context) {
-		_selectorContext = {};
-		_selector = nullptr;
 	}
 }
 
@@ -490,8 +398,6 @@ void Manager::paintButton(
 
 		validateCacheForPattern(frameIndex, scale, geometry, context);
 		p.drawImage(geometry, _cacheForPattern);
-
-		p.drawImage(position, _cacheParts, validateEmoji(frameIndex, scale));
 	} else {
 		const auto &stm = context.st->messageStyle(outbg, false);
 		const auto background = stm.msgBg->c;
@@ -501,8 +407,41 @@ void Manager::paintButton(
 			scale,
 			stm.msgBg->c,
 			shadow);
-		p.drawImage(position, _cacheInOut, source);
+		if (size.height() > _outer.height()) {
+			const auto factor = style::DevicePixelRatio();
+			const auto part = (source.height() / factor) / 2 - 1;
+			const auto fill = size.height() - 2 * part;
+			const auto half = part * factor;
+			const auto top = source.height() - half;
+			p.drawImage(
+				position,
+				_cacheInOut,
+				QRect(source.x(), source.y(), source.width(), half));
+			p.drawImage(
+				QRect(
+					position + QPoint(0, part),
+					QSize(source.width() / factor, fill)),
+				_cacheInOut,
+				QRect(
+					source.x(),
+					source.y() + half,
+					source.width(),
+					top - half));
+			p.drawImage(
+				position + QPoint(0, part + fill),
+				_cacheInOut,
+				QRect(source.x(), source.y() + top, source.width(), half));
+		} else {
+			p.drawImage(position, _cacheInOut, source);
+		}
 	}
+	const auto mainEmojiPosition = position + (button->expandUp()
+		? QPoint(0, size.height() - _outer.height())
+		: QPoint());
+	p.drawImage(
+		mainEmojiPosition,
+		_cacheParts,
+		validateEmoji(frameIndex, scale));
 	if (opacity != 1.) {
 		p.setOpacity(1.);
 	}
@@ -557,9 +496,9 @@ QRect Manager::validateShadow(
 	_shadowBuffer.fill(Qt::transparent);
 	auto p = QPainter(&_shadowBuffer);
 	auto hq = PainterHighQualityEnabler(p);
-	const auto radius = _inner.height() / 2;
+	const auto radius = st::reactionCornerRadius;
 	const auto center = _inner.center();
-	const auto add = style::ConvertScale(1.5);
+	const auto add = style::ConvertScale(2.);
 	const auto shift = style::ConvertScale(1.);
 	const auto extended = _inner.marginsAdded({ add, add, add, add });
 	p.setPen(Qt::NoPen);
@@ -628,7 +567,7 @@ QRect Manager::validateFrame(
 	}
 
 	const auto shadowSource = validateShadow(frameIndex, scale, shadow);
-	const auto emojiSource = validateEmoji(frameIndex, scale);
+	//const auto emojiSource = validateEmoji(frameIndex, scale);
 	const auto position = result.topLeft() / style::DevicePixelRatio();
 	auto p = QPainter(&_cacheInOut);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -637,7 +576,7 @@ QRect Manager::validateFrame(
 
 	auto hq = PainterHighQualityEnabler(p);
 	const auto inner = _inner.translated(position);
-	const auto radius = inner.height() / 2;
+	const auto radius = st::reactionCornerRadius;
 	const auto center = inner.center();
 	p.setPen(Qt::NoPen);
 	p.setBrush(background);
@@ -646,9 +585,9 @@ QRect Manager::validateFrame(
 	p.scale(scale, scale);
 	p.translate(-center);
 	p.drawRoundedRect(inner, radius, radius);
-	p.restore();
+	//p.restore();
 
-	p.drawImage(position, _cacheParts, emojiSource);
+	//p.drawImage(position, _cacheParts, emojiSource);
 
 	p.end();
 	valid[frameIndex] = true;
@@ -665,7 +604,7 @@ QRect Manager::validateMask(int frameIndex, float64 scale) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto position = result.topLeft() / style::DevicePixelRatio();
 	const auto inner = _inner.translated(position);
-	const auto radius = inner.height() / 2;
+	const auto radius = st::reactionCornerRadius;
 	const auto center = inner.center();
 	p.setPen(Qt::NoPen);
 	p.setBrush(Qt::white);
@@ -677,58 +616,6 @@ QRect Manager::validateMask(int frameIndex, float64 scale) {
 
 	_validMask[frameIndex] = true;
 	return result;
-}
-
-void Manager::showSelector(Fn<QPoint(QPoint)> mapToGlobal) {
-	if (!_button) {
-		showSelector({}, {});
-	} else {
-		const auto position = _button->geometry().topLeft();
-		const auto geometry = _innerActive.translated(position);
-		showSelector(
-			_buttonContext,
-			{ mapToGlobal(geometry.topLeft()), geometry.size() });
-	}
-}
-
-void Manager::showSelector(FullMsgId context, QRect globalButtonArea) {
-	if (globalButtonArea.isEmpty()) {
-		context = FullMsgId();
-	}
-	const auto changed = (_selectorContext != context);
-	if (_selector && changed) {
-		_selector->toggle(false, anim::type::normal);
-		_selectorHiding.push_back(std::move(_selector));
-	}
-	_selectorContext = context;
-	if (_list.size() < 2 || !context || (!changed && !_selector)) {
-		return;
-	} else if (!_selector) {
-		_selector = std::make_unique<Selector>(_selectorParent, _list);
-		_selector->chosen(
-		) | rpl::start_with_next([=](QString emoji) {
-			_selector->toggle(false, anim::type::normal);
-			_selectorHiding.push_back(std::move(_selector));
-			_chosen.fire({ context, std::move(emoji) });
-		}, _selector->lifetime());
-	}
-	const auto area = QRect(
-		_selectorParent->mapFromGlobal(globalButtonArea.topLeft()),
-		globalButtonArea.size());
-	_selector->showAround(area);
-	_selector->toggle(true, anim::type::normal);
-}
-
-void Manager::hideSelectors(anim::type animated) {
-	if (animated == anim::type::instant) {
-		_selectorHiding.clear();
-		_selector = nullptr;
-		_selectorContext = {};
-	} else if (_selector) {
-		_selector->toggle(false, anim::type::normal);
-		_selectorHiding.push_back(std::move(_selector));
-		_selectorContext = {};
-	}
 }
 
 } // namespace HistoryView

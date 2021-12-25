@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
-#include "ui/widgets/inner_dropdown.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace Ui {
 struct ChatPaintContext;
@@ -30,6 +30,11 @@ enum class ButtonStyle {
 	Bubble,
 };
 
+enum class ExpandDirection {
+	Up,
+	Down,
+};
+
 struct ButtonParameters {
 	[[nodiscard]] ButtonParameters translated(QPoint delta) const {
 		auto result = *this;
@@ -42,8 +47,9 @@ struct ButtonParameters {
 	QPoint center;
 	QPoint pointer;
 	ButtonStyle style = ButtonStyle::Bubble;
-	bool inside = false;
-	bool active = false;
+	int reactionsCount = 1;
+	int visibleTop = 0;
+	int visibleBottom = 0;
 	bool outbg = false;
 };
 
@@ -51,6 +57,7 @@ enum class ButtonState {
 	Hidden,
 	Shown,
 	Active,
+	Inside,
 };
 
 class Button final {
@@ -64,6 +71,7 @@ public:
 	void applyState(State state);
 
 	[[nodiscard]] bool outbg() const;
+	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] QRect geometry() const;
 	[[nodiscard]] float64 currentScale() const;
@@ -71,57 +79,38 @@ public:
 	[[nodiscard]] static float64 OpacityForScale(float64 scale);
 
 private:
+	void updateGeometry(Fn<void(QRect)> update);
+	void applyState(State satte, Fn<void(QRect)> update);
+	void applyParameters(
+		ButtonParameters parameters,
+		Fn<void(QRect)> update);
+	void updateExpandDirection(const ButtonParameters &parameters);
+
 	const Fn<void(QRect)> _update;
 	State _state = State::Hidden;
 	Ui::Animations::Simple _scaleAnimation;
+	Ui::Animations::Simple _heightAnimation;
 
+	QRect _collapsed;
 	QRect _geometry;
+	int _expandedHeight = 0;
+	int _finalHeight = 0;
+	ExpandDirection _expandDirection = ExpandDirection::Up;
 	bool _outbg = false;
-
-};
-
-class Selector final {
-public:
-	Selector(
-		QWidget *parent,
-		const std::vector<Data::Reaction> &list);
-
-	void showAround(QRect area);
-	void toggle(bool shown, anim::type animated);
-
-	[[nodiscard]] rpl::producer<QString> chosen() const;
-
-	[[nodiscard]] rpl::lifetime &lifetime();
-
-private:
-	struct Element {
-		QString emoji;
-		QRect geometry;
-	};
-	Ui::InnerDropdown _dropdown;
-	rpl::event_stream<QString> _chosen;
-	std::vector<Element> _elements;
-	bool _fromTop = true;
-	bool _fromLeft = true;
 
 };
 
 class Manager final : public base::has_weak_ptr {
 public:
-	Manager(QWidget *selectorParent, Fn<void(QRect)> buttonUpdate);
+	explicit Manager(Fn<void(QRect)> buttonUpdate);
 	~Manager();
 
 	void applyList(std::vector<Data::Reaction> list);
 
-	void showButton(ButtonParameters parameters);
+	void updateButton(ButtonParameters parameters);
 	void paintButtons(Painter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 	void remove(FullMsgId context);
-
-	void showSelector(Fn<QPoint(QPoint)> mapToGlobal);
-	void showSelector(FullMsgId context, QRect globalButtonArea);
-
-	void hideSelectors(anim::type animated);
 
 	struct Chosen {
 		FullMsgId context;
@@ -196,11 +185,6 @@ private:
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
 	ClickHandlerPtr _buttonLink;
-
-	QWidget *_selectorParent = nullptr;
-	std::unique_ptr<Selector> _selector;
-	std::vector<std::unique_ptr<Selector>> _selectorHiding;
-	FullMsgId _selectorContext;
 
 };
 

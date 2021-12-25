@@ -993,7 +993,8 @@ TextSelection Element::adjustSelection(
 }
 
 Reactions::ButtonParameters Element::reactionButtonParameters(
-		QPoint position) const {
+		QPoint position,
+		const TextState &reactionState) const {
 	return {};
 }
 

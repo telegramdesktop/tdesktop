@@ -965,11 +965,12 @@ reactionInfoSkip: 3px;
 reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
-reactionCornerSize: size(27px, 19px);
-reactionCornerCenter: point(-6px, -5px);
-reactionCornerImage: 15px;
+reactionCornerSize: size(40px, 32px);
+reactionCornerRadius: 14px;
+reactionCornerCenter: point(-8px, -5px);
+reactionCornerImage: 24px;
 reactionCornerShadow: margins(4px, 4px, 4px, 8px);
 reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
+reactionCornerAddedHeightMax: 130px;
 
-reactionPopupImage: 25px;
-reactionPopupPadding: margins(5px, 5px, 5px, 5px);
+reactionCornerSkip: 2px;
