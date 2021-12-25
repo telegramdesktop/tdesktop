@@ -1029,7 +1029,11 @@ QString HistoryItem::notificationText() const {
 	}();
 	return (result.size() <= kNotificationTextLimit)
 		? result
-		: result.mid(0, kNotificationTextLimit) + qsl("...");
+		: TextUtilities::CutTextWithCommands(
+			result,
+			kNotificationTextLimit,
+			textcmdStartSpoiler(),
+			textcmdStopSpoiler());
 }
 
 ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {

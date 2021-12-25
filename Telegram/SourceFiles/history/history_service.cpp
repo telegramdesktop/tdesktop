@@ -711,7 +711,11 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 				}
 			}
 			if (!limit && cutAt + 5 < size) {
-				original = original.mid(0, cutAt) + qstr("...");
+				original = TextUtilities::CutTextWithCommands(
+					std::move(original),
+					cutAt,
+					textcmdStartSpoiler(),
+					textcmdStopSpoiler());
 			}
 			result.text = tr::lng_action_pinned_message(tr::now, lt_from, fromLinkText(), lt_text, textcmdLink(2, original));
 		} else {
