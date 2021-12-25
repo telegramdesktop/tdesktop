@@ -22,7 +22,7 @@ namespace FakePasscode {
 
       virtual ~FakePasscode() = default;
 
-      void Execute() const;
+      void Execute();
 
       [[nodiscard]] MTP::AuthKeyPtr GetEncryptedPasscode() const;
       [[nodiscard]] QByteArray GetPasscode() const;

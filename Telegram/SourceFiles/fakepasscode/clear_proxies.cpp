@@ -2,7 +2,7 @@
 
 #include "core/application.h"
 
-void FakePasscode::ClearProxies::Execute() const {
+void FakePasscode::ClearProxies::Execute() {
     auto& proxies = Core::App().settings().proxy();
     proxies.list().clear();
     proxies.setUseProxyForCalls(false);

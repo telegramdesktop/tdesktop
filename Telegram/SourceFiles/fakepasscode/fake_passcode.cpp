@@ -42,7 +42,7 @@ rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::
             actions_changed_.events() | rpl::map([=] { return actions_; }));
 }
 
-void FakePasscode::FakePasscode::Execute() const {
+void FakePasscode::FakePasscode::Execute() {
     for (const auto& action : actions_) {
         try {
             action->Execute();

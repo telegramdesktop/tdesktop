@@ -10,7 +10,7 @@
 #include "core/file_utilities.h"
 #include "data/data_user.h"
 
-void FakePasscode::ClearCache::Execute() const {
+void FakePasscode::ClearCache::Execute() {
     Expects(Core::App().maybeActiveSession() != nullptr);
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (account->sessionExists()) {

@@ -12,13 +12,15 @@ namespace FakePasscode {
         explicit LogoutAction(QByteArray inner_data);
         LogoutAction(std::vector<bool> logout_accounts);
 
-        void Execute() const override;
+        void Execute() override;
 
         QByteArray Serialize() const override;
 
         ActionType GetType() const override;
 
         void SetLogout(size_t index, bool logout);
+
+        void FitAndClear();
 
     private:
         std::vector<bool> logout_accounts_; // index of vector is index of account

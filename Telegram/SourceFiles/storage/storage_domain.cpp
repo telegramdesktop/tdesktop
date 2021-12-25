@@ -124,10 +124,16 @@ Domain::StartModernResult Domain::startModern(
 	}
 	LOG(("App Info: reading accounts info..."));
 
-	QByteArray salt, keyEncrypted, infoEncrypted, fakePasscodeCountArray;
-	keyData.stream >> salt >> keyEncrypted >> infoEncrypted >> fakePasscodeCountArray;
+	QByteArray salt, keyEncrypted, infoEncrypted;
+	keyData.stream >> salt >> keyEncrypted >> infoEncrypted;
+    qint32 fakePasscodeCount = 0;
+    if (!keyData.stream.atEnd()) {
+        QByteArray fakePasscodeCountArray;
+        keyData.stream >> fakePasscodeCountArray;
+        fakePasscodeCount = fakePasscodeCountArray.toInt();
+    }
+    DEBUG_LOG(("StorageDomain: startModern: Readed fake count: " + QString::number(fakePasscodeCount)));
     std::vector<QByteArray> infoFakeEncrypted;
-    qint32 fakePasscodeCount = fakePasscodeCountArray.toInt();
 
     if (fakePasscodeCount > 0) {
         _fakePasscodeKeysEncrypted.resize(fakePasscodeCount);
@@ -193,7 +199,11 @@ void Domain::writeAccounts() {
         fakeNames.push_back(std::move(name));
     }
 
-	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + serializedSize + sizeof(qint32);
+	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + sizeof(bool) + sizeof(qint32);
+
+    if (!_isInfinityFakeModeActivated) {
+        keySize += serializedSize + sizeof(qint32);
+    }
 
 	EncryptedDescriptor keyData(keySize);
 	keyData.stream << qint32(list.size());
@@ -201,19 +211,26 @@ void Domain::writeAccounts() {
 		keyData.stream << qint32(index);
 	}
 
-    keyData.stream << qint32(PTelegramAppVersion);
-    for (qint32 i = 0; i < serializedActions.size(); ++i) {
-        keyData.stream << serializedActions[i];
-        keyData.stream << fakePasscodes[i];
-        keyData.stream << fakeNames[i];
-    }
+    keyData.stream << _isInfinityFakeModeActivated;
 
-	keyData.stream << qint32(_owner->activeForStorage());
-	key.writeEncrypted(keyData, _localKey);
+    if (!_isInfinityFakeModeActivated) {
+        keyData.stream << qint32(PTelegramAppVersion);
+        for (qint32 i = 0; i < serializedActions.size(); ++i) {
+            keyData.stream << serializedActions[i];
+            keyData.stream << fakePasscodes[i];
+            keyData.stream << fakeNames[i];
+        }
 
-    key.writeData(convertToByteArray(qint32(_fakePasscodeKeysEncrypted.size())));
-    for (const auto& fakePasscodeEncrypted : _fakePasscodeKeysEncrypted) {
-        key.writeData(fakePasscodeEncrypted);
+        keyData.stream << qint32(_owner->activeForStorage());
+        key.writeEncrypted(keyData, _localKey);
+
+        key.writeData(convertToByteArray(qint32(_fakePasscodeKeysEncrypted.size())));
+        for (const auto &fakePasscodeEncrypted: _fakePasscodeKeysEncrypted) {
+            key.writeData(fakePasscodeEncrypted);
+        }
+    } else {
+        keyData.stream << qint32(_owner->activeForStorage());
+        key.writeEncrypted(keyData, _localKey);
     }
 }
 
@@ -240,9 +257,15 @@ bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) con
 void Domain::setPasscode(const QByteArray &passcode) {
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_localKey != nullptr);
-
-    if (IsFake()) {
-        _fakePasscodes[_fakePasscodeIndex].SetPasscode(passcode);
+    DEBUG_LOG(("Got new passcode: " + QString::fromUtf8(passcode)));
+    if (IsFakeWithoutInfinityFlag()) {
+        if (!passcode.isEmpty()) {
+            _fakePasscodes[_fakePasscodeIndex].SetPasscode(passcode);
+        } else {
+            DEBUG_LOG(("Infinity mode activated"));
+            _isInfinityFakeModeActivated = true;
+            encryptLocalKey(passcode);
+        }
     } else {
         encryptLocalKey(passcode);
     }
@@ -368,27 +391,35 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
         return StartModernResult::Failed;
     }
 
-    qint32 serialized_version;
-    info.stream >> serialized_version;
+    info.stream >> _isInfinityFakeModeActivated;
+    DEBUG_LOG(("StorageDomain: startUsingKey: Read serialized flag: " + QString::number(_isInfinityFakeModeActivated)))
 
-    // Maybe some actions with migration
-    DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
+    if (!_isInfinityFakeModeActivated) {
+        qint32 serialized_version;
+        info.stream >> serialized_version;
 
-    for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
-        QByteArray serializedActions, pass;
-        QByteArray serializedName;
-        info.stream >> serializedActions >> pass >> serializedName;
-        QString name = QString::fromUtf8(serializedName);
-        _fakePasscodes[i].SetPasscode(pass);
-        _fakePasscodes[i].SetName(name);
-        _fakePasscodes[i].DeSerializeActions(serializedActions);
+        // Maybe some actions with migration
+        DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
+
+        for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
+            QByteArray serializedActions, pass;
+            QByteArray serializedName;
+            info.stream >> serializedActions >> pass >> serializedName;
+            QString name = QString::fromUtf8(serializedName);
+            _fakePasscodes[i].SetPasscode(pass);
+            _fakePasscodes[i].SetName(name);
+            _fakePasscodes[i].DeSerializeActions(serializedActions);
+        }
     }
 
     if (!info.stream.atEnd()) {
         info.stream >> active;
     }
+
+    DEBUG_LOG(("StorageDomain: startModern: Active: " + QString::number(active)));
     _owner->activateFromStorage(active);
 
+    DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
     Ensures(!sessions.empty());
 
     return StartModernResult::Success;
@@ -510,7 +541,7 @@ bool Domain::ContainsAction(size_t index, FakePasscode::ActionType type) const {
 }
 
 void Domain::ExecuteIfFake() {
-    if (IsFake()) {
+    if (IsFakeWithoutInfinityFlag()) {
         _fakePasscodes[_fakePasscodeIndex].Execute();
     }
 }
@@ -527,6 +558,10 @@ bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
 }
 
 bool Domain::IsFake() const {
+    return _fakePasscodeIndex >= 0 || _isInfinityFakeModeActivated;
+}
+
+bool Domain::IsFakeWithoutInfinityFlag() const {
     return _fakePasscodeIndex >= 0;
 }
 
@@ -541,7 +576,7 @@ void Domain::SetFakePasscodeIndex(qint32 index) {
 }
 
 bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
-    if (IsFake()) {
+    if (IsFakeWithoutInfinityFlag()) {
         return checkFakePasscode(passcode, _fakePasscodeIndex);
     } else {
         return checkPasscode(passcode);

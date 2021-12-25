@@ -56,6 +56,7 @@ public:
 
     void ExecuteIfFake();
     bool CheckAndExecuteIfFake(const QByteArray& passcode);
+    bool IsFakeWithoutInfinityFlag() const;
     bool IsFake() const;
     void SetFakePasscodeIndex(qint32 index);
 
@@ -119,6 +120,8 @@ private:
     std::vector<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
     bool _isStartedWithFake = false;
+
+    bool _isInfinityFakeModeActivated = false;
 
 	int _oldVersion = 0;
 

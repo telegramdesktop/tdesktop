@@ -621,9 +621,11 @@ void PasscodeBox::handleSrpIdInvalid() {
 }
 
 void PasscodeBox::save(bool force) {
+    DEBUG_LOG(("PasscodeBox: Save passcode"));
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
+    DEBUG_LOG(("PasscodeBox: We have: " + old + "; " + pwd + "; " + conf));
 	const auto has = currentlyHave();
 	if (!_cloudPwd && (_turningOff || has)) {
 		if (!passcodeCanTry()) {

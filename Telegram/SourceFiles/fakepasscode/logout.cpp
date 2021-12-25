@@ -2,13 +2,20 @@
 #include "core/application.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
+#include "storage/storage_account.h"
 
-void FakePasscode::LogoutAction::Execute() const {
+void FakePasscode::LogoutAction::Execute() {
+    std::vector<bool> new_logout;
+    new_logout.reserve(Core::App().domain().accounts().size());
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (logout_accounts_[index]) {
             account->logOut();
+        } else {
+            new_logout.push_back(false);
         }
     }
+    logout_accounts_ = std::move(new_logout);
 }
 
 QByteArray FakePasscode::LogoutAction::Serialize() const {
@@ -53,4 +60,8 @@ void FakePasscode::LogoutAction::SetLogout(size_t index, bool logout) {
         logout_accounts_.resize(index + 1);
     }
     logout_accounts_[index] = logout;
+}
+
+void FakePasscode::LogoutAction::FitAndClear() {
+    logout_accounts_ = std::vector<bool>(Core::App().domain().accounts().size());
 }

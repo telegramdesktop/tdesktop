@@ -6,7 +6,7 @@
 namespace FakePasscode {
     class ClearCache : public Action {
     public:
-        void Execute() const override;
+        void Execute() override;
 
         QByteArray Serialize() const override;
 
