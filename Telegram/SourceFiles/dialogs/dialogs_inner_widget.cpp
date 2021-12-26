@@ -2348,8 +2348,9 @@ void InnerWidget::refreshSearchInChatLabel() {
 		const auto fromUserText = tr::lng_dlg_search_from(
 			tr::now,
 			lt_user,
-			textcmdLink(1, from));
-		_searchFromUserText.setText(
+			Ui::Text::Link(from),
+			Ui::Text::WithEntities);
+		_searchFromUserText.setMarkedText(
 			st::dialogsSearchFromStyle,
 			fromUserText,
 			Ui::DialogTextOptions());
