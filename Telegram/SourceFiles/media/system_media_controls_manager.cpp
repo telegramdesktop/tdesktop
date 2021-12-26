@@ -19,13 +19,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "media/audio/media_audio.h"
-#include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "ui/text/format_song_document_name.h"
 #include "window/window_controller.h"
 
 namespace Media {
+namespace {
+
+[[nodiscard]] auto RepeatModeToLoopStatus(Media::Player::RepeatMode mode) {
+	using Mode = Media::Player::RepeatMode;
+	using Status = base::Platform::SystemMediaControls::LoopStatus;
+	switch (mode) {
+	case Mode::None: return Status::None;
+	case Mode::One: return Status::Track;
+	case Mode::All: return Status::Playlist;
+	}
+	Unexpected("RepeatModeToLoopStatus in SystemMediaControlsManager");
+}
+
+} // namespace
 
 bool SystemMediaControlsManager::Supported() {
 	return base::Platform::SystemMediaControls::Supported();
@@ -185,6 +198,22 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
 	}, _lifetime);
 
+	using Media::Player::RepeatMode;
+	using Media::Player::OrderMode;
+
+	Core::App().settings().playerRepeatModeValue(
+	) | rpl::start_with_next([=](RepeatMode mode) {
+		_controls->setLoopStatus(RepeatModeToLoopStatus(mode));
+	}, _lifetime);
+
+	Core::App().settings().playerOrderModeValue(
+	) | rpl::start_with_next([=](OrderMode mode) {
+		if (mode != OrderMode::Shuffle) {
+			_lastOrderMode = mode;
+		}
+		_controls->setShuffle(mode == OrderMode::Shuffle);
+	}, _lifetime);
+
 	_controls->commandRequests(
 	) | rpl::start_with_next([=](Command command) {
 		switch (command) {
@@ -195,6 +224,29 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		case Command::Previous: mediaPlayer->previous(type); break;
 		case Command::Stop: mediaPlayer->stop(type); break;
 		case Command::Raise: controller->widget()->showFromTray(); break;
+		case Command::LoopNone: {
+			Core::App().settings().setPlayerRepeatMode(RepeatMode::None);
+			Core::App().saveSettingsDelayed();
+			break;
+		}
+		case Command::LoopTrack: {
+			Core::App().settings().setPlayerRepeatMode(RepeatMode::One);
+			Core::App().saveSettingsDelayed();
+			break;
+		}
+		case Command::LoopPlaylist: {
+			Core::App().settings().setPlayerRepeatMode(RepeatMode::All);
+			Core::App().saveSettingsDelayed();
+			break;
+		}
+		case Command::Shuffle: {
+			const auto current = Core::App().settings().playerOrderMode();
+			Core::App().settings().setPlayerOrderMode((current == OrderMode::Shuffle)
+				? _lastOrderMode
+				: OrderMode::Shuffle);
+			Core::App().saveSettingsDelayed();
+			break;
+		}
 		case Command::Quit: {
 			if (const auto main = controller->widget()->sessionContent()) {
 				main->closeBothPlayers();
