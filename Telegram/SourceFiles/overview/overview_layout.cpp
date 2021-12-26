@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
 
@@ -626,20 +627,18 @@ Voice::Voice(
 	_data->loadThumbnail(parent->fullId());
 
 	updateName();
-	const auto dateText = textcmdLink(
-		1,
-		TextUtilities::EscapeForRichParsing(
-			langDateTime(base::unixtime::parse(_data->date))));
-	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(
+	const auto dateText = Ui::Text::Link(
+		langDateTime(base::unixtime::parse(_data->date))); // Link 1.
+	_details.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_date_and_duration(
 			tr::now,
 			lt_date,
 			dateText,
 			lt_duration,
-			Ui::FormatDurationText(duration())),
-		opts);
+			{ .text = Ui::FormatDurationText(duration()) },
+			Ui::Text::WithEntities),
+		{ TextParseRichText, 0, 0, Qt::LayoutDirectionAuto });
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
 
