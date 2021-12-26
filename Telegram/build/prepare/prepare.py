@@ -1043,7 +1043,7 @@ release:
 
 if buildQt5:
     stage('qt_5_15_2', """
-    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    git clone https://code.qt.io/qt/qt5.git qt_5_15_2
     cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
     git checkout v5.15.2
@@ -1126,7 +1126,7 @@ mac:
 if buildQt6:
     stage('qt_6_2_2', """
 mac:
-    git clone -b v6.2.2 git://code.qt.io/qt/qt5.git qt_6_2_2
+    git clone -b v6.2.2 https://code.qt.io/qt/qt5.git qt_6_2_2
     cd qt_6_2_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
 depends:patches/qtbase_6_2_2/*.patch
