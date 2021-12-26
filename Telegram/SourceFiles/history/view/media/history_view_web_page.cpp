@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
@@ -225,9 +226,9 @@ QSize WebPage::countOptimalSize() {
 	}
 	if (!displayedSiteName().isEmpty()) {
 		_siteNameLines = 1;
-		_siteName.setRichText(
+		_siteName.setMarkedText(
 			st::webPageTitleStyle,
-			textcmdLink(_data->url, displayedSiteName()),
+			Ui::Text::Link(displayedSiteName(), _data->url),
 			Ui::WebpageTextTitleOptions());
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
@@ -235,9 +236,9 @@ QSize WebPage::countOptimalSize() {
 			title += _parent->skipBlock();
 		}
 		if (!_siteNameLines && !_data->url.isEmpty()) {
-			_title.setRichText(
+			_title.setMarkedText(
 				st::webPageTitleStyle,
-				textcmdLink(_data->url, title),
+				Ui::Text::Link(title, _data->url),
 				Ui::WebpageTextTitleOptions());
 
 		} else {
