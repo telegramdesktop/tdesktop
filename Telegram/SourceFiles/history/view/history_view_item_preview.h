@@ -19,7 +19,7 @@ struct ItemPreviewImage {
 };
 
 struct ItemPreview {
-	QString text;
+	TextWithEntities text;
 	std::vector<ItemPreviewImage> images;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;

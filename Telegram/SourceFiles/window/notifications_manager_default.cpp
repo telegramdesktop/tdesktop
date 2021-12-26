@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
 #include "ui/empty_userpic.h"
 #include "ui/ui_utility.h"
@@ -811,9 +812,9 @@ void Notification::updateNotifyDisplay() {
 					.generateImages = false,
 				}).text
 				: ((!_author.isEmpty()
-					? textcmdLink(1, _author)
-					: QString())
-					+ (_forwardedCount > 1
+						? Ui::Text::PlainLink(_author)
+						: TextWithEntities()
+					).append(_forwardedCount > 1
 						? ('\n' + tr::lng_forward_messages(
 							tr::now,
 							lt_count,
@@ -826,7 +827,7 @@ void Notification::updateNotifyDisplay() {
 				0,
 				Qt::LayoutDirectionAuto,
 			};
-			itemTextCache.setText(st::dialogsTextStyle, text, Options);
+			itemTextCache.setMarkedText(st::dialogsTextStyle, text, Options);
 			itemTextCache.drawElided(
 				p,
 				r.left(),

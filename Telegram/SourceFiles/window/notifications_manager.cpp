@@ -47,30 +47,18 @@ constexpr auto kSystemAlertDuration = crl::time(1000);
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
 
-QString TextWithPermanentSpoiler(QString textWithCommands) {
-	const auto start = textcmdStartSpoiler();
-	const auto stop = textcmdStopSpoiler();
-	while (true) {
-		const auto startIndex = textWithCommands.indexOf(start);
-		if (startIndex == -1) {
-			break;
+QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
+	auto text = textWithEntities.text;
+	for (const auto &e : textWithEntities.entities) {
+		if (e.type() == EntityType::Spoiler) {
+			auto replacement = QString().fill(QChar(0x259A), e.length());
+			text = text.replace(
+				e.offset(),
+				e.length(),
+				std::move(replacement));
 		}
-		const auto stopIndex = textWithCommands.indexOf(stop);
-		if (stopIndex == -1) {
-			break;
-		}
-		if (stopIndex < startIndex) {
-			break;
-		}
-		const auto length = stopIndex - startIndex - start.size();
-		textWithCommands.remove(stopIndex, stop.size());
-		textWithCommands.remove(startIndex, start.size());
-		textWithCommands.replace(
-			startIndex,
-			length,
-			QString(QChar(0x259A)).repeated(length));
 	}
-	return textWithCommands;
+	return text;
 }
 
 } // namespace

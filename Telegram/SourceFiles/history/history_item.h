@@ -290,7 +290,7 @@ public:
 	[[nodiscard]] virtual QString notificationHeader() const {
 		return QString();
 	}
-	[[nodiscard]] virtual QString notificationText() const;
+	[[nodiscard]] virtual TextWithEntities notificationText() const;
 
 	using ToPreviewOptions = HistoryView::ToPreviewOptions;
 	using ItemPreview = HistoryView::ItemPreview;
@@ -299,7 +299,7 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	[[nodiscard]] virtual ItemPreview toPreview(
 		ToPreviewOptions options) const;
-	[[nodiscard]] virtual QString inReplyText() const;
+	[[nodiscard]] virtual TextWithEntities inReplyText() const;
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();

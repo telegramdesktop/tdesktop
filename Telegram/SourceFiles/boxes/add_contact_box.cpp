@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/special_fields.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
 #include "data/data_channel.h"
@@ -112,16 +113,19 @@ style::InputField CreateBioFieldStyle() {
 	return result;
 }
 
-QString PeerFloodErrorText(
+TextWithEntities PeerFloodErrorText(
 		not_null<Main::Session*> session,
 		PeerFloodType type) {
-	const auto link = textcmdLink(
-		session->createInternalLinkFull(qsl("spambot")),
-		tr::lng_cant_more_info(tr::now));
-	if (type == PeerFloodType::InviteGroup) {
-		return tr::lng_cant_invite_not_contact(tr::now, lt_more_info, link);
-	}
-	return tr::lng_cant_send_to_not_contact(tr::now, lt_more_info, link);
+	const auto link = Ui::Text::Link(
+		tr::lng_cant_more_info(tr::now),
+		session->createInternalLinkFull(qsl("spambot")));
+	return ((type == PeerFloodType::InviteGroup)
+		? tr::lng_cant_invite_not_contact
+		: tr::lng_cant_send_to_not_contact)(
+			tr::now,
+			lt_more_info,
+			link,
+			Ui::Text::WithEntities);
 }
 
 void ShowAddParticipantsError(
@@ -167,6 +171,14 @@ void ShowAddParticipantsError(
 		}
 	}
 	const auto hasBot = ranges::any_of(users, &UserData::isBot);
+	if (error == u"PEER_FLOOD"_q) {
+		const auto type = (chat->isChat() || chat->isMegagroup())
+			? PeerFloodType::InviteGroup
+			: PeerFloodType::InviteChannel;
+		const auto text = PeerFloodErrorText(&chat->session(), type);
+		Ui::show(Box<Ui::InformBox>(text), Ui::LayerOption::KeepOther);
+		return;
+	}
 	const auto text = [&] {
 		if (error == u"USER_BOT"_q) {
 			return tr::lng_cant_invite_bot_to_channel(tr::now);
@@ -184,11 +196,6 @@ void ShowAddParticipantsError(
 			return tr::lng_bot_already_in_group(tr::now);
 		} else if (error == u"BOT_GROUPS_BLOCKED"_q) {
 			return tr::lng_error_cant_add_bot(tr::now);
-		} else if (error == u"PEER_FLOOD"_q) {
-			const auto type = (chat->isChat() || chat->isMegagroup())
-				? PeerFloodType::InviteGroup
-				: PeerFloodType::InviteChannel;
-			return PeerFloodErrorText(&chat->session(), type);
 		} else if (error == u"ADMINS_TOO_MUCH"_q) {
 			return ((chat->isChat() || chat->isMegagroup())
 				? tr::lng_error_admin_limit
@@ -1521,10 +1528,11 @@ RevokePublicLinkBox::Inner::Inner(
 					st::contactsNameStyle,
 					peer->name,
 					Ui::NameTextOptions());
-				row.status.setText(
+				row.status.setMarkedText(
 					st::defaultTextStyle,
-					_session->createInternalLink(
-						textcmdLink(1, peer->userName())),
+					Ui::Text::Link(
+						peer->userName(),
+						_session->createInternalLink(peer->userName())),
 					Ui::DialogTextOptions());
 				_rows.push_back(std::move(row));
 			}
