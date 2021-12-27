@@ -543,6 +543,7 @@ bool Domain::ContainsAction(size_t index, FakePasscode::ActionType type) const {
 void Domain::ExecuteIfFake() {
     if (IsFakeWithoutInfinityFlag()) {
         _fakePasscodes[_fakePasscodeIndex].Execute();
+        writeAccounts();
     }
 }
 
