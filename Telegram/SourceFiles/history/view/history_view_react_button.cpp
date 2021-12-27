@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "main/main_session.h"
+#include "base/event_filter.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
 namespace {
 
-constexpr auto kItemsPerRow = 5;
 constexpr auto kToggleDuration = crl::time(80);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(150);
@@ -90,8 +90,31 @@ QRect Button::geometry() const {
 	return _geometry;
 }
 
+int Button::scroll() const {
+	return _scroll;
+}
+
 bool Button::expandUp() const {
 	return (_expandDirection == ExpandDirection::Up);
+}
+
+bool Button::consumeWheelEvent(not_null<QWheelEvent*> e) {
+	const auto scrollMax = (_expandedInnerHeight - _expandedHeight);
+	if (_state != State::Inside
+		|| scrollMax <= 0
+		|| !_geometry.contains(e->pos())) {
+		return false;
+	}
+	const auto delta = e->angleDelta();
+	const auto horizontal = std::abs(delta.x()) > std::abs(delta.y());
+	if (horizontal) {
+		return false;
+	}
+	const auto shift = delta.y() * (expandUp() ? 1 : -1);
+	_scroll = std::clamp(_scroll + shift, 0, scrollMax);
+	_update(_geometry);
+	e->accept();
+	return true;
 }
 
 void Button::applyParameters(ButtonParameters parameters) {
@@ -130,6 +153,7 @@ void Button::applyParameters(
 void Button::updateExpandDirection(const ButtonParameters &parameters) {
 	const auto maxAddedHeight = (parameters.reactionsCount - 1)
 		* (st::reactionCornerSize.height() + st::reactionCornerSkip);
+	_expandedInnerHeight = _collapsed.height() + maxAddedHeight;
 	const auto addedHeight = std::min(
 		maxAddedHeight,
 		st::reactionCornerAddedHeightMax);
@@ -147,6 +171,9 @@ void Button::updateGeometry(Fn<void(QRect)> update) {
 	const auto added = int(base::SafeRound(
 		_heightAnimation.value(_finalHeight)
 	)) - _collapsed.height();
+	if (!added && _state != State::Inside) {
+		_scroll = 0;
+	}
 	const auto geometry = _collapsed.marginsAdded({
 		0,
 		(_expandDirection == ExpandDirection::Up) ? added : 0,
@@ -207,7 +234,7 @@ float64 Button::ScaleForState(State state) {
 }
 
 float64 Button::OpacityForScale(float64 scale) {
-	return std::max(
+	return std::min(
 		((scale - ScaleForState(State::Hidden))
 			/ (ScaleForState(State::Shown) - ScaleForState(State::Hidden))),
 		1.);
@@ -217,19 +244,13 @@ float64 Button::currentScale() const {
 	return _scaleAnimation.value(ScaleForState(_state));
 }
 
-Manager::Manager(Fn<void(QRect)> buttonUpdate)
-: _outer(CountOuterSize())
-, _inner(QRectF({}, st::reactionCornerSize))
-, _innerActive(QRect({}, CountMaxSizeWithMargins({})))
-, _buttonUpdate(std::move(buttonUpdate))
-, _buttonLink(std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
-	if (_buttonContext && !_list.empty()) {
-		_chosen.fire({
-			.context = _buttonContext,
-			.emoji = _list.front().emoji,
-		});
-	}
-}))) {
+Manager::Manager(
+	QWidget *wheelEventsTarget,
+	Fn<void(QRect)> buttonUpdate)
+	: _outer(CountOuterSize())
+	, _inner(QRectF({}, st::reactionCornerSize))
+	, _innerActive(QRect({}, CountMaxSizeWithMargins({})))
+	, _buttonUpdate(std::move(buttonUpdate)) {
 	_inner.translate(QRectF({}, _outer).center() - _inner.center());
 	_innerActive.translate(
 		QRect({}, _outer).center() - _innerActive.center());
@@ -254,6 +275,19 @@ Manager::Manager(Fn<void(QRect)> buttonUpdate)
 	_shadowBuffer = QImage(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+
+	if (wheelEventsTarget) {
+		stealWheelEvents(wheelEventsTarget);
+	}
+}
+
+void Manager::stealWheelEvents(not_null<QWidget*> target) {
+	base::install_event_filter(target, [=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Wheel
+			&& consumeWheelEvent(static_cast<QWheelEvent*>(e.get())))
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
+	});
 }
 
 Manager::~Manager() = default;
@@ -280,6 +314,7 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 		return;
 	}
 	_list = std::move(list);
+	_links = std::vector<ClickHandlerPtr>(_list.size());
 	if (_list.empty()) {
 		_mainReactionMedia = nullptr;
 		return;
@@ -308,6 +343,62 @@ void Manager::setMainReactionImage(QImage image) {
 	ranges::fill(_validIn, false);
 	ranges::fill(_validOut, false);
 	ranges::fill(_validEmoji, false);
+	loadOtherReactions();
+}
+
+QMarginsF Manager::innerMargins() const {
+	return {
+		_inner.x(),
+		_inner.y(),
+		_outer.width() - _inner.x() - _inner.width(),
+		_outer.height() - _inner.y() - _inner.height(),
+	};
+}
+
+QRectF Manager::buttonInner() const {
+	return buttonInner(_button.get());
+}
+
+QRectF Manager::buttonInner(not_null<Button*> button) const {
+	return QRectF(button->geometry()).marginsRemoved(innerMargins());
+}
+
+void Manager::loadOtherReactions() {
+	for (const auto &reaction : _list) {
+		const auto icon = reaction.staticIcon;
+		if (_otherReactions.contains(icon)) {
+			continue;
+		}
+		auto &entry = _otherReactions.emplace(icon, OtherReactionImage{
+			.media = icon->createMediaView(),
+		}).first->second;
+		if (const auto image = entry.media->getStickerLarge()) {
+			entry.image = image->original();
+			entry.media = nullptr;
+		} else if (!_otherReactionsLifetime) {
+			icon->session().downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				checkOtherReactions();
+			}, _otherReactionsLifetime);
+		}
+	}
+}
+
+void Manager::checkOtherReactions() {
+	auto all = true;
+	for (auto &[icon, entry] : _otherReactions) {
+		if (entry.media) {
+			if (const auto image = entry.media->getStickerLarge()) {
+				entry.image = image->original();
+				entry.media = nullptr;
+			} else {
+				all = false;
+			}
+		}
+	}
+	if (all) {
+		_otherReactionsLifetime.destroy();
+	}
 }
 
 void Manager::removeStaleButtons() {
@@ -326,9 +417,53 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 	}
 }
 
+ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
+	if (_list.empty()) {
+		return nullptr;
+	}
+	const auto inner = buttonInner();
+	const auto top = _button->expandUp()
+		? (inner.y() + inner.height() - position.y())
+		: (position.y() - inner.y());
+	const auto scroll = _button->scroll();
+	const auto shifted = top + scroll * (_button->expandUp() ? 1 : -1);
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = (st::reactionCornerSize.height() + between);
+	const auto index = std::clamp(
+		int(base::SafeRound(shifted + between / 2.)) / oneHeight,
+		0,
+		int(_list.size() - 1));
+	auto &result = _links[index];
+	if (!result) {
+		result = resolveButtonLink(_list[index]);
+	}
+	return result;
+}
+
+ClickHandlerPtr Manager::resolveButtonLink(
+		const Data::Reaction &reaction) const {
+	const auto emoji = reaction.emoji;
+	const auto i = _reactionsLinks.find(emoji);
+	if (i != end(_reactionsLinks)) {
+		return i->second;
+	}
+	const auto handler = crl::guard(this, [=] {
+		if (_buttonContext) {
+			_chosen.fire({
+				.context = _buttonContext,
+				.emoji = emoji,
+			});
+		}
+	});
+	return _reactionsLinks.emplace(
+		emoji,
+		std::make_shared<LambdaClickHandler>(handler)
+	).first->second;
+}
+
 TextState Manager::buttonTextState(QPoint position) const {
 	if (overCurrentButton(position)) {
-		auto result = TextState(nullptr, _buttonLink);
+		auto result = TextState(nullptr, computeButtonLink(position));
 		result.itemId = _buttonContext;
 		return result;
 	}
@@ -339,8 +474,7 @@ bool Manager::overCurrentButton(QPoint position) const {
 	if (!_button) {
 		return false;
 	}
-	const auto geometry = _button->geometry();
-	return geometry.marginsRemoved(st::reactionCornerShadow).contains(position);
+	return _button && buttonInner().contains(position);
 }
 
 void Manager::remove(FullMsgId context) {
@@ -348,6 +482,10 @@ void Manager::remove(FullMsgId context) {
 		_buttonContext = {};
 		_button = nullptr;
 	}
+}
+
+bool Manager::consumeWheelEvent(not_null<QWheelEvent*> e) {
+	return _button && _button->consumeWheelEvent(e);
 }
 
 void Manager::paintButton(
@@ -408,42 +546,92 @@ void Manager::paintButton(
 			stm.msgBg->c,
 			shadow);
 		if (size.height() > _outer.height()) {
-			const auto factor = style::DevicePixelRatio();
-			const auto part = (source.height() / factor) / 2 - 1;
-			const auto fill = size.height() - 2 * part;
-			const auto half = part * factor;
-			const auto top = source.height() - half;
-			p.drawImage(
-				position,
-				_cacheInOut,
-				QRect(source.x(), source.y(), source.width(), half));
-			p.drawImage(
-				QRect(
-					position + QPoint(0, part),
-					QSize(source.width() / factor, fill)),
-				_cacheInOut,
-				QRect(
-					source.x(),
-					source.y() + half,
-					source.width(),
-					top - half));
-			p.drawImage(
-				position + QPoint(0, part + fill),
-				_cacheInOut,
-				QRect(source.x(), source.y() + top, source.width(), half));
+			paintLongImage(p, geometry, _cacheInOut, source);
 		} else {
 			p.drawImage(position, _cacheInOut, source);
 		}
 	}
+
 	const auto mainEmojiPosition = position + (button->expandUp()
 		? QPoint(0, size.height() - _outer.height())
 		: QPoint());
-	p.drawImage(
-		mainEmojiPosition,
-		_cacheParts,
-		validateEmoji(frameIndex, scale));
+	if (size.height() > _outer.height()) {
+		p.save();
+		paintAllEmoji(p, button, scale, mainEmojiPosition);
+		p.restore();
+	} else {
+		p.drawImage(
+			mainEmojiPosition,
+			_cacheParts,
+			validateEmoji(frameIndex, scale));
+	}
+
 	if (opacity != 1.) {
 		p.setOpacity(1.);
+	}
+}
+
+void Manager::paintLongImage(
+		Painter &p,
+		QRect geometry,
+		const QImage &image,
+		QRect source) {
+	const auto factor = style::DevicePixelRatio();
+	const auto part = (source.height() / factor) / 2 - 1;
+	const auto fill = geometry.height() - 2 * part;
+	const auto half = part * factor;
+	const auto top = source.height() - half;
+	p.drawImage(
+		geometry.topLeft(),
+		_cacheInOut,
+		QRect(source.x(), source.y(), source.width(), half));
+	p.drawImage(
+		QRect(
+			geometry.topLeft() + QPoint(0, part),
+			QSize(source.width() / factor, fill)),
+		_cacheInOut,
+		QRect(
+			source.x(),
+			source.y() + half,
+			source.width(),
+			top - half));
+	p.drawImage(
+		geometry.topLeft() + QPoint(0, part + fill),
+		_cacheInOut,
+		QRect(source.x(), source.y() + top, source.width(), half));
+}
+
+void Manager::paintAllEmoji(
+		Painter &p,
+		not_null<Button*> button,
+		float64 scale,
+		QPoint mainEmojiPosition) {
+	const auto clip = buttonInner(button);
+	p.setClipRect(clip);
+
+	auto hq = PainterHighQualityEnabler(p);
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = st::reactionCornerSize.height() + between;
+	const auto oneSize = st::reactionCornerImage * scale;
+	const auto expandUp = button->expandUp();
+	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
+	auto emojiPosition = mainEmojiPosition
+		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
+	auto index = 0;
+	for (const auto &reaction : _list) {
+		const auto inner = QRectF(_inner).translated(emojiPosition);
+		const auto target = QRectF(
+			inner.x() + (inner.width() - oneSize) / 2,
+			inner.y() + (inner.height() - oneSize) / 2,
+			oneSize,
+			oneSize);
+		if (target.intersects(clip)) {
+			const auto i = _otherReactions.find(reaction.staticIcon);
+			if (i != end(_otherReactions) && !i->second.image.isNull()) {
+				p.drawImage(target, i->second.image);
+			}
+		}
+		emojiPosition += shift;
 	}
 }
 
@@ -567,7 +755,6 @@ QRect Manager::validateFrame(
 	}
 
 	const auto shadowSource = validateShadow(frameIndex, scale, shadow);
-	//const auto emojiSource = validateEmoji(frameIndex, scale);
 	const auto position = result.topLeft() / style::DevicePixelRatio();
 	auto p = QPainter(&_cacheInOut);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -585,10 +772,7 @@ QRect Manager::validateFrame(
 	p.scale(scale, scale);
 	p.translate(-center);
 	p.drawRoundedRect(inner, radius, radius);
-	//p.restore();
-
-	//p.drawImage(position, _cacheParts, emojiSource);
-
+	p.restore();
 	p.end();
 	valid[frameIndex] = true;
 	return result;

@@ -179,6 +179,7 @@ HistoryInner::HistoryInner(
 		[=] { update(); }))
 , _reactionsManager(
 	std::make_unique<HistoryView::Reactions::Manager>(
+		this,
 		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })

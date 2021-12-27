@@ -74,7 +74,10 @@ public:
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] QRect geometry() const;
+	[[nodiscard]] int scroll() const;
 	[[nodiscard]] float64 currentScale() const;
+	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
+
 	[[nodiscard]] static float64 ScaleForState(State state);
 	[[nodiscard]] static float64 OpacityForScale(float64 scale);
 
@@ -93,8 +96,10 @@ private:
 
 	QRect _collapsed;
 	QRect _geometry;
+	int _expandedInnerHeight = 0;
 	int _expandedHeight = 0;
 	int _finalHeight = 0;
+	int _scroll = 0;
 	ExpandDirection _expandDirection = ExpandDirection::Up;
 	bool _outbg = false;
 
@@ -102,7 +107,9 @@ private:
 
 class Manager final : public base::has_weak_ptr {
 public:
-	explicit Manager(Fn<void(QRect)> buttonUpdate);
+	Manager(
+		QWidget *wheelEventsTarget,
+		Fn<void(QRect)> buttonUpdate);
 	~Manager();
 
 	void applyList(std::vector<Data::Reaction> list);
@@ -111,6 +118,8 @@ public:
 	void paintButtons(Painter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 	void remove(FullMsgId context);
+
+	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
 
 	struct Chosen {
 		FullMsgId context;
@@ -121,7 +130,13 @@ public:
 	}
 
 private:
+	struct OtherReactionImage {
+		QImage image;
+		std::shared_ptr<Data::DocumentMedia> media;
+	};
 	static constexpr auto kFramesCount = 30;
+
+	void stealWheelEvents(not_null<QWidget*> target);
 
 	[[nodiscard]] bool overCurrentButton(QPoint position) const;
 
@@ -136,6 +151,16 @@ private:
 		not_null<Button*> button,
 		int frame,
 		float64 scale);
+	void paintAllEmoji(
+		Painter &p,
+		not_null<Button*> button,
+		float64 scale,
+		QPoint mainEmojiPosition);
+	void paintLongImage(
+		Painter &p,
+		QRect geometry,
+		const QImage &image,
+		QRect source);
 
 	void setMainReactionImage(QImage image);
 	void applyPatternedShadow(const QColor &shadow);
@@ -158,8 +183,18 @@ private:
 		const QRect &geometry,
 		const PaintContext &context);
 
+	[[nodiscard]] QMarginsF innerMargins() const;
+	[[nodiscard]] QRectF buttonInner() const;
+	[[nodiscard]] QRectF buttonInner(not_null<Button*> button) const;
+	void loadOtherReactions();
+	void checkOtherReactions();
+	[[nodiscard]] ClickHandlerPtr computeButtonLink(QPoint position) const;
+	[[nodiscard]] ClickHandlerPtr resolveButtonLink(
+		const Data::Reaction &reaction) const;
+
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<Data::Reaction> _list;
+	mutable std::vector<ClickHandlerPtr> _links;
 	QSize _outer;
 	QRectF _inner;
 	QRect _innerActive;
@@ -180,11 +215,16 @@ private:
 	QImage _mainReactionImage;
 	rpl::lifetime _mainReactionLifetime;
 
+	base::flat_map<
+		not_null<DocumentData*>,
+		OtherReactionImage> _otherReactions;
+	rpl::lifetime _otherReactionsLifetime;
+
 	const Fn<void(QRect)> _buttonUpdate;
 	std::unique_ptr<Button> _button;
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
-	ClickHandlerPtr _buttonLink;
+	mutable base::flat_map<QString, ClickHandlerPtr> _reactionsLinks;
 
 };
 

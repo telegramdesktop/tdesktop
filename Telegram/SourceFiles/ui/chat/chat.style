@@ -971,6 +971,6 @@ reactionCornerCenter: point(-8px, -5px);
 reactionCornerImage: 24px;
 reactionCornerShadow: margins(4px, 4px, 4px, 8px);
 reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
-reactionCornerAddedHeightMax: 130px;
+reactionCornerAddedHeightMax: 120px;
 
 reactionCornerSkip: 2px;
