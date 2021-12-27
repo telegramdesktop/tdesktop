@@ -254,17 +254,33 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 	});
 }
 
-std::vector<QString> MessageReactions::SuggestList() {
-	constexpr auto utf = [](const char *utf) {
-		return QString::fromUtf8(utf);
-	};
-	return {
-		utf("\xE2\x9D\xA4\xEF\xB8\x8F"), // :heart:
-		utf("\xF0\x9F\x91\x8D"), // :like:
-		utf("\xF0\x9F\x98\x82"), // :joy:
-		utf("\xF0\x9F\x98\xB3"), // :flushed:
-		utf("\xF0\x9F\x98\x94"), // :pensive:
-	};
+void Reactions::send(not_null<HistoryItem*> item, const QString &chosen) {
+	const auto id = item->fullId();
+	auto &api = _owner->session().api();
+	auto i = _sentRequests.find(id);
+	if (i != end(_sentRequests)) {
+		api.request(i->second).cancel();
+	} else {
+		i = _sentRequests.emplace(id).first;
+	}
+	const auto flags = chosen.isEmpty()
+		? MTPmessages_SendReaction::Flag(0)
+		: MTPmessages_SendReaction::Flag::f_reaction;
+	i->second = api.request(MTPmessages_SendReaction(
+		MTP_flags(flags),
+		item->history()->peer->input,
+		MTP_int(id.msg),
+		MTP_string(chosen)
+	)).done([=](const MTPUpdates &result) {
+		_sentRequests.remove(id);
+		_owner->session().api().applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
+		_sentRequests.remove(id);
+	}).send();
+}
+
+bool Reactions::sending(not_null<HistoryItem*> item) const {
+	return _sentRequests.contains(item->fullId());
 }
 
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)
@@ -287,8 +303,9 @@ void MessageReactions::add(const QString &reaction) {
 	if (!reaction.isEmpty()) {
 		++_list[reaction];
 	}
-	sendRequest();
-	_item->history()->owner().requestItemResize(_item);
+	auto &owner = _item->history()->owner();
+	owner.reactions().send(_item, _chosen);
+	owner.requestItemResize(_item);
 }
 
 void MessageReactions::remove() {
@@ -298,7 +315,7 @@ void MessageReactions::remove() {
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
 		bool ignoreChosen) {
-	if (_requestId) {
+	if (_item->history()->owner().reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
 		return;
 	}
@@ -338,27 +355,6 @@ bool MessageReactions::empty() const {
 
 QString MessageReactions::chosen() const {
 	return _chosen;
-}
-
-void MessageReactions::sendRequest() {
-	const auto api = &_item->history()->session().api();
-	if (_requestId) {
-		api->request(_requestId).cancel();
-	}
-	const auto flags = _chosen.isEmpty()
-		? MTPmessages_SendReaction::Flag(0)
-		: MTPmessages_SendReaction::Flag::f_reaction;
-	_requestId = api->request(MTPmessages_SendReaction(
-		MTP_flags(flags),
-		_item->history()->peer->input,
-		MTP_int(_item->id),
-		MTP_string(_chosen)
-	)).done([=](const MTPUpdates &result) {
-		_requestId = 0;
-		api->applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
-		_requestId = 0;
-	}).send();
 }
 
 } // namespace Data

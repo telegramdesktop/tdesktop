@@ -56,6 +56,9 @@ public:
 		const QString &emoji,
 		ImageSize size);
 
+	void send(not_null<HistoryItem*> item, const QString &chosen);
+	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
+
 private:
 	struct ImageSet {
 		QImage bottomInfo;
@@ -86,14 +89,14 @@ private:
 	rpl::lifetime _imagesLoadLifetime;
 	bool _waitingForList = false;
 
+	base::flat_map<FullMsgId, mtpRequestId> _sentRequests;
+
 	rpl::lifetime _lifetime;
 
 };
 
 class MessageReactions final {
 public:
-	static std::vector<QString> SuggestList();
-
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
 	void add(const QString &reaction);
@@ -104,13 +107,10 @@ public:
 	[[nodiscard]] bool empty() const;
 
 private:
-	void sendRequest();
-
 	const not_null<HistoryItem*> _item;
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
-	mtpRequestId _requestId = 0;
 
 };
 
