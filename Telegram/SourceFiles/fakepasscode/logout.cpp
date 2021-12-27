@@ -10,7 +10,7 @@ void FakePasscode::LogoutAction::Execute() {
     new_logout.reserve(Core::App().domain().accounts().size());
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (logout_accounts_[index]) {
-            account->logOut();
+            account->loggedOut();
         } else {
             new_logout.push_back(false);
         }
