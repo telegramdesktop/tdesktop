@@ -150,6 +150,7 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 
 [[nodiscard]] QImage PrepareBubblesBackground(
 		const ChatThemeBubblesData &data) {
+	return QImage(":/gui/art/themeimage.jpg"); AssertIsDebug();
 	if (data.colors.size() < 2) {
 		return QImage();
 	}

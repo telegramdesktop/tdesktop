@@ -157,7 +157,7 @@ private:
 		float64 scale,
 		QPoint mainEmojiPosition);
 	void paintLongImage(
-		Painter &p,
+		QPainter &p,
 		QRect geometry,
 		const QImage &image,
 		QRect source);

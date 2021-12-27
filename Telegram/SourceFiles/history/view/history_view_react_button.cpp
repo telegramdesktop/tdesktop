@@ -269,7 +269,9 @@ Manager::Manager(
 	_cacheParts.setDevicePixelRatio(ratio);
 	_cacheParts.fill(Qt::transparent);
 	_cacheForPattern = QImage(
-		_outer * ratio,
+		QSize(
+			_outer.width(),
+			_outer.height() + st::reactionCornerAddedHeightMax) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	_cacheForPattern.setDevicePixelRatio(ratio);
 	_shadowBuffer = QImage(
@@ -529,13 +531,13 @@ void Manager::paintButton(
 		p.setOpacity(opacity);
 	}
 	if (patterned) {
-		p.drawImage(
-			position,
-			_cacheParts,
-			validateShadow(frameIndex, scale, shadow));
-
+		const auto source = validateShadow(frameIndex, scale, shadow);
+		paintLongImage(p, geometry, _cacheParts, source);
 		validateCacheForPattern(frameIndex, scale, geometry, context);
-		p.drawImage(geometry, _cacheForPattern);
+		p.drawImage(
+			geometry,
+			_cacheForPattern,
+			QRect(QPoint(), geometry.size() * style::DevicePixelRatio()));
 	} else {
 		const auto &stm = context.st->messageStyle(outbg, false);
 		const auto background = stm.msgBg->c;
@@ -545,11 +547,7 @@ void Manager::paintButton(
 			scale,
 			stm.msgBg->c,
 			shadow);
-		if (size.height() > _outer.height()) {
-			paintLongImage(p, geometry, _cacheInOut, source);
-		} else {
-			p.drawImage(position, _cacheInOut, source);
-		}
+		paintLongImage(p, geometry, _cacheInOut, source);
 	}
 
 	const auto mainEmojiPosition = position + (button->expandUp()
@@ -572,10 +570,14 @@ void Manager::paintButton(
 }
 
 void Manager::paintLongImage(
-		Painter &p,
+		QPainter &p,
 		QRect geometry,
 		const QImage &image,
 		QRect source) {
+	if (geometry.height() == _outer.height()) {
+		p.drawImage(geometry.topLeft(), image, source);
+		return;
+	}
 	const auto factor = style::DevicePixelRatio();
 	const auto part = (source.height() / factor) / 2 - 1;
 	const auto fill = geometry.height() - 2 * part;
@@ -583,13 +585,13 @@ void Manager::paintLongImage(
 	const auto top = source.height() - half;
 	p.drawImage(
 		geometry.topLeft(),
-		_cacheInOut,
+		image,
 		QRect(source.x(), source.y(), source.width(), half));
 	p.drawImage(
 		QRect(
 			geometry.topLeft() + QPoint(0, part),
 			QSize(source.width() / factor, fill)),
-		_cacheInOut,
+		image,
 		QRect(
 			source.x(),
 			source.y() + half,
@@ -597,7 +599,7 @@ void Manager::paintLongImage(
 			top - half));
 	p.drawImage(
 		geometry.topLeft() + QPoint(0, part + fill),
-		_cacheInOut,
+		image,
 		QRect(source.x(), source.y() + top, source.width(), half));
 }
 
@@ -640,17 +642,18 @@ void Manager::validateCacheForPattern(
 		float64 scale,
 		const QRect &geometry,
 		const PaintContext &context) {
-	CopyImagePart(
-		_cacheForPattern,
-		_cacheParts,
-		validateMask(frameIndex, scale));
 	auto q = QPainter(&_cacheForPattern);
+
+	q.setCompositionMode(QPainter::CompositionMode_Source);
+	const auto source = validateMask(frameIndex, scale);
+	paintLongImage(q, QRect(QPoint(), geometry.size()), _cacheParts, source);
+
 	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
 	Ui::PaintPatternBubblePart(
 		q,
 		context.viewport.translated(-geometry.topLeft()),
 		context.bubblesPattern->pixmap,
-		QRect(QPoint(), _outer));
+		QRect(QPoint(), geometry.size()));
 }
 
 void Manager::applyPatternedShadow(const QColor &shadow) {
