@@ -684,8 +684,14 @@ std::optional<bool> Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
-	if (!FileChooserPortalVersion.has_value()
-		|| (type == Type::ReadFolder && *FileChooserPortalVersion < 3)) {
+	if (!FileChooserPortalVersion.has_value()) {
+		return std::nullopt;
+	}
+	if (type == Type::ReadFolder && *FileChooserPortalVersion < 3) {
+		if (static bool once; !std::exchange(once, true)) {
+			LOG(("App Info: Desktop portal FileChooser of version %1 is "
+				"unable to open folders").arg(*FileChooserPortalVersion));
+		}
 		return std::nullopt;
 	}
 
@@ -716,6 +722,8 @@ std::optional<bool> Get(
 	}
 	dialog.setDirectory(QFileInfo(startFile).absoluteDir().absolutePath());
 	dialog.selectFile(startFile);
+	LOG(("App Info: Calling Desktop portal FileChooser of type %1 for '%2'..")
+		.arg(static_cast<int>(type)).arg(startFile.left(15)));
 
 	const auto res = dialog.exec();
 	if (dialog.failedToOpen()) {

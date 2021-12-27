@@ -356,6 +356,8 @@ bool GetDefault(
 	if (startFile.isEmpty() || startFile.at(0) != '/') {
 		startFile = cDialogLastPath() + '/' + startFile;
 	}
+	LOG(("App Info: Calling QFileDialog widget of type %1 for '%2'..")
+		.arg(static_cast<int>(type)).arg(startFile.left(15)));
 	QString file;
 
 	const auto resolvedParent = (parent && parent->window()->isVisible())
