@@ -146,19 +146,10 @@ public:
 	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.
-	virtual void returnSavedMedia() {};
-	void savePreviousMedia() {
-		_savedLocalEditMediaData = {
-			originalText(),
-			_media->clone(this),
-		};
-	}
-	[[nodiscard]] bool isEditingMedia() const {
-		return _savedLocalEditMediaData.media != nullptr;
-	}
-	void clearSavedMedia() {
-		_savedLocalEditMediaData = {};
-	}
+	virtual void returnSavedMedia();
+	void savePreviousMedia();
+	[[nodiscard]] bool isEditingMedia() const;
+	void clearSavedMedia();
 
 	// Zero result means this message is not self-destructing right now.
 	virtual crl::time getSelfDestructIn(crl::time now) {
@@ -364,6 +355,7 @@ public:
 	void addReaction(const QString &reaction);
 	void toggleReaction(const QString &reaction);
 	void updateReactions(const MTPMessageReactions *reactions);
+	void updateReactionsUnknown();
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
@@ -467,9 +459,10 @@ protected:
 		std::unique_ptr<Data::Media> media;
 	};
 
-	SavedMediaData _savedLocalEditMediaData;
+	std::unique_ptr<SavedMediaData> _savedLocalEditMediaData;
 	std::unique_ptr<Data::Media> _media;
 	std::unique_ptr<Data::MessageReactions> _reactions;
+	crl::time _reactionsLastRefreshed = 0;
 
 private:
 

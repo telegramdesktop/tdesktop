@@ -763,7 +763,13 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 
 void ChannelData::setAllowedReactions(std::vector<QString> list) {
 	if (_allowedReactions != list) {
+		const auto toggled = (_allowedReactions.empty() != list.empty());
 		_allowedReactions = std::move(list);
+		if (toggled) {
+			owner().reactions().updateAllInHistory(
+				this,
+				!_allowedReactions.empty());
+		}
 		session().changes().peerUpdated(this, UpdateFlag::Reactions);
 	}
 }

@@ -89,6 +89,8 @@ public:
 	void checkLocalMessages();
 	void removeJoinedMessage();
 
+	void reactionsEnabledChanged(bool enabled);
+
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
 	Element *findFirstNonEmpty() const;

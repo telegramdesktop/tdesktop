@@ -273,7 +273,6 @@ Session::Session(not_null<Main::Session*> session)
 			session->saveSettingsDelayed();
 		}
 	}, _lifetime);
-
 }
 
 void Session::clear() {

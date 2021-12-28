@@ -317,6 +317,12 @@ void Reactions::poll(not_null<HistoryItem*> item, crl::time now) {
 	}
 }
 
+void Reactions::updateAllInHistory(not_null<PeerData*> peer, bool enabled) {
+	if (const auto history = _owner->historyLoaded(peer)) {
+		history->reactionsEnabledChanged(enabled);
+	}
+}
+
 void Reactions::repaintCollected() {
 	const auto now = crl::now();
 	auto closest = 0;
@@ -407,7 +413,6 @@ void MessageReactions::remove() {
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
 		bool ignoreChosen) {
-	_lastRefreshTime = crl::now();
 	if (_item->history()->owner().reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
 		return;
@@ -456,10 +461,6 @@ const base::flat_map<QString, int> &MessageReactions::list() const {
 
 bool MessageReactions::empty() const {
 	return _list.empty();
-}
-
-crl::time MessageReactions::lastRefreshTime() const {
-	return _lastRefreshTime;
 }
 
 QString MessageReactions::chosen() const {

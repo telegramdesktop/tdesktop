@@ -63,6 +63,8 @@ public:
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
 
+	void updateAllInHistory(not_null<PeerData*> peer, bool enabled);
+
 private:
 	struct ImageSet {
 		QImage bottomInfo;
@@ -118,14 +120,12 @@ public:
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
-	[[nodiscard]] crl::time lastRefreshTime() const;
 
 private:
 	const not_null<HistoryItem*> _item;
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
-	crl::time _lastRefreshTime = 0;
 
 };
 

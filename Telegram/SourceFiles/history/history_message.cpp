@@ -1222,8 +1222,8 @@ void HistoryMessage::returnSavedMedia() {
 		return;
 	}
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
-	_media = std::move(_savedLocalEditMediaData.media);
-	setText(_savedLocalEditMediaData.text);
+	_media = std::move(_savedLocalEditMediaData->media);
+	setText(_savedLocalEditMediaData->text);
 	clearSavedMedia();
 	if (wasGrouped) {
 		history()->owner().groups().refreshMessage(this, true);

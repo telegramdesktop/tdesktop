@@ -2965,6 +2965,16 @@ void History::removeJoinedMessage() {
 	}
 }
 
+void History::reactionsEnabledChanged(bool enabled) {
+	if (!enabled) {
+		for (const auto &item : _messages) {
+			item->updateReactions(nullptr);
+		}
+	} else {
+
+	}
+}
+
 bool History::isEmpty() const {
 	return blocks.empty();
 }

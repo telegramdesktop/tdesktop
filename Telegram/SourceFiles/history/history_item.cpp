@@ -381,6 +381,27 @@ void HistoryItem::setIsPinned(bool pinned) {
 	}
 }
 
+void HistoryItem::returnSavedMedia() {
+}
+
+void HistoryItem::savePreviousMedia() {
+	Expects(_media != nullptr);
+
+	using Data = SavedMediaData;
+	_savedLocalEditMediaData = std::make_unique<Data>(Data{
+		.text = originalText(),
+		.media = _media->clone(this),
+	});
+}
+
+bool HistoryItem::isEditingMedia() const {
+	return _savedLocalEditMediaData != nullptr;
+}
+
+void HistoryItem::clearSavedMedia() {
+	_savedLocalEditMediaData = nullptr;
+}
+
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->data.flags & ReplyMarkupFlag::Inline) {
@@ -774,6 +795,9 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	if (reactions || _reactionsLastRefreshed) {
+		_reactionsLastRefreshed = crl::now();
+	}
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
 		if (_reactions) {
@@ -801,6 +825,10 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	});
 }
 
+void HistoryItem::updateReactionsUnknown() {
+	_reactionsLastRefreshed = 1;
+}
+
 const base::flat_map<QString, int> &HistoryItem::reactions() const {
 	static const auto kEmpty = base::flat_map<QString, int>();
 	return _reactions ? _reactions->list() : kEmpty;
@@ -817,7 +845,7 @@ QString HistoryItem::chosenReaction() const {
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {
-	return _reactions ? _reactions->lastRefreshTime() : 0;
+	return _reactionsLastRefreshed;
 }
 
 bool HistoryItem::hasDirectLink() const {
