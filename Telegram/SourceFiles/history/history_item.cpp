@@ -765,6 +765,7 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 		_reactions->remove();
 		if (_reactions->empty()) {
 			_reactions = nullptr;
+			history()->owner().notifyItemDataChange(this);
 		}
 	} else {
 		_reactions->add(reaction);
@@ -775,7 +776,10 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
-		_reactions = nullptr;
+		if (_reactions) {
+			_reactions = nullptr;
+			history()->owner().notifyItemDataChange(this);
+		}
 		return;
 	}
 	reactions->match([&](const MTPDmessageReactions &data) {
@@ -785,13 +789,15 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 			_flags &= ~MessageFlag::CanViewReactions;
 		}
 		if (data.vresults().v.isEmpty()) {
-			_reactions = nullptr;
+			if (_reactions) {
+				_reactions = nullptr;
+				history()->owner().notifyItemDataChange(this);
+			}
 			return;
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
 		_reactions->set(data.vresults().v, data.is_min());
-		history()->owner().notifyItemDataChange(this);
 	});
 }
 
@@ -808,6 +814,10 @@ bool HistoryItem::canViewReactions() const {
 
 QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
+}
+
+crl::time HistoryItem::lastReactionsRefreshTime() const {
+	return _reactions ? _reactions->lastRefreshTime() : 0;
 }
 
 bool HistoryItem::hasDirectLink() const {

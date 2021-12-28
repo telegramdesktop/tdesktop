@@ -367,6 +367,7 @@ public:
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
+	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
 

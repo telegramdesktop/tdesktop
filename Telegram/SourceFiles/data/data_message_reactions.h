@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 namespace Data {
 
 class DocumentMedia;
@@ -59,6 +61,8 @@ public:
 	void send(not_null<HistoryItem*> item, const QString &chosen);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
+	void poll(not_null<HistoryItem*> item, crl::time now);
+
 private:
 	struct ImageSet {
 		QImage bottomInfo;
@@ -76,6 +80,9 @@ private:
 	void resolveImages();
 	void downloadTaskFinished();
 
+	void repaintCollected();
+	void pollCollected();
+
 	const not_null<Session*> _owner;
 
 	std::vector<Reaction> _active;
@@ -91,6 +98,12 @@ private:
 
 	base::flat_map<FullMsgId, mtpRequestId> _sentRequests;
 
+	base::flat_map<not_null<HistoryItem*>, crl::time> _repaintItems;
+	base::Timer _repaintTimer;
+	base::flat_set<not_null<HistoryItem*>> _pollItems;
+	base::flat_set<not_null<HistoryItem*>> _pollingItems;
+	mtpRequestId _pollRequestId = 0;
+
 	rpl::lifetime _lifetime;
 
 };
@@ -105,12 +118,14 @@ public:
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
+	[[nodiscard]] crl::time lastRefreshTime() const;
 
 private:
 	const not_null<HistoryItem*> _item;
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
+	crl::time _lastRefreshTime = 0;
 
 };
 

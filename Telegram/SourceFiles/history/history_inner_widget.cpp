@@ -708,6 +708,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		width(),
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
+	const auto now = crl::now();
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
 	bool noHistoryDisplayed = historyDisplayedEmpty;
@@ -783,6 +784,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						readMentions.insert(item);
 						_widget->enqueueMessageHighlight(view);
 					}
+					session().data().reactions().poll(item, now);
 				}
 
 				top += height;
@@ -826,17 +828,19 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						seltoy - htop);
 					view->draw(p, context);
 
+					const auto item = view->data();
 					const auto middle = top + height / 2;
 					const auto bottom = top + height;
 					if (_visibleAreaBottom >= bottom) {
-						const auto item = view->data();
 						if (!item->out() && item->unread()) {
 							readTill = item;
 						}
-						if (item->isSponsored()) {
-							session().data().sponsoredMessages().view(
-								item->fullId());
-						}
+					}
+					if (item->isSponsored()
+						&& view->markSponsoredViewed(
+							_visibleAreaBottom - top)) {
+						session().data().sponsoredMessages().view(
+							item->fullId());
 					}
 					if (_visibleAreaBottom >= middle
 						&& _visibleAreaTop <= middle) {
@@ -848,6 +852,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 							_widget->enqueueMessageHighlight(view);
 						}
 					}
+					session().data().reactions().poll(item, now);
 				}
 				top += height;
 				context.translate(0, -height);

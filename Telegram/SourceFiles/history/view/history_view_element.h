@@ -408,6 +408,8 @@ public:
 		return fromLink();
 	}
 
+	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
+
 	virtual ~Element();
 
 protected:

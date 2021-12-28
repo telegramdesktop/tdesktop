@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_changes.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -22,17 +23,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kRefreshEach = 60 * 60 * crl::time(1000);
+constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
+constexpr auto kPollEach = 20 * crl::time(1000);
 
 } // namespace
 
-Reactions::Reactions(not_null<Session*> owner) : _owner(owner) {
+Reactions::Reactions(not_null<Session*> owner)
+: _owner(owner)
+, _repaintTimer([=] { repaintCollected(); }) {
 	refresh();
 
 	base::timer_each(
-		kRefreshEach
+		kRefreshFullListEach
 	) | rpl::start_with_next([=] {
 		refresh();
+	}, _lifetime);
+
+	_owner->session().changes().messageUpdates(
+		MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const MessageUpdate &update) {
+		const auto item = update.item;
+		_pollingItems.remove(item);
+		_pollItems.remove(item);
+		_repaintItems.remove(item);
 	}, _lifetime);
 }
 
@@ -279,6 +292,85 @@ void Reactions::send(not_null<HistoryItem*> item, const QString &chosen) {
 	}).send();
 }
 
+void Reactions::poll(not_null<HistoryItem*> item, crl::time now) {
+	// Group them by one second.
+	const auto last = item->lastReactionsRefreshTime();
+	const auto grouped = ((last + 999) / 1000) * 1000;
+	if (!grouped || item->history()->peer->isUser()) {
+		// First reaction always edits message.
+		return;
+	} else if (const auto left = grouped + kPollEach - now; left > 0) {
+		if (!_repaintItems.contains(item)) {
+			_repaintItems.emplace(item, grouped + kPollEach);
+			if (!_repaintTimer.isActive()
+				|| _repaintTimer.remainingTime() > left) {
+				_repaintTimer.callOnce(left);
+			}
+		}
+	} else if (!_pollingItems.contains(item)) {
+		if (_pollItems.empty() && !_pollRequestId) {
+			crl::on_main(&_owner->session(), [=] {
+				pollCollected();
+			});
+		}
+		_pollItems.emplace(item);
+	}
+}
+
+void Reactions::repaintCollected() {
+	const auto now = crl::now();
+	auto closest = 0;
+	for (auto i = begin(_repaintItems); i != end(_repaintItems);) {
+		if (i->second <= now) {
+			_owner->requestItemRepaint(i->first);
+			i = _repaintItems.erase(i);
+		} else {
+			if (!closest || i->second < closest) {
+				closest = i->second;
+			}
+			++i;
+		}
+	}
+	if (closest) {
+		_repaintTimer.callOnce(closest - now);
+	}
+}
+
+void Reactions::pollCollected() {
+	auto toRequest = base::flat_map<not_null<PeerData*>, QVector<MTPint>>();
+	_pollingItems = std::move(_pollItems);
+	for (const auto &item : _pollingItems) {
+		toRequest[item->history()->peer].push_back(MTP_int(item->id));
+	}
+	auto &api = _owner->session().api();
+	for (const auto &[peer, ids] : toRequest) {
+		const auto finalize = [=] {
+			const auto now = crl::now();
+			for (const auto &item : base::take(_pollingItems)) {
+				const auto last = item->lastReactionsRefreshTime();
+				if (last && last + kPollEach <= now) {
+					item->updateReactions(nullptr);
+				}
+			}
+			_pollRequestId = 0;
+			if (!_pollItems.empty()) {
+				crl::on_main(&_owner->session(), [=] {
+					pollCollected();
+				});
+			}
+		};
+		_pollRequestId = api.request(MTPmessages_GetMessagesReactions(
+			peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([=](const MTPUpdates &result) {
+			_owner->session().api().applyUpdates(result);
+			finalize();
+		}).fail([=] {
+			finalize();
+		}).send();
+	}
+}
+
 bool Reactions::sending(not_null<HistoryItem*> item) const {
 	return _sentRequests.contains(item->fullId());
 }
@@ -305,7 +397,7 @@ void MessageReactions::add(const QString &reaction) {
 	}
 	auto &owner = _item->history()->owner();
 	owner.reactions().send(_item, _chosen);
-	owner.requestItemResize(_item);
+	owner.notifyItemDataChange(_item);
 }
 
 void MessageReactions::remove() {
@@ -315,22 +407,33 @@ void MessageReactions::remove() {
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
 		bool ignoreChosen) {
+	_lastRefreshTime = crl::now();
 	if (_item->history()->owner().reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
 		return;
 	}
+	auto changed = false;
 	auto existing = base::flat_set<QString>();
 	for (const auto &count : list) {
 		count.match([&](const MTPDreactionCount &data) {
 			const auto reaction = qs(data.vreaction());
 			if (data.is_chosen() && !ignoreChosen) {
-				_chosen = reaction;
+				if (_chosen != reaction) {
+					_chosen = reaction;
+					changed = true;
+				}
 			}
-			_list[reaction] = data.vcount().v;
+			const auto nowCount = data.vcount().v;
+			auto &wasCount = _list[reaction];
+			if (wasCount != nowCount) {
+				wasCount = nowCount;
+				changed = true;
+			}
 			existing.emplace(reaction);
 		});
 	}
 	if (_list.size() != existing.size()) {
+		changed = true;
 		for (auto i = begin(_list); i != end(_list);) {
 			if (!existing.contains(i->first)) {
 				i = _list.erase(i);
@@ -342,7 +445,9 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
-	_item->history()->owner().requestItemResize(_item);
+	if (changed) {
+		_item->history()->owner().notifyItemDataChange(_item);
+	}
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {
@@ -351,6 +456,10 @@ const base::flat_map<QString, int> &MessageReactions::list() const {
 
 bool MessageReactions::empty() const {
 	return _list.empty();
+}
+
+crl::time MessageReactions::lastRefreshTime() const {
+	return _lastRefreshTime;
 }
 
 QString MessageReactions::chosen() const {

@@ -547,6 +547,13 @@ void Element::nextInBlocksRemoved() {
 	setAttachToNext(false);
 }
 
+bool Element::markSponsoredViewed(int shownFromTop) const {
+	const auto sponsoredTextTop = height()
+		- st::msgPadding.bottom()
+		- st::historyViewButtonHeight;
+	return shownFromTop >= sponsoredTextTop;
+}
+
 void Element::refreshDataId() {
 	if (const auto media = this->media()) {
 		media->refreshParentId(data());
