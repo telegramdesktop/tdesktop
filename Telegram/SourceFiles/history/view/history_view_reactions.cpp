@@ -70,7 +70,16 @@ void InlineList::layoutButtons() {
 	) | ranges::view::transform([](const auto &pair) {
 		return std::make_pair(pair.first, pair.second);
 	}) | ranges::to_vector;
-	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
+	const auto &list = _owner->list(::Data::Reactions::Type::All);
+	ranges::sort(sorted, [&](const auto &p1, const auto &p2) {
+		if (p1.second > p2.second) {
+			return true;
+		} else if (p1.second < p2.second) {
+			return false;
+		}
+		return ranges::find(list, p1.first, &::Data::Reaction::emoji)
+			< ranges::find(list, p2.first, &::Data::Reaction::emoji);
+	});
 
 	auto buttons = std::vector<Button>();
 	buttons.reserve(sorted.size());
@@ -79,7 +88,8 @@ void InlineList::layoutButtons() {
 		buttons.push_back((i != end(_buttons))
 			? std::move(*i)
 			: prepareButtonWithEmoji(emoji));
-		setButtonCount(buttons.back(), count);
+		const auto add = (emoji == _data.chosenReaction) ? 1 : 0;
+		setButtonCount(buttons.back(), count + add);
 	}
 	_buttons = std::move(buttons);
 }
@@ -252,6 +262,9 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	auto result = InlineListData();
 	result.reactions = item->reactions();
 	result.chosenReaction = item->chosenReaction();
+	if (!result.chosenReaction.isEmpty()) {
+		--result.reactions[result.chosenReaction];
+	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
 		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag());
 	return result;
