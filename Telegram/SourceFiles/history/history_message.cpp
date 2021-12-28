@@ -511,7 +511,7 @@ HistoryMessage::HistoryMessage(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
 	if (const auto reactions = data.vreactions()) {
-		updateReactions(*reactions);
+		updateReactions(reactions);
 	}
 
 	applyTTL(data);
@@ -1413,6 +1413,9 @@ void HistoryMessage::applyEdition(HistoryMessageEdition &&edition) {
 	}
 	if (!isLocalUpdateMedia()) {
 		refreshMedia(edition.mtpMedia);
+	}
+	if (!edition.useSameReactions) {
+		updateReactions(edition.mtpReactions);
 	}
 	changeViewsCount(edition.views);
 	setForwardsCount(edition.forwards);

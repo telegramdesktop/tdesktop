@@ -772,8 +772,13 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 	history()->owner().notifyItemDataChange(this);
 }
 
-void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
-	reactions.match([&](const MTPDmessageReactions &data) {
+void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	if (!reactions) {
+		_flags &= ~MessageFlag::CanViewReactions;
+		_reactions = nullptr;
+		return;
+	}
+	reactions->match([&](const MTPDmessageReactions &data) {
 		if (data.is_can_see_list()) {
 			_flags |= MessageFlag::CanViewReactions;
 		} else {

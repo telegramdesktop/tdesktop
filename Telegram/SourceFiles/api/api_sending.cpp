@@ -452,6 +452,7 @@ void SendConfirmedFile(
 		edition.textWithEntities = caption;
 		edition.useSameMarkup = true;
 		edition.useSameReplies = true;
+		edition.useSameReactions = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {
 		const auto viaBotId = UserId();

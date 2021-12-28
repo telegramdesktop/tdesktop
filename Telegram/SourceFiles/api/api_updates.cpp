@@ -1625,7 +1625,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				peer,
 				d.vmsg_id().v);
 			if (item) {
-				item->updateReactions(d.vreactions());
+				item->updateReactions(&d.vreactions());
 			}
 		}
 	} break;

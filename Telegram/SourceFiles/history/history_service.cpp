@@ -1076,7 +1076,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 	}
 
 	if (const auto reactions = message.vreactions()) {
-		updateReactions(*reactions);
+		updateReactions(reactions);
 	}
 }
 
