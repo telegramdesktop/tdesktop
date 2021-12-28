@@ -1170,6 +1170,27 @@ bool Gif::needsBubble() const {
 	return false;
 }
 
+QRect Gif::contentRectForReactionButton() const {
+	if (isSeparateRoundVideo()) {
+		return QRect(0, 0, width(), height());
+	}
+	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto usex = 0, usew = paintw;
+	const auto outbg = _parent->hasOutLayout();
+	const auto item = _parent->data();
+	const auto via = item->Get<HistoryMessageVia>();
+	const auto reply = _parent->displayedReply();
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	if (via || reply || forwarded) {
+		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		if (outbg) {
+			usex = width() - usew;
+		}
+	}
+	if (rtl()) usex = width() - usex - usew;
+	return style::rtlrect(usex + paintx, painty, usew, painth, width());
+}
+
 int Gif::additionalWidth() const {
 	const auto item = _parent->data();
 	return additionalWidth(

@@ -401,6 +401,37 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
+QRect UnwrappedMedia::contentRectForReactionButton() const {
+	const auto inWebPage = (_parent->media() != this);
+	if (inWebPage) {
+		return QRect(0, 0, width(), height());
+	}
+	const auto rightAligned = _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide();
+	const auto item = _parent->data();
+	const auto via = item->Get<HistoryMessageVia>();
+	const auto reply = _parent->displayedReply();
+	const auto forwarded = getDisplayedForwardedInfo();
+	auto usex = 0;
+	auto usew = maxWidth();
+	if (!inWebPage) {
+		usew -= additionalWidth(via, reply, forwarded);
+		if (rightAligned) {
+			usex = width() - usew;
+		}
+	}
+	if (rtl()) {
+		usex = width() - usex - usew;
+	}
+	const auto usey = rightAligned ? 0 : (height() - _contentSize.height());
+	const auto useh = rightAligned
+		? std::max(
+			_contentSize.height(),
+			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+		: _contentSize.height();
+	return QRect(usex, usey, usew, useh);
+}
+
 std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {

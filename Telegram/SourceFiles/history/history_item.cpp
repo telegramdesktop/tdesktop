@@ -746,7 +746,7 @@ bool HistoryItem::suggestDeleteAllReport() const {
 }
 
 bool HistoryItem::canReact() const {
-	return isRegular();
+	return isRegular() && !isService();
 }
 
 void HistoryItem::addReaction(const QString &reaction) {

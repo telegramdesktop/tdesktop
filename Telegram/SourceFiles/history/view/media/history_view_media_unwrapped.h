@@ -81,6 +81,7 @@ public:
 	bool customInfoLayout() const override {
 		return true;
 	}
+	QRect contentRectForReactionButton() const override;
 	void stickerClearLoopPlayed() override {
 		_content->stickerClearLoopPlayed();
 	}

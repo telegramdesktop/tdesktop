@@ -345,6 +345,10 @@ bool Location::needsBubble() const {
 		|| _parent->displayFromName();
 }
 
+QRect Location::contentRectForReactionButton() const {
+	return QRect(0, 0, width(), height());
+}
+
 int Location::fullWidth() const {
 	return st::locationSize.width();
 }

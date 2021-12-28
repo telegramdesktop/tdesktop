@@ -48,6 +48,7 @@ public:
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] int placeAndResizeGetHeight(QRect available);
 
 	void updateSkipBlock(int width, int height);
 	void removeSkipBlock();

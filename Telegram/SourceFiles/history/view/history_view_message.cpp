@@ -359,15 +359,23 @@ QSize Message::performCountOptimalSize() {
 		}
 		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
 		if (reactionsInBubble) {
-			accumulate_max(maxWidth, std::min(
-				st::msgMaxWidth,
-				(st::msgPadding.left()
-					+ _reactions->maxWidth()
-					+ st::msgPadding.right())));
+			const auto reactionsMaxWidth = st::msgPadding.left()
+				+ _reactions->maxWidth()
+				+ st::msgPadding.right();
+			accumulate_max(
+				maxWidth,
+				std::min(st::msgMaxWidth, reactionsMaxWidth));
 			if (!mediaDisplayed) {
 				minHeight += st::mediaInBubbleSkip;
 			}
-			minHeight += _reactions->minHeight();
+			if (maxWidth >= reactionsMaxWidth) {
+				minHeight += _reactions->minHeight();
+			} else {
+				const auto widthForReactions = maxWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right();
+				minHeight += _reactions->resizeGetHeight(widthForReactions);
+			}
 		}
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
@@ -456,13 +464,6 @@ QSize Message::performCountOptimalSize() {
 	} else {
 		maxWidth = st::msgMinWidth;
 		minHeight = 0;
-	}
-	if (_reactions && !reactionsInBubble) {
-		// if we have a text bubble we can resize it to fit the keyboard
-		// but if we have only media we don't do that
-		if (hasVisibleText()) {
-			accumulate_max(maxWidth, _reactions->maxWidth());
-		}
 	}
 	if (const auto markup = item->inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
@@ -601,8 +602,11 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 	if (_reactions && !reactionsInBubble) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
+		const auto reactionsLeft = (!bubble && mediaDisplayed)
+			? media->contentRectForReactionButton().x()
+			: 0;
 		g.setHeight(g.height() - reactionsHeight);
-		const auto reactionsPosition = QPoint(g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
+		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		p.translate(reactionsPosition);
 		_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
 		p.translate(-reactionsPosition);
@@ -1250,7 +1254,9 @@ TextState Message::textState(
 		return result;
 	}
 
+	const auto bubble = drawBubble();
 	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
+	const auto mediaDisplayed = media && media->isDisplayed();
 	auto keyboard = item->inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
@@ -1260,17 +1266,19 @@ TextState Message::textState(
 
 	if (_reactions && !reactionsInBubble) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
+		const auto reactionsLeft = (!bubble && mediaDisplayed)
+			? media->contentRectForReactionButton().x()
+			: 0;
 		g.setHeight(g.height() - reactionsHeight);
-		const auto reactionsPosition = QPoint(g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
+		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		if (_reactions->getState(point - reactionsPosition, &result)) {
 			return result;
 		}
 	}
 
-	if (drawBubble()) {
+	if (bubble) {
 		const auto inBubble = g.contains(point);
 		auto entry = logEntryOriginal();
-		auto mediaDisplayed = media && media->isDisplayed();
 
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
@@ -1807,17 +1815,39 @@ TextSelection Message::adjustSelection(
 Reactions::ButtonParameters Message::reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const {
-	auto result = Reactions::ButtonParameters{ .context = data()->fullId() };
-	const auto outbg = result.outbg = hasOutLayout();
+	using namespace Reactions;
+	auto result = ButtonParameters{ .context = data()->fullId() };
+	const auto outbg = hasOutLayout();
+	result.style = (!_comments && !embedReactionsInBubble())
+		? ButtonStyle::Service
+		: outbg
+		? ButtonStyle::Outgoing
+		: ButtonStyle::Incoming;
 	const auto geometry = countGeometry();
 	result.pointer = position;
 	const auto onTheLeft = (outbg && !delegate()->elementIsChatWide());
 	const auto leftAdd = onTheLeft ? 0 : geometry.width();
-	result.center = geometry.topLeft() + (onTheLeft
-		? (QPoint(0, geometry.height()) + QPoint(
+
+	const auto keyboard = data()->inlineReplyKeyboard();
+	const auto keyboardHeight = keyboard
+		? (st::msgBotKbButton.margin + keyboard->naturalHeight())
+		: 0;
+	const auto reactionsHeight = (_reactions && !embedReactionsInBubble())
+		? (st::mediaInBubbleSkip + _reactions->height())
+		: 0;
+	const auto innerHeight = geometry.height()
+		- keyboardHeight
+		- reactionsHeight;
+	const auto contentRect = (result.style == ButtonStyle::Service
+		&& !drawBubble())
+		? media()->contentRectForReactionButton().translated(
+			geometry.topLeft())
+		: geometry;
+	result.center = contentRect.topLeft() + (onTheLeft
+		? (QPoint(0, innerHeight) + QPoint(
 			-st::reactionCornerCenter.x(),
 			st::reactionCornerCenter.y()))
-		: (QPoint(geometry.width(), geometry.height())
+		: (QPoint(contentRect.width(), innerHeight)
 			+ st::reactionCornerCenter));
 	if (reactionState.itemId != result.context) {
 		const auto top = marginTop();
@@ -2739,7 +2769,11 @@ int Message::resizeContentGetHeight(int newWidth) {
 		newHeight = 0;
 	}
 	if (_reactions && !reactionsInBubble) {
-		newHeight += st::mediaInBubbleSkip + _reactions->resizeGetHeight(contentWidth);
+		const auto reactionsWidth = (!bubble && mediaDisplayed)
+			? media->contentRectForReactionButton().width()
+			: contentWidth;
+		newHeight += st::mediaInBubbleSkip
+			+ _reactions->resizeGetHeight(reactionsWidth);
 	}
 
 	if (const auto keyboard = item->inlineReplyKeyboard()) {

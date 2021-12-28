@@ -730,6 +730,10 @@ bool GroupedMedia::needsBubble() const {
 	return _needBubble;
 }
 
+QRect GroupedMedia::contentRectForReactionButton() const {
+	return QRect(0, 0, width(), height());
+}
+
 bool GroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty() || _mode == Mode::Column) {
 		return true;

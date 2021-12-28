@@ -831,6 +831,10 @@ bool Photo::needsBubble() const {
 			|| _parent->displayFromName());
 }
 
+QRect Photo::contentRectForReactionButton() const {
+	return QRect(0, 0, width(), height());
+}
+
 bool Photo::isReadyForOpen() const {
 	ensureDataMediaCreated();
 	return _dataMedia->loaded();

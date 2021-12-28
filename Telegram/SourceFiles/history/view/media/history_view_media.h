@@ -205,6 +205,9 @@ public:
 	}
 	[[nodiscard]] virtual bool needsBubble() const = 0;
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
+	[[nodiscard]] virtual QRect contentRectForReactionButton() const {
+		Unexpected("Media::contentRectForReactionButton");
+	}
 	[[nodiscard]] virtual QMargins bubbleMargins() const {
 		return QMargins();
 	}

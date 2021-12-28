@@ -25,6 +25,7 @@ constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(150);
 constexpr auto kInCacheIndex = 0;
 constexpr auto kOutCacheIndex = 1;
+constexpr auto kServiceCacheIndex = 2;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
@@ -86,8 +87,8 @@ Button::Button(
 
 Button::~Button() = default;
 
-bool Button::outbg() const {
-	return _outbg;
+ButtonStyle Button::style() const {
+	return _style;
 }
 
 bool Button::isHidden() const {
@@ -150,8 +151,8 @@ void Button::applyParameters(
 		? State::Active
 		: State::Shown;
 	applyState(state, update);
-	if (_outbg != parameters.outbg) {
-		_outbg = parameters.outbg;
+	if (_style != parameters.style) {
+		_style = parameters.style;
 		if (update) {
 			update(_geometry);
 		}
@@ -264,12 +265,12 @@ Manager::Manager(
 		QRect({}, _outer).center() - _innerActive.center());
 
 	const auto ratio = style::DevicePixelRatio();
-	_cacheInOut = QImage(
-		_outer.width() * 2 * ratio,
+	_cacheInOutService = QImage(
+		_outer.width() * 3 * ratio,
 		_outer.height() * kFramesCount * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	_cacheInOut.setDevicePixelRatio(ratio);
-	_cacheInOut.fill(Qt::transparent);
+	_cacheInOutService.setDevicePixelRatio(ratio);
+	_cacheInOutService.fill(Qt::transparent);
 	_cacheParts = QImage(
 		_outer.width() * kCacheColumsCount * ratio,
 		_outer.height() * kFramesCount * ratio,
@@ -529,8 +530,8 @@ void Manager::paintButton(
 	const auto geometry = button->geometry();
 	const auto position = geometry.topLeft();
 	const auto size = geometry.size();
-	const auto outbg = button->outbg();
-	const auto patterned = outbg
+	const auto style = button->style();
+	const auto patterned = (style == ButtonStyle::Outgoing)
 		&& context.bubblesPattern
 		&& !context.viewport.isEmpty()
 		&& !context.bubblesPattern->pixmap.size().isEmpty();
@@ -547,15 +548,19 @@ void Manager::paintButton(
 			_cacheForPattern,
 			QRect(QPoint(), geometry.size() * style::DevicePixelRatio()));
 	} else {
-		const auto &stm = context.st->messageStyle(outbg, false);
-		const auto background = stm.msgBg->c;
+		const auto background = (style == ButtonStyle::Service)
+			? context.st->msgServiceFg()->c
+			: context.st->messageStyle(
+				(style == ButtonStyle::Outgoing),
+				false
+			).msgBg->c;
 		const auto source = validateFrame(
-			outbg,
+			style,
 			frameIndex,
 			scale,
-			stm.msgBg->c,
+			background,
 			shadow);
-		paintLongImage(p, geometry, _cacheInOut, source);
+		paintLongImage(p, geometry, _cacheInOutService, source);
 	}
 
 	const auto mainEmojiPosition = position + (button->expandUp()
@@ -746,20 +751,32 @@ QRect Manager::validateEmoji(int frameIndex, float64 scale) {
 }
 
 QRect Manager::validateFrame(
-		bool outbg,
+		ButtonStyle style,
 		int frameIndex,
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow) {
 	applyPatternedShadow(shadow);
-	auto &valid = outbg ? _validOut : _validIn;
-	auto &color = outbg ? _backgroundOut : _backgroundIn;
+	auto &valid = (style == ButtonStyle::Service)
+		? _validService
+		: (style == ButtonStyle::Outgoing)
+		? _validOut
+		: _validIn;
+	auto &color = (style == ButtonStyle::Service)
+		? _backgroundService
+		: (style == ButtonStyle::Outgoing)
+		? _backgroundOut
+		: _backgroundIn;
 	if (color != background) {
 		color = background;
 		ranges::fill(valid, false);
 	}
 
-	const auto columnIndex = outbg ? kOutCacheIndex : kInCacheIndex;
+	const auto columnIndex = (style == ButtonStyle::Service)
+		? kServiceCacheIndex
+		: (style == ButtonStyle::Outgoing)
+		? kOutCacheIndex
+		: kInCacheIndex;
 	const auto result = cacheRect(frameIndex, columnIndex);
 	if (valid[frameIndex]) {
 		return result;
@@ -767,7 +784,7 @@ QRect Manager::validateFrame(
 
 	const auto shadowSource = validateShadow(frameIndex, scale, shadow);
 	const auto position = result.topLeft() / style::DevicePixelRatio();
-	auto p = QPainter(&_cacheInOut);
+	auto p = QPainter(&_cacheInOutService);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.drawImage(position, _cacheParts, shadowSource);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);

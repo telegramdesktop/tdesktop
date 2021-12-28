@@ -22,6 +22,11 @@ namespace {
 constexpr auto kInNonChosenOpacity = 0.12;
 constexpr auto kOutNonChosenOpacity = 0.18;
 
+[[nodiscard]] QColor AdaptChosenServiceFg(QColor serviceBg) {
+	serviceBg.setAlpha(std::max(serviceBg.alpha(), 192));
+	return serviceBg;
+}
+
 } // namespace
 
 InlineList::InlineList(
@@ -146,6 +151,14 @@ QSize InlineList::countCurrentSize(int newWidth) {
 	return { newWidth, height + add };
 }
 
+int InlineList::placeAndResizeGetHeight(QRect available) {
+	const auto result = resizeGetHeight(available.width());
+	for (auto &button : _buttons) {
+		button.geometry.translate(available.x(), 0);
+	}
+	return result;
+}
+
 void InlineList::paint(
 		Painter &p,
 		const PaintContext &context,
@@ -173,9 +186,7 @@ void InlineList::paint(
 				}
 				p.setBrush(stm->msgFileBg);
 			} else {
-				p.setBrush(chosen
-					? st->msgServiceBgSelected()
-					: st->msgServiceBg());
+				p.setBrush(chosen ? st->msgServiceFg() : st->msgServiceBg());
 			}
 			const auto radius = geometry.height() / 2.;
 			p.drawRoundedRect(geometry, radius, radius);
@@ -192,7 +203,9 @@ void InlineList::paint(
 			p.drawImage(inner.topLeft(), button.image);
 		}
 		p.setPen(!inbubble
-			? st->msgServiceFg()
+			? (chosen
+				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
+				: st->msgServiceFg())
 			: !chosen
 			? stm->msgServiceFg
 			: context.outbg

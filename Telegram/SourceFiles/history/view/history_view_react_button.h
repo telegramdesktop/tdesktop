@@ -27,7 +27,9 @@ struct TextState;
 namespace HistoryView::Reactions {
 
 enum class ButtonStyle {
-	Bubble,
+	Incoming,
+	Outgoing,
+	Service,
 };
 
 enum class ExpandDirection {
@@ -46,11 +48,10 @@ struct ButtonParameters {
 	FullMsgId context;
 	QPoint center;
 	QPoint pointer;
-	ButtonStyle style = ButtonStyle::Bubble;
+	ButtonStyle style = ButtonStyle::Incoming;
 	int reactionsCount = 1;
 	int visibleTop = 0;
 	int visibleBottom = 0;
-	bool outbg = false;
 };
 
 enum class ButtonState {
@@ -70,7 +71,7 @@ public:
 	using State = ButtonState;
 	void applyState(State state);
 
-	[[nodiscard]] bool outbg() const;
+	[[nodiscard]] ButtonStyle style() const;
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] QRect geometry() const;
@@ -101,7 +102,7 @@ private:
 	int _finalHeight = 0;
 	int _scroll = 0;
 	ExpandDirection _expandDirection = ExpandDirection::Up;
-	bool _outbg = false;
+	ButtonStyle _style = ButtonStyle::Incoming;
 
 };
 
@@ -171,7 +172,7 @@ private:
 		const QColor &shadow);
 	QRect validateEmoji(int frameIndex, float64 scale);
 	QRect validateFrame(
-		bool outbg,
+		ButtonStyle style,
 		int frameIndex,
 		float64 scale,
 		const QColor &background,
@@ -198,17 +199,19 @@ private:
 	QSize _outer;
 	QRectF _inner;
 	QRect _innerActive;
-	QImage _cacheInOut;
+	QImage _cacheInOutService;
 	QImage _cacheParts;
 	QImage _cacheForPattern;
 	QImage _shadowBuffer;
 	std::array<bool, kFramesCount> _validIn = { { false } };
 	std::array<bool, kFramesCount> _validOut = { { false } };
+	std::array<bool, kFramesCount> _validService = { { false } };
 	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
 	std::array<bool, kFramesCount> _validMask = { { false } };
 	QColor _backgroundIn;
 	QColor _backgroundOut;
+	QColor _backgroundService;
 	QColor _shadow;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
