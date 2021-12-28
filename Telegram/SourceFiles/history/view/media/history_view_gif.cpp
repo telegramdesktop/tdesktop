@@ -1171,7 +1171,7 @@ bool Gif::needsBubble() const {
 }
 
 QRect Gif::contentRectForReactionButton() const {
-	if (isSeparateRoundVideo()) {
+	if (!isSeparateRoundVideo()) {
 		return QRect(0, 0, width(), height());
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
