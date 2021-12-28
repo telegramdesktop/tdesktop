@@ -30,6 +30,14 @@ constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
 constexpr auto kCacheColumsCount = 3;
 
+[[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	return e->position().toPoint();
+#else // Qt >= 6.0
+	return e->pos();
+#endif // Qt >= 6.0
+}
+
 [[nodiscard]] QSize CountMaxSizeWithMargins(style::margins margins) {
 	const auto extended = QRect(
 		QPoint(),
@@ -102,7 +110,7 @@ bool Button::consumeWheelEvent(not_null<QWheelEvent*> e) {
 	const auto scrollMax = (_expandedInnerHeight - _expandedHeight);
 	if (_state != State::Inside
 		|| scrollMax <= 0
-		|| !_geometry.contains(e->pos())) {
+		|| !_geometry.contains(LocalPosition(e))) {
 		return false;
 	}
 	const auto delta = e->angleDelta();
