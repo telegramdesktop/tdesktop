@@ -99,7 +99,6 @@ public:
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
-	virtual void elementShowReactions(not_null<const Element*> view) = 0;
 	virtual void elementShowSpoilerAnimation() = 0;
 
 	virtual ~ElementDelegate() {
@@ -158,7 +157,6 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
-	void elementShowReactions(not_null<const Element*> view) override;
 	void elementShowSpoilerAnimation() override;
 
 protected:

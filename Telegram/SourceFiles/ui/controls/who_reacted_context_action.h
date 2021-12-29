@@ -34,18 +34,21 @@ enum class WhoReadType {
 	Seen,
 	Listened,
 	Watched,
+	Reacted,
 };
 
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
 	QString mostPopularReaction;
+	int fullReactionsCount = 0;
 	bool unknown = false;
 };
 
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 	not_null<PopupMenu*> menu,
 	rpl::producer<WhoReadContent> content,
-	Fn<void(uint64)> participantChosen);
+	Fn<void(uint64)> participantChosen,
+	Fn<void()> showAllChosen);
 
 } // namespace Ui

@@ -2082,13 +2082,26 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto participantChosen = [=](uint64 id) {
 			controller->showPeerInfo(PeerId(id));
 		};
+		const auto weak = Ui::MakeWeak(_menu.get());
+		const auto showAllChosen = [=, id = _dragStateItem->fullId()] {
+			// Pressing on an item that has a submenu doesn't hide it :(
+			if (const auto strong = weak.data()) {
+				strong->hideMenu();
+			}
+			if (const auto item = controller->session().data().message(id)) {
+				controller->window().show(HistoryView::ReactionsListBox(
+					controller,
+					item));
+			}
+		};
 		if (!_menu->empty()) {
 			_menu->addSeparator();
 		}
 		_menu->addAction(Ui::WhoReactedContextAction(
 			_menu.get(),
 			Api::WhoReacted(_dragStateItem, this, st::defaultWhoRead),
-			participantChosen));
+			participantChosen,
+			showAllChosen));
 	}
 
 	if (_menu->empty()) {
@@ -2894,12 +2907,6 @@ void HistoryInner::elementReplyTo(const FullMsgId &to) {
 
 void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
 	_controller->emojiInteractions().startOutgoing(view);
-}
-
-void HistoryInner::elementShowReactions(not_null<const Element*> view) {
-	_controller->window().show(HistoryView::ReactionsListBox(
-		_controller,
-		view->data()));
 }
 
 void HistoryInner::elementShowSpoilerAnimation() {
@@ -3855,11 +3862,6 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		void elementStartInteraction(not_null<const Element*> view) override {
 			if (Instance) {
 				Instance->elementStartInteraction(view);
-			}
-		}
-		void elementShowReactions(not_null<const Element*> view) override {
-			if (Instance) {
-				Instance->elementShowReactions(view);
 			}
 		}
 		void elementShowSpoilerAnimation() override {

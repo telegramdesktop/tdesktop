@@ -670,9 +670,6 @@ void InnerWidget::elementReplyTo(const FullMsgId &to) {
 void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
-void InnerWidget::elementShowReactions(not_null<const Element*> view) {
-}
-
 void InnerWidget::elementShowSpoilerAnimation() {
 	_spoilerOpacity.stop();
 	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);

@@ -1803,6 +1803,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_watched#one" = "{count} Watched";
 "lng_context_seen_watched#other" = "{count} Watched";
 "lng_context_seen_watched_none" = "Nobody Watched";
+"lng_context_seen_reacted#one" = "{count} Reacted";
+"lng_context_seen_reacted#other" = "{count} Reacted";
+"lng_context_seen_reacted_none" = "Nobody Reacted";
+"lng_context_seen_reacted_all" = "Show All Reactions";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";

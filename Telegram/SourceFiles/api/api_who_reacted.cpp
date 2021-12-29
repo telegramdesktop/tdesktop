@@ -178,7 +178,7 @@ struct State {
 		&& (list.front().peer == item->history()->session().userPeerId());
 }
 
-[[nodiscard]] Ui::WhoReadType DetectType(not_null<HistoryItem*> item) {
+[[nodiscard]] Ui::WhoReadType DetectSeenType(not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (!media->webpage()) {
 			if (const auto document = media->document()) {
@@ -425,7 +425,7 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	if (!item->out()) {
 		return false;
 	}
-	const auto type = DetectType(item);
+	const auto type = DetectSeenType(item);
 	const auto unseen = (type == Ui::WhoReadType::Seen)
 		? item->unread()
 		: item->isUnreadMedia();
@@ -469,33 +469,30 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+		const auto resolveWhoRead = WhoReadExists(item);
+
 		const auto state = lifetime.make_state<State>();
-		state->current.type = [&] {
-			if (const auto media = item->media()) {
-				if (!media->webpage()) {
-					if (const auto document = media->document()) {
-						if (document->isVoiceMessage()) {
-							return Ui::WhoReadType::Listened;
-						} else if (document->isVideoMessage()) {
-							return Ui::WhoReadType::Watched;
-						}
-					}
-				}
-			}
-			return Ui::WhoReadType::Seen;
-		}();
 		const auto pushNext = [=] {
 			consumer.put_next_copy(state->current);
 		};
 
-		const auto resolveWhoRead = WhoReadExists(item);
 		const auto resolveWhoReacted = item->canViewReactions();
 		auto idsWithReactions = (resolveWhoRead && resolveWhoReacted)
 			? WhoReadOrReactedIds(item, context)
 			: resolveWhoRead
 			? (WhoReadIds(item, context) | rpl::map(WithEmptyReactions))
 			: WhoReactedIds(item, context);
+		state->current.type = resolveWhoRead
+			? DetectSeenType(item)
+			: Ui::WhoReadType::Reacted;
 		if (resolveWhoReacted) {
+			const auto &list = item->reactions();
+			state->current.fullReactionsCount = ranges::accumulate(
+				list,
+				0,
+				ranges::plus{},
+				[](const auto &pair) { return pair.second; });
+
 			// #TODO reactions
 			state->current.mostPopularReaction = item->reactions().front().first;
 		}

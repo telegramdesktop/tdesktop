@@ -187,10 +187,6 @@ void SimpleElementDelegate::elementStartInteraction(
 	not_null<const Element*> view) {
 }
 
-void SimpleElementDelegate::elementShowReactions(
-	not_null<const Element*> view) {
-}
-
 void SimpleElementDelegate::elementShowSpoilerAnimation() {
 }
 

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_userpics.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -58,7 +59,8 @@ public:
 	Action(
 		not_null<PopupMenu*> parentMenu,
 		rpl::producer<WhoReadContent> content,
-		Fn<void(uint64)> participantChosen);
+		Fn<void(uint64)> participantChosen,
+		Fn<void()> showAllChosen);
 
 	bool isEnabled() const override;
 	not_null<QAction*> action() const override;
@@ -83,6 +85,7 @@ private:
 	const not_null<PopupMenu*> _parentMenu;
 	const not_null<QAction*> _dummyAction;
 	const Fn<void(uint64)> _participantChosen;
+	const Fn<void()> _showAllChosen;
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
 
@@ -170,8 +173,15 @@ void EntryAction::paint(Painter &&p) {
 		paintRipple(p, 0, 0);
 	}
 	const auto photoSize = st::defaultWhoRead.photoSize;
+	const auto photoLeft = st::defaultWhoRead.photoLeft;
 	const auto photoTop = (height() - photoSize) / 2;
-	p.drawImage(st::defaultWhoRead.photoLeft, photoTop, _userpic);
+	if (!_userpic.isNull()) {
+		p.drawImage(photoLeft, photoTop, _userpic);
+	} else if (!_emoji) {
+		st::menuIconReactions.paintInCenter(
+			p,
+			QRect(photoLeft, photoTop, photoSize, photoSize));
+	}
 
 	p.setPen(selected
 		? _st.itemFgOver
@@ -201,11 +211,13 @@ void EntryAction::paint(Painter &&p) {
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
-	Fn<void(uint64)> participantChosen)
+	Fn<void(uint64)> participantChosen,
+	Fn<void()> showAllChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
 , _parentMenu(parentMenu)
 , _dummyAction(CreateChild<QAction>(parentMenu->menu().get()))
 , _participantChosen(std::move(participantChosen))
+, _showAllChosen(std::move(showAllChosen))
 , _userpics(std::make_unique<GroupCallUserpics>(
 	st::defaultWhoRead.userpics,
 	rpl::never<bool>(),
@@ -263,6 +275,10 @@ Action::Action(
 			if (const auto onstack = _participantChosen) {
 				onstack(_content.participants.front().id);
 			}
+		} else if (_content.fullReactionsCount > 0) {
+			if (const auto onstack = _showAllChosen) {
+				onstack();
+			}
 		}
 	}, lifetime());
 
@@ -280,7 +296,10 @@ void Action::resolveMinWidth() {
 		return _st.itemStyle.font->width(text);
 	};
 	const auto maxTextWidth = std::max({
-		width(tr::lng_context_seen_text(tr::now, lt_count_short, 999999999)),
+		width(tr::lng_context_seen_reacted(
+			tr::now,
+			lt_count_short,
+			999'999'999)),
 		width(tr::lng_context_seen_text(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)),
 		width(tr::lng_context_seen_watched(tr::now, lt_count, 999)) });
@@ -327,21 +346,18 @@ void Action::populateSubmenu() {
 	}
 
 	const auto submenu = _parentMenu->ensureSubmenu(action());
-	if (_submenuActions.size() > _content.participants.size()) {
+	const auto reactions = ranges::count_if(
+		_content.participants,
+		[](const auto &p) { return !p.reaction.isEmpty(); });
+	const auto addShowAll = (_content.fullReactionsCount > reactions);
+	const auto actionsCount = int(_content.participants.size())
+		+ (addShowAll ? 1 : 0);
+	if (_submenuActions.size() > actionsCount) {
 		_submenuActions.clear();
 		submenu->clearActions();
 	}
 	auto index = 0;
-	for (const auto &participant : _content.participants) {
-		const auto chosen = [call = _participantChosen, id = participant.id] {
-			call(id);
-		};
-		auto data = EntryData{
-			.text = participant.name,
-			.reaction = participant.reaction,
-			.userpic = participant.userpicLarge,
-			.callback = chosen,
-		};
+	const auto append = [&](EntryData &&data) {
 		if (index < _submenuActions.size()) {
 			_submenuActions[index]->setData(std::move(data));
 		} else {
@@ -353,6 +369,23 @@ void Action::populateSubmenu() {
 			submenu->addAction(std::move(item));
 		}
 		++index;
+	};
+	for (const auto &participant : _content.participants) {
+		const auto chosen = [call = _participantChosen, id = participant.id] {
+			call(id);
+		};
+		append({
+			.text = participant.name,
+			.reaction = participant.reaction,
+			.userpic = participant.userpicLarge,
+			.callback = chosen,
+		});
+	}
+	if (addShowAll) {
+		append({
+			.text = tr::lng_context_seen_reacted_all(tr::now),
+			.callback = _showAllChosen,
+		});
 	}
 	_parentMenu->checkSubmenuShow();
 }
@@ -410,13 +443,22 @@ void Action::paint(Painter &p) {
 }
 
 void Action::refreshText() {
-	const auto count = int(_content.participants.size());
+	const auto usersCount = int(_content.participants.size());
+	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		_st.itemStyle,
 		{ (_content.unknown
 			? tr::lng_context_seen_loading(tr::now)
 			: (count == 1)
 			? _content.participants.front().name
+			: (_content.type == WhoReadType::Reacted
+				|| (count > 0 && _content.fullReactionsCount > usersCount))
+			? (count
+				? tr::lng_context_seen_reacted(
+					tr::now,
+					lt_count_short,
+					count)
+				: tr::lng_context_seen_reacted_none(tr::now))
 			: (_content.type == WhoReadType::Watched)
 			? (count
 				? tr::lng_context_seen_watched(tr::now, lt_count, count)
@@ -492,11 +534,13 @@ bool operator!=(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		not_null<PopupMenu*> menu,
 		rpl::producer<WhoReadContent> content,
-		Fn<void(uint64)> participantChosen) {
+		Fn<void(uint64)> participantChosen,
+		Fn<void()> showAllChosen) {
 	return base::make_unique_q<Action>(
 		menu,
 		std::move(content),
-		std::move(participantChosen));
+		std::move(participantChosen),
+		std::move(showAllChosen));
 }
 
 } // namespace Ui
