@@ -48,6 +48,7 @@ struct ButtonParameters {
 	FullMsgId context;
 	QPoint center;
 	QPoint pointer;
+	QPoint globalPointer;
 	ButtonStyle style = ButtonStyle::Incoming;
 	int reactionsCount = 1;
 	int visibleTop = 0;
@@ -104,6 +105,9 @@ private:
 	ExpandDirection _expandDirection = ExpandDirection::Up;
 	ButtonStyle _style = ButtonStyle::Incoming;
 
+	base::Timer _expandTimer;
+	std::optional<QPoint> _lastGlobalPosition;
+
 };
 
 class Manager final : public base::has_weak_ptr {
@@ -137,6 +141,7 @@ private:
 	};
 	static constexpr auto kFramesCount = 30;
 
+	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
 
 	[[nodiscard]] bool overCurrentButton(QPoint position) const;
@@ -223,11 +228,14 @@ private:
 		OtherReactionImage> _otherReactions;
 	rpl::lifetime _otherReactionsLifetime;
 
+	std::optional<ButtonParameters> _scheduledParameters;
+	base::Timer _buttonShowTimer;
 	const Fn<void(QRect)> _buttonUpdate;
 	std::unique_ptr<Button> _button;
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
 	mutable base::flat_map<QString, ClickHandlerPtr> _reactionsLinks;
+	Fn<Fn<void()>(QString)> _createChooseCallback;
 
 };
 

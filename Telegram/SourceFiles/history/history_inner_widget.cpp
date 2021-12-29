@@ -2991,6 +2991,7 @@ auto HistoryInner::reactionButtonParameters(
 	).translated({ 0, itemTop(view) });
 	result.visibleTop = _visibleAreaTop;
 	result.visibleBottom = _visibleAreaBottom;
+	result.globalPointer = _mousePosition;
 	return result;
 }
 

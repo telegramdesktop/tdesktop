@@ -30,6 +30,8 @@ constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
 constexpr auto kCacheColumsCount = 3;
+constexpr auto kButtonShowDelay = crl::time(300);
+constexpr auto kButtonExpandDelay = crl::time(300);
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -81,7 +83,8 @@ Button::Button(
 	ButtonParameters parameters)
 : _update(std::move(update))
 , _collapsed(QPoint(), CountOuterSize())
-, _finalHeight(_collapsed.height()) {
+, _finalHeight(_collapsed.height())
+, _expandTimer([=] { applyState(State::Inside, _update); }) {
 	applyParameters(parameters, nullptr);
 }
 
@@ -145,7 +148,19 @@ void Button::applyParameters(
 	if (_state != State::Inside && !_heightAnimation.animating()) {
 		updateExpandDirection(parameters);
 	}
-	const auto state = inside
+	const auto delayInside = inside && (_state != State::Inside);
+	if (!delayInside) {
+		_expandTimer.cancel();
+		_lastGlobalPosition = std::nullopt;
+	} else {
+		const auto globalPositionChanged = _lastGlobalPosition
+			&& (*_lastGlobalPosition != parameters.globalPointer);
+		if (globalPositionChanged || _state == State::Hidden) {
+			_expandTimer.callOnce(kButtonExpandDelay);
+		}
+		_lastGlobalPosition = parameters.globalPointer;
+	}
+	const auto state = (inside && !delayInside)
 		? State::Inside
 		: active
 		? State::Active
@@ -256,10 +271,11 @@ float64 Button::currentScale() const {
 Manager::Manager(
 	QWidget *wheelEventsTarget,
 	Fn<void(QRect)> buttonUpdate)
-	: _outer(CountOuterSize())
-	, _inner(QRectF({}, st::reactionCornerSize))
-	, _innerActive(QRect({}, CountMaxSizeWithMargins({})))
-	, _buttonUpdate(std::move(buttonUpdate)) {
+: _outer(CountOuterSize())
+, _inner(QRectF({}, st::reactionCornerSize))
+, _innerActive(QRect({}, CountMaxSizeWithMargins({})))
+, _buttonShowTimer([=] { showButtonDelayed(); })
+, _buttonUpdate(std::move(buttonUpdate)) {
 	_inner.translate(QRectF({}, _outer).center() - _inner.center());
 	_innerActive.translate(
 		QRect({}, _outer).center() - _innerActive.center());
@@ -290,6 +306,18 @@ Manager::Manager(
 	if (wheelEventsTarget) {
 		stealWheelEvents(wheelEventsTarget);
 	}
+
+	_createChooseCallback = [=](QString emoji) {
+		return [=] {
+			if (const auto context = _buttonContext) {
+				updateButton({});
+				_chosen.fire({
+					.context = context,
+					.emoji = emoji,
+					});
+			}
+		};
+	};
 }
 
 void Manager::stealWheelEvents(not_null<QWidget*> target) {
@@ -304,19 +332,36 @@ void Manager::stealWheelEvents(not_null<QWidget*> target) {
 Manager::~Manager() = default;
 
 void Manager::updateButton(ButtonParameters parameters) {
-	if (_button && _buttonContext != parameters.context) {
-		_button->applyState(ButtonState::Hidden);
-		_buttonHiding.push_back(std::move(_button));
+	const auto contextChanged = (_buttonContext != parameters.context);
+	if (contextChanged) {
+		if (_button) {
+			_button->applyState(ButtonState::Hidden);
+			_buttonHiding.push_back(std::move(_button));
+		}
+		_buttonShowTimer.cancel();
+		_scheduledParameters = std::nullopt;
 	}
 	_buttonContext = parameters.context;
 	parameters.reactionsCount = _list.size();
 	if (!_buttonContext || _list.empty()) {
 		return;
-	} else if (!_button) {
-		_button = std::make_unique<Button>(_buttonUpdate, parameters);
-	} else {
+	} else if (_button) {
 		_button->applyParameters(parameters);
+		return;
 	}
+	const auto globalPositionChanged = _scheduledParameters
+		&& (_scheduledParameters->globalPointer != parameters.globalPointer);
+	const auto positionChanged = _scheduledParameters
+		&& (_scheduledParameters->pointer != parameters.pointer);
+	_scheduledParameters = parameters;
+	if ((_buttonShowTimer.isActive() && positionChanged)
+		|| globalPositionChanged) {
+		_buttonShowTimer.callOnce(kButtonShowDelay);
+	}
+}
+
+void Manager::showButtonDelayed() {
+	_button = std::make_unique<Button>(_buttonUpdate, *_scheduledParameters);
 }
 
 void Manager::applyList(std::vector<Data::Reaction> list) {
@@ -458,17 +503,10 @@ ClickHandlerPtr Manager::resolveButtonLink(
 	if (i != end(_reactionsLinks)) {
 		return i->second;
 	}
-	const auto handler = crl::guard(this, [=] {
-		if (_buttonContext) {
-			_chosen.fire({
-				.context = _buttonContext,
-				.emoji = emoji,
-			});
-		}
-	});
 	return _reactionsLinks.emplace(
 		emoji,
-		std::make_shared<LambdaClickHandler>(handler)
+		std::make_shared<LambdaClickHandler>(
+			crl::guard(this, _createChooseCallback(emoji)))
 	).first->second;
 }
 
