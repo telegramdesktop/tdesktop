@@ -1596,6 +1596,25 @@ void Session::unloadHeavyViewParts(
 	}
 }
 
+void Session::registerShownSpoiler(FullMsgId id) {
+	if (const auto item = message(id)) {
+		_shownSpoilers.emplace(item);
+	}
+}
+
+void Session::unregisterShownSpoiler(FullMsgId id) {
+	if (const auto item = message(id)) {
+		_shownSpoilers.remove(item);
+	}
+}
+
+void Session::hideShownSpoilers() {
+	for (const auto &item : _shownSpoilers) {
+		item->hideSpoilers();
+	}
+	_shownSpoilers = base::flat_set<not_null<HistoryItem*>>();
+}
+
 void Session::removeMegagroupParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user) {

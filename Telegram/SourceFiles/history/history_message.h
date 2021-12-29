@@ -201,6 +201,7 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
+	void hideSpoilers() override;
 
 	void applySentMessage(const MTPDmessage &data) override;
 	void applySentMessage(

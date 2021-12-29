@@ -282,6 +282,10 @@ public:
 		int from,
 		int till);
 
+	void registerShownSpoiler(FullMsgId id);
+	void unregisterShownSpoiler(FullMsgId id);
+	void hideShownSpoilers();
+
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
 		not_null<UserData*>>;
@@ -942,6 +946,8 @@ private:
 	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
 	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
+
+	base::flat_set<not_null<HistoryItem*>> _shownSpoilers;
 
 	History *_topPromoted = nullptr;
 

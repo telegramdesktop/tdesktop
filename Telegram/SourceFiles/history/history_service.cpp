@@ -998,6 +998,10 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 	_textHeight = 0;
 }
 
+void HistoryService::hideSpoilers() {
+	HistoryView::HideSpoilers(_text);
+}
+
 void HistoryService::markMediaAsReadHook() {
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
 		if (!selfdestruct->destructAt) {

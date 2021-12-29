@@ -120,6 +120,8 @@ public:
 
 	void setServiceText(const PreparedText &prepared);
 
+	void hideSpoilers() override;
+
 	~HistoryService();
 
 protected:

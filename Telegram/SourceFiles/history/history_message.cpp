@@ -998,6 +998,10 @@ void HistoryMessage::setCommentsItemId(FullMsgId id) {
 	}
 }
 
+void HistoryMessage::hideSpoilers() {
+	HistoryView::HideSpoilers(_text);
+}
+
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto documentId = reply->replyToDocumentId;

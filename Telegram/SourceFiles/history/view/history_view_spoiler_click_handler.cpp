@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_spoiler_click_handler.h"
 
 #include "core/click_handler_types.h" // ClickHandlerContext
+#include "data/data_session.h"
 #include "history/view/history_view_element.h"
+#include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "ui/spoiler_click_handler.h"
 
 namespace HistoryView {
@@ -33,6 +36,10 @@ void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
 		const auto nonconst = const_cast<AnimatedSpoilerClickHandler*>(this);
 		nonconst->setStartMs(crl::now());
 		SpoilerClickHandler::onClick({});
+
+		if (const auto controller = my.sessionWindow.get()) {
+			controller->session().data().registerShownSpoiler(my.itemId);
+		}
 	}
 }
 
@@ -43,6 +50,12 @@ void FillTextWithAnimatedSpoilers(Ui::Text::String &text) {
 		text.setSpoiler(
 			i + 1,
 			std::make_shared<AnimatedSpoilerClickHandler>());
+	}
+}
+
+void HideSpoilers(Ui::Text::String &text) {
+	for (auto i = 0; i < text.spoilersCount(); i++) {
+		text.setSpoilerShown(i + 1, false);
 	}
 }
 

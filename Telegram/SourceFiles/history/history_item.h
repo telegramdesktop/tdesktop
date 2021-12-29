@@ -333,6 +333,8 @@ public:
 	virtual void setRealId(MsgId newId);
 	virtual void incrementReplyToTopCounter() {
 	}
+	virtual void hideSpoilers() {
+	}
 
 	[[nodiscard]] bool emptyText() const {
 		return _text.isEmpty();

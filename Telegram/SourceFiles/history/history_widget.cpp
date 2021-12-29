@@ -2007,6 +2007,7 @@ void HistoryWidget::showHistory(
 			return;
 		} else {
 			session().data().sponsoredMessages().clearItems(_history);
+			session().data().hideShownSpoilers();
 		}
 		session().sendProgressManager().update(
 			_history,
