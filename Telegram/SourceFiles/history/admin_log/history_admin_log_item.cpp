@@ -1372,7 +1372,14 @@ void GenerateItems(
 	};
 
 	const auto createChangeAvailableReactions = [&](const LogEventActionChangeAvailableReactions &data) {
-		// #TODO reactions
+		auto list = QStringList();
+		for (const auto &emoji : data.vnew_value().v) {
+			list.append(qs(emoji));
+		}
+		const auto text = list.isEmpty()
+			? tr::lng_admin_log_reactions_disabled(tr::now, lt_from, fromLinkText)
+			: tr::lng_admin_log_reactions_updated(tr::now, lt_from, fromLinkText, lt_emoji, list.join(", "));
+		addSimpleServiceMessage(text);
 	};
 
 	action.match([&](const LogTitle &data) {
