@@ -1,3 +1,9 @@
+3.3.2 beta (29.12.21)
+
+- Select text when typing and choose 'Formatting > Spoiler' in the context menu to hide some or all of the contents of a message.
+- Click on the spoiler in chat to reveal its hidden text.
+- Spoiler formatting hides text in chat, as well as in the chat list and notifications.
+
 3.3.1 beta (22.12.21)
 
 - Switch between contacts list sorting modes.

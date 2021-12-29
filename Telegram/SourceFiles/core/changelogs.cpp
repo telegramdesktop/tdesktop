@@ -56,6 +56,16 @@ std::map<int, const char*> BetaLogs() {
 		"- Use Qt 6.2.2 for macOS and Linux builds.\n"
 
 		"- Allow installing x64 Windows version on Windows ARM.\n"
+	},
+	{
+		3003002,
+		"- Select text when typing and choose 'Formatting > Spoiler' in the "
+		"context menu to hide some or all of the contents of a message.\n"
+
+		"- Click on the spoiler in chat to reveal its hidden text.\n"
+
+		"- Spoiler formatting hides text in chat, "
+		"as well as in the chat list and notifications.\n"
 	}
 	};
 };
