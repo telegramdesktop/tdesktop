@@ -28,6 +28,7 @@ public:
 	Controller(
 		not_null<Window::SessionController*> window,
 		not_null<HistoryItem*> item,
+		const QString &selected,
 		rpl::producer<QString> switches);
 
 	Main::Session &session() const override;
@@ -64,10 +65,12 @@ private:
 Controller::Controller(
 	not_null<Window::SessionController*> window,
 	not_null<HistoryItem*> item,
+	const QString &selected,
 	rpl::producer<QString> switches)
 : _window(window)
 , _item(item)
-, _api(&window->session().mtp()) {
+, _api(&window->session().mtp())
+, _shownReaction(selected) {
 	std::move(
 		switches
 	) | rpl::filter([=](const QString &reaction) {
@@ -189,42 +192,113 @@ bool Controller::appendRow(not_null<UserData*> user, QString reaction) {
 	return true;
 }
 
+class Row final : public PeerListRow {
+public:
+	Row(not_null<PeerData*> peer, const QString &reaction);
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	bool rightActionDisabled() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+private:
+	EmojiPtr _emoji = nullptr;
+
+};
+
+Row::Row(not_null<PeerData*> peer, const QString &reaction)
+: PeerListRow(peer)
+, _emoji(Ui::Emoji::Find(reaction)) {
+}
+
+QSize Row::rightActionSize() const {
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	return _emoji ? QSize(size, size) : QSize();
+}
+
+QMargins Row::rightActionMargins() const {
+	if (!_emoji) {
+		return QMargins();
+	}
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	return QMargins(
+		size / 2,
+		(st::defaultPeerList.item.height - size) / 2,
+		(size * 3) / 2,
+		0);
+}
+
+bool Row::rightActionDisabled() const {
+	return true;
+}
+
+void Row::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (!_emoji) {
+		return;
+	}
+	// #TODO reactions
+	Ui::Emoji::Draw(p, _emoji, Ui::Emoji::GetSizeNormal(), x, y);
+}
+
 std::unique_ptr<PeerListRow> Controller::createRow(
 		not_null<UserData*> user,
 		QString reaction) const {
-	auto result = std::make_unique<PeerListRow>(user);
-	if (!reaction.isEmpty()) {
-		result->setCustomStatus(reaction);
-	}
-	return result;
+	return std::make_unique<Row>(user, reaction);
 }
 
 } // namespace
 
 object_ptr<Ui::BoxContent> ReactionsListBox(
-	not_null<Window::SessionController*> window,
-	not_null<HistoryItem*> item) {
+		not_null<Window::SessionController*> window,
+		not_null<HistoryItem*> item,
+		QString selected) {
 	Expects(IsServerMsgId(item->id));
 
+	if (!item->reactions().contains(selected)) {
+		selected = QString();
+	}
 	const auto tabRequests = std::make_shared<rpl::event_stream<QString>>();
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setNoContentMargin(true);
 
-		const auto selector = CreateReactionSelector(box, item->reactions());
+		const auto selector = CreateReactionSelector(
+			box,
+			item->reactions(),
+			selected);
+		selector->changes(
+		) | rpl::start_to_stream(*tabRequests, box->lifetime());
+
 		box->widthValue(
 		) | rpl::start_with_next([=](int width) {
 			selector->resizeToWidth(width);
 			selector->move(0, 0);
 		}, box->lifetime());
-		selector->changes(
-		) | rpl::start_to_stream(*tabRequests, box->lifetime());
-		box->setAddedTopScrollSkip(selector->height());
+		selector->heightValue(
+		) | rpl::start_with_next([=](int height) {
+			box->setAddedTopScrollSkip(height);
+		}, box->lifetime());
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
 	};
 	return Box<PeerListBox>(
-		std::make_unique<Controller>(window, item, tabRequests->events()),
+		std::make_unique<Controller>(
+			window,
+			item,
+			selected,
+			tabRequests->events()),
 		initBox);
 }
 

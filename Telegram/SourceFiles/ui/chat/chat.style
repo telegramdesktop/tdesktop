@@ -921,6 +921,12 @@ whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
 whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
 whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
 
+reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
+reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};
+reactionsTabs: MultiSelect(defaultMultiSelect) {
+	padding: margins(12px, 10px, 12px, 10px);
+}
+reactionsTabIconSkip: 3px;
 historyRequestsUserpics: GroupCallUserpics {
 	size: 22px;
 	shift: 8px;

@@ -13,11 +13,12 @@ struct Selector {
 	Fn<void(int, int)> move;
 	Fn<void(int)> resizeToWidth;
 	Fn<rpl::producer<QString>()> changes;
-	Fn<int()> height;
+	Fn<rpl::producer<int>()> heightValue;
 };
 
 not_null<Selector*> CreateReactionSelector(
 	not_null<QWidget*> parent,
-	const base::flat_map<QString, int> &items);
+	const base::flat_map<QString, int> &items,
+	const QString &selected);
 
 } // namespace HistoryView

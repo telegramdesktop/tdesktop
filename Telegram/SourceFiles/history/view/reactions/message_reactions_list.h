@@ -23,6 +23,7 @@ namespace HistoryView {
 
 object_ptr<Ui::BoxContent> ReactionsListBox(
 	not_null<Window::SessionController*> window,
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	QString selected);
 
 } // namespace HistoryView

@@ -1085,7 +1085,10 @@ void AddWhoReactedAction(
 			strong->hideMenu();
 		}
 		if (const auto item = controller->session().data().message(itemId)) {
-			controller->window().show(ReactionsListBox(controller, item));
+			controller->window().show(ReactionsListBox(
+				controller,
+				item,
+				QString()));
 		}
 	};
 	if (!menu->empty()) {
