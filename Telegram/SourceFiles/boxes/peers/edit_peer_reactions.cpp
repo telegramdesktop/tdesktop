@@ -76,7 +76,6 @@ void AddReactionIcon(
 	icon->paintRequest(
 	) | rpl::start_with_next([=] {
 		Painter p(icon);
-		const auto width = icon->width();
 		if (!state->image.isNull()) {
 			p.drawImage(0, 0, state->image);
 		}

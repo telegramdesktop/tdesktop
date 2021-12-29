@@ -176,7 +176,6 @@ void InlineList::paint(
 		const QRect &clip) const {
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
-	const auto between = st::reactionBottomBetween;
 	const auto padding = st::reactionBottomPadding;
 	const auto size = st::reactionBottomSize;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);

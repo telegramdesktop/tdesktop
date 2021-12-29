@@ -225,8 +225,6 @@ void Document::fillNamedFromData(HistoryDocumentNamed *named) {
 }
 
 QSize Document::countOptimalSize() {
-	const auto item = _parent->data();
-
 	auto captioned = Get<HistoryDocumentCaptioned>();
 	if (_parent->media() != this && !_realParent->groupId()) {
 		if (captioned) {

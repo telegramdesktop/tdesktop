@@ -178,7 +178,6 @@ void Controller::loadMore(const QString &offset) {
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
 	const auto peerId = row->peer()->id;
-	const auto window = _window;
 	crl::on_main(&session(), [=] {
 		_window->showPeerHistory(peerId);
 	});

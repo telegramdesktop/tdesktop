@@ -241,7 +241,6 @@ struct State {
 [[nodiscard]] rpl::producer<std::vector<PeerWithReaction>> WhoReactedIds(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context) {
-	auto unknown = item->history()->session().userPeerId();
 	auto weak = QPointer<QWidget>(context.get());
 	const auto session = &item->history()->session();
 	return [=](auto consumer) {

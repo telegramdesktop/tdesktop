@@ -127,7 +127,6 @@ void BottomInfo::paint(
 		bool inverted,
 		const PaintContext &context) const {
 	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
 	auto right = position.x() + width();

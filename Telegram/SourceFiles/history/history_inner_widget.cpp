@@ -3002,7 +3002,6 @@ void HistoryInner::mouseActionUpdate() {
 		: nullptr;
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
-		const auto was = App::mousedItem();
 		App::mousedItem(view);
 		m = mapPointToItem(point, view);
 		_reactionsManager->updateButton(reactionButtonParameters(

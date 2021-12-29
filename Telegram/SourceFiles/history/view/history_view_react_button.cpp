@@ -56,26 +56,6 @@ constexpr auto kButtonExpandDelay = crl::time(300);
 	return CountMaxSizeWithMargins(st::reactionCornerShadow);
 }
 
-void CopyImagePart(QImage &to, const QImage &from, QRect source) {
-	Expects(to.size() == source.size());
-	Expects(QRect(QPoint(), from.size()).contains(source));
-	Expects(to.format() == from.format());
-	Expects(to.bytesPerLine() == to.width() * 4);
-
-	const auto perPixel = 4;
-	const auto fromPerLine = from.bytesPerLine();
-	const auto toPerLine = to.bytesPerLine();
-	auto toBytes = reinterpret_cast<char*>(to.bits());
-	auto fromBytes = reinterpret_cast<const char*>(from.bits())
-		+ (source.y() * fromPerLine)
-		+ (source.x() * perPixel);
-	for (auto y = 0, height = source.height(); y != height; ++y) {
-		memcpy(toBytes, fromBytes, toPerLine);
-		toBytes += toPerLine;
-		fromBytes += fromPerLine;
-	}
-}
-
 } // namespace
 
 Button::Button(
@@ -673,7 +653,6 @@ void Manager::paintAllEmoji(
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
 		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
-	auto index = 0;
 	for (const auto &reaction : _list) {
 		const auto inner = QRectF(_inner).translated(emojiPosition);
 		const auto target = QRectF(

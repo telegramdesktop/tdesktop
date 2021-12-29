@@ -1845,7 +1845,6 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	const auto geometry = countGeometry();
 	result.pointer = position;
 	const auto onTheLeft = (outbg && !delegate()->elementIsChatWide());
-	const auto leftAdd = onTheLeft ? 0 : geometry.width();
 
 	const auto keyboard = data()->inlineReplyKeyboard();
 	const auto keyboardHeight = keyboard
