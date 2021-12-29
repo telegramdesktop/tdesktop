@@ -16,6 +16,7 @@ void FakePasscode::LogoutAction::Execute() {
         }
     }
     logout_accounts_ = std::move(new_logout);
+    DEBUG_LOG(("LogoutAction: Execute: Change logout actions"));
 }
 
 QByteArray FakePasscode::LogoutAction::Serialize() const {
@@ -62,6 +63,10 @@ void FakePasscode::LogoutAction::SetLogout(size_t index, bool logout) {
     logout_accounts_[index] = logout;
 }
 
-void FakePasscode::LogoutAction::FitAndClear() {
-    logout_accounts_ = std::vector<bool>(Core::App().domain().accounts().size());
+bool FakePasscode::LogoutAction::IsLogout(size_t index) const {
+    return logout_accounts_[index];
+}
+
+const std::vector<bool>& FakePasscode::LogoutAction::GetLogout() const {
+    return logout_accounts_;
 }

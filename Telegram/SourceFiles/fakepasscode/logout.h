@@ -20,7 +20,9 @@ namespace FakePasscode {
 
         void SetLogout(size_t index, bool logout);
 
-        void FitAndClear();
+        const std::vector<bool>& GetLogout() const;
+
+        bool IsLogout(size_t index) const;
 
     private:
         std::vector<bool> logout_accounts_; // index of vector is index of account

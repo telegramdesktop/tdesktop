@@ -23,8 +23,7 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
                 content,
                 tr::lng_logout_account(lt_caption, rpl::single(user->firstName + " " + user->lastName)),
                 st::settingsButton
-            )->toggleOn(toggled->events_starting_with_copy(
-                        _domain->local().ContainsAction(_index, FakePasscode::ActionType::Logout)));
+            )->toggleOn(toggled->events_starting_with_copy(_logout->IsLogout(index)));
         buttons.push_back(button);
     }
 
