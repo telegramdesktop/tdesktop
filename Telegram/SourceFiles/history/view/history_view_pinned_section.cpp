@@ -683,6 +683,11 @@ CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
 	return SelectRestrictionTypeFor(_history->peer);
 }
 
+auto PinnedWidget::listAllowedReactionsValue()
+-> rpl::producer<std::vector<Data::Reaction>> {
+	return Data::PeerAllowedReactionsValue(_history->peer);
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

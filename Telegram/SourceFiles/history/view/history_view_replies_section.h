@@ -141,6 +141,8 @@ public:
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;
 	CopyRestrictionType listSelectRestrictionType() override;
+	auto listAllowedReactionsValue()
+		-> rpl::producer<std::vector<Data::Reaction>> override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

@@ -276,16 +276,10 @@ HistoryInner::HistoryInner(
 		update();
 	}, lifetime());
 
-	rpl::combine(
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(session().data().reactions().updates()),
-		session().changes().peerFlagsValue(
-			_peer,
-			Data::PeerUpdate::Flag::Reactions)
-	) | rpl::start_with_next([=] {
-		_reactions = session().data().reactions().list(_peer);
-		_reactionsManager->applyList(_reactions);
+	Data::PeerAllowedReactionsValue(
+		_peer
+	) | rpl::start_with_next([=](std::vector<Data::Reaction> &&list) {
+		_reactionsManager->applyList(std::move(list));
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
@@ -1447,6 +1441,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 void HistoryInner::performDrag() {
 	if (auto mimeData = prepareDrag()) {
 		// This call enters event loop and can destroy any QObject.
+		_reactionsManager->updateButton({});
 		_controller->widget()->launchDrag(
 			std::move(mimeData),
 			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));
@@ -3019,15 +3014,7 @@ void HistoryInner::mouseActionUpdate() {
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
 		const auto was = App::mousedItem();
-		if (was != view) {
-			if (!_reactions.empty()) {
-				repaintItem(was);
-			}
-			App::mousedItem(view);
-			if (!_reactions.empty()) {
-				repaintItem(view);
-			}
-		}
+		App::mousedItem(view);
 		m = mapPointToItem(point, view);
 		_reactionsManager->updateButton(reactionButtonParameters(
 			view,

@@ -974,10 +974,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				const auto height = view->height();
 				top += height;
-				context.viewport.translate(0, -height);
-				context.clip.translate(0, -height);
+				context.translate(0, -height);
 				p.translate(0, height);
 			}
+			context.translate(0, top);
 			p.translate(0, -top);
 
 			enumerateUserpics([&](not_null<Element*> view, int userpicTop) {

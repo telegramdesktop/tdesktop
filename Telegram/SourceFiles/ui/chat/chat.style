@@ -967,7 +967,7 @@ reactionInfoBetween: 3px;
 
 reactionCornerSize: size(40px, 32px);
 reactionCornerRadius: 14px;
-reactionCornerCenter: point(-8px, -5px);
+reactionCornerCenter: point(-10px, -8px);
 reactionCornerImage: 24px;
 reactionCornerShadow: margins(4px, 4px, 4px, 8px);
 reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);

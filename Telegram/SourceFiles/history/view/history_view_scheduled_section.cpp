@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
+#include "data/data_message_reactions.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -1239,6 +1240,11 @@ CopyRestrictionType ScheduledWidget::listCopyRestrictionType(
 
 CopyRestrictionType ScheduledWidget::listSelectRestrictionType() {
 	return CopyRestrictionType::None;
+}
+
+auto ScheduledWidget::listAllowedReactionsValue()
+-> rpl::producer<std::vector<Data::Reaction>> {
+	return rpl::single(std::vector<Data::Reaction>());
 }
 
 void ScheduledWidget::confirmSendNowSelected() {

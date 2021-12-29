@@ -16,6 +16,8 @@ enum class ImageRoundRadius;
 
 namespace Data {
 
+struct Reaction;
+
 template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
 		rpl::producer<ChangeType, Error, Generator> &&value,
@@ -119,5 +121,8 @@ inline auto PeerFullFlagValue(
 	not_null<PeerData*> peer,
 	int size,
 	ImageRoundRadius radius);
+
+[[nodiscard]] auto PeerAllowedReactionsValue(not_null<PeerData*> peer)
+-> rpl::producer<std::vector<Data::Reaction>>;
 
 } // namespace Data

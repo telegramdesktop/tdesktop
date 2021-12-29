@@ -220,6 +220,9 @@ void Button::applyState(State state) {
 }
 
 void Button::applyState(State state, Fn<void(QRect)> update) {
+	if (state == State::Hidden) {
+		_expandTimer.cancel();
+	}
 	const auto finalHeight = (state == State::Inside)
 		? _expandedHeight
 		: _collapsed.height();

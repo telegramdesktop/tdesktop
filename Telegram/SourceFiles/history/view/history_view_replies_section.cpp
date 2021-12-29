@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_replies_list.h"
+#include "data/data_peer_values.h"
 #include "data/data_changes.h"
 #include "data/data_send_action.h"
 #include "storage/storage_media_prepare.h"
@@ -1923,6 +1924,11 @@ CopyRestrictionType RepliesWidget::listCopyRestrictionType(
 
 CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 	return SelectRestrictionTypeFor(_history->peer);
+}
+
+auto RepliesWidget::listAllowedReactionsValue()
+-> rpl::producer<std::vector<Data::Reaction>> {
+	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 
 void RepliesWidget::confirmDeleteSelected() {

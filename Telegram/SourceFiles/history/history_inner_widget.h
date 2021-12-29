@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 struct Group;
 class CloudImageView;
-struct Reaction;
 } // namespace Data
 
 namespace HistoryView {
@@ -350,10 +349,11 @@ private:
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
 
-	HistoryView::Reactions::ButtonParameters reactionButtonParameters(
+	[[nodiscard]] auto reactionButtonParameters(
 		not_null<const Element*> view,
 		QPoint position,
-		const HistoryView::TextState &reactionState) const;
+		const HistoryView::TextState &reactionState) const
+	-> HistoryView::Reactions::ButtonParameters;
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -407,7 +407,6 @@ private:
 		not_null<PeerData*>,
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
-	std::vector<Data::Reaction> _reactions;
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 
 	MouseAction _mouseAction = MouseAction::None;
