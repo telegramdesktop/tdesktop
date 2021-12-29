@@ -377,9 +377,11 @@ QSize Message::performCountOptimalSize() {
 				minHeight += _reactions->resizeGetHeight(widthForReactions);
 			}
 		}
-		if (!mediaOnBottom) {
+		if (!mediaOnBottom && (!_viewButton || !reactionsInBubble)) {
 			minHeight += st::msgPadding.bottom();
-			if (mediaDisplayed) minHeight += st::mediaInBubbleSkip;
+			if (mediaDisplayed) {
+				minHeight += st::mediaInBubbleSkip;
+			}
 		}
 		if (!mediaOnTop) {
 			minHeight += st::msgPadding.top();
@@ -561,7 +563,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (reactionsInBubble) {
 			localMediaBottom -= st::mediaInBubbleSkip + _reactions->height();
 		}
-		if (!mediaOnBottom) {
+		if (!mediaOnBottom && (!_viewButton || !reactionsInBubble)) {
 			localMediaBottom -= st::msgPadding.bottom();
 		}
 		if (entry) {
@@ -649,9 +651,26 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		paintCommentsButton(p, inner, context);
 
 		auto trect = inner.marginsRemoved(st::msgPadding);
+
+		const auto reactionsTop = (reactionsInBubble && !_viewButton)
+			? st::mediaInBubbleSkip
+			: 0;
+		const auto reactionsHeight = reactionsInBubble
+			? (reactionsTop + _reactions->height())
+			: 0;
+		if (reactionsInBubble) {
+			trect.setHeight(trect.height() - reactionsHeight);
+			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
+			p.translate(reactionsPosition);
+			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
+			p.translate(-reactionsPosition);
+		}
+
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
-			const auto infoHeight = _bottomInfo.height();
+			const auto infoHeight = reactionsInBubble
+				? (reactionsHeight + st::msgPadding.bottom())
+				: _bottomInfo.height();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			_viewButton->draw(
 				p,
@@ -663,18 +682,11 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				inner.setHeight(inner.height() - _viewButton->height());
 			}
 			trect.setHeight(trect.height() - _viewButton->height());
-			if (mediaDisplayed) {
+			if (reactionsInBubble) {
+				trect.setHeight(trect.height() + st::msgPadding.bottom());
+			} else if (mediaDisplayed) {
 				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
 			}
-		}
-
-		if (reactionsInBubble) {
-			const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
-			trect.setHeight(trect.height() - reactionsHeight);
-			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + st::mediaInBubbleSkip);
-			p.translate(reactionsPosition);
-			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
-			p.translate(-reactionsPosition);
 		}
 
 		if (mediaOnBottom) {
@@ -1097,16 +1109,18 @@ PointState Message::pointState(QPoint point) const {
 			}
 
 			auto trect = g.marginsRemoved(st::msgPadding);
-			if (_viewButton) {
-				trect.setHeight(trect.height() - _viewButton->height());
-				if (mediaDisplayed) {
-					trect.setHeight(trect.height() - st::mediaInBubbleSkip);
-				}
-			}
 			if (reactionsInBubble) {
-				const auto reactionsHeight = st::mediaInBubbleSkip
+				const auto reactionsHeight = (_viewButton ? 0 : st::mediaInBubbleSkip)
 					+ _reactions->height();
 				trect.setHeight(trect.height() - reactionsHeight);
+			}
+			if (_viewButton) {
+				trect.setHeight(trect.height() - _viewButton->height());
+				if (reactionsInBubble) {
+					trect.setHeight(trect.height() + st::msgPadding.bottom());
+				} else if (mediaDisplayed) {
+					trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+				}
 			}
 			if (mediaOnBottom) {
 				trect.setHeight(trect.height() + st::msgPadding.bottom());
@@ -1284,41 +1298,46 @@ TextState Message::textState(
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		auto bubble = g;
-		if (getStateCommentsButton(point, bubble, &result)) {
+		auto inner = g;
+		if (getStateCommentsButton(point, inner, &result)) {
 			return result;
+		}
+		auto trect = inner.marginsRemoved(st::msgPadding);
+		const auto reactionsTop = (reactionsInBubble && !_viewButton)
+			? st::mediaInBubbleSkip
+			: 0;
+		const auto reactionsHeight = reactionsInBubble
+			? (reactionsTop + _reactions->height())
+			: 0;
+		if (reactionsInBubble) {
+			trect.setHeight(trect.height() - reactionsHeight);
+			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
+			if (_reactions->getState(point - reactionsPosition, &result)) {
+				return result;
+			}
 		}
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
-			const auto infoHeight = _bottomInfo.height();
+			const auto infoHeight = reactionsInBubble
+				? (reactionsHeight + st::msgPadding.bottom())
+				: _bottomInfo.height();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			if (_viewButton->getState(
 					point,
 					_viewButton->countRect(belowInfo
-						? bubble
-						: bubble - heightMargins),
+						? inner
+						: inner - heightMargins),
 					&result)) {
 				return result;
 			}
 			if (belowInfo) {
-				bubble -= heightMargins;
+				inner -= heightMargins;
 			}
-		}
-
-		auto trect = bubble.marginsRemoved(st::msgPadding);
-		if (_viewButton) {
 			trect.setHeight(trect.height() - _viewButton->height());
-			if (mediaDisplayed) {
+			if (reactionsInBubble) {
+				trect.setHeight(trect.height() + st::msgPadding.bottom());
+			} else if (mediaDisplayed) {
 				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
-			}
-		}
-		if (reactionsInBubble) {
-			const auto reactionsHeight = _reactions->height()
-				+ st::mediaInBubbleSkip;
-			trect.setHeight(trect.height() - reactionsHeight);
-			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + st::mediaInBubbleSkip);
-			if (_reactions->getState(point - reactionsPosition, &result)) {
-				return result;
 			}
 		}
 		if (mediaOnBottom) {
@@ -1345,7 +1364,7 @@ TextState Message::textState(
 		if (entry) {
 			auto entryHeight = entry->height();
 			trect.setHeight(trect.height() - entryHeight);
-			auto entryLeft = bubble.left();
+			auto entryLeft = inner.left();
 			auto entryTop = trect.y() + trect.height();
 			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
 				result = entry->textState(
@@ -1360,8 +1379,8 @@ TextState Message::textState(
 				return;
 			}
 			const auto bottomInfoResult = bottomInfoTextState(
-				bubble.left() + bubble.width(),
-				bubble.top() + bubble.height(),
+				inner.left() + inner.width(),
+				inner.top() + inner.height(),
 				point,
 				InfoDisplayType::Default);
 			if (bottomInfoResult.link
@@ -2709,9 +2728,11 @@ int Message::resizeContentGetHeight(int newWidth) {
 			} else {
 				newHeight = 0;
 			}
-			if (!mediaOnBottom) {
+			if (!mediaOnBottom && (!_viewButton || !reactionsInBubble)) {
 				newHeight += st::msgPadding.bottom();
-				if (mediaDisplayed) newHeight += st::mediaInBubbleSkip;
+				if (mediaDisplayed) {
+					newHeight += st::mediaInBubbleSkip;
+				}
 			}
 			if (!mediaOnTop) {
 				newHeight += st::msgPadding.top();
