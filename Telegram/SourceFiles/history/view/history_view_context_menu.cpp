@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_polls.h"
+#include "api/api_who_reacted.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
 #include "history/view/history_view_list_widget.h"
@@ -21,10 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
+#include "history/view/reactions/message_reactions_list.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/controls/delete_message_context_action.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "ui/boxes/report_box.h"
 #include "ui/ui_utility.h"
 #include "chat_helpers/send_context_menu.h"
@@ -53,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "facades.h"
+#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -913,10 +917,6 @@ ContextMenuRequest::ContextMenuRequest(
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		not_null<ListWidget*> list,
 		const ContextMenuRequest &request) {
-	auto result = base::make_unique_q<Ui::PopupMenu>(
-		list,
-		st::popupMenuWithIcons);
-
 	const auto link = request.link;
 	const auto view = request.view;
 	const auto item = request.item;
@@ -933,6 +933,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		: nullptr;
 	const auto hasSelection = !request.selectedItems.empty()
 		|| !request.selectedText.empty();
+	const auto hasWhoReactedItem = item && Api::WhoReactedExists(item);
+
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		list,
+		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);
 
 	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
 		const auto text = request.selectedItems.empty()
@@ -981,6 +986,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
+
+	if (hasWhoReactedItem) {
+		AddWhoReactedAction(result, list, item, list->controller());
+	}
+
 	return result;
 }
 
@@ -1058,6 +1068,34 @@ void AddPollActions(
 			StopPoll(&poll->session(), itemId);
 		}, &st::menuIconStopPoll);
 	}
+}
+
+void AddWhoReactedAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<QWidget*> context,
+		not_null<HistoryItem*> item,
+		not_null<Window::SessionController*> controller) {
+	const auto participantChosen = [=](uint64 id) {
+		controller->showPeerInfo(PeerId(id));
+	};
+	const auto weak = Ui::MakeWeak(menu.get());
+	const auto showAllChosen = [=, itemId = item->fullId()]{
+		// Pressing on an item that has a submenu doesn't hide it :(
+		if (const auto strong = weak.data()) {
+			strong->hideMenu();
+		}
+		if (const auto item = controller->session().data().message(itemId)) {
+			controller->window().show(ReactionsListBox(controller, item));
+		}
+	};
+	if (!menu->empty()) {
+		menu->addSeparator();
+	}
+	menu->addAction(Ui::WhoReactedContextAction(
+		menu.get(),
+		Api::WhoReacted(item, context, st::defaultWhoRead),
+		participantChosen,
+		showAllChosen));
 }
 
 void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids) {

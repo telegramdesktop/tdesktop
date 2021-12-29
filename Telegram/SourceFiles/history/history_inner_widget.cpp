@@ -2079,29 +2079,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	if (hasWhoReactedItem) {
-		const auto participantChosen = [=](uint64 id) {
-			controller->showPeerInfo(PeerId(id));
-		};
-		const auto weak = Ui::MakeWeak(_menu.get());
-		const auto showAllChosen = [=, id = _dragStateItem->fullId()] {
-			// Pressing on an item that has a submenu doesn't hide it :(
-			if (const auto strong = weak.data()) {
-				strong->hideMenu();
-			}
-			if (const auto item = controller->session().data().message(id)) {
-				controller->window().show(HistoryView::ReactionsListBox(
-					controller,
-					item));
-			}
-		};
-		if (!_menu->empty()) {
-			_menu->addSeparator();
-		}
-		_menu->addAction(Ui::WhoReactedContextAction(
-			_menu.get(),
-			Api::WhoReacted(_dragStateItem, this, st::defaultWhoRead),
-			participantChosen,
-			showAllChosen));
+		HistoryView::AddWhoReactedAction(
+			_menu,
+			this,
+			_dragStateItem,
+			_controller);
 	}
 
 	if (_menu->empty()) {
