@@ -45,6 +45,7 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
             }
 
             _logout->SetLogout(i, buttons[i]->toggled());
+            _domain->local().writeAccounts();
         });
     }
 }

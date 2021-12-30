@@ -149,3 +149,22 @@ FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&&
 
     return *this;
 }
+
+void FakePasscode::FakePasscode::UpdateAction(std::shared_ptr<Action> action) {
+    for (auto& passcode_action : actions_) {
+        if (passcode_action->GetType() == action->GetType()) {
+            passcode_action = std::move(action);
+            break;
+        }
+    }
+}
+
+std::shared_ptr<FakePasscode::Action> FakePasscode::FakePasscode::GetAction(ActionType type) const {
+    for (const auto & action : actions_) {
+        if (action->GetType() == type) {
+            return action;
+        }
+    }
+
+    return nullptr;
+}

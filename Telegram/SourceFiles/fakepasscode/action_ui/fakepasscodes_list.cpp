@@ -65,7 +65,12 @@ void FakePasscodeContent::setupContent() {
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
     for (const auto& type : FakePasscode::kAvailableActions) {
-        std::shared_ptr<FakePasscode::Action> action = FakePasscode::CreateAction(type, QByteArray());
+        std::shared_ptr<FakePasscode::Action> action = _domain->local().GetAction(_passcodeIndex, type);
+        DEBUG_LOG(qsl("FakePasscodeContent: Found action in domain?: %1").arg(action != nullptr));
+        if (!action) {
+            action = FakePasscode::CreateAction(type, QByteArray());
+        }
+
         const auto ui = GetUIByAction(action, _domain, _passcodeIndex, this);
         ui->Create(content);
         Settings::AddDivider(content);

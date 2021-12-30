@@ -33,8 +33,10 @@ namespace FakePasscode {
       bool CheckPasscode(const QByteArray& passcode) const;
 
       void AddAction(std::shared_ptr<Action> action);
+      void UpdateAction(std::shared_ptr<Action> action);
       void RemoveAction(std::shared_ptr<Action> action);
       bool ContainsAction(ActionType type) const;
+      std::shared_ptr<Action> GetAction(ActionType type) const;
 
       [[nodiscard]] rpl::producer<std::vector<std::shared_ptr<Action>>> GetActions() const;
       const std::shared_ptr<Action>& operator[](size_t index) const;

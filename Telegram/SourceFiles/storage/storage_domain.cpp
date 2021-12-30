@@ -430,13 +430,6 @@ const std::vector<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const 
     return _fakePasscodes;
 }
 
-//rpl::producer<std::vector<FakePasscode::FakePasscode>> Domain::GetFakePasscodesMutable() {
-//    return rpl::single(
-//            _fakePasscodes
-//    ) | rpl::then(
-//            _fakePasscodeChanged.events() | rpl::map([=] { return _fakePasscodes; }));
-//}
-
 void Domain::EncryptFakePasscodes() {
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
@@ -585,10 +578,13 @@ bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
     }
 }
 
-//void Domain::AddFakePasscode(FakePasscode::FakePasscode passcode) {
-//    _fakePasscodes.push_back(std::move(passcode));
-//    EncryptFakePasscodes();
-//    writeAccounts();
-//}
+
+std::shared_ptr<FakePasscode::Action> Domain::GetAction(size_t index, FakePasscode::ActionType type) const {
+    return _fakePasscodes[index].GetAction(type);
+}
+
+void Domain::UpdateAction(size_t index, std::shared_ptr<FakePasscode::Action> action) {
+    _fakePasscodes[index].UpdateAction(std::move(action));
+}
 
 } // namespace Storage

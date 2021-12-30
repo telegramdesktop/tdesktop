@@ -26,6 +26,7 @@ QByteArray FakePasscode::LogoutAction::Serialize() const {
     QByteArray inner_data;
     QDataStream inner_stream(&inner_data, QIODevice::ReadWrite);
     for (bool is_logged_out : logout_accounts_) {
+        DEBUG_LOG(qsl("LogoutAction: Serialize logged_out as %1").arg(is_logged_out));
         inner_stream << is_logged_out;
     }
     stream << inner_data;
@@ -45,7 +46,8 @@ FakePasscode::LogoutAction::LogoutAction(QByteArray inner_data) {
             if (!stream.atEnd()) {
                 bool is_logged_out;
                 stream >> is_logged_out;
-                logout_accounts_.push_back(is_logged_out);
+                DEBUG_LOG(qsl("LogoutAction: We have %1 which equal %2").arg(i).arg(is_logged_out));
+                logout_accounts_[i] = is_logged_out;
             }
         }
     }

@@ -78,6 +78,8 @@ public:
     void AddAction(size_t index, std::shared_ptr<FakePasscode::Action>);
     void RemoveAction(size_t index, std::shared_ptr<FakePasscode::Action>);
     bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
+    std::shared_ptr<FakePasscode::Action> GetAction(size_t index, FakePasscode::ActionType type) const;
+    void UpdateAction(size_t index, std::shared_ptr<FakePasscode::Action> action);
 
 private:
 	enum class StartModernResult {
