@@ -2966,6 +2966,7 @@ auto HistoryInner::reactionButtonParameters(
 	if (top < 0
 		|| !view->data()->canReact()
 		|| _mouseAction == MouseAction::Dragging
+		|| _mouseAction == MouseAction::Selecting
 		|| inSelectionMode()) {
 		return {};
 	}
