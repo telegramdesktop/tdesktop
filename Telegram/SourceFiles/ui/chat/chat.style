@@ -920,6 +920,9 @@ whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
 whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
 whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
 whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
+whoReadReactions: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactionsOver: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
 reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};

@@ -400,7 +400,7 @@ void Action::paint(Painter &p) {
 	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
-	if (const auto emoji = Emoji::Find(_content.mostPopularReaction)) {
+	if (const auto emoji = Emoji::Find(_content.singleReaction)) {
 		// #TODO reactions
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Emoji::GetSizeNormal();
@@ -409,7 +409,13 @@ void Action::paint(Painter &p) {
 		const auto y = (_height - (size / ratio)) / 2;
 		Emoji::Draw(p, emoji, size, x, y);
 	} else {
-		const auto &icon = (_content.type == WhoReadType::Seen)
+		const auto &icon = (_content.fullReactionsCount)
+			? (!enabled
+				? st::whoReadReactionsDisabled
+				: selected
+				? st::whoReadReactionsOver
+				: st::whoReadReactions)
+			: (_content.type == WhoReadType::Seen)
 			? (!enabled
 				? st::whoReadChecksDisabled
 				: selected

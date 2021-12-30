@@ -362,7 +362,7 @@ infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg, poi
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg, point(-2px, -2px) }};
 infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg, point(0px, -2px) }};
 infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg, point(-2px, 0px) }};
-infoIconReactions: icon {{ "menu/read_reactions", infoIconFg, point(2px, 4px) }};
+infoIconReactions: icon {{ "info/edit/group_manage_reactions", infoIconFg, point(2px, 4px) }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);

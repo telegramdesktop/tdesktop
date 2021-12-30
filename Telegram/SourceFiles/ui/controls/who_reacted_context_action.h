@@ -40,7 +40,7 @@ enum class WhoReadType {
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
-	QString mostPopularReaction;
+	QString singleReaction;
 	int fullReactionsCount = 0;
 	bool unknown = false;
 };

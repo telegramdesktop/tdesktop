@@ -493,7 +493,9 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 				[](const auto &pair) { return pair.second; });
 
 			// #TODO reactions
-			state->current.mostPopularReaction = item->reactions().front().first;
+			state->current.singleReaction = (list.size() == 1)
+				? list.front().first
+				: QString();
 		}
 		std::move(
 			idsWithReactions
