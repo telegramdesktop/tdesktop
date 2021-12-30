@@ -53,6 +53,7 @@ struct ButtonParameters {
 	int reactionsCount = 1;
 	int visibleTop = 0;
 	int visibleBottom = 0;
+	bool outside = false;
 };
 
 enum class ButtonState {
@@ -64,7 +65,10 @@ enum class ButtonState {
 
 class Button final {
 public:
-	Button(Fn<void(QRect)> update, ButtonParameters parameters);
+	Button(
+		Fn<void(QRect)> update,
+		ButtonParameters parameters,
+		Fn<void()> hideMe);
 	~Button();
 
 	void applyParameters(ButtonParameters parameters);
@@ -106,6 +110,7 @@ private:
 	ButtonStyle _style = ButtonStyle::Incoming;
 
 	base::Timer _expandTimer;
+	base::Timer _hideTimer;
 	std::optional<QPoint> _lastGlobalPosition;
 
 };

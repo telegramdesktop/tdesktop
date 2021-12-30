@@ -32,6 +32,7 @@ constexpr auto kMaskCacheIndex = 2;
 constexpr auto kCacheColumsCount = 3;
 constexpr auto kButtonShowDelay = crl::time(300);
 constexpr auto kButtonExpandDelay = crl::time(300);
+constexpr auto kButtonHideDelay = crl::time(200);
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -60,11 +61,13 @@ constexpr auto kButtonExpandDelay = crl::time(300);
 
 Button::Button(
 	Fn<void(QRect)> update,
-	ButtonParameters parameters)
+	ButtonParameters parameters,
+	Fn<void()> hideMe)
 : _update(std::move(update))
 , _collapsed(QPoint(), CountOuterSize())
 , _finalHeight(_collapsed.height())
-, _expandTimer([=] { applyState(State::Inside, _update); }) {
+, _expandTimer([=] { applyState(State::Inside, _update); })
+, _hideTimer(hideMe) {
 	applyParameters(parameters, nullptr);
 }
 
@@ -152,6 +155,11 @@ void Button::applyParameters(
 			update(_geometry);
 		}
 	}
+	if (parameters.outside && _state == State::Shown) {
+		_hideTimer.callOnce(kButtonHideDelay);
+	} else {
+		_hideTimer.cancel();
+	}
 }
 
 void Button::updateExpandDirection(const ButtonParameters &parameters) {
@@ -202,6 +210,7 @@ void Button::applyState(State state) {
 void Button::applyState(State state, Fn<void(QRect)> update) {
 	if (state == State::Hidden) {
 		_expandTimer.cancel();
+		_hideTimer.cancel();
 	}
 	const auto finalHeight = (state == State::Inside)
 		? _expandedHeight
@@ -332,6 +341,10 @@ void Manager::updateButton(ButtonParameters parameters) {
 	} else if (_button) {
 		_button->applyParameters(parameters);
 		return;
+	} else if (parameters.outside) {
+		_buttonShowTimer.cancel();
+		_scheduledParameters = std::nullopt;
+		return;
 	}
 	const auto globalPositionChanged = _scheduledParameters
 		&& (_scheduledParameters->globalPointer != parameters.globalPointer);
@@ -345,7 +358,10 @@ void Manager::updateButton(ButtonParameters parameters) {
 }
 
 void Manager::showButtonDelayed() {
-	_button = std::make_unique<Button>(_buttonUpdate, *_scheduledParameters);
+	_button = std::make_unique<Button>(
+		_buttonUpdate,
+		*_scheduledParameters,
+		[=]{ updateButton({}); });
 }
 
 void Manager::applyList(std::vector<Data::Reaction> list) {

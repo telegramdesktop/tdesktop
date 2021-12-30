@@ -1867,11 +1867,16 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 			st::reactionCornerCenter.y()))
 		: (QPoint(contentRect.width(), innerHeight)
 			+ st::reactionCornerCenter));
-	if (reactionState.itemId != result.context) {
-		if (!contentRect.contains(position)) {
-			return {};
-		}
+	if (reactionState.itemId != result.context
+		&& !contentRect.contains(position)) {
+		result.outside = true;
 	}
+	const auto minSkip = (st::reactionCornerShadow.left()
+		+ st::reactionCornerSize.width()
+		+ st::reactionCornerShadow.right()) / 2;
+	result.center = QPoint(
+		std::min(std::max(result.center.x(), minSkip), width() - minSkip),
+		result.center.y());
 	return result;
 }
 
