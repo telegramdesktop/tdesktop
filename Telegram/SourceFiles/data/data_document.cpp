@@ -1336,7 +1336,7 @@ bool DocumentData::isSongWithCover() const {
 }
 
 bool DocumentData::isAudioFile() const {
-	if (isVoiceMessage()) {
+	if (isVoiceMessage() || isVideoFile()) {
 		return false;
 	} else if (isSong()) {
 		return true;
