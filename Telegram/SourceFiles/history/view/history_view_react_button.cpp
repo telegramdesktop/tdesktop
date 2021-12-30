@@ -285,6 +285,7 @@ Manager::Manager(
 	_shadowBuffer = QImage(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	_shadowBuffer.setDevicePixelRatio(ratio);
 
 	if (wheelEventsTarget) {
 		stealWheelEvents(wheelEventsTarget);
@@ -592,10 +593,8 @@ void Manager::paintButton(
 		paintAllEmoji(p, button, scale, mainEmojiPosition);
 		p.restore();
 	} else {
-		p.drawImage(
-			mainEmojiPosition,
-			_cacheParts,
-			validateEmoji(frameIndex, scale));
+		const auto source = validateEmoji(frameIndex, scale);
+		p.drawImage(mainEmojiPosition, _cacheParts, source);
 	}
 
 	if (opacity != 1.) {
