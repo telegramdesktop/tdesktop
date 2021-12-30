@@ -1170,7 +1170,7 @@ bool Gif::needsBubble() const {
 	return false;
 }
 
-QRect Gif::contentRectForReactionButton() const {
+QRect Gif::contentRectForReactions() const {
 	if (!isSeparateRoundVideo()) {
 		return QRect(0, 0, width(), height());
 	}
@@ -1189,6 +1189,31 @@ QRect Gif::contentRectForReactionButton() const {
 	}
 	if (rtl()) usex = width() - usex - usew;
 	return style::rtlrect(usex + paintx, painty, usew, painth, width());
+}
+
+std::optional<int> Gif::reactionButtonCenterOverride() const {
+	if (!isSeparateRoundVideo()) {
+		return std::nullopt;
+	}
+	const auto inner = contentRectForReactions();
+	auto fullRight = inner.x() + inner.width();
+	auto maxRight = _parent->width() - st::msgMargin.left();
+	if (_parent->hasFromPhoto()) {
+		maxRight -= st::msgMargin.right();
+	} else {
+		maxRight -= st::msgMargin.left();
+	}
+	const auto infoWidth = _parent->infoWidth();
+	if (!_parent->hasOutLayout()) {
+		// This is just some arbitrary point,
+		// the main idea is to make info left aligned here.
+		fullRight += infoWidth - st::normalFont->height;
+		if (fullRight > maxRight) {
+			fullRight = maxRight;
+		}
+	}
+	const auto right = fullRight - infoWidth - 3 * st::msgDateImgPadding.x();
+	return right - st::reactionCornerSize.width() / 2;
 }
 
 int Gif::additionalWidth() const {

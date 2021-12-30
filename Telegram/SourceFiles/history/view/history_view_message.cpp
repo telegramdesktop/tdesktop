@@ -605,7 +605,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	if (_reactions && !reactionsInBubble) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
 		const auto reactionsLeft = (!bubble && mediaDisplayed)
-			? media->contentRectForReactionButton().x()
+			? media->contentRectForReactions().x()
 			: 0;
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
@@ -1281,7 +1281,7 @@ TextState Message::textState(
 	if (_reactions && !reactionsInBubble) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
 		const auto reactionsLeft = (!bubble && mediaDisplayed)
-			? media->contentRectForReactionButton().x()
+			? media->contentRectForReactions().x()
 			: 0;
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
@@ -1856,19 +1856,17 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	const auto innerHeight = geometry.height()
 		- keyboardHeight
 		- reactionsHeight;
-	const auto contentRect = (result.style == ButtonStyle::Service
-		&& !drawBubble())
-		? media()->contentRectForReactionButton().translated(
-			geometry.topLeft())
-		: geometry;
-	result.center = contentRect.topLeft() + (onTheLeft
-		? (QPoint(0, innerHeight) + QPoint(
-			-st::reactionCornerCenter.x(),
-			st::reactionCornerCenter.y()))
-		: (QPoint(contentRect.width(), innerHeight)
-			+ st::reactionCornerCenter));
+	const auto maybeRelativeCenter = (result.style == ButtonStyle::Service)
+		? media()->reactionButtonCenterOverride()
+		: std::nullopt;
+	const auto relativeCenter = QPoint(
+		maybeRelativeCenter.value_or(onTheLeft
+			? -st::reactionCornerCenter.x()
+			: (geometry.width() + st::reactionCornerCenter.x())),
+		innerHeight + st::reactionCornerCenter.y());
+	result.center = geometry.topLeft() + relativeCenter;
 	if (reactionState.itemId != result.context
-		&& !contentRect.contains(position)) {
+		&& !geometry.contains(position)) {
 		result.outside = true;
 	}
 	const auto minSkip = (st::reactionCornerShadow.left()
@@ -2794,7 +2792,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	}
 	if (_reactions && !reactionsInBubble) {
 		const auto reactionsWidth = (!bubble && mediaDisplayed)
-			? media->contentRectForReactionButton().width()
+			? media->contentRectForReactions().width()
 			: contentWidth;
 		newHeight += st::mediaInBubbleSkip
 			+ _reactions->resizeGetHeight(reactionsWidth);

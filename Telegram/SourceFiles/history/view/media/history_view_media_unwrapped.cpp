@@ -401,7 +401,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-QRect UnwrappedMedia::contentRectForReactionButton() const {
+QRect UnwrappedMedia::contentRectForReactions() const {
 	const auto inWebPage = (_parent->media() != this);
 	if (inWebPage) {
 		return QRect(0, 0, width(), height());
@@ -430,6 +430,15 @@ QRect UnwrappedMedia::contentRectForReactionButton() const {
 			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
 		: _contentSize.height();
 	return QRect(usex, usey, usew, useh);
+}
+
+std::optional<int> UnwrappedMedia::reactionButtonCenterOverride() const {
+	const auto fullRight = calculateFullRight(contentRectForReactions());
+	const auto right = fullRight
+		- _parent->infoWidth()
+		- st::msgDateImgPadding.x() * 2
+		- st::msgReplyPadding.left();
+	return right - st::reactionCornerSize.width() / 2;
 }
 
 std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(

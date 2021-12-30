@@ -82,7 +82,6 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
-	QRect contentRectForReactionButton() const override;
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}

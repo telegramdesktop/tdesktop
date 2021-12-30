@@ -417,6 +417,7 @@ private:
 	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
+	bool _recountedAfterPendingResizedItems = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
