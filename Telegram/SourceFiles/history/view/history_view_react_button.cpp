@@ -571,7 +571,7 @@ void Manager::paintButton(
 			QRect(QPoint(), geometry.size() * style::DevicePixelRatio()));
 	} else {
 		const auto background = (style == ButtonStyle::Service)
-			? context.st->msgServiceFg()->c
+			? context.st->windowBg()->c
 			: context.st->messageStyle(
 				(style == ButtonStyle::Outgoing),
 				false
