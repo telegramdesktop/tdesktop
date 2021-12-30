@@ -1643,7 +1643,7 @@ void ListWidget::showContextMenu(
 								document,
 								DocumentSaveClickHandler::Mode::ToNewFile);
 						});
-					if (_peer->allowsForwarding()) {
+					if (_peer->allowsForwarding() && !item->forbidsForward()) {
 						_contextMenu->addAction(
 							(isVideo
 								? tr::lng_context_save_video(tr::now)
