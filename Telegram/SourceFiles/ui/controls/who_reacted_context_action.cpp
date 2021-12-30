@@ -455,7 +455,7 @@ void Action::refreshText() {
 		_st.itemStyle,
 		{ (_content.unknown
 			? tr::lng_context_seen_loading(tr::now)
-			: (count == 1)
+			: (usersCount == 1)
 			? _content.participants.front().name
 			: (_content.type == WhoReadType::Reacted
 				|| (count > 0 && _content.fullReactionsCount > usersCount))

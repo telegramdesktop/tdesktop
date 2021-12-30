@@ -31,28 +31,50 @@ namespace {
 
 constexpr auto kContextReactionsLimit = 50;
 
+struct Peers {
+	std::vector<PeerId> list;
+	bool unknown = false;
+};
+inline bool operator==(const Peers &a, const Peers &b) noexcept {
+	return (a.list == b.list) && (a.unknown == b.unknown);
+}
+
 struct PeerWithReaction {
 	PeerId peer = 0;
 	QString reaction;
 };
-bool operator==(const PeerWithReaction &a, const PeerWithReaction &b) {
+inline bool operator==(
+		const PeerWithReaction &a,
+		const PeerWithReaction &b) noexcept {
 	return (a.peer == b.peer) && (a.reaction == b.reaction);
 }
 
+struct PeersWithReactions {
+	std::vector<PeerWithReaction> list;
+	int fullReactionsCount = 0;
+	bool unknown = false;
+};
+inline bool operator==(
+		const PeersWithReactions &a,
+		const PeersWithReactions &b) noexcept {
+	return (a.fullReactionsCount == b.fullReactionsCount)
+		&& (a.list == b.list)
+		&& (a.unknown == b.unknown);
+}
+
 struct CachedRead {
-	explicit CachedRead(PeerId unknownFlag)
-	: list(std::vector<PeerId>{ unknownFlag }) {
+	CachedRead()
+	: data(Peers{ .unknown = true }) {
 	}
-	rpl::variable<std::vector<PeerId>> list;
+	rpl::variable<Peers> data;
 	mtpRequestId requestId = 0;
 };
 
 struct CachedReacted {
-	explicit CachedReacted(PeerId unknownFlag)
-	: list(
-		std::vector<PeerWithReaction>{ PeerWithReaction{ unknownFlag } }) {
+	CachedReacted()
+	: data(PeersWithReactions{ .unknown = true }) {
 	}
-	rpl::variable<std::vector<PeerWithReaction>> list;
+	rpl::variable<PeersWithReactions> data;
 	mtpRequestId requestId = 0;
 };
 
@@ -66,10 +88,7 @@ struct Context {
 		if (i != end(cachedRead)) {
 			return i->second;
 		}
-		return cachedRead.emplace(
-			item,
-			CachedRead(item->history()->session().userPeerId())
-		).first->second;
+		return cachedRead.emplace(item, CachedRead()).first->second;
 	}
 
 	[[nodiscard]] CachedReacted &cacheReacted(not_null<HistoryItem*> item) {
@@ -77,10 +96,7 @@ struct Context {
 		if (i != end(cachedReacted)) {
 			return i->second;
 		}
-		return cachedReacted.emplace(
-			item,
-			CachedReacted(item->history()->session().userPeerId())
-		).first->second;
+		return cachedReacted.emplace(item, CachedReacted()).first->second;
 	}
 };
 
@@ -193,7 +209,7 @@ struct State {
 	return Ui::WhoReadType::Seen;
 }
 
-[[nodiscard]] rpl::producer<std::vector<PeerId>> WhoReadIds(
+[[nodiscard]] rpl::producer<Peers> WhoReadIds(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context) {
 	auto weak = QPointer<QWidget>(context.get());
@@ -213,32 +229,35 @@ struct State {
 			).done([=](const MTPVector<MTPlong> &result) {
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
-				auto peers = std::vector<PeerId>();
-				peers.reserve(std::max(int(result.v.size()), 1));
+				auto parsed = Peers();
+				parsed.list.reserve(result.v.size());
 				for (const auto &id : result.v) {
-					peers.push_back(UserId(id));
+					parsed.list.push_back(UserId(id));
 				}
-				entry.list = std::move(peers);
+				entry.data = std::move(parsed);
 			}).fail([=] {
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
-				if (ListUnknown(entry.list.current(), item)) {
-					entry.list = std::vector<PeerId>();
+				if (entry.data.current().unknown) {
+					entry.data = Peers();
 				}
 			}).send();
 		}
-		return entry.list.value().start_existing(consumer);
+		return entry.data.value().start_existing(consumer);
 	};
 }
 
-[[nodiscard]] std::vector < PeerWithReaction> WithEmptyReactions(
-		const std::vector<PeerId> &peers) {
-	return peers | ranges::views::transform([](PeerId peer) {
-		return PeerWithReaction{ .peer = peer };
-	}) | ranges::to_vector;
+[[nodiscard]] PeersWithReactions WithEmptyReactions(
+		const Peers &peers) {
+	return PeersWithReactions{
+		.list = peers.list | ranges::views::transform([](PeerId peer) {
+			return PeerWithReaction{.peer = peer };
+		}) | ranges::to_vector,
+		.unknown = peers.unknown,
+	};
 }
 
-[[nodiscard]] rpl::producer<std::vector<PeerWithReaction>> WhoReactedIds(
+[[nodiscard]] rpl::producer<PeersWithReactions> WhoReactedIds(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context) {
 	auto weak = QPointer<QWidget>(context.get());
@@ -267,46 +286,47 @@ struct State {
 						const MTPDmessages_messageReactionsList &data) {
 					session->data().processUsers(data.vusers());
 
-					auto peers = std::vector<PeerWithReaction>();
-					peers.reserve(data.vreactions().v.size());
+					auto parsed = PeersWithReactions{
+						.fullReactionsCount = data.vcount().v,
+					};
+					parsed.list.reserve(data.vreactions().v.size());
 					for (const auto &vote : data.vreactions().v) {
 						vote.match([&](const auto &data) {
-							peers.push_back(PeerWithReaction{
+							parsed.list.push_back(PeerWithReaction{
 								.peer = peerFromUser(data.vuser_id()),
 								.reaction = qs(data.vreaction()),
 							});
 						});
 					}
-					entry.list = std::move(peers);
+					entry.data = std::move(parsed);
 				});
 			}).fail([=] {
 				auto &entry = context->cacheReacted(item);
 				entry.requestId = 0;
-				if (ListUnknown(entry.list.current(), item)) {
-					entry.list = std::vector<PeerWithReaction>();
+				if (entry.data.current().unknown) {
+					entry.data = PeersWithReactions();
 				}
 			}).send();
 		}
-		return entry.list.value().start_existing(consumer);
+		return entry.data.value().start_existing(consumer);
 	};
 }
 
 [[nodiscard]] auto WhoReadOrReactedIds(
 	not_null<HistoryItem*> item,
 	not_null<QWidget*> context)
--> rpl::producer<std::vector<PeerWithReaction>> {
+-> rpl::producer<PeersWithReactions> {
 	return rpl::combine(
 		WhoReactedIds(item, context),
 		WhoReadIds(item, context)
-	) | rpl::map([=](
-			std::vector<PeerWithReaction> reacted,
-			std::vector<PeerId> read) {
-		if (ListUnknown(reacted, item) || ListUnknown(read, item)) {
-			return reacted;
+	) | rpl::map([=](PeersWithReactions reacted, Peers read) {
+		if (reacted.unknown || read.unknown) {
+			return PeersWithReactions{ .unknown = true };
 		}
-		for (const auto &peer : read) {
-			if (!ranges::contains(reacted, peer, &PeerWithReaction::peer)) {
-				reacted.push_back({ .peer = peer });
+		auto &list = reacted.list;
+		for (const auto &peer : read.list) {
+			if (!ranges::contains(list, peer, &PeerWithReaction::peer)) {
+				list.push_back({ .peer = peer });
 			}
 		}
 		return reacted;
@@ -499,19 +519,20 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 		}
 		std::move(
 			idsWithReactions
-		) | rpl::start_with_next([=](
-				const std::vector<PeerWithReaction> &peers) {
-			if (ListUnknown(peers, item)) {
+		) | rpl::start_with_next([=](const PeersWithReactions &peers) {
+			if (peers.unknown) {
 				state->userpics.clear();
 				consumer.put_next(Ui::WhoReadContent{
 					.type = state->current.type,
 					.unknown = true,
 				});
 				return;
-			} else if (UpdateUserpics(state, item, peers)) {
+			}
+			state->current.fullReactionsCount = peers.fullReactionsCount;
+			if (UpdateUserpics(state, item, peers.list)) {
 				RegenerateParticipants(state, small, large);
 				pushNext();
-			} else if (peers.empty()) {
+			} else if (peers.list.empty()) {
 				pushNext();
 			}
 		}, lifetime);
