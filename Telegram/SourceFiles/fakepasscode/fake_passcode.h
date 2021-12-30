@@ -17,8 +17,7 @@ namespace FakePasscode {
 
       explicit FakePasscode(std::vector<std::shared_ptr<Action>> actions);
 
-//      FakePasscode(const FakePasscode& passcode);
-      FakePasscode(FakePasscode&& passcode);
+      FakePasscode(FakePasscode&& passcode) noexcept;
 
       virtual ~FakePasscode() = default;
 
@@ -27,9 +26,6 @@ namespace FakePasscode {
       [[nodiscard]] MTP::AuthKeyPtr GetEncryptedPasscode() const;
       [[nodiscard]] QByteArray GetPasscode() const;
       void SetPasscode(QByteArray passcode);
-
-      const QByteArray &getSalt() const;
-      void setSalt(const QByteArray &salt);
 
       const QString &GetName() const;
       void SetName(QString name);
@@ -44,6 +40,7 @@ namespace FakePasscode {
       const std::shared_ptr<Action>& operator[](size_t index) const;
 
       void SetSalt(QByteArray salt);
+      const QByteArray& GetSalt() const;
 
       QByteArray SerializeActions() const;
       void DeSerializeActions(QByteArray serialized);
@@ -51,7 +48,7 @@ namespace FakePasscode {
       bool operator==(const FakePasscode& other) const;
       bool operator!=(const FakePasscode& other) const;
 
-      FakePasscode& operator=(FakePasscode&& passcode);
+      FakePasscode& operator=(FakePasscode&& passcode) noexcept;
 
    protected:
       QByteArray salt_;

@@ -18,6 +18,10 @@ void FakePasscode::FakePasscode::SetSalt(QByteArray salt) {
     salt_ = std::move(salt);
 }
 
+const QByteArray& FakePasscode::FakePasscode::GetSalt() const {
+    return salt_;
+}
+
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
     actions_.push_back(std::move(action));
     actions_changed_.fire({});
@@ -62,14 +66,6 @@ bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const
     return checkKey->equals(fake_passcode);
 }
 
-const QByteArray &FakePasscode::FakePasscode::getSalt() const {
-    return salt_;
-}
-
-void FakePasscode::FakePasscode::setSalt(const QByteArray &salt) {
-    salt_ = salt;
-}
-
 QByteArray FakePasscode::FakePasscode::SerializeActions() const {
     QByteArray result;
     QDataStream stream(&result, QIODevice::ReadWrite);
@@ -108,9 +104,7 @@ bool FakePasscode::FakePasscode::operator==(const FakePasscode &other) const {
     }
 
     // No need to check for salt, because it can change, but passcode is the same
-    if (fake_passcode_ != other.fake_passcode_) {
-        return false;
-    } else if (actions_.size() != other.actions_.size()) {
+    if (fake_passcode_ != other.fake_passcode_ || actions_.size() != other.actions_.size()) {
         return false;
     }
 
@@ -134,7 +128,7 @@ void FakePasscode::FakePasscode::SetName(QString name) {
     name_ = std::move(name);
 }
 
-FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode)
+FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
 : salt_(std::move(passcode.salt_))
 , fake_passcode_(std::move(passcode.fake_passcode_))
 , actions_(std::move(passcode.actions_))
@@ -142,7 +136,7 @@ FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode)
 , actions_changed_(std::move(passcode.actions_changed_)) {
 }
 
-FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&& passcode) {
+FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&& passcode) noexcept {
     if (this == &passcode) {
         return *this;
     }

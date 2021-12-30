@@ -250,7 +250,7 @@ bool Domain::checkPasscode(const QByteArray &passcode) const {
 }
 
 bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) const {
-    const auto checkKey = CreateLocalKey(passcode, _fakePasscodes[fakeIndex].getSalt());
+    const auto checkKey = CreateLocalKey(passcode, _fakePasscodes[fakeIndex].GetSalt());
     return checkKey->equals(_fakePasscodes[fakeIndex].GetEncryptedPasscode());
 }
 
