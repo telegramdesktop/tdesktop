@@ -1,3 +1,7 @@
+3.4.1 (31.12.21)
+
+- Bug fixes and other minor improvements.
+
 3.4 (30.12.21)
 
 - Send reactions to messages.
