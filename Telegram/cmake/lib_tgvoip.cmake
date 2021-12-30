@@ -212,12 +212,6 @@ if (NOT TGVOIP_FOUND)
 
             target_compile_definitions(lib_tgvoip_bundled PRIVATE WITHOUT_PULSE)
         endif()
-
-        target_link_libraries(lib_tgvoip_bundled
-        PRIVATE
-            ${CMAKE_DL_LIBS}
-            pthread
-        )
     endif()
 
     target_link_libraries(lib_tgvoip
