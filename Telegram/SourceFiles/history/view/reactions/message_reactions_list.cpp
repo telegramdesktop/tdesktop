@@ -61,7 +61,7 @@ private:
 	using AllEntry = std::pair<not_null<UserData*>, QString>;
 
 	void loadMore(const QString &offset);
-	bool appendRow(not_null<UserData*> user, QString reaction = QString());
+	bool appendRow(not_null<UserData*> user, QString reaction);
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user,
 		QString reaction) const;
@@ -175,7 +175,7 @@ void Controller::showReaction(const QString &reaction) {
 			&AllEntry::first
 		) | ranges::to_vector;
 		for (const auto user : _filtered) {
-			appendRow(user);
+			appendRow(user, _shownReaction);
 		}
 		loadMore(QString());
 	}
@@ -221,7 +221,7 @@ void Controller::loadMore(const QString &offset) {
 				reaction.match([&](const MTPDmessageUserReaction &data) {
 					const auto user = sessionData->userLoaded(
 						data.vuser_id().v);
-					const auto reaction = filtered ? QString() : qs(data.vreaction());
+					const auto reaction = qs(data.vreaction());
 					if (user && appendRow(user, reaction)) {
 						if (filtered) {
 							_filtered.emplace_back(user);
