@@ -1868,7 +1868,6 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 		: (QPoint(contentRect.width(), innerHeight)
 			+ st::reactionCornerCenter));
 	if (reactionState.itemId != result.context) {
-		const auto top = marginTop();
 		if (!contentRect.contains(position)) {
 			return {};
 		}
