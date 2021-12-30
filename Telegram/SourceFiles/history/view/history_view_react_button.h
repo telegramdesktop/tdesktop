@@ -194,9 +194,9 @@ private:
 		const QRect &geometry,
 		const PaintContext &context);
 
-	[[nodiscard]] QMarginsF innerMargins() const;
-	[[nodiscard]] QRectF buttonInner() const;
-	[[nodiscard]] QRectF buttonInner(not_null<Button*> button) const;
+	[[nodiscard]] QMargins innerMargins() const;
+	[[nodiscard]] QRect buttonInner() const;
+	[[nodiscard]] QRect buttonInner(not_null<Button*> button) const;
 	void loadOtherReactions();
 	void checkOtherReactions();
 	[[nodiscard]] ClickHandlerPtr computeButtonLink(QPoint position) const;
@@ -207,8 +207,7 @@ private:
 	std::vector<Data::Reaction> _list;
 	mutable std::vector<ClickHandlerPtr> _links;
 	QSize _outer;
-	QRectF _inner;
-	QRect _innerActive;
+	QRect _inner;
 	QImage _cacheInOutService;
 	QImage _cacheParts;
 	QImage _cacheForPattern;
