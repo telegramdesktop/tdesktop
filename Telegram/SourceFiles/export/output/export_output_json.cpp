@@ -268,7 +268,7 @@ QByteArray SerializeMessage(
 		}
 	};
 	if (message.edited) {
-		pushBare("edited", SerializeDate(message.edited));
+		pushBare(" edited", SerializeDate(message.edited));
 	}
 
 	const auto push = [&](const QByteArray &key, const auto &value) {
