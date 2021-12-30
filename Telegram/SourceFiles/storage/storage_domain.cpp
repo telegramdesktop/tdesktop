@@ -264,6 +264,7 @@ void Domain::setPasscode(const QByteArray &passcode) {
         } else {
             DEBUG_LOG(("Infinity mode activated"));
             _isInfinityFakeModeActivated = true;
+            _fakePasscodeIndex = -1;
             encryptLocalKey(passcode);
         }
     } else {
