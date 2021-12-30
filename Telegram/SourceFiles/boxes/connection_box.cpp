@@ -522,7 +522,7 @@ void ProxyRow::showMenu() {
 			const QString &text,
 			Fn<void()> callback,
 			const style::icon *icon) {
-		return _menu->addAction(text, std::move(callback));
+		return _menu->addAction(text, std::move(callback), icon);
 	};
 	addAction(tr::lng_proxy_menu_edit(tr::now), [=] {
 		_editClicks.fire({});
