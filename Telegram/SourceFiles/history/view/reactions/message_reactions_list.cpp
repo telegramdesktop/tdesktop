@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/reactions/message_reactions_selector.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/peers/prepare_short_info_box.h"
 #include "window/window_session_controller.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -22,6 +23,26 @@ namespace {
 
 constexpr auto kPerPageFirst = 20;
 constexpr auto kPerPage = 200;
+
+class Row final : public PeerListRow {
+public:
+	Row(not_null<PeerData*> peer, const QString &reaction);
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	bool rightActionDisabled() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+private:
+	EmojiPtr _emoji = nullptr;
+
+};
 
 class Controller final : public PeerListController {
 public:
@@ -61,6 +82,46 @@ private:
 	mtpRequestId _loadRequestId = 0;
 
 };
+
+Row::Row(not_null<PeerData*> peer, const QString &reaction)
+: PeerListRow(peer)
+, _emoji(Ui::Emoji::Find(reaction)) {
+}
+
+QSize Row::rightActionSize() const {
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	return _emoji ? QSize(size, size) : QSize();
+}
+
+QMargins Row::rightActionMargins() const {
+	if (!_emoji) {
+		return QMargins();
+	}
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	return QMargins(
+		size / 2,
+		(st::defaultPeerList.item.height - size) / 2,
+		(size * 3) / 2,
+		0);
+}
+
+bool Row::rightActionDisabled() const {
+	return true;
+}
+
+void Row::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (!_emoji) {
+		return;
+	}
+	// #TODO reactions
+	Ui::Emoji::Draw(p, _emoji, Ui::Emoji::GetSizeNormal(), x, y);
+}
 
 Controller::Controller(
 	not_null<Window::SessionController*> window,
@@ -177,9 +238,10 @@ void Controller::loadMore(const QString &offset) {
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	const auto peerId = row->peer()->id;
-	crl::on_main(&session(), [=] {
-		_window->showPeerHistory(peerId);
+	const auto window = _window;
+	const auto peer = row->peer();
+	crl::on_main(window, [=] {
+		window->show(PrepareShortInfoBox(peer, window));
 	});
 }
 
@@ -189,66 +251,6 @@ bool Controller::appendRow(not_null<UserData*> user, QString reaction) {
 	}
 	delegate()->peerListAppendRow(createRow(user, reaction));
 	return true;
-}
-
-class Row final : public PeerListRow {
-public:
-	Row(not_null<PeerData*> peer, const QString &reaction);
-
-	QSize rightActionSize() const override;
-	QMargins rightActionMargins() const override;
-	bool rightActionDisabled() const override;
-	void rightActionPaint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) override;
-
-private:
-	EmojiPtr _emoji = nullptr;
-
-};
-
-Row::Row(not_null<PeerData*> peer, const QString &reaction)
-: PeerListRow(peer)
-, _emoji(Ui::Emoji::Find(reaction)) {
-}
-
-QSize Row::rightActionSize() const {
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
-	return _emoji ? QSize(size, size) : QSize();
-}
-
-QMargins Row::rightActionMargins() const {
-	if (!_emoji) {
-		return QMargins();
-	}
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
-	return QMargins(
-		size / 2,
-		(st::defaultPeerList.item.height - size) / 2,
-		(size * 3) / 2,
-		0);
-}
-
-bool Row::rightActionDisabled() const {
-	return true;
-}
-
-void Row::rightActionPaint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) {
-	if (!_emoji) {
-		return;
-	}
-	// #TODO reactions
-	Ui::Emoji::Draw(p, _emoji, Ui::Emoji::GetSizeNormal(), x, y);
 }
 
 std::unique_ptr<PeerListRow> Controller::createRow(
