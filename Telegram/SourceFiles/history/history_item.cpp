@@ -767,7 +767,14 @@ bool HistoryItem::suggestDeleteAllReport() const {
 }
 
 bool HistoryItem::canReact() const {
-	return isRegular() && !isService();
+	if (!isRegular() || isService()) {
+		return false;
+	} else if (const auto media = this->media()) {
+		if (media->call()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void HistoryItem::addReaction(const QString &reaction) {
