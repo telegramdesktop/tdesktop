@@ -279,7 +279,7 @@ void BottomInfo::layoutDateText() {
 		? (tr::lng_edited(tr::now) + ' ')
 		: QString();
 	const auto author = _data.author;
-	const auto prefix = author.isEmpty() ? qsl(", ") : QString();
+	const auto prefix = !author.isEmpty() ? qsl(", ") : QString();
 	const auto date = edited + _data.date.toString(cTimeFormat());
 	_dateWidth = st::msgDateFont->width(date);
 	const auto afterAuthor = prefix + date;
