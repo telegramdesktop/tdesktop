@@ -1868,10 +1868,16 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	const auto maybeRelativeCenter = (result.style == ButtonStyle::Service)
 		? media()->reactionButtonCenterOverride()
 		: std::nullopt;
+	const auto addOnTheRight = [&] {
+		return (maybeRelativeCenter
+			|| !(displayFastShare() || displayGoToOriginal()))
+			? st::reactionCornerCenter.x()
+			: 0;
+	};
 	const auto relativeCenter = QPoint(
 		maybeRelativeCenter.value_or(onTheLeft
 			? -st::reactionCornerCenter.x()
-			: (geometry.width() + st::reactionCornerCenter.x())),
+			: (geometry.width() + addOnTheRight())),
 		innerHeight + st::reactionCornerCenter.y());
 	result.center = geometry.topLeft() + relativeCenter;
 	if (reactionState.itemId != result.context
