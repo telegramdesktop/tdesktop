@@ -937,15 +937,21 @@ void Message::paintFromName(
 	const auto nameText = [&]() -> const Ui::Text::String * {
 		const auto from = item->displayFrom();
 		const auto service = (context.outbg || item->isPost());
+		const auto sponsored = service && item->isSponsored();
+		const auto st = context.st;
 		if (from) {
-			p.setPen(service
-				? stm->msgServiceFg
-				: FromNameFg(context, from->id));
+			p.setPen(!service
+				? FromNameFg(context, from->id)
+				: item->isSponsored()
+				? st->boxTextFgGood()
+				: stm->msgServiceFg);
 			return &from->nameText();
 		} else if (const auto info = item->hiddenSenderInfo()) {
-			p.setPen(service
-				? stm->msgServiceFg
-				: FromNameFg(context, info->colorPeerId));
+			p.setPen(!service
+				? FromNameFg(context, info->colorPeerId)
+				: item->isSponsored()
+				? st->boxTextFgGood()
+				: stm->msgServiceFg);
 			return &info->nameText;
 		} else {
 			Unexpected("Corrupt sender information in message.");
