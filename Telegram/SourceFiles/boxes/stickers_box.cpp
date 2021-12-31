@@ -547,7 +547,9 @@ void StickersBox::prepare() {
 		}
 		setNoContentMargin(true);
 		_tabs->sectionActivated(
-		) | rpl::start_with_next(
+		) | rpl::filter([=] {
+			return !_ignoreTabActivation;
+		}) | rpl::start_with_next(
 			[this] { switchTab(); },
 			lifetime());
 		refreshTabs();
@@ -665,12 +667,16 @@ void StickersBox::refreshTabs() {
 		|| (_tab == &_featured && !_tabIndices.contains(Section::Featured))
 		|| (_tab == &_masks && !_tabIndices.contains(Section::Masks))) {
 		switchTab();
-	} else if (_tab == &_archived) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Archived));
-	} else if (_tab == &_featured) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Featured));
-	} else if (_tab == &_masks) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Masks));
+	} else {
+		_ignoreTabActivation = true;
+		_tabs->setActiveSectionFast(_tabIndices.indexOf((_tab == &_archived)
+			? Section::Archived
+			: (_tab == &_featured)
+			? Section::Featured
+			: (_tab == &_masks)
+			? Section::Masks
+			: Section::Installed));
+		_ignoreTabActivation = false;
 	}
 	updateTabsGeometry();
 }
