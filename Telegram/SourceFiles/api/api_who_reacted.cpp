@@ -179,21 +179,6 @@ struct State {
 	return result;
 }
 
-[[nodiscard]] bool ListUnknown(
-		const std::vector<PeerId> &list,
-		not_null<HistoryItem*> item) {
-	return (list.size() == 1)
-		&& (list.front() == item->history()->session().userPeerId());
-}
-
-[[nodiscard]] bool ListUnknown(
-		const std::vector<PeerWithReaction> &list,
-		not_null<HistoryItem*> item) {
-	return (list.size() == 1)
-		&& list.front().reaction.isEmpty()
-		&& (list.front().peer == item->history()->session().userPeerId());
-}
-
 [[nodiscard]] Ui::WhoReadType DetectSeenType(not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (!media->webpage()) {
