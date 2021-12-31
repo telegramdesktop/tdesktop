@@ -937,7 +937,6 @@ void Message::paintFromName(
 	const auto nameText = [&]() -> const Ui::Text::String * {
 		const auto from = item->displayFrom();
 		const auto service = (context.outbg || item->isPost());
-		const auto sponsored = service && item->isSponsored();
 		const auto st = context.st;
 		if (from) {
 			p.setPen(!service
