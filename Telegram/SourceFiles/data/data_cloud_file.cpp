@@ -172,11 +172,25 @@ void UpdateCloudFile(
 		return;
 	}
 
+	const auto needStickerThumbnailUpdate = [&] {
+		const auto was = std::get_if<StorageFileLocation>(
+			&file.location.file().data);
+		const auto now = std::get_if<StorageFileLocation>(
+			&data.location.file().data);
+		using Type = StorageFileLocation::Type;
+		if (!was || !now || was->type() != Type::StickerSetThumb) {
+			return false;
+		}
+		return now->valid()
+			&& (now->type() != Type::StickerSetThumb
+				|| now->cacheKey() != was->cacheKey());
+	};
 	const auto update = !file.location.valid()
 		|| (data.location.file().cacheKey()
 			&& (!file.location.file().cacheKey()
 				|| (file.location.width() < data.location.width())
-				|| (file.location.height() < data.location.height())));
+				|| (file.location.height() < data.location.height())
+				|| needStickerThumbnailUpdate()));
 	if (!update) {
 		return;
 	}
@@ -204,6 +218,8 @@ void UpdateCloudFile(
 	} else if (file.loader) {
 		const auto origin = base::take(file.loader)->fileOrigin();
 		restartLoader(origin);
+	} else if (file.flags & CloudFile::Flag::Failed) {
+		file.flags &= ~CloudFile::Flag::Failed;
 	}
 }
 
