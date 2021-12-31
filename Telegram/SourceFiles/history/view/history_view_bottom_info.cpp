@@ -167,9 +167,10 @@ void BottomInfo::paint(
 		const auto &icon = inverted
 			? st->historyViewsInvertedIcon()
 			: stm->historyViewsIcon;
+		right -= st::historyViewsWidth;
 		icon.paint(
 			p,
-			right - st::historyViewsWidth,
+			right,
 			firstLineBottom + st::historyViewsTop,
 			outerWidth);
 	}
@@ -181,9 +182,10 @@ void BottomInfo::paint(
 		const auto &icon = inverted
 			? st->historyRepliesInvertedIcon()
 			: stm->historyRepliesIcon;
+		right -= st::historyViewsWidth;
 		icon.paint(
 			p,
-			right - st::historyViewsWidth,
+			right,
 			firstLineBottom + st::historyViewsTop,
 			outerWidth);
 	}
