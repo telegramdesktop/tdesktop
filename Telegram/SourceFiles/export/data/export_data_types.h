@@ -541,6 +541,7 @@ struct TextPart {
 		Strike,
 		Blockquote,
 		BankCard,
+		Spoiler,
 	};
 	Type type = Type::Text;
 	Utf8String text;

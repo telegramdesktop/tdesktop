@@ -157,26 +157,6 @@ void MessagesList::removeOne(MessagePosition messageId) {
 	}
 }
 
-void MessagesList::removeAll(ChannelId channelId) {
-	auto removed = 0;
-	for (auto i = begin(_slices); i != end(_slices); ++i) {
-		_slices.modify(i, [&](Slice &slice) {
-			auto &messages = slice.messages;
-			for (auto j = begin(messages); j != end(messages);) {
-				if (j->fullId.channel == channelId) {
-					j = messages.erase(j);
-					++removed;
-				} else {
-					++j;
-				}
-			}
-		});
-	}
-	if (removed && _count) {
-		*_count -= removed;
-	}
-}
-
 void MessagesList::removeLessThan(MessagePosition messageId) {
 	auto removed = 0;
 	for (auto i = begin(_slices); i != end(_slices);) {
@@ -387,22 +367,6 @@ bool MessagesSliceBuilder::removeAll() {
 	_fullCount = 0;
 	_skippedBefore = 0;
 	_skippedAfter = 0;
-	return true;
-}
-
-bool MessagesSliceBuilder::removeFromChannel(ChannelId channelId) {
-	for (auto i = _ids.begin(); i != _ids.end();) {
-		if ((*i).fullId.channel == channelId) {
-			i = _ids.erase(i);
-			if (_fullCount) {
-				--*_fullCount;
-			}
-		} else {
-			++i;
-		}
-	}
-	_skippedBefore = _skippedAfter = std::nullopt;
-	checkInsufficient();
 	return true;
 }
 

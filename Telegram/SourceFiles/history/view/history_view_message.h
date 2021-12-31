@@ -8,18 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_bottom_info.h"
 #include "ui/effects/animations.h"
 #include "base/weak_ptr.h"
 
 class HistoryMessage;
 struct HistoryMessageEdited;
-struct HistoryMessageSponsored;
 struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
 class ViewButton;
 class WebPage;
+
+namespace Reactions {
+class InlineList;
+} // namespace Reactions
 
 // Special type of Component for the channel actions log.
 struct LogEntryOriginal
@@ -51,6 +55,14 @@ public:
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
+	not_null<HistoryMessage*> message() const;
+
+	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
+	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
+
+	[[nodiscard]] bool embedReactionsInBottomInfo() const;
+	[[nodiscard]] bool embedReactionsInBubble() const;
+
 	int marginTop() const override;
 	int marginBottom() const override;
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -66,7 +78,7 @@ public:
 		int bottom,
 		int width,
 		InfoDisplayType type) const override;
-	bool pointInTime(
+	TextState bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,
@@ -75,6 +87,10 @@ public:
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
+
+	Reactions::ButtonParameters reactionButtonParameters(
+		QPoint position,
+		const TextState &reactionState) const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -100,13 +116,18 @@ public:
 		int left,
 		int top,
 		int outerWidth) const override;
-	ClickHandlerPtr rightActionLink() const override;
-	bool displayEditedBadge() const override;
-	TimeId displayedEditDate() const override;
-	HistoryMessageReply *displayedReply() const override;
-	bool toggleSelectionByHandlerClick(
+	[[nodiscard]] ClickHandlerPtr rightActionLink() const override;
+	[[nodiscard]] bool displayEditedBadge() const override;
+	[[nodiscard]] TimeId displayedEditDate() const override;
+	[[nodiscard]] HistoryMessageReply *displayedReply() const override;
+	[[nodiscard]] bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const override;
-	int infoWidth() const override;
+	[[nodiscard]] int infoWidth() const override;
+	[[nodiscard]] int bottomInfoFirstLineWidth() const override;
+	[[nodiscard]] bool bottomInfoIsWide() const override;
+	[[nodiscard]] bool isSignedAuthorElided() const override;
+
+	void itemDataChanged() override;
 
 	VerticalRepaintRange verticalRepaintRange() const override;
 
@@ -119,11 +140,8 @@ protected:
 private:
 	struct CommentsButton;
 
-	not_null<HistoryMessage*> message() const;
-
 	void initLogEntryOriginal();
 	void initPsa();
-	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
 	[[nodiscard]] bool showForwardsFromSender(
@@ -196,41 +214,41 @@ private:
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
+	[[nodiscard]] bool needInfoDisplay() const;
 
 	[[nodiscard]] bool isPinnedContext() const;
 
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
-	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
-	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
-	[[nodiscard]] auto displayedSponsorBadge() const
-		-> const HistoryMessageSponsored*;
 	[[nodiscard]] bool displayPinIcon() const;
 
-	void initTime() const;
-	[[nodiscard]] int timeLeft() const;
+	void refreshInfoSkipBlock();
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
 	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 
-	WebPage *logEntryOriginal() const;
+	[[nodiscard]] WebPage *logEntryOriginal() const;
 
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
 	void psaTooltipToggled(bool shown) const;
 
 	void refreshRightBadge();
+	void refreshReactions();
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
-	mutable std::unique_ptr<CommentsButton> _comments;
 	mutable std::unique_ptr<ViewButton> _viewButton;
+	std::unique_ptr<Reactions::InlineList> _reactions;
+	mutable std::unique_ptr<CommentsButton> _comments;
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
+
+	BottomInfo _bottomInfo;
 
 };
 

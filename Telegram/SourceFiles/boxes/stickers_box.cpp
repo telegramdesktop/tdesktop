@@ -247,6 +247,7 @@ private:
 	int32 _rowHeight;
 
 	std::vector<std::unique_ptr<Row>> _rows;
+	std::vector<std::unique_ptr<Row>> _oldRows;
 	std::vector<crl::time> _shiftingStartTimes;
 	crl::time _aboveShadowFadeStart = 0;
 	anim::value _aboveShadowFadeOpacity;
@@ -547,7 +548,9 @@ void StickersBox::prepare() {
 		}
 		setNoContentMargin(true);
 		_tabs->sectionActivated(
-		) | rpl::start_with_next(
+		) | rpl::filter([=] {
+			return !_ignoreTabActivation;
+		}) | rpl::start_with_next(
 			[this] { switchTab(); },
 			lifetime());
 		refreshTabs();
@@ -665,12 +668,16 @@ void StickersBox::refreshTabs() {
 		|| (_tab == &_featured && !_tabIndices.contains(Section::Featured))
 		|| (_tab == &_masks && !_tabIndices.contains(Section::Masks))) {
 		switchTab();
-	} else if (_tab == &_archived) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Archived));
-	} else if (_tab == &_featured) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Featured));
-	} else if (_tab == &_masks) {
-		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Masks));
+	} else {
+		_ignoreTabActivation = true;
+		_tabs->setActiveSectionFast(_tabIndices.indexOf((_tab == &_archived)
+			? Section::Archived
+			: (_tab == &_featured)
+			? Section::Featured
+			: (_tab == &_masks)
+			? Section::Masks
+			: Section::Installed));
+		_ignoreTabActivation = false;
 	}
 	updateTabsGeometry();
 }
@@ -1987,6 +1994,7 @@ void StickersBox::Inner::rebuild(bool masks) {
 
 	auto maxNameWidth = countMaxNameWidth();
 
+	_oldRows = std::move(_rows);
 	clear();
 	const auto &order = ([&]() -> const StickersSetsOrder & {
 		if (_section == Section::Installed) {
@@ -2038,6 +2046,7 @@ void StickersBox::Inner::rebuild(bool masks) {
 				set->accessHash);
 		}
 	}
+	_oldRows.clear();
 	session().api().requestStickerSets();
 	updateSize();
 }
@@ -2150,19 +2159,55 @@ void StickersBox::Inner::rebuildAppendSet(
 	QString title = fillSetTitle(set, maxNameWidth, &titleWidth);
 	int count = fillSetCount(set);
 
-	_rows.push_back(std::make_unique<Row>(
-		set,
-		sticker,
-		count,
-		title,
-		titleWidth,
-		installed,
-		official,
-		unread,
-		archived,
-		removed,
-		pixw,
-		pixh));
+	const auto existing = [&]{
+		const auto now = int(_rows.size());
+		const auto setProj = [](const std::unique_ptr<Row> &row) {
+			return row ? row->set.get() : nullptr;
+		};
+		if (_oldRows.size() > now
+			&& setProj(_oldRows[now]) == set.get()) {
+			return _oldRows.begin() + now;
+		}
+		return ranges::find(_oldRows, set.get(), setProj);
+	}();
+	if (existing != end(_oldRows)) {
+		const auto raw = existing->get();
+		raw->sticker = sticker;
+		raw->count = count;
+		raw->title = title;
+		raw->titleWidth = titleWidth;
+		raw->installed = installed;
+		raw->official = official;
+		raw->unread = unread;
+		raw->archived = archived;
+		raw->removed = removed;
+		raw->pixw = pixw;
+		raw->pixh = pixh;
+		raw->yadd = {};
+		auto oldStickerMedia = std::move(raw->stickerMedia);
+		auto oldThumbnailMedia = std::move(raw->thumbnailMedia);
+		raw->stickerMedia = sticker->activeMediaView();
+		raw->thumbnailMedia = set->activeThumbnailView();
+		if (raw->thumbnailMedia != oldThumbnailMedia
+			|| (!raw->thumbnailMedia && raw->stickerMedia != oldStickerMedia)) {
+			raw->lottie = nullptr;
+		}
+		_rows.push_back(std::move(*existing));
+	} else {
+		_rows.push_back(std::make_unique<Row>(
+			set,
+			sticker,
+			count,
+			title,
+			titleWidth,
+			installed,
+			official,
+			unread,
+			archived,
+			removed,
+			pixw,
+			pixh));
+	}
 	_shiftingStartTimes.push_back(0);
 }
 

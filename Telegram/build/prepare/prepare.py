@@ -401,7 +401,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4c21dfa0db
+    git checkout 02ee00b71c
 """)
 
 stage('depot_tools', """
@@ -474,7 +474,6 @@ stage('mozjpeg', """
     cd mozjpeg
 win:
     cmake . ^
-        -G "Visual Studio 16 2019" ^
         -A %WIN32X64% ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
@@ -492,7 +491,9 @@ mac:
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
     cmake --build build.arm64 $MAKE_THREADS_CNT
-    cmake -B build . \\
+    CFLAGS="-arch x86_64" cmake -B build . \\
+        -D CMAKE_SYSTEM_NAME=Darwin \\
+        -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
@@ -613,16 +614,18 @@ mac:
     mkdir out.arm64
     mv lib/.libs/libiconv.a out.arm64
     make clean
-    CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --enable-static --prefix=$USED_PREFIX
+    CFLAGS="$MIN_VER $UNGUARDED -arch x86_64" CPPFLAGS="$MIN_VER $UNGUARDED -arch x86_64" LDFLAGS="$MIN_VER" ./configure --enable-static --host=x86_64 --prefix=$USED_PREFIX
     make $MAKE_THREADS_CNT
-    lipo -create out.arm64/libiconv.a lib/.libs/libiconv.a -output lib/.libs/libiconv.a
+    mkdir out.x86_64
+    mv lib/.libs/libiconv.a out.x86_64
+    lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
     make install
 """)
 
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/4.4
+    git checkout cc33e73618
 win:
     SET PATH_BACKUP_=%PATH%
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
@@ -635,6 +638,7 @@ depends:patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
+    export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --enable-cross-compile \
@@ -752,9 +756,12 @@ depends:yasm/yasm
     make clean
 
     ./configure --prefix=$USED_PREFIX \
-    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER $USED_PREFIX/lib/libopus.a" \
+    --enable-cross-compile \
+    --target-os=darwin \
+    --arch="x86_64" \
+    --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+    --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
     --enable-protocol=file \
     --enable-libopus \
     --disable-programs \
@@ -853,12 +860,19 @@ depends:yasm/yasm
     --enable-muxer=opus
 
     make $MAKE_THREADS_CNT
-
-    lipo -create out.arm64/libavformat.a libavformat/libavformat.a -output libavformat/libavformat.a
-    lipo -create out.arm64/libavcodec.a libavcodec/libavcodec.a -output libavcodec/libavcodec.a
-    lipo -create out.arm64/libswresample.a libswresample/libswresample.a -output libswresample/libswresample.a
-    lipo -create out.arm64/libswscale.a libswscale/libswscale.a -output libswscale/libswscale.a
-    lipo -create out.arm64/libavutil.a libavutil/libavutil.a -output libavutil/libavutil.a
+    
+    mkdir out.x86_64
+    mv libavformat/libavformat.a out.x86_64
+    mv libavcodec/libavcodec.a out.x86_64
+    mv libswresample/libswresample.a out.x86_64
+    mv libswscale/libswscale.a out.x86_64
+    mv libavutil/libavutil.a out.x86_64
+    
+    lipo -create out.arm64/libavformat.a out.x86_64/libavformat.a -output libavformat/libavformat.a
+    lipo -create out.arm64/libavcodec.a out.x86_64/libavcodec.a -output libavcodec/libavcodec.a
+    lipo -create out.arm64/libswresample.a out.x86_64/libswresample.a -output libswresample/libswresample.a
+    lipo -create out.arm64/libswscale.a out.x86_64/libswscale.a -output libswscale/libswscale.a
+    lipo -create out.arm64/libavutil.a out.x86_64/libavutil.a -output libavutil/libavutil.a
 
     make install
 """)
@@ -870,7 +884,6 @@ version: 2
     cd build
 win:
     cmake .. ^
-        -G "Visual Studio 16 2019" ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
@@ -1030,7 +1043,7 @@ release:
 
 if buildQt5:
     stage('qt_5_15_2', """
-    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    git clone https://code.qt.io/qt/qt5.git qt_5_15_2
     cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
     git checkout v5.15.2
@@ -1111,28 +1124,28 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_0', """
+    stage('qt_6_2_2', """
 mac:
-    git clone -b v6.2.0 git://code.qt.io/qt/qt5.git qt_6_2_0
-    cd qt_6_2_0
+    git clone -b v6.2.2 https://code.qt.io/qt/qt5.git qt_6_2_2
+    cd qt_6_2_2
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
-depends:patches/qtbase_6_2_0/*.patch
+depends:patches/qtbase_6_2_2/*.patch
     cd qtbase
 
-    find ../../patches/qtbase_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-depends:patches/qt5compat_6_2_0/*.patch
+depends:patches/qt5compat_6_2_2/*.patch
     cd qt5compat
 
-    find ../../patches/qt5compat_6_2_0 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qt5compat_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.0" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.2" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \

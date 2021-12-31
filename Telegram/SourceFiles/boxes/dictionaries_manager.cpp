@@ -16,9 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/spellcheck_utils.h"
-#include "styles/style_layers.h"
-#include "styles/style_settings.h"
-#include "styles/style_boxes.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -27,6 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
 #include "window/window_session_controller.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
+#include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -305,12 +306,14 @@ auto AddButtonWithLoader(
 		if (!DictExists(id)) {
 			return false;
 		}
-		*contextMenu = base::make_unique_q<Ui::PopupMenu>(button);
+		*contextMenu = base::make_unique_q<Ui::PopupMenu>(
+			button,
+			st::popupMenuWithIcons);
 		contextMenu->get()->addAction(
 			tr::lng_settings_manage_remove_dictionary(tr::now), [=] {
-			Spellchecker::RemoveDictionary(id);
-			dictionaryRemoved->fire({});
-		});
+				Spellchecker::RemoveDictionary(id);
+				dictionaryRemoved->fire({});
+			}, &st::menuIconDelete);
 		contextMenu->get()->popup(QCursor::pos());
 		return true;
 	};

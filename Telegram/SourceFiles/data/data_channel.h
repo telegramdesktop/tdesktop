@@ -410,6 +410,9 @@ public:
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
+	void setAllowedReactions(std::vector<QString> list);
+	[[nodiscard]] const std::vector<QString> &allowedReactions() const;
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -456,6 +459,8 @@ private:
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
 	std::optional<ChannelData*> _linkedChat;
+
+	std::vector<QString> _allowedReactions;
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;

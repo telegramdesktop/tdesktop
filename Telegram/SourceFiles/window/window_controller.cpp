@@ -107,6 +107,8 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 				checkLockByTerms();
 				_widget.updateGlobalMenu();
 			}, _sessionController->lifetime());
+
+			widget()->setInnerFocus();
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();

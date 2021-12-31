@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
+#include "styles/style_menu_icons.h"
 
 namespace Window {
 namespace {
@@ -307,16 +308,23 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	if (i == end(_filters)) {
 		return;
 	}
-	_popupMenu = base::make_unique_q<Ui::PopupMenu>(i->second.get());
-	const auto addAction = [&](const QString &text, Fn<void()> callback) {
+	_popupMenu = base::make_unique_q<Ui::PopupMenu>(
+		i->second.get(),
+		st::popupMenuWithIcons);
+	const auto addAction = [&](
+			const QString &text,
+			Fn<void()> callback,
+			const style::icon *icon) {
 		return _popupMenu->addAction(
 			text,
-			crl::guard(&_outer, std::move(callback)));
+			crl::guard(&_outer, std::move(callback)),
+			icon);
 	};
 
 	addAction(
 		tr::lng_filters_context_edit(tr::now),
-		[=] { showEditBox(id); });
+		[=] { showEditBox(id); },
+		&st::menuIconEdit);
 
 	auto filteredChats = [=] {
 		return _session->session().data().chatsFilters().chatsList(id);
@@ -327,7 +335,8 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 
 	addAction(
 		tr::lng_filters_context_remove(tr::now),
-		[=] { showRemoveBox(id); });
+		[=] { showRemoveBox(id); },
+		&st::menuIconDelete);
 	_popupMenu->popup(position);
 }
 

@@ -193,10 +193,10 @@ std::optional<int> RepliesList::fullUnreadCountAfter(
 		|| (fullLoaded && _list.empty());
 	const auto countIncoming = [&](auto from, auto till) {
 		auto &owner = _history->owner();
-		const auto channelId = _history->channelId();
+		const auto peerId = _history->peer->id;
 		auto count = 0;
 		for (auto i = from; i != till; ++i) {
-			if (!owner.message(channelId, *i)->out()) {
+			if (!owner.message(peerId, *i)->out()) {
 				++count;
 			}
 		}
@@ -336,7 +336,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			= (*_skippedAfter + (availableAfter - useAfter));
 	}
 
-	const auto channelId = _history->channelId();
+	const auto peerId = _history->peer->id;
 	slice->ids.clear();
 	auto nearestToAround = std::optional<MsgId>();
 	slice->ids.reserve(useAfter + useBefore);
@@ -346,10 +346,10 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 				? *j
 				: *(j - 1);
 		}
-		slice->ids.emplace_back(channelId, *j);
+		slice->ids.emplace_back(peerId, *j);
 	}
 	slice->nearestToAround = FullMsgId(
-		channelId,
+		peerId,
 		nearestToAround.value_or(
 			slice->ids.empty() ? 0 : slice->ids.back().msg));
 	slice->fullCount = _fullCount.current();
@@ -418,7 +418,7 @@ Histories &RepliesList::histories() {
 }
 
 HistoryItem *RepliesList::lookupRoot() {
-	return _history->owner().message(_history->channelId(), _rootId);
+	return _history->owner().message(_history->peer->id, _rootId);
 }
 
 void RepliesList::loadAround(MsgId id) {

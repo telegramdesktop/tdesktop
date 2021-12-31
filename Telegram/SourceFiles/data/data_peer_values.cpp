@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_message_reactions.h"
 #include "main/main_session.h"
 #include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
@@ -493,6 +495,20 @@ rpl::producer<QImage> PeerUserpicImageValue(
 		) | rpl::start_with_next(state->push, result);
 		return result;
 	};
+}
+
+rpl::producer<std::vector<Data::Reaction>> PeerAllowedReactionsValue(
+		not_null<PeerData*> peer) {
+	return rpl::combine(
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(peer->owner().reactions().updates()),
+		peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::Reactions)
+	) | rpl::map([=] {
+		return peer->owner().reactions().list(peer);
+	});
 }
 
 } // namespace Data

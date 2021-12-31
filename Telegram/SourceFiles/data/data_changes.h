@@ -86,17 +86,18 @@ struct PeerUpdate {
 		BannedUsers       = (1ULL << 25),
 		Rights            = (1ULL << 26),
 		PendingRequests   = (1ULL << 27),
+		Reactions         = (1ULL << 28),
 
 		// For channels
-		ChannelAmIn       = (1ULL << 28),
-		StickersSet       = (1ULL << 29),
-		ChannelLinkedChat = (1ULL << 30),
-		ChannelLocation   = (1ULL << 31),
-		Slowmode          = (1ULL << 32),
-		GroupCall         = (1ULL << 33),
+		ChannelAmIn       = (1ULL << 29),
+		StickersSet       = (1ULL << 30),
+		ChannelLinkedChat = (1ULL << 31),
+		ChannelLocation   = (1ULL << 32),
+		Slowmode          = (1ULL << 33),
+		GroupCall         = (1ULL << 34),
 
 		// For iteration
-		LastUsedBit       = (1ULL << 33),
+		LastUsedBit       = (1ULL << 34),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

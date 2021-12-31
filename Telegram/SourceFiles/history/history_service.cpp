@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_item_preview.h"
+#include "history/view/history_view_spoiler_click_handler.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -605,8 +607,8 @@ bool HistoryService::updateDependent(bool force) {
 	if (!dependent->msg) {
 		dependent->msg = history()->owner().message(
 			(dependent->peerId
-				? peerToChannel(dependent->peerId)
-				: channelId()),
+				? dependent->peerId
+				: _history->peer->id),
 			dependent->msgId);
 		if (dependent->msg) {
 			if (dependent->msg->isEmpty()) {
@@ -694,7 +696,8 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 		result.links.push_back(fromLink());
 		result.links.push_back(pinned->lnk);
 		if (mediaText.isEmpty()) {
-			auto original = pinned->msg->originalText().text;
+			auto original = TextUtilities::TextWithSpoilerCommands(
+				pinned->msg->originalText());
 			auto cutAt = 0;
 			auto limit = kPinnedMessageTextLimit;
 			auto size = original.size();
@@ -708,7 +711,11 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 				}
 			}
 			if (!limit && cutAt + 5 < size) {
-				original = original.mid(0, cutAt) + qstr("...");
+				original = TextUtilities::CutTextWithCommands(
+					std::move(original),
+					cutAt,
+					textcmdStartSpoiler(),
+					textcmdStopSpoiler());
 			}
 			result.text = tr::lng_action_pinned_message(tr::now, lt_from, fromLinkText(), lt_text, textcmdLink(2, original));
 		} else {
@@ -945,7 +952,9 @@ ItemPreview HistoryService::toPreview(ToPreviewOptions options) const {
 	// Because larger version is shown exactly to the left of the preview.
 	//auto media = _media ? _media->toPreview(options) : ItemPreview();
 	return {
-		.text = textcmdLink(1, TextUtilities::Clean(notificationText())),
+		.text = textcmdLink(
+			1,
+			TextUtilities::Clean(notificationText(), true)),
 		//.images = std::move(media.images),
 		//.loadingContext = std::move(media.loadingContext),
 	};
@@ -979,6 +988,7 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 		st::serviceTextStyle,
 		prepared.text,
 		Ui::ItemTextServiceOptions());
+	HistoryView::FillTextWithAnimatedSpoilers(_text);
 	auto linkIndex = 0;
 	for (const auto &link : prepared.links) {
 		// Link indices start with 1.
@@ -986,6 +996,10 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 	}
 	_textWidth = -1;
 	_textHeight = 0;
+}
+
+void HistoryService::hideSpoilers() {
+	HistoryView::HideSpoilers(_text);
 }
 
 void HistoryService::markMediaAsReadHook() {
@@ -1063,6 +1077,10 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 	} break;
 
 	default: Unexpected("Media type in HistoryService::createFromMtp()");
+	}
+
+	if (const auto reactions = message.vreactions()) {
+		updateReactions(reactions);
 	}
 }
 
@@ -1245,14 +1263,14 @@ HistoryService::PreparedText GenerateJoinedText(
 	if (inviter->id != history->session().userPeerId()) {
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(inviter->createOpenLink());
-		result.text = (history->isMegagroup()
+		result.text = (history->peer->isMegagroup()
 			? tr::lng_action_add_you_group
 			: tr::lng_action_add_you)(
 				tr::now,
 				lt_from,
 				textcmdLink(1, inviter->name));
 		return result;
-	} else if (history->isMegagroup()) {
+	} else if (history->peer->isMegagroup()) {
 		if (viaRequest) {
 			return { tr::lng_action_you_joined_by_request(tr::now) };
 		}

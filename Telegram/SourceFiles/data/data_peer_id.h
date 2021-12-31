@@ -136,8 +136,6 @@ using ChatId = ChatIdType<1>;
 using ChannelId = ChatIdType<2>;
 using FakeChatId = ChatIdType<0x7F>;
 
-inline constexpr auto NoChannel = ChannelId(0);
-
 struct PeerIdHelper {
 	BareId value = 0;
 	constexpr PeerIdHelper(BareId value) noexcept : value(value) {

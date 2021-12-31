@@ -30,8 +30,6 @@ extern "C" {
 #include <time.h>
 #endif
 
-#include <QtNetwork/QSslSocket>
-
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
@@ -55,15 +53,6 @@ static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 static_assert(sizeof(int) >= 4, "Basic types size check failed");
 
 // Precise timing functions / rand init
-
-struct CRYPTO_dynlock_value {
-	QMutex mutex;
-};
-
-namespace {
-	bool _sslInited = false;
-	QMutex *_sslLocks = nullptr;
-}
 
 namespace ThirdParty {
 
@@ -94,45 +83,15 @@ namespace ThirdParty {
 				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
 		}
-
-		// Force OpenSSL loading if it is linked in Qt,
-		// so that we won't mess with our OpenSSL locking with Qt OpenSSL locking.
-		auto sslSupported = QSslSocket::supportsSsl();
-		if (!sslSupported) {
-			LOG(("Error: current Qt build doesn't support SSL requests."));
-		}
-		if (!CRYPTO_get_locking_callback()) {
-			// Qt didn't initialize OpenSSL, so we will.
-			auto numLocks = CRYPTO_num_locks();
-			if (numLocks) {
-				_sslLocks = new QMutex[numLocks];
-				CRYPTO_set_locking_callback(_sslLockingCallback);
-			} else {
-				LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
-			}
-		}
-		if (!CRYPTO_get_dynlock_create_callback()) {
-			CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
-			CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
-			CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
-		} else if (!CRYPTO_get_dynlock_lock_callback()) {
-			LOG(("MTP Error: dynlock_create callback is set without dynlock_lock callback!"));
-		}
-
-		_sslInited = true;
 	}
 
 	void finish() {
-		CRYPTO_cleanup_all_ex_data();
-#ifndef LIBRESSL_VERSION_NUMBER
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		EVP_default_properties_enable_fips(nullptr, 0);
+#else
 		FIPS_mode_set(0);
 #endif
-		ENGINE_cleanup();
 		CONF_modules_unload(1);
-		ERR_free_strings();
-		EVP_cleanup();
-
-		delete[] base::take(_sslLocks);
 
 		Platform::ThirdParty::finish();
 	}

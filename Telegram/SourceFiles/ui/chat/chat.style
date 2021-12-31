@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
+using "ui/menu_icons.style";
 
 MessageBar {
 	title: TextStyle;
@@ -47,6 +48,12 @@ maxWallPaperHeight: 240px;
 historyThemeSize: size(272px, 176px);
 
 historyMinimalWidth: 380px;
+
+reactionMenu: PopupMenu(defaultPopupMenu) {
+	menu: Menu(defaultMenu) {
+		widthMin: 30px;
+	}
+}
 
 historyScroll: ScrollArea(defaultScrollArea) {
 	bg: historyScrollBg;
@@ -896,23 +903,33 @@ defaultWhoRead: WhoRead {
 	photoSize: 30px;
 	photoSkip: 5px;
 	nameLeft: 57px;
-	iconPosition: point(14px, 9px);
-	itemPadding: margins(38px, 8px, 17px, 6px);
+	iconPosition: point(15px, 7px);
+	itemPadding: margins(44px, 9px, 17px, 7px);
 }
-whoReadMenu: PopupMenu(defaultPopupMenu) {
-	scrollPadding: margins(0px, 6px, 0px, 6px);
-	maxHeight: 387px;
-	menu: Menu(defaultMenu) {
-		separatorPadding: margins(0px, 6px, 0px, 8px);
+whoReadMenu: PopupMenu(popupMenuWithIcons) {
+	scrollPadding: margins(0px, 6px, 0px, 4px);
+	maxHeight: 400px;
+	menu: Menu(menuWithIcons) {
+		separatorPadding: margins(0px, 4px, 0px, 4px);
+		separatorWidth: 6px;
 	}
 }
-whoReadChecks: icon{{ "chat/seen_checks", windowFg }};
-whoReadChecksOver: icon{{ "chat/seen_checks", windowFgOver }};
-whoReadChecksDisabled: icon{{ "chat/seen_checks", menuFgDisabled }};
-whoReadPlayed: icon{{ "chat/seen_played", windowFg }};
-whoReadPlayedOver: icon{{ "chat/seen_played", windowFgOver }};
-whoReadPlayedDisabled: icon {{ "chat/seen_played", menuFgDisabled }};
+whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecksOver: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
+whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
+whoReadReactions: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactionsOver: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
+reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
+reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};
+reactionsTabs: MultiSelect(defaultMultiSelect) {
+	padding: margins(12px, 10px, 12px, 10px);
+}
+reactionsTabIconSkip: 3px;
 historyRequestsUserpics: GroupCallUserpics {
 	size: 22px;
 	shift: 8px;
@@ -945,3 +962,24 @@ sendAsButton: SendAsButton {
 	}
 	duration: 150;
 }
+
+reactionBottomPadding: margins(5px, 2px, 7px, 2px);
+reactionBottomSize: 16px;
+reactionBottomSkip: 3px;
+reactionBottomBetween: 4px;
+reactionBottomInBubbleLeft: -3px;
+
+reactionInfoSize: 15px;
+reactionInfoSkip: 3px;
+reactionInfoDigitSkip: 6px;
+reactionInfoBetween: 3px;
+
+reactionCornerSize: size(40px, 32px);
+reactionCornerRadius: 14px;
+reactionCornerCenter: point(12px, -12px);
+reactionCornerImage: 24px;
+reactionCornerShadow: margins(4px, 8px, 4px, 8px);
+reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
+reactionCornerAddedHeightMax: 120px;
+
+reactionCornerSkip: 2px;

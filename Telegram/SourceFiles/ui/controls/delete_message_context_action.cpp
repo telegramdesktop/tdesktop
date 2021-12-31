@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/timer.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -104,6 +105,9 @@ void ActionWithTimer::paint(Painter &p) {
 	if (isEnabled()) {
 		paintRipple(p, 0, 0);
 	}
+
+	st::menuIconDelete.paint(p, _st.itemIconPosition, width());
+
 	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
 	_text.drawLeftElided(
 		p,
@@ -239,8 +243,8 @@ base::unique_qptr<Menu::ItemBase> DeleteMessageContextAction(
 				menu,
 				tr::lng_context_delete_msg(tr::now),
 				std::move(callback)),
-			nullptr,
-			nullptr);
+			&st::menuIconDelete,
+			&st::menuIconDelete);
 	}
 	return base::make_unique_q<ActionWithTimer>(
 		menu,

@@ -31,7 +31,13 @@ class SessionController;
 namespace Data {
 struct Group;
 class CloudImageView;
+struct Reaction;
 } // namespace Data
+
+namespace HistoryView::Reactions {
+class Manager;
+struct ButtonParameters;
+} // namespace HistoryView::Reactions
 
 namespace HistoryView {
 
@@ -106,7 +112,8 @@ public:
 		return listCopyRestrictionType(nullptr);
 	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
-
+	virtual auto listAllowedReactionsValue()
+		-> rpl::producer<std::vector<Data::Reaction>> = 0;
 };
 
 struct SelectionData {
@@ -236,6 +243,11 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> showMessageRequested() const;
 	void replyNextMessage(FullMsgId fullId, bool next = true);
 
+	[[nodiscard]] Reactions::ButtonParameters reactionButtonParameters(
+		not_null<const Element*> view,
+		QPoint position,
+		const TextState &reactionState) const;
+
 	// ElementDelegate interface.
 	Context elementContext() override;
 	std::unique_ptr<Element> elementCreate(
@@ -278,6 +290,7 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 
@@ -422,6 +435,7 @@ private:
 		const SelectedMap::const_iterator &i);
 	bool hasSelectedText() const;
 	bool hasSelectedItems() const;
+	bool inSelectionMode() const;
 	bool overSelectedItems() const;
 	void clearTextSelection();
 	void clearSelected();
@@ -550,6 +564,8 @@ private:
 
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 
+	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -606,6 +622,8 @@ private:
 	crl::time _highlightStart = 0;
 	FullMsgId _highlightedMessageId;
 	base::Timer _highlightTimer;
+
+	Ui::Animations::Simple _spoilerOpacity;
 
 	Ui::SelectScrollManager _selectScroll;
 

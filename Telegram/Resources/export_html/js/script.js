@@ -52,6 +52,12 @@ function ShowMentionName() {
     return false;
 }
 
+function ShowSpoiler(target) {
+    if (target.classList.contains("hidden")) {
+        target.classList.toggle("hidden");
+    }
+}
+
 function AddClass(element, name) {
     var current = element.className;
     var expression = new RegExp('(^|\\s)' + name + '(\\s|$)', 'g');

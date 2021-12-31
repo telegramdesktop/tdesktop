@@ -460,7 +460,6 @@ void Launcher::processArguments() {
 	auto parseMap = std::map<QByteArray, KeyFormat> {
 		{ "-debug"          , KeyFormat::NoValues },
 		{ "-freetype"       , KeyFormat::NoValues },
-		{ "-many"           , KeyFormat::NoValues },
 		{ "-key"            , KeyFormat::OneValue },
 		{ "-autostart"      , KeyFormat::NoValues },
 		{ "-fixprevious"    , KeyFormat::NoValues },
@@ -499,7 +498,6 @@ void Launcher::processArguments() {
 
 	gUseFreeType = parseResult.contains("-freetype");
 	gDebugMode = parseResult.contains("-debug");
-	gManyInstance = parseResult.contains("-many");
 	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
 	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart

@@ -65,11 +65,11 @@ struct MessagesRange {
 constexpr auto MinDate = TimeId(0);
 constexpr auto MaxDate = std::numeric_limits<TimeId>::max();
 constexpr auto MinMessagePosition = MessagePosition{
-	.fullId = FullMsgId(NoChannel, 1),
+	.fullId = FullMsgId(PeerId(), 1),
 	.date = MinDate,
 };
 constexpr auto MaxMessagePosition = MessagePosition{
-	.fullId = FullMsgId(NoChannel, ServerMaxMsgId - 1),
+	.fullId = FullMsgId(PeerId(), ServerMaxMsgId - 1),
 	.date = MaxDate,
 };
 constexpr auto FullMessagesRange = MessagesRange{
@@ -77,7 +77,7 @@ constexpr auto FullMessagesRange = MessagesRange{
 	.till = MaxMessagePosition,
 };
 constexpr auto UnreadMessagePosition = MessagePosition{
-	.fullId = FullMsgId(NoChannel, ShowAtUnreadMsgId),
+	.fullId = FullMsgId(PeerId(), ShowAtUnreadMsgId),
 	.date = MinDate,
 };
 
@@ -117,7 +117,6 @@ public:
 		MessagesRange noSkipRange,
 		std::optional<int> count);
 	void removeOne(MessagePosition messageId);
-	void removeAll(ChannelId channelId);
 	void removeLessThan(MessagePosition messageId);
 	void invalidate();
 	void invalidateBottom();
@@ -191,7 +190,6 @@ public:
 	bool applyInitial(const MessagesResult &result);
 	bool applyUpdate(const MessagesSliceUpdate &update);
 	bool removeOne(MessagePosition messageId);
-	bool removeFromChannel(ChannelId channelId);
 	bool removeAll();
 	bool invalidated();
 	bool bottomInvalidated();

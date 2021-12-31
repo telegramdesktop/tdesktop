@@ -18,6 +18,10 @@ class HistoryMessage;
 class HistoryService;
 struct HistoryMessageReply;
 
+namespace Data {
+struct Reaction;
+} // namespace Data
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -38,6 +42,10 @@ struct TextState;
 class Media;
 
 using PaintContext = Ui::ChatPaintContext;
+
+namespace Reactions {
+struct ButtonParameters;
+} // namespace Reactions
 
 enum class Context : char {
 	History,
@@ -91,6 +99,7 @@ public:
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
+	virtual void elementShowSpoilerAnimation() = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -148,6 +157,7 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -261,6 +271,8 @@ public:
 	int skipBlockHeight() const;
 	QString skipBlock() const;
 	virtual int infoWidth() const;
+	virtual int bottomInfoFirstLineWidth() const;
+	virtual bool bottomInfoIsWide() const;
 
 	bool isHiddenByGroup() const;
 	virtual bool isHidden() const;
@@ -297,7 +309,7 @@ public:
 		int bottom,
 		int width,
 		InfoDisplayType type) const;
-	virtual bool pointInTime(
+	virtual TextState bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,
@@ -307,6 +319,10 @@ public:
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
+
+	[[nodiscard]] virtual auto reactionButtonParameters(
+		QPoint position,
+		const TextState &reactionState) const -> Reactions::ButtonParameters;
 
 	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(
@@ -318,31 +334,31 @@ public:
 
 	// hasFromPhoto() returns true even if we don't display the photo
 	// but we need to skip a place at the left side for this photo
-	virtual bool hasFromPhoto() const;
-	virtual bool displayFromPhoto() const;
-	virtual bool hasFromName() const;
-	virtual bool displayFromName() const;
-	virtual bool displayForwardedFrom() const;
-	virtual bool hasOutLayout() const;
-	virtual bool drawBubble() const;
-	virtual bool hasBubble() const;
-	virtual int minWidthForMedia() const {
+	[[nodiscard]] virtual bool hasFromPhoto() const;
+	[[nodiscard]] virtual bool displayFromPhoto() const;
+	[[nodiscard]] virtual bool hasFromName() const;
+	[[nodiscard]] virtual bool displayFromName() const;
+	[[nodiscard]] virtual bool displayForwardedFrom() const;
+	[[nodiscard]] virtual bool hasOutLayout() const;
+	[[nodiscard]] virtual bool drawBubble() const;
+	[[nodiscard]] virtual bool hasBubble() const;
+	[[nodiscard]] virtual int minWidthForMedia() const {
 		return 0;
 	}
-	virtual bool hasFastReply() const;
-	virtual bool displayFastReply() const;
-	virtual std::optional<QSize> rightActionSize() const;
+	[[nodiscard]] virtual bool hasFastReply() const;
+	[[nodiscard]] virtual bool displayFastReply() const;
+	[[nodiscard]] virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
 		const PaintContext &context,
 		int left,
 		int top,
 		int outerWidth) const;
-	virtual ClickHandlerPtr rightActionLink() const;
-	virtual bool displayEditedBadge() const;
-	virtual TimeId displayedEditDate() const;
-	virtual bool hasVisibleText() const;
-	virtual HistoryMessageReply *displayedReply() const;
+	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
+	[[nodiscard]] virtual bool displayEditedBadge() const;
+	[[nodiscard]] virtual TimeId displayedEditDate() const;
+	[[nodiscard]] virtual bool hasVisibleText() const;
+	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
@@ -354,6 +370,10 @@ public:
 		int height = 0;
 	};
 	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
+
+	[[nodiscard]] virtual bool isSignedAuthorElided() const;
+
+	virtual void itemDataChanged();
 
 	virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();
@@ -385,6 +405,8 @@ public:
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
 	}
+
+	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
 	virtual ~Element();
 

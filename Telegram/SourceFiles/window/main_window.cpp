@@ -964,7 +964,9 @@ int MainWindow::tryToExtendWidthBy(int addToWidth) {
 void MainWindow::launchDrag(
 		std::unique_ptr<QMimeData> data,
 		Fn<void()> &&callback) {
-	auto drag = std::make_unique<QDrag>(this);
+	// Qt destroys this QDrag automatically after the drag is finished
+	// We must not delete this at the end of this function, as this breaks DnD on Linux
+	auto drag = new QDrag(this);
 	drag->setMimeData(data.release());
 	drag->exec(Qt::CopyAction);
 

@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QWindow>
-#include <qpa/qplatformnativeinterface.h>
 
 #include <Shobjidl.h>
 #include <ShObjIdl_core.h>

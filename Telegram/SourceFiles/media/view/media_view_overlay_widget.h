@@ -274,7 +274,10 @@ private:
 	void updateControls();
 	void updateControlsGeometry();
 
-	using MenuCallback = Fn<void(const QString &, Fn<void()>)>;
+	using MenuCallback = Fn<void(
+		const QString &,
+		Fn<void()>,
+		const style::icon *)>;
 	void fillContextMenuActions(const MenuCallback &addAction);
 
 	void resizeCenteredControls();

@@ -14,6 +14,7 @@ include(cmake/generate_numbers.cmake)
 set(style_files
     ui/td_common.style
     ui/filter_icons.style
+    ui/menu_icons.style
     ui/chat/chat.style
     boxes/boxes.style
     dialogs/dialogs.style
@@ -183,8 +184,8 @@ PRIVATE
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
-    ui/controls/who_read_context_action.cpp
-    ui/controls/who_read_context_action.h
+    ui/controls/who_reacted_context_action.cpp
+    ui/controls/who_reacted_context_action.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

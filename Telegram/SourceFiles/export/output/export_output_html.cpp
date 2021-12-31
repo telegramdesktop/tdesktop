@@ -270,6 +270,10 @@ QByteArray FormatText(
 			return "<blockquote>" + text + "</blockquote>";
 		case Type::BankCard:
 			return text;
+		case Type::Spoiler: return "<span class=\"spoiler hidden\" "
+			"onclick=\"ShowSpoiler(this)\">"
+			"<span aria-hidden=\"true\">"
+			+ text + "</span></span>";
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);

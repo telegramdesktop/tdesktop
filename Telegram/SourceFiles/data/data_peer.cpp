@@ -1193,11 +1193,11 @@ FullMsgId ResolveTopPinnedId(
 			.skippedAfter = 0,
 		};
 	if (!slice.messageIds.empty()) {
-		return FullMsgId(peerToChannel(peer->id), slice.messageIds.back());
+		return FullMsgId(peer->id, slice.messageIds.back());
 	} else if (!migrated || slice.count != 0 || old.messageIds.empty()) {
 		return FullMsgId();
 	} else {
-		return FullMsgId(0, old.messageIds.back());
+		return FullMsgId(migrated->id, old.messageIds.back());
 	}
 }
 
@@ -1227,9 +1227,9 @@ FullMsgId ResolveMinPinnedId(
 			.skippedAfter = 0,
 		};
 	if (!old.messageIds.empty()) {
-		return FullMsgId(0, old.messageIds.front());
+		return FullMsgId(migrated->id, old.messageIds.front());
 	} else if (old.count == 0 && !slice.messageIds.empty()) {
-		return FullMsgId(peerToChannel(peer->id), slice.messageIds.front());
+		return FullMsgId(peer->id, slice.messageIds.front());
 	} else {
 		return FullMsgId();
 	}

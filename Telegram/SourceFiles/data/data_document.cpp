@@ -1221,7 +1221,10 @@ bool DocumentData::hasWebLocation() const {
 }
 
 bool DocumentData::isNull() const {
-	return !hasRemoteLocation() && !hasWebLocation() && _url.isEmpty();
+	return !hasRemoteLocation()
+		&& !hasWebLocation()
+		&& _url.isEmpty()
+		&& !uploading();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {
@@ -1333,7 +1336,7 @@ bool DocumentData::isSongWithCover() const {
 }
 
 bool DocumentData::isAudioFile() const {
-	if (isVoiceMessage()) {
+	if (isVoiceMessage() || isVideoFile()) {
 		return false;
 	} else if (isSong()) {
 		return true;

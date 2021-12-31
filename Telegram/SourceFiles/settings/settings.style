@@ -44,18 +44,18 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButton) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
-settingsIconInformation: icon {{ "settings_information", menuIconFg }};
-settingsIconNotifications: icon {{ "settings_notifications", menuIconFg }};
-settingsIconChat: icon {{ "settings_chat", menuIconFg }};
-settingsIconFolders: icon {{ "settings_folders", menuIconFg }};
-settingsIconGeneral: icon {{ "settings_advanced", menuIconFg }};
-settingsIconPrivacySecurity: icon {{ "settings_privacy_security", menuIconFg }};
-settingsIconLanguage: icon {{ "settings_language", menuIconFg }};
-settingsIconInterfaceScale: icon {{ "settings_interface_scale", menuIconFg }};
-settingsIconFaq: icon {{ "settings_faq", menuIconFg }};
-settingsIconStickers: icon {{ "settings_stickers", menuIconFg }};
-settingsIconEmoji: icon {{ "settings_emoji", menuIconFg }};
-settingsIconThemes: icon {{ "settings_themes", menuIconFg }};
+settingsIconInformation: icon {{ "settings/settings_information", menuIconFg }};
+settingsIconNotifications: icon {{ "settings/settings_notifications", menuIconFg }};
+settingsIconChat: icon {{ "settings/settings_chat", menuIconFg }};
+settingsIconFolders: icon {{ "settings/settings_folders", menuIconFg }};
+settingsIconGeneral: icon {{ "settings/settings_advanced", menuIconFg }};
+settingsIconPrivacySecurity: icon {{ "settings/settings_privacy_security", menuIconFg }};
+settingsIconLanguage: icon {{ "settings/settings_language", menuIconFg }};
+settingsIconInterfaceScale: icon {{ "settings/settings_interface_scale", menuIconFg }};
+settingsIconFaq: icon {{ "settings/settings_faq", menuIconFg }};
+settingsIconStickers: icon {{ "settings/settings_stickers", menuIconFg }};
+settingsIconEmoji: icon {{ "settings/settings_emoji", menuIconFg }};
+settingsIconThemes: icon {{ "settings/settings_themes", menuIconFg }};
 
 settingsSetPhotoSkip: 7px;
 
@@ -129,7 +129,7 @@ settingsInfoAbout: FlatLabel(settingsInfoValue) {
 settingsInfoAboutPosition: point(78px, 34px);
 settingsInfoRightSkip: 60px;
 settingsInfoEditRight: 14px;
-settingsInfoEditIconOver: icon {{ "settings_edit", menuIconFgOver }};
+settingsInfoEditIconOver: icon {{ "settings/settings_edit", menuIconFgOver }};
 settingsBio: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(0px, 7px, 0px, 13px);
@@ -146,9 +146,9 @@ settingsBio: InputField(defaultInputField) {
 	font: boxTextFont;
 }
 settingsInfoAfterSkip: 14px;
-settingsInfoName: icon {{ "settings_name", menuIconFg }};
-settingsInfoPhone: icon {{ "settings_phone_number", menuIconFg }};
-settingsInfoUsername: icon {{ "settings_username", menuIconFg }};
+settingsInfoName: icon {{ "settings/settings_name", menuIconFg }};
+settingsInfoPhone: icon {{ "settings/settings_phone_number", menuIconFg }};
+settingsInfoUsername: icon {{ "settings/settings_username", menuIconFg }};
 
 settingsBioMargins: margins(20px, 6px, 20px, 6px);
 settingsBioCountdown: FlatLabel(defaultFlatLabel) {

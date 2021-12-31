@@ -109,7 +109,7 @@ jobs:
 
       - name: Check.
         run: |
-          filePath="$REPO_NAME/out/Debug/bin/Telegram"
+          filePath="$REPO_NAME/out/Debug/Telegram"
           if test -f "$filePath"; then
             echo "Build successfully done! :)"
 
@@ -123,7 +123,7 @@ jobs:
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          cd $REPO_NAME/out/Debug/bin
+          cd $REPO_NAME/out/Debug
           mkdir artifact
           mv Telegram artifact/
       - uses: actions/upload-artifact@master
@@ -131,4 +131,4 @@ jobs:
         name: Upload artifact.
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}/out/Debug/bin/artifact/
+          path: ${{ env.REPO_NAME }}/out/Debug/artifact/

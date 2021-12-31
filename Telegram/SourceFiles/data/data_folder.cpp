@@ -300,9 +300,7 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 	_chatsList.updateCloudUnread(data);
 	if (const auto peerId = peerFromMTP(data.vpeer())) {
 		const auto history = owner().history(peerId);
-		const auto fullId = FullMsgId(
-			peerToChannel(peerId),
-			data.vtop_message().v);
+		const auto fullId = FullMsgId(peerId, data.vtop_message().v);
 		history->setFolder(this, owner().message(fullId));
 	} else {
 		_chatsList.clear();

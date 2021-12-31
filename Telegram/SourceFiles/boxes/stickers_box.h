@@ -143,6 +143,7 @@ private:
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;
+	bool _ignoreTabActivation = false;
 
 	class CounterWidget;
 	object_ptr<CounterWidget> _unreadBadge = { nullptr };

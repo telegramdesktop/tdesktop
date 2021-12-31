@@ -1,3 +1,44 @@
+3.4.2 (31.12.21)
+
+- Bug fixes and other minor improvements.
+
+3.4.1 (31.12.21)
+
+- Bug fixes and other minor improvements.
+
+3.4 (30.12.21)
+
+- Send reactions to messages.
+- Group and Channel admins can enable reactions in their chat via '...' menu > Manage > Reactions.
+- Select text when typing and choose 'Formatting > Spoiler' in the context menu to hide some or all of the contents of a message.
+- Click on the spoiler in chat to reveal its hidden text.
+- Spoiler formatting hides text in chat, as well as in the chat list and notifications.
+
+3.3.2 beta (29.12.21)
+
+- Select text when typing and choose 'Formatting > Spoiler' in the context menu to hide some or all of the contents of a message.
+- Click on the spoiler in chat to reveal its hidden text.
+- Spoiler formatting hides text in chat, as well as in the chat list and notifications.
+
+3.3.1 beta (22.12.21)
+
+- Switch between contacts list sorting modes.
+- Sort contacts list by last seen time by default.
+- Fix disappearing Send As Channel button after message editing.
+- Fix file upload cancelling.
+- Fix crash in video capture on macOS.
+- Fix labels in the About box.
+- Use Qt 6.2.2 for macOS and Linux builds.
+- Allow installing x64 Windows version on Windows ARM.
+
+3.3 (07.12.21)
+
+- Content creators can restrict the ability to save media and forward messages from their groups and channels.
+- Clear messages in one-on-one chats from a specific day or date range.
+- Comment as one of your channels in public groups and channel comments.
+- When you request to join a community and its admin or bot-admin contacts you with a message, you will see which chat they are from at the top of the chat.
+- Bot-admins can now ask users to complete tasks before they are allowed to join - like accepting community rules, passing a test, or making a donation to the content creators. 
+
 3.2.8 beta (01.12.21)
 
 - Fix crash in opening shared media with another user.

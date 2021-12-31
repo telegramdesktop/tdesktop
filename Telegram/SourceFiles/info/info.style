@@ -362,6 +362,7 @@ infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg, poi
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg, point(-2px, -2px) }};
 infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg, point(0px, -2px) }};
 infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg, point(-2px, 0px) }};
+infoIconReactions: icon {{ "info/edit/group_manage_reactions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
@@ -519,8 +520,8 @@ infoMembersCancelSearch: CrossButton {
 infoMembersSearchTop: 15px;
 
 infoChannelsAddChannel: IconButton(infoMembersButton) {
-	icon: icon {{ "settings_edit_name", menuIconFg, point(9px, 9px) }};
-	iconOver: icon {{ "settings_edit_name", menuIconFgOver, point(9px, 9px) }};
+	icon: icon {{ "settings/settings_edit_name", menuIconFg, point(9px, 9px) }};
+	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver, point(9px, 9px) }};
 }
 
 infoMembersCreatorIcon: icon {{
@@ -706,6 +707,11 @@ editPeerInvitesMargins: margins(22px, 17px, 22px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;
 editPeerInviteLinkBoxBottomSkip: 15px;
+
+editPeerReactionsButton: SettingsButton(infoProfileButton) {
+	padding: margins(59px, 13px, 8px, 11px);
+}
+editPeerReactionsPreview: 28px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;

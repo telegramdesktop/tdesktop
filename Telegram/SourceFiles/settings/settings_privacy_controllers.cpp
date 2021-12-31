@@ -162,7 +162,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPint(), // edit_date
 		MTPstring(), // post_author
 		MTPlong(), // grouped_id
-		//MTPMessageReactions(),
+		MTPMessageReactions(),
 		MTPVector<MTPRestrictionReason>(),
 		MTPint() // ttl_period
 	).match([&](const MTPDmessage &data) {

@@ -74,7 +74,7 @@ void SendExistingMedia(
 	api->sendAction(message.action);
 
 	const auto newId = FullMsgId(
-		peerToChannel(peer->id),
+		peer->id,
 		session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -255,7 +255,7 @@ bool SendDice(MessageToSend &message) {
 	api->sendAction(message.action);
 
 	const auto newId = FullMsgId(
-		peerToChannel(peer->id),
+		peer->id,
 		session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -346,10 +346,8 @@ void SendConfirmedFile(
 		const std::shared_ptr<FileLoadResult> &file) {
 	const auto isEditing = (file->type != SendMediaType::Audio)
 		&& (file->to.replaceMediaOf != 0);
-	const auto channelId = peerToChannel(file->to.peer);
-
 	const auto newId = FullMsgId(
-		channelId,
+		file->to.peer,
 		isEditing
 			? file->to.replaceMediaOf
 			: session->data().nextLocalMessageId());
@@ -454,6 +452,7 @@ void SendConfirmedFile(
 		edition.textWithEntities = caption;
 		edition.useSameMarkup = true;
 		edition.useSameReplies = true;
+		edition.useSameReactions = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {
 		const auto viaBotId = UserId();

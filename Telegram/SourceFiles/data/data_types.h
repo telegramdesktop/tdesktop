@@ -227,7 +227,7 @@ enum class MessageFlag : uint32 {
 	HasPostAuthor         = (1U << 4),
 	HasViews              = (1U << 5),
 	HasReplyInfo          = (1U << 6),
-	HasViaBot             = (1U << 7),
+	CanViewReactions      = (1U << 7),
 	AdminLogEntry         = (1U << 8),
 	Post                  = (1U << 9),
 	Silent                = (1U << 10),
@@ -280,9 +280,6 @@ enum class MessageFlag : uint32 {
 
 	// Contact sign-up message, notification should be skipped for Silent.
 	IsContactSignUp       = (1U << 30),
-
-	// In channels.
-	IsSponsored           = (1U << 31),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

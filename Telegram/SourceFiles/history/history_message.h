@@ -14,6 +14,10 @@ struct SendAction;
 struct SendOptions;
 } // namespace Api
 
+namespace Data {
+struct SponsoredFrom;
+} // namespace Data
+
 namespace HistoryView {
 class Message;
 } // namespace HistoryView
@@ -115,6 +119,11 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup); // local game
+	HistoryMessage(
+		not_null<History*> history,
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities); // sponsored
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
@@ -129,7 +138,7 @@ public:
 	[[nodiscard]] bool allowsSendNow() const override;
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 
-	void setViewsCount(int count) override;
+	bool changeViewsCount(int count) override;
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
@@ -201,6 +210,7 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
+	void hideSpoilers() override;
 
 	void applySentMessage(const MTPDmessage &data) override;
 	void applySentMessage(
@@ -250,6 +260,7 @@ private:
 	void setUnreadRepliesCount(
 		not_null<HistoryMessageViews*> views,
 		int count);
+	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	static void FillForwardedInfo(
 		CreateConfig &config,
@@ -263,10 +274,7 @@ private:
 	[[nodiscard]] bool checkRepliesPts(
 		const HistoryMessageRepliesData &data) const;
 
-	QString _timeText;
-	int _timeWidth = 0;
-
-	mutable int32 _fromNameVersion = 0;
+	mutable int _fromNameVersion = 0;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

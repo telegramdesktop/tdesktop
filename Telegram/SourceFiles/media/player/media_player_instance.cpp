@@ -386,7 +386,7 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		return {};
 	}
 
-	const auto universalId = (contextId.channel == history->channelId())
+	const auto universalId = (contextId.peer == history->peer->id)
 		? contextId.msg
 		: (contextId.msg - ServerMaxMsgId);
 	return SliceKey(
@@ -506,9 +506,9 @@ bool Instance::moveInPlaylist(
 		}
 		const auto universal = computeCurrentUniversalId(data);
 		const auto byUniversal = [&](ShuffleData::UniversalMsgId id) {
-			return (id < 0)
-				? jumpById({ ChannelId(), id + ServerMaxMsgId })
-				: jumpById({ raw->history->channelId(), id });
+			return (id < 0 && raw->migrated)
+				? jumpById({ raw->migrated->peer->id, id + ServerMaxMsgId })
+				: jumpById({ raw->history->peer->id, id });
 		};
 		if (universal && raw->indexInPlayedIds == raw->playedIds.size()) {
 			raw->playedIds.push_back(universal);
@@ -906,12 +906,12 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		raw->nextSliceLifetime.destroy();
 
 		const auto size = update.size();
-		const auto channel = raw->history->channelId();
+		const auto peer = raw->history->peer->id;
 		raw->playlist.reserve(raw->playlist.size() + size);
 		raw->nonPlayedIds.reserve(raw->nonPlayedIds.size() + size);
 		for (auto i = size; i != 0;) {
 			const auto fullId = update[--i];
-			const auto universal = (fullId.channel == channel)
+			const auto universal = (fullId.peer == peer)
 				? fullId.msg
 				: (fullId.msg - ServerMaxMsgId);
 			if (raw->playlist.empty() || raw->playlist.back() > universal) {

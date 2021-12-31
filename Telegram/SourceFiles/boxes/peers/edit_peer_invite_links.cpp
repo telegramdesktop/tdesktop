@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // st::boxDividerLabel
 #include "styles/style_settings.h" // st::settingsDividerLabelPadding
+#include "styles/style_menu_icons.h"
 
 #include <xxhash.h>
 
@@ -578,27 +579,29 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 	const auto real = static_cast<Row*>(row.get());
 	const auto data = real->data();
 	const auto link = data.link;
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
 	if (data.revoked) {
 		result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
 			DeleteLink(_peer, _admin, link);
-		});
+		}, &st::menuIconDelete);
 	} else {
 		result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
 			CopyInviteLink(link);
-		});
+		}, &st::menuIconCopy);
 		result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
 			ShareInviteLinkBox(_peer, link);
-		});
+		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
 			InviteLinkQrBox(link);
-		});
+		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
 			EditLink(_peer, data);
-		});
+		}, &st::menuIconEdit);
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
 			RevokeLink(_peer, _admin, link);
-		});
+		}, &st::menuIconRemove);
 	}
 	return result;
 }

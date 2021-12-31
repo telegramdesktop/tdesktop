@@ -164,7 +164,7 @@ DiscreteSlider::Section::Section(
 
 SettingsSlider::SettingsSlider(
 	QWidget *parent,
-		const style::SettingsSlider &st)
+	const style::SettingsSlider &st)
 : DiscreteSlider(parent)
 , _st(st) {
 	setSelectOnPress(_st.ripple.showDuration == 0);

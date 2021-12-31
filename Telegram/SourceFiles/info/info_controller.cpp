@@ -71,8 +71,8 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 	Expects(peer() != nullptr);
 
 	const auto isScheduled = [&] {
-		const auto channelId = peerToChannel(peer()->id);
-		if (const auto item = session().data().message(channelId, aroundId)) {
+		const auto peerId = peer()->id;
+		if (const auto item = session().data().message(peerId, aroundId)) {
 			return item->isScheduled();
 		}
 		return false;

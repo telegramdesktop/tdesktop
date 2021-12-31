@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "base/flat_set.h"
 #include "base/weak_ptr.h"
+#include "base/timer.h"
 
 // Not used for now.
 //
@@ -136,6 +137,12 @@ public:
 		not_null<PeerData*> peer) override final;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
+	enum class SortMode {
+		Alphabet,
+		Online,
+	};
+	void setSortMode(SortMode mode);
+
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
 	virtual void prepareViewHook() {
@@ -144,11 +151,17 @@ protected:
 	}
 
 private:
+	void sort();
+	void sortByName();
+	void sortByOnline();
 	void rebuildRows();
 	void checkForEmptyRows();
 	bool appendRow(not_null<UserData*> user);
 
 	const not_null<Main::Session*> _session;
+	SortMode _sortMode = SortMode::Alphabet;
+	base::Timer _sortByOnlineTimer;
+	rpl::lifetime _sortByOnlineLifetime;
 
 };
 

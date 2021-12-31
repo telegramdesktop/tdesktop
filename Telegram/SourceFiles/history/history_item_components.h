@@ -60,30 +60,12 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
-	void refresh(const QString &date);
-	int maxWidth() const;
-
 	QString author;
-	Ui::Text::String signature;
-	bool isElided = false;
 	bool isAnonymousRank = false;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
-	void refresh(const QString &date, bool displayed);
-	int maxWidth() const;
-
 	TimeId date = 0;
-	Ui::Text::String text;
-};
-
-struct HistoryMessageSponsored : public RuntimeComponent<
-		HistoryMessageSponsored,
-		HistoryItem> {
-	HistoryMessageSponsored();
-	int maxWidth() const;
-
-	Ui::Text::String text;
 };
 
 struct HiddenSenderInfo {
@@ -118,6 +100,18 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
 	bool imported = false;
+};
+
+struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored, HistoryItem> {
+	enum class Type : uchar {
+		User,
+		Group,
+		Broadcast,
+		Post,
+		Bot,
+	};
+	std::unique_ptr<HiddenSenderInfo> sender;
+	Type type = Type::User;
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {

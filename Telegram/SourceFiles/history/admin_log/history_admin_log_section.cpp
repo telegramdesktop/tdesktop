@@ -358,7 +358,7 @@ not_null<ChannelData*> Widget::channel() const {
 Dialogs::RowDescriptor Widget::activeChat() const {
 	return {
 		channel()->owner().history(channel()),
-		FullMsgId(peerToChannel(channel()->id), ShowAtUnreadMsgId)
+		FullMsgId(channel()->id, ShowAtUnreadMsgId)
 	};
 }
 

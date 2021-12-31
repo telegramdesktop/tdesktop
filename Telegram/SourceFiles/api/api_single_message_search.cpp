@@ -87,7 +87,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 	Expects(!_requestKey.empty());
 
 	const auto postId = _requestKey.postId;
-	if (const auto item = _session->data().message(channel, postId)) {
+	if (const auto item = _session->data().message(channel->id, postId)) {
 		_cache.emplace(_requestKey, item->fullId());
 		return item;
 	} else if (!ready) {
@@ -112,7 +112,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 			&& received.messageIds.front() == postId) {
 			_cache.emplace(
 				_requestKey,
-				FullMsgId(peerToChannel(channel->id), postId));
+				FullMsgId(channel->id, postId));
 			ready();
 		} else {
 			fail();

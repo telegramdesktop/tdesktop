@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -283,6 +284,12 @@ InnerWidget::InnerWidget(
 			if (view->isUnderCursor()) {
 				updateSelected();
 			}
+		}
+	}, lifetime());
+	session().data().itemDataChanges(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		if (const auto view = viewForItem(item)) {
+			view->itemDataChanged();
 		}
 	}, lifetime());
 	session().data().animationPlayInlineRequest(
@@ -663,6 +670,11 @@ void InnerWidget::elementReplyTo(const FullMsgId &to) {
 void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementShowSpoilerAnimation() {
+	_spoilerOpacity.stop();
+	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
@@ -959,10 +971,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				const auto height = view->height();
 				top += height;
-				context.viewport.translate(0, -height);
-				context.clip.translate(0, -height);
+				context.translate(0, -height);
 				p.translate(0, height);
 			}
+			context.translate(0, top);
 			p.translate(0, -top);
 
 			enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
@@ -1149,7 +1161,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 
 	const auto link = ClickHandler::getActive();
 	auto view = App::hoveredItem()
@@ -1160,13 +1174,14 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
-	const auto fromId = PeerId(
-		link->property(kPeerLinkPeerIdProperty).toULongLong());
+	const auto fromId = PeerId(link
+		? link->property(kPeerLinkPeerIdProperty).toULongLong()
+		: 0);
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(tr::lng_context_copy_selected(tr::now), [=] {
 				copySelectedText();
-			});
+			}, &st::menuIconCopy);
 		}
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
@@ -1174,10 +1189,10 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (!photo->isNull() && media && media->loaded()) {
 				_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 					savePhotoToFile(photo);
-				}));
+				}), &st::menuIconSaveImage);
 				_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 					copyContextImage(photo);
-				});
+				}, &st::menuIconCopy);
 			}
 			if (photo->hasAttachedStickers()) {
 				const auto controller = _controller;
@@ -1187,14 +1202,15 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				};
 				_menu->addAction(
 					tr::lng_context_attached_stickers(tr::now),
-					std::move(callback));
+					std::move(callback),
+					&st::menuIconStickers);
 			}
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
 				_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 					cancelContextDownload(document);
-				});
+				}, &st::menuIconCancel);
 			} else {
 				const auto itemId = view
 					? view->data()->fullId()
@@ -1210,17 +1226,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (notAutoplayedGif) {
 						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 							openContextGif(itemId);
-						});
+						}, &st::menuIconShowInChat);
 					}
 				}
 				if (!document->filepath(true).isEmpty()) {
 					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
 						showContextInFolder(document);
-					});
+					}, &st::menuIconShowInFolder);
 				}
 				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
-				}));
+				}), &st::menuIconDownload);
 				if (document->hasAttachedStickers()) {
 					const auto controller = _controller;
 					auto callback = [=, doc = document] {
@@ -1229,7 +1245,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					};
 					_menu->addAction(
 						tr::lng_context_attached_stickers(tr::now),
-						std::move(callback));
+						std::move(callback),
+						&st::menuIconStickers);
 				}
 			}
 		}
@@ -1243,7 +1260,10 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
-			_menu->addAction(tr::lng_context_copy_selected(tr::now), [this] { copySelectedText(); });
+			_menu->addAction(
+				tr::lng_context_copy_selected(tr::now),
+				[this] { copySelectedText(); },
+				&st::menuIconCopy);
 		} else {
 			if (item && !isUponSelected) {
 				const auto media = view->media();
@@ -1252,7 +1272,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (document->sticker()) {
 						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 							saveDocumentToFile(document);
-						}));
+						}), &st::menuIconDownload);
 					}
 				}
 				if (msg
@@ -1262,7 +1282,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						|| item->Has<HistoryMessageLogEntryOriginal>())) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
-					});
+					}, &st::menuIconCopy);
 				}
 			}
 		}
@@ -1275,7 +1295,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				actionText,
 				[text = link->copyToClipboardText()] {
 					QGuiApplication::clipboard()->setText(text);
-				});
+				},
+				&st::menuIconCopy);
 		}
 	}
 

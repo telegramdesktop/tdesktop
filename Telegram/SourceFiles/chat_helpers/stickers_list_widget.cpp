@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -2173,15 +2174,17 @@ void StickersListWidget::fillContextMenu(
 				document,
 				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
 		};
+		const auto isFaved = document->owner().stickers().isFaved(document);
 		menu->addAction(
-			(document->owner().stickers().isFaved(document)
+			(isFaved
 				? tr::lng_faved_stickers_remove
 				: tr::lng_faved_stickers_add)(tr::now),
-			toggleFavedSticker);
+			toggleFavedSticker,
+			isFaved ? &st::menuIconUnfave : &st::menuIconFave);
 
 		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
 			showStickerSetBox(document);
-		});
+		}, &st::menuIconStickers);
 
 		if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
 			menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
@@ -2189,7 +2192,7 @@ void StickersListWidget::fillContextMenu(
 					document,
 					Data::FileOriginStickerSet(id, 0),
 					false);
-			});
+			}, &st::menuIconDelete);
 		}
 	}
 }

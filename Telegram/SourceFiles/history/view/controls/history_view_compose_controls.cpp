@@ -368,15 +368,14 @@ void FieldHeader::resolveMessageData() {
 	if (!id) {
 		return;
 	}
-	const auto channel = id.channel
-		? _data->channel(id.channel).get()
-		: nullptr;
-	const auto callback = [=](ChannelData *channel, MsgId msgId) {
+	const auto peer = _data->peer(id.peer);
+	const auto itemId = id.msg;
+	const auto callback = crl::guard(this, [=] {
 		const auto now = (isEditingMessage()
 			? _editMsgId
 			: _replyToId).current();
 		if (now == id && !_shownMessage) {
-			if (const auto message = _data->message(channel, msgId)) {
+			if (const auto message = _data->message(peer, itemId)) {
 				setShownMessage(message);
 			} else if (isEditingMessage()) {
 				_editCancelled.fire({});
@@ -384,11 +383,8 @@ void FieldHeader::resolveMessageData() {
 				_replyCancelled.fire({});
 			}
 		}
-	};
-	_data->session().api().requestMessageData(
-		channel,
-		id.msg,
-		crl::guard(this, callback));
+	});
+	_data->session().api().requestMessageData(peer, itemId, callback);
 }
 
 void FieldHeader::previewRequested(
@@ -1537,10 +1533,10 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_previewSetState(draft->previewState);
 
 	if (draft == editDraft) {
-		_header->editMessage({ _history->channelId(), draft->msgId });
+		_header->editMessage({ _history->peer->id, draft->msgId });
 		_header->replyToMessage({});
 	} else {
-		_header->replyToMessage({ _history->channelId(), draft->msgId });
+		_header->replyToMessage({ _history->peer->id, draft->msgId });
 		_header->editMessage({});
 	}
 }

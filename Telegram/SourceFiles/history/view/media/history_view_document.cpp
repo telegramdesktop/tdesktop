@@ -225,8 +225,6 @@ void Document::fillNamedFromData(HistoryDocumentNamed *named) {
 }
 
 QSize Document::countOptimalSize() {
-	const auto item = _parent->data();
-
 	auto captioned = Get<HistoryDocumentCaptioned>();
 	if (_parent->media() != this && !_realParent->groupId()) {
 		if (captioned) {
@@ -268,12 +266,7 @@ QSize Document::countOptimalSize() {
 	}
 
 	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
-	const auto msgsigned = item->Get<HistoryMessageSigned>();
-	const auto views = item->Get<HistoryMessageViews>();
-	if (!captioned && ((msgsigned && !msgsigned->isAnonymousRank)
-		|| (views
-			&& (views->views.count >= 0 || views->replies.count > 0))
-		|| _parent->displayEditedBadge())) {
+	if (!captioned && _parent->bottomInfoIsWide()) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {
