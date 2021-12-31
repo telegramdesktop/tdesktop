@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_sponsored_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_folder.h"
 #include "data/data_photo.h"
@@ -670,6 +671,18 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			postAuthor,
 			game,
 			std::move(markup)),
+		true);
+}
+
+not_null<HistoryItem*> History::addNewLocalMessage(
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities) {
+	return addNewItem(
+		makeMessage(
+			id,
+			from,
+			textWithEntities),
 		true);
 }
 

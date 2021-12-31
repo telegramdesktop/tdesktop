@@ -896,7 +896,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 							userpicTop,
 							width(),
 							st::msgPhotoSize);
-					} else if (const auto info = view->data()->hiddenForwardedInfo()) {
+					} else if (const auto info = view->data()->hiddenSenderInfo()) {
 						info->userpic.paint(
 							p,
 							st::historyPhotoLeft,

@@ -45,7 +45,7 @@ namespace {
 // A new message from the same sender is attached to previous within 15 minutes.
 constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
-bool IsAttachedToPreviousInSavedMessages(
+[[nodiscard]] bool IsAttachedToPreviousInSavedMessages(
 		not_null<HistoryItem*> previous,
 		HistoryMessageForwarded *prevForwarded,
 		not_null<HistoryItem*> item,
@@ -63,6 +63,22 @@ bool IsAttachedToPreviousInSavedMessages(
 	Assert(previousInfo != nullptr);
 	Assert(itemInfo != nullptr);
 	return (*previousInfo == *itemInfo);
+}
+
+[[nodiscard]] Window::SessionController *ContextOrSessionWindow(
+		const ClickHandlerContext &context,
+		not_null<Main::Session*> session) {
+	if (const auto controller = context.sessionWindow.get()) {
+		return controller;
+	}
+	const auto &windows = session->windows();
+	if (windows.empty()) {
+		session->domain().activate(&session->account());
+		if (windows.empty()) {
+			return nullptr;
+		}
+	}
+	return windows.front();
 }
 
 } // namespace
@@ -599,7 +615,26 @@ ClickHandlerPtr Element::fromLink() const {
 		return _fromLink;
 	}
 	const auto item = data();
-	if (const auto from = item->displayFrom()) {
+	if (item->isSponsored()) {
+		const auto session = &item->history()->session();
+		_fromLink = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			if (context.button != Qt::LeftButton) {
+				return;
+			}
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto window = ContextOrSessionWindow(my, session)) {
+				auto &sponsored = session->data().sponsoredMessages();
+				const auto details = sponsored.lookupDetails(my.itemId);
+				if (const auto &hash = details.hash) {
+					Api::CheckChatInvite(window, *hash);
+				} else if (const auto peer = details.peer) {
+					window->showPeerInfo(peer);
+				}
+			}
+		});
+		return _fromLink;
+	} else if (const auto from = item->displayFrom()) {
 		_fromLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
 			if (context.button != Qt::LeftButton) {
@@ -607,29 +642,8 @@ ClickHandlerPtr Element::fromLink() const {
 			}
 			const auto my = context.other.value<ClickHandlerContext>();
 			const auto session = &from->session();
-			const auto window = [&]() -> Window::SessionController* {
-				if (const auto controller = my.sessionWindow.get()) {
-					return controller;
-				}
-				const auto &windows = session->windows();
-				if (windows.empty()) {
-					session->domain().activate(&session->account());
-					if (windows.empty()) {
-						return nullptr;
-					}
-				}
-				return windows.front();
-			}();
-			if (window) {
-				const auto inviteHash = item->isSponsored()
-					? session->data().sponsoredMessages().channelPost(
-						my.itemId).hash
-					: std::nullopt;
-				if (inviteHash) {
-					Api::CheckChatInvite(window, *inviteHash);
-				} else {
-					window->showPeerInfo(from);
-				}
+			if (const auto window = ContextOrSessionWindow(my, session)) {
+				window->showPeerInfo(from);
 			}
 		});
 		_fromLink->setProperty(kPeerLinkPeerIdProperty, from->id.value);

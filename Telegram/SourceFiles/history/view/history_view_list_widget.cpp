@@ -1753,7 +1753,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 						userpicTop,
 						view->width(),
 						st::msgPhotoSize);
-				} else if (const auto info = view->data()->hiddenForwardedInfo()) {
+				} else if (const auto info = view->data()->hiddenSenderInfo()) {
 					info->userpic.paint(
 						p,
 						st::historyPhotoLeft,

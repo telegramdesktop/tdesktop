@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_style.h"
 
+struct HistoryMessageSponsored;
+
 namespace Data {
 class Media;
 } // namespace Data
@@ -21,7 +23,9 @@ struct TextState;
 
 class ViewButton {
 public:
-	ViewButton(not_null<PeerData*> peer, Fn<void()> updateCallback);
+	ViewButton(
+		not_null<HistoryMessageSponsored*> sponsored,
+		Fn<void()> updateCallback);
 	ViewButton(not_null<Data::Media*> media, Fn<void()> updateCallback);
 	~ViewButton();
 

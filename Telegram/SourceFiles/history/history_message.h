@@ -14,6 +14,10 @@ struct SendAction;
 struct SendOptions;
 } // namespace Api
 
+namespace Data {
+struct SponsoredFrom;
+} // namespace Data
+
 namespace HistoryView {
 class Message;
 } // namespace HistoryView
@@ -115,6 +119,11 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup); // local game
+	HistoryMessage(
+		not_null<History*> history,
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities); // sponsored
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
@@ -251,6 +260,7 @@ private:
 	void setUnreadRepliesCount(
 		not_null<HistoryMessageViews*> views,
 		int count);
+	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	static void FillForwardedInfo(
 		CreateConfig &config,

@@ -20,9 +20,19 @@ namespace Data {
 
 class Session;
 
-struct SponsoredMessage final {
+struct SponsoredFrom {
+	PeerData *peer = nullptr;
+	QString title;
+	bool isBroadcast = false;
+	bool isMegagroup = false;
+	bool isChannel = false;
+	bool isPublic = false;
+	bool isBot = false;
+};
+
+struct SponsoredMessage {
 	QByteArray randomId;
-	PeerId fromId;
+	SponsoredFrom from;
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
 	MsgId msgId;
@@ -31,9 +41,10 @@ struct SponsoredMessage final {
 
 class SponsoredMessages final {
 public:
-	struct ChannelPost {
-		MsgId msgId;
+	struct Details {
 		std::optional<QString> hash;
+		PeerData *peer = nullptr;
+		MsgId msgId;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
@@ -45,7 +56,7 @@ public:
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);
-	[[nodiscard]] ChannelPost channelPost(const FullMsgId &fullId) const;
+	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 
 	void view(const FullMsgId &fullId);
 

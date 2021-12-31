@@ -42,6 +42,8 @@ class CloudImageView;
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(BareId bareId);
 style::color PeerUserpicColor(PeerId peerId);
+
+// Must be used only for PeerColor-s.
 PeerId FakePeerIdForJustName(const QString &name);
 
 class RestrictionCheckResult {

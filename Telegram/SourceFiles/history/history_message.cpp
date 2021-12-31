@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_histories.h"
 #include "data/data_web_page.h"
+#include "data/data_sponsored_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
@@ -582,7 +583,7 @@ HistoryMessage::HistoryMessage(
 			&& (!originalMedia || !originalMedia->forceForwardedInfo()));
 	if (!dropForwardInfo) {
 		config.originalDate = original->dateOriginal();
-		if (const auto info = original->hiddenForwardedInfo()) {
+		if (const auto info = original->hiddenSenderInfo()) {
 			config.senderNameOriginal = info->name;
 		} else if (const auto senderOriginal = original->senderOriginal()) {
 			config.senderOriginal = senderOriginal->id;
@@ -766,6 +767,29 @@ HistoryMessage::HistoryMessage(
 
 	_media = std::make_unique<Data::MediaGame>(this, game);
 	setEmptyText();
+}
+
+HistoryMessage::HistoryMessage(
+	not_null<History*> history,
+	MsgId id,
+	Data::SponsoredFrom from,
+	const TextWithEntities &textWithEntities)
+: HistoryItem(
+		history,
+		id,
+		((history->peer->isChannel() ? MessageFlag::Post : MessageFlag(0))
+			//| (from.peer ? MessageFlag::HasFromId : MessageFlag(0))
+			| MessageFlag::Local),
+		HistoryItem::NewMessageDate(0),
+		/*from.peer ? from.peer->id : */PeerId(0)) {
+	createComponentsHelper(
+		_flags,
+		MsgId(0), // replyTo
+		UserId(0), // viaBotId
+		QString(), // postAuthor
+		HistoryMessageMarkupData());
+	setText(textWithEntities);
+	setSponsoredFrom(from);
 }
 
 void HistoryMessage::createComponentsHelper(
@@ -1913,6 +1937,23 @@ void HistoryMessage::setUnreadRepliesCount(
 	history()->session().changes().messageUpdated(
 		this,
 		Data::MessageUpdate::Flag::RepliesUnreadCount);
+}
+
+void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
+	AddComponents(HistoryMessageSponsored::Bit());
+	const auto sponsored = Get<HistoryMessageSponsored>();
+	sponsored->sender = std::make_unique<HiddenSenderInfo>(
+		from.title,
+		false);
+
+	using Type = HistoryMessageSponsored::Type;
+	sponsored->type = from.isBot
+		? Type::Bot
+		: from.isBroadcast
+		? Type::Broadcast
+		: (from.peer && from.peer->isUser())
+		? Type::User
+		: Type::Group;
 }
 
 void HistoryMessage::setReplyToTop(MsgId replyToTop) {

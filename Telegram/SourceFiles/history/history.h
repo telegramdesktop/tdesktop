@@ -35,6 +35,7 @@ struct Draft;
 class Session;
 class Folder;
 class ChatFilter;
+struct SponsoredFrom;
 
 enum class ForwardOptions {
 	PreserveInfo,
@@ -190,6 +191,10 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup);
+	not_null<HistoryItem*> addNewLocalMessage(
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities); // sponsored
 
 	// Used only internally and for channel admin log.
 	not_null<HistoryItem*> createItem(

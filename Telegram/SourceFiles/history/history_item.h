@@ -387,7 +387,7 @@ public:
 
 	[[nodiscard]] TimeId dateOriginal() const;
 	[[nodiscard]] PeerData *senderOriginal() const;
-	[[nodiscard]] const HiddenSenderInfo *hiddenForwardedInfo() const;
+	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
 	[[nodiscard]] QString authorOriginal() const;
 	[[nodiscard]] MsgId idOriginal() const;

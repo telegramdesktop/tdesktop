@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_sponsored_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 
@@ -294,6 +295,10 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 PeerData *HistoryItem::displayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
+	} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+		if (sponsored->sender) {
+			return nullptr;
+		}
 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (history()->peer->isSelf() || history()->peer->isRepliesChat() || forwarded->imported) {
 			return forwarded->originalSender;
@@ -484,7 +489,7 @@ bool HistoryItem::isScheduled() const {
 }
 
 bool HistoryItem::isSponsored() const {
-	return (_flags & MessageFlag::IsSponsored);
+	return Has<HistoryMessageSponsored>();
 }
 
 bool HistoryItem::skipNotification() const {
@@ -900,8 +905,10 @@ PeerData *HistoryItem::senderOriginal() const {
 	return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
 }
 
-const HiddenSenderInfo *HistoryItem::hiddenForwardedInfo() const {
-	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+const HiddenSenderInfo *HistoryItem::hiddenSenderInfo() const {
+	if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+		return sponsored->sender.get();
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->hiddenSenderInfo.get();
 	}
 	return nullptr;
@@ -1118,6 +1125,8 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	const auto sender = [&]() -> std::optional<QString> {
 		if (options.hideSender || isPost() || isEmpty()) {
 			return {};
+		} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+			return sponsored->sender->name;
 		} else if (!_history->peer->isUser()) {
 			if (const auto from = displayFrom()) {
 				return fromSender(from);

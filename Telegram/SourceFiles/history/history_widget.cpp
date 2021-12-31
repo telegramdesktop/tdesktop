@@ -7006,7 +7006,7 @@ void HistoryWidget::updateForwardingTexts() {
 					fullname = from->name;
 				}
 				version += from->nameVersion;
-			} else if (const auto info = item->hiddenForwardedInfo()) {
+			} else if (const auto info = item->hiddenSenderInfo()) {
 				if (!insertedNames.contains(info->name)) {
 					insertedNames.emplace(info->name);
 					names.push_back(info->firstName);
@@ -7058,7 +7058,7 @@ void HistoryWidget::checkForwardingInfo() {
 			for (const auto item : _toForward.items) {
 				if (const auto from = item->senderOriginal()) {
 					version += from->nameVersion;
-				} else if (const auto info = item->hiddenForwardedInfo()) {
+				} else if (const auto info = item->hiddenSenderInfo()) {
 					++version;
 				} else {
 					Unexpected("Corrupt forwarded information in message.");

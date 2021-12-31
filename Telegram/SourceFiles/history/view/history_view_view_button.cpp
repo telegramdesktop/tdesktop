@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_sponsored_messages.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
+#include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -30,20 +31,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-inline auto PeerToPhrase(not_null<PeerData*> peer) {
+using SponsoredType = HistoryMessageSponsored::Type;
+
+inline auto SponsoredPhrase(SponsoredType type) {
 	const auto phrase = [&] {
-		if (const auto user = peer->asUser()) {
-			return user->isBot()
-				? tr::lng_view_button_bot
-				: tr::lng_view_button_user;
-		} else if (peer->isChat()) {
-			return tr::lng_view_button_group;
-		} else if (peer->isChannel()) {
-			return tr::lng_view_button_channel;
+		switch (type) {
+		case SponsoredType::Bot: return tr::lng_view_button_bot;
+		case SponsoredType::Group: return tr::lng_view_button_group;
+		case SponsoredType::Broadcast: return tr::lng_view_button_channel;
+		case SponsoredType::User: return tr::lng_view_button_user;
 		}
-		Unexpected("Invalid peer in ViewButton.");
-	}()(tr::now);
-	return Ui::Text::Upper(phrase);
+		Unexpected("SponsoredType in SponsoredPhrase.");
+	}();
+	return Ui::Text::Upper(phrase(tr::now));
 }
 
 inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
@@ -75,8 +75,11 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 } // namespace
 
 struct ViewButton::Inner {
-	Inner(not_null<PeerData*> peer, Fn<void()> updateCallback);
+	Inner(
+		not_null<HistoryMessageSponsored*> sponsored,
+		Fn<void()> updateCallback);
 	Inner(not_null<Data::Media*> media, Fn<void()> updateCallback);
+
 	void updateMask(int height);
 	void toggleRipple(bool pressed);
 
@@ -114,22 +117,28 @@ bool ViewButton::MediaHasViewButton(
 			&& webpage->document->isWallPaper());
 }
 
-ViewButton::Inner::Inner(not_null<PeerData*> peer, Fn<void()> updateCallback)
+ViewButton::Inner::Inner(
+	not_null<HistoryMessageSponsored*> sponsored,
+	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
 , link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
 		const auto &data = controller->session().data();
-		const auto link = data.sponsoredMessages().channelPost(my.itemId);
-		if (link.hash) {
-			Api::CheckChatInvite(controller, *link.hash);
-		} else {
-			controller->showPeer(peer, link.msgId);
+		const auto itemId = my.itemId;
+		const auto details = data.sponsoredMessages().lookupDetails(itemId);
+		if (details.hash) {
+			Api::CheckChatInvite(controller, *details.hash);
+		} else if (details.peer) {
+			controller->showPeerHistory(
+				details.peer,
+				Window::SectionShow::Way::Forward,
+				details.msgId);
 		}
 	}
 }))
 , updateCallback(std::move(updateCallback))
-, text(st::historyViewButtonTextStyle, PeerToPhrase(peer)) {
+, text(st::historyViewButtonTextStyle, SponsoredPhrase(sponsored->type)) {
 }
 
 ViewButton::Inner::Inner(
@@ -170,8 +179,10 @@ void ViewButton::Inner::toggleRipple(bool pressed) {
 	}
 }
 
-ViewButton::ViewButton(not_null<PeerData*> peer, Fn<void()> updateCallback)
-: _inner(std::make_unique<Inner>(peer, std::move(updateCallback))) {
+ViewButton::ViewButton(
+	not_null<HistoryMessageSponsored*> sponsored,
+	Fn<void()> updateCallback)
+: _inner(std::make_unique<Inner>(sponsored, std::move(updateCallback))) {
 }
 
 ViewButton::ViewButton(
