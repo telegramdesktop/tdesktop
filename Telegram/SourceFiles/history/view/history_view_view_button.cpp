@@ -36,10 +36,11 @@ using SponsoredType = HistoryMessageSponsored::Type;
 inline auto SponsoredPhrase(SponsoredType type) {
 	const auto phrase = [&] {
 		switch (type) {
-		case SponsoredType::Bot: return tr::lng_view_button_bot;
+		case SponsoredType::User: return tr::lng_view_button_user;
 		case SponsoredType::Group: return tr::lng_view_button_group;
 		case SponsoredType::Broadcast: return tr::lng_view_button_channel;
-		case SponsoredType::User: return tr::lng_view_button_user;
+		case SponsoredType::Post: return tr::lng_view_button_message;
+		case SponsoredType::Bot: return tr::lng_view_button_bot;
 		}
 		Unexpected("SponsoredType in SponsoredPhrase.");
 	}();

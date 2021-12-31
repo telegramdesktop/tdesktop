@@ -151,7 +151,9 @@ void SponsoredMessages::append(
 	});
 	const auto randomId = data.vrandom_id().v;
 	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
-	const auto makeFrom = [](not_null<PeerData*> peer) {
+	const auto makeFrom = [](
+			not_null<PeerData*> peer,
+			bool exactPost = false) {
 		const auto channel = peer->asChannel();
 		return SponsoredFrom{
 			.peer = peer,
@@ -161,12 +163,14 @@ void SponsoredMessages::append(
 			.isChannel = (channel != nullptr),
 			.isPublic = (channel && channel->isPublic()),
 			.isBot = (peer->isUser() && peer->asUser()->isBot()),
+			.isExactPost = exactPost,
 		};
 	};
 	const auto from = [&]() -> SponsoredFrom {
 		if (data.vfrom_id()) {
 			return makeFrom(
-				_session->data().peer(peerFromMTP(*data.vfrom_id())));
+				_session->data().peer(peerFromMTP(*data.vfrom_id())),
+				(data.vchannel_post() != nullptr));
 		}
 		Assert(data.vchat_invite());
 		return data.vchat_invite()->match([](const MTPDchatInvite &data) {

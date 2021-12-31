@@ -1947,7 +1947,9 @@ void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
 		false);
 
 	using Type = HistoryMessageSponsored::Type;
-	sponsored->type = from.isBot
+	sponsored->type = from.isExactPost
+		? Type::Post
+		: from.isBot
 		? Type::Bot
 		: from.isBroadcast
 		? Type::Broadcast

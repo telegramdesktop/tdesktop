@@ -28,6 +28,7 @@ struct SponsoredFrom {
 	bool isChannel = false;
 	bool isPublic = false;
 	bool isBot = false;
+	bool isExactPost = false;
 };
 
 struct SponsoredMessage {
