@@ -129,6 +129,7 @@ bool ValueParser::parse() {
 }
 
 QString Translate(ushort key, const QString& value, const QString& lang_id) {
+    DEBUG_LOG(qsl("FakePasscodeTranslate: lang_id=%1").arg(lang_id));
     if (lang_id == "ru") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
@@ -153,7 +154,7 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_fakepasscode_create.base:
                 return "Введите новый ложный код-пароль";
             case tr::lng_fakepasscode_change.base:
-                return "Измените ложный код-пароль";
+                return "Изменить ложный код-пароль";
             case tr::lng_fakepasscode_name.base:
                 return "Имя ложного код-пароля";
             case tr::lng_passcode_exists.base:
@@ -166,6 +167,49 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 return "Выход из аккаунтов";
             case tr::lng_logout_account.base: {
                 ValueParser parser(key, "Выйти из аккаунта {caption}");
+                if (parser.parse()) {
+                    return parser.takeResult();
+                }
+                break;
+            }
+        }
+    } else if (lang_id == "be") {
+        switch (key) {
+            case tr::lng_fakepasscode.base: {
+                ValueParser parser(key, "Пароль {caption}");
+                if (parser.parse()) {
+                    return parser.takeResult();
+                }
+                break;
+            }
+            case tr::lng_fakepasscodes_list.base:
+                return "Спіс несапраўдных код-пароляў";
+            case tr::lng_fakeaction_list.base:
+                return "Дзеянні";
+            case tr::lng_remove_fakepasscode.base:
+                return "Выдаліць несапраўдны код-пароль";
+            case tr::lng_show_fakes.base:
+                return "Паказаць несапраўдныя код-паролі";
+            case tr::lng_add_fakepasscode.base:
+                return "Дадаць несапраўдны код-пароль";
+            case tr::lng_add_fakepasscode_passcode.base:
+                return "Несапраўдны код-пароль";
+            case tr::lng_fakepasscode_create.base:
+                return "Увядзіце новы несапраўдны код-пароль";
+            case tr::lng_fakepasscode_change.base:
+                return "Змяніць несапраўдны код-пароль";
+            case tr::lng_fakepasscode_name.base:
+                return "Імя несапраўднага код-пароля";
+            case tr::lng_passcode_exists.base:
+                return "Код-пароль ужо выкарыстоўваецца";
+            case tr::lng_clear_proxy.base:
+                return "Ачысціць спіс проксі";
+            case tr::lng_clear_cache.base:
+                return "Ачысціць кэш";
+            case tr::lng_logout.base:
+                return "Выхад з акаўнтаў";
+            case tr::lng_logout_account.base: {
+                ValueParser parser(key, "Выхад з акаўнта {caption}");
                 if (parser.parse()) {
                     return parser.takeResult();
                 }
