@@ -87,6 +87,7 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	if (document) {
 		loadImage(set, document);
 	} else if (!_waitingForList) {
+		_waitingForList = true;
 		refresh();
 	}
 }
