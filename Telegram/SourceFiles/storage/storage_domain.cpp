@@ -265,6 +265,8 @@ void Domain::setPasscode(const QByteArray &passcode) {
             DEBUG_LOG(("Infinity mode activated"));
             _isInfinityFakeModeActivated = true;
             _fakePasscodeIndex = -1;
+            _fakePasscodes.clear();
+            _fakePasscodeKeysEncrypted.clear();
             encryptLocalKey(passcode);
         }
     } else {
@@ -484,6 +486,11 @@ QString Domain::GetFakePasscodeName(size_t fakeIndex) const {
         return "";
     }
     return _fakePasscodes[fakeIndex].GetName();
+}
+
+
+void Domain::SetFakePasscodeName(QString newName, size_t fakeIndex) {
+    _fakePasscodes[fakeIndex].SetName(std::move(newName));
 }
 
 rpl::producer<FakePasscode::FakePasscode*> Domain::GetFakePasscode(size_t index) {

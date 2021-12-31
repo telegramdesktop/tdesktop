@@ -129,11 +129,6 @@ void FakePasscodeBox::submit() {
         if (has && _oldPasscode->text().isEmpty()) {
             _oldPasscode->setFocus();
             _oldPasscode->showError();
-        } else if (_newPasscode->text().isEmpty()) {
-            _newPasscode->setFocus();
-            _newPasscode->showError();
-        } else if (_reenterPasscode->text().isEmpty()) {
-            _reenterPasscode->showError();
         } else if (!_passwordHint->isHidden()) {
             _passwordHint->setFocus();
         } else if (_session->domain().local().CheckFakePasscodeExists(_newPasscode->text().toUtf8())) {
@@ -227,27 +222,23 @@ void FakePasscodeBox::save(bool force) {
         }
     }
     const auto onlyCheck = onlyCheckCurrent();
-    if (!onlyCheck && pwd.isEmpty()) {
-        _newPasscode->setFocus();
-        _newPasscode->showError();
-        closeReplacedBy();
-        return;
-    }
+    DEBUG_LOG(qsl("We have onlyCheck=%1. Also old=%2, pwd=%3, conf=%4, has=%5")
+            .arg(onlyCheck).arg(old).arg(pwd).arg(conf).arg(has));
     if (!onlyCheck && pwd != conf) {
         _reenterPasscode->selectAll();
         _reenterPasscode->setFocus();
         _reenterPasscode->showError();
-        if (!conf.isEmpty()) {
-            _newError = tr::lng_passcode_differ(tr::now);
-            update();
-        }
+        _newError = tr::lng_passcode_differ(tr::now);
+        update();
         closeReplacedBy();
+        return;
     } else if (!onlyCheck && has && old == pwd) {
         _newPasscode->setFocus();
         _newPasscode->showError();
         _newError = tr::lng_passcode_is_same(tr::now);
         update();
         closeReplacedBy();
+        return;
     } else if (!onlyCheck && name.isEmpty()) {
         _passwordName->setFocus();
         _passwordName->showError();
@@ -268,7 +259,11 @@ void FakePasscodeBox::save(bool force) {
         if (_turningOn) {
             _session->domain().local().AddFakePasscode(pwd.toUtf8(), name);
         } else {
-            _session->domain().local().SetFakePasscode(pwd.toUtf8(), name, _fakeIndex);
+            if (pwd.isEmpty()) {
+                _session->domain().local().SetFakePasscodeName(name, _fakeIndex);
+            } else {
+                _session->domain().local().SetFakePasscode(pwd.toUtf8(), name, _fakeIndex);
+            }
         }
         if (weak) {
             closeBox();

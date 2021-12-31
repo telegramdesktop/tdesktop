@@ -575,6 +575,7 @@ PRIVATE
     fakepasscode/action_ui/clear_proxy_ui.cpp
     fakepasscode/action_ui/clear_cache_ui.cpp
     fakepasscode/action_ui/logout_ui.cpp
+    fakepasscode/lang/fakepasscode_translator.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

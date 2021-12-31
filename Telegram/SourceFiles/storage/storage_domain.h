@@ -65,6 +65,7 @@ public:
     rpl::producer<size_t> GetFakePasscodesSize();
 
 	QString GetFakePasscodeName(size_t fakeIndex) const;
+	void SetFakePasscodeName(QString newName, size_t fakeIndex);
     bool CheckFakePasscodeExists(QByteArray passcode) const;
     void AddFakePasscode(QByteArray passcode, QString name);
     void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
