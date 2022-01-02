@@ -560,7 +560,6 @@ win:
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
     cmake --build out --config Debug
-release:
     cmake --build out --config Release
     cmake --install out --config Release
 mac:
