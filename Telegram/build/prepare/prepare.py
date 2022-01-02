@@ -1101,11 +1101,10 @@ mac:
 
     CONFIGURATIONS=-debug
 release:
-    CONFIGURATIONS=-debug-and-release
+    CONFIGURATIONS=-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-5.15.2" \
         $CONFIGURATIONS \
-        -force-debug-info \
         -opensource \
         -confirm-license \
         -static \
