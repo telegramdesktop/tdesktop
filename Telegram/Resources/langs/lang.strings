@@ -440,7 +440,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
 "lng_settings_close_sure" = "Are you sure you want to close this page? You didn't save your changes.";
-//"lng_settings_peer_to_peer" = "Peer-to-Peer";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
@@ -917,8 +916,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_files_header" = "Files";
 "lng_profile_audios#one" = "{count} voice message";
 "lng_profile_audios#other" = "{count} voice messages";
-//"lng_profile_rounds#one" = "{count} video message";
-//"lng_profile_rounds#other" = "{count} video messages";
 "lng_profile_audios_header" = "Voice messages";
 "lng_profile_shared_links#one" = "{count} shared link";
 "lng_profile_shared_links#other" = "{count} shared links";
@@ -978,8 +975,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_selected_file#other" = "{count} Files";
 "lng_media_selected_audio#one" = "{count} Voice message";
 "lng_media_selected_audio#other" = "{count} Voice messages";
-//"lng_media_selected_round#one" = "{count} Video message";
-//"lng_media_selected_round#other" = "{count} Video messages";
 "lng_media_selected_link#one" = "{count} Shared link";
 "lng_media_selected_link#other" = "{count} Shared links";
 "lng_media_photo_empty" = "No photos here yet";
@@ -1729,7 +1724,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_send_message" = "Send message";
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
-//"lng_context_view_feed_info" = "View feed info";
 "lng_context_hide_psa" = "Hide this announcement";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
@@ -1744,6 +1738,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_archive_to_menu" = "Move to main menu";
 "lng_context_archive_to_list" = "Move to chats list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nYou can return it from the context menu of the archive button.";
+
+"lng_context_mute" = "Mute notifications";
+"lng_context_unmute" = "Unmute";
 
 "lng_context_promote_admin" = "Promote to admin";
 "lng_context_edit_permissions" = "Edit permissions";
