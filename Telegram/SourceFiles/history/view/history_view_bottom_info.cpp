@@ -159,6 +159,17 @@ void BottomInfo::paint(
 		authorEditedWidth,
 		outerWidth);
 
+	if (_data.flags & Data::Flag::Pinned) {
+		const auto &icon = inverted
+			? st->historyPinInvertedIcon()
+			: stm->historyPinIcon;
+		right -= st::historyPinWidth;
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyPinTop,
+			outerWidth);
+	}
 	if (!_views.isEmpty()) {
 		const auto viewsWidth = _views.maxWidth();
 		right -= st::historyViewsSpace + viewsWidth;
@@ -367,6 +378,9 @@ QSize BottomInfo::countOptimalSize() {
 			+ _replies.maxWidth()
 			+ st::historyViewsWidth;
 	}
+	if (_data.flags & Data::Flag::Pinned) {
+		width += st::historyPinWidth;
+	}
 	_reactionsMaxWidth = countReactionsMaxWidth();
 	width += _reactionsMaxWidth;
 	return QSize(width, st::msgDateFont->height);
@@ -409,6 +423,9 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (item->isSponsored()) {
 		result.flags |= Flag::Sponsored;
+	}
+	if (item->isPinned() && message->context() != Context::Pinned) {
+		result.flags |= Flag::Pinned;
 	}
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 		 if (!msgsigned->isAnonymousRank) {
