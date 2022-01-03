@@ -1142,11 +1142,10 @@ depends:patches/qt5compat_6_2_2/*.patch
 
     CONFIGURATIONS=-debug
 release:
-    CONFIGURATIONS=-debug-and-release
+    CONFIGURATIONS=-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-6.2.2" \
         $CONFIGURATIONS \
-        -force-debug-info \
         -opensource \
         -confirm-license \
         -static \
