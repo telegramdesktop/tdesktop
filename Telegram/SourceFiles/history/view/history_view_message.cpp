@@ -2148,10 +2148,6 @@ bool Message::toggleSelectionByHandlerClick(
 	return false;
 }
 
-bool Message::displayPinIcon() const {
-	return data()->isPinned() && !isPinnedContext();
-}
-
 bool Message::hasFromName() const {
 	switch (context()) {
 	case Context::AdminLog:
