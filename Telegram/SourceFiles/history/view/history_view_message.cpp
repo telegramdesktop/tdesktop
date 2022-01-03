@@ -2790,8 +2790,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
-		} else {
+		} else if (_comments) {
 			_comments = nullptr;
+			checkHeavyPart();
 		}
 		newHeight += viewButtonHeight();
 	} else if (mediaDisplayed) {
