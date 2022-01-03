@@ -4,6 +4,7 @@ ARG QT6=true
 FROM centos:7 AS builder
 
 ENV GIT https://github.com
+ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 ENV QT5_VER 5_15_2
 ENV QT5_TAG v5.15.2
@@ -176,7 +177,7 @@ WORKDIR ..
 RUN rm -rf rnnoise
 
 FROM builder AS xcb-proto
-RUN git clone -b xcb-proto-1.14.1 --depth=1 https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
+RUN git clone -b xcb-proto-1.14.1 --depth=1 $GIT_FREEDESKTOP/xcbproto.git
 
 WORKDIR xcbproto
 RUN ./autogen.sh
@@ -189,7 +190,7 @@ RUN rm -rf xcbproto
 FROM builder AS xcb
 COPY --from=xcb-proto ${LibrariesPath}/xcb-proto-cache /
 
-RUN git clone -b libxcb-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxcb.git
+RUN git clone -b libxcb-1.14 --depth=1 $GIT_FREEDESKTOP/libxcb.git
 
 WORKDIR libxcb
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -201,7 +202,7 @@ RUN rm -rf libxcb
 
 FROM builder AS xcb-wm
 
-RUN git clone -b 0.4.1 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-wm.git
+RUN git clone -b 0.4.1 --depth=1 --recursive $GIT_FREEDESKTOP/libxcb-wm.git
 
 WORKDIR libxcb-wm
 RUN ./autogen.sh --enable-static
@@ -210,7 +211,7 @@ RUN make DESTDIR="$LibrariesPath/xcb-wm-cache" install
 
 FROM builder AS xcb-util
 
-RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-util.git
+RUN git clone -b 0.4.0 --depth=1 --recursive $GIT_FREEDESKTOP/libxcb-util.git
 
 WORKDIR libxcb-util
 RUN ./autogen.sh --enable-static
@@ -220,7 +221,7 @@ RUN make DESTDIR="$LibrariesPath/xcb-util-cache" install
 FROM builder AS xcb-image
 COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
 
-RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-image.git
+RUN git clone -b 0.4.0 --depth=1 --recursive $GIT_FREEDESKTOP/libxcb-image.git
 
 WORKDIR libxcb-image
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -229,7 +230,7 @@ RUN make DESTDIR="$LibrariesPath/xcb-image-cache" install
 
 FROM builder AS xcb-keysyms
 
-RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms.git
+RUN git clone -b 0.4.0 --depth=1 --recursive $GIT_FREEDESKTOP/libxcb-keysyms.git
 
 WORKDIR libxcb-keysyms
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -238,7 +239,7 @@ RUN make DESTDIR="$LibrariesPath/xcb-keysyms-cache" install
 
 FROM builder AS xcb-render-util
 
-RUN git clone -b 0.3.9 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util.git
+RUN git clone -b 0.3.9 --depth=1 --recursive $GIT_FREEDESKTOP/libxcb-render-util.git
 
 WORKDIR libxcb-render-util
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -246,7 +247,7 @@ RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-render-util-cache" install
 
 FROM builder AS libXext
-RUN git clone -b libXext-1.3.4 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxext.git
+RUN git clone -b libXext-1.3.4 --depth=1 $GIT_FREEDESKTOP/libxext.git
 
 WORKDIR libxext
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -257,7 +258,7 @@ WORKDIR ..
 RUN rm -rf libxext
 
 FROM builder AS libXtst
-RUN git clone -b libXtst-1.2.3 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxtst.git
+RUN git clone -b libXtst-1.2.3 --depth=1 $GIT_FREEDESKTOP/libxtst.git
 
 WORKDIR libxtst
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -268,7 +269,7 @@ WORKDIR ..
 RUN rm -rf libxtst
 
 FROM builder AS libXfixes
-RUN git clone -b libXfixes-5.0.3 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxfixes.git
+RUN git clone -b libXfixes-5.0.3 --depth=1 $GIT_FREEDESKTOP/libxfixes.git
 
 WORKDIR libxfixes
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -281,7 +282,7 @@ RUN rm -rf libxfixes
 FROM builder AS libXv
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 
-RUN git clone -b libXv-1.0.11 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxv.git
+RUN git clone -b libXv-1.0.11 --depth=1 $GIT_FREEDESKTOP/libxv.git
 
 WORKDIR libxv
 RUN ./autogen.sh --enable-static
@@ -292,7 +293,7 @@ WORKDIR ..
 RUN rm -rf libxv
 
 FROM builder AS libXrandr
-RUN git clone -b libXrandr-1.5.2 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrandr.git
+RUN git clone -b libXrandr-1.5.2 --depth=1 $GIT_FREEDESKTOP/libxrandr.git
 
 WORKDIR libxrandr
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -303,7 +304,7 @@ WORKDIR ..
 RUN rm -rf libxrandr
 
 FROM builder AS libXrender
-RUN git clone -b libXrender-0.9.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrender.git
+RUN git clone -b libXrender-0.9.10 --depth=1 $GIT_FREEDESKTOP/libxrender.git
 
 WORKDIR libxrender
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -314,7 +315,7 @@ WORKDIR ..
 RUN rm -rf libxrender
 
 FROM builder AS libXdamage
-RUN git clone -b libXdamage-1.1.5 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxdamage.git
+RUN git clone -b libXdamage-1.1.5 --depth=1 $GIT_FREEDESKTOP/libxdamage.git
 
 WORKDIR libxdamage
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -325,7 +326,7 @@ WORKDIR ..
 RUN rm -rf libxdamage
 
 FROM builder AS libXcomposite
-RUN git clone -b libXcomposite-0.4.5 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxcomposite.git
+RUN git clone -b libXcomposite-0.4.5 --depth=1 $GIT_FREEDESKTOP/libxcomposite.git
 
 WORKDIR libxcomposite
 RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh --enable-static
@@ -338,7 +339,7 @@ RUN rm -rf libxcomposite
 FROM builder AS wayland
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 
-RUN git clone -b 1.20.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
+RUN git clone -b 1.20.0 --depth=1 $GIT_FREEDESKTOP/wayland.git
 
 WORKDIR wayland
 RUN meson build \
@@ -358,7 +359,7 @@ RUN rm -rf wayland
 FROM builder AS wayland-protocols
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 1.24 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+RUN git clone -b 1.24 --depth=1 $GIT_FREEDESKTOP/wayland-protocols.git
 
 WORKDIR wayland-protocols
 RUN meson build \
@@ -386,7 +387,7 @@ WORKDIR ..
 RUN rm -rf plasma-wayland-protocols
 
 FROM builder AS libpciaccess
-RUN git clone -b libpciaccess-0.16 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libpciaccess.git
+RUN git clone -b libpciaccess-0.16 --depth=1 $GIT_FREEDESKTOP/libpciaccess.git
 
 WORKDIR libpciaccess
 RUN ./autogen.sh --enable-static
@@ -400,7 +401,7 @@ RUN rm -rf libpciaccess
 FROM builder AS drm
 COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
 
-RUN git clone -b libdrm-2.4.109 --depth=1 https://gitlab.freedesktop.org/mesa/drm.git
+RUN git clone -b libdrm-2.4.109 --depth=1 $GIT_FREEDESKTOP/drm.git
 
 WORKDIR drm
 RUN meson build \
@@ -436,7 +437,7 @@ WORKDIR ..
 RUN rm -rf libva
 
 FROM builder AS libvdpau
-RUN git clone -b 1.4 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
+RUN git clone -b 1.4 --depth=1 $GIT_FREEDESKTOP/libvdpau.git
 
 WORKDIR libvdpau
 RUN sed -i 's/shared_library/library/g' src/meson.build
