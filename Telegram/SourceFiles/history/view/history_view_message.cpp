@@ -2798,6 +2798,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 			: contentWidth;
 		newHeight += st::mediaInBubbleSkip
 			+ _reactions->resizeGetHeight(reactionsWidth);
+		if (hasOutLayout() && !delegate()->elementIsChatWide()) {
+			_reactions->flipToRight();
+		}
 	}
 
 	if (const auto keyboard = item->inlineReplyKeyboard()) {
