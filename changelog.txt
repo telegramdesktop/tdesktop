@@ -1,3 +1,7 @@
+3.4.3 (03.01.21)
+
+- Bug fixes and other minor improvements.
+
 3.4.2 (31.12.21)
 
 - Bug fixes and other minor improvements.
