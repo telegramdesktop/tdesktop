@@ -593,6 +593,7 @@ void Widget::checkUpdateStatus() {
 			Core::checkReadyUpdate();
 			App::restart();
 		});
+		_connecting->raise();
 	} else {
 		if (!_updateTelegram) return;
 		_updateTelegram.destroy();
