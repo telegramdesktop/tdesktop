@@ -26,12 +26,6 @@ struct TextState;
 
 namespace HistoryView::Reactions {
 
-enum class ButtonStyle {
-	Incoming,
-	Outgoing,
-	Service,
-};
-
 enum class ExpandDirection {
 	Up,
 	Down,
@@ -49,7 +43,6 @@ struct ButtonParameters {
 	QPoint center;
 	QPoint pointer;
 	QPoint globalPointer;
-	ButtonStyle style = ButtonStyle::Incoming;
 	int reactionsCount = 1;
 	int visibleTop = 0;
 	int visibleBottom = 0;
@@ -76,7 +69,6 @@ public:
 	using State = ButtonState;
 	void applyState(State state);
 
-	[[nodiscard]] ButtonStyle style() const;
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] QRect geometry() const;
@@ -107,7 +99,6 @@ private:
 	int _finalHeight = 0;
 	int _scroll = 0;
 	ExpandDirection _expandDirection = ExpandDirection::Up;
-	ButtonStyle _style = ButtonStyle::Incoming;
 
 	base::Timer _expandTimer;
 	base::Timer _hideTimer;
@@ -182,17 +173,10 @@ private:
 		const QColor &shadow);
 	QRect validateEmoji(int frameIndex, float64 scale);
 	QRect validateFrame(
-		ButtonStyle style,
 		int frameIndex,
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow);
-	QRect validateMask(int frameIndex, float64 scale);
-	void validateCacheForPattern(
-		int frameIndex,
-		float64 scale,
-		const QRect &geometry,
-		const PaintContext &context);
 
 	[[nodiscard]] QMargins innerMargins() const;
 	[[nodiscard]] QRect buttonInner() const;
@@ -208,19 +192,13 @@ private:
 	mutable std::vector<ClickHandlerPtr> _links;
 	QSize _outer;
 	QRect _inner;
-	QImage _cacheInOutService;
+	QImage _cacheBg;
 	QImage _cacheParts;
-	QImage _cacheForPattern;
 	QImage _shadowBuffer;
-	std::array<bool, kFramesCount> _validIn = { { false } };
-	std::array<bool, kFramesCount> _validOut = { { false } };
-	std::array<bool, kFramesCount> _validService = { { false } };
+	std::array<bool, kFramesCount> _validBg = { { false } };
 	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
-	std::array<bool, kFramesCount> _validMask = { { false } };
-	QColor _backgroundIn;
-	QColor _backgroundOut;
-	QColor _backgroundService;
+	QColor _background;
 	QColor _shadow;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
