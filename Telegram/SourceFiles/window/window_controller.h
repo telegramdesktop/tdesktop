@@ -32,6 +32,9 @@ public:
 
 	void showAccount(not_null<Main::Account*> account);
 	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] bool isPrimary() const {
+		return (singlePeer() == nullptr);
+	}
 
 	[[nodiscard]] not_null<::MainWindow*> widget() {
 		return &_widget;

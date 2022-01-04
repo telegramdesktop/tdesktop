@@ -63,7 +63,7 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
-	Expects(!_singlePeer || &_singlePeer->account() == account);
+	Expects(isPrimary() || &_singlePeer->account() == account);
 
 	const auto prevSessionUniqueId = (_account && _account->sessionExists())
 		? _account->session().uniqueId()

@@ -17,6 +17,10 @@ class MainWidget;
 class FileUploader;
 class Translator;
 
+namespace Platform {
+class Integration;
+} // namespace Platform
+
 namespace Storage {
 class Databases;
 } // namespace Storage
@@ -115,8 +119,11 @@ public:
 	Application &operator=(const Application &other) = delete;
 	~Application();
 
-	[[nodiscard]] not_null<Launcher*> launcher() const {
-		return _launcher;
+	[[nodiscard]] Launcher &launcher() const {
+		return *_launcher;
+	}
+	[[nodiscard]] Platform::Integration &platformIntegration() const {
+		return *_platformIntegration;
 	}
 
 	void run();
@@ -317,13 +324,13 @@ private:
 	};
 	InstanceSetter _setter = { this };
 
-	not_null<Launcher*> _launcher;
+	const not_null<Launcher*> _launcher;
 	rpl::event_stream<ProxyChange> _proxyChanges;
 
 	// Some fields are just moved from the declaration.
 	struct Private;
 	const std::unique_ptr<Private> _private;
-	Settings _settings;
+	const std::unique_ptr<Platform::Integration> _platformIntegration;
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;

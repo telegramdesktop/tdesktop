@@ -68,14 +68,6 @@ inline void(__stdcall *SHChangeNotify)(
 inline HRESULT(__stdcall *SetCurrentProcessExplicitAppUserModelID)(
 	__in PCWSTR AppID);
 
-// WTSAPI32.DLL
-
-inline BOOL(__stdcall *WTSRegisterSessionNotification)(
-	HWND hWnd,
-	DWORD dwFlags);
-inline BOOL(__stdcall *WTSUnRegisterSessionNotification)(
-	HWND hWnd);
-
 // PROPSYS.DLL
 
 inline HRESULT(__stdcall *PSStringFromPropertyKey)(
