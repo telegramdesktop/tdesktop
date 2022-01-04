@@ -1254,10 +1254,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_you_proximity_reached" = "You are now within {distance} from {user}";
 "lng_action_you_theme_changed" = "You changed chat theme to {emoji}";
 "lng_action_theme_changed" = "{from} changed chat theme to {emoji}";
-"lng_action_theme_changed_channel" = "Channel theme changed to {emoji}";
 "lng_action_you_theme_disabled" = "You disabled chat theme";
 "lng_action_theme_disabled" = "{from} disabled chat theme";
-"lng_action_theme_disabled_channel" = "Channel theme disabled";
 "lng_action_proximity_distance_m#one" = "{count} meter";
 "lng_action_proximity_distance_m#other" = "{count} metres";
 "lng_action_proximity_distance_km#one" = "{count} km";
