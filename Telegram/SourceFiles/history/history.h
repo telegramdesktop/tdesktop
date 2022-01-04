@@ -25,6 +25,7 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 struct HistoryMessageMarkupData;
+class HistoryMainElementDelegateMixin;
 
 namespace Main {
 class Session;
@@ -83,6 +84,11 @@ public:
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
 	~History();
+
+	[[nodiscard]] auto delegateMixin() const
+			-> not_null<HistoryMainElementDelegateMixin*> {
+		return _delegateMixin.get();
+	}
 
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
@@ -584,6 +590,8 @@ private:
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
 	void setFolderPointer(Data::Folder *folder);
+
+	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 
 	Flags _flags = 0;
 	bool _mute = false;

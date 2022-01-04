@@ -2056,9 +2056,6 @@ void HistoryWidget::showHistory(
 	_historyInited = false;
 	_contactStatus = nullptr;
 
-	// Unload lottie animations.
-	session().data().unloadHeavyViewParts(HistoryInner::ElementDelegate());
-
 	if (peerId) {
 		_peer = session().data().peer(peerId);
 		_canSendMessages = _peer->canWrite();
@@ -2240,13 +2237,19 @@ void HistoryWidget::setHistory(History *history) {
 	if (_history == history) {
 		return;
 	}
+
+	// Unload lottie animations.
+	const auto unloadHeavyViewParts = [](History *history) {
+		if (history) {
+			history->owner().unloadHeavyViewParts(
+				history->delegateMixin()->delegate());
+			history->forceFullResize();
+		}
+	};
+	unloadHeavyViewParts(_history);
+	unloadHeavyViewParts(_migrated);
+
 	unregisterDraftSources();
-	if (_history) {
-		_history->forceFullResize();
-	}
-	if (_migrated) {
-		_migrated->forceFullResize();
-	}
 	_history = history;
 	_migrated = _history ? _history->migrateFrom() : nullptr;
 	registerDraftSource();

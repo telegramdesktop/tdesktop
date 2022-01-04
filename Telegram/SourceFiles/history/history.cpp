@@ -68,6 +68,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 : Entry(owner, Type::History)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
+, _delegateMixin(HistoryInner::DelegateMixin())
 , _mute(owner->notifyIsMuted(peer))
 , _chatListNameSortKey(owner->nameSortKey(peer->name))
 , _sendActionPainter(this) {
@@ -1244,8 +1245,7 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 
 	auto block = prepareBlockForAddingItem();
 
-	block->messages.push_back(item->createView(
-		HistoryInner::ElementDelegate()));
+	block->messages.push_back(item->createView(_delegateMixin->delegate()));
 	const auto view = block->messages.back().get();
 	view->attachToBlock(block, block->messages.size() - 1);
 
@@ -2011,8 +2011,7 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 	const auto it = block->messages.insert(
 		block->messages.begin() + itemIndex,
-		item->createView(
-			HistoryInner::ElementDelegate()));
+		item->createView(_delegateMixin->delegate()));
 	(*it)->attachToBlock(block.get(), itemIndex);
 	if (itemIndex + 1 < block->messages.size()) {
 		for (auto i = itemIndex + 1, l = int(block->messages.size()); i != l; ++i) {
@@ -3287,7 +3286,7 @@ void HistoryBlock::refreshView(not_null<Element*> view) {
 
 	const auto item = view->data();
 	auto refreshed = item->createView(
-		HistoryInner::ElementDelegate(),
+		_history->delegateMixin()->delegate(),
 		view);
 
 	auto blockIndex = indexInHistory();

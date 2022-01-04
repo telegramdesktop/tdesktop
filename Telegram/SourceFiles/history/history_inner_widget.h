@@ -47,6 +47,26 @@ enum class ReportReason;
 class PathShiftGradient;
 } // namespace Ui
 
+class HistoryInner;
+class HistoryMainElementDelegate;
+class HistoryMainElementDelegateMixin {
+public:
+	void setCurrent(HistoryInner *widget) {
+		_widget = widget;
+	}
+
+	virtual not_null<HistoryView::ElementDelegate*> delegate() = 0;
+	virtual ~HistoryMainElementDelegateMixin();
+
+private:
+	friend class HistoryMainElementDelegate;
+
+	HistoryMainElementDelegateMixin();
+
+	HistoryInner *_widget = nullptr;
+
+};
+
 class HistoryWidget;
 class HistoryInner
 	: public Ui::RpWidget
@@ -160,8 +180,8 @@ public:
 
 	void onParentGeometryChanged();
 
-	// HistoryView::ElementDelegate interface.
-	static not_null<HistoryView::ElementDelegate*> ElementDelegate();
+	[[nodiscard]] static auto DelegateMixin()
+	-> std::unique_ptr<HistoryMainElementDelegateMixin>;
 
 protected:
 	bool focusNextPrevChild(bool next) override;
@@ -364,17 +384,17 @@ private:
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
 
-	static HistoryInner *Instance;
-
 	const not_null<HistoryWidget*> _widget;
 	const not_null<Ui::ScrollArea*> _scroll;
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
+	const not_null<HistoryView::ElementDelegate*> _elementDelegate;
 	const std::unique_ptr<HistoryView::EmojiInteractions> _emojiInteractions;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 
 	History *_migrated = nullptr;
+	HistoryView::ElementDelegate *_migratedElementDelegate = nullptr;
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 	int _revealHeight = 0;
