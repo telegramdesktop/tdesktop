@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "window/window_adaptive.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
@@ -226,7 +227,11 @@ Widget::Widget(
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
-			controller->content()->choosePeer(
+			const auto window = row.newWindow
+				? Core::App().ensureSeparateWindowForPeer(
+					history->peer)->sessionController()
+				: controller.get();
+			window->content()->choosePeer(
 				history->peer->id,
 				(controller->uniqueChatsInSearchResults()
 					? ShowAtUnreadMsgId

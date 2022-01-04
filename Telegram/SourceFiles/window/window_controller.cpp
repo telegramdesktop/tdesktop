@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "ui/boxes/confirm_box.h"
+#include "data/data_peer.h"
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"
@@ -40,8 +41,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-Controller::Controller()
-: _widget(this)
+Controller::Controller() : Controller(CreateArgs{}) {
+}
+
+Controller::Controller(not_null<PeerData*> singlePeer)
+: Controller(CreateArgs{ singlePeer.get() }) {
+}
+
+Controller::Controller(CreateArgs &&args)
+: _singlePeer(args.singlePeer)
+, _widget(this)
 , _adaptive(std::make_unique<Adaptive>())
 , _isActiveTimer([=] { updateIsActive(); }) {
 	_widget.init();
@@ -54,6 +63,8 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
+	Expects(!_singlePeer || &_singlePeer->account() == account);
+
 	const auto prevSessionUniqueId = (_account && _account->sessionExists())
 		? _account->session().uniqueId()
 		: 0;
@@ -116,6 +127,10 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 
 		crl::on_main(updateOnlineOfPrevSesssion);
 	}, _accountLifetime);
+}
+
+PeerData *Controller::singlePeer() const {
+	return _singlePeer;
 }
 
 void Controller::checkLockByTerms() {

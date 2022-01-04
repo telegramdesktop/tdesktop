@@ -123,6 +123,7 @@ Application *Application::Instance = nullptr;
 struct Application::Private {
 	base::Timer quitTimer;
 	UiIntegration uiIntegration;
+	Settings settings;
 };
 
 Application::Application(not_null<Launcher*> launcher)
@@ -170,6 +171,7 @@ Application::~Application() {
 	// Depend on activeWindow() for now :(
 	Shortcuts::Finish();
 
+	_separateWindows.clear();
 	_window = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
@@ -264,6 +266,7 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<Window::Controller>();
+	_lastActiveWindow = _window.get();
 
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
@@ -371,8 +374,8 @@ void Application::startSettingsAndBackground() {
 }
 
 void Application::checkSystemDarkMode() {
-	const auto maybeDarkMode = _settings.systemDarkMode();
-	const auto darkModeEnabled = _settings.systemDarkModeEnabled();
+	const auto maybeDarkMode = settings().systemDarkMode();
+	const auto darkModeEnabled = settings().systemDarkModeEnabled();
 	const auto needToSwitch = darkModeEnabled
 		&& maybeDarkMode
 		&& (*maybeDarkMode != Window::Theme::IsNightMode());
@@ -384,11 +387,11 @@ void Application::checkSystemDarkMode() {
 
 void Application::startSystemDarkModeViewer() {
 	if (Window::Theme::Background()->editingTheme()) {
-		_settings.setSystemDarkModeEnabled(false);
+		settings().setSystemDarkModeEnabled(false);
 	}
 	rpl::merge(
-		_settings.systemDarkModeChanges() | rpl::to_empty,
-		_settings.systemDarkModeEnabledChanges() | rpl::to_empty
+		settings().systemDarkModeChanges() | rpl::to_empty,
+		settings().systemDarkModeEnabledChanges() | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		checkSystemDarkMode();
 	}, _lifetime);
@@ -397,7 +400,7 @@ void Application::startSystemDarkModeViewer() {
 auto Application::prepareEmojiSourceImages()
 -> std::shared_ptr<Ui::Emoji::UniversalImages> {
 	const auto &images = Ui::Emoji::SourceImages();
-	if (_settings.largeEmoji()) {
+	if (settings().largeEmoji()) {
 		return images;
 	}
 	Ui::Emoji::ClearSourceImages(images);
@@ -471,6 +474,10 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	return QObject::eventFilter(object, e);
 }
 
+Settings &Application::settings() {
+	return _private->settings;
+}
+
 void Application::saveSettingsDelayed(crl::time delay) {
 	if (_saveSettingsTimer) {
 		_saveSettingsTimer->callOnce(delay);
@@ -508,18 +515,17 @@ void Application::constructFallbackProductionConfig(
 void Application::setCurrentProxy(
 		const MTP::ProxyData &proxy,
 		MTP::ProxyData::Settings settings) {
+	auto &my = _private->settings.proxy();
 	const auto current = [&] {
-		return _settings.proxy().isEnabled()
-			? _settings.proxy().selected()
-			: MTP::ProxyData();
+		return my.isEnabled() ? my.selected() : MTP::ProxyData();
 	};
 	const auto was = current();
-	_settings.proxy().setSelected(proxy);
-	_settings.proxy().setSettings(settings);
+	my.setSelected(proxy);
+	my.setSettings(settings);
 	const auto now = current();
 	refreshGlobalProxy();
 	_proxyChanges.fire({ was, now });
-	_settings.proxy().connectionTypeChangesNotify();
+	my.connectionTypeChangesNotify();
 }
 
 auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
@@ -527,10 +533,10 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 }
 
 void Application::badMtprotoConfigurationError() {
-	if (_settings.proxy().isEnabled() && !_badProxyDisableBox) {
+	if (settings().proxy().isEnabled() && !_badProxyDisableBox) {
 		const auto disableCallback = [=] {
 			setCurrentProxy(
-				_settings.proxy().selected(),
+				settings().proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
 		_badProxyDisableBox = Ui::show(Box<Ui::InformBox>(
@@ -542,7 +548,7 @@ void Application::badMtprotoConfigurationError() {
 void Application::startLocalStorage() {
 	Local::start();
 	_saveSettingsTimer.emplace([=] { saveSettings(); });
-	_settings.saveDelayedRequests() | rpl::start_with_next([=] {
+	settings().saveDelayedRequests() | rpl::start_with_next([=] {
 		saveSettingsDelayed();
 	}, _lifetime);
 }
@@ -550,12 +556,12 @@ void Application::startLocalStorage() {
 void Application::startEmojiImageLoader() {
 	_emojiImageLoader.with([
 		source = prepareEmojiSourceImages(),
-		large = _settings.largeEmoji()
+		large = settings().largeEmoji()
 	](Stickers::EmojiImageLoader &loader) mutable {
 		loader.init(std::move(source), large);
 	});
 
-	_settings.largeEmojiChanges(
+	settings().largeEmojiChanges(
 	) | rpl::start_with_next([=](bool large) {
 		if (large) {
 			_clearEmojiImageLoaderTimer.cancel();
@@ -913,9 +919,11 @@ void Application::checkAutoLock(crl::time lastNonIdleTime) {
 
 	checkLocalTime();
 	const auto now = crl::now();
-	const auto shouldLockInMs = _settings.autoLock() * 1000LL;
+	const auto shouldLockInMs = settings().autoLock() * 1000LL;
 	const auto checkTimeMs = now - lastNonIdleTime;
-	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
+	if (checkTimeMs >= shouldLockInMs
+		|| (_shouldLockAt > 0
+			&& now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
 		lockByPasscode();
@@ -961,8 +969,37 @@ void Application::saveCurrentDraftsToHistories() {
 	}
 }
 
-Window::Controller *Application::activeWindow() const {
+Window::Controller *Application::mainWindow() const {
 	return _window.get();
+}
+
+Window::Controller *Application::separateWindowForPeer(
+		not_null<PeerData*> peer) const {
+	for (const auto &[history, window] : _separateWindows) {
+		if (history->peer == peer) {
+			return window.get();
+		}
+	}
+	return nullptr;
+}
+
+Window::Controller *Application::ensureSeparateWindowForPeer(
+		not_null<PeerData*> peer) {
+	if (const auto existing = separateWindowForPeer(peer)) {
+		return existing;
+	}
+	const auto result = _separateWindows.emplace(
+		peer->owner().history(peer),
+		std::make_unique<Window::Controller>()).first->second.get();
+	result->showAccount(&peer->account());
+	result->sessionController()->showPeerHistory(peer);
+	result->widget()->show();
+	result->finishFirstShow();
+	return result;
+}
+
+Window::Controller *Application::activeWindow() const {
+	return _lastActiveWindow;
 }
 
 bool Application::closeActiveWindow() {

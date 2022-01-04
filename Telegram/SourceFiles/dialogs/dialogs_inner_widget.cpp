@@ -1052,7 +1052,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	}
 	if (anim::Disabled()
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
-		mousePressReleased(e->globalPos(), e->button());
+		mousePressReleased(e->globalPos(), e->button(), e->modifiers());
 	}
 }
 
@@ -1274,12 +1274,13 @@ bool InnerWidget::pinnedShiftAnimationCallback(crl::time now) {
 }
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
-	mousePressReleased(e->globalPos(), e->button());
+	mousePressReleased(e->globalPos(), e->button(), e->modifiers());
 }
 
 void InnerWidget::mousePressReleased(
 		QPoint globalPosition,
-		Qt::MouseButton button) {
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers) {
 	auto wasDragging = (_dragging != nullptr);
 	if (wasDragging) {
 		updateReorderIndexGetCount();
@@ -1322,7 +1323,7 @@ void InnerWidget::mousePressReleased(
 				&& peerSearchPressed == _peerSearchSelected)
 			|| (searchedPressed >= 0
 				&& searchedPressed == _searchedSelected)) {
-			chooseRow();
+			chooseRow(modifiers);
 		}
 	}
 }
@@ -1758,7 +1759,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menuRow = row;
 	if (_pressButton != Qt::LeftButton) {
-		mousePressReleased(e->globalPos(), _pressButton);
+		mousePressReleased(e->globalPos(), _pressButton, e->modifiers());
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
@@ -2689,13 +2690,21 @@ ChosenRow InnerWidget::computeChosenRow() const {
 	return ChosenRow();
 }
 
-bool InnerWidget::chooseRow() {
+bool InnerWidget::chooseRow(Qt::KeyboardModifiers modifiers) {
 	if (chooseCollapsedRow()) {
 		return true;
 	} else if (chooseHashtag()) {
 		return true;
 	}
-	const auto chosen = computeChosenRow();
+	const auto modifyChosenRow = [](
+			ChosenRow row,
+			Qt::KeyboardModifiers modifiers) {
+#ifdef _DEBUG
+		row.newWindow = (modifiers & Qt::ControlModifier);
+#endif
+		return row;
+	};
+	const auto chosen = modifyChosenRow(computeChosenRow(), modifiers);
 	if (chosen.key) {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
 			session().local().saveRecentSearchHashtags(_filter);

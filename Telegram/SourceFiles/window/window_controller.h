@@ -24,12 +24,14 @@ namespace Window {
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
+	explicit Controller(not_null<PeerData*> singlePeer);
 	~Controller();
 
 	Controller(const Controller &other) = delete;
 	Controller &operator=(const Controller &other) = delete;
 
 	void showAccount(not_null<Main::Account*> account);
+	[[nodiscard]] PeerData *singlePeer() const;
 
 	[[nodiscard]] not_null<::MainWindow*> widget() {
 		return &_widget;
@@ -100,6 +102,11 @@ public:
 	rpl::lifetime &lifetime();
 
 private:
+	struct CreateArgs {
+		PeerData *singlePeer = nullptr;
+	};
+	explicit Controller(CreateArgs &&args);
+
 	void showBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,
@@ -109,6 +116,7 @@ private:
 	void showTermsDecline();
 	void showTermsDelete();
 
+	PeerData *_singlePeer = nullptr;
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;

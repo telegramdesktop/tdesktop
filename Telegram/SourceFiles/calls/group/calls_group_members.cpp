@@ -1195,7 +1195,10 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
-		if (const auto window = Core::App().activeWindow()) {
+		if (const auto window = Core::App().separateWindowForPeer(
+				participantPeer)) {
+			return window->sessionController();
+		} else if (const auto window = Core::App().activeWindow()) {
 			if (const auto controller = window->sessionController()) {
 				if (&controller->session() == session) {
 					return controller;
@@ -1221,7 +1224,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			? st::groupCallPopupMenuWithVolume
 			: st::groupCallPopupMenu));
 	const auto weakMenu = Ui::MakeWeak(result.get());
-	const auto performOnMainWindow = [=](auto callback) {
+	const auto withActiveWindow = [=](auto callback) {
 		if (const auto window = getWindow()) {
 			if (const auto menu = weakMenu.data()) {
 				menu->discardParentReActivate();
@@ -1236,12 +1239,12 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		}
 	};
 	const auto showProfile = [=] {
-		performOnMainWindow([=](not_null<Window::SessionController*> window) {
+		withActiveWindow([=](not_null<Window::SessionController*> window) {
 			window->showPeerInfo(participantPeer);
 		});
 	};
 	const auto showHistory = [=] {
-		performOnMainWindow([=](not_null<Window::SessionController*> window) {
+		withActiveWindow([=](not_null<Window::SessionController*> window) {
 			window->showPeerHistory(
 				participantPeer,
 				Window::SectionShow::Way::Forward);

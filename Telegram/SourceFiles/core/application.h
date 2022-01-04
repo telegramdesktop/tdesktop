@@ -133,7 +133,12 @@ public:
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
 	void saveCurrentDraftsToHistories();
+	[[nodiscard]] Window::Controller *mainWindow() const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
+	[[nodiscard]] Window::Controller *separateWindowForPeer(
+		not_null<PeerData*> peer) const;
+	Window::Controller *ensureSeparateWindowForPeer(
+		not_null<PeerData*> peer);
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	[[nodiscard]] QWidget *getFileDialogParent();
@@ -147,9 +152,7 @@ public:
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
 
 	void startSettingsAndBackground();
-	[[nodiscard]] Settings &settings() {
-		return _settings;
-	}
+	[[nodiscard]] Settings &settings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettings();
 
@@ -337,6 +340,11 @@ private:
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
 	std::unique_ptr<Window::Controller> _window;
+	base::flat_map<
+		not_null<History*>,
+		std::unique_ptr<Window::Controller>> _separateWindows;
+	Window::Controller *_lastActiveWindow = nullptr;
+
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
 	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
