@@ -252,6 +252,8 @@ public:
 	[[nodiscard]] Controller &window() const {
 		return *_window;
 	}
+	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 	[[nodiscard]] Adaptive &adaptive() const;

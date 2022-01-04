@@ -994,7 +994,7 @@ Window::Controller *Application::ensureSeparateWindowForPeer(
 	}
 	const auto result = _separateWindows.emplace(
 		peer->owner().history(peer),
-		std::make_unique<Window::Controller>()).first->second.get();
+		std::make_unique<Window::Controller>(peer)).first->second.get();
 	result->showAccount(&peer->account());
 	result->sessionController()->showPeerHistory(peer);
 	result->widget()->show();

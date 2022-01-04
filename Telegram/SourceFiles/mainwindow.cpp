@@ -337,6 +337,9 @@ void MainWindow::setupMain() {
 	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
 	_main = std::move(created);
+	if (const auto peer = singlePeer()) {
+		_main->controller()->showPeerHistory(peer);
+	}
 	if (_passcodeLock) {
 		_main->hide();
 	} else {

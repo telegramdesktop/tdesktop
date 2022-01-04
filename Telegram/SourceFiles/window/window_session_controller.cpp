@@ -618,6 +618,14 @@ void SessionController::suggestArchiveAndMute() {
 	}));
 }
 
+PeerData *SessionController::singlePeer() const {
+	return _window->singlePeer();
+}
+
+bool SessionController::isPrimary() const {
+	return _window->isPrimary();
+}
+
 not_null<::MainWindow*> SessionController::widget() const {
 	return _window->widget();
 }

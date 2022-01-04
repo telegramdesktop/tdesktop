@@ -749,13 +749,13 @@ void Widget::escape() {
 		controller()->closeFolder();
 	} else if (!onCancelSearch()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			cancelled();
+			controller()->content()->dialogsCancelled();
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
 	} else if (!_searchInChat && !controller()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			cancelled();
+			controller()->content()->dialogsCancelled();
 		}
 	}
 }
@@ -1808,7 +1808,7 @@ void Widget::onCancelSearchInChat() {
 	}
 	applyFilterUpdate(true);
 	if (!isOneColumn && !controller()->selectingPeer()) {
-		cancelled();
+		controller()->content()->dialogsCancelled();
 	}
 }
 
