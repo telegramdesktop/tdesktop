@@ -23,9 +23,7 @@ namespace {
 constexpr auto kToggleDuration = crl::time(80);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(150);
-constexpr auto kInCacheIndex = 0;
-constexpr auto kOutCacheIndex = 1;
-constexpr auto kServiceCacheIndex = 2;
+constexpr auto kBgCacheIndex = 0;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
@@ -83,10 +81,6 @@ Button::Button(
 }
 
 Button::~Button() = default;
-
-ButtonStyle Button::style() const {
-	return _style;
-}
 
 bool Button::isHidden() const {
 	return (_state == State::Hidden) && !_scaleAnimation.animating();
@@ -160,12 +154,6 @@ void Button::applyParameters(
 		? State::Active
 		: State::Shown;
 	applyState(state, update);
-	if (_style != parameters.style) {
-		_style = parameters.style;
-		if (update) {
-			update(_geometry);
-		}
-	}
 	if (parameters.outside && _state == State::Shown) {
 		_hideTimer.callOnce(kButtonHideDelay);
 	} else {
@@ -281,24 +269,18 @@ Manager::Manager(
 	_inner.translate(QRect({}, _outer).center() - _inner.center());
 
 	const auto ratio = style::DevicePixelRatio();
-	_cacheInOutService = QImage(
-		_outer.width() * 3 * ratio,
+	_cacheBg = QImage(
+		_outer.width() * ratio,
 		_outer.height() * kFramesCount * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	_cacheInOutService.setDevicePixelRatio(ratio);
-	_cacheInOutService.fill(Qt::transparent);
+	_cacheBg.setDevicePixelRatio(ratio);
+	_cacheBg.fill(Qt::transparent);
 	_cacheParts = QImage(
 		_outer.width() * kCacheColumsCount * ratio,
 		_outer.height() * kFramesCount * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	_cacheParts.setDevicePixelRatio(ratio);
 	_cacheParts.fill(Qt::transparent);
-	_cacheForPattern = QImage(
-		QSize(
-			_outer.width(),
-			_outer.height() + st::reactionCornerAddedHeightMax) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	_cacheForPattern.setDevicePixelRatio(ratio);
 	_shadowBuffer = QImage(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
@@ -404,8 +386,7 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 
 void Manager::setMainReactionImage(QImage image) {
 	_mainReactionImage = std::move(image);
-	ranges::fill(_validIn, false);
-	ranges::fill(_validOut, false);
+	ranges::fill(_validBg, false);
 	ranges::fill(_validEmoji, false);
 	loadOtherReactions();
 }
@@ -576,38 +557,17 @@ void Manager::paintButton(
 	const auto geometry = button->geometry();
 	const auto position = geometry.topLeft();
 	const auto size = geometry.size();
-	const auto style = button->style();
-	const auto patterned = (style == ButtonStyle::Outgoing)
-		&& context.bubblesPattern
-		&& !context.viewport.isEmpty()
-		&& !context.bubblesPattern->pixmap.size().isEmpty();
 	const auto shadow = context.st->shadowFg()->c;
 	if (opacity != 1.) {
 		p.setOpacity(opacity);
 	}
-	if (patterned) {
-		const auto source = validateShadow(frameIndex, scale, shadow);
-		paintLongImage(p, geometry, _cacheParts, source);
-		validateCacheForPattern(frameIndex, scale, geometry, context);
-		p.drawImage(
-			geometry,
-			_cacheForPattern,
-			QRect(QPoint(), geometry.size() * style::DevicePixelRatio()));
-	} else {
-		const auto background = (style == ButtonStyle::Service)
-			? context.st->windowBg()->c
-			: context.st->messageStyle(
-				(style == ButtonStyle::Outgoing),
-				false
-			).msgBg->c;
-		const auto source = validateFrame(
-			style,
-			frameIndex,
-			scale,
-			background,
-			shadow);
-		paintLongImage(p, geometry, _cacheInOutService, source);
-	}
+	const auto background = context.st->windowBg()->c;
+	const auto source = validateFrame(
+		frameIndex,
+		scale,
+		background,
+		shadow);
+	paintLongImage(p, geometry, _cacheBg, source);
 
 	const auto mainEmojiPosition = position + (button->expandUp()
 		? QPoint(0, size.height() - _outer.height())
@@ -693,32 +653,12 @@ void Manager::paintAllEmoji(
 	}
 }
 
-void Manager::validateCacheForPattern(
-		int frameIndex,
-		float64 scale,
-		const QRect &geometry,
-		const PaintContext &context) {
-	auto q = QPainter(&_cacheForPattern);
-
-	q.setCompositionMode(QPainter::CompositionMode_Source);
-	const auto source = validateMask(frameIndex, scale);
-	paintLongImage(q, QRect(QPoint(), geometry.size()), _cacheParts, source);
-
-	q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-	Ui::PaintPatternBubblePart(
-		q,
-		context.viewport.translated(-geometry.topLeft()),
-		context.bubblesPattern->pixmap,
-		QRect(QPoint(), geometry.size()));
-}
-
 void Manager::applyPatternedShadow(const QColor &shadow) {
 	if (_shadow == shadow) {
 		return;
 	}
 	_shadow = shadow;
-	ranges::fill(_validIn, false);
-	ranges::fill(_validOut, false);
+	ranges::fill(_validBg, false);
 	ranges::fill(_validShadow, false);
 }
 
@@ -796,40 +736,24 @@ QRect Manager::validateEmoji(int frameIndex, float64 scale) {
 }
 
 QRect Manager::validateFrame(
-		ButtonStyle style,
 		int frameIndex,
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow) {
 	applyPatternedShadow(shadow);
-	auto &valid = (style == ButtonStyle::Service)
-		? _validService
-		: (style == ButtonStyle::Outgoing)
-		? _validOut
-		: _validIn;
-	auto &color = (style == ButtonStyle::Service)
-		? _backgroundService
-		: (style == ButtonStyle::Outgoing)
-		? _backgroundOut
-		: _backgroundIn;
-	if (color != background) {
-		color = background;
-		ranges::fill(valid, false);
+	if (_background != background) {
+		_background = background;
+		ranges::fill(_validBg, false);
 	}
 
-	const auto columnIndex = (style == ButtonStyle::Service)
-		? kServiceCacheIndex
-		: (style == ButtonStyle::Outgoing)
-		? kOutCacheIndex
-		: kInCacheIndex;
-	const auto result = cacheRect(frameIndex, columnIndex);
-	if (valid[frameIndex]) {
+	const auto result = cacheRect(frameIndex, kBgCacheIndex);
+	if (_validBg[frameIndex]) {
 		return result;
 	}
 
 	const auto shadowSource = validateShadow(frameIndex, scale, shadow);
 	const auto position = result.topLeft() / style::DevicePixelRatio();
-	auto p = QPainter(&_cacheInOutService);
+	auto p = QPainter(&_cacheBg);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.drawImage(position, _cacheParts, shadowSource);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
@@ -847,31 +771,7 @@ QRect Manager::validateFrame(
 	p.drawRoundedRect(inner, radius, radius);
 	p.restore();
 	p.end();
-	valid[frameIndex] = true;
-	return result;
-}
-
-QRect Manager::validateMask(int frameIndex, float64 scale) {
-	const auto result = cacheRect(frameIndex, kMaskCacheIndex);
-	if (_validMask[frameIndex]) {
-		return result;
-	}
-
-	auto p = QPainter(&_cacheParts);
-	auto hq = PainterHighQualityEnabler(p);
-	const auto position = result.topLeft() / style::DevicePixelRatio();
-	const auto inner = _inner.translated(position);
-	const auto radius = st::reactionCornerRadius;
-	const auto center = inner.center();
-	p.setPen(Qt::NoPen);
-	p.setBrush(Qt::white);
-	p.save();
-	p.translate(center);
-	p.scale(scale, scale);
-	p.translate(-center);
-	p.drawRoundedRect(inner, radius, radius);
-
-	_validMask[frameIndex] = true;
+	_validBg[frameIndex] = true;
 	return result;
 }
 

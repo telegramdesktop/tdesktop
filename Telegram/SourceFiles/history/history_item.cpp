@@ -382,7 +382,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 			id));
 	}
 	if (changed) {
-		history()->owner().requestItemResize(this);
+		history()->owner().notifyItemDataChange(this);
 	}
 }
 

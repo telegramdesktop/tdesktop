@@ -127,7 +127,7 @@ QSize InlineList::countOptimalSize() {
 	const auto height = padding.top() + size + padding.bottom();
 	for (auto &button : _buttons) {
 		const auto width = widthBase + button.countTextWidth;
-		button.geometry = QRect(x, 0, width, height);
+		button.geometry.setSize({ width, height });
 		x += width + between;
 	}
 	return QSize(
@@ -136,13 +136,13 @@ QSize InlineList::countOptimalSize() {
 }
 
 QSize InlineList::countCurrentSize(int newWidth) {
-	if (newWidth >= maxWidth() || _buttons.empty()) {
+	if (_buttons.empty()) {
 		return optimalSize();
 	}
+	using Flag = InlineListData::Flag;
 	const auto between = st::reactionBottomBetween;
-	const auto left = (_data.flags & InlineListData::Flag::InBubble)
-		? st::reactionBottomInBubbleLeft
-		: 0;
+	const auto inBubble = (_data.flags & Flag::InBubble);
+	const auto left = inBubble ? st::reactionBottomInBubbleLeft : 0;
 	auto x = left;
 	auto y = 0;
 	for (auto &button : _buttons) {
@@ -159,6 +159,13 @@ QSize InlineList::countCurrentSize(int newWidth) {
 	const auto right = last.x() + last.width() + _skipBlock.width();
 	const auto add = (right > newWidth) ? _skipBlock.height() : 0;
 	return { newWidth, height + add };
+}
+
+void InlineList::flipToRight() {
+	for (auto &button : _buttons) {
+		button.geometry.moveLeft(
+			width() - button.geometry.x() - button.geometry.width());
+	}
 }
 
 int InlineList::placeAndResizeGetHeight(QRect available) {

@@ -112,7 +112,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
 	}
-	const auto rightAligned = _parent->hasOutLayout()
+	const auto rightAligned = context.outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
@@ -183,7 +183,7 @@ void UnwrappedMedia::drawSurrounding(
 		const HistoryMessageForwarded *forwarded) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto rightAligned = _parent->hasOutLayout()
+	const auto rightAligned = context.outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto rightActionSize = _parent->rightActionSize();
 	const auto fullRight = calculateFullRight(inner);

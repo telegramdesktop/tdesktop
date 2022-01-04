@@ -435,18 +435,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedText{};
 		const auto text = qs(action.vemoticon());
 		if (!text.isEmpty()) {
-			if (isPost()) {
-				result.text = tr::lng_action_theme_changed_channel(tr::now, lt_emoji, text);
-			} else if (_from->isSelf()) {
+			if (_from->isSelf()) {
 				result.text = tr::lng_action_you_theme_changed(tr::now, lt_emoji, text);
 			} else {
 				result.links.push_back(fromLink());
 				result.text = tr::lng_action_theme_changed(tr::now, lt_from, fromLinkText(), lt_emoji, text);
 			}
 		} else {
-			if (isPost()) {
-				result.text = tr::lng_action_theme_disabled_channel(tr::now);
-			} else if (_from->isSelf()) {
+			if (_from->isSelf()) {
 				result.text = tr::lng_action_you_theme_disabled(tr::now);
 			} else {
 				result.links.push_back(fromLink());

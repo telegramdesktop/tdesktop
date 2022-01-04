@@ -4454,12 +4454,16 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 			const style::icon *icon) {
 		_menu->addAction(text, std::move(handler), icon);
 	});
-	_menu->setDestroyedCallback(crl::guard(_widget, [=] {
-		activateControls();
-		_receiveMouse = false;
-		InvokeQueued(_widget, [=] { receiveMouse(); });
-	}));
-	_menu->popup(QCursor::pos());
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->setDestroyedCallback(crl::guard(_widget, [=] {
+			activateControls();
+			_receiveMouse = false;
+			InvokeQueued(_widget, [=] { receiveMouse(); });
+		}));
+		_menu->popup(QCursor::pos());
+	}
 	activateControls();
 	return true;
 }

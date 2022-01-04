@@ -221,7 +221,6 @@ private:
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
-	[[nodiscard]] bool displayPinIcon() const;
 
 	void refreshInfoSkipBlock();
 	[[nodiscard]] int plainMaxWidth() const;
