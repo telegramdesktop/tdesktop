@@ -1,4 +1,4 @@
-name: ptelegram-desktop
+name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
@@ -16,7 +16,7 @@ architectures:
 apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
-    common-id: org.ptelegram.desktop
+    common-id: org.telegram.desktop
     desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
       # Tell glib to use portals on file associations handling.

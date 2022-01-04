@@ -80,7 +80,7 @@ jobs:
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          artifact_name=$(echo ptelegram-desktop_*.snap)
+          artifact_name=$(echo telegram-desktop_*.snap)
           echo "ARTIFACT_NAME=$artifact_name" >> $GITHUB_ENV
 
           mkdir artifact
