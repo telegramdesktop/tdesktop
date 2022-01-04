@@ -730,7 +730,10 @@ void MainWindow::initGeometry() {
 	if (initGeometryFromSystem()) {
 		return;
 	}
-	const auto geometry = countInitialGeometry(positionFromSettings());
+	// #TODO windows
+	const auto geometry = countInitialGeometry(isPrimary()
+		? positionFromSettings()
+		: Core::WindowPosition());
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
 		).arg(geometry.x()
 		).arg(geometry.y()
@@ -813,6 +816,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 
 	if (state == Qt::WindowMinimized
 		|| !isVisible()
+		|| !isPrimary() // #TODO windows
 		|| !positionInited()) {
 		return;
 	}

@@ -478,20 +478,14 @@ void SessionNavigation::showPeerHistory(
 		not_null<PeerData*> peer,
 		const SectionShow &params,
 		MsgId msgId) {
-	showPeerHistory(
-		peer->id,
-		params,
-		msgId);
+	showPeerHistory(peer->id, params, msgId);
 }
 
 void SessionNavigation::showPeerHistory(
 		not_null<History*> history,
 		const SectionShow &params,
 		MsgId msgId) {
-	showPeerHistory(
-		history->peer->id,
-		params,
-		msgId);
+	showPeerHistory(history->peer->id, params, msgId);
 }
 
 void SessionNavigation::showSettings(
@@ -680,7 +674,7 @@ void SessionController::initSupportMode() {
 }
 
 void SessionController::toggleFiltersMenu(bool enabled) {
-	if (!enabled == !_filters) {
+	if (!isPrimary() || (!enabled == !_filters)) {
 		return;
 	} else if (enabled) {
 		_filters = std::make_unique<FiltersMenu>(
@@ -1316,10 +1310,7 @@ void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
-	content()->ui_showPeerHistory(
-		peerId,
-		params,
-		msgId);
+	content()->ui_showPeerHistory(peerId, params, msgId);
 }
 
 void SessionController::showPeerHistoryAtItem(

@@ -44,8 +44,11 @@ namespace Window {
 Controller::Controller() : Controller(CreateArgs{}) {
 }
 
-Controller::Controller(not_null<PeerData*> singlePeer)
+Controller::Controller(
+	not_null<PeerData*> singlePeer,
+	MsgId showAtMsgId)
 : Controller(CreateArgs{ singlePeer.get() }) {
+	showAccount(&singlePeer->account(), showAtMsgId);
 }
 
 Controller::Controller(CreateArgs &&args)
@@ -63,6 +66,12 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
+	showAccount(account, ShowAtUnreadMsgId);
+}
+
+void Controller::showAccount(
+		not_null<Main::Account*> account,
+		MsgId singlePeerShowAtMsgId) {
 	Expects(isPrimary() || &_singlePeer->account() == account);
 
 	const auto prevSessionUniqueId = (_account && _account->sessionExists())
@@ -91,20 +100,10 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
-		if (_sessionController) {
-			_sessionController->filtersMenuChanged(
-			) | rpl::start_with_next([=] {
-				sideBarChanged();
-			}, _sessionController->lifetime());
-		}
-		if (session && session->settings().dialogsFiltersEnabled()) {
-			_sessionController->toggleFiltersMenu(true);
-		} else {
-			sideBarChanged();
-		}
+		setupSideBar();
 		_widget.updateWindowIcon();
 		if (session) {
-			setupMain();
+			setupMain(singlePeerShowAtMsgId);
 
 			session->updates().isIdleValue(
 			) | rpl::filter([=](bool idle) {
@@ -120,6 +119,9 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
+		} else if (!isPrimary()) {
+			// #TODO windows test
+			close();
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
@@ -131,6 +133,26 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 
 PeerData *Controller::singlePeer() const {
 	return _singlePeer;
+}
+
+void Controller::setupSideBar() {
+	if (!isPrimary()) {
+		return;
+	}
+	if (!_sessionController) {
+		sideBarChanged();
+		return;
+	}
+	_sessionController->filtersMenuChanged(
+	) | rpl::start_with_next([=] {
+		sideBarChanged();
+	}, _sessionController->lifetime());
+
+	if (_sessionController->session().settings().dialogsFiltersEnabled()) {
+		_sessionController->toggleFiltersMenu(true);
+	} else {
+		sideBarChanged();
+	}
 }
 
 void Controller::checkLockByTerms() {
@@ -260,10 +282,10 @@ void Controller::setupIntro() {
 		: Intro::EnterPoint::Start);
 }
 
-void Controller::setupMain() {
+void Controller::setupMain(MsgId singlePeerShowAtMsgId) {
 	Expects(_sessionController != nullptr);
 
-	_widget.setupMain();
+	_widget.setupMain(singlePeerShowAtMsgId);
 
 	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
 		Ui::Emoji::LoadAndSwitchTo(&_sessionController->session(), id);

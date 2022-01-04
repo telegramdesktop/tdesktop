@@ -414,7 +414,7 @@ void System::showNext() {
 	const auto &settings = Core::App().settings();
 	if (alert) {
 		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
-			if (const auto window = Core::App().activeWindow()) {
+			if (const auto window = Core::App().primaryWindow()) {
 				if (const auto handle = window->widget()->windowHandle()) {
 					handle->alert(kSystemAlertDuration);
 					// (handle, SLOT(_q_clearAlert())); in the future.

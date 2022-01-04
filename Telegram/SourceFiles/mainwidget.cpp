@@ -1253,13 +1253,43 @@ void MainWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
 	_history->toggleChooseChatTheme(peer);
 }
 
+bool MainWidget::showHistoryInDifferentWindow(
+		PeerId peerId,
+		const SectionShow &params,
+		MsgId showAtMsgId) {
+	const auto peer = session().data().peer(peerId);
+	if (const auto separate = Core::App().separateWindowForPeer(peer)) {
+		if (separate == &controller()->window()) {
+			return false;
+		}
+		separate->sessionController()->showPeerHistory(
+			peerId,
+			params,
+			showAtMsgId);
+		separate->activate();
+		return true;
+	} else if (isPrimary() || (singlePeer()->id == peerId)) {
+		return false;
+	}
+	const auto primary = Core::App().primaryWindow();
+	if (&primary->account() != &session().account()) {
+		primary->showAccount(&session().account());
+	}
+	if (&primary->account() == &session().account()) {
+		primary->sessionController()->showPeerHistory(
+			peerId,
+			params,
+			showAtMsgId);
+	}
+	primary->activate();
+	return true;
+}
+
 void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
-	if (!peerId && !isPrimary()) {
-		return;
-	} else if (peerId && _controller->window().locked()) {
+	if (peerId && _controller->window().locked()) {
 		return;
 	} else if (auto peer = session().data().peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
@@ -1270,7 +1300,7 @@ void MainWidget::ui_showPeerHistory(
 		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
-				Ui::show(Box<Ui::InformBox>(unavailable));
+				controller()->show(Box<Ui::InformBox>(unavailable));
 			}
 			return;
 		}
@@ -1279,6 +1309,8 @@ void MainWidget::ui_showPeerHistory(
 		&& _mainSection
 		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
 		session().data().hideShownSpoilers();
+		return;
+	} else if (showHistoryInDifferentWindow(peerId, params, showAtMsgId)) {
 		return;
 	}
 

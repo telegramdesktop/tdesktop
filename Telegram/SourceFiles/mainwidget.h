@@ -319,6 +319,10 @@ private:
 		QImage &&image);
 
 	void handleHistoryBack();
+	bool showHistoryInDifferentWindow(
+		PeerId peerId,
+		const SectionShow &params,
+		MsgId showAtMsgId);
 
 	bool isOneColumn() const;
 	bool isNormalColumn() const;

@@ -21,7 +21,7 @@ namespace Platform {
 // account, with 100% scale and without "px" dimensions, because thats
 // how it will look in real launched macOS app.
 int PreviewTitleHeight() {
-	if (auto window = Core::App().activeWindow()) {
+	if (auto window = Core::App().primaryWindow()) {
 		if (auto height = window->widget()->getCustomTitleHeight()) {
 			return height;
 		}

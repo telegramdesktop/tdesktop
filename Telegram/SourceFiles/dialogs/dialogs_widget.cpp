@@ -227,15 +227,24 @@ Widget::Widget(
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
-			const auto window = row.newWindow
-				? Core::App().ensureSeparateWindowForPeer(
-					history->peer)->sessionController()
-				: controller.get();
-			window->content()->choosePeer(
-				history->peer->id,
-				(controller->uniqueChatsInSearchResults()
-					? ShowAtUnreadMsgId
-					: row.message.fullId.msg));
+			const auto peer = history->peer;
+			const auto showAtMsgId = controller->uniqueChatsInSearchResults()
+				? ShowAtUnreadMsgId
+				: row.message.fullId.msg;
+			if (row.newWindow) {
+				const auto active = controller->activeChatCurrent();
+				if (const auto history = active.history()) {
+					if (history->peer == peer) {
+						controller->content()->ui_showPeerHistory(
+							0,
+							Window::SectionShow::Way::ClearStack,
+							0);
+					}
+				}
+				Core::App().ensureSeparateWindowForPeer(peer, showAtMsgId);
+			} else {
+				controller->content()->choosePeer(peer->id, showAtMsgId);
+			}
 		} else if (const auto folder = row.key.folder()) {
 			controller->openFolder(folder);
 		}

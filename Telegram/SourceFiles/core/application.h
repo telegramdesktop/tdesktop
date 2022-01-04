@@ -140,12 +140,13 @@ public:
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
 	void saveCurrentDraftsToHistories();
-	[[nodiscard]] Window::Controller *mainWindow() const;
+	[[nodiscard]] Window::Controller *primaryWindow() const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForPeer(
 		not_null<PeerData*> peer) const;
 	Window::Controller *ensureSeparateWindowForPeer(
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		MsgId showAtMsgId);
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	[[nodiscard]] QWidget *getFileDialogParent();
@@ -346,10 +347,10 @@ private:
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
-	std::unique_ptr<Window::Controller> _window;
+	std::unique_ptr<Window::Controller> _primaryWindow;
 	base::flat_map<
 		not_null<History*>,
-		std::unique_ptr<Window::Controller>> _separateWindows;
+		std::unique_ptr<Window::Controller>> _secondaryWindows;
 	Window::Controller *_lastActiveWindow = nullptr;
 
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;

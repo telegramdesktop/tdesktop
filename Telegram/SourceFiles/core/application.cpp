@@ -172,11 +172,11 @@ Application::~Application() {
 		Local::writeSettings();
 	}
 
-	// Depend on activeWindow() for now :(
+	// Depend on primaryWindow() for now :(
 	Shortcuts::Finish();
 
-	_separateWindows.clear();
-	_window = nullptr;
+	_secondaryWindows.clear();
+	_primaryWindow = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
 
@@ -269,13 +269,13 @@ void Application::run() {
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
-	_window = std::make_unique<Window::Controller>();
-	_lastActiveWindow = _window.get();
+	_primaryWindow = std::make_unique<Window::Controller>();
+	_lastActiveWindow = _primaryWindow.get();
 
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
-		_window->showAccount(account);
-	}, _window->widget()->lifetime());
+		_primaryWindow->showAccount(account);
+	}, _primaryWindow->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -294,20 +294,20 @@ void Application::run() {
 	startShortcuts();
 	startDomain();
 
-	_window->widget()->show();
+	_primaryWindow->widget()->show();
 
-	const auto currentGeometry = _window->widget()->geometry();
+	const auto currentGeometry = _primaryWindow->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->widget()->Ui::RpWidget::setGeometry(currentGeometry);
+	_primaryWindow->widget()->Ui::RpWidget::setGeometry(currentGeometry);
 
 	DEBUG_LOG(("Application Info: showing."));
-	_window->finishFirstShow();
+	_primaryWindow->finishFirstShow();
 
-	if (!_window->locked() && cStartToSettings()) {
-		_window->showSettings();
+	if (!_primaryWindow->locked() && cStartToSettings()) {
+		_primaryWindow->showSettings();
 	}
 
-	_window->updateIsActiveFocus();
+	_primaryWindow->updateIsActiveFocus();
 
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
@@ -318,12 +318,12 @@ void Application::run() {
 		showOpenGLCrashNotification();
 	}
 
-	_window->openInMediaViewRequests(
+	_primaryWindow->openInMediaViewRequests(
 	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
 		if (_mediaView) {
 			_mediaView->show(std::move(request));
 		}
-	}, _window->lifetime());
+	}, _primaryWindow->lifetime());
 
 	{
 		const auto countries = std::make_shared<Countries::Manager>(
@@ -348,7 +348,7 @@ void Application::showOpenGLCrashNotification() {
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
-	_window->show(Box<Ui::ConfirmBox>(
+	_primaryWindow->show(Box<Ui::ConfirmBox>(
 		"There may be a problem with your graphics drivers and OpenGL. "
 		"Try updating your drivers.\n\n"
 		"OpenGL has been disabled. You can try to enable it again "
@@ -469,7 +469,7 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 				checkStartUrl();
 			}
 			if (StartUrlRequiresActivate(url)) {
-				_window->activate();
+				_primaryWindow->activate();
 			}
 		}
 	} break;
@@ -669,14 +669,14 @@ void Application::checkLocalTime() {
 
 void Application::handleAppActivated() {
 	checkLocalTime();
-	if (_window) {
-		_window->updateIsActiveFocus();
+	if (_primaryWindow) {
+		_primaryWindow->updateIsActiveFocus();
 	}
 }
 
 void Application::handleAppDeactivated() {
-	if (_window) {
-		_window->updateIsActiveBlur();
+	if (_primaryWindow) {
+		_primaryWindow->updateIsActiveBlur();
 	}
 	Ui::Tooltip::Hide();
 }
@@ -776,7 +776,7 @@ bool Application::canApplyLangPackWithoutRestart() const {
 }
 
 void Application::checkStartUrl() {
-	if (!cStartUrl().isEmpty() && _window && !_window->locked()) {
+	if (!cStartUrl().isEmpty() && _primaryWindow && !_primaryWindow->locked()) {
 		const auto url = cStartUrl();
 		cSetStartUrl(QString());
 		if (!openLocalUrl(url, {})) {
@@ -837,7 +837,9 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
-	const auto controller = _window ? _window->sessionController() : nullptr;
+	const auto controller = _primaryWindow
+		? _primaryWindow->sessionController()
+		: nullptr;
 
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
@@ -852,22 +854,22 @@ bool Application::openCustomUrl(
 }
 
 void Application::preventOrInvoke(Fn<void()> &&callback) {
-	_window->preventOrInvoke(std::move(callback));
+	_primaryWindow->preventOrInvoke(std::move(callback));
 }
 
 void Application::lockByPasscode() {
 	preventOrInvoke([=] {
-		if (_window) {
+		if (_primaryWindow) {
 			_passcodeLock = true;
-			_window->setupPasscodeLock();
+			_primaryWindow->setupPasscodeLock();
 		}
 	});
 }
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-	if (_window) {
-		_window->clearPasscodeLock();
+	if (_primaryWindow) {
+		_primaryWindow->clearPasscodeLock();
 	}
 }
 
@@ -952,13 +954,13 @@ void Application::localPasscodeChanged() {
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
-	if (App::quitting() || !_window) {
+	if (App::quitting() || !_primaryWindow) {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
 		return true;
-	} else if (const auto controller = _window->sessionController()) {
+	} else if (const auto controller = _primaryWindow->sessionController()) {
 		if (&controller->session() == session
-			&& _window->widget()->isActive()) {
+			&& _primaryWindow->widget()->isActive()) {
 			return true;
 		}
 	}
@@ -966,20 +968,20 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 }
 
 void Application::saveCurrentDraftsToHistories() {
-	if (!_window) {
+	if (!_primaryWindow) {
 		return;
-	} else if (const auto controller = _window->sessionController()) {
+	} else if (const auto controller = _primaryWindow->sessionController()) {
 		controller->content()->saveFieldToHistoryLocalDraft();
 	}
 }
 
-Window::Controller *Application::mainWindow() const {
-	return _window.get();
+Window::Controller *Application::primaryWindow() const {
+	return _primaryWindow.get();
 }
 
 Window::Controller *Application::separateWindowForPeer(
 		not_null<PeerData*> peer) const {
-	for (const auto &[history, window] : _separateWindows) {
+	for (const auto &[history, window] : _secondaryWindows) {
 		if (history->peer == peer) {
 			return window.get();
 		}
@@ -988,18 +990,27 @@ Window::Controller *Application::separateWindowForPeer(
 }
 
 Window::Controller *Application::ensureSeparateWindowForPeer(
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		MsgId showAtMsgId) {
+	const auto activate = [&](not_null<Window::Controller*> window) {
+		window->activate();
+		return window;
+	};
+
 	if (const auto existing = separateWindowForPeer(peer)) {
-		return existing;
+		existing->sessionController()->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			showAtMsgId);
+		return activate(existing);
 	}
-	const auto result = _separateWindows.emplace(
+	const auto result = _secondaryWindows.emplace(
 		peer->owner().history(peer),
-		std::make_unique<Window::Controller>(peer)).first->second.get();
-	result->showAccount(&peer->account());
-	result->sessionController()->showPeerHistory(peer);
+		std::make_unique<Window::Controller>(peer, showAtMsgId)
+	).first->second.get();
 	result->widget()->show();
 	result->finishFirstShow();
-	return result;
+	return activate(result);
 }
 
 Window::Controller *Application::activeWindow() const {

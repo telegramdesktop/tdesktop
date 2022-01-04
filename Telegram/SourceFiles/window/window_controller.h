@@ -24,7 +24,9 @@ namespace Window {
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
-	explicit Controller(not_null<PeerData*> singlePeer);
+	Controller(
+		not_null<PeerData*> singlePeer,
+		MsgId showAtMsgId);
 	~Controller();
 
 	Controller(const Controller &other) = delete;
@@ -56,7 +58,7 @@ public:
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro();
-	void setupMain();
+	void setupMain(MsgId singlePeerShowAtMsgId);
 
 	void showLogoutConfirmation();
 
@@ -80,7 +82,6 @@ public:
 		anim::type animated = anim::type::normal);
 
 	void showRightColumn(object_ptr<TWidget> widget);
-	void sideBarChanged();
 
 	void activate();
 	void reActivate();
@@ -109,6 +110,12 @@ private:
 		PeerData *singlePeer = nullptr;
 	};
 	explicit Controller(CreateArgs &&args);
+
+	void showAccount(
+		not_null<Main::Account*> account,
+		MsgId singlePeerShowAtMsgId);
+	void setupSideBar();
+	void sideBarChanged();
 
 	void showBox(
 		object_ptr<Ui::BoxContent> content,

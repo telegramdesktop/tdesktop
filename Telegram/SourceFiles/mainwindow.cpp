@@ -319,7 +319,7 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 	fixOrder();
 }
 
-void MainWindow::setupMain() {
+void MainWindow::setupMain(MsgId singlePeerShowAtMsgId) {
 	Expects(account().sessionExists());
 
 	const auto animated = _intro
@@ -338,7 +338,10 @@ void MainWindow::setupMain() {
 	clearWidgets();
 	_main = std::move(created);
 	if (const auto peer = singlePeer()) {
-		_main->controller()->showPeerHistory(peer);
+		_main->controller()->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			singlePeerShowAtMsgId);
 	}
 	if (_passcodeLock) {
 		_main->hide();
@@ -859,8 +862,8 @@ MainWindow::~MainWindow() {
 namespace App {
 
 MainWindow *wnd() {
-	return (Core::IsAppLaunched() && Core::App().activeWindow())
-		? Core::App().activeWindow()->widget().get()
+	return (Core::IsAppLaunched() && Core::App().primaryWindow())
+		? Core::App().primaryWindow()->widget().get()
 		: nullptr;
 }
 
