@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "styles/style_chat.h"
@@ -20,17 +21,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView::Reactions {
 namespace {
 
-constexpr auto kToggleDuration = crl::time(80);
+constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
-constexpr auto kExpandDuration = crl::time(150);
+constexpr auto kExpandDuration = crl::time(300);
+constexpr auto kCollapseDuration = crl::time(250);
 constexpr auto kBgCacheIndex = 0;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
 constexpr auto kMaskCacheIndex = 2;
 constexpr auto kCacheColumsCount = 3;
 constexpr auto kButtonShowDelay = crl::time(300);
-constexpr auto kButtonExpandDelay = crl::time(300);
-constexpr auto kButtonHideDelay = crl::time(200);
+constexpr auto kButtonExpandDelay = crl::time(25);
+constexpr auto kButtonHideDelay = crl::time(300);
+constexpr auto kButtonExpandedHideDelay = crl::time(0);
+constexpr auto kSizeForDownscale = 96;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -55,15 +59,22 @@ constexpr auto kButtonHideDelay = crl::time(200);
 	return int(base::SafeRound(st::reactionCornerImage * scale));
 }
 
-[[nodiscard]] QImage PrepareMaxOtherReaction(QImage image) {
-	const auto size = CornerImageSize(1.);
-	const auto factor = style::DevicePixelRatio();
-	auto result = image.scaled(
-		QSize(size, size) * factor,
-		Qt::IgnoreAspectRatio,
-		Qt::SmoothTransformation);
-	result.setDevicePixelRatio(factor);
-	return result;
+[[nodiscard]] int MainReactionSize() {
+	return style::ConvertScale(kSizeForDownscale);
+}
+
+[[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
+		not_null<Data::DocumentMedia*> media,
+		int startFrame,
+		int size) {
+	Expects(media->loaded());
+
+	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = media->owner()->filepath(true),
+		.json = media->bytes(),
+		.sizeOverride = QSize(size, size),
+		.frame = startFrame,
+	});
 }
 
 } // namespace
@@ -73,6 +84,7 @@ Button::Button(
 	ButtonParameters parameters,
 	Fn<void()> hideMe)
 : _update(std::move(update))
+, _finalScale(ScaleForState(_state))
 , _collapsed(QPoint(), CountOuterSize())
 , _finalHeight(_collapsed.height())
 , _expandTimer([=] { applyState(State::Inside, _update); })
@@ -83,7 +95,7 @@ Button::Button(
 Button::~Button() = default;
 
 bool Button::isHidden() const {
-	return (_state == State::Hidden) && !_scaleAnimation.animating();
+	return (_state == State::Hidden) && !_opacityAnimation.animating();
 }
 
 QRect Button::geometry() const {
@@ -148,6 +160,7 @@ void Button::applyParameters(
 		}
 		_lastGlobalPosition = parameters.globalPointer;
 	}
+	const auto wasInside = (_state == State::Inside);
 	const auto state = (inside && !delayInside)
 		? State::Inside
 		: active
@@ -155,7 +168,9 @@ void Button::applyParameters(
 		: State::Shown;
 	applyState(state, update);
 	if (parameters.outside && _state == State::Shown) {
-		_hideTimer.callOnce(kButtonHideDelay);
+		_hideTimer.callOnce(wasInside
+			? kButtonExpandedHideDelay
+			: kButtonHideDelay);
 	} else {
 		_hideTimer.cancel();
 	}
@@ -211,30 +226,49 @@ void Button::applyState(State state, Fn<void(QRect)> update) {
 		_expandTimer.cancel();
 		_hideTimer.cancel();
 	}
-	const auto finalHeight = (state == State::Inside)
+	const auto finalHeight = (state == State::Hidden)
+		? _heightAnimation.value(_finalHeight)
+		: (state == State::Inside)
 		? _expandedHeight
 		: _collapsed.height();
 	if (_finalHeight != finalHeight) {
-		_heightAnimation.start(
-			[=] { updateGeometry(_update); },
-			_finalHeight,
-			finalHeight,
-			kExpandDuration);
+		if (state == State::Hidden) {
+			_heightAnimation.stop();
+		} else {
+			_heightAnimation.start(
+				[=] { updateGeometry(_update); },
+				_finalHeight,
+				finalHeight,
+				(state == State::Inside
+					? kExpandDuration
+					: kCollapseDuration),
+				anim::easeOutCirc);
+		}
 		_finalHeight = finalHeight;
 	}
 	updateGeometry(update);
 	if (_state == state) {
 		return;
 	}
-	const auto duration = (state == State::Hidden
-		|| _state == State::Hidden)
+	const auto duration = (state == State::Hidden || _state == State::Hidden)
 		? kToggleDuration
 		: kActivateDuration;
-	_scaleAnimation.start(
+	const auto finalScale = ScaleForState(state);
+	_opacityAnimation.start(
 		[=] { _update(_geometry); },
-		ScaleForState(_state),
-		ScaleForState(state),
-		duration);
+		OpacityForScale(ScaleForState(_state)),
+		OpacityForScale(ScaleForState(state)),
+		duration,
+		anim::sineInOut);
+	if (state != State::Hidden && _finalScale != finalScale) {
+		_scaleAnimation.start(
+			[=] { _update(_geometry); },
+			_finalScale,
+			finalScale,
+			duration,
+			anim::sineInOut);
+		_finalScale = finalScale;
+	}
 	_state = state;
 }
 
@@ -256,7 +290,11 @@ float64 Button::OpacityForScale(float64 scale) {
 }
 
 float64 Button::currentScale() const {
-	return _scaleAnimation.value(ScaleForState(_state));
+	return _scaleAnimation.value(_finalScale);
+}
+
+float64 Button::currentOpacity() const {
+	return _opacityAnimation.value(OpacityForScale(ScaleForState(_state)));
 }
 
 Manager::Manager(
@@ -355,40 +393,65 @@ void Manager::showButtonDelayed() {
 }
 
 void Manager::applyList(std::vector<Data::Reaction> list) {
-	constexpr auto proj = &Data::Reaction::emoji;
-	if (ranges::equal(_list, list, ranges::equal_to{}, proj, proj)) {
+	constexpr auto predicate = [](
+			const Data::Reaction &a,
+			const Data::Reaction &b) {
+		return (a.emoji == b.emoji)
+			&& (a.appearAnimation == b.appearAnimation)
+			&& (a.selectAnimation == b.selectAnimation);
+	};
+	if (ranges::equal(_list, list, predicate)) {
 		return;
 	}
 	_list = std::move(list);
 	_links = std::vector<ClickHandlerPtr>(_list.size());
 	if (_list.empty()) {
 		_mainReactionMedia = nullptr;
+		_mainReactionLifetime.destroy();
+		_icons.clear();
 		return;
 	}
-	const auto main = _list.front().staticIcon;
-	if (_mainReactionMedia && _mainReactionMedia->owner() == main) {
+	const auto main = _list.front().selectAnimation;
+	if (_mainReactionMedia
+		&& _mainReactionMedia->owner() == main) {
+		if (!_mainReactionLifetime) {
+			loadIcons();
+		}
 		return;
 	}
+	_mainReactionLifetime.destroy();
 	_mainReactionMedia = main->createMediaView();
-	if (const auto image = _mainReactionMedia->getStickerLarge()) {
-		setMainReactionImage(image->original());
+	_mainReactionMedia->checkStickerLarge();
+	if (_mainReactionMedia->loaded()) {
+		setMainReactionIcon();
 	} else {
 		main->session().downloaderTaskFinished(
-		) | rpl::map([=] {
-			return _mainReactionMedia->getStickerLarge();
-		}) | rpl::filter_nullptr() | rpl::take(
-			1
-		) | rpl::start_with_next([=](not_null<Image*> image) {
-			setMainReactionImage(image->original());
+		) | rpl::filter([=] {
+			return _mainReactionMedia->loaded();
+		}) | rpl::take(1) | rpl::start_with_next([=] {
+			setMainReactionIcon();
 		}, _mainReactionLifetime);
 	}
 }
 
-void Manager::setMainReactionImage(QImage image) {
-	_mainReactionImage = std::move(image);
+void Manager::setMainReactionIcon() {
+	_mainReactionLifetime.destroy();
 	ranges::fill(_validBg, false);
 	ranges::fill(_validEmoji, false);
-	loadOtherReactions();
+	loadIcons();
+	const auto i = _loadCache.find(_mainReactionMedia->owner());
+	if (i != end(_loadCache) && i->second.icon) {
+		const auto &icon = i->second.icon;
+		if (icon->frameIndex() == icon->framesCount() - 1
+			&& icon->width() == MainReactionSize()) {
+			_mainReactionImage = i->second.icon->frame();
+			return;
+		}
+	}
+	_mainReactionImage = CreateIcon(
+		_mainReactionMedia.get(),
+		-1,
+		MainReactionSize())->frame();
 }
 
 QMargins Manager::innerMargins() const {
@@ -408,41 +471,56 @@ QRect Manager::buttonInner(not_null<Button*> button) const {
 	return button->geometry().marginsRemoved(innerMargins());
 }
 
-void Manager::loadOtherReactions() {
-	for (const auto &reaction : _list) {
-		const auto icon = reaction.staticIcon;
-		if (_otherReactions.contains(icon)) {
-			continue;
+bool Manager::checkIconLoaded(ReactionDocument &entry) const {
+	if (!entry.media) {
+		return true;
+	} else if (!entry.media->loaded()) {
+		return false;
+	}
+	const auto size = (entry.media == _mainReactionMedia)
+		? MainReactionSize()
+		: CornerImageSize(1.);
+	entry.icon = CreateIcon(entry.media.get(), entry.startFrame, size);
+	entry.media = nullptr;
+	return true;
+}
+
+void Manager::loadIcons() {
+	const auto load = [&](not_null<DocumentData*> document, int frame) {
+		if (const auto i = _loadCache.find(document); i != end(_loadCache)) {
+			return i->second.icon;
 		}
-		auto &entry = _otherReactions.emplace(icon, OtherReactionImage{
-			.media = icon->createMediaView(),
-		}).first->second;
-		if (const auto image = entry.media->getStickerLarge()) {
-			entry.image = PrepareMaxOtherReaction(image->original());
-			entry.media = nullptr;
-		} else if (!_otherReactionsLifetime) {
-			icon->session().downloaderTaskFinished(
+		auto &entry = _loadCache.emplace(document).first->second;
+		entry.media = document->createMediaView();
+		entry.media->checkStickerLarge();
+		entry.startFrame = frame;
+		if (!checkIconLoaded(entry) && !_loadCacheLifetime) {
+			document->session().downloaderTaskFinished(
 			) | rpl::start_with_next([=] {
-				checkOtherReactions();
-			}, _otherReactionsLifetime);
+				checkIcons();
+			}, _loadCacheLifetime);
 		}
+		return entry.icon;
+	};
+	_icons.clear();
+	for (const auto &reaction : _list) {
+		_icons.push_back({
+			.appear = load(reaction.appearAnimation, 1),
+			.select = load(reaction.selectAnimation, -1),
+		});
 	}
 }
 
-void Manager::checkOtherReactions() {
+void Manager::checkIcons() {
 	auto all = true;
-	for (auto &[icon, entry] : _otherReactions) {
-		if (entry.media) {
-			if (const auto image = entry.media->getStickerLarge()) {
-				entry.image = PrepareMaxOtherReaction(image->original());
-				entry.media = nullptr;
-			} else {
-				all = false;
-			}
+	for (auto &[document, entry] : _loadCache) {
+		if (!checkIconLoaded(entry)) {
+			all = false;
 		}
 	}
 	if (all) {
-		_otherReactionsLifetime.destroy();
+		_loadCacheLifetime.destroy();
+		loadIcons();
 	}
 }
 
@@ -549,7 +627,7 @@ void Manager::paintButton(
 		not_null<Button*> button,
 		int frameIndex,
 		float64 scale) {
-	const auto opacity = Button::OpacityForScale(scale);
+	const auto opacity = button->currentOpacity();
 	if (opacity == 0.) {
 		return;
 	}
@@ -630,25 +708,31 @@ void Manager::paintAllEmoji(
 	auto hq = PainterHighQualityEnabler(p);
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = st::reactionCornerSize.height() + between;
-	const auto oneSize = CornerImageSize(scale);
+	const auto finalSize = CornerImageSize(1.);
+	const auto remove = finalSize * (1. - scale) / 2.;
+	const auto basicTarget = QRectF(QRect(
+		_inner.x() + (_inner.width() - finalSize) / 2,
+		_inner.y() + (_inner.height() - finalSize) / 2,
+		finalSize,
+		finalSize
+	)).marginsRemoved({ remove, remove, remove, remove });
 	const auto expandUp = button->expandUp();
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
 		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
-	for (const auto &reaction : _list) {
-		const auto inner = _inner.translated(emojiPosition);
-		const auto target = QRect(
-			inner.x() + (inner.width() - oneSize) / 2,
-			inner.y() + (inner.height() - oneSize) / 2,
-			oneSize,
-			oneSize);
-		if (target.intersects(clip)) {
-			const auto i = _otherReactions.find(reaction.staticIcon);
-			if (i != end(_otherReactions) && !i->second.image.isNull()) {
-				p.drawImage(target, i->second.image);
-			}
-		}
+	for (const auto &icon : _icons) {
+		const auto target = basicTarget.translated(emojiPosition);
 		emojiPosition += shift;
+
+		if (!target.intersects(clip)) {
+			continue;
+		} else if (icon.appear) {
+			const auto size = int(base::SafeRound(target.width()));
+			const auto frame = icon.appear->frame(
+				{ size, size },
+				[=] { if (_button) _buttonUpdate(_button->geometry()); });
+			p.drawImage(target, frame.image);
+		}
 	}
 }
 

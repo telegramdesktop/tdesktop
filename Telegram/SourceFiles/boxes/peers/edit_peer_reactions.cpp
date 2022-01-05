@@ -35,7 +35,6 @@ void AddReactionIcon(
 		std::shared_ptr<Data::DocumentMedia> media;
 		std::unique_ptr<Lottie::Icon> icon;
 		QImage image;
-		rpl::lifetime downloadLifetime;
 	};
 
 	const auto size = st::editPeerReactionsPreview;
@@ -60,7 +59,6 @@ void AddReactionIcon(
 			.sizeOverride = QSize(size, size),
 			.frame = -1,
 		});
-		state->downloadLifetime.destroy();
 		state->media = nullptr;
 	};
 	state->media->checkStickerLarge();
@@ -70,10 +68,10 @@ void AddReactionIcon(
 		document->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return state->media->loaded();
-		}) | rpl::start_with_next([=] {
+		}) | rpl::take(1) | rpl::start_with_next([=] {
 			initLottie();
 			icon->update();
-		}, state->downloadLifetime);
+		}, icon->lifetime());
 	}
 
 	icon->paintRequest(

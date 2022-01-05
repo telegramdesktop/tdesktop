@@ -26,7 +26,7 @@ namespace {
 
 constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
-constexpr auto kSizeForDownscale = 128;
+constexpr auto kSizeForDownscale = 64;
 
 } // namespace
 
@@ -163,7 +163,7 @@ void Reactions::loadImage(
 }
 
 void Reactions::setLottie(ImageSet &set) {
-	const auto size = kSizeForDownscale / style::DevicePixelRatio();
+	const auto size = style::ConvertScale(kSizeForDownscale);
 	set.icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
 		.path = set.media->owner()->filepath(true),
 		.json = set.media->bytes(),

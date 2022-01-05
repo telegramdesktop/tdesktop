@@ -24,6 +24,10 @@ using PaintContext = Ui::ChatPaintContext;
 struct TextState;
 } // namespace HistoryView
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace HistoryView::Reactions {
 
 enum class ExpandDirection {
@@ -74,6 +78,7 @@ public:
 	[[nodiscard]] QRect geometry() const;
 	[[nodiscard]] int scroll() const;
 	[[nodiscard]] float64 currentScale() const;
+	[[nodiscard]] float64 currentOpacity() const;
 	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
 
 	[[nodiscard]] static float64 ScaleForState(State state);
@@ -89,7 +94,9 @@ private:
 
 	const Fn<void(QRect)> _update;
 	State _state = State::Hidden;
+	float64 _finalScale = 0.;
 	Ui::Animations::Simple _scaleAnimation;
+	Ui::Animations::Simple _opacityAnimation;
 	Ui::Animations::Simple _heightAnimation;
 
 	QRect _collapsed;
@@ -131,9 +138,14 @@ public:
 	}
 
 private:
-	struct OtherReactionImage {
-		QImage image;
+	struct ReactionDocument {
 		std::shared_ptr<Data::DocumentMedia> media;
+		std::shared_ptr<Lottie::Icon> icon;
+		int startFrame = 0;
+	};
+	struct ReactionIcons {
+		std::shared_ptr<Lottie::Icon> appear;
+		std::shared_ptr<Lottie::Icon> select;
 	};
 	static constexpr auto kFramesCount = 30;
 
@@ -164,7 +176,7 @@ private:
 		const QImage &image,
 		QRect source);
 
-	void setMainReactionImage(QImage image);
+	void setMainReactionIcon();
 	void applyPatternedShadow(const QColor &shadow);
 	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
 	QRect validateShadow(
@@ -181,11 +193,14 @@ private:
 	[[nodiscard]] QMargins innerMargins() const;
 	[[nodiscard]] QRect buttonInner() const;
 	[[nodiscard]] QRect buttonInner(not_null<Button*> button) const;
-	void loadOtherReactions();
-	void checkOtherReactions();
+
 	[[nodiscard]] ClickHandlerPtr computeButtonLink(QPoint position) const;
 	[[nodiscard]] ClickHandlerPtr resolveButtonLink(
 		const Data::Reaction &reaction) const;
+
+	[[nodiscard]] bool checkIconLoaded(ReactionDocument &entry) const;
+	void loadIcons();
+	void checkIcons();
 
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<Data::Reaction> _list;
@@ -205,10 +220,9 @@ private:
 	QImage _mainReactionImage;
 	rpl::lifetime _mainReactionLifetime;
 
-	base::flat_map<
-		not_null<DocumentData*>,
-		OtherReactionImage> _otherReactions;
-	rpl::lifetime _otherReactionsLifetime;
+	base::flat_map<not_null<DocumentData*>, ReactionDocument> _loadCache;
+	std::vector<ReactionIcons> _icons;
+	rpl::lifetime _loadCacheLifetime;
 
 	std::optional<ButtonParameters> _scheduledParameters;
 	base::Timer _buttonShowTimer;
