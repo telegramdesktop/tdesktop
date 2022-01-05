@@ -362,7 +362,6 @@ private:
 	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
 		= { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
-	bool _playerUsingPanel = false;
 
 	base::unique_qptr<Window::HistoryHider> _hider;
 	std::vector<std::unique_ptr<StackItem>> _stack;
@@ -372,13 +371,8 @@ private:
 	int _exportTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
 
-	PhotoData *_deletingPhoto = nullptr;
-
 	struct SettingBackground;
 	std::unique_ptr<SettingBackground> _background;
-
-	bool _firstColumnResizing = false;
-	int _firstColumnResizingShift = 0;
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;
