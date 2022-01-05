@@ -289,10 +289,8 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		Unexpected("Type in LottieForType.");
 	}();
 	const auto size = st::sessionBigLottieSize;
-	static const auto kWhite = style::owned_color(Qt::white);
 	return std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
 		.path = u":/icons/settings/devices/"_q + path + u".lottie"_q,
-		.color = kWhite.color(),
 		.sizeOverride = QSize(size, size),
 		.frame = 1,
 	});
