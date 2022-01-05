@@ -262,6 +262,13 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 					data.vactivate_animation()),
 				.activateEffects = _owner->processDocument(
 					data.veffect_animation()),
+				.aroundAnimation = (data.varound_animation()
+					? _owner->processDocument(
+						*data.varound_animation()).get()
+					: nullptr),
+				.centerIcon = (data.vcenter_icon()
+					? _owner->processDocument(*data.vcenter_icon()).get()
+					: nullptr),
 				.active = !data.is_inactive(),
 			})
 			: std::nullopt;
