@@ -491,7 +491,10 @@ HistoryWidget::HistoryWidget(
 
 	session().data().viewResizeRequest(
 	) | rpl::start_with_next([=](not_null<HistoryView::Element*> view) {
-		if (view->data()->mainView() == view) {
+		const auto item = view->data();
+		const auto history = item->history();
+		if (item->mainView() == view
+			&& (history == _history || history == _migrated)) {
 			updateHistoryGeometry();
 		}
 	}, lifetime());
@@ -2238,6 +2241,9 @@ void HistoryWidget::setHistory(History *history) {
 		return;
 	}
 
+	const auto wasHistory = base::take(_history);
+	const auto wasMigrated = base::take(_migrated);
+
 	// Unload lottie animations.
 	const auto unloadHeavyViewParts = [](History *history) {
 		if (history) {
@@ -2246,8 +2252,8 @@ void HistoryWidget::setHistory(History *history) {
 			history->forceFullResize();
 		}
 	};
-	unloadHeavyViewParts(_history);
-	unloadHeavyViewParts(_migrated);
+	unloadHeavyViewParts(wasHistory);
+	unloadHeavyViewParts(wasMigrated);
 
 	unregisterDraftSources();
 	_history = history;
