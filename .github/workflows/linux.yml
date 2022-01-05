@@ -125,9 +125,7 @@ jobs:
           mkdir artifact
           mkdir "artifact/Telegram"
           strip -s "Telegram"
-          strip -s "Updater"
           mv Telegram artifact/Telegram/
-          mv Updater artifact/Telegram/
           cd artifact
           tar -cJvf "Telegram.tar.xz" "Telegram/"
       - uses: actions/upload-artifact@master
