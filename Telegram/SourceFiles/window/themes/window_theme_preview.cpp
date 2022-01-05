@@ -284,7 +284,12 @@ int Generator::computeInfoWidth(Status status, QString date) {
 void Generator::addTextBubble(QString text, QString date, Status status) {
 	Bubble bubble;
 	auto skipBlock = computeSkipBlock(status, date);
-	bubble.text.setRichText(st::messageTextStyle, text + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
+	auto marked = TextWithEntities{ std::move(text) };
+	bubble.text.setMarkedText(
+		st::messageTextStyle,
+		std::move(marked),
+		Ui::ItemTextDefaultOptions());
+	bubble.text.updateSkipBlock(skipBlock.width(), skipBlock.height());
 
 	auto width = _history.width() - st::msgMargin.left() - st::msgMargin.right();
 	accumulate_min(width, st::msgPadding.left() + bubble.text.maxWidth() + st::msgPadding.right());
@@ -308,7 +313,12 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 	bubble.photoWidth = style::ConvertScale(bubble.photo.width() / 2);
 	bubble.photoHeight = style::ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
-	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
+	auto marked = TextWithEntities{ std::move(caption) };
+	bubble.text.setMarkedText(
+		st::messageTextStyle,
+		std::move(marked),
+		Ui::ItemTextDefaultOptions());
+	bubble.text.updateSkipBlock(skipBlock.width(), skipBlock.height());
 
 	auto width = _history.width() - st::msgMargin.left() - st::msgMargin.right();
 	accumulate_min(width, bubble.photoWidth);

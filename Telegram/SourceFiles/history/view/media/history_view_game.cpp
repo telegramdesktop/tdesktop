@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/item_text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
 #include "core/ui_integration.h"
@@ -70,12 +71,14 @@ QSize Game::countOptimalSize() {
 	if (_description.isEmpty() && !_data->description.isEmpty()) {
 		auto text = _data->description;
 		if (!text.isEmpty()) {
-			if (!_attach) {
-				text += _parent->skipBlock();
-			}
 			auto marked = TextWithEntities { text };
 			auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 			TextUtilities::ParseEntities(marked, parseFlags);
+			if (!_attach) {
+				_description.updateSkipBlock(
+					_parent->skipBlockWidth(),
+					_parent->skipBlockHeight());
+			}
 			_description.setMarkedText(
 				st::webPageDescriptionStyle,
 				marked,

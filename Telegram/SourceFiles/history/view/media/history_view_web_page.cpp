@@ -202,7 +202,9 @@ QSize WebPage::countOptimalSize() {
 		auto text = _data->description;
 
 		if (textFloatsAroundInfo) {
-			text.text += _parent->skipBlock();
+			_description.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
 		}
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
@@ -232,13 +234,16 @@ QSize WebPage::countOptimalSize() {
 			Ui::WebpageTextTitleOptions());
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
+		auto titleWithEntities = Ui::Text::Link(title, _data->url);
 		if (textFloatsAroundInfo && _description.isEmpty()) {
-			title += _parent->skipBlock();
+			_title.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
 		}
 		if (!_siteNameLines && !_data->url.isEmpty()) {
 			_title.setMarkedText(
 				st::webPageTitleStyle,
-				Ui::Text::Link(title, _data->url),
+				std::move(titleWithEntities),
 				Ui::WebpageTextTitleOptions());
 
 		} else {

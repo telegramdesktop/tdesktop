@@ -269,7 +269,6 @@ public:
 
 	int skipBlockWidth() const;
 	int skipBlockHeight() const;
-	QString skipBlock() const;
 	virtual int infoWidth() const;
 	virtual int bottomInfoFirstLineWidth() const;
 	virtual bool bottomInfoIsWide() const;

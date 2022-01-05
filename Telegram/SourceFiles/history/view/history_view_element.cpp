@@ -480,10 +480,6 @@ int Element::skipBlockHeight() const {
 	return st::msgDateFont->height - st::msgDateDelta.y();
 }
 
-QString Element::skipBlock() const {
-	return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
-}
-
 int Element::infoWidth() const {
 	return 0;
 }
