@@ -1677,8 +1677,6 @@ void HistoryInner::mouseActionFinish(
 			? pressedItemView->data()->fullId()
 			: FullMsgId();
 		const auto weak = base::make_weak(_controller.get());
-		const auto history = pressedItemView->data()->history();
-		const auto delegate = history->delegateMixin()->delegate();
 		ActivateClickHandler(window(), activated, {
 			button,
 			QVariant::fromValue(ClickHandlerContext{
