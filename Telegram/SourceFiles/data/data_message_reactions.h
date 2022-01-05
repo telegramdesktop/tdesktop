@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace Data {
 
 class DocumentMedia;
@@ -22,14 +26,15 @@ struct Reaction {
 	not_null<DocumentData*> selectAnimation;
 	not_null<DocumentData*> activateAnimation;
 	not_null<DocumentData*> activateEffects;
+	not_null<DocumentData*> centerIcon;
 	DocumentData *aroundAnimation = nullptr;
-	DocumentData *centerIcon = nullptr;
 	bool active = false;
 };
 
 class Reactions final {
 public:
 	explicit Reactions(not_null<Session*> owner);
+	~Reactions();
 
 	void refresh();
 
@@ -72,6 +77,7 @@ private:
 		QImage bottomInfo;
 		QImage inlineList;
 		std::shared_ptr<DocumentMedia> media;
+		std::unique_ptr<Lottie::Icon> icon;
 	};
 
 	void request();
@@ -80,7 +86,7 @@ private:
 		const MTPAvailableReaction &entry);
 
 	void loadImage(ImageSet &set, not_null<DocumentData*> document);
-	void setImage(ImageSet &set, QImage large);
+	void setLottie(ImageSet &set);
 	void resolveImages();
 	void downloadTaskFinished();
 

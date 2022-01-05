@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_changes.h"
+#include "lottie/lottie_icon.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -25,6 +26,7 @@ namespace {
 
 constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
+constexpr auto kSizeForDownscale = 128;
 
 } // namespace
 
@@ -48,6 +50,8 @@ Reactions::Reactions(not_null<Session*> owner)
 		_repaintItems.remove(item);
 	}, _lifetime);
 }
+
+Reactions::~Reactions() = default;
 
 void Reactions::refresh() {
 	request();
@@ -82,7 +86,7 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	auto &set = _images.emplace(emoji).first->second;
 	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
 	const auto document = (i != end(_available))
-		? i->staticIcon.get()
+		? i->centerIcon.get()
 		: nullptr;
 	if (document) {
 		loadImage(set, document);
@@ -100,6 +104,20 @@ QImage Reactions::resolveImageFor(
 		preloadImageFor(emoji);
 	}
 	auto &set = (i != end(_images)) ? i->second : _images[emoji];
+	const auto resolve = [&](QImage &image, int size) {
+		const auto factor = style::DevicePixelRatio();
+		image = set.icon->frame().scaled(
+			size * factor,
+			size * factor,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		image.setDevicePixelRatio(factor);
+	};
+	if (set.bottomInfo.isNull() && set.icon) {
+		resolve(set.bottomInfo, st::reactionInfoSize);
+		resolve(set.inlineList, st::reactionBottomSize);
+		crl::async([icon = std::move(set.icon)]{});
+	}
 	switch (size) {
 	case ImageSize::BottomInfo: return set.bottomInfo;
 	case ImageSize::InlineList: return set.inlineList;
@@ -109,12 +127,12 @@ QImage Reactions::resolveImageFor(
 
 void Reactions::resolveImages() {
 	for (auto &[emoji, set] : _images) {
-		if (!set.bottomInfo.isNull() || set.media) {
+		if (!set.bottomInfo.isNull() || set.icon || set.media) {
 			continue;
 		}
 		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
 		const auto document = (i != end(_available))
-			? i->staticIcon.get()
+			? i->centerIcon.get()
 			: nullptr;
 		if (document) {
 			loadImage(set, document);
@@ -128,13 +146,14 @@ void Reactions::resolveImages() {
 void Reactions::loadImage(
 		ImageSet &set,
 		not_null<DocumentData*> document) {
-	if (!set.bottomInfo.isNull()) {
+	if (!set.bottomInfo.isNull() || set.icon) {
 		return;
 	} else if (!set.media) {
 		set.media = document->createMediaView();
+		set.media->checkStickerLarge();
 	}
-	if (const auto image = set.media->getStickerLarge()) {
-		setImage(set, image->original());
+	if (set.media->loaded()) {
+		setLottie(set);
 	} else if (!_imagesLoadLifetime) {
 		document->session().downloaderTaskFinished(
 		) | rpl::start_with_next([=] {
@@ -143,20 +162,15 @@ void Reactions::loadImage(
 	}
 }
 
-void Reactions::setImage(ImageSet &set, QImage large) {
+void Reactions::setLottie(ImageSet &set) {
+	const auto size = kSizeForDownscale / style::DevicePixelRatio();
+	set.icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = set.media->owner()->filepath(true),
+		.json = set.media->bytes(),
+		.sizeOverride = QSize(size, size),
+		.frame = -1,
+	});
 	set.media = nullptr;
-	const auto scale = [&](int size) {
-		const auto factor = style::DevicePixelRatio();
-		return Images::prepare(
-			large,
-			size * factor,
-			size * factor,
-			Images::Option::Smooth,
-			size,
-			size);
-	};
-	set.bottomInfo = scale(st::reactionInfoSize);
-	set.inlineList = scale(st::reactionBottomSize);
 }
 
 void Reactions::downloadTaskFinished() {
@@ -164,8 +178,8 @@ void Reactions::downloadTaskFinished() {
 	for (auto &[emoji, set] : _images) {
 		if (!set.media) {
 			continue;
-		} else if (const auto image = set.media->getStickerLarge()) {
-			setImage(set, image->original());
+		} else if (set.media->loaded()) {
+			setLottie(set);
 		} else {
 			hasOne = true;
 		}
@@ -249,6 +263,8 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 		if (!known) {
 			LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
 		}
+		const auto selectAnimation = _owner->processDocument(
+			data.vselect_animation());
 		return known
 			? std::make_optional(Reaction{
 				.emoji = emoji,
@@ -256,18 +272,17 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				.staticIcon = _owner->processDocument(data.vstatic_icon()),
 				.appearAnimation = _owner->processDocument(
 					data.vappear_animation()),
-				.selectAnimation = _owner->processDocument(
-					data.vselect_animation()),
+				.selectAnimation = selectAnimation,
 				.activateAnimation = _owner->processDocument(
 					data.vactivate_animation()),
 				.activateEffects = _owner->processDocument(
 					data.veffect_animation()),
+				.centerIcon = (data.vcenter_icon()
+					? _owner->processDocument(*data.vcenter_icon())
+					: selectAnimation),
 				.aroundAnimation = (data.varound_animation()
 					? _owner->processDocument(
 						*data.varound_animation()).get()
-					: nullptr),
-				.centerIcon = (data.vcenter_icon()
-					? _owner->processDocument(*data.vcenter_icon()).get()
 					: nullptr),
 				.active = !data.is_inactive(),
 			})
