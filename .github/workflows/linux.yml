@@ -123,7 +123,13 @@ jobs:
         run: |
           cd $REPO_NAME/out/Release
           mkdir artifact
-          mv Telegram artifact/
+          mkdir "artifact/Telegram"
+          strip -s "Telegram"
+          strip -s "Updater"
+          mv Telegram artifact/Telegram/
+          mv Updater artifact/Telegram/
+          cd artifact
+          tar -cJvf "Telegram.tar.xz" "Telegram/"
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.

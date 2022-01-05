@@ -129,6 +129,11 @@ jobs:
           lipo -thin "x86_64" Telegram.app/Contents/MacOS/Telegram -output Telegram.app/Contents/MacOS/Telegram
           lipo -thin "x86_64" Telegram.app/Contents/Frameworks/Updater -output Telegram.app/Contents/Frameworks/Updater
           lipo -thin "x86_64" Telegram.app/Contents/Helpers/crashpad_handler -output Telegram.app/Contents/Helpers/crashpad_handler
+
+          strip "Telegram.app/Contents/MacOS/Telegram"
+          strip "Telegram.app/Contents/Frameworks/Updater"
+          strip "Telegram.app/Contents/Helpers/crashpad_handler"
+
           mv Telegram.app artifact/
           mv Updater artifact/
       - uses: actions/upload-artifact@master
