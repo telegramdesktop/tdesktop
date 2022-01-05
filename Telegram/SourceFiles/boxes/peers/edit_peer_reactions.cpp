@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "lottie/lottie_icon.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "info/profile/info_profile_icon.h"
@@ -32,7 +33,9 @@ void AddReactionIcon(
 		not_null<DocumentData*> document) {
 	struct State {
 		std::shared_ptr<Data::DocumentMedia> media;
+		std::unique_ptr<Lottie::Icon> icon;
 		QImage image;
+		rpl::lifetime downloadLifetime;
 	};
 
 	const auto size = st::editPeerReactionsPreview;
@@ -50,32 +53,36 @@ void AddReactionIcon(
 			size.width());
 	}, icon->lifetime());
 
-	const auto setImage = [=](not_null<Image*> image) {
-		state->image = Images::prepare(
-			image->original(),
-			size * style::DevicePixelRatio(),
-			size * style::DevicePixelRatio(),
-			Images::Option::Smooth | Images::Option::TransparentBackground,
-			size,
-			size);
-		icon->update();
+	const auto initLottie = [=] {
+		state->icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+			.path = state->media->owner()->filepath(true),
+			.json = state->media->bytes(),
+			.sizeOverride = QSize(size, size),
+			.frame = -1,
+		});
+		state->downloadLifetime.destroy();
+		state->media = nullptr;
 	};
-	if (const auto image = state->media->getStickerLarge()) {
-		setImage(image);
+	state->media->checkStickerLarge();
+	if (state->media->loaded()) {
+		initLottie();
 	} else {
 		document->session().downloaderTaskFinished(
-		) | rpl::map([=] {
-			return state->media->getStickerLarge();
-		}) | rpl::filter_nullptr() | rpl::take(
-			1
-		) | rpl::start_with_next([=](not_null<Image*> image) {
-			setImage(image);
-		}, button->lifetime());
+		) | rpl::filter([=] {
+			return state->media->loaded();
+		}) | rpl::start_with_next([=] {
+			initLottie();
+			icon->update();
+		}, state->downloadLifetime);
 	}
 
 	icon->paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(icon);
+		QPainter p(icon);
+		if (state->image.isNull() && state->icon) {
+			state->image = state->icon->frame();
+			crl::async([icon = std::move(state->icon)]{});
+		}
 		if (!state->image.isNull()) {
 			p.drawImage(0, 0, state->image);
 		}
@@ -148,7 +155,7 @@ void EditAllowedReactionsBox(
 			container,
 			rpl::single(entry.title),
 			st::manageGroupButton.button);
-		AddReactionIcon(button, entry.staticIcon);
+		AddReactionIcon(button, entry.centerIcon);
 		state->toggles.emplace(entry.emoji, button);
 		button->toggleOn(rpl::single(
 			active(entry)
