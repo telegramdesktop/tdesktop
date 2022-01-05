@@ -983,3 +983,4 @@ reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
 reactionCornerAddedHeightMax: 120px;
 
 reactionCornerSkip: 2px;
+reactionAppearStartSkip: 2px;

@@ -35,6 +35,7 @@ constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kSizeForDownscale = 96;
+constexpr auto kHoverScale = 1.2;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -96,6 +97,10 @@ Button::~Button() = default;
 
 bool Button::isHidden() const {
 	return (_state == State::Hidden) && !_opacityAnimation.animating();
+}
+
+bool Button::hasInitialView() const {
+	return (_geometry.height() == _collapsed.height());
 }
 
 QRect Button::geometry() const {
@@ -368,6 +373,9 @@ void Manager::updateButton(ButtonParameters parameters) {
 		return;
 	} else if (_button) {
 		_button->applyParameters(parameters);
+		if (_button->hasInitialView()) {
+			clearAppearAnimations();
+		}
 		return;
 	} else if (parameters.outside) {
 		_buttonShowTimer.cancel();
@@ -386,6 +394,7 @@ void Manager::updateButton(ButtonParameters parameters) {
 }
 
 void Manager::showButtonDelayed() {
+	clearAppearAnimations();
 	_button = std::make_unique<Button>(
 		_buttonUpdate,
 		*_scheduledParameters,
@@ -503,11 +512,14 @@ void Manager::loadIcons() {
 		return entry.icon;
 	};
 	_icons.clear();
+	auto main = true;
 	for (const auto &reaction : _list) {
 		_icons.push_back({
-			.appear = load(reaction.appearAnimation, 1),
+			.appear = load(reaction.appearAnimation, main ? -1 : 1),
 			.select = load(reaction.selectAnimation, -1),
+			.appearAnimated = main,
 		});
+		main = false;
 	}
 }
 
@@ -656,10 +668,32 @@ void Manager::paintButton(
 	} else {
 		const auto source = validateEmoji(frameIndex, scale);
 		p.drawImage(mainEmojiPosition, _cacheParts, source);
+		if (button == _button.get()) {
+			clearAppearAnimations();
+		}
 	}
 
 	if (opacity != 1.) {
 		p.setOpacity(1.);
+	}
+}
+
+void Manager::clearAppearAnimations() {
+	if (!_showingAll) {
+		return;
+	}
+	_showingAll = false;
+	auto main = true;
+	for (auto &icon : _icons) {
+		if (icon.appearAnimated != main) {
+			if (const auto appear = icon.appear.get()) {
+				appear->jumpTo(
+					main ? (appear->framesCount() - 1) : 1,
+					nullptr);
+			}
+			icon.appearAnimated = main;
+		}
+		main = false;
 	}
 }
 
@@ -702,7 +736,14 @@ void Manager::paintAllEmoji(
 		not_null<Button*> button,
 		float64 scale,
 		QPoint mainEmojiPosition) {
+	const auto current = (button == _button.get());
+	if (current) {
+		_showingAll = true;
+	}
+
 	const auto clip = buttonInner(button);
+	const auto skip = st::reactionAppearStartSkip;
+	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
 	p.setClipRect(clip);
 
 	auto hq = PainterHighQualityEnabler(p);
@@ -720,17 +761,30 @@ void Manager::paintAllEmoji(
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
 		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
-	for (const auto &icon : _icons) {
+	const auto update = [=] {
+		if (_button) _buttonUpdate(_button->geometry());
+	};
+	for (auto &icon : _icons) {
 		const auto target = basicTarget.translated(emojiPosition);
 		emojiPosition += shift;
 
 		if (!target.intersects(clip)) {
+			if (current) {
+				if (const auto appear = icon.appear.get()) {
+					appear->jumpTo(1, nullptr);
+				}
+				icon.appearAnimated = false;
+			}
 			continue;
 		} else if (icon.appear) {
+			if (current
+				&& !icon.appearAnimated
+				&& target.intersects(animationRect)) {
+				icon.appearAnimated = true;
+				icon.appear->animate(update, 0, icon.appear->framesCount());
+			}
 			const auto size = int(base::SafeRound(target.width()));
-			const auto frame = icon.appear->frame(
-				{ size, size },
-				[=] { if (_button) _buttonUpdate(_button->geometry()); });
+			const auto frame = icon.appear->frame({ size, size }, update);
 			p.drawImage(target, frame.image);
 		}
 	}

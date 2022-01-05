@@ -75,6 +75,7 @@ public:
 
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
+	[[nodiscard]] bool hasInitialView() const;
 	[[nodiscard]] QRect geometry() const;
 	[[nodiscard]] int scroll() const;
 	[[nodiscard]] float64 currentScale() const;
@@ -146,6 +147,7 @@ private:
 	struct ReactionIcons {
 		std::shared_ptr<Lottie::Icon> appear;
 		std::shared_ptr<Lottie::Icon> select;
+		bool appearAnimated = false;
 	};
 	static constexpr auto kFramesCount = 30;
 
@@ -178,6 +180,7 @@ private:
 
 	void setMainReactionIcon();
 	void applyPatternedShadow(const QColor &shadow);
+	void clearAppearAnimations();
 	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
 	QRect validateShadow(
 		int frameIndex,
@@ -223,6 +226,7 @@ private:
 	base::flat_map<not_null<DocumentData*>, ReactionDocument> _loadCache;
 	std::vector<ReactionIcons> _icons;
 	rpl::lifetime _loadCacheLifetime;
+	bool _showingAll = false;
 
 	std::optional<ButtonParameters> _scheduledParameters;
 	base::Timer _buttonShowTimer;
