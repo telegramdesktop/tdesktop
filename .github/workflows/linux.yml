@@ -128,6 +128,7 @@ jobs:
           mv Telegram artifact/Telegram/
           cd artifact
           tar -cJvf "Telegram.tar.xz" "Telegram/"
+          rm -rf Telegram/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
