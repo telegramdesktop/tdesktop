@@ -75,7 +75,6 @@ public:
 
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
-	[[nodiscard]] bool hasInitialView() const;
 	[[nodiscard]] QRect geometry() const;
 	[[nodiscard]] int scroll() const;
 	[[nodiscard]] float64 currentScale() const;
@@ -207,7 +206,7 @@ private:
 		const Data::Reaction &reaction) const;
 
 	void updateCurrentButton() const;
-	[[nodiscard]] bool onlyMainEmojiVisible(not_null<Button*> button) const;
+	[[nodiscard]] bool onlyMainEmojiVisible() const;
 	[[nodiscard]] bool checkIconLoaded(ReactionDocument &entry) const;
 	void loadIcons();
 	void checkIcons();
