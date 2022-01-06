@@ -470,8 +470,7 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 	const auto top = _button->expandUp()
 		? (inner.y() + inner.height() - position.y())
 		: (position.y() - inner.y());
-	const auto scroll = _button->scroll();
-	const auto shifted = top + scroll * (_button->expandUp() ? 1 : -1);
+	const auto shifted = top + _button->scroll();
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = (st::reactionCornerSize.height() + between);
 	const auto index = std::clamp(
