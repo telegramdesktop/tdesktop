@@ -136,6 +136,8 @@ jobs:
 
           bless --folder "./Telegram.app/" --openfolder "./Telegram.app/"
 
+          codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "Telegram.app" --entitlements "$REPO_NAME/Telegram/Telegram.entitlements"
+
           mv Telegram.app artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
