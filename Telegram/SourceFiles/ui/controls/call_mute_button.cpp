@@ -676,10 +676,10 @@ CallMuteButton::IconState CallMuteButton::randomWavingState() {
 		int to = 0;
 	};
 	static const auto kAnimations = std::vector<Animation>{
-		{ 0, 120 },
-		{ 120, 240 },
-		{ 240, 420 },
-		{ 420, 540 },
+		{ 0, 119 },
+		{ 120, 239 },
+		{ 240, 419 },
+		{ 420, 539 },
 	};
 	const auto index = base::RandomIndex(kAnimations.size());
 	return { 1, kAnimations[index].from, kAnimations[index].to };

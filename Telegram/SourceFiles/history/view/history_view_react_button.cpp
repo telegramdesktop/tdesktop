@@ -25,6 +25,7 @@ constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);
 constexpr auto kCollapseDuration = crl::time(250);
+constexpr auto kHoverScaleDuration = crl::time(120);
 constexpr auto kBgCacheIndex = 0;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
@@ -35,7 +36,7 @@ constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kSizeForDownscale = 96;
-constexpr auto kHoverScale = 1.2;
+constexpr auto kHoverScale = 1.24;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -348,10 +349,12 @@ Manager::Manager(
 
 void Manager::stealWheelEvents(not_null<QWidget*> target) {
 	base::install_event_filter(target, [=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::Wheel
-			&& consumeWheelEvent(static_cast<QWheelEvent*>(e.get())))
-			? base::EventFilterResult::Cancel
-			: base::EventFilterResult::Continue;
+		if (e->type() != QEvent::Wheel
+			|| !consumeWheelEvent(static_cast<QWheelEvent*>(e.get()))) {
+			return base::EventFilterResult::Continue;
+		}
+		Ui::SendSynteticMouseEvent(target, QEvent::MouseMove, Qt::NoButton);
+		return base::EventFilterResult::Cancel;
 	});
 }
 
@@ -417,6 +420,7 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 	if (_list.empty()) {
 		_mainReactionMedia = nullptr;
 		_mainReactionLifetime.destroy();
+		setSelectedIcon(-1);
 		_icons.clear();
 		return;
 	}
@@ -511,11 +515,12 @@ void Manager::loadIcons() {
 		}
 		return entry.icon;
 	};
+	// #TODO reactions rebuild list better
 	_icons.clear();
 	auto main = true;
 	for (const auto &reaction : _list) {
 		_icons.push_back({
-			.appear = load(reaction.appearAnimation, main ? -1 : 1),
+			.appear = load(reaction.appearAnimation, main ? -1 : 0),
 			.select = load(reaction.selectAnimation, -1),
 			.appearAnimated = main,
 		});
@@ -554,6 +559,7 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 
 ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 	if (_list.empty()) {
+		setSelectedIcon(-1);
 		return nullptr;
 	}
 	const auto inner = buttonInner();
@@ -571,7 +577,32 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 	if (!result) {
 		result = resolveButtonLink(_list[index]);
 	}
+	setSelectedIcon(index);
 	return result;
+}
+
+void Manager::setSelectedIcon(int index) const {
+	const auto setSelected = [&](int index, bool selected) {
+		if (index < 0 || index >= _icons.size()) {
+			return;
+		}
+		auto &icon = _icons[index];
+		if (icon.selected == selected) {
+			return;
+		}
+		icon.selected = selected;
+		icon.selectedScale.start(
+			[=] { if (_button) _buttonUpdate(_button->geometry()); },
+			selected ? 1. : kHoverScale,
+			selected ? kHoverScale : 1.,
+			kHoverScaleDuration,
+			anim::sineInOut);
+	};
+	if (_selectedIcon != index) {
+		setSelected(_selectedIcon, false);
+		_selectedIcon = index;
+	}
+	setSelected(index, true);
 }
 
 ClickHandlerPtr Manager::resolveButtonLink(
@@ -593,6 +624,8 @@ TextState Manager::buttonTextState(QPoint position) const {
 		auto result = TextState(nullptr, computeButtonLink(position));
 		result.itemId = _buttonContext;
 		return result;
+	} else {
+		setSelectedIcon(-1);
 	}
 	return {};
 }
@@ -661,7 +694,8 @@ void Manager::paintButton(
 	const auto mainEmojiPosition = position + (button->expandUp()
 		? QPoint(0, size.height() - _outer.height())
 		: QPoint());
-	if (size.height() > _outer.height()) {
+	if (size.height() > _outer.height()
+		|| (!_icons.empty() && _icons.front().selected)) {
 		p.save();
 		paintAllEmoji(p, button, scale, mainEmojiPosition);
 		p.restore();
@@ -750,13 +784,28 @@ void Manager::paintAllEmoji(
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = st::reactionCornerSize.height() + between;
 	const auto finalSize = CornerImageSize(1.);
-	const auto remove = finalSize * (1. - scale) / 2.;
-	const auto basicTarget = QRectF(QRect(
-		_inner.x() + (_inner.width() - finalSize) / 2,
-		_inner.y() + (_inner.height() - finalSize) / 2,
-		finalSize,
-		finalSize
-	)).marginsRemoved({ remove, remove, remove, remove });
+	const auto hoveredSize = int(base::SafeRound(finalSize * kHoverScale));
+	const auto basicTargetForScale = [&](int size, float64 scale) {
+		const auto remove = size * (1. - scale) / 2.;
+		return QRectF(QRect(
+			_inner.x() + (_inner.width() - size) / 2,
+			_inner.y() + (_inner.height() - size) / 2,
+			size,
+			size
+		)).marginsRemoved({ remove, remove, remove, remove });
+	};
+	const auto basicTarget = basicTargetForScale(finalSize, scale);
+	const auto countTarget = [&](const ReactionIcons &icon) {
+		const auto selectScale = icon.selectedScale.value(
+			icon.selected ? kHoverScale : 1.);
+		if (selectScale == 1.) {
+			return basicTarget;
+		}
+		const auto finalScale = scale * selectScale;
+		return (finalScale <= 1.)
+			? basicTargetForScale(finalSize, finalScale)
+			: basicTargetForScale(hoveredSize, finalScale / kHoverScale);
+	};
 	const auto expandUp = button->expandUp();
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
@@ -765,7 +814,7 @@ void Manager::paintAllEmoji(
 		if (_button) _buttonUpdate(_button->geometry());
 	};
 	for (auto &icon : _icons) {
-		const auto target = basicTarget.translated(emojiPosition);
+		const auto target = countTarget(icon).translated(emojiPosition);
 		emojiPosition += shift;
 
 		if (!target.intersects(clip)) {
@@ -775,16 +824,15 @@ void Manager::paintAllEmoji(
 				}
 				icon.appearAnimated = false;
 			}
-			continue;
-		} else if (icon.appear) {
+		} else if (const auto appear = icon.appear.get()) {
 			if (current
 				&& !icon.appearAnimated
 				&& target.intersects(animationRect)) {
 				icon.appearAnimated = true;
-				icon.appear->animate(update, 0, icon.appear->framesCount());
+				appear->animate(update, 0, appear->framesCount() - 1);
 			}
 			const auto size = int(base::SafeRound(target.width()));
-			const auto frame = icon.appear->frame({ size, size }, update);
+			const auto frame = appear->frame({ size, size }, update);
 			p.drawImage(target, frame.image);
 		}
 	}

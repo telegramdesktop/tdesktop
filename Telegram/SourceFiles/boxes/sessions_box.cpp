@@ -292,7 +292,6 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	return std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
 		.path = u":/icons/settings/devices/"_q + path + u".lottie"_q,
 		.sizeOverride = QSize(size, size),
-		.frame = 1,
 	});
 }
 
@@ -358,7 +357,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 			state->lottie->animate(
 				[=] { result->update(); },
 				0,
-				state->lottie->framesCount());
+				state->lottie->framesCount() - 1);
 		}, result->lifetime());
 	}
 

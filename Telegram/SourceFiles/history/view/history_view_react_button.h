@@ -147,7 +147,9 @@ private:
 	struct ReactionIcons {
 		std::shared_ptr<Lottie::Icon> appear;
 		std::shared_ptr<Lottie::Icon> select;
+		mutable Ui::Animations::Simple selectedScale;
 		bool appearAnimated = false;
+		mutable bool selected = false;
 	};
 	static constexpr auto kFramesCount = 30;
 
@@ -193,6 +195,8 @@ private:
 		const QColor &background,
 		const QColor &shadow);
 
+	void setSelectedIcon(int index) const;
+
 	[[nodiscard]] QMargins innerMargins() const;
 	[[nodiscard]] QRect buttonInner() const;
 	[[nodiscard]] QRect buttonInner(not_null<Button*> button) const;
@@ -227,6 +231,7 @@ private:
 	std::vector<ReactionIcons> _icons;
 	rpl::lifetime _loadCacheLifetime;
 	bool _showingAll = false;
+	mutable int _selectedIcon = -1;
 
 	std::optional<ButtonParameters> _scheduledParameters;
 	base::Timer _buttonShowTimer;
