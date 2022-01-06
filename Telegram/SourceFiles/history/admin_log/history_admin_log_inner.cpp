@@ -515,7 +515,7 @@ void InnerWidget::updateEmptyText() {
 		? tr::lng_admin_log_no_results_search_text(
 			tr::now,
 			lt_query,
-			TextUtilities::Clean(_searchQuery))
+			_searchQuery)
 		: hasFilter
 		? tr::lng_admin_log_no_results_text(tr::now)
 		: _channel->isMegagroup()

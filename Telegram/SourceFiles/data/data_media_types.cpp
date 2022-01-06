@@ -1113,10 +1113,10 @@ TextForMimeData MediaLocation::clipboardText() const {
 	auto result = TextForMimeData::Simple(
 		qstr("[ ") + tr::lng_maps_point(tr::now) + qstr(" ]\n"));
 	auto titleResult = TextUtilities::ParseEntities(
-		TextUtilities::Clean(_title),
+		_title,
 		Ui::WebpageTextTitleOptions().flags);
 	auto descriptionResult = TextUtilities::ParseEntities(
-		TextUtilities::Clean(_description),
+		_description,
 		TextParseLinks | TextParseMultiline | TextParseRichText);
 	if (!titleResult.empty()) {
 		result.append(std::move(titleResult));

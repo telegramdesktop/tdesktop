@@ -276,7 +276,7 @@ void FieldHeader::init() {
 	) | rpl::start_with_next([=](const auto &d) {
 		_preview.description.setText(
 			st::messageTextStyle,
-			TextUtilities::Clean(d),
+			d,
 			Ui::DialogTextOptions());
 	}, lifetime());
 

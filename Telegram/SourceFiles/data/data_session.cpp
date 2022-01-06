@@ -3015,8 +3015,8 @@ not_null<WebPageData*> Session::webpage(
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
 		const MTPDwebPage &data) {
-	auto description = TextWithEntities {
-		TextUtilities::Clean(qs(data.vdescription().value_or_empty()))
+	auto description = TextWithEntities{
+		qs(data.vdescription().value_or_empty())
 	};
 	const auto siteName = qs(data.vsite_name().value_or_empty());
 	auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
@@ -3191,9 +3191,9 @@ void Session::gameApplyFields(
 		return;
 	}
 	game->accessHash = accessHash;
-	game->shortName = TextUtilities::Clean(shortName);
+	game->shortName = shortName;
 	game->title = TextUtilities::SingleLine(title);
-	game->description = TextUtilities::Clean(description);
+	game->description = description;
 	game->photo = photo;
 	game->document = document;
 	notifyGameUpdateDelayed(game);

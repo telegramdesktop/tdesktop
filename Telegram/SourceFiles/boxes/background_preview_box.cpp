@@ -302,7 +302,7 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 		base::unixtime::now(),
 		out ? history->session().userId() : peerToUser(history->peer->id),
 		QString(),
-		TextWithEntities{ TextUtilities::Clean(text) },
+		TextWithEntities{ text },
 		MTP_messageMediaEmpty(),
 		HistoryMessageMarkupData(),
 		groupedId);

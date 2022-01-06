@@ -35,7 +35,7 @@ namespace {
 TextWithEntities PrepareText(
 		const QString &value,
 		const QString &emptyValue) {
-	auto result = TextWithEntities { TextUtilities::Clean(value) };
+	auto result = TextWithEntities{ value };
 	if (result.text.isEmpty()) {
 		result.text = emptyValue;
 		if (!emptyValue.isEmpty()) {
@@ -143,7 +143,7 @@ TextWithEntities ExtractEditedText(
 	}
 	const auto &data = message.c_message();
 	return {
-		TextUtilities::Clean(qs(data.vmessage())),
+		qs(data.vmessage()),
 		Api::EntitiesFromMTP(session, data.ventities().value_or_empty())
 	};
 }

@@ -197,7 +197,7 @@ TermsLock TermsLock::FromMTP(
 	return {
 		bytes::make_vector(data.vid().c_dataJSON().vdata().v),
 		TextWithEntities {
-			TextUtilities::Clean(qs(data.vtext())),
+			qs(data.vtext()),
 			Api::EntitiesFromMTP(session, data.ventities().v) },
 		(minAge ? std::make_optional(minAge->v) : std::nullopt),
 		data.is_popup()

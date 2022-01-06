@@ -40,7 +40,7 @@ namespace {
 		list.size() - (throwAwayLastName ? 1 : 0)
 	);
 	const auto wrapName = [](not_null<History*> history) {
-		const auto name = TextUtilities::Clean(history->peer->name);
+		const auto name = history->peer->name;
 		return TextWithEntities{
 			.text = name,
 			.entities = (history->unreadCount() > 0)

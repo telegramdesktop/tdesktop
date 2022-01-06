@@ -6706,7 +6706,7 @@ void HistoryWidget::updatePreview() {
 			auto linkText = QStringView(_previewLinks).split(' ').at(0).toString();
 			_previewDescription.setText(
 				st::messageTextStyle,
-				TextUtilities::Clean(linkText),
+				linkText,
 				Ui::DialogTextOptions());
 
 			const auto timeout = (_previewData->pendingTill - base::unixtime::now());
@@ -6727,7 +6727,7 @@ void HistoryWidget::updatePreview() {
 				Ui::NameTextOptions());
 			_previewDescription.setText(
 				st::messageTextStyle,
-				TextUtilities::Clean(preview.description),
+				preview.description,
 				Ui::DialogTextOptions());
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {

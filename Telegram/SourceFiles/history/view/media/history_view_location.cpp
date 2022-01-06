@@ -38,14 +38,14 @@ Location::Location(
 	if (!title.isEmpty()) {
 		_title.setText(
 			st::webPageTitleStyle,
-			TextUtilities::Clean(title),
+			title,
 			Ui::WebpageTextTitleOptions());
 	}
 	if (!description.isEmpty()) {
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
 			TextUtilities::ParseEntities(
-				TextUtilities::Clean(description),
+				description,
 				TextParseLinks | TextParseMultiline | TextParseRichText),
 			Ui::WebpageTextDescriptionOptions());
 	}
