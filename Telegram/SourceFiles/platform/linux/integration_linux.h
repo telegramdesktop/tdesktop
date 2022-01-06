@@ -7,3 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Platform {
+
+class Integration;
+
+[[nodiscard]] std::unique_ptr<Integration> CreateIntegration();
+
+} // namespace Platform
