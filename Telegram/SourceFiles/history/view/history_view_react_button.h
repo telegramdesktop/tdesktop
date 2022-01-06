@@ -76,6 +76,7 @@ public:
 	[[nodiscard]] bool expandUp() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] QRect geometry() const;
+	[[nodiscard]] int expandedHeight() const;
 	[[nodiscard]] int scroll() const;
 	[[nodiscard]] float64 currentScale() const;
 	[[nodiscard]] float64 currentOpacity() const;
@@ -173,7 +174,14 @@ private:
 		Painter &p,
 		not_null<Button*> button,
 		float64 scale,
+		QPoint position,
 		QPoint mainEmojiPosition);
+	void overlayExpandedBorder(
+		Painter &p,
+		QSize size,
+		float64 expandRatio,
+		float64 scale,
+		const QColor &shadow);
 	void paintLongImage(
 		QPainter &p,
 		QRect geometry,
@@ -219,6 +227,7 @@ private:
 	QImage _cacheBg;
 	QImage _cacheParts;
 	QImage _shadowBuffer;
+	QImage _expandedBuffer;
 	std::array<bool, kFramesCount> _validBg = { { false } };
 	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };

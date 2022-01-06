@@ -104,6 +104,10 @@ QRect Button::geometry() const {
 	return _geometry;
 }
 
+int Button::expandedHeight() const {
+	return _expandedHeight;
+}
+
 int Button::scroll() const {
 	return _scroll;
 }
@@ -325,6 +329,11 @@ Manager::Manager(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	_shadowBuffer.setDevicePixelRatio(ratio);
+	_expandedBuffer = QImage(
+		_outer.width() * ratio,
+		(_outer.height() + st::reactionCornerAddedHeightMax) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_expandedBuffer.setDevicePixelRatio(ratio);
 
 	if (wheelEventsTarget) {
 		stealWheelEvents(wheelEventsTarget);
@@ -337,7 +346,7 @@ Manager::Manager(
 				_chosen.fire({
 					.context = context,
 					.emoji = emoji,
-					});
+				});
 			}
 		};
 	};
@@ -697,29 +706,36 @@ void Manager::paintButton(
 	const auto position = geometry.topLeft();
 	const auto size = geometry.size();
 	const auto expanded = (size.height() - _outer.height());
-	const auto shadow = context.st->shadowFg()->c;
 	if (opacity != 1.) {
 		p.setOpacity(opacity);
 	}
-	const auto background = context.st->windowBg()->c;
-	const auto source = validateFrame(
-		frameIndex,
-		scale,
-		background,
-		shadow);
+	auto layeredPainter = std::optional<Painter>();
 	if (expanded) {
-		paintLongImage(p, geometry, _cacheBg, source);
+		_expandedBuffer.fill(Qt::transparent);
+	}
+	const auto q = expanded ? &layeredPainter.emplace(&_expandedBuffer) : &p;
+	const auto shadow = context.st->shadowFg()->c;
+	const auto background = context.st->windowBg()->c;
+	if (expanded) {
+		q->fillRect(QRect(QPoint(), size), context.st->windowBg());
 	} else {
+		const auto source = validateFrame(
+			frameIndex,
+			scale,
+			background,
+			shadow);
 		p.drawImage(position, _cacheBg, source);
 	}
 
 	const auto current = (button == _button.get());
-	const auto mainEmojiPosition = position
-		+ (button->expandUp() ? QPoint(0, expanded) : QPoint());
+	const auto mainEmojiPosition = !expanded
+		? position
+		: button->expandUp()
+		? QPoint(0, expanded)
+		: QPoint();
 	if (expanded || (current && !onlyMainEmojiVisible())) {
-		p.save();
-		paintAllEmoji(p, button, scale, mainEmojiPosition);
-		p.restore();
+		const auto origin = expanded ? QPoint() : position;
+		paintAllEmoji(*q, button, scale, origin, mainEmojiPosition);
 		if (current && expanded) {
 			_showingAll = true;
 		}
@@ -731,9 +747,92 @@ void Manager::paintButton(
 		clearAppearAnimations();
 	}
 
+	if (expanded) {
+		const auto expandRatio = float64(expanded)
+			/ (button->expandedHeight() - _outer.height());
+		overlayExpandedBorder(*q, size, expandRatio, scale, shadow);
+		layeredPainter.reset();
+		p.drawImage(
+			geometry,
+			_expandedBuffer,
+			QRect(QPoint(), size / style::DevicePixelRatio()));
+	}
 	if (opacity != 1.) {
 		p.setOpacity(1.);
 	}
+}
+
+void Manager::overlayExpandedBorder(
+		Painter &p,
+		QSize size,
+		float64 expandRatio,
+		float64 scale,
+		const QColor &shadow) {
+	const auto maxSide = _inner.width();
+	const auto radius = expandRatio * (maxSide / 2.)
+		+ (1. - expandRatio) * st::reactionCornerRadius;
+	const auto minHeight = int(std::ceil(radius * 2)) + 1;
+
+	const auto maskSize = QRect(0, 0, maxSide, minHeight).marginsAdded(
+		st::reactionCornerShadow
+	).size();
+	auto mask = QImage(
+		maskSize * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	mask.fill(Qt::transparent);
+	{
+		auto q = Painter(&mask);
+		auto hq = PainterHighQualityEnabler(q);
+		const auto inner = QRect(_inner.x(), _inner.y(), maxSide, minHeight);
+		const auto center = inner.center();
+		q.setPen(Qt::NoPen);
+		q.setBrush(Qt::white);
+		q.save();
+		q.translate(center);
+		q.scale(scale, scale);
+		q.translate(-center);
+		q.drawRoundedRect(inner, radius, radius);
+		q.restore();
+	}
+
+	auto shadowMask = QImage(
+		maskSize * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	shadowMask.fill(Qt::transparent);
+	{
+		auto q = Painter(&shadowMask);
+		auto hq = PainterHighQualityEnabler(q);
+		const auto inner = QRect(_inner.x(), _inner.y(), maxSide, minHeight);
+		const auto center = inner.center();
+		const auto add = style::ConvertScale(2.5);
+		const auto shift = style::ConvertScale(0.5);
+		const auto extended = QRectF(inner).marginsAdded({ add, add, add, add });
+		q.setPen(Qt::NoPen);
+		q.setBrush(shadow);
+		q.translate(center);
+		q.scale(scale, scale);
+		q.translate(-center);
+		q.drawRoundedRect(extended.translated(0, shift), radius, radius);
+	}
+	shadowMask = Images::prepareBlur(std::move(shadowMask));
+	{
+		auto q = Painter(&shadowMask);
+		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		q.drawImage(0, 0, mask);
+	}
+
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	paintLongImage(
+		p,
+		QRect(QPoint(), size),
+		mask,
+		QRect(QPoint(), mask.size()));
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	paintLongImage(
+		p,
+		QRect(QPoint(), size),
+		shadowMask,
+		QRect(QPoint(), shadowMask.size()));
 }
 
 bool Manager::onlyMainEmojiVisible() const {
@@ -814,15 +913,20 @@ void Manager::paintAllEmoji(
 		Painter &p,
 		not_null<Button*> button,
 		float64 scale,
+		QPoint position,
 		QPoint mainEmojiPosition) {
 	const auto current = (button == _button.get());
 
-	const auto clip = buttonInner(button);
+	const auto clip = QRect(
+		position,
+		button->geometry().size()).marginsRemoved(innerMargins());
 	const auto skip = st::reactionAppearStartSkip;
 	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
-	p.setClipRect(clip);
 
-	auto hq = PainterHighQualityEnabler(p);
+	auto hq = std::optional<PainterHighQualityEnabler>();
+	if (scale != 1. && scale != kHoverScale) {
+		hq.emplace(p);
+	}
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = st::reactionCornerSize.height() + between;
 	const auto finalSize = CornerImageSize(1.);
@@ -930,8 +1034,8 @@ QRect Manager::validateShadow(
 	auto hq = PainterHighQualityEnabler(p);
 	const auto radius = st::reactionCornerRadius;
 	const auto center = _inner.center();
-	const auto add = style::ConvertScale(2.);
-	const auto shift = style::ConvertScale(1.);
+	const auto add = style::ConvertScale(2.5);
+	const auto shift = style::ConvertScale(0.5);
 	const auto extended = QRectF(_inner).marginsAdded({add, add, add, add});
 	p.setPen(Qt::NoPen);
 	p.setBrush(shadow);
