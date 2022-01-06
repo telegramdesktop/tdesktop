@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_file_parser.h"
+#include "lang/lang_tag.h" // kTextCommandLangTag.
 #include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
 
@@ -134,7 +135,7 @@ bool ValueParser::readTag() {
 
 	if (_currentTagReplacer.isEmpty()) {
 		_currentTagReplacer = QString(4, TextCommand);
-		_currentTagReplacer[1] = TextCommandLangTag;
+		_currentTagReplacer[1] = kTextCommandLangTag;
 	}
 	_currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
 
