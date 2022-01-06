@@ -135,10 +135,10 @@ jobs:
           strip "Telegram.app/Contents/Helpers/crashpad_handler"
 
           bless --folder "./Telegram.app/" --openfolder "./Telegram.app/"
+          
+          zip -r Telegram.app.zip Telegram.app
 
-          codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "Telegram.app" --entitlements "$REPO_NAME/Telegram/Telegram.entitlements"
-
-          mv Telegram.app artifact/
+          mv Telegram.app.zip artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
