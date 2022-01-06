@@ -150,6 +150,7 @@ private:
 		mutable Ui::Animations::Simple selectedScale;
 		bool appearAnimated = false;
 		mutable bool selected = false;
+		mutable bool selectAnimated = false;
 	};
 	static constexpr auto kFramesCount = 30;
 
@@ -205,6 +206,8 @@ private:
 	[[nodiscard]] ClickHandlerPtr resolveButtonLink(
 		const Data::Reaction &reaction) const;
 
+	void updateCurrentButton() const;
+	[[nodiscard]] bool onlyMainEmojiVisible(not_null<Button*> button) const;
 	[[nodiscard]] bool checkIconLoaded(ReactionDocument &entry) const;
 	void loadIcons();
 	void checkIcons();

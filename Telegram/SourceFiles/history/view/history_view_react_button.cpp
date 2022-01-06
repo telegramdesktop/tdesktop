@@ -363,6 +363,7 @@ Manager::~Manager() = default;
 void Manager::updateButton(ButtonParameters parameters) {
 	const auto contextChanged = (_buttonContext != parameters.context);
 	if (contextChanged) {
+		setSelectedIcon(-1);
 		if (_button) {
 			_button->applyState(ButtonState::Hidden);
 			_buttonHiding.push_back(std::move(_button));
@@ -498,6 +499,12 @@ bool Manager::checkIconLoaded(ReactionDocument &entry) const {
 	return true;
 }
 
+void Manager::updateCurrentButton() const {
+	if (const auto button = _button.get()) {
+		_buttonUpdate(button->geometry());
+	}
+}
+
 void Manager::loadIcons() {
 	const auto load = [&](not_null<DocumentData*> document, int frame) {
 		if (const auto i = _loadCache.find(document); i != end(_loadCache)) {
@@ -521,7 +528,7 @@ void Manager::loadIcons() {
 	for (const auto &reaction : _list) {
 		_icons.push_back({
 			.appear = load(reaction.appearAnimation, main ? -1 : 0),
-			.select = load(reaction.selectAnimation, -1),
+			.select = load(reaction.selectAnimation, 0),
 			.appearAnimated = main,
 		});
 		main = false;
@@ -592,11 +599,25 @@ void Manager::setSelectedIcon(int index) const {
 		}
 		icon.selected = selected;
 		icon.selectedScale.start(
-			[=] { if (_button) _buttonUpdate(_button->geometry()); },
+			[=] { updateCurrentButton(); },
 			selected ? 1. : kHoverScale,
 			selected ? kHoverScale : 1.,
 			kHoverScaleDuration,
 			anim::sineInOut);
+		if (selected) {
+			const auto skipAnimation = icon.selectAnimated
+				|| !icon.appearAnimated
+				|| (icon.select && icon.select->animating())
+				|| (icon.appear && icon.appear->animating());
+			const auto select = skipAnimation ? nullptr : icon.select.get();
+			if (select && !icon.selectAnimated) {
+				icon.selectAnimated = true;
+				select->animate(
+					[=] { updateCurrentButton(); },
+					0,
+					select->framesCount() - 1);
+			}
+		}
 	};
 	if (_selectedIcon != index) {
 		setSelected(_selectedIcon, false);
@@ -694,22 +715,37 @@ void Manager::paintButton(
 	const auto mainEmojiPosition = position + (button->expandUp()
 		? QPoint(0, size.height() - _outer.height())
 		: QPoint());
-	if (size.height() > _outer.height()
-		|| (!_icons.empty() && _icons.front().selected)) {
+	if (onlyMainEmojiVisible(button)) {
+		const auto source = validateEmoji(frameIndex, scale);
+		p.drawImage(mainEmojiPosition, _cacheParts, source);
+	} else {
 		p.save();
 		paintAllEmoji(p, button, scale, mainEmojiPosition);
 		p.restore();
-	} else {
-		const auto source = validateEmoji(frameIndex, scale);
-		p.drawImage(mainEmojiPosition, _cacheParts, source);
-		if (button == _button.get()) {
-			clearAppearAnimations();
-		}
+	}
+	if (button == _button.get() && button->hasInitialView()) {
+		clearAppearAnimations();
 	}
 
 	if (opacity != 1.) {
 		p.setOpacity(1.);
 	}
+}
+
+bool Manager::onlyMainEmojiVisible(not_null<Button*> button) const {
+	if (!button->hasInitialView()) {
+		return false;
+	} else if (button != _button.get() || _icons.empty()) {
+		return true;
+	}
+	const auto &icon = _icons.front();
+	if (icon.selected
+		|| icon.selectedScale.animating()
+		|| (icon.select && icon.select->animating())) {
+		return false;
+	}
+	icon.selectAnimated = false;
+	return true;
 }
 
 void Manager::clearAppearAnimations() {
@@ -719,10 +755,20 @@ void Manager::clearAppearAnimations() {
 	_showingAll = false;
 	auto main = true;
 	for (auto &icon : _icons) {
+		if (!main) {
+			if (icon.selected) {
+				setSelectedIcon(-1);
+			}
+			icon.selectedScale.stop();
+			if (const auto select = icon.select.get()) {
+				select->jumpTo(0, nullptr);
+			}
+			icon.selectAnimated = false;
+		}
 		if (icon.appearAnimated != main) {
 			if (const auto appear = icon.appear.get()) {
 				appear->jumpTo(
-					main ? (appear->framesCount() - 1) : 1,
+					main ? (appear->framesCount() - 1) : 0,
 					nullptr);
 			}
 			icon.appearAnimated = main;
@@ -811,7 +857,7 @@ void Manager::paintAllEmoji(
 	auto emojiPosition = mainEmojiPosition
 		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
 	const auto update = [=] {
-		if (_button) _buttonUpdate(_button->geometry());
+		updateCurrentButton();
 	};
 	for (auto &icon : _icons) {
 		const auto target = countTarget(icon).translated(emojiPosition);
@@ -820,10 +866,22 @@ void Manager::paintAllEmoji(
 		if (!target.intersects(clip)) {
 			if (current) {
 				if (const auto appear = icon.appear.get()) {
-					appear->jumpTo(1, nullptr);
+					appear->jumpTo(0, nullptr);
+				}
+				if (icon.selected) {
+					setSelectedIcon(-1);
 				}
 				icon.appearAnimated = false;
+				icon.selectAnimated = false;
+				if (const auto select = icon.select.get()) {
+					select->jumpTo(0, nullptr);
+				}
+				icon.selectedScale.stop();
 			}
+		} else if (icon.select && icon.select->animating()) {
+			const auto size = int(base::SafeRound(target.width()));
+			const auto frame = icon.select->frame({ size, size }, update);
+			p.drawImage(target, frame.image);
 		} else if (const auto appear = icon.appear.get()) {
 			if (current
 				&& !icon.appearAnimated
@@ -834,6 +892,12 @@ void Manager::paintAllEmoji(
 			const auto size = int(base::SafeRound(target.width()));
 			const auto frame = appear->frame({ size, size }, update);
 			p.drawImage(target, frame.image);
+		}
+		if (current
+			&& icon.selectAnimated
+			&& !icon.select->animating()
+			&& !icon.selected) {
+			icon.selectAnimated = false;
 		}
 	}
 }
