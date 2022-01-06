@@ -134,8 +134,16 @@ jobs:
           strip "Telegram.app/Contents/Frameworks/Updater"
           strip "Telegram.app/Contents/Helpers/crashpad_handler"
 
-          mv Telegram.app artifact/
-          mv Updater artifact/
+          dd if=/dev/zero of=tsetup_template.dmg bs=1M count=180 status=progress
+          mkfs.hfsplus -v Install tsetup_template.dmg
+          TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup_template.dmg | awk -F "\t" 'END {print $3}'`
+          cp -R "./Telegram.app" "$TempDiskPath/"
+          bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
+          hdiutil detach "$TempDiskPath"
+          hdiutil convert tsetup_template.dmg -format UDBZ -ov -o "tsetup.dmg"
+          rm tsetup_template.dmg
+
+          mv tsetup.dmg artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
