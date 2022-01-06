@@ -755,7 +755,7 @@ void Manager::paintButton(
 		p.drawImage(
 			geometry,
 			_expandedBuffer,
-			QRect(QPoint(), size / style::DevicePixelRatio()));
+			QRect(QPoint(), size * style::DevicePixelRatio()));
 	}
 	if (opacity != 1.) {
 		p.setOpacity(1.);
@@ -776,9 +776,11 @@ void Manager::overlayExpandedBorder(
 	const auto maskSize = QRect(0, 0, maxSide, minHeight).marginsAdded(
 		st::reactionCornerShadow
 	).size();
+	const auto ratio = style::DevicePixelRatio();
 	auto mask = QImage(
-		maskSize * style::DevicePixelRatio(),
+		maskSize * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	mask.setDevicePixelRatio(ratio);
 	mask.fill(Qt::transparent);
 	{
 		auto q = Painter(&mask);
@@ -796,8 +798,9 @@ void Manager::overlayExpandedBorder(
 	}
 
 	auto shadowMask = QImage(
-		maskSize * style::DevicePixelRatio(),
+		maskSize * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	shadowMask.setDevicePixelRatio(ratio);
 	shadowMask.fill(Qt::transparent);
 	{
 		auto q = Painter(&shadowMask);
