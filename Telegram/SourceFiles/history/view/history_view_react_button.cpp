@@ -116,6 +116,18 @@ int Button::scrollMax() const {
 	return _expandedInnerHeight - _expandedHeight;
 }
 
+float64 Button::expandAnimationOpacity(float64 expandRatio) const {
+	return (_collapseType == CollapseType::Fade)
+		? expandRatio
+		: 1.;
+}
+
+int Button::expandAnimationScroll(float64 expandRatio) const {
+	return (_collapseType == CollapseType::Scroll && expandRatio < 1.)
+		? std::clamp(int(base::SafeRound(expandRatio * _scroll)), 0, _scroll)
+		: _scroll;
+}
+
 bool Button::expandUp() const {
 	return (_expandDirection == ExpandDirection::Up);
 }
@@ -247,6 +259,11 @@ void Button::applyState(State state, Fn<void(QRect)> update) {
 		if (state == State::Hidden) {
 			_heightAnimation.stop();
 		} else {
+			if (!_heightAnimation.animating()) {
+				_collapseType = (_scroll < st::reactionCollapseFadeThreshold)
+					? CollapseType::Scroll
+					: CollapseType::Fade;
+			}
 			_heightAnimation.start(
 				[=] { updateGeometry(_update); },
 				_finalHeight,
@@ -736,7 +753,10 @@ void Manager::paintButton(
 
 	const auto current = (button == _button.get());
 	const auto expandRatio = expanded
-		? (float64(expanded) / (button->expandedHeight() - _outer.height()))
+		? std::clamp(
+			float64(expanded) / (button->expandedHeight() - _outer.height()),
+			0.,
+			1.)
 		: 0.;
 	const auto expandedSkip = int(base::SafeRound(
 		expandRatio * st::reactionExpandedSkip));
@@ -745,17 +765,36 @@ void Manager::paintButton(
 		: button->expandUp()
 		? QPoint(0, expanded - expandedSkip)
 		: QPoint(0, expandedSkip);
+	const auto source = validateEmoji(frameIndex, scale);
 	if (expanded || (current && !onlyMainEmojiVisible())) {
 		const auto origin = expanded ? QPoint() : position;
-		paintAllEmoji(*q, button, scale, origin, mainEmojiPosition);
+		const auto scroll = button->expandAnimationScroll(expandRatio);
+		const auto opacity = button->expandAnimationOpacity(expandRatio);
+		if (opacity != 1.) {
+			q->setOpacity(opacity);
+		}
+		paintAllEmoji(*q, button, scroll, scale, origin, mainEmojiPosition);
+		if (opacity != 1.) {
+			q->setOpacity(1.);
+		}
 		if (current && expanded) {
 			_showingAll = true;
 		}
 		if (expanded) {
-			paintInnerGradients(*q, background, button, expandRatio);
+			paintInnerGradients(*q, background, button, scroll, expandRatio);
+		}
+		if (opacity != 1.) {
+			const auto appearShift = st::reactionMainAppearShift * opacity;
+			const auto appearPosition = !expanded
+				? position
+				: button->expandUp()
+				? QPoint(0, expanded - appearShift)
+				: QPoint(0, appearShift);
+			q->setOpacity(1. - opacity);
+			q->drawImage(appearPosition, _cacheParts, source);
+			q->setOpacity(1.);
 		}
 	} else {
-		const auto source = validateEmoji(frameIndex, scale);
 		p.drawImage(mainEmojiPosition, _cacheParts, source);
 	}
 	if (current && !expanded) {
@@ -779,8 +818,8 @@ void Manager::paintInnerGradients(
 		Painter &p,
 		const QColor &background,
 		not_null<Button*> button,
+		int scroll,
 		float64 expandRatio) {
-	const auto scroll = button->scroll();
 	const auto endScroll = button->scrollMax() - scroll;
 	const auto size = st::reactionGradientSize;
 	const auto ensureGradient = [&](QImage &gradient, bool top) {
@@ -970,6 +1009,7 @@ void Manager::paintLongImage(
 void Manager::paintAllEmoji(
 		Painter &p,
 		not_null<Button*> button,
+		int scroll,
 		float64 scale,
 		QPoint position,
 		QPoint mainEmojiPosition) {
@@ -1013,7 +1053,7 @@ void Manager::paintAllEmoji(
 	const auto expandUp = button->expandUp();
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
-		+ QPoint(0, button->scroll() * (expandUp ? 1 : -1));
+		+ QPoint(0, scroll * (expandUp ? 1 : -1));
 	const auto update = [=] {
 		updateCurrentButton();
 	};

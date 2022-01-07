@@ -81,12 +81,19 @@ public:
 	[[nodiscard]] int scrollMax() const;
 	[[nodiscard]] float64 currentScale() const;
 	[[nodiscard]] float64 currentOpacity() const;
+	[[nodiscard]] float64 expandAnimationOpacity(float64 expandRatio) const;
+	[[nodiscard]] int expandAnimationScroll(float64 expandRatio) const;
 	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
 
 	[[nodiscard]] static float64 ScaleForState(State state);
 	[[nodiscard]] static float64 OpacityForScale(float64 scale);
 
 private:
+	enum class CollapseType {
+		Scroll,
+		Fade,
+	};
+
 	void updateGeometry(Fn<void(QRect)> update);
 	void applyState(State satte, Fn<void(QRect)> update);
 	void applyParameters(
@@ -108,6 +115,7 @@ private:
 	int _finalHeight = 0;
 	int _scroll = 0;
 	ExpandDirection _expandDirection = ExpandDirection::Up;
+	CollapseType _collapseType = CollapseType::Scroll;
 
 	base::Timer _expandTimer;
 	base::Timer _hideTimer;
@@ -174,6 +182,7 @@ private:
 	void paintAllEmoji(
 		Painter &p,
 		not_null<Button*> button,
+		int scroll,
 		float64 scale,
 		QPoint position,
 		QPoint mainEmojiPosition);
@@ -181,6 +190,7 @@ private:
 		Painter &p,
 		const QColor &background,
 		not_null<Button*> button,
+		int scroll,
 		float64 expandRatio);
 	void overlayExpandedBorder(
 		Painter &p,

@@ -987,3 +987,5 @@ reactionGradientStart: 8px;
 reactionGradientSize: 24px;
 reactionGradientFadeSize: 24px;
 reactionAppearStartSkip: 2px;
+reactionMainAppearShift: 20px;
+reactionCollapseFadeThreshold: 40px;
