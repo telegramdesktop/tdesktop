@@ -134,11 +134,18 @@ jobs:
           strip "Telegram.app/Contents/Frameworks/Updater"
           strip "Telegram.app/Contents/Helpers/crashpad_handler"
 
-          bless --folder "./Telegram.app/" --openfolder "./Telegram.app/"
-          
-          zip -r Telegram.app.zip Telegram.app
+          size=$(du -s "Telegram.app" | awk -F "\t" 'END {print $1}')
 
-          mv Telegram.app.zip artifact/
+          hdiutil create -srcfolder "Telegram.app" -volname "tsetup" -fs HFS+ \
+                -fsargs "-c c=64,a=16,e=16" -format UDRW -size $(($size + $size)) tsetup.temp.dmg
+
+          TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
+          bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
+          hdiutil detach "$TempDiskPath"
+          hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "tsetup.dmg"
+          rm tsetup.temp.dmg
+
+          mv tsetup.dmg artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
