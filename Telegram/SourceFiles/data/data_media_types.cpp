@@ -1117,7 +1117,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 		Ui::WebpageTextTitleOptions().flags);
 	auto descriptionResult = TextUtilities::ParseEntities(
 		_description,
-		TextParseLinks | TextParseMultiline | TextParseRichText);
+		TextParseLinks | TextParseMultiline);
 	if (!titleResult.empty()) {
 		result.append(std::move(titleResult));
 	}

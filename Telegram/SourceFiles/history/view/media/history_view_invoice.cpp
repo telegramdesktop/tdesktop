@@ -70,7 +70,7 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	// init strings
 	if (!invoice->description.isEmpty()) {
 		auto marked = TextWithEntities { invoice->description };
-		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+		auto parseFlags = TextParseLinks | TextParseMultiline;
 		TextUtilities::ParseEntities(marked, parseFlags);
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,

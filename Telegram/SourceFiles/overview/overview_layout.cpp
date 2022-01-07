@@ -54,7 +54,7 @@ namespace {
 using TextState = HistoryView::TextState;
 
 TextParseOptions _documentNameOptions = {
-	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseMarkdown, // flags
+	TextParseMultiline | TextParseLinks | TextParseMarkdown, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
@@ -637,8 +637,7 @@ Voice::Voice(
 			dateText,
 			lt_duration,
 			{ .text = Ui::FormatDurationText(duration()) },
-			Ui::Text::WithEntities),
-		{ TextParseRichText, 0, 0, Qt::LayoutDirectionAuto });
+			Ui::Text::WithEntities));
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
 

@@ -820,14 +820,14 @@ void Notification::updateNotifyDisplay() {
 							lt_count,
 							_forwardedCount))
 						: QString()));
-			const auto Options = TextParseOptions{
-				TextParseRichText
-				| (_forwardedCount > 1 ? TextParseMultiline : 0),
+			const auto options = TextParseOptions{
+				TextParsePlainLinks
+					| (_forwardedCount > 1 ? TextParseMultiline : 0),
 				0,
 				0,
 				Qt::LayoutDirectionAuto,
 			};
-			itemTextCache.setMarkedText(st::dialogsTextStyle, text, Options);
+			itemTextCache.setMarkedText(st::dialogsTextStyle, text, options);
 			itemTextCache.drawElided(
 				p,
 				r.left(),

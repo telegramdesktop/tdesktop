@@ -174,13 +174,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				Ui::Text::WithEntities);
 		}
 	}
-	TextParseOptions opts = {
-		TextParseRichText,
-		0,
-		0,
-		Qt::LayoutDirectionAuto
-	};
-	text.setMarkedText(st::fwdTextStyle, phrase, opts);
+	text.setMarkedText(st::fwdTextStyle, phrase);
 	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
 		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 	});

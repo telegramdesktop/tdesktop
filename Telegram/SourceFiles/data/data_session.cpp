@@ -3019,7 +3019,7 @@ void Session::webpageApplyFields(
 		qs(data.vdescription().value_or_empty())
 	};
 	const auto siteName = qs(data.vsite_name().value_or_empty());
-	auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+	auto parseFlags = TextParseLinks | TextParseMultiline;
 	if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
 		parseFlags |= TextParseHashtags | TextParseMentions;
 	}

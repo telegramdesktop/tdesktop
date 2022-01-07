@@ -46,7 +46,7 @@ Location::Location(
 			st::webPageDescriptionStyle,
 			TextUtilities::ParseEntities(
 				description,
-				TextParseLinks | TextParseMultiline | TextParseRichText),
+				TextParseLinks | TextParseMultiline),
 			Ui::WebpageTextDescriptionOptions());
 	}
 }

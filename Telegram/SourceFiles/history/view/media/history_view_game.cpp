@@ -72,7 +72,7 @@ QSize Game::countOptimalSize() {
 		auto text = _data->description;
 		if (!text.isEmpty()) {
 			auto marked = TextWithEntities { text };
-			auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+			auto parseFlags = TextParseLinks | TextParseMultiline;
 			TextUtilities::ParseEntities(marked, parseFlags);
 			if (!_attach) {
 				_description.updateSkipBlock(
