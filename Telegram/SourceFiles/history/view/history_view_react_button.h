@@ -78,6 +78,7 @@ public:
 	[[nodiscard]] QRect geometry() const;
 	[[nodiscard]] int expandedHeight() const;
 	[[nodiscard]] int scroll() const;
+	[[nodiscard]] int scrollMax() const;
 	[[nodiscard]] float64 currentScale() const;
 	[[nodiscard]] float64 currentOpacity() const;
 	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
@@ -176,6 +177,11 @@ private:
 		float64 scale,
 		QPoint position,
 		QPoint mainEmojiPosition);
+	void paintInnerGradients(
+		Painter &p,
+		const QColor &background,
+		not_null<Button*> button,
+		float64 expandRatio);
 	void overlayExpandedBorder(
 		Painter &p,
 		QSize size,
@@ -202,6 +208,7 @@ private:
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow);
+	void setBackground(const QColor &background);
 
 	void setSelectedIcon(int index) const;
 
@@ -228,10 +235,13 @@ private:
 	QImage _cacheParts;
 	QImage _shadowBuffer;
 	QImage _expandedBuffer;
+	QImage _topGradient;
+	QImage _bottomGradient;
 	std::array<bool, kFramesCount> _validBg = { { false } };
 	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
 	QColor _background;
+	QColor _gradient;
 	QColor _shadow;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;

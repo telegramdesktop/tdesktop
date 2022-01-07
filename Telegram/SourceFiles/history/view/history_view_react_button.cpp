@@ -112,6 +112,10 @@ int Button::scroll() const {
 	return _scroll;
 }
 
+int Button::scrollMax() const {
+	return _expandedInnerHeight - _expandedHeight;
+}
+
 bool Button::expandUp() const {
 	return (_expandDirection == ExpandDirection::Up);
 }
@@ -191,6 +195,7 @@ void Button::updateExpandDirection(const ButtonParameters &parameters) {
 		maxAddedHeight,
 		st::reactionCornerAddedHeightMax);
 	_expandedHeight = _collapsed.height() + addedHeight;
+	_scroll = std::clamp(_scroll, 0, scrollMax());
 	if (parameters.reactionsCount < 2) {
 		return;
 	}
@@ -717,6 +722,7 @@ void Manager::paintButton(
 	const auto q = expanded ? &layeredPainter.emplace(&_expandedBuffer) : &p;
 	const auto shadow = context.st->shadowFg()->c;
 	const auto background = context.st->windowBg()->c;
+	setBackground(background);
 	if (expanded) {
 		q->fillRect(QRect(QPoint(), size), context.st->windowBg());
 	} else {
@@ -745,6 +751,9 @@ void Manager::paintButton(
 		if (current && expanded) {
 			_showingAll = true;
 		}
+		if (expanded) {
+			paintInnerGradients(*q, background, button, expandRatio);
+		}
 	} else {
 		const auto source = validateEmoji(frameIndex, scale);
 		p.drawImage(mainEmojiPosition, _cacheParts, source);
@@ -764,6 +773,48 @@ void Manager::paintButton(
 	if (opacity != 1.) {
 		p.setOpacity(1.);
 	}
+}
+
+void Manager::paintInnerGradients(
+		Painter &p,
+		const QColor &background,
+		not_null<Button*> button,
+		float64 expandRatio) {
+	const auto scroll = button->scroll();
+	const auto endScroll = button->scrollMax() - scroll;
+	const auto size = st::reactionGradientSize;
+	const auto ensureGradient = [&](QImage &gradient, bool top) {
+		if (!gradient.isNull()) {
+			return;
+		}
+		const auto ratio = style::DevicePixelRatio();
+		gradient = Images::GenerateShadow(
+			size * ratio,
+			top ? 255 : 0,
+			top ? 0 : 255,
+			background);
+		gradient.setDevicePixelRatio(ratio);
+	};
+	ensureGradient(_topGradient, true);
+	ensureGradient(_bottomGradient, false);
+	const auto paintGradient = [&](QImage &gradient, int scrolled, int top) {
+		if (scrolled <= 0) {
+			return;
+		}
+		const auto opacity = (expandRatio * scrolled)
+			/ st::reactionGradientFadeSize;
+		p.setOpacity(opacity);
+		p.drawImage(
+			QRect(0, top, _outer.width(), size),
+			gradient,
+			QRect(QPoint(), gradient.size()));
+	};
+	const auto up = button->expandUp();
+	const auto start = st::reactionGradientStart;
+	paintGradient(_topGradient, up ? endScroll : scroll, start);
+	const auto bottomStart = button->geometry().height() - start - size;
+	paintGradient(_bottomGradient, up ? scroll : endScroll, bottomStart);
+	p.setOpacity(1.);
 }
 
 void Manager::overlayExpandedBorder(
@@ -1091,16 +1142,22 @@ QRect Manager::validateEmoji(int frameIndex, float64 scale) {
 	return result;
 }
 
+void Manager::setBackground(const QColor &background) {
+	if (_background == background) {
+		return;
+	}
+	_background = background;
+	_topGradient = QImage();
+	_bottomGradient = QImage();
+	ranges::fill(_validBg, false);
+}
+
 QRect Manager::validateFrame(
 		int frameIndex,
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow) {
 	applyPatternedShadow(shadow);
-	if (_background != background) {
-		_background = background;
-		ranges::fill(_validBg, false);
-	}
 
 	const auto result = cacheRect(frameIndex, kBgCacheIndex);
 	if (_validBg[frameIndex]) {
