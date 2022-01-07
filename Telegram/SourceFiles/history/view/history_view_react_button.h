@@ -161,7 +161,11 @@ private:
 		mutable bool selected = false;
 		mutable bool selectAnimated = false;
 	};
-	static constexpr auto kFramesCount = 30;
+	struct OverlayImage {
+		not_null<QImage*> cache;
+		QRect source;
+	};
+	static constexpr auto kFramesCount = 32;
 
 	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
@@ -205,9 +209,11 @@ private:
 		QRect source);
 
 	void setMainReactionIcon();
-	void applyPatternedShadow(const QColor &shadow);
 	void clearAppearAnimations();
 	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
+	[[nodiscard]] QRect overlayCacheRect(
+		int frameIndex,
+		int columnIndex) const;
 	QRect validateShadow(
 		int frameIndex,
 		float64 scale,
@@ -218,7 +224,20 @@ private:
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow);
-	void setBackground(const QColor &background);
+	OverlayImage validateOverlayMask(
+		int frameIndex,
+		QSize innerSize,
+		float64 radius,
+		float64 scale);
+	OverlayImage validateOverlayShadow(
+		int frameIndex,
+		QSize innerSize,
+		float64 radius,
+		float64 scale,
+		const QColor &shadow,
+		const OverlayImage &mask);
+	void setBackgroundColor(const QColor &background);
+	void setShadowColor(const QColor &shadow);
 
 	void setSelectedIcon(int index) const;
 	void clearStateForHidden(ReactionIcons &icon);
@@ -243,8 +262,12 @@ private:
 	mutable std::vector<ClickHandlerPtr> _links;
 	QSize _outer;
 	QRect _inner;
+	QSize _overlayFull;
 	QImage _cacheBg;
 	QImage _cacheParts;
+	QImage _overlayCacheParts;
+	QImage _overlayMaskScaled;
+	QImage _overlayShadowScaled;
 	QImage _shadowBuffer;
 	QImage _expandedBuffer;
 	QImage _topGradient;
@@ -252,6 +275,8 @@ private:
 	std::array<bool, kFramesCount> _validBg = { { false } };
 	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
+	std::array<bool, kFramesCount> _validOverlayMask = { { false } };
+	std::array<bool, kFramesCount> _validOverlayShadow = { { false } };
 	QColor _background;
 	QColor _gradient;
 	QColor _shadow;

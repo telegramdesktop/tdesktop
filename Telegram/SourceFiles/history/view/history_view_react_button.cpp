@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView::Reactions {
 namespace {
 
+constexpr auto kDivider = 4;
 constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);
@@ -28,8 +29,10 @@ constexpr auto kCollapseDuration = crl::time(250);
 constexpr auto kBgCacheIndex = 0;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
-constexpr auto kMaskCacheIndex = 2;
-constexpr auto kCacheColumsCount = 3;
+constexpr auto kCacheColumsCount = 2;
+constexpr auto kOverlayMaskCacheIndex = 0;
+constexpr auto kOverlayShadowCacheIndex = 1;
+constexpr auto kOverlayCacheColumsCount = 2;
 constexpr auto kButtonShowDelay = crl::time(300);
 constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
@@ -331,23 +334,42 @@ Manager::Manager(
 	Fn<void(QRect)> buttonUpdate)
 : _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
+, _overlayFull(
+	QRect(0, 0, _inner.width(), _inner.width()).marginsAdded(
+		st::reactionCornerShadow
+	).size())
 , _buttonShowTimer([=] { showButtonDelayed(); })
 , _buttonUpdate(std::move(buttonUpdate)) {
+	static_assert(!(kFramesCount % kDivider));
+
 	_inner.translate(QRect({}, _outer).center() - _inner.center());
 
 	const auto ratio = style::DevicePixelRatio();
 	_cacheBg = QImage(
-		_outer.width() * ratio,
-		_outer.height() * kFramesCount * ratio,
+		_outer.width() * kDivider * ratio,
+		_outer.height() * kFramesCount / kDivider * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	_cacheBg.setDevicePixelRatio(ratio);
 	_cacheBg.fill(Qt::transparent);
 	_cacheParts = QImage(
-		_outer.width() * kCacheColumsCount * ratio,
-		_outer.height() * kFramesCount * ratio,
+		_outer.width() * kDivider * kCacheColumsCount * ratio,
+		_outer.height() * kFramesCount / kDivider * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	_cacheParts.setDevicePixelRatio(ratio);
 	_cacheParts.fill(Qt::transparent);
+	_overlayCacheParts = QImage(
+		_overlayFull.width() * kDivider * kOverlayCacheColumsCount * ratio,
+		_overlayFull.height() * kFramesCount / kDivider * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_overlayCacheParts.setDevicePixelRatio(ratio);
+	_overlayMaskScaled = QImage(
+		_overlayFull * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_overlayMaskScaled.setDevicePixelRatio(ratio);
+	_overlayShadowScaled = QImage(
+		_overlayFull * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_overlayShadowScaled.setDevicePixelRatio(ratio);
 	_shadowBuffer = QImage(
 		_outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
@@ -453,7 +475,7 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 		_icons.clear();
 		return;
 	}
-	const auto main = _list.front().selectAnimation;
+	const auto main = _list.front().appearAnimation;
 	if (_mainReactionMedia
 		&& _mainReactionMedia->owner() == main) {
 		if (!_mainReactionLifetime) {
@@ -741,7 +763,8 @@ void Manager::paintButton(
 	const auto q = expanded ? &layeredPainter.emplace(&_expandedBuffer) : &p;
 	const auto shadow = context.st->shadowFg()->c;
 	const auto background = context.st->windowBg()->c;
-	setBackground(background);
+	setShadowColor(shadow);
+	setBackgroundColor(background);
 	if (expanded) {
 		q->fillRect(QRect(QPoint(), size), context.st->windowBg());
 	} else {
@@ -828,13 +851,11 @@ void Manager::paintInnerGradients(
 		if (!gradient.isNull()) {
 			return;
 		}
-		const auto ratio = style::DevicePixelRatio();
 		gradient = Images::GenerateShadow(
-			size * ratio,
+			size,
 			top ? 255 : 0,
 			top ? 0 : 255,
 			background);
-		gradient.setDevicePixelRatio(ratio);
 	};
 	ensureGradient(_topGradient, true);
 	ensureGradient(_bottomGradient, false);
@@ -858,80 +879,163 @@ void Manager::paintInnerGradients(
 	p.setOpacity(1.);
 }
 
+Manager::OverlayImage Manager::validateOverlayMask(
+		int frameIndex,
+		QSize innerSize,
+		float64 radius,
+		float64 scale) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto cached = (scale == 1.);
+	const auto full = cached
+		? overlayCacheRect(frameIndex, kOverlayMaskCacheIndex)
+		: QRect(QPoint(), _overlayFull * ratio);
+
+	const auto maskSize = QSize(
+		_overlayFull.width(),
+		_overlayFull.height() + innerSize.height() - innerSize.width());
+
+	const auto result = OverlayImage{
+		.cache = cached ? &_overlayCacheParts : &_overlayMaskScaled,
+		.source = QRect(full.topLeft(), maskSize * ratio),
+	};
+	if (cached && _validOverlayMask[frameIndex]) {
+		return result;
+	}
+
+	auto p = QPainter(result.cache.get());
+	const auto position = full.topLeft() / ratio;
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(QRect(position, maskSize), Qt::transparent);
+
+	auto hq = PainterHighQualityEnabler(p);
+	const auto inner = QRect(position + _inner.topLeft(), innerSize);
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::white);
+	if (scale != 1.) {
+		const auto center = inner.center();
+		p.save();
+		p.translate(center);
+		p.scale(scale, scale);
+		p.translate(-center);
+	}
+	p.drawRoundedRect(inner, radius, radius);
+	if (scale != 1.) {
+		p.restore();
+	}
+
+	if (cached) {
+		_validOverlayMask[frameIndex] = true;
+	}
+	return result;
+}
+
+Manager::OverlayImage Manager::validateOverlayShadow(
+		int frameIndex,
+		QSize innerSize,
+		float64 radius,
+		float64 scale,
+		const QColor &shadow,
+		const OverlayImage &mask) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto cached = (scale == 1.);
+	const auto full = cached
+		? overlayCacheRect(frameIndex, kOverlayShadowCacheIndex)
+		: QRect(QPoint(), _overlayFull * ratio);
+
+	const auto maskSize = QSize(
+		_overlayFull.width(),
+		_overlayFull.height() + innerSize.height() - innerSize.width());
+
+	const auto result = OverlayImage{
+		.cache = cached ? &_overlayCacheParts : &_overlayShadowScaled,
+		.source = QRect(full.topLeft(), maskSize * ratio),
+	};
+	if (cached && _validOverlayShadow[frameIndex]) {
+		return result;
+	}
+
+	const auto position = full.topLeft() / ratio;
+
+	_overlayShadowScaled.fill(Qt::transparent);
+	const auto inner = QRect(_inner.topLeft(), innerSize);
+	const auto add = style::ConvertScale(2.5);
+	const auto shift = style::ConvertScale(0.5);
+	const auto extended = QRectF(inner).marginsAdded({ add, add, add, add });
+	{
+		auto p = QPainter(&_overlayShadowScaled);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(shadow);
+		if (scale != 1.) {
+			const auto center = inner.center();
+			p.translate(center);
+			p.scale(scale, scale);
+			p.translate(-center);
+		}
+		p.drawRoundedRect(extended.translated(0, shift), radius, radius);
+		p.end();
+	}
+
+	_overlayShadowScaled = Images::prepareBlur(
+		std::move(_overlayShadowScaled));
+
+	auto q = Painter(result.cache);
+	if (result.cache != &_overlayShadowScaled) {
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.drawImage(
+			QRect(position, maskSize),
+			_overlayShadowScaled,
+			QRect(QPoint(), maskSize * ratio));
+	}
+	q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	q.drawImage(QRect(position, maskSize), *mask.cache, mask.source);
+
+	if (cached) {
+		_validOverlayShadow[frameIndex] = true;
+	}
+	return result;
+}
+
 void Manager::overlayExpandedBorder(
 		Painter &p,
 		QSize size,
 		float64 expandRatio,
 		float64 scale,
 		const QColor &shadow) {
-	const auto maxSide = _inner.width();
-	const auto radius = expandRatio * (maxSide / 2.)
-		+ (1. - expandRatio) * (_inner.height() / 2.);
-	const auto minHeight = int(std::ceil(radius * 2)) + 1;
+	const auto radiusMin = _inner.height() / 2.;
+	const auto radiusMax = _inner.width() / 2.;
+	const auto progress = expandRatio;
+	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
+	const auto radius = radiusMin
+		+ (frame / float64(kFramesCount - 1)) * (radiusMax - radiusMin);
+	const auto innerSize = QSize(_inner.width(), int(std::ceil(radius * 2)));
 
-	const auto maskSize = QRect(0, 0, maxSide, minHeight).marginsAdded(
-		st::reactionCornerShadow
-	).size();
-	const auto ratio = style::DevicePixelRatio();
-	auto mask = QImage(
-		maskSize * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	mask.setDevicePixelRatio(ratio);
-	mask.fill(Qt::transparent);
-	{
-		auto q = Painter(&mask);
-		auto hq = PainterHighQualityEnabler(q);
-		const auto inner = QRect(_inner.x(), _inner.y(), maxSide, minHeight);
-		const auto center = inner.center();
-		q.setPen(Qt::NoPen);
-		q.setBrush(Qt::white);
-		q.save();
-		q.translate(center);
-		q.scale(scale, scale);
-		q.translate(-center);
-		q.drawRoundedRect(inner, radius, radius);
-		q.restore();
-	}
-
-	auto shadowMask = QImage(
-		maskSize * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	shadowMask.setDevicePixelRatio(ratio);
-	shadowMask.fill(Qt::transparent);
-	{
-		auto q = Painter(&shadowMask);
-		auto hq = PainterHighQualityEnabler(q);
-		const auto inner = QRect(_inner.x(), _inner.y(), maxSide, minHeight);
-		const auto center = inner.center();
-		const auto add = style::ConvertScale(2.5);
-		const auto shift = style::ConvertScale(0.5);
-		const auto extended = QRectF(inner).marginsAdded({ add, add, add, add });
-		q.setPen(Qt::NoPen);
-		q.setBrush(shadow);
-		q.translate(center);
-		q.scale(scale, scale);
-		q.translate(-center);
-		q.drawRoundedRect(extended.translated(0, shift), radius, radius);
-	}
-	shadowMask = Images::prepareBlur(std::move(shadowMask));
-	{
-		auto q = Painter(&shadowMask);
-		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-		q.drawImage(0, 0, mask);
-	}
+	const auto overlayMask = validateOverlayMask(
+		frame,
+		innerSize,
+		radius,
+		scale);
+	const auto overlayShadow = validateOverlayShadow(
+		frame,
+		innerSize,
+		radius,
+		scale,
+		shadow,
+		overlayMask);
 
 	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 	paintLongImage(
 		p,
 		QRect(QPoint(), size),
-		mask,
-		QRect(QPoint(), mask.size()));
+		*overlayMask.cache,
+		overlayMask.source);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	paintLongImage(
 		p,
 		QRect(QPoint(), size),
-		shadowMask,
-		QRect(QPoint(), shadowMask.size()));
+		*overlayShadow.cache,
+		overlayShadow.source);
 }
 
 bool Manager::onlyMainEmojiVisible() const {
@@ -1110,28 +1214,37 @@ void Manager::clearStateForSelectFinished(ReactionIcons &icon) {
 	}
 }
 
-void Manager::applyPatternedShadow(const QColor &shadow) {
+void Manager::setShadowColor(const QColor &shadow) {
 	if (_shadow == shadow) {
 		return;
 	}
 	_shadow = shadow;
 	ranges::fill(_validBg, false);
 	ranges::fill(_validShadow, false);
+	ranges::fill(_validOverlayShadow, false);
 }
 
 QRect Manager::cacheRect(int frameIndex, int columnIndex) const {
 	const auto ratio = style::DevicePixelRatio();
 	const auto origin = QPoint(
-		_outer.width() * columnIndex,
-		_outer.height() * frameIndex);
+		_outer.width() * (kDivider * columnIndex + (frameIndex % kDivider)),
+		_outer.height() * (frameIndex / kDivider));
 	return QRect(ratio * origin, ratio * _outer);
+}
+
+QRect Manager::overlayCacheRect(int frameIndex, int columnIndex) const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = _overlayFull;
+	const auto origin = QPoint(
+		size.width() * (kDivider * columnIndex + (frameIndex % kDivider)),
+		size.height() * (frameIndex / kDivider));
+	return QRect(ratio * origin, ratio * size);
 }
 
 QRect Manager::validateShadow(
 		int frameIndex,
 		float64 scale,
 		const QColor &shadow) {
-	applyPatternedShadow(shadow);
 	const auto result = cacheRect(frameIndex, kShadowCacheIndex);
 	if (_validShadow[frameIndex]) {
 		return result;
@@ -1147,9 +1260,11 @@ QRect Manager::validateShadow(
 	const auto radius = big.height() / 2.;
 	p.setPen(Qt::NoPen);
 	p.setBrush(shadow);
-	p.translate(center);
-	p.scale(scale, scale);
-	p.translate(-center);
+	if (scale != 1.) {
+		p.translate(center);
+		p.scale(scale, scale);
+		p.translate(-center);
+	}
 	p.drawRoundedRect(big.translated(0, shift), radius, radius);
 	p.end();
 	_shadowBuffer = Images::prepareBlur(std::move(_shadowBuffer));
@@ -1192,7 +1307,7 @@ QRect Manager::validateEmoji(int frameIndex, float64 scale) {
 	return result;
 }
 
-void Manager::setBackground(const QColor &background) {
+void Manager::setBackgroundColor(const QColor &background) {
 	if (_background == background) {
 		return;
 	}
@@ -1207,8 +1322,6 @@ QRect Manager::validateFrame(
 		float64 scale,
 		const QColor &background,
 		const QColor &shadow) {
-	applyPatternedShadow(shadow);
-
 	const auto result = cacheRect(frameIndex, kBgCacheIndex);
 	if (_validBg[frameIndex]) {
 		return result;
@@ -1224,16 +1337,20 @@ QRect Manager::validateFrame(
 	auto hq = PainterHighQualityEnabler(p);
 	const auto inner = _inner.translated(position);
 	const auto radius = inner.height() / 2.;
-	const auto center = inner.center();
 	p.setPen(Qt::NoPen);
 	p.setBrush(background);
-	p.save();
-	p.translate(center);
-	p.scale(scale, scale);
-	p.translate(-center);
+	if (scale != 1.) {
+		const auto center = inner.center();
+		p.save();
+		p.translate(center);
+		p.scale(scale, scale);
+		p.translate(-center);
+	}
 	p.drawRoundedRect(inner, radius, radius);
-	p.restore();
-	p.end();
+	if (scale != 1.) {
+		p.restore();
+	}
+
 	_validBg[frameIndex] = true;
 	return result;
 }
