@@ -121,18 +121,32 @@ jobs:
           xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=x86_64" -configuration Release'
           bash -c "$xcoderun" || bash -c "$xcoderun" || bash -c "$xcoderun"
 
+      - name: Strip and sign executable
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          lipo -thin "x86_64" $REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram -output $REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram
+          lipo -thin "x86_64" $REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater -output $REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater
+          lipo -thin "x86_64" $REPO_NAME/out/Release/Telegram.app/Contents/Helpers/crashpad_handler -output $REPO_NAME/out/Release/Telegram.app/Contents/Helpers/crashpad_handler
+
+          strip "$REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram"
+          strip "$REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater"
+          strip "$REPO_NAME/out/Release/Telegram.app/Contents/Helpers/crashpad_handler"
+
+          echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+          security create-keychain -p ptelegram_pass build.keychain security default-keychain -s build.keychain
+          security unlock-keychain -p ptelegram_pass build.keychain
+          security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ptelegram_pass build.keychain
+          identity=$(security find-identity -v)
+          /usr/bin/codesign --force --deep -s ${identity} $REPO_NAME/out/Release/Telegram.app -v --entitlements "$REPO_NAME/Telegram/Telegram.entitlements"
+
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           cd $REPO_NAME/out/Release
           mkdir artifact
-          lipo -thin "x86_64" Telegram.app/Contents/MacOS/Telegram -output Telegram.app/Contents/MacOS/Telegram
-          lipo -thin "x86_64" Telegram.app/Contents/Frameworks/Updater -output Telegram.app/Contents/Frameworks/Updater
-          lipo -thin "x86_64" Telegram.app/Contents/Helpers/crashpad_handler -output Telegram.app/Contents/Helpers/crashpad_handler
-
-          strip "Telegram.app/Contents/MacOS/Telegram"
-          strip "Telegram.app/Contents/Frameworks/Updater"
-          strip "Telegram.app/Contents/Helpers/crashpad_handler"
 
           size=$(du -s "Telegram.app" | awk -F "\t" 'END {print $1}')
 
