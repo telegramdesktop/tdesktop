@@ -221,6 +221,8 @@ private:
 	void setBackground(const QColor &background);
 
 	void setSelectedIcon(int index) const;
+	void clearStateForHidden(ReactionIcons &icon);
+	void clearStateForSelectFinished(ReactionIcons &icon);
 
 	[[nodiscard]] QMargins innerMargins() const;
 	[[nodiscard]] QRect buttonInner() const;

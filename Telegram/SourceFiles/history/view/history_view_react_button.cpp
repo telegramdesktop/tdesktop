@@ -1021,10 +1021,7 @@ void Manager::paintAllEmoji(
 	const auto skip = st::reactionAppearStartSkip;
 	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
 
-	auto hq = std::optional<PainterHighQualityEnabler>();
-	if (scale != 1. && scale != kHoverScale) {
-		hq.emplace(p);
-	}
+	PainterHighQualityEnabler hq(p);
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = st::reactionCornerSize.height() + between;
 	const auto finalSize = CornerImageSize(1.);
@@ -1061,25 +1058,18 @@ void Manager::paintAllEmoji(
 		const auto target = countTarget(icon).translated(emojiPosition);
 		emojiPosition += shift;
 
+		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
+			const auto size = int(std::floor(target.width() + 0.01));
+			const auto frame = animation->frame({ size, size }, update);
+			p.drawImage(target, frame.image);
+		};
+
 		if (!target.intersects(clip)) {
 			if (current) {
-				if (const auto appear = icon.appear.get()) {
-					appear->jumpTo(0, nullptr);
-				}
-				if (icon.selected) {
-					setSelectedIcon(-1);
-				}
-				icon.appearAnimated = false;
-				icon.selectAnimated = false;
-				if (const auto select = icon.select.get()) {
-					select->jumpTo(0, nullptr);
-				}
-				icon.selectedScale.stop();
+				clearStateForHidden(icon);
 			}
 		} else if (icon.select && icon.select->animating()) {
-			const auto size = int(base::SafeRound(target.width()));
-			const auto frame = icon.select->frame({ size, size }, update);
-			p.drawImage(target, frame.image);
+			paintFrame(icon.select.get());
 		} else if (const auto appear = icon.appear.get()) {
 			if (current
 				&& !icon.appearAnimated
@@ -1087,16 +1077,34 @@ void Manager::paintAllEmoji(
 				icon.appearAnimated = true;
 				appear->animate(update, 0, appear->framesCount() - 1);
 			}
-			const auto size = int(base::SafeRound(target.width()));
-			const auto frame = appear->frame({ size, size }, update);
-			p.drawImage(target, frame.image);
+			paintFrame(appear);
 		}
-		if (current
-			&& icon.selectAnimated
-			&& !icon.select->animating()
-			&& !icon.selected) {
-			icon.selectAnimated = false;
+		if (current) {
+			clearStateForSelectFinished(icon);
 		}
+	}
+}
+
+void Manager::clearStateForHidden(ReactionIcons &icon) {
+	if (const auto appear = icon.appear.get()) {
+		appear->jumpTo(0, nullptr);
+	}
+	if (icon.selected) {
+		setSelectedIcon(-1);
+	}
+	icon.appearAnimated = false;
+	icon.selectAnimated = false;
+	if (const auto select = icon.select.get()) {
+		select->jumpTo(0, nullptr);
+	}
+	icon.selectedScale.stop();
+}
+
+void Manager::clearStateForSelectFinished(ReactionIcons &icon) {
+	if (icon.selectAnimated
+		&& !icon.select->animating()
+		&& !icon.selected) {
+		icon.selectAnimated = false;
 	}
 }
 
