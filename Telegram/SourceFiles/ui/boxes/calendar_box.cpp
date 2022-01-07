@@ -1105,9 +1105,13 @@ void CalendarBox::keyPressEvent(QKeyEvent *e) {
 		jump(_previous.data());
 	} else if (e->key() == Qt::Key_End) {
 		jump(_next.data());
-	} else if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Up) {
+	} else if (e->key() == Qt::Key_Left
+		|| e->key() == Qt::Key_Up
+		|| e->key() == Qt::Key_PageUp) {
 		goPreviousMonth();
-	} else if (e->key() == Qt::Key_Right || e->key() == Qt::Key_Down) {
+	} else if (e->key() == Qt::Key_Right
+		|| e->key() == Qt::Key_Down
+		|| e->key() == Qt::Key_PageDown) {
 		goNextMonth();
 	}
 }
