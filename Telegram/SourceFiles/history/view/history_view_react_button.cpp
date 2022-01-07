@@ -25,7 +25,6 @@ constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);
 constexpr auto kCollapseDuration = crl::time(250);
-constexpr auto kHoverScaleDuration = crl::time(120);
 constexpr auto kBgCacheIndex = 0;
 constexpr auto kShadowCacheIndex = 0;
 constexpr auto kEmojiCacheIndex = 1;
@@ -36,6 +35,7 @@ constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kSizeForDownscale = 96;
+constexpr auto kHoverScaleDuration = crl::time(200);
 constexpr auto kHoverScale = 1.24;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
@@ -184,7 +184,8 @@ void Button::applyParameters(
 
 void Button::updateExpandDirection(const ButtonParameters &parameters) {
 	const auto maxAddedHeight = (parameters.reactionsCount - 1)
-		* (st::reactionCornerSize.height() + st::reactionCornerSkip);
+		* (st::reactionCornerSize.height() + st::reactionCornerSkip)
+		+ (parameters.reactionsCount > 1 ? 2 * st::reactionExpandedSkip : 0);
 	_expandedInnerHeight = _collapsed.height() + maxAddedHeight;
 	const auto addedHeight = std::min(
 		maxAddedHeight,
@@ -280,8 +281,8 @@ void Button::applyState(State state, Fn<void(QRect)> update) {
 
 float64 Button::ScaleForState(State state) {
 	switch (state) {
-	case State::Hidden: return 0.5;
-	case State::Shown: return 0.7;
+	case State::Hidden: return 1. / 3;
+	case State::Shown: return 2. / 3;
 	case State::Active:
 	case State::Inside: return 1.;
 	}
@@ -728,11 +729,16 @@ void Manager::paintButton(
 	}
 
 	const auto current = (button == _button.get());
+	const auto expandRatio = expanded
+		? (float64(expanded) / (button->expandedHeight() - _outer.height()))
+		: 0.;
+	const auto expandedSkip = int(base::SafeRound(
+		expandRatio * st::reactionExpandedSkip));
 	const auto mainEmojiPosition = !expanded
 		? position
 		: button->expandUp()
-		? QPoint(0, expanded)
-		: QPoint();
+		? QPoint(0, expanded - expandedSkip)
+		: QPoint(0, expandedSkip);
 	if (expanded || (current && !onlyMainEmojiVisible())) {
 		const auto origin = expanded ? QPoint() : position;
 		paintAllEmoji(*q, button, scale, origin, mainEmojiPosition);
@@ -748,8 +754,6 @@ void Manager::paintButton(
 	}
 
 	if (expanded) {
-		const auto expandRatio = float64(expanded)
-			/ (button->expandedHeight() - _outer.height());
 		overlayExpandedBorder(*q, size, expandRatio, scale, shadow);
 		layeredPainter.reset();
 		p.drawImage(
@@ -770,7 +774,7 @@ void Manager::overlayExpandedBorder(
 		const QColor &shadow) {
 	const auto maxSide = _inner.width();
 	const auto radius = expandRatio * (maxSide / 2.)
-		+ (1. - expandRatio) * st::reactionCornerRadius;
+		+ (1. - expandRatio) * (_inner.height() / 2.);
 	const auto minHeight = int(std::ceil(radius * 2)) + 1;
 
 	const auto maskSize = QRect(0, 0, maxSide, minHeight).marginsAdded(
@@ -1035,17 +1039,17 @@ QRect Manager::validateShadow(
 	_shadowBuffer.fill(Qt::transparent);
 	auto p = QPainter(&_shadowBuffer);
 	auto hq = PainterHighQualityEnabler(p);
-	const auto radius = st::reactionCornerRadius;
 	const auto center = _inner.center();
 	const auto add = style::ConvertScale(2.5);
 	const auto shift = style::ConvertScale(0.5);
-	const auto extended = QRectF(_inner).marginsAdded({add, add, add, add});
+	const auto big = QRectF(_inner).marginsAdded({ add, add, add, add });
+	const auto radius = big.height() / 2.;
 	p.setPen(Qt::NoPen);
 	p.setBrush(shadow);
 	p.translate(center);
 	p.scale(scale, scale);
 	p.translate(-center);
-	p.drawRoundedRect(extended.translated(0, shift), radius, radius);
+	p.drawRoundedRect(big.translated(0, shift), radius, radius);
 	p.end();
 	_shadowBuffer = Images::prepareBlur(std::move(_shadowBuffer));
 
@@ -1112,7 +1116,7 @@ QRect Manager::validateFrame(
 
 	auto hq = PainterHighQualityEnabler(p);
 	const auto inner = _inner.translated(position);
-	const auto radius = st::reactionCornerRadius;
+	const auto radius = inner.height() / 2.;
 	const auto center = inner.center();
 	p.setPen(Qt::NoPen);
 	p.setBrush(background);

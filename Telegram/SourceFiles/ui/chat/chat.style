@@ -974,13 +974,16 @@ reactionInfoSkip: 3px;
 reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
-reactionCornerSize: size(40px, 32px);
-reactionCornerRadius: 14px;
-reactionCornerCenter: point(12px, -12px);
-reactionCornerImage: 24px;
+reactionCornerSize: size(36px, 32px);
+reactionCornerCenter: point(7px, -9px);
+reactionCornerImage: 22px;
 reactionCornerShadow: margins(4px, 8px, 4px, 8px);
 reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
-reactionCornerAddedHeightMax: 120px;
+reactionCornerAddedHeightMax: 100px;
 
-reactionCornerSkip: 2px;
+reactionCornerSkip: -4px;
+reactionExpandedSkip: 2px;
+reactionGradientStart: 8px;
+reactionGradientSize: 24px;
+reactionGradientFadeSize: 24px;
 reactionAppearStartSkip: 2px;
