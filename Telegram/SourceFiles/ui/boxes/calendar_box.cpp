@@ -932,9 +932,9 @@ void CalendarBox::jump(QPointer<IconButton> button) {
 		_context->showMonth(_context->dateFromIndex(index));
 		setExactScroll();
 	};
-	if (_jumpButton == _previous.data() && _previousEnabled) {
+	if (button == _previous.data() && _previousEnabled) {
 		jumpToIndex(_context->minDayIndex());
-	} else if (_jumpButton == _next.data() && _nextEnabled) {
+	} else if (button == _next.data() && _nextEnabled) {
 		jumpToIndex(_context->maxDayIndex());
 	}
 	_jumpButton = nullptr;
