@@ -1100,7 +1100,11 @@ void CalendarBox::resizeEvent(QResizeEvent *e) {
 
 void CalendarBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		e->ignore();
+		if (_context->selectionMode()) {
+			_context->toggleSelectionMode(false);
+		} else {
+			e->ignore();
+		}
 	} else if (e->key() == Qt::Key_Home) {
 		jump(_previous.data());
 	} else if (e->key() == Qt::Key_End) {
