@@ -231,15 +231,22 @@ void Reactions::request() {
 			_hash = data.vhash().v;
 
 			const auto &list = data.vreactions().v;
+			const auto oldCache = base::take(_iconsCache);
 			_active.clear();
 			_available.clear();
 			_active.reserve(list.size());
 			_available.reserve(list.size());
+			_iconsCache.reserve(list.size() * 2);
+			const auto toCache = [&](not_null<DocumentData*> document) {
+				_iconsCache.emplace(document, document->createMediaView());
+			};
 			for (const auto &reaction : list) {
 				if (const auto parsed = parse(reaction)) {
 					_available.push_back(*parsed);
 					if (parsed->active) {
 						_active.push_back(*parsed);
+						toCache(parsed->appearAnimation);
+						toCache(parsed->selectAnimation);
 					}
 				}
 			}

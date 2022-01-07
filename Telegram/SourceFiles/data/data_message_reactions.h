@@ -97,6 +97,9 @@ private:
 
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::shared_ptr<Data::DocumentMedia>> _iconsCache;
 	rpl::event_stream<> _updated;
 
 	mtpRequestId _requestId = 0;

@@ -550,7 +550,8 @@ void Manager::loadIcons() {
 		}
 		return entry.icon;
 	};
-	// #TODO reactions rebuild list better
+	const auto selected = _selectedIcon;
+	setSelectedIcon(-1);
 	_icons.clear();
 	auto main = true;
 	for (const auto &reaction : _list) {
@@ -561,6 +562,7 @@ void Manager::loadIcons() {
 		});
 		main = false;
 	}
+	setSelectedIcon(selected < _icons.size() ? selected : -1);
 }
 
 void Manager::checkIcons() {
