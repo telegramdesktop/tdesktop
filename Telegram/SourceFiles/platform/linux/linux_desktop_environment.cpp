@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
+#include "base/platform/base_platform_info.h"
+
 namespace Platform {
 namespace DesktopEnvironment {
 namespace {
@@ -17,11 +19,19 @@ QString GetEnv(const char *name) {
 	return value;
 }
 
+QString GetWM() {
+	const auto value = base::Platform::GetWindowManager();
+	LOG(("Getting WM: '%1'").arg(value));
+	return value;
+}
+
 std::vector<Type> Compute() {
 	auto result = std::vector<Type>();
 
 	const auto xdgCurrentDesktop = GetEnv(
 		"XDG_CURRENT_DESKTOP").toLower().split(':', Qt::SkipEmptyParts);
+
+	const auto xdgSessionDesktop = GetEnv("XDG_SESSION_DESKTOP").toLower();
 
 	const auto desktopSession = [] {
 		const auto result = GetEnv("DESKTOP_SESSION").toLower();
@@ -33,33 +43,37 @@ std::vector<Type> Compute() {
 		return result;
 	}();
 
-	for (const auto &current : xdgCurrentDesktop) {
-		if (current == qstr("unity")) {
+	const auto windowManager = GetWM().toLower();
+
+	const auto desktopToType = [&](const QString &desktop) {
+		if (desktop == qstr("unity")) {
 			// gnome-fallback sessions set XDG_CURRENT_DESKTOP to Unity
 			// DESKTOP_SESSION can be gnome-fallback or gnome-fallback-compiz
-			if (desktopSession.indexOf(qstr("gnome-fallback")) >= 0) {
+			if (desktopSession.contains(qstr("gnome-fallback"))) {
 				result.push_back(Type::Gnome);
 			}
 			result.push_back(Type::Unity);
-		} else if (current == qstr("gnome")) {
+		} else if (desktop == qstr("gnome")) {
 			result.push_back(Type::Gnome);
-		} else if (current == qstr("x-cinnamon")) {
+		} else if (desktop == qstr("x-cinnamon") || desktop == qstr("cinnamon")) {
 			result.push_back(Type::Cinnamon);
-		} else if (current == qstr("kde")) {
+		} else if (desktop == qstr("kde")) {
 			result.push_back(Type::KDE);
-		} else if (current == qstr("mate")) {
+		} else if (desktop == qstr("mate")) {
 			result.push_back(Type::MATE);
 		}
+	};
+
+	for (const auto &current : xdgCurrentDesktop) {
+		desktopToType(current);
+	}
+
+	if (!xdgSessionDesktop.isEmpty()) {
+		desktopToType(xdgSessionDesktop);
 	}
 
 	if (!desktopSession.isEmpty()) {
-		if (desktopSession == qstr("gnome")) {
-			result.push_back(Type::Gnome);
-		} else if (desktopSession == qstr("cinnamon")) {
-			result.push_back(Type::Cinnamon);
-		} else if (desktopSession == qstr("mate")) {
-			result.push_back(Type::MATE);
-		}
+		desktopToType(desktopSession);
 	}
 
 	// Fall back on some older environment variables.
@@ -69,6 +83,13 @@ std::vector<Type> Compute() {
 	}
 	if (!GetEnv("KDE_FULL_SESSION").isEmpty()) {
 		result.push_back(Type::KDE);
+	}
+
+	// Some DEs could be detected via X11
+	if (!windowManager.isEmpty()) {
+		if (windowManager == qstr("gnome shell")) {
+			result.push_back(Type::Gnome);
+		}
 	}
 
 	ranges::unique(result);
