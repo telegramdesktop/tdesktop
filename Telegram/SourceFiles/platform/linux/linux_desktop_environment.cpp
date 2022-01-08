@@ -99,6 +99,7 @@ std::vector<Type> Compute() {
 std::vector<Type> ComputeAndLog() {
 	const auto result = Compute();
 	if (result.empty()) {
+		LOG(("DE: Other"));
 		return {};
 	}
 	const auto names = ranges::accumulate(
