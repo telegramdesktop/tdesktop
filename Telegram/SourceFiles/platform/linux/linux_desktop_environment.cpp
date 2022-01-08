@@ -20,9 +20,9 @@ QString GetEnv(const char *name) {
 }
 
 QString GetWM() {
-	const auto value = base::Platform::GetWindowManager();
-	LOG(("Getting WM: '%1'").arg(value));
-	return value;
+	const auto result = Platform::GetWindowManager();
+	LOG(("Getting DE via WM: '%1'").arg(result));
+	return result;
 }
 
 std::vector<Type> Compute() {
