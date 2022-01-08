@@ -214,17 +214,13 @@ jobs:
 
           msbuild -m OpenAL.vcxproj /property:Configuration=RelWithDebInfo
 
-      - name: Breakpad cache.
-        id: cache-breakpad
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.LibrariesPath }}/breakpad
-          key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/breakpad.diff') }}
-      - name: Breakpad.
+      - name: Setup NASM.
+        uses: ilammy/setup-nasm@v1
+
+      - name: Libraries.
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
           GYP_MSVS_VERSION: 2022
-        uses: ilammy/setup-nasm@v1
         run: |
           C:
           cd %TBUILD%
