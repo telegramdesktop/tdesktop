@@ -47,6 +47,12 @@ public:
 		return false;
 	}
 
+	[[nodiscard]] TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const override;
+	uint16 fullSelectionLength() const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
+
 	BubbleRoll bubbleRoll() const override;
 	QMargins bubbleRollRepaintMargins() const override;
 	void paintBubbleFireworks(

@@ -1348,6 +1348,20 @@ void Poll::startAnswersAnimation() const {
 		st::historyPollDuration);
 }
 
+TextSelection Poll::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	return _question.adjustSelection(selection, type);
+}
+
+uint16 Poll::fullSelectionLength() const {
+	return _question.length();
+}
+
+TextForMimeData Poll::selectedText(TextSelection selection) const {
+	return _question.toTextForMimeData(selection);
+}
+
 TextState Poll::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 	if (!_poll->sendingVotes.empty()) {
@@ -1364,7 +1378,15 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 	}
 	paintw -= padding.left() + padding.right();
 
-	tshift += _question.countHeight(paintw) + st::historyPollSubtitleSkip;
+	const auto questionH = _question.countHeight(paintw);
+	if (QRect(padding.left(), tshift, paintw, questionH).contains(point)) {
+		result = TextState(_parent, _question.getState(
+			point - QPoint(padding.left(), tshift),
+			paintw,
+			request.forText()));
+		return result;
+	}
+	tshift += questionH + st::historyPollSubtitleSkip;
 	if (inShowSolution(point, padding.left() + paintw, tshift)) {
 		result.link = _showSolutionLink;
 		return result;
