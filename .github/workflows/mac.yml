@@ -122,6 +122,9 @@ jobs:
           bash -c "$xcoderun" || bash -c "$xcoderun" || bash -c "$xcoderun"
 
       - name: Strip and sign executable
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         run: |
           lipo -thin "x86_64" $REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram -output $REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram
           lipo -thin "x86_64" $REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater -output $REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater
@@ -131,24 +134,24 @@ jobs:
           strip "$REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater"
           strip "$REPO_NAME/out/Release/Telegram.app/Contents/Helpers/crashpad_handler"
 
+          echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+          security create-keychain -p ptelegram_pass build.keychain security default-keychain -s build.keychain
+          security unlock-keychain -p ptelegram_pass build.keychain
+          security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ptelegram_pass build.keychain
+          identity=$(security find-identity -v)
+          /usr/bin/codesign --force --deep -s ${identity} $REPO_NAME/out/Release/Telegram.app -v --entitlements "$REPO_NAME/Telegram/Telegram.entitlements"
+
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           cd $REPO_NAME/out/Release
           mkdir artifact
 
-          size=$(du -s "Telegram.app" | awk -F "\t" 'END {print $1}')
+          bless --folder "Telegram.app/" --openfolder "Telegram.app/"
 
-          hdiutil create -srcfolder "Telegram.app" -volname "tsetup" -fs HFS+ \
-                -fsargs "-c c=64,a=16,e=16" -format UDRW -size $(($size + $size)) tsetup.temp.dmg
-
-          TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
-          bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
-          hdiutil detach "$TempDiskPath"
-          hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "tsetup.dmg"
-          rm tsetup.temp.dmg
-
-          mv tsetup.dmg artifact/
+          zip -r Telegram.app.zip Telegram.app
+          mv Telegram.app.zip artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
