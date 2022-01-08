@@ -222,9 +222,9 @@ jobs:
           key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/breakpad.diff') }}
       - name: Breakpad.
         env:
-          GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\'
-          GYP_MSVS_VERSION: 2019
-        if: steps.cache-breakpad.outputs.cache-hit != 'true'
+          GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
+          GYP_MSVS_VERSION: 2022
+        uses: ilammy/setup-nasm@v1
         run: |
           C:
           cd %TBUILD%
