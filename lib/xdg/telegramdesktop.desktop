@@ -13,7 +13,7 @@ MimeType=x-scheme-handler/tg;
 Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;
 Actions=Quit;
 X-GNOME-UsesNotifications=true
-X-GNOME-SingleWindow=true
+SingleMainWindow=true
 
 [Desktop Action Quit]
 Exec=telegram-desktop -quit
