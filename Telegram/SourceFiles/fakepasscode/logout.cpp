@@ -11,6 +11,7 @@ void FakePasscode::LogoutAction::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (logout_accounts_[index]) {
             account->loggedOut();
+            account->mtpLogOut(false);
         } else {
             new_logout.push_back(false);
         }

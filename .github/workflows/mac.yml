@@ -134,12 +134,12 @@ jobs:
           strip "$REPO_NAME/out/Release/Telegram.app/Contents/Frameworks/Updater"
           strip "$REPO_NAME/out/Release/Telegram.app/Contents/Helpers/crashpad_handler"
 
-          echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
           security create-keychain -p ptelegram_pass build.keychain security default-keychain -s build.keychain
           security unlock-keychain -p ptelegram_pass build.keychain
           security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ptelegram_pass build.keychain
-          identity=$(security find-identity -v)
+          identity=$(security find-identity -v | grep Developer | awk -F " " 'END {print $3 " " $4 " " $5 " " $6 " " $7 " " $8}')
           /usr/bin/codesign --force --deep -s ${identity} $REPO_NAME/out/Release/Telegram.app -v --entitlements "$REPO_NAME/Telegram/Telegram.entitlements"
 
       - name: Move artifact.
