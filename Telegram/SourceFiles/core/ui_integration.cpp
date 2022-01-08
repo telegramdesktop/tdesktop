@@ -202,6 +202,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 			LOG(("Bad mention name: %1").arg(data.data));
 		}
 	} break;
+
+	case EntityType::Code:
+		return std::make_shared<MonospaceClickHandler>(data.text, data.type);
+	case EntityType::Pre:
+		return std::make_shared<MonospaceClickHandler>(data.text, data.type);
 	}
 	return Integration::createLinkHandler(data, context);
 }

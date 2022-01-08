@@ -195,3 +195,20 @@ private:
 	QString _cmd;
 
 };
+
+class MonospaceClickHandler : public TextClickHandler {
+public:
+	MonospaceClickHandler(const QString &text, EntityType type);
+
+	void onClick(ClickContext context) const override;
+
+	TextEntity getTextEntity() const override;
+
+protected:
+	QString url() const override;
+
+private:
+	const QString _text;
+	const TextEntity _entity;
+
+};

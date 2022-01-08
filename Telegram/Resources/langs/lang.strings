@@ -1972,6 +1972,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_formatting_link_url" = "URL";
 "lng_formatting_link_create" = "Create";
 
+"lng_text_copied" = "Text copied to clipboard.";
+
 "lng_spellchecker_submenu" = "Spelling";
 "lng_spellchecker_add" = "Add to Dictionary";
 "lng_spellchecker_remove" = "Remove from Dictionary";
