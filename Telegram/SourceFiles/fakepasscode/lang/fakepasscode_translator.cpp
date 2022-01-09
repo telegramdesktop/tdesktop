@@ -51,7 +51,7 @@ ValueParser::ValueParser(
 bool ValueParser::logError(const QString &text) {
     _failed = true;
     auto loggedKey = (_currentTag.size() > 0) ? (_currentTag) : QString("");
-    DEBUG_LOG(("Lang Error: %1 (key '%2')").arg(text, loggedKey));
+    LOG(qsl("Lang Error: %1 (key '%2')").arg(text, loggedKey));
     return false;
 }
 
