@@ -2,22 +2,21 @@
 
 #include "lang_auto.h"
 
-class ValueParser {
+class TagParser {
 public:
-    ValueParser(
+    TagParser(
             ushort keyIndex,
             const QByteArray &value);
 
     QString takeResult() {
         Expects(!_failed);
 
-        return std::move(_result);
+        return std::move(_currentTagReplacer);
     }
 
     bool parse();
 
 private:
-    void appendToResult(const char *nextBegin);
     bool logError(const QString &text);
     bool readTag();
 
@@ -29,38 +28,30 @@ private:
 
     bool _failed = true;
 
-    const char *_begin = nullptr;
     const char *_ch = nullptr;
     const char *_end = nullptr;
 
-    QString _result;
     OrderedSet<ushort> _tagsUsed;
 
 };
 
-ValueParser::ValueParser(
+TagParser::TagParser(
         ushort keyIndex,
         const QByteArray &value)
         : _keyIndex(keyIndex)
         , _currentTag("")
-        , _begin(value.constData())
-        , _ch(_begin)
-        , _end(_begin + value.size()) {
+        , _ch(value.constData())
+        , _end(_ch + value.size()) {
 }
 
-bool ValueParser::logError(const QString &text) {
+bool TagParser::logError(const QString &text) {
     _failed = true;
     auto loggedKey = (_currentTag.size() > 0) ? (_currentTag) : QString("");
-    LOG(qsl("Lang Error: %1 (key '%2')").arg(text, loggedKey));
+    DEBUG_LOG(qsl("Lang Error: %1 (key '%2')").arg(text, loggedKey));
     return false;
 }
 
-void ValueParser::appendToResult(const char *nextBegin) {
-    if (_ch > _begin) _result.append(QString::fromUtf8(_begin, _ch - _begin));
-    _begin = nextBegin;
-}
-
-bool ValueParser::readTag() {
+bool TagParser::readTag() {
     using namespace Lang;
     auto tagStart = _ch;
     auto isTagChar = [](QChar ch) {
@@ -81,9 +72,6 @@ bool ValueParser::readTag() {
     }
 
     _currentTag = QLatin1String(tagStart, _ch - tagStart);
-    if (_ch == _end || *_ch != '}') {
-        return logError("Expected '}' after tag name");
-    }
 
     _currentTagIndex = GetTagIndex(_currentTag);
     if (_currentTagIndex == kTagsCount) {
@@ -106,26 +94,20 @@ bool ValueParser::readTag() {
     return true;
 }
 
-bool ValueParser::parse() {
+bool TagParser::parse() {
     _failed = false;
-    _result.reserve(_end - _begin);
-    for (; _ch != _end; ++_ch) {
-        if (*_ch == '{') {
-            appendToResult(_ch);
-
-            ++_ch;
-            if (!readTag()) {
-                return false;
-            }
-
-            _result.append(_currentTagReplacer);
-
-            _begin = _ch + 1;
-            _currentTag = QLatin1String("");
-        }
+    if (!readTag()) {
+        return false;
     }
-    appendToResult(_end);
     return true;
+}
+
+QString MakeTranslationWithTag(ushort key, const QString& text, const QString& tag) {
+    TagParser parser(key, tag.toLatin1());
+    if (parser.parse()) {
+        return text + parser.takeResult();
+    }
+    return "";
 }
 
 QString Translate(ushort key, const QString& value, const QString& lang_id) {
@@ -133,9 +115,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
     if (lang_id == "Russian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
-                ValueParser parser(key, "Пароль {caption}");
-                if (parser.parse()) {
-                    return parser.takeResult();
+                auto translation = MakeTranslationWithTag(key, "Пароль ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
                 }
                 break;
             }
@@ -166,9 +148,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_logout.base:
                 return "Выход из аккаунтов";
             case tr::lng_logout_account.base: {
-                ValueParser parser(key, "Выйти из аккаунта {caption}");
-                if (parser.parse()) {
-                    return parser.takeResult();
+                auto translation = MakeTranslationWithTag(key, "Выйти из аккаунта ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
                 }
                 break;
             }
@@ -176,9 +158,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
     } else if (lang_id == "Belarusian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
-                ValueParser parser(key, "Пароль {caption}");
-                if (parser.parse()) {
-                    return parser.takeResult();
+                auto translation = MakeTranslationWithTag(key, "Пароль ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
                 }
                 break;
             }
@@ -209,9 +191,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_logout.base:
                 return "Выхад з акаўнтаў";
             case tr::lng_logout_account.base: {
-                ValueParser parser(key, "Выхад з акаўнта {caption}");
-                if (parser.parse()) {
-                    return parser.takeResult();
+                auto translation = MakeTranslationWithTag(key, "Выхад з акаўнта ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
                 }
                 break;
             }

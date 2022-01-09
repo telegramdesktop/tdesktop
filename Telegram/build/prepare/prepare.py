@@ -42,7 +42,6 @@ optionsList = [
     'build-qt6',
     'skip-qt6',
     'build-stackwalk',
-    'skip-debug'
 ]
 options = []
 runCommand = []
@@ -207,11 +206,6 @@ def filterByPlatform(commands):
                 inscope = True
             # if linux and 'linux' in scopes:
             #     inscope = True
-            if 'debug' in scopes:
-                if 'skip-debug' in options:
-                    inscope = False
-                elif len(scopes) == 1:
-                    continue
             if 'release' in scopes:
                 if 'skip-release' in options:
                     inscope = False
@@ -1045,7 +1039,6 @@ release:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
-win:
     cd ..\\..\\..
 """)
 
@@ -1061,6 +1054,7 @@ depends:patches/qtbase_5_15_2/*.patch
 win:
     for /r %%i in (..\\..\\patches\\qtbase_5_15_2\\*) do git apply %%i
     cd ..
+
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
@@ -1105,6 +1099,7 @@ win:
 mac:
     find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
+
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
@@ -1146,6 +1141,7 @@ depends:patches/qt5compat_6_2_2/*.patch
 
     find ../../patches/qt5compat_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
+
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
@@ -1192,8 +1188,8 @@ win:
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
-    cd ..
 release:
+    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja \
