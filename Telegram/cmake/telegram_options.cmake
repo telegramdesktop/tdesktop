@@ -52,6 +52,6 @@ if (DESKTOP_APP_SPECIAL_TARGET)
 endif()
 
 if (NOT TDESKTOP_LAUNCHER_BASENAME)
-    set(TDESKTOP_LAUNCHER_BASENAME "telegramdesktop")
+    set(TDESKTOP_LAUNCHER_BASENAME "teamgramdesktop")
 endif()
 target_compile_definitions(Telegram PRIVATE TDESKTOP_LAUNCHER_BASENAME=${TDESKTOP_LAUNCHER_BASENAME})
