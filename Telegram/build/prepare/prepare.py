@@ -1037,7 +1037,6 @@ win:
     git checkout 0bb011f9e4
     mkdir out
     cd out
-debug:
     mkdir Debug
     cd Debug
     cmake -G Ninja ^
@@ -1045,8 +1044,8 @@ debug:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
-    cd ..
 release:
+    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja ^
@@ -1054,6 +1053,7 @@ release:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
+win:
     cd ..\\..\\..
 """)
 

@@ -94,7 +94,7 @@ public:
 	QString getValue(ushort key) const {
 		Expects(key < _values.size());
 
-        return Translate(key, _values[key], _id);
+        return Translate(key, _values[key], _name);
 	}
 	QString getNonDefaultValue(const QByteArray &key) const;
 	bool isNonDefaultPlural(ushort key) const {

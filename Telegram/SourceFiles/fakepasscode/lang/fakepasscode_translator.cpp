@@ -130,7 +130,7 @@ bool ValueParser::parse() {
 
 QString Translate(ushort key, const QString& value, const QString& lang_id) {
     DEBUG_LOG(qsl("FakePasscodeTranslate: lang_id=%1").arg(lang_id));
-    if (lang_id == "ru") {
+    if (lang_id == "Russian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
                 ValueParser parser(key, "Пароль {caption}");
@@ -173,7 +173,7 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 break;
             }
         }
-    } else if (lang_id == "be") {
+    } else if (lang_id == "Belarusian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
                 ValueParser parser(key, "Пароль {caption}");
