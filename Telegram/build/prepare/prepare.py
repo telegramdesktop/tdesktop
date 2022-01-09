@@ -465,7 +465,6 @@ stage('zlib', """
     cd zlib
 win:
     cd contrib\\vstudio\\vc14
-debug:
     msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="%X8664%"
 release:
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="%X8664%"
@@ -486,7 +485,6 @@ win:
         -A %WIN32X64% ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
-debug:
     cmake --build . --config Debug
 release:
     cmake --build . --config Release
