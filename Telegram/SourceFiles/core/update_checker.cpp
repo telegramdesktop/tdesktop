@@ -39,6 +39,8 @@ extern "C" {
 #include <openssl/err.h>
 } // extern "C"
 
+#define TDESKTOP_DISABLE_AUTOUPDATE 1
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 #if defined Q_OS_WIN && !defined DESKTOP_APP_USE_PACKAGED // use Lzma SDK for win
 #include <LzmaLib.h>

@@ -28,54 +28,128 @@ struct BuiltInDc {
 	int port;
 };
 
-const BuiltInDc kBuiltInDcs[] = {
-	{ 1, "149.154.175.50" , 443 },
-	{ 2, "149.154.167.51" , 443 },
-	{ 2, "95.161.76.100"  , 443 },
-	{ 3, "149.154.175.100", 443 },
-	{ 4, "149.154.167.91" , 443 },
-	{ 5, "149.154.171.5"  , 443 },
-};
+// EDIT(aequabit): Add teamgram-server connection details
 
-const BuiltInDc kBuiltInDcsIPv6[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
-	{ 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
-	{ 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 },
-};
+#define TEAMGRAM_DC_IP4 "127.0.0.1"
+#define TEAMGRAM_DC_IP6 "::1"
+#define TEAMGRAM_DC_PORT 12345
 
-const BuiltInDc kBuiltInDcsTest[] = {
-	{ 1, "149.154.175.10" , 443 },
-	{ 2, "149.154.167.40" , 443 },
-	{ 3, "149.154.175.117", 443 }
+static const BuiltInDc kBuiltInDcs[] = {
+    { 1, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 2, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 3, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 4, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 5, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT }
 };
-
-const BuiltInDc kBuiltInDcsIPv6Test[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
+static const BuiltInDc kBuiltInDcsIPv6[] = {
+    { 1, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 2, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 3, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 4, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 5, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT }
+};
+static const BuiltInDc kBuiltInDcsTest[] = {
+    { 1, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 2, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT },
+    { 3, TEAMGRAM_DC_IP4, TEAMGRAM_DC_PORT }
+};
+static const BuiltInDc kBuiltInDcsIPv6Test[] = {
+    { 1, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 2, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT },
+    { 3, TEAMGRAM_DC_IP6, TEAMGRAM_DC_PORT }
 };
 
 const char *kTestPublicRSAKeys[] = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEAyMEdY1aR+sCR3ZSJrtztKTKqigvO/vBfqACJLZtS7QMgCGXJ6XIR\n\
-yy7mx66W0/sOFa7/1mAZtEoIokDP3ShoqF4fVNb6XeqgQfaUHd8wJpDWHcR2OFwv\n\
-plUUI1PLTktZ9uW2WE23b+ixNwJjJGwBDJPQEQFBE+vfmH0JP503wr5INS1poWg/\n\
-j25sIWeYPHYeOrFp/eXaqhISP6G+q2IeTaWTXpwZj4LzXq5YOpk4bYEQ6mvRq7D1\n\
-aHWfYmlEGepfaYR8Q0YqvvhYtMte3ITnuSJs171+GDqpdKcSwHnd6FudwGO4pcCO\n\
-j4WcDuXc2CTHgH8gFTNhp/Y8/SpDOhvn9QIDAQAB\n\
------END RSA PUBLIC KEY-----" };
+MIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/RdHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1\n\
+jR/iqeG8Je5yrtVabqMSkA6ltIpgylH///FojMsX1BHu4EPYOXQgB0qOi6kr08iX\n\
+ZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2ZHdzKMjX6O9B4sOsxjFrk5qDoWDrioJor\n\
+AJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pCWNpMY8cB9i8r+WBitcvouLDAvmtnTX7a\n\
+khoDzmKgpJBYliAY4qA73v7u5UIepE8QgV0jCOhxJCPubP8dg+/PlLLVKyxU5Cdi\n\
+QtZj2EMy4s9xlNKzX8XezE0MHEa6bQpnFwIDAQAB\n\
+-----END RSA PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----" };
 
 const char *kPublicRSAKeys[] = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g\n\
-5nKaMBwK/BIb9xUfg0Q29/2mgIR6Zr9krM7HjuIcCzFvDtr+L0GQjae9H0pRB2OO\n\
-62cECs5HKhT5DZ98K33vmWiLowc621dQuwKWSQKjWf50XYFw42h21P2KXUGyp2y/\n\
-+aEyZ+uVgLLQbRA1dEjSDZ2iGRy12Mk5gpYc397aYp438fsJoHIgJ2lgMv5h7WY9\n\
-t6N/byY9Nw9p21Og3AoXSL2q/2IJ1WRUhebgAdGVMlV1fkuOQoEzR7EdpqtQD9Cs\n\
-5+bfo3Nhmcyvk5ftB0WkJ9z6bNZ7yxrP8wIDAQAB\n\
------END RSA PUBLIC KEY-----" };
+MIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/RdHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1\n\
+jR/iqeG8Je5yrtVabqMSkA6ltIpgylH///FojMsX1BHu4EPYOXQgB0qOi6kr08iX\n\
+ZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2ZHdzKMjX6O9B4sOsxjFrk5qDoWDrioJor\n\
+AJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pCWNpMY8cB9i8r+WBitcvouLDAvmtnTX7a\n\
+khoDzmKgpJBYliAY4qA73v7u5UIepE8QgV0jCOhxJCPubP8dg+/PlLLVKyxU5Cdi\n\
+QtZj2EMy4s9xlNKzX8XezE0MHEa6bQpnFwIDAQAB\n\
+-----END RSA PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKLEOWTzt9Hn3/9Kdp/R\n\
+dHcEhzmd8xXeLSpHIIzaXTLJDw8BhJy1jR/iqeG8Je5yrtVabqMSkA6ltIpgylH/\n\
+//FojMsX1BHu4EPYOXQgB0qOi6kr08iXZIH9/iOPQOWDsL+Lt8gDG0xBy+sPe/2Z\n\
+HdzKMjX6O9B4sOsxjFrk5qDoWDrioJorAJ7eFAfPpOBf2w73ohXudSrJE0lbQ8pC\n\
+WNpMY8cB9i8r+WBitcvouLDAvmtnTX7akhoDzmKgpJBYliAY4qA73v7u5UIepE8Q\n\
+gV0jCOhxJCPubP8dg+/PlLLVKyxU5CdiQtZj2EMy4s9xlNKzX8XezE0MHEa6bQpn\n\
+FwIDAQAB\n\
+-----END PUBLIC KEY-----" };
 
 } // namespace
 
@@ -140,9 +214,11 @@ bool DcOptions::ValidateSecret(bytes::const_span secret) {
 }
 
 void DcOptions::readBuiltInPublicKeys() {
-	const auto builtin = (_environment == Environment::Test)
-		? gsl::make_span(kTestPublicRSAKeys)
-		: gsl::make_span(kPublicRSAKeys);
+	// EDIT(aequabit)
+	// const auto builtin = (_environment == Environment::Test)
+	// 	? gsl::make_span(kTestPublicRSAKeys)
+	// 	: gsl::make_span(kPublicRSAKeys);
+	const auto builtin = gsl::make_span(kPublicRSAKeys);
 	for (const auto key : builtin) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
 		auto parsed = RSAPublicKey(keyBytes);
