@@ -24,6 +24,10 @@ using PaintContext = Ui::ChatPaintContext;
 struct TextState;
 } // namespace HistoryView
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Lottie {
 class Icon;
 } // namespace Lottie
@@ -127,10 +131,13 @@ class Manager final : public base::has_weak_ptr {
 public:
 	Manager(
 		QWidget *wheelEventsTarget,
+		rpl::producer<int> uniqueLimitValue,
 		Fn<void(QRect)> buttonUpdate);
 	~Manager();
 
-	void applyList(std::vector<Data::Reaction> list);
+	void applyList(const std::vector<Data::Reaction> &list);
+	void updateAllowedSublist(std::optional<base::flat_set<QString>> filter);
+	void updateUniqueLimit(not_null<HistoryItem*> item);
 
 	void updateButton(ButtonParameters parameters);
 	void paintButtons(Painter &p, const PaintContext &context);
@@ -147,15 +154,22 @@ public:
 		return _chosen.events();
 	}
 
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 private:
 	struct ReactionDocument {
 		std::shared_ptr<Data::DocumentMedia> media;
 		std::shared_ptr<Lottie::Icon> icon;
-		int startFrame = 0;
 	};
 	struct ReactionIcons {
+		QString emoji;
+		not_null<DocumentData*> appearAnimation;
+		not_null<DocumentData*> selectAnimation;
 		std::shared_ptr<Lottie::Icon> appear;
 		std::shared_ptr<Lottie::Icon> select;
+		mutable ClickHandlerPtr link;
 		mutable Ui::Animations::Simple selectedScale;
 		bool appearAnimated = false;
 		mutable bool selected = false;
@@ -167,6 +181,7 @@ private:
 	};
 	static constexpr auto kFramesCount = 32;
 
+	void applyListFilters();
 	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
 
@@ -208,6 +223,7 @@ private:
 		const QImage &image,
 		QRect source);
 
+	void resolveMainReactionIcon();
 	void setMainReactionIcon();
 	void clearAppearAnimations();
 	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
@@ -249,7 +265,7 @@ private:
 
 	[[nodiscard]] ClickHandlerPtr computeButtonLink(QPoint position) const;
 	[[nodiscard]] ClickHandlerPtr resolveButtonLink(
-		const Data::Reaction &reaction) const;
+		const ReactionIcons &reaction) const;
 
 	void updateCurrentButton() const;
 	[[nodiscard]] bool onlyMainEmojiVisible() const;
@@ -258,8 +274,8 @@ private:
 	void checkIcons();
 
 	rpl::event_stream<Chosen> _chosen;
-	std::vector<Data::Reaction> _list;
-	mutable std::vector<ClickHandlerPtr> _links;
+	std::vector<ReactionIcons> _list;
+	std::optional<base::flat_set<QString>> _filter;
 	QSize _outer;
 	QRect _inner;
 	QSize _overlayFull;
@@ -282,11 +298,13 @@ private:
 	QColor _shadow;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
+	std::shared_ptr<Lottie::Icon> _mainReactionIcon;
 	QImage _mainReactionImage;
 	rpl::lifetime _mainReactionLifetime;
 
+	rpl::variable<int> _uniqueLimit = 0;
 	base::flat_map<not_null<DocumentData*>, ReactionDocument> _loadCache;
-	std::vector<ReactionIcons> _icons;
+	std::vector<not_null<ReactionIcons*>> _icons;
 	rpl::lifetime _loadCacheLifetime;
 	bool _showingAll = false;
 	mutable int _selectedIcon = -1;
@@ -297,9 +315,18 @@ private:
 	std::unique_ptr<Button> _button;
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
+	base::flat_set<QString> _buttonAlreadyList;
+	int _buttonAlreadyNotMineCount = 0;
 	mutable base::flat_map<QString, ClickHandlerPtr> _reactionsLinks;
 	Fn<Fn<void()>(QString)> _createChooseCallback;
 
+	rpl::lifetime _lifetime;
+
 };
+
+void SetupManagerList(
+	not_null<Manager*> manager,
+	not_null<Main::Session*> session,
+	rpl::producer<std::optional<base::flat_set<QString>>> filter);
 
 } // namespace HistoryView

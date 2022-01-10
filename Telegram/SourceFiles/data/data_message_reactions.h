@@ -43,15 +43,8 @@ public:
 		All,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
-	[[nodiscard]] std::vector<Reaction> list(not_null<PeerData*> peer) const;
 
-	[[nodiscard]] static std::vector<Reaction> Filtered(
-		const std::vector<Reaction> &reactions,
-		const std::vector<QString> &emoji);
-	[[nodiscard]] std::vector<Reaction> filtered(
-		const std::vector<QString> &emoji) const;
-
-	[[nodiscard]] static std::vector<QString> ParseAllowed(
+	[[nodiscard]] static base::flat_set<QString> ParseAllowed(
 		const MTPVector<MTPstring> *list);
 
 	[[nodiscard]] rpl::producer<> updates() const;

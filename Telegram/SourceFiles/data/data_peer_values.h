@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class ImageRoundRadius;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
 struct Reaction;
@@ -122,7 +126,12 @@ inline auto PeerFullFlagValue(
 	int size,
 	ImageRoundRadius radius);
 
+[[nodiscard]] std::optional<base::flat_set<QString>> PeerAllowedReactions(
+	not_null<PeerData*> peer);
 [[nodiscard]] auto PeerAllowedReactionsValue(not_null<PeerData*> peer)
--> rpl::producer<std::vector<Data::Reaction>>;
+-> rpl::producer<std::optional<base::flat_set<QString>>>;
+
+[[nodiscard]] rpl::producer<int> UniqueReactionsLimitValue(
+	not_null<Main::Session*> session);
 
 } // namespace Data

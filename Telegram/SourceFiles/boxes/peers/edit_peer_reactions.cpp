@@ -93,7 +93,7 @@ void EditAllowedReactionsBox(
 		not_null<Ui::GenericBox*> box,
 		bool isGroup,
 		const std::vector<Reaction> &list,
-		const std::vector<Reaction> &selected,
+		const base::flat_set<QString> &selected,
 		Fn<void(const std::vector<QString> &)> callback) {
 	box->setTitle(tr::lng_manage_peer_reactions());
 
@@ -146,7 +146,7 @@ void EditAllowedReactionsBox(
 		tr::lng_manage_peer_reactions_available());
 
 	const auto active = [&](const Data::Reaction &entry) {
-		return ranges::contains(selected, entry.emoji, &Reaction::emoji);
+		return selected.contains(entry.emoji);
 	};
 	const auto add = [&](const Data::Reaction &entry) {
 		const auto button = Settings::AddButton(
@@ -198,9 +198,9 @@ void SaveAllowedReactions(
 	)).done([=](const MTPUpdates &result) {
 		peer->session().api().applyUpdates(result);
 		if (const auto chat = peer->asChat()) {
-			chat->setAllowedReactions(allowed);
+			chat->setAllowedReactions({ begin(allowed), end(allowed) });
 		} else if (const auto channel = peer->asChannel()) {
-			channel->setAllowedReactions(allowed);
+			channel->setAllowedReactions({ begin(allowed), end(allowed) });
 		} else {
 			Unexpected("Invalid peer type in SaveAllowedReactions.");
 		}

@@ -106,7 +106,7 @@ public:
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;
 	CopyRestrictionType listSelectRestrictionType() override;
 	auto listAllowedReactionsValue()
-		-> rpl::producer<std::vector<Data::Reaction>> override;
+		-> rpl::producer<std::optional<base::flat_set<QString>>> override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

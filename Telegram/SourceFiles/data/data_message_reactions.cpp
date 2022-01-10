@@ -11,11 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "data/data_changes.h"
 #include "lottie/lottie_icon.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
@@ -63,16 +61,6 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 	case Type::All: return _available;
 	}
 	Unexpected("Type in Reactions::list.");
-}
-
-std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
-	if (const auto chat = peer->asChat()) {
-		return filtered(chat->allowedReactions());
-	} else if (const auto channel = peer->asChannel()) {
-		return filtered(channel->allowedReactions());
-	} else {
-		return list(Type::Active);
-	}
 }
 
 rpl::producer<> Reactions::updates() const {
@@ -214,33 +202,17 @@ void Reactions::downloadTaskFinished() {
 	}
 }
 
-std::vector<Reaction> Reactions::Filtered(
-		const std::vector<Reaction> &reactions,
-		const std::vector<QString> &emoji) {
-	auto result = std::vector<Reaction>();
-	result.reserve(emoji.size());
-	for (const auto &single : emoji) {
-		const auto i = ranges::find(reactions, single, &Reaction::emoji);
-		if (i != end(reactions)) {
-			result.push_back(*i);
-		}
-	}
-	return result;
-}
-
-std::vector<Reaction> Reactions::filtered(
-		const std::vector<QString> &emoji) const {
-	return Filtered(list(Type::Active), emoji);
-}
-
-std::vector<QString> Reactions::ParseAllowed(
+base::flat_set<QString> Reactions::ParseAllowed(
 		const MTPVector<MTPstring> *list) {
 	if (!list) {
 		return {};
 	}
-	return list->v | ranges::view::transform([](const MTPstring &string) {
+	const auto parsed = ranges::views::all(
+		list->v
+	) | ranges::views::transform([](const MTPstring &string) {
 		return qs(string);
 	}) | ranges::to_vector;
+	return { begin(parsed), end(parsed) };
 }
 
 void Reactions::request() {

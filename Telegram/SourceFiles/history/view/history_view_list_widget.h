@@ -113,7 +113,7 @@ public:
 	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
-		-> rpl::producer<std::vector<Data::Reaction>> = 0;
+		-> rpl::producer<std::optional<base::flat_set<QString>>> = 0;
 };
 
 struct SelectionData {

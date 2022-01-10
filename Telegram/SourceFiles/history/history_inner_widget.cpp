@@ -322,6 +322,7 @@ HistoryInner::HistoryInner(
 , _reactionsManager(
 	std::make_unique<HistoryView::Reactions::Manager>(
 		this,
+		Data::UniqueReactionsLimitValue(&controller->session()),
 		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
@@ -412,6 +413,7 @@ HistoryInner::HistoryInner(
 		return item->mainView() != nullptr;
 	}) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		item->mainView()->itemDataChanged();
+		_reactionsManager->updateUniqueLimit(item);
 	}, lifetime());
 
 	session().changes().historyUpdates(
@@ -421,11 +423,10 @@ HistoryInner::HistoryInner(
 		update();
 	}, lifetime());
 
-	Data::PeerAllowedReactionsValue(
-		_peer
-	) | rpl::start_with_next([=](std::vector<Data::Reaction> &&list) {
-		_reactionsManager->applyList(std::move(list));
-	}, lifetime());
+	HistoryView::Reactions::SetupManagerList(
+		_reactionsManager.get(),
+		&session(),
+		Data::PeerAllowedReactionsValue(_peer));
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -3169,7 +3170,8 @@ void HistoryInner::mouseActionUpdate() {
 		: nullptr;
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
-		if (App::mousedItem() != view) {
+		const auto changed = (App::mousedItem() != view);
+		if (changed) {
 			repaintItem(App::mousedItem());
 			App::mousedItem(view);
 			repaintItem(App::mousedItem());
@@ -3179,6 +3181,9 @@ void HistoryInner::mouseActionUpdate() {
 			view,
 			m,
 			reactionState));
+		if (changed) {
+			_reactionsManager->updateUniqueLimit(item);
+		}
 		if (view->pointState(m) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());

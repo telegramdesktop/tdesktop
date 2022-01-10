@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
 
@@ -497,18 +499,36 @@ rpl::producer<QImage> PeerUserpicImageValue(
 	};
 }
 
-rpl::producer<std::vector<Data::Reaction>> PeerAllowedReactionsValue(
+std::optional<base::flat_set<QString>> PeerAllowedReactions(
 		not_null<PeerData*> peer) {
-	return rpl::combine(
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(peer->owner().reactions().updates()),
-		peer->session().changes().peerFlagsValue(
-			peer,
-			Data::PeerUpdate::Flag::Reactions)
-	) | rpl::map([=] {
-		return peer->owner().reactions().list(peer);
+	if (const auto chat = peer->asChat()) {
+		return chat->allowedReactions();
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->allowedReactions();
+	} else {
+		return std::nullopt;
+	}
+}
+
+ auto PeerAllowedReactionsValue(
+	not_null<PeerData*> peer)
+-> rpl::producer<std::optional<base::flat_set<QString>>> {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Reactions
+	) | rpl::map([=]{
+		return PeerAllowedReactions(peer);
 	});
+}
+
+rpl::producer<int> UniqueReactionsLimitValue(
+		not_null<Main::Session*> session) {
+	const auto config = &session->account().appConfig();
+	return config->value(
+	) | rpl::map([=] {
+		return int(base::SafeRound(
+			config->get<double>("reactions_uniq_max", 11)));
+	}) | rpl::distinct_until_changed();
 }
 
 } // namespace Data

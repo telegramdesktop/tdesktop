@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -1060,7 +1061,7 @@ void Controller::fillManageSection() {
 					!_peer->isBroadcast(),
 					session->data().reactions().list(
 						Data::Reactions::Type::Active),
-					session->data().reactions().list(_peer),
+					*Data::PeerAllowedReactions(_peer),
 					done));
 			},
 			st::infoIconReactions);

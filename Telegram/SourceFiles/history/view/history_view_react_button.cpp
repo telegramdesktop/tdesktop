@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_react_button.h"
 
 #include "history/view/history_view_cursor_state.h"
+#include "history/history_item.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
 #include "data/data_message_reactions.h"
+#include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "lottie/lottie_icon.h"
@@ -70,7 +72,6 @@ constexpr auto kHoverScale = 1.24;
 
 [[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
 		not_null<Data::DocumentMedia*> media,
-		int startFrame,
 		int size) {
 	Expects(media->loaded());
 
@@ -78,7 +79,6 @@ constexpr auto kHoverScale = 1.24;
 		.path = media->owner()->filepath(true),
 		.json = media->bytes(),
 		.sizeOverride = QSize(size, size),
-		.frame = startFrame,
 	});
 }
 
@@ -331,6 +331,7 @@ float64 Button::currentOpacity() const {
 
 Manager::Manager(
 	QWidget *wheelEventsTarget,
+	rpl::producer<int> uniqueLimitValue,
 	Fn<void(QRect)> buttonUpdate)
 : _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
@@ -338,6 +339,7 @@ Manager::Manager(
 	QRect(0, 0, _inner.width(), _inner.width()).marginsAdded(
 		st::reactionCornerShadow
 	).size())
+, _uniqueLimit(std::move(uniqueLimitValue))
 , _buttonShowTimer([=] { showButtonDelayed(); })
 , _buttonUpdate(std::move(buttonUpdate)) {
 	static_assert(!(kFramesCount % kDivider));
@@ -384,6 +386,11 @@ Manager::Manager(
 		stealWheelEvents(wheelEventsTarget);
 	}
 
+	_uniqueLimit.changes(
+	) | rpl::start_with_next([=] {
+		applyListFilters();
+	}, _lifetime);
+
 	_createChooseCallback = [=](QString emoji) {
 		return [=] {
 			if (const auto context = _buttonContext) {
@@ -395,6 +402,33 @@ Manager::Manager(
 			}
 		};
 	};
+}
+
+void Manager::applyListFilters() {
+	const auto limit = _uniqueLimit.current();
+	const auto applyUniqueLimit = _buttonContext
+		&& (limit > 0)
+		&& (_buttonAlreadyNotMineCount >= limit);
+	auto icons = std::vector<not_null<ReactionIcons*>>();
+	icons.reserve(_list.size());
+	for (auto &icon : _list) {
+		const auto add = applyUniqueLimit
+			? _buttonAlreadyList.contains(icon.emoji)
+			: (!_filter || _filter->contains(icon.emoji));
+		if (add) {
+			icons.push_back(&icon);
+		} else {
+			clearStateForHidden(icon);
+		}
+	}
+	if (_icons == icons) {
+		return;
+	}
+	const auto selected = _selectedIcon;
+	setSelectedIcon(-1);
+	_icons = std::move(icons);
+	setSelectedIcon(selected < _icons.size() ? selected : -1);
+	resolveMainReactionIcon();
 }
 
 void Manager::stealWheelEvents(not_null<QWidget*> target) {
@@ -422,8 +456,8 @@ void Manager::updateButton(ButtonParameters parameters) {
 		_scheduledParameters = std::nullopt;
 	}
 	_buttonContext = parameters.context;
-	parameters.reactionsCount = _list.size();
-	if (!_buttonContext || _list.empty()) {
+	parameters.reactionsCount = _icons.size();
+	if (!_buttonContext || _icons.empty()) {
 		return;
 	} else if (_button) {
 		_button->applyParameters(parameters);
@@ -455,7 +489,7 @@ void Manager::showButtonDelayed() {
 		[=]{ updateButton({}); });
 }
 
-void Manager::applyList(std::vector<Data::Reaction> list) {
+void Manager::applyList(const std::vector<Data::Reaction> &list) {
 	constexpr auto predicate = [](
 			const Data::Reaction &a,
 			const Data::Reaction &b) {
@@ -463,32 +497,87 @@ void Manager::applyList(std::vector<Data::Reaction> list) {
 			&& (a.appearAnimation == b.appearAnimation)
 			&& (a.selectAnimation == b.selectAnimation);
 	};
-	if (ranges::equal(_list, list, predicate)) {
+	const auto proj = [](const auto &obj) {
+		return std::tie(obj.emoji, obj.appearAnimation, obj.selectAnimation);
+	};
+	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
 		return;
 	}
-	_list = std::move(list);
-	_links = std::vector<ClickHandlerPtr>(_list.size());
-	if (_list.empty()) {
+	const auto selected = _selectedIcon;
+	setSelectedIcon(-1);
+	_icons.clear();
+	_list.clear();
+	for (const auto &reaction : list) {
+		_list.push_back({
+			.emoji = reaction.emoji,
+			.appearAnimation = reaction.appearAnimation,
+			.selectAnimation = reaction.selectAnimation,
+		});
+	}
+	applyListFilters();
+	setSelectedIcon(selected < _icons.size() ? selected : -1);
+}
+
+void Manager::updateAllowedSublist(
+		std::optional<base::flat_set<QString>> filter) {
+	if (_filter == filter) {
+		return;
+	}
+	_filter = std::move(filter);
+	applyListFilters();
+}
+
+void Manager::updateUniqueLimit(not_null<HistoryItem*> item) {
+	if (item->fullId() != _buttonContext) {
+		return;
+	}
+	const auto &all = item->reactions();
+	const auto my = item->chosenReaction();
+	auto list = base::flat_set<QString>();
+	list.reserve(all.size());
+	auto myIsUnique = false;
+	for (const auto &[emoji, count] : all) {
+		list.emplace(emoji);
+		if (count == 1 && emoji == my) {
+			myIsUnique = true;
+		}
+	}
+	const auto notMineCount = int(list.size()) - (myIsUnique ? 1 : 0);
+
+	auto changed = false;
+	if (_buttonAlreadyList != list) {
+		_buttonAlreadyList = std::move(list);
+		changed = true;
+	}
+	if (_buttonAlreadyNotMineCount != notMineCount) {
+		_buttonAlreadyNotMineCount = notMineCount;
+		changed = true;
+	}
+	if (changed) {
+		applyListFilters();
+	}
+}
+
+void Manager::resolveMainReactionIcon() {
+	if (_icons.empty()) {
 		_mainReactionMedia = nullptr;
 		_mainReactionLifetime.destroy();
-		setSelectedIcon(-1);
-		_icons.clear();
 		return;
 	}
-	const auto main = _list.front().appearAnimation;
-	if (_mainReactionMedia
-		&& _mainReactionMedia->owner() == main) {
+	const auto main = _icons.front()->selectAnimation;
+	_icons.front()->appearAnimated = true;
+	if (_mainReactionMedia && _mainReactionMedia->owner() == main) {
 		if (!_mainReactionLifetime) {
 			loadIcons();
 		}
 		return;
 	}
-	_mainReactionLifetime.destroy();
 	_mainReactionMedia = main->createMediaView();
 	_mainReactionMedia->checkStickerLarge();
 	if (_mainReactionMedia->loaded()) {
+		_mainReactionLifetime.destroy();
 		setMainReactionIcon();
-	} else {
+	} else if (!_mainReactionLifetime) {
 		main->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return _mainReactionMedia->loaded();
@@ -506,16 +595,15 @@ void Manager::setMainReactionIcon() {
 	const auto i = _loadCache.find(_mainReactionMedia->owner());
 	if (i != end(_loadCache) && i->second.icon) {
 		const auto &icon = i->second.icon;
-		if (icon->frameIndex() == icon->framesCount() - 1
-			&& icon->width() == MainReactionSize()) {
+		if (!icon->frameIndex() && icon->width() == MainReactionSize()) {
 			_mainReactionImage = i->second.icon->frame();
 			return;
 		}
 	}
-	_mainReactionImage = CreateIcon(
+	_mainReactionImage = QImage();
+	_mainReactionIcon = CreateIcon(
 		_mainReactionMedia.get(),
-		-1,
-		MainReactionSize())->frame();
+		MainReactionSize());
 }
 
 QMargins Manager::innerMargins() const {
@@ -544,7 +632,7 @@ bool Manager::checkIconLoaded(ReactionDocument &entry) const {
 	const auto size = (entry.media == _mainReactionMedia)
 		? MainReactionSize()
 		: CornerImageSize(1.);
-	entry.icon = CreateIcon(entry.media.get(), entry.startFrame, size);
+	entry.icon = CreateIcon(entry.media.get(), size);
 	entry.media = nullptr;
 	return true;
 }
@@ -556,14 +644,13 @@ void Manager::updateCurrentButton() const {
 }
 
 void Manager::loadIcons() {
-	const auto load = [&](not_null<DocumentData*> document, int frame) {
+	const auto load = [&](not_null<DocumentData*> document) {
 		if (const auto i = _loadCache.find(document); i != end(_loadCache)) {
 			return i->second.icon;
 		}
 		auto &entry = _loadCache.emplace(document).first->second;
 		entry.media = document->createMediaView();
 		entry.media->checkStickerLarge();
-		entry.startFrame = frame;
 		if (!checkIconLoaded(entry) && !_loadCacheLifetime) {
 			document->session().downloaderTaskFinished(
 			) | rpl::start_with_next([=] {
@@ -572,19 +659,14 @@ void Manager::loadIcons() {
 		}
 		return entry.icon;
 	};
-	const auto selected = _selectedIcon;
-	setSelectedIcon(-1);
-	_icons.clear();
-	auto main = true;
-	for (const auto &reaction : _list) {
-		_icons.push_back({
-			.appear = load(reaction.appearAnimation, main ? -1 : 0),
-			.select = load(reaction.selectAnimation, 0),
-			.appearAnimated = main,
-		});
-		main = false;
+	for (const auto &icon : _icons) {
+		if (!icon->appear) {
+			icon->appear = load(icon->appearAnimation);
+		}
+		if (!icon->select) {
+			icon->select = load(icon->selectAnimation);
+		}
 	}
-	setSelectedIcon(selected < _icons.size() ? selected : -1);
 }
 
 void Manager::checkIcons() {
@@ -617,7 +699,7 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 }
 
 ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
-	if (_list.empty()) {
+	if (_icons.empty()) {
 		setSelectedIcon(-1);
 		return nullptr;
 	}
@@ -631,10 +713,10 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 	const auto index = std::clamp(
 		int(base::SafeRound(shifted + between / 2.)) / oneHeight,
 		0,
-		int(_list.size() - 1));
-	auto &result = _links[index];
+		int(_icons.size() - 1));
+	auto &result = _icons[index]->link;
 	if (!result) {
-		result = resolveButtonLink(_list[index]);
+		result = resolveButtonLink(*_icons[index]);
 	}
 	setSelectedIcon(index);
 	return result;
@@ -645,25 +727,25 @@ void Manager::setSelectedIcon(int index) const {
 		if (index < 0 || index >= _icons.size()) {
 			return;
 		}
-		auto &icon = _icons[index];
-		if (icon.selected == selected) {
+		const auto &icon = _icons[index];
+		if (icon->selected == selected) {
 			return;
 		}
-		icon.selected = selected;
-		icon.selectedScale.start(
+		icon->selected = selected;
+		icon->selectedScale.start(
 			[=] { updateCurrentButton(); },
 			selected ? 1. : kHoverScale,
 			selected ? kHoverScale : 1.,
 			kHoverScaleDuration,
 			anim::sineInOut);
 		if (selected) {
-			const auto skipAnimation = icon.selectAnimated
-				|| !icon.appearAnimated
-				|| (icon.select && icon.select->animating())
-				|| (icon.appear && icon.appear->animating());
-			const auto select = skipAnimation ? nullptr : icon.select.get();
-			if (select && !icon.selectAnimated) {
-				icon.selectAnimated = true;
+			const auto skipAnimation = icon->selectAnimated
+				|| !icon->appearAnimated
+				|| (icon->select && icon->select->animating())
+				|| (icon->appear && icon->appear->animating());
+			const auto select = skipAnimation ? nullptr : icon->select.get();
+			if (select && !icon->selectAnimated) {
+				icon->selectAnimated = true;
 				select->animate(
 					[=] { updateCurrentButton(); },
 					0,
@@ -679,7 +761,7 @@ void Manager::setSelectedIcon(int index) const {
 }
 
 ClickHandlerPtr Manager::resolveButtonLink(
-		const Data::Reaction &reaction) const {
+		const ReactionIcons &reaction) const {
 	const auto emoji = reaction.emoji;
 	const auto i = _reactionsLinks.find(emoji);
 	if (i != end(_reactionsLinks)) {
@@ -1043,12 +1125,12 @@ bool Manager::onlyMainEmojiVisible() const {
 		return true;
 	}
 	const auto &icon = _icons.front();
-	if (icon.selected
-		|| icon.selectedScale.animating()
-		|| (icon.select && icon.select->animating())) {
+	if (icon->selected
+		|| icon->selectedScale.animating()
+		|| (icon->select && icon->select->animating())) {
 		return false;
 	}
-	icon.selectAnimated = false;
+	icon->selectAnimated = false;
 	return true;
 }
 
@@ -1060,22 +1142,20 @@ void Manager::clearAppearAnimations() {
 	auto main = true;
 	for (auto &icon : _icons) {
 		if (!main) {
-			if (icon.selected) {
+			if (icon->selected) {
 				setSelectedIcon(-1);
 			}
-			icon.selectedScale.stop();
-			if (const auto select = icon.select.get()) {
+			icon->selectedScale.stop();
+			if (const auto select = icon->select.get()) {
 				select->jumpTo(0, nullptr);
 			}
-			icon.selectAnimated = false;
+			icon->selectAnimated = false;
 		}
-		if (icon.appearAnimated != main) {
-			if (const auto appear = icon.appear.get()) {
-				appear->jumpTo(
-					main ? (appear->framesCount() - 1) : 0,
-					nullptr);
+		if (icon->appearAnimated != main) {
+			if (const auto appear = icon->appear.get()) {
+				appear->jumpTo(0, nullptr);
 			}
-			icon.appearAnimated = main;
+			icon->appearAnimated = main;
 		}
 		main = false;
 	}
@@ -1160,8 +1240,8 @@ void Manager::paintAllEmoji(
 	const auto update = [=] {
 		updateCurrentButton();
 	};
-	for (auto &icon : _icons) {
-		const auto target = countTarget(icon).translated(emojiPosition);
+	for (const auto &icon : _icons) {
+		const auto target = countTarget(*icon).translated(emojiPosition);
 		emojiPosition += shift;
 
 		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
@@ -1172,21 +1252,25 @@ void Manager::paintAllEmoji(
 
 		if (!target.intersects(clip)) {
 			if (current) {
-				clearStateForHidden(icon);
+				clearStateForHidden(*icon);
 			}
-		} else if (icon.select && icon.select->animating()) {
-			paintFrame(icon.select.get());
-		} else if (const auto appear = icon.appear.get()) {
+		} else {
+			const auto appear = icon->appear.get();
 			if (current
-				&& !icon.appearAnimated
+				&& appear
+				&& !icon->appearAnimated
 				&& target.intersects(animationRect)) {
-				icon.appearAnimated = true;
+				icon->appearAnimated = true;
 				appear->animate(update, 0, appear->framesCount() - 1);
 			}
-			paintFrame(appear);
+			if (appear && appear->animating()) {
+				paintFrame(appear);
+			} else if (const auto select = icon->select.get()) {
+				paintFrame(select);
+			}
 		}
 		if (current) {
-			clearStateForSelectFinished(icon);
+			clearStateForSelectFinished(*icon);
 		}
 	}
 }
@@ -1288,6 +1372,10 @@ QRect Manager::validateEmoji(int frameIndex, float64 scale) {
 	const auto position = result.topLeft() / ratio;
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.fillRect(QRect(position, result.size() / ratio), Qt::transparent);
+	if (_mainReactionImage.isNull()
+		&& _mainReactionIcon) {
+		_mainReactionImage = base::take(_mainReactionIcon)->frame();
+	}
 	if (!_mainReactionImage.isNull()) {
 		const auto size = CornerImageSize(scale);
 		const auto inner = _inner.translated(position);
@@ -1353,6 +1441,27 @@ QRect Manager::validateFrame(
 
 	_validBg[frameIndex] = true;
 	return result;
+}
+
+void SetupManagerList(
+		not_null<Manager*> manager,
+		not_null<Main::Session*> session,
+		rpl::producer<std::optional<base::flat_set<QString>>> filter) {
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		session->data().reactions().updates()
+	) | rpl::start_with_next([=] {
+		manager->applyList(
+			session->data().reactions().list(Data::Reactions::Type::Active));
+	}, manager->lifetime());
+
+	std::move(
+		filter
+	) | rpl::start_with_next([=](
+			std::optional<base::flat_set<QString>> &&list) {
+		manager->updateAllowedSublist(std::move(list));
+	}, manager->lifetime());
 }
 
 } // namespace HistoryView

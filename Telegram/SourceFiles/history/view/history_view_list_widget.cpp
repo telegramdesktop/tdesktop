@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
 #include "facades.h"
 #include "styles/style_chat.h"
 
@@ -267,6 +268,7 @@ ListWidget::ListWidget(
 , _reactionsManager(
 	std::make_unique<Reactions::Manager>(
 		this,
+		Data::UniqueReactionsLimitValue(&controller->session()),
 		[=](QRect updated) { update(updated); }))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
@@ -344,10 +346,10 @@ ListWidget::ListWidget(
 		}
 	}, lifetime());
 
-	_delegate->listAllowedReactionsValue(
-	) | rpl::start_with_next([=](std::vector<Data::Reaction> &&list) {
-		_reactionsManager->applyList(std::move(list));
-	}, lifetime());
+	Reactions::SetupManagerList(
+		_reactionsManager.get(),
+		&session(),
+		_delegate->listAllowedReactionsValue());
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -2563,7 +2565,8 @@ void ListWidget::mouseActionUpdate() {
 		view ? view->height() : 0,
 		itemPoint,
 		view ? view->pointState(itemPoint) : PointState::Outside);
-	if (_overElement != view) {
+	const auto viewChanged = (_overElement != view);
+	if (viewChanged) {
 		repaintItem(_overElement);
 		_overElement = view;
 		repaintItem(_overElement);
@@ -2574,6 +2577,9 @@ void ListWidget::mouseActionUpdate() {
 			itemPoint,
 			reactionState)
 		: Reactions::ButtonParameters());
+	if (viewChanged && view) {
+		_reactionsManager->updateUniqueLimit(item);
+	}
 
 	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
