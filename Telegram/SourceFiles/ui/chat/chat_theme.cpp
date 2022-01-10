@@ -56,6 +56,7 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 		const CacheBackgroundRequest &request) {
 	Expects(!request.area.isEmpty());
 
+	const auto ratio = style::DevicePixelRatio();
 	const auto gradient = request.background.gradientForFill.isNull()
 		? QImage()
 		: (request.gradientRotationAdd != 0)
@@ -70,13 +71,13 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 		|| request.background.prepared.isNull()) {
 		auto result = gradient.isNull()
 			? QImage(
-				request.area * style::DevicePixelRatio(),
+				request.area * ratio,
 				QImage::Format_ARGB32_Premultiplied)
 			: gradient.scaled(
-				request.area * style::DevicePixelRatio(),
+				request.area * ratio,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
-		result.setDevicePixelRatio(style::DevicePixelRatio());
+		result.setDevicePixelRatio(ratio);
 		if (!request.background.prepared.isNull()) {
 			QPainter p(&result);
 			if (!gradient.isNull()) {
@@ -90,13 +91,13 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			}
 			const auto tiled = request.background.isPattern
 				? request.background.prepared.scaled(
-					request.area.height() * style::DevicePixelRatio(),
-					request.area.height() * style::DevicePixelRatio(),
+					request.area.height() * ratio,
+					request.area.height() * ratio,
 					Qt::KeepAspectRatio,
 					Qt::SmoothTransformation)
 				: request.background.preparedForTiled;
-			const auto w = tiled.width() / float(style::DevicePixelRatio());
-			const auto h = tiled.height() / float(style::DevicePixelRatio());
+			const auto w = tiled.width() / float(ratio);
+			const auto h = tiled.height() / float(ratio);
 			const auto cx = int(std::ceil(request.area.width() / w));
 			const auto cy = int(std::ceil(request.area.height() / h));
 			const auto rows = cy;
@@ -104,11 +105,12 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				? (((cx / 2) * 2) + 1)
 				: cx;
 			const auto xshift = request.background.isPattern
-				? (request.area.width() - cols * w) / 2
+				? (request.area.width() * ratio - cols * tiled.width()) / 2
 				: 0;
+			const auto useshift = xshift / float(ratio);
 			for (auto y = 0; y != rows; ++y) {
 				for (auto x = 0; x != cols; ++x) {
-					p.drawImage(QPointF(xshift + x * w, y * h), tiled);
+					p.drawImage(QPointF(useshift + x * w, y * h), tiled);
 				}
 			}
 			if (!gradient.isNull()
