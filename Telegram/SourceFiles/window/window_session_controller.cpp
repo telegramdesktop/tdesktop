@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_react_button.h"
 #include "history/view/history_view_reactions.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
@@ -530,7 +531,8 @@ SessionController::SessionController(
 		this))
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
-, _chatStyle(std::make_unique<Ui::ChatStyle>()) {
+, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>()) {
 	init();
 
 	_chatStyleTheme = _defaultChatTheme;

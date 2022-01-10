@@ -269,7 +269,8 @@ ListWidget::ListWidget(
 	std::make_unique<Reactions::Manager>(
 		this,
 		Data::UniqueReactionsLimitValue(&controller->session()),
-		[=](QRect updated) { update(updated); }))
+		[=](QRect updated) { update(updated); },
+		controller->cachedReactionIconFactory().createMethod()))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect())

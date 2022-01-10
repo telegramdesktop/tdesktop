@@ -70,18 +70,6 @@ constexpr auto kHoverScale = 1.24;
 	return style::ConvertScale(kSizeForDownscale);
 }
 
-[[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
-		not_null<Data::DocumentMedia*> media,
-		int size) {
-	Expects(media->loaded());
-
-	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
-		.path = media->owner()->filepath(true),
-		.json = media->bytes(),
-		.sizeOverride = QSize(size, size),
-	});
-}
-
 } // namespace
 
 Button::Button(
@@ -332,8 +320,10 @@ float64 Button::currentOpacity() const {
 Manager::Manager(
 	QWidget *wheelEventsTarget,
 	rpl::producer<int> uniqueLimitValue,
-	Fn<void(QRect)> buttonUpdate)
-: _outer(CountOuterSize())
+	Fn<void(QRect)> buttonUpdate,
+	IconFactory iconFactory)
+: _iconFactory(std::move(iconFactory))
+, _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
 , _overlayFull(
 	QRect(0, 0, _inner.width(), _inner.width()).marginsAdded(
@@ -601,7 +591,7 @@ void Manager::setMainReactionIcon() {
 		}
 	}
 	_mainReactionImage = QImage();
-	_mainReactionIcon = CreateIcon(
+	_mainReactionIcon = DefaultIconFactory(
 		_mainReactionMedia.get(),
 		MainReactionSize());
 }
@@ -632,7 +622,7 @@ bool Manager::checkIconLoaded(ReactionDocument &entry) const {
 	const auto size = (entry.media == _mainReactionMedia)
 		? MainReactionSize()
 		: CornerImageSize(1.);
-	entry.icon = CreateIcon(entry.media.get(), size);
+	entry.icon = _iconFactory(entry.media.get(), size);
 	entry.media = nullptr;
 	return true;
 }
@@ -1462,6 +1452,30 @@ void SetupManagerList(
 			std::optional<base::flat_set<QString>> &&list) {
 		manager->updateAllowedSublist(std::move(list));
 	}, manager->lifetime());
+}
+
+IconFactory CachedIconFactory::createMethod() {
+	return [=](not_null<Data::DocumentMedia*> media, int size) {
+		const auto owned = media->owner()->createMediaView();
+		const auto i = _cache.find(owned);
+		return (i != end(_cache))
+			? i->second
+			: _cache.emplace(
+				owned,
+				DefaultIconFactory(media, size)).first->second;
+	};
+}
+
+std::shared_ptr<Lottie::Icon> DefaultIconFactory(
+		not_null<Data::DocumentMedia*> media,
+		int size) {
+	Expects(media->loaded());
+
+	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = media->owner()->filepath(true),
+		.json = media->bytes(),
+		.sizeOverride = QSize(size, size),
+	});
 }
 
 } // namespace HistoryView

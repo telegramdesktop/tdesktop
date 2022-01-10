@@ -127,12 +127,17 @@ private:
 
 };
 
+using IconFactory = Fn<std::shared_ptr<Lottie::Icon>(
+	not_null<Data::DocumentMedia*>,
+	int)>;
+
 class Manager final : public base::has_weak_ptr {
 public:
 	Manager(
 		QWidget *wheelEventsTarget,
 		rpl::producer<int> uniqueLimitValue,
-		Fn<void(QRect)> buttonUpdate);
+		Fn<void(QRect)> buttonUpdate,
+		IconFactory iconFactory);
 	~Manager();
 
 	void applyList(const std::vector<Data::Reaction> &list);
@@ -273,6 +278,7 @@ private:
 	void loadIcons();
 	void checkIcons();
 
+	const IconFactory _iconFactory;
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<ReactionIcons> _list;
 	std::optional<base::flat_set<QString>> _filter;
@@ -324,9 +330,28 @@ private:
 
 };
 
+class CachedIconFactory final {
+public:
+	CachedIconFactory() = default;
+	CachedIconFactory(const CachedIconFactory &other) = delete;
+	CachedIconFactory &operator=(const CachedIconFactory &other) = delete;
+
+	[[nodiscard]] IconFactory createMethod();
+
+private:
+	base::flat_map<
+		std::shared_ptr<Data::DocumentMedia>,
+		std::shared_ptr<Lottie::Icon>> _cache;
+
+};
+
 void SetupManagerList(
 	not_null<Manager*> manager,
 	not_null<Main::Session*> session,
 	rpl::producer<std::optional<base::flat_set<QString>>> filter);
+
+[[nodiscard]] std::shared_ptr<Lottie::Icon> DefaultIconFactory(
+	not_null<Data::DocumentMedia*> media,
+	int size);
 
 } // namespace HistoryView
