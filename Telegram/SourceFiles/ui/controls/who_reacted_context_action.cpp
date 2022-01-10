@@ -233,14 +233,6 @@ Action::Action(
 
 	setAcceptBoth(true);
 	initResizeHook(parent->sizeValue());
-	resolveMinWidth();
-
-	_userpics->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_userpicsWidth = width;
-		refreshDimensions();
-		update();
-	}, lifetime());
 
 	std::move(
 		content
@@ -260,6 +252,15 @@ Action::Action(
 		if (!isEnabled()) {
 			setSelected(false);
 		}
+		update();
+	}, lifetime());
+
+	resolveMinWidth();
+
+	_userpics->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_userpicsWidth = width;
+		refreshDimensions();
 		update();
 	}, lifetime());
 
@@ -295,14 +296,20 @@ void Action::resolveMinWidth() {
 	const auto width = [&](const QString &text) {
 		return _st.itemStyle.font->width(text);
 	};
-	const auto maxTextWidth = std::max({
-		width(tr::lng_context_seen_reacted(
+	const auto maxText = (_content.type == WhoReadType::Listened)
+		? tr::lng_context_seen_listened(tr::now, lt_count, 999)
+		: (_content.type == WhoReadType::Watched)
+		? tr::lng_context_seen_watched(tr::now, lt_count, 999)
+		: (_content.type == WhoReadType::Seen)
+		? tr::lng_context_seen_text(tr::now, lt_count, 999)
+		: QString();
+	const auto maxReacted = (_content.fullReactionsCount > 0)
+		? tr::lng_context_seen_reacted(
 			tr::now,
 			lt_count_short,
-			999'999'999)),
-		width(tr::lng_context_seen_text(tr::now, lt_count, 999)),
-		width(tr::lng_context_seen_listened(tr::now, lt_count, 999)),
-		width(tr::lng_context_seen_watched(tr::now, lt_count, 999)) });
+			_content.fullReactionsCount)
+		: QString();
+	const auto maxTextWidth = std::max(width(maxText), width(maxReacted));
 	const auto maxWidth = st::defaultWhoRead.itemPadding.left()
 		+ maxIconWidth
 		+ maxTextWidth
@@ -480,6 +487,9 @@ void Action::refreshText() {
 }
 
 void Action::refreshDimensions() {
+	if (!minWidth()) {
+		return;
+	}
 	const auto textWidth = _text.maxWidth();
 	const auto &padding = st::defaultWhoRead.itemPadding;
 
@@ -491,7 +501,7 @@ void Action::refreshDimensions() {
 	const auto w = std::clamp(
 		goodWidth,
 		_st.widthMin,
-		minWidth());
+		std::max(minWidth(), _st.widthMin));
 	_textWidth = w - (goodWidth - textWidth);
 }
 
