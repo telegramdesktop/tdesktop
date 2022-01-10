@@ -253,8 +253,8 @@ void BottomInfo::paintReactions(
 		}
 		if (!reaction.image.isNull()) {
 			p.drawImage(
-				x,
-				y + (st::msgDateFont->height - st::reactionInfoSize) / 2,
+				x + (st::reactionInfoSize - st::reactionInfoImage) / 2,
+				y + (st::msgDateFont->height - st::reactionInfoImage) / 2,
 				reaction.image);
 		}
 		if (reaction.countTextWidth > 0) {

@@ -965,11 +965,13 @@ sendAsButton: SendAsButton {
 
 reactionBottomPadding: margins(5px, 2px, 7px, 2px);
 reactionBottomSize: 16px;
+reactionBottomImage: 28px;
 reactionBottomSkip: 3px;
 reactionBottomBetween: 4px;
 reactionBottomInBubbleLeft: -3px;
 
 reactionInfoSize: 15px;
+reactionInfoImage: 30px;
 reactionInfoSkip: 3px;
 reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;

@@ -47,7 +47,7 @@ void AddReactionIcon(
 	button->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		icon->moveToLeft(
-			st::settingsSectionIconLeft,
+			st::editPeerReactionsIconLeft,
 			(size.height() - icon->height()) / 2,
 			size.width());
 	}, icon->lifetime());
@@ -153,7 +153,9 @@ void EditAllowedReactionsBox(
 			container,
 			rpl::single(entry.title),
 			st::manageGroupButton.button);
-		AddReactionIcon(button, entry.centerIcon);
+		AddReactionIcon(button, entry.centerIcon
+			? entry.centerIcon
+			: entry.appearAnimation.get());
 		state->toggles.emplace(entry.emoji, button);
 		button->toggleOn(rpl::single(
 			active(entry)

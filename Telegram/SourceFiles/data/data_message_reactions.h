@@ -26,7 +26,7 @@ struct Reaction {
 	not_null<DocumentData*> selectAnimation;
 	not_null<DocumentData*> activateAnimation;
 	not_null<DocumentData*> activateEffects;
-	not_null<DocumentData*> centerIcon;
+	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
 	bool active = false;
 };
@@ -78,6 +78,7 @@ private:
 		QImage inlineList;
 		std::shared_ptr<DocumentMedia> media;
 		std::unique_ptr<Lottie::Icon> icon;
+		bool fromAppearAnimation = false;
 	};
 
 	void request();
@@ -85,7 +86,10 @@ private:
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
 
-	void loadImage(ImageSet &set, not_null<DocumentData*> document);
+	void loadImage(
+		ImageSet &set,
+		not_null<DocumentData*> document,
+		bool fromAppearAnimation);
 	void setLottie(ImageSet &set);
 	void resolveImages();
 	void downloadTaskFinished();

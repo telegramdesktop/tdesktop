@@ -85,11 +85,13 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	}
 	auto &set = _images.emplace(emoji).first->second;
 	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
-	const auto document = (i != end(_available))
-		? i->centerIcon.get()
-		: nullptr;
+	const auto document = (i == end(_available))
+		? nullptr
+		: i->centerIcon
+		? i->centerIcon
+		: i->appearAnimation.get();
 	if (document) {
-		loadImage(set, document);
+		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
 		_waitingForList = true;
 		refresh();
@@ -106,16 +108,35 @@ QImage Reactions::resolveImageFor(
 	auto &set = (i != end(_images)) ? i->second : _images[emoji];
 	const auto resolve = [&](QImage &image, int size) {
 		const auto factor = style::DevicePixelRatio();
+		const auto frameSize = set.fromAppearAnimation
+			? (size / 2)
+			: size;
 		image = set.icon->frame().scaled(
-			size * factor,
-			size * factor,
+			frameSize * factor,
+			frameSize * factor,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
+		if (set.fromAppearAnimation) {
+			auto result = QImage(
+				size * factor,
+				size * factor,
+				QImage::Format_ARGB32_Premultiplied);
+			result.fill(Qt::transparent);
+
+			auto p = QPainter(&result);
+			p.drawImage(
+				(size - frameSize) * factor / 2,
+				(size - frameSize) * factor / 2,
+				image);
+			p.end();
+
+			std::swap(result, image);
+		}
 		image.setDevicePixelRatio(factor);
 	};
 	if (set.bottomInfo.isNull() && set.icon) {
-		resolve(set.bottomInfo, st::reactionInfoSize);
-		resolve(set.inlineList, st::reactionBottomSize);
+		resolve(set.bottomInfo, st::reactionInfoImage);
+		resolve(set.inlineList, st::reactionBottomImage);
 		crl::async([icon = std::move(set.icon)]{});
 	}
 	switch (size) {
@@ -131,11 +152,13 @@ void Reactions::resolveImages() {
 			continue;
 		}
 		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
-		const auto document = (i != end(_available))
-			? i->centerIcon.get()
-			: nullptr;
+		const auto document = (i == end(_available))
+			? nullptr
+			: i->centerIcon
+			? i->centerIcon
+			: i->appearAnimation.get();
 		if (document) {
-			loadImage(set, document);
+			loadImage(set, document, !i->centerIcon);
 		} else {
 			LOG(("API Error: Reaction for emoji '%1' not found!"
 				).arg(emoji));
@@ -145,10 +168,12 @@ void Reactions::resolveImages() {
 
 void Reactions::loadImage(
 		ImageSet &set,
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		bool fromAppearAnimation) {
 	if (!set.bottomInfo.isNull() || set.icon) {
 		return;
 	} else if (!set.media) {
+		set.fromAppearAnimation = fromAppearAnimation;
 		set.media = document->createMediaView();
 		set.media->checkStickerLarge();
 	}
@@ -285,8 +310,8 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				.activateEffects = _owner->processDocument(
 					data.veffect_animation()),
 				.centerIcon = (data.vcenter_icon()
-					? _owner->processDocument(*data.vcenter_icon())
-					: selectAnimation),
+					? _owner->processDocument(*data.vcenter_icon()).get()
+					: nullptr),
 				.aroundAnimation = (data.varound_animation()
 					? _owner->processDocument(
 						*data.varound_animation()).get()

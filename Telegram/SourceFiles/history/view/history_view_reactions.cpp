@@ -185,6 +185,7 @@ void InlineList::paint(
 	const auto stm = context.messageStyle();
 	const auto padding = st::reactionBottomPadding;
 	const auto size = st::reactionBottomSize;
+	const auto skip = (size - st::reactionBottomImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
 	p.setFont(st::semiboldFont);
 	for (const auto &button : _buttons) {
@@ -216,7 +217,7 @@ void InlineList::paint(
 				::Data::Reactions::ImageSize::InlineList);
 		}
 		if (!button.image.isNull()) {
-			p.drawImage(inner.topLeft(), button.image);
+			p.drawImage(inner.topLeft() + QPoint(skip, skip), button.image);
 		}
 		p.setPen(!inbubble
 			? (chosen
