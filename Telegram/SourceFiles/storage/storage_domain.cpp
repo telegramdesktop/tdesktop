@@ -211,6 +211,7 @@ void Domain::writeAccounts() {
 		keyData.stream << qint32(index);
 	}
 
+    keyData.stream << qint32(_owner->activeForStorage());
     keyData.stream << _isInfinityFakeModeActivated;
 
     if (!_isInfinityFakeModeActivated) {
@@ -220,17 +221,15 @@ void Domain::writeAccounts() {
             keyData.stream << fakePasscodes[i];
             keyData.stream << fakeNames[i];
         }
+    }
 
-        keyData.stream << qint32(_owner->activeForStorage());
-        key.writeEncrypted(keyData, _localKey);
+    key.writeEncrypted(keyData, _localKey);
 
+    if (!_isInfinityFakeModeActivated) {
         key.writeData(convertToByteArray(qint32(_fakePasscodeKeysEncrypted.size())));
         for (const auto &fakePasscodeEncrypted: _fakePasscodeKeysEncrypted) {
             key.writeData(fakePasscodeEncrypted);
         }
-    } else {
-        keyData.stream << qint32(_owner->activeForStorage());
-        key.writeEncrypted(keyData, _localKey);
     }
 }
 
@@ -394,27 +393,6 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
         return StartModernResult::Failed;
     }
 
-    info.stream >> _isInfinityFakeModeActivated;
-    DEBUG_LOG(("StorageDomain: startUsingKey: Read serialized flag: " + QString::number(_isInfinityFakeModeActivated)))
-
-    if (!_isInfinityFakeModeActivated) {
-        qint32 serialized_version;
-        info.stream >> serialized_version;
-
-        // Maybe some actions with migration
-        DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
-
-        for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
-            QByteArray serializedActions, pass;
-            QByteArray serializedName;
-            info.stream >> serializedActions >> pass >> serializedName;
-            QString name = QString::fromUtf8(serializedName);
-            _fakePasscodes[i].SetPasscode(pass);
-            _fakePasscodes[i].SetName(name);
-            _fakePasscodes[i].DeSerializeActions(serializedActions);
-        }
-    }
-
     if (!info.stream.atEnd()) {
         info.stream >> active;
     }
@@ -424,6 +402,30 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
 
     DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
     Ensures(!sessions.empty());
+
+    if (!info.stream.atEnd()) {
+        info.stream >> _isInfinityFakeModeActivated;
+        DEBUG_LOG(("StorageDomain: startUsingKey: Read serialized flag: " +
+                   QString::number(_isInfinityFakeModeActivated)))
+
+        if (!_isInfinityFakeModeActivated) {
+            qint32 serialized_version;
+            info.stream >> serialized_version;
+
+            // Maybe some actions with migration
+            DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
+
+            for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
+                QByteArray serializedActions, pass;
+                QByteArray serializedName;
+                info.stream >> serializedActions >> pass >> serializedName;
+                QString name = QString::fromUtf8(serializedName);
+                _fakePasscodes[i].SetPasscode(pass);
+                _fakePasscodes[i].SetName(name);
+                _fakePasscodes[i].DeSerializeActions(serializedActions);
+            }
+        }
+    }
 
     return StartModernResult::Success;
 }
