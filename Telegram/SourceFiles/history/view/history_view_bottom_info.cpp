@@ -225,7 +225,7 @@ void BottomInfo::paint(
 			left += width() - available;
 			top += st::msgDateFont->height;
 		}
-		paintReactions(p, position, left, top, available);
+		paintReactions(p, position, left, top, available, context);
 	}
 }
 
@@ -234,11 +234,12 @@ void BottomInfo::paintReactions(
 		QPoint origin,
 		int left,
 		int top,
-		int availableWidth) const {
+		int availableWidth,
+		const PaintContext &context) const {
 	auto x = left;
 	auto y = top;
 	auto widthLeft = availableWidth;
-	const auto animated = _reactionAnimation
+	const auto animated = (_reactionAnimation && context.reactionEffects)
 		? _reactionAnimation->playingAroundEmoji()
 		: QString();
 	if (_reactionAnimation && animated.isEmpty()) {
@@ -274,7 +275,9 @@ void BottomInfo::paintReactions(
 			p.drawImage(image.topLeft(), reaction.image);
 		}
 		if (animating) {
-			_reactionAnimation->paint(p, origin, image);
+			context.reactionEffects->paint = [=](QPainter &p) {
+				return _reactionAnimation->paintGetArea(p, origin, image);
+			};
 		}
 		if (reaction.countTextWidth > 0) {
 			p.drawText(

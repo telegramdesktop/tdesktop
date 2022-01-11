@@ -67,36 +67,38 @@ SendAnimation::SendAnimation(
 
 SendAnimation::~SendAnimation() = default;
 
-void SendAnimation::paint(QPainter &p, QPoint origin, QRect target) const {
-	if (_flyIcon) {
-		const auto from = _flyFrom.translated(origin);
-		const auto lshift = target.width() / 4;
-		const auto rshift = target.width() / 2 - lshift;
-		const auto margins = QMargins{ lshift, lshift, rshift, rshift };
-		target = target.marginsRemoved(margins);
-		const auto progress = _fly.value(1.);
-		const auto rect = QRect(
-			anim::interpolate(from.x(), target.x(), progress),
-			anim::interpolate(from.y(), target.y(), progress),
-			anim::interpolate(from.width(), target.width(), progress),
-			anim::interpolate(from.height(), target.height(), progress));
-		auto hq = PainterHighQualityEnabler(p);
-		if (progress < 1.) {
-			p.setOpacity(1. - progress);
-			p.drawImage(rect, _flyIcon->frame());
-		}
-		if (progress > 0.) {
-			p.setOpacity(progress);
-			p.drawImage(rect.marginsAdded(margins), _center->frame());
-		}
-		p.setOpacity(1.);
-	} else {
+QRect SendAnimation::paintGetArea(QPainter &p, QPoint origin, QRect target) const {
+	if (!_flyIcon) {
 		p.drawImage(target, _center->frame());
-		p.drawImage(QRect(
+		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
-			target.size() * 2
-		), _effect->frame());
+			target.size() * 2);
+		p.drawImage(wide, _effect->frame());
+		return wide;
 	}
+	const auto from = _flyFrom.translated(origin);
+	const auto lshift = target.width() / 4;
+	const auto rshift = target.width() / 2 - lshift;
+	const auto margins = QMargins{ lshift, lshift, rshift, rshift };
+	target = target.marginsRemoved(margins);
+	const auto progress = _fly.value(1.);
+	const auto rect = QRect(
+		anim::interpolate(from.x(), target.x(), progress),
+		anim::interpolate(from.y(), target.y(), progress),
+		anim::interpolate(from.width(), target.width(), progress),
+		anim::interpolate(from.height(), target.height(), progress));
+	const auto wide = rect.marginsAdded(margins);
+	auto hq = PainterHighQualityEnabler(p);
+	if (progress < 1.) {
+		p.setOpacity(1. - progress);
+		p.drawImage(rect, _flyIcon->frame());
+	}
+	if (progress > 0.) {
+		p.setOpacity(progress);
+		p.drawImage(wide, _center->frame());
+	}
+	p.setOpacity(1.);
+	return wide;
 }
 
 void SendAnimation::startAnimations() {

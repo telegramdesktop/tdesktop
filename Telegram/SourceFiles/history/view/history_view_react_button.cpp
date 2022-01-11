@@ -810,7 +810,7 @@ void Manager::setSelectedIcon(int index) const {
 			if (select && !icon->selectAnimated) {
 				icon->selectAnimated = true;
 				select->animate(
-					[=] { updateCurrentButton(); },
+					crl::guard(this, [=] { updateCurrentButton(); }),
 					0,
 					select->framesCount() - 1);
 			}
@@ -1301,9 +1301,9 @@ void Manager::paintAllEmoji(
 	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
 	auto emojiPosition = mainEmojiPosition
 		+ QPoint(0, scroll * (expandUp ? 1 : -1));
-	const auto update = [=] {
+	const auto update = crl::guard(this, [=] {
 		updateCurrentButton();
-	};
+	});
 	for (const auto &icon : _icons) {
 		const auto target = countTarget(*icon).translated(emojiPosition);
 		emojiPosition += shift;

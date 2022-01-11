@@ -90,9 +90,15 @@ struct MessageImageStyle {
 	style::icon historyVideoMessageMute = { Qt::Uninitialized };
 };
 
+struct ReactionEffectPainter {
+	QPoint offset;
+	Fn<QRect(QPainter&)> paint;
+};
+
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
+	ReactionEffectPainter *reactionEffects = nullptr;
 	QRect viewport;
 	QRect clip;
 	TextSelection selection;

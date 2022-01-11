@@ -33,7 +33,7 @@ public:
 	~SendAnimation();
 
 	void setRepaintCallback(Fn<void()> repaint);
-	void paint(QPainter &p, QPoint origin, QRect target) const;
+	QRect paintGetArea(QPainter &p, QPoint origin, QRect target) const;
 
 	[[nodiscard]] QString playingAroundEmoji() const;
 	[[nodiscard]] bool flying() const;

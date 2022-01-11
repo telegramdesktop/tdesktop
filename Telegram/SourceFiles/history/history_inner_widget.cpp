@@ -554,6 +554,12 @@ void HistoryInner::repaintItem(const Element *view) {
 	if (top >= 0) {
 		const auto range = view->verticalRepaintRange();
 		update(0, top + range.top, width(), range.height);
+		if (!_reactionEffects.empty()) {
+			const auto i = _reactionEffects.find(view->data()->fullId());
+			if (i != end(_reactionEffects)) {
+				update(i->second);
+			}
+		}
 	}
 }
 
@@ -894,6 +900,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	} else {
 		_emptyPainter = nullptr;
 	}
+	auto reactionEffects = base::flat_map<
+		not_null<Element*>,
+		Ui::ReactionEffectPainter>();
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();
 
@@ -923,12 +932,20 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			context.translate(0, -top);
 			p.translate(0, top);
 			if (context.clip.y() < view->height()) while (top < drawToY) {
+				auto effect = Ui::ReactionEffectPainter();
+				context.reactionEffects = &effect;
 				context.outbg = view->hasOutLayout();
 				context.selection = itemRenderSelection(
 					view,
 					selfromy - mtop,
 					seltoy - mtop);
 				view->draw(p, context);
+				if (effect.paint) {
+					effect.offset += QPoint(0, top);
+					reactionEffects.emplace(view, effect);
+				} else if (!_reactionEffects.empty()) {
+					_reactionEffects.remove(item->fullId());
+				}
 
 				const auto height = view->height();
 				const auto middle = top + height / 2;
@@ -978,14 +995,21 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			while (top < drawToY) {
 				const auto height = view->height();
 				if (context.clip.y() < height && hdrawtop < top + height) {
+					auto effect = Ui::ReactionEffectPainter();
+					context.reactionEffects = &effect;
 					context.outbg = view->hasOutLayout();
 					context.selection = itemRenderSelection(
 						view,
 						selfromy - htop,
 						seltoy - htop);
 					view->draw(p, context);
+					if (effect.paint) {
+						effect.offset += QPoint(0, top);
+						reactionEffects.emplace(view, effect);
+					} else if (!_reactionEffects.empty()) {
+						_reactionEffects.remove(item->fullId());
+					}
 
-					const auto item = view->data();
 					const auto middle = top + height / 2;
 					const auto bottom = top + height;
 					if (_visibleAreaBottom >= bottom) {
@@ -1126,6 +1150,14 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.setOpacity(1.);
 
 			_reactionsManager->paintButtons(p, context);
+
+			for (const auto &[view, effect] : reactionEffects) {
+				const auto offset = effect.offset;
+				p.translate(offset);
+				_reactionEffects[view->data()->fullId()]
+					= effect.paint(p).translated(offset);
+				p.translate(-offset);
+			}
 
 			p.translate(0, _historyPaddingTop);
 			_emojiInteractions->paint(p);
@@ -1616,6 +1648,7 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		return;
 	}
 
+	_reactionEffects.remove(item->fullId());
 	_animatedStickersPlayed.remove(item);
 	_reactionsManager->remove(item->fullId());
 

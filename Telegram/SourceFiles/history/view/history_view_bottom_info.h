@@ -102,7 +102,8 @@ private:
 		QPoint origin,
 		int left,
 		int top,
-		int availableWidth) const;
+		int availableWidth,
+		const PaintContext &context) const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;

@@ -729,6 +729,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		p.translate(reactionsPosition);
 		_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
+		if (context.reactionEffects && context.reactionEffects->paint) {
+			context.reactionEffects->offset += reactionsPosition;
+		}
 		p.translate(-reactionsPosition);
 	}
 
@@ -781,6 +784,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
 			p.translate(reactionsPosition);
 			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
+			if (context.reactionEffects && context.reactionEffects->paint) {
+				context.reactionEffects->offset += reactionsPosition;
+			}
 			p.translate(-reactionsPosition);
 		}
 
@@ -828,15 +834,20 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		paintText(p, trect, context);
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
-			auto mediaLeft = inner.left();
-			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
+			auto mediaPosition = QPoint(
+				inner.left(),
+				trect.y() + trect.height() - mediaHeight);
 
-			p.translate(mediaLeft, mediaTop);
+			p.translate(mediaPosition);
 			media->draw(p, context.translated(
-				-mediaLeft,
-				-mediaTop
+				-mediaPosition
 			).withSelection(skipTextSelection(context.selection)));
-			p.translate(-mediaLeft, -mediaTop);
+			if (context.reactionEffects
+				&& context.reactionEffects->paint
+				&& !_reactions) {
+				context.reactionEffects->offset += mediaPosition;
+			}
+			p.translate(-mediaPosition);
 		}
 		if (entry) {
 			auto entryLeft = inner.left();
@@ -890,6 +901,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		media->draw(p, context.translated(
 			-g.topLeft()
 		).withSelection(skipTextSelection(context.selection)));
+		if (context.reactionEffects && context.reactionEffects->paint && !_reactions) {
+			context.reactionEffects->offset += g.topLeft();
+		}
 		p.translate(-g.topLeft());
 	}
 

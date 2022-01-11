@@ -427,6 +427,7 @@ private:
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+	base::flat_map<FullMsgId, QRect> _reactionEffects;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

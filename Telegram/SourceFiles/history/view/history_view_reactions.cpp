@@ -190,7 +190,7 @@ void InlineList::paint(
 	const auto size = st::reactionBottomSize;
 	const auto skip = (size - st::reactionBottomImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
-	const auto animated = _animation
+	const auto animated = (_animation && context.reactionEffects)
 		? _animation->playingAroundEmoji()
 		: QString();
 	if (_animation && animated.isEmpty()) {
@@ -236,7 +236,9 @@ void InlineList::paint(
 			p.drawImage(image.topLeft(), button.image);
 		}
 		if (animating) {
-			_animation->paint(p, QPoint(), image);
+			context.reactionEffects->paint = [=](QPainter &p) {
+				return _animation->paintGetArea(p, QPoint(), image);
+			};
 		}
 		p.setPen(!inbubble
 			? (chosen
