@@ -122,6 +122,7 @@ parts:
       - zlib1g
       - systemd
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DTDESKTOP_API_ID=611335
@@ -234,6 +235,7 @@ parts:
     source-tag: v4.0.3
     plugin: cmake
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DENABLE_STATIC=OFF
@@ -258,6 +260,7 @@ parts:
       - libasound2
       - libpulse0
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DALSOFT_EXAMPLES=OFF
@@ -450,6 +453,7 @@ parts:
       - libxrandr2
       - libxtst6
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DBUILD_SHARED_LIBS=OFF
