@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_react_animation.h"
+#include "lottie/lottie_icon.h"
 #include "data/data_message_reactions.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -30,6 +32,8 @@ BottomInfo::BottomInfo(
 , _data(std::move(data)) {
 	layout();
 }
+
+BottomInfo::~BottomInfo() = default;
 
 void BottomInfo::update(Data &&data, int availableWidth) {
 	_data = std::move(data);
@@ -221,19 +225,27 @@ void BottomInfo::paint(
 			left += width() - available;
 			top += st::msgDateFont->height;
 		}
-		paintReactions(p, left, top, available);
+		paintReactions(p, position, left, top, available);
 	}
 }
 
 void BottomInfo::paintReactions(
 		Painter &p,
+		QPoint origin,
 		int left,
 		int top,
 		int availableWidth) const {
 	auto x = left;
 	auto y = top;
 	auto widthLeft = availableWidth;
+	const auto animated = _reactionAnimation
+		? _reactionAnimation->playingAroundEmoji()
+		: QString();
+	if (_reactionAnimation && animated.isEmpty()) {
+		_reactionAnimation = nullptr;
+	}
 	for (const auto &reaction : _reactions) {
+		const auto animating = (reaction.emoji == animated);
 		const auto add = (reaction.countTextWidth > 0)
 			? st::reactionInfoDigitSkip
 			: st::reactionInfoBetween;
@@ -251,11 +263,18 @@ void BottomInfo::paintReactions(
 				reaction.emoji,
 				::Data::Reactions::ImageSize::BottomInfo);
 		}
-		if (!reaction.image.isNull()) {
-			p.drawImage(
-				x + (st::reactionInfoSize - st::reactionInfoImage) / 2,
-				y + (st::msgDateFont->height - st::reactionInfoImage) / 2,
-				reaction.image);
+		const auto image = QRect(
+			x + (st::reactionInfoSize - st::reactionInfoImage) / 2,
+			y + (st::msgDateFont->height - st::reactionInfoImage) / 2,
+			st::reactionInfoImage,
+			st::reactionInfoImage);
+		const auto skipImage = animating
+			&& (reaction.count < 2 || !_reactionAnimation->flying());
+		if (!reaction.image.isNull() && !skipImage) {
+			p.drawImage(image.topLeft(), reaction.image);
+		}
+		if (animating) {
+			_reactionAnimation->paint(p, origin, image);
 		}
 		if (reaction.countTextWidth > 0) {
 			p.drawText(
@@ -404,6 +423,26 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 	reaction.countTextWidth = (count > 1)
 		? st::msgDateFont->width(reaction.countText)
 		: 0;
+}
+
+void BottomInfo::animateReactionSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint) {
+	_reactionAnimation = std::make_unique<Reactions::SendAnimation>(
+		_reactionsOwner,
+		args.translated(QPoint(width(), height())),
+		std::move(repaint),
+		st::reactionInfoImage);
+}
+
+auto BottomInfo::takeSendReactionAnimation()
+-> std::unique_ptr<Reactions::SendAnimation> {
+	return std::move(_reactionAnimation);
+}
+
+void BottomInfo::continueSendReactionAnimation(
+		std::unique_ptr<Reactions::SendAnimation> animation) {
+	_reactionAnimation = std::move(animation);
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {

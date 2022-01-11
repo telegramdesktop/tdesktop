@@ -730,6 +730,12 @@ bool GroupedMedia::needsBubble() const {
 	return _needBubble;
 }
 
+QPoint GroupedMedia::resolveCustomInfoRightBottom() const {
+	const auto skipx = (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	const auto skipy = (st::msgDateImgDelta + st::msgDateImgPadding.y());
+	return QPoint(width() - skipx, height() - skipy);
+}
+
 bool GroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty() || _mode == Mode::Column) {
 		return true;

@@ -224,19 +224,21 @@ void Reactions::request() {
 		MTP_int(_hash)
 	)).done([=](const MTPmessages_AvailableReactions &result) {
 		_requestId = 0;
+		const auto oldCache = base::take(_iconsCache);
+		const auto toCache = [&](DocumentData *document) {
+			if (document) {
+				_iconsCache.emplace(document, document->createMediaView());
+			}
+		};
 		result.match([&](const MTPDmessages_availableReactions &data) {
 			_hash = data.vhash().v;
 
 			const auto &list = data.vreactions().v;
-			const auto oldCache = base::take(_iconsCache);
 			_active.clear();
 			_available.clear();
 			_active.reserve(list.size());
 			_available.reserve(list.size());
 			_iconsCache.reserve(list.size() * 2);
-			const auto toCache = [&](not_null<DocumentData*> document) {
-				_iconsCache.emplace(document, document->createMediaView());
-			};
 			for (const auto &reaction : list) {
 				if (const auto parsed = parse(reaction)) {
 					_available.push_back(*parsed);
@@ -244,6 +246,8 @@ void Reactions::request() {
 						_active.push_back(*parsed);
 						toCache(parsed->appearAnimation);
 						toCache(parsed->selectAnimation);
+						toCache(parsed->centerIcon);
+						toCache(parsed->aroundAnimation);
 					}
 				}
 			}
@@ -277,10 +281,10 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				.appearAnimation = _owner->processDocument(
 					data.vappear_animation()),
 				.selectAnimation = selectAnimation,
-				.activateAnimation = _owner->processDocument(
-					data.vactivate_animation()),
-				.activateEffects = _owner->processDocument(
-					data.veffect_animation()),
+				//.activateAnimation = _owner->processDocument(
+				//	data.vactivate_animation()),
+				//.activateEffects = _owner->processDocument(
+				//	data.veffect_animation()),
 				.centerIcon = (data.vcenter_icon()
 					? _owner->processDocument(*data.vcenter_icon()).get()
 					: nullptr),

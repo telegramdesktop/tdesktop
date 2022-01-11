@@ -345,6 +345,12 @@ bool Location::needsBubble() const {
 		|| _parent->displayFromName();
 }
 
+QPoint Location::resolveCustomInfoRightBottom() const {
+	const auto skipx = (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	const auto skipy = (st::msgDateImgDelta + st::msgDateImgPadding.y());
+	return QPoint(width() - skipx, height() - skipy);
+}
+
 int Location::fullWidth() const {
 	return st::locationSize.width();
 }

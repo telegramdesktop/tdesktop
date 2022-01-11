@@ -21,9 +21,12 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
+struct SendReactionAnimationArgs;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
+
+class SendAnimation;
 
 struct InlineListData {
 	enum class Flag : uchar {
@@ -45,6 +48,7 @@ public:
 		not_null<::Data::Reactions*> owner,
 		Fn<ClickHandlerPtr(QString)> handlerFactory,
 		Data &&data);
+	~InlineList();
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
@@ -62,6 +66,12 @@ public:
 	[[nodiscard]] bool getState(
 		QPoint point,
 		not_null<TextState*> outResult) const;
+
+	void animateSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint);
+	[[nodiscard]] std::unique_ptr<SendAnimation> takeSendAnimation();
+	void continueSendAnimation(std::unique_ptr<SendAnimation> animation);
 
 private:
 	struct Button {
@@ -87,6 +97,8 @@ private:
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
+
+	mutable std::unique_ptr<SendAnimation> _animation;
 
 };
 

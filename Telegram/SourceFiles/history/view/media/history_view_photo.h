@@ -82,6 +82,7 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
+	QPoint resolveCustomInfoRightBottom() const override;
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}

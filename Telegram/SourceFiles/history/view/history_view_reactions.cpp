@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_react_animation.h"
 #include "data/data_message_reactions.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
@@ -38,6 +39,8 @@ InlineList::InlineList(
 , _data(std::move(data)) {
 	layout();
 }
+
+InlineList::~InlineList() = default;
 
 void InlineList::update(Data &&data, int availableWidth) {
 	_data = std::move(data);
@@ -187,11 +190,19 @@ void InlineList::paint(
 	const auto size = st::reactionBottomSize;
 	const auto skip = (size - st::reactionBottomImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
+	const auto animated = _animation
+		? _animation->playingAroundEmoji()
+		: QString();
+	if (_animation && animated.isEmpty()) {
+		_animation = nullptr;
+	}
 	p.setFont(st::semiboldFont);
 	for (const auto &button : _buttons) {
+		const auto animating = (animated == button.emoji);
 		const auto &geometry = button.geometry;
 		const auto inner = geometry.marginsRemoved(padding);
-		const auto chosen = (_data.chosenReaction == button.emoji);
+		const auto chosen = (_data.chosenReaction == button.emoji)
+			&& (!animating || !_animation->flying());
 		{
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
@@ -216,8 +227,16 @@ void InlineList::paint(
 				button.emoji,
 				::Data::Reactions::ImageSize::InlineList);
 		}
-		if (!button.image.isNull()) {
-			p.drawImage(inner.topLeft() + QPoint(skip, skip), button.image);
+		const auto image = QRect(
+			inner.topLeft() + QPoint(skip, skip),
+			QSize(st::reactionBottomImage, st::reactionBottomImage));
+		const auto skipImage = animating
+			&& (button.count < 2 || !_animation->flying());
+		if (!button.image.isNull() && !skipImage) {
+			p.drawImage(image.topLeft(), button.image);
+		}
+		if (animating) {
+			_animation->paint(p, QPoint(), image);
 		}
 		p.setPen(!inbubble
 			? (chosen
@@ -260,6 +279,25 @@ bool InlineList::getState(
 		}
 	}
 	return false;
+}
+
+void InlineList::animateSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint) {
+	_animation = std::make_unique<Reactions::SendAnimation>(
+		_owner,
+		std::move(args),
+		std::move(repaint),
+		st::reactionBottomImage);
+}
+
+std::unique_ptr<SendAnimation> InlineList::takeSendAnimation() {
+	return std::move(_animation);
+}
+
+void InlineList::continueSendAnimation(
+		std::unique_ptr<SendAnimation> animation) {
+	_animation = std::move(animation);
 }
 
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {

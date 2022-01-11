@@ -70,6 +70,20 @@ constexpr auto kHoverScale = 1.24;
 	return style::ConvertScale(kSizeForDownscale);
 }
 
+[[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
+		not_null<Data::DocumentMedia*> media,
+		int size,
+		int frame) {
+	Expects(media->loaded());
+
+	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = media->owner()->filepath(true),
+		.json = media->bytes(),
+		.sizeOverride = QSize(size, size),
+		.frame = frame,
+	});
+}
+
 } // namespace
 
 Button::Button(
@@ -383,15 +397,56 @@ Manager::Manager(
 
 	_createChooseCallback = [=](QString emoji) {
 		return [=] {
-			if (const auto context = _buttonContext) {
+			if (auto chosen = lookupChosen(emoji)) {
 				updateButton({});
-				_chosen.fire({
-					.context = context,
-					.emoji = emoji,
-				});
+				_chosen.fire(std::move(chosen));
 			}
 		};
 	};
+}
+
+Manager::Chosen Manager::lookupChosen(const QString &emoji) const {
+	auto result = Chosen{
+		.context = _buttonContext,
+		.emoji = emoji,
+	};
+	const auto button = _button.get();
+	const auto i = ranges::find(_icons, emoji, &ReactionIcons::emoji);
+	if (i == end(_icons) || !button) {
+		return result;
+	}
+	const auto &icon = *i;
+	if (const auto &appear = icon->appear; appear && appear->animating()) {
+		result.icon = CreateIcon(
+			icon->appearAnimation->activeMediaView().get(),
+			appear->width(),
+			appear->frameIndex());
+	} else if (const auto &select = icon->select) {
+		result.icon = CreateIcon(
+			icon->selectAnimation->activeMediaView().get(),
+			select->width(),
+			select->frameIndex());
+	}
+	const auto index = (i - begin(_icons));
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = (st::reactionCornerSize.height() + between);
+	const auto expanded = (_icons.size() > 1);
+	const auto skip = (expanded ? st::reactionExpandedSkip : 0);
+	const auto scroll = button->scroll();
+	const auto local = skip + index * oneHeight - scroll;
+	const auto geometry = button->geometry();
+	const auto top = button->expandUp()
+		? (geometry.height() - local - _outer.height())
+		: local;
+	const auto rect = QRect(geometry.topLeft() + QPoint(0, top), _outer);
+	const auto imageSize = int(base::SafeRound(
+		st::reactionCornerImage * kHoverScale));
+	result.geometry = QRect(
+		rect.x() + (rect.width() - imageSize) / 2,
+		rect.y() + (rect.height() - imageSize) / 2,
+		imageSize,
+		imageSize);
+	return result;
 }
 
 void Manager::applyListFilters() {
@@ -480,15 +535,13 @@ void Manager::showButtonDelayed() {
 }
 
 void Manager::applyList(const std::vector<Data::Reaction> &list) {
-	constexpr auto predicate = [](
-			const Data::Reaction &a,
-			const Data::Reaction &b) {
-		return (a.emoji == b.emoji)
-			&& (a.appearAnimation == b.appearAnimation)
-			&& (a.selectAnimation == b.selectAnimation);
-	};
 	const auto proj = [](const auto &obj) {
-		return std::tie(obj.emoji, obj.appearAnimation, obj.selectAnimation);
+		return std::tie(
+			obj.emoji,
+			obj.appearAnimation,
+			obj.selectAnimation,
+			obj.centerIcon,
+			obj.aroundAnimation);
 	};
 	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
 		return;
@@ -502,6 +555,8 @@ void Manager::applyList(const std::vector<Data::Reaction> &list) {
 			.emoji = reaction.emoji,
 			.appearAnimation = reaction.appearAnimation,
 			.selectAnimation = reaction.selectAnimation,
+			.centerIcon = reaction.centerIcon,
+			.aroundAnimation = reaction.aroundAnimation,
 		});
 	}
 	applyListFilters();
@@ -649,12 +704,30 @@ void Manager::loadIcons() {
 		}
 		return entry.icon;
 	};
+	auto all = true;
 	for (const auto &icon : _icons) {
 		if (!icon->appear) {
 			icon->appear = load(icon->appearAnimation);
 		}
 		if (!icon->select) {
 			icon->select = load(icon->selectAnimation);
+		}
+		if (!icon->appear || !icon->select) {
+			all = false;
+		}
+	}
+	if (all) {
+		const auto preload = [&](DocumentData *document) {
+			const auto view = document
+				? document->activeMediaView()
+				: nullptr;
+			if (view) {
+				view->checkStickerLarge();
+			}
+		};
+		for (const auto &icon : _icons) {
+			preload(icon->centerIcon);
+			preload(icon->aroundAnimation);
 		}
 	}
 }
@@ -821,6 +894,7 @@ void Manager::paintButton(
 	if (opacity == 0.) {
 		return;
 	}
+
 	const auto geometry = button->geometry();
 	const auto position = geometry.topLeft();
 	const auto size = geometry.size();
@@ -1469,13 +1543,7 @@ IconFactory CachedIconFactory::createMethod() {
 std::shared_ptr<Lottie::Icon> DefaultIconFactory(
 		not_null<Data::DocumentMedia*> media,
 		int size) {
-	Expects(media->loaded());
-
-	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
-		.path = media->owner()->filepath(true),
-		.json = media->bytes(),
-		.sizeOverride = QSize(size, size),
-	});
+	return CreateIcon(media, size, 0);
 }
 
 } // namespace HistoryView

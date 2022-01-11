@@ -20,11 +20,15 @@ class Reactions;
 } // namespace Data
 
 namespace HistoryView {
+namespace Reactions {
+class SendAnimation;
+} // namespace Reactions
 
 using PaintContext = Ui::ChatPaintContext;
 
 class Message;
 struct TextState;
+struct SendReactionAnimationArgs;
 
 class BottomInfo final : public Object {
 public:
@@ -49,6 +53,7 @@ public:
 		Flags flags;
 	};
 	BottomInfo(not_null<::Data::Reactions*> reactionsOwner, Data &&data);
+	~BottomInfo();
 
 	void update(Data &&data, int availableWidth);
 
@@ -66,6 +71,14 @@ public:
 		bool unread,
 		bool inverted,
 		const PaintContext &context) const;
+
+	void animateReactionSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint);
+	[[nodiscard]] auto takeSendReactionAnimation()
+		-> std::unique_ptr<Reactions::SendAnimation>;
+	void continueSendReactionAnimation(
+		std::unique_ptr<Reactions::SendAnimation> animation);
 
 private:
 	struct Reaction {
@@ -86,6 +99,7 @@ private:
 	[[nodiscard]] int countReactionsHeight(int newWidth) const;
 	void paintReactions(
 		Painter &p,
+		QPoint origin,
 		int left,
 		int top,
 		int availableWidth) const;
@@ -102,6 +116,7 @@ private:
 	Ui::Text::String _views;
 	Ui::Text::String _replies;
 	std::vector<Reaction> _reactions;
+	mutable std::unique_ptr<Reactions::SendAnimation> _reactionAnimation;
 	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;
 	bool _authorElided = false;

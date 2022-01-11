@@ -154,6 +154,12 @@ public:
 	struct Chosen {
 		FullMsgId context;
 		QString emoji;
+		std::shared_ptr<Lottie::Icon> icon;
+		QRect geometry;
+
+		explicit operator bool() const {
+			return context && !emoji.isNull();
+		}
 	};
 	[[nodiscard]] rpl::producer<Chosen> chosen() const {
 		return _chosen.events();
@@ -172,6 +178,8 @@ private:
 		QString emoji;
 		not_null<DocumentData*> appearAnimation;
 		not_null<DocumentData*> selectAnimation;
+		DocumentData *centerIcon = nullptr;
+		DocumentData *aroundAnimation = nullptr;
 		std::shared_ptr<Lottie::Icon> appear;
 		std::shared_ptr<Lottie::Icon> select;
 		mutable ClickHandlerPtr link;
@@ -190,6 +198,7 @@ private:
 	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
 
+	[[nodiscard]] Chosen lookupChosen(const QString &emoji) const;
 	[[nodiscard]] bool overCurrentButton(QPoint position) const;
 
 	void removeStaleButtons();

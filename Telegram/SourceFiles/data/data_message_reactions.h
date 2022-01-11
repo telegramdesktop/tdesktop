@@ -24,8 +24,8 @@ struct Reaction {
 	not_null<DocumentData*> staticIcon;
 	not_null<DocumentData*> appearAnimation;
 	not_null<DocumentData*> selectAnimation;
-	not_null<DocumentData*> activateAnimation;
-	not_null<DocumentData*> activateEffects;
+	//not_null<DocumentData*> activateAnimation;
+	//not_null<DocumentData*> activateEffects;
 	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
 	bool active = false;

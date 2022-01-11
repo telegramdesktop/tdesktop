@@ -441,6 +441,15 @@ std::optional<int> UnwrappedMedia::reactionButtonCenterOverride() const {
 	return right - st::reactionCornerSize.width() / 2;
 }
 
+QPoint UnwrappedMedia::resolveCustomInfoRightBottom() const {
+	const auto inner = contentRectForReactions();
+	const auto fullBottom = inner.y() + inner.height();
+	const auto fullRight = calculateFullRight(inner);
+	const auto skipx = st::msgDateImgPadding.x();
+	const auto skipy = st::msgDateImgPadding.y();
+	return QPoint(fullRight - skipx, fullBottom - skipy);
+}
+
 std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {

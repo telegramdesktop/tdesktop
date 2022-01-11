@@ -425,10 +425,10 @@ void Poll::checkQuizAnswered() {
 	}
 	if (i->correct) {
 		_fireworksAnimation = std::make_unique<Ui::FireworksAnimation>(
-			[=] { history()->owner().requestViewRepaint(_parent); });
+			[=] { repaint(); });
 	} else {
 		_wrongAnswerAnimation.start(
-			[=] { history()->owner().requestViewRepaint(_parent); },
+			[=] { repaint(); },
 			0.,
 			1.,
 			kRollDuration,
@@ -455,7 +455,7 @@ void Poll::solutionToggled(
 		if (animated == anim::type::instant
 			&& _solutionButtonAnimation.animating()) {
 			_solutionButtonAnimation.stop();
-			history()->owner().requestViewRepaint(_parent);
+			repaint();
 		}
 		return;
 	}
@@ -463,10 +463,10 @@ void Poll::solutionToggled(
 	history()->owner().notifyViewLayoutChange(_parent);
 	if (animated == anim::type::instant) {
 		_solutionButtonAnimation.stop();
-		history()->owner().requestViewRepaint(_parent);
+		repaint();
 	} else {
 		_solutionButtonAnimation.start(
-			[=] { history()->owner().requestViewRepaint(_parent); },
+			[=] { repaint(); },
 			visible ? 0. : 1.,
 			visible ? 1. : 0.,
 			st::fadeWrapDuration);
@@ -562,7 +562,7 @@ void Poll::toggleMultiOption(const QByteArray &option) {
 		const auto selected = i->selected;
 		i->selected = !selected;
 		i->selectedAnimation.start(
-			[=] { history()->owner().requestViewRepaint(_parent); },
+			[=] { repaint(); },
 			selected ? 1. : 0.,
 			selected ? 0. : 1.,
 			st::defaultCheck.duration);
@@ -575,7 +575,7 @@ void Poll::toggleMultiOption(const QByteArray &option) {
 		} else {
 			_hasSelected = true;
 		}
-		history()->owner().requestViewRepaint(_parent);
+		repaint();
 	}
 }
 
@@ -861,7 +861,7 @@ void Poll::resetAnswersAnimation() const {
 
 void Poll::radialAnimationCallback() const {
 	if (!anim::Disabled()) {
-		history()->owner().requestViewRepaint(_parent);
+		repaint();
 	}
 }
 
@@ -930,7 +930,7 @@ void Poll::paintCloseByTimer(
 		_close = std::make_unique<CloseInformation>(
 			_poll->closeDate,
 			_poll->closePeriod,
-			[=] { history()->owner().requestViewRepaint(_parent); });
+			[=] { repaint(); });
 	}
 	const auto now = crl::now();
 	const auto left = std::max(_close->finish - now, crl::time(0));
@@ -940,7 +940,7 @@ void Poll::paintCloseByTimer(
 	} else if (left < radial && !anim::Disabled()) {
 		if (!_close->radial.animating()) {
 			_close->radial.init([=] {
-				history()->owner().requestViewRepaint(_parent);
+				repaint();
 			});
 			_close->radial.start();
 		}
@@ -1342,7 +1342,7 @@ void Poll::startAnswersAnimation() const {
 		data.correct = data.correct || answer.correct;
 	}
 	_answersAnimation->progress.start(
-		[=] { history()->owner().requestViewRepaint(_parent); },
+		[=] { repaint(); },
 		0.,
 		1.,
 		st::historyPollDuration);
@@ -1524,7 +1524,7 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 			answer.ripple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
 				std::move(mask),
-				[=] { history()->owner().requestViewRepaint(_parent); });
+				[=] { repaint(); });
 		}
 		const auto top = countAnswerTop(answer, innerWidth);
 		answer.ripple->add(_lastLinkPoint - QPoint(0, top));
@@ -1587,7 +1587,7 @@ void Poll::toggleLinkRipple(bool pressed) {
 			_linkRipple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
 				std::move(mask),
-				[=] { history()->owner().requestViewRepaint(_parent); });
+				[=] { repaint(); });
 		}
 		_linkRipple->add(_lastLinkPoint - QPoint(0, height() - linkHeight));
 	} else if (_linkRipple) {

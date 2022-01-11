@@ -377,8 +377,21 @@ HistoryInner::HistoryInner(
 	using ChosenReaction = HistoryView::Reactions::Manager::Chosen;
 	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
-		if (const auto item = session().data().message(reaction.context)) {
-			item->toggleReaction(reaction.emoji);
+		const auto item = session().data().message(reaction.context);
+		if (!item) {
+			return;
+		}
+		item->toggleReaction(reaction.emoji);
+		if (item->chosenReaction() != reaction.emoji) {
+			return;
+		} else if (const auto view = item->mainView()) {
+			if (const auto top = itemTop(view); top >= 0) {
+				view->animateSendReaction({
+					.emoji = reaction.emoji,
+					.flyIcon = reaction.icon,
+					.flyFrom = reaction.geometry.translated(0, -top),
+				});
+			}
 		}
 	}, lifetime());
 
