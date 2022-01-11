@@ -52,18 +52,6 @@ RUN rm $CMAKE_FILE
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5368789dc7
 
-FROM builder AS extra-cmake-modules
-
-RUN git clone -b v5.89.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
-
-WORKDIR extra-cmake-modules
-RUN cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-RUN cmake --build build --parallel
-RUN DESTDIR="$LibrariesPath/extra-cmake-modules-cache" cmake --install build
-
-WORKDIR ..
-RUN rm -rf extra-cmake-modules
-
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
 
@@ -355,36 +343,6 @@ RUN DESTDIR="$LibrariesPath/wayland-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf wayland
-
-FROM builder AS wayland-protocols
-COPY --from=wayland ${LibrariesPath}/wayland-cache /
-
-RUN git clone -b 1.24 --depth=1 $GIT_FREEDESKTOP/wayland-protocols.git
-
-WORKDIR wayland-protocols
-RUN meson build \
-	--buildtype=release \
-	--default-library=both \
-	-Dtests=false
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/wayland-protocols-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf wayland-protocols
-
-FROM builder AS plasma-wayland-protocols
-COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
-
-RUN git clone -b v1.5.0 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
-
-WORKDIR plasma-wayland-protocols
-RUN cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release
-RUN cmake --build build --parallel
-RUN DESTDIR="$LibrariesPath/plasma-wayland-protocols-cache" cmake --install build
-
-WORKDIR ..
-RUN rm -rf plasma-wayland-protocols
 
 FROM builder AS libpciaccess
 RUN git clone -b libpciaccess-0.16 --depth=1 $GIT_FREEDESKTOP/libpciaccess.git
@@ -839,7 +797,6 @@ RUN cmake --build out --config Debug --parallel
 
 FROM builder
 
-COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=zlib ${LibrariesPath}/zlib-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
@@ -863,8 +820,6 @@ COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=libXdamage ${LibrariesPath}/libXdamage-cache /
 COPY --from=libXcomposite ${LibrariesPath}/libXcomposite-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=wayland-protocols ${LibrariesPath}/wayland-protocols-cache /
-COPY --from=plasma-wayland-protocols ${LibrariesPath}/plasma-wayland-protocols-cache /
 COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
 COPY --from=drm ${LibrariesPath}/drm-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
