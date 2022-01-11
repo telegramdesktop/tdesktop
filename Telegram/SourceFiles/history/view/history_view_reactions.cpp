@@ -193,7 +193,7 @@ void InlineList::paint(
 	const auto animated = (_animation && context.reactionEffects)
 		? _animation->playingAroundEmoji()
 		: QString();
-	if (_animation && animated.isEmpty()) {
+	if (_animation && context.reactionEffects && animated.isEmpty()) {
 		_animation = nullptr;
 	}
 	p.setFont(st::semiboldFont);

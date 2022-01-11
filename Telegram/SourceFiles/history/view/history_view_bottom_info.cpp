@@ -239,10 +239,12 @@ void BottomInfo::paintReactions(
 	auto x = left;
 	auto y = top;
 	auto widthLeft = availableWidth;
-	const auto animated = (_reactionAnimation && context.reactionEffects)
+	const auto animated = _reactionAnimation
 		? _reactionAnimation->playingAroundEmoji()
 		: QString();
-	if (_reactionAnimation && animated.isEmpty()) {
+	if (_reactionAnimation
+		&& context.reactionEffects
+		&& animated.isEmpty()) {
 		_reactionAnimation = nullptr;
 	}
 	for (const auto &reaction : _reactions) {
@@ -361,6 +363,11 @@ void BottomInfo::layoutRepliesText() {
 }
 
 void BottomInfo::layoutReactionsText() {
+	if (_reactionAnimation
+		&& !_data.reactions.contains(
+			_reactionAnimation->playingAroundEmoji())) {
+		_reactionAnimation = nullptr;
+	}
 	if (_data.reactions.empty()) {
 		_reactions.clear();
 		return;
