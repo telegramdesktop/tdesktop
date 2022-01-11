@@ -1731,6 +1731,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	});
 
 	if (from != end(_items)) {
+		_reactionsManager->startEffectsCollection();
+
 		auto top = itemTop(from->get());
 		auto context = controller()->preparePaintContext({
 			.theme = _delegate->listChatTheme(),
@@ -1742,9 +1744,14 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
+			context.reactionEffects
+				= _reactionsManager->currentReactionEffect();
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
 			view->draw(p, context);
+			_reactionsManager->recordCurrentReactionEffect(
+				view->data()->fullId(),
+				QPoint(0, top));
 			const auto height = view->height();
 			top += height;
 			context.translate(0, -height);
@@ -1829,7 +1836,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			return true;
 		});
 
-		_reactionsManager->paintButtons(p, context);
+		_reactionsManager->paint(p, context);
 	}
 }
 
@@ -2895,6 +2902,10 @@ void ListWidget::repaintItem(const Element *view) {
 	const auto top = itemTop(view);
 	const auto range = view->verticalRepaintRange();
 	update(0, top + range.top, width(), range.height);
+	const auto id = view->data()->fullId();
+	if (const auto area = _reactionsManager->lookupEffectArea(id)) {
+		update(*area);
+	}
 }
 
 void ListWidget::repaintItem(FullMsgId itemId) {

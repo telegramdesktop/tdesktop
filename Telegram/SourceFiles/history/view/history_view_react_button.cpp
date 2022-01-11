@@ -539,9 +539,7 @@ void Manager::applyList(const std::vector<Data::Reaction> &list) {
 		return std::tie(
 			obj.emoji,
 			obj.appearAnimation,
-			obj.selectAnimation,
-			obj.centerIcon,
-			obj.aroundAnimation);
+			obj.selectAnimation);
 	};
 	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
 		return;
@@ -555,8 +553,6 @@ void Manager::applyList(const std::vector<Data::Reaction> &list) {
 			.emoji = reaction.emoji,
 			.appearAnimation = reaction.appearAnimation,
 			.selectAnimation = reaction.selectAnimation,
-			.centerIcon = reaction.centerIcon,
-			.aroundAnimation = reaction.aroundAnimation,
 		});
 	}
 	applyListFilters();
@@ -716,18 +712,10 @@ void Manager::loadIcons() {
 			all = false;
 		}
 	}
-	if (all) {
-		const auto preload = [&](DocumentData *document) {
-			const auto view = document
-				? document->activeMediaView()
-				: nullptr;
-			if (view) {
-				view->checkStickerLarge();
-			}
-		};
+	if (all && !_icons.empty()) {
+		auto &data = _icons.front()->appearAnimation->owner().reactions();
 		for (const auto &icon : _icons) {
-			preload(icon->centerIcon);
-			preload(icon->aroundAnimation);
+			data.preloadAnimationsFor(icon->emoji);
 		}
 	}
 }
@@ -751,7 +739,7 @@ void Manager::removeStaleButtons() {
 		end(_buttonHiding));
 }
 
-void Manager::paintButtons(Painter &p, const PaintContext &context) {
+void Manager::paint(Painter &p, const PaintContext &context) {
 	removeStaleButtons();
 	for (const auto &button : _buttonHiding) {
 		paintButton(p, context, button.get());
@@ -759,6 +747,14 @@ void Manager::paintButtons(Painter &p, const PaintContext &context) {
 	if (const auto current = _button.get()) {
 		paintButton(p, context, current);
 	}
+
+	for (const auto &[id, effect] : _collectedEffects) {
+		const auto offset = effect.offset;
+		p.translate(offset);
+		_activeEffectAreas[id] = effect.paint(p).translated(offset);
+		p.translate(-offset);
+	}
+	_collectedEffects.clear();
 }
 
 ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
@@ -856,6 +852,7 @@ bool Manager::overCurrentButton(QPoint position) const {
 }
 
 void Manager::remove(FullMsgId context) {
+	_activeEffectAreas.remove(context);
 	if (_buttonContext == context) {
 		_buttonContext = {};
 		_button = nullptr;
@@ -1505,6 +1502,31 @@ QRect Manager::validateFrame(
 
 	_validBg[frameIndex] = true;
 	return result;
+}
+
+std::optional<QRect> Manager::lookupEffectArea(FullMsgId itemId) const {
+	const auto i = _activeEffectAreas.find(itemId);
+	return (i != end(_activeEffectAreas))
+		? i->second
+		: std::optional<QRect>();
+}
+
+void Manager::startEffectsCollection() {
+	_collectedEffects.clear();
+	_currentEffect = {};
+}
+
+not_null<Ui::ReactionEffectPainter*> Manager::currentReactionEffect() {
+	return &_currentEffect;
+}
+
+void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
+	if (_currentEffect.paint) {
+		_currentEffect.offset += origin;
+		_collectedEffects[itemId] = base::take(_currentEffect);
+	} else if (!_collectedEffects.empty()) {
+		_collectedEffects.remove(itemId);
+	}
 }
 
 void SetupManagerList(

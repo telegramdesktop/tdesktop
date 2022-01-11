@@ -86,6 +86,24 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	}
 }
 
+void Reactions::preloadAnimationsFor(const QString &emoji) {
+	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+	if (i == end(_available)) {
+		return;
+	}
+
+	const auto preload = [&](DocumentData *document) {
+		const auto view = document
+			? document->activeMediaView()
+			: nullptr;
+		if (view) {
+			view->checkStickerLarge();
+		}
+	};
+	preload(i->centerIcon);
+	preload(i->aroundAnimation);
+}
+
 QImage Reactions::resolveImageFor(
 		const QString &emoji,
 		ImageSize size) {

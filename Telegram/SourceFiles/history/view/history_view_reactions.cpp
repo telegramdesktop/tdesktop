@@ -275,6 +275,7 @@ bool InlineList::getState(
 		if (button.geometry.contains(point)) {
 			if (!button.link) {
 				button.link = _handlerFactory(button.emoji);
+				_owner->preloadAnimationsFor(button.emoji);
 			}
 			outResult->link = button.link;
 			return true;

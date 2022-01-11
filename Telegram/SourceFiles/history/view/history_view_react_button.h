@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/chat/chat_style.h"
 
 namespace Ui {
 struct ChatPaintContext;
@@ -145,7 +146,7 @@ public:
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
 	void updateButton(ButtonParameters parameters);
-	void paintButtons(Painter &p, const PaintContext &context);
+	void paint(Painter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 	void remove(FullMsgId context);
 
@@ -165,6 +166,13 @@ public:
 		return _chosen.events();
 	}
 
+	[[nodiscard]] std::optional<QRect> lookupEffectArea(
+		FullMsgId itemId) const;
+	void startEffectsCollection();
+	[[nodiscard]] auto currentReactionEffect()
+		-> not_null<Ui::ReactionEffectPainter*>;
+	void recordCurrentReactionEffect(FullMsgId itemId, QPoint origin);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -178,8 +186,6 @@ private:
 		QString emoji;
 		not_null<DocumentData*> appearAnimation;
 		not_null<DocumentData*> selectAnimation;
-		DocumentData *centerIcon = nullptr;
-		DocumentData *aroundAnimation = nullptr;
 		std::shared_ptr<Lottie::Icon> appear;
 		std::shared_ptr<Lottie::Icon> select;
 		mutable ClickHandlerPtr link;
@@ -334,6 +340,11 @@ private:
 	int _buttonAlreadyNotMineCount = 0;
 	mutable base::flat_map<QString, ClickHandlerPtr> _reactionsLinks;
 	Fn<Fn<void()>(QString)> _createChooseCallback;
+
+	base::flat_map<FullMsgId, QRect> _activeEffectAreas;
+
+	Ui::ReactionEffectPainter _currentEffect;
+	base::flat_map<FullMsgId, Ui::ReactionEffectPainter> _collectedEffects;
 
 	rpl::lifetime _lifetime;
 

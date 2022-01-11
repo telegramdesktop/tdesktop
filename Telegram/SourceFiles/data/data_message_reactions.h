@@ -54,6 +54,7 @@ public:
 		InlineList,
 	};
 	void preloadImageFor(const QString &emoji);
+	void preloadAnimationsFor(const QString &emoji);
 	[[nodiscard]] QImage resolveImageFor(
 		const QString &emoji,
 		ImageSize size);
