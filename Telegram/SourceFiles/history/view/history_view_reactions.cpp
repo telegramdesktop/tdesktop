@@ -198,12 +198,17 @@ void InlineList::paint(
 	}
 	p.setFont(st::semiboldFont);
 	for (const auto &button : _buttons) {
+		const auto mine = (_data.chosenReaction == button.emoji);
+		const auto withoutMine = button.count - (mine ? 1 : 0);
 		const auto animating = (animated == button.emoji);
+		const auto skipImage = animating
+			&& (withoutMine < 1 || !_animation->flying());
+		const auto skipBubble = skipImage && _animation->flying();
 		const auto &geometry = button.geometry;
 		const auto inner = geometry.marginsRemoved(padding);
-		const auto chosen = (_data.chosenReaction == button.emoji)
+		const auto chosen = mine
 			&& (!animating || !_animation->flying());
-		{
+		if (!skipBubble) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			if (inbubble) {
@@ -230,8 +235,6 @@ void InlineList::paint(
 		const auto image = QRect(
 			inner.topLeft() + QPoint(skip, skip),
 			QSize(st::reactionBottomImage, st::reactionBottomImage));
-		const auto skipImage = animating
-			&& (button.count < 2 || !_animation->flying());
 		if (!button.image.isNull() && !skipImage) {
 			p.drawImage(image.topLeft(), button.image);
 		}
@@ -240,25 +243,27 @@ void InlineList::paint(
 				return _animation->paintGetArea(p, QPoint(), image);
 			};
 		}
-		p.setPen(!inbubble
-			? (chosen
-				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
-				: st->msgServiceFg())
-			: !chosen
-			? stm->msgServiceFg
-			: context.outbg
-			? (context.selected()
-				? st->historyFileOutIconFgSelected()
-				: st->historyFileOutIconFg())
-			: (context.selected()
-				? st->historyFileInIconFgSelected()
-				: st->historyFileInIconFg()));
-		const auto textTop = geometry.y()
-			+ ((geometry.height() - st::semiboldFont->height) / 2);
-		p.drawText(
-			inner.x() + size + st::reactionBottomSkip,
-			textTop + st::semiboldFont->ascent,
-			button.countText);
+		if (!skipBubble) {
+			p.setPen(!inbubble
+				? (chosen
+					? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
+					: st->msgServiceFg())
+				: !chosen
+				? stm->msgServiceFg
+				: context.outbg
+				? (context.selected()
+					? st->historyFileOutIconFgSelected()
+					: st->historyFileOutIconFg())
+				: (context.selected()
+					? st->historyFileInIconFgSelected()
+					: st->historyFileInIconFg()));
+			const auto textTop = geometry.y()
+				+ ((geometry.height() - st::semiboldFont->height) / 2);
+			p.drawText(
+				inner.x() + size + st::reactionBottomSkip,
+				textTop + st::semiboldFont->ascent,
+				button.countText);
+		}
 	}
 }
 
