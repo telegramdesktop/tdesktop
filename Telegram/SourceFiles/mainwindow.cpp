@@ -630,11 +630,20 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::KeyPress: {
 		if (Logs::DebugEnabled()
-			&& (e->type() == QEvent::KeyPress)
 			&& object == windowHandle()) {
-			auto key = static_cast<QKeyEvent*>(e)->key();
+			const auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
+#ifdef _DEBUG
+		switch (static_cast<QKeyEvent*>(e)->key()) {
+		case Qt::Key_F3:
+			anim::SetSlowMultiplier((anim::SlowMultiplier() == 10) ? 1 : 10);
+			return true;
+		case Qt::Key_F4:
+			anim::SetSlowMultiplier((anim::SlowMultiplier() == 50) ? 1 : 50);
+			return true;
+		}
+#endif
 	} break;
 
 	case QEvent::MouseMove: {
