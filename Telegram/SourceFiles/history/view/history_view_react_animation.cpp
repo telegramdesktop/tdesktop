@@ -12,11 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
 namespace {
 
-constexpr auto kFlyDuration = crl::time(200);
+constexpr auto kFlyDuration = crl::time(300);
 
 } // namespace
 
@@ -67,7 +68,10 @@ SendAnimation::SendAnimation(
 
 SendAnimation::~SendAnimation() = default;
 
-QRect SendAnimation::paintGetArea(QPainter &p, QPoint origin, QRect target) const {
+QRect SendAnimation::paintGetArea(
+		QPainter &p,
+		QPoint origin,
+		QRect target) const {
 	if (!_flyIcon) {
 		p.drawImage(target, _center->frame());
 		const auto wide = QRect(
@@ -84,7 +88,7 @@ QRect SendAnimation::paintGetArea(QPainter &p, QPoint origin, QRect target) cons
 	const auto progress = _fly.value(1.);
 	const auto rect = QRect(
 		anim::interpolate(from.x(), target.x(), progress),
-		anim::interpolate(from.y(), target.y(), progress),
+		computeParabolicTop(from.y(), target.y(), progress),
 		anim::interpolate(from.width(), target.width(), progress),
 		anim::interpolate(from.height(), target.height(), progress));
 	const auto wide = rect.marginsAdded(margins);
@@ -99,6 +103,43 @@ QRect SendAnimation::paintGetArea(QPainter &p, QPoint origin, QRect target) cons
 	}
 	p.setOpacity(1.);
 	return wide;
+}
+
+int SendAnimation::computeParabolicTop(
+		int from,
+		int to,
+		float64 progress) const {
+	const auto t = progress;
+	const auto c = from;
+
+	// result = a * t * t + b * t + c
+
+	// y = a * t * t + b * t
+	// shift = y_1 = y(1) = a + b
+	// y_0 = y(t_0) = a * t_0 * t_0 + b * t_0
+	// 0 = 2 * a * t_0 + b
+	// b = y_1 - a
+	// a = y_1 / (1 - 2 * t_0)
+	// b = 2 * t_0 * y_1 / (2 * t_0 - 1)
+	// t_0 = (y_0 / y_1) +- sqrt((y_0 / y_1) * (y_0 / y_1 - 1))
+	const auto y_1 = to - from;
+	if (_cachedKey != y_1) {
+		const auto y_0 = std::min(0, y_1) - st::reactionFlyUp;
+		const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
+		const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
+		const auto t_0 = !y_1
+			? 0.5
+			: (y_1 > 0)
+			? (ratio + root)
+			: (ratio - root);
+		const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4 * y_0);
+		const auto b = y_1 - a;
+		_cachedKey = y_1;
+		_cachedA = a;
+		_cachedB = b;
+	}
+
+	return int(base::SafeRound(_cachedA * t * t + _cachedB * t + from));
 }
 
 void SendAnimation::startAnimations() {

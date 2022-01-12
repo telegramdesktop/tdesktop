@@ -991,3 +991,4 @@ reactionGradientFadeSize: 24px;
 reactionAppearStartSkip: 2px;
 reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
+reactionFlyUp: 50px;

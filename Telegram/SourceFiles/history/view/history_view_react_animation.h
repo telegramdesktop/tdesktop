@@ -42,6 +42,7 @@ private:
 	void flyCallback();
 	void startAnimations();
 	void callback();
+	int computeParabolicTop(int from, int to, float64 progress) const;
 
 	const not_null<::Data::Reactions*> _owner;
 	const QString _emoji;
@@ -52,6 +53,10 @@ private:
 	Ui::Animations::Simple _fly;
 	QRect _flyFrom;
 	bool _valid = false;
+
+	mutable std::optional<int> _cachedKey;
+	mutable float64 _cachedA = 0.;
+	mutable float64 _cachedB = 0.;
 
 };
 
