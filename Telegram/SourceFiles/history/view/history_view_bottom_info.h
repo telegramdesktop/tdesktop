@@ -48,6 +48,7 @@ public:
 		QDateTime date;
 		QString author;
 		base::flat_map<QString, int> reactions;
+		QString chosenReaction;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
@@ -110,6 +111,11 @@ private:
 
 	void setReactionCount(Reaction &reaction, int count);
 	[[nodiscard]] Reaction prepareReactionWithEmoji(const QString &emoji);
+	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
+		not_null<const HistoryItem*> item,
+		QPoint position) const;
+	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
+		not_null<const HistoryItem*> item) const;
 
 	const not_null<::Data::Reactions*> _reactionsOwner;
 	Data _data;
@@ -117,6 +123,7 @@ private:
 	Ui::Text::String _views;
 	Ui::Text::String _replies;
 	std::vector<Reaction> _reactions;
+	mutable ClickHandlerPtr _revokeLink;
 	mutable std::unique_ptr<Reactions::SendAnimation> _reactionAnimation;
 	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;

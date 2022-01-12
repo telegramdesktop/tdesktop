@@ -18,8 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_react_animation.h"
+#include "core/click_handler_types.h"
+#include "main/main_session.h"
 #include "lottie/lottie_icon.h"
+#include "data/data_session.h"
 #include "data/data_message_reactions.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
@@ -107,6 +111,10 @@ TextState BottomInfo::textState(
 		not_null<const HistoryItem*> item,
 		QPoint position) const {
 	auto result = TextState(item);
+	if (const auto link = revokeReactionLink(item, position)) {
+		result.link = link;
+		return result;
+	}
 	const auto inTime = QRect(
 		width() - _dateWidth,
 		0,
@@ -117,6 +125,75 @@ TextState BottomInfo::textState(
 		result.cursor = CursorState::Date;
 	}
 	return result;
+}
+
+ClickHandlerPtr BottomInfo::revokeReactionLink(
+		not_null<const HistoryItem*> item,
+		QPoint position) const {
+	if (_reactions.empty()) {
+		return nullptr;
+	}
+	auto left = 0;
+	auto top = 0;
+	auto available = width();
+	if (height() != minHeight()) {
+		available = std::min(available, _reactionsMaxWidth);
+		left += width() - available;
+		top += st::msgDateFont->height;
+	}
+	auto x = left;
+	auto y = top;
+	auto widthLeft = available;
+	for (const auto &reaction : _reactions) {
+		const auto chosen = (reaction.emoji == _data.chosenReaction);
+		const auto add = (reaction.countTextWidth > 0)
+			? st::reactionInfoDigitSkip
+			: st::reactionInfoBetween;
+		const auto width = st::reactionInfoSize
+			+ (reaction.countTextWidth > 0
+				? (st::reactionInfoSkip + reaction.countTextWidth)
+				: 0);
+		if (x > left && widthLeft < width) {
+			x = left;
+			y += st::msgDateFont->height;
+			widthLeft = available;
+		}
+		const auto image = QRect(
+			x,
+			y,
+			st::reactionInfoSize,
+			st::msgDateFont->height);
+		if (chosen && image.contains(position)) {
+			if (!_revokeLink) {
+				_revokeLink = revokeReactionLink(item);
+			}
+			return _revokeLink;
+		}
+		x += width + add;
+		widthLeft -= width + add;
+	}
+	return nullptr;
+}
+
+ClickHandlerPtr BottomInfo::revokeReactionLink(
+		not_null<const HistoryItem*> item) const {
+	const auto itemId = item->fullId();
+	const auto sessionId = item->history()->session().uniqueId();
+	return std::make_shared<LambdaClickHandler>([=](
+			ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (controller->session().uniqueId() == sessionId) {
+				auto &owner = controller->session().data();
+				if (const auto item = owner.message(itemId)) {
+					const auto chosen = item->chosenReaction();
+					if (!chosen.isEmpty()) {
+						item->toggleReaction(chosen);
+					}
+				}
+			}
+		}
+	});
 }
 
 bool BottomInfo::isSignedAuthorElided() const {
@@ -463,6 +540,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	result.date = message->dateTime();
 	if (message->embedReactionsInBottomInfo()) {
 		result.reactions = item->reactions();
+		result.chosenReaction = item->chosenReaction();
 	}
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;
