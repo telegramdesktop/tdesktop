@@ -834,7 +834,10 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
-		_reactions->set(data.vresults().v, data.is_min());
+		_reactions->set(
+			data.vresults().v,
+			data.vrecent_reactons().value_or_empty(),
+			data.is_min());
 	});
 }
 
@@ -845,6 +848,14 @@ void HistoryItem::updateReactionsUnknown() {
 const base::flat_map<QString, int> &HistoryItem::reactions() const {
 	static const auto kEmpty = base::flat_map<QString, int>();
 	return _reactions ? _reactions->list() : kEmpty;
+}
+
+auto HistoryItem::recentReactions() const
+-> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+	static const auto kEmpty = base::flat_map<
+		QString,
+		std::vector<not_null<UserData*>>>();
+	return _reactions ? _reactions->recent() : kEmpty;
 }
 
 bool HistoryItem::canViewReactions() const {

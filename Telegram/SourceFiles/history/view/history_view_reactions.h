@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class Reactions;
+class CloudImageView;
 } // namespace Data
 
 namespace Ui {
@@ -22,6 +23,7 @@ using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
 struct SendReactionAnimationArgs;
+struct UserpicInRow;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -37,6 +39,7 @@ struct InlineListData {
 	using Flags = base::flags<Flag>;
 
 	base::flat_map<QString, int> reactions;
+	base::flat_map<QString, std::vector<not_null<UserData*>>> recent;
 	QString chosenReaction;
 	Flags flags = {};
 };
@@ -74,10 +77,16 @@ public:
 	void continueSendAnimation(std::unique_ptr<SendAnimation> animation);
 
 private:
+	struct Userpics {
+		QImage image;
+		std::vector<UserpicInRow> list;
+		bool someNotLoaded = false;
+	};
 	struct Button {
 		QRect geometry;
 		mutable QImage image;
 		mutable ClickHandlerPtr link;
+		std::unique_ptr<Userpics> userpics;
 		QString emoji;
 		QString countText;
 		int count = 0;
@@ -88,7 +97,11 @@ private:
 	void layoutButtons();
 
 	void setButtonCount(Button &button, int count);
+	void setButtonUserpics(
+		Button &button,
+		const std::vector<not_null<UserData*>> &users);
 	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
+	void resolveUserpicsImage(const Button &button) const;
 
 	QSize countOptimalSize() override;
 

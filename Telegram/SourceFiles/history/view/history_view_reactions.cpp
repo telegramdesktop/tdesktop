@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_react_animation.h"
+#include "history/view/history_view_group_call_bar.h"
 #include "data/data_message_reactions.h"
+#include "data/data_user.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
@@ -22,6 +24,7 @@ namespace {
 
 constexpr auto kInNonChosenOpacity = 0.12;
 constexpr auto kOutNonChosenOpacity = 0.18;
+constexpr auto kMaxRecentUserpics = 3;
 
 [[nodiscard]] QColor AdaptChosenServiceFg(QColor serviceBg) {
 	serviceBg.setAlpha(std::max(serviceBg.alpha(), 192));
@@ -92,7 +95,12 @@ void InlineList::layoutButtons() {
 			? std::move(*i)
 			: prepareButtonWithEmoji(emoji));
 		const auto add = (emoji == _data.chosenReaction) ? 1 : 0;
-		setButtonCount(buttons.back(), count + add);
+		const auto j = _data.recent.find(emoji);
+		if (j != end(_data.recent) && !j->second.empty()) {
+			setButtonUserpics(buttons.back(), j->second);
+		} else {
+			setButtonCount(buttons.back(), count + add);
+		}
 	}
 	_buttons = std::move(buttons);
 }
@@ -104,12 +112,51 @@ InlineList::Button InlineList::prepareButtonWithEmoji(const QString &emoji) {
 }
 
 void InlineList::setButtonCount(Button &button, int count) {
-	if (button.count == count) {
+	if (button.count == count && !button.userpics) {
 		return;
 	}
+	button.userpics = nullptr;
 	button.count = count;
 	button.countText = Lang::FormatCountToShort(count).string;
 	button.countTextWidth = st::semiboldFont->width(button.countText);
+}
+
+void InlineList::setButtonUserpics(
+		Button &button,
+		const std::vector<not_null<UserData*>> &users) {
+	if (!button.userpics) {
+		button.userpics = std::make_unique<Userpics>();
+	}
+	const auto count = int(users.size());
+	auto &list = button.userpics->list;
+	const auto regenerate = [&] {
+		if (list.size() != count) {
+			return true;
+		}
+		for (auto i = 0; i != count; ++i) {
+			if (users[i] != list[i].peer) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (!regenerate) {
+		return;
+	}
+	auto generated = std::vector<UserpicInRow>();
+	generated.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		if (i == list.size()) {
+			list.push_back(UserpicInRow{
+				users[i]
+			});
+		} else if (list[i].peer != users[i]) {
+			list[i].peer = users[i];
+		}
+	}
+	while (list.size() > count) {
+		list.pop_back();
+	}
 }
 
 QSize InlineList::countOptimalSize() {
@@ -123,13 +170,26 @@ QSize InlineList::countOptimalSize() {
 	const auto between = st::reactionInlineBetween;
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
-	const auto widthBase = padding.left()
+	const auto widthBaseCount = padding.left()
 		+ size
 		+ st::reactionInlineSkip
 		+ padding.right();
+	const auto widthBaseUserpics = padding.left()
+		+ size
+		+ st::reactionInlineUserpicsPadding.left()
+		+ st::reactionInlineUserpicsPadding.right();
+	const auto userpicsWidth = [](const Button &button) {
+		const auto count = int(button.userpics->list.size());
+		const auto single = st::reactionInlineUserpics.size;
+		const auto shift = st::reactionInlineUserpics.shift;
+		const auto width = single + (count - 1) * (single - shift);
+		return width;
+	};
 	const auto height = padding.top() + size + padding.bottom();
 	for (auto &button : _buttons) {
-		const auto width = widthBase + button.countTextWidth;
+		const auto width = button.userpics
+			? (widthBaseUserpics + userpicsWidth(button))
+			: (widthBaseCount + button.countTextWidth);
 		button.geometry.setSize({ width, height });
 		x += width + between;
 	}
@@ -243,7 +303,16 @@ void InlineList::paint(
 				return _animation->paintGetArea(p, QPoint(), image);
 			};
 		}
-		if (!skipBubble) {
+		if (skipBubble) {
+			continue;
+		}
+		resolveUserpicsImage(button);
+		if (button.userpics) {
+			p.drawImage(
+				inner.x() + size + st::reactionInlineUserpicsPadding.left(),
+				geometry.y() + st::reactionInlineUserpicsPadding.top(),
+				button.userpics->image);
+		} else {
 			p.setPen(!inbubble
 				? (chosen
 					? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
@@ -299,6 +368,35 @@ void InlineList::animateSend(
 		st::reactionInlineImage);
 }
 
+void InlineList::resolveUserpicsImage(const Button &button) const {
+	const auto userpics = button.userpics.get();
+	const auto regenerate = [&] {
+		if (!userpics) {
+			return false;
+		} else if (userpics->image.isNull()) {
+			return true;
+		}
+		for (auto &entry : userpics->list) {
+			const auto peer = entry.peer;
+			auto &view = entry.view;
+			const auto wasView = view.get();
+			if (peer->userpicUniqueKey(view) != entry.uniqueKey
+				|| view.get() != wasView) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (!regenerate) {
+		return;
+	}
+	GenerateUserpicsInRow(
+		userpics->image,
+		userpics->list,
+		st::reactionInlineUserpics,
+		kMaxRecentUserpics);
+}
+
 std::unique_ptr<SendAnimation> InlineList::takeSendAnimation() {
 	return std::move(_animation);
 }
@@ -311,9 +409,28 @@ void InlineList::continueSendAnimation(
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	using Flag = InlineListData::Flag;
 	const auto item = message->message();
-
 	auto result = InlineListData();
 	result.reactions = item->reactions();
+	const auto &recent = item->recentReactions();
+	const auto showUserpics = [&] {
+		if (recent.size() != result.reactions.size()) {
+			return false;
+		}
+		auto b = begin(recent);
+		auto sum = 0;
+		for (const auto &[emoji, count] : result.reactions) {
+			sum += count;
+			if (emoji != b->first
+				|| count != b->second.size()
+				|| sum > kMaxRecentUserpics) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if (showUserpics) {
+		result.recent = recent;
+	}
 	result.chosenReaction = item->chosenReaction();
 	if (!result.chosenReaction.isEmpty()) {
 		--result.reactions[result.chosenReaction];

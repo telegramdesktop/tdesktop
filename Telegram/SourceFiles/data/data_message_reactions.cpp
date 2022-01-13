@@ -438,19 +438,32 @@ void MessageReactions::add(const QString &reaction) {
 	if (_chosen == reaction) {
 		return;
 	}
+	const auto history = _item->history();
+	const auto self = history->session().user();
 	if (!_chosen.isEmpty()) {
 		const auto i = _list.find(_chosen);
 		Assert(i != end(_list));
 		--i->second;
-		if (!i->second) {
+		const auto removed = !i->second;
+		if (removed) {
 			_list.erase(i);
+		}
+		const auto j = _recent.find(_chosen);
+		if (j != end(_recent)) {
+			j->second.erase(ranges::remove(j->second, self), end(j->second));
+			if (j->second.empty() || removed) {
+				_recent.erase(j);
+			}
 		}
 	}
 	_chosen = reaction;
 	if (!reaction.isEmpty()) {
+		if (_item->canViewReactions()) {
+			_recent[reaction].push_back(self);
+		}
 		++_list[reaction];
 	}
-	auto &owner = _item->history()->owner();
+	auto &owner = history->owner();
 	owner.reactions().send(_item, _chosen);
 	owner.notifyItemDataChange(_item);
 }
@@ -461,8 +474,10 @@ void MessageReactions::remove() {
 
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessageUserReaction> &recent,
 		bool ignoreChosen) {
-	if (_item->history()->owner().reactions().sending(_item)) {
+	auto &owner = _item->history()->owner();
+	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
 		return;
 	}
@@ -499,13 +514,34 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
+	auto parsed = base::flat_map<
+		QString,
+		std::vector<not_null<UserData*>>>();
+	for (const auto &reaction : recent) {
+		reaction.match([&](const MTPDmessageUserReaction &data) {
+			const auto emoji = qs(data.vreaction());
+			if (_list.contains(emoji)) {
+				parsed[emoji].push_back(owner.user(data.vuser_id()));
+			}
+		});
+	}
+	if (_recent != parsed) {
+		_recent = std::move(parsed);
+		changed = true;
+	}
+
 	if (changed) {
-		_item->history()->owner().notifyItemDataChange(_item);
+		owner.notifyItemDataChange(_item);
 	}
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {
 	return _list;
+}
+
+auto MessageReactions::recent() const
+-> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+	return _recent;
 }
 
 bool MessageReactions::empty() const {
