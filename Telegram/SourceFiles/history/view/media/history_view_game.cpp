@@ -74,15 +74,15 @@ QSize Game::countOptimalSize() {
 			auto marked = TextWithEntities { text };
 			auto parseFlags = TextParseLinks | TextParseMultiline;
 			TextUtilities::ParseEntities(marked, parseFlags);
+			_description.setMarkedText(
+				st::webPageDescriptionStyle,
+				marked,
+				Ui::WebpageTextDescriptionOptions());
 			if (!_attach) {
 				_description.updateSkipBlock(
 					_parent->skipBlockWidth(),
 					_parent->skipBlockHeight());
 			}
-			_description.setMarkedText(
-				st::webPageDescriptionStyle,
-				marked,
-				Ui::WebpageTextDescriptionOptions());
 		}
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {

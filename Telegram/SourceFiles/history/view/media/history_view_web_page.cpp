@@ -201,11 +201,6 @@ QSize WebPage::countOptimalSize() {
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
 
-		if (textFloatsAroundInfo) {
-			_description.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
-		}
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
 			_description = Ui::Text::String(st::minPhotoSize
@@ -225,6 +220,11 @@ QSize WebPage::countOptimalSize() {
 			text,
 			Ui::WebpageTextDescriptionOptions(),
 			context);
+		if (textFloatsAroundInfo) {
+			_description.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
+		}
 	}
 	if (!displayedSiteName().isEmpty()) {
 		_siteNameLines = 1;
