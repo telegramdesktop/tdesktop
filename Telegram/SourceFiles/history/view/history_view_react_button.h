@@ -141,7 +141,9 @@ public:
 		IconFactory iconFactory);
 	~Manager();
 
-	void applyList(const std::vector<Data::Reaction> &list);
+	void applyList(
+		const std::vector<Data::Reaction> &list,
+		const QString &favorite);
 	void updateAllowedSublist(std::optional<base::flat_set<QString>> filter);
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
@@ -296,6 +298,7 @@ private:
 	const IconFactory _iconFactory;
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<ReactionIcons> _list;
+	QString _favorite;
 	std::optional<base::flat_set<QString>> _filter;
 	QSize _outer;
 	QRect _inner;

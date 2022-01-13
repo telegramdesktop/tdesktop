@@ -456,15 +456,24 @@ void Manager::applyListFilters() {
 		&& (_buttonAlreadyNotMineCount >= limit);
 	auto icons = std::vector<not_null<ReactionIcons*>>();
 	icons.reserve(_list.size());
+	auto favoriteIndex = -1;
 	for (auto &icon : _list) {
+		const auto &emoji = icon.emoji;
 		const auto add = applyUniqueLimit
-			? _buttonAlreadyList.contains(icon.emoji)
-			: (!_filter || _filter->contains(icon.emoji));
+			? _buttonAlreadyList.contains(emoji)
+			: (!_filter || _filter->contains(emoji));
 		if (add) {
+			if (emoji == _favorite) {
+				favoriteIndex = int(icons.size());
+			}
 			icons.push_back(&icon);
 		} else {
 			clearStateForHidden(icon);
 		}
+	}
+	if (favoriteIndex > 0) {
+		const auto first = begin(icons);
+		std::rotate(first, first + favoriteIndex, first + favoriteIndex + 1);
 	}
 	if (_icons == icons) {
 		return;
@@ -534,14 +543,23 @@ void Manager::showButtonDelayed() {
 		[=]{ updateButton({}); });
 }
 
-void Manager::applyList(const std::vector<Data::Reaction> &list) {
+void Manager::applyList(
+		const std::vector<Data::Reaction> &list,
+		const QString &favorite) {
 	const auto proj = [](const auto &obj) {
 		return std::tie(
 			obj.emoji,
 			obj.appearAnimation,
 			obj.selectAnimation);
 	};
+	const auto favoriteChanged = (_favorite != favorite);
+	if (favoriteChanged) {
+		_favorite = favorite;
+	}
 	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
+		if (favoriteChanged) {
+			applyListFilters();
+		}
 		return;
 	}
 	const auto selected = _selectedIcon;
@@ -1533,13 +1551,15 @@ void SetupManagerList(
 		not_null<Manager*> manager,
 		not_null<Main::Session*> session,
 		rpl::producer<std::optional<base::flat_set<QString>>> filter) {
+	const auto reactions = &session->data().reactions();
 	rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
-		session->data().reactions().updates()
+		reactions->updates()
 	) | rpl::start_with_next([=] {
 		manager->applyList(
-			session->data().reactions().list(Data::Reactions::Type::Active));
+			reactions->list(Data::Reactions::Type::Active),
+			reactions->favorite());
 	}, manager->lifetime());
 
 	std::move(

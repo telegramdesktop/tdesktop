@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
@@ -47,6 +49,18 @@ Reactions::Reactions(not_null<Session*> owner)
 		_pollItems.remove(item);
 		_repaintItems.remove(item);
 	}, _lifetime);
+
+	const auto appConfig = &_owner->session().account().appConfig();
+	appConfig->value(
+	) | rpl::start_with_next([=] {
+		const auto favorite = appConfig->get<QString>(
+			u"reactions_default"_q,
+			QString::fromUtf8("\xf0\x9f\x91\x8d"));
+		if (_favorite != favorite) {
+			_favorite = favorite;
+			_updated.fire({});
+		}
+	}, _lifetime);
 }
 
 Reactions::~Reactions() = default;
@@ -61,6 +75,10 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 	case Type::All: return _available;
 	}
 	Unexpected("Type in Reactions::list.");
+}
+
+QString Reactions::favorite() const {
+	return _favorite;
 }
 
 rpl::producer<> Reactions::updates() const {

@@ -78,11 +78,12 @@ std::unique_ptr<MTP::Config> Account::prepareToStart(
 }
 
 void Account::start(std::unique_ptr<MTP::Config> config) {
+	_appConfig = std::make_unique<AppConfig>(this);
 	startMtp(config
 		? std::move(config)
 		: std::make_unique<MTP::Config>(
 			Core::App().fallbackProductionConfig()));
-	_appConfig = std::make_unique<AppConfig>(this);
+	_appConfig->start();
 	watchProxyChanges();
 	watchSessionChanges();
 }

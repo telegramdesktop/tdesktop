@@ -43,6 +43,7 @@ public:
 		All,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
+	[[nodiscard]] QString favorite() const;
 
 	[[nodiscard]] static base::flat_set<QString> ParseAllowed(
 		const MTPVector<MTPstring> *list);
@@ -95,6 +96,7 @@ private:
 
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
+	QString _favorite;
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::shared_ptr<Data::DocumentMedia>> _iconsCache;
