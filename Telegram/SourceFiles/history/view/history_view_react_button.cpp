@@ -11,14 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/widgets/popup_menu.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "lang/lang_keys.h"
+#include "core/click_handler_types.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView::Reactions {
 namespace {
@@ -499,6 +503,9 @@ void Manager::stealWheelEvents(not_null<QWidget*> target) {
 Manager::~Manager() = default;
 
 void Manager::updateButton(ButtonParameters parameters) {
+	if (parameters.cursorLeft && _menu) {
+		return;
+	}
 	const auto contextChanged = (_buttonContext != parameters.context);
 	if (contextChanged) {
 		setSelectedIcon(-1);
@@ -844,11 +851,10 @@ ClickHandlerPtr Manager::resolveButtonLink(
 	if (i != end(_reactionsLinks)) {
 		return i->second;
 	}
-	return _reactionsLinks.emplace(
-		emoji,
-		std::make_shared<LambdaClickHandler>(
-			crl::guard(this, _createChooseCallback(emoji)))
-	).first->second;
+	auto handler = std::make_shared<LambdaClickHandler>(
+		crl::guard(this, _createChooseCallback(emoji)));
+	handler->setProperty(kSendReactionEmojiProperty, emoji);
+	return _reactionsLinks.emplace(emoji, std::move(handler)).first->second;
 }
 
 TextState Manager::buttonTextState(QPoint position) const {
@@ -1547,6 +1553,33 @@ void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
 	}
 }
 
+bool Manager::showContextMenu(QWidget *parent, QContextMenuEvent *e) {
+	if (_icons.empty() || _selectedIcon < 0) {
+		return false;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto callback = [=] {
+		for (const auto &icon : _icons) {
+			if (icon->selected) {
+				_faveRequests.fire_copy(icon->emoji);
+				return;
+			}
+		}
+	};
+	_menu->addAction(
+		tr::lng_context_set_as_quick(tr::now),
+		callback,
+		&st::menuIconFave);
+	_menu->popup(e->globalPos());
+	return true;
+}
+
+rpl::producer<QString> Manager::faveRequests() const {
+	return _faveRequests.events();
+}
+
 void SetupManagerList(
 		not_null<Manager*> manager,
 		not_null<Main::Session*> session,
@@ -1567,6 +1600,12 @@ void SetupManagerList(
 	) | rpl::start_with_next([=](
 			std::optional<base::flat_set<QString>> &&list) {
 		manager->updateAllowedSublist(std::move(list));
+	}, manager->lifetime());
+
+	manager->faveRequests(
+	) | rpl::start_with_next([=](const QString &emoji) {
+		reactions->setFavorite(emoji);
+		manager->updateButton({});
 	}, manager->lifetime());
 }
 

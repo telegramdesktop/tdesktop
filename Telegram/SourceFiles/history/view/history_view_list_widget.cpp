@@ -2092,9 +2092,16 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
+	const auto link = ClickHandler::getActive();
+	if (link
+		&& !link->property(kSendReactionEmojiProperty).toString().isEmpty()
+		&& _reactionsManager->showContextMenu(this, e)) {
+		return;
+	}
+
 	auto request = ContextMenuRequest(_controller);
 
-	request.link = ClickHandler::getActive();
+	request.link = link;
 	request.view = _overElement;
 	request.item = _overItemExact
 		? _overItemExact
@@ -2158,7 +2165,7 @@ void ListWidget::enterEventHook(QEnterEvent *e) {
 }
 
 void ListWidget::leaveEventHook(QEvent *e) {
-	_reactionsManager->updateButton({});
+	_reactionsManager->updateButton({ .cursorLeft = true });
 	if (const auto view = _overElement) {
 		if (_overState.pointState != PointState::Outside) {
 			repaintItem(view);

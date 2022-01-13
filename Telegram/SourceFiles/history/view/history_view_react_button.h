@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 struct ChatPaintContext;
+class PopupMenu;
 } // namespace Ui
 
 namespace Data {
@@ -56,6 +57,7 @@ struct ButtonParameters {
 	int visibleTop = 0;
 	int visibleBottom = 0;
 	bool outside = false;
+	bool cursorLeft = false;
 };
 
 enum class ButtonState {
@@ -174,6 +176,9 @@ public:
 	[[nodiscard]] auto currentReactionEffect()
 		-> not_null<Ui::ReactionEffectPainter*>;
 	void recordCurrentReactionEffect(FullMsgId itemId, QPoint origin);
+
+	bool showContextMenu(QWidget *parent, QContextMenuEvent *e);
+	[[nodiscard]] rpl::producer<QString> faveRequests() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -348,6 +353,9 @@ private:
 
 	Ui::ReactionEffectPainter _currentEffect;
 	base::flat_map<FullMsgId, Ui::ReactionEffectPainter> _collectedEffects;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::event_stream<QString> _faveRequests;
 
 	rpl::lifetime _lifetime;
 

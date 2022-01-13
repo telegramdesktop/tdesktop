@@ -1849,6 +1849,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
+	const auto link = ClickHandler::getActive();
+	if (link
+		&& !link->property(kSendReactionEmojiProperty).toString().isEmpty()
+		&& _reactionsManager->showContextMenu(this, e)) {
+		return;
+	}
 	auto selectedState = getSelectionState();
 	auto canSendMessages = _peer->canWrite();
 
@@ -2044,7 +2050,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
-	const auto link = ClickHandler::getActive();
 	const auto lnkPhotoId = PhotoId(link
 		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
 		: 0);
@@ -2870,7 +2875,7 @@ void HistoryInner::enterEventHook(QEnterEvent *e) {
 }
 
 void HistoryInner::leaveEventHook(QEvent *e) {
-	_reactionsManager->updateButton({});
+	_reactionsManager->updateButton({ .cursorLeft = true });
 	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);

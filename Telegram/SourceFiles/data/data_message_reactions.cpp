@@ -56,7 +56,7 @@ Reactions::Reactions(not_null<Session*> owner)
 		const auto favorite = appConfig->get<QString>(
 			u"reactions_default"_q,
 			QString::fromUtf8("\xf0\x9f\x91\x8d"));
-		if (_favorite != favorite) {
+		if (_favorite != favorite && !_saveFaveRequestId) {
 			_favorite = favorite;
 			_updated.fire({});
 		}
@@ -79,6 +79,25 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 
 QString Reactions::favorite() const {
 	return _favorite;
+}
+
+void Reactions::setFavorite(const QString &emoji) {
+	const auto api = &_owner->session().api();
+	if (_saveFaveRequestId) {
+		api->request(_saveFaveRequestId).cancel();
+	}
+	_saveFaveRequestId = api->request(MTPmessages_SetDefaultReaction(
+		MTP_string(emoji)
+	)).done([=] {
+		_saveFaveRequestId = 0;
+	}).fail([=] {
+		_saveFaveRequestId = 0;
+	}).send();
+
+	if (_favorite != emoji) {
+		_favorite = emoji;
+		_updated.fire({});
+	}
 }
 
 rpl::producer<> Reactions::updates() const {

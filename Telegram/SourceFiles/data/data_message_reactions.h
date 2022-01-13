@@ -44,6 +44,7 @@ public:
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
 	[[nodiscard]] QString favorite() const;
+	void setFavorite(const QString &emoji);
 
 	[[nodiscard]] static base::flat_set<QString> ParseAllowed(
 		const MTPVector<MTPstring> *list);
@@ -116,6 +117,8 @@ private:
 	base::flat_set<not_null<HistoryItem*>> _pollItems;
 	base::flat_set<not_null<HistoryItem*>> _pollingItems;
 	mtpRequestId _pollRequestId = 0;
+
+	mtpRequestId _saveFaveRequestId = 0;
 
 	rpl::lifetime _lifetime;
 
