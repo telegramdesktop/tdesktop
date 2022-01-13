@@ -963,12 +963,12 @@ sendAsButton: SendAsButton {
 	duration: 150;
 }
 
-reactionBottomPadding: margins(5px, 2px, 7px, 2px);
-reactionBottomSize: 16px;
-reactionBottomImage: 28px;
-reactionBottomSkip: 3px;
-reactionBottomBetween: 4px;
-reactionBottomInBubbleLeft: -3px;
+reactionInlinePadding: margins(5px, 2px, 7px, 2px);
+reactionInlineSize: 16px;
+reactionInlineImage: 28px;
+reactionInlineSkip: 3px;
+reactionInlineBetween: 4px;
+reactionInlineInBubbleLeft: -3px;
 
 reactionInfoSize: 15px;
 reactionInfoImage: 30px;

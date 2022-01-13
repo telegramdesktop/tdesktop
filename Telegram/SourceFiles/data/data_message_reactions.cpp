@@ -142,7 +142,7 @@ QImage Reactions::resolveImageFor(
 	};
 	if (set.bottomInfo.isNull() && set.icon) {
 		resolve(set.bottomInfo, st::reactionInfoImage);
-		resolve(set.inlineList, st::reactionBottomImage);
+		resolve(set.inlineList, st::reactionInlineImage);
 		crl::async([icon = std::move(set.icon)]{});
 	}
 	switch (size) {

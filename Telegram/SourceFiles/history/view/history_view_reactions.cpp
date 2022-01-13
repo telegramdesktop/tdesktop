@@ -117,15 +117,15 @@ QSize InlineList::countOptimalSize() {
 		return _skipBlock;
 	}
 	const auto left = (_data.flags & InlineListData::Flag::InBubble)
-		? st::reactionBottomInBubbleLeft
+		? st::reactionInlineInBubbleLeft
 		: 0;
 	auto x = left;
-	const auto between = st::reactionBottomBetween;
-	const auto padding = st::reactionBottomPadding;
-	const auto size = st::reactionBottomSize;
+	const auto between = st::reactionInlineBetween;
+	const auto padding = st::reactionInlinePadding;
+	const auto size = st::reactionInlineSize;
 	const auto widthBase = padding.left()
 		+ size
-		+ st::reactionBottomSkip
+		+ st::reactionInlineSkip
 		+ padding.right();
 	const auto height = padding.top() + size + padding.bottom();
 	for (auto &button : _buttons) {
@@ -143,9 +143,9 @@ QSize InlineList::countCurrentSize(int newWidth) {
 		return optimalSize();
 	}
 	using Flag = InlineListData::Flag;
-	const auto between = st::reactionBottomBetween;
+	const auto between = st::reactionInlineBetween;
 	const auto inBubble = (_data.flags & Flag::InBubble);
-	const auto left = inBubble ? st::reactionBottomInBubbleLeft : 0;
+	const auto left = inBubble ? st::reactionInlineInBubbleLeft : 0;
 	auto x = left;
 	auto y = 0;
 	for (auto &button : _buttons) {
@@ -186,9 +186,9 @@ void InlineList::paint(
 		const QRect &clip) const {
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
-	const auto padding = st::reactionBottomPadding;
-	const auto size = st::reactionBottomSize;
-	const auto skip = (size - st::reactionBottomImage) / 2;
+	const auto padding = st::reactionInlinePadding;
+	const auto size = st::reactionInlineSize;
+	const auto skip = (size - st::reactionInlineImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
 	const auto animated = (_animation && context.reactionEffects)
 		? _animation->playingAroundEmoji()
@@ -234,7 +234,7 @@ void InlineList::paint(
 		}
 		const auto image = QRect(
 			inner.topLeft() + QPoint(skip, skip),
-			QSize(st::reactionBottomImage, st::reactionBottomImage));
+			QSize(st::reactionInlineImage, st::reactionInlineImage));
 		if (!button.image.isNull() && !skipImage) {
 			p.drawImage(image.topLeft(), button.image);
 		}
@@ -260,7 +260,7 @@ void InlineList::paint(
 			const auto textTop = geometry.y()
 				+ ((geometry.height() - st::semiboldFont->height) / 2);
 			p.drawText(
-				inner.x() + size + st::reactionBottomSkip,
+				inner.x() + size + st::reactionInlineSkip,
 				textTop + st::semiboldFont->ascent,
 				button.countText);
 		}
@@ -271,7 +271,7 @@ bool InlineList::getState(
 		QPoint point,
 		not_null<TextState*> outResult) const {
 	const auto left = (_data.flags & InlineListData::Flag::InBubble)
-		? st::reactionBottomInBubbleLeft
+		? st::reactionInlineInBubbleLeft
 		: 0;
 	if (!QRect(left, 0, width() - left, height()).contains(point)) {
 		return false;
@@ -296,7 +296,7 @@ void InlineList::animateSend(
 		_owner,
 		std::move(args),
 		std::move(repaint),
-		st::reactionBottomImage);
+		st::reactionInlineImage);
 }
 
 std::unique_ptr<SendAnimation> InlineList::takeSendAnimation() {
