@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 
 constexpr auto kPeerLinkPeerIdProperty = 0x01;
+constexpr auto kPhotoLinkMediaIdProperty = 0x02;
+constexpr auto kDocumentLinkMediaIdProperty = 0x03;
 
 namespace Main {
 class Session;

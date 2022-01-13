@@ -1593,68 +1593,75 @@ void ListWidget::showContextMenu(
 		},
 		&st::menuIconShowInChat);
 
-	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.get());
-	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.get());
-	if (photoLink || fileLink) {
+	const auto lnkPhotoId = PhotoId(link
+		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
+		: 0);
+	const auto lnkDocumentId = DocumentId(link
+		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
+		: 0);
+	const auto lnkPhoto = lnkPhotoId
+		? session().data().photo(lnkPhotoId).get()
+		: nullptr;
+	const auto lnkDocument = lnkDocumentId
+		? session().data().document(lnkDocumentId).get()
+		: nullptr;
+	if (lnkPhoto || lnkDocument) {
 		auto [isVideo, isVoice, isAudio] = [&] {
-			if (fileLink) {
-				auto document = fileLink->document();
+			if (lnkDocument) {
 				return std::make_tuple(
-					document->isVideoFile(),
-					document->isVoiceMessage(),
-					document->isAudioFile()
+					lnkDocument->isVideoFile(),
+					lnkDocument->isVoiceMessage(),
+					lnkDocument->isAudioFile()
 				);
 			}
 			return std::make_tuple(false, false, false);
 		}();
 
-		if (photoLink) {
+		if (lnkPhoto) {
 		} else {
-			if (auto document = fileLink->document()) {
-				if (document->loading()) {
-					_contextMenu->addAction(
-						tr::lng_context_cancel_download(tr::now),
-						[document] {
-							document->cancel();
-						},
-						&st::menuIconCancel);
-				} else {
-					auto filepath = document->filepath(true);
-					if (!filepath.isEmpty()) {
-						auto handler = App::LambdaDelayed(
-							st::defaultDropdownMenu.menu.ripple.hideDuration,
-							this,
-							[filepath] {
-								File::ShowInFolder(filepath);
-							});
-						_contextMenu->addAction(
-							(Platform::IsMac()
-								? tr::lng_context_show_in_finder(tr::now)
-								: tr::lng_context_show_in_folder(tr::now)),
-							std::move(handler),
-							&st::menuIconShowInFolder);
-					}
+			if (lnkDocument->loading()) {
+				_contextMenu->addAction(
+					tr::lng_context_cancel_download(tr::now),
+					[lnkDocument] {
+						lnkDocument->cancel();
+					},
+					&st::menuIconCancel);
+			} else {
+				auto filepath = lnkDocument->filepath(true);
+				if (!filepath.isEmpty()) {
 					auto handler = App::LambdaDelayed(
 						st::defaultDropdownMenu.menu.ripple.hideDuration,
 						this,
-						[=] {
-							DocumentSaveClickHandler::Save(
-								itemFullId,
-								document,
-								DocumentSaveClickHandler::Mode::ToNewFile);
+						[filepath] {
+							File::ShowInFolder(filepath);
 						});
-					if (_peer->allowsForwarding() && !item->forbidsForward()) {
-						_contextMenu->addAction(
-							(isVideo
-								? tr::lng_context_save_video(tr::now)
-								: isVoice
-								? tr::lng_context_save_audio(tr::now)
-								: isAudio
-								? tr::lng_context_save_audio_file(tr::now)
-								: tr::lng_context_save_file(tr::now)),
-							std::move(handler),
-							&st::menuIconDownload);
-					}
+					_contextMenu->addAction(
+						(Platform::IsMac()
+							? tr::lng_context_show_in_finder(tr::now)
+							: tr::lng_context_show_in_folder(tr::now)),
+						std::move(handler),
+						&st::menuIconShowInFolder);
+				}
+				auto handler = App::LambdaDelayed(
+					st::defaultDropdownMenu.menu.ripple.hideDuration,
+					this,
+					[=] {
+						DocumentSaveClickHandler::Save(
+							itemFullId,
+							lnkDocument,
+							DocumentSaveClickHandler::Mode::ToNewFile);
+					});
+				if (_peer->allowsForwarding() && !item->forbidsForward()) {
+					_contextMenu->addAction(
+						(isVideo
+							? tr::lng_context_save_video(tr::now)
+							: isVoice
+							? tr::lng_context_save_audio(tr::now)
+							: isAudio
+							? tr::lng_context_save_audio_file(tr::now)
+							: tr::lng_context_save_file(tr::now)),
+						std::move(handler),
+						&st::menuIconDownload);
 				}
 			}
 		}

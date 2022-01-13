@@ -2045,9 +2045,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	};
 
 	const auto link = ClickHandler::getActive();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
-	if (lnkPhoto || lnkDocument) {
+	const auto lnkPhotoId = PhotoId(link
+		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
+		: 0);
+	const auto lnkDocumentId = DocumentId(link
+		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
+		: 0);
+	if (lnkPhotoId || lnkDocumentId) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		if (isUponSelected > 0 && !hasCopyRestrictionForSelected()) {
@@ -2059,10 +2063,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&st::menuIconCopy);
 		}
 		addItemActions(item, item);
-		if (lnkPhoto) {
-			addPhotoActions(lnkPhoto->photo(), item);
+		if (lnkPhotoId) {
+			addPhotoActions(session->data().photo(lnkPhotoId), item);
 		} else {
-			addDocumentActions(lnkDocument->document(), item);
+			addDocumentActions(session->data().document(lnkDocumentId), item);
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
