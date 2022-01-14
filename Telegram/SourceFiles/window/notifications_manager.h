@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
+struct ItemNotification;
+enum class ItemNotificationType;
 
 namespace Data {
 class CloudImageView;
@@ -84,7 +86,7 @@ public:
 	[[nodiscard]] std::optional<ManagerType> managerType() const;
 
 	void checkDelayed();
-	void schedule(not_null<HistoryItem*> item);
+	void schedule(ItemNotification notification);
 	void clearFromHistory(not_null<History*> history);
 	void clearIncomingFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
@@ -109,14 +111,53 @@ private:
 		};
 		Value value = Value::Unknown;
 		bool silent = false;
+		bool alsoMuted = false;
+	};
+	struct NotificationInHistoryKey {
+		NotificationInHistoryKey(ItemNotification notification);
+		NotificationInHistoryKey(MsgId messageId, ItemNotificationType type);
+
+		MsgId messageId = 0;
+		ItemNotificationType type = ItemNotificationType();
+
+		friend inline bool operator<(
+				NotificationInHistoryKey a,
+				NotificationInHistoryKey b) {
+			return std::pair(a.messageId, a.type)
+				< std::pair(b.messageId, b.type);
+		}
 	};
 	struct Waiter {
-		MsgId msg;
-		crl::time when;
+		NotificationInHistoryKey key;
+		crl::time when = 0;
 		PeerData *notifyBy = nullptr;
+		bool alsoMuted = false;
+	};
+	struct Timing {
+		crl::time delay = 0;
+		crl::time when = 0;
+	};
+	struct ReactionNotificationId {
+		FullMsgId itemId;
+		uint64 sessionId = 0;
+
+		friend inline bool operator<(
+				ReactionNotificationId a,
+				ReactionNotificationId b) {
+			return std::pair(a.itemId, a.sessionId)
+				< std::pair(b.itemId, b.sessionId);
+		}
 	};
 
 	[[nodiscard]] SkipState skipNotification(
+		ItemNotification notification) const;
+	[[nodiscard]] SkipState computeSkipState(
+		not_null<HistoryItem*> item,
+		bool showForMuted) const;
+	[[nodiscard]] Timing countTiming(
+		not_null<History*> history,
+		crl::time minimalDelay) const;
+	[[nodiscard]] bool skipReactionNotification(
 		not_null<HistoryItem*> item) const;
 
 	void showNext();
@@ -125,14 +166,20 @@ private:
 
 	base::flat_map<
 		not_null<History*>,
-		base::flat_map<MsgId, crl::time>> _whenMaps;
+		base::flat_map<NotificationInHistoryKey, crl::time>> _whenMaps;
 
 	base::flat_map<not_null<History*>, Waiter> _waiters;
 	base::flat_map<not_null<History*>, Waiter> _settingWaiters;
 	base::Timer _waitTimer;
 	base::Timer _waitForAllGroupedTimer;
 
-	base::flat_map<not_null<History*>, base::flat_map<crl::time, PeerData*>> _whenAlerts;
+	base::flat_map<
+		not_null<History*>,
+		base::flat_map<crl::time, PeerData*>> _whenAlerts;
+
+	mutable base::flat_map<
+		ReactionNotificationId,
+		crl::time> _sentReactionNotifications;
 
 	std::unique_ptr<Manager> _manager;
 
@@ -169,14 +216,17 @@ public:
 			return std::tie(a.full, a.msgId) < std::tie(b.full, b.msgId);
 		}
 	};
+	struct NotificationFields {
+		not_null<HistoryItem*> item;
+		int forwardedCount = 0;
+		QString reaction;
+	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {
 	}
 
-	void showNotification(
-			not_null<HistoryItem*> item,
-			int forwardedCount) {
-		doShowNotification(item, forwardedCount);
+	void showNotification(NotificationFields fields) {
+		doShowNotification(std::move(fields));
 	}
 	void updateAll() {
 		doUpdateAll();
@@ -209,7 +259,12 @@ public:
 		bool hideReplyButton = false;
 	};
 	[[nodiscard]] DisplayOptions getNotificationOptions(
-		HistoryItem *item) const;
+		HistoryItem *item,
+		ItemNotificationType type) const;
+	[[nodiscard]] static TextWithEntities ComposeReactionNotification(
+		not_null<HistoryItem*> item,
+		const QString &reaction,
+		bool hideContent);
 
 	[[nodiscard]] QString addTargetAccountName(
 		const QString &title,
@@ -235,9 +290,7 @@ protected:
 	}
 
 	virtual void doUpdateAll() = 0;
-	virtual void doShowNotification(
-		not_null<HistoryItem*> item,
-		int forwardedCount) = 0;
+	virtual void doShowNotification(NotificationFields &&fields) = 0;
 	virtual void doClearAll() = 0;
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
@@ -281,9 +334,7 @@ protected:
 	void doClearAll() override {
 		doClearAllFast();
 	}
-	void doShowNotification(
-		not_null<HistoryItem*> item,
-		int forwardedCount) override;
+	void doShowNotification(NotificationFields &&fields) override;
 
 	bool forceHideDetails() const override;
 

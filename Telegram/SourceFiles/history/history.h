@@ -76,6 +76,19 @@ enum class UnreadMentionType {
 	Existing, // when some messages slice was received
 };
 
+enum class ItemNotificationType {
+	Message,
+	Reaction,
+};
+struct ItemNotification {
+	not_null<HistoryItem*> item;
+	ItemNotificationType type = ItemNotificationType::Message;
+
+	friend inline bool operator==(ItemNotification a, ItemNotification b) {
+		return (a.item == b.item) && (a.type == b.type);
+	}
+};
+
 class History final : public Dialogs::Entry {
 public:
 	using Element = HistoryView::Element;
@@ -304,10 +317,11 @@ public:
 	void itemRemoved(not_null<HistoryItem*> item);
 	void itemVanished(not_null<HistoryItem*> item);
 
-	HistoryItem *currentNotification();
+	[[nodiscard]] std::optional<ItemNotification> currentNotification() const;
 	bool hasNotification() const;
 	void skipNotification();
-	void popNotification(HistoryItem *item);
+	void pushNotification(ItemNotification notification);
+	void popNotification(ItemNotification notification);
 
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
@@ -645,7 +659,7 @@ private:
 
 	HistoryView::SendActionPainter _sendActionPainter;
 
-	std::deque<not_null<HistoryItem*>> _notifications;
+	std::deque<ItemNotification> _notifications;
 
  };
 

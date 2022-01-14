@@ -75,15 +75,15 @@ Manager::Manager(System *system)
 	}, _lifetime);
 }
 
-Manager::QueuedNotification::QueuedNotification(
-	not_null<HistoryItem*> item,
-	int forwardedCount)
-: history(item->history())
+Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
+: history(fields.item->history())
 , peer(history->peer)
-, author(item->notificationHeader())
-, item((forwardedCount < 2) ? item.get() : nullptr)
-, forwardedCount(forwardedCount)
-, fromScheduled((item->out() || peer->isSelf()) && item->isFromScheduled()) {
+, reaction(fields.reaction)
+, author(reaction.isEmpty() ? fields.item->notificationHeader() : QString())
+, item((fields.forwardedCount < 2) ? fields.item.get() : nullptr)
+, forwardedCount(fields.forwardedCount)
+, fromScheduled(reaction.isEmpty() && (fields.item->out() || peer->isSelf())
+	&& fields.item->isFromScheduled()) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
@@ -230,6 +230,7 @@ void Manager::showNextFromQueue() {
 			queued.peer,
 			queued.author,
 			queued.item,
+			queued.reaction,
 			queued.forwardedCount,
 			queued.fromScheduled,
 			startPosition,
@@ -343,10 +344,8 @@ void Manager::removeWidget(internal::Widget *remove) {
 	showNextFromQueue();
 }
 
-void Manager::doShowNotification(
-		not_null<HistoryItem*> item,
-		int forwardedCount) {
-	_queuedNotifications.emplace_back(item, forwardedCount);
+void Manager::doShowNotification(NotificationFields &&fields) {
+	_queuedNotifications.emplace_back(std::move(fields));
 	showNextFromQueue();
 }
 
@@ -596,6 +595,7 @@ Notification::Notification(
 	not_null<PeerData*> peer,
 	const QString &author,
 	HistoryItem *item,
+	const QString &reaction,
 	int forwardedCount,
 	bool fromScheduled,
 	QPoint startPosition,
@@ -607,6 +607,7 @@ Notification::Notification(
 , _history(history)
 , _userpicView(_peer->createUserpicView())
 , _author(author)
+, _reaction(reaction)
 , _item(item)
 , _forwardedCount(forwardedCount)
 , _fromScheduled(fromScheduled)
@@ -746,7 +747,11 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || (!_item && _forwardedCount < 2)) return;
 
-	const auto options = manager()->getNotificationOptions(_item);
+	const auto options = manager()->getNotificationOptions(
+		_item,
+		(_reaction.isEmpty()
+			? ItemNotificationType::Message
+			: ItemNotificationType::Reaction));
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();
@@ -796,7 +801,9 @@ void Notification::updateNotifyDisplay() {
 			}
 		}
 
-		if (!options.hideMessageText) {
+		const auto composeText = !options.hideMessageText
+			|| (!_reaction.isEmpty() && !options.hideNameAndPhoto);
+		if (composeText) {
 			auto itemTextCache = Ui::Text::String(itemWidth);
 			auto r = QRect(
 				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
@@ -806,7 +813,12 @@ void Notification::updateNotifyDisplay() {
 			p.setTextPalette(st::dialogsTextPalette);
 			p.setPen(st::dialogsTextFg);
 			p.setFont(st::dialogsTextFont);
-			const auto text = _item
+			const auto text = !_reaction.isEmpty()
+				? Manager::ComposeReactionNotification(
+					_item,
+					_reaction,
+					options.hideMessageText)
+				: _item
 				? _item->toPreview({
 					.hideSender = reminder,
 					.generateImages = false,

@@ -348,6 +348,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_sample" = "This is a sample notification";
 "lng_notification_reminder" = "Reminder";
 
+"lng_reaction_text" = "{reaction} to your «{text}»";
+"lng_reaction_notext" = "{reaction} to your message";
+"lng_reaction_photo" = "{reaction} to your photo";
+"lng_reaction_video" = "{reaction} to your video";
+"lng_reaction_video_message" = "{reaction} to your video message";
+"lng_reaction_document" = "{reaction} to your file";
+"lng_reaction_sticker" = "{reaction} to your {emoji}sticker";
+"lng_reaction_voice_message" = "{reaction} to your voice message";
+"lng_reaction_contact" = "{reaction} to your contact {name}";
+"lng_reaction_location" = "{reaction} to your map";
+"lng_reaction_live_location" = "{reaction} to your live location";
+"lng_reaction_poll" = "{reaction} to your poll {title}";
+"lng_reaction_quiz" = "{reaction} to your quiz {title}";
+"lng_reaction_game" = "{reaction} to your game";
+"lng_reaction_invoice" = "{reaction} to your invoice";
+"lng_reaction_gif" = "{reaction} to your GIF";
+
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
@@ -1824,7 +1841,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
 "lng_forward_share_cant" = "Sorry, no way to share contact here :(";
-
 
 "lng_forward_send_files_cant" = "Sorry, no way to send media here :(";
 "lng_forward_send" = "Send";

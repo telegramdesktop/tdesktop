@@ -363,6 +363,7 @@ public:
 		-> const base::flat_map<QString, std::vector<not_null<UserData*>>> &;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
+	[[nodiscard]] QString lookupHisReaction() const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
@@ -442,6 +443,8 @@ protected:
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
+	void setReactions(const MTPMessageReactions *reactions);
+
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
 	MessageFlags _flags = 0;
@@ -469,7 +472,6 @@ protected:
 	crl::time _reactionsLastRefreshed = 0;
 
 private:
-
 	TimeId _date = 0;
 	TimeId _ttlDestroyAt = 0;
 

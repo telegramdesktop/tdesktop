@@ -97,14 +97,14 @@ int History::height() const {
 
 void History::removeNotification(not_null<HistoryItem*> item) {
 	_notifications.erase(
-		ranges::remove(_notifications, item),
+		ranges::remove(_notifications, item, &ItemNotification::item),
 		end(_notifications));
 }
 
-HistoryItem *History::currentNotification() {
+auto History::currentNotification() const -> std::optional<ItemNotification> {
 	return empty(_notifications)
-		? nullptr
-		: _notifications.front().get();
+		? std::nullopt
+		: std::make_optional(_notifications.front());
 }
 
 bool History::hasNotification() const {
@@ -117,8 +117,12 @@ void History::skipNotification() {
 	}
 }
 
-void History::popNotification(HistoryItem *item) {
-	if (!empty(_notifications) && (_notifications.back() == item)) {
+void History::pushNotification(ItemNotification notification) {
+	_notifications.push_back(notification);
+}
+
+void History::popNotification(ItemNotification notification) {
+	if (!empty(_notifications) && (_notifications.back() == notification)) {
 		_notifications.pop_back();
 	}
 }
@@ -1146,13 +1150,17 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
+	auto notification = ItemNotification{
+		item,
+		ItemNotificationType::Message,
+	};
 	if (item->showNotification()) {
-		_notifications.push_back(item);
+		pushNotification(notification);
 	}
 	owner().notifyNewItemAdded(item);
 	const auto stillShow = item->showNotification(); // Could be read already.
 	if (stillShow) {
-		Core::App().notifications().schedule(item);
+		Core::App().notifications().schedule(notification);
 		if (!item->out() && item->unread()) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
@@ -2147,8 +2155,11 @@ void History::clearNotifications() {
 
 void History::clearIncomingNotifications() {
 	if (!peer->isSelf()) {
+		const auto proj = [](ItemNotification notification) {
+			return notification.item->out();
+		};
 		_notifications.erase(
-			ranges::remove(_notifications, false, &HistoryItem::out),
+			ranges::remove(_notifications, false, proj),
 			end(_notifications));
 	}
 }
@@ -2983,7 +2994,9 @@ void History::reactionsEnabledChanged(bool enabled) {
 			item->updateReactions(nullptr);
 		}
 	} else {
-
+		for (const auto &item : _messages) {
+			item->updateReactionsUnknown();
+		}
 	}
 }
 

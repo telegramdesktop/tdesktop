@@ -808,6 +808,26 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	const auto history = this->history();
+	const auto toUser = (reactions && out())
+		? history->peer->asUser()
+		: nullptr;
+	const auto toContact = toUser && toUser->isContact();
+	const auto maybeNotify = toContact && lookupHisReaction().isEmpty();
+	setReactions(reactions);
+	if (maybeNotify) {
+		if (const auto reaction = lookupHisReaction(); !reaction.isEmpty()) {
+			const auto notification = ItemNotification{
+				this,
+				ItemNotificationType::Reaction,
+			};
+			history->pushNotification(notification);
+			Core::App().notifications().schedule(notification);
+		}
+	}
+}
+
+void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 	if (reactions || _reactionsLastRefreshed) {
 		_reactionsLastRefreshed = crl::now();
 	}
@@ -866,6 +886,24 @@ bool HistoryItem::canViewReactions() const {
 
 QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
+}
+
+QString HistoryItem::lookupHisReaction() const {
+	if (!_reactions) {
+		return QString();
+	}
+	const auto &list = _reactions->list();
+	if (list.empty()) {
+		return QString();
+	}
+	const auto chosen = _reactions->chosen();
+	const auto &[first, count] = list.front();
+	if (chosen.isEmpty() || first != chosen || count > 1) {
+		return first;
+	} else if (list.size() == 1) {
+		return QString();
+	}
+	return list.back().first;
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {
