@@ -1892,6 +1892,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto hasWhoReactedItem = _dragStateItem
 		&& Api::WhoReactedExists(_dragStateItem);
+	const auto clickedEmoji = link
+		? link->property(kReactionsCountEmojiProperty).toString()
+		: QString();
+	_whoReactedMenuLifetime.destroy();
+	if (hasWhoReactedItem && !clickedEmoji.isEmpty()) {
+		HistoryView::ShowWhoReactedMenu(
+			&_menu,
+			e->globalPos(),
+			this,
+			_dragStateItem,
+			clickedEmoji,
+			_controller,
+			_whoReactedMenuLifetime);
+		e->accept();
+		return;
+	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);

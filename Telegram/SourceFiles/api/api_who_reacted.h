@@ -27,5 +27,10 @@ namespace Api {
 	not_null<HistoryItem*> item,
 	not_null<QWidget*> context,
 	const style::WhoRead &st); // Cache results for this lifetime.
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoReacted(
+	not_null<HistoryItem*> item,
+	const QString &reaction,
+	not_null<QWidget*> context,
+	const style::WhoRead &st); // Cache results for this lifetime.
 
 } // namespace Api

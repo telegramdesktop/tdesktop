@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/click_handler_types.h"
 #include "apiwrap.h"
+#include "api/api_who_reacted.h"
 #include "layout/layout_selection.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -2098,16 +2099,35 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		&& _reactionsManager->showContextMenu(this, e)) {
 		return;
 	}
+	const auto overItem = _overItemExact
+		? _overItemExact
+		: _overElement
+		? _overElement->data().get()
+		: nullptr;
+	const auto hasWhoReactedItem = overItem
+		&& Api::WhoReactedExists(overItem);
+	const auto clickedEmoji = link
+		? link->property(kReactionsCountEmojiProperty).toString()
+		: QString();
+	_whoReactedMenuLifetime.destroy();
+	if (hasWhoReactedItem && !clickedEmoji.isEmpty()) {
+		HistoryView::ShowWhoReactedMenu(
+			&_menu,
+			e->globalPos(),
+			this,
+			overItem,
+			clickedEmoji,
+			_controller,
+			_whoReactedMenuLifetime);
+		e->accept();
+		return;
+	}
 
 	auto request = ContextMenuRequest(_controller);
 
 	request.link = link;
 	request.view = _overElement;
-	request.item = _overItemExact
-		? _overItemExact
-		: _overElement
-		? _overElement->data().get()
-		: nullptr;
+	request.item = overItem;
 	request.pointState = _overState.pointState;
 	request.selectedText = _selectedText;
 	request.selectedItems = collectSelectedItems();

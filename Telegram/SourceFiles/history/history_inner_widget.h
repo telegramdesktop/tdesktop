@@ -469,6 +469,8 @@ private:
 
 	Ui::Animations::Simple _spoilerOpacity;
 
+	// _menu must be destroyed before _whoReactedMenuLifetime.
+	rpl::lifetime _whoReactedMenuLifetime;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	bool _scrollDateShown = false;

@@ -614,6 +614,8 @@ private:
 
 	bool _isChatWide = false;
 
+	// _menu must be destroyed before _whoReactedMenuLifetime.
+	rpl::lifetime _whoReactedMenuLifetime;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPoint _trippleClickPoint;

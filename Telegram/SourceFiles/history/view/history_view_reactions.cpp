@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_react_animation.h"
 #include "history/view/history_view_group_call_bar.h"
+#include "core/click_handler_types.h"
 #include "data/data_message_reactions.h"
 #include "data/data_user.h"
 #include "lang/lang_tag.h"
@@ -349,6 +350,9 @@ bool InlineList::getState(
 		if (button.geometry.contains(point)) {
 			if (!button.link) {
 				button.link = _handlerFactory(button.emoji);
+				button.link->setProperty(
+					kReactionsCountEmojiProperty,
+					button.emoji);
 				_owner->preloadAnimationsFor(button.emoji);
 			}
 			outResult->link = button.link;

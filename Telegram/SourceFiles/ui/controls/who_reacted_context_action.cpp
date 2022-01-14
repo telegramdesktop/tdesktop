@@ -26,34 +26,6 @@ struct EntryData {
 	Fn<void()> callback;
 };
 
-class EntryAction final : public Menu::ItemBase {
-public:
-	EntryAction(
-		not_null<RpWidget*> parent,
-		const style::Menu &st,
-		EntryData &&data);
-
-	void setData(EntryData &&data);
-
-	not_null<QAction*> action() const override;
-	bool isEnabled() const override;
-
-private:
-	int contentHeight() const override;
-
-	void paint(Painter &&p);
-
-	const not_null<QAction*> _dummyAction;
-	const style::Menu &_st;
-	const int _height = 0;
-
-	Text::String _text;
-	EmojiPtr _emoji = nullptr;
-	int _textWidth = 0;
-	QImage _userpic;
-
-};
-
 class Action final : public Menu::ItemBase {
 public:
 	Action(
@@ -89,7 +61,7 @@ private:
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
 
-	std::vector<not_null<EntryAction*>> _submenuActions;
+	WhoReactedListMenu _submenu;
 
 	Text::String _text;
 	int _textWidth = 0;
@@ -108,106 +80,6 @@ TextParseOptions MenuTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-EntryAction::EntryAction(
-	not_null<RpWidget*> parent,
-	const style::Menu &st,
-	EntryData &&data)
-: ItemBase(parent, st)
-, _dummyAction(CreateChild<QAction>(parent.get()))
-, _st(st)
-, _height(st::defaultWhoRead.photoSkip * 2 + st::defaultWhoRead.photoSize) {
-	setAcceptBoth(true);
-
-	initResizeHook(parent->sizeValue());
-	setData(std::move(data));
-
-	paintRequest(
-	) | rpl::start_with_next([=] {
-		paint(Painter(this));
-	}, lifetime());
-
-	enableMouseSelecting();
-}
-
-not_null<QAction*> EntryAction::action() const {
-	return _dummyAction.get();
-}
-
-bool EntryAction::isEnabled() const {
-	return true;
-}
-
-int EntryAction::contentHeight() const {
-	return _height;
-}
-
-void EntryAction::setData(EntryData &&data) {
-	setClickedCallback(std::move(data.callback));
-	_userpic = std::move(data.userpic);
-	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
-	_emoji = Emoji::Find(data.reaction);
-	const auto textWidth = _text.maxWidth();
-	const auto &padding = _st.itemPadding;
-	const auto rightSkip = padding.right()
-		+ (_emoji
-			? ((Emoji::GetSizeNormal() / style::DevicePixelRatio())
-				+ padding.right())
-			: 0);
-	const auto goodWidth = st::defaultWhoRead.nameLeft
-		+ textWidth
-		+ rightSkip;
-	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
-	_textWidth = w - (goodWidth - textWidth);
-	setMinWidth(w);
-	update();
-}
-
-void EntryAction::paint(Painter &&p) {
-	const auto enabled = isEnabled();
-	const auto selected = isSelected();
-	if (selected && _st.itemBgOver->c.alpha() < 255) {
-		p.fillRect(0, 0, width(), _height, _st.itemBg);
-	}
-	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
-	if (enabled) {
-		paintRipple(p, 0, 0);
-	}
-	const auto photoSize = st::defaultWhoRead.photoSize;
-	const auto photoLeft = st::defaultWhoRead.photoLeft;
-	const auto photoTop = (height() - photoSize) / 2;
-	if (!_userpic.isNull()) {
-		p.drawImage(photoLeft, photoTop, _userpic);
-	} else if (!_emoji) {
-		st::menuIconReactions.paintInCenter(
-			p,
-			QRect(photoLeft, photoTop, photoSize, photoSize));
-	}
-
-	p.setPen(selected
-		? _st.itemFgOver
-		: enabled
-		? _st.itemFg
-		: _st.itemFgDisabled);
-	_text.drawLeftElided(
-		p,
-		st::defaultWhoRead.nameLeft,
-		(height() - _st.itemStyle.font->height) / 2,
-		_textWidth,
-		width());
-
-	if (_emoji) {
-		// #TODO reactions
-		const auto size = Emoji::GetSizeNormal();
-		const auto ratio = style::DevicePixelRatio();
-		Emoji::Draw(
-			p,
-			_emoji,
-			size,
-			width() - _st.itemPadding.right() - (size / ratio),
-			(height() - (size / ratio)) / 2);
-	}
-}
-
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
@@ -223,6 +95,7 @@ Action::Action(
 	rpl::never<bool>(),
 	[=] { update(); }))
 , _st(parentMenu->menu()->st())
+, _submenu(_participantChosen, _showAllChosen)
 , _height(st::defaultWhoRead.itemPadding.top()
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
@@ -344,7 +217,7 @@ void Action::updateUserpicsFromContent() {
 
 void Action::populateSubmenu() {
 	if (_content.participants.size() < 2) {
-		_submenuActions.clear();
+		_submenu.clear();
 		_parentMenu->removeSubmenu(action());
 		if (!isEnabled()) {
 			setSelected(false);
@@ -353,47 +226,7 @@ void Action::populateSubmenu() {
 	}
 
 	const auto submenu = _parentMenu->ensureSubmenu(action());
-	const auto reactions = ranges::count_if(
-		_content.participants,
-		[](const auto &p) { return !p.reaction.isEmpty(); });
-	const auto addShowAll = (_content.fullReactionsCount > reactions);
-	const auto actionsCount = int(_content.participants.size())
-		+ (addShowAll ? 1 : 0);
-	if (_submenuActions.size() > actionsCount) {
-		_submenuActions.clear();
-		submenu->clearActions();
-	}
-	auto index = 0;
-	const auto append = [&](EntryData &&data) {
-		if (index < _submenuActions.size()) {
-			_submenuActions[index]->setData(std::move(data));
-		} else {
-			auto item = base::make_unique_q<EntryAction>(
-				submenu->menu(),
-				_st,
-				std::move(data));
-			_submenuActions.push_back(item.get());
-			submenu->addAction(std::move(item));
-		}
-		++index;
-	};
-	for (const auto &participant : _content.participants) {
-		const auto chosen = [call = _participantChosen, id = participant.id] {
-			call(id);
-		};
-		append({
-			.text = participant.name,
-			.reaction = participant.reaction,
-			.userpic = participant.userpicLarge,
-			.callback = chosen,
-		});
-	}
-	if (addShowAll) {
-		append({
-			.text = tr::lng_context_seen_reacted_all(tr::now),
-			.callback = _showAllChosen,
-		});
-	}
+	_submenu.populate(submenu, _content);
 	_parentMenu->checkSubmenuShow();
 }
 
@@ -537,6 +370,134 @@ void Action::handleKeyPress(not_null<QKeyEvent*> e) {
 
 } // namespace
 
+class WhoReactedListMenu::EntryAction final : public Menu::ItemBase {
+public:
+	EntryAction(
+		not_null<RpWidget*> parent,
+		const style::Menu &st,
+		EntryData &&data);
+
+	void setData(EntryData &&data);
+
+	not_null<QAction*> action() const override;
+	bool isEnabled() const override;
+
+private:
+	int contentHeight() const override;
+
+	void paint(Painter &&p);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const int _height = 0;
+
+	Text::String _text;
+	EmojiPtr _emoji = nullptr;
+	int _textWidth = 0;
+	QImage _userpic;
+
+};
+
+WhoReactedListMenu::EntryAction::EntryAction(
+	not_null<RpWidget*> parent,
+	const style::Menu &st,
+	EntryData &&data)
+: ItemBase(parent, st)
+, _dummyAction(CreateChild<QAction>(parent.get()))
+, _st(st)
+, _height(st::defaultWhoRead.photoSkip * 2 + st::defaultWhoRead.photoSize) {
+	setAcceptBoth(true);
+
+	initResizeHook(parent->sizeValue());
+	setData(std::move(data));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		paint(Painter(this));
+	}, lifetime());
+
+	enableMouseSelecting();
+}
+
+not_null<QAction*> WhoReactedListMenu::EntryAction::action() const {
+	return _dummyAction.get();
+}
+
+bool WhoReactedListMenu::EntryAction::isEnabled() const {
+	return true;
+}
+
+int WhoReactedListMenu::EntryAction::contentHeight() const {
+	return _height;
+}
+
+void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
+	setClickedCallback(std::move(data.callback));
+	_userpic = std::move(data.userpic);
+	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
+	_emoji = Emoji::Find(data.reaction);
+	const auto textWidth = _text.maxWidth();
+	const auto &padding = _st.itemPadding;
+	const auto rightSkip = padding.right()
+		+ (_emoji
+			? ((Emoji::GetSizeNormal() / style::DevicePixelRatio())
+				+ padding.right())
+			: 0);
+	const auto goodWidth = st::defaultWhoRead.nameLeft
+		+ textWidth
+		+ rightSkip;
+	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
+	_textWidth = w - (goodWidth - textWidth);
+	setMinWidth(w);
+	update();
+}
+
+void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
+	const auto enabled = isEnabled();
+	const auto selected = isSelected();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	if (enabled) {
+		paintRipple(p, 0, 0);
+	}
+	const auto photoSize = st::defaultWhoRead.photoSize;
+	const auto photoLeft = st::defaultWhoRead.photoLeft;
+	const auto photoTop = (height() - photoSize) / 2;
+	if (!_userpic.isNull()) {
+		p.drawImage(photoLeft, photoTop, _userpic);
+	} else if (!_emoji) {
+		st::menuIconReactions.paintInCenter(
+			p,
+			QRect(photoLeft, photoTop, photoSize, photoSize));
+	}
+
+	p.setPen(selected
+		? _st.itemFgOver
+		: enabled
+		? _st.itemFg
+		: _st.itemFgDisabled);
+	_text.drawLeftElided(
+		p,
+		st::defaultWhoRead.nameLeft,
+		(height() - _st.itemStyle.font->height) / 2,
+		_textWidth,
+		width());
+
+	if (_emoji) {
+		// #TODO reactions
+		const auto size = Emoji::GetSizeNormal();
+		const auto ratio = style::DevicePixelRatio();
+		Emoji::Draw(
+			p,
+			_emoji,
+			size,
+			width() - _st.itemPadding.right() - (size / ratio),
+			(height() - (size / ratio)) / 2);
+	}
+}
+
 bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 	return (a.id == b.id)
 		&& (a.name == b.name)
@@ -557,6 +518,68 @@ base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		std::move(content),
 		std::move(participantChosen),
 		std::move(showAllChosen));
+}
+
+WhoReactedListMenu::WhoReactedListMenu(
+	Fn<void(uint64)> participantChosen,
+	Fn<void()> showAllChosen)
+: _participantChosen(std::move(participantChosen))
+, _showAllChosen(std::move(showAllChosen)) {
+}
+
+void WhoReactedListMenu::clear() {
+	_actions.clear();
+}
+
+void WhoReactedListMenu::populate(
+		not_null<PopupMenu*> menu,
+		const WhoReadContent &content,
+		Fn<void()> refillTopActions) {
+	const auto reactions = ranges::count_if(
+		content.participants,
+		[](const auto &p) { return !p.reaction.isEmpty(); });
+	const auto addShowAll = (content.fullReactionsCount > reactions);
+	const auto actionsCount = int(content.participants.size())
+		+ (addShowAll ? 1 : 0);
+	if (_actions.size() > actionsCount) {
+		_actions.clear();
+		menu->clearActions();
+		if (refillTopActions) {
+			refillTopActions();
+		}
+	}
+	auto index = 0;
+	const auto append = [&](EntryData &&data) {
+		if (index < _actions.size()) {
+			_actions[index]->setData(std::move(data));
+		} else {
+			auto item = base::make_unique_q<EntryAction>(
+				menu->menu(),
+				menu->menu()->st(),
+				std::move(data));
+			_actions.push_back(item.get());
+			menu->addAction(std::move(item));
+		}
+		++index;
+	};
+	for (const auto &participant : content.participants) {
+		const auto chosen = [call = _participantChosen, id = participant.id]{
+			call(id);
+		};
+		append({
+			.text = participant.name,
+			.reaction = participant.reaction,
+			.userpic = participant.userpicLarge,
+			.callback = chosen,
+		});
+	}
+	if (addShowAll) {
+		append({
+			.text = tr::lng_context_seen_reacted_all(tr::now),
+			.callback = _showAllChosen,
+		});
+	}
+
 }
 
 } // namespace Ui

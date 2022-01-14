@@ -80,7 +80,9 @@ struct CachedReacted {
 
 struct Context {
 	base::flat_map<not_null<HistoryItem*>, CachedRead> cachedRead;
-	base::flat_map<not_null<HistoryItem*>, CachedReacted> cachedReacted;
+	base::flat_map<
+		not_null<HistoryItem*>,
+		base::flat_map<QString, CachedReacted>> cachedReacted;
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> subscriptions;
 
 	[[nodiscard]] CachedRead &cacheRead(not_null<HistoryItem*> item) {
@@ -91,12 +93,15 @@ struct Context {
 		return cachedRead.emplace(item, CachedRead()).first->second;
 	}
 
-	[[nodiscard]] CachedReacted &cacheReacted(not_null<HistoryItem*> item) {
-		const auto i = cachedReacted.find(item);
-		if (i != end(cachedReacted)) {
+	[[nodiscard]] CachedReacted &cacheReacted(
+			not_null<HistoryItem*> item,
+			const QString &reaction) {
+		auto &map = cachedReacted[item];
+		const auto i = map.find(reaction);
+		if (i != end(map)) {
 			return i->second;
 		}
-		return cachedReacted.emplace(item, CachedReacted()).first->second;
+		return map.emplace(reaction, CachedReacted()).first->second;
 	}
 };
 
@@ -140,9 +145,11 @@ struct State {
 				item->history()->session().api().request(requestId).cancel();
 			}
 		}
-		for (auto &[item, entry] : i->second->cachedReacted) {
-			if (const auto requestId = entry.requestId) {
-				item->history()->session().api().request(requestId).cancel();
+		for (auto &[item, map] : i->second->cachedReacted) {
+			for (auto &[reaction, entry] : map) {
+				if (const auto requestId = entry.requestId) {
+					item->history()->session().api().request(requestId).cancel();
+				}
 			}
 		}
 		contexts.erase(i);
@@ -150,7 +157,9 @@ struct State {
 	return result;
 }
 
-[[nodiscard]] not_null<Context*> PreparedContextAt(not_null<QWidget*> key, not_null<Main::Session*> session) {
+[[nodiscard]] not_null<Context*> PreparedContextAt(
+		not_null<QWidget*> key,
+		not_null<Main::Session*> session) {
 	const auto context = ContextAt(key);
 	if (context->subscriptions.contains(session)) {
 		return context;
@@ -165,7 +174,9 @@ struct State {
 		}
 		const auto j = context->cachedReacted.find(update.item);
 		if (j != end(context->cachedReacted)) {
-			session->api().request(j->second.requestId).cancel();
+			for (auto &[reaction, entry] : j->second) {
+				session->api().request(entry.requestId).cancel();
+			}
 			context->cachedReacted.erase(j);
 		}
 	}, context->subscriptions[session]);
@@ -244,6 +255,7 @@ struct State {
 
 [[nodiscard]] rpl::producer<PeersWithReactions> WhoReactedIds(
 		not_null<HistoryItem*> item,
+		const QString &reaction,
 		not_null<QWidget*> context) {
 	auto weak = QPointer<QWidget>(context.get());
 	const auto session = &item->history()->session();
@@ -252,19 +264,22 @@ struct State {
 			return rpl::lifetime();
 		}
 		const auto context = PreparedContextAt(weak.data(), session);
-		auto &entry = context->cacheReacted(item);
+		auto &entry = context->cacheReacted(item, reaction);
 		if (!entry.requestId) {
+			using Flag = MTPmessages_GetMessageReactionsList::Flag;
 			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReactionsList(
-					MTP_flags(0),
+					MTP_flags(reaction.isEmpty()
+						? Flag(0)
+						: Flag::f_reaction),
 					item->history()->peer->input,
 					MTP_int(item->id),
-					MTPstring(), // reaction
+					MTP_string(reaction),
 					MTPstring(), // offset
 					MTP_int(kContextReactionsLimit)
 				)
 			).done([=](const MTPmessages_MessageReactionsList &result) {
-				auto &entry = context->cacheReacted(item);
+				auto &entry = context->cacheReacted(item, reaction);
 				entry.requestId = 0;
 
 				result.match([&](
@@ -286,7 +301,7 @@ struct State {
 					entry.data = std::move(parsed);
 				});
 			}).fail([=] {
-				auto &entry = context->cacheReacted(item);
+				auto &entry = context->cacheReacted(item, reaction);
 				entry.requestId = 0;
 				if (entry.data.current().unknown) {
 					entry.data = PeersWithReactions();
@@ -302,7 +317,7 @@ struct State {
 	not_null<QWidget*> context)
 -> rpl::producer<PeersWithReactions> {
 	return rpl::combine(
-		WhoReactedIds(item, context),
+		WhoReactedIds(item, QString(), context),
 		WhoReadIds(item, context)
 	) | rpl::map([=](PeersWithReactions reacted, Peers read) {
 		if (reacted.unknown || read.unknown) {
@@ -468,37 +483,52 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 		not_null<HistoryItem*> item,
 		not_null<QWidget*> context,
 		const style::WhoRead &st) {
+	return WhoReacted(item, QString(), context, st);
+}
+
+rpl::producer<Ui::WhoReadContent> WhoReacted(
+		not_null<HistoryItem*> item,
+		const QString &reaction,
+		not_null<QWidget*> context,
+		const style::WhoRead &st) {
 	const auto small = st.userpics.size;
 	const auto large = st.photoSize;
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		const auto resolveWhoRead = WhoReadExists(item);
+		const auto resolveWhoRead = reaction.isEmpty() && WhoReadExists(item);
 
 		const auto state = lifetime.make_state<State>();
 		const auto pushNext = [=] {
 			consumer.put_next_copy(state->current);
 		};
 
-		const auto resolveWhoReacted = item->canViewReactions();
+		const auto resolveWhoReacted = !reaction.isEmpty()
+			|| item->canViewReactions();
 		auto idsWithReactions = (resolveWhoRead && resolveWhoReacted)
 			? WhoReadOrReactedIds(item, context)
 			: resolveWhoRead
 			? (WhoReadIds(item, context) | rpl::map(WithEmptyReactions))
-			: WhoReactedIds(item, context);
+			: WhoReactedIds(item, reaction, context);
 		state->current.type = resolveWhoRead
 			? DetectSeenType(item)
 			: Ui::WhoReadType::Reacted;
 		if (resolveWhoReacted) {
 			const auto &list = item->reactions();
-			state->current.fullReactionsCount = ranges::accumulate(
-				list,
-				0,
-				ranges::plus{},
-				[](const auto &pair) { return pair.second; });
+			state->current.fullReactionsCount = reaction.isEmpty()
+				? ranges::accumulate(
+					list,
+					0,
+					ranges::plus{},
+					[](const auto &pair) { return pair.second; })
+				: list.contains(reaction)
+				? list.find(reaction)->second
+				: 0;
 
 			// #TODO reactions
-			state->current.singleReaction = (list.size() == 1)
+			state->current.singleReaction = !reaction.isEmpty()
+				? reaction
+				: (list.size() == 1)
 				? list.front().first
 				: QString();
 		}
@@ -509,6 +539,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 				state->userpics.clear();
 				consumer.put_next(Ui::WhoReadContent{
 					.type = state->current.type,
+					.fullReactionsCount = state->current.fullReactionsCount,
 					.unknown = true,
 				});
 				return;
