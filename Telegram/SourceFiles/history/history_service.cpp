@@ -796,7 +796,6 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 		Ui::Text::WithEntities);
 	auto result = PreparedText{};
 	result.links.push_back(fromLink());
-	auto linkIndex = 1;
 	if (linkCallId) {
 		const auto peer = history()->peer;
 		result.links.push_back(GroupCallClickHandler(peer, linkCallId));

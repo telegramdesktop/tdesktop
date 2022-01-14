@@ -370,7 +370,6 @@ void System::checkDelayed() {
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
 		const auto history = i->first;
 		const auto peer = history->peer;
-		auto notifyMuted = i->second.alsoMuted;
 		auto loaded = false;
 		auto muted = false;
 		if (!peer->owner().notifyMuteUnknown(peer)) {

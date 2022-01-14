@@ -2141,7 +2141,6 @@ void Message::refreshReactions() {
 	if (!_reactions) {
 		const auto handlerFactory = [=](QString emoji) {
 			const auto weak = base::make_weak(this);
-			const auto fullId = data()->fullId();
 			return std::make_shared<LambdaClickHandler>([=] {
 				if (const auto strong = weak.get()) {
 					strong->data()->toggleReaction(emoji);

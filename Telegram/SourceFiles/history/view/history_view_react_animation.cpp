@@ -110,7 +110,6 @@ int SendAnimation::computeParabolicTop(
 		int to,
 		float64 progress) const {
 	const auto t = progress;
-	const auto c = from;
 
 	// result = a * t * t + b * t + c
 
