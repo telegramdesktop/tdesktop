@@ -44,175 +44,69 @@ jobs:
 
   windows:
     name: Windows
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     strategy:
       matrix:
-        defines:
-          - ""
+        arch: [Win32, x64]
+
     env:
-      SDK: "10.0.18362.0"
-      GIT: "https://github.com"
-      QT_VER: "5.15.2"
-      OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "0"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
-      AUTO_CACHING: "1"
 
     defaults:
       run:
         shell: cmd
-        working-directory: Libraries
+        working-directory: ${{ github.workspace }}
 
     steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
       - name: Get repository name.
         shell: bash
-        working-directory: ${{ github.workspace }}
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - uses: ilammy/msvc-dev-cmd@v1.9.0
-        name: x86 Native Tools Command Prompt.
+      - uses: ilammy/msvc-dev-cmd@v1.10.0
+        name: Native Tools Command Prompt.
         with:
-          arch: win32
-
-      - name: Set up environment paths.
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
-          echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
-          echo "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\" >> $GITHUB_PATH
-
-          mkdir Libraries && cd Libraries
-          echo "Convert unix path to win path."
-          p=`pwd | sed 's#^/[d]#d:#g' |sed 's#/#\\\\#g'`
-          echo "LibrariesPath=$p" >> $GITHUB_ENV
-
-          echo "QT=${QT_VER//./_}" >> $GITHUB_ENV
-
-      - name: Save msbuild version.
-        run: |
-          call vcvars32.bat
-          msbuild -version > CACHE_KEY.txt
+          arch: ${{ matrix.arch }}
 
       - name: Clone.
-        uses: actions/checkout@v2
+        uses: LebedevRI/checkout@issue197
         with:
           submodules: recursive
-          path: ${{ env.REPO_NAME }}
-
-      - name: Generate cache key.
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          curl -o $LibrariesPath/tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
-          curl -o $LibrariesPath/tg_angle-version.json https://api.github.com/repos/desktop-app/tg_angle/git/refs/heads/master
-          echo $MANUAL_CACHING >> CACHE_KEY.txt
-          if [ "$AUTO_CACHING" == "1" ]; then
-            thisFile=$REPO_NAME/.github/workflows/win.yml
-            echo `md5sum $thisFile | awk '{ print $1 }'` >> CACHE_KEY.txt
-          fi
-          echo "CACHE_KEY=`md5sum CACHE_KEY.txt | awk '{ print $1 }'`" >> $GITHUB_ENV
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: Choco installs.
         run: |
-          choco install --allow-empty-checksums --no-progress -y yasm
-          choco install --no-progress -y nasm jom ninja
-          python -m pip install pywin32
-
+          choco install --no-progress -y nasm strawberryperl yasm jom ninja
+          py -m pip install pywin32
+      - name: Install msys64.
+        run: |
+          mkdir %TBUILD%\ThirdParty
+          xcopy /E /I C:\msys64 %TBUILD%\ThirdParty\msys64
+      - name: Set up environment paths.
+        shell: bash
+        run: |
+          echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
+          echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
+          echo "C:\\ProgramData\\chocolatey\\lib\\ninja\\tools\\" >> $GITHUB_PATH
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
       - name: NuGet sources.
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
-
-      - name: Patches.
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          echo "Find necessary commit from doc."
-          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$PREPARE_PATH | sed -n 2p)
-          cd $LibrariesPath
-          git clone $GIT/desktop-app/patches.git
-          cd patches
-          eval $checkoutCommit
-
-      - name: LZMA.
-        run: |
-          git clone %GIT%/telegramdesktop/lzma.git
-          cd lzma
-          cd C\Util\LzmaLib
-          msbuild -m LzmaLib.sln /property:Configuration=Release
-
-      - name: OpenSSL cache.
-        id: cache-openssl
+      - name: Libraries cache.
+        id: cache-libs
         uses: actions/cache@v2
         with:
-          path: ${{ env.LibrariesPath }}/openssl
-          key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
-      - name: OpenSSL.
-        if: steps.cache-openssl.outputs.cache-hit != 'true'
-        run: |
-          git clone -b OpenSSL_%OPENSSL_VER%-stable %GIT%/openssl/openssl.git
-          cd openssl
-          perl Configure no-shared no-tests debug-VC-WIN32
-          nmake
-          mkdir out.dbg
-          move libcrypto.lib out.dbg
-          move libssl.lib out.dbg
-          move ossl_static.pdb out.dbg\ossl_static
-          nmake clean
-          move out.dbg\ossl_static out.dbg\ossl_static.pdb
-          perl Configure no-shared no-tests VC-WIN32
-          nmake
-          mkdir out
-          move libcrypto.lib out
-          move libssl.lib out
-          move ossl_static.pdb out
-
-          rmdir /S /Q test
-          rmdir /S /Q .git
-
-      - name: Zlib.
-        run: |
-          git clone %GIT%/telegramdesktop/zlib.git
-          cd zlib
-          git checkout tdesktop
-          cd contrib\vstudio\vc14
-          msbuild -m zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
-
-      - name: MozJPEG.
-        shell: cmd
-        run: |
-          git clone -b v4.0.3 %GIT%/mozilla/mozjpeg.git
-          cd mozjpeg
-          cmake . ^
-          -G "Visual Studio 16 2019" ^
-          -A Win32 ^
-          -DWITH_JPEG8=ON ^
-          -DPNG_SUPPORTED=OFF
-          cmake --build . --config Release
-
-      - name: OpenAL Soft cache.
-        id: cache-openal
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.LibrariesPath }}/openal-soft
-          key: ${{ runner.OS }}-openal-soft-${{ env.CACHE_KEY }}
-      - name: OpenAL Soft.
-        if: steps.cache-openal.outputs.cache-hit != 'true'
-        run: |
-          git clone -b openal-soft-1.21.0 --depth=1 %GIT%/kcat/openal-soft.git
-          cd openal-soft\build
-          cmake .. ^
-          -G "Visual Studio 16 2019" ^
-          -A Win32 ^
-          -D LIBTYPE:STRING=STATIC ^
-          -D FORCE_STATIC_VCRT=ON ^
-          -D ALSOFT_BACKEND_DSOUND=OFF
-
-          msbuild -m OpenAL.vcxproj /property:Configuration=RelWithDebInfo
+          path: ${{ env.TBUILD }}/Libraries
+          key: ${{ runner.OS }}-libs
 
       - name: Setup NASM.
         uses: ilammy/setup-nasm@v1
@@ -225,7 +119,6 @@ jobs:
           C:
           cd %TBUILD%
           %REPO_NAME%/Telegram/build/prepare/win.bat silent skip-qt6
-
       - name: Read defines.
         shell: bash
         run: |
@@ -238,20 +131,21 @@ jobs:
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
-
       - name: Free up some disk space.
-        working-directory: ${{ github.workspace }}
-        run: del /S *.pdb
-
+        run: |
+          C:
+          cd %TBUILD%
+          del /S Libraries\*.pdb
+          del /S Libraries\*.pch
+          del /S Libraries\*.obj
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
-        working-directory: ${{ github.workspace }}
         run: |
-          cd %REPO_NAME%\Telegram
-          
+          C:
+          cd %TBUILD%\%REPO_NAME%\Telegram
           SET CXXFLAGS="-bigobj"
-          
           call configure.bat ^
+          ${{ matrix.arch }} ^
           -D TDESKTOP_API_TEST=OFF ^
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} ^
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} ^
@@ -260,16 +154,11 @@ jobs:
           -D DESKTOP_APP_NO_PDB=ON ^
           %TDESKTOP_BUILD_DEFINE% ^
           -DCMAKE_SYSTEM_VERSION=%SDK%
-
-          call vcvars32.bat
           cd ..\out
-          msbuild -m Telegram.sln /nologo /p:Configuration=Release,Platform=Win32
-
+          msbuild -m Telegram.sln /p:Configuration=Release,Platform=${{ matrix.arch }}
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
-        working-directory: ${{ github.workspace }}
         run: |
-          cd %REPO_NAME%\out\Release
           mkdir artifact
           move %TBUILD%\%REPO_NAME%\out\Release\Telegram.exe artifact/Telegram_${{ matrix.arch }}.exe
       - uses: actions/upload-artifact@master
@@ -277,4 +166,4 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}\out\Release\artifact\
+          path: artifact\
