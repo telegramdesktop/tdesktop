@@ -1,3 +1,7 @@
+3.4.4 beta
+
+- Nice animations in reactions.
+
 3.4.3 (03.01.21)
 
 - Bug fixes and other minor improvements.
