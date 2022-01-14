@@ -3067,4 +3067,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
+"lng_fakepasscode" = "Passcode {caption}";
+"lng_ptelegram_version" = "PTelegram v. {version}";
+
+"lng_fakepasscodes_list" = "Fake passcodes list";
+"lng_fakeaction_list" = "Actions";
+"lng_remove_fakepasscode" = "Remove fake passcode";
+"lng_show_fakes" = "Show fake passcodes";
+"lng_add_fakepasscode" = "Add fake passcode";
+"lng_add_fakepasscode_passcode" = "Fake passcode";
+"lng_fakepasscode_create" = "Enter new fake passcode";
+"lng_fakepasscode_change" = "Change fake passcode";
+"lng_fakepasscode_name" = "Fake passcode name";
+"lng_passcode_exists" = "Passcode already used";
+
+"lng_clear_proxy" = "Clear proxies list";
+"lng_clear_cache" = "Clear cache";
+"lng_logout" = "Log out";
+"lng_logout_account" = "Log out {caption}";
+
 // Keys finished

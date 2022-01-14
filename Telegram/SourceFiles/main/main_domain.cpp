@@ -65,6 +65,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
+        _local->ExecuteIfFake();
 		crl::on_main(&Core::App(), [=] { suggestExportIfNeeded(); });
 	} else {
 		Assert(!started());

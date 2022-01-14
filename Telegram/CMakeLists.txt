@@ -566,6 +566,20 @@ PRIVATE
     export/view/export_view_settings.h
     export/view/export_view_top_bar.cpp
     export/view/export_view_top_bar.h
+    fakepasscode/fake_passcode.cpp
+    fakepasscode/clear_proxies.cpp
+    fakepasscode/clear_cache.cpp
+    fakepasscode/logout.cpp
+    fakepasscode/action_ui/action_ui.cpp
+    fakepasscode/action.cpp
+    fakepasscode/action_ui/fakepasscodes_list.h
+    fakepasscode/action_ui/fakepasscodes_list.cpp
+    fakepasscode/action_ui/fakepasscode_box.h
+    fakepasscode/action_ui/fakepasscode_box.cpp
+    fakepasscode/action_ui/clear_proxy_ui.cpp
+    fakepasscode/action_ui/clear_cache_ui.cpp
+    fakepasscode/action_ui/logout_ui.cpp
+    fakepasscode/lang/fakepasscode_translator.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

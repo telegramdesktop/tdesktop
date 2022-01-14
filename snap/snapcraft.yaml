@@ -125,8 +125,8 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DTDESKTOP_API_ID=611335
-      - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
+      - -DTDESKTOP_API_ID=$API_ID
+      - -DTDESKTOP_API_HASH=$API_HASH
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
@@ -146,6 +146,7 @@ parts:
 
       sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
+      echo $TEST_VAR
       snapcraftctl build
       rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
     stage:
@@ -207,6 +208,7 @@ parts:
       - -Dtests=false
     override-pull: |
       snapcraftctl pull
+      echo $TEST_VAR
       patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
     prime: [-./*]
     after:

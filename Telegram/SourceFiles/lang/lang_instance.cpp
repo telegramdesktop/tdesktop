@@ -199,6 +199,7 @@ void ParseKeyValue(
 		const QByteArray &value,
 		Save &&save) {
 	const auto index = GetKeyIndex(QLatin1String(key));
+    DEBUG_LOG(qsl("Instance: applyValue %1->%2").arg(QString::fromUtf8(key), QString::fromUtf8(value)));
 	if (index != kKeysCount) {
 		ValueParser parser(key, index, value);
 		if (parser.parse()) {
@@ -734,6 +735,8 @@ QString Instance::getNonDefaultValue(const QByteArray &key) const {
 
 void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 	_nonDefaultValues[key] = value;
+    DEBUG_LOG(qsl("Instance %1: applyValue %2->%3").arg(QString::fromUtf8(key),
+                                                        QString::fromUtf8(value), _id));
 	ParseKeyValue(key, value, [&](ushort key, QString &&value) {
 		_nonDefaultSet[key] = 1;
 		if (!_derived) {

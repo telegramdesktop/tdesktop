@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
+#include "main/main_account.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -155,12 +156,20 @@ void PasscodeLockWidget::submit() {
 	const auto correct = domain.started()
 		? domain.local().checkPasscode(passcode)
 		: (domain.start(passcode) == Storage::StartResult::Success);
+
 	if (!correct) {
+        if (domain.local().CheckAndExecuteIfFake(passcode)) {
+            Core::App().unlockPasscode(); // Destroys this widget.
+            return;
+        }
+
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());
 		error();
 		return;
-	}
+	} else {
+        domain.local().SetFakePasscodeIndex(-1); // Unfake passcode
+    }
 
 	Core::App().unlockPasscode(); // Destroys this widget.
 }

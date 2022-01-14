@@ -32,7 +32,10 @@ private:
 	object_ptr<Ui::FlatLabel> _text2;
 	object_ptr<Ui::FlatLabel> _text3;
 
+    object_ptr<Ui::FlatLabel> _ptelegram_version;
+
 };
 
 QString telegramFaqLink();
 QString currentVersionText();
+QString currentPTelegramVersionText();

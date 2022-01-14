@@ -521,6 +521,14 @@ void Account::logOut() {
 	}
 }
 
+void Account::mtpLogOut(bool performUsualLogout) {
+    _mtp->logout([=] {
+        if (performUsualLogout) {
+            loggedOut();
+        }
+    });
+}
+
 bool Account::loggingOut() const {
 	return _loggingOut;
 }
