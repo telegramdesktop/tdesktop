@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_wayland_integration.h"
 #include "storage/localstorage.h"
 #include "base/random.h"
-#include "base/qt_adapters.h"
 
 #include <QtGui/QWindow>
 #include <QtWidgets/QFileDialog>

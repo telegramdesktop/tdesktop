@@ -73,6 +73,7 @@ EntitiesInText EntitiesFromMTP(
 			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset().v, d.vlength().v, Clean(qs(d.vlanguage())) }); } break;
 			case mtpc_messageEntityBankCard: break; // Skipping cards.
+			case mtpc_messageEntitySpoiler: { auto &d = entity.c_messageEntitySpoiler(); result.push_back({ EntityType::Spoiler, d.voffset().v, d.vlength().v }); } break;
 				// #TODO entities
 			}
 		}
@@ -96,6 +97,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			&& entity.type() != EntityType::StrikeOut
 			&& entity.type() != EntityType::Code // #TODO entities
 			&& entity.type() != EntityType::Pre
+			&& entity.type() != EntityType::Spoiler
 			&& entity.type() != EntityType::MentionName
 			&& entity.type() != EntityType::CustomUrl) {
 			continue;
@@ -131,6 +133,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::StrikeOut: v.push_back(MTP_messageEntityStrike(offset, length)); break;
 		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
 		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
+		case EntityType::Spoiler: v.push_back(MTP_messageEntitySpoiler(offset, length)); break;
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));

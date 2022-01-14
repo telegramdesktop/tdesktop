@@ -11,13 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_step.h"
 #include "base/timer.h"
 
-namespace Ui {
-class PhonePartInput;
-class CountryCodeInput;
-class RoundButton;
-class FlatLabel;
-} // namespace Ui
-
 namespace Intro {
 namespace details {
 

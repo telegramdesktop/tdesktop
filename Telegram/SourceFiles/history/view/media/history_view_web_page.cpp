@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_view_button.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
@@ -188,7 +189,12 @@ QSize WebPage::countOptimalSize() {
 			_data->url);
 	}
 
-	auto textFloatsAroundInfo = !_asArticle && !_attach && isBubbleBottom();
+	_hasViewButton = ViewButton::MediaHasViewButton(_data);
+
+	const auto textFloatsAroundInfo = !_asArticle
+		&& !_attach
+		&& isBubbleBottom()
+		&& !_hasViewButton;
 
 	// init strings
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
@@ -391,6 +397,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right()) {
 				newHeight += bottomInfoPadding();
 			}
+		} else if (_hasViewButton) {
+			newHeight += bottomInfoPadding();
 		}
 	}
 	auto padding = inBubblePadding();
@@ -470,6 +478,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	} else if (!attachAdditionalInfoText.isEmpty()) {
 		bshift += bottomInfoPadding();
 	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right()) {
+		bshift += bottomInfoPadding();
+	} else if (_hasViewButton) {
 		bshift += bottomInfoPadding();
 	}
 

@@ -33,8 +33,8 @@ DisableDirPage=no
 DisableProgramGroupPage=no
 
 #if MyBuildTarget == "win64"
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed="x64 arm64"
+ArchitecturesInstallIn64BitMode="x64 arm64"
 OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
 #define ArchModulesFolder "x64"
 #else

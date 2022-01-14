@@ -47,6 +47,32 @@ constexpr auto kSystemAlertDuration = crl::time(1000);
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
 
+QString TextWithPermanentSpoiler(QString textWithCommands) {
+	const auto start = textcmdStartSpoiler();
+	const auto stop = textcmdStopSpoiler();
+	while (true) {
+		const auto startIndex = textWithCommands.indexOf(start);
+		if (startIndex == -1) {
+			break;
+		}
+		const auto stopIndex = textWithCommands.indexOf(stop);
+		if (stopIndex == -1) {
+			break;
+		}
+		if (stopIndex < startIndex) {
+			break;
+		}
+		const auto length = stopIndex - startIndex - start.size();
+		textWithCommands.remove(stopIndex, stop.size());
+		textWithCommands.remove(startIndex, start.size());
+		textWithCommands.replace(
+			startIndex,
+			length,
+			QString(QChar(0x259A)).repeated(length));
+	}
+	return textWithCommands;
+}
+
 } // namespace
 
 System::System()
@@ -296,9 +322,7 @@ void System::checkDelayed() {
 			}
 		}
 		if (loaded) {
-			const auto fullId = FullMsgId(
-				history->channelId(),
-				i->second.msg);
+			const auto fullId = FullMsgId(history->peer->id, i->second.msg);
 			if (const auto item = peer->owner().message(fullId)) {
 				if (!item->notificationReady()) {
 					loaded = false;
@@ -650,8 +674,8 @@ void Manager::notificationActivated(
 					reply,
 					replyToId,
 					MessageCursor{
-						reply.text.size(),
-						reply.text.size(),
+						int(reply.text.size()),
+						int(reply.text.size()),
 						QFIXED_MAX,
 					},
 					Data::PreviewState::Allowed);
@@ -674,13 +698,11 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isUser()
-			|| history->peer->isChannel()
-			|| !IsServerMsgId(messageId)) {
+		if (history->peer->isUser() || history->peer->isChannel()) {
 			return false;
 		}
-		const auto item = history->owner().message(history->channelId(), messageId);
-		if (!item || !item->mentionsMe()) {
+		const auto item = history->owner().message(history->peer, messageId);
+		if (!item || !item->isRegular() || !item->mentionsMe()) {
 			return false;
 		}
 		return true;
@@ -706,7 +728,7 @@ void Manager::notificationReplied(
 	}
 	const auto history = session->data().history(id.full.peerId);
 
-	auto message = Api::MessageToSend(history);
+	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
 	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
 		? id.msgId
@@ -714,9 +736,7 @@ void Manager::notificationReplied(
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
-	const auto item = history->owner().message(
-		history->channelId(),
-		id.msgId);
+	const auto item = history->owner().message(history->peer, id.msgId);
 	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
 		history->session().api().markMediaRead(item);
 	}
@@ -745,7 +765,7 @@ void NativeManager::doShowNotification(
 		: (forwardedCount < 2
 			? (item->groupId()
 				? tr::lng_in_dlg_album(tr::now)
-				: item->notificationText())
+				: TextWithPermanentSpoiler(item->notificationText()))
 			: tr::lng_forward_messages(tr::now, lt_count, forwardedCount));
 
 	// #TODO optimize

@@ -110,7 +110,7 @@ Context ComputeContext(
 		return v::null;
 	} else if (const auto msgId = std::get_if<FullMsgId>(&value)) {
 		if (const auto item = session->data().message(*msgId)) {
-			if (!item->toHistoryMessage()) {
+			if (item->isService()) {
 				return item->history()->peer->id;
 			} else if (const auto groupId = item->groupId()) {
 				return groupId;

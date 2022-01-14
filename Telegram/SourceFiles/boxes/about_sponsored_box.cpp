@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kUrl = "https://telegram.org/ads"_cs;
+constexpr auto kUrl = "https://promote.telegram.org"_cs;
 
 } // namespace
 

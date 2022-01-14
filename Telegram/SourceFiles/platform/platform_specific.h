@@ -34,7 +34,10 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
 void IgnoreApplicationActivationRightNow();
-bool AutostartSupported();
+[[nodiscard]] bool AutostartSupported();
+void AutostartRequestStateFromSystem(Fn<void(bool)> callback);
+void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);
+[[nodiscard]] bool AutostartSkip();
 bool TrayIconSupported();
 bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();

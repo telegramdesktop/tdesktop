@@ -30,7 +30,7 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
 	static void BlockNewPeer(not_null<Window::SessionController*> window);

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_controllers.h"
 
+#include "api/api_chat_participants.h"
 #include "base/random.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -25,11 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "dialogs/dialogs_main_list.h"
 #include "window/window_session_controller.h" // showAddContact()
+#include "base/unixtime.h"
 #include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 
 namespace {
+
+constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	const auto history = chat->owner().history(chat);
@@ -50,7 +55,8 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
-			MTP_int(0) // schedule_date
+			MTP_int(0), // schedule_date
+			MTPInputPeer() // send_as
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
@@ -70,7 +76,7 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	if (bot->isBot() && !bot->botInfo->startGroupToken.isEmpty()) {
 		chat->session().api().sendBotStart(bot, chat);
 	} else {
-		chat->session().api().addChatParticipants(chat, { 1, bot });
+		chat->session().api().chatParticipants().add(chat, { 1, bot });
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
@@ -108,17 +114,31 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 
 object_ptr<Ui::BoxContent> PrepareContactsBox(
 		not_null<Window::SessionController*> sessionController) {
-	const auto controller = sessionController;
-	auto delegate = [=](not_null<PeerListBox*> box) {
+	using Mode = ContactsBoxController::SortMode;
+	auto controller = std::make_unique<ContactsBoxController>(
+		&sessionController->session());
+	const auto raw = controller.get();
+	auto init = [=](not_null<PeerListBox*> box) {
+		struct State {
+			QPointer<Ui::IconButton> toggleSort;
+			Mode mode = ContactsBoxController::SortMode::Online;
+		};
+		const auto state = box->lifetime().make_state<State>();
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
-			[=] { controller->showAddContact(); });
+			[=] { sessionController->showAddContact(); });
+		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
+			const auto online = (state->mode == Mode::Online);
+			state->mode = online ? Mode::Alphabet : Mode::Online;
+			raw->setSortMode(state->mode);
+			state->toggleSort->setIconOverride(
+				online ? &st::contactsSortOnlineIcon : nullptr,
+				online ? &st::contactsSortOnlineIconOver : nullptr);
+		});
+		raw->setSortMode(Mode::Online);
 	};
-	return Box<PeerListBox>(
-		std::make_unique<ContactsBoxController>(
-			&sessionController->session()),
-		std::move(delegate));
+	return Box<PeerListBox>(std::move(controller), std::move(init));
 }
 
 void PeerListRowWithLink::setActionLink(const QString &action) {
@@ -136,11 +156,11 @@ void PeerListRowWithLink::lazyInitialize(const style::PeerListItem &st) {
 	refreshActionLink();
 }
 
-QSize PeerListRowWithLink::actionSize() const {
+QSize PeerListRowWithLink::rightActionSize() const {
 	return QSize(_actionWidth, st::normalFont->height);
 }
 
-QMargins PeerListRowWithLink::actionMargins() const {
+QMargins PeerListRowWithLink::rightActionMargins() const {
 	return QMargins(
 		st::contactsCheckPosition.x(),
 		(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom() - st::normalFont->height) / 2,
@@ -148,7 +168,7 @@ QMargins PeerListRowWithLink::actionMargins() const {
 		0);
 }
 
-void PeerListRowWithLink::paintAction(
+void PeerListRowWithLink::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -366,7 +386,8 @@ ContactsBoxController::ContactsBoxController(
 	not_null<Main::Session*> session,
 	std::unique_ptr<PeerListSearchController> searchController)
 : PeerListController(std::move(searchController))
-, _session(session) {
+, _session(session)
+, _sortByOnlineTimer([=] { sort(); }) {
 }
 
 Main::Session &ContactsBoxController::session() const {
@@ -402,6 +423,7 @@ void ContactsBoxController::rebuildRows() {
 	};
 	appendList(session().data().contactsList());
 	checkForEmptyRows();
+	sort();
 	delegate()->peerListRefreshRows();
 }
 
@@ -423,6 +445,66 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
+}
+
+void ContactsBoxController::setSortMode(SortMode mode) {
+	if (_sortMode == mode) {
+		return;
+	}
+	_sortMode = mode;
+	sort();
+	if (_sortMode == SortMode::Online) {
+		session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::OnlineStatus
+		) | rpl::filter([=](const Data::PeerUpdate &update) {
+			return !_sortByOnlineTimer.isActive()
+				&& delegate()->peerListFindRow(update.peer->id.value);
+		}) | rpl::start_with_next([=] {
+			_sortByOnlineTimer.callOnce(kSortByOnlineThrottle);
+		}, _sortByOnlineLifetime);
+	} else {
+		_sortByOnlineTimer.cancel();
+		_sortByOnlineLifetime.destroy();
+	}
+}
+
+void ContactsBoxController::sort() {
+	switch (_sortMode) {
+	case SortMode::Alphabet: sortByName(); break;
+	case SortMode::Online: sortByOnline(); break;
+	default: Unexpected("SortMode in ContactsBoxController.");
+	}
+}
+
+void ContactsBoxController::sortByName() {
+	auto keys = base::flat_map<PeerListRowId, QString>();
+	keys.reserve(delegate()->peerListFullRowsCount());
+	const auto key = [&](const PeerListRow &row) {
+		const auto id = row.id();
+		const auto i = keys.find(id);
+		if (i != end(keys)) {
+			return i->second;
+		}
+		const auto peer = row.peer();
+		const auto history = peer->owner().history(peer);
+		return keys.emplace(id, history->chatListNameSortKey()).first->second;
+	};
+	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
+		return (key(a).compare(key(b)) < 0);
+	};
+	delegate()->peerListSortRows(predicate);
+}
+
+void ContactsBoxController::sortByOnline() {
+	const auto now = base::unixtime::now();
+	const auto key = [&](const PeerListRow &row) {
+		const auto user = row.peer()->asUser();
+		return user ? (std::min(user->onlineTill, now) + 1) : TimeId();
+	};
+	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
+		return key(a) > key(b);
+	};
+	delegate()->peerListSortRows(predicate);
 }
 
 bool ContactsBoxController::appendRow(not_null<UserData*> user) {
@@ -482,7 +564,7 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 		return tr::lng_bot_sure_share_game_group(tr::now, lt_group, chat->name);
 	}();
 	Ui::show(
-		Box<ConfirmBox>(confirmText, std::move(send)),
+		Box<Ui::ConfirmBox>(confirmText, std::move(send)),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -490,7 +572,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			Ui::show(
-				Box<InformBox>(tr::lng_error_cant_add_member(tr::now)),
+				Box<Ui::InformBox>(tr::lng_error_cant_add_member(tr::now)),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -500,7 +582,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	});
 	auto confirmText = tr::lng_bot_sure_invite(tr::now, lt_group, chat->name);
 	Ui::show(
-		Box<ConfirmBox>(confirmText, send),
+		Box<Ui::ConfirmBox>(confirmText, send),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -350,11 +350,12 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 	if (crashpad_client.StartHandler(
 			base::FilePath(handler),
 			base::FilePath(database),
-			std::string(),
+			{}, // metrics_dir
+			std::string(), // url
 			ProcessAnnotations,
-			std::vector<std::string>(),
-			false)) {
-		crashpad_client.UseHandler();
+			std::vector<std::string>(), // arguments
+			false, // restartable
+			false)) { // asynchronous_start
 	}
 #endif // else for MAC_USE_BREAKPAD
 #elif defined Q_OS_UNIX

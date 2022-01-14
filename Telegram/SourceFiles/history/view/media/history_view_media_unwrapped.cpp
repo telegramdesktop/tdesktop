@@ -77,7 +77,8 @@ QSize UnwrappedMedia::countOptimalSize() {
 QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
-	if (_parent->media() == this) {
+	const auto isPageAttach = (_parent->media() != this);
+	if (!isPageAttach) {
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();
@@ -93,8 +94,9 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		}
 	}
 	auto newHeight = minHeight();
-	if (_parent->hasOutLayout()
-			&& !_parent->delegate()->elementIsChatWide()) {
+	if (!isPageAttach
+		&& _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide()) {
 		// Add some height to isolated emoji for the timestamp info.
 		const auto infoHeight = st::msgDateImgPadding.y() * 2
 			+ st::msgDateFont->height;
@@ -110,7 +112,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
 	}
-	const auto rightAligned = _parent->hasOutLayout()
+	const auto rightAligned = context.outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
@@ -181,7 +183,7 @@ void UnwrappedMedia::drawSurrounding(
 		const HistoryMessageForwarded *forwarded) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto rightAligned = _parent->hasOutLayout()
+	const auto rightAligned = context.outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto rightActionSize = _parent->rightActionSize();
 	const auto fullRight = calculateFullRight(inner);
@@ -211,10 +213,17 @@ void UnwrappedMedia::drawSurrounding(
 			p.setTextPalette(st->serviceTextPalette());
 			forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
 			p.restoreTextPalette();
+
+			const auto skip = std::min(
+				forwarded->text.countHeight(rectw),
+				kMaxForwardedBarLines * st::msgServiceNameFont->height);
+			recty += skip;
 		} else if (via) {
 			p.setFont(st::msgDateFont);
 			p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
-			int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+
+			const auto skip = st::msgServiceNameFont->height
+				+ (reply ? st::msgReplyPadding.top() : 0);
 			recty += skip;
 		}
 		if (reply) {
@@ -358,8 +367,14 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		const auto fullRight = calculateFullRight(inner);
 		const auto rightActionSize = _parent->rightActionSize();
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Background)) {
-			result.cursor = CursorState::Date;
+		const auto bottomInfoResult = _parent->bottomInfoTextState(
+			fullRight,
+			fullBottom,
+			point,
+			InfoDisplayType::Background);
+		if (bottomInfoResult.link
+			|| bottomInfoResult.cursor != CursorState::None) {
+			return bottomInfoResult;
 		}
 		if (rightActionSize) {
 			const auto position = calculateFastActionPosition(
@@ -386,6 +401,46 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
+QRect UnwrappedMedia::contentRectForReactions() const {
+	const auto inWebPage = (_parent->media() != this);
+	if (inWebPage) {
+		return QRect(0, 0, width(), height());
+	}
+	const auto rightAligned = _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide();
+	const auto item = _parent->data();
+	const auto via = item->Get<HistoryMessageVia>();
+	const auto reply = _parent->displayedReply();
+	const auto forwarded = getDisplayedForwardedInfo();
+	auto usex = 0;
+	auto usew = maxWidth();
+	if (!inWebPage) {
+		usew -= additionalWidth(via, reply, forwarded);
+		if (rightAligned) {
+			usex = width() - usew;
+		}
+	}
+	if (rtl()) {
+		usex = width() - usex - usew;
+	}
+	const auto usey = rightAligned ? 0 : (height() - _contentSize.height());
+	const auto useh = rightAligned
+		? std::max(
+			_contentSize.height(),
+			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+		: _contentSize.height();
+	return QRect(usex, usey, usew, useh);
+}
+
+std::optional<int> UnwrappedMedia::reactionButtonCenterOverride() const {
+	const auto fullRight = calculateFullRight(contentRectForReactions());
+	const auto right = fullRight
+		- _parent->infoWidth()
+		- st::msgDateImgPadding.x() * 2
+		- st::msgReplyPadding.left();
+	return right - st::reactionCornerSize.width() / 2;
+}
+
 std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
@@ -399,19 +454,19 @@ int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 		+ st::msgDateImgPadding.x() * 2
 		+ st::msgReplyPadding.left();
 	const auto rightActionSize = _parent->rightActionSize();
+	const auto rightSkip = st::msgPadding.left()
+		+ (_parent->hasFromPhoto()
+			? st::msgMargin.right()
+			: st::msgPadding.right());
 	const auto rightActionWidth = rightActionSize
 		? (st::historyFastShareLeft * 2
-			+ rightActionSize->width()
-			+ st::msgPadding.left()
-			+ (_parent->hasFromPhoto()
-				? st::msgMargin.right()
-				: st::msgPadding.right()))
+			+ rightActionSize->width())
 		: 0;
 	auto fullRight = inner.x()
 		+ inner.width()
 		+ (rightAligned ? 0 : infoWidth);
-	if (fullRight + rightActionWidth > _parent->width()) {
-		fullRight = _parent->width() - rightActionWidth;
+	if (fullRight + rightActionWidth + rightSkip > _parent->width()) {
+		fullRight = _parent->width() - rightActionWidth - rightSkip;
 	}
 	return fullRight;
 }
@@ -435,10 +490,11 @@ QPoint UnwrappedMedia::calculateFastActionPosition(
 }
 
 bool UnwrappedMedia::needInfoDisplay() const {
-	return (_parent->data()->id < 0)
-		|| (_parent->isUnderCursor())
-		|| (_parent->rightActionSize())
-		|| (_parent->isLastAndSelfMessage())
+	return _parent->data()->isSending()
+		|| _parent->data()->hasFailed()
+		|| _parent->isUnderCursor()
+		|| _parent->rightActionSize()
+		|| _parent->isLastAndSelfMessage()
 		|| (_parent->hasOutLayout()
 			&& !_parent->delegate()->elementIsChatWide()
 			&& _content->alwaysShowOutTimestamp());
@@ -462,7 +518,9 @@ int UnwrappedMedia::additionalWidth(
 
 auto UnwrappedMedia::getDisplayedForwardedInfo() const
 -> const HistoryMessageForwarded * {
-	return _parent->data()->Get<HistoryMessageForwarded>();
+	return _parent->displayForwardedFrom()
+		? _parent->data()->Get<HistoryMessageForwarded>()
+		: nullptr;
 }
 
 } // namespace HistoryView

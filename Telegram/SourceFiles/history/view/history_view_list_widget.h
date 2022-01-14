@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
-#include "base/timer.h"
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 
@@ -31,7 +31,13 @@ class SessionController;
 namespace Data {
 struct Group;
 class CloudImageView;
+struct Reaction;
 } // namespace Data
+
+namespace HistoryView::Reactions {
+class Manager;
+struct ButtonParameters;
+} // namespace HistoryView::Reactions
 
 namespace HistoryView {
 
@@ -40,6 +46,12 @@ struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
+
+enum class CopyRestrictionType : char {
+	None,
+	Group,
+	Channel,
+};
 
 struct SelectedItem {
 	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
@@ -94,14 +106,20 @@ public:
 		const FullMsgId &context) = 0;
 	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual not_null<Ui::ChatTheme*> listChatTheme() = 0;
-
+	virtual CopyRestrictionType listCopyRestrictionType(
+		HistoryItem *item) = 0;
+	CopyRestrictionType listCopyRestrictionType() {
+		return listCopyRestrictionType(nullptr);
+	}
+	virtual CopyRestrictionType listSelectRestrictionType() = 0;
+	virtual auto listAllowedReactionsValue()
+		-> rpl::producer<std::vector<Data::Reaction>> = 0;
 };
 
 struct SelectionData {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canSendNow = false;
-
 };
 
 using SelectedMap = base::flat_map<
@@ -199,11 +217,17 @@ public:
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
 
-	bool loadedAtTopKnown() const;
-	bool loadedAtTop() const;
-	bool loadedAtBottomKnown() const;
-	bool loadedAtBottom() const;
-	bool isEmpty() const;
+	[[nodiscard]] bool loadedAtTopKnown() const;
+	[[nodiscard]] bool loadedAtTop() const;
+	[[nodiscard]] bool loadedAtBottomKnown() const;
+	[[nodiscard]] bool loadedAtBottom() const;
+	[[nodiscard]] bool isEmpty() const;
+
+	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	[[nodiscard]] bool showCopyRestriction(HistoryItem *item = nullptr);
+	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
+	[[nodiscard]] bool showCopyRestrictionForSelected();
+	[[nodiscard]] bool hasSelectRestriction() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -218,6 +242,11 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
 	[[nodiscard]] rpl::producer<FullMsgId> showMessageRequested() const;
 	void replyNextMessage(FullMsgId fullId, bool next = true);
+
+	[[nodiscard]] Reactions::ButtonParameters reactionButtonParameters(
+		not_null<const Element*> view,
+		QPoint position,
+		const TextState &reactionState) const;
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -261,6 +290,7 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementShowSpoilerAnimation() override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 
@@ -277,7 +307,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
@@ -405,6 +435,7 @@ private:
 		const SelectedMap::const_iterator &i);
 	bool hasSelectedText() const;
 	bool hasSelectedItems() const;
+	bool inSelectionMode() const;
 	bool overSelectedItems() const;
 	void clearTextSelection();
 	void clearSelected();
@@ -533,6 +564,8 @@ private:
 
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 
+	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -590,6 +623,10 @@ private:
 	FullMsgId _highlightedMessageId;
 	base::Timer _highlightTimer;
 
+	Ui::Animations::Simple _spoilerOpacity;
+
+	Ui::SelectScrollManager _selectScroll;
+
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
 	rpl::event_stream<FullMsgId> _requestedToReadMessage;
@@ -602,5 +639,11 @@ private:
 void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget);
 void ConfirmForwardSelectedItems(not_null<ListWidget*> widget);
 void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
+
+[[nodiscard]] CopyRestrictionType CopyRestrictionTypeFor(
+	not_null<PeerData*> peer,
+	HistoryItem *item = nullptr);
+[[nodiscard]] CopyRestrictionType SelectRestrictionTypeFor(
+	not_null<PeerData*> peer);
 
 } // namespace HistoryView

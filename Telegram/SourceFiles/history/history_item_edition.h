@@ -26,8 +26,10 @@ struct HistoryMessageEdition {
 	int ttl = 0;
 	bool useSameReplies = false;
 	bool useSameMarkup = false;
+	bool useSameReactions = false;
 	TextWithEntities textWithEntities;
 	HistoryMessageMarkupData replyMarkup;
 	HistoryMessageRepliesData replies;
 	const MTPMessageMedia *mtpMedia = nullptr;
+	const MTPMessageReactions *mtpReactions = nullptr;
 };

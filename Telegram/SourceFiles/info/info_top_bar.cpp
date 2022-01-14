@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
 #include "storage/storage_shared_media.h"
-#include "boxes/confirm_box.h"
+#include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -341,8 +341,10 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 		_delete->moveToRight(right, 0, newWidth);
 		right += _delete->width();
 	}
-	_forward->moveToRight(right, 0, newWidth);
-	right += _forward->width();
+	if (_canForward) {
+		_forward->moveToRight(right, 0, newWidth);
+		right += _forward->width();
+	}
 
 	auto left = 0;
 	_cancelSelection->moveToLeft(left, 0);
@@ -411,6 +413,7 @@ void TopBar::setSelectedItems(SelectedItems &&items) {
 
 SelectedItems TopBar::takeSelectedItems() {
 	_canDelete = false;
+	_canForward = false;
 	return std::move(_selectedItems);
 }
 
@@ -419,11 +422,13 @@ rpl::producer<> TopBar::cancelSelectionRequests() const {
 }
 
 void TopBar::updateSelectionState() {
-	Expects(_selectionText && _delete);
+	Expects(_selectionText && _delete && _forward);
 
 	_canDelete = computeCanDelete();
+	_canForward = computeCanForward();
 	_selectionText->entity()->setValue(generateSelectedText());
 	_delete->toggle(_canDelete, anim::type::instant);
+	_forward->toggle(_canForward, anim::type::instant);
 
 	updateSelectionControlsGeometry(width());
 }
@@ -437,6 +442,7 @@ void TopBar::createSelectionControls() {
 		return created;
 	};
 	_canDelete = computeCanDelete();
+	_canForward = computeCanForward();
 	_cancelSelection = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaCancel),
@@ -461,8 +467,12 @@ void TopBar::createSelectionControls() {
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaForward),
 		st::infoTopBarScale));
+	registerToggleControlCallback(
+		_forward.data(),
+		[this] { return selectionMode() && _canForward; });
 	_forward->setDuration(st::infoTopBarDuration);
 	_forward->entity()->addClickHandler([this] { performForward(); });
+	_forward->entity()->setVisible(_canForward);
 	_delete = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaDelete),
@@ -479,6 +489,10 @@ void TopBar::createSelectionControls() {
 
 bool TopBar::computeCanDelete() const {
 	return ranges::all_of(_selectedItems.list, &SelectedItem::canDelete);
+}
+
+bool TopBar::computeCanForward() const {
+	return ranges::all_of(_selectedItems.list, &SelectedItem::canForward);
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
@@ -544,11 +558,9 @@ void TopBar::performDelete() {
 		auto box = Box<DeleteMessagesBox>(
 			&_navigation->session(),
 			std::move(items));
-		box->setDeleteConfirmedCallback([weak = Ui::MakeWeak(this)] {
-			if (weak) {
-				weak->_cancelSelectionClicks.fire({});
-			}
-		});
+		box->setDeleteConfirmedCallback(crl::guard(this, [=] {
+			_cancelSelectionClicks.fire({});
+		}));
 		_navigation->parentController()->show(std::move(box));
 	}
 }
@@ -619,6 +631,8 @@ rpl::producer<QString> TitleValue(
 			return tr::lng_settings_section_notify();
 		case Section::SettingsType::PrivacySecurity:
 			return tr::lng_settings_section_privacy();
+		case Section::SettingsType::Sessions:
+			return tr::lng_settings_sessions_title();
 		case Section::SettingsType::Advanced:
 			return tr::lng_settings_advanced();
 		case Section::SettingsType::Chat:

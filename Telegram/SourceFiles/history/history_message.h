@@ -14,6 +14,10 @@ struct SendAction;
 struct SendOptions;
 } // namespace Api
 
+namespace Data {
+struct SponsoredFrom;
+} // namespace Data
+
 namespace HistoryView {
 class Message;
 } // namespace HistoryView
@@ -23,8 +27,10 @@ struct HistoryMessageReply;
 struct HistoryMessageViews;
 struct HistoryMessageMarkupData;
 
-[[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
-	not_null<HistoryItem*> item);
+void RequestDependentMessageData(
+	not_null<HistoryItem*> item,
+	PeerId peerId,
+	MsgId msgId);
 [[nodiscard]] MessageFlags NewMessageFlags(not_null<PeerData*> peer);
 [[nodiscard]] bool ShouldSendSilent(
 	not_null<PeerData*> peer,
@@ -64,7 +70,7 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> original); // local forwarded
+		not_null<HistoryItem*> original); // local forwarded
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
@@ -113,6 +119,11 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup); // local game
+	HistoryMessage(
+		not_null<History*> history,
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities); // sponsored
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
@@ -126,9 +137,8 @@ public:
 	[[nodiscard]] bool allowsForward() const override;
 	[[nodiscard]] bool allowsSendNow() const override;
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
-	[[nodiscard]] bool uploading() const;
 
-	void setViewsCount(int count) override;
+	bool changeViewsCount(int count) override;
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
@@ -172,6 +182,8 @@ public:
 	void setText(const TextWithEntities &textWithEntities) override;
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
+	[[nodiscard]] auto originalTextWithLocalEntities() const
+		-> TextWithEntities override;
 	[[nodiscard]] TextForMimeData clipboardText() const override;
 	[[nodiscard]] bool textHasLinks() const override;
 
@@ -198,20 +210,13 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
+	void hideSpoilers() override;
 
 	void applySentMessage(const MTPDmessage &data) override;
 	void applySentMessage(
 		const QString &text,
 		const MTPDupdateShortSentMessage &data,
 		bool wasAlready) override;
-
-	// dynamic_cast optimization.
-	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
-		return this;
-	}
-	[[nodiscard]] const HistoryMessage *toHistoryMessage() const override {
-		return this;
-	}
 
 	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
@@ -255,6 +260,7 @@ private:
 	void setUnreadRepliesCount(
 		not_null<HistoryMessageViews*> views,
 		int count);
+	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	static void FillForwardedInfo(
 		CreateConfig &config,
@@ -268,10 +274,7 @@ private:
 	[[nodiscard]] bool checkRepliesPts(
 		const HistoryMessageRepliesData &data) const;
 
-	QString _timeText;
-	int _timeWidth = 0;
-
-	mutable int32 _fromNameVersion = 0;
+	mutable int _fromNameVersion = 0;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

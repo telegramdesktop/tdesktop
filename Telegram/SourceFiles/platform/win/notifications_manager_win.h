@@ -36,6 +36,7 @@ protected:
 		const QString &msg,
 		DisplayOptions options) override;
 	void doClearAllFast() override;
+	void doClearFromItem(not_null<HistoryItem*> item) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void onBeforeNotificationActivated(NotificationId id) override;

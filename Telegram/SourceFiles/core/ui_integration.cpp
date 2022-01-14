@@ -315,6 +315,10 @@ QString UiIntegration::phraseFormattingMonospace() {
 	return tr::lng_menu_formatting_monospace(tr::now);
 }
 
+QString UiIntegration::phraseFormattingSpoiler() {
+	return tr::lng_menu_formatting_spoiler(tr::now);
+}
+
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());
 }

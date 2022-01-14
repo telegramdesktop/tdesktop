@@ -213,7 +213,7 @@ public:
 		const MTPInputGroupCall &inputCall);
 	~GroupCall();
 
-	[[nodiscard]] uint64 id() const {
+	[[nodiscard]] CallId id() const {
 		return _id;
 	}
 	[[nodiscard]] not_null<PeerData*> peer() const {
@@ -587,8 +587,8 @@ private:
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
 	std::vector<MTPGroupCallParticipant> _queuedSelfUpdates;
 
-	uint64 _id = 0;
-	uint64 _accessHash = 0;
+	CallId _id = 0;
+	CallId _accessHash = 0;
 	JoinState _joinState;
 	JoinState _screenJoinState;
 	std::string _cameraEndpoint;

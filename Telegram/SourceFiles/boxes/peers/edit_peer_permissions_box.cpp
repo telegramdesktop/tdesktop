@@ -327,7 +327,7 @@ Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
 			channel->session().api().applyUpdates(result);
 			Ui::hideSettingsAndLayer();
 			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			*converting = false;
 		}).send();
 	};

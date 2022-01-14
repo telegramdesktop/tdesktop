@@ -72,10 +72,10 @@ photoEditorRedoButton: IconButton(photoEditorRotateButton) {
 }
 
 photoEditorStickersButton: IconButton(photoEditorRotateButton) {
-	icon: icon {{ "settings_stickers", photoEditorButtonIconFg }};
-	iconOver: icon {{ "settings_stickers", photoEditorButtonIconFgOver }};
+	icon: icon {{ "settings/settings_stickers", photoEditorButtonIconFg }};
+	iconOver: icon {{ "settings/settings_stickers", photoEditorButtonIconFgOver }};
 }
-photoEditorStickersIconActive: icon {{ "settings_stickers", photoEditorButtonIconFgActive }};
+photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditorButtonIconFgActive }};
 
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};

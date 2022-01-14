@@ -65,7 +65,7 @@ ImageWithLocation FromPhotoSize(
 				data.vw().v,
 				data.vh().v),
 			.bytes = bytes,
-			.bytesCount = bytes.size(),
+			.bytesCount = int(bytes.size()),
 		};
 	}, [&](const MTPDphotoSizeProgressive &data) {
 		// #TODO layer118
@@ -160,7 +160,7 @@ ImageWithLocation FromPhotoSize(
 				data.vw().v,
 				data.vh().v),
 			.bytes = bytes,
-			.bytesCount = bytes.size(),
+			.bytesCount = int(bytes.size()),
 		};
 	}, [&](const MTPDphotoSizeProgressive &data) {
 		if (data.vsizes().v.isEmpty()) {
@@ -238,7 +238,7 @@ ImageWithLocation FromPhotoSize(
 				data.vw().v,
 				data.vh().v),
 			.bytes = bytes,
-			.bytesCount = bytes.size(),
+			.bytesCount = int(bytes.size()),
 		};
 	}, [&](const MTPDphotoSizeProgressive &data) {
 		if (data.vsizes().v.isEmpty()) {
@@ -299,7 +299,7 @@ ImageWithLocation FromImageInMemory(
 			image.height()),
 		.bytes = bytes,
 		.preloaded = image,
-		.bytesCount = bytes.size(),
+		.bytesCount = int(bytes.size()),
 	};
 }
 

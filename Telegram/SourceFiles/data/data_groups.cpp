@@ -73,7 +73,7 @@ void Groups::refreshMessage(
 		unregisterMessage(item);
 		return;
 	}
-	if (!IsServerMsgId(item->id) && !item->isScheduled()) {
+	if (!item->isRegular() && !item->isScheduled()) {
 		return;
 	}
 	const auto groupId = item->groupId();
@@ -112,14 +112,13 @@ void Groups::refreshMessage(
 HistoryItemsList::const_iterator Groups::findPositionForItem(
 		const HistoryItemsList &group,
 		not_null<HistoryItem*> item) {
-	const auto itemId = item->id;
 	const auto last = end(group);
-	if (!IsServerMsgId(itemId)) {
+	if (!item->isRegular()) {
 		return last;
 	}
+	const auto itemId = item->id;
 	for (auto result = begin(group); result != last; ++result) {
-		const auto alreadyId = (*result)->id;
-		if (IsServerMsgId(alreadyId) && alreadyId > itemId) {
+		if ((*result)->isRegular() && (*result)->id > itemId) {
 			return result;
 		}
 	}

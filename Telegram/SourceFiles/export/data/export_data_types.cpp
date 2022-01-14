@@ -153,7 +153,8 @@ std::vector<TextPart> ParseText(
 			[](const MTPDmessageEntityStrike&) { return Type::Strike; },
 			[](const MTPDmessageEntityBlockquote&) {
 				return Type::Blockquote; },
-			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; });
+			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; },
+			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
@@ -177,7 +178,7 @@ Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	}
 	auto result = Utf8String();
 	result.reserve(length);
-	for (auto i = 0, count = length - data.size(); i != count; ++i) {
+	for (auto i = 0, count = length - int(data.size()); i != count; ++i) {
 		result.append(filler);
 	}
 	result.append(data);
@@ -1127,6 +1128,8 @@ ServiceAction ParseServiceAction(
 		result.content = ActionSetChatTheme{
 			.emoji = qs(data.vemoticon()),
 		};
+	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		result.content = ActionChatJoinedByRequest();
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -1281,15 +1284,14 @@ std::map<MessageId, Message> ParseMessagesList(
 	return result;
 }
 
-PersonalInfo ParsePersonalInfo(const MTPUserFull &data) {
-	Expects(data.type() == mtpc_userFull);
-
-	const auto &fields = data.c_userFull();
+PersonalInfo ParsePersonalInfo(const MTPDusers_userFull &data) {
 	auto result = PersonalInfo();
-	result.user = ParseUser(fields.vuser());
-	if (const auto about = fields.vabout()) {
-		result.bio = ParseString(*about);
-	}
+	result.user = ParseUser(data.vusers().v[0]);
+	data.vfull_user().match([&](const MTPDuserFull &data) {
+		if (const auto about = data.vabout()) {
+			result.bio = ParseString(*about);
+		}
+	});
 	return result;
 }
 
@@ -1806,7 +1808,7 @@ Utf8String FormatDateTime(
 	if (!date) {
 		return Utf8String();
 	}
-	const auto value = QDateTime::fromTime_t(date);
+	const auto value = QDateTime::fromSecsSinceEpoch(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
 	).arg(value.date().day(), 2, 10, QChar('0')

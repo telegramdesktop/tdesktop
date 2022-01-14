@@ -70,5 +70,6 @@ private:
 CountriesInstance &Instance();
 
 [[nodiscard]] QString ExtractPhoneCode(const QString &phone);
+[[nodiscard]] QVector<int> Groups(const QString &phone);
 
 } // namespace Countries

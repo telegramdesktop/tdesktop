@@ -166,7 +166,7 @@ void EmojiColorPicker::showEmoji(EmojiPtr emoji) {
 	_ignoreShow = false;
 
 	_variants.resize(emoji->variantsCount() + 1);
-	for (auto i = 0, size = _variants.size(); i != size; ++i) {
+	for (auto i = 0, size = int(_variants.size()); i != size; ++i) {
 		_variants[i] = emoji->variant(i);
 	}
 
@@ -219,7 +219,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	p.fillRect(x, st::emojiPanMargins.top() + st::emojiColorsPadding, st::emojiColorsSep, inner.height() - st::emojiColorsPadding * 2, st::emojiColorsSepColor);
 
 	if (_variants.isEmpty()) return;
-	for (auto i = 0, count = _variants.size(); i != count; ++i) {
+	for (auto i = 0, count = int(_variants.size()); i != count; ++i) {
 		drawVariant(p, i);
 	}
 }

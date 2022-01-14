@@ -20,13 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/widgets/popup_menu.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "settings/settings_common.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
+#include "styles/style_menu_icons.h"
 
 namespace Window {
 namespace {
@@ -307,16 +308,23 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	if (i == end(_filters)) {
 		return;
 	}
-	_popupMenu = base::make_unique_q<Ui::PopupMenu>(i->second.get());
-	const auto addAction = [&](const QString &text, Fn<void()> callback) {
+	_popupMenu = base::make_unique_q<Ui::PopupMenu>(
+		i->second.get(),
+		st::popupMenuWithIcons);
+	const auto addAction = [&](
+			const QString &text,
+			Fn<void()> callback,
+			const style::icon *icon) {
 		return _popupMenu->addAction(
 			text,
-			crl::guard(&_outer, std::move(callback)));
+			crl::guard(&_outer, std::move(callback)),
+			icon);
 	};
 
 	addAction(
 		tr::lng_filters_context_edit(tr::now),
-		[=] { showEditBox(id); });
+		[=] { showEditBox(id); },
+		&st::menuIconEdit);
 
 	auto filteredChats = [=] {
 		return _session->session().data().chatsFilters().chatsList(id);
@@ -327,7 +335,8 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 
 	addAction(
 		tr::lng_filters_context_remove(tr::now),
-		[=] { showRemoveBox(id); });
+		[=] { showRemoveBox(id); },
+		&st::menuIconDelete);
 	_popupMenu->popup(position);
 }
 
@@ -336,7 +345,7 @@ void FiltersMenu::showEditBox(FilterId id) {
 }
 
 void FiltersMenu::showRemoveBox(FilterId id) {
-	_session->window().show(Box<ConfirmBox>(
+	_session->window().show(Box<Ui::ConfirmBox>(
 		tr::lng_filters_remove_sure(tr::now),
 		tr::lng_filters_remove_yes(tr::now),
 		[=](Fn<void()> &&close) { close(); remove(id); }));

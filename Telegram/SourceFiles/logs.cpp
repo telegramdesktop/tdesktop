@@ -165,7 +165,7 @@ private:
 					QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
 					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
 						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
-						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && oldlogend.midRef(1) == qstr(".txt")) {
+						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && base::StringViewMid(oldlogend, 1) == qstr(".txt")) {
 							bool removed = QFile(oldlog).remove();
 							LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
 						}
@@ -383,11 +383,7 @@ void start(not_null<Core::Launcher*> launcher) {
 
 #elif defined OS_WIN_STORE // Q_OS_UNIX || Q_OS_WINRT
 
-#ifdef _DEBUG
-		cForceWorkingDir(cExeDir());
-#else // _DEBUG
 		cForceWorkingDir(psAppDataPath());
-#endif // !_DEBUG
 		workingDirChosen = true;
 
 #elif defined Q_OS_WIN

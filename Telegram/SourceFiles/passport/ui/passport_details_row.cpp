@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
+#include "base/qt_adapters.h"
 
 #include <QtCore/QRegularExpression>
 
@@ -61,7 +62,7 @@ void PostcodeInput::correctValue(
 	QString newText;
 	newText.reserve(now.size());
 	auto newPos = nowCursor;
-	for (auto i = 0, l = now.size(); i < l; ++i) {
+	for (auto i = 0, l = int(now.size()); i < l; ++i) {
 		const auto ch = now[i];
 		if ((ch >= '0' && ch <= '9')
 			|| (ch >= 'a' && ch <= 'z')
@@ -411,11 +412,11 @@ QDate ValidateDate(const QString &value) {
 	}
 	auto result = QDate();
 	const auto readInt = [](const QString &value) {
-		auto ref = value.midRef(0);
-		while (!ref.isEmpty() && ref.at(0) == '0') {
-			ref = ref.mid(1);
+		auto view = QStringView(value);
+		while (!view.isEmpty() && view.at(0) == '0') {
+			view = base::StringViewMid(view, 1);
 		}
-		return ref.toInt();
+		return view.toInt();
 	};
 	result.setDate(
 		readInt(match.captured(3)),
@@ -639,11 +640,11 @@ bool DateRow::setFocusFast() {
 
 int DateRow::number(const object_ptr<DateInput> &field) const {
 	const auto text = field->getLastText();
-	auto ref = text.midRef(0);
-	while (!ref.isEmpty() && ref.at(0) == '0') {
-		ref = ref.mid(1);
+	auto view = QStringView(text);
+	while (!view.isEmpty() && view.at(0) == '0') {
+		view = base::StringViewMid(view, 1);
 	}
-	return ref.toInt();
+	return view.toInt();
 }
 
 int DateRow::day() const {

@@ -103,8 +103,36 @@ struct BackgroundState {
 	float64 shown = 1.;
 };
 
-struct ChatThemeDescriptor {
+struct ChatThemeKey {
 	uint64 id = 0;
+	bool dark = false;
+
+	explicit operator bool() const {
+		return (id != 0);
+	}
+};
+
+inline bool operator<(ChatThemeKey a, ChatThemeKey b) {
+	return (a.id < b.id) || ((a.id == b.id) && (a.dark < b.dark));
+}
+inline bool operator>(ChatThemeKey a, ChatThemeKey b) {
+	return (b < a);
+}
+inline bool operator<=(ChatThemeKey a, ChatThemeKey b) {
+	return !(b < a);
+}
+inline bool operator>=(ChatThemeKey a, ChatThemeKey b) {
+	return !(a < b);
+}
+inline bool operator==(ChatThemeKey a, ChatThemeKey b) {
+	return (a.id == b.id) && (a.dark == b.dark);
+}
+inline bool operator!=(ChatThemeKey a, ChatThemeKey b) {
+	return !(a == b);
+}
+
+struct ChatThemeDescriptor {
+	ChatThemeKey key;
 	Fn<void(style::palette&)> preparePalette;
 	ChatThemeBackgroundData backgroundData;
 	ChatThemeBubblesData bubblesData;
@@ -120,7 +148,7 @@ public:
 
 	~ChatTheme();
 
-	[[nodiscard]] uint64 key() const;
+	[[nodiscard]] ChatThemeKey key() const;
 	[[nodiscard]] const style::palette *palette() const {
 		return _palette.get();
 	}
@@ -172,7 +200,7 @@ private:
 	void adjust(const style::color &my, const QColor &by);
 	void adjust(const style::color &my, const style::colorizer &by);
 
-	uint64 _id = 0;
+	ChatThemeKey _key;
 	std::unique_ptr<style::palette> _palette;
 	ChatThemeBackground _mutableBackground;
 	BackgroundState _backgroundState;

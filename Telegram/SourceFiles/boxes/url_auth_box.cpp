@@ -32,7 +32,7 @@ void UrlAuthBox::Activate(
 		itemId,
 		row,
 		column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !message->isRegular()) {
 		return;
 	}
 	const auto session = &message->history()->session();
@@ -67,7 +67,7 @@ void UrlAuthBox::Activate(
 				Request(data, item, row, column);
 			}
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		const auto button = HistoryMessageMarkupButton::Get(
 			&session->data(),
 			itemId,
@@ -105,7 +105,7 @@ void UrlAuthBox::Activate(
 		}, [&](const MTPDurlAuthResultRequest &data) {
 			Request(data, session, url, context);
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		HiddenUrlClickHandler::Open(url, context);
 	}).send();
 }
@@ -121,7 +121,7 @@ void UrlAuthBox::Request(
 		itemId,
 		row,
 		column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !message->isRegular()) {
 		return;
 	}
 	const auto session = &message->history()->session();
@@ -165,7 +165,7 @@ void UrlAuthBox::Request(
 					return url;
 				});
 				finishWithUrl(to);
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				finishWithUrl(url);
 			}).send();
 		}
@@ -216,7 +216,7 @@ void UrlAuthBox::Request(
 					return url;
 				});
 				finishWithUrl(to);
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				finishWithUrl(url);
 			}).send();
 		}

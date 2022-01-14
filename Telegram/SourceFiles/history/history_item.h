@@ -43,6 +43,7 @@ struct RippleAnimation;
 namespace Data {
 struct MessagePosition;
 class Media;
+class MessageReactions;
 } // namespace Data
 
 namespace Window {
@@ -50,45 +51,25 @@ class SessionController;
 } // namespace Window
 
 namespace HistoryView {
-
 struct TextState;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
-
-struct ItemPreviewImage {
-	QImage data;
-	uint64 cacheKey = 0;
-
-	explicit operator bool() const {
-		return !data.isNull();
-	}
-};
-
-struct ItemPreview {
-	QString text;
-	std::vector<ItemPreviewImage> images;
-	int imagesInTextPosition = 0;
-	std::any loadingContext;
-};
-
-struct ToPreviewOptions {
-	const std::vector<ItemPreviewImage> *existing = nullptr;
-	bool hideSender = false;
-	bool hideCaption = false;
-	bool generateImages = true;
-	bool ignoreGroup = false;
-};
-
 } // namespace HistoryView
 
 struct HiddenSenderInfo;
 class History;
 
-[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessage::Flags flags);
-[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags);
+[[nodiscard]] MessageFlags FlagsFromMTP(
+	MsgId id,
+	MTPDmessage::Flags flags,
+	MessageFlags localFlags);
+[[nodiscard]] MessageFlags FlagsFromMTP(
+	MsgId id,
+	MTPDmessageService::Flags flags,
+	MessageFlags localFlags);
 
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
@@ -165,19 +146,10 @@ public:
 	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.
-	virtual void returnSavedMedia() {};
-	void savePreviousMedia() {
-		_savedLocalEditMediaData = {
-			originalText(),
-			_media->clone(this),
-		};
-	}
-	[[nodiscard]] bool isEditingMedia() const {
-		return _savedLocalEditMediaData.media != nullptr;
-	}
-	void clearSavedMedia() {
-		_savedLocalEditMediaData = {};
-	}
+	virtual void returnSavedMedia();
+	void savePreviousMedia();
+	[[nodiscard]] bool isEditingMedia() const;
+	void clearSavedMedia();
 
 	// Zero result means this message is not self-destructing right now.
 	virtual crl::time getSelfDestructIn(crl::time now) {
@@ -230,6 +202,11 @@ public:
 	[[nodiscard]] bool hideEditedBadge() const {
 		return (_flags & MessageFlag::HideEdited);
 	}
+	[[nodiscard]] bool isLocal() const {
+		return _flags & MessageFlag::Local;
+	}
+	[[nodiscard]] bool isRegular() const;
+	[[nodiscard]] bool isUploading() const;
 	void sendFailed();
 	[[nodiscard]] virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
@@ -278,7 +255,7 @@ public:
 
 	[[nodiscard]] virtual bool needCheck() const;
 
-	[[nodiscard]] virtual bool serviceMsg() const {
+	[[nodiscard]] virtual bool isService() const {
 		return false;
 	}
 	virtual void applyEdition(HistoryMessageEdition &&edition) {
@@ -322,21 +299,21 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	[[nodiscard]] virtual ItemPreview toPreview(
 		ToPreviewOptions options) const;
-	[[nodiscard]] virtual QString inReplyText() const {
-		return toPreview({
-			.hideSender = true,
-			.generateImages = false,
-		}).text;
-	}
+	[[nodiscard]] virtual QString inReplyText() const;
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
+		return TextWithEntities();
+	}
+	[[nodiscard]] virtual auto originalTextWithLocalEntities() const
+	-> TextWithEntities {
 		return TextWithEntities();
 	}
 	[[nodiscard]] virtual TextForMimeData clipboardText() const {
 		return TextForMimeData();
 	}
 
-	virtual void setViewsCount(int count) {
+	virtual bool changeViewsCount(int count) {
+		return false;
 	}
 	virtual void setForwardsCount(int count) {
 	}
@@ -356,13 +333,17 @@ public:
 	virtual void setRealId(MsgId newId);
 	virtual void incrementReplyToTopCounter() {
 	}
+	virtual void hideSpoilers() {
+	}
 
 	[[nodiscard]] bool emptyText() const {
 		return _text.isEmpty();
 	}
 
 	[[nodiscard]] bool canPin() const;
+	[[nodiscard]] bool canBeEdited() const;
 	[[nodiscard]] bool canStopPoll() const;
+	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] virtual bool allowsSendNow() const;
 	[[nodiscard]] virtual bool allowsForward() const;
 	[[nodiscard]] virtual bool allowsEdit(TimeId now) const;
@@ -372,12 +353,19 @@ public:
 	[[nodiscard]] bool suggestBanReport() const;
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 
+	[[nodiscard]] bool canReact() const;
+	void addReaction(const QString &reaction);
+	void toggleReaction(const QString &reaction);
+	void updateReactions(const MTPMessageReactions *reactions);
+	void updateReactionsUnknown();
+	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
+	[[nodiscard]] bool canViewReactions() const;
+	[[nodiscard]] QString chosenReaction() const;
+	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
+
 	[[nodiscard]] bool hasDirectLink() const;
 
-	[[nodiscard]] ChannelId channelId() const;
-	[[nodiscard]] FullMsgId fullId() const {
-		return FullMsgId(channelId(), id);
-	}
+	[[nodiscard]] FullMsgId fullId() const;
 	[[nodiscard]] Data::MessagePosition position() const;
 	[[nodiscard]] TimeId date() const;
 
@@ -392,12 +380,6 @@ public:
 		return false;
 	}
 
-	[[nodiscard]] virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
-		return nullptr;
-	}
-	[[nodiscard]] virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
-		return nullptr;
-	}
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] MsgId replyToTop() const;
 
@@ -405,7 +387,7 @@ public:
 
 	[[nodiscard]] TimeId dateOriginal() const;
 	[[nodiscard]] PeerData *senderOriginal() const;
-	[[nodiscard]] const HiddenSenderInfo *hiddenForwardedInfo() const;
+	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
 	[[nodiscard]] QString authorOriginal() const;
 	[[nodiscard]] MsgId idOriginal() const;
@@ -459,7 +441,7 @@ protected:
 	void finishEditionToEmpty();
 
 	const not_null<History*> _history;
-	not_null<PeerData*> _from;
+	const not_null<PeerData*> _from;
 	MessageFlags _flags = 0;
 
 	void invalidateChatListEntry();
@@ -479,8 +461,10 @@ protected:
 		std::unique_ptr<Data::Media> media;
 	};
 
-	SavedMediaData _savedLocalEditMediaData;
+	std::unique_ptr<SavedMediaData> _savedLocalEditMediaData;
 	std::unique_ptr<Data::Media> _media;
+	std::unique_ptr<Data::MessageReactions> _reactions;
+	crl::time _reactionsLastRefreshed = 0;
 
 private:
 

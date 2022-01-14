@@ -150,7 +150,7 @@ private:
 	void setupMainMenuToggle();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Key chat, PeerData *from = nullptr);
-	void showJumpToDate();
+	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();

@@ -99,13 +99,19 @@ bool CloudImage::failed() const {
 	return (_file.flags & CloudFile::Flag::Failed);
 }
 
+bool CloudImage::loadedOnce() const {
+	return (_file.flags & CloudFile::Flag::Loaded);
+}
+
 void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 	const auto autoLoading = false;
 	const auto finalCheck = [=] {
 		if (const auto active = activeView()) {
 			return !active->image();
+		} else if (_file.flags & CloudFile::Flag::Loaded) {
+			return false;
 		}
-		return true;
+		return !(_file.flags & CloudFile::Flag::Loaded);
 	};
 	const auto done = [=](QImage result) {
 		if (const auto active = activeView()) {
@@ -166,11 +172,25 @@ void UpdateCloudFile(
 		return;
 	}
 
+	const auto needStickerThumbnailUpdate = [&] {
+		const auto was = std::get_if<StorageFileLocation>(
+			&file.location.file().data);
+		const auto now = std::get_if<StorageFileLocation>(
+			&data.location.file().data);
+		using Type = StorageFileLocation::Type;
+		if (!was || !now || was->type() != Type::StickerSetThumb) {
+			return false;
+		}
+		return now->valid()
+			&& (now->type() != Type::StickerSetThumb
+				|| now->cacheKey() != was->cacheKey());
+	};
 	const auto update = !file.location.valid()
 		|| (data.location.file().cacheKey()
 			&& (!file.location.file().cacheKey()
 				|| (file.location.width() < data.location.width())
-				|| (file.location.height() < data.location.height())));
+				|| (file.location.height() < data.location.height())
+				|| needStickerThumbnailUpdate()));
 	if (!update) {
 		return;
 	}
@@ -198,6 +218,8 @@ void UpdateCloudFile(
 	} else if (file.loader) {
 		const auto origin = base::take(file.loader)->fileOrigin();
 		restartLoader(origin);
+	} else if (file.flags & CloudFile::Flag::Failed) {
+		file.flags &= ~CloudFile::Flag::Failed;
 	}
 }
 
@@ -247,6 +269,7 @@ void LoadCloudFile(
 		if (!file.loader || file.loader->cancelled()) {
 			file.flags |= CloudFile::Flag::Cancelled;
 		} else {
+			file.flags |= CloudFile::Flag::Loaded;
 			done(file);
 		}
 		// NB! file.loader may be in ~FileLoader() already.

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
+#include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 #include "styles/palette.h"
@@ -277,7 +278,10 @@ void Viewport::RendererSW::paintTileControls(
 
 	// Shadow.
 	if (_shadow.isNull()) {
-		_shadow = GenerateShadow(st.shadowHeight, 0, kShadowMaxAlpha);
+		_shadow = Images::GenerateShadow(
+			st.shadowHeight,
+			0,
+			kShadowMaxAlpha);
 	}
 	const auto shadowRect = QRect(
 		x,

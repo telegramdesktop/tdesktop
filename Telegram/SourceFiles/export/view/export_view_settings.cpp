@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
 #include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
@@ -465,12 +464,6 @@ void SettingsWidget::editDateLimit(
 	const auto month = highlighted;
 	const auto shared = std::make_shared<QPointer<Ui::CalendarBox>>();
 	const auto finalize = [=](not_null<Ui::CalendarBox*> box) {
-		box->setMaxDate(max
-			? base::unixtime::parse(max).date()
-			: QDate::currentDate());
-		box->setMinDate(min
-			? base::unixtime::parse(min).date()
-			: QDate(2013, 8, 1)); // Telegram was launched in August 2013 :)
 		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
 			if (const auto weak = shared->data()) {
@@ -479,17 +472,24 @@ void SettingsWidget::editDateLimit(
 		}));
 	};
 	const auto callback = crl::guard(this, [=](const QDate &date) {
-		done(base::unixtime::serialize(base::QDateToDateTime(date)));
+		done(base::unixtime::serialize(date.startOfDay()));
 		if (const auto weak = shared->data()) {
 			weak->closeBox();
 		}
 	});
-	auto box = Box<Ui::CalendarBox>(
-		month,
-		highlighted,
-		callback,
-		finalize,
-		st::exportCalendarSizes);
+	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+		.month = month,
+		.highlighted = highlighted,
+		.callback = callback,
+		.finalize = finalize,
+		.st = st::exportCalendarSizes,
+		.minDate = (min
+			? base::unixtime::parse(min).date()
+			: QDate(2013, 8, 1)), // Telegram was launched in August 2013 :)
+		.maxDate = (max
+			? base::unixtime::parse(max).date()
+			: QDate::currentDate()),
+	});
 	*shared = Ui::MakeWeak(box.data());
 	_showBoxCallback(std::move(box));
 }

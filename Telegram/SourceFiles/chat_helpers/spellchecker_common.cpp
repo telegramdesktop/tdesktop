@@ -184,7 +184,7 @@ void AddExceptions() {
 		return word.utf16();
 	}) | ranges::views::filter([](const auto &word) {
 		return !(Platform::Spellchecker::IsWordInDictionary(word)
-			|| Spellchecker::IsWordSkippable(&word));
+			|| Spellchecker::IsWordSkippable(word));
 	}) | ranges::to_vector;
 
 	ranges::for_each(exceptions, Platform::Spellchecker::AddWord);

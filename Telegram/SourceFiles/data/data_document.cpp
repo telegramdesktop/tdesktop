@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/storage_cloud_song_cover.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "base/base_file_utilities.h"
@@ -373,24 +373,7 @@ void DocumentData::setattributes(
 				}
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
-			_filename = qs(data.vfile_name());
-
-			// We don't want LTR/RTL mark/embedding/override/isolate chars
-			// in filenames, because they introduce a security issue, when
-			// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
-			QChar controls[] = {
-				0x200E, // LTR Mark
-				0x200F, // RTL Mark
-				0x202A, // LTR Embedding
-				0x202B, // RTL Embedding
-				0x202D, // LTR Override
-				0x202E, // RTL Override
-				0x2066, // LTR Isolate
-				0x2067, // RTL Isolate
-			};
-			for (const auto &ch : controls) {
-				_filename = std::move(_filename).replace(ch, "_");
-			}
+			setFileName(qs(data.vfile_name()));
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 			_flags |= Flag::HasAttachedStickers;
 		});
@@ -768,6 +751,27 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 	}
 }
 
+void DocumentData::setFileName(const QString &remoteFileName) {
+	_filename = remoteFileName;
+
+	// We don't want LTR/RTL mark/embedding/override/isolate chars
+	// in filenames, because they introduce a security issue, when
+	// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
+	QChar controls[] = {
+		0x200E, // LTR Mark
+		0x200F, // RTL Mark
+		0x202A, // LTR Embedding
+		0x202B, // RTL Embedding
+		0x202D, // LTR Override
+		0x202E, // RTL Override
+		0x2066, // LTR Isolate
+		0x2067, // RTL Isolate
+	};
+	for (const auto &ch : controls) {
+		_filename = std::move(_filename).replace(ch, "_");
+	}
+}
+
 void DocumentData::setLoadedInMediaCacheLocation() {
 	_location = Core::FileLocation();
 	_flags |= Flag::LoadedInMediaCache;
@@ -901,7 +905,7 @@ void DocumentData::handleLoaderUpdates() {
 				Ui::hideLayer();
 				save(origin, failedFileName);
 			};
-			Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<Ui::ConfirmBox>(
 				tr::lng_download_finish_failed(tr::now),
 				crl::guard(&session(), retry)));
 		} else {
@@ -913,7 +917,7 @@ void DocumentData::handleLoaderUpdates() {
 			//	Core::App().settings().setDownloadPath(QString());
 			//	Ui::show(Box<DownloadPathBox>());
 			//};
-			//Ui::show(Box<ConfirmBox>(
+			//Ui::show(Box<Ui::ConfirmBox>(
 			//	tr::lng_download_path_failed(tr::now),
 			//	tr::lng_download_path_settings(tr::now),
 			//	crl::guard(&session(), openSettings)));
@@ -984,7 +988,7 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	// Write each 0-31 unsigned char as 5 bit to result.
 	// We reserve one extra byte to be able to dereference any of required bytes
 	// as a uint16 without overflowing, even the byte with index "bytesCount - 1".
-	for (auto i = 0, l = waveform.size(); i < l; ++i) {
+	for (auto i = 0, l = int(waveform.size()); i < l; ++i) {
 		auto byteIndex = (i * 5) / 8;
 		auto bitShift = (i * 5) % 8;
 		auto value = (static_cast<uint16>(waveform[i]) & 0x1F) << bitShift;
@@ -1080,13 +1084,19 @@ bool DocumentData::isStickerSetInstalled() const {
 	}
 }
 
-Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
+Image *DocumentData::getReplyPreview(
+		Data::FileOrigin origin,
+		not_null<PeerData*> context) {
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin);
+	return _replyPreview->image(origin, context);
+}
+
+Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
+	return getReplyPreview(item->fullId(), item->history()->peer);
 }
 
 bool DocumentData::replyPreviewLoaded() const {
@@ -1154,12 +1164,14 @@ bool DocumentData::useStreamingLoader() const {
 		|| isVoiceMessage();
 }
 
-bool DocumentData::canBeStreamed() const {
+bool DocumentData::canBeStreamed(HistoryItem *item) const {
 	// Streaming couldn't be used with external player
 	// Maybe someone brave will implement this once upon a time...
 	return hasRemoteLocation()
 		&& supportsStreaming()
-		&& (!cUseExternalVideoPlayer() || !isVideoFile());
+		&& (!isVideoFile()
+			|| !cUseExternalVideoPlayer()
+			|| (item && !item->allowsForward()));
 }
 
 void DocumentData::setInappPlaybackFailed() {
@@ -1209,7 +1221,10 @@ bool DocumentData::hasWebLocation() const {
 }
 
 bool DocumentData::isNull() const {
-	return !hasRemoteLocation() && !hasWebLocation() && _url.isEmpty();
+	return !hasRemoteLocation()
+		&& !hasWebLocation()
+		&& _url.isEmpty()
+		&& !uploading();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {
@@ -1321,7 +1336,7 @@ bool DocumentData::isSongWithCover() const {
 }
 
 bool DocumentData::isAudioFile() const {
-	if (isVoiceMessage()) {
+	if (isVoiceMessage() || isVideoFile()) {
 		return false;
 	} else if (isSong()) {
 		return true;
@@ -1333,7 +1348,7 @@ bool DocumentData::isAudioFile() const {
 		}
 		return false;
 	}
-	const auto left = _mimeString.midRef(prefix.size()).toString();
+	const auto left = _mimeString.mid(prefix.size());
 	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
 	return ranges::contains(types, left);
 }

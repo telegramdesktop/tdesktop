@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QtEndian>
 #include <QtCore/QBuffer>
+#include <QtCore/QFile>
 
 namespace Media {
 namespace Clip {

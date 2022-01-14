@@ -42,6 +42,7 @@ enum class Type;
 
 namespace Api {
 struct SendOptions;
+struct SendAction;
 } // namespace Api
 
 namespace InlineBots {
@@ -73,8 +74,10 @@ class LinkButton;
 class RoundButton;
 class PinnedBar;
 class GroupCallBar;
+class RequestsBar;
 struct PreparedList;
 class SendFilesWay;
+class SendAsButton;
 enum class ReportReason;
 namespace Toast {
 class Instance;
@@ -102,7 +105,6 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
-class GroupCallTracker;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
@@ -155,8 +157,6 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
-	QRect historyRect() const;
-
 	void updateFieldPlaceholder();
 	bool updateStickersByEmoji();
 
@@ -182,9 +182,6 @@ public:
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
-
-	void checkSelectingScroll(QPoint point);
-	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
 
@@ -268,6 +265,7 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options);
@@ -365,23 +363,23 @@ private:
 	void preloadHistoryIfNeeded();
 
 	void handleScroll();
-	void scrollByTimer();
 	void updateHistoryItemsByTimer();
 
 	[[nodiscard]] Dialogs::EntryState computeDialogsEntryState() const;
 	void refreshTopBarActiveChat();
 
 	void requestMessageData(MsgId msgId);
-	void messageDataReceived(ChannelData *channel, MsgId msgId);
+	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 
+	[[nodiscard]] Api::SendAction prepareSendAction(
+		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendSilent();
 	void sendScheduled();
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 	void handlePendingHistoryUpdate();
-	void fullPeerUpdated(PeerData *peer);
+	void fullInfoUpdated();
 	void toggleTabbedSelectorMode();
 	void recountChatWidth();
 	void historyDownClicked();
@@ -507,7 +505,8 @@ private:
 		int nowScrollTop);
 
 	void checkMessagesTTL();
-	void setupGroupCallTracker();
+	void setupGroupCallBar();
+	void setupRequestsBar();
 
 	void sendInlineResult(InlineBots::ResultSelected result);
 
@@ -612,6 +611,8 @@ private:
 
 	void setupScheduledToggle();
 	void refreshScheduledToggle();
+	void setupSendAsToggle();
+	void refreshSendAsToggle();
 
 	bool kbWasHidden() const;
 
@@ -638,9 +639,10 @@ private:
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;
 
-	std::unique_ptr<HistoryView::GroupCallTracker> _groupCallTracker;
 	std::unique_ptr<Ui::GroupCallBar> _groupCallBar;
 	int _groupCallBarHeight = 0;
+	std::unique_ptr<Ui::RequestsBar> _requestsBar;
+	int _requestsBarHeight = 0;
 
 	bool _preserveScrollTop = false;
 
@@ -664,7 +666,6 @@ private:
 
 	PeerData *_peer = nullptr;
 
-	ChannelId _channel = NoChannel;
 	bool _canSendMessages = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 
@@ -720,6 +721,7 @@ private:
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::FlatButton> _reportMessages;
 	object_ptr<Ui::IconButton> _attachToggle;
+	object_ptr<Ui::SendAsButton> _sendAs = { nullptr };
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
 	object_ptr<Ui::IconButton> _botKeyboardHide;
@@ -759,9 +761,6 @@ private:
 	Ui::Animations::Simple _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
-
-	base::Timer _scrollTimer;
-	int32 _scrollDelta = 0;
 
 	MsgId _highlightedMessageId = 0;
 	std::deque<MsgId> _highlightQueue;

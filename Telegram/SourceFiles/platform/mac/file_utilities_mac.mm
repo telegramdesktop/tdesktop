@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/mac/base_utilities_mac.h"
 #include "lang/lang_keys.h"
-#include "base/qt_adapters.h"
 #include "styles/style_window.h"
 
 #include <QtWidgets/QApplication>
@@ -399,7 +398,7 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 	NSString *file = Q2NSString(filepath);
 	@try {
 		OpenFileWithInterface *menu = [[[OpenFileWithInterface alloc] init:file] autorelease];
-		const auto screen = base::QScreenNearestTo(menuPosition);
+		const auto screen = QGuiApplication::screenAt(menuPosition);
 		if (!screen) {
 			return false;
 		}

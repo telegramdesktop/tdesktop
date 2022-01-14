@@ -36,6 +36,7 @@ enum class Type {
 	Information,
 	Notifications,
 	PrivacySecurity,
+	Sessions,
 	Advanced,
 	Chat,
 	Folders,
@@ -107,7 +108,8 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,
-	Fn<void()> handler)>;
+	Fn<void()> handler,
+	const style::icon *icon)>;
 
 void FillMenu(
 	not_null<Window::SessionController*> controller,

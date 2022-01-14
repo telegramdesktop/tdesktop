@@ -7,13 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
+#include "boxes/peers/edit_peer_common.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/special_fields.h"
 #include "ui/toast/toast.h"
-#include "core/application.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -23,14 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
-namespace {
-
-constexpr auto kMinUsernameLength = 5;
-
-} // namespace
-
 UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
+, _textStyle(st::usernameTextStyle)
+, _font(st::boxTextFont)
+, _padding(st::usernamePadding)
+, _textCenterTop((_textStyle.lineHeight - _font->height) / 2)
 , _api(&_session->mtp())
 , _username(
 	this,
@@ -39,8 +35,8 @@ UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 	session->user()->username,
 	QString())
 , _link(this, QString(), st::boxLinkButton)
-, _about(st::boxWidth - st::usernamePadding.left())
-, _checkTimer(this) {
+, _about(st::boxWidth - _padding.left())
+, _checkTimer([=] { check(); }) {
 }
 
 void UsernameBox::prepare() {
@@ -57,11 +53,15 @@ void UsernameBox::prepare() {
 	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
 	_link->addClickHandler([=] { linkClick(); });
 
-	_about.setText(st::usernameTextStyle, tr::lng_username_about(tr::now));
-	setDimensions(st::boxWidth, st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom());
-
-	_checkTimer->setSingleShot(true);
-	connect(_checkTimer, &QTimer::timeout, [=] { check(); });
+	_about.setText(_textStyle, tr::lng_username_about(tr::now));
+	setDimensions(
+		st::boxWidth,
+		_padding.top()
+			+ _username->height()
+			+ st::usernameSkip
+			+ _about.countHeight(st::boxWidth - _padding.left())
+			+ 3 * _textStyle.lineHeight
+			+ _padding.bottom());
 
 	updateLinkText();
 }
@@ -75,106 +75,178 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	p.setFont(st::boxTextFont);
+	const auto textTop = _username->y()
+		+ _username->height()
+		+ ((st::usernameSkip - _font->height) / 2);
+
+	p.setFont(_font);
 	if (!_errorText.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawTextLeft(st::usernamePadding.left(), _username->y() + _username->height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _errorText);
+		p.drawTextLeft(
+			_padding.left(),
+			textTop,
+			width(),
+			_errorText);
 	} else if (!_goodText.isEmpty()) {
 		p.setPen(st::boxTextFgGood);
-		p.drawTextLeft(st::usernamePadding.left(), _username->y() + _username->height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _goodText);
+		p.drawTextLeft(
+			_padding.left(),
+			textTop,
+			width(),
+			_goodText);
 	} else {
 		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), _username->y() + _username->height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), tr::lng_username_choose(tr::now));
+		p.drawTextLeft(
+			_padding.left(),
+			textTop,
+			width(),
+			tr::lng_username_choose(tr::now));
 	}
 	p.setPen(st::boxTextFg);
-	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
-	_about.drawLeft(p, st::usernamePadding.left(), _username->y() + _username->height() + st::usernameSkip, availw, width());
+	const auto availW = st::boxWidth - _padding.left();
+	const auto h = _about.countHeight(availW);
+	_about.drawLeft(
+		p,
+		_padding.left(),
+		_username->y() + _username->height() + st::usernameSkip,
+		availW,
+		width());
 
-	int32 linky = _username->y() + _username->height() + st::usernameSkip + h + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2);
+	const auto linkTop = _username->y()
+		+ _username->height()
+		+ st::usernameSkip
+		+ h
+		+ _textStyle.lineHeight
+		+ _textCenterTop;
 	if (_link->isHidden()) {
-		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link_willbe(tr::now));
+		p.drawTextLeft(
+			_padding.left(),
+			linkTop,
+			width(),
+			tr::lng_username_link_willbe(tr::now));
 		p.setPen(st::usernameDefaultFg);
 		const auto link = _session->createInternalLinkFull(qsl("username"));
-		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), link);
+		p.drawTextLeft(
+			_padding.left(),
+			linkTop
+				+ _textStyle.lineHeight
+				+ _textCenterTop,
+			width(),
+			link);
 	} else {
-		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link(tr::now));
+		p.drawTextLeft(
+			_padding.left(),
+			linkTop,
+			width(),
+			tr::lng_username_link(tr::now));
 	}
 }
 
 void UsernameBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_username->resize(width() - st::usernamePadding.left() - st::usernamePadding.right(), _username->height());
-	_username->moveToLeft(st::usernamePadding.left(), st::usernamePadding.top());
+	_username->resize(
+		width() - _padding.left() - _padding.right(),
+		_username->height());
+	_username->moveToLeft(_padding.left(), _padding.top());
 
-	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
-	int32 linky = _username->y() + _username->height() + st::usernameSkip + h + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2);
-	_link->moveToLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2));
+	const auto availW = st::boxWidth - _padding.left();
+	const auto h = _about.countHeight(availW);
+	const auto linkTop = _username->y()
+		+ _username->height()
+		+ st::usernameSkip
+		+ h
+		+ _textStyle.lineHeight
+		+ _textCenterTop;
+	_link->moveToLeft(
+		_padding.left(),
+		linkTop + _textStyle.lineHeight + _textCenterTop);
 }
 
 void UsernameBox::save() {
-	if (_saveRequestId) return;
+	if (_saveRequestId) {
+		return;
+	}
 
 	_sentUsername = getName();
 	_saveRequestId = _api.request(MTPaccount_UpdateUsername(
 		MTP_string(_sentUsername)
 	)).done([=](const MTPUser &result) {
-		updateDone(result);
+		_saveRequestId = 0;
+		_session->data().processUser(result);
+		closeBox();
 	}).fail([=](const MTP::Error &error) {
-		updateFail(error);
+		_saveRequestId = 0;
+		updateFail(error.type());
 	}).send();
 }
 
 void UsernameBox::check() {
 	_api.request(base::take(_checkRequestId)).cancel();
 
-	QString name = getName();
-	if (name.size() >= kMinUsernameLength) {
-		_checkUsername = name;
-		_checkRequestId = _api.request(MTPaccount_CheckUsername(
-			MTP_string(name)
-		)).done([=](const MTPBool &result) {
-			checkDone(result);
-		}).fail([=](const MTP::Error &error) {
-			checkFail(error);
-		}).send();
+	const auto name = getName();
+	if (name.size() < Ui::EditPeer::kMinUsernameLength) {
+		return;
 	}
+	_checkUsername = name;
+	_checkRequestId = _api.request(MTPaccount_CheckUsername(
+		MTP_string(name)
+	)).done([=](const MTPBool &result) {
+		_checkRequestId = 0;
+
+		_errorText = (mtpIsTrue(result)
+				|| _checkUsername == _session->user()->username)
+			? QString()
+			: tr::lng_username_occupied(tr::now);
+		_goodText = _errorText.isEmpty()
+			? tr::lng_username_available(tr::now)
+			: QString();
+
+		update();
+	}).fail([=](const MTP::Error &error) {
+		_checkRequestId = 0;
+		checkFail(error.type());
+	}).send();
 }
 
 void UsernameBox::changed() {
 	updateLinkText();
-	QString name = getName();
+	const auto name = getName();
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 			_errorText = _goodText = QString();
 			update();
 		}
-		_checkTimer->stop();
+		_checkTimer.cancel();
 	} else {
-		int32 len = name.size();
-		for (int32 i = 0; i < len; ++i) {
-			QChar ch = name.at(i);
-			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
+		const auto len = int(name.size());
+		for (auto i = 0; i < len; ++i) {
+			const auto ch = name.at(i);
+			if ((ch < 'A' || ch > 'Z')
+				&& (ch < 'a' || ch > 'z')
+				&& (ch < '0' || ch > '9')
+				&& ch != '_'
+				&& (ch != '@' || i > 0)) {
 				if (_errorText != tr::lng_username_bad_symbols(tr::now)) {
 					_errorText = tr::lng_username_bad_symbols(tr::now);
 					update();
 				}
-				_checkTimer->stop();
+				_checkTimer.cancel();
 				return;
 			}
 		}
-		if (name.size() < kMinUsernameLength) {
+		if (name.size() < Ui::EditPeer::kMinUsernameLength) {
 			if (_errorText != tr::lng_username_too_short(tr::now)) {
 				_errorText = tr::lng_username_too_short(tr::now);
 				update();
 			}
-			_checkTimer->stop();
+			_checkTimer.cancel();
 		} else {
 			if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 				_errorText = _goodText = QString();
 				update();
 			}
-			_checkTimer->start(UsernameCheckTimeout);
+			_checkTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 		}
 	}
 }
@@ -185,28 +257,23 @@ void UsernameBox::linkClick() {
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
-void UsernameBox::updateDone(const MTPUser &user) {
-	_session->data().processUser(user);
-	closeBox();
-}
-
-void UsernameBox::updateFail(const MTP::Error &error) {
-	_saveRequestId = 0;
+void UsernameBox::updateFail(const QString &error) {
 	const auto self = _session->user();
-	const auto &err = error.type();
-	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == self->username) {
+	if ((error == qstr("USERNAME_NOT_MODIFIED"))
+		|| (_sentUsername == self->username)) {
 		self->setName(
 			TextUtilities::SingleLine(self->firstName),
 			TextUtilities::SingleLine(self->lastName),
 			TextUtilities::SingleLine(self->nameOrPhone),
 			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
-	} else if (err == qstr("USERNAME_INVALID")) {
+	} else if (error == qstr("USERNAME_INVALID")) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
-	} else if (err == qstr("USERNAME_OCCUPIED") || err == qstr("USERNAMES_UNAVAILABLE")) {
+	} else if ((error == qstr("USERNAME_OCCUPIED"))
+		|| (error == qstr("USERNAMES_UNAVAILABLE"))) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_occupied(tr::now);
@@ -216,29 +283,12 @@ void UsernameBox::updateFail(const MTP::Error &error) {
 	}
 }
 
-void UsernameBox::checkDone(const MTPBool &result) {
-	_checkRequestId = 0;
-	const auto newError = (mtpIsTrue(result)
-		|| _checkUsername == _session->user()->username)
-		? QString()
-		: tr::lng_username_occupied(tr::now);
-	const auto newGood = newError.isEmpty()
-		? tr::lng_username_available(tr::now)
-		: QString();
-	if (_errorText != newError || _goodText != newGood) {
-		_errorText = newError;
-		_goodText = newGood;
-		update();
-	}
-}
-
-void UsernameBox::checkFail(const MTP::Error &error) {
-	_checkRequestId = 0;
-	QString err(error.type());
-	if (err == qstr("USERNAME_INVALID")) {
+void UsernameBox::checkFail(const QString &error) {
+	if (error == qstr("USERNAME_INVALID")) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
-	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _session->user()->username) {
+	} else if ((error == qstr("USERNAME_OCCUPIED"))
+		&& (_checkUsername != _session->user()->username)) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
 	} else {
@@ -252,8 +302,10 @@ QString UsernameBox::getName() const {
 }
 
 void UsernameBox::updateLinkText() {
-	QString uname = getName();
-	_link->setText(st::boxTextFont->elided(_session->createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
+	const auto uname = getName();
+	_link->setText(_font->elided(
+		_session->createInternalLinkFull(uname),
+		st::boxWidth - _padding.left() - _padding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

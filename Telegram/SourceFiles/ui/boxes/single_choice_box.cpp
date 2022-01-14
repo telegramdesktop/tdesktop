@@ -44,7 +44,7 @@ void SingleChoiceBox(
 				st::boxPadding.right(),
 				st::boxOptionListSkip));
 	}
-	const auto callback = args.callback;
+	const auto callback = args.callback.value();
 	group->setChangedCallback([=](int value) {
 		const auto weak = Ui::MakeWeak(box);
 		callback(value);

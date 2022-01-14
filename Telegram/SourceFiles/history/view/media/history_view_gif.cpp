@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_playback_progress.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -154,7 +154,10 @@ QSize Gif::countOptimalSize() {
 	}
 	_thumbw = tw;
 	_thumbh = th;
-	auto maxWidth = qMax(tw, st::minPhotoSize);
+	auto maxWidth = std::clamp(
+		std::max(tw, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x())),
+		st::minPhotoSize,
+		maxSize);
 	auto minHeight = qMax(th, st::minPhotoSize);
 	if (!activeCurrentStreamed()) {
 		accumulate_max(maxWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
@@ -211,7 +214,10 @@ QSize Gif::countCurrentSize(int newWidth) {
 	_thumbw = tw;
 	_thumbh = th;
 
-	newWidth = qMax(tw, st::minPhotoSize);
+	newWidth = std::clamp(
+		std::max(tw, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x())),
+		st::minPhotoSize,
+		std::min(newWidth, maxSize));
 	auto newHeight = qMax(th, st::minPhotoSize);
 	if (!activeCurrentStreamed()) {
 		accumulate_max(newWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
@@ -264,9 +270,9 @@ QSize Gif::videoSize() const {
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
-		&& _data->canBeStreamed()
-		&& !_data->inappPlaybackFailed()
-		&& !_parent->data()->isSending();
+		&& _realParent->allowsForward()
+		&& _data->canBeStreamed(_realParent)
+		&& !_data->inappPlaybackFailed();
 }
 
 bool Gif::autoplayEnabled() const {
@@ -288,7 +294,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto stm = context.messageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = autoplayEnabled()
 		&& canBePlayed
 		&& CanPlayInline(_data);
@@ -354,9 +360,12 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
 	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
+	const auto rightAligned = separateRoundVideo
+		&& outbg
+		&& !_parent->delegate()->elementIsChatWide();
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
-		if (outbg) {
+		if (rightAligned) {
 			usex = width() - usew;
 		}
 	}
@@ -582,7 +591,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			if (reply) {
 				recth += st::msgReplyBarSize.height();
 			}
-			int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
+			int rectx = rightAligned ? 0 : (usew + st::msgReplyPadding.left());
 			int recty = painty;
 			if (rtl()) rectx = width() - rectx - rectw;
 
@@ -618,7 +627,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		} else {
 			maxRight -= st::msgMargin.left();
 		}
-		if (isRound && !outbg) {
+		if (isRound && !rightAligned) {
 			auto infoWidth = _parent->infoWidth();
 
 			// This is just some arbitrary point,
@@ -760,9 +769,12 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
 	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
+	const auto rightAligned = separateRoundVideo
+		&& outbg
+		&& !_parent->delegate()->elementIsChatWide();
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
-		if (outbg) {
+		if (rightAligned) {
 			usex = width() - usew;
 		}
 	}
@@ -782,7 +794,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		if (reply) {
 			recth += st::msgReplyBarSize.height();
 		}
-		auto rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
+		auto rectx = rightAligned ? 0 : (usew + st::msgReplyPadding.left());
 		auto recty = painty;
 		if (rtl()) rectx = width() - rectx - rectw;
 
@@ -836,7 +848,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			? _cancell
 			: _realParent->isSending()
 			? nullptr
-			: (dataLoaded() || _dataMedia->canBePlayed())
+			: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 			? _openl
 			: _data->loading()
 			? _cancell
@@ -851,7 +863,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		} else {
 			maxRight -= st::msgMargin.left();
 		}
-		if (isRound && !outbg) {
+		if (isRound && !rightAligned) {
 			auto infoWidth = _parent->infoWidth();
 
 			// This is just some arbitrary point,
@@ -862,8 +874,16 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			}
 		}
 		if (!inWebPage) {
-			if (_parent->pointInTime(fullRight, fullBottom, point, isRound ? InfoDisplayType::Background : InfoDisplayType::Image)) {
-				result.cursor = CursorState::Date;
+			const auto bottomInfoResult = _parent->bottomInfoTextState(
+				fullRight,
+				fullBottom,
+				point,
+				(isRound
+					? InfoDisplayType::Background
+					: InfoDisplayType::Image));
+			if (bottomInfoResult.link
+				|| bottomInfoResult.cursor != CursorState::None) {
+				return bottomInfoResult;
 			}
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
@@ -909,13 +929,15 @@ void Gif::drawGrouped(
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
-	const auto displayLoading = (item->id < 0) || _data->displayLoading();
+	const auto displayLoading = item->isSending()
+		|| item->hasFailed()
+		|| _data->displayLoading();
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
+	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = fullFeatured
 		&& autoplayEnabled()
 		&& canBePlayed
@@ -1107,7 +1129,7 @@ TextState Gif::getStateGrouped(
 		? _cancell
 		: _realParent->isSending()
 		? nullptr
-		: (dataLoaded() || _dataMedia->canBePlayed())
+		: (dataLoaded() || _dataMedia->canBePlayed(_realParent))
 		? _openl
 		: _data->loading()
 		? _cancell
@@ -1152,6 +1174,57 @@ bool Gif::needsBubble() const {
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();
 	return false;
+}
+
+QRect Gif::contentRectForReactions() const {
+	if (!isSeparateRoundVideo()) {
+		return QRect(0, 0, width(), height());
+	}
+	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto usex = 0, usew = paintw;
+	const auto outbg = _parent->hasOutLayout();
+	const auto rightAligned = outbg
+		&& !_parent->delegate()->elementIsChatWide();
+	const auto item = _parent->data();
+	const auto via = item->Get<HistoryMessageVia>();
+	const auto reply = _parent->displayedReply();
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	if (via || reply || forwarded) {
+		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		if (rightAligned) {
+			usex = width() - usew;
+		}
+	}
+	if (rtl()) usex = width() - usex - usew;
+	return style::rtlrect(usex + paintx, painty, usew, painth, width());
+}
+
+std::optional<int> Gif::reactionButtonCenterOverride() const {
+	if (!isSeparateRoundVideo()) {
+		return std::nullopt;
+	}
+	const auto inner = contentRectForReactions();
+	auto fullRight = inner.x() + inner.width();
+	auto maxRight = _parent->width() - st::msgMargin.left();
+	if (_parent->hasFromPhoto()) {
+		maxRight -= st::msgMargin.right();
+	} else {
+		maxRight -= st::msgMargin.left();
+	}
+	const auto infoWidth = _parent->infoWidth();
+	const auto outbg = _parent->hasOutLayout();
+	const auto rightAligned = outbg
+		&& !_parent->delegate()->elementIsChatWide();
+	if (!rightAligned) {
+		// This is just some arbitrary point,
+		// the main idea is to make info left aligned here.
+		fullRight += infoWidth - st::normalFont->height;
+		if (fullRight > maxRight) {
+			fullRight = maxRight;
+		}
+	}
+	const auto right = fullRight - infoWidth - 3 * st::msgDateImgPadding.x();
+	return right - st::reactionCornerSize.width() / 2;
 }
 
 int Gif::additionalWidth() const {
@@ -1256,7 +1329,7 @@ void Gif::updateStatusText() const {
 		statusSize = _data->uploadingData->offset;
 	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (dataLoaded() || _dataMedia->canBePlayed()) {
+	} else if (dataLoaded() || _dataMedia->canBePlayed(_realParent)) {
 		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
 		statusSize = Ui::FileStatusSizeReady;
@@ -1320,16 +1393,7 @@ void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Gif::refreshCaption() {
-	const auto timestampLinksDuration = _data->isVideoFile()
-		? _data->getDuration()
-		: 0;
-	const auto timestampLinkBase = timestampLinksDuration
-		? DocumentTimestampLinkBase(_data, _realParent->fullId())
-		: QString();
-	_caption = createCaption(
-			_parent->data(),
-			timestampLinksDuration,
-			timestampLinkBase);
+	_caption = createCaption(_parent->data());
 }
 
 int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
@@ -1386,7 +1450,7 @@ void Gif::playAnimation(bool autoplay) {
 	}
 	if (_streamed) {
 		stopAnimation();
-	} else if (_dataMedia->canBePlayed()) {
+	} else if (_dataMedia->canBePlayed(_realParent)) {
 		if (!autoplayEnabled()) {
 			history()->owner().checkPlayingAnimations();
 		}
@@ -1508,20 +1572,23 @@ void Gif::checkAnimation() {
 
 float64 Gif::dataProgress() const {
 	ensureDataMediaCreated();
-	return (_data->uploading() || _parent->data()->id > 0)
+	return (_data->uploading()
+		|| (!_parent->data()->isSending() && !_parent->data()->hasFailed()))
 		? _dataMedia->progress()
 		: 0;
 }
 
 bool Gif::dataFinished() const {
-	return (_parent->data()->id > 0)
+	return (!_parent->data()->isSending() && !_parent->data()->hasFailed())
 		? (!_data->loading() && !_data->uploading())
 		: false;
 }
 
 bool Gif::dataLoaded() const {
 	ensureDataMediaCreated();
-	return (_parent->data()->id > 0) ? _dataMedia->loaded() : false;
+	return !_parent->data()->isSending()
+		&& !_parent->data()->hasFailed()
+		&& _dataMedia->loaded();
 }
 
 bool Gif::needInfoDisplay() const {

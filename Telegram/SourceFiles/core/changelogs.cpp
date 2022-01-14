@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
 #include "data/data_session.h"
+#include "base/qt_adapters.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 
@@ -22,80 +23,49 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		2009004,
-		"- Choose one from dozens of new gorgeous animated backgrounds"
-		" in Chat Settings > Chat background.\n"
+		3002006,
+		"- Try out the new audio player with playlist shuffle and repeat.\n"
+
+		"- Give a custom name to your desktop session "
+		"to distinguish it in the sessions list.\n"
 	},
 	{
-		2009005,
-		"- Tile chat background patterns horizontally.\n"
+		3002007,
+		"- Active sessions list redesign.\n"
 
-		"- Fix a rare crash in spellchecker on Windows.\n"
+		"- Fix disappearing emoji selector button.\n"
 
-		"- Fix animated chat backgrounds in Saved Messages.\n"
-
-		"- Fix \"Sorry, group is inaccessible\" message "
-		"in scheduled voice chats.\n",
+		"- Fix a crash in archived stickers loading.\n"
+		
+		"- Fix a crash in calls to old Telegram versions.\n"
 	},
 	{
-		2009013,
-		"- See unread comments count when scrolling discussions in channels."
+		3003001,
+		"- Switch between contacts list sorting modes.\n"
+
+		"- Sort contacts list by last seen time by default.\n"
+
+		"- Fix disappearing Send As Channel button after message editing.\n"
+
+		"- Fix file upload cancelling.\n"
+
+		"- Fix crash in video capture on macOS.\n"
+
+		"- Fix labels in the About box.\n"
+
+		"- Use Qt 6.2.2 for macOS and Linux builds.\n"
+
+		"- Allow installing x64 Windows version on Windows ARM.\n"
 	},
 	{
-		3000002,
-		"- Check who've seen your message in small groups "
-		"from the context menu.\n"
+		3003002,
+		"- Select text when typing and choose 'Formatting > Spoiler' in the "
+		"context menu to hide some or all of the contents of a message.\n"
 
-		"- Enable recording with video in live streams and video chats."
-	},
-	{
-		3000004,
-		"- Fix a crash when joining video chat or live broadcast.\n"
+		"- Click on the spoiler in chat to reveal its hidden text.\n"
 
-		"- Add a \"Close to Taskbar\" option when tray icon is disabled "
-		"(Windows and Linux)."
-	},
-	{
-		3000005,
-		"- Add support for Emoji 13.1."
-	},
-	{
-		3001002,
-		"- Control video in fullscreen mode using arrows and numbers.\n"
-
-		"- Open locations in browser if default Bing Maps is not installed.\n"
-
-		"- Reconnect without timeout when network availability changes.\n"
-
-		"- Crash fixes."
-	},
-	{
-		3001005,
-		"- Choose one of 8 new preset themes for any individual private chat.\n"
-
-		"- Click on '...' menu > 'Change Colors' to pick a theme.\n"
-
-		"- Both chat participants will see the same theme in that chat "
-		"– on all their devices.\n"
-
-		"- Each new theme features colorful gradient message bubbles, "
-		"beautifully animated backgrounds and unique background patterns.\n"
-
-		"- All chat themes have day and night versions and will follow "
-		"your overall dark mode settings.\n"
-
-		"- Implement main window rounded corners on Windows 11.\n"
-
-		"- Fix audio capture from AirPods on macOS.\n"
-	},
-	{
-		3001006,
-		"- Show small media previews in chats list.\n"
-
-		"- Show media album previews and caption text in chats list.\n"
-
-		"- Add \"Quick Reply\" and \"Mark as Read\" "
-		"to native Windows notifications.\n"
+		"- Spoiler formatting hides text in chat, "
+		"as well as in the chat list and notifications.\n"
 	}
 	};
 };
@@ -194,7 +164,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		static const auto simple = u"\n- "_q;
 		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		auto result = QString::fromUtf8(changes).trimmed();
-		if (result.startsWith(simple.midRef(1))) {
+		if (result.startsWith(base::StringViewMid(simple, 1))) {
 			result = separator.mid(1) + result.mid(simple.size() - 1);
 		}
 		return result.replace(simple, separator);

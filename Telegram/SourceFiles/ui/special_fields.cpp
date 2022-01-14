@@ -41,7 +41,7 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = '+' + code;
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	setText(newText);
 	_nosignal = true;
 	correctValue(wasText, wasCursor, newText, newCursor);
@@ -96,8 +96,12 @@ void CountryCodeInput::correctValue(
 	}
 }
 
-PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st)
-: MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/) {
+PhonePartInput::PhonePartInput(
+	QWidget *parent,
+	const style::InputField &st,
+	PhonePartInput::GroupsCallback groupsCallback)
+: MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/)
+, _groupsCallback(std::move(groupsCallback)) {
 }
 
 void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
@@ -200,7 +204,7 @@ void PhonePartInput::addedToNumber(const QString &added) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = added + wasText;
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	setText(newText);
 	setCursorPosition(added.length());
 	correctValue(wasText, wasCursor, newText, newCursor);
@@ -208,11 +212,7 @@ void PhonePartInput::addedToNumber(const QString &added) {
 }
 
 void PhonePartInput::chooseCode(const QString &code) {
-	_pattern = Countries::Instance().format({
-		.phone = code,
-		.onlyGroups = true,
-		.incomplete = true,
-	}).groups;
+	_pattern = _groupsCallback(code);
 	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
 		_pattern.pop_front();
 	} else {
@@ -231,7 +231,7 @@ void PhonePartInput::chooseCode(const QString &code) {
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
 	auto newText = getLastText();
-	auto newCursor = newText.size();
+	auto newCursor = int(newText.size());
 	correctValue(wasText, wasCursor, newText, newCursor);
 
 	startPlaceholderAnimation();
@@ -271,7 +271,7 @@ void UsernameInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto newPos = nowCursor;
-	auto from = 0, len = now.size();
+	auto from = 0, len = int(now.size());
 	for (; from < len; ++from) {
 		if (!now.at(from).isSpace()) {
 			break;
@@ -297,13 +297,15 @@ PhoneInput::PhoneInput(
 	const style::InputField &st,
 	rpl::producer<QString> placeholder,
 	const QString &defaultValue,
-	QString value)
+	QString value,
+	PhoneInput::GroupsCallback groupsCallback)
 : MaskedInputField(parent, st, std::move(placeholder), value)
-, _defaultValue(defaultValue) {
+, _defaultValue(defaultValue)
+, _groupsCallback(std::move(groupsCallback)) {
 	if (value.isEmpty()) {
 		clearText();
 	} else {
-		auto pos = value.size();
+		auto pos = int(value.size());
 		correctValue(QString(), 0, value, pos);
 	}
 }
@@ -316,7 +318,7 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 void PhoneInput::clearText() {
 	auto value = _defaultValue;
 	setText(value);
-	auto pos = value.size();
+	auto pos = int(value.size());
 	correctValue(QString(), 0, value, pos);
 }
 
@@ -344,11 +346,7 @@ void PhoneInput::correctValue(
 		int &nowCursor) {
 	auto digits = now;
 	digits.replace(QRegularExpression("[^\\d]"), QString());
-	_pattern = Countries::Instance().format({
-		.phone = digits,
-		.onlyGroups = true,
-		.incomplete = true,
-	}).groups;
+	_pattern = _groupsCallback(digits);
 
 	QString newPlaceholder;
 	if (_pattern.isEmpty()) {

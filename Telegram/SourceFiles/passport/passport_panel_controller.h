@@ -20,15 +20,19 @@ namespace Passport {
 class FormController;
 class Panel;
 
+struct EditDocumentCountry;
 struct EditDocumentScheme;
 struct EditContactScheme;
 
 enum class ReadScanError;
 
+using preferredLangCallback =
+	Fn<rpl::producer<EditDocumentCountry>(const QString &)>;
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
 	std::optional<Value::Type> scansType,
-	bool nativeNames);
+	bool nativeNames,
+	preferredLangCallback &&preferredLanguage);
 EditContactScheme GetContactScheme(Scope::Type type);
 
 const std::map<QString, QString> &LatinToNativeMap();

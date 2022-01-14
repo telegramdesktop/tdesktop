@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/slide_wrap.h"
 #include "base/unixtime.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -23,6 +24,7 @@ namespace {
 constexpr auto kMaxLimit = std::numeric_limits<int>::max();
 constexpr auto kHour = 3600;
 constexpr auto kDay = 86400;
+constexpr auto kMaxLabelLength = 32;
 
 [[nodiscard]] QString FormatExpireDate(TimeId date) {
 	if (date > 0) {
@@ -51,21 +53,29 @@ void EditInviteLinkBox(
 		not_null<GenericBox*> box,
 		const InviteLinkFields &data,
 		Fn<void(InviteLinkFields)> done) {
+	using namespace rpl::mappers;
+
 	const auto link = data.link;
+	const auto isGroup = data.isGroup;
+	const auto isPublic = data.isPublic;
 	box->setTitle(link.isEmpty()
 		? tr::lng_group_invite_new_title()
 		: tr::lng_group_invite_edit_title());
 
 	const auto container = box->verticalLayout();
-	const auto addTitle = [&](rpl::producer<QString> text) {
+	const auto addTitle = [&](
+			not_null<VerticalLayout*> container,
+			rpl::producer<QString> text) {
 		container->add(
 			object_ptr<FlatLabel>(
 				container,
 				std::move(text),
 				st::settingsSubsectionTitle),
-			st::settingsSubsectionTitlePadding);
+			(st::settingsSubsectionTitlePadding
+				+ style::margins(0, st::settingsSectionSkip, 0, 0)));
 	};
 	const auto addDivider = [&](
+			not_null<VerticalLayout*> container,
 			rpl::producer<QString> text,
 			style::margins margins = style::margins()) {
 		container->add(
@@ -79,19 +89,79 @@ void EditInviteLinkBox(
 			margins);
 	};
 
-	addTitle(tr::lng_group_invite_expire_title());
+	const auto now = base::unixtime::now();
+	const auto expire = data.expireDate ? data.expireDate : kMaxLimit;
+	const auto expireGroup = std::make_shared<RadiobuttonGroup>(expire);
+	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
+	const auto usageGroup = std::make_shared<RadiobuttonGroup>(usage);
+
+	using Buttons = base::flat_map<int, base::unique_qptr<Radiobutton>>;
+	struct State {
+		Buttons expireButtons;
+		Buttons usageButtons;
+		int expireValue = 0;
+		int usageValue = 0;
+		rpl::variable<bool> requestApproval = false;
+	};
+	const auto state = box->lifetime().make_state<State>(State{
+		.expireValue = expire,
+		.usageValue = usage,
+		.requestApproval = (data.requestApproval && !isPublic),
+	});
+
+	const auto requestApproval = isPublic
+		? nullptr
+		: container->add(
+			object_ptr<SettingsButton>(
+				container,
+				tr::lng_group_invite_request_approve(),
+				st::settingsButton),
+			style::margins{ 0, 0, 0, st::settingsSectionSkip });
+	if (requestApproval) {
+		requestApproval->toggleOn(state->requestApproval.value());
+		state->requestApproval = requestApproval->toggledValue();
+		addDivider(container, rpl::conditional(
+			state->requestApproval.value(),
+			(isGroup
+				? tr::lng_group_invite_about_approve()
+				: tr::lng_group_invite_about_approve_channel()),
+			(isGroup
+				? tr::lng_group_invite_about_no_approve()
+				: tr::lng_group_invite_about_no_approve_channel())));
+	}
+
+	const auto labelField = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st::defaultInputField,
+			tr::lng_group_invite_label_header(),
+			data.label),
+		style::margins(
+			st::settingsSubsectionTitlePadding.left(),
+			st::settingsSectionSkip,
+			st::settingsSubsectionTitlePadding.right(),
+			st::settingsSectionSkip * 2));
+	labelField->setMaxLength(kMaxLabelLength);
+	addDivider(container, tr::lng_group_invite_label_about());
+
+	addTitle(container, tr::lng_group_invite_expire_title());
 	const auto expiresWrap = container->add(
 		object_ptr<VerticalLayout>(container),
 		style::margins(0, 0, 0, st::settingsSectionSkip));
 	addDivider(
-		tr::lng_group_invite_expire_about(),
-		style::margins(0, 0, 0, st::settingsSectionSkip));
+		container,
+		tr::lng_group_invite_expire_about());
 
-	addTitle(tr::lng_group_invite_usage_title());
-	const auto usagesWrap = container->add(
-		object_ptr<VerticalLayout>(container),
+	const auto usagesSlide = container->add(
+		object_ptr<SlideWrap<VerticalLayout>>(
+			container,
+			object_ptr<VerticalLayout>(container)));
+	const auto usagesInner = usagesSlide->entity();
+	addTitle(usagesInner, tr::lng_group_invite_usage_title());
+	const auto usagesWrap = usagesInner->add(
+		object_ptr<VerticalLayout>(usagesInner),
 		style::margins(0, 0, 0, st::settingsSectionSkip));
-	addDivider(tr::lng_group_invite_usage_about());
+	addDivider(usagesInner, tr::lng_group_invite_usage_about());
 
 	static const auto addButton = [](
 			not_null<VerticalLayout*> container,
@@ -107,23 +177,6 @@ void EditInviteLinkBox(
 			st::inviteLinkLimitMargin);
 	};
 
-	const auto now = base::unixtime::now();
-	const auto expire = data.expireDate ? data.expireDate : kMaxLimit;
-	const auto expireGroup = std::make_shared<RadiobuttonGroup>(expire);
-	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
-	const auto usageGroup = std::make_shared<RadiobuttonGroup>(usage);
-
-	using Buttons = base::flat_map<int, base::unique_qptr<Radiobutton>>;
-	struct State {
-		Buttons expireButtons;
-		Buttons usageButtons;
-		int expireValue = 0;
-		int usageValue = 0;
-	};
-	const auto state = box->lifetime().make_state<State>(State{
-		.expireValue = expire,
-		.usageValue = usage
-	});
 	const auto regenerate = [=] {
 		expireGroup->setValue(state->expireValue);
 		usageGroup->setValue(state->usageValue);
@@ -260,10 +313,14 @@ void EditInviteLinkBox(
 
 	regenerate();
 
+	usagesSlide->toggleOn(state->requestApproval.value() | rpl::map(!_1));
+	usagesSlide->finishAnimating();
+
 	const auto &saveLabel = link.isEmpty()
 		? tr::lng_formatting_link_create
 		: tr::lng_settings_save;
 	box->addButton(saveLabel(), [=] {
+		const auto label = labelField->getLastText();
 		const auto expireDate = (state->expireValue == kMaxLimit)
 			? 0
 			: (state->expireValue < 0)
@@ -274,8 +331,12 @@ void EditInviteLinkBox(
 			: state->usageValue;
 		done(InviteLinkFields{
 			.link = link,
+			.label = label,
 			.expireDate = expireDate,
-			.usageLimit = usageLimit
+			.usageLimit = usageLimit,
+			.requestApproval = state->requestApproval.current(),
+			.isGroup = isGroup,
+			.isPublic = isPublic,
 		});
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -283,8 +344,13 @@ void EditInviteLinkBox(
 
 void CreateInviteLinkBox(
 		not_null<GenericBox*> box,
+		bool isGroup,
+		bool isPublic,
 		Fn<void(InviteLinkFields)> done) {
-	EditInviteLinkBox(box, InviteLinkFields(), std::move(done));
+	EditInviteLinkBox(
+		box,
+		InviteLinkFields{ .isGroup = isGroup, .isPublic = isPublic },
+		std::move(done));
 }
 
 } // namespace Ui

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
-#include "base/qt_adapters.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
@@ -27,7 +26,7 @@ QString SiteNameFromUrl(const QString &url) {
 	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
 	int32 slash = pretty.indexOf('/');
 	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', base::QStringSkipEmptyParts);
+	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
 	if (components.size() >= 2) {
 		components = components.mid(components.size() - 2);
 		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
@@ -134,9 +133,11 @@ WebPageCollage ExtractCollage(
 
 } // namespace
 
-WebPageType ParseWebPageType(const MTPDwebPage &page) {
-	const auto type = qs(page.vtype().value_or_empty());
-	if (type == qstr("video") || page.vembed_url()) {
+WebPageType ParseWebPageType(
+		const QString &type,
+		const QString &embedUrl,
+		bool hasIV) {
+	if (type == qstr("video") || !embedUrl.isEmpty()) {
 		return WebPageType::Video;
 	} else if (type == qstr("photo")) {
 		return WebPageType::Photo;
@@ -146,11 +147,38 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		return WebPageType::WallPaper;
 	} else if (type == qstr("telegram_theme")) {
 		return WebPageType::Theme;
-	} else if (page.vcached_page()) {
+	} else if (type == qstr("telegram_channel")) {
+		return WebPageType::Channel;
+	} else if (type == qstr("telegram_channel_request")) {
+		return WebPageType::ChannelWithRequest;
+	} else if (type == qstr("telegram_megagroup")
+		|| type == qstr("telegram_chat")) {
+		return WebPageType::Group;
+	} else if (type == qstr("telegram_megagroup_request")
+		|| type == qstr("telegram_chat_request")) {
+		return WebPageType::GroupWithRequest;
+	}  else if (type == qstr("telegram_message")) {
+		return WebPageType::Message;
+	}  else if (type == qstr("telegram_bot")) {
+		return WebPageType::Bot;
+	}  else if (type == qstr("telegram_voicechat")) {
+		return WebPageType::VoiceChat;
+	}  else if (type == qstr("telegram_livestream")) {
+		return WebPageType::Livestream;
+	}  else if (type == qstr("telegram_user")) {
+		return WebPageType::User;
+	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
 		return WebPageType::Article;
 	}
+}
+
+WebPageType ParseWebPageType(const MTPDwebPage &page) {
+	return ParseWebPageType(
+		qs(page.vtype().value_or_empty()),
+		page.vembed_url().value_or_empty(),
+		!!page.vcached_page());
 }
 
 WebPageCollage::WebPageCollage(

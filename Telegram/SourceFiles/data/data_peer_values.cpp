@@ -11,8 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_message_reactions.h"
+#include "main/main_session.h"
+#include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
 
 namespace Data {
 namespace {
@@ -40,7 +44,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 		return (hours + 1) * 3600 - (now - online);
 	}
 	const auto nowFull = base::unixtime::parse(now);
-	const auto tomorrow = base::QDateToDateTime(nowFull.date().addDays(1));
+	const auto tomorrow = nowFull.date().addDays(1).startOfDay();
 	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 
@@ -386,7 +390,7 @@ QString OnlineText(TimeId online, TimeId now) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
+	const auto date = onlineFull.date().toString(cDateFormat());
 	return tr::lng_status_lastseen_date(tr::now, lt_date, date);
 }
 
@@ -412,7 +416,7 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
+	const auto date = onlineFull.date().toString(cDateFormat());
 	const auto time = onlineFull.time().toString(cTimeFormat());
 	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
@@ -444,6 +448,67 @@ bool IsUserOnline(not_null<UserData*> user) {
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
 	return (channel->flags() & ChannelDataFlag::CallNotEmpty);
+}
+
+rpl::producer<QImage> PeerUserpicImageValue(
+		not_null<PeerData*> peer,
+		int size) {
+	return PeerUserpicImageValue(peer, size, ImageRoundRadius::Ellipse);
+}
+
+rpl::producer<QImage> PeerUserpicImageValue(
+		not_null<PeerData*> peer,
+		int size,
+		ImageRoundRadius radius) {
+	return [=](auto consumer) {
+		auto result = rpl::lifetime();
+		struct State {
+			std::shared_ptr<CloudImageView> view;
+			rpl::lifetime waiting;
+			InMemoryKey key = {};
+			bool empty = true;
+			Fn<void()> push;
+		};
+		const auto state = result.make_state<State>();
+		state->push = [=] {
+			const auto key = peer->userpicUniqueKey(state->view);
+			const auto loading = state->view && !state->view->image();
+
+			if (loading && !state->waiting) {
+				peer->session().downloaderTaskFinished(
+				) | rpl::start_with_next(state->push, state->waiting);
+			} else if (!loading && state->waiting) {
+				state->waiting.destroy();
+			}
+
+			if (!state->empty && (loading || key == state->key)) {
+				return;
+			}
+			state->key = key;
+			state->empty = false;
+			consumer.put_next(
+				peer->generateUserpicImage(state->view, size, radius));
+		};
+		peer->session().changes().peerFlagsValue(
+			peer,
+			PeerUpdate::Flag::Photo
+		) | rpl::start_with_next(state->push, result);
+		return result;
+	};
+}
+
+rpl::producer<std::vector<Data::Reaction>> PeerAllowedReactionsValue(
+		not_null<PeerData*> peer) {
+	return rpl::combine(
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(peer->owner().reactions().updates()),
+		peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::Reactions)
+	) | rpl::map([=] {
+		return peer->owner().reactions().list(peer);
+	});
 }
 
 } // namespace Data

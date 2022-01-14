@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -402,7 +402,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 	notifyUpdated();
 
 	Ui::show(
-		Box<InformBox>(tr::lng_stickers_not_found(tr::now)),
+		Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -518,26 +518,28 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 		setIsFaved(document, std::move(list));
 	};
 	session().api().request(MTPmessages_GetStickerSet(
-		Data::InputStickerSet(document->sticker()->set)
+		Data::InputStickerSet(document->sticker()->set),
+		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
-		Expects(result.type() == mtpc_messages_stickerSet);
-
-		auto list = std::vector<not_null<EmojiPtr>>();
-		auto &d = result.c_messages_stickerSet();
-		list.reserve(d.vpacks().v.size());
-		for (const auto &mtpPack : d.vpacks().v) {
-			auto &pack = mtpPack.c_stickerPack();
-			for (const auto &documentId : pack.vdocuments().v) {
-				if (documentId.v == document->id) {
-					if (const auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon()))) {
-						list.emplace_back(emoji);
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			auto list = std::vector<not_null<EmojiPtr>>();
+			list.reserve(data.vpacks().v.size());
+			for (const auto &mtpPack : data.vpacks().v) {
+				auto &pack = mtpPack.c_stickerPack();
+				for (const auto &documentId : pack.vdocuments().v) {
+					if (documentId.v == document->id) {
+						if (const auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon()))) {
+							list.emplace_back(emoji);
+						}
+						break;
 					}
-					break;
 				}
 			}
-		}
-		addAnyway(std::move(list));
-	}).fail([=](const MTP::Error &error) {
+			addAnyway(std::move(list));
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+	}).fail([=] {
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
 	}).send();
@@ -679,7 +681,7 @@ void Stickers::setPackAndEmoji(
 
 			auto p = StickersPack();
 			p.reserve(stickers.size());
-			for (auto j = 0, c = stickers.size(); j != c; ++j) {
+			for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
 				auto document = owner().document(stickers[j].v);
 				if (!document || !document->sticker()) continue;
 
@@ -1230,11 +1232,9 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 	return it->second.get();
 }
 
-StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
-	Expects(data.type() == mtpc_messages_stickerSet);
-	Expects(data.c_messages_stickerSet().vset().type() == mtpc_stickerSet);
+StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
+	Expects(d.vset().type() == mtpc_stickerSet);
 
-	const auto &d = data.c_messages_stickerSet();
 	const auto &s = d.vset().c_stickerSet();
 
 	auto &sets = setsRef();
@@ -1302,7 +1302,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 		set->stickers = pack;
 		set->emoji.clear();
 		auto &v = d.vpacks().v;
-		for (auto i = 0, l = v.size(); i != l; ++i) {
+		for (auto i = 0, l = int(v.size()); i != l; ++i) {
 			if (v[i].type() != mtpc_stickerPack) continue;
 
 			auto &pack = v[i].c_stickerPack();
@@ -1312,7 +1312,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 
 				StickersPack p;
 				p.reserve(stickers.size());
-				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+				for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
 					auto doc = owner().document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
@@ -1353,8 +1353,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 	return set;
 }
 
-void Stickers::newSetReceived(const MTPmessages_StickerSet &data) {
-	const auto &set = data.c_messages_stickerSet();
+void Stickers::newSetReceived(const MTPDmessages_stickerSet &set) {
 	const auto &s = set.vset().c_stickerSet();
 	if (!s.vinstalled_date()) {
 		LOG(("API Error: "
@@ -1374,7 +1373,7 @@ void Stickers::newSetReceived(const MTPmessages_StickerSet &data) {
 		order.insert(insertAtIndex, s.vid().v);
 	}
 
-	feedSetFull(data);
+	feedSetFull(set);
 }
 
 QString Stickers::getSetTitle(const MTPDstickerSet &s) {

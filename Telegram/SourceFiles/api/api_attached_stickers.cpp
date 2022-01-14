@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 
 #include "apiwrap.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "data/data_document.h"
@@ -37,7 +37,7 @@ void AttachedStickers::request(
 		}
 		if (result.v.isEmpty()) {
 			strongController->show(
-				Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+				Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
 			return;
 		} else if (result.v.size() > 1) {
 			strongController->show(
@@ -59,11 +59,11 @@ void AttachedStickers::request(
 		strongController->show(
 			Box<StickerSetBox>(strongController, setId),
 			Ui::LayerOption::KeepOther);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 		if (const auto strongController = weak.get()) {
 			strongController->show(
-				Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+				Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
 		}
 	}).send();
 }

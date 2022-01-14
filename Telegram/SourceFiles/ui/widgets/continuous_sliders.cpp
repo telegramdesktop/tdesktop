@@ -136,7 +136,7 @@ void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {
 	}
 }
 
-void ContinuousSlider::enterEventHook(QEvent *e) {
+void ContinuousSlider::enterEventHook(QEnterEvent *e) {
 	setOver(true);
 }
 
@@ -174,7 +174,7 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	const auto disabled = isDisabled();
 	const auto over = getCurrentOverFactor();
 	const auto lineWidth = _st.lineWidth + ((_st.fullWidth - _st.lineWidth) * over);
-	const auto lineWidthRounded = qFloor(lineWidth);
+	const auto lineWidthRounded = std::floor(lineWidth);
 	const auto lineWidthPartial = lineWidth - lineWidthRounded;
 	const auto seekRect = getSeekRect();
 	const auto value = getCurrentValue();

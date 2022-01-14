@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
@@ -49,9 +50,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "api/api_chat_filters.h"
+#include "base/qt_adapters.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
+#include "styles/style_menu_icons.h"
 
 namespace Dialogs {
 namespace {
@@ -693,7 +696,7 @@ bool InnerWidget::isSearchResultActive(
 	const auto peer = item->history()->peer;
 	return (item->fullId() == entry.fullId)
 		|| (peer->migrateTo()
-			&& (peerToChannel(peer->migrateTo()->id) == entry.fullId.channel)
+			&& (peer->migrateTo()->id == entry.fullId.peer)
 			&& (item->id == -entry.fullId.msg))
 		|| (uniqueSearchResults() && peer == entry.key.peer());
 }
@@ -1550,7 +1553,7 @@ void InnerWidget::updateDialogRow(
 				if (const auto migrated = from->owner().historyLoaded(from)) {
 					row = RowDescriptor(
 						migrated,
-						FullMsgId(0, -row.fullId.msg));
+						FullMsgId(from->id, -row.fullId.msg));
 				}
 			}
 		}
@@ -1619,7 +1622,7 @@ void InnerWidget::updateDialogRow(
 	}
 }
 
-void InnerWidget::enterEventHook(QEvent *e) {
+void InnerWidget::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 
@@ -1758,7 +1761,9 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 		mousePressReleased(e->globalPos(), _pressButton);
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		row.fullId ? st::defaultPopupMenu : st::popupMenuWithIcons);
 	if (row.fullId) {
 		if (session().supportMode()) {
 			fillSupportSearchMenu(_menu.get());
@@ -1773,8 +1778,11 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				.section = Dialogs::EntryState::Section::ChatsList,
 				.filterId = _filterId,
 			},
-			[&](const QString &text, Fn<void()> callback) {
-				return _menu->addAction(text, std::move(callback));
+			[&](
+					const QString &text,
+					Fn<void()> callback,
+					const style::icon *icon) {
+				return _menu->addAction(text, std::move(callback), icon);
 			});
 	}
 	connect(_menu.get(), &QObject::destroyed, [=] {
@@ -1844,7 +1852,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 	}
 }
 
-void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
+void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInChat) {
 		_hashtagFilter = QString();
 		if (!_hashtagResults.empty()) {
@@ -1863,7 +1871,7 @@ void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	if (!recent.isEmpty()) {
 		_hashtagResults.reserve(qMin(recent.size(), kHashtagResultsLimit));
 		for (const auto &tag : recent) {
-			if (tag.first.startsWith(_hashtagFilter.midRef(1), Qt::CaseInsensitive)
+			if (tag.first.startsWith(base::StringViewMid(_hashtagFilter, 1), Qt::CaseInsensitive)
 				&& tag.first.size() + 1 != newFilter.size()) {
 				_hashtagResults.push_back(std::make_unique<HashtagResult>(tag.first));
 				if (_hashtagResults.size() == kHashtagResultsLimit) break;
@@ -2291,7 +2299,7 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	_searchFromPeer = from;
 	if (_searchInChat) {
 		_controller->closeFolder();
-		onHashtagFilterUpdate(QStringRef());
+		onHashtagFilterUpdate(QStringView());
 		_cancelSearchInChat->show();
 		refreshSearchInChatLabel();
 	} else {
@@ -2710,7 +2718,7 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 			if (i != list->cbegin()) {
 				return RowDescriptor(
 					(*(i - 1))->key(),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			}
 		}
 		return RowDescriptor();
@@ -2736,11 +2744,11 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 				}
 				return RowDescriptor(
 					_filterResults.back()->key(),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			}
 			return RowDescriptor(
 				session().data().history(_peerSearchResults.back()->peer),
-				FullMsgId(NoChannel, ShowAtUnreadMsgId));
+				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
 	}
 	if (!_peerSearchResults.empty()
@@ -2750,14 +2758,14 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 		}
 		return RowDescriptor(
 			_filterResults.back()->key(),
-			FullMsgId(NoChannel, ShowAtUnreadMsgId));
+			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	}
 	if (!_peerSearchResults.empty()) {
 		for (auto b = _peerSearchResults.cbegin(), i = b + 1, e = _peerSearchResults.cend(); i != e; ++i) {
 			if ((*i)->peer == whichHistory->peer) {
 				return RowDescriptor(
 					session().data().history((*(i - 1))->peer),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			}
 		}
 	}
@@ -2769,7 +2777,7 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 		if ((*i)->key() == which.key) {
 			return RowDescriptor(
 				(*(i - 1))->key(),
-				FullMsgId(NoChannel, ShowAtUnreadMsgId));
+				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
 	}
 	return RowDescriptor();
@@ -2787,7 +2795,7 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 			if (i != list->cend()) {
 				return RowDescriptor(
 					(*i)->key(),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			}
 		}
 		return RowDescriptor();
@@ -2813,7 +2821,7 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 			if (i != e) {
 				return RowDescriptor(
 					session().data().history((*i)->peer),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return RowDescriptor(
 					_searchResults.front()->item()->history(),
@@ -2828,11 +2836,11 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 			if (i != e) {
 				return RowDescriptor(
 					(*i)->key(),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			} else if (!_peerSearchResults.empty()) {
 				return RowDescriptor(
 					session().data().history(_peerSearchResults.front()->peer),
-					FullMsgId(NoChannel, ShowAtUnreadMsgId));
+					FullMsgId(PeerId(), ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return RowDescriptor(
 					_searchResults.front()->item()->history(),
@@ -2851,17 +2859,17 @@ RowDescriptor InnerWidget::chatListEntryFirst() const {
 		if (i != list->cend()) {
 			return RowDescriptor(
 				(*i)->key(),
-				FullMsgId(NoChannel, ShowAtUnreadMsgId));
+				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
 		return RowDescriptor();
 	} else if (!_filterResults.empty()) {
 		return RowDescriptor(
 			_filterResults.front()->key(),
-			FullMsgId(NoChannel, ShowAtUnreadMsgId));
+			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	} else if (!_peerSearchResults.empty()) {
 		return RowDescriptor(
 			session().data().history(_peerSearchResults.front()->peer),
-			FullMsgId(NoChannel, ShowAtUnreadMsgId));
+			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	} else if (!_searchResults.empty()) {
 		return RowDescriptor(
 			_searchResults.front()->item()->history(),
@@ -2877,7 +2885,7 @@ RowDescriptor InnerWidget::chatListEntryLast() const {
 		if (i != list->cbegin()) {
 			return RowDescriptor(
 				(*(i - 1))->key(),
-				FullMsgId(NoChannel, ShowAtUnreadMsgId));
+				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
 		return RowDescriptor();
 	} else if (!_searchResults.empty()) {
@@ -2887,11 +2895,11 @@ RowDescriptor InnerWidget::chatListEntryLast() const {
 	} else if (!_peerSearchResults.empty()) {
 		return RowDescriptor(
 			session().data().history(_peerSearchResults.back()->peer),
-			FullMsgId(NoChannel, ShowAtUnreadMsgId));
+			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	} else if (!_filterResults.empty()) {
 		return RowDescriptor(
 			_filterResults.back()->key(),
-			FullMsgId(NoChannel, ShowAtUnreadMsgId));
+			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	}
 	return RowDescriptor();
 }
@@ -3010,7 +3018,9 @@ void InnerWidget::updateRowCornerStatusShown(
 void InnerWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return isActiveWindow() && !Ui::isLayerShown();
+		return isActiveWindow()
+			&& !Ui::isLayerShown()
+			&& !_controller->window().locked();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 

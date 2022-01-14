@@ -110,7 +110,7 @@ void PinnedTracker::refreshViewer() {
 
 void PinnedTracker::refreshCurrentFromSlice() {
 	const auto proj1 = [](FullMsgId id) {
-		return id.channel ? id.msg : (id.msg - ServerMaxMsgId);
+		return peerIsChannel(id.peer) ? id.msg : (id.msg - ServerMaxMsgId);
 	};
 	const auto proj2 = [](FullMsgId id) {
 		return id.msg;

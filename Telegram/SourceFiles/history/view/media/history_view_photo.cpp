@@ -164,9 +164,10 @@ QSize Photo::countOptimalSize() {
 	if (_serviceWidth > 0) {
 		return { _serviceWidth, _serviceWidth };
 	}
-	const auto minWidth = qMax(
+	const auto minWidth = std::clamp(
+		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
-		_parent->minWidthForMedia());
+		st::maxMediaSize);
 	const auto maxActualWidth = qMax(tw, minWidth);
 	maxWidth = qMax(maxActualWidth, th);
 	minHeight = qMax(th, st::minPhotoSize);
@@ -206,9 +207,10 @@ QSize Photo::countCurrentSize(int newWidth) {
 	if (_pixw < 1) _pixw = 1;
 	if (_pixh < 1) _pixh = 1;
 
-	auto minWidth = qMax(
+	const auto minWidth = std::clamp(
+		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
-		_parent->minWidthForMedia());
+		std::min(newWidth, st::maxMediaSize));
 	newWidth = qMax(_pixw, minWidth);
 	auto newHeight = qMax(_pixh, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
@@ -462,8 +464,14 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 	if (_caption.isEmpty() && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
-			result.cursor = CursorState::Date;
+		const auto bottomInfoResult = _parent->bottomInfoTextState(
+			fullRight,
+			fullBottom,
+			point,
+			InfoDisplayType::Image);
+		if (bottomInfoResult.link
+			|| bottomInfoResult.cursor != CursorState::None) {
+			return bottomInfoResult;
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -619,9 +627,10 @@ bool Photo::dataLoaded() const {
 }
 
 bool Photo::needInfoDisplay() const {
-	return (_parent->data()->id < 0
+	return _parent->data()->isSending()
+		|| _parent->data()->hasFailed()
 		|| _parent->isUnderCursor()
-		|| _parent->isLastAndSelfMessage());
+		|| _parent->isLastAndSelfMessage();
 }
 
 void Photo::validateGroupedCache(
@@ -813,15 +822,13 @@ bool Photo::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	if (item->toHistoryMessage()) {
-		return item->repliesAreComments()
+	return !item->isService()
+		&& (item->repliesAreComments()
 			|| item->externalReply()
 			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
-			|| _parent->displayFromName();
-	}
-	return false;
+			|| _parent->displayFromName());
 }
 
 bool Photo::isReadyForOpen() const {

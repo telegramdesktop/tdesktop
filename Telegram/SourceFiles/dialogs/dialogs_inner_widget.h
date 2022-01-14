@@ -114,7 +114,7 @@ public:
 	void searchInChat(Key key, PeerData *from);
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
-	void onHashtagFilterUpdate(QStringRef newFilter);
+	void onHashtagFilterUpdate(QStringView newFilter);
 
 	PeerData *updateFromParentDrag(QPoint globalPosition);
 
@@ -148,7 +148,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 

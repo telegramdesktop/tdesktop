@@ -140,6 +140,7 @@ struct FileReferenceAccumulator {
 	void push(const MTPmessages_StickerSet &data) {
 		data.match([&](const MTPDmessages_stickerSet &data) {
 			push(data.vdocuments());
+		}, [](const MTPDmessages_stickerSetNotModified &data) {
 		});
 	}
 	void push(const MTPmessages_SavedGifs &data) {

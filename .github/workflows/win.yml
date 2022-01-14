@@ -185,7 +185,7 @@ jobs:
       - name: MozJPEG.
         shell: cmd
         run: |
-          git clone -b v4.0.1-rc2 %GIT%/mozilla/mozjpeg.git
+          git clone -b v4.0.3 %GIT%/mozilla/mozjpeg.git
           cd mozjpeg
           cmake . ^
           -G "Visual Studio 16 2019" ^
@@ -236,10 +236,10 @@ jobs:
 
           git clone https://chromium.googlesource.com/breakpad/breakpad
           cd breakpad
-          git checkout bc8fb886
+          git checkout dfcb7b6799
           git apply ../patches/breakpad.diff
           cd src
-          git clone %GIT%/google/googletest testing
+          git clone -b release-1.11.0 %GIT%/google/googletest testing
           cd client\windows
           call gyp --no-circular-check breakpad_client.gyp --format=ninja
           cd ..\..

@@ -95,9 +95,6 @@ void HistoryMessageMarkupData::fillRows(
 						qba(data.vurl()),
 						qs(data.vfwd_text().value_or_empty()),
 						data.vbutton_id().v);
-				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
-					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
-					// Should not get those for the users.
 				}, [&](const MTPDkeyboardButtonRequestPoll &data) {
 					const auto quiz = [&] {
 						if (!data.vquiz()) {
@@ -113,6 +110,17 @@ void HistoryMessageMarkupData::fillRows(
 						Type::RequestPoll,
 						qs(data.vtext()),
 						quiz);
+				}, [&](const MTPDkeyboardButtonUserProfile &data) {
+					row.emplace_back(
+						Type::UserProfile,
+						qs(data.vtext()),
+						QByteArray::number(data.vuser_id().v));
+				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
+					LOG(("API Error: inputKeyboardButtonUrlAuth."));
+					// Should not get those for the users.
+				}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
+					LOG(("API Error: inputKeyboardButtonUserProfile."));
+					// Should not get those for the users.
 				});
 			}
 			if (!row.empty()) {

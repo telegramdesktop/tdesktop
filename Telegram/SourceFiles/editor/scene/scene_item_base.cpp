@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_editor.h"
+#include "styles/style_menu_icons.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneHoverEvent>
@@ -195,26 +196,35 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	const auto add = [&](
 			auto base,
 			const QKeySequence &sequence,
-			Fn<void()> callback) {
+			Fn<void()> callback,
+			const style::icon *icon) {
 		// TODO: refactor.
 		const auto sequenceText = QChar('\t')
 			+ sequence.toString(QKeySequence::NativeText);
-		_menu->addAction(base(tr::now) + sequenceText, std::move(callback));
+		_menu->addAction(
+			base(tr::now) + sequenceText,
+			std::move(callback),
+			icon);
 	};
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		nullptr,
+		st::popupMenuWithIcons);
 	add(
 		tr::lng_photo_editor_menu_delete,
 		kDeleteSequence,
-		[=] { actionDelete(); });
+		[=] { actionDelete(); },
+		&st::menuIconDelete);
 	add(
 		tr::lng_photo_editor_menu_flip,
 		kFlipSequence,
-		[=] { actionFlip(); });
+		[=] { actionFlip(); },
+		&st::menuIconFlip);
 	add(
 		tr::lng_photo_editor_menu_duplicate,
 		kDuplicateSequence,
-		[=] { actionDuplicate(); });
+		[=] { actionDuplicate(); },
+		&st::menuIconCopy);
 
 	_menu->popup(event->screenPos());
 }

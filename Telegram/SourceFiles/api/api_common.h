@@ -12,6 +12,7 @@ class History;
 namespace Api {
 
 struct SendOptions {
+	PeerData *sendAs = nullptr;
 	TimeId scheduled = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
@@ -25,7 +26,11 @@ enum class SendType {
 };
 
 struct SendAction {
-	explicit SendAction(not_null<History*> history) : history(history) {
+	explicit SendAction(
+		not_null<History*> history,
+		SendOptions options = SendOptions())
+	: history(history)
+	, options(options) {
 	}
 
 	not_null<History*> history;
@@ -37,12 +42,18 @@ struct SendAction {
 };
 
 struct MessageToSend {
-	explicit MessageToSend(not_null<History*> history) : action(history) {
+	explicit MessageToSend(SendAction action) : action(action) {
 	}
 
 	SendAction action;
 	TextWithTags textWithTags;
 	WebPageId webPageId = 0;
+};
+
+struct RemoteFileInfo {
+	MTPInputFile file;
+	std::optional<MTPInputFile> thumb;
+	std::vector<MTPInputDocument> attachedStickers;
 };
 
 } // namespace Api

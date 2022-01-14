@@ -28,11 +28,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_web_page.h"
 #include "data/data_file_click_handler.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
-#include "base/qt_adapters.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
@@ -84,49 +84,6 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-void HistoryMessageSigned::refresh(const QString &date) {
-	Expects(!isAnonymousRank);
-
-	auto name = author;
-	const auto time = qsl(", ") + date;
-	const auto timew = st::msgDateFont->width(time);
-	const auto namew = st::msgDateFont->width(name);
-	isElided = (timew + namew > st::maxSignatureSize);
-	if (isElided) {
-		name = st::msgDateFont->elided(author, st::maxSignatureSize - timew);
-	}
-	signature.setText(
-		st::msgDateTextStyle,
-		name + time,
-		Ui::NameTextOptions());
-}
-
-int HistoryMessageSigned::maxWidth() const {
-	return signature.maxWidth();
-}
-
-void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
-	const auto prefix = displayed
-		? (tr::lng_edited(tr::now) + ' ')
-		: QString();
-	text.setText(st::msgDateTextStyle, prefix + date, Ui::NameTextOptions());
-}
-
-int HistoryMessageEdited::maxWidth() const {
-	return text.maxWidth();
-}
-
-HistoryMessageSponsored::HistoryMessageSponsored() {
-	text.setText(
-		st::msgDateTextStyle,
-		tr::lng_sponsored(tr::now),
-		Ui::NameTextOptions());
-}
-
-int HistoryMessageSponsored::maxWidth() const {
-	return text.maxWidth();
-}
-
 HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
@@ -135,8 +92,10 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
+	Expects(!name.isEmpty());
+
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
-	const auto parts = name.trimmed().split(' ', base::QStringSkipEmptyParts);
+	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
 	firstName = parts[0];
 	for (const auto &part : parts.mid(1)) {
 		if (!lastName.isEmpty()) {
@@ -225,7 +184,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 bool HistoryMessageReply::updateData(
 		not_null<HistoryMessage*> holder,
 		bool force) {
-	const auto guard = gsl::finally([&] { refreshReplyToDocument(); });
+	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
 		if (replyToMsg || !replyToMsgId) {
 			return true;
@@ -234,8 +193,8 @@ bool HistoryMessageReply::updateData(
 	if (!replyToMsg) {
 		replyToMsg = holder->history()->owner().message(
 			(replyToPeerId
-				? peerToChannel(replyToPeerId)
-				: holder->channelId()),
+				? replyToPeerId
+				: holder->history()->peer->id),
 			replyToMsgId);
 		if (replyToMsg) {
 			if (replyToMsg->isEmpty()) {
@@ -292,7 +251,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 		replyToMsg = nullptr;
 	}
 	replyToMsgId = 0;
-	refreshReplyToDocument();
+	refreshReplyToMedia();
 }
 
 bool HistoryMessageReply::isNameUpdated() const {
@@ -417,11 +376,14 @@ void HistoryMessageReply::paint(
 	}
 }
 
-void HistoryMessageReply::refreshReplyToDocument() {
+void HistoryMessageReply::refreshReplyToMedia() {
 	replyToDocumentId = 0;
+	replyToWebPageId = 0;
 	if (const auto media = replyToMsg ? replyToMsg->media() : nullptr) {
 		if (const auto document = media->document()) {
 			replyToDocumentId = document->id;
+		} else if (const auto webpage = media->webpage()) {
+			replyToWebPageId = webpage->id;
 		}
 	}
 }

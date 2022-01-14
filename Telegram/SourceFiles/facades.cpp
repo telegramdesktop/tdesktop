@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
 #include "ui/layers/layer_widget.h"
 #include "lang/lang_keys.h"
@@ -91,7 +91,7 @@ void activateBotCommand(
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		if (sessionController) {
-			MsgId replyTo = (msg->id > 0) ? msg->id : 0;
+			MsgId replyTo = msg->isRegular() ? msg->id : 0;
 			sessionController->content()->sendBotCommand({
 				.peer = msg->history()->peer,
 				.command = QString(button->text),
@@ -140,7 +140,7 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<InformBox>(
+		Ui::show(Box<Ui::InformBox>(
 			tr::lng_bot_share_location_unavailable(tr::now)));
 	} break;
 
@@ -148,15 +148,18 @@ void activateBotCommand(
 		hideSingleUseKeyboard(msg);
 		const auto msgId = msg->id;
 		const auto history = msg->history();
-		Ui::show(Box<ConfirmBox>(tr::lng_bot_share_phone(tr::now), tr::lng_bot_share_phone_confirm(tr::now), [=] {
-			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
-			auto action = Api::SendAction(history);
-			action.clearDraft = false;
-			action.replyTo = msgId;
-			history->session().api().shareContact(
-				history->session().user(),
-				action);
-		}));
+		Ui::show(Box<Ui::ConfirmBox>(
+			tr::lng_bot_share_phone(tr::now),
+			tr::lng_bot_share_phone_confirm(tr::now),
+			[=] {
+				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
+				auto action = Api::SendAction(history);
+				action.clearDraft = false;
+				action.replyTo = msgId;
+				history->session().api().shareContact(
+					history->session().user(),
+					action);
+			}));
 	} break;
 
 	case ButtonType::RequestPoll: {
@@ -207,6 +210,17 @@ void activateBotCommand(
 	case ButtonType::Auth:
 		UrlAuthBox::Activate(msg, row, column);
 		break;
+
+	case ButtonType::UserProfile: {
+		const auto session = &msg->history()->session();
+		const auto userId = UserId(button->data.toULongLong());
+		if (const auto user = session->data().userLoaded(userId)) {
+			const auto &windows = session->windows();
+			if (!windows.empty()) {
+				windows.front()->showPeerInfo(user);
+			}
+		}
+	} break;
 	}
 }
 

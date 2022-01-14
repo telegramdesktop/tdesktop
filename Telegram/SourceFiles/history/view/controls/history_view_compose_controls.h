@@ -49,6 +49,7 @@ namespace Ui {
 class SendButton;
 class IconButton;
 class EmojiButton;
+class SendAsButton;
 class SilentToggle;
 } // namespace Ui
 
@@ -102,6 +103,7 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	void setHistory(SetHistoryArgs &&args);
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
+	[[nodiscard]] PeerData *sendAsPeer() const;
 
 	void finishAnimating();
 
@@ -195,6 +197,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
+	void initSendAsButton();
 	void initWebpageProcess();
 	void initWriteRestriction();
 	void initVoiceRecordBar();
@@ -203,6 +206,7 @@ private:
 	void updateSubmitSettings();
 	void updateSendButtonType();
 	void updateMessagesTTLShown();
+	bool updateSendAsButton();
 	void updateHeight();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
@@ -290,6 +294,7 @@ private:
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
 	const not_null<Ui::IconButton*> _botCommandStart;
+	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 

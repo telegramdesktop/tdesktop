@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "profile/profile_block_group_members.h"
 
+#include "api/api_chat_participants.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "base/unixtime.h"
@@ -89,16 +90,16 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	const auto callback = [=] {
 		Ui::hideLayer();
 		if (const auto chat = peer->asChat()) {
-			chat->session().api().kickParticipant(chat, user);
+			chat->session().api().chatParticipants().kick(chat, user);
 			Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 		} else if (const auto channel = peer->asChannel()) {
-			channel->session().api().kickParticipant(
+			channel->session().api().chatParticipants().kick(
 				channel,
 				user,
 				currentRestrictedRights);
 		}
 	};
-	Ui::show(Box<ConfirmBox>(
+	Ui::show(Box<Ui::ConfirmBox>(
 		text,
 		tr::lng_box_remove(tr::now),
 		crl::guard(&peer->session(), callback)));
@@ -158,7 +159,7 @@ void GroupMembersWidget::preloadMore() {
 	//if (auto megagroup = peer()->asMegagroup()) {
 	//	auto &megagroupInfo = megagroup->mgInfo;
 	//	if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
-	//		peer()->session().api().requestLastParticipants(megagroup, false);
+	//		peer()->session().api().requestLast(megagroup, false);
 	//	}
 	//}
 }
@@ -198,7 +199,8 @@ void GroupMembersWidget::refreshMembers() {
 		fillChatMembers(chat);
 	} else if (const auto megagroup = peer()->asMegagroup()) {
 		if (megagroup->lastParticipantsRequestNeeded()) {
-			megagroup->session().api().requestLastParticipants(megagroup);
+			megagroup->session().api().chatParticipants().requestLast(
+				megagroup);
 		}
 		fillMegagroupMembers(megagroup);
 	}

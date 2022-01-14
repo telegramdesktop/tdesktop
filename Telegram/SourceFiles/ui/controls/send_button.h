@@ -13,7 +13,7 @@ namespace Ui {
 
 class SendButton final : public RippleButton {
 public:
-	SendButton(QWidget *parent);
+	explicit SendButton(QWidget *parent);
 
 	static constexpr auto kSlowmodeDelayLimit = 100 * 60;
 

@@ -433,7 +433,7 @@ int CountMaxKeyLength(const TemplatesData &data) {
 	for (const auto &[path, file] : data.files) {
 		for (const auto &[normalized, question] : file.questions) {
 			for (const auto &key : question.normalizedKeys) {
-				accumulate_max(result, key.size());
+				accumulate_max(result, int(key.size()));
 			}
 		}
 	}

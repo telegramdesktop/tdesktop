@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "main/main_session.h"
 #include "history/view/history_view_send_action.h"
+#include "history/view/history_view_item_preview.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -71,7 +72,7 @@ void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			return langDayOfWeek(lastDate);
 		} else {
-			return lastDate.toString(qsl("d.MM.yy"));
+			return lastDate.toString(cDateFormat());
 		}
 	}();
 	PaintRowTopRight(p, dt, rectForName, active, selected);
@@ -417,7 +418,7 @@ void paintRow(
 						: st::dialogsSendingIcon));
 			}
 		} else if (item && !item->isEmpty() && item->needCheck()) {
-			if (item->id > 0) {
+			if (!item->isSending() && !item->hasFailed()) {
 				if (item->unread()) {
 					return &(active
 						? st::dialogsSentIconActive

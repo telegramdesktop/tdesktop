@@ -20,26 +20,46 @@ namespace Data {
 
 class Session;
 
-struct SponsoredMessage final {
+struct SponsoredFrom {
+	PeerData *peer = nullptr;
+	QString title;
+	bool isBroadcast = false;
+	bool isMegagroup = false;
+	bool isChannel = false;
+	bool isPublic = false;
+	bool isBot = false;
+	bool isExactPost = false;
+};
+
+struct SponsoredMessage {
 	QByteArray randomId;
-	PeerId fromId;
+	SponsoredFrom from;
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
 	MsgId msgId;
+	QString chatInviteHash;
 };
 
 class SponsoredMessages final {
 public:
+	struct Details {
+		std::optional<QString> hash;
+		PeerData *peer = nullptr;
+		MsgId msgId;
+	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
 	SponsoredMessages(const SponsoredMessages &other) = delete;
 	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
 
+	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
 	void request(not_null<History*> history);
 	[[nodiscard]] bool append(not_null<History*> history);
 	void clearItems(not_null<History*> history);
-	[[nodiscard]] MsgId channelPost(const FullMsgId &fullId) const;
+	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
+
+	void view(const FullMsgId &fullId);
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
@@ -50,6 +70,7 @@ private:
 	struct List {
 		std::vector<Entry> entries;
 		bool showedAll = false;
+		crl::time received = 0;
 	};
 	struct Request {
 		mtpRequestId requestId = 0;
@@ -65,7 +86,7 @@ private:
 		const MTPSponsoredMessage &message);
 	void clearOldRequests();
 
-	void view(const std::vector<Entry>::iterator entryIt);
+	const Entry *find(const FullMsgId &fullId) const;
 
 	const not_null<Main::Session*> _session;
 

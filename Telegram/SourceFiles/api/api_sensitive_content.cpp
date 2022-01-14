@@ -36,7 +36,7 @@ void SensitiveContent::reload() {
 			_enabled = data.is_sensitive_enabled();
 			_canChange = data.is_sensitive_can_change();
 		});
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }
@@ -61,9 +61,9 @@ void SensitiveContent::update(bool enabled) {
 	_api.request(_requestId).cancel();
 	_requestId = _api.request(MTPaccount_SetContentSettings(
 		MTP_flags(enabled ? Flag::f_sensitive_enabled : Flag(0))
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_requestId = 0;
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 	_enabled = enabled;

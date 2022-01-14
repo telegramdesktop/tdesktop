@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "passport/passport_form_controller.h"
 #include "base/object_ptr.h"
+#include "ui/layers/box_content.h"
 
 namespace Passport {
 

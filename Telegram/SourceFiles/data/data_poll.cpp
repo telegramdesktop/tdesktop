@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_poll.h"
 
-#include "apiwrap.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "base/call_delayed.h"
@@ -177,17 +176,15 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	});
 }
 
-void PollData::checkResultsReload(
-		not_null<HistoryItem*> item,
-		crl::time now) {
+bool PollData::checkResultsReload(crl::time now) {
 	if (_lastResultsUpdate > 0
 		&& _lastResultsUpdate + kShortPollTimeout > now) {
-		return;
+		return false;
 	} else if (closed() && _lastResultsUpdate >= 0) {
-		return;
+		return false;
 	}
 	_lastResultsUpdate = now;
-	_owner->session().api().reloadPollResults(item);
+	return true;
 }
 
 PollAnswer *PollData::answerByOption(const QByteArray &option) {

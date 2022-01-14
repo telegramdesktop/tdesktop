@@ -159,19 +159,17 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		if (*calendar) {
 			return;
 		}
-		const auto chosen = [=](QDate chosen) {
-			state->date = chosen;
-			(*calendar)->closeBox();
-		};
-		const auto finalize = [=](not_null<CalendarBox*> box) {
-			box->setMinDate(minDate());
-			box->setMaxDate(maxDate());
-		};
-		*calendar = box->getDelegate()->show(Box<CalendarBox>(
-			state->date.current(),
-			state->date.current(),
-			crl::guard(box, chosen),
-			finalize));
+		*calendar = box->getDelegate()->show(
+			Box<CalendarBox>(Ui::CalendarBoxArgs{
+				.month = state->date.current(),
+				.highlighted = state->date.current(),
+				.callback = crl::guard(box, [=](QDate chosen) {
+					state->date = chosen;
+					(*calendar)->closeBox();
+				}),
+				.minDate = minDate(),
+				.maxDate = maxDate(),
+			}));
 		(*calendar)->boxClosing(
 		) | rpl::start_with_next(crl::guard(state->time, [=] {
 			state->time->setFocusFast();

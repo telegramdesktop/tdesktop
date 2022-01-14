@@ -111,6 +111,7 @@ private:
 	bool searchMode() const;
 	Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
+	[[nodiscard]] bool computeCanForward() const;
 	void updateSelectionState();
 	void createSelectionControls();
 	void clearSelectionControls();
@@ -153,6 +154,7 @@ private:
 
 	SelectedItems _selectedItems;
 	bool _canDelete = false;
+	bool _canForward = false;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _cancelSelection;
 	QPointer<Ui::FadeWrap<Ui::LabelWithNumbers>> _selectionText;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 #include <QGuiApplication>
 
@@ -35,10 +36,13 @@ void FillSendUntilOnlineMenu(
 		Fn<void()> callback) {
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	button->setClickedCallback([=] {
-		*menu = base::make_unique_q<Ui::PopupMenu>(button);
+		*menu = base::make_unique_q<Ui::PopupMenu>(
+			button,
+			st::popupMenuWithIcons);
 		(*menu)->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
-			std::move(callback));
+			std::move(callback),
+			&st::menuIconWhenOnline);
 		(*menu)->popup(QCursor::pos());
 		return true;
 	});

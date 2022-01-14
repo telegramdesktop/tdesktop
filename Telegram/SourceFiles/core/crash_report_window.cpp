@@ -43,9 +43,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	QLabel tmp(this);
-	tmp.setText(qsl("Tmp"));
-	_size = tmp.sizeHint().height();
+	_size = QFontMetrics(QGuiApplication::font()).height();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
