@@ -96,6 +96,8 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
+	QRect contentRectForReactions() const override;
+	std::optional<int> reactionButtonCenterOverride() const override;
 	QString additionalInfoString() const override;
 
 	bool skipBubbleTail() const override {

@@ -63,7 +63,7 @@ void DocumentSaveClickHandler::Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
 		Mode mode) {
-	if (!data->date) {
+	if (data->isNull()) {
 		return;
 	}
 
@@ -107,7 +107,7 @@ DocumentCancelClickHandler::DocumentCancelClickHandler(
 
 void DocumentCancelClickHandler::onClickImpl() const {
 	const auto data = document();
-	if (!data->date) {
+	if (data->isNull()) {
 		return;
 	} else if (data->uploading() && _handler) {
 		_handler(context());
@@ -119,7 +119,7 @@ void DocumentCancelClickHandler::onClickImpl() const {
 void DocumentOpenWithClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data) {
-	if (!data->date) {
+	if (data->isNull()) {
 		return;
 	}
 
@@ -171,7 +171,7 @@ void PhotoOpenClickHandler::onClickImpl() const {
 
 void PhotoSaveClickHandler::onClickImpl() const {
 	const auto data = photo();
-	if (!data->date) {
+	if (data->isNull()) {
 		return;
 	} else {
 		data->clearFailed(Data::PhotoSize::Large);
@@ -189,7 +189,7 @@ PhotoCancelClickHandler::PhotoCancelClickHandler(
 
 void PhotoCancelClickHandler::onClickImpl() const {
 	const auto data = photo();
-	if (!data->date) {
+	if (data->isNull()) {
 		return;
 	} else if (data->uploading() && _handler) {
 		_handler(context());

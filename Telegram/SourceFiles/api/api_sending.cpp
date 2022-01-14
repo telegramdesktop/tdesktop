@@ -37,11 +37,11 @@ namespace Api {
 namespace {
 
 void InnerFillMessagePostFlags(
-		const Api::SendOptions &options,
+		const SendOptions &options,
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	const auto anonymousPost = peer->amAnonymous();
-	if (!anonymousPost) {
+	if (!anonymousPost || options.sendAs) {
 		flags |= MessageFlag::HasFromId;
 		return;
 	} else if (peer->asMegagroup()) {
@@ -60,7 +60,7 @@ void InnerFillMessagePostFlags(
 
 template <typename MediaData>
 void SendExistingMedia(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<MediaData*> media,
 		Fn<MTPInputMedia()> inputMedia,
 		Data::FileOrigin origin) {
@@ -74,7 +74,7 @@ void SendExistingMedia(
 	api->sendAction(message.action);
 
 	const auto newId = FullMsgId(
-		peerToChannel(peer->id),
+		peer->id,
 		session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -90,8 +90,18 @@ void SendExistingMedia(
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
+	const auto sendAs = message.action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost
+		? 0
+		: session->userPeerId();
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name
+		: QString();
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
@@ -111,8 +121,6 @@ void SendExistingMedia(
 	if (message.action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
@@ -144,7 +152,8 @@ void SendExistingMedia(
 				MTP_long(randomId),
 				MTPReplyMarkup(),
 				sentEntities,
-				MTP_int(message.action.options.scheduled)
+				MTP_int(message.action.options.scheduled),
+				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result, randomId);
 				finish();
@@ -175,7 +184,7 @@ void SendExistingMedia(
 } // namespace
 
 void SendExistingDocument(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<DocumentData*> document) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
@@ -196,7 +205,7 @@ void SendExistingDocument(
 }
 
 void SendExistingPhoto(
-		Api::MessageToSend &&message,
+		MessageToSend &&message,
 		not_null<PhotoData*> photo) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
@@ -211,8 +220,8 @@ void SendExistingPhoto(
 		Data::FileOrigin());
 }
 
-bool SendDice(Api::MessageToSend &message) {
-	const auto full = message.textWithTags.text.midRef(0).trimmed();
+bool SendDice(MessageToSend &message) {
+	const auto full = QStringView(message.textWithTags.text).trimmed();
 	auto length = 0;
 	if (!Ui::Emoji::Find(full.data(), full.data() + full.size(), &length)
 		|| length != full.size()) {
@@ -246,7 +255,7 @@ bool SendDice(Api::MessageToSend &message) {
 	api->sendAction(message.action);
 
 	const auto newId = FullMsgId(
-		peerToChannel(peer->id),
+		peer->id,
 		session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -264,15 +273,23 @@ bool SendDice(Api::MessageToSend &message) {
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
+	const auto sendAs = message.action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost
+		? 0
+		: session->userPeerId();
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name
+		: QString();
 	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
@@ -301,7 +318,8 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
-			MTP_int(message.action.options.scheduled)
+			MTP_int(message.action.options.scheduled),
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
@@ -317,7 +335,7 @@ bool SendDice(Api::MessageToSend &message) {
 }
 
 void FillMessagePostFlags(
-		const Api::SendAction &action,
+		const SendAction &action,
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	InnerFillMessagePostFlags(action.options, peer, flags);
@@ -328,10 +346,8 @@ void SendConfirmedFile(
 		const std::shared_ptr<FileLoadResult> &file) {
 	const auto isEditing = (file->type != SendMediaType::Audio)
 		&& (file->to.replaceMediaOf != 0);
-	const auto channelId = peerToChannel(file->to.peer);
-
 	const auto newId = FullMsgId(
-		channelId,
+		file->to.peer,
 		isEditing
 			? file->to.replaceMediaOf
 			: session->data().nextLocalMessageId());
@@ -354,8 +370,7 @@ void SendConfirmedFile(
 	const auto history = session->data().history(file->to.peer);
 	const auto peer = history->peer;
 
-	auto action = Api::SendAction(history);
-	action.options = file->to.options;
+	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
 	action.generateLocal = true;
@@ -387,8 +402,6 @@ void SendConfirmedFile(
 
 		// Scheduled messages have no the 'edited' badge.
 		flags |= MessageFlag::HideEdited;
-	} else {
-		flags |= MessageFlag::LocalHistoryEntry;
 	}
 	if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
@@ -396,7 +409,12 @@ void SendConfirmedFile(
 		}
 	}
 
-	const auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	const auto messageFromId =
+		file->to.options.sendAs
+		? file->to.options.sendAs->id
+		: anonymousPost
+		? PeerId()
+		: session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name
 		: QString();
@@ -434,6 +452,7 @@ void SendConfirmedFile(
 		edition.textWithEntities = caption;
 		edition.useSameMarkup = true;
 		edition.useSameReplies = true;
+		edition.useSameReactions = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {
 		const auto viaBotId = UserId();

@@ -22,14 +22,14 @@ struct MessageToSend;
 struct SendAction;
 
 void SendExistingDocument(
-	Api::MessageToSend &&message,
+	MessageToSend &&message,
 	not_null<DocumentData*> document);
 
 void SendExistingPhoto(
-	Api::MessageToSend &&message,
+	MessageToSend &&message,
 	not_null<PhotoData*> photo);
 
-bool SendDice(Api::MessageToSend &message);
+bool SendDice(MessageToSend &message);
 
 void FillMessagePostFlags(
 	const SendAction &action,

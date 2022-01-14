@@ -72,7 +72,7 @@ MTPMessage PrepareMessage(const MTPMessage &message) {
 			MTP_int(data.vedit_date().value_or_empty()),
 			MTP_bytes(data.vpost_author().value_or_empty()),
 			MTP_long(data.vgrouped_id().value_or_empty()),
-			//MTPMessageReactions(),
+			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(data.vttl_period().value_or_empty()));
 	});
@@ -145,7 +145,7 @@ HistoryItem *ScheduledMessages::lookupItem(PeerId peer, MsgId msg) const {
 }
 
 HistoryItem *ScheduledMessages::lookupItem(FullMsgId itemId) const {
-	return lookupItem(peerFromChannel(itemId.channel), itemId.msg);
+	return lookupItem(itemId.peer, itemId.msg);
 }
 
 int ScheduledMessages::count(not_null<History*> history) const {
@@ -176,8 +176,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 	auto action = Api::SendAction(history);
 	action.replyTo = local->replyToId();
 	const auto replyHeader = NewMessageReplyHeader(action);
-	const auto localFlags = NewMessageFlags(history->peer)
-		| MessageFlag::LocalHistoryEntry;
+	const auto localFlags = NewMessageFlags(history->peer);
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| (local->replyToId()
@@ -196,7 +195,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 		MTP_message(
 			MTP_flags(flags),
 			update.vid(),
-			peerToMTP(_session->userPeerId()),
+			peerToMTP(local->from()->id),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
 			MTPlong(), // via_bot_id
@@ -214,7 +213,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTPint(), // edit_date
 			MTP_string(),
 			MTPlong(),
-			//MTPMessageReactions(),
+			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(update.vttl_period().value_or_empty())),
 		localFlags,
@@ -390,7 +389,7 @@ void ScheduledMessages::request(not_null<History*> history) {
 			MTP_long(hash))
 	).done([=](const MTPmessages_Messages &result) {
 		parse(history, result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requests.remove(history);
 	}).send();
 }

@@ -134,10 +134,10 @@ mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
 mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
 mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
 mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
-mainMenuContacts: icon {{ "settings_name", menuIconFg }};
-mainMenuContactsOver: icon {{ "settings_name", menuIconFgOver }};
-mainMenuCalls: icon {{ "settings_phone_number", menuIconFg }};
-mainMenuCallsOver: icon {{ "settings_phone_number", menuIconFgOver }};
+mainMenuContacts: icon {{ "settings/settings_name", menuIconFg }};
+mainMenuContactsOver: icon {{ "settings/settings_name", menuIconFgOver }};
+mainMenuCalls: icon {{ "settings/settings_phone_number", menuIconFg }};
+mainMenuCallsOver: icon {{ "settings/settings_phone_number", menuIconFgOver }};
 mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
 mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
 mainMenuNightMode: icon {{ "menu_night_mode", menuIconFg }};
@@ -281,17 +281,17 @@ windowFiltersButton: SideBarButton(defaultSideBarButton) {
 	iconPosition: point(-1px, 6px);
 }
 windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "dialogs_menu", sideBarIconFg }};
+	icon: icon {{ "dialogs/dialogs_menu", sideBarIconFg }};
 	iconPosition: point(-1px, -1px);
 	minHeight: 54px;
 }
 windowFiltersMainMenuUnread: icon {
-	{ "dialogs_menu_unread", sideBarIconFg },
-	{ "dialogs_menu_unread_dot", sideBarBadgeBg },
+	{ "dialogs/dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", sideBarBadgeBg },
 };
 windowFiltersMainMenuUnreadMuted: icon {
-	{ "dialogs_menu_unread", sideBarIconFg },
-	{ "dialogs_menu_unread_dot", sideBarBadgeBgMuted },
+	{ "dialogs/dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", sideBarBadgeBgMuted },
 };
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;

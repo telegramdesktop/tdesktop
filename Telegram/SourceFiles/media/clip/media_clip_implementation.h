@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <QtCore/QBuffer>
+#include <QtCore/QFile>
 
 namespace Core {
 class FileLocation;

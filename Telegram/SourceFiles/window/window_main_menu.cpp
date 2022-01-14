@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -112,7 +113,9 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		const auto menu = std::make_shared<MenuPointer>();
 		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
 		menuButton->setClickedCallback([=] {
-			*menu = base::make_unique_q<Ui::PopupMenu>(menuButton);
+			*menu = base::make_unique_q<Ui::PopupMenu>(
+				menuButton,
+				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
 				window->showSettings(
 					Settings::Type::Calls,
@@ -123,11 +126,13 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			});
 			(*menu)->addAction(
 				tr::lng_settings_section_call_settings(tr::now),
-				showSettings);
+				showSettings,
+				&st::menuIconSettings);
 			if (controller->delegate()->peerListFullRowsCount() > 0) {
 				(*menu)->addAction(
 					tr::lng_call_box_clear_all(tr::now),
-					clearAll);
+					clearAll,
+					&st::menuIconDelete);
 			}
 			(*menu)->popup(QCursor::pos());
 			return true;
@@ -316,11 +321,17 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 
 void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	if (!_menu && IsAltShift(e->modifiers())) {
-		_menu = base::make_unique_q<Ui::PopupMenu>(this);
-		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
 			return _menu->addAction(
 				text,
-				crl::guard(this, std::move(callback)));
+				crl::guard(this, std::move(callback)),
+				icon);
 		};
 		MenuAddMarkAsReadAllChatsAction(&_session->data(), addAction);
 		_menu->popup(QCursor::pos());
@@ -329,22 +340,24 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	if (&_session->account() == &Core::App().activeAccount() || _menu) {
 		return;
 	}
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 	_menu->addAction(tr::lng_menu_activate(tr::now), crl::guard(this, [=] {
 		Core::App().domain().activate(&_session->account());
-	}));
+	}), &st::menuIconProfile);
 	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
 		const auto session = _session;
 		const auto callback = [=](Fn<void()> &&close) {
 			close();
 			Core::App().logout(&session->account());
 		};
-		Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<Ui::ConfirmBox>(
 			tr::lng_sure_logout(tr::now),
 			tr::lng_settings_logout(tr::now),
 			st::attentionBoxButton,
 			crl::guard(session, callback)));
-	}));
+	}), &st::menuIconLeave);
 	_menu->popup(QCursor::pos());
 }
 
@@ -684,9 +697,17 @@ void MainMenu::setupArchiveButton() {
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
-		const auto addAction = [&](const QString &text, Fn<void()> callback) {
-			return _contextMenu->addAction(text, std::move(callback));
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
+			return _contextMenu->addAction(
+				text,
+				std::move(callback),
+				icon);
 		};
 
 		const auto hide = [=] {
@@ -694,7 +715,10 @@ void MainMenu::setupArchiveButton() {
 			controller->session().saveSettingsDelayed();
 			Ui::hideSettingsAndLayer();
 		};
-		addAction(tr::lng_context_archive_to_list(tr::now), std::move(hide));
+		addAction(
+			tr::lng_context_archive_to_list(tr::now),
+			std::move(hide),
+			&st::menuIconFromMainMenu);
 
 		MenuAddMarkAsReadChatListAction(
 			[f = folder()] { return f->chatsList(); },
@@ -941,7 +965,7 @@ void MainMenu::refreshMenu() {
 
 	auto nightCallback = [=] {
 		if (Window::Theme::Background()->editingTheme()) {
-			controller->show(Box<InformBox>(
+			controller->show(Box<Ui::InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 			return;
 		}

@@ -14,7 +14,7 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-struct ChatTheme;
+struct CloudTheme;
 } // namespace Data
 
 namespace Ui {
@@ -48,7 +48,7 @@ private:
 	void init(rpl::producer<QSize> outer);
 	void initButtons();
 	void initList();
-	void fill(const std::vector<Data::ChatTheme> &themes);
+	void fill(const std::vector<Data::CloudTheme> &themes);
 	void close();
 
 	void clearCurrentBackgroundState();

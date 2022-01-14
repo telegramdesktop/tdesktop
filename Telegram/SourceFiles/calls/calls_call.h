@@ -101,6 +101,9 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
+	[[nodiscard]] CallId id() const {
+		return _id;
+	}
 	[[nodiscard]] bool isIncomingWaiting() const;
 
 	void start(bytes::const_span random);
@@ -215,7 +218,7 @@ private:
 		Failed,
 	};
 
-	void handleRequestError(const MTP::Error &error);
+	void handleRequestError(const QString &error);
 	void handleControllerError(const QString &error);
 	void finish(
 		FinishType type,
@@ -255,7 +258,8 @@ private:
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
-	rpl::variable<RemoteAudioState> _remoteAudioState = RemoteAudioState::Active;
+	rpl::variable<RemoteAudioState> _remoteAudioState =
+		RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;
 	rpl::event_stream<Error> _errors;
 	FinishType _finishAfterRequestingCall = FinishType::None;
@@ -273,9 +277,8 @@ private:
 	bytes::vector _gaHash;
 	bytes::vector _randomPower;
 	MTP::AuthKey::Data _authKey;
-	MTPPhoneCallProtocol _protocol;
 
-	uint64 _id = 0;
+	CallId _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 

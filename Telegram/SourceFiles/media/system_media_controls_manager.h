@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_audio_msg_id.h"
+#include "media/player/media_player_instance.h"
 
 namespace base::Platform {
 class SystemMediaControls;
@@ -40,6 +41,7 @@ private:
 	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
 	std::unique_ptr<Media::Streaming::Instance> _streamed;
 	AudioMsgId _lastAudioMsgId;
+	Media::Player::OrderMode _lastOrderMode;
 
 	rpl::lifetime _lifetimeDownload;
 	rpl::lifetime _lifetime;

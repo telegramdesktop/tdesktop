@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "logs.h"
 
+#include <QtCore/QMutex>
+
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/view/media/history_view_media_grouped.h"
@@ -37,12 +38,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_message_reactions.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_sponsored_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 
@@ -164,6 +167,15 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	});
 }
 
+[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags) {
+	if (!(flags & MessageFlag::FakeHistoryItem)
+		&& !(flags & MessageFlag::IsOrWasScheduled)
+		&& !(flags & MessageFlag::AdminLogEntry)) {
+		flags |= MessageFlag::HistoryEntry;
+	}
+	return flags;
+}
+
 } // namespace
 
 void HistoryItem::HistoryItem::Destroyer::operator()(HistoryItem *value) {
@@ -181,10 +193,10 @@ HistoryItem::HistoryItem(
 : id(id)
 , _history(history)
 , _from(from ? history->owner().peer(from) : history->peer)
-, _flags(flags)
+, _flags(FinalizeMessageFlags(flags))
 , _date(date) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
-		_history->registerLocalMessage(this);
+		_history->registerClientSideMessage(this);
 	}
 }
 
@@ -276,13 +288,17 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 		return nullptr;
 	}
 	return _history->owner().message(
-		forwarded->savedFromPeer->asChannel(),
+		forwarded->savedFromPeer->id,
 		forwarded->savedFromMsgId);
 }
 
 PeerData *HistoryItem::displayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
+	} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+		if (sponsored->sender) {
+			return nullptr;
+		}
 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (history()->peer->isSelf() || history()->peer->isRepliesChat() || forwarded->imported) {
 			return forwarded->originalSender;
@@ -366,8 +382,29 @@ void HistoryItem::setIsPinned(bool pinned) {
 			id));
 	}
 	if (changed) {
-		history()->owner().requestItemResize(this);
+		history()->owner().notifyItemDataChange(this);
 	}
+}
+
+void HistoryItem::returnSavedMedia() {
+}
+
+void HistoryItem::savePreviousMedia() {
+	Expects(_media != nullptr);
+
+	using Data = SavedMediaData;
+	_savedLocalEditMediaData = std::make_unique<Data>(Data{
+		.text = originalText(),
+		.media = _media->clone(this),
+	});
+}
+
+bool HistoryItem::isEditingMedia() const {
+	return _savedLocalEditMediaData != nullptr;
+}
+
+void HistoryItem::clearSavedMedia() {
+	_savedLocalEditMediaData = nullptr;
 }
 
 bool HistoryItem::definesReplyKeyboard() const {
@@ -433,8 +470,7 @@ UserData *HistoryItem::getMessageBot() const {
 }
 
 bool HistoryItem::isHistoryEntry() const {
-	return IsServerMsgId(id)
-		|| (_flags & MessageFlag::LocalHistoryEntry);
+	return (_flags & MessageFlag::HistoryEntry);
 }
 
 bool HistoryItem::isAdminLogEntry() const {
@@ -453,7 +489,7 @@ bool HistoryItem::isScheduled() const {
 }
 
 bool HistoryItem::isSponsored() const {
-	return (_flags & MessageFlag::IsSponsored);
+	return Has<HistoryMessageSponsored>();
 }
 
 bool HistoryItem::skipNotification() const {
@@ -515,7 +551,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	}, data.vmedia());
 	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
 	updateForwardedInfo(data.vfwd_from());
-	setViewsCount(data.vviews().value_or(-1));
+	changeViewsCount(data.vviews().value_or(-1));
 	if (const auto replies = data.vreplies()) {
 		setReplies(HistoryMessageRepliesData(replies));
 	} else {
@@ -532,6 +568,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setPostAuthor(data.vpost_author().value_or_empty());
 	contributeToSlowmode(data.vdate().v);
 	indexAsNewItem();
+	history()->owner().notifyItemDataChange(this);
 	history()->owner().requestItemTextRefresh(this);
 	history()->owner().updateDependentMessages(this);
 }
@@ -553,7 +590,7 @@ void HistoryItem::applySentMessage(
 }
 
 void HistoryItem::indexAsNewItem() {
-	if (IsServerMsgId(id)) {
+	if (isRegular()) {
 		addToUnreadMentions(UnreadMentionType::New);
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
@@ -572,9 +609,9 @@ void HistoryItem::setRealId(MsgId newId) {
 	Expects(IsClientMsgId(id));
 
 	const auto oldId = std::exchange(id, newId);
-	_flags &= ~MessageFlag::BeingSent;
-	if (IsServerMsgId(id)) {
-		_history->unregisterLocalMessage(this);
+	_flags &= ~(MessageFlag::BeingSent | MessageFlag::Local);
+	if (isRegular()) {
+		_history->unregisterClientSideMessage(this);
 	}
 	_history->owner().notifyItemIdChange({ this, oldId });
 
@@ -587,11 +624,12 @@ void HistoryItem::setRealId(MsgId newId) {
 		}
 	}
 
+	_history->owner().notifyItemDataChange(this);
 	_history->owner().requestItemRepaint(this);
 }
 
 bool HistoryItem::canPin() const {
-	if (id < 0 || !toHistoryMessage()) {
+	if (!isRegular() || isService()) {
 		return false;
 	} else if (const auto m = media(); m && m->call()) {
 		return false;
@@ -611,8 +649,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 	return false;
 }
 
-bool HistoryItem::canStopPoll() const {
-	if (id < 0
+bool HistoryItem::canBeEdited() const {
+	if ((!isRegular() && !isScheduled())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;
@@ -633,8 +671,18 @@ bool HistoryItem::canStopPoll() const {
 	return out();
 }
 
+bool HistoryItem::canStopPoll() const {
+	return canBeEdited() && isRegular();
+}
+
+bool HistoryItem::forbidsForward() const {
+	return (_flags & MessageFlag::NoForwards);
+}
+
 bool HistoryItem::canDelete() const {
-	if (!IsServerMsgId(id) && serviceMsg()) {
+	if (isSponsored()) {
+		return false;
+	} else if (isService() && !isRegular()) {
 		return false;
 	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
@@ -650,7 +698,7 @@ bool HistoryItem::canDelete() const {
 	if (channel->canDeleteMessages()) {
 		return true;
 	}
-	if (out() && toHistoryMessage()) {
+	if (out() && !isService()) {
 		return isPost() ? channel->canPublish() : true;
 	}
 	return false;
@@ -665,7 +713,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 		: peer->isUser()
 		? (now - date() >= config.revokePrivateTimeLimit)
 		: (now - date() >= config.revokeTimeLimit);
-	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
+	if (!isRegular() || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
 	if (peer->isChannel()) {
@@ -697,7 +745,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 }
 
 bool HistoryItem::suggestReport() const {
-	if (out() || serviceMsg() || !IsServerMsgId(id)) {
+	if (out() || isService() || !isRegular()) {
 		return false;
 	} else if (const auto channel = history()->peer->asChannel()) {
 		return true;
@@ -709,10 +757,7 @@ bool HistoryItem::suggestReport() const {
 
 bool HistoryItem::suggestBanReport() const {
 	const auto channel = history()->peer->asChannel();
-	const auto fromUser = from()->asUser();
-	if (!channel
-		|| !fromUser
-		|| !channel->canRestrictParticipant(fromUser)) {
+	if (!channel || !channel->canRestrictParticipant(from())) {
 		return false;
 	}
 	return !isPost() && !out();
@@ -723,15 +768,104 @@ bool HistoryItem::suggestDeleteAllReport() const {
 	if (!channel || !channel->canDeleteMessages()) {
 		return false;
 	}
-	return !isPost() && !out() && from()->isUser();
+	return !isPost() && !out();
+}
+
+bool HistoryItem::canReact() const {
+	if (!isRegular() || isService()) {
+		return false;
+	} else if (const auto media = this->media()) {
+		if (media->call()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void HistoryItem::addReaction(const QString &reaction) {
+	if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	_reactions->add(reaction);
+	history()->owner().notifyItemDataChange(this);
+}
+
+void HistoryItem::toggleReaction(const QString &reaction) {
+	if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+		_reactions->add(reaction);
+	} else if (_reactions->chosen() == reaction) {
+		_reactions->remove();
+		if (_reactions->empty()) {
+			_reactions = nullptr;
+			history()->owner().notifyItemDataChange(this);
+		}
+	} else {
+		_reactions->add(reaction);
+	}
+	history()->owner().notifyItemDataChange(this);
+}
+
+void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	if (reactions || _reactionsLastRefreshed) {
+		_reactionsLastRefreshed = crl::now();
+	}
+	if (!reactions) {
+		_flags &= ~MessageFlag::CanViewReactions;
+		if (_reactions) {
+			_reactions = nullptr;
+			history()->owner().notifyItemDataChange(this);
+		}
+		return;
+	}
+	reactions->match([&](const MTPDmessageReactions &data) {
+		if (data.is_can_see_list()) {
+			_flags |= MessageFlag::CanViewReactions;
+		} else {
+			_flags &= ~MessageFlag::CanViewReactions;
+		}
+		if (data.vresults().v.isEmpty()) {
+			if (_reactions) {
+				_reactions = nullptr;
+				history()->owner().notifyItemDataChange(this);
+			}
+			return;
+		} else if (!_reactions) {
+			_reactions = std::make_unique<Data::MessageReactions>(this);
+		}
+		_reactions->set(data.vresults().v, data.is_min());
+	});
+}
+
+void HistoryItem::updateReactionsUnknown() {
+	_reactionsLastRefreshed = 1;
+}
+
+const base::flat_map<QString, int> &HistoryItem::reactions() const {
+	static const auto kEmpty = base::flat_map<QString, int>();
+	return _reactions ? _reactions->list() : kEmpty;
+}
+
+bool HistoryItem::canViewReactions() const {
+	return (_flags & MessageFlag::CanViewReactions)
+		&& _reactions
+		&& !_reactions->list().empty();
+}
+
+QString HistoryItem::chosenReaction() const {
+	return _reactions ? _reactions->chosen() : QString();
+}
+
+crl::time HistoryItem::lastReactionsRefreshTime() const {
+	return _reactionsLastRefreshed;
 }
 
 bool HistoryItem::hasDirectLink() const {
-	return IsServerMsgId(id) && _history->peer->isChannel();
+	return isRegular() && _history->peer->isChannel();
 }
 
-ChannelId HistoryItem::channelId() const {
-	return _history->channelId();
+FullMsgId HistoryItem::fullId() const {
+	return FullMsgId(_history->peer->id, id);
 }
 
 Data::MessagePosition HistoryItem::position() const {
@@ -771,8 +905,10 @@ PeerData *HistoryItem::senderOriginal() const {
 	return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
 }
 
-const HiddenSenderInfo *HistoryItem::hiddenForwardedInfo() const {
-	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+const HiddenSenderInfo *HistoryItem::hiddenSenderInfo() const {
+	if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+		return sponsored->sender.get();
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->hiddenSenderInfo.get();
 	}
 	return nullptr;
@@ -853,18 +989,27 @@ void HistoryItem::applyTTL(TimeId destroyAt) {
 	}
 }
 
+bool HistoryItem::isUploading() const {
+	return _media && _media->uploading();
+}
+
+bool HistoryItem::isRegular() const {
+	return isHistoryEntry() && !isLocal();
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_flags & MessageFlag::BeingSent);
 	Expects(!(_flags & MessageFlag::SendingFailed));
 
 	_flags = (_flags | MessageFlag::SendingFailed) & ~MessageFlag::BeingSent;
+	_history->owner().notifyItemDataChange(this);
 	history()->session().changes().historyUpdated(
 		history(),
-		Data::HistoryUpdate::Flag::LocalMessages);
+		Data::HistoryUpdate::Flag::ClientSideMessages);
 }
 
 bool HistoryItem::needCheck() const {
-	return (out() && !isEmpty()) || (id < 0 && history()->peer->isSelf());
+	return (out() && !isEmpty()) || (!isRegular() && history()->peer->isSelf());
 }
 
 bool HistoryItem::unread() const {
@@ -879,7 +1024,7 @@ bool HistoryItem::unread() const {
 			return false;
 		}
 
-		if (IsServerMsgId(id)) {
+		if (isRegular()) {
 			if (!history()->isServerSideUnread(this)) {
 				return false;
 			}
@@ -896,7 +1041,7 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 
-	if (IsServerMsgId(id)) {
+	if (isRegular()) {
 		if (!history()->isServerSideUnread(this)) {
 			return false;
 		}
@@ -931,16 +1076,21 @@ bool HistoryItem::isEmpty() const {
 
 QString HistoryItem::notificationText() const {
 	const auto result = [&] {
-		if (_media && !serviceMsg()) {
+		if (_media && !isService()) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
-			return _text.toString();
+			return TextUtilities::TextWithSpoilerCommands(
+				_text.toTextWithEntities());
 		}
 		return QString();
 	}();
 	return (result.size() <= kNotificationTextLimit)
 		? result
-		: result.mid(0, kNotificationTextLimit) + qsl("...");
+		: TextUtilities::CutTextWithCommands(
+			result,
+			kNotificationTextLimit,
+			textcmdStartSpoiler(),
+			textcmdStopSpoiler());
 }
 
 ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
@@ -948,33 +1098,62 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		if (_media) {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
-			return { .text = TextUtilities::Clean(_text.toString()) };
+			return {
+				.text = TextUtilities::Clean(
+					options.ignoreSpoilers
+						? _text.toString()
+						: TextUtilities::TextWithSpoilerCommands(
+							_text.toTextWithEntities()),
+					!options.ignoreSpoilers),
+			};
 		}
 		return {};
 	}();
-	const auto sender = [&]() -> PeerData* {
-		if (options.hideSender || isPost() || isEmpty()) {
-			return nullptr;
-		} else if (!_history->peer->isUser() || out()) {
-			return displayFrom();
-		} else if (_history->peer->isSelf() && !Has<HistoryMessageForwarded>()) {
-			return senderOriginal();
+	const auto fromSender = [](not_null<PeerData*> sender) {
+		return sender->isSelf()
+			? tr::lng_from_you(tr::now)
+			: sender->shortName();
+	};
+	const auto fromForwarded = [&]() -> std::optional<QString> {
+		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->originalSender
+				? fromSender(forwarded->originalSender)
+				: forwarded->hiddenSenderInfo->name;
 		}
-		return nullptr;
+		return {};
+	};
+	const auto sender = [&]() -> std::optional<QString> {
+		if (options.hideSender || isPost() || isEmpty()) {
+			return {};
+		} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
+			return sponsored->sender->name;
+		} else if (!_history->peer->isUser()) {
+			if (const auto from = displayFrom()) {
+				return fromSender(from);
+			}
+			return fromForwarded();
+		} else if (_history->peer->isSelf()) {
+			return fromForwarded();
+		}
+		return {};
 	}();
 	if (!sender) {
 		return result;
 	}
-	const auto fromText = sender->isSelf()
-		? tr::lng_from_you(tr::now)
-		: sender->shortName();
 	const auto fromWrapped = textcmdLink(
 		1,
 		tr::lng_dialogs_text_from_wrapped(
 			tr::now,
 			lt_from,
-			TextUtilities::Clean(fromText)));
+			TextUtilities::Clean(*sender)));
 	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
+}
+
+QString HistoryItem::inReplyText() const {
+	return toPreview({
+		.hideSender = true,
+		.generateImages = false,
+	}).text;
 }
 
 Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
@@ -1032,10 +1211,14 @@ ClickHandlerPtr goToMessageClickHandler(
 	});
 }
 
-MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
+MessageFlags FlagsFromMTP(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		MessageFlags localFlags) {
 	using Flag = MessageFlag;
 	using MTP = MTPDmessage::Flag;
-	return Flag()
+	return localFlags
+		| (IsServerMsgId(id) ? Flag::HistoryEntry : Flag())
 		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
 		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
 		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
@@ -1045,17 +1228,21 @@ MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
 		| ((flags & MTP::f_edit_hide) ? Flag::HideEdited : Flag())
 		| ((flags & MTP::f_pinned) ? Flag::Pinned : Flag())
 		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
-		| ((flags & MTP::f_via_bot_id) ? Flag::HasViaBot : Flag())
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
 		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())
-		| ((flags & MTP::f_views) ? Flag::HasViews : Flag());
+		| ((flags & MTP::f_views) ? Flag::HasViews : Flag())
+		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag());
 }
 
-MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags) {
+MessageFlags FlagsFromMTP(
+		MsgId id,
+		MTPDmessageService::Flags flags,
+		MessageFlags localFlags) {
 	using Flag = MessageFlag;
 	using MTP = MTPDmessageService::Flag;
-	return Flag()
+	return localFlags
+		| (IsServerMsgId(id) ? Flag::HistoryEntry : Flag())
 		| ((flags & MTP::f_out) ? Flag::Outgoing : Flag())
 		| ((flags & MTP::f_mentioned) ? Flag::MentionsMe : Flag())
 		| ((flags & MTP::f_media_unread) ? Flag::MediaIsUnread : Flag())
@@ -1080,7 +1267,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			return CreateUnsupportedMessage(
 				history,
 				id,
-				FlagsFromMTP(data.vflags().v) | localFlags,
+				FlagsFromMTP(id, data.vflags().v, localFlags),
 				MsgId(0), // No need to pass reply_to data here.
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
@@ -1091,7 +1278,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			};
 			return history->makeServiceMessage(
 				id,
-				FlagsFromMTP(data.vflags().v) | localFlags,
+				FlagsFromMTP(id, data.vflags().v, localFlags),
 				data.vdate().v,
 				text,
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));

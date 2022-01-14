@@ -11,11 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "base/call_delayed.h"
 #include "base/platform/mac/base_utilities_mac.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -462,11 +463,12 @@ void AppendEmojiPacks(
 	auto callback = [=] {
 		if (document) {
 			if (const auto error = RestrictionToSendStickers(_controller)) {
-				_controller->show(Box<InformBox>(*error));
+				_controller->show(Box<Ui::InformBox>(*error));
 				return true;
 			}
 			Api::SendExistingDocument(
-				Api::MessageToSend(ActiveChat(_controller).history()),
+				Api::MessageToSend(
+					Api::SendAction(ActiveChat(_controller).history())),
 				document);
 			return true;
 		} else if (emoji) {

@@ -32,6 +32,11 @@ namespace Calls::Group {
 enum class StickedTooltip;
 } // namespace Calls::Group
 
+namespace Media::Player {
+enum class RepeatMode;
+enum class OrderMode;
+} // namespace Media::Player
+
 namespace Core {
 
 struct WindowPosition {
@@ -260,11 +265,8 @@ public:
 		_callAudioDuckingEnabled = value;
 	}
 	[[nodiscard]] Webrtc::Backend callAudioBackend() const;
-	void setDisableCalls(bool value) {
-		_disableCalls = value;
-	}
-	[[nodiscard]] bool disableCalls() const {
-		return _disableCalls;
+	[[nodiscard]] bool disableCallsLegacy() const {
+		return _disableCallsLegacy;
 	}
 	[[nodiscard]] bool groupCallPushToTalk() const {
 		return _groupCallPushToTalk;
@@ -614,6 +616,47 @@ public:
 		return _closeToTaskbar.changes();
 	}
 
+	void setCustomDeviceModel(const QString &model) {
+		_customDeviceModel = model;
+	}
+	[[nodiscard]] QString customDeviceModel() const {
+		return _customDeviceModel.current();
+	}
+	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
+		return _customDeviceModel.changes();
+	}
+	[[nodiscard]] rpl::producer<QString> customDeviceModelValue() const {
+		return _customDeviceModel.value();
+	}
+	[[nodiscard]] QString deviceModel() const;
+	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
+	[[nodiscard]] rpl::producer<QString> deviceModelValue() const;
+
+	void setPlayerRepeatMode(Media::Player::RepeatMode mode) {
+		_playerRepeatMode = mode;
+	}
+	[[nodiscard]] Media::Player::RepeatMode playerRepeatMode() const {
+		return _playerRepeatMode.current();
+	}
+	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeValue() const {
+		return _playerRepeatMode.value();
+	}
+	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeChanges() const {
+		return _playerRepeatMode.changes();
+	}
+	void setPlayerOrderMode(Media::Player::OrderMode mode) {
+		_playerOrderMode = mode;
+	}
+	[[nodiscard]] Media::Player::OrderMode playerOrderMode() const {
+		return _playerOrderMode.current();
+	}
+	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeValue() const {
+		return _playerOrderMode.value();
+	}
+	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeChanges() const {
+		return _playerOrderMode.changes();
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -668,7 +711,7 @@ private:
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;
-	bool _disableCalls = false;
+	bool _disableCallsLegacy = false;
 	bool _groupCallPushToTalk = false;
 	bool _groupCallNoiseSuppression = false;
 	QByteArray _groupCallPushToTalkShortcut;
@@ -714,6 +757,9 @@ private:
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
 	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
 	rpl::variable<bool> _closeToTaskbar = false;
+	rpl::variable<QString> _customDeviceModel;
+	rpl::variable<Media::Player::RepeatMode> _playerRepeatMode;
+	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

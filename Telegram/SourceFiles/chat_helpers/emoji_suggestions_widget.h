@@ -50,7 +50,7 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);

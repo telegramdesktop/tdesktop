@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -98,6 +97,11 @@ bool copyFile(const char *from, const char *to, bool writeprotected) {
 		fclose(ffrom);
 		return false;
 	}
+	static const int BufSize = 65536;
+	char buf[BufSize];
+	while (size_t size = fread(buf, 1, BufSize, ffrom)) {
+		fwrite(buf, 1, size, fto);
+	}
 
 	struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
 	//let's say this wont fail since you already worked OK on that fp
@@ -106,33 +110,6 @@ bool copyFile(const char *from, const char *to, bool writeprotected) {
 		fclose(fto);
 		return false;
 	}
-
-	ssize_t copied = sendfile(
-		fileno(fto),
-		fileno(ffrom),
-		nullptr,
-		fst.st_size);
-
-	if (copied == -1) {
-		writeLog(
-			"Copy by sendfile '%s' to '%s' failed, error: %d, fallback now.",
-			from,
-			to,
-			int(errno));
-		static const int BufSize = 65536;
-		char buf[BufSize];
-		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
-			fwrite(buf, 1, size, fto);
-		}
-	} else {
-		writeLog(
-			"Copy by sendfile '%s' to '%s' done, size: %d, result: %d.",
-			from,
-			to,
-			int(fst.st_size),
-			int(copied));
-	}
-
 	//update to the same uid/gid
 	if (!writeprotected && fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
 		fclose(ffrom);

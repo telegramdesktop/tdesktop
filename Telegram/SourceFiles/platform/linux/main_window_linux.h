@@ -20,13 +20,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	virtual QImage iconWithCounter(
-		int size,
-		int count,
-		style::color bg,
-		style::color fg,
-		bool smallIcon) = 0;
-
 	void psShowTrayMenu();
 
 	bool trayAvailable() {
@@ -53,14 +46,6 @@ protected:
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
-
-	virtual void placeSmallCounter(
-		QImage &img,
-		int size,
-		int count,
-		style::color bg,
-		const QPoint &shift,
-		style::color color) = 0;
 
 private:
 	class Private;
@@ -93,21 +78,6 @@ private:
 
 	void updateIconCounters();
 	void handleNativeSurfaceChanged(bool exist);
-
-	void psLinuxUndo();
-	void psLinuxRedo();
-	void psLinuxCut();
-	void psLinuxCopy();
-	void psLinuxPaste();
-	void psLinuxDelete();
-	void psLinuxSelectAll();
-
-	void psLinuxBold();
-	void psLinuxItalic();
-	void psLinuxUnderline();
-	void psLinuxStrikeOut();
-	void psLinuxMonospace();
-	void psLinuxClearFormat();
 
 };
 

@@ -9,18 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 
-bool ReceivedIdsManager::registerMsgId(mtpMsgId msgId, bool needAck) {
+ReceivedIdsManager::Result ReceivedIdsManager::registerMsgId(
+		mtpMsgId msgId,
+		bool needAck) {
 	const auto i = _idsNeedAck.find(msgId);
-	if (i == _idsNeedAck.end()) {
-		if (_idsNeedAck.size() < kIdsBufferSize || msgId > min()) {
-			_idsNeedAck.emplace(msgId, needAck);
-			return true;
-		}
-		MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(msgId).arg(min()));
-	} else {
+	if (i != _idsNeedAck.end()) {
 		MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(msgId));
+		return Result::Duplicate;
+	} else if (_idsNeedAck.size() < kIdsBufferSize || msgId > min()) {
+		_idsNeedAck.emplace(msgId, needAck);
+		return Result::Success;
 	}
-	return false;
+	MTP_LOG(-1, ("Reset on too old - %1 < min = %2").arg(msgId).arg(min()));
+	return Result::TooOld;
 }
 
 mtpMsgId ReceivedIdsManager::min() const {

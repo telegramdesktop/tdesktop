@@ -531,3 +531,16 @@ div.toast_shown {
     background-image: url(../images/media_video@2x.png)
 }
 }
+
+.spoiler {
+    background: #e8e8e8;
+}
+.spoiler.hidden {
+    background: #a9a9a9;
+    cursor: pointer;
+    border-radius: 3px;
+}
+.spoiler.hidden span {
+    opacity: 0;
+    user-select: none;
+}

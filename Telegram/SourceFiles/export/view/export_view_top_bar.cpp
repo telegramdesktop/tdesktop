@@ -39,14 +39,13 @@ void TopBar::updateData(Content &&content) {
 		return;
 	}
 	const auto &row = content.rows[0];
-	const auto clean = &TextUtilities::Clean;
 	_info->setRichText(textcmdStartSemibold()
-		+ clean(tr::lng_export_progress_title(tr::now))
+		+ TextUtilities::Clean(tr::lng_export_progress_title(tr::now))
 		+ textcmdStopSemibold()
 		+ QString::fromUtf8(" \xe2\x80\x93 ")
-		+ clean(row.label)
+		+ TextUtilities::Clean(row.label)
 		+ ' '
-		+ textcmdLink(1, clean(row.info)));
+		+ textcmdLink(1, TextUtilities::Clean(row.info)));
 	_progress->setValue(row.progress);
 }
 

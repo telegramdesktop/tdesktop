@@ -36,6 +36,8 @@ public:
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] float64 progress() const;
 
+	[[nodiscard]] bool autoLoadThumbnailAllowed(
+		not_null<PeerData*> peer) const;
 	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
 
 	void collectLocalData(not_null<PhotoMedia*> local);

@@ -30,11 +30,10 @@ apps:
       - camera
       - desktop
       - desktop-legacy
+      - hardware-observe
       - home
       - network
-      - network-manager-observe
       - opengl
-      - pulseaudio
       - removable-media
       - unity7
       - wayland
@@ -69,10 +68,6 @@ plugs:
     default-provider: gtk-common-themes
 
 slots:
-  tdesktop-dbus:
-    interface: dbus
-    bus: session
-    name: org.telegram.desktop
   tdesktop-mpris:
     interface: mpris
     name: tdesktop
@@ -90,11 +85,14 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
+    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.metainfo.xml]
     build-environment:
+      - CC: gcc-10
+      - CXX: g++-10
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH
     build-packages:
       - clang
+      - g++-10
       - python
       - libasound2-dev
       - libglib2.0-dev
@@ -102,11 +100,12 @@ parts:
       - libopus-dev
       - libpulse-dev
       - libssl-dev
-      - libwebkit2gtk-4.0-dev
+      - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
+      - wayland-protocols
       - zlib1g-dev
     stage-packages:
       - libasound2
@@ -115,12 +114,14 @@ parts:
       - libopus0
       - libpulse0
       - libssl1.1
+      - libwayland-client0
       - libwebkit2gtk-4.0-37
       - libxcb1
       - libxcb-keysyms1
       - libxcb-record0
       - libxcb-screensaver0
       - zlib1g
+      - systemd
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
@@ -149,13 +150,15 @@ parts:
       rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    prime:
+      - -./lib/systemd
     after:
-      - desktop-qt5
+      - desktop-qt
       - extra-cmake-modules
       - ffmpeg
-      - kwayland
       - mozjpeg
       - openal
+      - plasma-wayland-protocols
       - rnnoise
       - webrtc
 
@@ -167,7 +170,7 @@ parts:
       "*": patches/
     prime: [-./*]
 
-  desktop-qt5:
+  desktop-qt:
     source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
     source-subdir: qt
     plugin: make
@@ -190,12 +193,29 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
-      - qt5
+      - qt
+
+  epoxy:
+    source: https://github.com/anholt/libepoxy.git
+    source-depth: 1
+    source-tag: 1.5.9
+    plugin: meson
+    meson-parameters:
+      - --buildtype=release
+      - --prefix=/usr
+      - --default-library=static
+      - -Dtests=false
+    override-pull: |
+      snapcraftctl pull
+      patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
+    prime: [-./*]
+    after:
+      - patches
 
   extra-cmake-modules:
     source: https://github.com/KDE/extra-cmake-modules.git
     source-depth: 1
-    source-tag: v5.77.0
+    source-tag: v5.89.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -222,37 +242,10 @@ parts:
     after:
       - mozjpeg
 
-  kwayland:
-    source: https://github.com/KDE/kwayland.git
-    source-depth: 1
-    source-tag: v5.77.0
-    plugin: cmake
-    build-packages:
-      - libwayland-dev
-      - wayland-protocols
-    stage-packages:
-      - libwayland-client0
-      - libwayland-server0
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_TESTING=OFF
-    prime:
-      - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libexec
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/mkspecs
-      - -./usr/share
-    after:
-      - extra-cmake-modules
-      - desktop-qt5
-      - plasma-wayland-protocols
-
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
     source-depth: 1
-    source-tag: v4.0.1-rc2
+    source-tag: v4.0.3
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -294,7 +287,7 @@ parts:
   plasma-wayland-protocols:
     source: https://github.com/KDE/plasma-wayland-protocols.git
     source-depth: 1
-    source-tag: v1.1.1
+    source-tag: v1.5.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -303,20 +296,23 @@ parts:
     after:
       - extra-cmake-modules
 
-  qt5:
+  qt:
     plugin: nil
     build-packages:
       - libdbus-1-dev
       - libegl-dev
       - libfontconfig1-dev
       - libfreetype-dev
-      - libgl-dev
       - libglib2.0-dev
+      - libglx-dev
       - libgtk-3-dev
       - libharfbuzz-dev
+      - libice-dev
       - libicu-dev
+      - libopengl-dev
       - libpcre2-dev
       - libpng-dev
+      - libsm-dev
       - libssl-dev
       - libwayland-dev
       - libx11-dev
@@ -334,7 +330,6 @@ parts:
       - libxcb-sync-dev
       - libxcb-util-dev
       - libxcb-xfixes0-dev
-      - libxcb-xinerama0-dev
       - libxcb-xinput-dev
       - libxcb-xkb-dev
       - libxcursor-dev
@@ -346,13 +341,16 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
-      - libgl1
       - libglib2.0-0
+      - libglx0
       - libgtk-3-0
       - libharfbuzz0b
+      - libice6
       - libicu66
+      - libopengl0
       - libpcre2-16-0
       - libpng16-16
+      - libsm6
       - libssl1.1
       - libwayland-client0
       - libwayland-cursor0
@@ -372,7 +370,6 @@ parts:
       - libxcb-sync1
       - libxcb-util1
       - libxcb-xfixes0
-      - libxcb-xinerama0
       - libxcb-xinput0
       - libxcb-xkb1
       - libxcursor1
@@ -380,65 +377,51 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=5_15_2
+      QT=6_2_2
 
-      git clone -b v5.15.2 --depth=1 git://code.qt.io/qt/qt5.git .
-      perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
-      git submodule update qtbase qtwayland qtimageformats qtsvg
+      git clone -b v6.2.2 --depth=1 git://code.qt.io/qt/qt5.git .
+      perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qt5compat
+      find $SNAPCRAFT_STAGE/patches/qt5compat_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
         -prefix /usr \
-        -bindir /usr/lib/qt5/bin \
         -libdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET \
-        -docdir /usr/share/qt5/doc \
-        -headerdir /usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -datadir /usr/share/qt5 \
-        -archdatadir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -plugindir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins \
-        -importdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/imports \
-        -translationdir /usr/share/qt5/translations \
-        -hostdatadir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5 \
-        -sysconfdir /etc/xdg \
-        -examplesdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples \
         -release \
         -opensource \
         -confirm-license \
-        -no-feature-xcb-sm \
-        -no-feature-xcomposite-egl \
-        -no-feature-xcomposite-glx \
-        -no-feature-wayland-server \
+        -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
-        -nomake tests \
-        -I $SNAPCRAFT_STAGE/usr/include \
-        -L $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
+        -nomake tests
 
-      make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
-      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
+      cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
+      DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     prime:
+      - -./usr/bin
+      - -./usr/doc
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
-      # Allow tdesktop's custom try-portal-and-fallback logic to work
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes/libqxdgdesktopportal.so
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/metatypes
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.prl
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/lib/qt5
-      - -./usr/share
+      - -./usr/libexec
+      - -./usr/mkspecs
+      - -./usr/modules
+      # Allow tdesktop's custom try-portal-and-fallback logic to work
+      - -./usr/plugins/platformthemes/libqxdgdesktopportal.so
     after:
+      - epoxy
       - mozjpeg
       - patches
 
@@ -463,7 +446,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 575fb17d2853c43329e45f6693370f5e41668055
+    source-commit: b02478677baac6d563589f216800ff9cea0fd65c
     plugin: cmake
     build-packages:
       - yasm

@@ -104,15 +104,16 @@ public:
 		return _raisedHandRating;
 	}
 
-	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
-	void stopLastActionRipple() override;
-
 	void refreshName(const style::PeerListItem &st) override;
 
-	QSize actionSize() const override;
-	bool actionDisabled() const override;
-	QMargins actionMargins() const override;
-	void paintAction(
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
+	QSize rightActionSize() const override;
+	bool rightActionDisabled() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -209,11 +210,11 @@ private:
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
 	int _volume = Group::kDefaultVolume;
-	bool _sounding : 1;
-	bool _speaking : 1;
-	bool _raisedHandStatus : 1;
-	bool _skipLevelUpdate : 1;
-	bool _mutedByMe : 1;
+	bool _sounding : 1 = false;
+	bool _speaking : 1 = false;
+	bool _raisedHandStatus : 1 = false;
+	bool _skipLevelUpdate : 1 = false;
+	bool _mutedByMe : 1 = false;
 
 };
 

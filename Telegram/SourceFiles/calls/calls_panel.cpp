@@ -50,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
 #include <QtCore/QTimer>

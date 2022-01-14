@@ -68,10 +68,13 @@ private:
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<Ui::FlatLabel> _about;
+	object_ptr<Ui::FlatLabel> _aboutRequests;
 	std::shared_ptr<Data::PhotoMedia> _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<Participant> _participants;
 	bool _isChannel = false;
+	bool _requestApprove = false;
 
 	int _userWidth = 0;
 

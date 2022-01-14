@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDesktopWidget>
 
 #include <cstdlib>
 #include <execinfo.h>
@@ -49,7 +48,7 @@ QString psAppDataPath() {
 
 void psDoCleanup() {
 	try {
-		psAutoStart(false, true);
+		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 	} catch (...) {
 	}
@@ -182,12 +181,19 @@ void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
 
+void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+	if (done) {
+		done(false);
+	}
+}
+
+bool AutostartSkip() {
+	return !cAutoStart();
+}
+
 } // namespace Platform
 
 void psNewVersion() {
-}
-
-void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {

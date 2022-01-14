@@ -35,6 +35,7 @@ struct Draft;
 class Session;
 class Folder;
 class ChatFilter;
+struct SponsoredFrom;
 
 enum class ForwardOptions {
 	PreserveInfo,
@@ -83,15 +84,13 @@ public:
 	History &operator=(const History &) = delete;
 	~History();
 
-	ChannelId channelId() const;
-	bool isChannel() const;
-	bool isMegagroup() const;
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
 	MsgRange rangeForDifferenceRequest() const;
 	void checkLocalMessages();
 	void removeJoinedMessage();
 
+	void reactionsEnabledChanged(bool enabled);
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
@@ -101,8 +100,8 @@ public:
 	Element *findLastDisplayed() const;
 	bool hasOrphanMediaGroupPart() const;
 	bool removeOrphanMediaGroupPart();
-	QVector<MsgId> collectMessagesFromUserToDelete(
-		not_null<UserData*> user) const;
+	[[nodiscard]] std::vector<MsgId> collectMessagesFromParticipantToDelete(
+		not_null<PeerData*> participant) const;
 
 	enum class ClearType {
 		Unload,
@@ -132,10 +131,11 @@ public:
 					std::forward<Args>(args)...)).get());
 	}
 	void destroyMessage(not_null<HistoryItem*> item);
+	void destroyMessagesByDates(TimeId minDate, TimeId maxDate);
 
 	void unpinAllMessages();
 
-	HistoryItem *addNewMessage(
+	not_null<HistoryItem*> addNewMessage(
 		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
@@ -158,7 +158,7 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> forwardOriginal);
+		not_null<HistoryItem*> forwardOriginal);
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
@@ -191,9 +191,13 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup);
+	not_null<HistoryItem*> addNewLocalMessage(
+		MsgId id,
+		Data::SponsoredFrom from,
+		const TextWithEntities &textWithEntities); // sponsored
 
 	// Used only internally and for channel admin log.
-	HistoryItem *createItem(
+	not_null<HistoryItem*> createItem(
 		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
@@ -206,9 +210,9 @@ public:
 
 	void newItemAdded(not_null<HistoryItem*> item);
 
-	void registerLocalMessage(not_null<HistoryItem*> item);
-	void unregisterLocalMessage(not_null<HistoryItem*> item);
-	[[nodiscard]] auto localMessages()
+	void registerClientSideMessage(not_null<HistoryItem*> item);
+	void unregisterClientSideMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] auto clientSideMessages()
 		-> const base::flat_set<not_null<HistoryItem*>> &;
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
@@ -277,12 +281,10 @@ public:
 		bool promoted,
 		const QString &type,
 		const QString &message);
-	[[nodiscard]] QStringRef topPromotionType() const;
+	[[nodiscard]] QStringView topPromotionType() const;
 	[[nodiscard]] QString topPromotionMessage() const;
 	[[nodiscard]] bool topPromotionAboutShown() const;
 	void markTopPromotionAboutShown();
-
-	[[nodiscard]] bool canHaveSponsoredMessages() const;
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -412,7 +414,7 @@ public:
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
 	void applyChatListGroup(
-		ChannelId channelId,
+		PeerId dataPeerId,
 		const MTPmessages_Messages &data);
 
 	void forgetScrollState() {
@@ -579,7 +581,7 @@ private:
 	void createLocalDraftFromCloud();
 
 	HistoryService *insertJoinedMessage();
-	void insertLocalMessage(not_null<HistoryItem*> item);
+	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
 	void setFolderPointer(Data::Folder *folder);
 
@@ -602,7 +604,7 @@ private:
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
 	std::optional<HistoryItem*> _lastServerMessage;
-	base::flat_set<not_null<HistoryItem*>> _localMessages;
+	base::flat_set<not_null<HistoryItem*>> _clientSideMessages;
 	std::unordered_set<std::unique_ptr<HistoryItem>> _messages;
 
 	// This almost always is equal to _lastMessage. The only difference is

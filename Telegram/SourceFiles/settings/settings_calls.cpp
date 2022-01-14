@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/boxes/single_choice_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "platform/platform_specific.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_video_bubble.h"
+#include "apiwrap.h"
+#include "api/api_authorizations.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
@@ -268,19 +270,21 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
+	const auto api = &_controller->session().api();
 	AddButton(
 		content,
 		tr::lng_settings_call_accept_calls(),
 		st::settingsButton
-	)->toggleOn(rpl::single(
-		!settings.disableCalls()
-	))->toggledChanges(
-	) | rpl::filter([&settings](bool value) {
-		return (settings.disableCalls() == value);
-	}) | rpl::start_with_next([=](bool value) {
-		Core::App().settings().setDisableCalls(!value);
-		Core::App().saveSettingsDelayed();
+	)->toggleOn(
+		api->authorizations().callsDisabledHereValue(
+		) | rpl::map(!rpl::mappers::_1)
+	)->toggledChanges(
+	) | rpl::filter([=](bool value) {
+		return (value == api->authorizations().callsDisabledHere());
+	}) | start_with_next([=](bool value) {
+		api->authorizations().toggleCallsDisabledHere(!value);
 	}, content->lifetime());
+
 	AddButton(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
@@ -290,7 +294,7 @@ void Calls::setupContent() {
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
 			_controller->show(
-				Box<InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
+				Box<Ui::InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
 		}
 	});
 
@@ -322,7 +326,7 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 				Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		};
-		_controller->show(Box<ConfirmBox>(
+		_controller->show(Box<Ui::ConfirmBox>(
 			tr::lng_no_mic_permission(tr::now),
 			tr::lng_menu_settings(tr::now),
 			showSystemSettings));

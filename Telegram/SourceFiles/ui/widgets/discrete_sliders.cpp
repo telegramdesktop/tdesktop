@@ -164,7 +164,7 @@ DiscreteSlider::Section::Section(
 
 SettingsSlider::SettingsSlider(
 	QWidget *parent,
-		const style::SettingsSlider &st)
+	const style::SettingsSlider &st)
 : DiscreteSlider(parent)
 , _st(st) {
 	setSelectOnPress(_st.ripple.showDuration == 0);
@@ -194,7 +194,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 	enumerateSections([&](Section &section) {
 		Expects(sectionWidth != sectionWidths.end());
 
-		section.left = qFloor(x) + skip;
+		section.left = std::floor(x) + skip;
 		x += *sectionWidth;
 		section.width = qRound(x) - (section.left - skip);
 		skip += _st.barSkip;

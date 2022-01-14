@@ -20,9 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/data_user.h"
-#include "boxes/confirm_phone_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
+#include "boxes/phone_banned_box.h"
 #include "core/application.h"
+#include "countries/countries_instance.h" // Countries::Groups
 
 namespace Intro {
 namespace details {
@@ -44,7 +45,10 @@ PhoneWidget::PhoneWidget(
 : Step(parent, account, data)
 , _country(this, st::introCountry)
 , _code(this, st::introCountryCode)
-, _phone(this, st::introPhone)
+, _phone(
+	this,
+	st::introPhone,
+	[](const QString &s) { return Countries::Groups(s); })
 , _checkRequestTimer([=] { checkRequest(); }) {
 	_phone->frontBackspaceEvent(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
@@ -175,7 +179,7 @@ void PhoneWidget::submit() {
 		MTP_string(_sentPhone),
 		MTP_int(ApiId),
 		MTP_string(ApiHash),
-		MTP_codeSettings(MTP_flags(0))
+		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
 	)).done([=](const MTPauth_SentCode &result) {
 		phoneSubmitDone(result);
 	}).fail([=](const MTP::Error &error) {
@@ -236,11 +240,11 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
-		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
-		ShowPhoneBannedError(_sentPhone);
+		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
 	} else if (Logs::DebugEnabled()) { // internal server error
 		showPhoneError(rpl::single(err + ": " + error.description()));
 	} else {

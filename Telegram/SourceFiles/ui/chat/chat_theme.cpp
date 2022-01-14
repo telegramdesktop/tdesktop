@@ -217,7 +217,7 @@ ChatTheme::ChatTheme() {
 
 // Runs from background thread.
 ChatTheme::ChatTheme(ChatThemeDescriptor &&descriptor)
-: _id(descriptor.id)
+: _key(descriptor.key)
 , _palette(std::make_unique<style::palette>()) {
 	descriptor.preparePalette(*_palette);
 	setBackground(PrepareBackgroundImage(descriptor.backgroundData));
@@ -431,8 +431,8 @@ void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
 	}
 }
 
-uint64 ChatTheme::key() const {
-	return _id;
+ChatThemeKey ChatTheme::key() const {
+	return _key;
 }
 
 void ChatTheme::setBubblesBackground(QImage image) {

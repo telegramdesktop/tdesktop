@@ -421,8 +421,14 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 	} else if (_parent->media() == this) {
 		auto fullRight = width();
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
-			result.cursor = CursorState::Date;
+		const auto bottomInfoResult = _parent->bottomInfoTextState(
+			fullRight,
+			fullBottom,
+			point,
+			InfoDisplayType::Image);
+		if (bottomInfoResult.link
+			|| bottomInfoResult.cursor != CursorState::None) {
+			return bottomInfoResult;
 		}
 		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -525,6 +531,9 @@ TextForMimeData GroupedMedia::selectedText(
 auto GroupedMedia::getBubbleSelectionIntervals(
 	TextSelection selection) const
 -> std::vector<Ui::BubbleSelectionInterval> {
+	if (_mode != Mode::Column) {
+		return {};
+	}
 	auto result = std::vector<Ui::BubbleSelectionInterval>();
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
@@ -600,6 +609,7 @@ bool GroupedMedia::applyGroup(const DataMediaRange &medias) {
 	if (_parts.empty()) {
 		return false;
 	}
+	refreshCaption();
 
 	Ensures(_parts.size() <= kMaxSize);
 	return true;
@@ -617,6 +627,33 @@ bool GroupedMedia::validateGroupParts(
 		++i;
 	}
 	return (i == count);
+}
+
+void GroupedMedia::refreshCaption() {
+	using PartPtrOpt = std::optional<const Part*>;
+	const auto captionPart = [&]() -> PartPtrOpt {
+		if (_mode == Mode::Column) {
+			return std::nullopt;
+		}
+		auto result = PartPtrOpt();
+		for (const auto &part : _parts) {
+			if (!part.item->emptyText()) {
+				if (result) {
+					return std::nullopt;
+				} else {
+					result = &part;
+				}
+			}
+		}
+		return result;
+	}();
+	if (captionPart) {
+		const auto &part = (*captionPart);
+		_caption = createCaption(part->item);
+		_captionItem = part->item;
+	} else {
+		_captionItem = nullptr;
+	}
 }
 
 not_null<Media*> GroupedMedia::main() const {
@@ -653,53 +690,6 @@ HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
 }
 
 void GroupedMedia::updateNeedBubbleState() {
-	using PartPtrOpt = std::optional<const Part*>;
-	const auto captionPart = [&]() -> PartPtrOpt {
-		if (_mode == Mode::Column) {
-			return std::nullopt;
-		}
-		auto result = PartPtrOpt();
-		for (const auto &part : _parts) {
-			if (!part.item->emptyText()) {
-				if (result) {
-					return std::nullopt;
-				} else {
-					result = &part;
-				}
-			}
-		}
-		return result;
-	}();
-	if (captionPart) {
-		const auto &part = (*captionPart);
-		struct Timestamp {
-			int duration = 0;
-			QString base;
-		};
-		const auto timestamp = [&]() -> Timestamp {
-			const auto &document = part->content->getDocument();
-			if (!document || document->isAnimation()) {
-				return {};
-			}
-			const auto duration = document->getDuration();
-			return {
-				.duration = duration,
-				.base = duration
-					? DocumentTimestampLinkBase(
-						document,
-						part->item->fullId())
-					: QString(),
-			};
-		}();
-		_caption = createCaption(
-			part->item,
-			timestamp.duration,
-			timestamp.base);
-
-		_captionItem = part->item;
-	} else {
-		_captionItem = nullptr;
-	}
 	_needBubble = computeNeedBubble();
 }
 
@@ -760,7 +750,8 @@ bool GroupedMedia::computeNeedBubble() const {
 
 bool GroupedMedia::needInfoDisplay() const {
 	return (_mode != Mode::Column)
-		&& (_parent->data()->id < 0
+		&& (_parent->data()->isSending()
+			|| _parent->data()->hasFailed()
 			|| _parent->isUnderCursor()
 			|| _parent->isLastAndSelfMessage());
 }

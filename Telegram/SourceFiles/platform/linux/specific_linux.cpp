@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
-#include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
+#include "webview/platform/linux/webview_linux_webkit2gtk.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_glibmm_helper.h"
@@ -34,13 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xsettings.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
-#include "webview/platform/linux/webview_linux_webkit2gtk.h"
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
-
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QStyle>
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtGui/QWindow>
@@ -60,9 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef Q_OS_LINUX
-#include <sys/sendfile.h>
-#endif // Q_OS_LINUX
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -562,6 +554,43 @@ bool AutostartSupported() {
 	return !InSnap();
 }
 
+void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+	const auto guard = gsl::finally([&] {
+		if (done) {
+			done(enabled);
+		}
+	});
+
+#ifdef __HAIKU__
+
+	HaikuAutostart(enabled);
+
+#else // __HAIKU__
+
+	const auto silent = !done;
+	if (InFlatpak()) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+		PortalAutostart(enabled, silent);
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	} else {
+		const auto autostart = QStandardPaths::writableLocation(
+			QStandardPaths::GenericConfigLocation)
+			+ qsl("/autostart/");
+
+		if (enabled) {
+			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
+		} else {
+			QFile::remove(autostart + QGuiApplication::desktopFileName());
+		}
+	}
+
+#endif // __HAIKU__
+}
+
+bool AutostartSkip() {
+	return !cAutoStart();
+}
+
 bool TrayIconSupported() {
 	return App::wnd()
 		? App::wnd()->trayAvailable()
@@ -639,7 +668,7 @@ QString psAppDataPath() {
 
 void psDoCleanup() {
 	try {
-		psAutoStart(false, true);
+		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 	} catch (...) {
 	}
@@ -670,13 +699,16 @@ void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
-	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell;wl-shell");
+	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell");
 #endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	Glib::init();
+	Gio::init();
+
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
 
@@ -706,14 +738,15 @@ void start() {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 
-	Webview::WebKit2Gtk::SetServiceName(
-		kWebviewService.utf16().arg(h).arg("%1").toStdString());
-#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
+	Webview::WebKit2Gtk::SetSocketPath(qsl("%1/%2-%3-webview-%4").arg(
+		QDir::tempPath(),
+		h,
+		cGUIDStr(),
+		qsl("%1")).toStdString());
 }
 
 void finish() {
@@ -839,38 +872,7 @@ void psNewVersion() {
 #endif // __HAIKU__
 }
 
-void psAutoStart(bool start, bool silent) {
-#ifdef __HAIKU__
-	HaikuAutostart(start);
-	return;
-#endif // __HAIKU__
-
-	if (InFlatpak()) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-		PortalAutostart(start, silent);
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	} else {
-		const auto autostart = QStandardPaths::writableLocation(
-			QStandardPaths::GenericConfigLocation)
-			+ qsl("/autostart/");
-
-		if (start) {
-			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
-		} else {
-			QFile::remove(autostart + QGuiApplication::desktopFileName());
-		}
-	}
-}
-
 void psSendToMenu(bool send, bool silent) {
-}
-
-void sendfileFallback(FILE *out, FILE *in) {
-	static const int BufSize = 65536;
-	char buf[BufSize];
-	while (size_t size = fread(buf, 1, BufSize, in)) {
-		fwrite(buf, 1, size, out);
-	}
 }
 
 bool linuxMoveFile(const char *from, const char *to) {
@@ -883,6 +885,11 @@ bool linuxMoveFile(const char *from, const char *to) {
 		fclose(ffrom);
 		return false;
 	}
+	static const int BufSize = 65536;
+	char buf[BufSize];
+	while (size_t size = fread(buf, 1, BufSize, ffrom)) {
+		fwrite(buf, 1, size, fto);
+	}
 
 	struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
 	//let's say this wont fail since you already worked OK on that fp
@@ -891,32 +898,6 @@ bool linuxMoveFile(const char *from, const char *to) {
 		fclose(fto);
 		return false;
 	}
-
-#ifdef Q_OS_LINUX
-	ssize_t copied = sendfile(
-		fileno(fto),
-		fileno(ffrom),
-		nullptr,
-		fst.st_size);
-	if (copied == -1) {
-		DEBUG_LOG(("Update Error: "
-			"Copy by sendfile '%1' to '%2' failed, error: %3, fallback now."
-			).arg(from
-			).arg(to
-			).arg(errno));
-		sendfileFallback(fto, ffrom);
-	} else {
-		DEBUG_LOG(("Update Info: "
-			"Copy by sendfile '%1' to '%2' done, size: %3, result: %4."
-			).arg(from
-			).arg(to
-			).arg(fst.st_size
-			).arg(copied));
-	}
-#else // Q_OS_LINUX
-	sendfileFallback(fto, ffrom);
-#endif // Q_OS_LINUX
-
 	//update to the same uid/gid
 	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
 		fclose(ffrom);

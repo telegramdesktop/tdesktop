@@ -18,14 +18,7 @@ endif()
 
 if (NOT TGVOIP_FOUND)
     add_library(lib_tgvoip_bundled STATIC)
-
-    if (WIN32)
-        init_target(lib_tgvoip_bundled cxx_std_17) # Small amount of patches required here.
-    elseif (LINUX)
-        init_target(lib_tgvoip_bundled) # All C++20 on Linux, because otherwise ODR violation.
-    else()
-        init_target(lib_tgvoip_bundled cxx_std_14) # Can't use std::optional::value on macOS.
-    endif()
+    init_target(lib_tgvoip_bundled)
 
     option(LIBTGVOIP_DISABLE_ALSA "Disable libtgvoip's ALSA backend (Linux only)." OFF)
     option(LIBTGVOIP_DISABLE_PULSEAUDIO "Disable libtgvoip's PulseAudio backend (Linux only)." OFF)

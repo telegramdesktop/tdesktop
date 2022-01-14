@@ -12,16 +12,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "apiwrap.h"
 #include "api/api_self_destruct.h"
+#include "api/api_authorizations.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+namespace {
+
+using Type = SelfDestructionBox::Type;
+
+[[nodiscard]] std::vector<int> Values(Type type) {
+	switch (type) {
+	case Type::Account: return { 30, 90, 180, 365 };
+	case Type::Sessions: return { 7, 30, 90, 180 };
+	}
+	Unexpected("SelfDestructionBox::Type in Values.");
+}
+
+} // namespace
+
 SelfDestructionBox::SelfDestructionBox(
 	QWidget*,
 	not_null<Main::Session*> session,
+	Type type,
 	rpl::producer<int> preloaded)
-: _session(session)
-, _ttlValues{ 30, 90, 180, 365 }
+: _type(type)
+, _session(session)
+, _ttlValues(Values(type))
 , _loading(
 		this,
 		tr::lng_contacts_loading(tr::now),
@@ -57,7 +74,9 @@ void SelfDestructionBox::showContent() {
 	auto y = st::boxOptionListPadding.top();
 	_description.create(
 		this,
-		tr::lng_self_destruct_description(tr::now),
+		(_type == Type::Account
+			? tr::lng_self_destruct_description(tr::now)
+			: tr::lng_self_destruct_sessions_description(tr::now)),
 		st::boxLabel);
 	_description->moveToLeft(st::boxPadding.left(), y);
 	y += _description->height() + st::boxMediumSkip;
@@ -76,24 +95,46 @@ void SelfDestructionBox::showContent() {
 
 	clearButtons();
 	addButton(tr::lng_settings_save(), [=] {
-		_session->api().selfDestruct().update(_ttlGroup->value());
+		switch (_type) {
+		case Type::Account:
+			_session->api().selfDestruct().update(_ttlGroup->value());
+			break;
+		case Type::Sessions:
+			_session->api().authorizations().updateTTL(_ttlGroup->value());
+			break;
+		}
+
 		closeBox();
 	});
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 QString SelfDestructionBox::DaysLabel(int days) {
-	return (days > 364)
+	return !days
+		? QString()
+		: (days > 364)
 		? tr::lng_self_destruct_years(tr::now, lt_count, days / 365)
-		: tr::lng_self_destruct_months(tr::now, lt_count, qMax(days / 30, 1));
+		: (days > 25)
+		? tr::lng_self_destruct_months(
+			tr::now,
+			lt_count,
+			qMax(days / 30, 1))
+		: tr::lng_self_destruct_weeks(
+			tr::now,
+			lt_count,
+			qMax(days / 7, 1));
 }
 
 void SelfDestructionBox::prepare() {
-	setTitle(tr::lng_self_destruct_title());
+	setTitle((_type == Type::Account
+		? tr::lng_self_destruct_title()
+		: tr::lng_self_destruct_sessions_title()));
 
 	auto fake = object_ptr<Ui::FlatLabel>(
 		this,
-		tr::lng_self_destruct_description(tr::now),
+		(_type == Type::Account
+			? tr::lng_self_destruct_description(tr::now)
+			: tr::lng_self_destruct_sessions_description(tr::now)),
 		st::boxLabel);
 	const auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip

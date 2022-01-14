@@ -29,6 +29,9 @@ inline void IgnoreApplicationActivationRightNow() {
 inline void WriteCrashDumpDetails() {
 }
 
+inline void AutostartRequestStateFromSystem(Fn<void(bool)> callback) {
+}
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {
@@ -40,7 +43,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 
 void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
-void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 int psCleanup();

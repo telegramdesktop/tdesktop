@@ -137,6 +137,8 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
+	void refreshCaption();
+
 	[[nodiscard]] RectParts cornersFromSides(RectParts sides) const;
 	[[nodiscard]] QMargins groupedPadding() const;
 

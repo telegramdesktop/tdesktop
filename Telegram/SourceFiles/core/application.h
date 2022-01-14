@@ -145,12 +145,6 @@ public:
 	bool hideMediaView();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
-	[[nodiscard]] QImage logo() const {
-		return _logo;
-	}
-	[[nodiscard]] QImage logoNoMargin() const {
-		return _logoNoMargin;
-	}
 
 	void startSettingsAndBackground();
 	[[nodiscard]] Settings &settings() {
@@ -353,9 +347,6 @@ private:
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
 	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
-
-	const QImage _logo;
-	const QImage _logoNoMargin;
 
 	rpl::variable<bool> _passcodeLock;
 	bool _screenIsLocked = false;

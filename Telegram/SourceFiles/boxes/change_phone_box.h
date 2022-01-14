@@ -9,13 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 class ChangePhoneBox : public Ui::BoxContent {
 public:
-	ChangePhoneBox(QWidget*, not_null<Main::Session*> session);
+	ChangePhoneBox(QWidget*, not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;
@@ -26,7 +26,7 @@ private:
 	class EnterPhone;
 	class EnterCode;
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 
 };
 

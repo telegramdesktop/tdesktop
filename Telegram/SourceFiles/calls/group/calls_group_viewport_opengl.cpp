@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "styles/style_calls.h"
 
-#include <QtGui/QOpenGLShader>
+#include <QOpenGLShader>
 
 namespace Calls::Group {
 namespace {

@@ -26,7 +26,7 @@ BlockedPeers::Slice TLToSlice(
 		Data::Session &owner) {
 	const auto create = [&](int count, const QVector<MTPPeerBlocked> &list) {
 		auto slice = BlockedPeers::Slice();
-		slice.total = std::max(count, list.size());
+		slice.total = std::max(count, int(list.size()));
 		slice.list.reserve(list.size());
 		for (const auto &contact : list) {
 			contact.match([&](const MTPDpeerBlocked &data) {
@@ -80,7 +80,7 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 	} else if (_blockRequests.find(peer) == end(_blockRequests)) {
 		const auto requestId = _api.request(MTPcontacts_Block(
 			peer->input
-		)).done([=](const MTPBool &result) {
+		)).done([=] {
 			_blockRequests.erase(peer);
 			peer->setIsBlocked(true);
 			if (_slice) {
@@ -90,7 +90,7 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 				++_slice->total;
 				_changes.fire_copy(*_slice);
 			}
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_blockRequests.erase(peer);
 		}).send();
 
@@ -109,7 +109,7 @@ void BlockedPeers::unblock(not_null<PeerData*> peer, Fn<void()> onDone) {
 	}
 	const auto requestId = _api.request(MTPcontacts_Unblock(
 		peer->input
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_blockRequests.erase(peer);
 		peer->setIsBlocked(false);
 		if (_slice) {
@@ -128,7 +128,7 @@ void BlockedPeers::unblock(not_null<PeerData*> peer, Fn<void()> onDone) {
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_blockRequests.erase(peer);
 	}).send();
 	_blockRequests.emplace(peer, requestId);
@@ -165,7 +165,7 @@ void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
 	)).done([=](const MTPcontacts_Blocked &result) {
 		_requestId = 0;
 		onDone(TLToSlice(result, _session->data()));
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_requestId = 0;
 	}).send();
 }

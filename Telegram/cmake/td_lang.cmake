@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(td_lang OBJECT)
-init_target(td_lang)
+init_non_host_target(td_lang)
 add_library(tdesktop::td_lang ALIAS td_lang)
 
 include(cmake/generate_lang.cmake)

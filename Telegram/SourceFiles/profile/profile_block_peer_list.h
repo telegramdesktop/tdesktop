@@ -102,9 +102,9 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
-		enterEventHook(e);
+		enterEventHook(nullptr);
 	}
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override {

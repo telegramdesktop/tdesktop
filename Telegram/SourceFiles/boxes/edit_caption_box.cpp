@@ -670,8 +670,7 @@ void EditCaptionBox::save() {
 	options.scheduled = item->isScheduled() ? item->date() : 0;
 
 	if (!_preparedList.files.empty()) {
-		auto action = Api::SendAction(item->history());
-		action.options = options;
+		auto action = Api::SendAction(item->history(), options);
 		action.replaceMediaOf = item->fullId().msg;
 
 		Storage::ApplyModifications(_preparedList);

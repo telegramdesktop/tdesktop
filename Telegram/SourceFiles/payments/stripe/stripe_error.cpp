@@ -62,7 +62,7 @@ Error Error::DecodedObjectFromResponse(QJsonObject object) {
 		if (first) {
 			first = false;
 		} else {
-			word = word[0].toUpper() + word.midRef(1);
+			word = word[0].toUpper() + word.mid(1);
 		}
 	}
 	const auto parameter = parameterWords.join(QString());

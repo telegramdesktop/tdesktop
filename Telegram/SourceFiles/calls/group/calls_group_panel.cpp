@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/image/image_prepare.h"
 #include "ui/round_rect.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
@@ -48,14 +49,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
-#include "apiwrap.h" // api().kickParticipant.
+#include "apiwrap.h" // api().kick.
+#include "api/api_chat_participants.h" // api().kick.
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h" // UniqueDesktopCaptureSource.
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -1344,7 +1345,7 @@ void Panel::showBox(
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 	if (const auto chat = _peer->asChat()) {
-		chat->session().api().kickParticipant(chat, participantPeer);
+		chat->session().api().chatParticipants().kick(chat, participantPeer);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto currentRestrictedRights = [&] {
 			const auto user = participantPeer->asUser();
@@ -1356,7 +1357,7 @@ void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 				? i->second.rights
 				: ChatRestrictionsInfo();
 		}();
-		channel->session().api().kickParticipant(
+		channel->session().api().chatParticipants().kick(
 			channel,
 			participantPeer,
 			currentRestrictedRights);
@@ -1550,7 +1551,7 @@ void Panel::setupControlsBackgroundNarrow() {
 				bottom - (st::groupCallMembersFadeHeight * factor),
 				full->width(),
 				st::groupCallMembersFadeHeight * factor),
-			GenerateShadow(
+			Images::GenerateShadow(
 				st::groupCallMembersFadeHeight,
 				0,
 				255,
@@ -1561,7 +1562,7 @@ void Panel::setupControlsBackgroundNarrow() {
 				(height - st::groupCallMembersShadowHeight) * factor,
 				full->width(),
 				st::groupCallMembersShadowHeight * factor),
-			GenerateShadow(
+			Images::GenerateShadow(
 				st::groupCallMembersShadowHeight,
 				0,
 				255,

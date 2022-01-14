@@ -54,6 +54,7 @@ PUBLIC
 
 target_link_libraries(lib_stripe
 PUBLIC
+    desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::external_qt
 )

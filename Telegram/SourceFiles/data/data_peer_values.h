@@ -12,7 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include "data/data_peer.h"
 
+enum class ImageRoundRadius;
+
 namespace Data {
+
+struct Reaction;
 
 template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
@@ -109,5 +113,16 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool IsUserOnline(not_null<UserData*> user);
 [[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
+
+[[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
+	not_null<PeerData*> peer,
+	int size);
+[[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
+	not_null<PeerData*> peer,
+	int size,
+	ImageRoundRadius radius);
+
+[[nodiscard]] auto PeerAllowedReactionsValue(not_null<PeerData*> peer)
+-> rpl::producer<std::vector<Data::Reaction>>;
 
 } // namespace Data

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -64,9 +64,7 @@ PinnedMemento::PinnedMemento(
 : _history(history)
 , _highlightId(highlightId) {
 	_list.setAroundPosition({
-		.fullId = FullMsgId(
-			history->channelId(),
-			highlightId),
+		.fullId = FullMsgId(history->peer->id, highlightId),
 		.date = TimeId(0),
 	});
 }
@@ -332,7 +330,7 @@ not_null<History*> PinnedWidget::history() const {
 Dialogs::RowDescriptor PinnedWidget::activeChat() const {
 	return {
 		_history,
-		FullMsgId(_history->channelId(), ShowAtUnreadMsgId)
+		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
 	};
 }
 
@@ -391,8 +389,8 @@ void PinnedWidget::restoreState(not_null<PinnedMemento*> memento) {
 	if (const auto highlight = memento->getHighlightId()) {
 		const auto position = Data::MessagePosition{
 			.fullId = ((highlight > 0 || !_migratedPeer)
-				? FullMsgId(_history->channelId(), highlight)
-				: FullMsgId(0, -highlight)),
+				? FullMsgId(_history->peer->id, highlight)
+				: FullMsgId(_migratedPeer->id, -highlight)),
 			.date = TimeId(0),
 		};
 		_inner->showAroundPosition(position, [=] {
@@ -613,7 +611,7 @@ bool PinnedWidget::listAllowsMultiSelect() {
 
 bool PinnedWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return IsServerMsgId(item->id);
+	return item->isRegular();
 }
 
 bool PinnedWidget::listIsLessInOrder(
@@ -661,7 +659,7 @@ bool PinnedWidget::listElementShownUnread(not_null<const Element*> view) {
 
 bool PinnedWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
-	return IsServerMsgId(view->data()->id);
+	return view->data()->isRegular();
 }
 
 void PinnedWidget::listSendBotCommand(
@@ -674,6 +672,20 @@ void PinnedWidget::listHandleViaClick(not_null<UserData*> bot) {
 
 not_null<Ui::ChatTheme*> PinnedWidget::listChatTheme() {
 	return _theme.get();
+}
+
+CopyRestrictionType PinnedWidget::listCopyRestrictionType(
+		HistoryItem *item) {
+	return CopyRestrictionTypeFor(_history->peer, item);
+}
+
+CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
+	return SelectRestrictionTypeFor(_history->peer);
+}
+
+auto PinnedWidget::listAllowedReactionsValue()
+-> rpl::producer<std::vector<Data::Reaction>> {
+	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 
 void PinnedWidget::confirmDeleteSelected() {

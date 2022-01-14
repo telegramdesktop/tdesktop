@@ -164,7 +164,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	Ui::FillRoundRect(p, shadowedRect, st::menuBg, Ui::MenuCorners, nullptr, parts);
 }
 
-void Panel::enterEventHook(QEvent *e) {
+void Panel::enterEventHook(QEnterEvent *e) {
 	if (_ignoringEnterEvents || contentTooSmall()) return;
 
 	_hideTimer.cancel();
@@ -244,7 +244,7 @@ void Panel::refreshList() {
 		const auto document = media ? media->document() : nullptr;
 		if (!document
 			|| !document->isSharedMediaMusic()
-			|| (!IsServerMsgId(item->id) && !item->isScheduled())) {
+			|| (!item->isRegular() && !item->isScheduled())) {
 			return nullptr;
 		}
 		const auto result = item->history()->peer;

@@ -15,6 +15,10 @@ struct WebPageText {
 };
 
 WebPageText TitleAndDescriptionFromWebPage(not_null<WebPageData*> d);
-bool DrawWebPageDataPreview(Painter &p, not_null<WebPageData*> d, QRect to);
+bool DrawWebPageDataPreview(
+	Painter &p,
+	not_null<WebPageData*> webpage,
+	not_null<PeerData*> context,
+	QRect to);
 
 } // namespace HistoryView

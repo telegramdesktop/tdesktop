@@ -183,7 +183,7 @@ private:
 
 	QPointer<Ui::Checkbox> _allFlags;
 	base::flat_map<
-		MTPDchannelAdminLogEventsFilter::Flags,
+		FilterValue::Flags,
 		QPointer<Ui::Checkbox>> _filterFlags;
 
 	QPointer<Ui::Checkbox> _allUsers;
@@ -238,8 +238,8 @@ void FilterBox::Inner::createAllActionsCheckbox(const FilterValue &filter) {
 }
 
 void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
-	using Flag = MTPDchannelAdminLogEventsFilter::Flag;
-	using Flags = MTPDchannelAdminLogEventsFilter::Flags;
+	using Flag = FilterValue::Flag;
+	using Flags = FilterValue::Flags;
 	auto addFlag = [this, &filter](Flags flag, QString &&text) {
 		auto checked = (filter.flags == 0) || (filter.flags & flag);
 		auto checkbox = addRow(object_ptr<Ui::Checkbox>(this, std::move(text), checked, st::defaultBoxCheckbox), st::adminLogFilterLittleSkip);
@@ -264,21 +264,40 @@ void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
 	};
 	auto isGroup = _channel->isMegagroup();
 	if (isGroup) {
-		addFlag(Flag::f_ban | Flag::f_unban | Flag::f_kick | Flag::f_unkick, tr::lng_admin_log_filter_restrictions(tr::now));
+		addFlag(
+			Flag::Ban
+			| Flag::Unban
+			| Flag::Kick
+			| Flag::Unkick,
+			tr::lng_admin_log_filter_restrictions(tr::now));
 	}
-	addFlag(Flag::f_promote | Flag::f_demote, tr::lng_admin_log_filter_admins_new(tr::now));
-	addFlag(Flag::f_join | Flag::f_invite, tr::lng_admin_log_filter_members_new(tr::now));
-	addFlag(Flag::f_info | Flag::f_settings, _channel->isMegagroup() ? tr::lng_admin_log_filter_info_group(tr::now) : tr::lng_admin_log_filter_info_channel(tr::now));
-	addFlag(Flag::f_delete, tr::lng_admin_log_filter_messages_deleted(tr::now));
-	addFlag(Flag::f_edit, tr::lng_admin_log_filter_messages_edited(tr::now));
+	addFlag(
+		Flag::Promote | Flag::Demote,
+		tr::lng_admin_log_filter_admins_new(tr::now));
+	addFlag(
+		Flag::Join | Flag::Invite,
+		tr::lng_admin_log_filter_members_new(tr::now));
+	addFlag(
+		Flag::Info | Flag::Settings,
+		_channel->isMegagroup()
+			? tr::lng_admin_log_filter_info_group(tr::now)
+			: tr::lng_admin_log_filter_info_channel(tr::now));
+	addFlag(Flag::Delete, tr::lng_admin_log_filter_messages_deleted(tr::now));
+	addFlag(Flag::Edit, tr::lng_admin_log_filter_messages_edited(tr::now));
 	if (isGroup) {
-		addFlag(Flag::f_pinned, tr::lng_admin_log_filter_messages_pinned(tr::now));
-		addFlag(Flag::f_group_call, tr::lng_admin_log_filter_voice_chats(tr::now));
+		addFlag(
+			Flag::Pinned,
+			tr::lng_admin_log_filter_messages_pinned(tr::now));
+		addFlag(
+			Flag::GroupCall,
+			tr::lng_admin_log_filter_voice_chats(tr::now));
 	} else {
-		addFlag(Flag::f_group_call, tr::lng_admin_log_filter_voice_chats_channel(tr::now));
+		addFlag(
+			Flag::GroupCall,
+			tr::lng_admin_log_filter_voice_chats_channel(tr::now));
 	}
-	addFlag(Flag::f_invites, tr::lng_admin_log_filter_invite_links(tr::now));
-	addFlag(Flag::f_leave, tr::lng_admin_log_filter_members_removed(tr::now));
+	addFlag(Flag::Invites, tr::lng_admin_log_filter_invite_links(tr::now));
+	addFlag(Flag::Leave, tr::lng_admin_log_filter_members_removed(tr::now));
 }
 
 void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {

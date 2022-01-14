@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
 
-#include <QtGui/QOpenGLBuffer>
+#include <QOpenGLBuffer>
 
 namespace Media::View {
 

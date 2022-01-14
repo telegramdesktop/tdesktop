@@ -11,42 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 namespace {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
-
-// This is a key setter for compatibility with OpenSSL 1.0
-int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d) {
-	if ((r->n == nullptr && n == nullptr) || (r->e == nullptr && e == nullptr)) {
-		return 0;
-	}
-	if (n != nullptr) {
-		BN_free(r->n);
-		r->n = n;
-	}
-	if (e != nullptr) {
-		BN_free(r->e);
-		r->e = e;
-	}
-	if (d != nullptr) {
-		BN_free(r->d);
-		r->d = d;
-	}
-	return 1;
-}
-
-// This is a key getter for compatibility with OpenSSL 1.0
-void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d) {
-	if (n != nullptr) {
-		*n = r->n;
-	}
-	if (e != nullptr) {
-		*e = r->e;
-	}
-	if (d != nullptr) {
-		*d = r->d;
-	}
-}
-
-#endif
 
 enum class Format {
 	RSAPublicKey,
@@ -168,7 +132,7 @@ bytes::vector RSAPublicKey::Private::encrypt(bytes::const_span data) const {
 	auto result = bytes::vector(kEncryptSize, gsl::byte{});
 	auto res = RSA_public_encrypt(kEncryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
 	if (res < 0 || res > kEncryptSize) {
-		ERR_load_crypto_strings();
+		OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
 		LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(fingerprint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
 		return {};
 	} else if (auto zeroBytes = kEncryptSize - res) {
@@ -186,7 +150,7 @@ bytes::vector RSAPublicKey::Private::decrypt(bytes::const_span data) const {
 	auto result = bytes::vector(kDecryptSize, gsl::byte{});
 	auto res = RSA_public_decrypt(kDecryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
 	if (res < 0 || res > kDecryptSize) {
-		ERR_load_crypto_strings();
+		OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
 		LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(fingerprint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
 		return {};
 	} else if (auto zeroBytes = kDecryptSize - res) {
@@ -209,7 +173,7 @@ bytes::vector RSAPublicKey::Private::encryptOAEPpadding(bytes::const_span data) 
 		_rsa,
 		RSA_PKCS1_OAEP_PADDING);
 	if (encryptedSize != resultSize) {
-		ERR_load_crypto_strings();
+		OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
 		LOG(("RSA Error: RSA_public_encrypt failed, "
 			"key fp: %1, result: %2, error: %3"
 			).arg(fingerprint()

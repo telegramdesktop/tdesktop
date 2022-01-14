@@ -60,30 +60,12 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
-	void refresh(const QString &date);
-	int maxWidth() const;
-
 	QString author;
-	Ui::Text::String signature;
-	bool isElided = false;
 	bool isAnonymousRank = false;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
-	void refresh(const QString &date, bool displayed);
-	int maxWidth() const;
-
 	TimeId date = 0;
-	Ui::Text::String text;
-};
-
-struct HistoryMessageSponsored : public RuntimeComponent<
-		HistoryMessageSponsored,
-		HistoryItem> {
-	HistoryMessageSponsored();
-	int maxWidth() const;
-
-	Ui::Text::String text;
 };
 
 struct HiddenSenderInfo {
@@ -120,6 +102,18 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	bool imported = false;
 };
 
+struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored, HistoryItem> {
+	enum class Type : uchar {
+		User,
+		Group,
+		Broadcast,
+		Post,
+		Bot,
+	};
+	std::unique_ptr<HiddenSenderInfo> sender;
+	Type type = Type::User;
+};
+
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
@@ -130,6 +124,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		replyToMsgId = other.replyToMsgId;
 		replyToMsgTop = other.replyToMsgTop;
 		replyToDocumentId = other.replyToDocumentId;
+		replyToWebPageId = other.replyToWebPageId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
 		replyToName = std::move(other.replyToName);
@@ -182,13 +177,14 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
-	void refreshReplyToDocument();
+	void refreshReplyToMedia();
 
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
 	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
+	WebPageId replyToWebPageId = 0;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;

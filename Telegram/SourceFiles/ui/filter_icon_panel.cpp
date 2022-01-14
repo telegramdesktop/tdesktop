@@ -266,7 +266,7 @@ void FilterIconPanel::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void FilterIconPanel::enterEventHook(QEvent *e) {
+void FilterIconPanel::enterEventHook(QEnterEvent *e) {
 	Core::App().registerLeaveSubscription(this);
 	showAnimated();
 }

@@ -23,13 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
-#include "boxes/confirm_box.h"
+#include "boxes/delete_messages_box.h"
 #include "base/unixtime.h"
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h" // st::boxLabel.
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Calls {
 namespace {
@@ -102,23 +103,25 @@ public:
 		int availableWidth,
 		int outerWidth,
 		bool selected) override;
-	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
-	void stopLastActionRipple() override;
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
 
 	int nameIconWidth() const override {
 		return 0;
 	}
-	QSize actionSize() const override {
+	QSize rightActionSize() const override {
 		return peer()->isUser() ? QSize(_st->width, _st->height) : QSize();
 	}
-	QMargins actionMargins() const override {
+	QMargins rightActionMargins() const override {
 		return QMargins(
 			0,
 			0,
 			st::defaultPeerListItem.photoPosition.x(),
 			0);
 	}
-	void paintAction(
+	void rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -168,14 +171,14 @@ void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &
 	PeerListRow::paintStatusText(p, st, x, y, availableWidth, outerWidth, selected);
 }
 
-void BoxController::Row::paintAction(
+void BoxController::Row::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	auto size = actionSize();
+	auto size = rightActionSize();
 	if (_actionRipple) {
 		_actionRipple->paint(
 			p,
@@ -243,7 +246,7 @@ BoxController::Row::CallType BoxController::Row::ComputeCallType(
 	return CallType::Voice;
 }
 
-void BoxController::Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
+void BoxController::Row::rightActionAddRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
 		auto mask = Ui::RippleAnimation::ellipseMask(
 			QSize(_st->rippleAreaSize, _st->rippleAreaSize));
@@ -255,7 +258,7 @@ void BoxController::Row::addActionRipple(QPoint point, Fn<void()> updateCallback
 	_actionRipple->add(point - _st->rippleAreaPosition);
 }
 
-void BoxController::Row::stopLastActionRipple() {
+void BoxController::Row::rightActionStopLastRipple() {
 	if (_actionRipple) {
 		_actionRipple->lastStop();
 	}
@@ -342,7 +345,7 @@ void BoxController::loadMoreRows() {
 		} break;
 		default: Unexpected("Type of messages.Messages (Calls::BoxController::preloadRows)");
 		}
-	}).fail([this](const MTP::Error &error) {
+	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
 }
@@ -354,12 +357,14 @@ base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
 	const auto session = &this->session();
 	const auto ids = session->data().itemsToIds(items);
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
 	result->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		_window->show(
 			Box<DeleteMessagesBox>(session, base::duplicate(ids)),
 			Ui::LayerOption::KeepOther);
-	});
+	}, &st::menuIconDelete);
 	return result;
 }
 
@@ -379,7 +384,7 @@ void BoxController::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
+void BoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 

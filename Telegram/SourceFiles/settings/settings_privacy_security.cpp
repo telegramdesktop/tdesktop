@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/passcode_box.h"
 #include "boxes/auto_lock_box.h"
 #include "boxes/sessions_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/self_destruction_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -585,7 +585,7 @@ void SetupCloudPassword(
 					*sent = false;
 				}, container->lifetime());
 			};
-			Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<Ui::ConfirmBox>(
 				tr::lng_cloud_password_reset_cancel_sure(tr::now),
 				tr::lng_box_yes(tr::now),
 				tr::lng_box_no(tr::now),
@@ -693,6 +693,7 @@ void SetupSelfDestruction(
 	)->addClickHandler([=] {
 		controller->show(Box<SelfDestructionBox>(
 			session,
+			SelfDestructionBox::Type::Account,
 			session->api().selfDestruct().days()));
 	});
 
@@ -779,7 +780,8 @@ void SetupBotsAndWebsites(
 void SetupSessionsList(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<> updateTrigger) {
+		rpl::producer<> updateTrigger,
+		Fn<void(Type)> showOther) {
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_sessions_title());
 
@@ -800,7 +802,7 @@ void SetupSessionsList(
 		std::move(count),
 		st::settingsButton
 	)->addClickHandler([=] {
-		controller->show(Box<SessionsBox>(&controller->session()));
+		showOther(Type::Sessions);
 	});
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_sessions_about());
@@ -889,7 +891,7 @@ object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
 		Core::UpdateApplication();
 		close();
 	};
-	return Box<ConfirmBox>(
+	return Box<Ui::ConfirmBox>(
 		tr::lng_passport_app_out_of_date(tr::now),
 		tr::lng_menu_update(tr::now),
 		callback);
@@ -928,6 +930,10 @@ PrivacySecurity::PrivacySecurity(
 	setupContent(controller);
 }
 
+rpl::producer<Type> PrivacySecurity::sectionShowOther() {
+	return _showOther.events();
+}
+
 void PrivacySecurity::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -939,8 +945,9 @@ void PrivacySecurity::setupContent(
 	};
 
 	SetupPrivacy(controller, content, trigger());
-	SetupArchiveAndMute(controller, content);
-	SetupSessionsList(controller, content, trigger());
+	SetupSessionsList(controller, content, trigger(), [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 	SetupLocalPasscode(controller, content);
 	SetupCloudPassword(controller, content);
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
@@ -948,6 +955,7 @@ void PrivacySecurity::setupContent(
 #else // !OS_MAC_STORE && !OS_WIN_STORE
 	AddDivider(content);
 #endif // !OS_MAC_STORE && !OS_WIN_STORE
+	SetupArchiveAndMute(controller, content);
 	SetupSelfDestruction(controller, content, trigger());
 	AddDivider(content);
 	SetupBotsAndWebsites(controller, content);

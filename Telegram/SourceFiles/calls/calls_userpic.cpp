@@ -137,7 +137,7 @@ void Userpic::processPhoto() {
 		_photo->wanted(Data::PhotoSize::Thumbnail, _peer->userpicPhotoOrigin());
 	} else {
 		_photo = nullptr;
-		if (_peer->userpicPhotoUnknown() || (photo && !photo->date)) {
+		if (_peer->userpicPhotoUnknown() || (photo && photo->isNull())) {
 			_peer->session().api().requestFullPeer(_peer);
 		}
 	}

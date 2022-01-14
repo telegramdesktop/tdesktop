@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_media.h"
 #include "api/api_text_entities.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -149,7 +149,8 @@ void EditMessageWithUploadedMedia(
 			session->data().sendHistoryChangeNotifications();
 			if (mediaInvalid) {
 				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
+					Box<Ui::InformBox>(
+						tr::lng_edit_media_invalid_file(tr::now)),
 					Ui::LayerOption::KeepOther);
 			}
 		} else {
@@ -171,33 +172,28 @@ void RescheduleMessage(
 
 void EditMessageWithUploadedDocument(
 		HistoryItem *item,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		RemoteFileInfo info,
+		SendOptions options) {
 	if (!item || !item->media() || !item->media()->document()) {
 		return;
 	}
-	const auto media = PrepareUploadedDocument(
+	EditMessageWithUploadedMedia(
 		item,
-		file,
-		thumb,
-		std::move(attachedStickers));
-	EditMessageWithUploadedMedia(item, options, media);
+		options,
+		PrepareUploadedDocument(item, std::move(info)));
 }
 
 void EditMessageWithUploadedPhoto(
 		HistoryItem *item,
-		const MTPInputFile &file,
-		SendOptions options,
-		std::vector<MTPInputDocument> attachedStickers) {
+		RemoteFileInfo info,
+		SendOptions options) {
 	if (!item || !item->media() || !item->media()->photo()) {
 		return;
 	}
-	const auto media = PrepareUploadedPhoto(
-		file,
-		std::move(attachedStickers));
-	EditMessageWithUploadedMedia(item, options, media);
+	EditMessageWithUploadedMedia(
+		item,
+		options,
+		PrepareUploadedPhoto(std::move(info)));
 }
 
 mtpRequestId EditCaption(

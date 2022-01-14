@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
+#include "main/session/send_as_peers.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
@@ -69,17 +70,19 @@ Session::Session(
 	std::unique_ptr<SessionSettings> settings)
 : _account(account)
 , _settings(std::move(settings))
+, _changes(std::make_unique<Data::Changes>(this))
 , _api(std::make_unique<ApiWrap>(this))
 , _updates(std::make_unique<Api::Updates>(this))
 , _sendProgressManager(std::make_unique<Api::SendProgressManager>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
-, _changes(std::make_unique<Data::Changes>(this))
 , _data(std::make_unique<Data::Session>(this))
+, _userId(user.c_user().vid())
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
+, _sendAsPeers(std::make_unique<SendAsPeers>(this))
 , _supportHelper(Support::Helper::Create(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
@@ -211,18 +214,15 @@ uint64 Session::uniqueId() const {
 }
 
 UserId Session::userId() const {
-	return peerToUser(_user->id);
+	return _userId;
 }
 
 PeerId Session::userPeerId() const {
-	return _user->id;
+	return _userId;
 }
 
-bool Session::validateSelf(const MTPUser &user) {
-	if (user.type() != mtpc_user || !user.c_user().is_self()) {
-		LOG(("API Error: bad self user received."));
-		return false;
-	} else if (UserId(user.c_user().vid()) != userId()) {
+bool Session::validateSelf(UserId id) {
+	if (id != userId()) {
 		LOG(("Auth Error: wrong self user received."));
 		crl::on_main(this, [=] { _account->logOut(); });
 		return false;

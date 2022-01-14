@@ -1,0 +1,98 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/colors.palette";
+using "ui/widgets/widgets.style";
+
+menuWithIcons: Menu(defaultMenu) {
+	itemIconPosition: point(15px, 5px);
+	itemPadding: margins(54px, 8px, 17px, 8px);
+}
+popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
+	scrollPadding: margins(0px, 5px, 0px, 5px);
+	menu: menuWithIcons;
+}
+dropdownMenuWithIcons: DropdownMenu(defaultDropdownMenu) {
+	wrap: InnerDropdown(defaultInnerDropdown) {
+		scrollPadding: margins(0px, 5px, 0px, 5px);
+	}
+	menu: menuWithIcons;
+}
+
+menuIconReactions: icon {{ "menu/read_reactions", menuSubmenuArrowFg }};
+menuIconReply: icon {{ "menu/reply", menuSubmenuArrowFg }};
+menuIconViewReplies: icon {{ "menu/view_replies", menuSubmenuArrowFg }};
+menuIconEdit: icon {{ "menu/edit", menuSubmenuArrowFg }};
+menuIconPin: icon {{ "menu/pin", menuSubmenuArrowFg }};
+menuIconUnpin: icon {{ "menu/unpin", menuSubmenuArrowFg }};
+menuIconCopy: icon {{ "menu/copy", menuSubmenuArrowFg }};
+menuIconForward: icon {{ "menu/forward", menuSubmenuArrowFg }};
+menuIconDelete: icon {{ "menu/delete", menuSubmenuArrowFg }};
+menuIconSelect: icon {{ "menu/select", menuSubmenuArrowFg }};
+menuIconSaveImage: icon {{ "menu/save_image", menuSubmenuArrowFg }};
+menuIconStickers: icon {{ "menu/stickers", menuSubmenuArrowFg }};
+menuIconCancel: icon {{ "menu/cancel", menuSubmenuArrowFg }};
+menuIconShowInChat: icon {{ "menu/show_in_chat", menuSubmenuArrowFg }};
+menuIconGif: icon {{ "menu/gif", menuSubmenuArrowFg }};
+menuIconShowInFolder: icon {{ "menu/show_in_folder", menuSubmenuArrowFg }};
+menuIconDownload: icon {{ "menu/download", menuSubmenuArrowFg }};
+menuIconLink: icon {{ "menu/link", menuSubmenuArrowFg }};
+menuIconBlock: icon {{ "menu/block", menuSubmenuArrowFg }};
+menuIconUnblock: icon {{ "menu/unblock", menuSubmenuArrowFg }};
+menuIconRestartBot: icon {{ "menu/restart_bot", menuSubmenuArrowFg }};
+menuIconReport: icon {{ "menu/report", menuSubmenuArrowFg }};
+menuIconFave: icon {{ "menu/favorite", menuSubmenuArrowFg }};
+menuIconUnfave: icon {{ "menu/unfavorite", menuSubmenuArrowFg }};
+menuIconProfile: icon {{ "menu/profile", menuSubmenuArrowFg }};
+menuIconInfo: icon {{ "menu/info", menuSubmenuArrowFg }};
+menuIconInvite: icon {{ "menu/invite", menuSubmenuArrowFg }};
+menuIconPromote: icon {{ "menu/admin_promote", menuSubmenuArrowFg }};
+menuIconAdmin: icon {{ "menu/admin", menuSubmenuArrowFg }};
+menuIconRemove: icon {{ "menu/stop_poll", menuSubmenuArrowFg }};
+menuIconStopPoll: icon {{ "menu/stop_poll", menuSubmenuArrowFg }};
+menuIconRetractVote: icon {{ "menu/retract_vote", menuSubmenuArrowFg }};
+menuIconRestrict: icon {{ "menu/permissions", menuSubmenuArrowFg }};
+menuIconShare: icon {{ "menu/share", menuSubmenuArrowFg }};
+menuIconArchive: icon {{ "menu/archive", menuSubmenuArrowFg }};
+menuIconUnarchive: icon {{ "menu/unarchive", menuSubmenuArrowFg }};
+menuIconMarkRead: icon {{ "menu/read", menuSubmenuArrowFg }};
+menuIconMarkUnread: icon {{ "menu/unread", menuSubmenuArrowFg }};
+menuIconChangeColors: icon {{ "menu/colors", menuSubmenuArrowFg }};
+menuIconExport: icon {{ "menu/export", menuSubmenuArrowFg }};
+menuIconClear: icon {{ "menu/clear", menuSubmenuArrowFg }};
+menuIconManage: icon {{ "menu/manage", menuSubmenuArrowFg }};
+menuIconDiscussion: icon {{ "menu/discussion", menuSubmenuArrowFg }};
+menuIconLeave: icon {{ "menu/leave", menuSubmenuArrowFg }};
+menuIconCreatePoll: icon {{ "menu/create_poll", menuSubmenuArrowFg }};
+menuIconQrCode: icon {{ "menu/qr_code", menuSubmenuArrowFg }};
+menuIconExpand: icon {{ "menu/expand", menuSubmenuArrowFg }};
+menuIconCollapse: icon {{ "menu/collapse", menuSubmenuArrowFg }};
+menuIconToMainMenu: icon {{ "menu/move_to_menu", menuSubmenuArrowFg }};
+menuIconFromMainMenu: icon {{ "menu/move_from_menu", menuSubmenuArrowFg }};
+menuIconAddAccount: icon {{ "menu/add_account", menuSubmenuArrowFg }};
+menuIconMute: icon {{ "menu/mute", menuSubmenuArrowFg }};
+menuIconUnmute: icon {{ "menu/unmute", menuSubmenuArrowFg }};
+menuIconSchedule: icon {{ "menu/calendar", menuSubmenuArrowFg }};
+menuIconReschedule: icon {{ "menu/reschedule", menuSubmenuArrowFg }};
+menuIconSend: icon {{ "menu/send", menuSubmenuArrowFg }};
+menuIconFlip: icon {{ "menu/flip", menuSubmenuArrowFg }};
+menuIconWhenOnline: icon {{ "menu/send_when_online", menuSubmenuArrowFg }};
+menuIconPalette: icon {{ "menu/palette", menuSubmenuArrowFg }};
+menuIconImportTheme: icon {{ "menu/import_theme", menuSubmenuArrowFg }};
+menuIconExportTheme: icon {{ "menu/export_theme", menuSubmenuArrowFg }};
+menuIconRestore: icon {{ "menu/restore", menuSubmenuArrowFg }};
+menuIconSettings: icon {{ "menu/settings", menuSubmenuArrowFg }};
+
+mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
+mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
+mediaMenuIconShowInChat: icon {{ "menu/show_in_chat", mediaviewMenuFg }};
+mediaMenuIconShowInFolder: icon {{ "menu/show_in_folder", mediaviewMenuFg }};
+mediaMenuIconDownload: icon {{ "menu/download", mediaviewMenuFg }};
+mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
+mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
+mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
+mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};

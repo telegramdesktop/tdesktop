@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "storage/localstorage.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_passport.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -437,7 +438,9 @@ void Rows::showMenu(int index) {
 	if (_menu || !hasMenu(row)) {
 		return;
 	}
-	_menu = base::make_unique_q<Ui::DropdownMenu>(window());
+	_menu = base::make_unique_q<Ui::DropdownMenu>(
+		window(),
+		st::dropdownMenuWithIcons);
 	const auto weak = _menu.get();
 	_menu->setHiddenCallback([=] {
 		weak->deleteLater();
@@ -460,25 +463,29 @@ void Rows::showMenu(int index) {
 	});
 	const auto addAction = [&](
 			const QString &text,
-			Fn<void()> callback) {
-		return _menu->addAction(text, std::move(callback));
+			Fn<void()> callback,
+			const style::icon *icon) {
+		return _menu->addAction(text, std::move(callback), icon);
 	};
 	if (canShare(row)) {
-		addAction(tr::lng_proxy_edit_share(tr::now), [=] { share(row); });
+		addAction(
+			tr::lng_proxy_edit_share(tr::now),
+			[=] { share(row); },
+			&st::menuIconShare);
 	}
 	if (canRemove(row)) {
 		if (row->removed) {
 			addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 				restore(row);
-			});
+			}, &st::menuIconRestore);
 		} else {
 			addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 				remove(row);
-			});
+			}, &st::menuIconDelete);
 		}
 	}
 	const auto toggle = menuToggleArea(row);
-	const auto parentTopLeft = window()->mapToGlobal({ 0, 0 });
+	const auto parentTopLeft = window()->mapToGlobal(QPoint());
 	const auto buttonTopLeft = mapToGlobal(toggle.topLeft());
 	const auto parent = QRect(parentTopLeft, window()->size());
 	const auto button = QRect(buttonTopLeft, toggle.size());

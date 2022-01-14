@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_layout.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "window/window_session_controller.h" // GifPauseReason.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -1106,7 +1107,6 @@ void StickersListWidget::preloadMoreOfficial() {
 		});
 		resizeToWidth(width());
 		update();
-	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -1276,7 +1276,7 @@ void StickersListWidget::sendSearchRequest() {
 		MTP_long(hash)
 	)).done([=](const MTPmessages_FoundStickerSets &result) {
 		searchResultsDone(result);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		// show error?
 		_footer->setLoading(false);
 		_searchRequestId = 0;
@@ -2174,15 +2174,17 @@ void StickersListWidget::fillContextMenu(
 				document,
 				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
 		};
+		const auto isFaved = document->owner().stickers().isFaved(document);
 		menu->addAction(
-			(document->owner().stickers().isFaved(document)
+			(isFaved
 				? tr::lng_faved_stickers_remove
 				: tr::lng_faved_stickers_add)(tr::now),
-			toggleFavedSticker);
+			toggleFavedSticker,
+			isFaved ? &st::menuIconUnfave : &st::menuIconFave);
 
 		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
 			showStickerSetBox(document);
-		});
+		}, &st::menuIconStickers);
 
 		if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
 			menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
@@ -2190,7 +2192,7 @@ void StickersListWidget::fillContextMenu(
 					document,
 					Data::FileOriginStickerSet(id, 0),
 					false);
-			});
+			}, &st::menuIconDelete);
 		}
 	}
 }
@@ -2778,16 +2780,21 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	}
 	_megagroupSetIdRequested = set.id;
 	_api.request(MTPmessages_GetStickerSet(
-		Data::InputStickerSet(set)
+		Data::InputStickerSet(set),
+		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
-		if (const auto set = session().data().stickers().feedSetFull(result)) {
-			refreshStickers();
-			if (set->id == _megagroupSetIdRequested) {
-				_megagroupSetIdRequested = 0;
-			} else {
-				LOG(("API Error: Got different set."));
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			if (const auto set = session().data().stickers().feedSetFull(data)) {
+				refreshStickers();
+				if (set->id == _megagroupSetIdRequested) {
+					_megagroupSetIdRequested = 0;
+				} else {
+					LOG(("API Error: Got different set."));
+				}
 			}
-		}
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
 	}).send();
 }
 
@@ -3117,9 +3124,14 @@ void StickersListWidget::installSet(uint64 setId) {
 		const auto input = set->mtpInput();
 		if ((set->flags & SetFlag::NotLoaded) || set->stickers.empty()) {
 			_api.request(MTPmessages_GetStickerSet(
-				input
+				input,
+				MTP_int(0) // hash
 			)).done([=](const MTPmessages_StickerSet &result) {
-				session().data().stickers().feedSetFull(result);
+				result.match([&](const MTPDmessages_stickerSet &data) {
+					session().data().stickers().feedSetFull(data);
+				}, [](const MTPDmessages_stickerSetNotModified &) {
+					LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+				});
 				sendInstallRequest(setId, input);
 			}).send();
 		} else {
@@ -3139,7 +3151,7 @@ void StickersListWidget::sendInstallRequest(
 			session().data().stickers().applyArchivedResult(
 				result.c_messages_stickerSetInstallResultArchive());
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		notInstalledLocally(setId);
 		session().data().stickers().undoInstallLocally(setId);
 	}).send();
@@ -3156,19 +3168,21 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Data::Stickers::MegagroupSetId;
-	controller()->show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
-		Expects(group->mgInfo != nullptr);
+	controller()->show(Box<Ui::ConfirmBox>(
+		tr::lng_stickers_remove_group_set(tr::now),
+		crl::guard(this, [this, group = _megagroupSet] {
+			Expects(group->mgInfo != nullptr);
 
-		if (group->mgInfo->stickerSet) {
-			session().api().setGroupStickerSet(group, {});
-		}
-		Ui::hideLayer();
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	}), crl::guard(this, [this] {
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	})));
+			if (group->mgInfo->stickerSet) {
+				session().api().setGroupStickerSet(group, {});
+			}
+			Ui::hideLayer();
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		}), crl::guard(this, [this] {
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		})));
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
@@ -3184,7 +3198,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 		lt_sticker_pack,
 		set->title);
 	const auto confirm = tr::lng_stickers_remove_pack_confirm(tr::now);
-	controller()->show(Box<ConfirmBox>(text, confirm, crl::guard(this, [=](
+	controller()->show(Box<Ui::ConfirmBox>(text, confirm, crl::guard(this, [=](
 			Fn<void()> &&close) {
 		close();
 		const auto &sets = session().data().stickers().sets();

@@ -19,6 +19,8 @@ class LabelSimple;
 class IconButton;
 class PlainShadow;
 class FilledSlider;
+template <typename Widget>
+class FadeWrap;
 } // namespace Ui
 
 namespace Media {
@@ -27,57 +29,70 @@ class PlaybackProgress;
 } // namespace Clip
 } // namespace Media
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Media {
 namespace Player {
 
 class PlayButton;
 class SpeedButton;
-class VolumeWidget;
+class Dropdown;
 struct TrackState;
 
-class Widget : public Ui::RpWidget, private base::Subscriber {
+class Widget final : public Ui::RpWidget, private base::Subscriber {
 public:
-	Widget(QWidget *parent, not_null<Main::Session*> session);
+	Widget(
+		QWidget *parent,
+		not_null<Ui::RpWidget*> dropdownsParent,
+		not_null<Window::SessionController*> controller);
 
 	void setCloseCallback(Fn<void()> callback);
 	void setShowItemCallback(Fn<void(not_null<const HistoryItem*>)> callback);
 	void stopAndClose();
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
-	void showShadow();
-	void hideShadow();
+	void hideShadowAndDropdowns();
+	void showShadowAndDropdowns();
+	void updateDropdownsGeometry();
+	void raiseDropdowns();
 
-	QPoint getPositionForVolumeWidget() const;
-	void volumeWidgetCreated(VolumeWidget *widget);
+	[[nodiscard]] rpl::producer<bool> togglePlaylistRequests() const {
+		return _togglePlaylistRequests.events();
+	}
 
 	~Widget();
 
-protected:
+private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
-private:
+	[[nodiscard]] not_null<Ui::RpWidget*> rightControls();
+	void setupRightControls();
+
 	void handleSeekProgress(float64 progress);
 	void handleSeekFinished(float64 progress);
 
-	int getLabelsLeft() const;
-	int getLabelsRight() const;
+	[[nodiscard]] int getNameLeft() const;
+	[[nodiscard]] int getNameRight() const;
+	[[nodiscard]] int getTimeRight() const;
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
+	void hidePlaylistOn(not_null<Ui::RpWidget*> widget);
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
-	void updateRepeatTrackIcon();
+	void updateRepeatToggleIcon();
 	void updateControlsVisibility();
 	void updateControlsGeometry();
+	void updateControlsWrapGeometry();
+	void updateControlsWrapVisibility();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
 
@@ -92,8 +107,10 @@ private:
 
 	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
+	void markOver(bool over);
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<Ui::RpWidget*> _orderMenuParent;
 
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
@@ -111,21 +128,32 @@ private:
 
 	bool _labelsOver = false;
 	bool _labelsDown = false;
+	rpl::event_stream<bool> _togglePlaylistRequests;
+	bool _narrow = false;
+	bool _over = false;
+	bool _wontBeOver = false;
+	bool _volumeHidden = false;
 
 	class PlayButton;
-	class SpeedButton;
+	class OrderController;
+	class SpeedController;
 	object_ptr<Ui::FlatLabel> _nameLabel;
+	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
-	object_ptr<PlayButton> _playPause;
+	object_ptr<Ui::IconButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
 	object_ptr<Ui::IconButton> _volumeToggle;
-	object_ptr<Ui::IconButton> _repeatTrack;
-	object_ptr<SpeedButton> _playbackSpeed;
+	object_ptr<Ui::IconButton> _repeatToggle;
+	object_ptr<Ui::IconButton> _orderToggle;
+	object_ptr<Ui::IconButton> _speedToggle;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
+	base::unique_qptr<Dropdown> _volume;
 	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
+	std::unique_ptr<OrderController> _orderController;
+	std::unique_ptr<SpeedController> _speedController;
 
 	rpl::lifetime _playlistChangesLifetime;
 

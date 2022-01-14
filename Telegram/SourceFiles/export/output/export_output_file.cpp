@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_stats.h"
+#include "base/qt_adapters.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
@@ -102,10 +103,10 @@ QString File::PrepareRelativePath(
 
 	// Not lastIndexOf('.') so that "file.tar.xz" won't be messed up.
 	const auto position = suggested.indexOf('.');
-	const auto base = suggested.midRef(0, position).toString();
+	const auto base = suggested.mid(0, position);
 	const auto extension = (position >= 0)
-		? suggested.midRef(position)
-		: QStringRef();
+		? base::StringViewMid(suggested, position)
+		: QStringView();
 	const auto relativePart = [&](int attempt) {
 		auto result = base + QString(" (%1)").arg(attempt);
 		result.append(extension);

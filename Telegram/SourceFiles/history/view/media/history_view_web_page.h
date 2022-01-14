@@ -117,6 +117,7 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
 
 	bool _asArticle = false;
+	bool _hasViewButton = false;
 	int _dataVersion = -1;
 	int _siteNameLines = 0;
 	int _titleLines = 0;

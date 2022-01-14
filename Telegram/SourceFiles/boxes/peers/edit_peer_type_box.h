@@ -36,9 +36,10 @@ public:
 		QWidget*,
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
-		std::optional<FnMut<void(Privacy, QString)>> savedCallback,
+		std::optional<FnMut<void(Privacy, QString, bool)>> savedCallback,
 		std::optional<Privacy> privacySaved,
 		std::optional<QString> usernameSaved,
+		std::optional<bool> noForwardsSaved,
 		std::optional<rpl::producer<QString>> usernameError = {});
 
 	// For invite link only.
@@ -53,10 +54,11 @@ protected:
 private:
 	not_null<PeerData*> _peer;
 	bool _useLocationPhrases = false;
-	std::optional<FnMut<void(Privacy, QString)>> _savedCallback;
+	std::optional<FnMut<void(Privacy, QString, bool)>> _savedCallback;
 
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
+	std::optional<bool> _noForwardsValue;
 	std::optional<rpl::producer<QString>> _usernameError;
 
 	rpl::event_stream<> _focusRequests;

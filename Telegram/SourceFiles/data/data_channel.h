@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
+#include "data/data_chat_participant_status.h"
 
 struct ChannelLocation {
 	QString address;
@@ -50,6 +51,7 @@ enum class ChannelDataFlag {
 	CanViewParticipants = (1 << 17),
 	HasLink = (1 << 18),
 	SlowmodeEnabled = (1 << 19),
+	NoForwards = (1 << 20),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -177,6 +179,19 @@ public:
 	}
 	void setKickedCount(int newKickedCount);
 
+	[[nodiscard]] int pendingRequestsCount() const {
+		return _pendingRequestsCount;
+	}
+	[[nodiscard]] const std::vector<UserId> &recentRequesters() const {
+		return _recentRequesters;
+	}
+	void setPendingRequestsCount(
+		int count,
+		const QVector<MTPlong> &recentRequesters);
+	void setPendingRequestsCount(
+		int count,
+		std::vector<UserId> recentRequesters);
+
 	[[nodiscard]] bool haveLeft() const {
 		return flags() & Flag::Left;
 	}
@@ -280,6 +295,7 @@ public:
 
 	// Like in ChatData.
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
 	[[nodiscard]] bool canEditUsername() const;
@@ -394,6 +410,9 @@ public:
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
+	void setAllowedReactions(std::vector<QString> list);
+	[[nodiscard]] const std::vector<QString> &allowedReactions() const;
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -407,6 +426,7 @@ public:
 	// > 0 - user who invited me to channel, < 0 - not in channel.
 	UserId inviter = 0;
 	TimeId inviteDate = 0;
+	bool inviteViaRequest = false;
 
 private:
 	struct InvitePeek {
@@ -426,6 +446,8 @@ private:
 	int _adminsCount = 1;
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
+	int _pendingRequestsCount = 0;
+	std::vector<UserId> _recentRequesters;
 	MsgId _availableMinId = 0;
 
 	RestrictionFlags _defaultRestrictions;
@@ -437,6 +459,8 @@ private:
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
 	std::optional<ChannelData*> _linkedChat;
+
+	std::vector<QString> _allowedReactions;
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
@@ -461,9 +485,5 @@ void ApplyChannelUpdate(
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
-
-void ApplyMegagroupAdmins(
-	not_null<ChannelData*> channel,
-	const MTPDchannels_channelParticipants &data);
 
 } // namespace Data

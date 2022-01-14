@@ -53,7 +53,7 @@ jobs:
 
     defaults:
       run:
-        shell: scl enable llvm-toolset-7.0 -- scl enable devtoolset-9 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
@@ -88,9 +88,6 @@ jobs:
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
-            if [ "${{ matrix.defines }}" == "DESKTOP_APP_DISABLE_DBUS_INTEGRATION" ]; then
-              DEFINE="$DEFINE -D DESKTOP_APP_DISABLE_WEBKITGTK=ON"
-            fi
             echo Define from matrix: $DEFINE
             echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
@@ -106,12 +103,11 @@ jobs:
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
 
-          cd ../out/Debug
-          make -j$(nproc)
+          cmake --build ../out --config Debug --parallel
 
       - name: Check.
         run: |
-          filePath="$REPO_NAME/out/Debug/bin/Telegram"
+          filePath="$REPO_NAME/out/Debug/Telegram"
           if test -f "$filePath"; then
             echo "Build successfully done! :)"
 
@@ -125,7 +121,7 @@ jobs:
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          cd $REPO_NAME/out/Debug/bin
+          cd $REPO_NAME/out/Debug
           mkdir artifact
           mv Telegram artifact/
       - uses: actions/upload-artifact@master
@@ -133,4 +129,4 @@ jobs:
         name: Upload artifact.
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}/out/Debug/bin/artifact/
+          path: ${{ env.REPO_NAME }}/out/Debug/artifact/

@@ -46,7 +46,7 @@ private:
 		MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter);
-	void appendLocalMessages(MessagesSlice &slice);
+	void appendClientSideMessages(MessagesSlice &slice);
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyUpdate(

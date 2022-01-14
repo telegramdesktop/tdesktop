@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h" // ->session().user()
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
 #include "styles/style_layers.h"
@@ -425,25 +425,42 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					showIfError = true;
 				}
 			});
-			const auto shown = [=](const QString &code) {
+			const auto shown = [=](const Scheme::CountryInfo &info) {
 				using Result = Scheme::AdditionalVisibility;
-				const auto value = _scheme.additionalShown(code);
+				const auto value = _scheme.additionalShown(info);
 				return (value == Result::Shown)
 					|| (value == Result::OnlyIfError && showIfError);
 			};
 
-			auto title = row->value(
-			) | rpl::filter(
+			auto langValue = row->value(
+			) | rpl::map(
+				_scheme.preferredLanguage
+			) | rpl::flatten_latest();
+
+			auto title = rpl::duplicate(langValue) | rpl::filter(
 				shown
-			) | rpl::map([=](const QString &code) {
-				return _scheme.additionalHeader(code);
+			) | rpl::map([=](const Scheme::CountryInfo &info) {
+				return _scheme.additionalHeader(info);
 			});
-			added->add(
+			const auto headerLabel = added->add(
 				object_ptr<Ui::FlatLabel>(
 					added,
-					std::move(title),
+					rpl::duplicate(title),
 					st::passportFormHeader),
 				st::passportNativeNameHeaderPadding);
+			std::move(
+				title
+			) | rpl::start_with_next([=] {
+				const auto &padding = st::passportNativeNameHeaderPadding;
+				const auto available = added->width()
+					- padding.left()
+					- padding.right();
+				headerLabel->resizeToNaturalWidth(available);
+				headerLabel->moveToLeft(
+					padding.left(),
+					padding.top(),
+					available);
+			}, headerLabel->lifetime());
 
 			enumerateRows([&](
 					int i,
@@ -454,11 +471,10 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				}
 			});
 
-			auto description = row->value(
-			) | rpl::filter(
+			auto description = rpl::duplicate(langValue) | rpl::filter(
 				shown
-			) | rpl::map([=](const QString &code) {
-				return _scheme.additionalDescription(code);
+			) | rpl::map([=](const Scheme::CountryInfo &info) {
+				return _scheme.additionalDescription(info);
 			});
 			added->add(
 				object_ptr<Ui::DividerLabel>(
@@ -470,11 +486,10 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					st::passportFormLabelPadding),
 				st::passportNativeNameAboutMargin);
 
-			wrap->toggleOn(row->value() | rpl::map(shown));
+			wrap->toggleOn(rpl::duplicate(langValue) | rpl::map(shown));
 			wrap->finishAnimating();
 
-			row->value(
-			) | rpl::map(
+			std::move(langValue) | rpl::map(
 				shown
 			) | rpl::start_with_next([=](bool visible) {
 				_additionalShown = visible;

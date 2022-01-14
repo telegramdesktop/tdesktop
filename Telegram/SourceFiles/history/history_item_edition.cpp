@@ -23,6 +23,7 @@ HistoryMessageEdition::HistoryMessageEdition(
 	};
 	replyMarkup = HistoryMessageMarkupData(message.vreply_markup());
 	mtpMedia = message.vmedia();
+	mtpReactions = message.vreactions();
 	views = message.vviews().value_or(-1);
 	forwards = message.vforwards().value_or(-1);
 	if (const auto mtpReplies = message.vreplies()) {

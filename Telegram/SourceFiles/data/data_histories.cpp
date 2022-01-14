@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
+#include "base/unixtime.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
@@ -100,7 +101,7 @@ void Histories::readInbox(not_null<History*> history) {
 
 void Histories::readInboxTill(not_null<HistoryItem*> item) {
 	const auto history = item->history();
-	if (!IsServerMsgId(item->id)) {
+	if (!item->isRegular()) {
 		readClientSideMessage(item);
 		auto view = item->mainView();
 		if (!view) {
@@ -123,11 +124,11 @@ void Histories::readInboxTill(not_null<HistoryItem*> item) {
 				}
 			}
 			item = view->data();
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				break;
 			}
 		}
-		if (!IsServerMsgId(item->id)) {
+		if (!item->isRegular()) {
 			LOG(("App Error: "
 				"Can't read history till unknown local message."));
 			return;
@@ -235,7 +236,7 @@ void Histories::readInboxTill(
 }
 
 void Histories::readInboxOnNewMessage(not_null<HistoryItem*> item) {
-	if (!IsServerMsgId(item->id)) {
+	if (!item->isRegular()) {
 		readClientSideMessage(item);
 	} else {
 		readInboxTill(item->history(), item->id, true);
@@ -267,7 +268,7 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		_dialogFolderRequests.remove(folder);
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		_dialogFolderRequests.remove(folder);
 	}).send();
 }
@@ -347,7 +348,7 @@ void Histories::sendDialogRequests() {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		finalize();
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=] {
 		finalize();
 	}).send();
 }
@@ -427,7 +428,7 @@ void Histories::requestFakeChatListMessage(
 			_fakeChatListRequests.erase(history);
 			history->setFakeChatListMessageFrom(result);
 			finish();
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_fakeChatListRequests.erase(history);
 			history->setFakeChatListMessageFrom(MTP_messages_messages(
 				MTP_vector<MTPMessage>(0),
@@ -468,10 +469,10 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 				result);
 			_chatListGroupRequests.remove(history);
 			history->migrateToOrMe()->applyChatListGroup(
-				history->channelId(),
+				history->peer->id,
 				result);
 			finish();
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=] {
 			_chatListGroupRequests.remove(history);
 			finish();
 		}).send();
@@ -552,11 +553,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			return session().api().request(MTPchannels_ReadHistory(
 				channel->inputChannel,
 				MTP_int(tillId)
-			)).done([=](const MTPBool &result) {
-				finished();
-			}).fail([=](const MTP::Error &error) {
-				finished();
-			}).send();
+			)).done(finished).fail(finished).send();
 		} else {
 			return session().api().request(MTPmessages_ReadHistory(
 				history->peer->input,
@@ -564,7 +561,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			)).done([=](const MTPmessages_AffectedMessages &result) {
 				session().api().applyAffectedMessages(history->peer, result);
 				finished();
-			}).fail([=](const MTP::Error &error) {
+			}).fail([=] {
 				finished();
 			}).send();
 		}
@@ -609,20 +606,17 @@ void Histories::deleteMessages(
 			finish();
 			history->requestChatListMessage();
 		};
-		const auto fail = [=](const MTP::Error &error) {
-			finish();
-		};
 		if (const auto channel = history->peer->asChannel()) {
 			return session().api().request(MTPchannels_DeleteMessages(
 				channel->inputChannel,
 				MTP_vector<MTPint>(ids)
-			)).done(done).fail(fail).send();
+			)).done(done).fail(finish).send();
 		} else {
 			using Flag = MTPmessages_DeleteMessages::Flag;
 			return session().api().request(MTPmessages_DeleteMessages(
 				MTP_flags(revoke ? Flag::f_revoke : Flag(0)),
 				MTP_vector<MTPint>(ids)
-			)).done(done).fail(fail).send();
+			)).done(done).fail(finish).send();
 		}
 	});
 }
@@ -634,9 +628,6 @@ void Histories::deleteAllMessages(
 		bool revoke) {
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
-		const auto fail = [=](const MTP::Error &error) {
-			finish();
-		};
 		const auto chat = peer->asChat();
 		const auto channel = peer->asChannel();
 		if (!justClear && revoke && channel && channel->canDelete()) {
@@ -646,22 +637,18 @@ void Histories::deleteAllMessages(
 				session().api().applyUpdates(result);
 			//}).fail([=](const MTP::Error &error) {
 			//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-			//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+			//		Ui::show(Box<Ui::InformBox>(tr::lng_cant_delete_channel(tr::now)));
 			//	}
 			}).send();
 		} else if (channel) {
 			return session().api().request(MTPchannels_DeleteHistory(
 				channel->inputChannel,
 				MTP_int(deleteTillId)
-			)).done([=](const MTPBool &result) {
-				finish();
-			}).fail(fail).send();
+			)).done(finish).fail(finish).send();
 		} else if (revoke && chat && chat->amCreator()) {
 			return session().api().request(MTPmessages_DeleteChat(
 				chat->inputChat
-			)).done([=](const MTPBool &result) {
-				finish();
-			}).fail([=](const MTP::Error &error) {
+			)).done(finish).fail([=](const MTP::Error &error) {
 				if (error.type() == "PEER_ID_INVALID") {
 					// Try to join and delete,
 					// while delete fails for non-joined.
@@ -688,7 +675,9 @@ void Histories::deleteAllMessages(
 			return session().api().request(MTPmessages_DeleteHistory(
 				MTP_flags(flags),
 				peer->input,
-				MTP_int(0)
+				MTP_int(0),
+				MTPint(), // min_date
+				MTPint() // max_date
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				const auto offset = session().api().applyAffectedHistory(
 					peer,
@@ -701,9 +690,58 @@ void Histories::deleteAllMessages(
 						revoke);
 				}
 				finish();
-			}).fail(fail).send();
+			}).fail(finish).send();
 		}
 	});
+}
+
+void Histories::deleteMessagesByDates(
+		not_null<History*> history,
+		QDate firstDayToDelete,
+		QDate lastDayToDelete,
+		bool revoke) {
+	const auto firstSecondToDelete = base::unixtime::serialize(
+		{ firstDayToDelete, QTime(0, 0) }
+	);
+	const auto lastSecondToDelete = base::unixtime::serialize(
+		{ lastDayToDelete, QTime(23, 59, 59) }
+	);
+	deleteMessagesByDates(
+		history,
+		firstSecondToDelete - 1,
+		lastSecondToDelete + 1,
+		revoke);
+}
+
+void Histories::deleteMessagesByDates(
+		not_null<History*> history,
+		TimeId minDate,
+		TimeId maxDate,
+		bool revoke) {
+	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
+		const auto peer = history->peer;
+		using Flag = MTPmessages_DeleteHistory::Flag;
+		const auto flags = Flag::f_just_clear
+			| Flag::f_min_date
+			| Flag::f_max_date
+			| (revoke ? Flag::f_revoke : Flag(0));
+		return session().api().request(MTPmessages_DeleteHistory(
+			MTP_flags(flags),
+			peer->input,
+			MTP_int(0),
+			MTP_int(minDate),
+			MTP_int(maxDate)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				deleteMessagesByDates(history, minDate, maxDate, revoke);
+			}
+			finish();
+		}).fail(finish).send();
+	});
+	history->destroyMessagesByDates(minDate, maxDate);
 }
 
 void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
@@ -726,7 +764,7 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 				continue;
 			}
 			remove.push_back(item);
-			if (IsServerMsgId(item->id)) {
+			if (item->isRegular()) {
 				idsByPeer[history].push_back(MTP_int(itemId.msg));
 			}
 		}

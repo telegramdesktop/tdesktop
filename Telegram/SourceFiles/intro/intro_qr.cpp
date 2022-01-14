@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "main/main_account.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "core/application.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
@@ -401,7 +401,7 @@ void QrWidget::sendCheckPasswordRequest() {
 					Core::UpdateApplication();
 					close();
 				};
-				Ui::show(Box<ConfirmBox>(
+				Ui::show(Box<Ui::ConfirmBox>(
 					tr::lng_passport_app_out_of_date(tr::now),
 					tr::lng_menu_update(tr::now),
 					callback));

@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/change_phone_box.h"
 #include "boxes/username_box.h"
 #include "data/data_user.h"
@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
 #include "styles/style_layers.h"
@@ -63,7 +64,7 @@ void SetupPhoto(
 	upload->setFullRadius(true);
 	upload->addClickHandler([=] {
 		auto callback = [=](QImage &&image) {
-			self->session().api().uploadPeerPhoto(self, std::move(image));
+			self->session().api().peerPhoto().upload(self, std::move(image));
 		};
 		Editor::PrepareProfilePhoto(
 			upload,
@@ -214,7 +215,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[=] { controller->show(Box<ChangePhoneBox>(session)); },
+		[=] { controller->show(Box<ChangePhoneBox>(controller)); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -240,7 +241,7 @@ void SetupRows(
 		result.entities.push_back({
 			EntityType::CustomUrl,
 			0,
-			add.size(),
+			int(add.size()),
 			"internal:edit_username" });
 		return result;
 	});
@@ -255,12 +256,7 @@ void SetupRows(
 	AddSkip(container, st::settingsInfoAfterSkip);
 }
 
-struct BioManager {
-	rpl::producer<bool> canSave;
-	Fn<void(FnMut<void()> done)> save;
-};
-
-BioManager SetupBio(
+void SetupBio(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
 	AddDivider(container);
@@ -268,8 +264,7 @@ BioManager SetupBio(
 
 	const auto bioStyle = [] {
 		auto result = st::settingsBio;
-		result.textMargins.setRight(
-			st::boxTextFont->spacew
+		result.textMargins.setRight(st::boxTextFont->spacew
 			+ st::boxTextFont->width(QString::number(kMaxBioLength)));
 		return result;
 	};
@@ -317,10 +312,9 @@ BioManager SetupBio(
 		const auto countLeft = qMax(kMaxBioLength - text.size(), 0);
 		countdown->setText(QString::number(countLeft));
 	};
-	const auto save = [=](FnMut<void()> done) {
+	const auto save = [=] {
 		self->session().api().saveSelfBio(
-			TextUtilities::PrepareForSending(bio->getLastText()),
-			std::move(done));
+			TextUtilities::PrepareForSending(bio->getLastText()));
 	};
 
 	Info::Profile::AboutValue(
@@ -343,7 +337,7 @@ BioManager SetupBio(
 			const auto saved = *generation = std::abs(*generation) + 1;
 			base::call_delayed(kSaveBioTimeout, bio, [=] {
 				if (*generation == saved) {
-					save(nullptr);
+					save();
 					*generation = 0;
 				}
 			});
@@ -356,7 +350,7 @@ BioManager SetupBio(
 	// to 'container' lifetime, not to the 'bio' lifetime.
 	container->lifetime().add([=] {
 		if (*generation > 0) {
-			save(nullptr);
+			save();
 		}
 	});
 
@@ -366,7 +360,7 @@ BioManager SetupBio(
 	cursor.setPosition(bio->getLastText().size());
 	bio->setTextCursor(cursor);
 	QObject::connect(bio, &Ui::InputField::submitted, [=] {
-		save(nullptr);
+		save();
 	});
 	QObject::connect(bio, &Ui::InputField::changed, updated);
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -386,11 +380,6 @@ BioManager SetupBio(
 		st::settingsBioLabelPadding);
 
 	AddSkip(container);
-
-	return BioManager{
-		changed->events() | rpl::distinct_until_changed(),
-		save
-	};
 }
 
 } // namespace
@@ -402,14 +391,6 @@ Information::Information(
 	setupContent(controller);
 }
 
-//rpl::producer<bool> Information::sectionCanSaveChanges() {
-//	return _canSaveChanges.value();
-//}
-//
-//void Information::sectionSaveChanges(FnMut<void()> done) {
-//	_save(std::move(done));
-//}
-
 void Information::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -418,9 +399,6 @@ void Information::setupContent(
 	SetupPhoto(content, controller, self);
 	SetupRows(content, controller, self);
 	SetupBio(content, self);
-	//auto manager = SetupBio(content, self);
-	//_canSaveChanges = std::move(manager.canSave);
-	//_save = std::move(manager.save);
 
 	Ui::ResizeFitChild(this, content);
 }

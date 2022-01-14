@@ -147,7 +147,7 @@ constexpr auto kDisableElement = "disable"_cs;
 } // namespace
 
 struct ChooseThemeController::Entry {
-	uint64 id = 0;
+	Ui::ChatThemeKey key;
 	std::shared_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
 	QImage preview;
@@ -263,7 +263,7 @@ void ChooseThemeController::initButtons() {
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
 			if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
-				const auto now = chosen->id ? _chosen : QString();
+				const auto now = chosen->key ? _chosen : QString();
 				_peer->setThemeEmoji(now);
 				if (chosen->theme) {
 					// Remember while changes propagate through event loop.
@@ -337,7 +337,7 @@ void ChooseThemeController::initList() {
 	const auto chosenText = [=](const Entry *entry) {
 		if (!entry) {
 			return QString();
-		} else if (entry->id) {
+		} else if (entry->key) {
 			return entry->emoji->text();
 		} else {
 			return kDisableElement.utf16();
@@ -384,7 +384,7 @@ void ChooseThemeController::initList() {
 				}
 				_chosen = chosen;
 				entry->chosen = true;
-				if (entry->theme || !entry->id) {
+				if (entry->theme || !entry->key) {
 					_controller->overridePeerTheme(_peer, entry->theme);
 				}
 				_inner->update();
@@ -468,7 +468,7 @@ auto ChooseThemeController::findChosen() -> Entry* {
 		return nullptr;
 	}
 	for (auto &entry : _entries) {
-		if (!entry.id && _chosen == kDisableElement.utf16()) {
+		if (!entry.key && _chosen == kDisableElement.utf16()) {
 			return &entry;
 		} else if (_chosen == entry.emoji->text()) {
 			return &entry;
@@ -482,7 +482,7 @@ auto ChooseThemeController::findChosen() const -> const Entry* {
 }
 
 void ChooseThemeController::fill(
-		const std::vector<Data::ChatTheme> &themes) {
+		const std::vector<Data::CloudTheme> &themes) {
 	if (themes.empty()) {
 		return;
 	}
@@ -516,30 +516,34 @@ void ChooseThemeController::fill(
 			_entries.front().preview = GenerateEmptyPreview();
 		}, _cachingLifetime);
 
+		const auto type = dark
+			? Data::CloudThemeType::Dark
+			: Data::CloudThemeType::Light;
+
 		x += single.width() + skip;
 		for (const auto &theme : themes) {
 			const auto emoji = Ui::Emoji::Find(theme.emoticon);
-			if (!emoji) {
+			if (!emoji || !theme.settings.contains(type)) {
 				continue;
 			}
-			const auto &used = dark ? theme.dark : theme.light;
-			const auto id = used.id;
+			const auto key = ChatThemeKey{ theme.id, dark };
 			const auto isChosen = (_chosen == emoji->text());
 			_entries.push_back({
-				.id = id,
+				.key = key,
 				.emoji = emoji,
 				.geometry = QRect(QPoint(x, skip), single),
 				.chosen = isChosen,
 			});
 			_controller->cachedChatThemeValue(
-				used
+				theme,
+				type
 			) | rpl::filter([=](const std::shared_ptr<ChatTheme> &data) {
-				return data && (data->key() == id);
+				return data && (data->key() == key);
 			}) | rpl::take(
 				1
 			) | rpl::start_with_next([=](std::shared_ptr<ChatTheme> &&data) {
-				const auto id = data->key();
-				const auto i = ranges::find(_entries, id, &Entry::id);
+				const auto key = data->key();
+				const auto i = ranges::find(_entries, key, &Entry::key);
 				if (i == end(_entries)) {
 					return;
 				}
@@ -560,15 +564,15 @@ void ChooseThemeController::fill(
 				) | rpl::filter([=] {
 					const auto i = ranges::find(
 						_entries,
-						id,
-						&Entry::id);
+						key,
+						&Entry::key);
 					return (i == end(_entries))
 						|| !i->theme->background().prepared.isNull();
 				}) | rpl::take(1) | rpl::start_with_next([=] {
 					const auto i = ranges::find(
 						_entries,
-						id,
-						&Entry::id);
+						key,
+						&Entry::key);
 					if (i == end(_entries)) {
 						return;
 					}

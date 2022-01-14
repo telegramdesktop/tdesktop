@@ -9,16 +9,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_style.h"
 
+struct HistoryMessageSponsored;
+
+namespace Data {
+class Media;
+} // namespace Data
+
+struct WebPageData;
+
 namespace HistoryView {
 
 struct TextState;
 
 class ViewButton {
 public:
-	ViewButton(not_null<PeerData*> peer, Fn<void()> updateCallback);
+	ViewButton(
+		not_null<HistoryMessageSponsored*> sponsored,
+		Fn<void()> updateCallback);
+	ViewButton(not_null<Data::Media*> media, Fn<void()> updateCallback);
 	~ViewButton();
 
+	[[nodiscard]] static bool MediaHasViewButton(
+		not_null<Data::Media*> media);
+	[[nodiscard]] static bool MediaHasViewButton(
+		not_null<WebPageData*> webpage);
+
 	[[nodiscard]] int height() const;
+	[[nodiscard]] bool belowMessageInfo() const;
 
 	void draw(
 		Painter &p,
@@ -28,7 +45,7 @@ public:
 	[[nodiscard]] const ClickHandlerPtr &link() const;
 	bool checkLink(const ClickHandlerPtr &other, bool pressed);
 
-	[[nodiscard]] QRect countSponsoredRect(const QRect &r) const;
+	[[nodiscard]] QRect countRect(const QRect &r) const;
 
 	[[nodiscard]] bool getState(
 		QPoint point,

@@ -74,7 +74,7 @@ public:
 	[[nodiscard]] QByteArray bytes() const;
 	[[nodiscard]] bool loaded(bool check = false) const;
 	[[nodiscard]] float64 progress() const;
-	[[nodiscard]] bool canBePlayed() const;
+	[[nodiscard]] bool canBePlayed(HistoryItem *item) const;
 
 	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
 

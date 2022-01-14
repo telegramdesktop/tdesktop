@@ -205,8 +205,8 @@ int MaxAlbumItems() {
 bool ValidateThumbDimensions(int width, int height) {
 	return (width > 0)
 		&& (height > 0)
-		&& (width < 20 * height)
-		&& (height < 20 * width);
+		&& (width <= 20 * height)
+		&& (height <= 20 * width);
 }
 
 std::vector<PreparedGroup> DivideByGroups(

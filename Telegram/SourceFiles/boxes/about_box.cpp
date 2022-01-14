@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
@@ -80,9 +80,15 @@ void AboutBox::prepare() {
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
+	const auto available = width()
+		- st::boxPadding.left()
+		- st::boxPadding.right();
 	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
+	_text1->resizeToWidth(available);
 	_text1->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
+	_text2->resizeToWidth(available);
 	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
+	_text3->resizeToWidth(available);
 	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
 }
 
@@ -104,7 +110,8 @@ void AboutBox::showVersionHistory() {
 
 		QGuiApplication::clipboard()->setText(url);
 
-		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
+		Ui::show(Box<Ui::InformBox>("The link to the current private alpha "
+			"version of Telegram Desktop was copied to the clipboard."));
 	} else {
 		UrlClickHandler::Open(Core::App().changelogLink());
 	}

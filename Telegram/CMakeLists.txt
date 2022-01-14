@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
-init_target(Telegram)
+init_non_host_target(Telegram)
 
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
@@ -50,7 +50,8 @@ if (WIN32)
     nuget_add_winrt(Telegram)
 endif()
 
-set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
+set_target_properties(Telegram PROPERTIES AUTOMOC ON)
+target_prepare_qrc(Telegram)
 
 target_link_libraries(Telegram
 PRIVATE
@@ -111,9 +112,13 @@ PRIVATE
     api/api_chat_filters.h
     api/api_chat_invite.cpp
     api/api_chat_invite.h
+    api/api_chat_participants.cpp
+    api/api_chat_participants.h
     api/api_cloud_password.cpp
     api/api_cloud_password.h
     api/api_common.h
+    api/api_confirm_phone.cpp
+    api/api_confirm_phone.h
     api/api_editing.cpp
     api/api_editing.h
     api/api_global_privacy.cpp
@@ -124,6 +129,10 @@ PRIVATE
     api/api_invite_links.h
     api/api_media.cpp
     api/api_media.h
+    api/api_peer_photo.cpp
+    api/api_peer_photo.h
+    api/api_polls.cpp
+    api/api_polls.h
     api/api_self_destruct.cpp
     api/api_self_destruct.h
     api/api_send_progress.cpp
@@ -144,8 +153,8 @@ PRIVATE
     api/api_user_privacy.h
     api/api_views.cpp
     api/api_views.h
-    api/api_who_read.cpp
-    api/api_who_read.h
+    api/api_who_reacted.cpp
+    api/api_who_reacted.h
     boxes/filters/edit_filter_box.cpp
     boxes/filters/edit_filter_box.h
     boxes/filters/edit_filter_chats_list.cpp
@@ -160,18 +169,27 @@ PRIVATE
     boxes/peers/edit_participant_box.h
     boxes/peers/edit_participants_box.cpp
     boxes/peers/edit_participants_box.h
+    boxes/peers/edit_peer_common.h
     boxes/peers/edit_peer_info_box.cpp
     boxes/peers/edit_peer_info_box.h
     boxes/peers/edit_peer_invite_link.cpp
     boxes/peers/edit_peer_invite_link.h
     boxes/peers/edit_peer_invite_links.cpp
     boxes/peers/edit_peer_invite_links.h
-    boxes/peers/edit_peer_type_box.cpp
-    boxes/peers/edit_peer_type_box.h
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
     boxes/peers/edit_peer_permissions_box.cpp
     boxes/peers/edit_peer_permissions_box.h
+    boxes/peers/edit_peer_reactions.cpp
+    boxes/peers/edit_peer_reactions.h
+    boxes/peers/edit_peer_requests_box.cpp
+    boxes/peers/edit_peer_requests_box.h
+    boxes/peers/edit_peer_type_box.cpp
+    boxes/peers/edit_peer_type_box.h
+    boxes/peers/peer_short_info_box.cpp
+    boxes/peers/peer_short_info_box.h
+    boxes/peers/prepare_short_info_box.cpp
+    boxes/peers/prepare_short_info_box.h
     boxes/about_box.cpp
     boxes/about_box.h
     boxes/about_sponsored_box.cpp
@@ -190,14 +208,12 @@ PRIVATE
     boxes/background_preview_box.h
     boxes/change_phone_box.cpp
     boxes/change_phone_box.h
-    boxes/confirm_box.cpp
-    boxes/confirm_box.h
-    boxes/confirm_phone_box.cpp
-    boxes/confirm_phone_box.h
     boxes/connection_box.cpp
     boxes/connection_box.h
     boxes/create_poll_box.cpp
     boxes/create_poll_box.h
+    boxes/delete_messages_box.cpp
+    boxes/delete_messages_box.h
     boxes/dictionaries_manager.cpp
     boxes/dictionaries_manager.h
     boxes/download_path_box.cpp
@@ -212,6 +228,8 @@ PRIVATE
     boxes/language_box.h
     boxes/local_storage_box.cpp
     boxes/local_storage_box.h
+    boxes/max_invite_box.cpp
+    boxes/max_invite_box.h
     boxes/mute_settings_box.cpp
     boxes/mute_settings_box.h
     boxes/peer_list_box.cpp
@@ -222,8 +240,10 @@ PRIVATE
     boxes/peer_lists_box.h
     boxes/passcode_box.cpp
     boxes/passcode_box.h
-    boxes/rate_call_box.cpp
-    boxes/rate_call_box.h
+    boxes/phone_banned_box.cpp
+    boxes/phone_banned_box.h
+    boxes/pin_messages_box.cpp
+    boxes/pin_messages_box.h
     boxes/self_destruction_box.cpp
     boxes/self_destruction_box.h
     boxes/send_files_box.cpp
@@ -242,6 +262,8 @@ PRIVATE
     boxes/username_box.h
     calls/group/calls_choose_join_as.cpp
     calls/group/calls_choose_join_as.h
+    calls/group/calls_cover_item.cpp
+    calls/group/calls_cover_item.h
     calls/group/calls_group_call.cpp
     calls/group/calls_group_call.h
     calls/group/calls_group_common.cpp
@@ -382,6 +404,8 @@ PRIVATE
     data/data_chat.h
     data/data_chat_filters.cpp
     data/data_chat_filters.h
+    data/data_chat_participant_status.cpp
+    data/data_chat_participant_status.h
     data/data_changes.cpp
     data/data_changes.h
     data/data_channel.cpp
@@ -407,6 +431,7 @@ PRIVATE
     data/data_file_origin.cpp
     data/data_file_origin.h
     data/data_flags.h
+    data/data_game.cpp
     data/data_game.h
     data/data_group_call.cpp
     data/data_group_call.h
@@ -422,6 +447,8 @@ PRIVATE
     data/data_media_types.h
     data/data_messages.cpp
     data/data_messages.h
+    data/data_message_reactions.cpp
+    data/data_message_reactions.h
     data/data_msg_id.h
     data/data_notify_settings.cpp
     data/data_notify_settings.h
@@ -596,6 +623,12 @@ PRIVATE
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_web_page.h
     history/view/media/history_view_web_page.cpp
+    history/view/reactions/message_reactions_list.cpp
+    history/view/reactions/message_reactions_list.h
+    history/view/reactions/message_reactions_selector.cpp
+    history/view/reactions/message_reactions_selector.h
+    history/view/history_view_bottom_info.cpp
+    history/view/history_view_bottom_info.h
     history/view/history_view_contact_status.cpp
     history/view/history_view_contact_status.h
     history/view/history_view_context_menu.cpp
@@ -608,8 +641,9 @@ PRIVATE
     history/view/history_view_emoji_interactions.h
     history/view/history_view_empty_list_bubble.cpp
     history/view/history_view_empty_list_bubble.h
-    history/view/history_view_group_call_tracker.cpp
-    history/view/history_view_group_call_tracker.h
+    history/view/history_view_group_call_bar.cpp
+    history/view/history_view_group_call_bar.h
+    history/view/history_view_item_preview.h
     history/view/history_view_list_widget.cpp
     history/view/history_view_list_widget.h
     history/view/history_view_message.cpp
@@ -621,8 +655,14 @@ PRIVATE
     history/view/history_view_pinned_section.h
     history/view/history_view_pinned_tracker.cpp
     history/view/history_view_pinned_tracker.h
+    history/view/history_view_react_button.cpp
+    history/view/history_view_react_button.h
+    history/view/history_view_reactions.cpp
+    history/view/history_view_reactions.h
     history/view/history_view_replies_section.cpp
     history/view/history_view_replies_section.h
+    history/view/history_view_requests_bar.cpp
+    history/view/history_view_requests_bar.h
     history/view/history_view_schedule_box.cpp
     history/view/history_view_schedule_box.h
     history/view/history_view_scheduled_section.cpp
@@ -631,6 +671,8 @@ PRIVATE
     history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
+    history/view/history_view_spoiler_click_handler.cpp
+    history/view/history_view_spoiler_click_handler.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp
@@ -764,6 +806,8 @@ PRIVATE
     main/main_session.h
     main/main_session_settings.cpp
     main/main_session_settings.h
+    main/session/send_as_peers.cpp
+    main/session/send_as_peers.h
     media/system_media_controls_manager.h
     media/system_media_controls_manager.cpp
     media/audio/media_audio.cpp
@@ -961,6 +1005,8 @@ PRIVATE
     platform/win/windows_dlls.h
     platform/win/windows_event_filter.cpp
     platform/win/windows_event_filter.h
+    platform/win/windows_autostart_task.cpp
+    platform/win/windows_autostart_task.h
     platform/win/windows_toast_activator.cpp
     platform/win/windows_toast_activator.h
     platform/platform_audio.h
@@ -1060,6 +1106,8 @@ PRIVATE
     ui/chat/attach/attach_item_single_file_preview.h
     ui/chat/attach/attach_item_single_media_preview.cpp
     ui/chat/attach/attach_item_single_media_preview.h
+    ui/chat/choose_send_as.cpp
+    ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
     ui/effects/fireworks_animation.cpp
@@ -1074,10 +1122,6 @@ PRIVATE
     ui/image/image_location.h
     ui/image/image_location_factory.cpp
     ui/image/image_location_factory.h
-    ui/widgets/continuous_sliders.cpp
-    ui/widgets/continuous_sliders.h
-    ui/widgets/discrete_sliders.cpp
-    ui/widgets/discrete_sliders.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
     ui/widgets/multi_select.cpp
@@ -1175,6 +1219,13 @@ PRIVATE
     stdafx.h
 )
 
+if (NOT build_winstore)
+    remove_target_sources(Telegram ${src_loc}
+        platform/win/windows_start_task.cpp
+        platform/win/windows_start_task.h
+    )
+endif()
+
 if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_xdp_file_dialog.cpp
@@ -1243,8 +1294,7 @@ elseif (APPLE)
     endif()
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
-    set_target_properties(Telegram PROPERTIES RESOURCE ${icons_path})
-    target_sources(Telegram PRIVATE ${icons_path})
+    target_add_resource(Telegram ${icons_path})
 
     set(lang_packs
         en
@@ -1265,6 +1315,11 @@ elseif (APPLE)
         source_group(TREE ${res_loc} PREFIX Resources FILES ${strings_path})
     endforeach()
 
+    add_custom_command(TARGET Telegram
+    PRE_LINK
+        COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Resources
+        COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
+    )
     if (NOT build_macstore)
         add_custom_command(TARGET Telegram
         PRE_LINK
@@ -1272,10 +1327,15 @@ elseif (APPLE)
             COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
         )
         if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+            if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
+                set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
+            else()
+                set(crashpad_dir_part "")
+            endif()
             add_custom_command(TARGET Telegram
             PRE_LINK
                 COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
-                COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
+                COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
             )
         endif()
     endif()
@@ -1319,6 +1379,8 @@ if (build_macstore)
         COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks
         COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
         COMMAND cp -a ${libs_loc}/breakpad/src/client/mac/build/Release/Breakpad.framework $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework
+        COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework/Resources/crash_report_sender.app
+        COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework/Resources/Inspector
     )
 else()
     set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
@@ -1338,7 +1400,6 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${bundle_identifier}
     XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${desktop_app_version_string}
     XCODE_ATTRIBUTE_PRODUCT_NAME ${output_name}
-    XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT $<$<NOT:$<CONFIG:Debug>>:dwarf-with-dsym>
     XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
     XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
     XCODE_ATTRIBUTE_COMBINE_HIDPI_IMAGES YES
@@ -1363,12 +1424,13 @@ PRIVATE
     G_LOG_DOMAIN="Telegram"
 )
 
-if (APPLE OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL "" OR NOT "${output_name}" STREQUAL "Telegram")
+if (APPLE
+    OR "${CMAKE_GENERATOR}" STREQUAL "Ninja Multi-Config"
+    OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
+    OR NOT "${output_name}" STREQUAL "Telegram")
     set(output_folder ${CMAKE_BINARY_DIR})
-elseif (DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
-    set(output_folder ${CMAKE_BINARY_DIR}/bin)
 else()
-    set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
+    set(output_folder ${CMAKE_BINARY_DIR}/bin)
 endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
@@ -1403,7 +1465,7 @@ endif()
 
 if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
-    init_target(Updater)
+    init_non_host_target(Updater)
 
     add_dependencies(Telegram Updater)
 
@@ -1415,7 +1477,9 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         _other/updater.h
     )
 
-    set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
+    set_target_properties(Updater PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+    )
 
     if (WIN32)
         get_filename_component(lib_base_loc lib_base REALPATH)
@@ -1461,12 +1525,26 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
 
         set_target_properties(Packer PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
     endif()
+elseif (build_winstore)
+    add_executable(StartupTask WIN32)
+    init_non_host_target(StartupTask)
+
+    add_dependencies(Telegram StartupTask)
+
+    nice_target_sources(StartupTask ${src_loc}
+    PRIVATE
+        _other/startup_task_win.cpp
+    )
+
+    set_target_properties(StartupTask PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+    )
 endif()
 
 if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     include(GNUInstallDirs)
-    configure_file("../lib/xdg/telegramdesktop.appdata.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.appdata.xml" @ONLY)
-    generate_appdata_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.appdata.xml")
+    configure_file("../lib/xdg/telegramdesktop.metainfo.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.metainfo.xml" @ONLY)
+    generate_appdata_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.metainfo.xml")
     install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
     install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "telegram.png")
@@ -1476,5 +1554,5 @@ if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     install(FILES "Resources/art/icon256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "telegram.png")
     install(FILES "../lib/xdg/telegramdesktop.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" RENAME "${TDESKTOP_LAUNCHER_BASENAME}.desktop")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" RENAME "${TDESKTOP_LAUNCHER_BASENAME}.appdata.xml")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" RENAME "${TDESKTOP_LAUNCHER_BASENAME}.metainfo.xml")
 endif()

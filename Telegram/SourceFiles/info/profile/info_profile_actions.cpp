@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h" // LocationClickHandler.
 #include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/abstract_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"

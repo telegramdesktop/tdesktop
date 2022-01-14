@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/peer_list_box.h"
-#include "boxes/confirm_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "apiwrap.h"
 #include "facades.h"
@@ -63,12 +64,12 @@ Controller::Controller(
 , _chat(chat)
 , _chats(std::move(chats))
 , _callback(std::move(callback)) {
-	base::ObservableViewer(
-		channel->session().api().fullPeerUpdated()
-	) | rpl::start_with_next([=](PeerData *peer) {
-		if (peer == _waitForFull) {
-			choose(std::exchange(_waitForFull, nullptr));
-		}
+	channel->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::FullInfo
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer == _waitForFull);
+	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		choose(std::exchange(_waitForFull, nullptr));
 	}, lifetime());
 }
 
@@ -152,7 +153,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		onstack(chat);
 	};
 	Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
@@ -184,7 +185,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
 	Ui::show(
-		Box<ConfirmBox>(
+		Box<Ui::ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
