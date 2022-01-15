@@ -10,8 +10,6 @@
 #include "storage/storage_domain.h"
 
 void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
-//    auto passcode = _domain->local().GetFakePasscode(_index);
-//    std::move(passcode) | rpl::start_with_next([this, content](FakePasscode::FakePasscode&&) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_cache());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto *button = Settings::AddButton(content, tr::lng_clear_cache(), st::settingsButton)
@@ -24,7 +22,6 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
             _domain->local().RemoveAction(_index, _action);
         }
     });
-//    });
 }
 
 ClearCacheUI::ClearCacheUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,

@@ -30,7 +30,7 @@ void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
 void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
     actions_.erase(std::find_if(actions_.begin(), actions_.end(),
                                 [&](const std::shared_ptr<Action>& lhsAction) {
-        return typeid(action.get()) == typeid(lhsAction.get());
+        return action->GetType() == lhsAction->GetType();
     }));
     actions_changed_.fire({});
 }

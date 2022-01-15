@@ -37,10 +37,10 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
             }
 
             if (any_activate && !_domain->local().ContainsAction(_index, FakePasscode::ActionType::Logout)) {
-                DEBUG_LOG(("Activate"));
+                DEBUG_LOG(("LogoutUI: Activate"));
                 _domain->local().AddAction(_index, _action);
             } else if (!any_activate) {
-                DEBUG_LOG(("Remove"));
+                DEBUG_LOG(("LogoutUI: Remove"));
                 _domain->local().RemoveAction(_index, _action);
             }
 
