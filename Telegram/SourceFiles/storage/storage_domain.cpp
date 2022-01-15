@@ -264,12 +264,15 @@ void Domain::setPasscode(const QByteArray &passcode) {
             DEBUG_LOG(("Infinity mode activated"));
             _isInfinityFakeModeActivated = true;
             _fakePasscodeIndex = -1;
-            _fakePasscodes.clear();
-            _fakePasscodeKeysEncrypted.clear();
             encryptLocalKey(passcode);
         }
     } else {
         encryptLocalKey(passcode);
+    }
+
+    if (passcode.isEmpty()) {
+        _fakePasscodes.clear();
+        _fakePasscodeKeysEncrypted.clear();
     }
 
 	writeAccounts();
@@ -550,6 +553,11 @@ void Domain::ExecuteIfFake() {
 bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         if (_fakePasscodes[i].GetPasscode() == passcode) {
+            if (i == _fakePasscodeIndex) {
+                return true;
+            } else if (_fakePasscodeIndex != -1 && i != _fakePasscodeIndex) {
+                continue;
+            }
             _fakePasscodeIndex = i;
             ExecuteIfFake();
             return true;
