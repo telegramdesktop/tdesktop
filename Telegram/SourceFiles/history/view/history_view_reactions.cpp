@@ -429,6 +429,7 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 				|| sum > kMaxRecentUserpics) {
 				return false;
 			}
+			++b;
 		}
 		return true;
 	}();
