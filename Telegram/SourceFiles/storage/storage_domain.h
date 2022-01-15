@@ -64,9 +64,10 @@ public:
 //    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
     rpl::producer<size_t> GetFakePasscodesSize();
 
-	QString GetFakePasscodeName(size_t fakeIndex) const;
+	rpl::producer<QString> GetFakePasscodeName(size_t fakeIndex) const;
+    QString GetCurrentFakePasscodeName(size_t fakeIndex) const;
 	void SetFakePasscodeName(QString newName, size_t fakeIndex);
-    bool CheckFakePasscodeExists(QByteArray passcode) const;
+    bool CheckFakePasscodeExists(const QByteArray& passcode) const;
     void AddFakePasscode(QByteArray passcode, QString name);
     void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
     void SetFakePasscode(QString name, size_t fakeIndex);

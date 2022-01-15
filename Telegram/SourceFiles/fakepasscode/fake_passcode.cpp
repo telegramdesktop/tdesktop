@@ -24,7 +24,7 @@ const QByteArray& FakePasscode::FakePasscode::GetSalt() const {
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
     actions_.push_back(std::move(action));
-    actions_changed_.fire({});
+    state_changed_.fire({});
 }
 
 void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
@@ -32,7 +32,7 @@ void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
                                 [&](const std::shared_ptr<Action>& lhsAction) {
         return action->GetType() == lhsAction->GetType();
     }));
-    actions_changed_.fire({});
+    state_changed_.fire({});
 }
 
 const std::shared_ptr<FakePasscode::Action>& FakePasscode::FakePasscode::operator[](size_t index) const {
@@ -43,7 +43,7 @@ rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::
     return rpl::single(
             actions_
     ) | rpl::then(
-            actions_changed_.events() | rpl::map([=] { return actions_; }));
+            state_changed_.events() | rpl::map([=] { return actions_; }));
 }
 
 void FakePasscode::FakePasscode::Execute() {
@@ -120,12 +120,16 @@ bool FakePasscode::FakePasscode::operator!=(const FakePasscode &other) const {
     return !(*this == other);
 }
 
-const QString &FakePasscode::FakePasscode::GetName() const {
-    return name_;
+rpl::producer<QString> FakePasscode::FakePasscode::GetName() const {
+    return rpl::single(
+            name_
+    ) | rpl::then(
+            state_changed_.events() | rpl::map([=] { return name_; }));
 }
 
 void FakePasscode::FakePasscode::SetName(QString name) {
     name_ = std::move(name);
+    state_changed_.fire({});
 }
 
 FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
@@ -133,7 +137,7 @@ FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
 , fake_passcode_(std::move(passcode.fake_passcode_))
 , actions_(std::move(passcode.actions_))
 , name_(std::move(passcode.name_))
-, actions_changed_(std::move(passcode.actions_changed_)) {
+, state_changed_(std::move(passcode.state_changed_)) {
 }
 
 FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&& passcode) noexcept {
@@ -145,7 +149,7 @@ FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&&
     fake_passcode_ = std::move(passcode.fake_passcode_);
     actions_ = std::move(passcode.actions_);
     name_ = std::move(passcode.name_);
-    actions_changed_ = std::move(passcode.actions_changed_);
+    state_changed_ = std::move(passcode.state_changed_);
 
     return *this;
 }
@@ -167,4 +171,8 @@ std::shared_ptr<FakePasscode::Action> FakePasscode::FakePasscode::GetAction(Acti
     }
 
     return nullptr;
+}
+
+const QString &FakePasscode::FakePasscode::GetCurrentName() const {
+    return name_;
 }

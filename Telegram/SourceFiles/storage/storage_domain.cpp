@@ -192,7 +192,7 @@ void Domain::writeAccounts() {
     for (const auto& fakePasscode : _fakePasscodes) {
         QByteArray curSerializedActions = fakePasscode.SerializeActions();
         auto fakePass = fakePasscode.GetPasscode();
-        QByteArray name = fakePasscode.GetName().toUtf8();
+        QByteArray name = fakePasscode.GetCurrentName().toUtf8();
         serializedSize += curSerializedActions.size() + fakePass.size() + name.size();
         serializedActions.push_back(std::move(curSerializedActions));
         fakePasscodes.push_back(std::move(fakePass));
@@ -483,10 +483,7 @@ void Domain::RemoveFakePasscode(const FakePasscode::FakePasscode& passcode) {
     RemoveFakePasscode(index);
 }
 
-QString Domain::GetFakePasscodeName(size_t fakeIndex) const {
-    if (fakeIndex >= _fakePasscodes.size()) {
-        return "";
-    }
+rpl::producer<QString> Domain::GetFakePasscodeName(size_t fakeIndex) const {
     return _fakePasscodes[fakeIndex].GetName();
 }
 
@@ -517,7 +514,7 @@ rpl::producer<size_t> Domain::GetFakePasscodesSize() {
             _fakePasscodeChanged.events() | rpl::map([=] { return _fakePasscodes.size(); }));
 }
 
-bool Domain::CheckFakePasscodeExists(QByteArray passcode) const {
+bool Domain::CheckFakePasscodeExists(const QByteArray& passcode) const {
     for (const auto& existed_passcode: _fakePasscodes) {
         if (existed_passcode.GetPasscode() == passcode) {
             return true;
@@ -594,6 +591,13 @@ std::shared_ptr<FakePasscode::Action> Domain::GetAction(size_t index, FakePassco
 
 void Domain::UpdateAction(size_t index, std::shared_ptr<FakePasscode::Action> action) {
     _fakePasscodes[index].UpdateAction(std::move(action));
+}
+
+QString Domain::GetCurrentFakePasscodeName(size_t fakeIndex) const {
+    if (fakeIndex >= _fakePasscodes.size()) {
+        return "";
+    }
+    return _fakePasscodes[fakeIndex].GetCurrentName();
 }
 
 } // namespace Storage

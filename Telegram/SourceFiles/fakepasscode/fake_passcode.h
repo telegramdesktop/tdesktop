@@ -27,7 +27,8 @@ namespace FakePasscode {
       [[nodiscard]] QByteArray GetPasscode() const;
       void SetPasscode(QByteArray passcode);
 
-      const QString &GetName() const;
+      rpl::producer<QString> GetName() const;
+      const QString& GetCurrentName() const;
       void SetName(QString name);
 
       bool CheckPasscode(const QByteArray& passcode) const;
@@ -58,7 +59,7 @@ namespace FakePasscode {
       std::vector<std::shared_ptr<Action>> actions_;
       QString name_;
 
-      rpl::event_stream<> actions_changed_;
+      rpl::event_stream<> state_changed_;
   };
 }
 

@@ -111,7 +111,7 @@ void FakePasscodeBox::prepare() {
     _passwordHint->hide();
     _passwordName->setVisible(!onlyCheck);
     if (!_turningOn) {
-        _passwordName->setText(_session->domain().local().GetFakePasscodeName(_fakeIndex));
+        _passwordName->setText(_session->domain().local().GetCurrentFakePasscodeName(_fakeIndex));
     }
 }
 

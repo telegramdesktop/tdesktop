@@ -113,7 +113,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     using namespace Settings;
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     for (size_t i = 0; i < passcodesSize; ++i) {
-        AddButton(content, tr::lng_fakepasscode(lt_caption, rpl::single(_domain->local().GetFakePasscodeName(i))),
+        AddButton(content, tr::lng_fakepasscode(lt_caption, _domain->local().GetFakePasscodeName(i)),
                   st::settingsButton)->addClickHandler([this, i]{
             _controller->show(Box<FakePasscodeContentBox>(_domain, _controller, i),
                               Ui::LayerOption::KeepOther);
