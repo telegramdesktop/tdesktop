@@ -1,4 +1,4 @@
-3.4.4 beta
+3.4.4 beta (14.01.21)
 
 - Nice animations in reactions.
 
