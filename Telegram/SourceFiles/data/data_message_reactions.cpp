@@ -279,44 +279,48 @@ void Reactions::request() {
 		MTP_int(_hash)
 	)).done([=](const MTPmessages_AvailableReactions &result) {
 		_requestId = 0;
-		const auto oldCache = base::take(_iconsCache);
-		const auto toCache = [&](DocumentData *document) {
-			if (document) {
-				_iconsCache.emplace(document, document->createMediaView());
-			}
-		};
 		result.match([&](const MTPDmessages_availableReactions &data) {
-			_hash = data.vhash().v;
-
-			const auto &list = data.vreactions().v;
-			_active.clear();
-			_available.clear();
-			_active.reserve(list.size());
-			_available.reserve(list.size());
-			_iconsCache.reserve(list.size() * 2);
-			for (const auto &reaction : list) {
-				if (const auto parsed = parse(reaction)) {
-					_available.push_back(*parsed);
-					if (parsed->active) {
-						_active.push_back(*parsed);
-						toCache(parsed->appearAnimation);
-						toCache(parsed->selectAnimation);
-						toCache(parsed->centerIcon);
-						toCache(parsed->aroundAnimation);
-					}
-				}
-			}
-			if (_waitingForList) {
-				_waitingForList = false;
-				resolveImages();
-			}
-			_updated.fire({});
+			updateFromData(data);
 		}, [&](const MTPDmessages_availableReactionsNotModified &) {
 		});
 	}).fail([=] {
 		_requestId = 0;
 		_hash = 0;
 	}).send();
+}
+
+void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
+	_hash = data.vhash().v;
+
+	const auto &list = data.vreactions().v;
+	const auto oldCache = base::take(_iconsCache);
+	const auto toCache = [&](DocumentData *document) {
+		if (document) {
+			_iconsCache.emplace(document, document->createMediaView());
+		}
+	};
+	_active.clear();
+	_available.clear();
+	_active.reserve(list.size());
+	_available.reserve(list.size());
+	_iconsCache.reserve(list.size() * 4);
+	for (const auto &reaction : list) {
+		if (const auto parsed = parse(reaction)) {
+			_available.push_back(*parsed);
+			if (parsed->active) {
+				_active.push_back(*parsed);
+				toCache(parsed->appearAnimation);
+				toCache(parsed->selectAnimation);
+				toCache(parsed->centerIcon);
+				toCache(parsed->aroundAnimation);
+			}
+		}
+	}
+	if (_waitingForList) {
+		_waitingForList = false;
+		resolveImages();
+	}
+	_updated.fire({});
 }
 
 std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {

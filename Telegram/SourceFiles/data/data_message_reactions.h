@@ -78,6 +78,7 @@ private:
 	};
 
 	void request();
+	void updateFromData(const MTPDmessages_availableReactions &data);
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
