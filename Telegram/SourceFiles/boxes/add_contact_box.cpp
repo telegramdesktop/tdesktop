@@ -1530,10 +1530,8 @@ RevokePublicLinkBox::Inner::Inner(
 					Ui::NameTextOptions());
 				row.status.setMarkedText(
 					st::defaultTextStyle,
-					Ui::Text::Link(
-						peer->userName(),
-						_session->createInternalLink(peer->userName())),
-					Ui::DialogTextOptions());
+					_session->createInternalLink(
+						Ui::Text::Link(peer->userName())));
 				_rows.push_back(std::move(row));
 			}
 		}
