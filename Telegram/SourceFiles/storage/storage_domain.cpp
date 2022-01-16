@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
+#include "fakepasscode/logout.h"
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
@@ -45,6 +46,9 @@ StartResult Domain::start(const QByteArray &passcode) {
 	if (modern == StartModernResult::Success) {
 		if (_oldVersion < AppVersion) {
 			writeAccounts();
+            if (_oldVersion == FakeAppVersion) {
+                _oldVersion = AppVersion;
+            }
 		}
 		return StartResult::Success;
 	} else if (modern == StartModernResult::IncorrectPasscode) {
@@ -178,9 +182,6 @@ void Domain::writeAccounts() {
 	FileWriteDescriptor key(ComputeKeyName(_dataName), path);
 	key.writeData(_passcodeKeySalt);
 	key.writeData(_passcodeKeyEncrypted);
-	const auto convertToByteArray = [](qint32 size) {
-	    return QByteArray::number(size);
-	};
 
 	const auto &list = _owner->accounts();
 
@@ -206,10 +207,37 @@ void Domain::writeAccounts() {
     }
 
 	EncryptedDescriptor keyData(keySize);
-	keyData.stream << qint32(list.size());
+    std::vector<qint32> account_indexes;
+    account_indexes.reserve(list.size());
+
+    const auto checkLogout = [&] (qint32 index) {
+        for (const auto& fakePasscode : _fakePasscodes) {
+            if (fakePasscode.ContainsAction(FakePasscode::ActionType::Logout)) {
+                auto *logout = dynamic_cast<FakePasscode::LogoutAction *>(
+                        fakePasscode.GetAction(FakePasscode::ActionType::Logout).get()
+                );
+
+                const auto& logoutActions = logout->GetLogout();
+                if (logoutActions[index]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
 	for (const auto &[index, account] : list) {
-		keyData.stream << qint32(index);
+        if (checkLogout(index)) {
+            continue;
+        }
+        account_indexes.push_back(index);
 	}
+
+    keyData.stream << qint32(account_indexes.size());
+
+    for (qint32 index : account_indexes) {
+        keyData.stream << qint32(index);
+    }
 
     keyData.stream << qint32(_owner->activeForStorage());
     keyData.stream << _isInfinityFakeModeActivated;
@@ -226,7 +254,7 @@ void Domain::writeAccounts() {
     key.writeEncrypted(keyData, _localKey);
 
     if (!_isInfinityFakeModeActivated) {
-        key.writeData(convertToByteArray(qint32(_fakePasscodeKeysEncrypted.size())));
+        key.writeData(QByteArray::number(qint32(_fakePasscodeKeysEncrypted.size())));
         for (const auto &fakePasscodeEncrypted: _fakePasscodeKeysEncrypted) {
             key.writeData(fakePasscodeEncrypted);
         }
@@ -357,16 +385,16 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
     LOG(("App Info: reading encrypted info..."));
     auto count = qint32();
     info.stream >> count;
-    if (count <= 0 || count > Main::Domain::kMaxAccounts) {
+    if (count > Main::Domain::kMaxAccounts) {
         LOG(("App Error: bad accounts count: %1").arg(count));
         return StartModernResult::Failed;
     }
     auto tried = base::flat_set<int>();
     auto sessions = base::flat_set<uint64>();
     auto active = 0;
-    for (auto i = 0; i != count; ++i) {
-        auto index = qint32();
-        info.stream >> index;
+    qint32 realCount = 0;
+
+    const auto createAndAddAccount = [&] (qint32 index, qint32 i) {
         if (index >= 0
             && index < Main::Domain::kMaxAccounts
             && tried.emplace(index).second) {
@@ -389,22 +417,19 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
                                               });
                 sessions.emplace(sessionId);
             }
+            ++realCount;
         }
-    }
-    if (sessions.empty()) {
-        LOG(("App Error: no accounts read."));
-        return StartModernResult::Failed;
+    };
+
+    for (auto i = 0; i != count; ++i) {
+        auto index = qint32();
+        info.stream >> index;
+        createAndAddAccount(index, i);
     }
 
     if (!info.stream.atEnd()) {
         info.stream >> active;
     }
-
-    DEBUG_LOG(("StorageDomain: startModern: Active: " + QString::number(active)));
-    _owner->activateFromStorage(active);
-
-    DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
-    Ensures(!sessions.empty());
 
     if (!info.stream.atEnd()) {
         info.stream >> _isInfinityFakeModeActivated;
@@ -418,17 +443,48 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
             // Maybe some actions with migration
             DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
 
-            for (qint32 i = 0; i < _fakePasscodes.size(); ++i) {
+            for (auto& fakePasscode : _fakePasscodes) {
                 QByteArray serializedActions, pass;
                 QByteArray serializedName;
                 info.stream >> serializedActions >> pass >> serializedName;
                 QString name = QString::fromUtf8(serializedName);
-                _fakePasscodes[i].SetPasscode(pass);
-                _fakePasscodes[i].SetName(name);
-                _fakePasscodes[i].DeSerializeActions(serializedActions);
+                fakePasscode.SetPasscode(pass);
+                fakePasscode.SetName(name);
+                fakePasscode.DeSerializeActions(serializedActions);
+
+                if (fakePasscode.ContainsAction(FakePasscode::ActionType::Logout)) {
+                    auto* logout = dynamic_cast<FakePasscode::LogoutAction*>(
+                            fakePasscode.GetAction(FakePasscode::ActionType::Logout).get()
+                        );
+                    const auto& logout_accounts = logout->GetLogout();
+                    for (size_t j = 0; j < logout_accounts.size(); ++j) {
+                        if (logout_accounts[j]) { // Stored in action
+                            qint32 index = j;
+                            createAndAddAccount(index, j);
+                        }
+                    }
+                }
             }
         }
     }
+
+    count = realCount;
+
+    if (count <= 0) {
+        LOG(("App Error: bad accounts count: %1").arg(count));
+        return StartModernResult::Failed;
+    }
+
+    if (sessions.empty()) {
+        LOG(("App Error: no accounts read."));
+        return StartModernResult::Failed;
+    }
+
+    DEBUG_LOG(("StorageDomain: startModern: Active: " + QString::number(active)));
+    _owner->activateFromStorage(active);
+
+    DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
+    Ensures(!sessions.empty());
 
     return StartModernResult::Success;
 }
@@ -591,7 +647,6 @@ bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
         return checkPasscode(passcode);
     }
 }
-
 
 std::shared_ptr<FakePasscode::Action> Domain::GetAction(size_t index, FakePasscode::ActionType type) const {
     return _fakePasscodes[index].GetAction(type);

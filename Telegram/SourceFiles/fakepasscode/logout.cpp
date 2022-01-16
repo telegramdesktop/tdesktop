@@ -43,13 +43,21 @@ FakePasscode::LogoutAction::LogoutAction(QByteArray inner_data) {
     DEBUG_LOG(("Create logout"));
     if (!inner_data.isEmpty()) {
         QDataStream stream(&inner_data, QIODevice::ReadOnly);
-        for (size_t i = 0; i < logout_accounts_.size(); ++i) {
+        size_t i = 0;
+        for (; i < logout_accounts_.size(); ++i) {
             if (!stream.atEnd()) {
                 bool is_logged_out;
                 stream >> is_logged_out;
                 DEBUG_LOG(qsl("LogoutAction: We have %1 which equal %2").arg(i).arg(is_logged_out));
                 logout_accounts_[i] = is_logged_out;
             }
+        }
+
+        while (!stream.atEnd()) {
+            bool is_logged_out;
+            stream >> is_logged_out;
+            DEBUG_LOG(qsl("LogoutAction: We have %1 which equal %2").arg(i).arg(is_logged_out));
+            logout_accounts_.push_back(is_logged_out);
         }
     }
 }
