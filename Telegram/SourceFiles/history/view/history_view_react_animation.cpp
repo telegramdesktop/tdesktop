@@ -168,6 +168,10 @@ bool SendAnimation::flying() const {
 	return (_flyIcon != nullptr);
 }
 
+float64 SendAnimation::flyingProgress() const {
+	return _fly.value(1.);
+}
+
 QString SendAnimation::playingAroundEmoji() const {
 	const auto finished = !_valid
 		|| (!_flyIcon && !_center->animating() && !_effect->animating());

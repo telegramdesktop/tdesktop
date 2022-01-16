@@ -37,6 +37,7 @@ public:
 
 	[[nodiscard]] QString playingAroundEmoji() const;
 	[[nodiscard]] bool flying() const;
+	[[nodiscard]] float64 flyingProgress() const;
 
 private:
 	void flyCallback();
