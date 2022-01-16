@@ -293,11 +293,11 @@ rpl::producer<bool> Session::termsLockValue() const {
 }
 
 QString Session::createInternalLink(const QString &query) const {
-	return createInternalLink({ .text = query }).text;
+	return createInternalLink(TextWithEntities{ .text = query }).text;
 }
 
 QString Session::createInternalLinkFull(const QString &query) const {
-	return createInternalLinkFull({ .text = query }).text;
+	return createInternalLinkFull(TextWithEntities{ .text = query }).text;
 }
 
 TextWithEntities Session::createInternalLink(
