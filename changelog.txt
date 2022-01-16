@@ -1,3 +1,8 @@
+3.4.5 beta (16.01.21)
+
+- Fix crash in monospace blocks processing.
+- Fix reaction animations stopping after an hour uptime.
+
 3.4.4 beta (14.01.21)
 
 - Nice animations in reactions.

@@ -66,6 +66,12 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Spoiler formatting hides text in chat, "
 		"as well as in the chat list and notifications.\n"
+	},
+	{
+		3004005,
+		"- Fix crash in monospace blocks processing.\n"
+
+		"- Fix reaction animations stopping after an hour uptime.\n"
 	}
 	};
 };
