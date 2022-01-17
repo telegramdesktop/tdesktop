@@ -1126,10 +1126,8 @@ void ShowWhoReactedMenu(
 	const auto reactions = &controller->session().data().reactions();
 	const auto &list = reactions->list(
 		Data::Reactions::Type::Active);
-	const auto active = ranges::contains(
-		list,
-		emoji,
-		&Data::Reaction::emoji);
+	const auto activeNonQuick = (emoji != reactions->favorite())
+		&& ranges::contains(list, emoji, &Data::Reaction::emoji);
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
 		participantChosen,
 		showAllChosen);
@@ -1143,7 +1141,7 @@ void ShowWhoReactedMenu(
 	}) | rpl::start_with_next([=, &lifetime](Ui::WhoReadContent &&content) {
 		const auto creating = !*menu;
 		const auto refill = [=] {
-			if (active) {
+			if (activeNonQuick) {
 				(*menu)->addAction(tr::lng_context_set_as_quick(tr::now), [=] {
 					reactions->setFavorite(emoji);
 				}, &st::menuIconFave);

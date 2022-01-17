@@ -177,7 +177,10 @@ public:
 		-> not_null<Ui::ReactionEffectPainter*>;
 	void recordCurrentReactionEffect(FullMsgId itemId, QPoint origin);
 
-	bool showContextMenu(QWidget *parent, QContextMenuEvent *e);
+	bool showContextMenu(
+		QWidget *parent,
+		QContextMenuEvent *e,
+		const QString &favorite);
 	[[nodiscard]] rpl::producer<QString> faveRequests() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {

@@ -1553,19 +1553,26 @@ void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
 	}
 }
 
-bool Manager::showContextMenu(QWidget *parent, QContextMenuEvent *e) {
+bool Manager::showContextMenu(
+		QWidget *parent,
+		QContextMenuEvent *e,
+		const QString &favorite) {
 	if (_icons.empty() || _selectedIcon < 0) {
 		return false;
+	}
+	const auto lookupSelectedEmoji = [&] {
+		const auto i = ranges::find(_icons, true, &ReactionIcons::selected);
+		return (i != end(_icons)) ? (*i)->emoji : QString();
+	};
+	if (!favorite.isEmpty() && lookupSelectedEmoji() == favorite) {
+		return true;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
 	const auto callback = [=] {
-		for (const auto &icon : _icons) {
-			if (icon->selected) {
-				_faveRequests.fire_copy(icon->emoji);
-				return;
-			}
+		if (const auto emoji = lookupSelectedEmoji(); !emoji.isEmpty()) {
+			_faveRequests.fire_copy(emoji);
 		}
 	};
 	_menu->addAction(

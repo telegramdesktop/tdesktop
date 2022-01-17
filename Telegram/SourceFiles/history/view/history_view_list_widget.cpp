@@ -2096,7 +2096,10 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto link = ClickHandler::getActive();
 	if (link
 		&& !link->property(kSendReactionEmojiProperty).toString().isEmpty()
-		&& _reactionsManager->showContextMenu(this, e)) {
+		&& _reactionsManager->showContextMenu(
+			this,
+			e,
+			session().data().reactions().favorite())) {
 		return;
 	}
 	const auto overItem = _overItemExact
