@@ -411,49 +411,45 @@ callBarSignalBars: CallSignalBars(callPanelSignalBars) {
 	color: callBarFg;
 }
 
-callTitleButton: IconButton {
-	width: 34px;
-	height: 30px;
-	iconPosition: point(0px, 0px);
-}
+callTitleButton: windowTitleButton;
 callTitleMinimizeIcon: icon {
-	{ "calls/calls_minimize_shadow", windowShadowFg },
-	{ "calls/calls_minimize_main", callNameFg },
+	{ "title_shadow_minimize", windowShadowFg },
+	{ "title_button_minimize", callNameFg },
 };
 callTitleMinimizeIconOver: icon {
-	{ size(34px, 30px), callBgButton },
-	{ size(34px, 30px), callMuteRipple },
-	{ "calls/calls_minimize_shadow", windowShadowFg },
-	{ "calls/calls_minimize_main", callNameFg },
+	{ windowTitleButtonSize, callBgButton },
+	{ windowTitleButtonSize, callMuteRipple },
+	{ "title_shadow_minimize", windowShadowFg },
+	{ "title_button_minimize", callNameFg },
 };
 callTitleMaximizeIcon: icon {
-	{ "calls/calls_maximize_shadow", windowShadowFg },
-	{ "calls/calls_maximize_main", callNameFg },
+	{ "title_shadow_maximize", windowShadowFg },
+	{ "title_button_maximize", callNameFg },
 };
 callTitleMaximizeIconOver: icon {
-	{ size(34px, 30px), callBgButton },
-	{ size(34px, 30px), callMuteRipple },
-	{ "calls/calls_maximize_shadow", windowShadowFg },
-	{ "calls/calls_maximize_main", callNameFg },
+	{ windowTitleButtonSize, callBgButton },
+	{ windowTitleButtonSize, callMuteRipple },
+	{ "title_shadow_maximize", windowShadowFg },
+	{ "title_button_maximize", callNameFg },
 };
 callTitleRestoreIcon: icon {
-	{ "calls/calls_restore_shadow", windowShadowFg },
-	{ "calls/calls_restore_main", callNameFg },
+	{ "title_shadow_restore", windowShadowFg },
+	{ "title_button_restore", callNameFg },
 };
 callTitleRestoreIconOver: icon {
-	{ size(34px, 30px), callBgButton },
-	{ size(34px, 30px), callMuteRipple },
-	{ "calls/calls_restore_shadow", windowShadowFg },
-	{ "calls/calls_restore_main", callNameFg },
+	{ windowTitleButtonSize, callBgButton },
+	{ windowTitleButtonSize, callMuteRipple },
+	{ "title_shadow_restore", windowShadowFg },
+	{ "title_button_restore", callNameFg },
 };
 callTitleCloseIcon: icon {
-	{ "calls/calls_close_shadow", windowShadowFg },
-	{ "calls/calls_close_main", callNameFg },
+	{ "title_shadow_close", windowShadowFg },
+	{ "title_button_close", callNameFg },
 };
 callTitleCloseIconOver: icon {
-	{ size(34px, 30px), titleButtonCloseBgOver },
-	{ "calls/calls_close_shadow", windowShadowFg },
-	{ "calls/calls_close_main", titleButtonCloseFgOver },
+	{ windowTitleButtonSize, titleButtonCloseBgOver },
+	{ "title_shadow_close", windowShadowFg },
+	{ "title_button_close", titleButtonCloseFgOver },
 };
 callTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
