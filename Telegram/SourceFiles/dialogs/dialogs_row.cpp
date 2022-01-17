@@ -46,7 +46,7 @@ namespace {
 			.entities = (history->unreadCount() > 0)
 				? EntitiesInText{
 					{ EntityType::Semibold, 0, int(name.size()), QString() },
-					{ EntityType::CustomUrl, 0, int(name.size()), QString() },
+					{ EntityType::PlainLink, 0, int(name.size()), QString() },
 				}
 				: EntitiesInText{}
 		};
@@ -293,7 +293,8 @@ void Row::validateListEntryCache() const {
 	_listEntryCache.setMarkedText(
 		st::dialogsTextStyle,
 		ComposeFolderListEntryText(folder),
-		Ui::DialogTextOptions());
+		// Use rich options as long as the entry text does not have user text.
+		Ui::ItemTextDefaultOptions());
 }
 
 FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
