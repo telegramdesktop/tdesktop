@@ -794,11 +794,17 @@ void HistoryItem::addReaction(const QString &reaction) {
 void HistoryItem::toggleReaction(const QString &reaction) {
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
+		const auto canViewReactions = !isDiscussionPost()
+			&& (history()->peer->isChat() || history()->peer->isMegagroup());
+		if (canViewReactions) {
+			_flags |= MessageFlag::CanViewReactions;
+		}
 		_reactions->add(reaction);
 	} else if (_reactions->chosen() == reaction) {
 		_reactions->remove();
 		if (_reactions->empty()) {
 			_reactions = nullptr;
+			_flags &= ~MessageFlag::CanViewReactions;
 			history()->owner().notifyItemDataChange(this);
 		}
 	} else {
