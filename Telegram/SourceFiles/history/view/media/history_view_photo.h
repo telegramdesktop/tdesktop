@@ -135,7 +135,7 @@ private:
 		const PaintContext &context,
 		QPoint photoPosition) const;
 
-	not_null<PhotoData*> _data;
+	const not_null<PhotoData*> _data;
 	int _serviceWidth = 0;
 	int _pixw = 1;
 	int _pixh = 1;

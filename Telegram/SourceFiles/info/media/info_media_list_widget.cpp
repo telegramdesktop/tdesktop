@@ -1593,17 +1593,13 @@ void ListWidget::showContextMenu(
 		},
 		&st::menuIconShowInChat);
 
-	const auto lnkPhotoId = PhotoId(link
-		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkDocumentId = DocumentId(link
-		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkPhoto = lnkPhotoId
-		? session().data().photo(lnkPhotoId).get()
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
 		: nullptr;
-	const auto lnkDocument = lnkDocumentId
-		? session().data().document(lnkDocumentId).get()
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
 	if (lnkPhoto || lnkDocument) {
 		auto [isVideo, isVoice, isAudio] = [&] {

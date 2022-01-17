@@ -2066,13 +2066,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
-	const auto lnkPhotoId = PhotoId(link
-		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkDocumentId = DocumentId(link
-		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
-		: 0);
-	if (lnkPhotoId || lnkDocumentId) {
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
+		: nullptr;
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
+		: nullptr;
+	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		if (isUponSelected > 0 && !hasCopyRestrictionForSelected()) {
@@ -2084,10 +2086,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&st::menuIconCopy);
 		}
 		addItemActions(item, item);
-		if (lnkPhotoId) {
-			addPhotoActions(session->data().photo(lnkPhotoId), item);
+		if (lnkPhoto) {
+			addPhotoActions(lnkPhoto, item);
 		} else {
-			addDocumentActions(session->data().document(lnkDocumentId), item);
+			addDocumentActions(lnkDocument, item);
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {

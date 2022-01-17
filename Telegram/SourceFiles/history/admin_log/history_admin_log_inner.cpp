@@ -1169,17 +1169,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto view = App::hoveredItem()
 		? App::hoveredItem()
 		: App::hoveredLinkItem();
-	const auto lnkPhotoId = PhotoId(link
-		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkDocumentId = DocumentId(link
-		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkPhoto = lnkPhotoId
-		? session().data().photo(lnkPhotoId).get()
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
 		: nullptr;
-	const auto lnkDocument = lnkDocumentId
-		? session().data().document(lnkDocumentId).get()
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
 	auto lnkIsVideo = lnkDocument ? lnkDocument->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->isVoiceMessage() : false;

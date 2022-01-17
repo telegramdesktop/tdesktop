@@ -923,17 +923,13 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto view = request.view;
 	const auto item = request.item;
 	const auto itemId = item ? item->fullId() : FullMsgId();
-	const auto lnkPhotoId = PhotoId(link
-		? link->property(kPhotoLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto lnkDocumentId = DocumentId(link
-		? link->property(kDocumentLinkMediaIdProperty).toULongLong()
-		: 0);
-	const auto photo = lnkPhotoId
-		? list->session().data().photo(lnkPhotoId).get()
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
 		: nullptr;
-	const auto document = lnkDocumentId
-		? list->session().data().document(lnkDocumentId).get()
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
 	const auto poll = item
 		? (item->media() ? item->media()->poll() : nullptr)
@@ -958,10 +954,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	}
 
 	AddTopMessageActions(result, request, list);
-	if (photo) {
-		AddPhotoActions(result, photo, item, list);
-	} else if (document) {
-		AddDocumentActions(result, document, item, list);
+	if (lnkPhoto) {
+		AddPhotoActions(result, lnkPhoto, item, list);
+	} else if (lnkDocument) {
+		AddDocumentActions(result, lnkDocument, item, list);
 	} else if (poll) {
 		AddPollActions(result, poll, item, list->elementContext());
 	} else if (!request.overSelection && view && !hasSelection) {

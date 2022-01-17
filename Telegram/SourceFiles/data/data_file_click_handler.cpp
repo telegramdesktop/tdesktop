@@ -46,8 +46,8 @@ DocumentClickHandler::DocumentClickHandler(
 : FileClickHandler(context)
 , _document(document) {
 	setProperty(
-		kDocumentLinkMediaIdProperty,
-		QVariant(qulonglong(_document->id)));
+		kDocumentLinkMediaProperty,
+		reinterpret_cast<qulonglong>(_document.get()));
 }
 
 DocumentOpenClickHandler::DocumentOpenClickHandler(
@@ -150,7 +150,9 @@ PhotoClickHandler::PhotoClickHandler(
 : FileClickHandler(context)
 , _photo(photo)
 , _peer(peer) {
-	setProperty(kPhotoLinkMediaIdProperty, QVariant(qulonglong(_photo->id)));
+	setProperty(
+		kPhotoLinkMediaProperty,
+		reinterpret_cast<qulonglong>(_photo.get()));
 }
 
 not_null<PhotoData*> PhotoClickHandler::photo() const {
