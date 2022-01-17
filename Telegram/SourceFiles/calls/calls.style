@@ -1055,37 +1055,37 @@ groupCallDelaySlider: MediaSlider(defaultContinuousSlider) {
 groupCallDelayMargin: margins(22px, 5px, 20px, 10px);
 
 groupCallTitleButton: IconButton {
-	width: 24px;
-	height: 21px;
+	width: windowTitleButtonWidth;
+	height: windowTitleHeight;
 	iconPosition: point(0px, 0px);
 }
 groupCallTitleMinimizeIcon: icon {
-	{ "title_button_minimize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+	{ "title_button_minimize", groupCallMemberNotJoinedStatus },
 };
 groupCallTitleMinimizeIconOver: icon {
-	{ size(24px, 21px), groupCallMembersBgOver },
-	{ "title_button_minimize", groupCallMembersFg, point(4px, 4px) },
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "title_button_minimize", groupCallMembersFg },
 };
 groupCallTitleMaximizeIcon: icon {
-	{ "title_button_maximize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+	{ "title_button_maximize", groupCallMemberNotJoinedStatus },
 };
 groupCallTitleMaximizeIconOver: icon {
-	{ size(24px, 21px), groupCallMembersBgOver },
-	{ "title_button_maximize", groupCallMembersFg, point(4px, 4px) },
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "title_button_maximize", groupCallMembersFg },
 };
 groupCallTitleRestoreIcon: icon {
-	{ "title_button_restore", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+	{ "title_button_restore", groupCallMemberNotJoinedStatus },
 };
 groupCallTitleRestoreIconOver: icon {
-	{ size(24px, 21px), groupCallMembersBgOver },
-	{ "title_button_restore", groupCallMembersFg, point(4px, 4px) },
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "title_button_restore", groupCallMembersFg },
 };
 groupCallTitleCloseIcon: icon {
-	{ "title_button_close", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+	{ "title_button_close", groupCallMemberNotJoinedStatus },
 };
 groupCallTitleCloseIconOver: icon {
-	{ size(24px, 21px), titleButtonCloseBgOver },
-	{ "title_button_close", titleButtonCloseFgOver, point(4px, 4px) },
+	{ windowTitleButtonSize, titleButtonCloseBgOver },
+	{ "title_button_close", titleButtonCloseFgOver },
 };
 groupCallTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
@@ -1199,7 +1199,7 @@ desktopCaptureSourceSkips: size(2px, 10px);
 desktopCaptureSourceTitle: WindowTitle(groupCallTitle) {
 	bg: groupCallMembersBgOver;
 	bgActive: groupCallMembersBgOver;
-	height: 21px;
+	height: windowTitleHeight;
 }
 desktopCapturePadding: margins(7px, 7px, 7px, 33px);
 desktopCaptureLabelBottom: 7px;
