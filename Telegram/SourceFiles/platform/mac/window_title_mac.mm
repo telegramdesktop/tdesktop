@@ -52,21 +52,27 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 	p.fillRect(titleRect, st::titleBgActive[palette]);
 	p.fillRect(titleRect.x(), titleRect.y() + titleRect.height() - st::lineWidth, titleRect.width(), st::lineWidth, st::titleShadow[palette]);
 
-	auto useSystemFont = false;
 	QFont font;
-	QStringList families = { qsl(".SF NS Text"), qsl("Helvetica Neue") };
+	const auto families = QStringList{
+		u".AppleSystemUIFont"_q,
+		u".SF NS Text"_q,
+		u"Helvetica Neue"_q,
+	};
 	for (auto family : families) {
 		font.setFamily(family);
 		if (QFontInfo(font).family() == font.family()) {
-			useSystemFont = true;
 			break;
 		}
 	}
 
-	if (useSystemFont) {
-		font.setPixelSize((titleHeight * 15) / 24);
+	if (QFontInfo(font).family() != font.family()) {
+		font = st::semiboldFont;
+		font.setPixelSize(13);
+	} else if (font.family() == u".AppleSystemUIFont"_q) {
+		font.setBold(true);
+		font.setPixelSize(13);
 	} else {
-		font = st::normalFont;
+		font.setPixelSize((titleHeight * 15) / 24);
 	}
 
 	p.setPen(st::titleFgActive[palette]);
