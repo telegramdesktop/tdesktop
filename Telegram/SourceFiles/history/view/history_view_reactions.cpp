@@ -201,6 +201,7 @@ QSize InlineList::countOptimalSize() {
 }
 
 QSize InlineList::countCurrentSize(int newWidth) {
+	_data.flags &= ~Data::Flag::Flipped;
 	if (_buttons.empty()) {
 		return optimalSize();
 	}
@@ -246,6 +247,7 @@ int InlineList::countNiceWidth() const {
 }
 
 void InlineList::flipToRight() {
+	_data.flags |= Data::Flag::Flipped;
 	for (auto &button : _buttons) {
 		button.geometry.moveLeft(
 			width() - button.geometry.x() - button.geometry.width());
@@ -274,6 +276,7 @@ void InlineList::paint(
 	const auto animated = (_animation && context.reactionEffects)
 		? _animation->playingAroundEmoji()
 		: QString();
+	const auto flipped = (_data.flags & Data::Flag::Flipped);
 	if (_animation && context.reactionEffects && animated.isEmpty()) {
 		_animation = nullptr;
 	}
@@ -315,7 +318,12 @@ void InlineList::paint(
 				p.setBrush(chosen ? st->msgServiceFg() : st->msgServiceBg());
 			}
 			const auto radius = geometry.height() / 2.;
-			const auto fill = geometry.marginsAdded({ 0, 0, bubbleSkip, 0 });
+			const auto fill = geometry.marginsAdded({
+				flipped ? bubbleSkip : 0,
+				0,
+				flipped ? 0 : bubbleSkip,
+				0,
+			});
 			p.drawRoundedRect(fill, radius, radius);
 			if (inbubble && !chosen) {
 				p.setOpacity(bubbleProgress);
@@ -341,7 +349,7 @@ void InlineList::paint(
 			continue;
 		}
 		resolveUserpicsImage(button);
-		const auto left = inner.x() + bubbleSkip;
+		const auto left = inner.x() + (flipped ? 0 : bubbleSkip);
 		if (button.userpics) {
 			p.drawImage(
 				left + size + st::reactionInlineUserpicsPadding.left(),
