@@ -2030,7 +2030,6 @@ void HistoryWidget::showHistory(
 		_membersDropdown.destroy();
 		_scrollToAnimation.stop();
 
-		clearAllLoadRequests();
 		setHistory(nullptr);
 		_list = nullptr;
 		_peer = nullptr;
@@ -2241,10 +2240,6 @@ void HistoryWidget::setHistory(History *history) {
 		return;
 	}
 
-	const auto wasHistory = base::take(_history);
-	const auto wasMigrated = base::take(_migrated);
-
-	// Unload lottie animations.
 	const auto unloadHeavyViewParts = [](History *history) {
 		if (history) {
 			history->owner().unloadHeavyViewParts(
@@ -2252,13 +2247,19 @@ void HistoryWidget::setHistory(History *history) {
 			history->forceFullResize();
 		}
 	};
-	unloadHeavyViewParts(wasHistory);
-	unloadHeavyViewParts(wasMigrated);
-
-	unregisterDraftSources();
-	_history = history;
-	_migrated = _history ? _history->migrateFrom() : nullptr;
-	registerDraftSource();
+	if (_history) {
+		unregisterDraftSources();
+		clearAllLoadRequests();
+		const auto wasHistory = base::take(_history);
+		const auto wasMigrated = base::take(_migrated);
+		unloadHeavyViewParts(wasHistory);
+		unloadHeavyViewParts(wasMigrated);
+	}
+	if (history) {
+		_history = history;
+		_migrated = _history ? _history->migrateFrom() : nullptr;
+		registerDraftSource();
+	}
 }
 
 void HistoryWidget::unregisterDraftSources() {
@@ -7412,6 +7413,7 @@ HistoryWidget::~HistoryWidget() {
 		session().api().saveDraftToCloudDelayed(_history);
 
 		clearAllLoadRequests();
+		setHistory(nullptr);
 		unregisterDraftSources();
 	}
 	setTabbedPanel(nullptr);
