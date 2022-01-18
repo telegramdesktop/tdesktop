@@ -72,6 +72,12 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix crash in monospace blocks processing.\n"
 
 		"- Fix reaction animations stopping after an hour uptime.\n"
+	},
+	{
+		3004006,
+		"- Add snap layouts support on Windows 11.\n"
+		
+		"- Fix crash in drafts after accounts switching.\n"
 	}
 	};
 };
