@@ -334,7 +334,7 @@ struct State {
 			}
 		}
 		reacted.read = std::move(read.list);
-		return reacted;
+		return std::move(reacted);
 	});
 }
 
