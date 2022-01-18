@@ -128,7 +128,7 @@ void InlineList::setButtonUserpics(
 	if (!button.userpics) {
 		button.userpics = std::make_unique<Userpics>();
 	}
-	const auto count = int(users.size());
+	const auto count = button.count = int(users.size());
 	auto &list = button.userpics->list;
 	const auto regenerate = [&] {
 		if (list.size() != count) {

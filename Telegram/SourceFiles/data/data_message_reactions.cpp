@@ -500,7 +500,8 @@ void MessageReactions::add(const QString &reaction) {
 	_chosen = reaction;
 	if (!reaction.isEmpty()) {
 		if (_item->canViewReactions()) {
-			_recent[reaction].push_back(self);
+			auto &list = _recent[reaction];
+			list.insert(begin(list), self);
 		}
 		++_list[reaction];
 	}
