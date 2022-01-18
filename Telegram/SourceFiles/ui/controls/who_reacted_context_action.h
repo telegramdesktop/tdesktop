@@ -42,6 +42,7 @@ struct WhoReadContent {
 	WhoReadType type = WhoReadType::Seen;
 	QString singleReaction;
 	int fullReactionsCount = 0;
+	int fullReadCount = 0;
 	bool unknown = false;
 };
 

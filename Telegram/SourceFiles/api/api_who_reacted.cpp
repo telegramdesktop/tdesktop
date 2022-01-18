@@ -52,12 +52,14 @@ inline bool operator==(
 struct PeersWithReactions {
 	std::vector<PeerWithReaction> list;
 	int fullReactionsCount = 0;
+	int fullReadCount = 0;
 	bool unknown = false;
 };
 inline bool operator==(
 		const PeersWithReactions &a,
 		const PeersWithReactions &b) noexcept {
 	return (a.fullReactionsCount == b.fullReactionsCount)
+		&& (a.fullReadCount == b.fullReadCount)
 		&& (a.list == b.list)
 		&& (a.unknown == b.unknown);
 }
@@ -249,6 +251,7 @@ struct State {
 		.list = peers.list | ranges::views::transform([](PeerId peer) {
 			return PeerWithReaction{.peer = peer };
 		}) | ranges::to_vector,
+		.fullReadCount = int(peers.list.size()),
 		.unknown = peers.unknown,
 	};
 }
@@ -324,6 +327,7 @@ struct State {
 			return PeersWithReactions{ .unknown = true };
 		}
 		auto &list = reacted.list;
+		reacted.fullReadCount = int(read.list.size());
 		for (const auto &peer : read.list) {
 			if (!ranges::contains(list, peer, &PeerWithReaction::peer)) {
 				list.push_back({ .peer = peer });
@@ -540,10 +544,12 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 				consumer.put_next(Ui::WhoReadContent{
 					.type = state->current.type,
 					.fullReactionsCount = state->current.fullReactionsCount,
+					.fullReadCount = state->current.fullReadCount,
 					.unknown = true,
 				});
 				return;
 			}
+			state->current.fullReadCount = peers.fullReadCount;
 			state->current.fullReactionsCount = peers.fullReactionsCount;
 			if (UpdateUserpics(state, item, peers.list)) {
 				RegenerateParticipants(state, small, large);

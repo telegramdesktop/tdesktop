@@ -16,6 +16,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
+namespace Lang {
+namespace {
+
+struct StringWithReacted {
+	QString text;
+	int seen = 0;
+};
+
+} // namespace
+
+template <typename ResultString>
+struct StartReplacements;
+
+template <>
+struct StartReplacements<StringWithReacted> {
+	static inline StringWithReacted Call(QString &&langString) {
+		return { std::move(langString) };
+	}
+};
+
+template <typename ResultString>
+struct ReplaceTag;
+
+template <>
+struct ReplaceTag<StringWithReacted> {
+	static StringWithReacted Call(
+		StringWithReacted &&original,
+		ushort tag,
+		const StringWithReacted &replacement);
+};
+
+StringWithReacted ReplaceTag<StringWithReacted>::Call(
+		StringWithReacted &&original,
+		ushort tag,
+		const StringWithReacted &replacement) {
+	const auto offset = FindTagReplacementPosition(original.text, tag);
+	if (offset < 0) {
+		return std::move(original);
+	}
+	original.text = ReplaceTag<QString>::Call(
+		std::move(original.text),
+		tag,
+		replacement.text + '/' + QString::number(original.seen));
+	return std::move(original);
+}
+
+} // namespace Lang
+
 namespace Ui {
 namespace {
 
@@ -79,6 +127,18 @@ TextParseOptions MenuTextOptions = {
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
+
+[[nodiscard]] QString FormatReactedString(int reacted, int seen) {
+	const auto projection = [&](const QString &text) {
+		return Lang::StringWithReacted{ text, seen };
+	};
+	return tr::lng_context_seen_reacted(
+		tr::now,
+		lt_count_short,
+		reacted,
+		projection
+	).text;
+}
 
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
@@ -177,10 +237,12 @@ void Action::resolveMinWidth() {
 		? tr::lng_context_seen_text(tr::now, lt_count, 999)
 		: QString();
 	const auto maxReacted = (_content.fullReactionsCount > 0)
-		? tr::lng_context_seen_reacted(
-			tr::now,
-			lt_count_short,
-			_content.fullReactionsCount)
+		? (!maxText.isEmpty()
+			? FormatReactedString(_content.fullReactionsCount, 999)
+			: tr::lng_context_seen_reacted(
+				tr::now,
+				lt_count_short,
+				_content.fullReactionsCount))
 		: QString();
 	const auto maxTextWidth = std::max(width(maxText), width(maxReacted));
 	const auto maxWidth = st::defaultWhoRead.itemPadding.left()
@@ -297,6 +359,11 @@ void Action::refreshText() {
 			? tr::lng_context_seen_loading(tr::now)
 			: (usersCount == 1)
 			? _content.participants.front().name
+			: (_content.fullReactionsCount > 0
+				&& _content.fullReactionsCount <= _content.fullReadCount)
+			? FormatReactedString(
+				_content.fullReactionsCount,
+				_content.fullReadCount)
 			: (_content.type == WhoReadType::Reacted
 				|| (count > 0 && _content.fullReactionsCount > usersCount))
 			? (count
