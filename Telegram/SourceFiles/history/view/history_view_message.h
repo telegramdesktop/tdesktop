@@ -91,6 +91,7 @@ public:
 	Reactions::ButtonParameters reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const override;
+	int reactionsOptimalWidth() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

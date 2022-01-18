@@ -26,6 +26,7 @@ namespace {
 constexpr auto kInNonChosenOpacity = 0.12;
 constexpr auto kOutNonChosenOpacity = 0.18;
 constexpr auto kMaxRecentUserpics = 3;
+constexpr auto kMaxNicePerRow = 5;
 
 [[nodiscard]] QColor AdaptChosenServiceFg(QColor serviceBg) {
 	serviceBg.setAlpha(std::max(serviceBg.alpha(), 192));
@@ -223,6 +224,25 @@ QSize InlineList::countCurrentSize(int newWidth) {
 	const auto right = last.x() + last.width() + _skipBlock.width();
 	const auto add = (right > newWidth) ? _skipBlock.height() : 0;
 	return { newWidth, height + add };
+}
+
+int InlineList::countNiceWidth() const {
+	const auto count = _data.reactions.size();
+	const auto rows = (count + kMaxNicePerRow - 1) / kMaxNicePerRow;
+	const auto columns = (count + rows - 1) / rows;
+	const auto between = st::reactionInlineBetween;
+	auto result = 0;
+	auto inrow = 0;
+	auto x = 0;
+	for (auto &button : _buttons) {
+		if (inrow++ >= columns) {
+			x = 0;
+			inrow = 0;
+		}
+		x += button.geometry.width() + between;
+		accumulate_max(result, x - between);
+	}
+	return result;
 }
 
 void InlineList::flipToRight() {

@@ -180,6 +180,7 @@ QSize Gif::countOptimalSize() {
 			forwarded->create(via);
 		}
 		maxWidth += additionalWidth(via, reply, forwarded);
+		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 	}
 	return { maxWidth, minHeight };
 }
@@ -232,6 +233,8 @@ QSize Gif::countCurrentSize(int newWidth) {
 			}
 		}
 	} else if (isSeparateRoundVideo()) {
+		accumulate_max(newWidth, _parent->reactionsOptimalWidth());
+
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
 		auto reply = _parent->displayedReply();
@@ -1191,9 +1194,10 @@ QRect Gif::contentRectForReactions() const {
 	const auto forwarded = item->Get<HistoryMessageForwarded>();
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
-		if (rightAligned) {
-			usex = width() - usew;
-		}
+	}
+	accumulate_max(usew, _parent->reactionsOptimalWidth());
+	if (rightAligned) {
+		usex = width() - usew;
 	}
 	if (rtl()) usex = width() - usex - usew;
 	return style::rtlrect(usex + paintx, painty, usew, painth, width());

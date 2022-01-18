@@ -55,6 +55,7 @@ public:
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] int countNiceWidth() const;
 	[[nodiscard]] int placeAndResizeGetHeight(QRect available);
 	void flipToRight();
 

@@ -57,6 +57,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 		}
 		const auto additional = additionalWidth(via, reply, forwarded);
 		maxWidth += additional;
+		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 		if (const auto surrounding = surroundingInfo(via, reply, forwarded, additional - st::msgReplyPadding.left())) {
 			const auto infoHeight = st::msgDateImgPadding.y() * 2
 				+ st::msgDateFont->height;
@@ -77,6 +78,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
+	accumulate_max(newWidth, _parent->reactionsOptimalWidth());
 	const auto isPageAttach = (_parent->media() != this);
 	if (!isPageAttach) {
 		const auto via = item->Get<HistoryMessageVia>();
@@ -416,9 +418,10 @@ QRect UnwrappedMedia::contentRectForReactions() const {
 	auto usew = maxWidth();
 	if (!inWebPage) {
 		usew -= additionalWidth(via, reply, forwarded);
-		if (rightAligned) {
-			usex = width() - usew;
-		}
+	}
+	accumulate_max(usew, _parent->reactionsOptimalWidth());
+	if (rightAligned) {
+		usex = width() - usew;
 	}
 	if (rtl()) {
 		usex = width() - usex - usew;
