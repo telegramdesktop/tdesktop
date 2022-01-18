@@ -352,6 +352,10 @@ void Action::paint(Painter &p) {
 
 void Action::refreshText() {
 	const auto usersCount = int(_content.participants.size());
+	const auto onlySeenCount = ranges::count(
+		_content.participants,
+		QString(),
+		&WhoReadParticipant::reaction);
 	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		_st.itemStyle,
@@ -365,7 +369,8 @@ void Action::refreshText() {
 				_content.fullReactionsCount,
 				_content.fullReadCount)
 			: (_content.type == WhoReadType::Reacted
-				|| (count > 0 && _content.fullReactionsCount > usersCount))
+				|| (count > 0 && _content.fullReactionsCount > usersCount)
+				|| (count > 0 && onlySeenCount == 0))
 			? (count
 				? tr::lng_context_seen_reacted(
 					tr::now,

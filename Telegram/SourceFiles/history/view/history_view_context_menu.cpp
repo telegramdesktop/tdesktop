@@ -1078,6 +1078,7 @@ void AddWhoReactedAction(
 		not_null<QWidget*> context,
 		not_null<HistoryItem*> item,
 		not_null<Window::SessionController*> controller) {
+	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
 	const auto participantChosen = [=](uint64 id) {
 		controller->showPeerInfo(PeerId(id));
 	};
@@ -1091,7 +1092,8 @@ void AddWhoReactedAction(
 			controller->window().show(ReactionsListBox(
 				controller,
 				item,
-				QString()));
+				QString(),
+				whoReadIds));
 		}
 	};
 	if (!menu->empty()) {
@@ -1099,7 +1101,7 @@ void AddWhoReactedAction(
 	}
 	menu->addAction(Ui::WhoReactedContextAction(
 		menu.get(),
-		Api::WhoReacted(item, context, st::defaultWhoRead),
+		Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
 		participantChosen,
 		showAllChosen));
 }

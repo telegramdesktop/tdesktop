@@ -926,6 +926,10 @@ whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
 reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};
+reactionsTabPlayed: icon {{ "menu/read_audio", windowFg }};
+reactionsTabPlayedSelected: icon {{ "menu/read_audio", activeButtonFg }};
+reactionsTabChecks: icon {{ "menu/read_ticks", windowFg }};
+reactionsTabChecksSelected: icon {{ "menu/read_ticks", activeButtonFg }};
 reactionsTabs: MultiSelect(defaultMultiSelect) {
 	padding: margins(12px, 10px, 12px, 10px);
 }
