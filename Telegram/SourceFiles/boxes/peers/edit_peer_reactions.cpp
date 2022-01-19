@@ -82,7 +82,7 @@ void AddReactionIcon(
 			crl::async([icon = std::move(state->icon)]{});
 		}
 		if (!state->image.isNull()) {
-			p.drawImage(0, 0, state->image);
+			p.drawImage(QRect(0, 0, size, size), state->image);
 		}
 	}, icon->lifetime());
 }
