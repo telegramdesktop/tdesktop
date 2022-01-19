@@ -595,7 +595,9 @@ void Widget::checkUpdateStatus() {
 
 	using Checker = Core::UpdateChecker;
 	if (Checker().state() == Checker::State::Ready) {
-		if (_updateTelegram) return;
+		if (_updateTelegram) {
+			return;
+		}
 		_updateTelegram.create(
 			this,
 			tr::lng_update_telegram(tr::now),
@@ -607,9 +609,13 @@ void Widget::checkUpdateStatus() {
 			Core::checkReadyUpdate();
 			App::restart();
 		});
-		_connecting->raise();
+		if (_connecting) {
+			_connecting->raise();
+		}
 	} else {
-		if (!_updateTelegram) return;
+		if (!_updateTelegram) {
+			return;
+		}
 		_updateTelegram.destroy();
 	}
 	updateControlsGeometry();
