@@ -1,3 +1,9 @@
+3.4.8 (19.01.21)
+
+- Nice animations in reactions.
+- Add snap layouts support on Windows 11.
+- Bug fixes and other minor improvements.
+
 3.4.7 beta (19.01.21)
 
 - Fix a crash on launch on Windows.
