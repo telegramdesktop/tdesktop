@@ -415,7 +415,7 @@ void Reactions::updateAllInHistory(not_null<PeerData*> peer, bool enabled) {
 
 void Reactions::repaintCollected() {
 	const auto now = crl::now();
-	auto closest = 0;
+	auto closest = crl::time();
 	for (auto i = begin(_repaintItems); i != end(_repaintItems);) {
 		if (i->second <= now) {
 			_owner->requestItemRepaint(i->first);
