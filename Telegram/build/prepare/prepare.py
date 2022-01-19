@@ -644,6 +644,41 @@ depends:patches/build_libvpx_win.sh
     bash --login ../patches/build_libvpx_win.sh
 
     SET PATH=%PATH_BACKUP_%
+mac:
+depends:yasm/yasm
+    ./configure --prefix=$USED_PREFIX \
+    --target=arm64-darwin20-gcc \
+    --disable-examples \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.arm64
+    mv libvpx.a out.arm64
+
+    make clean
+
+    ./configure --prefix=$USED_PREFIX \
+    --target=x86_64-darwin20-gcc \
+    --disable-examples \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.x86_64
+    mv libvpx.a out.x86_64
+
+    lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
+
+    make install
 """)
 
 stage('ffmpeg', """
@@ -671,12 +706,13 @@ depends:yasm/yasm
     --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
-    --enable-protocol=file \
-    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
     --disable-everything \
+    --enable-protocol=file \
+    --enable-libopus \
+    --enable-libvpx \
     --enable-hwaccel=h264_videotoolbox \
     --enable-hwaccel=hevc_videotoolbox \
     --enable-hwaccel=mpeg1_videotoolbox \
@@ -693,6 +729,8 @@ depends:yasm/yasm
     --enable-decoder=gif \
     --enable-decoder=h264 \
     --enable-decoder=hevc \
+    --enable-decoder=libvpx_vp8 \
+    --enable-decoder=libvpx_vp9 \
     --enable-decoder=mp1 \
     --enable-decoder=mp1float \
     --enable-decoder=mp2 \
@@ -760,6 +798,7 @@ depends:yasm/yasm
     --enable-demuxer=gif \
     --enable-demuxer=h264 \
     --enable-demuxer=hevc \
+    --enable-demuxer=matroska \
     --enable-demuxer=m4v \
     --enable-demuxer=mov \
     --enable-demuxer=mp3 \
@@ -786,12 +825,13 @@ depends:yasm/yasm
     --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
-    --enable-protocol=file \
-    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
     --disable-everything \
+    --enable-protocol=file \
+    --enable-libopus \
+    --enable-libvpx \
     --enable-hwaccel=h264_videotoolbox \
     --enable-hwaccel=hevc_videotoolbox \
     --enable-hwaccel=mpeg1_videotoolbox \
@@ -808,6 +848,8 @@ depends:yasm/yasm
     --enable-decoder=gif \
     --enable-decoder=h264 \
     --enable-decoder=hevc \
+    --enable-decoder=libvpx_vp8 \
+    --enable-decoder=libvpx_vp9 \
     --enable-decoder=mp1 \
     --enable-decoder=mp1float \
     --enable-decoder=mp2 \
@@ -866,6 +908,7 @@ depends:yasm/yasm
     --enable-parser=flac \
     --enable-parser=h264 \
     --enable-parser=hevc \
+    --enable-demuxer=matroska \
     --enable-parser=mpeg4video \
     --enable-parser=mpegaudio \
     --enable-parser=opus \
@@ -1191,7 +1234,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 23c9420233
+    git checkout 6b7955ed54
     git submodule init
     git submodule update src/third_party/libyuv
 win:
