@@ -444,7 +444,8 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 		}
 		frame->format = FrameFormat::YUV420;
 	} else {
-		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA);
+		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA)
+			|| (frame->decoded->format == AV_PIX_FMT_YUVA420P);
 		frame->yuv420.size = {
 			frame->decoded->width,
 			frame->decoded->height
@@ -1110,8 +1111,11 @@ QImage VideoTrack::frame(
 		&& frame->format == FrameFormat::YUV420) {
 		frame->original = ConvertToARGB32(frame->yuv420);
 	}
-	if (!frame->alpha
-		&& GoodForRequest(frame->original, _streamRotation, useRequest)) {
+	if (GoodForRequest(
+			frame->original,
+			frame->alpha,
+			_streamRotation,
+			useRequest)) {
 		return frame->original;
 	} else if (changed || none || i->second.image.isNull()) {
 		const auto j = none
@@ -1187,8 +1191,11 @@ void VideoTrack::PrepareFrameByRequests(
 	const auto end = frame->prepared.end();
 	for (auto i = begin; i != end; ++i) {
 		auto &prepared = i->second;
-		if (frame->alpha
-			|| !GoodForRequest(frame->original, rotation, prepared.request)) {
+		if (!GoodForRequest(
+				frame->original,
+				frame->alpha,
+				rotation,
+				prepared.request)) {
 			auto j = begin;
 			for (; j != i; ++j) {
 				if (j->second.request == prepared.request) {

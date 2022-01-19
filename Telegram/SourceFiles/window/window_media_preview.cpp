@@ -262,7 +262,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	if (_document) {
 		if (const auto sticker = _document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				if (sticker->animated && !_lottie && _documentMedia->loaded()) {
+				if (sticker->isLottie() && !_lottie && _documentMedia->loaded()) {
 					const_cast<MediaPreviewWidget*>(this)->setupLottie();
 				}
 				if (_lottie && _lottie->ready()) {

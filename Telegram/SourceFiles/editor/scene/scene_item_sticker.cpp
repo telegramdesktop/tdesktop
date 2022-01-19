@@ -38,7 +38,7 @@ ItemSticker::ItemSticker(
 				? 1.0
 				: (_pixmap.height() / float64(_pixmap.width())));
 		});
-		if (stickerData->animated) {
+		if (stickerData->isLottie()) {
 			_lottie.player = ChatHelpers::LottiePlayerFromDocument(
 				_mediaView.get(),
 				ChatHelpers::StickerLottieSize::MessageHistory,

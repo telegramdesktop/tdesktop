@@ -845,6 +845,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 		auto durationMs = reader->durationMs();
 		if (durationMs > 0) {
 			result.isGifv = reader->isGifv();
+			result.isWebmSticker = reader->isWebmSticker();
 			// Use first video frame as a thumbnail.
 			// All other apps and server do that way.
 			//if (!result.isGifv) {
@@ -857,7 +858,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 			auto readResult = reader->readFramesTill(-1, crl::now());
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
 			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
-				if (hasAlpha) {
+				if (hasAlpha && !result.isWebmSticker) {
 					auto cacheForResize = QImage();
 					auto request = FrameRequest();
 					request.framew = request.outerw = result.thumbnail.width();

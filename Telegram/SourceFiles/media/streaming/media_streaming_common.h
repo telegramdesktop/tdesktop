@@ -121,6 +121,7 @@ struct FrameRequest {
 	ImageRoundRadius radius = ImageRoundRadius();
 	RectParts corners = RectPart::AllCorners;
 	bool requireARGB32 = true;
+	bool keepAlpha = false;
 	bool strict = true;
 
 	static FrameRequest NonStrict() {
@@ -138,6 +139,7 @@ struct FrameRequest {
 			&& (outer == other.outer)
 			&& (radius == other.radius)
 			&& (corners == other.corners)
+			&& (keepAlpha == other.keepAlpha)
 			&& (requireARGB32 == other.requireARGB32);
 	}
 	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
@@ -146,6 +148,7 @@ struct FrameRequest {
 
 	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
 		return (requireARGB32 == other.requireARGB32)
+			&& (keepAlpha == other.keepAlpha)
 			&& ((*this == other) || (strict && !other.strict));
 	}
 };

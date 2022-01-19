@@ -89,9 +89,10 @@ FFmpeg::AvErrorWrap ReadNextFrame(Stream &stream) {
 
 bool GoodForRequest(
 		const QImage &image,
+		bool hasAlpha,
 		int rotation,
 		const FrameRequest &request) {
-	if (image.isNull()) {
+	if (image.isNull() || (hasAlpha && !request.keepAlpha)) {
 		return false;
 	} else if (request.resize.isEmpty()) {
 		return true;
@@ -170,6 +171,10 @@ QImage ConvertFrame(
 			frame->height,
 			data,
 			linesize);
+
+		if (frame->format == AV_PIX_FMT_YUVA420P) {
+			FFmpeg::PremultiplyInplace(storage);
+		}
 	}
 
 	FFmpeg::ClearFrameMemory(frame);
@@ -274,8 +279,11 @@ void PaintFrameContent(
 		(full.height() - size.height()) / 2,
 		size.width(),
 		size.height());
-	PaintFrameOuter(p, to, full);
-	PaintFrameInner(p, to, original, alpha, rotation);
+	if (!alpha || !request.keepAlpha) {
+		PaintFrameOuter(p, to, full);
+	}
+	const auto deAlpha = alpha && !request.keepAlpha;
+	PaintFrameInner(p, to, original, deAlpha, rotation);
 }
 
 void ApplyFrameRounding(QImage &storage, const FrameRequest &request) {
@@ -302,6 +310,10 @@ QImage PrepareByRequest(
 		: request.outer;
 	if (!FFmpeg::GoodStorageForFrame(storage, outer)) {
 		storage = FFmpeg::CreateFrameStorage(outer);
+	}
+
+	if (alpha && request.keepAlpha) {
+		storage.fill(Qt::transparent);
 	}
 
 	QPainter p(&storage);

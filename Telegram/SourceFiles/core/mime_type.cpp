@@ -109,6 +109,14 @@ MimeType MimeTypeForData(const QByteArray &data) {
 	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }
 
+bool IsMimeStickerLottie(const QString &mime) {
+	return (mime == u"application/x-tgsticker"_q);
+}
+
+bool IsMimeStickerWebm(const QString &mime) {
+	return (mime == u"video/webm"_q);
+}
+
 bool IsMimeStickerAnimated(const QString &mime) {
 	return (mime == u"application/x-tgsticker"_q);
 }

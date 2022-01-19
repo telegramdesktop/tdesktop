@@ -123,7 +123,7 @@ bool Sticker::readyToDrawLottie() {
 	ensureDataMediaCreated();
 	_dataMedia->checkStickerLarge();
 	const auto loaded = _dataMedia->loaded();
-	if (sticker->animated && !_lottie && loaded) {
+	if (sticker->isLottie() && !_lottie && loaded) {
 		setupLottie();
 	}
 	return (_lottie && _lottie->ready());
@@ -147,7 +147,7 @@ void Sticker::draw(
 	if (readyToDrawLottie()) {
 		paintLottie(p, context, r);
 	} else if (!_data->sticker()
-		|| (_data->sticker()->animated && _replacements)
+		|| (_data->sticker()->isLottie() && _replacements)
 		|| !paintPixmap(p, context, r)) {
 		paintPath(p, context, r);
 	}

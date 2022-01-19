@@ -52,7 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-const auto kAnimatedStickerDimensions = QSize(
+const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
 	kStickerSideSize);
 
@@ -262,6 +262,22 @@ Data::FileOrigin StickerData::setOrigin() const {
 		: Data::FileOrigin();
 }
 
+bool StickerData::isStatic() const {
+	return (type == StickerType::Webp);
+}
+
+bool StickerData::isLottie() const {
+	return (type == StickerType::Tgs);
+}
+
+bool StickerData::isAnimated() const {
+	return !isStatic();
+}
+
+bool StickerData::isWebm() const {
+	return (type == StickerType::Webm);
+}
+
 VoiceData::~VoiceData() {
 	if (!waveform.isEmpty()
 		&& waveform[0] == -1
@@ -380,12 +396,19 @@ void DocumentData::setattributes(
 	}
 	if (type == StickerDocument
 		&& ((size > Storage::kMaxStickerBytesSize)
-			|| (!sticker()->animated
+			|| (!sticker()->isLottie()
 				&& !GoodStickerDimensions(
 					dimensions.width(),
 					dimensions.height())))) {
 		type = FileDocument;
 		_additional = nullptr;
+	} else if (type == FileDocument
+		&& hasMimeType(qstr("video/webm"))
+		&& (size < Storage::kMaxStickerBytesSize)
+		&& GoodStickerDimensions(dimensions.width(), dimensions.height())) {
+		type = StickerDocument;
+		_additional = std::make_unique<StickerData>();
+		sticker()->type = StickerType::Webm;
 	}
 	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
 		setMaybeSupportsStreaming(true);
@@ -397,8 +420,8 @@ void DocumentData::validateLottieSticker() {
 		&& hasMimeType(qstr("application/x-tgsticker"))) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
-		sticker()->animated = true;
-		dimensions = kAnimatedStickerDimensions;
+		sticker()->type = StickerType::Tgs;
+		dimensions = kLottieStickerDimensions;
 	}
 }
 

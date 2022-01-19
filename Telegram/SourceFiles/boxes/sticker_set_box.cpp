@@ -858,8 +858,8 @@ void StickerSetBox::Inner::paintSticker(
 	const auto &media = element.documentMedia;
 	media->checkStickerSmall();
 
-	const auto isAnimated = document->sticker()->animated;
-	if (isAnimated
+	const auto isLottie = document->sticker()->isLottie();
+	if (isLottie
 		&& !element.animated
 		&& media->loaded()) {
 		const_cast<Inner*>(this)->setupLottie(index);
@@ -867,7 +867,7 @@ void StickerSetBox::Inner::paintSticker(
 
 	auto w = 1;
 	auto h = 1;
-	if (isAnimated && !document->dimensions.isEmpty()) {
+	if (isLottie && !document->dimensions.isEmpty()) {
 		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
 		const auto size = request.size(document->dimensions, true) / cIntRetinaFactor();
 		w = std::max(size.width(), 1);

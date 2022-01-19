@@ -43,6 +43,7 @@ public:
 	QString logData() const;
 
 	bool isGifv() const;
+	bool isWebmSticker() const;
 
 	~FFMpegReaderImplementation();
 

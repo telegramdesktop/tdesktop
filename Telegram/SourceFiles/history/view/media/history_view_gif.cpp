@@ -391,6 +391,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = QSize(usew, painth) * cIntRetinaFactor();
 		request.resize = QSize(_thumbw, _thumbh) * cIntRetinaFactor();
+		request.keepAlpha = true; AssertIsDebug();
 		request.corners = roundCorners;
 		request.radius = roundRadius;
 		if (!activeRoundPlaying && activeOwnPlaying->instance.playerLocked()) {
@@ -992,6 +993,7 @@ void Gif::drawGrouped(
 			{ geometry.width(), geometry.height() });
 		request.outer = geometry.size() * cIntRetinaFactor();
 		request.resize = pixSize * cIntRetinaFactor();
+		request.keepAlpha = true; AssertIsDebug();
 		request.corners = corners;
 		request.radius = roundRadius;
 		if (activeOwnPlaying->instance.playerLocked()) {

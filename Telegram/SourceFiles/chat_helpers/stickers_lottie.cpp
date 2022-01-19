@@ -139,7 +139,7 @@ bool HasLottieThumbnail(
 	}
 	const auto document = media->owner();
 	if (const auto info = document->sticker()) {
-		if (!info->animated) {
+		if (!info->isLottie()) {
 			return false;
 		}
 		media->automaticLoad(document->stickerSetOrigin(), nullptr);

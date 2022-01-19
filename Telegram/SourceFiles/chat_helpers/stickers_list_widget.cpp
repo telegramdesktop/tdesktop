@@ -1916,8 +1916,8 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		return;
 	}
 
-	const auto isAnimated = document->sticker()->animated;
-	if (isAnimated
+	const auto isLottie = document->sticker()->isLottie();
+	if (isLottie
 		&& !sticker.animated
 		&& media->loaded()) {
 		setupLottie(set, section, index);
@@ -1936,7 +1936,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 
 	auto w = 1;
 	auto h = 1;
-	if (isAnimated && !document->dimensions.isEmpty()) {
+	if (isLottie && !document->dimensions.isEmpty()) {
 		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
 		const auto size = request.size(document->dimensions, true) / cIntRetinaFactor();
 		w = std::max(size.width(), 1);

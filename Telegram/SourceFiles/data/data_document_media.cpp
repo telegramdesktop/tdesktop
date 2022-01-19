@@ -49,7 +49,7 @@ enum class FileType {
 		|| owner->isAnimation()
 		|| owner->isWallPaper()
 		|| owner->isTheme()
-		|| (owner->sticker() && owner->sticker()->animated);
+		|| (owner->sticker() && owner->sticker()->isAnimated());
 }
 
 [[nodiscard]] QImage PrepareGoodThumbnail(
@@ -260,7 +260,7 @@ void DocumentMedia::checkStickerLarge() {
 		return;
 	}
 	automaticLoad(_owner->stickerSetOrigin(), nullptr);
-	if (data->animated || !loaded()) {
+	if (data->isAnimated() || !loaded()) {
 		return;
 	}
 	if (_bytes.isEmpty()) {
@@ -366,9 +366,9 @@ bool DocumentMedia::thumbnailEnoughForSticker() const {
 
 void DocumentMedia::checkStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
+	if ((data && data->isAnimated()) || thumbnailEnoughForSticker()) {
 		_owner->loadThumbnail(_owner->stickerSetOrigin());
-		if (data && data->animated) {
+		if (data && data->isAnimated()) {
 			automaticLoad(_owner->stickerSetOrigin(), nullptr);
 		}
 	} else {
@@ -383,7 +383,7 @@ Image *DocumentMedia::getStickerLarge() {
 
 Image *DocumentMedia::getStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
+	if ((data && data->isAnimated()) || thumbnailEnoughForSticker()) {
 		return thumbnail();
 	}
 	return _sticker.get();

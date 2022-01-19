@@ -554,7 +554,7 @@ void Sticker::prepareThumbnail() const {
 	ensureDataMediaCreated(document);
 	if (!_lottie
 		&& document->sticker()
-		&& document->sticker()->animated
+		&& document->sticker()->isLottie()
 		&& _dataMedia->loaded()) {
 		setupLottie();
 	}

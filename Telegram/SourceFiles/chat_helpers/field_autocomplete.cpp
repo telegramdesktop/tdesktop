@@ -827,7 +827,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				const auto &media = sticker.documentMedia;
 				if (!document->sticker()) continue;
 
-				if (document->sticker()->animated
+				if (document->sticker()->isLottie()
 					&& !sticker.animated
 					&& media->loaded()) {
 					setupLottie(sticker);
