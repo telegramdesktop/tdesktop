@@ -2186,7 +2186,7 @@ void StickersBox::Inner::rebuildAppendSet(
 		raw->yadd = {};
 		auto oldStickerMedia = std::move(raw->stickerMedia);
 		auto oldThumbnailMedia = std::move(raw->thumbnailMedia);
-		raw->stickerMedia = sticker->activeMediaView();
+		raw->stickerMedia = sticker ? sticker->activeMediaView() : nullptr;
 		raw->thumbnailMedia = set->activeThumbnailView();
 		if (raw->thumbnailMedia != oldThumbnailMedia
 			|| (!raw->thumbnailMedia && raw->stickerMedia != oldStickerMedia)) {
