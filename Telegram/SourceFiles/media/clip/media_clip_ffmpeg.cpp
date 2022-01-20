@@ -240,7 +240,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 		int toLinesize[AV_NUM_DATA_POINTERS] = { int(to.bytesPerLine()), 0 };
 		sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
 	}
-	if (bgra) {
+	if (hasAlpha) {
 		FFmpeg::PremultiplyInplace(to);
 	}
 	if (_rotation != Rotation::None) {
