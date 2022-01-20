@@ -409,7 +409,7 @@ void DocumentMedia::GenerateGoodThumbnail(
 		? FileType::WallPaper
 		: document->isTheme()
 		? FileType::Theme
-		: document->sticker()
+		: (document->sticker() && document->sticker()->isLottie())
 		? FileType::AnimatedSticker
 		: FileType::Video;
 	auto location = document->location().isEmpty()
