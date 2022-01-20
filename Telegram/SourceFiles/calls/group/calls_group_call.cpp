@@ -2396,6 +2396,7 @@ bool GroupCall::tryCreateScreencast() {
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{
+			.need_log = Logs::DebugEnabled(),
 		},
 		.networkStateUpdated = [=](tgcalls::GroupNetworkState networkState) {
 			crl::on_main(weak, [=] {
