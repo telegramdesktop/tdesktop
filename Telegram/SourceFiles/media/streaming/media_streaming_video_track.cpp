@@ -611,6 +611,8 @@ bool VideoTrackObject::processFirstFrame() {
 	if (_stream.frame->width * _stream.frame->height > kMaxFrameArea) {
 		return false;
 	}
+	const auto alpha = (_stream.frame->format == AV_PIX_FMT_BGRA)
+		|| (_stream.frame->format == AV_PIX_FMT_YUVA420P);
 	auto frame = ConvertFrame(
 		_stream,
 		_stream.frame.get(),
@@ -619,7 +621,7 @@ bool VideoTrackObject::processFirstFrame() {
 	if (frame.isNull()) {
 		return false;
 	}
-	_shared->init(std::move(frame), _syncTimePoint.trackTime);
+	_shared->init(std::move(frame), alpha, _syncTimePoint.trackTime);
 	callReady();
 	queueReadFrames();
 	return true;
@@ -702,12 +704,16 @@ void VideoTrackObject::fail(Error error) {
 	_error(error);
 }
 
-void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
+void VideoTrack::Shared::init(
+		QImage &&cover,
+		bool hasAlpha,
+		crl::time position) {
 	Expects(!initialized());
 
 	_frames[0].original = std::move(cover);
 	_frames[0].position = position;
 	_frames[0].format = FrameFormat::ARGB32;
+	_frames[0].alpha = hasAlpha;
 
 	// Usually main thread sets displayed time before _counter increment.
 	// But in this case we update _counter, so we set a fake displayed time.

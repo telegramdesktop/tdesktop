@@ -110,7 +110,7 @@ private:
 		};
 
 		// Called from the wrapped object queue.
-		void init(QImage &&cover, crl::time position);
+		void init(QImage &&cover, bool hasAlpha, crl::time position);
 		[[nodiscard]] bool initialized() const;
 
 		[[nodiscard]] PrepareState prepareState(
