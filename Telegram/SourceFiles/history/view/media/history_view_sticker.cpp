@@ -275,6 +275,15 @@ QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 	return QPixmap();
 }
 
+ClickHandlerPtr Sticker::ShowSetHandler(not_null<DocumentData*> document) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto window = my.sessionWindow.get()) {
+			StickerSetBox::Show(window, document);
+		}
+	});
+}
+
 void Sticker::refreshLink() {
 	if (_link) {
 		return;
@@ -288,12 +297,7 @@ void Sticker::refreshLink() {
 			}
 		});
 	} else if (sticker && sticker->set) {
-		_link = std::make_shared<LambdaClickHandler>([document = _data](ClickContext context) {
-			const auto my = context.other.value<ClickHandlerContext>();
-			if (const auto window = my.sessionWindow.get()) {
-				StickerSetBox::Show(window, document);
-			}
-		});
+		_link = ShowSetHandler(_data);
 	} else if (sticker
 		&& (_data->dimensions.width() > kStickerSideSize
 			|| _data->dimensions.height() > kStickerSideSize)

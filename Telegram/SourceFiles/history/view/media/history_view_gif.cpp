@@ -79,7 +79,11 @@ Gif::Gif(
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	setDocumentLinks(_data, realParent);
+	if (const auto info = _data->sticker(); info && info->set) {
+		_stickerLink = Sticker::ShowSetHandler(_data);
+	} else {
+		setDocumentLinks(_data, realParent);
+	}
 
 	setStatusSize(Ui::FileStatusSizeReady);
 
@@ -269,7 +273,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
-	const auto displayLoading = item->isSending() || _data->displayLoading();
+	const auto sticker = _data->sticker();
+	const auto displayLoading = !sticker
+		&& (item->isSending() || _data->displayLoading());
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
@@ -322,7 +328,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 	updateStatusText();
 	const auto radial = isRadialAnimation()
-		|| (streamedForWaiting && streamedForWaiting->waitingShown());
+		|| (!sticker
+			&& streamedForWaiting
+			&& streamedForWaiting->waitingShown());
 
 	if (bubble) {
 		if (!_caption.isEmpty()) {
@@ -479,7 +487,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (radial
-		|| (!streamingMode
+		|| (!sticker
+			&& !streamingMode
 			&& ((!loaded && !_data->loading()) || !autoplay))) {
 		const auto radialOpacity = (item->isSending() || _data->uploading())
 			? 1.
@@ -557,9 +566,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	if (!unwrapped) {
 		drawCornerStatus(p, context, QPoint());
-	}
-
-	if (unwrapped) {
+	} else {
 		if (isRound) {
 			const auto mediaUnread = item->hasUnreadMediaFlag();
 			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
@@ -850,7 +857,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = _data->uploading()
+		result.link = _data->sticker()
+			? _stickerLink
+			: _data->uploading()
 			? _cancell
 			: _realParent->isSending()
 			? nullptr

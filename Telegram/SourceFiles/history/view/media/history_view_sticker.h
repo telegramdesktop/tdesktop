@@ -80,6 +80,8 @@ public:
 
 	[[nodiscard]] static QSize Size();
 	[[nodiscard]] static QSize EmojiSize();
+	[[nodiscard]] static ClickHandlerPtr ShowSetHandler(
+		not_null<DocumentData*> document);
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;

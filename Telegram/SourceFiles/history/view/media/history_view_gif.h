@@ -184,6 +184,7 @@ private:
 	std::unique_ptr<Streamed> _streamed;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
+	ClickHandlerPtr _stickerLink;
 
 	QString _downloadSize;
 
