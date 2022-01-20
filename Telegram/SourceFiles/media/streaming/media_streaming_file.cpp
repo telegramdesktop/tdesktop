@@ -18,6 +18,18 @@ namespace {
 constexpr auto kMaxSingleReadAmount = 8 * 1024 * 1024;
 constexpr auto kMaxQueuedPackets = 1024;
 
+[[nodiscard]] bool UnreliableFormatDuration(
+		not_null<AVFormatContext*> format,
+		not_null<AVStream*> stream) {
+	return stream->codec
+		&& (stream->codec->codec_id == AV_CODEC_ID_VP9)
+		&& format->iformat
+		&& format->iformat->name
+		&& QString::fromLatin1(
+			format->iformat->name
+		).split(QChar(',')).contains(u"webm");
+}
+
 } // namespace
 
 File::Context::Context(
@@ -174,6 +186,8 @@ Stream File::Context::initStream(
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? FFmpeg::PtsToTime(info->duration, result.timeBase)
+		: UnreliableFormatDuration(format, info)
+		? kTimeUnknown
 		: FFmpeg::PtsToTime(format->duration, FFmpeg::kUniversalTimeBase);
 	if (result.duration == kTimeUnknown) {
 		result.duration = kDurationUnavailable;
