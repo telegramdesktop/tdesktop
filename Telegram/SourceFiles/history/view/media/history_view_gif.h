@@ -119,6 +119,7 @@ private:
 	struct Streamed;
 
 	void validateVideoThumbnail() const;
+	[[nodiscard]] QSize countThumbSize(int &inOutWidthMax) const;
 
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -155,8 +156,7 @@ private:
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
-	[[nodiscard]] QString mediaTypeString() const;
-	[[nodiscard]] bool isSeparateRoundVideo() const;
+	[[nodiscard]] bool isUnwrapped() const;
 
 	void validateGroupedCache(
 		const QRect &geometry,

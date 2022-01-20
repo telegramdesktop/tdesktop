@@ -1187,6 +1187,9 @@ bool DocumentData::hasRemoteLocation() const {
 }
 
 bool DocumentData::useStreamingLoader() const {
+	if (const auto info = sticker()) {
+		return info->isWebm();
+	}
 	return isAnimation()
 		|| isVideoFile()
 		|| isAudioFile()

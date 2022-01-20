@@ -947,14 +947,16 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (_document->sticker()) {
+	if (const auto info = _document->sticker(); info && !info->isWebm()) {
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Sticker>(
 				message,
 				_document,
 				replacing));
-	} else if (_document->isAnimation() || _document->isVideoFile()) {
+	} else if (_document->isAnimation()
+		|| _document->isVideoFile()
+		|| (info && info->isWebm())) {
 		return std::make_unique<HistoryView::Gif>(
 			message,
 			realParent,

@@ -44,9 +44,10 @@ int unitedLineHeight();
 }
 
 [[nodiscard]] inline QSize DownscaledSize(QSize size, QSize box) {
-	return (size.width() > box.width() || size.height() > box.height())
-		? size.scaled(box, Qt::KeepAspectRatio)
-		: size;
+	return NonEmptySize(
+		((size.width() > box.width() || size.height() > box.height())
+			? size.scaled(box, Qt::KeepAspectRatio)
+			: size));
 }
 
 } // namespace HistoryView
