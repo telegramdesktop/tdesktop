@@ -15,7 +15,7 @@ namespace FakePasscode {
    public:
       FakePasscode() = default;
 
-      explicit FakePasscode(std::vector<std::shared_ptr<Action>> actions);
+      explicit FakePasscode(base::flat_map<ActionType, std::shared_ptr<Action>> actions);
 
       FakePasscode(FakePasscode&& passcode) noexcept;
 
@@ -35,12 +35,12 @@ namespace FakePasscode {
 
       void AddAction(std::shared_ptr<Action> action);
       void UpdateAction(std::shared_ptr<Action> action);
-      void RemoveAction(std::shared_ptr<Action> action);
+      void RemoveAction(ActionType type);
       bool ContainsAction(ActionType type) const;
-      std::shared_ptr<Action> GetAction(ActionType type) const;
+      Action* operator[](ActionType type);
 
-      [[nodiscard]] rpl::producer<std::vector<std::shared_ptr<Action>>> GetActions() const;
-      const std::shared_ptr<Action>& operator[](size_t index) const;
+      [[nodiscard]] rpl::producer<const base::flat_map<ActionType, std::shared_ptr<Action>>*> GetActions() const;
+      const Action* operator[](ActionType type) const;
 
       void SetSalt(QByteArray salt);
       const QByteArray& GetSalt() const;
@@ -48,15 +48,12 @@ namespace FakePasscode {
       QByteArray SerializeActions() const;
       void DeSerializeActions(QByteArray serialized);
 
-      bool operator==(const FakePasscode& other) const;
-      bool operator!=(const FakePasscode& other) const;
-
       FakePasscode& operator=(FakePasscode&& passcode) noexcept;
 
    protected:
       QByteArray salt_;
       QByteArray fake_passcode_;
-      std::vector<std::shared_ptr<Action>> actions_;
+      base::flat_map<ActionType, std::shared_ptr<Action>> actions_;
       QString name_;
 
       rpl::event_stream<> state_changed_;

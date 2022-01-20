@@ -1,7 +1,7 @@
 #ifndef TELEGRAM_LOGOUT_H
 #define TELEGRAM_LOGOUT_H
 
-#include "action.h"
+#include "fakepasscode/action.h"
 
 //#include <unordered_map>
 
@@ -10,7 +10,7 @@ namespace FakePasscode {
     public:
         LogoutAction() = default;
         explicit LogoutAction(QByteArray inner_data);
-        LogoutAction(std::vector<bool> logout_accounts);
+        LogoutAction(base::flat_map<qint32, bool> logout_accounts);
 
         void Execute() override;
 
@@ -18,14 +18,16 @@ namespace FakePasscode {
 
         ActionType GetType() const override;
 
-        void SetLogout(size_t index, bool logout);
+        void SetLogout(qint32 index, bool logout);
 
-        const std::vector<bool>& GetLogout() const;
+        const base::flat_map<qint32, bool>& GetLogout() const;
 
-        bool IsLogout(size_t index) const;
+        bool IsLogout(qint32 index) const;
+
+        void SubscribeOnLoggingOut();
 
     private:
-        std::vector<bool> logout_accounts_; // index of vector is index of account
+        base::flat_map<qint32, bool> index_to_logout_;
     };
 }
 #endif //TELEGRAM_LOGOUT_H

@@ -5,13 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include <fakepasscode/clear_proxies.h>
+#include <fakepasscode/actions/clear_proxies.h>
 #include <fakepasscode/fake_passcode.h>
 #include "storage/storage_domain.h"
 
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
-#include "fakepasscode/logout.h"
+#include "fakepasscode/actions/logout.h"
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
@@ -200,7 +200,7 @@ void Domain::writeAccounts() {
         fakeNames.push_back(std::move(name));
     }
 
-	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + sizeof(bool) + sizeof(qint32);
+	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + 2 * sizeof(bool) + sizeof(qint32);
 
     if (!_isInfinityFakeModeActivated) {
         keySize += serializedSize + sizeof(qint32);
@@ -213,12 +213,11 @@ void Domain::writeAccounts() {
     const auto checkLogout = [&] (qint32 index) {
         for (const auto& fakePasscode : _fakePasscodes) {
             if (fakePasscode.ContainsAction(FakePasscode::ActionType::Logout)) {
-                auto *logout = dynamic_cast<FakePasscode::LogoutAction *>(
-                        fakePasscode.GetAction(FakePasscode::ActionType::Logout).get()
+                const auto *logout = dynamic_cast<const FakePasscode::LogoutAction *>(
+                        fakePasscode[FakePasscode::ActionType::Logout]
                 );
 
-                const auto& logoutActions = logout->GetLogout();
-                if (logoutActions[index]) {
+                if (logout->IsLogout(index)) {
                     return true;
                 }
             }
@@ -236,7 +235,7 @@ void Domain::writeAccounts() {
     keyData.stream << qint32(account_indexes.size());
 
     for (qint32 index : account_indexes) {
-        keyData.stream << qint32(index);
+        keyData.stream << index;
     }
 
     keyData.stream << qint32(_owner->activeForStorage());
@@ -249,6 +248,7 @@ void Domain::writeAccounts() {
             keyData.stream << fakePasscodes[i];
             keyData.stream << fakeNames[i];
         }
+        keyData.stream << _isCacheCleanedUpOnLock;
     }
 
     key.writeEncrypted(keyData, _localKey);
@@ -441,7 +441,7 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
             info.stream >> serialized_version;
 
             // Maybe some actions with migration
-            DEBUG_LOG(("Read PTelegram version: " + QString::number(serialized_version)));
+            DEBUG_LOG(qsl("Read PTelegram version: %1").arg(serialized_version));
 
             for (auto& fakePasscode : _fakePasscodes) {
                 QByteArray serializedActions, pass;
@@ -454,17 +454,19 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
 
                 if (fakePasscode.ContainsAction(FakePasscode::ActionType::Logout)) {
                     auto* logout = dynamic_cast<FakePasscode::LogoutAction*>(
-                            fakePasscode.GetAction(FakePasscode::ActionType::Logout).get()
+                            fakePasscode[FakePasscode::ActionType::Logout]
                         );
                     const auto& logout_accounts = logout->GetLogout();
-                    for (size_t j = 0; j < logout_accounts.size(); ++j) {
-                        if (logout_accounts[j]) { // Stored in action
-                            qint32 index = j;
-                            createAndAddAccount(index, j);
+                    for (const auto&[index, is_logged_out] : logout_accounts) {
+                        if (is_logged_out) { // Stored in action
+                            createAndAddAccount(index, realCount);
                         }
                     }
+                    logout->SubscribeOnLoggingOut();
                 }
             }
+
+            info.stream >> _isCacheCleanedUpOnLock;
         }
     }
 
@@ -486,6 +488,8 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
     DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
     Ensures(!sessions.empty());
 
+
+
     return StartModernResult::Success;
 }
 
@@ -494,14 +498,14 @@ const std::vector<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const 
 }
 
 void Domain::EncryptFakePasscodes() {
+    PrepareEncryptedFakePasscodes();
+
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         _fakePasscodes[i].SetSalt(_passcodeKeySalt);
-        const auto& fakePasscode = _fakePasscodes[i];
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
-        auto fakeEncryptedPass = fakePasscode.GetEncryptedPasscode();
-        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, fakeEncryptedPass);
+        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakeEncryptedPasscodes[i]);
     }
 }
 
@@ -510,12 +514,14 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
     _fakePasscodes.push_back(std::move(fakePasscode));
+    _fakeEncryptedPasscodes.push_back(_fakePasscodes.back().GetEncryptedPasscode());
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
 
 void Domain::SetFakePasscode(QByteArray passcode, size_t fakeIndex) {
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
+    _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -529,23 +535,14 @@ void Domain::SetFakePasscode(QString name, size_t fakeIndex) {
 void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex) {
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
+    _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
     writeAccounts();
     _fakePasscodeChanged.fire({});
-}
-
-void Domain::RemoveFakePasscode(const FakePasscode::FakePasscode& passcode) {
-    auto pos = std::find(_fakePasscodes.begin(), _fakePasscodes.end(), passcode);
-    if (pos == _fakePasscodes.end()) {
-        return;
-    }
-    size_t index = pos - _fakePasscodes.begin();
-    RemoveFakePasscode(index);
 }
 
 rpl::producer<QString> Domain::GetFakePasscodeName(size_t fakeIndex) const {
     return _fakePasscodes[fakeIndex].GetName();
 }
-
 
 void Domain::SetFakePasscodeName(QString newName, size_t fakeIndex) {
     _fakePasscodes[fakeIndex].SetName(std::move(newName));
@@ -561,7 +558,7 @@ rpl::producer<FakePasscode::FakePasscode*> Domain::GetFakePasscode(size_t index)
 void Domain::RemoveFakePasscode(size_t index) {
     _fakePasscodes.erase(_fakePasscodes.begin() + index);
     _fakePasscodeKeysEncrypted.erase(_fakePasscodeKeysEncrypted.begin() + index);
-
+    _fakeEncryptedPasscodes.erase(_fakeEncryptedPasscodes.begin() + index);
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -583,15 +580,15 @@ bool Domain::CheckFakePasscodeExists(const QByteArray& passcode) const {
     return passcode == _passcode;
 }
 
-void Domain::AddAction(size_t index, std::shared_ptr<FakePasscode::Action> action) {
-    _fakePasscodes[index].AddAction(std::move(action));
-    writeAccounts();
+FakePasscode::Action* Domain::AddAction(size_t index, FakePasscode::ActionType type) {
+    _fakePasscodes[index].AddAction(FakePasscode::CreateAction(type));
     _fakePasscodeChanged.fire({});
+
+    return _fakePasscodes[index][type];
 }
 
-void Domain::RemoveAction(size_t index, std::shared_ptr<FakePasscode::Action> action) {
-    _fakePasscodes[index].RemoveAction(std::move(action));
-    writeAccounts();
+void Domain::RemoveAction(size_t index, FakePasscode::ActionType type) {
+    _fakePasscodes[index].RemoveAction(type);
     _fakePasscodeChanged.fire({});
 }
 
@@ -648,12 +645,8 @@ bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
     }
 }
 
-std::shared_ptr<FakePasscode::Action> Domain::GetAction(size_t index, FakePasscode::ActionType type) const {
-    return _fakePasscodes[index].GetAction(type);
-}
-
-void Domain::UpdateAction(size_t index, std::shared_ptr<FakePasscode::Action> action) {
-    _fakePasscodes[index].UpdateAction(std::move(action));
+const FakePasscode::Action* Domain::GetAction(size_t index, FakePasscode::ActionType type) const {
+    return _fakePasscodes[index][type];
 }
 
 QString Domain::GetCurrentFakePasscodeName(size_t fakeIndex) const {
@@ -661,6 +654,35 @@ QString Domain::GetCurrentFakePasscodeName(size_t fakeIndex) const {
         return "";
     }
     return _fakePasscodes[fakeIndex].GetCurrentName();
+}
+
+FakePasscode::Action *Domain::AddOrGetIfExistsAction(size_t index, FakePasscode::ActionType type) {
+    if (!ContainsAction(index, type)) {
+        AddAction(index, type);
+    }
+
+    return _fakePasscodes[index][type];
+}
+
+FakePasscode::Action *Domain::GetAction(size_t index, FakePasscode::ActionType type) {
+    return _fakePasscodes[index][type];
+}
+
+void Domain::PrepareEncryptedFakePasscodes() {
+    if (_fakeEncryptedPasscodes.empty()) {
+        _fakeEncryptedPasscodes.resize(_fakePasscodes.size());
+        for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
+            _fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
+        }
+    }
+}
+
+bool Domain::IsCacheCleanedUpOnLock() const {
+    return _isCacheCleanedUpOnLock;
+}
+
+void Domain::SetCacheCleanedUpOnLock(bool cleanedUp) {
+    _isCacheCleanedUpOnLock = cleanedUp;
 }
 
 } // namespace Storage

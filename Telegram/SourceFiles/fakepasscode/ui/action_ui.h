@@ -16,19 +16,19 @@ namespace Main {
 
 class ActionUI: public Ui::RpWidget {
 public:
-    ActionUI(QWidget* parent, std::shared_ptr<FakePasscode::Action> action,
+    ActionUI(QWidget* parent, FakePasscode::ActionType type,
              gsl::not_null<Main::Domain*> domain, size_t index);
 
     virtual void Create(not_null<Ui::VerticalLayout*> content) = 0;
 
 protected:
     QWidget* _parent;
-    std::shared_ptr<FakePasscode::Action> _action;
     Main::Domain* _domain;
+    FakePasscode::Action* _action;
     size_t _index;
 };
 
-object_ptr<ActionUI> GetUIByAction(std::shared_ptr<FakePasscode::Action> action,
+object_ptr<ActionUI> GetUIByAction(FakePasscode::ActionType type,
                                    gsl::not_null<Main::Domain*> domain, size_t index,
                                    QWidget* parent);
 

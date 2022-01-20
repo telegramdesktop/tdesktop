@@ -17,14 +17,14 @@ void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearProxy)));
     button->addClickHandler([=] {
         if (button->toggled()) {
-            _domain->local().AddAction(_index, _action);
+            _domain->local().AddAction(_index, FakePasscode::ActionType::ClearProxy);
         } else {
-            _domain->local().RemoveAction(_index, _action);
+            _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearProxy);
         }
+        _domain->local().writeAccounts();
     });
 }
 
-ClearProxyUI::ClearProxyUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,
-                           gsl::not_null<Main::Domain*> domain, size_t index)
-: ActionUI(parent, std::move(action), domain, index) {
+ClearProxyUI::ClearProxyUI(QWidget * parent, gsl::not_null<Main::Domain*> domain, size_t index)
+: ActionUI(parent, FakePasscode::ActionType::ClearProxy, domain, index) {
 }

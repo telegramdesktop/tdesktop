@@ -8,10 +8,10 @@
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "fakepasscode/action_ui/fakepasscode_box.h"
+#include "fakepasscode/ui/fakepasscode_box.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
-#include "fakepasscode/action_ui/action_ui.h"
+#include "fakepasscode/ui/action_ui.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "boxes/abstract_box.h"
@@ -65,13 +65,7 @@ void FakePasscodeContent::setupContent() {
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
     for (const auto& type : FakePasscode::kAvailableActions) {
-        std::shared_ptr<FakePasscode::Action> action = _domain->local().GetAction(_passcodeIndex, type);
-        DEBUG_LOG(qsl("FakePasscodeContent: Found action in domain?: %1").arg(action != nullptr));
-        if (!action) {
-            action = FakePasscode::CreateAction(type, QByteArray());
-        }
-
-        const auto ui = GetUIByAction(action, _domain, _passcodeIndex, this);
+        const auto ui = GetUIByAction(type, _domain, _passcodeIndex, this);
         ui->Create(content);
         Settings::AddDivider(content);
     }
@@ -123,6 +117,15 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     AddButton(content, tr::lng_add_fakepasscode(), st::settingsButton)->addClickHandler([this] {
         _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, true, 0), // _domain
                           Ui::LayerOption::KeepOther);
+    });
+    AddDividerText(content, tr::lng_special_actions());
+    const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto button = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton)
+            ->toggleOn(toggled->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
+
+    button->addClickHandler([=] {
+        _domain->local().SetCacheCleanedUpOnLock(button->toggled());
+        _domain->local().writeAccounts();
     });
     Ui::ResizeFitChild(this, content);
 }

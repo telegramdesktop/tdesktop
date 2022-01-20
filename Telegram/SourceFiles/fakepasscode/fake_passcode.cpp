@@ -18,36 +18,38 @@ void FakePasscode::FakePasscode::SetSalt(QByteArray salt) {
     salt_ = std::move(salt);
 }
 
-const QByteArray& FakePasscode::FakePasscode::GetSalt() const {
+const QByteArray &FakePasscode::FakePasscode::GetSalt() const {
     return salt_;
 }
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
-    actions_.push_back(std::move(action));
+    actions_[action->GetType()] = std::move(action);
     state_changed_.fire({});
 }
 
-void FakePasscode::FakePasscode::RemoveAction(std::shared_ptr<Action> action) {
-    actions_.erase(std::find_if(actions_.begin(), actions_.end(),
-                                [&](const std::shared_ptr<Action>& lhsAction) {
-        return action->GetType() == lhsAction->GetType();
-    }));
+void FakePasscode::FakePasscode::RemoveAction(ActionType type) {
+    actions_.erase(type);
     state_changed_.fire({});
 }
 
-const std::shared_ptr<FakePasscode::Action>& FakePasscode::FakePasscode::operator[](size_t index) const {
-    return actions_.at(index);
+const FakePasscode::Action *FakePasscode::FakePasscode::operator[](ActionType type) const {
+    if (auto pos = actions_.find(type); pos != actions_.end()) {
+        return pos->second.get();
+    }
+
+    return nullptr;
 }
 
-rpl::producer<std::vector<std::shared_ptr<FakePasscode::Action>>> FakePasscode::FakePasscode::GetActions() const {
+rpl::producer<const base::flat_map<FakePasscode::ActionType, std::shared_ptr<FakePasscode::Action>>*>
+FakePasscode::FakePasscode::GetActions() const {
     return rpl::single(
-            actions_
+            &actions_
     ) | rpl::then(
-            state_changed_.events() | rpl::map([=] { return actions_; }));
+            state_changed_.events() | rpl::map([=] { return &actions_; }));
 }
 
 void FakePasscode::FakePasscode::Execute() {
-    for (const auto& action : actions_) {
+    for (const auto&[type, action]: actions_) {
         try {
             action->Execute();
         } catch (...) {}
@@ -55,9 +57,8 @@ void FakePasscode::FakePasscode::Execute() {
 }
 
 FakePasscode::FakePasscode::FakePasscode(
-        std::vector<std::shared_ptr<Action>> actions)
-: actions_(std::move(actions))
-{
+        base::flat_map<ActionType, std::shared_ptr<Action>> actions)
+        : actions_(std::move(actions)) {
 }
 
 bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const {
@@ -70,7 +71,7 @@ QByteArray FakePasscode::FakePasscode::SerializeActions() const {
     QByteArray result;
     QDataStream stream(&result, QIODevice::ReadWrite);
     stream << qint32(actions_.size());
-    for (const auto& action : actions_) {
+    for (const auto &[type, action] : actions_) {
         stream << action->Serialize();
     }
     return result;
@@ -84,7 +85,8 @@ void FakePasscode::FakePasscode::DeSerializeActions(QByteArray serialized) {
     for (qint32 i = 0; i < actionsSize; ++i) {
         QByteArray actionSerialized;
         stream >> actionSerialized;
-        actions_.emplace_back(::FakePasscode::DeSerialize(actionSerialized));
+        auto action = ::FakePasscode::DeSerialize(actionSerialized);
+        actions_[action->GetType()] = std::move(action);
     }
 }
 
@@ -93,31 +95,7 @@ QByteArray FakePasscode::FakePasscode::GetPasscode() const {
 }
 
 bool FakePasscode::FakePasscode::ContainsAction(ActionType type) const {
-    return std::any_of(actions_.begin(), actions_.end(), [=] (const auto& action) {
-        return action->GetType() == type;
-    });
-}
-
-bool FakePasscode::FakePasscode::operator==(const FakePasscode &other) const {
-    if (this == &other) {
-        return true;
-    }
-
-    // No need to check for salt, because it can change, but passcode is the same
-    if (fake_passcode_ != other.fake_passcode_ || actions_.size() != other.actions_.size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < actions_.size(); ++i) {
-        if (actions_[i]->GetType() != other.actions_[i]->GetType()) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool FakePasscode::FakePasscode::operator!=(const FakePasscode &other) const {
-    return !(*this == other);
+    return actions_.contains(type);
 }
 
 rpl::producer<QString> FakePasscode::FakePasscode::GetName() const {
@@ -133,14 +111,12 @@ void FakePasscode::FakePasscode::SetName(QString name) {
 }
 
 FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
-: salt_(std::move(passcode.salt_))
-, fake_passcode_(std::move(passcode.fake_passcode_))
-, actions_(std::move(passcode.actions_))
-, name_(std::move(passcode.name_))
-, state_changed_(std::move(passcode.state_changed_)) {
+        : salt_(std::move(passcode.salt_)), fake_passcode_(std::move(passcode.fake_passcode_)),
+          actions_(std::move(passcode.actions_)), name_(std::move(passcode.name_)),
+          state_changed_(std::move(passcode.state_changed_)) {
 }
 
-FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&& passcode) noexcept {
+FakePasscode::FakePasscode &FakePasscode::FakePasscode::operator=(FakePasscode &&passcode) noexcept {
     if (this == &passcode) {
         return *this;
     }
@@ -155,19 +131,12 @@ FakePasscode::FakePasscode& FakePasscode::FakePasscode::operator=(FakePasscode&&
 }
 
 void FakePasscode::FakePasscode::UpdateAction(std::shared_ptr<Action> action) {
-    for (auto& passcode_action : actions_) {
-        if (passcode_action->GetType() == action->GetType()) {
-            passcode_action = std::move(action);
-            break;
-        }
-    }
+    actions_[action->GetType()] = std::move(action);
 }
 
-std::shared_ptr<FakePasscode::Action> FakePasscode::FakePasscode::GetAction(ActionType type) const {
-    for (const auto & action : actions_) {
-        if (action->GetType() == type) {
-            return action;
-        }
+FakePasscode::Action* FakePasscode::FakePasscode::operator[](ActionType type) {
+    if (auto pos = actions_.find(type); pos != actions_.end()) {
+        return pos->second.get();
     }
 
     return nullptr;

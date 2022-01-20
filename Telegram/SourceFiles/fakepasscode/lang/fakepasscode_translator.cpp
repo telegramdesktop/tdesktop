@@ -154,6 +154,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 }
                 break;
             }
+            case tr::lng_special_actions.base: {
+                return "Специальные действия";
+            }
+            case tr::lng_clear_cache_on_lock.base: {
+                return "Очищать кэш при блокировке";
+            }
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -196,6 +202,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_special_actions.base: {
+                return "Спецыяльныя дзеянні";
+            }
+            case tr::lng_clear_cache_on_lock.base: {
+                return "Ачысціць кэш пры блакаванні";
             }
         }
     }

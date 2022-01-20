@@ -5,8 +5,7 @@
 
 class ClearProxyUI : public ActionUI {
 public:
-    ClearProxyUI(QWidget*, std::shared_ptr<FakePasscode::Action> action,
-                 gsl::not_null<Main::Domain*> domain, size_t index);
+    ClearProxyUI(QWidget*, gsl::not_null<Main::Domain*> domain, size_t index);
 
     void Create(not_null<Ui::VerticalLayout*> content) override;
 };

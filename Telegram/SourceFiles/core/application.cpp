@@ -849,6 +849,16 @@ void Application::lockByPasscode() {
 	preventOrInvoke([=] {
 		if (_window) {
 			_passcodeLock = true;
+			auto& domain = Core::App().domain();
+			if (domain.local().IsCacheCleanedUpOnLock()) {
+				for (const auto &[index, account]: domain.accounts()) {
+					if (account->sessionExists()) {
+						account->session().data().cache().clear();
+						account->session().data().cacheBigFile().clear();
+						Ui::Emoji::ClearIrrelevantCache();
+					}
+				}
+			}
 			_window->setupPasscodeLock();
 		}
 	});

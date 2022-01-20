@@ -17,14 +17,14 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearCache)));
     button->addClickHandler([=] {
         if (button->toggled()) {
-            _domain->local().AddAction(_index, _action);
+            _domain->local().AddAction(_index, FakePasscode::ActionType::ClearCache);
         } else {
-            _domain->local().RemoveAction(_index, _action);
+            _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearCache);
         }
+        _domain->local().writeAccounts();
     });
 }
 
-ClearCacheUI::ClearCacheUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,
-                           gsl::not_null<Main::Domain*> domain, size_t index)
-        : ActionUI(parent, std::move(action), domain, index) {
+ClearCacheUI::ClearCacheUI(QWidget * parent, gsl::not_null<Main::Domain*> domain, size_t index)
+        : ActionUI(parent, FakePasscode::ActionType::ClearCache, domain, index) {
 }

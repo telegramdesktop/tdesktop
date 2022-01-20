@@ -1,9 +1,9 @@
 #include "action.h"
-#include "clear_proxies.h"
-#include "clear_cache.h"
-#include "logout.h"
+#include "fakepasscode/actions/clear_proxies.h"
+#include "fakepasscode/actions/clear_cache.h"
+#include "fakepasscode/actions/logout.h"
 
-std::shared_ptr<FakePasscode::Action> FakePasscode::DeSerialize(QByteArray serialized) {
+std::unique_ptr<FakePasscode::Action> FakePasscode::DeSerialize(QByteArray serialized) {
     QDataStream stream(&serialized, QIODevice::ReadWrite);
     qint32 passcodeTypeIndex;
     stream >> passcodeTypeIndex;
@@ -15,14 +15,14 @@ std::shared_ptr<FakePasscode::Action> FakePasscode::DeSerialize(QByteArray seria
     return CreateAction(passcodeType, inner_data);
 }
 
-std::shared_ptr<FakePasscode::Action> FakePasscode::CreateAction(FakePasscode::ActionType type,
+std::unique_ptr<FakePasscode::Action> FakePasscode::CreateAction(FakePasscode::ActionType type,
                                                                  const QByteArray& inner_data) {
     if (type == ActionType::ClearProxy) {
-        return std::make_shared<FakePasscode::ClearProxies>();
+        return std::make_unique<FakePasscode::ClearProxies>();
     } else if (type == ActionType::ClearCache) {
-        return std::make_shared<FakePasscode::ClearCache>();
+        return std::make_unique<FakePasscode::ClearCache>();
     } else if (type == ActionType::Logout) {
-        return std::make_shared<FakePasscode::LogoutAction>(inner_data);
+        return std::make_unique<FakePasscode::LogoutAction>(inner_data);
     }
     return nullptr;
 }
