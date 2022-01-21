@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
+class QMenuBar;
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -43,7 +45,7 @@ private:
 	friend class Private;
 	const std::unique_ptr<Private> _private;
 
-	QMenu *psMainMenu = nullptr;
+	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
 	QAction *psRedo = nullptr;
