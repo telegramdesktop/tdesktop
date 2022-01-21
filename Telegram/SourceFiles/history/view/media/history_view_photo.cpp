@@ -750,11 +750,11 @@ void Photo::repaintStreamedContent() {
 	} else if (_parent->delegate()->elementIsGifPaused()) {
 		return;
 	}
-	history()->owner().requestViewRepaint(_parent);
+	repaint();
 }
 
 void Photo::streamingReady(::Media::Streaming::Information &&info) {
-	history()->owner().requestViewRepaint(_parent);
+	repaint();
 }
 
 void Photo::checkAnimation() {
@@ -829,6 +829,12 @@ bool Photo::needsBubble() const {
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName());
+}
+
+QPoint Photo::resolveCustomInfoRightBottom() const {
+	const auto skipx = (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	const auto skipy = (st::msgDateImgDelta + st::msgDateImgPadding.y());
+	return QPoint(width() - skipx, height() - skipy);
 }
 
 bool Photo::isReadyForOpen() const {

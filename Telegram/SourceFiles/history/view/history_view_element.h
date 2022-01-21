@@ -33,6 +33,10 @@ struct ChatPaintContext;
 class ChatStyle;
 } // namespace Ui
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -45,6 +49,7 @@ using PaintContext = Ui::ChatPaintContext;
 
 namespace Reactions {
 struct ButtonParameters;
+class SendAnimation;
 } // namespace Reactions
 
 enum class Context : char {
@@ -224,6 +229,14 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct SendReactionAnimationArgs {
+	QString emoji;
+	std::shared_ptr<Lottie::Icon> flyIcon;
+	QRect flyFrom;
+
+	[[nodiscard]] SendReactionAnimationArgs translated(QPoint point) const;
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -269,7 +282,6 @@ public:
 
 	int skipBlockWidth() const;
 	int skipBlockHeight() const;
-	QString skipBlock() const;
 	virtual int infoWidth() const;
 	virtual int bottomInfoFirstLineWidth() const;
 	virtual bool bottomInfoIsWide() const;
@@ -323,6 +335,7 @@ public:
 	[[nodiscard]] virtual auto reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const -> Reactions::ButtonParameters;
+	[[nodiscard]] virtual int reactionsOptimalWidth() const;
 
 	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(
@@ -408,9 +421,15 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
+	virtual void animateSendReaction(SendReactionAnimationArgs &&args);
+	[[nodiscard]] virtual auto takeSendReactionAnimation()
+		-> std::unique_ptr<Reactions::SendAnimation>;
+
 	virtual ~Element();
 
 protected:
+	void repaint() const;
+
 	void paintHighlight(
 		Painter &p,
 		const PaintContext &context,

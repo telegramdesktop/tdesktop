@@ -20,11 +20,15 @@ class Reactions;
 } // namespace Data
 
 namespace HistoryView {
+namespace Reactions {
+class SendAnimation;
+} // namespace Reactions
 
 using PaintContext = Ui::ChatPaintContext;
 
 class Message;
 struct TextState;
+struct SendReactionAnimationArgs;
 
 class BottomInfo final : public Object {
 public:
@@ -44,11 +48,13 @@ public:
 		QDateTime date;
 		QString author;
 		base::flat_map<QString, int> reactions;
+		QString chosenReaction;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
 	};
 	BottomInfo(not_null<::Data::Reactions*> reactionsOwner, Data &&data);
+	~BottomInfo();
 
 	void update(Data &&data, int availableWidth);
 
@@ -66,6 +72,14 @@ public:
 		bool unread,
 		bool inverted,
 		const PaintContext &context) const;
+
+	void animateReactionSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint);
+	[[nodiscard]] auto takeSendReactionAnimation()
+		-> std::unique_ptr<Reactions::SendAnimation>;
+	void continueSendReactionAnimation(
+		std::unique_ptr<Reactions::SendAnimation> animation);
 
 private:
 	struct Reaction {
@@ -86,15 +100,22 @@ private:
 	[[nodiscard]] int countReactionsHeight(int newWidth) const;
 	void paintReactions(
 		Painter &p,
+		QPoint origin,
 		int left,
 		int top,
-		int availableWidth) const;
+		int availableWidth,
+		const PaintContext &context) const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
 	void setReactionCount(Reaction &reaction, int count);
 	[[nodiscard]] Reaction prepareReactionWithEmoji(const QString &emoji);
+	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
+		not_null<const HistoryItem*> item,
+		QPoint position) const;
+	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
+		not_null<const HistoryItem*> item) const;
 
 	const not_null<::Data::Reactions*> _reactionsOwner;
 	Data _data;
@@ -102,6 +123,8 @@ private:
 	Ui::Text::String _views;
 	Ui::Text::String _replies;
 	std::vector<Reaction> _reactions;
+	mutable ClickHandlerPtr _revokeLink;
+	mutable std::unique_ptr<Reactions::SendAnimation> _reactionAnimation;
 	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;
 	bool _authorElided = false;

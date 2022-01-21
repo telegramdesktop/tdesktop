@@ -98,6 +98,7 @@ public:
 	}
 	QRect contentRectForReactions() const override;
 	std::optional<int> reactionButtonCenterOverride() const override;
+	QPoint resolveCustomInfoRightBottom() const override;
 	QString additionalInfoString() const override;
 
 	bool skipBubbleTail() const override {

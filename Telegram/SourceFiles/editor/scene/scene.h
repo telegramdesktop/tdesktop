@@ -39,9 +39,6 @@ public:
 	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> removesItem() const;
 
-	[[nodiscard]] auto attachedStickers() const
-		-> std::vector<not_null<DocumentData*>>;
-
 	[[nodiscard]] std::shared_ptr<float64> lastZ() const;
 
 	void updateZoom(float64 zoom);

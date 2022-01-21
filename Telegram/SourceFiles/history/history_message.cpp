@@ -501,7 +501,7 @@ HistoryMessage::HistoryMessage(
 		setMedia(*media);
 	}
 	const auto textWithEntities = TextWithEntities{
-		TextUtilities::Clean(qs(data.vmessage())),
+		qs(data.vmessage()),
 		Api::EntitiesFromMTP(
 			&history->session(),
 			data.ventities().value_or_empty())
@@ -512,7 +512,7 @@ HistoryMessage::HistoryMessage(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
 	if (const auto reactions = data.vreactions()) {
-		updateReactions(reactions);
+		setReactions(reactions);
 	}
 
 	applyTTL(data);

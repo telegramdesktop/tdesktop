@@ -13,7 +13,7 @@ on:
       - '!.github/workflows/win.yml'
       - 'lib/xdg/**'
       - 'snap/**'
-      - 'Telegram/build/docker/**'
+      - 'Telegram/build/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/SourceFiles/platform/mac/**'
@@ -65,6 +65,7 @@ jobs:
         run: |
           mkdir %userprofile%\TBuild\Libraries
           echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
+
       - name: Get repository name.
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV

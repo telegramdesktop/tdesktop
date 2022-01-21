@@ -92,6 +92,11 @@ jobs:
         run: |
           ./$REPO_NAME/Telegram/build/prepare/mac.sh silent skip-qt5 build-qt6
 
+      - name: Free up some disk space.
+        run: |
+          cd Libraries
+          find . -iname "*.dir" -exec rm -rf {} || true \;
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |

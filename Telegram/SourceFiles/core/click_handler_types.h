@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 
 constexpr auto kPeerLinkPeerIdProperty = 0x01;
+constexpr auto kPhotoLinkMediaProperty = 0x02;
+constexpr auto kDocumentLinkMediaProperty = 0x03;
+constexpr auto kSendReactionEmojiProperty = 0x04;
+constexpr auto kReactionsCountEmojiProperty = 0x05;
 
 namespace Main {
 class Session;
@@ -193,5 +197,22 @@ protected:
 
 private:
 	QString _cmd;
+
+};
+
+class MonospaceClickHandler : public TextClickHandler {
+public:
+	MonospaceClickHandler(const QString &text, EntityType type);
+
+	void onClick(ClickContext context) const override;
+
+	TextEntity getTextEntity() const override;
+
+protected:
+	QString url() const override;
+
+private:
+	const QString _text;
+	const TextEntity _entity;
 
 };

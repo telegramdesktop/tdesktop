@@ -515,7 +515,7 @@ void InnerWidget::updateEmptyText() {
 		? tr::lng_admin_log_no_results_search_text(
 			tr::now,
 			lt_query,
-			TextUtilities::Clean(_searchQuery))
+			_searchQuery)
 		: hasFilter
 		? tr::lng_admin_log_no_results_text(tr::now)
 		: _channel->isMegagroup()
@@ -1169,11 +1169,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto view = App::hoveredItem()
 		? App::hoveredItem()
 		: App::hoveredLinkItem();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
-	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
-	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
-	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
+		: nullptr;
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
+		: nullptr;
+	auto lnkIsVideo = lnkDocument ? lnkDocument->isVideoFile() : false;
+	auto lnkIsVoice = lnkDocument ? lnkDocument->isVoiceMessage() : false;
+	auto lnkIsAudio = lnkDocument ? lnkDocument->isAudioFile() : false;
 	const auto fromId = PeerId(link
 		? link->property(kPeerLinkPeerIdProperty).toULongLong()
 		: 0);
@@ -1184,21 +1190,20 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconCopy);
 		}
 		if (lnkPhoto) {
-			const auto photo = lnkPhoto->photo();
-			const auto media = photo->activeMediaView();
-			if (!photo->isNull() && media && media->loaded()) {
+			const auto media = lnkPhoto->activeMediaView();
+			if (!lnkPhoto->isNull() && media && media->loaded()) {
 				_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-					savePhotoToFile(photo);
+					savePhotoToFile(lnkPhoto);
 				}), &st::menuIconSaveImage);
 				_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-					copyContextImage(photo);
+					copyContextImage(lnkPhoto);
 				}, &st::menuIconCopy);
 			}
-			if (photo->hasAttachedStickers()) {
+			if (lnkPhoto->hasAttachedStickers()) {
 				const auto controller = _controller;
 				auto callback = [=] {
 					auto &attached = session().api().attachedStickers();
-					attached.requestAttachedStickerSets(controller, photo);
+					attached.requestAttachedStickerSets(controller, lnkPhoto);
 				};
 				_menu->addAction(
 					tr::lng_context_attached_stickers(tr::now),
@@ -1206,22 +1211,21 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					&st::menuIconStickers);
 			}
 		} else {
-			auto document = lnkDocument->document();
-			if (document->loading()) {
+			if (lnkDocument->loading()) {
 				_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
-					cancelContextDownload(document);
+					cancelContextDownload(lnkDocument);
 				}, &st::menuIconCancel);
 			} else {
 				const auto itemId = view
 					? view->data()->fullId()
 					: FullMsgId();
-				if (const auto item = document->session().data().message(itemId)) {
+				if (const auto item = session().data().message(itemId)) {
 					const auto notAutoplayedGif = [&] {
-						return document->isGifv()
+						return lnkDocument->isGifv()
 							&& !Data::AutoDownload::ShouldAutoPlay(
-								document->session().settings().autoDownload(),
+								session().settings().autoDownload(),
 								item->history()->peer,
-								document);
+								lnkDocument);
 					}();
 					if (notAutoplayedGif) {
 						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
@@ -1229,19 +1233,19 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}, &st::menuIconShowInChat);
 					}
 				}
-				if (!document->filepath(true).isEmpty()) {
+				if (!lnkDocument->filepath(true).isEmpty()) {
 					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
-						showContextInFolder(document);
+						showContextInFolder(lnkDocument);
 					}, &st::menuIconShowInFolder);
 				}
-				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-					saveDocumentToFile(document);
+				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, lnkDocument] {
+					saveDocumentToFile(lnkDocument);
 				}), &st::menuIconDownload);
-				if (document->hasAttachedStickers()) {
+				if (lnkDocument->hasAttachedStickers()) {
 					const auto controller = _controller;
-					auto callback = [=, doc = document] {
+					auto callback = [=] {
 						auto &attached = session().api().attachedStickers();
-						attached.requestAttachedStickerSets(controller, doc);
+						attached.requestAttachedStickerSets(controller, lnkDocument);
 					};
 					_menu->addAction(
 						tr::lng_context_attached_stickers(tr::now),

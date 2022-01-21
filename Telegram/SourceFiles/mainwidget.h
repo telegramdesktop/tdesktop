@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "base/unique_qptr.h"
 #include "chat_helpers/bot_command.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -112,8 +113,6 @@ class MainWidget
 	: public Ui::RpWidget
 	, private Media::Player::FloatDelegate
 	, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	using SectionShow = Window::SectionShow;
 
@@ -124,7 +123,8 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
-
+	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
 
@@ -163,8 +163,6 @@ public:
 	[[nodiscard]] bool doWeMarkAsRead() const;
 
 	void saveFieldToHistoryLocalDraft();
-
-	int32 dlgsWidth() const;
 
 	void showForwardLayer(Data::ForwardDraft &&draft);
 	void showSendPathsLayer();
@@ -230,10 +228,6 @@ public:
 	bool preventsCloseSection(
 		Fn<void()> callback,
 		const SectionShow &params) const;
-
-public Q_SLOTS:
-	void inlineResultLoadProgress(FileLoader *loader);
-	void inlineResultLoadFailed(FileLoader *loader, bool started);
 
 	void dialogsCancelled();
 
@@ -325,6 +319,10 @@ private:
 		QImage &&image);
 
 	void handleHistoryBack();
+	bool showHistoryInDifferentWindow(
+		PeerId peerId,
+		const SectionShow &params,
+		MsgId showAtMsgId);
 
 	bool isOneColumn() const;
 	bool isNormalColumn() const;
@@ -340,12 +338,12 @@ private:
 	int _thirdColumnWidth = 0;
 	Ui::Animations::Simple _a_dialogsWidth;
 
-	object_ptr<Ui::PlainShadow> _sideShadow;
+	const base::unique_qptr<Ui::PlainShadow> _sideShadow;
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
 	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
 	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
-	object_ptr<Dialogs::Widget> _dialogs;
-	object_ptr<HistoryWidget> _history;
+	const base::unique_qptr<Dialogs::Widget> _dialogs;
+	const base::unique_qptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	std::shared_ptr<Window::SectionMemento> _thirdSectionFromStack;
@@ -364,7 +362,6 @@ private:
 	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
 		= { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
-	bool _playerUsingPanel = false;
 
 	base::unique_qptr<Window::HistoryHider> _hider;
 	std::vector<std::unique_ptr<StackItem>> _stack;
@@ -374,13 +371,8 @@ private:
 	int _exportTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
 
-	PhotoData *_deletingPhoto = nullptr;
-
 	struct SettingBackground;
 	std::unique_ptr<SettingBackground> _background;
-
-	bool _firstColumnResizing = false;
-	int _firstColumnResizingShift = 0;
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;

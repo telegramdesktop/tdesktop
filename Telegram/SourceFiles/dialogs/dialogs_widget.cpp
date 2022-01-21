@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "window/window_adaptive.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
@@ -226,11 +227,24 @@ Widget::Widget(
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
-			controller->content()->choosePeer(
-				history->peer->id,
-				(controller->uniqueChatsInSearchResults()
-					? ShowAtUnreadMsgId
-					: row.message.fullId.msg));
+			const auto peer = history->peer;
+			const auto showAtMsgId = controller->uniqueChatsInSearchResults()
+				? ShowAtUnreadMsgId
+				: row.message.fullId.msg;
+			if (row.newWindow) {
+				const auto active = controller->activeChatCurrent();
+				if (const auto history = active.history()) {
+					if (history->peer == peer) {
+						controller->content()->ui_showPeerHistory(
+							0,
+							Window::SectionShow::Way::ClearStack,
+							0);
+					}
+				}
+				Core::App().ensureSeparateWindowForPeer(peer, showAtMsgId);
+			} else {
+				controller->content()->choosePeer(peer->id, showAtMsgId);
+			}
 		} else if (const auto folder = row.key.folder()) {
 			controller->openFolder(folder);
 		}
@@ -581,7 +595,9 @@ void Widget::checkUpdateStatus() {
 
 	using Checker = Core::UpdateChecker;
 	if (Checker().state() == Checker::State::Ready) {
-		if (_updateTelegram) return;
+		if (_updateTelegram) {
+			return;
+		}
 		_updateTelegram.create(
 			this,
 			tr::lng_update_telegram(tr::now),
@@ -593,9 +609,13 @@ void Widget::checkUpdateStatus() {
 			Core::checkReadyUpdate();
 			App::restart();
 		});
-		_connecting->raise();
+		if (_connecting) {
+			_connecting->raise();
+		}
 	} else {
-		if (!_updateTelegram) return;
+		if (!_updateTelegram) {
+			return;
+		}
 		_updateTelegram.destroy();
 	}
 	updateControlsGeometry();
@@ -744,13 +764,13 @@ void Widget::escape() {
 		controller()->closeFolder();
 	} else if (!onCancelSearch()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			cancelled();
+			controller()->content()->dialogsCancelled();
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
 	} else if (!_searchInChat && !controller()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			cancelled();
+			controller()->content()->dialogsCancelled();
 		}
 	}
 }
@@ -1803,7 +1823,7 @@ void Widget::onCancelSearchInChat() {
 	}
 	applyFilterUpdate(true);
 	if (!isOneColumn && !controller()->selectingPeer()) {
-		cancelled();
+		controller()->content()->dialogsCancelled();
 	}
 }
 

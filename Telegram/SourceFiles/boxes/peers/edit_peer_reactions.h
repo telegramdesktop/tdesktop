@@ -19,7 +19,7 @@ void EditAllowedReactionsBox(
 	not_null<Ui::GenericBox*> box,
 	bool isGroup,
 	const std::vector<Data::Reaction> &list,
-	const std::vector<Data::Reaction> &selected,
+	const base::flat_set<QString> &selected,
 	Fn<void(const std::vector<QString> &)> callback);
 
 void SaveAllowedReactions(

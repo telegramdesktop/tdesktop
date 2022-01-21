@@ -7,115 +7,121 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
+#include "base/platform/base_platform_info.h"
+
 namespace Platform {
 namespace DesktopEnvironment {
 namespace {
 
 QString GetEnv(const char *name) {
-	auto value = qEnvironmentVariable(name);
+	const auto value = qEnvironmentVariable(name);
 	LOG(("Getting DE, %1: '%2'").arg(name, value));
 	return value;
 }
 
-Type Compute() {
-	auto xdgCurrentDesktop = GetEnv("XDG_CURRENT_DESKTOP").toLower();
-	auto list = xdgCurrentDesktop.split(':', Qt::SkipEmptyParts);
-	auto desktopSession = GetEnv("DESKTOP_SESSION").toLower();
-	auto slash = desktopSession.lastIndexOf('/');
-	auto kdeSession = GetEnv("KDE_SESSION_VERSION");
+QString GetWM() {
+	const auto result = Platform::GetWindowManager();
+	LOG(("Getting DE via WM: '%1'").arg(result));
+	return result;
+}
 
-	// DESKTOP_SESSION can contain a path
-	if (slash != -1) {
-		desktopSession = desktopSession.mid(slash + 1);
-	}
+std::vector<Type> Compute() {
+	auto result = std::vector<Type>();
 
-	if (!list.isEmpty()) {
-		if (list.contains("unity")) {
+	const auto xdgCurrentDesktop = GetEnv(
+		"XDG_CURRENT_DESKTOP").toLower().split(':', Qt::SkipEmptyParts);
+
+	const auto xdgSessionDesktop = GetEnv("XDG_SESSION_DESKTOP").toLower();
+
+	const auto desktopSession = [] {
+		const auto result = GetEnv("DESKTOP_SESSION").toLower();
+		const auto slash = result.lastIndexOf('/');
+		// DESKTOP_SESSION can contain a path
+		if (slash != -1) {
+			return result.mid(slash + 1);
+		}
+		return result;
+	}();
+
+	const auto windowManager = GetWM().toLower();
+
+	const auto desktopToType = [&](const QString &desktop) {
+		if (desktop == qstr("unity")) {
 			// gnome-fallback sessions set XDG_CURRENT_DESKTOP to Unity
 			// DESKTOP_SESSION can be gnome-fallback or gnome-fallback-compiz
-			if (desktopSession.indexOf(qstr("gnome-fallback")) >= 0) {
-				return Type::Gnome;
+			if (desktopSession.contains(qstr("gnome-fallback"))) {
+				result.push_back(Type::Gnome);
 			}
-			return Type::Unity;
-		} else if (list.contains("xfce")) {
-			return Type::XFCE;
-		} else if (list.contains("gnome")) {
-			return Type::Gnome;
-		} else if (list.contains("x-cinnamon")) {
-			return Type::Cinnamon;
-		} else if (list.contains("kde")) {
-			if (kdeSession == qstr("5")) {
-				return Type::KDE5;
-			}
-			return Type::KDE4;
-		} else if (list.contains("mate")) {
-			return Type::MATE;
-		} else if (list.contains("lxde")) {
-			return Type::LXDE;
+			result.push_back(Type::Unity);
+		} else if (desktop == qstr("gnome")) {
+			result.push_back(Type::Gnome);
+		} else if (desktop == qstr("x-cinnamon") || desktop == qstr("cinnamon")) {
+			result.push_back(Type::Cinnamon);
+		} else if (desktop == qstr("kde")) {
+			result.push_back(Type::KDE);
+		} else if (desktop == qstr("mate")) {
+			result.push_back(Type::MATE);
 		}
+	};
+
+	for (const auto &current : xdgCurrentDesktop) {
+		desktopToType(current);
+	}
+
+	if (!xdgSessionDesktop.isEmpty()) {
+		desktopToType(xdgSessionDesktop);
 	}
 
 	if (!desktopSession.isEmpty()) {
-		if (desktopSession == qstr("gnome")) {
-			return Type::Gnome;
-		} else if (desktopSession == qstr("cinnamon")) {
-			return Type::Cinnamon;
-		} else if (desktopSession == qstr("kde4") || desktopSession == qstr("kde-plasma")) {
-			return Type::KDE4;
-		} else if (desktopSession == qstr("kde")) {
-			// This may mean KDE4 on newer systems, so we have to check.
-			if (!kdeSession.isEmpty()) {
-				return Type::KDE4;
-			}
-			return Type::KDE3;
-		} else if (desktopSession == qstr("xfce")) {
-			return Type::XFCE;
-		} else if (desktopSession == qstr("mate")) {
-			return Type::MATE;
-		} else if (desktopSession == qstr("lxde")) {
-			return Type::LXDE;
-		}
+		desktopToType(desktopSession);
 	}
 
 	// Fall back on some older environment variables.
 	// Useful particularly in the DESKTOP_SESSION=default case.
 	if (!GetEnv("GNOME_DESKTOP_SESSION_ID").isEmpty()) {
-		return Type::Gnome;
-	} else if (!GetEnv("KDE_FULL_SESSION").isEmpty()) {
-		if (!kdeSession.isEmpty()) {
-			return Type::KDE4;
-		}
-		return Type::KDE3;
+		result.push_back(Type::Gnome);
+	}
+	if (!GetEnv("KDE_FULL_SESSION").isEmpty()) {
+		result.push_back(Type::KDE);
 	}
 
-	return Type::Other;
+	// Some DEs could be detected via X11
+	if (!windowManager.isEmpty()) {
+		if (windowManager == qstr("gnome shell")) {
+			result.push_back(Type::Gnome);
+		}
+	}
+
+	ranges::unique(result);
+	return result;
 }
 
-Type ComputeAndLog() {
-	auto result = Compute();
-	auto name = [result]() -> QString {
-		switch (result) {
-		case Type::Other: return "Other";
-		case Type::Gnome: return "Gnome";
-		case Type::Cinnamon: return "Cinnamon";
-		case Type::KDE3: return "KDE3";
-		case Type::KDE4: return "KDE4";
-		case Type::KDE5: return "KDE5";
-		case Type::Unity: return "Unity";
-		case Type::XFCE: return "XFCE";
-		case Type::MATE: return "MATE";
-		case Type::LXDE: return "LXDE";
-		}
-		return QString::number(static_cast<int>(result));
-	};
-	LOG(("DE: %1").arg(name()));
+std::vector<Type> ComputeAndLog() {
+	const auto result = Compute();
+	if (result.empty()) {
+		LOG(("DE: Other"));
+		return {};
+	}
+	const auto names = ranges::accumulate(
+		result | ranges::views::transform([](auto type) {
+			switch (type) {
+			case Type::Gnome: return qsl("Gnome, ");
+			case Type::Cinnamon: return qsl("Cinnamon, ");
+			case Type::KDE: return qsl("KDE, ");
+			case Type::Unity: return qsl("Unity, ");
+			case Type::MATE: return qsl("MATE, ");
+			}
+			Unexpected("Type in Platform::DesktopEnvironment::ComputeAndLog");
+		}),
+		QString()).chopped(2);
+	LOG(("DE: %1").arg(names));
 	return result;
 }
 
 } // namespace
 
 // Thanks Chromium.
-Type Get() {
+std::vector<Type> Get() {
 	static const auto result = ComputeAndLog();
 	return result;
 }

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "ui/boxes/confirm_box.h"
+#include "data/data_peer.h"
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"
@@ -40,8 +41,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-Controller::Controller()
-: _widget(this)
+Controller::Controller() : Controller(CreateArgs{}) {
+}
+
+Controller::Controller(
+	not_null<PeerData*> singlePeer,
+	MsgId showAtMsgId)
+: Controller(CreateArgs{ singlePeer.get() }) {
+	showAccount(&singlePeer->account(), showAtMsgId);
+}
+
+Controller::Controller(CreateArgs &&args)
+: _singlePeer(args.singlePeer)
+, _widget(this)
 , _adaptive(std::make_unique<Adaptive>())
 , _isActiveTimer([=] { updateIsActive(); }) {
 	_widget.init();
@@ -54,6 +66,14 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
+	showAccount(account, ShowAtUnreadMsgId);
+}
+
+void Controller::showAccount(
+		not_null<Main::Account*> account,
+		MsgId singlePeerShowAtMsgId) {
+	Expects(isPrimary() || &_singlePeer->account() == account);
+
 	const auto prevSessionUniqueId = (_account && _account->sessionExists())
 		? _account->session().uniqueId()
 		: 0;
@@ -80,20 +100,10 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
-		if (_sessionController) {
-			_sessionController->filtersMenuChanged(
-			) | rpl::start_with_next([=] {
-				sideBarChanged();
-			}, _sessionController->lifetime());
-		}
-		if (session && session->settings().dialogsFiltersEnabled()) {
-			_sessionController->toggleFiltersMenu(true);
-		} else {
-			sideBarChanged();
-		}
+		setupSideBar();
 		_widget.updateWindowIcon();
 		if (session) {
-			setupMain();
+			setupMain(singlePeerShowAtMsgId);
 
 			session->updates().isIdleValue(
 			) | rpl::filter([=](bool idle) {
@@ -109,6 +119,9 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
+		} else if (!isPrimary()) {
+			// #TODO windows test
+			close();
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
@@ -116,6 +129,30 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 
 		crl::on_main(updateOnlineOfPrevSesssion);
 	}, _accountLifetime);
+}
+
+PeerData *Controller::singlePeer() const {
+	return _singlePeer;
+}
+
+void Controller::setupSideBar() {
+	if (!isPrimary()) {
+		return;
+	}
+	if (!_sessionController) {
+		sideBarChanged();
+		return;
+	}
+	_sessionController->filtersMenuChanged(
+	) | rpl::start_with_next([=] {
+		sideBarChanged();
+	}, _sessionController->lifetime());
+
+	if (_sessionController->session().settings().dialogsFiltersEnabled()) {
+		_sessionController->toggleFiltersMenu(true);
+	} else {
+		sideBarChanged();
+	}
 }
 
 void Controller::checkLockByTerms() {
@@ -245,10 +282,10 @@ void Controller::setupIntro() {
 		: Intro::EnterPoint::Start);
 }
 
-void Controller::setupMain() {
+void Controller::setupMain(MsgId singlePeerShowAtMsgId) {
 	Expects(_sessionController != nullptr);
 
-	_widget.setupMain();
+	_widget.setupMain(singlePeerShowAtMsgId);
 
 	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
 		Ui::Emoji::LoadAndSwitchTo(&_sessionController->session(), id);

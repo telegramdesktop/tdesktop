@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
@@ -19,6 +20,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 		not_null<QWidget*> parent,
 		const style::MultiSelect &st,
 		const QString &reaction,
+		Ui::WhoReadType whoReadType,
 		int count,
 		rpl::producer<bool> selected) {
 	struct State {
@@ -71,9 +73,19 @@ not_null<Ui::AbstractButton*> CreateTab(
 				const auto shift = (height - (size / factor)) / 2;
 				Ui::Emoji::Draw(p, emoji, size, icon.x() + shift, shift);
 			} else {
-				(state->selected
-					? st::reactionsTabAllSelected
-					: st::reactionsTabAll).paintInCenter(p, icon);
+				using Type = Ui::WhoReadType;
+				(reaction.isEmpty()
+					? (state->selected
+						? st::reactionsTabAllSelected
+						: st::reactionsTabAll)
+					: (whoReadType == Type::Watched
+						|| whoReadType == Type::Listened)
+					? (state->selected
+						? st::reactionsTabPlayedSelected
+						: st::reactionsTabPlayed)
+					: (state->selected
+						? st::reactionsTabChecksSelected
+						: st::reactionsTabChecks)).paintInCenter(p, icon);
 			}
 
 			const auto textLeft = height + stm->padding.left();
@@ -91,23 +103,14 @@ not_null<Ui::AbstractButton*> CreateTab(
 not_null<Selector*> CreateReactionSelector(
 		not_null<QWidget*> parent,
 		const base::flat_map<QString, int> &items,
-		const QString &selected) {
+		const QString &selected,
+		Ui::WhoReadType whoReadType) {
 	struct State {
 		rpl::variable<QString> selected;
 		std::vector<not_null<Ui::AbstractButton*>> tabs;
 	};
 	const auto result = Ui::CreateChild<Selector>(parent.get());
 	using Entry = std::pair<int, QString>;
-	auto sorted = std::vector<Entry>();
-	for (const auto &[reaction, count] : items) {
-		sorted.emplace_back(count, reaction);
-	}
-	ranges::sort(sorted, std::greater<>(), &Entry::first);
-	const auto count = ranges::accumulate(
-		sorted,
-		0,
-		std::plus<>(),
-		&Entry::first);
 	auto tabs = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	const auto st = &st::reactionsTabs;
 	const auto state = tabs->lifetime().make_state<State>();
@@ -118,6 +121,7 @@ not_null<Selector*> CreateReactionSelector(
 			tabs,
 			*st,
 			reaction,
+			whoReadType,
 			count,
 			state->selected.value() | rpl::map(_1 == reaction));
 		tab->setClickedCallback([=] {
@@ -125,6 +129,20 @@ not_null<Selector*> CreateReactionSelector(
 		});
 		state->tabs.push_back(tab);
 	};
+	auto sorted = std::vector<Entry>();
+	for (const auto &[reaction, count] : items) {
+		if (reaction == u"read"_q) {
+			append(reaction, count);
+		} else {
+			sorted.emplace_back(count, reaction);
+		}
+	}
+	ranges::sort(sorted, std::greater<>(), &Entry::first);
+	const auto count = ranges::accumulate(
+		sorted,
+		0,
+		std::plus<>(),
+		&Entry::first);
 	append(QString(), count);
 	for (const auto &[count, reaction] : sorted) {
 		append(reaction, count);

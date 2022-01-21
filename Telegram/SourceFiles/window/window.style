@@ -351,6 +351,6 @@ macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
 macCautionIconSize: 16;
 
-macWindowRoundRadius: 5;
+macWindowRoundRadius: 10;
 macWindowShadowTopLeft: icon {{ "mac_window_shadow_top_left", windowShadowFg }};
 macTrayIcon: icon {{ "mac_tray_icon", windowFg }};

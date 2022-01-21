@@ -525,33 +525,16 @@ PRIVATE
     editor/controllers/controllers.h
     editor/controllers/stickers_panel_controller.cpp
     editor/controllers/stickers_panel_controller.h
-    editor/controllers/undo_controller.cpp
-    editor/controllers/undo_controller.h
-    editor/editor_crop.cpp
-    editor/editor_crop.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
     editor/photo_editor.h
-    editor/photo_editor_common.cpp
-    editor/photo_editor_common.h
     editor/photo_editor_content.cpp
     editor/photo_editor_content.h
     editor/photo_editor_controls.cpp
     editor/photo_editor_controls.h
-    editor/photo_editor_inner_common.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
-    editor/scene/scene.cpp
-    editor/scene/scene.h
-    editor/scene/scene_item_base.cpp
-    editor/scene/scene_item_base.h
-    editor/scene/scene_item_canvas.cpp
-    editor/scene/scene_item_canvas.h
-    editor/scene/scene_item_image.cpp
-    editor/scene/scene_item_image.h
-    editor/scene/scene_item_line.cpp
-    editor/scene/scene_item_line.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
     export/export_manager.cpp
@@ -670,6 +653,8 @@ PRIVATE
     history/view/history_view_pinned_section.h
     history/view/history_view_pinned_tracker.cpp
     history/view/history_view_pinned_tracker.h
+    history/view/history_view_react_animation.cpp
+    history/view/history_view_react_animation.h
     history/view/history_view_react_button.cpp
     history/view/history_view_react_button.h
     history/view/history_view_reactions.cpp
@@ -963,6 +948,8 @@ PRIVATE
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
     platform/linux/launcher_linux.h
+    platform/linux/integration_linux.cpp
+    platform/linux/integration_linux.h
     platform/linux/main_window_linux.cpp
     platform/linux/main_window_linux.h
     platform/linux/notifications_manager_linux_dummy.cpp
@@ -974,6 +961,8 @@ PRIVATE
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
     platform/mac/launcher_mac.h
+    platform/mac/integration_mac.mm
+    platform/mac/integration_mac.h
     platform/mac/mac_iconv_helper.c
     platform/mac/main_window_mac.mm
     platform/mac/main_window_mac.h
@@ -1008,6 +997,8 @@ PRIVATE
     platform/win/file_utilities_win.h
     platform/win/launcher_win.cpp
     platform/win/launcher_win.h
+    platform/win/integration_win.cpp
+    platform/win/integration_win.h
     platform/win/main_window_win.cpp
     platform/win/main_window_win.h
     platform/win/notifications_manager_win.cpp
@@ -1018,8 +1009,6 @@ PRIVATE
     platform/win/windows_app_user_model_id.h
     platform/win/windows_dlls.cpp
     platform/win/windows_dlls.h
-    platform/win/windows_event_filter.cpp
-    platform/win/windows_event_filter.h
     platform/win/windows_autostart_task.cpp
     platform/win/windows_autostart_task.h
     platform/win/windows_toast_activator.cpp
@@ -1027,6 +1016,8 @@ PRIVATE
     platform/platform_audio.h
     platform/platform_file_utilities.h
     platform/platform_launcher.h
+    platform/platform_integration.cpp
+    platform/platform_integration.h
     platform/platform_main_window.h
     platform/platform_notifications_manager.h
     platform/platform_specific.h

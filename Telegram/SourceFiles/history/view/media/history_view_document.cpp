@@ -798,7 +798,7 @@ void Document::updatePressed(QPoint point) {
 					/ float64(width() - nameleft - nameright),
 				0.,
 				1.));
-			history()->owner().requestViewRepaint(_parent);
+			repaint();
 		}
 	}
 }
@@ -1008,7 +1008,7 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 			} else {
 				voice->_playback->progress.update(qMin(dt, 1.), anim::linear);
 			}
-			history()->owner().requestViewRepaint(_parent);
+			repaint();
 			return (dt < 1.);
 		}
 	}

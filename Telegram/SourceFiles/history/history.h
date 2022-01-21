@@ -25,6 +25,7 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 struct HistoryMessageMarkupData;
+class HistoryMainElementDelegateMixin;
 
 namespace Main {
 class Session;
@@ -75,6 +76,19 @@ enum class UnreadMentionType {
 	Existing, // when some messages slice was received
 };
 
+enum class ItemNotificationType {
+	Message,
+	Reaction,
+};
+struct ItemNotification {
+	not_null<HistoryItem*> item;
+	ItemNotificationType type = ItemNotificationType::Message;
+
+	friend inline bool operator==(ItemNotification a, ItemNotification b) {
+		return (a.item == b.item) && (a.type == b.type);
+	}
+};
+
 class History final : public Dialogs::Entry {
 public:
 	using Element = HistoryView::Element;
@@ -83,6 +97,11 @@ public:
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
 	~History();
+
+	[[nodiscard]] auto delegateMixin() const
+			-> not_null<HistoryMainElementDelegateMixin*> {
+		return _delegateMixin.get();
+	}
 
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
@@ -298,10 +317,11 @@ public:
 	void itemRemoved(not_null<HistoryItem*> item);
 	void itemVanished(not_null<HistoryItem*> item);
 
-	HistoryItem *currentNotification();
+	[[nodiscard]] std::optional<ItemNotification> currentNotification() const;
 	bool hasNotification() const;
 	void skipNotification();
-	void popNotification(HistoryItem *item);
+	void pushNotification(ItemNotification notification);
+	void popNotification(ItemNotification notification);
 
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
@@ -585,6 +605,8 @@ private:
 
 	void setFolderPointer(Data::Folder *folder);
 
+	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
+
 	Flags _flags = 0;
 	bool _mute = false;
 	int _width = 0;
@@ -637,7 +659,7 @@ private:
 
 	HistoryView::SendActionPainter _sendActionPainter;
 
-	std::deque<not_null<HistoryItem*>> _notifications;
+	std::deque<ItemNotification> _notifications;
 
  };
 

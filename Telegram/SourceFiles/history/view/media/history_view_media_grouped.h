@@ -84,6 +84,8 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty() && (_mode != Mode::Column);
 	}
+	QPoint resolveCustomInfoRightBottom() const override;
+
 	bool allowsFastShare() const override {
 		return true;
 	}

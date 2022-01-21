@@ -319,7 +319,7 @@ OverlayWidget::OverlayWidget()
 			tr::lng_mediaview_downloads(tr::now),
 			"internal:show_saved_message"),
 		Ui::Text::WithEntities);
-	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text, Ui::DialogTextOptions());
+	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text);
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 	_saveMsgImage = QImage(
 		_saveMsg.size() * cIntRetinaFactor(),

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
+#include "ui/text/text_utilities.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
@@ -292,22 +293,33 @@ rpl::producer<bool> Session::termsLockValue() const {
 }
 
 QString Session::createInternalLink(const QString &query) const {
-	auto result = createInternalLinkFull(query);
-	auto prefixes = {
+	return createInternalLink(TextWithEntities{ .text = query }).text;
+}
+
+QString Session::createInternalLinkFull(const QString &query) const {
+	return createInternalLinkFull(TextWithEntities{ .text = query }).text;
+}
+
+TextWithEntities Session::createInternalLink(
+		const TextWithEntities &query) const {
+	const auto result = createInternalLinkFull(query);
+	const auto prefixes = {
 		qstr("https://"),
 		qstr("http://"),
 	};
 	for (auto &prefix : prefixes) {
-		if (result.startsWith(prefix, Qt::CaseInsensitive)) {
-			return result.mid(prefix.size());
+		if (result.text.startsWith(prefix, Qt::CaseInsensitive)) {
+			return Ui::Text::Mid(result, prefix.size());
 		}
 	}
-	LOG(("Warning: bad internal url '%1'").arg(result));
+	LOG(("Warning: bad internal url '%1'").arg(result.text));
 	return result;
 }
 
-QString Session::createInternalLinkFull(const QString &query) const {
-	return ValidatedInternalLinksDomain(this) + query;
+TextWithEntities Session::createInternalLinkFull(
+		TextWithEntities query) const {
+	return TextWithEntities::Simple(ValidatedInternalLinksDomain(this))
+		.append(std::move(query));
 }
 
 bool Session::supportMode() const {

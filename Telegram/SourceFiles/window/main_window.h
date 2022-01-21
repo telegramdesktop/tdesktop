@@ -62,6 +62,8 @@ public:
 	[[nodiscard]] Window::Controller &controller() const {
 		return *_controller;
 	}
+	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] Main::Account &account() const;
 	[[nodiscard]] Window::SessionController *sessionController() const;
 

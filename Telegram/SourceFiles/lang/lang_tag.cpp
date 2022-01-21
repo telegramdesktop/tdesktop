@@ -869,19 +869,14 @@ auto ChoosePlural = ChoosePluralDefault;
 int FindTagReplacementPosition(const QString &original, ushort tag) {
 	for (auto s = original.constData(), ch = s, e = ch + original.size(); ch != e;) {
 		if (*ch == TextCommand) {
-			if (ch + kTagReplacementSize <= e && (ch + 1)->unicode() == TextCommandLangTag && *(ch + 3) == TextCommand) {
+			if (ch + kTagReplacementSize <= e && (ch + 1)->unicode() == kTextCommandLangTag && *(ch + 3) == TextCommand) {
 				if ((ch + 2)->unicode() == 0x0020 + tag) {
 					return ch - s;
 				} else {
 					ch += kTagReplacementSize;
 				}
 			} else {
-				auto next = textSkipCommand(ch, e);
-				if (next == ch) {
-					++ch;
-				} else {
-					ch = next;
-				}
+				++ch;
 			}
 		} else {
 			++ch;

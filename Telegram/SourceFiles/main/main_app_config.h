@@ -17,6 +17,8 @@ class AppConfig final {
 public:
 	explicit AppConfig(not_null<Account*> account);
 
+	void start();
+
 	template <typename Type>
 	[[nodiscard]] Type get(const QString &key, Type fallback) const {
 		if constexpr (std::is_same_v<Type, double>) {

@@ -926,6 +926,10 @@ whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
 reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};
+reactionsTabPlayed: icon {{ "menu/read_audio", windowFg }};
+reactionsTabPlayedSelected: icon {{ "menu/read_audio", activeButtonFg }};
+reactionsTabChecks: icon {{ "menu/read_ticks", windowFg }};
+reactionsTabChecksSelected: icon {{ "menu/read_ticks", activeButtonFg }};
 reactionsTabs: MultiSelect(defaultMultiSelect) {
 	padding: margins(12px, 10px, 12px, 10px);
 }
@@ -963,23 +967,39 @@ sendAsButton: SendAsButton {
 	duration: 150;
 }
 
-reactionBottomPadding: margins(5px, 2px, 7px, 2px);
-reactionBottomSize: 16px;
-reactionBottomSkip: 3px;
-reactionBottomBetween: 4px;
-reactionBottomInBubbleLeft: -3px;
+reactionInlinePadding: margins(5px, 2px, 7px, 2px);
+reactionInlineSize: 16px;
+reactionInlineImage: 28px;
+reactionInlineSkip: 3px;
+reactionInlineBetween: 4px;
+reactionInlineInBubbleLeft: -3px;
+reactionInlineUserpicsPadding: margins(1px, 1px, 1px, 1px);
+reactionInlineUserpics: GroupCallUserpics {
+	size: 18px;
+	shift: 7px;
+	stroke: 1px;
+	align: align(left);
+}
 
 reactionInfoSize: 15px;
+reactionInfoImage: 30px;
 reactionInfoSkip: 3px;
 reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
-reactionCornerSize: size(40px, 32px);
-reactionCornerRadius: 14px;
-reactionCornerCenter: point(12px, -12px);
-reactionCornerImage: 24px;
+reactionCornerSize: size(36px, 32px);
+reactionCornerCenter: point(7px, -9px);
+reactionCornerImage: 22px;
 reactionCornerShadow: margins(4px, 8px, 4px, 8px);
 reactionCornerActiveAreaPadding: margins(10px, 10px, 10px, 10px);
-reactionCornerAddedHeightMax: 120px;
+reactionCornerAddedHeightMax: 100px;
 
-reactionCornerSkip: 2px;
+reactionCornerSkip: -4px;
+reactionExpandedSkip: 2px;
+reactionGradientStart: 8px;
+reactionGradientSize: 24px;
+reactionGradientFadeSize: 24px;
+reactionAppearStartSkip: 2px;
+reactionMainAppearShift: 20px;
+reactionCollapseFadeThreshold: 40px;
+reactionFlyUp: 50px;

@@ -319,7 +319,7 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 	fixOrder();
 }
 
-void MainWindow::setupMain() {
+void MainWindow::setupMain(MsgId singlePeerShowAtMsgId) {
 	Expects(account().sessionExists());
 
 	const auto animated = _intro
@@ -337,6 +337,12 @@ void MainWindow::setupMain() {
 	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
 	_main = std::move(created);
+	if (const auto peer = singlePeer()) {
+		_main->controller()->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			singlePeerShowAtMsgId);
+	}
 	if (_passcodeLock) {
 		_main->hide();
 	} else {
@@ -624,11 +630,20 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::KeyPress: {
 		if (Logs::DebugEnabled()
-			&& (e->type() == QEvent::KeyPress)
 			&& object == windowHandle()) {
-			auto key = static_cast<QKeyEvent*>(e)->key();
+			const auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
+#ifdef _DEBUG
+		switch (static_cast<QKeyEvent*>(e)->key()) {
+		case Qt::Key_F3:
+			anim::SetSlowMultiplier((anim::SlowMultiplier() == 10) ? 1 : 10);
+			return true;
+		case Qt::Key_F4:
+			anim::SetSlowMultiplier((anim::SlowMultiplier() == 50) ? 1 : 50);
+			return true;
+		}
+#endif
 	} break;
 
 	case QEvent::MouseMove: {
@@ -856,8 +871,8 @@ MainWindow::~MainWindow() {
 namespace App {
 
 MainWindow *wnd() {
-	return (Core::IsAppLaunched() && Core::App().activeWindow())
-		? Core::App().activeWindow()->widget().get()
+	return (Core::IsAppLaunched() && Core::App().primaryWindow())
+		? Core::App().primaryWindow()->widget().get()
 		: nullptr;
 }
 

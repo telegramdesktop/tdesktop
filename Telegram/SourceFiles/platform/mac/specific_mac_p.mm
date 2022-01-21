@@ -172,7 +172,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		if (Core::IsAppLaunched() && !_ignoreActivation) {
 			Core::App().handleAppActivated();
-			if (auto window = Core::App().activeWindow()) {
+			if (const auto window = Core::App().activeWindow()) {
 				if (window->widget()->isHidden()) {
 					window->widget()->showFromTray();
 				}

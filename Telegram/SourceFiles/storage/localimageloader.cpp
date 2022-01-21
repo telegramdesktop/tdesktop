@@ -15,7 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "base/unixtime.h"
 #include "base/random.h"
-#include "editor/scene/scene.h" // Editor::Scene::attachedStickers
+#include "editor/scene/scene_item_sticker.h"
+#include "editor/scene/scene.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "mtproto/facade.h"
@@ -148,6 +149,18 @@ MTPInputSingleMedia PrepareAlbumItemMedia(
 		sentEntities);
 }
 
+std::vector<not_null<DocumentData*>> ExtractStickersFromScene(
+		not_null<const Ui::PreparedFileInformation::Image*> info) {
+	const auto allItems = info->modifications.paint->items();
+
+	return ranges::views::all(
+		allItems
+	) | ranges::views::filter([](const Editor::Scene::ItemPtr &i) {
+		return i->isVisible() && (i->type() == Editor::ItemSticker::Type);
+	}) | ranges::views::transform([](const Editor::Scene::ItemPtr &i) {
+		return static_cast<Editor::ItemSticker*>(i.get())->sticker();
+	}) | ranges::to_vector;
+}
 
 } // namespace
 
@@ -948,8 +961,7 @@ void FileLoadTask::process(Args &&args) {
 		if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 				&_information->media)) {
 			if (image->modifications.paint) {
-				const auto documents
-					= image->modifications.paint->attachedStickers();
+				const auto documents = ExtractStickersFromScene(image);
 				_result->attachedStickers = documents
 					| ranges::view::transform(&DocumentData::mtpInput)
 					| ranges::to_vector;

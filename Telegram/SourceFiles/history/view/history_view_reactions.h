@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class Reactions;
+class CloudImageView;
 } // namespace Data
 
 namespace Ui {
@@ -21,19 +22,25 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
+struct SendReactionAnimationArgs;
+struct UserpicInRow;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
+
+class SendAnimation;
 
 struct InlineListData {
 	enum class Flag : uchar {
 		InBubble  = 0x01,
 		OutLayout = 0x02,
+		Flipped   = 0x04,
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
 	base::flat_map<QString, int> reactions;
+	base::flat_map<QString, std::vector<not_null<UserData*>>> recent;
 	QString chosenReaction;
 	Flags flags = {};
 };
@@ -45,9 +52,11 @@ public:
 		not_null<::Data::Reactions*> owner,
 		Fn<ClickHandlerPtr(QString)> handlerFactory,
 		Data &&data);
+	~InlineList();
 
 	void update(Data &&data, int availableWidth);
 	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] int countNiceWidth() const;
 	[[nodiscard]] int placeAndResizeGetHeight(QRect available);
 	void flipToRight();
 
@@ -63,11 +72,23 @@ public:
 		QPoint point,
 		not_null<TextState*> outResult) const;
 
+	void animateSend(
+		SendReactionAnimationArgs &&args,
+		Fn<void()> repaint);
+	[[nodiscard]] std::unique_ptr<SendAnimation> takeSendAnimation();
+	void continueSendAnimation(std::unique_ptr<SendAnimation> animation);
+
 private:
+	struct Userpics {
+		QImage image;
+		std::vector<UserpicInRow> list;
+		bool someNotLoaded = false;
+	};
 	struct Button {
 		QRect geometry;
 		mutable QImage image;
 		mutable ClickHandlerPtr link;
+		std::unique_ptr<Userpics> userpics;
 		QString emoji;
 		QString countText;
 		int count = 0;
@@ -78,7 +99,11 @@ private:
 	void layoutButtons();
 
 	void setButtonCount(Button &button, int count);
+	void setButtonUserpics(
+		Button &button,
+		const std::vector<not_null<UserData*>> &users);
 	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
+	void resolveUserpicsImage(const Button &button) const;
 
 	QSize countOptimalSize() override;
 
@@ -87,6 +112,8 @@ private:
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
+
+	mutable std::unique_ptr<SendAnimation> _animation;
 
 };
 

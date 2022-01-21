@@ -120,7 +120,148 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryInner *HistoryInner::Instance = nullptr;
+HistoryMainElementDelegateMixin::HistoryMainElementDelegateMixin() = default;
+
+HistoryMainElementDelegateMixin::~HistoryMainElementDelegateMixin()
+	= default;
+
+class HistoryMainElementDelegate final
+	: public HistoryView::ElementDelegate
+	, public HistoryMainElementDelegateMixin {
+public:
+	using Element = HistoryView::Element;
+
+	HistoryView::Context elementContext() override {
+		return HistoryView::Context::History;
+	}
+	std::unique_ptr<Element> elementCreate(
+			not_null<HistoryMessage*> message,
+			Element *replacing = nullptr) override {
+		return std::make_unique<HistoryView::Message>(
+			this,
+			message,
+			replacing);
+	}
+	std::unique_ptr<HistoryView::Element> elementCreate(
+			not_null<HistoryService*> message,
+			Element *replacing = nullptr) override {
+		return std::make_unique<HistoryView::Service>(
+			this,
+			message,
+			replacing);
+	}
+	bool elementUnderCursor(
+			not_null<const Element*> view) override {
+		return (App::mousedItem() == view);
+	}
+	crl::time elementHighlightTime(
+			not_null<const HistoryItem*> item) override {
+		return _widget ? _widget->elementHighlightTime(item) : 0;
+	}
+	bool elementInSelectionMode() override {
+		return _widget ? _widget->inSelectionMode() : false;
+	}
+	bool elementIntersectsRange(
+			not_null<const Element*> view,
+			int from,
+			int till) override {
+		return _widget
+			? _widget->elementIntersectsRange(view, from, till)
+			: false;
+	}
+	void elementStartStickerLoop(
+			not_null<const Element*> view) override {
+		if (_widget) {
+			_widget->elementStartStickerLoop(view);
+		}
+	}
+	void elementShowPollResults(
+			not_null<PollData*> poll,
+			FullMsgId context) override {
+		if (_widget) {
+			_widget->elementShowPollResults(poll, context);
+		}
+	}
+	void elementOpenPhoto(
+			not_null<PhotoData*> photo,
+			FullMsgId context) override {
+		if (_widget) {
+			_widget->elementOpenPhoto(photo, context);
+		}
+	}
+	void elementOpenDocument(
+			not_null<DocumentData*> document,
+			FullMsgId context,
+			bool showInMediaView = false) override {
+		if (_widget) {
+			_widget->elementOpenDocument(
+				document,
+				context,
+				showInMediaView);
+		}
+	}
+	void elementCancelUpload(const FullMsgId &context) override {
+		if (_widget) {
+			_widget->elementCancelUpload(context);
+		}
+	}
+	void elementShowTooltip(
+			const TextWithEntities &text,
+			Fn<void()> hiddenCallback) override {
+		if (_widget) {
+			_widget->elementShowTooltip(text, hiddenCallback);
+		}
+	}
+	bool elementIsGifPaused() override {
+		return _widget ? _widget->elementIsGifPaused() : false;
+	}
+	bool elementHideReply(not_null<const Element*> view) override {
+		return false;
+	}
+	bool elementShownUnread(not_null<const Element*> view) override {
+		return view->data()->unread();
+	}
+	void elementSendBotCommand(
+			const QString &command,
+			const FullMsgId &context) override {
+		if (_widget) {
+			_widget->elementSendBotCommand(command, context);
+		}
+	}
+	void elementHandleViaClick(not_null<UserData*> bot) override {
+		if (_widget) {
+			_widget->elementHandleViaClick(bot);
+		}
+	}
+	bool elementIsChatWide() override {
+		return _widget ? _widget->elementIsChatWide() : false;
+	}
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override {
+		Expects(_widget != nullptr);
+
+		return _widget->elementPathShiftGradient();
+	}
+	void elementReplyTo(const FullMsgId &to) override {
+		if (_widget) {
+			_widget->elementReplyTo(to);
+		}
+	}
+	void elementStartInteraction(not_null<const Element*> view) override {
+		if (_widget) {
+			_widget->elementStartInteraction(view);
+		}
+	}
+	void elementShowSpoilerAnimation() override {
+		if (_widget) {
+			_widget->elementShowSpoilerAnimation();
+		}
+	}
+
+	not_null<HistoryView::ElementDelegate*> delegate() override {
+		return this;
+	}
+
+};
 
 class HistoryInner::BotAbout : public ClickHandlerHost {
 public:
@@ -170,6 +311,7 @@ HistoryInner::HistoryInner(
 , _controller(controller)
 , _peer(history->peer)
 , _history(history)
+, _elementDelegate(_history->delegateMixin()->delegate())
 , _emojiInteractions(std::make_unique<HistoryView::EmojiInteractions>(
 	&controller->session()))
 , _migrated(history->migrateFrom())
@@ -180,12 +322,17 @@ HistoryInner::HistoryInner(
 , _reactionsManager(
 	std::make_unique<HistoryView::Reactions::Manager>(
 		this,
-		[=](QRect updated) { update(updated); }))
+		Data::UniqueReactionsLimitValue(&controller->session()),
+		[=](QRect updated) { update(updated); },
+		controller->cachedReactionIconFactory().createMethod()))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
-	Instance = this;
+	_history->delegateMixin()->setCurrent(this);
+	if (_migrated) {
+		_migrated->delegateMixin()->setCurrent(this);
+	}
 
 	Window::ChatThemeValueFromPeer(
 		controller,
@@ -230,8 +377,21 @@ HistoryInner::HistoryInner(
 	using ChosenReaction = HistoryView::Reactions::Manager::Chosen;
 	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
-		if (const auto item = session().data().message(reaction.context)) {
-			item->toggleReaction(reaction.emoji);
+		const auto item = session().data().message(reaction.context);
+		if (!item) {
+			return;
+		}
+		item->toggleReaction(reaction.emoji);
+		if (item->chosenReaction() != reaction.emoji) {
+			return;
+		} else if (const auto view = item->mainView()) {
+			if (const auto top = itemTop(view); top >= 0) {
+				view->animateSendReaction({
+					.emoji = reaction.emoji,
+					.flyIcon = reaction.icon,
+					.flyFrom = reaction.geometry.translated(0, -top),
+				});
+			}
 		}
 	}, lifetime());
 
@@ -267,6 +427,7 @@ HistoryInner::HistoryInner(
 		return item->mainView() != nullptr;
 	}) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		item->mainView()->itemDataChanged();
+		_reactionsManager->updateUniqueLimit(item);
 	}, lifetime());
 
 	session().changes().historyUpdates(
@@ -276,11 +437,10 @@ HistoryInner::HistoryInner(
 		update();
 	}, lifetime());
 
-	Data::PeerAllowedReactionsValue(
-		_peer
-	) | rpl::start_with_next([=](std::vector<Data::Reaction> &&list) {
-		_reactionsManager->applyList(std::move(list));
-	}, lifetime());
+	HistoryView::Reactions::SetupManagerList(
+		_reactionsManager.get(),
+		&session(),
+		Data::PeerAllowedReactionsValue(_peer));
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -394,6 +554,10 @@ void HistoryInner::repaintItem(const Element *view) {
 	if (top >= 0) {
 		const auto range = view->verticalRepaintRange();
 		update(0, top + range.top, width(), range.height);
+		const auto id = view->data()->fullId();
+		if (const auto area = _reactionsManager->lookupEffectArea(id)) {
+			update(*area);
+		}
 	}
 }
 
@@ -734,6 +898,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	} else {
 		_emptyPainter = nullptr;
 	}
+
+	_reactionsManager->startEffectsCollection();
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();
 
@@ -763,12 +929,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			context.translate(0, -top);
 			p.translate(0, top);
 			if (context.clip.y() < view->height()) while (top < drawToY) {
+				context.reactionEffects
+					= _reactionsManager->currentReactionEffect();
 				context.outbg = view->hasOutLayout();
 				context.selection = itemRenderSelection(
 					view,
 					selfromy - mtop,
 					seltoy - mtop);
 				view->draw(p, context);
+				_reactionsManager->recordCurrentReactionEffect(
+					item->fullId(),
+					QPoint(0, top));
 
 				const auto height = view->height();
 				const auto middle = top + height / 2;
@@ -818,14 +989,18 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			while (top < drawToY) {
 				const auto height = view->height();
 				if (context.clip.y() < height && hdrawtop < top + height) {
+					context.reactionEffects
+						= _reactionsManager->currentReactionEffect();
 					context.outbg = view->hasOutLayout();
 					context.selection = itemRenderSelection(
 						view,
 						selfromy - htop,
 						seltoy - htop);
 					view->draw(p, context);
+					_reactionsManager->recordCurrentReactionEffect(
+						item->fullId(),
+						QPoint(0, top));
 
-					const auto item = view->data();
 					const auto middle = top + height / 2;
 					const auto bottom = top + height;
 					if (_visibleAreaBottom >= bottom) {
@@ -965,7 +1140,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			});
 			p.setOpacity(1.);
 
-			_reactionsManager->paintButtons(p, context);
+			_reactionsManager->paint(p, context);
 
 			p.translate(0, _historyPaddingTop);
 			_emojiInteractions->paint(p);
@@ -1531,16 +1706,22 @@ void HistoryInner::mouseActionFinish(
 		const auto pressedItemId = pressedItemView
 			? pressedItemView->data()->fullId()
 			: FullMsgId();
+		const auto weak = base::make_weak(_controller.get());
 		ActivateClickHandler(window(), activated, {
 			button,
 			QVariant::fromValue(ClickHandlerContext{
 				.itemId = pressedItemId,
-				.elementDelegate = [weak = Ui::MakeWeak(this)] {
-					return weak
-						? HistoryInner::ElementDelegate().get()
-						: nullptr;
+				.elementDelegate = [=]() -> HistoryView::ElementDelegate* {
+					if (const auto strong = weak.get()) {
+						auto &data = strong->session().data();
+						if (const auto item = data.message(pressedItemId)) {
+							const auto history = item->history();
+							return history->delegateMixin()->delegate();
+						}
+					}
+					return nullptr;
 				},
-				.sessionWindow = base::make_weak(_controller.get()),
+				.sessionWindow = weak,
 			})
 		});
 		return;
@@ -1668,6 +1849,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
+	const auto link = ClickHandler::getActive();
+	if (link
+		&& !link->property(kSendReactionEmojiProperty).toString().isEmpty()
+		&& _reactionsManager->showContextMenu(
+			this,
+			e,
+			session().data().reactions().favorite())) {
+		return;
+	}
 	auto selectedState = getSelectionState();
 	auto canSendMessages = _peer->canWrite();
 
@@ -1705,6 +1895,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto hasWhoReactedItem = _dragStateItem
 		&& Api::WhoReactedExists(_dragStateItem);
+	const auto clickedEmoji = link
+		? link->property(kReactionsCountEmojiProperty).toString()
+		: QString();
+	_whoReactedMenuLifetime.destroy();
+	if (hasWhoReactedItem && !clickedEmoji.isEmpty()) {
+		HistoryView::ShowWhoReactedMenu(
+			&_menu,
+			e->globalPos(),
+			this,
+			_dragStateItem,
+			clickedEmoji,
+			_controller,
+			_whoReactedMenuLifetime);
+		e->accept();
+		return;
+	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);
@@ -1863,9 +2069,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
-	const auto link = ClickHandler::getActive();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
+		: nullptr;
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
+		: nullptr;
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
@@ -1879,9 +2090,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		addItemActions(item, item);
 		if (lnkPhoto) {
-			addPhotoActions(lnkPhoto->photo(), item);
+			addPhotoActions(lnkPhoto, item);
 		} else {
-			addDocumentActions(lnkDocument->document(), item);
+			addDocumentActions(lnkDocument, item);
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
@@ -2551,7 +2762,13 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	const auto pages = kUnloadHeavyPartsPages;
 	const auto from = _visibleAreaTop - pages * visibleAreaHeight;
 	const auto till = _visibleAreaBottom + pages * visibleAreaHeight;
-	session().data().unloadHeavyViewParts(ElementDelegate(), from, till);
+	session().data().unloadHeavyViewParts(_elementDelegate, from, till);
+	if (_migratedElementDelegate) {
+		session().data().unloadHeavyViewParts(
+			_migratedElementDelegate,
+			from,
+			till);
+	}
 	checkHistoryActivation();
 
 	_emojiInteractions->visibleAreaUpdated(
@@ -2679,7 +2896,7 @@ void HistoryInner::enterEventHook(QEnterEvent *e) {
 }
 
 void HistoryInner::leaveEventHook(QEvent *e) {
-	_reactionsManager->updateButton({});
+	_reactionsManager->updateButton({ .cursorLeft = true });
 	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);
@@ -2701,8 +2918,9 @@ HistoryInner::~HistoryInner() {
 			}
 		}
 	}
-	if (Instance == this) {
-		Instance = nullptr;
+	_history->delegateMixin()->setCurrent(nullptr);
+	if (_migrated) {
+		_migrated->delegateMixin()->setCurrent(nullptr);
 	}
 	delete _menu;
 	_mouseAction = MouseAction::None;
@@ -3011,7 +3229,8 @@ void HistoryInner::mouseActionUpdate() {
 		: nullptr;
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
-		if (App::mousedItem() != view) {
+		const auto changed = (App::mousedItem() != view);
+		if (changed) {
 			repaintItem(App::mousedItem());
 			App::mousedItem(view);
 			repaintItem(App::mousedItem());
@@ -3021,6 +3240,9 @@ void HistoryInner::mouseActionUpdate() {
 			view,
 			m,
 			reactionState));
+		if (changed) {
+			_reactionsManager->updateUniqueLimit(item);
+		}
 		if (view->pointState(m) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
@@ -3737,139 +3959,7 @@ void HistoryInner::onParentGeometryChanged() {
 	}
 }
 
-not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
-	class Result final : public HistoryView::ElementDelegate {
-	public:
-		HistoryView::Context elementContext() override {
-			return HistoryView::Context::History;
-		}
-		std::unique_ptr<HistoryView::Element> elementCreate(
-				not_null<HistoryMessage*> message,
-				Element *replacing = nullptr) override {
-			return std::make_unique<HistoryView::Message>(
-				this,
-				message,
-				replacing);
-		}
-		std::unique_ptr<HistoryView::Element> elementCreate(
-				not_null<HistoryService*> message,
-				Element *replacing = nullptr) override {
-			return std::make_unique<HistoryView::Service>(
-				this,
-				message,
-				replacing);
-		}
-		bool elementUnderCursor(
-				not_null<const Element*> view) override {
-			return (App::mousedItem() == view);
-		}
-		crl::time elementHighlightTime(
-				not_null<const HistoryItem*> item) override {
-			return Instance ? Instance->elementHighlightTime(item) : 0;
-		}
-		bool elementInSelectionMode() override {
-			return Instance ? Instance->inSelectionMode() : false;
-		}
-		bool elementIntersectsRange(
-				not_null<const Element*> view,
-				int from,
-				int till) override {
-			return Instance
-				? Instance->elementIntersectsRange(view, from, till)
-				: false;
-		}
-		void elementStartStickerLoop(
-				not_null<const Element*> view) override {
-			if (Instance) {
-				Instance->elementStartStickerLoop(view);
-			}
-		}
-		void elementShowPollResults(
-				not_null<PollData*> poll,
-				FullMsgId context) override {
-			if (Instance) {
-				Instance->elementShowPollResults(poll, context);
-			}
-		}
-		void elementOpenPhoto(
-				not_null<PhotoData*> photo,
-				FullMsgId context) override {
-			if (Instance) {
-				Instance->elementOpenPhoto(photo, context);
-			}
-		}
-		void elementOpenDocument(
-				not_null<DocumentData*> document,
-				FullMsgId context,
-				bool showInMediaView = false) override {
-			if (Instance) {
-				Instance->elementOpenDocument(
-					document,
-					context,
-					showInMediaView);
-			}
-		}
-		void elementCancelUpload(const FullMsgId &context) override {
-			if (Instance) {
-				Instance->elementCancelUpload(context);
-			}
-		}
-		void elementShowTooltip(
-				const TextWithEntities &text,
-				Fn<void()> hiddenCallback) override {
-			if (Instance) {
-				Instance->elementShowTooltip(text, hiddenCallback);
-			}
-		}
-		bool elementIsGifPaused() override {
-			return Instance ? Instance->elementIsGifPaused() : false;
-		}
-		bool elementHideReply(not_null<const Element*> view) override {
-			return false;
-		}
-		bool elementShownUnread(not_null<const Element*> view) override {
-			return view->data()->unread();
-		}
-		void elementSendBotCommand(
-				const QString &command,
-				const FullMsgId &context) override {
-			if (Instance) {
-				Instance->elementSendBotCommand(command, context);
-			}
-		}
-		void elementHandleViaClick(not_null<UserData*> bot) override {
-			if (Instance) {
-				Instance->elementHandleViaClick(bot);
-			}
-		}
-		bool elementIsChatWide() override {
-			return Instance
-				? Instance->elementIsChatWide()
-				: false;
-		}
-		not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override {
-			Expects(Instance != nullptr);
-
-			return Instance->elementPathShiftGradient();
-		}
-		void elementReplyTo(const FullMsgId &to) override {
-			if (Instance) {
-				Instance->elementReplyTo(to);
-			}
-		}
-		void elementStartInteraction(not_null<const Element*> view) override {
-			if (Instance) {
-				Instance->elementStartInteraction(view);
-			}
-		}
-		void elementShowSpoilerAnimation() override {
-			if (Instance) {
-				Instance->elementShowSpoilerAnimation();
-			}
-		}
-
-	};
-
-	static Result result;
-	return &result;
+auto HistoryInner::DelegateMixin()
+-> std::unique_ptr<HistoryMainElementDelegateMixin> {
+	return std::make_unique<HistoryMainElementDelegate>();
 }

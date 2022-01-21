@@ -68,6 +68,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 : Entry(owner, Type::History)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
+, _delegateMixin(HistoryInner::DelegateMixin())
 , _mute(owner->notifyIsMuted(peer))
 , _chatListNameSortKey(owner->nameSortKey(peer->name))
 , _sendActionPainter(this) {
@@ -96,14 +97,14 @@ int History::height() const {
 
 void History::removeNotification(not_null<HistoryItem*> item) {
 	_notifications.erase(
-		ranges::remove(_notifications, item),
+		ranges::remove(_notifications, item, &ItemNotification::item),
 		end(_notifications));
 }
 
-HistoryItem *History::currentNotification() {
+auto History::currentNotification() const -> std::optional<ItemNotification> {
 	return empty(_notifications)
-		? nullptr
-		: _notifications.front().get();
+		? std::nullopt
+		: std::make_optional(_notifications.front());
 }
 
 bool History::hasNotification() const {
@@ -116,8 +117,12 @@ void History::skipNotification() {
 	}
 }
 
-void History::popNotification(HistoryItem *item) {
-	if (!empty(_notifications) && (_notifications.back() == item)) {
+void History::pushNotification(ItemNotification notification) {
+	_notifications.push_back(notification);
+}
+
+void History::popNotification(ItemNotification notification) {
+	if (!empty(_notifications) && (_notifications.back() == notification)) {
 		_notifications.pop_back();
 	}
 }
@@ -1145,13 +1150,17 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
+	auto notification = ItemNotification{
+		item,
+		ItemNotificationType::Message,
+	};
 	if (item->showNotification()) {
-		_notifications.push_back(item);
+		pushNotification(notification);
 	}
 	owner().notifyNewItemAdded(item);
 	const auto stillShow = item->showNotification(); // Could be read already.
 	if (stillShow) {
-		Core::App().notifications().schedule(item);
+		Core::App().notifications().schedule(notification);
 		if (!item->out() && item->unread()) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
@@ -1244,8 +1253,7 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 
 	auto block = prepareBlockForAddingItem();
 
-	block->messages.push_back(item->createView(
-		HistoryInner::ElementDelegate()));
+	block->messages.push_back(item->createView(_delegateMixin->delegate()));
 	const auto view = block->messages.back().get();
 	view->attachToBlock(block, block->messages.size() - 1);
 
@@ -2011,8 +2019,7 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 	const auto it = block->messages.insert(
 		block->messages.begin() + itemIndex,
-		item->createView(
-			HistoryInner::ElementDelegate()));
+		item->createView(_delegateMixin->delegate()));
 	(*it)->attachToBlock(block.get(), itemIndex);
 	if (itemIndex + 1 < block->messages.size()) {
 		for (auto i = itemIndex + 1, l = int(block->messages.size()); i != l; ++i) {
@@ -2148,8 +2155,11 @@ void History::clearNotifications() {
 
 void History::clearIncomingNotifications() {
 	if (!peer->isSelf()) {
+		const auto proj = [](ItemNotification notification) {
+			return notification.item->out();
+		};
 		_notifications.erase(
-			ranges::remove(_notifications, false, &HistoryItem::out),
+			ranges::remove(_notifications, false, proj),
 			end(_notifications));
 	}
 }
@@ -2984,7 +2994,9 @@ void History::reactionsEnabledChanged(bool enabled) {
 			item->updateReactions(nullptr);
 		}
 	} else {
-
+		for (const auto &item : _messages) {
+			item->updateReactionsUnknown();
+		}
 	}
 }
 
@@ -3287,7 +3299,7 @@ void HistoryBlock::refreshView(not_null<Element*> view) {
 
 	const auto item = view->data();
 	auto refreshed = item->createView(
-		HistoryInner::ElementDelegate(),
+		_history->delegateMixin()->delegate(),
 		view);
 
 	auto blockIndex = indexInHistory();

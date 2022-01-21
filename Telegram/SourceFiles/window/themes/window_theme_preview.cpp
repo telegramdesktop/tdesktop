@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/image/image_prepare.h"
 #include "ui/emoji_config.h"
 #include "ui/chat/chat_theme.h"
@@ -138,7 +139,11 @@ private:
 	[[nodiscard]] bool extended() const;
 	void prepare();
 
-	void addRow(QString name, int peerIndex, QString date, QString text);
+	void addRow(
+		QString name,
+		int peerIndex,
+		QString date,
+		const TextWithEntities &text);
 	void addBubble(Bubble bubble, int width, int height, QString date, Status status);
 	void addAudioBubble(QVector<int> waveform, int waveactive, QString wavestatus, QString date, Status status);
 	void addTextBubble(QString text, QString date, Status status);
@@ -216,7 +221,11 @@ void Generator::prepare() {
 	generateData();
 }
 
-void Generator::addRow(QString name, int peerIndex, QString date, QString text) {
+void Generator::addRow(
+		QString name,
+		int peerIndex,
+		QString date,
+		const TextWithEntities &text) {
 	Row row;
 	row.name.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 
@@ -224,7 +233,10 @@ void Generator::addRow(QString name, int peerIndex, QString date, QString text) 
 
 	row.peerIndex = peerIndex;
 	row.date = date;
-	row.text.setRichText(st::dialogsTextStyle, text, Ui::DialogTextOptions());
+	row.text.setMarkedText(
+		st::dialogsTextStyle,
+		text,
+		Ui::DialogTextOptions());
 	_rows.push_back(std::move(row));
 }
 
@@ -272,7 +284,12 @@ int Generator::computeInfoWidth(Status status, QString date) {
 void Generator::addTextBubble(QString text, QString date, Status status) {
 	Bubble bubble;
 	auto skipBlock = computeSkipBlock(status, date);
-	bubble.text.setRichText(st::messageTextStyle, text + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
+	auto marked = TextWithEntities{ std::move(text) };
+	bubble.text.setMarkedText(
+		st::messageTextStyle,
+		std::move(marked),
+		Ui::ItemTextDefaultOptions());
+	bubble.text.updateSkipBlock(skipBlock.width(), skipBlock.height());
 
 	auto width = _history.width() - st::msgMargin.left() - st::msgMargin.right();
 	accumulate_min(width, st::msgPadding.left() + bubble.text.maxWidth() + st::msgPadding.right());
@@ -296,7 +313,12 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 	bubble.photoWidth = style::ConvertScale(bubble.photo.width() / 2);
 	bubble.photoHeight = style::ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
-	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
+	auto marked = TextWithEntities{ std::move(caption) };
+	bubble.text.setMarkedText(
+		st::messageTextStyle,
+		std::move(marked),
+		Ui::ItemTextDefaultOptions());
+	bubble.text.updateSkipBlock(skipBlock.width(), skipBlock.height());
 
 	auto width = _history.width() - st::msgMargin.left() - st::msgMargin.right();
 	accumulate_min(width, bubble.photoWidth);
@@ -311,23 +333,39 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 
 void Generator::generateData() {
 	_rows.reserve(9);
-	addRow("Eva Summer", 0, "11:00", "We are too smart for this world. " + QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"));
+	addRow(
+		"Eva Summer",
+		0,
+		"11:00",
+		{ .text = "We are too smart for this world. "
+			+ QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82") });
 	_rows.back().active = true;
 	_rows.back().pinned = true;
-	addRow("Alexandra Smith", 7, "10:00", "This is amazing!");
+	addRow("Alexandra Smith", 7, "10:00", { .text = "This is amazing!" });
 	_rows.back().unreadCounter = 2;
-	addRow("Mike Apple", 2, "9:00", textcmdLink(1, QChar(55357) + QString() + QChar(56836) + " Sticker"));
+	addRow(
+		"Mike Apple",
+		2,
+		"9:00",
+		Ui::Text::PlainLink(QChar(55357)
+			+ QString()
+			+ QChar(56836)
+			+ " Sticker"));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 1, "8:00", textcmdLink(1, "Eva: Photo"));
+	addRow("Evening Club", 1, "8:00", Ui::Text::PlainLink("Eva: Photo"));
 	_rows.back().type = Row::Type::Group;
-	addRow("Old Pirates", 6, "7:00", textcmdLink(1, "Max:") + " Yo-ho-ho!");
+	addRow(
+		"Old Pirates",
+		6,
+		"7:00",
+		Ui::Text::PlainLink("Max:").append(" Yo-ho-ho!"));
 	_rows.back().type = Row::Type::Group;
-	addRow("Max Bright", 3, "6:00", "How about some coffee?");
+	addRow("Max Bright", 3, "6:00", { .text = "How about some coffee?" });
 	_rows.back().status = Status::Received;
-	addRow("Natalie Parker", 4, "5:00", "OK, great)");
+	addRow("Natalie Parker", 4, "5:00", { .text = "OK, great)" });
 	_rows.back().status = Status::Received;
-	addRow("Davy Jones", 5, "4:00", textcmdLink(1, "Keynote.pdf"));
+	addRow("Davy Jones", 5, "4:00", Ui::Text::PlainLink("Keynote.pdf"));
 
 	_topBarName.setText(st::msgNameStyle, "Eva Summer", Ui::NameTextOptions());
 	_topBarStatus = "online";

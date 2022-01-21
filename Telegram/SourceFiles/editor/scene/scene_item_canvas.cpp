@@ -86,8 +86,8 @@ void ItemCanvas::clearPixmap() {
 	_p = nullptr;
 
 	_pixmap = QPixmap(
-		(scene()->sceneRect().size() * cIntRetinaFactor()).toSize());
-	_pixmap.setDevicePixelRatio(cRetinaFactor());
+		(scene()->sceneRect().size() * style::DevicePixelRatio()).toSize());
+	_pixmap.setDevicePixelRatio(style::DevicePixelRatio());
 	_pixmap.fill(Qt::transparent);
 
 	_p = std::make_unique<Painter>(&_pixmap);
@@ -170,10 +170,10 @@ void ItemCanvas::handleMouseReleaseEvent(
 
 	if (_contentRect.isValid()) {
 		const auto scaledContentRect = QRectF(
-			_contentRect.x() * cRetinaFactor(),
-			_contentRect.y() * cRetinaFactor(),
-			_contentRect.width() * cRetinaFactor(),
-			_contentRect.height() * cRetinaFactor());
+			_contentRect.x() * style::DevicePixelRatio(),
+			_contentRect.y() * style::DevicePixelRatio(),
+			_contentRect.width() * style::DevicePixelRatio(),
+			_contentRect.height() * style::DevicePixelRatio());
 
 		_grabContentRequests.fire({
 			.pixmap = _pixmap.copy(scaledContentRect.toRect()),

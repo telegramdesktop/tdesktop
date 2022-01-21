@@ -53,10 +53,6 @@ SafeIniter::SafeIniter() {
 	//	}
 	//}
 
-	const auto LibWtsApi32 = LoadLibrary(L"wtsapi32.dll");
-	LOAD_SYMBOL(LibWtsApi32, WTSRegisterSessionNotification);
-	LOAD_SYMBOL(LibWtsApi32, WTSUnRegisterSessionNotification);
-
 	const auto LibPropSys = LoadLibrary(L"propsys.dll");
 	LOAD_SYMBOL(LibPropSys, PSStringFromPropertyKey);
 

@@ -76,7 +76,7 @@ private:
 	Ui::Animations::Simple _toggledBarAnimation;
 
 	rpl::variable<PhotoEditorMode> _mode;
-	rpl::event_stream<int> _keyPresses;
+	rpl::event_stream<not_null<QKeyEvent*>> _keyPresses;
 
 };
 

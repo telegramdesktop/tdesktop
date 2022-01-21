@@ -286,7 +286,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 		base::unixtime::now(),
 		history->session().userId(),
 		QString(),
-		TextWithEntities{ TextUtilities::Clean(data.comment) },
+		TextWithEntities{ data.comment },
 		MTP_messageMediaEmpty(),
 		HistoryMessageMarkupData(),
 		groupedId);
