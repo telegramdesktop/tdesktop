@@ -661,6 +661,7 @@ void VideoTrackObject::callReady() {
 	}
 	data.cover = frame->original;
 	data.rotation = _stream.rotation;
+	data.alpha = frame->alpha;
 	data.state.duration = _stream.duration;
 	data.state.position = _syncTimePoint.trackTime;
 	data.state.receivedTill = _readTillEnd
@@ -1166,6 +1167,7 @@ FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
 		.yuv420 = &data.frame->yuv420,
 		.format = data.frame->format,
 		.index = data.index,
+		.alpha = data.frame->alpha,
 	};
 }
 

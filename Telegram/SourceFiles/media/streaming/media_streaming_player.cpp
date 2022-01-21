@@ -63,6 +63,7 @@ void SaveValidVideoInformation(
 	to.size = from.size;
 	to.cover = std::move(from.cover);
 	to.rotation = from.rotation;
+	to.alpha = from.alpha;
 }
 
 void SaveValidStartInformation(Information &to, Information &&from) {

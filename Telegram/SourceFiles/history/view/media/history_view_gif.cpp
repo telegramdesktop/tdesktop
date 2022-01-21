@@ -391,7 +391,10 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = QSize(usew, painth) * cIntRetinaFactor();
 		request.resize = QSize(_thumbw, _thumbh) * cIntRetinaFactor();
-		request.keepAlpha = !isRound && unwrapped;
+		request.keepAlpha = (sticker != nullptr);
+		if (sticker && context.selected()) {
+			request.colored = context.st->msgStickerOverlay()->c;
+		}
 		request.corners = roundCorners;
 		request.radius = roundRadius;
 		if (!activeRoundPlaying && activeOwnPlaying->instance.playerLocked()) {
@@ -442,8 +445,13 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		ensureDataMediaCreated();
 		const auto size = QSize(_thumbw, _thumbh);
 		const auto args = Images::PrepareArgs{
-			.options = Images::RoundOptions(roundRadius, roundCorners),
-			.outer = QSize(usew, painth),
+			.colored = ((sticker && context.selected())
+				? &context.st->msgStickerOverlay()
+				: nullptr),
+			.options = (sticker
+				? Images::Option::TransparentBackground
+				: Images::RoundOptions(roundRadius, roundCorners)),
+			.outer = sticker ? QSize() : QSize(usew, painth),
 		};
 		if (const auto good = _dataMedia->goodThumbnail()) {
 			p.drawPixmap(rthumb.topLeft(), good->pixSingle(size, args));

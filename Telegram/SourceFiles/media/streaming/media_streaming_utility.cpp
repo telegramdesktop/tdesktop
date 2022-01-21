@@ -92,7 +92,9 @@ bool GoodForRequest(
 		bool hasAlpha,
 		int rotation,
 		const FrameRequest &request) {
-	if (image.isNull() || (hasAlpha && !request.keepAlpha)) {
+	if (image.isNull()
+		|| (hasAlpha && !request.keepAlpha)
+		|| request.colored.alpha() != 0) {
 		return false;
 	} else if (request.resize.isEmpty()) {
 		return true;
@@ -321,6 +323,9 @@ QImage PrepareByRequest(
 	p.end();
 
 	ApplyFrameRounding(storage, request);
+	if (request.colored.alpha() != 0) {
+		storage = Images::Colored(std::move(storage), request.colored);
+	}
 	return storage;
 }
 
