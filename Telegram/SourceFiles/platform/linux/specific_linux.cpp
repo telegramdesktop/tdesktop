@@ -592,9 +592,7 @@ bool AutostartSkip() {
 }
 
 bool TrayIconSupported() {
-	return App::wnd()
-		? App::wnd()->trayAvailable()
-		: false;
+	return QSystemTrayIcon::isSystemTrayAvailable();
 }
 
 bool SkipTaskbarSupported() {
