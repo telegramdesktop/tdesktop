@@ -611,6 +611,7 @@ Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
 			.original = _streamed->instance.info().video.cover,
 			.format = Streaming::FrameFormat::ARGB32,
 			.index = -2,
+			.alpha = _streamed->instance.info().video.alpha,
 		};
 }
 
@@ -656,7 +657,9 @@ bool OverlayWidget::opaqueContentShown() const {
 	return contentShown()
 		&& (!_staticContentTransparent
 			|| !_document
-			|| (!_document->isVideoMessage() && !_document->sticker()));
+			|| (!_document->isVideoMessage()
+				&& !_document->sticker()
+				&& (!_streamed || !_streamed->instance.info().video.alpha)));
 }
 
 void OverlayWidget::clearStreaming(bool savePosition) {
