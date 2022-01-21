@@ -37,11 +37,5 @@ bool WaylandIntegration::skipTaskbarSupported() {
 void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
 }
 
-void WaylandIntegration::registerAppMenu(
-		QWindow *window,
-		const QString &serviceName,
-		const QString &objectPath) {
-}
-
 } // namespace internal
 } // namespace Platform

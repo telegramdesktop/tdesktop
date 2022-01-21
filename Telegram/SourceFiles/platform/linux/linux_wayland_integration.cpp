@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <surface.h>
 #include <xdgforeign.h>
 #include <plasmashell.h>
-#include <appmenu.h>
 
 using namespace KWayland::Client;
 
@@ -26,7 +25,6 @@ struct WaylandIntegration::Private {
 	Registry registry;
 	std::unique_ptr<XdgExporter> xdgExporter;
 	std::unique_ptr<PlasmaShell> plasmaShell;
-	std::unique_ptr<AppMenuManager> appMenuManager;
 };
 
 WaylandIntegration::WaylandIntegration()
@@ -72,21 +70,6 @@ WaylandIntegration::WaylandIntegration()
 				&ConnectionThread::connectionDied,
 				_private->plasmaShell.get(),
 				&PlasmaShell::destroy);
-		});
-
-	QObject::connect(
-		&_private->registry,
-		&Registry::appMenuAnnounced,
-		[=](uint name, uint version) {
-			_private->appMenuManager = std::unique_ptr<AppMenuManager>{
-				_private->registry.createAppMenuManager(name, version),
-			};
-
-			QObject::connect(
-				_private->connection.get(),
-				&ConnectionThread::connectionDied,
-				_private->appMenuManager.get(),
-				&AppMenuManager::destroy);
 		});
 }
 
@@ -139,28 +122,6 @@ void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
 	}
 
 	plasmaSurface->setSkipTaskbar(skip);
-}
-
-void WaylandIntegration::registerAppMenu(
-		QWindow *window,
-		const QString &serviceName,
-		const QString &objectPath) {
-	const auto manager = _private->appMenuManager.get();
-	if (!manager) {
-		return;
-	}
-
-	const auto surface = Surface::fromWindow(window);
-	if (!surface) {
-		return;
-	}
-
-	const auto appMenu = manager->create(surface, surface);
-	if (!appMenu) {
-		return;
-	}
-
-	appMenu->setAddress(serviceName, objectPath);
 }
 
 } // namespace internal

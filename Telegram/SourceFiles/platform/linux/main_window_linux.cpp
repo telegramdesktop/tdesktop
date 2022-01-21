@@ -44,14 +44,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QSize>
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
+#include <QtWidgets/QMenuBar>
+
+#include <private/qguiapplication_p.h>
+#include <private/qaction_p.h>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusMessage>
-#include <QtDBus/QDBusObjectPath>
-
-#include <dbusmenuexporter.h>
-
 #include <glibmm.h>
 #include <giomm.h>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -65,14 +63,6 @@ using WorkMode = Core::Settings::WorkMode;
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-constexpr auto kAppMenuService = "com.canonical.AppMenu.Registrar"_cs;
-constexpr auto kAppMenuObjectPath = "/com/canonical/AppMenu/Registrar"_cs;
-constexpr auto kAppMenuInterface = kAppMenuService;
-
-constexpr auto kMainMenuObjectPath = "/MenuBar"_cs;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 bool TrayIconMuted = true;
 int32 TrayIconCount = 0;
@@ -377,6 +367,11 @@ void ForceDisabled(QAction *action, bool disabled) {
 		if (disabled) action->setDisabled(true);
 	} else if (!disabled) {
 		action->setDisabled(false);
+
+		const auto privateAction = QActionPrivate::get(action);
+		privateAction->setShortcutEnabled(
+			false,
+			QGuiApplicationPrivate::instance()->shortcutMap);
 	}
 }
 
@@ -406,65 +401,6 @@ uint djbStringHash(const std::string &string) {
 	}
 	return hash;
 }
-
-bool IsAppMenuSupported() {
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		return base::Platform::DBus::NameHasOwner(
-			connection,
-			std::string(kAppMenuService));
-	} catch (...) {
-	}
-
-	return false;
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void RegisterAppMenu(QWindow *window, const QString &menuPath) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->registerAppMenu(
-			window,
-			QDBusConnection::sessionBus().baseService(),
-			menuPath);
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("RegisterWindow"));
-
-	message.setArguments({
-		uint(window->winId()),
-		QVariant::fromValue(QDBusObjectPath(menuPath))
-	});
-
-	QDBusConnection::sessionBus().send(message);
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void UnregisterAppMenu(QWindow *window) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("UnregisterWindow"));
-
-	message.setArguments({
-		uint(window->winId())
-	});
-
-	QDBusConnection::sessionBus().send(message);
-}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
@@ -480,15 +416,6 @@ public:
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
-
-	bool appMenuSupported = false;
-	uint appMenuWatcherId = 0;
-	DBusMenuExporter *mainMenuExporter = nullptr;
-
-	void handleAppMenuOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 protected:
@@ -511,27 +438,6 @@ bool MainWindow::Private::eventFilter(QObject *obj, QEvent *e) {
 	}
 	return QObject::eventFilter(obj, e);
 }
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-void MainWindow::Private::handleAppMenuOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner) {
-	if (oldOwner.isEmpty() && !newOwner.isEmpty()) {
-		appMenuSupported = true;
-		LOG(("Using D-Bus global menu."));
-	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
-		appMenuSupported = false;
-		LOG(("Not using D-Bus global menu."));
-	}
-
-	if (appMenuSupported && mainMenuExporter) {
-		RegisterAppMenu(_public->windowHandle(), kMainMenuObjectPath.utf16());
-	} else {
-		UnregisterAppMenu(_public->windowHandle());
-	}
-}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
@@ -561,31 +467,10 @@ void MainWindow::initHook() {
 	});
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	_private->appMenuSupported = IsAppMenuSupported();
-
 	try {
 		_private->dbusConnection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		_private->appMenuWatcherId = base::Platform::DBus::RegisterServiceWatcher(
-			_private->dbusConnection,
-			std::string(kAppMenuService),
-			[=](
-				const Glib::ustring &service,
-				const Glib::ustring &oldOwner,
-				const Glib::ustring &newOwner) {
-				_private->handleAppMenuOwnerChanged(
-					QString::fromStdString(service),
-					QString::fromStdString(oldOwner),
-					QString::fromStdString(newOwner));
-			});
 	} catch (...) {
-	}
-
-	if (_private->appMenuSupported) {
-		LOG(("Using D-Bus global menu."));
-	} else {
-		LOG(("Not using D-Bus global menu."));
 	}
 
 	if (UseUnityCounter()) {
@@ -715,7 +600,8 @@ void MainWindow::createGlobalMenu() {
 		}
 	};
 
-	psMainMenu = new QMenu(this);
+	psMainMenu = new QMenuBar(this);
+	psMainMenu->hide();
 
 	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
@@ -897,15 +783,16 @@ void MainWindow::createGlobalMenu() {
 
 	about->setMenuRole(QAction::AboutQtRole);
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	_private->mainMenuExporter = new DBusMenuExporter(
-		kMainMenuObjectPath.utf16(),
-		psMainMenu);
-
-	if (_private->appMenuSupported) {
-		RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
+	// avoid shadowing actual shortcuts by the menubar
+	for (const auto &child : psMainMenu->children()) {
+		const auto action = qobject_cast<QAction*>(child);
+		if (action) {
+			const auto privateAction = QActionPrivate::get(action);
+			privateAction->setShortcutEnabled(
+				false,
+				QGuiApplicationPrivate::instance()->shortcutMap);
+		}
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	updateGlobalMenu();
 }
@@ -980,31 +867,9 @@ void MainWindow::handleNativeSurfaceChanged(bool exist) {
 			(Core::App().settings().workMode() == WorkMode::TrayOnly)
 				&& TrayIconSupported());
 	}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_private->appMenuSupported && _private->mainMenuExporter) {
-		if (exist) {
-			RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
-		} else {
-			UnregisterAppMenu(windowHandle());
-		}
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 MainWindow::~MainWindow() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_private->dbusConnection) {
-		if (_private->appMenuWatcherId != 0) {
-			_private->dbusConnection->signal_unsubscribe(
-				_private->appMenuWatcherId);
-		}
-	}
-
-	if (_private->appMenuSupported) {
-		UnregisterAppMenu(windowHandle());
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace Platform

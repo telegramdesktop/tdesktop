@@ -52,9 +52,6 @@
 [submodule "Telegram/lib_qr"]
 	path = Telegram/lib_qr
 	url = https://github.com/desktop-app/lib_qr.git
-[submodule "Telegram/ThirdParty/libdbusmenu-qt"]
-	path = Telegram/ThirdParty/libdbusmenu-qt
-	url = https://github.com/desktop-app/libdbusmenu-qt.git
 [submodule "Telegram/ThirdParty/hunspell"]
 	path = Telegram/ThirdParty/hunspell
 	url = https://github.com/hunspell/hunspell
