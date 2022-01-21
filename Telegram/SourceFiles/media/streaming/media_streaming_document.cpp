@@ -239,6 +239,9 @@ void Document::validateGoodThumbnail() {
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 			}
+			if (!sticker && information.alpha) {
+				result = Images::Opaque(std::move(result));
+			}
 			return result;
 		}();
 		auto bytes = QByteArray();

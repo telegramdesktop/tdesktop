@@ -58,7 +58,11 @@ enum class FileType {
 		QByteArray data,
 		FileType type) {
 	if (type == FileType::Video || type == FileType::VideoSticker) {
-		return ::Media::Clip::PrepareForSending(path, data).thumbnail;
+		auto result = ::Media::Clip::PrepareForSending(path, data);
+		if (result.isWebmSticker && type == FileType::Video) {
+			result.thumbnail = Images::Opaque(std::move(result.thumbnail));
+		}
+		return result.thumbnail;
 	} else if (type == FileType::AnimatedSticker) {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
 	} else if (type == FileType::Theme) {

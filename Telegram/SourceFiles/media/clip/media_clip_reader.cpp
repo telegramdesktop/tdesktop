@@ -859,12 +859,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
 			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
 				if (hasAlpha && !result.isWebmSticker) {
-					auto cacheForResize = QImage();
-					auto request = FrameRequest();
-					request.framew = request.outerw = result.thumbnail.width();
-					request.frameh = request.outerh = result.thumbnail.height();
-					request.factor = 1;
-					result.thumbnail = PrepareFrameImage(request, result.thumbnail, hasAlpha, cacheForResize);
+					result.thumbnail = Images::Opaque(std::move(result.thumbnail));
 				}
 				result.duration = static_cast<int>(durationMs / 1000);
 			}
