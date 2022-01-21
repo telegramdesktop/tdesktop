@@ -258,6 +258,7 @@ void MediaPreviewWidget::setupLottie() {
 }
 
 QPixmap MediaPreviewWidget::currentImage() const {
+	const auto blur = Images::PrepareArgs{ .options = Images::Option::Blur };
 	if (_document) {
 		if (const auto sticker = _document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
@@ -268,13 +269,13 @@ QPixmap MediaPreviewWidget::currentImage() const {
 					return QPixmap();
 				} else if (const auto image = _documentMedia->getStickerLarge()) {
 					QSize s = currentDimensions();
-					_cache = image->pix(s.width(), s.height());
+					_cache = image->pix(s);
 					_cacheStatus = CacheLoaded;
 				} else if (_cacheStatus != CacheThumbLoaded
 					&& _document->hasThumbnail()
 					&& _documentMedia->thumbnail()) {
 					QSize s = currentDimensions();
-					_cache = _documentMedia->thumbnail()->pixBlurred(s.width(), s.height());
+					_cache = _documentMedia->thumbnail()->pix(s, blur);
 					_cacheStatus = CacheThumbLoaded;
 				}
 			}
@@ -293,10 +294,10 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				QSize s = currentDimensions();
 				const auto thumbnail = _documentMedia->thumbnail();
 				if (thumbnail) {
-					_cache = thumbnail->pixBlurred(s.width(), s.height());
+					_cache = thumbnail->pix(s, blur);
 					_cacheStatus = CacheThumbLoaded;
 				} else if (const auto blurred = _documentMedia->thumbnailInline()) {
-					_cache = blurred->pixBlurred(s.width(), s.height());
+					_cache = blurred->pix(s, blur);
 					_cacheStatus = CacheThumbLoaded;
 				}
 			}
@@ -305,7 +306,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		if (_cacheStatus != CacheLoaded) {
 			if (_photoMedia->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _photoMedia->image(Data::PhotoSize::Large)->pix(s.width(), s.height());
+				_cache = _photoMedia->image(Data::PhotoSize::Large)->pix(s);
 				_cacheStatus = CacheLoaded;
 			} else {
 				_photo->load(_origin);
@@ -313,14 +314,14 @@ QPixmap MediaPreviewWidget::currentImage() const {
 					QSize s = currentDimensions();
 					if (const auto thumbnail = _photoMedia->image(
 							Data::PhotoSize::Thumbnail)) {
-						_cache = thumbnail->pixBlurred(s.width(), s.height());
+						_cache = thumbnail->pix(s, blur);
 						_cacheStatus = CacheThumbLoaded;
 					} else if (const auto small = _photoMedia->image(
 							Data::PhotoSize::Small)) {
-						_cache = small->pixBlurred(s.width(), s.height());
+						_cache = small->pix(s, blur);
 						_cacheStatus = CacheThumbLoaded;
 					} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-						_cache = blurred->pixBlurred(s.width(), s.height());
+						_cache = blurred->pix(s, blur);
 						_cacheStatus = CacheThumbLoaded;
 					} else {
 						_photoMedia->wanted(Data::PhotoSize::Small, _origin);

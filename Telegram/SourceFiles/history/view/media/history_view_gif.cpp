@@ -439,24 +439,28 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else {
 		ensureDataMediaCreated();
+		const auto size = QSize(_thumbw, _thumbh);
+		const auto args = Images::PrepareArgs{
+			.options = Images::RoundOptions(roundRadius, roundCorners),
+			.outer = QSize(usew, painth),
+		};
 		if (const auto good = _dataMedia->goodThumbnail()) {
-			p.drawPixmap(rthumb.topLeft(), good->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+			p.drawPixmap(rthumb.topLeft(), good->pixSingle(size, args));
 		} else {
 			const auto normal = _dataMedia->thumbnail();
 			if (normal) {
-				if (normal->width() >= kUseNonBlurredThreshold
-					|| normal->height() >= kUseNonBlurredThreshold) {
-					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
-				} else {
-					p.drawPixmap(rthumb.topLeft(), normal->pixBlurredSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
-				}
+				const auto blurred = (normal->width() < kUseNonBlurredThreshold)
+					|| (normal->height() < kUseNonBlurredThreshold);
+				p.drawPixmap(
+					rthumb.topLeft(),
+					normal->pixSingle(size, blurred ? args.blurred() : args));
 			} else {
 				_data->loadThumbnail(_realParent->fullId());
 				validateVideoThumbnail();
 				if (_videoThumbnailFrame) {
-					p.drawPixmap(rthumb.topLeft(), _videoThumbnailFrame->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), _videoThumbnailFrame->pixSingle(size, args));
 				} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), blurred->pixSingle(size, args.blurred()));
 				} else if (!isRound) {
 					const auto roundTop = (roundCorners & RectPart::TopLeft);
 					const auto roundBottom = (roundCorners & RectPart::BottomLeft);
@@ -1291,13 +1295,15 @@ void Gif::validateGroupedCache(
 	const auto loadLevel = good ? 3 : thumb ? 2 : image ? 1 : 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| (blur ? Option::Blurred : Option(0))
-		| ((corners & RectPart::TopLeft) ? Option::RoundedTopLeft : Option::None)
-		| ((corners & RectPart::TopRight) ? Option::RoundedTopRight : Option::None)
-		| ((corners & RectPart::BottomLeft) ? Option::RoundedBottomLeft : Option::None)
-		| ((corners & RectPart::BottomRight) ? Option::RoundedBottomRight : Option::None);
+	const auto corner = [&](RectPart part, Option skip) {
+		return !(corners & part) ? skip : Option();
+	};
+	const auto options = Option::RoundLarge
+		| (blur ? Option::Blur : Option(0))
+		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
+		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
+		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
+		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
@@ -1312,16 +1318,12 @@ void Gif::validateGroupedCache(
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
-	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
+	const auto ratio = style::DevicePixelRatio();
 
 	*cacheKey = key;
 	*cache = (image ? image : Image::BlankMedia().get())->pixNoCache(
-		pixWidth,
-		pixHeight,
-		options,
-		width,
-		height);
+		pixSize * ratio,
+		{ .options = options, .outer = { width, height } });
 }
 
 void Gif::setStatusSize(int newSize) const {

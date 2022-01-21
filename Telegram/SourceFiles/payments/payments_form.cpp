@@ -239,10 +239,10 @@ QImage Form::prepareThumbnail(
 		not_null<const Image*> image,
 		bool blurred) const {
 	auto result = image->original().scaled(
-		st::paymentsThumbnailSize * cIntRetinaFactor(),
+		st::paymentsThumbnailSize * style::DevicePixelRatio(),
 		Qt::KeepAspectRatio,
 		Qt::SmoothTransformation);
-	Images::prepareRound(result, ImageRoundRadius::Large);
+	result = Images::Round(std::move(result), ImageRoundRadius::Large);
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
 }

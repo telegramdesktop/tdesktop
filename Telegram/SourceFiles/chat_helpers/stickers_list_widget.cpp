@@ -1966,12 +1966,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		const auto pixmap = !sticker.savedFrame.isNull()
 			? sticker.savedFrame
 			: image
-			? image->pixSingle(
-				w,
-				h,
-				w,
-				h,
-				ImageRoundRadius::None)
+			? image->pixSingle(w, h, { .outer = { w, h } })
 			: QPixmap();
 		if (!pixmap.isNull()) {
 			p.drawPixmapLeft(ppos, width(), pixmap);

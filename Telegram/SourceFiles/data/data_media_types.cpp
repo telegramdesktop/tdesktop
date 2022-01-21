@@ -128,9 +128,9 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 					Images::CornersMask(pxRadius)).first->second;
 			}
 		}
-		Images::prepareRound(square, *cache.lastUsed);
+		square = Images::Round(std::move(square), *cache.lastUsed);
 	} else {
-		Images::prepareRound(square, radius);
+		square = Images::Round(std::move(square), radius);
 	}
 	square.setDevicePixelRatio(factor);
 	return square;

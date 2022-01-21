@@ -304,7 +304,8 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
 		if (ValidVideoForAlbum(*video)) {
-			auto blurred = Images::prepareBlur(Images::prepareOpaque(video->thumbnail));
+			auto blurred = Images::Blur(
+				Images::Opaque(base::duplicate(video->thumbnail)));
 			file.shownDimensions = PrepareShownDimensions(video->thumbnail);
 			file.preview = std::move(blurred).scaledToWidth(
 				previewWidth * cIntRetinaFactor(),
@@ -333,7 +334,7 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 		previewWidth,
 		style::ConvertScale(preview.width())
 	) * cIntRetinaFactor();
-	const auto scaled = preview.scaledToWidth(
+	auto scaled = preview.scaledToWidth(
 		toWidth,
 		Qt::SmoothTransformation);
 	if (scaled.isNull()) {
@@ -345,7 +346,7 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 		Unexpected("Scaled is null.");
 	}
 	Assert(!scaled.isNull());
-	file.preview = Images::prepareOpaque(scaled);
+	file.preview = Images::Opaque(std::move(scaled));
 	Assert(!file.preview.isNull());
 	file.preview.setDevicePixelRatio(cRetinaFactor());
 }

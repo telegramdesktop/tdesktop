@@ -127,8 +127,13 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 	corners[1] = roundMask.copy(retinaRadius, 0, retinaRadius, retinaRadius);
 	corners[2] = roundMask.copy(0, retinaRadius, retinaRadius, retinaRadius);
 	corners[3] = roundMask.copy(retinaRadius, retinaRadius, retinaRadius, retinaRadius);
-	auto rounded = preview.copy(inner.x() * retina, inner.y() * retina, inner.width() * retina, inner.height() * retina);
-	Images::prepareRound(rounded, corners);
+	auto rounded = Images::Round(
+		preview.copy(
+			inner.x() * retina,
+			inner.y() * retina,
+			inner.width() * retina,
+			inner.height() * retina),
+			corners);
 	rounded.setDevicePixelRatio(cRetinaFactor());
 	preview.fill(st::themePreviewBg->c);
 

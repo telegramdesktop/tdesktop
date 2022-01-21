@@ -59,11 +59,9 @@ ItemSticker::ItemSticker(
 		if (!sticker) {
 			return false;
 		}
-		auto pixmap = sticker->pixNoCache(
-			sticker->width() * cIntRetinaFactor(),
-			sticker->height() * cIntRetinaFactor(),
-			Images::Option::Smooth);
-		pixmap.setDevicePixelRatio(cRetinaFactor());
+		const auto ratio = style::DevicePixelRatio();
+		auto pixmap = sticker->pixNoCache(sticker->size() * ratio);
+		pixmap.setDevicePixelRatio(ratio);
 		updatePixmap(std::move(pixmap));
 		return true;
 	};

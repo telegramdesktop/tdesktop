@@ -283,7 +283,10 @@ void ApplyFrameRounding(QImage &storage, const FrameRequest &request) {
 		|| (request.radius == ImageRoundRadius::None)) {
 		return;
 	}
-	Images::prepareRound(storage, request.radius, request.corners);
+	storage = Images::Round(
+		std::move(storage),
+		request.radius,
+		request.corners);
 }
 
 QImage PrepareByRequest(

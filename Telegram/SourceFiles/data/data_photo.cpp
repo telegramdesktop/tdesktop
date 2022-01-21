@@ -36,7 +36,7 @@ using Data::kPhotoSizeCount;
 		const Data::CloudFile &file) {
 	return (v::is<WebFileLocation>(file.location.file().data)
 		&& image.format() == QImage::Format_ARGB32)
-		? Images::prepareOpaque(std::move(image))
+		? Images::Opaque(std::move(image))
 		: image;
 }
 

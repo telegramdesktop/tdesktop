@@ -65,13 +65,11 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 				maxH = limitH;
 			}
 		}
-		preview = Images::prepare(
-			preview,
-			maxW * style::DevicePixelRatio(),
-			maxH * style::DevicePixelRatio(),
-			Images::Option::Smooth | Images::Option::Blurred,
-			maxW,
-			maxH);
+		const auto ratio = style::DevicePixelRatio();
+		preview = Images::Prepare(
+			std::move(preview),
+			QSize(maxW, maxH) * ratio,
+			{ .options = Images::Option::Blur, .outer = { maxW, maxH } });
 	}
 	auto originalWidth = preview.width();
 	auto originalHeight = preview.height();
@@ -103,7 +101,7 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 		_previewHeight * style::DevicePixelRatio(),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
-	preview = Images::prepareOpaque(std::move(preview));
+	preview = Images::Opaque(std::move(preview));
 	_preview = PixmapFromImage(std::move(preview));
 	_preview.setDevicePixelRatio(style::DevicePixelRatio());
 

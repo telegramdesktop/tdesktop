@@ -147,9 +147,9 @@ QWidget *PipDelegate::pipParentWidget() {
 }
 
 [[nodiscard]] Images::Options VideoThumbOptions(DocumentData *document) {
-	const auto result = Images::Option::Smooth | Images::Option::Blurred;
+	const auto result = Images::Option::Blur;
 	return (document && document->isVideoMessage())
-		? (result | Images::Option::Circled)
+		? (result | Images::Option::RoundCircle)
 		: result;
 }
 
@@ -2453,9 +2453,9 @@ void OverlayWidget::displayDocument(
 			if (const auto image = _documentMedia->getStickerLarge()) {
 				setStaticContent(image->original());
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-				setStaticContent(thumbnail->pixBlurred(
-					_document->dimensions.width(),
-					_document->dimensions.height()
+				setStaticContent(thumbnail->pix(
+					_document->dimensions,
+					{ .options = Images::Option::Blur }
 				).toImage());
 			}
 		} else {
@@ -2712,10 +2712,8 @@ void OverlayWidget::initStreamingThumbnail() {
 	} else if (size.isEmpty()) {
 		return;
 	}
-	const auto w = size.width();
-	const auto h = size.height();
 	const auto options = VideoThumbOptions(_document);
-	const auto goodOptions = (options & ~Images::Option::Blurred);
+	const auto goodOptions = (options & ~Images::Option::Blur);
 	setStaticContent((good
 		? good
 		: thumbnail
@@ -2723,11 +2721,11 @@ void OverlayWidget::initStreamingThumbnail() {
 		: blurred
 		? blurred
 		: Image::BlankMedia().get())->pixNoCache(
-			w,
-			h,
-			good ? goodOptions : options,
-			w / cIntRetinaFactor(),
-			h / cIntRetinaFactor()
+			size,
+			{
+				.options = good ? goodOptions : options,
+				.outer = size / style::DevicePixelRatio(),
+			}
 		).toImage());
 }
 
@@ -3271,10 +3269,8 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	const auto use = flipSizeByRotation({ _width, _height })
 		* cIntRetinaFactor();
 	setStaticContent(image->pixNoCache(
-		use.width(),
-		use.height(),
-		Images::Option::Smooth
-		| (blurred ? Images::Option::Blurred : Images::Option(0))
+		use,
+		{ .options = (blurred ? Images::Option::Blur : Images::Option()) }
 	).toImage());
 	_blurred = blurred;
 }

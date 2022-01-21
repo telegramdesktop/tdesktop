@@ -342,16 +342,15 @@ void HistoryMessageReply::paint(
 			if (hasPreview) {
 				if (const auto image = replyToMsg->media()->replyPreview()) {
 					auto to = style::rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
-					auto previewWidth = image->width() / cIntRetinaFactor();
-					auto previewHeight = image->height() / cIntRetinaFactor();
-					auto preview = image->pixSingle(
-						previewWidth,
-						previewHeight,
-						to.width(),
-						to.height(),
-						ImageRoundRadius::Small,
-						RectPart::AllCorners,
-						context.selected() ? &st->msgStickerOverlay() : nullptr);
+					const auto preview = image->pixSingle(
+						image->size() / style::DevicePixelRatio(),
+						{
+							.colored = (context.selected()
+								? &st->msgStickerOverlay()
+								: nullptr),
+							.options = Images::Option::RoundSmall,
+							.outer = to.size(),
+						});
 					p.drawPixmap(to.x(), to.y(), preview);
 				}
 			}

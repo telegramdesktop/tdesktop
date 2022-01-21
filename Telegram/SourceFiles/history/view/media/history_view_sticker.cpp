@@ -173,7 +173,9 @@ void Sticker::paintLottie(
 		? frame.image
 		: _lastDiceFrame;
 	const auto prepared = (!_lastDiceFrame.isNull() && context.selected())
-		? Images::prepareColored(context.st->msgStickerOverlay()->c, image)
+		? Images::Colored(
+			base::duplicate(image),
+			context.st->msgStickerOverlay()->c)
 		: image;
 	const auto size = prepared.size() / cIntRetinaFactor();
 	p.drawImage(
@@ -252,27 +254,25 @@ void Sticker::paintPath(
 QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 	const auto w = _size.width();
 	const auto h = _size.height();
-	const auto &c = context.st->msgStickerOverlay();
+	const auto colored = context.selected()
+		? &context.st->msgStickerOverlay()
+		: nullptr;
 	const auto good = _dataMedia->goodThumbnail();
 	if (const auto image = _dataMedia->getStickerLarge()) {
-		return context.selected()
-			? image->pixColored(c, w, h)
-			: image->pix(w, h);
+		return image->pix(_size, { .colored = colored });
 	//
 	// Inline thumbnails can't have alpha channel.
 	//
 	//} else if (const auto blurred = _data->thumbnailInline()) {
-	//	return context.selected()
-	//		? blurred->pixBlurredColored(c, w, h)
-	//		: blurred->pixBlurred(w, h);
+	//	return blurred->pix(
+	//		_size,
+	//		{ .colored = colored, .options = Images::Option::Blur });
 	} else if (good) {
-		return context.selected()
-			? good->pixColored(c, w, h)
-			: good->pix(w, h);
+		return good->pix(_size, { .colored = colored });
 	} else if (const auto thumbnail = _dataMedia->thumbnail()) {
-		return context.selected()
-			? thumbnail->pixBlurredColored(c, w, h)
-			: thumbnail->pixBlurred(w, h);
+		return thumbnail->pix(
+			_size,
+			{ .colored = colored, .options = Images::Option::Blur });
 	}
 	return QPixmap();
 }

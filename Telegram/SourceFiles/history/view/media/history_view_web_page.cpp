@@ -508,14 +508,19 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			pixh = qRound(pixh * coef);
 			pixw = qRound(pixw * coef);
 		}
+		const auto size = QSize(pixw, pixh);
+		const auto args = Images::PrepareArgs{
+			.options = Images::Option::RoundSmall,
+			.outer = { pw, ph },
+		};
 		if (const auto thumbnail = _photoMedia->image(
 				Data::PhotoSize::Thumbnail)) {
-			pix = thumbnail->pixSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = thumbnail->pixSingle(size, args);
 		} else if (const auto small = _photoMedia->image(
 				Data::PhotoSize::Small)) {
-			pix = small->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = small->pixSingle(size, args.blurred());
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-			pix = blurred->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = blurred->pixSingle(size, args.blurred());
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (context.selected()) {

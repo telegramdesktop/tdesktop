@@ -696,8 +696,7 @@ void UserpicButton::setImage(QImage &&image) {
 		size * cIntRetinaFactor(),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
-	Images::prepareCircle(small);
-	_userpic = Ui::PixmapFromImage(std::move(small));
+	_userpic = Ui::PixmapFromImage(Images::Circle(std::move(small)));
 	_userpic.setDevicePixelRatio(cRetinaFactor());
 	_userpicCustom = _userpicHasImage = true;
 	_result = std::move(image);

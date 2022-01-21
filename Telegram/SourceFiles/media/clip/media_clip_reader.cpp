@@ -79,7 +79,10 @@ QImage PrepareFrameImage(const FrameRequest &request, const QImage &original, bo
 		}
 	}
 	if (needRounding) {
-		Images::prepareRound(cache, request.radius, request.corners);
+		cache = Images::Round(
+			std::move(cache),
+			request.radius,
+			request.corners);
 	}
 	return cache;
 }

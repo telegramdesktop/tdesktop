@@ -90,12 +90,10 @@ QImage EdgeButton::rounded(std::optional<QColor> color) const {
 	result.setDevicePixelRatio(cIntRetinaFactor());
 	result.fill(color.value_or(Qt::white));
 
-	using Option = Images::Option;
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| (_left ? Option::RoundedTopLeft : Option::RoundedTopRight)
-		| (_left ? Option::RoundedBottomLeft : Option::RoundedBottomRight);
-	return Images::prepare(std::move(result), 0, 0, options, 0, 0);
+	const auto parts = RectPart::None
+		| (_left ? RectPart::TopLeft : RectPart::TopRight)
+		| (_left ? RectPart::BottomLeft : RectPart::BottomRight);
+	return Images::Round(std::move(result), ImageRoundRadius::Large, parts);
 }
 
 QImage EdgeButton::prepareRippleMask() const {
@@ -151,10 +149,9 @@ ButtonBar::ButtonBar(
 		result.setDevicePixelRatio(cIntRetinaFactor());
 		result.fill(bg->c);
 
-		const auto options = Images::Option::Smooth
-			| Images::Option::RoundedLarge
-			| Images::Option::RoundedAll;
-		_roundedBg = Images::prepare(std::move(result), 0, 0, options, 0, 0);
+		_roundedBg = Images::Round(
+			std::move(result),
+			ImageRoundRadius::Large);
 	}, lifetime());
 
 	paintRequest(

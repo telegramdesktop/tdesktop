@@ -319,13 +319,12 @@ void Gif::validateThumbnail(
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		frame.width() * cIntRetinaFactor(),
-		frame.height() * cIntRetinaFactor(),
-		(Images::Option::Smooth
-			| (good ? Images::Option::None : Images::Option::Blurred)
-			| Images::Option::TransparentBackground),
-		size.width(),
-		size.height());
+		frame * style::DevicePixelRatio(),
+		{
+			.options = (Images::Option::TransparentBackground
+				| (good ? Images::Option() : Images::Option::Blur)),
+			.outer = size,
+		});
 }
 
 void Gif::prepareThumbnail(QSize size, QSize frame) const {
@@ -563,9 +562,7 @@ void Sticker::prepareThumbnail() const {
 	if (const auto sticker = _dataMedia->getStickerSmall()) {
 		if (!_lottie && !_thumbLoaded) {
 			const auto thumbSize = getThumbSize();
-			_thumb = sticker->pix(
-				thumbSize.width(),
-				thumbSize.height());
+			_thumb = sticker->pix(thumbSize);
 			_thumbLoaded = true;
 		}
 	}
@@ -662,13 +659,12 @@ void Photo::validateThumbnail(
 	}
 	const auto origin = fileOrigin();
 	_thumb = image->pixNoCache(
-		frame.width() * cIntRetinaFactor(),
-		frame.height() * cIntRetinaFactor(),
-		(Images::Option::Smooth
-			| (good ? Images::Option(0) : Images::Option::Blurred)
-			| Images::Option::TransparentBackground),
-		size.width(),
-		size.height());
+		frame * style::DevicePixelRatio(),
+		{
+			.options = (Images::Option::TransparentBackground
+				| (good ? Images::Option() : Images::Option::Blur)),
+			.outer = size,
+		});
 	_thumbGood = good;
 }
 
@@ -823,11 +819,11 @@ void Video::prepareThumbnail(QSize size) const {
 			}
 		}
 		_thumb = thumb->pixNoCache(
-			w * cIntRetinaFactor(),
-			h * cIntRetinaFactor(),
-			Images::Option::Smooth | Images::Option::TransparentBackground,
-			width,
-			height);
+			QSize(w, h) * style::DevicePixelRatio(),
+			{
+				.options = Images::Option::TransparentBackground,
+				.outer = size,
+			});
 	}
 }
 
@@ -1162,11 +1158,11 @@ void Contact::prepareThumbnail(int width, int height) const {
 		}
 	}
 	_thumb = thumb->pixNoCache(
-		w * cIntRetinaFactor(),
-		h * cIntRetinaFactor(),
-		Images::Option::Smooth | Images::Option::TransparentBackground,
-		width,
-		height);
+		QSize(w, h) * style::DevicePixelRatio(),
+		{
+			.options = Images::Option::TransparentBackground,
+			.outer = { width, height },
+		});
 }
 
 Article::Article(
@@ -1320,11 +1316,11 @@ void Article::prepareThumbnail(int width, int height) const {
 		}
 	}
 	_thumb = thumb->pixNoCache(
-		w * cIntRetinaFactor(),
-		h * cIntRetinaFactor(),
-		Images::Option::Smooth | Images::Option::TransparentBackground,
-		width,
-		height);
+		QSize(w, h) * style::DevicePixelRatio(),
+		{
+			.options = Images::Option::TransparentBackground,
+			.outer = { width, height },
+		});
 }
 
 Game::Game(not_null<Context*> context, not_null<Result*> result)
@@ -1539,13 +1535,12 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		w * cIntRetinaFactor(),
-		h * cIntRetinaFactor(),
-		(Images::Option::Smooth
-			| (good ? Images::Option::None : Images::Option::Blurred)
-			| Images::Option::TransparentBackground),
-		size.width(),
-		size.height());
+		QSize(w, h) * style::DevicePixelRatio(),
+		{
+			.options = (Images::Option::TransparentBackground
+				| (good ? Images::Option() : Images::Option::Blur)),
+			.outer = size,
+		});
 }
 
 bool Game::isRadialAnimation() const {

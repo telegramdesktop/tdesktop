@@ -109,8 +109,7 @@ constexpr auto kDisableElement = "disable"_cs;
 				Qt::SmoothTransformation
 			).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 			const auto corners = Images::CornersMask(radius);
-			Images::prepareRound(bubble, corners);
-			p.drawImage(sent, bubble);
+			p.drawImage(sent, Images::Round(std::move(bubble), corners));
 		} else {
 			p.setBrush(theme->palette()->msgOutBg()->c);
 			p.drawRoundedRect(sent, radius, radius);
@@ -118,8 +117,7 @@ constexpr auto kDisableElement = "disable"_cs;
 		p.setBrush(theme->palette()->msgInBg()->c);
 		p.drawRoundedRect(received, radius, radius);
 	}
-	Images::prepareRound(result, ImageRoundRadius::Large);
-	return result;
+	return Images::Round(std::move(result), ImageRoundRadius::Large);
 }
 
 [[nodiscard]] QImage GenerateEmptyPreview() {
@@ -140,8 +138,7 @@ constexpr auto kDisableElement = "disable"_cs;
 			tr::lng_chat_theme_none(tr::now),
 			style::al_top);
 	}
-	Images::prepareRound(result, ImageRoundRadius::Large);
-	return result;
+	return Images::Round(std::move(result), ImageRoundRadius::Large);
 }
 
 } // namespace

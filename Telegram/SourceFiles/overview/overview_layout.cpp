@@ -358,7 +358,7 @@ void Photo::setPixFrom(not_null<Image*> image) {
 	const auto size = _width * cIntRetinaFactor();
 	auto img = image->original();
 	if (!_goodLoaded) {
-		img = Images::prepareBlur(std::move(img));
+		img = Images::Blur(std::move(img));
 	}
 	if (img.width() == img.height()) {
 		if (img.width() != size) {
@@ -457,7 +457,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			? good->original()
 			: thumbnail
 			? thumbnail->original()
-			: Images::prepareBlur(blurred->original());
+			: Images::Blur(blurred->original());
 		if (img.width() == img.height()) {
 			if (img.width() != size) {
 				img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -691,9 +691,11 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		p.setPen(Qt::NoPen);
 		if (thumbnail || blurred) {
-			const auto thumb = thumbnail
-				? thumbnail->pixCircled(inner.width(), inner.height())
-				: blurred->pixBlurredCircled(inner.width(), inner.height());
+			const auto options = Images::Option::RoundCircle
+				| (blurred ? Images::Option::Blur : Images::Option());
+			const auto thumb = (thumbnail ? thumbnail : blurred)->pix(
+				inner.size(),
+				{ .options = options });
 			p.drawPixmap(inner.topLeft(), thumb);
 		} else if (_data->hasThumbnail()) {
 			PainterHighQualityEnabler hq(p);
@@ -1101,12 +1103,18 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				if (thumbnail || blurred) {
 					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
 						_thumbLoaded = (thumbnail != nullptr);
-						auto options = Images::Option::Smooth
-							| (_thumbLoaded
-								? Images::Option::None
-								: Images::Option::Blurred);
+						const auto options = _thumbLoaded
+							? Images::Option()
+							: Images::Option::Blur;
 						const auto image = thumbnail ? thumbnail : blurred;
-						_thumb = image->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
+						_thumb = image->pixNoCache(
+							_thumbw * style::DevicePixelRatio(),
+							{
+								.options = options,
+								.outer = QSize(
+									_st.fileThumbSize,
+									_st.fileThumbSize),
+							});
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1668,20 +1676,26 @@ void Link::validateThumbnail() {
 	if (!_thumbnail.isNull() && !_thumbnailBlurred) {
 		return;
 	}
+	const auto size = QSize(_pixw, _pixh);
+	const auto outer = QSize(st::linksPhotoSize, st::linksPhotoSize);
 	if (_page && _page->photo) {
 		using Data::PhotoSize;
 		ensurePhotoMediaCreated();
+		const auto args = Images::PrepareArgs{
+			.options = Images::Option::RoundSmall,
+			.outer = outer,
+		};
 		if (const auto thumbnail = _photoMedia->image(PhotoSize::Thumbnail)) {
-			_thumbnail = thumbnail->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = thumbnail->pixSingle(size, args);
 			_thumbnailBlurred = false;
 		} else if (const auto large = _photoMedia->image(PhotoSize::Large)) {
-			_thumbnail = large->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = large->pixSingle(size, args);
 			_thumbnailBlurred = false;
 		} else if (const auto small = _photoMedia->image(PhotoSize::Small)) {
-			_thumbnail = small->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = small->pixSingle(size, args);
 			_thumbnailBlurred = false;
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-			_thumbnail = blurred->pixBlurredSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = blurred->pixSingle(size, args.blurred());
 			return;
 		} else {
 			return;
@@ -1690,14 +1704,17 @@ void Link::validateThumbnail() {
 		delegate()->unregisterHeavyItem(this);
 	} else if (_page && _page->document && _page->document->hasThumbnail()) {
 		ensureDocumentMediaCreated();
-		const auto roundRadius = _page->document->isVideoMessage()
-			? ImageRoundRadius::Ellipse
-			: ImageRoundRadius::Small;
+		const auto args = Images::PrepareArgs{
+			.options = (_page->document->isVideoMessage()
+				? Images::Option::RoundCircle
+				: Images::Option::RoundSmall),
+			.outer = outer,
+		};
 		if (const auto thumbnail = _documentMedia->thumbnail()) {
-			_thumbnail = thumbnail->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
+			_thumbnail = thumbnail->pixSingle(size, args);
 			_thumbnailBlurred = false;
 		} else if (const auto blurred = _documentMedia->thumbnailInline()) {
-			_thumbnail = blurred->pixBlurredSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
+			_thumbnail = blurred->pixSingle(size, args.blurred());
 			return;
 		} else {
 			return;
@@ -1930,12 +1947,11 @@ void Gif::validateThumbnail(
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		frame.width() * cIntRetinaFactor(),
-		frame.height() * cIntRetinaFactor(),
-		(Images::Option::Smooth
-			| (good ? Images::Option::None : Images::Option::Blurred)),
-		size.width(),
-		size.height());
+		frame * style::DevicePixelRatio(),
+		{
+			.options = (good ? Images::Option() : Images::Option::Blur),
+			.outer = size,
+		});
 }
 
 void Gif::prepareThumbnail(QSize size, QSize frame) {

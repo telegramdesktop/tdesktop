@@ -44,27 +44,26 @@ AlbumThumbnail::AlbumThumbnail(
 	const auto imageHeight = std::max(
 		previewHeight / style::DevicePixelRatio(),
 		st::minPhotoSize);
-	_photo = PixmapFromImage(Images::prepare(
+	_photo = PixmapFromImage(Images::Prepare(
 		_fullPreview,
-		previewWidth,
-		previewHeight,
-		Option::RoundedLarge | Option::RoundedAll,
-		imageWidth,
-		imageHeight));
+		QSize(previewWidth, previewHeight),
+		{
+			.options = Option::RoundLarge,
+			.outer = { imageWidth, imageHeight },
+		}));
 
 	const auto &st = st::attachPreviewThumbLayout;
 	const auto idealSize = st.thumbSize * style::DevicePixelRatio();
 	const auto fileThumbSize = (previewWidth > previewHeight)
 		? QSize(previewWidth * idealSize / previewHeight, idealSize)
 		: QSize(idealSize, previewHeight * idealSize / previewWidth);
-	_fileThumb = PixmapFromImage(Images::prepare(
+	_fileThumb = PixmapFromImage(Images::Prepare(
 		_fullPreview,
-		fileThumbSize.width(),
-		fileThumbSize.height(),
-		Option::RoundedSmall | Option::RoundedAll,
-		st.thumbSize,
-		st.thumbSize
-	));
+		fileThumbSize,
+		{
+			.options = Option::RoundSmall,
+			.outer = { st.thumbSize, st.thumbSize },
+		}));
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
 		- st.thumbSize
@@ -138,40 +137,35 @@ void AlbumThumbnail::animateLayoutToInitial() {
 }
 
 void AlbumThumbnail::moveToLayout(const GroupMediaLayout &layout) {
+	using Option = Images::Option;
+
 	animateLayoutToInitial();
 	_layout = layout;
 
 	const auto width = _layout.geometry.width();
 	const auto height = _layout.geometry.height();
 	_albumCorners = GetCornersFromSides(_layout.sides);
-	using Option = Images::Option;
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| ((_albumCorners & RectPart::TopLeft)
-			? Option::RoundedTopLeft
-			: Option::None)
-		| ((_albumCorners & RectPart::TopRight)
-			? Option::RoundedTopRight
-			: Option::None)
-		| ((_albumCorners & RectPart::BottomLeft)
-			? Option::RoundedBottomLeft
-			: Option::None)
-		| ((_albumCorners & RectPart::BottomRight)
-			? Option::RoundedBottomRight
-			: Option::None);
+	const auto corner = [&](RectPart part, Option skip) {
+		return !(_albumCorners & part) ? skip : Option();
+	};
+	const auto options = Option::RoundLarge
+		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
+		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
+		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
+		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
 	const auto pixSize = GetImageScaleSizeForGeometry(
 		{ _fullPreview.width(), _fullPreview.height() },
 		{ width, height });
 	const auto pixWidth = pixSize.width() * style::DevicePixelRatio();
 	const auto pixHeight = pixSize.height() * style::DevicePixelRatio();
 
-	_albumImage = PixmapFromImage(Images::prepare(
+	_albumImage = PixmapFromImage(Images::Prepare(
 		_fullPreview,
-		pixWidth,
-		pixHeight,
-		options,
-		width,
-		height));
+		QSize(pixWidth, pixHeight),
+		{
+			.options = options,
+			.outer = { width, height },
+		}));
 }
 
 int AlbumThumbnail::photoHeight() const {
@@ -250,8 +244,8 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 		);
 		drawSimpleFrame(p, to, size);
 	}
-	Images::prepareRound(
-		_albumCache,
+	_albumCache = Images::Round(
+		std::move(_albumCache),
 		ImageRoundRadius::Large,
 		_albumCorners,
 		QRect(QPoint(), size * style::DevicePixelRatio()));

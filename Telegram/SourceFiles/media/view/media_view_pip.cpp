@@ -1660,7 +1660,7 @@ QImage Pip::staticContent() const {
 			? blurred
 			: Image::BlankMedia().get())->original();
 		if (!good) {
-			_preparedCoverStorage = Images::prepareBlur(
+			_preparedCoverStorage = Images::Blur(
 				std::move(_preparedCoverStorage));
 		}
 	}

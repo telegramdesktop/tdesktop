@@ -69,19 +69,11 @@ void AbstractSingleFilePreview::prepareThumbFor(
 	if (originalWidth > originalHeight) {
 		thumbWidth = (originalWidth * st.thumbSize) / originalHeight;
 	}
-	auto options = Images::Option::Smooth
-		| Images::Option::RoundedSmall
-		| Images::Option::RoundedTopLeft
-		| Images::Option::RoundedTopRight
-		| Images::Option::RoundedBottomLeft
-		| Images::Option::RoundedBottomRight;
-	data.fileThumb = PixmapFromImage(Images::prepare(
+	const auto options = Images::Option::RoundSmall;
+	data.fileThumb = PixmapFromImage(Images::Prepare(
 		preview,
 		thumbWidth * style::DevicePixelRatio(),
-		0,
-		options,
-		st.thumbSize,
-		st.thumbSize));
+		{ .options = options, .outer = { st.thumbSize, st.thumbSize } }));
 }
 
 void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {

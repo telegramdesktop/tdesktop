@@ -183,11 +183,10 @@ void PeerShortInfoCover::paint(QPainter &p) {
 			_widget->size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
 		image.fill(Qt::black);
-		Images::prepareRound(
-			image,
+		_userpicImage = Images::Round(
+			std::move(image),
 			ImageRoundRadius::Small,
 			RectPart::TopLeft | RectPart::TopRight);
-		_userpicImage = std::move(image);
 	}
 
 	paintCoverImage(p, frame.isNull() ? _userpicImage : frame);
@@ -229,8 +228,8 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 		image,
 		QRect(0, from * factor, roundedWidth * factor, rounded * factor));
 	q.end();
-	Images::prepareRound(
-		_roundedTopImage,
+	_roundedTopImage = Images::Round(
+		std::move(_roundedTopImage),
 		ImageRoundRadius::Small,
 		RectPart::TopLeft | RectPart::TopRight);
 	p.drawImage(
@@ -244,9 +243,8 @@ void PeerShortInfoCover::paintBars(QPainter &p) {
 	const auto factor = style::DevicePixelRatio();
 	if (_shadowTop.isNull()) {
 		_shadowTop = Images::GenerateShadow(height, kShadowMaxAlpha, 0);
-		_shadowTop = _shadowTop.scaled(QSize(_st.size, height) * factor);
-		Images::prepareRound(
-			_shadowTop,
+		_shadowTop = Images::Round(
+			_shadowTop.scaled(QSize(_st.size, height) * factor),
 			ImageRoundRadius::Small,
 			RectPart::TopLeft | RectPart::TopRight);
 	}
@@ -771,8 +769,8 @@ int PeerShortInfoBox::fillRoundedTopHeight() {
 void PeerShortInfoBox::refreshRoundedTopImage(const QColor &color) {
 	_roundedTopColor = color;
 	_roundedTop.fill(color);
-	Images::prepareRound(
-		_roundedTop,
+	_roundedTop = Images::Round(
+		std::move(_roundedTop),
 		ImageRoundRadius::Small,
 		RectPart::TopLeft | RectPart::TopRight);
 }

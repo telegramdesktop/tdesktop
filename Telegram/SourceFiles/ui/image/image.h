@@ -44,54 +44,68 @@ public:
 
 	[[nodiscard]] QImage original() const;
 
-	[[nodiscard]] const QPixmap &pix(int w = 0, int h = 0) const;
-	[[nodiscard]] const QPixmap &pixRounded(
-		int w = 0,
-		int h = 0,
-		ImageRoundRadius radius = ImageRoundRadius::None,
-		RectParts corners = RectPart::AllCorners) const;
-	[[nodiscard]] const QPixmap &pixBlurred(int w = 0, int h = 0) const;
-	[[nodiscard]] const QPixmap &pixColored(style::color add, int w = 0, int h = 0) const;
-	[[nodiscard]] const QPixmap &pixBlurredColored(
-		style::color add,
-		int w = 0,
-		int h = 0) const;
+	[[nodiscard]] const QPixmap &pix(
+			QSize size,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(size.width(), size.height(), args, false);
+	}
+	[[nodiscard]] const QPixmap &pix(
+			int w,
+			int h,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(w, h, args, false);
+	}
+	[[nodiscard]] const QPixmap &pix(
+			int w = 0,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(w, 0, args, false);
+	}
+
 	[[nodiscard]] const QPixmap &pixSingle(
-		int w,
-		int h,
-		int outerw,
-		int outerh,
-		ImageRoundRadius radius,
-		RectParts corners = RectPart::AllCorners,
-		const style::color *colored = nullptr) const;
-	[[nodiscard]] const QPixmap &pixBlurredSingle(
-		int w,
-		int h,
-		int outerw,
-		int outerh,
-		ImageRoundRadius radius,
-		RectParts corners = RectPart::AllCorners,
-		const style::color *colored = nullptr) const;
-	[[nodiscard]] const QPixmap &pixCircled(int w = 0, int h = 0) const;
-	[[nodiscard]] const QPixmap &pixBlurredCircled(int w = 0, int h = 0) const;
+			QSize size,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(size.width(), size.height(), args, true);
+	}
+	[[nodiscard]] const QPixmap &pixSingle(
+			int w,
+			int h,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(w, h, args, true);
+	}
+	[[nodiscard]] const QPixmap &pixSingle(
+			int w = 0,
+			const Images::PrepareArgs &args = {}) const {
+		return cached(w, 0, args, true);
+	}
+
 	[[nodiscard]] QPixmap pixNoCache(
-		int w = 0,
-		int h = 0,
-		Images::Options options = 0,
-		int outerw = -1,
-		int outerh = -1,
-		const style::color *colored = nullptr) const;
-	[[nodiscard]] QPixmap pixColoredNoCache(
-		style::color add,
-		int w = 0,
-		int h = 0,
-		bool smooth = false) const;
-	[[nodiscard]] QPixmap pixBlurredColoredNoCache(
-		style::color add,
-		int w,
-		int h = 0) const;
+			QSize size,
+			const Images::PrepareArgs &args = {}) const {
+		return prepare(size.width(), size.height(), args);
+	}
+	[[nodiscard]] QPixmap pixNoCache(
+			int w,
+			int h,
+			const Images::PrepareArgs &args = {}) const {
+		return prepare(w, h, args);
+	}
+	[[nodiscard]] QPixmap pixNoCache(
+			int w = 0,
+			const Images::PrepareArgs &args = {}) const {
+		return prepare(w, 0, args);
+	}
 
 private:
+	[[nodiscard]] QPixmap prepare(
+		int w,
+		int h,
+		const Images::PrepareArgs &args) const;
+	[[nodiscard]] const QPixmap &cached(
+		int w,
+		int h,
+		const Images::PrepareArgs &args,
+		bool single) const;
+
 	const QImage _data;
 	mutable base::flat_map<uint64, QPixmap> _cache;
 

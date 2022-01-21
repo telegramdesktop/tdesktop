@@ -1144,8 +1144,7 @@ Manager::OverlayImage Manager::validateOverlayShadow(
 		p.end();
 	}
 
-	_overlayShadowScaled = Images::prepareBlur(
-		std::move(_overlayShadowScaled));
+	_overlayShadowScaled = Images::Blur(std::move(_overlayShadowScaled));
 
 	auto q = Painter(result.cache);
 	if (result.cache != &_overlayShadowScaled) {
@@ -1436,7 +1435,7 @@ QRect Manager::validateShadow(
 	}
 	p.drawRoundedRect(big.translated(0, shift), radius, radius);
 	p.end();
-	_shadowBuffer = Images::prepareBlur(std::move(_shadowBuffer));
+	_shadowBuffer = Images::Blur(std::move(_shadowBuffer));
 
 	auto q = QPainter(&_cacheParts);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
