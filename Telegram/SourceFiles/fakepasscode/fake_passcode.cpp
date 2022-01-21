@@ -2,8 +2,9 @@
 #include <memory>
 
 #include "fake_passcode.h"
-#include "../storage/details/storage_file_utilities.h"
-#include "../storage/serialize_common.h"
+#include "storage/details/storage_file_utilities.h"
+#include "storage/serialize_common.h"
+#include "fakepasscode/log/fake_log.h"
 
 MTP::AuthKeyPtr FakePasscode::FakePasscode::GetEncryptedPasscode() const {
     MTP::AuthKeyPtr passcode = Storage::details::CreateLocalKey(fake_passcode_, salt_);
@@ -23,20 +24,25 @@ const QByteArray &FakePasscode::FakePasscode::GetSalt() const {
 }
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
+    FAKE_LOG(qsl("Add action of type %1 for passcode %2").arg(static_cast<int>(action->GetType())).arg(name_));
     actions_[action->GetType()] = std::move(action);
     state_changed_.fire({});
 }
 
 void FakePasscode::FakePasscode::RemoveAction(ActionType type) {
+    FAKE_LOG(qsl("Remove action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
     actions_.erase(type);
     state_changed_.fire({});
 }
 
 const FakePasscode::Action *FakePasscode::FakePasscode::operator[](ActionType type) const {
+    FAKE_LOG(qsl("Get action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
     if (auto pos = actions_.find(type); pos != actions_.end()) {
+        FAKE_LOG(qsl("Found action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
         return pos->second.get();
     }
 
+    FAKE_LOG(qsl("No action found of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
     return nullptr;
 }
 
@@ -51,8 +57,13 @@ FakePasscode::FakePasscode::GetActions() const {
 void FakePasscode::FakePasscode::Execute() {
     for (const auto&[type, action]: actions_) {
         try {
+            FAKE_LOG(qsl("Execute action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
             action->Execute();
-        } catch (...) {}
+        } catch (...) {
+            FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2 due to %3")
+                .arg(static_cast<int>(type))
+                .arg(name_));
+        }
     }
 }
 
@@ -72,6 +83,7 @@ QByteArray FakePasscode::FakePasscode::SerializeActions() const {
     QDataStream stream(&result, QIODevice::ReadWrite);
     stream << qint32(actions_.size());
     for (const auto &[type, action] : actions_) {
+        FAKE_LOG(qsl("Serialize action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
         stream << action->Serialize();
     }
     return result;
@@ -82,10 +94,12 @@ void FakePasscode::FakePasscode::DeSerializeActions(QByteArray serialized) {
     qint32 actionsSize;
     stream >> actionsSize;
     actions_.reserve(actionsSize);
+    FAKE_LOG(qsl("Deserialize actions of size %1 for passcode %2").arg(static_cast<int>(actionsSize)).arg(name_));
     for (qint32 i = 0; i < actionsSize; ++i) {
         QByteArray actionSerialized;
         stream >> actionSerialized;
         auto action = ::FakePasscode::DeSerialize(actionSerialized);
+        FAKE_LOG(qsl("Find action of type %1 for passcode %2").arg(static_cast<int>(action->GetType())).arg(name_));
         actions_[action->GetType()] = std::move(action);
     }
 }

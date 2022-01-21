@@ -28,9 +28,9 @@ namespace FakePasscode {
         virtual ActionType GetType() const = 0;
     };
 
-    std::unique_ptr<Action> DeSerialize(QByteArray serialized);
+    std::shared_ptr<Action> DeSerialize(QByteArray serialized);
 
-    std::unique_ptr<Action> CreateAction(ActionType type, const QByteArray& inner_data = QByteArray());
+    std::shared_ptr<Action> CreateAction(ActionType type, const QByteArray& inner_data = QByteArray());
 }
 
 #endif //TELEGRAM_ACTION_H

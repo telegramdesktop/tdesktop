@@ -16,6 +16,7 @@
 #include "storage/storage_domain.h"
 #include "boxes/abstract_box.h"
 #include "ui/text/text_utilities.h"
+#include "fakepasscode/log/fake_log.h"
 
 class FakePasscodeContentBox;
 
@@ -105,6 +106,7 @@ FakePasscodeList::FakePasscodeList(QWidget * parent, not_null<Main::Domain *> do
 
 void FakePasscodeList::draw(size_t passcodesSize) {
     using namespace Settings;
+    FAKE_LOG(("Draw %1 passccodes").arg(passcodesSize));
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     for (size_t i = 0; i < passcodesSize; ++i) {
         AddButton(content, tr::lng_fakepasscode(lt_caption, _domain->local().GetFakePasscodeName(i)),
@@ -119,15 +121,25 @@ void FakePasscodeList::draw(size_t passcodesSize) {
                           Ui::LayerOption::KeepOther);
     });
     AddDividerText(content, tr::lng_special_actions());
-    const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto button = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton)
-            ->toggleOn(toggled->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
+    const auto toggledCacheCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonCacheCleaning = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton)
+            ->toggleOn(toggledCacheCleaning->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
 
-    button->addClickHandler([=] {
-        _domain->local().SetCacheCleanedUpOnLock(button->toggled());
+    buttonCacheCleaning->addClickHandler([=] {
+        _domain->local().SetCacheCleanedUpOnLock(buttonCacheCleaning->toggled());
+        _domain->local().writeAccounts();
+    });
+
+    const auto toggledLogging = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonLogging = AddButton(content, tr::lng_enable_advance_logging(), st::settingsButton)
+            ->toggleOn(toggledLogging->events_starting_with_copy(_domain->local().IsAdvancedLoggingEnabled()));
+
+    buttonLogging->addClickHandler([=] {
+        _domain->local().SetAdvancedLoggingEnabled(buttonLogging->toggled());
         _domain->local().writeAccounts();
     });
     Ui::ResizeFitChild(this, content);
+    FAKE_LOG(("Draw %1 passccodes: success").arg(passcodesSize));
 }
 
 void FakePasscodeList::setupContent() {

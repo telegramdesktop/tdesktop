@@ -23,6 +23,7 @@
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
+#include "fakepasscode/log/fake_log.h"
 
 FakePasscodeBox::FakePasscodeBox(
         QWidget*,
@@ -222,7 +223,7 @@ void FakePasscodeBox::save(bool force) {
         }
     }
     const auto onlyCheck = onlyCheckCurrent();
-    DEBUG_LOG(qsl("We have onlyCheck=%1. Also old=%2, pwd=%3, conf=%4, has=%5")
+    FAKE_LOG(qsl("We have onlyCheck=%1. Also old=%2, pwd=%3, conf=%4, has=%5")
             .arg(onlyCheck).arg(old).arg(pwd).arg(conf).arg(has));
     if (!onlyCheck && pwd != conf) {
         _reenterPasscode->selectAll();

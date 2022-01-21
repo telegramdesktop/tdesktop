@@ -9,16 +9,19 @@
 #include "storage/storage_account.h"
 #include "core/file_utilities.h"
 #include "data/data_user.h"
+#include "fakepasscode/log/fake_log.h"
 
 void FakePasscode::ClearCache::Execute() {
     Expects(Core::App().maybeActiveSession() != nullptr);
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (account->sessionExists()) {
+            FAKE_LOG(qsl("Clear cache for account %1").arg(index));
+
             account->session().data().cache().clear();
             account->session().data().cacheBigFile().clear();
-            Ui::Emoji::ClearIrrelevantCache();
         }
     }
+    Ui::Emoji::ClearIrrelevantCache();
     QString download_path;
     const auto session = Core::App().maybeActiveSession();
     if (Core::App().settings().downloadPath().isEmpty()) {
@@ -28,6 +31,7 @@ void FakePasscode::ClearCache::Execute() {
     } else {
         download_path = Core::App().settings().downloadPath();
     }
+    FAKE_LOG(qsl("Clear download folder %1").arg(download_path));
     QDir downloaded_cache(download_path);
     for (auto& entry : downloaded_cache.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
         if (entry != "." && entry != "..") {

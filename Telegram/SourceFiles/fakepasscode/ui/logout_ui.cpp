@@ -10,8 +10,7 @@
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "styles/style_settings.h"
-
-#include <vector>
+#include "fakepasscode/log/fake_log.h"
 
 void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
     Settings::AddSubsectionTitle(content, tr::lng_logout());
@@ -37,16 +36,17 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
             }
 
             if (any_activate && !_logout) {
-                DEBUG_LOG(("LogoutUI: Activate"));
+                FAKE_LOG(("LogoutUI: Activate"));
                 _action = _domain->local().AddAction(_index, FakePasscode::ActionType::Logout);
                 _logout = dynamic_cast<FakePasscode::LogoutAction*>(_action);
             } else if (!any_activate) {
-                DEBUG_LOG(("LogoutUI: Remove"));
+                FAKE_LOG(("LogoutUI: Remove"));
                 _domain->local().RemoveAction(_index, FakePasscode::ActionType::Logout);
                 _logout = nullptr;
             }
 
             if (_logout) {
+                FAKE_LOG(qsl("LogoutUI: Set %1 to %2").arg(index).arg(button->toggled()));
                 _logout->SetLogout(index, button->toggled());
             }
             _domain->local().writeAccounts();

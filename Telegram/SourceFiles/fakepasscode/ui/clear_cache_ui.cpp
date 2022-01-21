@@ -8,6 +8,7 @@
 #include "styles/style_settings.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
+#include "fakepasscode/log/fake_log.h"
 
 void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_cache());
@@ -17,8 +18,10 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearCache)));
     button->addClickHandler([=] {
         if (button->toggled()) {
+            FAKE_LOG(qsl("Add action ClearCache to %1").arg(_index));
             _domain->local().AddAction(_index, FakePasscode::ActionType::ClearCache);
         } else {
+            FAKE_LOG(qsl("Remove action ClearCache from %1").arg(_index));
             _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearCache);
         }
         _domain->local().writeAccounts();

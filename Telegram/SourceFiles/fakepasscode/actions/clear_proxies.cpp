@@ -1,8 +1,10 @@
 #include "clear_proxies.h"
 
 #include "core/application.h"
+#include "fakepasscode/log/fake_log.h"
 
 void FakePasscode::ClearProxies::Execute() {
+    FAKE_LOG(("Remove proxies, setup disabled proxy"));
     auto& proxies = Core::App().settings().proxy();
     proxies.list().clear();
     proxies.setUseProxyForCalls(false);

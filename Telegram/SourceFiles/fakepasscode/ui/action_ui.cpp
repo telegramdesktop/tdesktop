@@ -8,6 +8,7 @@
 #include "clear_cache_ui.h"
 #include "logout_ui.h"
 #include "base/object_ptr.h"
+#include "fakepasscode/log/fake_log.h"
 
 object_ptr<ActionUI> GetUIByAction(FakePasscode::ActionType type,
                                    gsl::not_null<Main::Domain*> domain,
@@ -19,6 +20,7 @@ object_ptr<ActionUI> GetUIByAction(FakePasscode::ActionType type,
     } else if (type == FakePasscode::ActionType::Logout) {
         return object_ptr<LogoutUI>(parent, domain, index);
     }
+    FAKE_LOG(qsl("No realization found for type %1").arg(static_cast<int>(type)));
     return nullptr;
 }
 

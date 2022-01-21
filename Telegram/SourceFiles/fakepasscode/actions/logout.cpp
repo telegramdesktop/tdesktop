@@ -5,16 +5,17 @@
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "data/data_session.h"
+#include "fakepasscode/log/fake_log.h"
 
 void FakePasscode::LogoutAction::Execute() {
-    std::vector<bool> new_logout;
-    new_logout.reserve(Core::App().domain().accounts().size());
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
+            FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
             account->loggedOut();
             account->mtpLogOut(false);
             index_to_logout_.remove(index);
             if (account->sessionExists()) {
+                FAKE_LOG(qsl("Clear cache for account %1").arg(index));
                 account->session().data().cache().clear();
                 account->session().data().cacheBigFile().clear();
                 Ui::Emoji::ClearIrrelevantCache();
@@ -31,6 +32,7 @@ QByteArray FakePasscode::LogoutAction::Serialize() const {
     QDataStream inner_stream(&inner_data, QIODevice::ReadWrite);
     for (const auto&[index, is_logged_out] : index_to_logout_) {
         if (is_logged_out) {
+            FAKE_LOG(qsl("Account %1 serialized in logout action, because it will be logout from it.").arg(index));
             inner_stream << index;
         }
     }
@@ -43,12 +45,13 @@ FakePasscode::ActionType FakePasscode::LogoutAction::GetType() const {
 }
 
 FakePasscode::LogoutAction::LogoutAction(QByteArray inner_data) {
-    DEBUG_LOG(("Create logout"));
+    FAKE_LOG(qsl("Create logout from QByteArray of size: %1").arg(inner_data.size()));
     if (!inner_data.isEmpty()) {
         QDataStream stream(&inner_data, QIODevice::ReadOnly);
         while (!stream.atEnd()) {
             qint32 index;
             stream >> index;
+            FAKE_LOG(qsl("Account %1 deserialized in logout action.").arg(index));
             index_to_logout_[index] = true;
         }
     }
@@ -60,13 +63,16 @@ FakePasscode::LogoutAction::LogoutAction(base::flat_map<qint32, bool> index_to_l
 }
 
 void FakePasscode::LogoutAction::SetLogout(qint32 index, bool logout) {
+    FAKE_LOG(qsl("Set logout %1 for account %2").arg(logout).arg(index));
     index_to_logout_[index] = logout;
 }
 
 bool FakePasscode::LogoutAction::IsLogout(qint32 index) const {
     if (auto pos = index_to_logout_.find(index); pos != index_to_logout_.end()) {
+        FAKE_LOG(qsl("Found logout for %1. Send %2").arg(index).arg(pos->second));
         return pos->second;
     } else {
+        FAKE_LOG(qsl("Not found logout for %1. Send false").arg(index));
         return false;
     }
 }
@@ -78,6 +84,7 @@ const base::flat_map<qint32, bool>& FakePasscode::LogoutAction::GetLogout() cons
 void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
     for (const auto&[index, account] : Core::App().domain().accounts()) {
         account->sessionChanges() | rpl::map([index = index, this] (Main::Session* session) {
+            FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
             return session == nullptr ? index_to_logout_.erase(index) : -1;
         });
     }

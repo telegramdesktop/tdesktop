@@ -8,6 +8,7 @@
 #include "styles/style_settings.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
+#include "fakepasscode/log/fake_log.h"
 
 void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_proxy());
@@ -17,8 +18,10 @@ void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearProxy)));
     button->addClickHandler([=] {
         if (button->toggled()) {
+            FAKE_LOG(qsl("Add action ClearProxy to %1").arg(_index));
             _domain->local().AddAction(_index, FakePasscode::ActionType::ClearProxy);
         } else {
+            FAKE_LOG(qsl("Remove action ClearProxy from %1").arg(_index));
             _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearProxy);
         }
         _domain->local().writeAccounts();

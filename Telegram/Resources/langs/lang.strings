@@ -3083,6 +3083,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_special_actions" = "Special actions";
 "lng_clear_cache_on_lock" = "Clear cache on lock";
+"lng_enable_advance_logging" = "Enable logging (only debug!)";
 
 "lng_clear_proxy" = "Clear proxies list";
 "lng_clear_cache" = "Clear cache";

@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <storage/details/storage_file_utilities.h>
 #include "../fakepasscode/fake_passcode.h"
 
+#include <deque>
+
 namespace MTP {
 class Config;
 class AuthKey;
@@ -60,8 +62,7 @@ public:
     bool IsFake() const;
     void SetFakePasscodeIndex(qint32 index);
 
-    const std::vector<FakePasscode::FakePasscode>& GetFakePasscodes() const;
-//    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
+    const std::deque<FakePasscode::FakePasscode>& GetFakePasscodes() const;
     rpl::producer<size_t> GetFakePasscodesSize();
 
 	rpl::producer<QString> GetFakePasscodeName(size_t fakeIndex) const;
@@ -69,8 +70,6 @@ public:
 	void SetFakePasscodeName(QString newName, size_t fakeIndex);
     bool CheckFakePasscodeExists(const QByteArray& passcode) const;
     void AddFakePasscode(QByteArray passcode, QString name);
-    void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
-    void SetFakePasscode(QString name, size_t fakeIndex);
     void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
 //    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
     void RemoveFakePasscode(size_t index);
@@ -85,6 +84,9 @@ public:
 
     bool IsCacheCleanedUpOnLock() const;
     void SetCacheCleanedUpOnLock(bool cleanedUp);
+
+    bool IsAdvancedLoggingEnabled() const;
+    void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
 private:
 	enum class StartModernResult {
@@ -115,6 +117,8 @@ private:
     void EncryptFakePasscodes();
     void PrepareEncryptedFakePasscodes();
 
+    void ClearFakeState();
+
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
 
@@ -126,13 +130,15 @@ private:
 
     std::vector<QByteArray> _fakePasscodeKeysEncrypted;
     std::vector<MTP::AuthKeyPtr> _fakeEncryptedPasscodes;
-    std::vector<FakePasscode::FakePasscode> _fakePasscodes;
+    std::deque<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
     bool _isStartedWithFake = false;
 
     bool _isInfinityFakeModeActivated = false;
 
     bool _isCacheCleanedUpOnLock = false;
+
+    bool _isAdvancedLoggingEnabled = false;
 
 	int _oldVersion = 0;
 

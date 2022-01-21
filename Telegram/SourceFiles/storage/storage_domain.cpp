@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "base/random.h"
+#include "fakepasscode/log/fake_log.h"
 
 namespace Storage {
 namespace {
@@ -173,7 +174,7 @@ Domain::StartModernResult Domain::startModern(
 void Domain::writeAccounts() {
 	Expects(!_owner->accounts().empty());
     EncryptFakePasscodes();
-
+    FAKE_LOG(("Write accounts"));
 	const auto path = BaseGlobalPath();
 	if (!QDir().exists(path)) {
 		QDir().mkpath(path);
@@ -200,7 +201,7 @@ void Domain::writeAccounts() {
         fakeNames.push_back(std::move(name));
     }
 
-	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + 2 * sizeof(bool) + sizeof(qint32);
+	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + 3 * sizeof(bool) + sizeof(qint32);
 
     if (!_isInfinityFakeModeActivated) {
         keySize += serializedSize + sizeof(qint32);
@@ -227,6 +228,7 @@ void Domain::writeAccounts() {
 
 	for (const auto &[index, account] : list) {
         if (checkLogout(index)) {
+            FAKE_LOG(qsl("We have account %1 in some logout action. Continue").arg(index));
             continue;
         }
         account_indexes.push_back(index);
@@ -235,13 +237,15 @@ void Domain::writeAccounts() {
     keyData.stream << qint32(account_indexes.size());
 
     for (qint32 index : account_indexes) {
+        FAKE_LOG(qsl("Save account %1 to main storage").arg(index));
         keyData.stream << index;
     }
 
     keyData.stream << qint32(_owner->activeForStorage());
     keyData.stream << _isInfinityFakeModeActivated;
-
+    FAKE_LOG(qsl("Write accounts with infinite mode activate?: %1").arg(_isInfinityFakeModeActivated));
     if (!_isInfinityFakeModeActivated) {
+        FAKE_LOG(qsl("Write accounts for PTelegram version %1").arg(PTelegramAppVersion));
         keyData.stream << qint32(PTelegramAppVersion);
         for (qint32 i = 0; i < serializedActions.size(); ++i) {
             keyData.stream << serializedActions[i];
@@ -249,6 +253,7 @@ void Domain::writeAccounts() {
             keyData.stream << fakeNames[i];
         }
         keyData.stream << _isCacheCleanedUpOnLock;
+        keyData.stream << _isAdvancedLoggingEnabled;
     }
 
     key.writeEncrypted(keyData, _localKey);
@@ -284,12 +289,13 @@ bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) con
 void Domain::setPasscode(const QByteArray &passcode) {
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_localKey != nullptr);
-    DEBUG_LOG(("Got new passcode: " + QString::fromUtf8(passcode)));
+    FAKE_LOG(("Got new passcode"));
     if (IsFakeWithoutInfinityFlag()) {
         if (!passcode.isEmpty()) {
+            FAKE_LOG(qsl("It goes to fake passcode %1").arg(_fakePasscodeIndex));
             _fakePasscodes[_fakePasscodeIndex].SetPasscode(passcode);
         } else {
-            DEBUG_LOG(("Infinity mode activated"));
+            FAKE_LOG(("Infinity mode activated"));
             _isInfinityFakeModeActivated = true;
             _fakePasscodeIndex = -1;
             encryptLocalKey(passcode);
@@ -299,8 +305,8 @@ void Domain::setPasscode(const QByteArray &passcode) {
     }
 
     if (passcode.isEmpty()) {
-        _fakePasscodes.clear();
-        _fakePasscodeKeysEncrypted.clear();
+        FAKE_LOG(qsl("Clear fake state"));
+        ClearFakeState();
     }
 
 	writeAccounts();
@@ -348,6 +354,7 @@ bool Domain::hasLocalPasscode() const {
         _isStartedWithFake = true;
         keyInnerData.stream >> sourcePasscode;
         _fakePasscodeIndex = i;
+        FAKE_LOG(qsl("Start with fake passcode %1").arg(i));
     }
 
     if (_isStartedWithFake) {
@@ -398,6 +405,7 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
         if (index >= 0
             && index < Main::Domain::kMaxAccounts
             && tried.emplace(index).second) {
+            FAKE_LOG(qsl("Add account %1 with seq_index %2").arg(index).arg(i));
             auto account = std::make_unique<Main::Account>(
                     _owner,
                     _dataName,
@@ -433,15 +441,15 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
 
     if (!info.stream.atEnd()) {
         info.stream >> _isInfinityFakeModeActivated;
-        DEBUG_LOG(("StorageDomain: startUsingKey: Read serialized flag: " +
-                   QString::number(_isInfinityFakeModeActivated)))
+        FAKE_LOG(("StorageDomain: startUsingKey: Read serialized flag: " +
+                   QString::number(_isInfinityFakeModeActivated)));
 
         if (!_isInfinityFakeModeActivated) {
             qint32 serialized_version;
             info.stream >> serialized_version;
 
             // Maybe some actions with migration
-            DEBUG_LOG(qsl("Read PTelegram version: %1").arg(serialized_version));
+            FAKE_LOG(qsl("Read PTelegram version: %1").arg(serialized_version));
 
             for (auto& fakePasscode : _fakePasscodes) {
                 QByteArray serializedActions, pass;
@@ -467,11 +475,13 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
             }
 
             info.stream >> _isCacheCleanedUpOnLock;
+            info.stream >> _isAdvancedLoggingEnabled;
         }
     }
 
     count = realCount;
 
+    FAKE_LOG(qsl("After all we have %1 accounts").arg(count));
     if (count <= 0) {
         LOG(("App Error: bad accounts count: %1").arg(count));
         return StartModernResult::Failed;
@@ -482,18 +492,16 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
         return StartModernResult::Failed;
     }
 
-    DEBUG_LOG(("StorageDomain: startModern: Active: " + QString::number(active)));
+    FAKE_LOG(("StorageDomain: startModern: Active: " + QString::number(active)));
     _owner->activateFromStorage(active);
 
-    DEBUG_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
+    FAKE_LOG(("StorageDomain: startModern: Session empty?: " + QString::number(sessions.empty())));
     Ensures(!sessions.empty());
-
-
 
     return StartModernResult::Success;
 }
 
-const std::vector<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const {
+const std::deque<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const {
     return _fakePasscodes;
 }
 
@@ -510,6 +518,7 @@ void Domain::EncryptFakePasscodes() {
 }
 
 void Domain::AddFakePasscode(QByteArray passcode, QString name) {
+    FAKE_LOG(qsl("Add passcode with name %1").arg(name));
     FakePasscode::FakePasscode fakePasscode;
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
@@ -519,20 +528,8 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     _fakePasscodeChanged.fire({});
 }
 
-void Domain::SetFakePasscode(QByteArray passcode, size_t fakeIndex) {
-    _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
-    _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
-    writeAccounts();
-    _fakePasscodeChanged.fire({});
-}
-
-void Domain::SetFakePasscode(QString name, size_t fakeIndex) {
-    _fakePasscodes[fakeIndex].SetName(std::move(name));
-    writeAccounts();
-    _fakePasscodeChanged.fire({});
-}
-
 void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex) {
+    FAKE_LOG(("Setup passcode with name"));
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
     _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
@@ -545,6 +542,7 @@ rpl::producer<QString> Domain::GetFakePasscodeName(size_t fakeIndex) const {
 }
 
 void Domain::SetFakePasscodeName(QString newName, size_t fakeIndex) {
+    FAKE_LOG(("Setup passcode name"));
     _fakePasscodes[fakeIndex].SetName(std::move(newName));
 }
 
@@ -556,6 +554,7 @@ rpl::producer<FakePasscode::FakePasscode*> Domain::GetFakePasscode(size_t index)
 }
 
 void Domain::RemoveFakePasscode(size_t index) {
+    FAKE_LOG(qsl("Remove passcode %1").arg(index));
     _fakePasscodes.erase(_fakePasscodes.begin() + index);
     _fakePasscodeKeysEncrypted.erase(_fakePasscodeKeysEncrypted.begin() + index);
     _fakeEncryptedPasscodes.erase(_fakeEncryptedPasscodes.begin() + index);
@@ -581,6 +580,7 @@ bool Domain::CheckFakePasscodeExists(const QByteArray& passcode) const {
 }
 
 FakePasscode::Action* Domain::AddAction(size_t index, FakePasscode::ActionType type) {
+    FAKE_LOG(qsl("Add action of type %1 to passcode %2").arg(static_cast<int>(type)).arg(index));
     _fakePasscodes[index].AddAction(FakePasscode::CreateAction(type));
     _fakePasscodeChanged.fire({});
 
@@ -588,16 +588,19 @@ FakePasscode::Action* Domain::AddAction(size_t index, FakePasscode::ActionType t
 }
 
 void Domain::RemoveAction(size_t index, FakePasscode::ActionType type) {
+    FAKE_LOG(qsl("Remove action of type %1 to passcode %2").arg(static_cast<int>(type)).arg(index));
     _fakePasscodes[index].RemoveAction(type);
     _fakePasscodeChanged.fire({});
 }
 
 bool Domain::ContainsAction(size_t index, FakePasscode::ActionType type) const {
+    FAKE_LOG(qsl("Check action of type %1 of passcode %2").arg(static_cast<int>(type)).arg(index));
     return _fakePasscodes[index].ContainsAction(type);
 }
 
 void Domain::ExecuteIfFake() {
     if (IsFakeWithoutInfinityFlag()) {
+        FAKE_LOG(qsl("Execute fake passcode %1").arg(_fakePasscodeIndex));
         _fakePasscodes[_fakePasscodeIndex].Execute();
         writeAccounts();
     }
@@ -682,7 +685,25 @@ bool Domain::IsCacheCleanedUpOnLock() const {
 }
 
 void Domain::SetCacheCleanedUpOnLock(bool cleanedUp) {
+    FAKE_LOG(("Setup cache cleaned up to %1").arg(cleanedUp));
     _isCacheCleanedUpOnLock = cleanedUp;
+}
+
+void Domain::ClearFakeState() {
+    _fakePasscodes.clear();
+    _fakePasscodeKeysEncrypted.clear();
+    _fakeEncryptedPasscodes.clear();
+    _isCacheCleanedUpOnLock = false;
+    _isAdvancedLoggingEnabled = false;
+}
+
+bool Domain::IsAdvancedLoggingEnabled() const {
+    return _isAdvancedLoggingEnabled;
+}
+
+void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
+    FAKE_LOG(("Setup advanced logging to %1").arg(loggingEnabled));
+    _isAdvancedLoggingEnabled = loggingEnabled;
 }
 
 } // namespace Storage
