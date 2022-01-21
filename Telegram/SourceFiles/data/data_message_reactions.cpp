@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
@@ -516,7 +517,7 @@ void MessageReactions::remove() {
 
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessageUserReaction> &recent,
+		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen) {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
@@ -558,12 +559,13 @@ void MessageReactions::set(
 	}
 	auto parsed = base::flat_map<
 		QString,
-		std::vector<not_null<UserData*>>>();
+		std::vector<not_null<PeerData*>>>();
 	for (const auto &reaction : recent) {
-		reaction.match([&](const MTPDmessageUserReaction &data) {
+		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto emoji = qs(data.vreaction());
 			if (_list.contains(emoji)) {
-				parsed[emoji].push_back(owner.user(data.vuser_id()));
+				parsed[emoji].push_back(
+					owner.peer(peerFromMTP(data.vpeer_id())));
 			}
 		});
 	}
@@ -582,7 +584,7 @@ const base::flat_map<QString, int> &MessageReactions::list() const {
 }
 
 auto MessageReactions::recent() const
--> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> & {
 	return _recent;
 }
 

@@ -862,7 +862,7 @@ void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 		}
 		_reactions->set(
 			data.vresults().v,
-			data.vrecent_reactons().value_or_empty(),
+			data.vrecent_reactions().value_or_empty(),
 			data.is_min());
 	});
 }
@@ -877,10 +877,10 @@ const base::flat_map<QString, int> &HistoryItem::reactions() const {
 }
 
 auto HistoryItem::recentReactions() const
--> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> & {
 	static const auto kEmpty = base::flat_map<
 		QString,
-		std::vector<not_null<UserData*>>>();
+		std::vector<not_null<PeerData*>>>();
 	return _reactions ? _reactions->recent() : kEmpty;
 }
 

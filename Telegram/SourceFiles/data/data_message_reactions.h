@@ -133,11 +133,11 @@ public:
 	void remove();
 	void set(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessageUserReaction> &recent,
+		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen);
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] auto recent() const
-		-> const base::flat_map<QString, std::vector<not_null<UserData*>>> &;
+		-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> &;
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
 
@@ -146,7 +146,7 @@ private:
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
-	base::flat_map<QString, std::vector<not_null<UserData*>>> _recent;
+	base::flat_map<QString, std::vector<not_null<PeerData*>>> _recent;
 
 };
 

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
 #include "data/data_message_reactions.h"
-#include "data/data_user.h"
+#include "data/data_peer.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
@@ -125,18 +125,18 @@ void InlineList::setButtonCount(Button &button, int count) {
 
 void InlineList::setButtonUserpics(
 		Button &button,
-		const std::vector<not_null<UserData*>> &users) {
+		const std::vector<not_null<PeerData*>> &peers) {
 	if (!button.userpics) {
 		button.userpics = std::make_unique<Userpics>();
 	}
-	const auto count = button.count = int(users.size());
+	const auto count = button.count = int(peers.size());
 	auto &list = button.userpics->list;
 	const auto regenerate = [&] {
 		if (list.size() != count) {
 			return true;
 		}
 		for (auto i = 0; i != count; ++i) {
-			if (users[i] != list[i].peer) {
+			if (peers[i] != list[i].peer) {
 				return true;
 			}
 		}
@@ -150,10 +150,10 @@ void InlineList::setButtonUserpics(
 	for (auto i = 0; i != count; ++i) {
 		if (i == list.size()) {
 			list.push_back(UserpicInRow{
-				users[i]
+				peers[i]
 			});
-		} else if (list[i].peer != users[i]) {
-			list[i].peer = users[i];
+		} else if (list[i].peer != peers[i]) {
+			list[i].peer = peers[i];
 		}
 	}
 	while (list.size() > count) {

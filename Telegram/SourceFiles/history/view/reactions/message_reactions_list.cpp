@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
-#include "data/data_user.h"
+#include "data/data_peer.h"
 #include "lang/lang_keys.h"
 
 namespace HistoryView {
@@ -61,13 +61,13 @@ public:
 	void loadMoreRows() override;
 
 private:
-	using AllEntry = std::pair<not_null<UserData*>, QString>;
+	using AllEntry = std::pair<not_null<PeerData*>, QString>;
 
 	void fillWhoRead();
 	void loadMore(const QString &reaction);
-	bool appendRow(not_null<UserData*> user, QString reaction);
+	bool appendRow(not_null<PeerData*> peer, QString reaction);
 	std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		QString reaction) const;
 	void showReaction(const QString &reaction);
 
@@ -77,12 +77,12 @@ private:
 
 	QString _shownReaction;
 	std::shared_ptr<Api::WhoReadList> _whoReadIds;
-	std::vector<not_null<UserData*>> _whoRead;
+	std::vector<not_null<PeerData*>> _whoRead;
 
 	std::vector<AllEntry> _all;
 	QString _allOffset;
 
-	std::vector<not_null<UserData*>> _filtered;
+	std::vector<not_null<PeerData*>> _filtered;
 	QString _filteredOffset;
 
 	mtpRequestId _loadRequestId = 0;
@@ -179,8 +179,8 @@ void Controller::showReaction(const QString &reaction) {
 		fillWhoRead();
 	} else if (_shownReaction.isEmpty()) {
 		_filtered.clear();
-		for (const auto &[user, reaction] : _all) {
-			appendRow(user, reaction);
+		for (const auto &[peer, reaction] : _all) {
+			appendRow(peer, reaction);
 		}
 	} else {
 		_filtered = _all | ranges::view::filter([&](const AllEntry &entry) {
@@ -188,8 +188,8 @@ void Controller::showReaction(const QString &reaction) {
 		}) | ranges::view::transform(
 			&AllEntry::first
 		) | ranges::to_vector;
-		for (const auto user : _filtered) {
-			appendRow(user, _shownReaction);
+		for (const auto peer : _filtered) {
+			appendRow(peer, _shownReaction);
 		}
 		_filteredOffset = QString();
 	}
@@ -204,13 +204,13 @@ void Controller::fillWhoRead() {
 	if (_whoReadIds && !_whoReadIds->list.empty() && _whoRead.empty()) {
 		auto &owner = _window->session().data();
 		for (const auto &peerId : _whoReadIds->list) {
-			if (const auto user = owner.userLoaded(peerToUser(peerId))) {
-				_whoRead.push_back(user);
+			if (const auto peer = owner.peerLoaded(peerId)) {
+				_whoRead.push_back(peer);
 			}
 		}
 	}
-	for (const auto &user : _whoRead) {
-		appendRow(user, QString());
+	for (const auto &peer : _whoRead) {
+		appendRow(peer, QString());
 	}
 }
 
@@ -255,18 +255,19 @@ void Controller::loadMore(const QString &reaction) {
 		result.match([&](const MTPDmessages_messageReactionsList &data) {
 			const auto sessionData = &session().data();
 			sessionData->processUsers(data.vusers());
+			sessionData->processChats(data.vchats());
 			(filtered ? _filteredOffset : _allOffset)
 				= data.vnext_offset().value_or_empty();
 			for (const auto &reaction : data.vreactions().v) {
-				reaction.match([&](const MTPDmessageUserReaction &data) {
-					const auto user = sessionData->userLoaded(
-						data.vuser_id().v);
+				reaction.match([&](const MTPDmessagePeerReaction &data) {
+					const auto peer = sessionData->peerLoaded(
+						peerFromMTP(data.vpeer_id()));
 					const auto reaction = qs(data.vreaction());
-					if (user && (!shown || appendRow(user, reaction))) {
+					if (peer && (!shown || appendRow(peer, reaction))) {
 						if (filtered) {
-							_filtered.emplace_back(user);
+							_filtered.emplace_back(peer);
 						} else {
-							_all.emplace_back(user, reaction);
+							_all.emplace_back(peer, reaction);
 						}
 					}
 				});
@@ -287,18 +288,18 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-bool Controller::appendRow(not_null<UserData*> user, QString reaction) {
-	if (delegate()->peerListFindRow(user->id.value)) {
+bool Controller::appendRow(not_null<PeerData*> peer, QString reaction) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
-	delegate()->peerListAppendRow(createRow(user, reaction));
+	delegate()->peerListAppendRow(createRow(peer, reaction));
 	return true;
 }
 
 std::unique_ptr<PeerListRow> Controller::createRow(
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		QString reaction) const {
-	return std::make_unique<Row>(user, reaction);
+	return std::make_unique<Row>(peer, reaction);
 }
 
 } // namespace

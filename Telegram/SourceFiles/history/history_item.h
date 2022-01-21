@@ -360,7 +360,7 @@ public:
 	void updateReactionsUnknown();
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] auto recentReactions() const
-		-> const base::flat_map<QString, std::vector<not_null<UserData*>>> &;
+		-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> &;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
 	[[nodiscard]] QString lookupHisReaction() const;

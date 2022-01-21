@@ -40,7 +40,7 @@ struct InlineListData {
 	using Flags = base::flags<Flag>;
 
 	base::flat_map<QString, int> reactions;
-	base::flat_map<QString, std::vector<not_null<UserData*>>> recent;
+	base::flat_map<QString, std::vector<not_null<PeerData*>>> recent;
 	QString chosenReaction;
 	Flags flags = {};
 };
@@ -101,7 +101,7 @@ private:
 	void setButtonCount(Button &button, int count);
 	void setButtonUserpics(
 		Button &button,
-		const std::vector<not_null<UserData*>> &users);
+		const std::vector<not_null<PeerData*>> &peers);
 	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
 	void resolveUserpicsImage(const Button &button) const;
 
