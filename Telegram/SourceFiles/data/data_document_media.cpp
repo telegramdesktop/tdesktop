@@ -37,6 +37,7 @@ constexpr auto kGoodThumbQuality = 87;
 
 enum class FileType {
 	Video,
+	VideoSticker,
 	AnimatedSticker,
 	WallPaper,
 	WallPatternPNG,
@@ -56,7 +57,7 @@ enum class FileType {
 		const QString &path,
 		QByteArray data,
 		FileType type) {
-	if (type == FileType::Video) {
+	if (type == FileType::Video || type == FileType::VideoSticker) {
 		return ::Media::Clip::PrepareForSending(path, data).thumbnail;
 	} else if (type == FileType::AnimatedSticker) {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
@@ -409,9 +410,11 @@ void DocumentMedia::GenerateGoodThumbnail(
 		? FileType::WallPaper
 		: document->isTheme()
 		? FileType::Theme
-		: (document->sticker() && document->sticker()->isLottie())
+		: !document->sticker()
+		? FileType::Video
+		: document->sticker()->isLottie()
 		? FileType::AnimatedSticker
-		: FileType::Video;
+		: FileType::VideoSticker;
 	auto location = document->location().isEmpty()
 		? nullptr
 		: std::make_unique<Core::FileLocation>(document->location());
@@ -428,7 +431,8 @@ void DocumentMedia::GenerateGoodThumbnail(
 		auto bytes = QByteArray();
 		if (!result.isNull()) {
 			auto buffer = QBuffer(&bytes);
-			const auto format = (type == FileType::AnimatedSticker)
+			const auto format = (type == FileType::AnimatedSticker
+				|| type == FileType::VideoSticker)
 				? "WEBP"
 				: (type == FileType::WallPatternPNG
 					|| type == FileType::WallPatternSVG)
