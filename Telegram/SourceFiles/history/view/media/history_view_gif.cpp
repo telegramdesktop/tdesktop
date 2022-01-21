@@ -32,12 +32,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "chat_helpers/stickers_lottie.h" // PaintStickerThumbnailPath.
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -459,7 +461,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			const auto normal = _dataMedia->thumbnail();
 			if (normal) {
 				const auto blurred = (normal->width() < kUseNonBlurredThreshold)
-					|| (normal->height() < kUseNonBlurredThreshold);
+					&& (normal->height() < kUseNonBlurredThreshold);
 				p.drawPixmap(
 					rthumb.topLeft(),
 					normal->pixSingle(size, blurred ? args.blurred() : args));
@@ -481,17 +483,15 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 						| (roundTop ? RectPart::Top : RectPart::None)
 						| (roundBottom ? RectPart::Bottom : RectPart::None);
 					Ui::FillRoundRect(p, rthumb.marginsAdded({ 0, roundTop ? 0 : margin, 0, roundBottom ? 0 : margin }), st->imageBg(), roundRadius, parts);
+				} else {
+					paintPath(p, context, rthumb);
 				}
 			}
 		}
 	}
 
-	if (context.selected()) {
-		if (unwrapped && !isRound) {
-			// #TODO stickers
-		} else {
-			Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
-		}
+	if (context.selected() && !sticker) {
+		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
 
 	if (radial
@@ -690,6 +690,28 @@ void Gif::validateVideoThumbnail() const {
 	_videoThumbnailFrame = std::make_unique<Image>(info.thumbnail.isNull()
 		? Image::BlankMedia()->original()
 		: info.thumbnail);
+}
+
+void Gif::paintPath(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) const {
+	Expects(_dataMedia != nullptr);
+
+	const auto pathGradient = _parent->delegate()->elementPathShiftGradient();
+	if (context.selected()) {
+		pathGradient->overrideColors(
+			context.st->msgServiceBgSelected(),
+			context.st->msgServiceBg());
+	} else {
+		pathGradient->clearOverridenColors();
+	}
+	p.setBrush(context.imageStyle()->msgServiceBg);
+	ChatHelpers::PaintStickerThumbnailPath(
+		p,
+		_dataMedia.get(),
+		r,
+		pathGradient);
 }
 
 void Gif::drawCornerStatus(

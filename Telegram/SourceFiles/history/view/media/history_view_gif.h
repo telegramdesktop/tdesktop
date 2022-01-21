@@ -177,6 +177,11 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
+	void paintPath(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) const;
+
 	const not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
