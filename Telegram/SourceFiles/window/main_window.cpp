@@ -122,7 +122,7 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 		return officialIcon;
 	}
 
-	auto result = QIcon(Ui::PixmapFromImage(Logo()));
+	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	const auto iconFromTheme = QIcon::fromTheme(
