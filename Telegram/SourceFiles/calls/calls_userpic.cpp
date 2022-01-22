@@ -165,7 +165,6 @@ void Userpic::refreshPhoto() {
 void Userpic::createCache(Image *image) {
 	const auto size = this->size();
 	const auto real = size * cIntRetinaFactor();
-	auto options = Images::Option() | Images::Option::RoundCircle;
 	//_useTransparency
 	//	? (Images::Option::RoundLarge
 	//		| Images::Option::RoundSkipBottomLeft
