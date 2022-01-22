@@ -106,16 +106,20 @@ void ConvertIconToBlack(QImage &image) {
 	}
 }
 
-QIcon CreateOfficialIcon(Main::Session *session) {
+QIcon CreateOfficialIcon(Main::Session *session, bool returnNullIfDefault) {
+	const auto support = (session && session->supportMode());
+	if (!support && returnNullIfDefault) {
+		return QIcon();
+	}
 	auto image = Logo();
-	if (session && session->supportMode()) {
+	if (support) {
 		ConvertIconToBlack(image);
 	}
 	return QIcon(Ui::PixmapFromImage(std::move(image)));
 }
 
-QIcon CreateIcon(Main::Session *session) {
-	auto result = CreateOfficialIcon(session);
+QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
+	auto result = CreateOfficialIcon(session, returnNullIfDefault);
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	const auto iconFromTheme = QIcon::fromTheme(
 		Platform::GetIconName(),

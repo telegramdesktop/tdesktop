@@ -1180,7 +1180,9 @@ void Application::startShortcuts() {
 	) | rpl::start_with_next([=](Main::Session *session) {
 		const auto support = session && session->supportMode();
 		Shortcuts::ToggleSupportShortcuts(support);
-		Platform::SetApplicationIcon(Window::CreateIcon(session));
+		Platform::SetApplicationIcon(Window::CreateIcon(
+			session,
+			Platform::IsMac()));
 	}, _lifetime);
 
 	Shortcuts::Requests(
