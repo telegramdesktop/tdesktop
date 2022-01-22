@@ -1927,7 +1927,7 @@ CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 }
 
 auto RepliesWidget::listAllowedReactionsValue()
--> rpl::producer<std::vector<Data::Reaction>> {
+-> rpl::producer<std::optional<base::flat_set<QString>>> {
 	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 

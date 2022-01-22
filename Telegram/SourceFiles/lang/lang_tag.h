@@ -11,6 +11,7 @@ enum lngtag_count : int;
 
 namespace Lang {
 
+inline constexpr auto kTextCommandLangTag = 0x20;
 constexpr auto kTagReplacementSize = 4;
 
 int FindTagReplacementPosition(const QString &original, ushort tag);

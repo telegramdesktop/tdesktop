@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -793,11 +794,17 @@ void HistoryItem::addReaction(const QString &reaction) {
 void HistoryItem::toggleReaction(const QString &reaction) {
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
+		const auto canViewReactions = !isDiscussionPost()
+			&& (history()->peer->isChat() || history()->peer->isMegagroup());
+		if (canViewReactions) {
+			_flags |= MessageFlag::CanViewReactions;
+		}
 		_reactions->add(reaction);
 	} else if (_reactions->chosen() == reaction) {
 		_reactions->remove();
 		if (_reactions->empty()) {
 			_reactions = nullptr;
+			_flags &= ~MessageFlag::CanViewReactions;
 			history()->owner().notifyItemDataChange(this);
 		}
 	} else {
@@ -807,6 +814,26 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	const auto history = this->history();
+	const auto toUser = (reactions && out())
+		? history->peer->asUser()
+		: nullptr;
+	const auto toContact = toUser && toUser->isContact();
+	const auto maybeNotify = toContact && lookupHisReaction().isEmpty();
+	setReactions(reactions);
+	if (maybeNotify) {
+		if (const auto reaction = lookupHisReaction(); !reaction.isEmpty()) {
+			const auto notification = ItemNotification{
+				this,
+				ItemNotificationType::Reaction,
+			};
+			history->pushNotification(notification);
+			Core::App().notifications().schedule(notification);
+		}
+	}
+}
+
+void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 	if (reactions || _reactionsLastRefreshed) {
 		_reactionsLastRefreshed = crl::now();
 	}
@@ -833,7 +860,10 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
-		_reactions->set(data.vresults().v, data.is_min());
+		_reactions->set(
+			data.vresults().v,
+			data.vrecent_reactons().value_or_empty(),
+			data.is_min());
 	});
 }
 
@@ -846,6 +876,14 @@ const base::flat_map<QString, int> &HistoryItem::reactions() const {
 	return _reactions ? _reactions->list() : kEmpty;
 }
 
+auto HistoryItem::recentReactions() const
+-> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+	static const auto kEmpty = base::flat_map<
+		QString,
+		std::vector<not_null<UserData*>>>();
+	return _reactions ? _reactions->recent() : kEmpty;
+}
+
 bool HistoryItem::canViewReactions() const {
 	return (_flags & MessageFlag::CanViewReactions)
 		&& _reactions
@@ -854,6 +892,24 @@ bool HistoryItem::canViewReactions() const {
 
 QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
+}
+
+QString HistoryItem::lookupHisReaction() const {
+	if (!_reactions) {
+		return QString();
+	}
+	const auto &list = _reactions->list();
+	if (list.empty()) {
+		return QString();
+	}
+	const auto chosen = _reactions->chosen();
+	const auto &[first, count] = list.front();
+	if (chosen.isEmpty() || first != chosen || count > 1) {
+		return first;
+	} else if (list.size() == 1) {
+		return QString();
+	}
+	return list.back().first;
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {
@@ -1074,23 +1130,20 @@ bool HistoryItem::isEmpty() const {
 		&& !Has<HistoryMessageLogEntryOriginal>();
 }
 
-QString HistoryItem::notificationText() const {
+TextWithEntities HistoryItem::notificationText() const {
 	const auto result = [&] {
 		if (_media && !isService()) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
-			return TextUtilities::TextWithSpoilerCommands(
-				_text.toTextWithEntities());
+			return _text.toTextWithEntities();
 		}
-		return QString();
+		return TextWithEntities();
 	}();
-	return (result.size() <= kNotificationTextLimit)
-		? result
-		: TextUtilities::CutTextWithCommands(
-			result,
-			kNotificationTextLimit,
-			textcmdStartSpoiler(),
-			textcmdStopSpoiler());
+	if (result.text.size() <= kNotificationTextLimit) {
+		return result;
+	}
+	return Ui::Text::Mid(result, 0, kNotificationTextLimit).append(
+		Ui::kQEllipsis);
 }
 
 ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
@@ -1099,12 +1152,7 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
 			return {
-				.text = TextUtilities::Clean(
-					options.ignoreSpoilers
-						? _text.toString()
-						: TextUtilities::TextWithSpoilerCommands(
-							_text.toTextWithEntities()),
-					!options.ignoreSpoilers),
+				.text = _text.toTextWithEntities()
 			};
 		}
 		return {};
@@ -1140,16 +1188,12 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	if (!sender) {
 		return result;
 	}
-	const auto fromWrapped = textcmdLink(
-		1,
-		tr::lng_dialogs_text_from_wrapped(
-			tr::now,
-			lt_from,
-			TextUtilities::Clean(*sender)));
+	const auto fromWrapped = Ui::Text::PlainLink(
+		tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, *sender));
 	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
 }
 
-QString HistoryItem::inReplyText() const {
+TextWithEntities HistoryItem::inReplyText() const {
 	return toPreview({
 		.hideSender = true,
 		.generateImages = false,
@@ -1274,7 +1318,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));
 		} else if (checked == MediaCheckResult::Empty) {
 			const auto text = HistoryService::PreparedText{
-				tr::lng_message_empty(tr::now)
+				tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
 			};
 			return history->makeServiceMessage(
 				id,
@@ -1293,7 +1337,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 		return history->makeServiceMessage(id, data, localFlags);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
-			tr::lng_message_empty(tr::now)
+			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
 		};
 		return history->makeServiceMessage(id, localFlags, TimeId(0), text);
 	});

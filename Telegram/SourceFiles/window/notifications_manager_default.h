@@ -68,9 +68,7 @@ private:
 	[[nodiscard]] QPixmap hiddenUserpicPlaceholder() const;
 
 	void doUpdateAll() override;
-	void doShowNotification(
-		not_null<HistoryItem*> item,
-		int forwardedCount) override;
+	void doShowNotification(NotificationFields &&fields) override;
 	void doClearAll() override;
 	void doClearAllFast() override;
 	void doClearFromHistory(not_null<History*> history) override;
@@ -110,10 +108,11 @@ private:
 	base::Timer _inputCheckTimer;
 
 	struct QueuedNotification {
-		QueuedNotification(not_null<HistoryItem*> item, int forwardedCount);
+		QueuedNotification(NotificationFields &&fields);
 
 		not_null<History*> history;
 		not_null<PeerData*> peer;
+		QString reaction;
 		QString author;
 		HistoryItem *item = nullptr;
 		int forwardedCount = 0;
@@ -208,6 +207,7 @@ public:
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
+		const QString &reaction,
 		int forwardedCount,
 		bool fromScheduled,
 		QPoint startPosition,
@@ -277,6 +277,7 @@ private:
 	History *_history = nullptr;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;
+	QString _reaction;
 	HistoryItem *_item = nullptr;
 	int _forwardedCount = 0;
 	bool _fromScheduled = false;

@@ -97,9 +97,6 @@ public:
 
 	~Widget();
 
-Q_SIGNALS:
-	void cancelled();
-
 public Q_SLOTS:
 	void onDraggingScrollDelta(int delta);
 

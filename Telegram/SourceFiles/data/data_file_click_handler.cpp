@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_file_click_handler.h"
 
+#include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
@@ -44,6 +45,9 @@ DocumentClickHandler::DocumentClickHandler(
 	FullMsgId context)
 : FileClickHandler(context)
 , _document(document) {
+	setProperty(
+		kDocumentLinkMediaProperty,
+		reinterpret_cast<qulonglong>(_document.get()));
 }
 
 DocumentOpenClickHandler::DocumentOpenClickHandler(
@@ -146,6 +150,9 @@ PhotoClickHandler::PhotoClickHandler(
 : FileClickHandler(context)
 , _photo(photo)
 , _peer(peer) {
+	setProperty(
+		kPhotoLinkMediaProperty,
+		reinterpret_cast<qulonglong>(_photo.get()));
 }
 
 not_null<PhotoData*> PhotoClickHandler::photo() const {

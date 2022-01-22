@@ -293,7 +293,23 @@ PhotoEditorControls::PhotoEditorControls(
 
 	controllers->undoController->setPerformRequestChanges(rpl::merge(
 		_undoButton->clicks() | rpl::map_to(Undo::Undo),
-		_redoButton->clicks() | rpl::map_to(Undo::Redo)));
+		_redoButton->clicks() | rpl::map_to(Undo::Redo),
+		_keyPresses.events(
+		) | rpl::filter([=](not_null<QKeyEvent*> e) {
+			using Mode = PhotoEditorMode::Mode;
+			return (e->matches(QKeySequence::Undo)
+					&& !_undoButton->isHidden()
+					&& !_undoButton->testAttribute(
+						Qt::WA_TransparentForMouseEvents)
+					&& (_mode.current().mode == Mode::Paint))
+				|| (e->matches(QKeySequence::Redo)
+					&& !_redoButton->isHidden()
+					&& !_redoButton->testAttribute(
+						Qt::WA_TransparentForMouseEvents)
+					&& (_mode.current().mode == Mode::Paint));
+		}) | rpl::map([=](not_null<QKeyEvent*> e) {
+			return e->matches(QKeySequence::Undo) ? Undo::Undo : Undo::Redo;
+		})));
 
 	controllers->undoController->canPerformChanges(
 	) | rpl::start_with_next([=](const UndoController::EnableRequest &r) {
@@ -368,7 +384,8 @@ rpl::producer<> PhotoEditorControls::doneRequests() const {
 		_transformDone->clicks() | rpl::to_empty,
 		_paintDone->clicks() | rpl::to_empty,
 		_keyPresses.events(
-		) | rpl::filter([=](int key) {
+		) | rpl::filter([=](not_null<QKeyEvent*> e) {
+			const auto key = e->key();
 			return ((key == Qt::Key_Enter) || (key == Qt::Key_Return))
 				&& !_toggledBarAnimation.animating();
 		}) | rpl::to_empty);
@@ -379,7 +396,8 @@ rpl::producer<> PhotoEditorControls::cancelRequests() const {
 		_transformCancel->clicks() | rpl::to_empty,
 		_paintCancel->clicks() | rpl::to_empty,
 		_keyPresses.events(
-		) | rpl::filter([=](int key) {
+		) | rpl::filter([=](not_null<QKeyEvent*> e) {
+			const auto key = e->key();
 			return (key == Qt::Key_Escape)
 				&& !_toggledBarAnimation.animating();
 		}) | rpl::to_empty);
@@ -478,7 +496,7 @@ rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
 }
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {
-	_keyPresses.fire(e->key());
+	_keyPresses.fire(std::move(e));
 	return true;
 }
 

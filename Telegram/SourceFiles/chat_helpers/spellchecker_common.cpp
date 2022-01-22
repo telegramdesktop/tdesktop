@@ -139,6 +139,9 @@ void DownloadDictionaryInBackground(
 		not_null<Main::Session*> session,
 		int counter,
 		std::vector<int> langs) {
+	if (counter >= langs.size()) {
+		return;
+	}
 	const auto id = langs[counter];
 	counter++;
 	const auto destroyer = [=] {
@@ -154,9 +157,6 @@ void DownloadDictionaryInBackground(
 			}
 		}
 
-		if (counter >= langs.size()) {
-			return;
-		}
 		DownloadDictionaryInBackground(session, counter, langs);
 	};
 	if (DictionaryExists(id)) {

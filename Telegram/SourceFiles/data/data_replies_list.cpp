@@ -32,7 +32,7 @@ constexpr auto kMessagesPerPage = 50;
 		history->nextNonHistoryEntryId(),
 		MessageFlag::FakeHistoryItem,
 		date,
-		HistoryService::PreparedText{ text });
+		HistoryService::PreparedText{ { .text = text } });
 }
 
 } // namespace
@@ -287,7 +287,7 @@ void RepliesList::injectRootDivider(
 			text());
 	} else if (_dividerWithComments != withComments) {
 		_dividerWithComments = withComments;
-		_divider->setServiceText(HistoryService::PreparedText{ text() });
+		_divider->setServiceText(HistoryService::PreparedText{ { text() } });
 	}
 	slice->ids.push_back(_divider->fullId());
 }

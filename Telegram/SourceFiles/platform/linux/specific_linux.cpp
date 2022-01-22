@@ -816,17 +816,20 @@ bool OpenSystemSettings(SystemSettingsType type) {
 			}
 			options.push_back(std::move(command));
 		};
-		if (DesktopEnvironment::IsUnity()) {
-			add("unity-control-center", "sound");
-		} else if (DesktopEnvironment::IsKDE()) {
-			add("kcmshell5", "kcm_pulseaudio");
-			add("kcmshell4", "phonon");
-		} else if (DesktopEnvironment::IsGnome()) {
-			add("gnome-control-center", "sound");
-		} else if (DesktopEnvironment::IsCinnamon()) {
-			add("cinnamon-settings", "sound");
-		} else if (DesktopEnvironment::IsMATE()) {
-			add("mate-volume-control");
+		for (const auto &type : DesktopEnvironment::Get()) {
+			using DesktopEnvironment::Type;
+			if (type == Type::Unity) {
+				add("unity-control-center", "sound");
+			} else if (type == Type::KDE) {
+				add("kcmshell5", "kcm_pulseaudio");
+				add("kcmshell4", "phonon");
+			} else if (type == Type::Gnome) {
+				add("gnome-control-center", "sound");
+			} else if (type == Type::Cinnamon) {
+				add("cinnamon-settings", "sound");
+			} else if (type == Type::MATE) {
+				add("mate-volume-control");
+			}
 		}
 #ifdef __HAIKU__
 		add("Media");

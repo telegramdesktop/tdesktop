@@ -1243,8 +1243,9 @@ CopyRestrictionType ScheduledWidget::listSelectRestrictionType() {
 }
 
 auto ScheduledWidget::listAllowedReactionsValue()
--> rpl::producer<std::vector<Data::Reaction>> {
-	return rpl::single(std::vector<Data::Reaction>());
+-> rpl::producer<std::optional<base::flat_set<QString>>> {
+	const auto empty = base::flat_set<QString>();
+	return rpl::single(std::optional<base::flat_set<QString>>(empty));
 }
 
 void ScheduledWidget::confirmSendNowSelected() {

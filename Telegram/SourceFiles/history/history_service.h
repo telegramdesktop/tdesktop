@@ -63,7 +63,7 @@ class ServiceMessagePainter;
 class HistoryService : public HistoryItem {
 public:
 	struct PreparedText {
-		QString text;
+		TextWithEntities text;
 		QList<ClickHandlerPtr> links;
 	};
 
@@ -112,7 +112,7 @@ public:
 		return true;
 	}
 	ItemPreview toPreview(ToPreviewOptions options) const override;
-	QString inReplyText() const override;
+	TextWithEntities inReplyText() const override;
 
 	std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
@@ -129,7 +129,7 @@ protected:
 
 	void markMediaAsReadHook() override;
 
-	QString fromLinkText() const;
+	TextWithEntities fromLinkText() const;
 	ClickHandlerPtr fromLink() const;
 
 	void removeMedia();

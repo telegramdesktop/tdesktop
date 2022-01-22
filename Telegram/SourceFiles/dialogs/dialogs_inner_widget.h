@@ -46,6 +46,7 @@ struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
 	bool filteredRow = false;
+	bool newWindow = false;
 };
 
 enum class SearchRequestType {
@@ -95,7 +96,7 @@ public:
 	void refreshEmptyLabel();
 	void resizeEmptyLabel();
 
-	bool chooseRow();
+	bool chooseRow(Qt::KeyboardModifiers modifiers = {});
 
 	void scrollToEntry(const RowDescriptor &entry);
 
@@ -192,7 +193,10 @@ private:
 	void refreshDialogRow(RowDescriptor row);
 
 	void clearMouseSelection(bool clearSelection = false);
-	void mousePressReleased(QPoint globalPosition, Qt::MouseButton button);
+	void mousePressReleased(
+		QPoint globalPosition,
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers);
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
 	void loadPeerPhotos();

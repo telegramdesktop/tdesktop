@@ -287,7 +287,7 @@ void ChatData::setPendingRequestsCount(
 	}
 }
 
-void ChatData::setAllowedReactions(std::vector<QString> list) {
+void ChatData::setAllowedReactions(base::flat_set<QString> list) {
 	if (_allowedReactions != list) {
 		const auto toggled = (_allowedReactions.empty() != list.empty());
 		_allowedReactions = std::move(list);
@@ -300,7 +300,7 @@ void ChatData::setAllowedReactions(std::vector<QString> list) {
 	}
 }
 
-const std::vector<QString> &ChatData::allowedReactions() const {
+const base::flat_set<QString> &ChatData::allowedReactions() const {
 	return _allowedReactions;
 }
 

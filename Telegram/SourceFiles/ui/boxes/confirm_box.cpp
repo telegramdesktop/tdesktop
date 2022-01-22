@@ -19,8 +19,7 @@ namespace {
 TextParseOptions kInformBoxTextOptions = {
 	(TextParseLinks
 		| TextParseMultiline
-		| TextParseMarkdown
-		| TextParseRichText), // flags
+		| TextParseMarkdown), // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
@@ -30,7 +29,6 @@ TextParseOptions kMarkedTextBoxOptions = {
 	(TextParseLinks
 		| TextParseMultiline
 		| TextParseMarkdown
-		| TextParseRichText
 		| TextParseMentions
 		| TextParseHashtags), // flags
 	0, // maxw

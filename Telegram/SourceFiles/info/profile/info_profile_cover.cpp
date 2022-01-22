@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "base/unixtime.h"
@@ -397,7 +397,8 @@ void Cover::refreshStatusText() {
 		}
 		return false;
 	}();
-	auto statusText = [&] {
+	auto statusText = [&]() -> TextWithEntities {
+		using namespace Ui::Text;
 		auto currentTime = base::unixtime::now();
 		if (auto user = _peer->asUser()) {
 			const auto result = Data::OnlineTextFull(user, currentTime);
@@ -407,27 +408,29 @@ void Cover::refreshStatusText() {
 				_refreshStatusTimer.callOnce(updateIn);
 			}
 			return showOnline
-				? textcmdLink(1, result)
-				: result;
+				? PlainLink(result)
+				: TextWithEntities{ .text = result };
 		} else if (auto chat = _peer->asChat()) {
 			if (!chat->amIn()) {
-				return tr::lng_chat_status_unaccessible(tr::now);
+				return tr::lng_chat_status_unaccessible({}, WithEntities);
 			}
 			auto fullCount = std::max(
 				chat->count,
 				int(chat->participants.size()));
-			return ChatStatusText(fullCount, _onlineCount, true);
+			return { .text = ChatStatusText(fullCount, _onlineCount, true) };
 		} else if (auto channel = _peer->asChannel()) {
 			auto fullCount = qMax(channel->membersCount(), 1);
 			auto result = ChatStatusText(
 				fullCount,
 				_onlineCount,
 				channel->isMegagroup());
-			return hasMembersLink ? textcmdLink(1, result) : result;
+			return hasMembersLink
+				? PlainLink(result)
+				: TextWithEntities{ .text = result };
 		}
-		return tr::lng_chat_status_unaccessible(tr::now);
+		return tr::lng_chat_status_unaccessible(tr::now, WithEntities);
 	}();
-	_status->setRichText(statusText);
+	_status->setMarkedText(statusText);
 	if (hasMembersLink) {
 		_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_showSection.fire(Section::Type::Members);

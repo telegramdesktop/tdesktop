@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
@@ -367,11 +368,25 @@ void paintRow(
 		if (!ShowSendActionInDialogs(history)
 			|| !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
-				auto draftWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_from_draft(tr::now)));
+				auto draftWrapped = Ui::Text::PlainLink(
+					tr::lng_dialogs_text_from_wrapped(
+						tr::now,
+						lt_from,
+						tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
-					? textcmdLink(1, Support::ChatOccupiedString(history))
-					: tr::lng_dialogs_text_with_from(tr::now, lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
-				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, DialogTextOptions());
+					? Ui::Text::PlainLink(
+						Support::ChatOccupiedString(history))
+					: tr::lng_dialogs_text_with_from(
+						tr::now,
+						lt_from_part,
+						draftWrapped,
+						lt_message,
+						{ .text = draft->textWithTags.text },
+						Ui::Text::WithEntities);
+				history->cloudDraftTextCache.setMarkedText(
+					st::dialogsTextStyle,
+					draftText,
+					DialogTextOptions());
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 			if (supportMode) {

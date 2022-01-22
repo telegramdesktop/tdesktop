@@ -24,7 +24,7 @@ namespace {
 [[nodiscard]] Ui::MessageBarContent ContentWithoutPreview(
 		not_null<HistoryItem*> item) {
 	return Ui::MessageBarContent{
-		.text = { item->inReplyText() },
+		.text = item->inReplyText(),
 	};
 }
 

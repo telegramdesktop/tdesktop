@@ -105,7 +105,6 @@ parts:
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
-      - wayland-protocols
       - zlib1g-dev
     stage-packages:
       - libasound2
@@ -123,6 +122,7 @@ parts:
       - zlib1g
       - systemd
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DTDESKTOP_API_ID=$API_ID
@@ -155,11 +155,9 @@ parts:
       - -./lib/systemd
     after:
       - desktop-qt
-      - extra-cmake-modules
       - ffmpeg
       - mozjpeg
       - openal
-      - plasma-wayland-protocols
       - rnnoise
       - webrtc
 
@@ -214,17 +212,6 @@ parts:
     after:
       - patches
 
-  extra-cmake-modules:
-    source: https://github.com/KDE/extra-cmake-modules.git
-    source-depth: 1
-    source-tag: v5.89.0
-    plugin: cmake
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_TESTING=OFF
-    prime: [-./*]
-
   ffmpeg:
     plugin: nil
     build-packages:
@@ -250,6 +237,7 @@ parts:
     source-tag: v4.0.3
     plugin: cmake
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DENABLE_STATIC=OFF
@@ -274,6 +262,7 @@ parts:
       - libasound2
       - libpulse0
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DALSOFT_EXAMPLES=OFF
@@ -285,18 +274,6 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libopenal.so
-
-  plasma-wayland-protocols:
-    source: https://github.com/KDE/plasma-wayland-protocols.git
-    source-depth: 1
-    source-tag: v1.5.0
-    plugin: cmake
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-    prime: [-./*]
-    after:
-      - extra-cmake-modules
 
   qt:
     plugin: nil
@@ -478,6 +455,7 @@ parts:
       - libxrandr2
       - libxtst6
     cmake-parameters:
+      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DBUILD_SHARED_LIBS=OFF

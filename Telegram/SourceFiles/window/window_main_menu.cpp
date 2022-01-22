@@ -625,8 +625,20 @@ MainMenu::MainMenu(
 		qsl("Telegram Desktop"),
 		qsl("https://desktop.telegram.org")));
 	_telegram->setLinksTrusted();
-	_version->setRichText(textcmdLink(1, tr::lng_settings_current_version(tr::now, lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, tr::lng_menu_about(tr::now)));
-	_version->setLink(1, std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
+	_version->setMarkedText(
+		Ui::Text::Link(
+			tr::lng_settings_current_version(
+				tr::now,
+				lt_version,
+				currentVersionText()),
+			{}) // Link 1.
+		.append(QChar(' '))
+		.append(QChar(8211))
+		.append(QChar(' '))
+		.append(Ui::Text::Link(tr::lng_menu_about(tr::now), {}))); // Link 2.
+	_version->setLink(
+		1,
+		std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
 	_version->setLink(
 		2,
 		std::make_shared<LambdaClickHandler>([=] {

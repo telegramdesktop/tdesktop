@@ -53,6 +53,7 @@ public:
 	bool customInfoLayout() const override {
 		return true;
 	}
+	QPoint resolveCustomInfoRightBottom() const override;
 
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom();

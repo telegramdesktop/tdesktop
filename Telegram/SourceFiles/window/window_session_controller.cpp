@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_react_button.h"
 #include "history/view/history_view_reactions.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
@@ -478,20 +479,14 @@ void SessionNavigation::showPeerHistory(
 		not_null<PeerData*> peer,
 		const SectionShow &params,
 		MsgId msgId) {
-	showPeerHistory(
-		peer->id,
-		params,
-		msgId);
+	showPeerHistory(peer->id, params, msgId);
 }
 
 void SessionNavigation::showPeerHistory(
 		not_null<History*> history,
 		const SectionShow &params,
 		MsgId msgId) {
-	showPeerHistory(
-		history->peer->id,
-		params,
-		msgId);
+	showPeerHistory(history->peer->id, params, msgId);
 }
 
 void SessionNavigation::showSettings(
@@ -536,7 +531,8 @@ SessionController::SessionController(
 		this))
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
-, _chatStyle(std::make_unique<Ui::ChatStyle>()) {
+, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>()) {
 	init();
 
 	_chatStyleTheme = _defaultChatTheme;
@@ -618,6 +614,14 @@ void SessionController::suggestArchiveAndMute() {
 	}));
 }
 
+PeerData *SessionController::singlePeer() const {
+	return _window->singlePeer();
+}
+
+bool SessionController::isPrimary() const {
+	return _window->isPrimary();
+}
+
 not_null<::MainWindow*> SessionController::widget() const {
 	return _window->widget();
 }
@@ -672,7 +676,7 @@ void SessionController::initSupportMode() {
 }
 
 void SessionController::toggleFiltersMenu(bool enabled) {
-	if (!enabled == !_filters) {
+	if (!isPrimary() || (!enabled == !_filters)) {
 		return;
 	} else if (enabled) {
 		_filters = std::make_unique<FiltersMenu>(
@@ -1308,10 +1312,7 @@ void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
-	content()->ui_showPeerHistory(
-		peerId,
-		params,
-		msgId);
+	content()->ui_showPeerHistory(peerId, params, msgId);
 }
 
 void SessionController::showPeerHistoryAtItem(

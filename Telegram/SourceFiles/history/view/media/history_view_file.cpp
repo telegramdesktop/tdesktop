@@ -30,21 +30,17 @@ void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _savel || p == _cancell) {
 		if (active && !dataLoaded()) {
 			ensureAnimation();
-			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 0., 1., st::msgFileOverDuration);
+			_animation->a_thumbOver.start([=] { repaint(); }, 0., 1., st::msgFileOverDuration);
 		} else if (!active && _animation && !dataLoaded()) {
-			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 1., 0., st::msgFileOverDuration);
+			_animation->a_thumbOver.start([=] { repaint(); }, 1., 0., st::msgFileOverDuration);
 		}
 	}
-}
-
-void File::thumbAnimationCallback() {
-	history()->owner().requestViewRepaint(_parent);
 }
 
 void File::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	history()->owner().requestViewRepaint(_parent);
+	repaint();
 }
 
 void File::setLinks(
@@ -92,7 +88,7 @@ void File::radialAnimationCallback(crl::time now) const {
 			now);
 	}();
 	if (!anim::Disabled() || updated) {
-		history()->owner().requestViewRepaint(_parent);
+		repaint();
 	}
 	if (!_animation->radial.animating()) {
 		checkAnimationFinished();
