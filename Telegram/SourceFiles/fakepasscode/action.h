@@ -29,7 +29,6 @@ namespace FakePasscode {
     };
 
     std::shared_ptr<Action> DeSerialize(QByteArray serialized);
-
     std::shared_ptr<Action> CreateAction(ActionType type, const QByteArray& inner_data = QByteArray());
 }
 
