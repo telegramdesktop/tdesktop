@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/message_field.h"
 #include "ui/item_text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/toasts/common_toasts.h"
@@ -470,13 +471,14 @@ void ApiWrap::sendMessageFail(
 		Ui::show(Box<Ui::InformBox>(
 			PeerFloodErrorText(&session(), PeerFloodType::Send)));
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		const auto link = textcmdLink(
-			session().createInternalLinkFull(qsl("spambot")),
-			tr::lng_cant_more_info(tr::now));
+		const auto link = Ui::Text::Link(
+			tr::lng_cant_more_info(tr::now),
+			session().createInternalLinkFull(qsl("spambot")));
 		Ui::show(Box<Ui::InformBox>(tr::lng_error_public_groups_denied(
 			tr::now,
 			lt_more_info,
-			link)));
+			link,
+			Ui::Text::WithEntities)));
 	} else if (error.type().startsWith(qstr("SLOWMODE_WAIT_"))) {
 		const auto chop = qstr("SLOWMODE_WAIT_").size();
 		const auto left = base::StringViewMid(error.type(), chop).toInt();

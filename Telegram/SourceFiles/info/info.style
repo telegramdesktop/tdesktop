@@ -711,7 +711,8 @@ editPeerInviteLinkBoxBottomSkip: 15px;
 editPeerReactionsButton: SettingsButton(infoProfileButton) {
 	padding: margins(59px, 13px, 8px, 11px);
 }
-editPeerReactionsPreview: 28px;
+editPeerReactionsPreview: 48px;
+editPeerReactionsIconLeft: 12px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;

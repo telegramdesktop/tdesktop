@@ -44,7 +44,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_message_reactions.h"
 #include "core/file_utilities.h"
+#include "core/click_handler_types.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
@@ -921,12 +923,13 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto view = request.view;
 	const auto item = request.item;
 	const auto itemId = item ? item->fullId() : FullMsgId();
-	const auto rawLink = link.get();
-	const auto linkPhoto = dynamic_cast<PhotoClickHandler*>(rawLink);
-	const auto linkDocument = dynamic_cast<DocumentClickHandler*>(rawLink);
-	const auto photo = linkPhoto ? linkPhoto->photo().get() : nullptr;
-	const auto document = linkDocument
-		? linkDocument->document().get()
+	const auto lnkPhoto = link
+		? reinterpret_cast<PhotoData*>(
+			link->property(kPhotoLinkMediaProperty).toULongLong())
+		: nullptr;
+	const auto lnkDocument = link
+		? reinterpret_cast<DocumentData*>(
+			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
 	const auto poll = item
 		? (item->media() ? item->media()->poll() : nullptr)
@@ -951,10 +954,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	}
 
 	AddTopMessageActions(result, request, list);
-	if (linkPhoto) {
-		AddPhotoActions(result, photo, item, list);
-	} else if (linkDocument) {
-		AddDocumentActions(result, document, item, list);
+	if (lnkPhoto) {
+		AddPhotoActions(result, lnkPhoto, item, list);
+	} else if (lnkDocument) {
+		AddDocumentActions(result, lnkDocument, item, list);
 	} else if (poll) {
 		AddPollActions(result, poll, item, list->elementContext());
 	} else if (!request.overSelection && view && !hasSelection) {
@@ -1075,6 +1078,7 @@ void AddWhoReactedAction(
 		not_null<QWidget*> context,
 		not_null<HistoryItem*> item,
 		not_null<Window::SessionController*> controller) {
+	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
 	const auto participantChosen = [=](uint64 id) {
 		controller->showPeerInfo(PeerId(id));
 	};
@@ -1088,7 +1092,8 @@ void AddWhoReactedAction(
 			controller->window().show(ReactionsListBox(
 				controller,
 				item,
-				QString()));
+				QString(),
+				whoReadIds));
 		}
 	};
 	if (!menu->empty()) {
@@ -1096,9 +1101,68 @@ void AddWhoReactedAction(
 	}
 	menu->addAction(Ui::WhoReactedContextAction(
 		menu.get(),
-		Api::WhoReacted(item, context, st::defaultWhoRead),
+		Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
 		participantChosen,
 		showAllChosen));
+}
+
+void ShowWhoReactedMenu(
+		not_null<base::unique_qptr<Ui::PopupMenu>*> menu,
+		QPoint position,
+		not_null<QWidget*> context,
+		not_null<HistoryItem*> item,
+		const QString &emoji,
+		not_null<Window::SessionController*> controller,
+		rpl::lifetime &lifetime) {
+	const auto participantChosen = [=](uint64 id) {
+		controller->showPeerInfo(PeerId(id));
+	};
+	const auto showAllChosen = [=, itemId = item->fullId()]{
+		if (const auto item = controller->session().data().message(itemId)) {
+			controller->window().show(ReactionsListBox(
+				controller,
+				item,
+				emoji));
+		}
+	};
+	const auto reactions = &controller->session().data().reactions();
+	const auto &list = reactions->list(
+		Data::Reactions::Type::Active);
+	const auto activeNonQuick = (emoji != reactions->favorite())
+		&& ranges::contains(list, emoji, &Data::Reaction::emoji);
+	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
+		participantChosen,
+		showAllChosen);
+	Api::WhoReacted(
+		item,
+		emoji,
+		context,
+		st::defaultWhoRead
+	) | rpl::filter([=](const Ui::WhoReadContent &content) {
+		return !content.unknown;
+	}) | rpl::start_with_next([=, &lifetime](Ui::WhoReadContent &&content) {
+		const auto creating = !*menu;
+		const auto refill = [=] {
+			if (activeNonQuick) {
+				(*menu)->addAction(tr::lng_context_set_as_quick(tr::now), [=] {
+					reactions->setFavorite(emoji);
+				}, &st::menuIconFave);
+				(*menu)->addSeparator();
+			}
+		};
+		if (creating) {
+			*menu = base::make_unique_q<Ui::PopupMenu>(
+				context,
+				st::whoReadMenu);
+			(*menu)->lifetime().add(base::take(lifetime));
+			refill();
+		}
+		filler->populate(menu->get(), content);
+
+		if (creating) {
+			(*menu)->popup(position);
+		}
+	}, lifetime);
 }
 
 void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids) {

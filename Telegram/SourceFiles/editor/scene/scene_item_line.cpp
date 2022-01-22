@@ -13,7 +13,7 @@ namespace Editor {
 
 ItemLine::ItemLine(const QPixmap &&pixmap)
 : _pixmap(std::move(pixmap))
-, _rect(QPointF(), _pixmap.size() / cRetinaFactor()) {
+, _rect(QPointF(), _pixmap.size() / float64(style::DevicePixelRatio())) {
 }
 
 QRectF ItemLine::boundingRect() const {

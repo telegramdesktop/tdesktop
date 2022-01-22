@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_entity.h"
+#include "ui/toast/toast.h"
 #include "base/qthelp_regex.h"
 #include "storage/storage_account.h"
 #include "history/history.h"
@@ -265,4 +267,42 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 
 auto BotCommandClickHandler::getTextEntity() const -> TextEntity {
 	return { EntityType::BotCommand };
+}
+
+MonospaceClickHandler::MonospaceClickHandler(
+	const QString &text,
+	EntityType type)
+: _text(text)
+, _entity({ type }) {
+}
+
+void MonospaceClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
+	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
+		return;
+	}
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		auto &data = controller->session().data();
+		const auto item = data.message(my.itemId);
+		const auto hasCopyRestriction = item
+			&& (!item->history()->peer->allowsForwarding()
+				|| item->forbidsForward());
+		if (hasCopyRestriction) {
+			Ui::Toast::Show(item->history()->peer->isBroadcast()
+				? tr::lng_error_nocopy_channel(tr::now)
+				: tr::lng_error_nocopy_group(tr::now));
+			return;
+		}
+	}
+	Ui::Toast::Show(tr::lng_text_copied(tr::now));
+	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
+}
+
+auto MonospaceClickHandler::getTextEntity() const -> TextEntity {
+	return _entity;
+}
+
+QString MonospaceClickHandler::url() const {
+	return _text;
 }

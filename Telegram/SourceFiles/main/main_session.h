@@ -146,6 +146,10 @@ public:
 
 	[[nodiscard]] QString createInternalLink(const QString &query) const;
 	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
+	[[nodiscard]] TextWithEntities createInternalLink(
+		const TextWithEntities &query) const;
+	[[nodiscard]] TextWithEntities createInternalLinkFull(
+		TextWithEntities query) const;
 
 	void setTmpPassword(const QByteArray &password, TimeId validUntil);
 	[[nodiscard]] QByteArray validTmpPassword() const;

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
@@ -109,17 +110,25 @@ void MessageView::paint(
 		options.existing = &_imagesCache;
 		auto preview = item->toPreview(options);
 		if (!preview.images.empty() && preview.imagesInTextPosition > 0) {
-			_senderCache.setText(
+			auto sender = ::Ui::Text::Mid(
+				preview.text,
+				0,
+				preview.imagesInTextPosition);
+			TextUtilities::Trim(sender);
+			_senderCache.setMarkedText(
 				st::dialogsTextStyle,
-				preview.text.mid(0, preview.imagesInTextPosition).trimmed(),
+				std::move(sender),
 				DialogTextOptions());
-			preview.text = preview.text.mid(preview.imagesInTextPosition);
+			preview.text = ::Ui::Text::Mid(
+				preview.text,
+				preview.imagesInTextPosition);
 		} else {
 			_senderCache = { st::dialogsTextWidthMin };
 		}
-		_textCache.setText(
+		TextUtilities::Trim(preview.text);
+		_textCache.setMarkedText(
 			st::dialogsTextStyle,
-			preview.text.trimmed(),
+			preview.text,
 			DialogTextOptions());
 		_textCachedFor = item;
 		_imagesCache = std::move(preview.images);
@@ -191,18 +200,24 @@ void MessageView::paint(
 
 HistoryView::ItemPreview PreviewWithSender(
 		HistoryView::ItemPreview &&preview,
-		const QString &sender) {
-	auto textWithOffset = tr::lng_dialogs_text_with_from(
+		const TextWithEntities &sender) {
+	const auto textWithOffset = tr::lng_dialogs_text_with_from(
+		tr::now,
+		lt_from_part,
+		sender.text,
+		lt_message,
+		preview.text.text,
+		TextWithTagOffset<lt_from_part>::FromString);
+	preview.text = tr::lng_dialogs_text_with_from(
 		tr::now,
 		lt_from_part,
 		sender,
 		lt_message,
 		std::move(preview.text),
-		TextWithTagOffset<lt_from_part>::FromString);
-	preview.text = std::move(textWithOffset.text);
+		Ui::Text::WithEntities);
 	preview.imagesInTextPosition = (textWithOffset.offset < 0)
 		? 0
-		: textWithOffset.offset + sender.size();
+		: textWithOffset.offset + sender.text.size();
 	return std::move(preview);
 }
 

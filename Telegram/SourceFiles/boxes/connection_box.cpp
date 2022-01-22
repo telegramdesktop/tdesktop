@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -312,9 +313,12 @@ void ProxyRow::updateFields(View &&view) {
 	}
 	_view = std::move(view);
 	const auto endpoint = _view.host + ':' + QString::number(_view.port);
-	_title.setText(
+	_title.setMarkedText(
 		st::proxyRowTitleStyle,
-		_view.type + ' ' + textcmdLink(1, endpoint),
+		TextWithEntities()
+			.append(_view.type)
+			.append(' ')
+			.append(Ui::Text::Link(endpoint, {})),
 		Ui::ItemTextDefaultOptions());
 
 	const auto state = _view.state;

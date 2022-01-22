@@ -82,6 +82,7 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
+	QPoint resolveCustomInfoRightBottom() const override;
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}
@@ -134,7 +135,7 @@ private:
 		const PaintContext &context,
 		QPoint photoPosition) const;
 
-	not_null<PhotoData*> _data;
+	const not_null<PhotoData*> _data;
 	int _serviceWidth = 0;
 	int _pixw = 1;
 	int _pixh = 1;

@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "data/data_session.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "data/data_changes.h"
+#include "lottie/lottie_icon.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -25,6 +26,7 @@ namespace {
 
 constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
+constexpr auto kSizeForDownscale = 64;
 
 } // namespace
 
@@ -47,7 +49,21 @@ Reactions::Reactions(not_null<Session*> owner)
 		_pollItems.remove(item);
 		_repaintItems.remove(item);
 	}, _lifetime);
+
+	const auto appConfig = &_owner->session().account().appConfig();
+	appConfig->value(
+	) | rpl::start_with_next([=] {
+		const auto favorite = appConfig->get<QString>(
+			u"reactions_default"_q,
+			QString::fromUtf8("\xf0\x9f\x91\x8d"));
+		if (_favorite != favorite && !_saveFaveRequestId) {
+			_favorite = favorite;
+			_updated.fire({});
+		}
+	}, _lifetime);
 }
+
+Reactions::~Reactions() = default;
 
 void Reactions::refresh() {
 	request();
@@ -61,13 +77,26 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 	Unexpected("Type in Reactions::list.");
 }
 
-std::vector<Reaction> Reactions::list(not_null<PeerData*> peer) const {
-	if (const auto chat = peer->asChat()) {
-		return filtered(chat->allowedReactions());
-	} else if (const auto channel = peer->asChannel()) {
-		return filtered(channel->allowedReactions());
-	} else {
-		return list(Type::Active);
+QString Reactions::favorite() const {
+	return _favorite;
+}
+
+void Reactions::setFavorite(const QString &emoji) {
+	const auto api = &_owner->session().api();
+	if (_saveFaveRequestId) {
+		api->request(_saveFaveRequestId).cancel();
+	}
+	_saveFaveRequestId = api->request(MTPmessages_SetDefaultReaction(
+		MTP_string(emoji)
+	)).done([=] {
+		_saveFaveRequestId = 0;
+	}).fail([=] {
+		_saveFaveRequestId = 0;
+	}).send();
+
+	if (_favorite != emoji) {
+		_favorite = emoji;
+		_updated.fire({});
 	}
 }
 
@@ -81,15 +110,35 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	}
 	auto &set = _images.emplace(emoji).first->second;
 	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
-	const auto document = (i != end(_available))
-		? i->staticIcon.get()
-		: nullptr;
+	const auto document = (i == end(_available))
+		? nullptr
+		: i->centerIcon
+		? i->centerIcon
+		: i->appearAnimation.get();
 	if (document) {
-		loadImage(set, document);
+		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
 		_waitingForList = true;
 		refresh();
 	}
+}
+
+void Reactions::preloadAnimationsFor(const QString &emoji) {
+	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+	if (i == end(_available)) {
+		return;
+	}
+
+	const auto preload = [&](DocumentData *document) {
+		const auto view = document
+			? document->activeMediaView()
+			: nullptr;
+		if (view) {
+			view->checkStickerLarge();
+		}
+	};
+	preload(i->centerIcon);
+	preload(i->aroundAnimation);
 }
 
 QImage Reactions::resolveImageFor(
@@ -100,6 +149,39 @@ QImage Reactions::resolveImageFor(
 		preloadImageFor(emoji);
 	}
 	auto &set = (i != end(_images)) ? i->second : _images[emoji];
+	const auto resolve = [&](QImage &image, int size) {
+		const auto factor = style::DevicePixelRatio();
+		const auto frameSize = set.fromAppearAnimation
+			? (size / 2)
+			: size;
+		image = set.icon->frame().scaled(
+			frameSize * factor,
+			frameSize * factor,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		if (set.fromAppearAnimation) {
+			auto result = QImage(
+				size * factor,
+				size * factor,
+				QImage::Format_ARGB32_Premultiplied);
+			result.fill(Qt::transparent);
+
+			auto p = QPainter(&result);
+			p.drawImage(
+				(size - frameSize) * factor / 2,
+				(size - frameSize) * factor / 2,
+				image);
+			p.end();
+
+			std::swap(result, image);
+		}
+		image.setDevicePixelRatio(factor);
+	};
+	if (set.bottomInfo.isNull() && set.icon) {
+		resolve(set.bottomInfo, st::reactionInfoImage);
+		resolve(set.inlineList, st::reactionInlineImage);
+		crl::async([icon = std::move(set.icon)]{});
+	}
 	switch (size) {
 	case ImageSize::BottomInfo: return set.bottomInfo;
 	case ImageSize::InlineList: return set.inlineList;
@@ -109,15 +191,17 @@ QImage Reactions::resolveImageFor(
 
 void Reactions::resolveImages() {
 	for (auto &[emoji, set] : _images) {
-		if (!set.bottomInfo.isNull() || set.media) {
+		if (!set.bottomInfo.isNull() || set.icon || set.media) {
 			continue;
 		}
 		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
-		const auto document = (i != end(_available))
-			? i->staticIcon.get()
-			: nullptr;
+		const auto document = (i == end(_available))
+			? nullptr
+			: i->centerIcon
+			? i->centerIcon
+			: i->appearAnimation.get();
 		if (document) {
-			loadImage(set, document);
+			loadImage(set, document, !i->centerIcon);
 		} else {
 			LOG(("API Error: Reaction for emoji '%1' not found!"
 				).arg(emoji));
@@ -127,14 +211,17 @@ void Reactions::resolveImages() {
 
 void Reactions::loadImage(
 		ImageSet &set,
-		not_null<DocumentData*> document) {
-	if (!set.bottomInfo.isNull()) {
+		not_null<DocumentData*> document,
+		bool fromAppearAnimation) {
+	if (!set.bottomInfo.isNull() || set.icon) {
 		return;
 	} else if (!set.media) {
+		set.fromAppearAnimation = fromAppearAnimation;
 		set.media = document->createMediaView();
+		set.media->checkStickerLarge();
 	}
-	if (const auto image = set.media->getStickerLarge()) {
-		setImage(set, image->original());
+	if (set.media->loaded()) {
+		setLottie(set);
 	} else if (!_imagesLoadLifetime) {
 		document->session().downloaderTaskFinished(
 		) | rpl::start_with_next([=] {
@@ -143,20 +230,15 @@ void Reactions::loadImage(
 	}
 }
 
-void Reactions::setImage(ImageSet &set, QImage large) {
+void Reactions::setLottie(ImageSet &set) {
+	const auto size = style::ConvertScale(kSizeForDownscale);
+	set.icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = set.media->owner()->filepath(true),
+		.json = set.media->bytes(),
+		.sizeOverride = QSize(size, size),
+		.frame = -1,
+	});
 	set.media = nullptr;
-	const auto scale = [&](int size) {
-		const auto factor = style::DevicePixelRatio();
-		return Images::prepare(
-			large,
-			size * factor,
-			size * factor,
-			Images::Option::Smooth,
-			size,
-			size);
-	};
-	set.bottomInfo = scale(st::reactionInfoSize);
-	set.inlineList = scale(st::reactionBottomSize);
 }
 
 void Reactions::downloadTaskFinished() {
@@ -164,8 +246,8 @@ void Reactions::downloadTaskFinished() {
 	for (auto &[emoji, set] : _images) {
 		if (!set.media) {
 			continue;
-		} else if (const auto image = set.media->getStickerLarge()) {
-			setImage(set, image->original());
+		} else if (set.media->loaded()) {
+			setLottie(set);
 		} else {
 			hasOne = true;
 		}
@@ -175,33 +257,17 @@ void Reactions::downloadTaskFinished() {
 	}
 }
 
-std::vector<Reaction> Reactions::Filtered(
-		const std::vector<Reaction> &reactions,
-		const std::vector<QString> &emoji) {
-	auto result = std::vector<Reaction>();
-	result.reserve(emoji.size());
-	for (const auto &single : emoji) {
-		const auto i = ranges::find(reactions, single, &Reaction::emoji);
-		if (i != end(reactions)) {
-			result.push_back(*i);
-		}
-	}
-	return result;
-}
-
-std::vector<Reaction> Reactions::filtered(
-		const std::vector<QString> &emoji) const {
-	return Filtered(list(Type::Active), emoji);
-}
-
-std::vector<QString> Reactions::ParseAllowed(
+base::flat_set<QString> Reactions::ParseAllowed(
 		const MTPVector<MTPstring> *list) {
 	if (!list) {
 		return {};
 	}
-	return list->v | ranges::view::transform([](const MTPstring &string) {
+	const auto parsed = ranges::views::all(
+		list->v
+	) | ranges::views::transform([](const MTPstring &string) {
 		return qs(string);
 	}) | ranges::to_vector;
+	return { begin(parsed), end(parsed) };
 }
 
 void Reactions::request() {
@@ -214,32 +280,47 @@ void Reactions::request() {
 	)).done([=](const MTPmessages_AvailableReactions &result) {
 		_requestId = 0;
 		result.match([&](const MTPDmessages_availableReactions &data) {
-			_hash = data.vhash().v;
-
-			const auto &list = data.vreactions().v;
-			_active.clear();
-			_available.clear();
-			_active.reserve(list.size());
-			_available.reserve(list.size());
-			for (const auto &reaction : list) {
-				if (const auto parsed = parse(reaction)) {
-					_available.push_back(*parsed);
-					if (parsed->active) {
-						_active.push_back(*parsed);
-					}
-				}
-			}
-			if (_waitingForList) {
-				_waitingForList = false;
-				resolveImages();
-			}
-			_updated.fire({});
+			updateFromData(data);
 		}, [&](const MTPDmessages_availableReactionsNotModified &) {
 		});
 	}).fail([=] {
 		_requestId = 0;
 		_hash = 0;
 	}).send();
+}
+
+void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
+	_hash = data.vhash().v;
+
+	const auto &list = data.vreactions().v;
+	const auto oldCache = base::take(_iconsCache);
+	const auto toCache = [&](DocumentData *document) {
+		if (document) {
+			_iconsCache.emplace(document, document->createMediaView());
+		}
+	};
+	_active.clear();
+	_available.clear();
+	_active.reserve(list.size());
+	_available.reserve(list.size());
+	_iconsCache.reserve(list.size() * 4);
+	for (const auto &reaction : list) {
+		if (const auto parsed = parse(reaction)) {
+			_available.push_back(*parsed);
+			if (parsed->active) {
+				_active.push_back(*parsed);
+				toCache(parsed->appearAnimation);
+				toCache(parsed->selectAnimation);
+				toCache(parsed->centerIcon);
+				toCache(parsed->aroundAnimation);
+			}
+		}
+	}
+	if (_waitingForList) {
+		_waitingForList = false;
+		resolveImages();
+	}
+	_updated.fire({});
 }
 
 std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
@@ -249,6 +330,8 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 		if (!known) {
 			LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
 		}
+		const auto selectAnimation = _owner->processDocument(
+			data.vselect_animation());
 		return known
 			? std::make_optional(Reaction{
 				.emoji = emoji,
@@ -256,12 +339,18 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				.staticIcon = _owner->processDocument(data.vstatic_icon()),
 				.appearAnimation = _owner->processDocument(
 					data.vappear_animation()),
-				.selectAnimation = _owner->processDocument(
-					data.vselect_animation()),
-				.activateAnimation = _owner->processDocument(
-					data.vactivate_animation()),
-				.activateEffects = _owner->processDocument(
-					data.veffect_animation()),
+				.selectAnimation = selectAnimation,
+				//.activateAnimation = _owner->processDocument(
+				//	data.vactivate_animation()),
+				//.activateEffects = _owner->processDocument(
+				//	data.veffect_animation()),
+				.centerIcon = (data.vcenter_icon()
+					? _owner->processDocument(*data.vcenter_icon()).get()
+					: nullptr),
+				.aroundAnimation = (data.varound_animation()
+					? _owner->processDocument(
+						*data.varound_animation()).get()
+					: nullptr),
 				.active = !data.is_inactive(),
 			})
 			: std::nullopt;
@@ -326,7 +415,7 @@ void Reactions::updateAllInHistory(not_null<PeerData*> peer, bool enabled) {
 
 void Reactions::repaintCollected() {
 	const auto now = crl::now();
-	auto closest = 0;
+	auto closest = crl::time();
 	for (auto i = begin(_repaintItems); i != end(_repaintItems);) {
 		if (i->second <= now) {
 			_owner->requestItemRepaint(i->first);
@@ -390,19 +479,33 @@ void MessageReactions::add(const QString &reaction) {
 	if (_chosen == reaction) {
 		return;
 	}
+	const auto history = _item->history();
+	const auto self = history->session().user();
 	if (!_chosen.isEmpty()) {
 		const auto i = _list.find(_chosen);
 		Assert(i != end(_list));
 		--i->second;
-		if (!i->second) {
+		const auto removed = !i->second;
+		if (removed) {
 			_list.erase(i);
+		}
+		const auto j = _recent.find(_chosen);
+		if (j != end(_recent)) {
+			j->second.erase(ranges::remove(j->second, self), end(j->second));
+			if (j->second.empty() || removed) {
+				_recent.erase(j);
+			}
 		}
 	}
 	_chosen = reaction;
 	if (!reaction.isEmpty()) {
+		if (_item->canViewReactions()) {
+			auto &list = _recent[reaction];
+			list.insert(begin(list), self);
+		}
 		++_list[reaction];
 	}
-	auto &owner = _item->history()->owner();
+	auto &owner = history->owner();
 	owner.reactions().send(_item, _chosen);
 	owner.notifyItemDataChange(_item);
 }
@@ -413,8 +516,10 @@ void MessageReactions::remove() {
 
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessageUserReaction> &recent,
 		bool ignoreChosen) {
-	if (_item->history()->owner().reactions().sending(_item)) {
+	auto &owner = _item->history()->owner();
+	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
 		return;
 	}
@@ -451,13 +556,34 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
+	auto parsed = base::flat_map<
+		QString,
+		std::vector<not_null<UserData*>>>();
+	for (const auto &reaction : recent) {
+		reaction.match([&](const MTPDmessageUserReaction &data) {
+			const auto emoji = qs(data.vreaction());
+			if (_list.contains(emoji)) {
+				parsed[emoji].push_back(owner.user(data.vuser_id()));
+			}
+		});
+	}
+	if (_recent != parsed) {
+		_recent = std::move(parsed);
+		changed = true;
+	}
+
 	if (changed) {
-		_item->history()->owner().notifyItemDataChange(_item);
+		owner.notifyItemDataChange(_item);
 	}
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {
 	return _list;
+}
+
+auto MessageReactions::recent() const
+-> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+	return _recent;
 }
 
 bool MessageReactions::empty() const {

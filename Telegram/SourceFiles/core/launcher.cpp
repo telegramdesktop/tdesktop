@@ -61,7 +61,7 @@ FilteredCommandLineArguments::FilteredCommandLineArguments(
 #endif // !Q_OS_WIN
 	}
 #elif defined Q_OS_UNIX
-	if (Platform::DesktopEnvironment::IsGnome()) {
+	if (Platform::DesktopEnvironment::IsGnome() && qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {
 		pushArgument("-platform");
 		pushArgument("xcb;wayland");
 	}

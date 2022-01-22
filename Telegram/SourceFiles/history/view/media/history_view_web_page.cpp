@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
@@ -200,9 +201,6 @@ QSize WebPage::countOptimalSize() {
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
 
-		if (textFloatsAroundInfo) {
-			text.text += _parent->skipBlock();
-		}
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
 			_description = Ui::Text::String(st::minPhotoSize
@@ -222,22 +220,30 @@ QSize WebPage::countOptimalSize() {
 			text,
 			Ui::WebpageTextDescriptionOptions(),
 			context);
+		if (textFloatsAroundInfo) {
+			_description.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
+		}
 	}
 	if (!displayedSiteName().isEmpty()) {
 		_siteNameLines = 1;
-		_siteName.setRichText(
+		_siteName.setMarkedText(
 			st::webPageTitleStyle,
-			textcmdLink(_data->url, displayedSiteName()),
+			Ui::Text::Link(displayedSiteName(), _data->url),
 			Ui::WebpageTextTitleOptions());
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
+		auto titleWithEntities = Ui::Text::Link(title, _data->url);
 		if (textFloatsAroundInfo && _description.isEmpty()) {
-			title += _parent->skipBlock();
+			_title.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
 		}
 		if (!_siteNameLines && !_data->url.isEmpty()) {
-			_title.setRichText(
+			_title.setMarkedText(
 				st::webPageTitleStyle,
-				textcmdLink(_data->url, title),
+				std::move(titleWithEntities),
 				Ui::WebpageTextTitleOptions());
 
 		} else {

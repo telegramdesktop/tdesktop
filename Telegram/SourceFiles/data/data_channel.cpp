@@ -761,7 +761,7 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
-void ChannelData::setAllowedReactions(std::vector<QString> list) {
+void ChannelData::setAllowedReactions(base::flat_set<QString> list) {
 	if (_allowedReactions != list) {
 		const auto toggled = (_allowedReactions.empty() != list.empty());
 		_allowedReactions = std::move(list);
@@ -774,7 +774,7 @@ void ChannelData::setAllowedReactions(std::vector<QString> list) {
 	}
 }
 
-const std::vector<QString> &ChannelData::allowedReactions() const {
+const base::flat_set<QString> &ChannelData::allowedReactions() const {
 	return _allowedReactions;
 }
 

@@ -221,14 +221,11 @@ bool WebPageData::applyChanges(
 		return false;
 	}
 
-	const auto resultUrl = TextUtilities::Clean(newUrl);
-	const auto resultDisplayUrl = TextUtilities::Clean(
-		newDisplayUrl);
-	const auto possibleSiteName = TextUtilities::Clean(
-		newSiteName);
-	const auto resultTitle = TextUtilities::SingleLine(
-		newTitle);
-	const auto resultAuthor = TextUtilities::Clean(newAuthor);
+	const auto resultUrl = newUrl;
+	const auto resultDisplayUrl = newDisplayUrl;
+	const auto possibleSiteName = newSiteName;
+	const auto resultTitle = TextUtilities::SingleLine(newTitle);
+	const auto resultAuthor = newAuthor;
 
 	const auto viewTitleText = resultTitle.isEmpty()
 		? TextUtilities::SingleLine(resultAuthor)

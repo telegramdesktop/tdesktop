@@ -180,6 +180,7 @@ QSize Gif::countOptimalSize() {
 			forwarded->create(via);
 		}
 		maxWidth += additionalWidth(via, reply, forwarded);
+		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 	}
 	return { maxWidth, minHeight };
 }
@@ -232,6 +233,8 @@ QSize Gif::countCurrentSize(int newWidth) {
 			}
 		}
 	} else if (isSeparateRoundVideo()) {
+		accumulate_max(newWidth, _parent->reactionsOptimalWidth());
+
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
 		auto reply = _parent->displayedReply();
@@ -1191,9 +1194,10 @@ QRect Gif::contentRectForReactions() const {
 	const auto forwarded = item->Get<HistoryMessageForwarded>();
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
-		if (rightAligned) {
-			usex = width() - usew;
-		}
+	}
+	accumulate_max(usew, _parent->reactionsOptimalWidth());
+	if (rightAligned) {
+		usex = width() - usew;
 	}
 	if (rtl()) usex = width() - usex - usew;
 	return style::rtlrect(usex + paintx, painty, usew, painth, width());
@@ -1203,28 +1207,44 @@ std::optional<int> Gif::reactionButtonCenterOverride() const {
 	if (!isSeparateRoundVideo()) {
 		return std::nullopt;
 	}
+	const auto right = resolveCustomInfoRightBottom().x()
+		- _parent->infoWidth()
+		- 3 * st::msgDateImgPadding.x();
+	return right - st::reactionCornerSize.width() / 2;
+}
+
+QPoint Gif::resolveCustomInfoRightBottom() const {
 	const auto inner = contentRectForReactions();
+	auto fullBottom = inner.y() + inner.height();
 	auto fullRight = inner.x() + inner.width();
-	auto maxRight = _parent->width() - st::msgMargin.left();
-	if (_parent->hasFromPhoto()) {
-		maxRight -= st::msgMargin.right();
-	} else {
-		maxRight -= st::msgMargin.left();
-	}
-	const auto infoWidth = _parent->infoWidth();
-	const auto outbg = _parent->hasOutLayout();
-	const auto rightAligned = outbg
-		&& !_parent->delegate()->elementIsChatWide();
-	if (!rightAligned) {
-		// This is just some arbitrary point,
-		// the main idea is to make info left aligned here.
-		fullRight += infoWidth - st::normalFont->height;
-		if (fullRight > maxRight) {
-			fullRight = maxRight;
+	const auto isRound = isSeparateRoundVideo();
+	if (isRound) {
+		auto maxRight = _parent->width() - st::msgMargin.left();
+		if (_parent->hasFromPhoto()) {
+			maxRight -= st::msgMargin.right();
+		} else {
+			maxRight -= st::msgMargin.left();
+		}
+		const auto infoWidth = _parent->infoWidth();
+		const auto outbg = _parent->hasOutLayout();
+		const auto rightAligned = outbg
+			&& !_parent->delegate()->elementIsChatWide();
+		if (!rightAligned) {
+			// This is just some arbitrary point,
+			// the main idea is to make info left aligned here.
+			fullRight += infoWidth - st::normalFont->height;
+			if (fullRight > maxRight) {
+				fullRight = maxRight;
+			}
 		}
 	}
-	const auto right = fullRight - infoWidth - 3 * st::msgDateImgPadding.x();
-	return right - st::reactionCornerSize.width() / 2;
+	const auto skipx = isRound
+		? st::msgDateImgPadding.x()
+		: (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	const auto skipy = isRound
+		? st::msgDateImgPadding.y()
+		: (st::msgDateImgDelta + st::msgDateImgPadding.y());
+	return QPoint(fullRight - skipx, fullBottom - skipy);
 }
 
 int Gif::additionalWidth() const {
@@ -1544,7 +1564,7 @@ void Gif::repaintStreamedContent() {
 		&& !activeRoundStreamed()) {
 		return;
 	}
-	history()->owner().requestViewRepaint(_parent);
+	repaint();
 }
 
 void Gif::streamingReady(::Media::Streaming::Information &&info) {

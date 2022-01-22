@@ -54,7 +54,7 @@ public:
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro(Intro::EnterPoint point);
-	void setupMain();
+	void setupMain(MsgId singlePeerShowAtMsgId);
 
 	void showSettings();
 

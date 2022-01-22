@@ -66,6 +66,18 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Spoiler formatting hides text in chat, "
 		"as well as in the chat list and notifications.\n"
+	},
+	{
+		3004005,
+		"- Fix crash in monospace blocks processing.\n"
+
+		"- Fix reaction animations stopping after an hour uptime.\n"
+	},
+	{
+		3004006,
+		"- Add snap layouts support on Windows 11.\n"
+		
+		"- Fix crash in drafts after accounts switching.\n"
 	}
 	};
 };

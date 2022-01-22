@@ -42,6 +42,7 @@ struct WhoReadContent {
 	WhoReadType type = WhoReadType::Seen;
 	QString singleReaction;
 	int fullReactionsCount = 0;
+	int fullReadCount = 0;
 	bool unknown = false;
 };
 
@@ -50,5 +51,27 @@ struct WhoReadContent {
 	rpl::producer<WhoReadContent> content,
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen);
+
+class WhoReactedListMenu final {
+public:
+	WhoReactedListMenu(
+		Fn<void(uint64)> participantChosen,
+		Fn<void()> showAllChosen);
+
+	void clear();
+	void populate(
+		not_null<PopupMenu*> menu,
+		const WhoReadContent &content,
+		Fn<void()> refillTopActions = nullptr);
+
+private:
+	class EntryAction;
+
+	const Fn<void(uint64)> _participantChosen;
+	const Fn<void()> _showAllChosen;
+
+	std::vector<not_null<EntryAction*>> _actions;
+
+};
 
 } // namespace Ui

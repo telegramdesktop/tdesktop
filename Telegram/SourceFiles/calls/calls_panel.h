@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/unique_qptr.h"
 #include "calls/calls_call.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
@@ -37,7 +38,7 @@ namespace GL {
 enum class Backend;
 } // namespace GL
 namespace Platform {
-class TitleControls;
+struct SeparateTitleControls;
 } // namespace Platform
 } // namespace Ui
 
@@ -126,7 +127,7 @@ private:
 	std::unique_ptr<Incoming> _incoming;
 
 #ifndef Q_OS_MAC
-	std::unique_ptr<Ui::Platform::TitleControls> _controls;
+	std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 #endif // !Q_OS_MAC
 
 	QSize _incomingFrameSize;

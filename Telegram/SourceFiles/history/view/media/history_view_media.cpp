@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
@@ -184,6 +185,10 @@ bool Media::isDisplayed() const {
 
 QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
+}
+
+void Media::repaint() const {
+	history()->owner().requestViewRepaint(_parent);
 }
 
 Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {

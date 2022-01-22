@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Ui {
+enum class WhoReadType;
+} // namespace Ui
+
 namespace HistoryView {
 
 struct Selector {
@@ -19,6 +23,7 @@ struct Selector {
 not_null<Selector*> CreateReactionSelector(
 	not_null<QWidget*> parent,
 	const base::flat_map<QString, int> &items,
-	const QString &selected);
+	const QString &selected,
+	Ui::WhoReadType whoReadType);
 
 } // namespace HistoryView

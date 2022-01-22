@@ -66,7 +66,6 @@ protected:
 	void setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const;
 
 	void radialAnimationCallback(crl::time now) const;
-	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;

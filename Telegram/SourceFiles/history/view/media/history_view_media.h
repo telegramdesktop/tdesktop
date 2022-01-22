@@ -212,6 +212,9 @@ public:
 	-> std::optional<int> {
 		return std::nullopt;
 	}
+	[[nodiscard]] virtual QPoint resolveCustomInfoRightBottom() const {
+		return QPoint();
+	}
 	[[nodiscard]] virtual QMargins bubbleMargins() const {
 		return QMargins();
 	}
@@ -310,6 +313,8 @@ protected:
 	}
 
 	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
+
+	void repaint() const;
 
 	const not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;

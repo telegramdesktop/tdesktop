@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -190,9 +191,12 @@ not_null<Ui::FlatLabel*> CreateWarningLabel(
 			const auto value = valueLimit - length;
 			const auto shown = (value < warnLimit)
 				&& (field->height() > st::createPollOptionField.heightMin);
-			result->setRichText((value >= 0)
-				? QString::number(value)
-				: textcmdLink(1, QString::number(value)));
+			if (value >= 0) {
+				result->setText(QString::number(value));
+			} else {
+				result->setMarkedText(Ui::Text::PlainLink(
+					QString::number(value)));
+			}
 			result->setVisible(shown);
 		}));
 	});

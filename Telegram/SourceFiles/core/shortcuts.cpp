@@ -441,7 +441,7 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 	}
 	auto shortcut = base::make_unique_q<QShortcut>(
 		result,
-		Core::App().activeWindow()->widget().get(),
+		Core::App().primaryWindow()->widget().get(),
 		nullptr,
 		nullptr,
 		Qt::ApplicationShortcut);

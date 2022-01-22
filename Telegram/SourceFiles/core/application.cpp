@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
+#include "platform/platform_integration.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
@@ -123,12 +124,14 @@ Application *Application::Instance = nullptr;
 struct Application::Private {
 	base::Timer quitTimer;
 	UiIntegration uiIntegration;
+	Settings settings;
 };
 
 Application::Application(not_null<Launcher*> launcher)
 : QObject()
 , _launcher(launcher)
 , _private(std::make_unique<Private>())
+, _platformIntegration(Platform::Integration::Create())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
@@ -143,6 +146,8 @@ Application::Application(not_null<Launcher*> launcher)
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _autoLockTimer([=] { checkAutoLock(); }) {
 	Ui::Integration::Set(&_private->uiIntegration);
+
+	_platformIntegration->init();
 
 	passcodeLockChanges(
 	) | rpl::start_with_next([=] {
@@ -167,10 +172,11 @@ Application::~Application() {
 		Local::writeSettings();
 	}
 
-	// Depend on activeWindow() for now :(
+	// Depend on primaryWindow() for now :(
 	Shortcuts::Finish();
 
-	_window = nullptr;
+	_secondaryWindows.clear();
+	_primaryWindow = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
 
@@ -263,12 +269,13 @@ void Application::run() {
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
-	_window = std::make_unique<Window::Controller>();
+	_primaryWindow = std::make_unique<Window::Controller>();
+	_lastActiveWindow = _primaryWindow.get();
 
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
-		_window->showAccount(account);
-	}, _window->widget()->lifetime());
+		_primaryWindow->showAccount(account);
+	}, _primaryWindow->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -287,20 +294,20 @@ void Application::run() {
 	startShortcuts();
 	startDomain();
 
-	_window->widget()->show();
+	_primaryWindow->widget()->show();
 
-	const auto currentGeometry = _window->widget()->geometry();
+	const auto currentGeometry = _primaryWindow->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->widget()->Ui::RpWidget::setGeometry(currentGeometry);
+	_primaryWindow->widget()->Ui::RpWidget::setGeometry(currentGeometry);
 
 	DEBUG_LOG(("Application Info: showing."));
-	_window->finishFirstShow();
+	_primaryWindow->finishFirstShow();
 
-	if (!_window->locked() && cStartToSettings()) {
-		_window->showSettings();
+	if (!_primaryWindow->locked() && cStartToSettings()) {
+		_primaryWindow->showSettings();
 	}
 
-	_window->updateIsActiveFocus();
+	_primaryWindow->updateIsActiveFocus();
 
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
@@ -311,12 +318,12 @@ void Application::run() {
 		showOpenGLCrashNotification();
 	}
 
-	_window->openInMediaViewRequests(
+	_primaryWindow->openInMediaViewRequests(
 	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
 		if (_mediaView) {
 			_mediaView->show(std::move(request));
 		}
-	}, _window->lifetime());
+	}, _primaryWindow->lifetime());
 
 	{
 		const auto countries = std::make_shared<Countries::Manager>(
@@ -341,7 +348,7 @@ void Application::showOpenGLCrashNotification() {
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
-	_window->show(Box<Ui::ConfirmBox>(
+	_primaryWindow->show(Box<Ui::ConfirmBox>(
 		"There may be a problem with your graphics drivers and OpenGL. "
 		"Try updating your drivers.\n\n"
 		"OpenGL has been disabled. You can try to enable it again "
@@ -371,8 +378,8 @@ void Application::startSettingsAndBackground() {
 }
 
 void Application::checkSystemDarkMode() {
-	const auto maybeDarkMode = _settings.systemDarkMode();
-	const auto darkModeEnabled = _settings.systemDarkModeEnabled();
+	const auto maybeDarkMode = settings().systemDarkMode();
+	const auto darkModeEnabled = settings().systemDarkModeEnabled();
 	const auto needToSwitch = darkModeEnabled
 		&& maybeDarkMode
 		&& (*maybeDarkMode != Window::Theme::IsNightMode());
@@ -384,11 +391,11 @@ void Application::checkSystemDarkMode() {
 
 void Application::startSystemDarkModeViewer() {
 	if (Window::Theme::Background()->editingTheme()) {
-		_settings.setSystemDarkModeEnabled(false);
+		settings().setSystemDarkModeEnabled(false);
 	}
 	rpl::merge(
-		_settings.systemDarkModeChanges() | rpl::to_empty,
-		_settings.systemDarkModeEnabledChanges() | rpl::to_empty
+		settings().systemDarkModeChanges() | rpl::to_empty,
+		settings().systemDarkModeEnabledChanges() | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		checkSystemDarkMode();
 	}, _lifetime);
@@ -397,7 +404,7 @@ void Application::startSystemDarkModeViewer() {
 auto Application::prepareEmojiSourceImages()
 -> std::shared_ptr<Ui::Emoji::UniversalImages> {
 	const auto &images = Ui::Emoji::SourceImages();
-	if (_settings.largeEmoji()) {
+	if (settings().largeEmoji()) {
 		return images;
 	}
 	Ui::Emoji::ClearSourceImages(images);
@@ -462,13 +469,17 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 				checkStartUrl();
 			}
 			if (StartUrlRequiresActivate(url)) {
-				_window->activate();
+				_primaryWindow->activate();
 			}
 		}
 	} break;
 	}
 
 	return QObject::eventFilter(object, e);
+}
+
+Settings &Application::settings() {
+	return _private->settings;
 }
 
 void Application::saveSettingsDelayed(crl::time delay) {
@@ -508,18 +519,17 @@ void Application::constructFallbackProductionConfig(
 void Application::setCurrentProxy(
 		const MTP::ProxyData &proxy,
 		MTP::ProxyData::Settings settings) {
+	auto &my = _private->settings.proxy();
 	const auto current = [&] {
-		return _settings.proxy().isEnabled()
-			? _settings.proxy().selected()
-			: MTP::ProxyData();
+		return my.isEnabled() ? my.selected() : MTP::ProxyData();
 	};
 	const auto was = current();
-	_settings.proxy().setSelected(proxy);
-	_settings.proxy().setSettings(settings);
+	my.setSelected(proxy);
+	my.setSettings(settings);
 	const auto now = current();
 	refreshGlobalProxy();
 	_proxyChanges.fire({ was, now });
-	_settings.proxy().connectionTypeChangesNotify();
+	my.connectionTypeChangesNotify();
 }
 
 auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
@@ -527,10 +537,10 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 }
 
 void Application::badMtprotoConfigurationError() {
-	if (_settings.proxy().isEnabled() && !_badProxyDisableBox) {
+	if (settings().proxy().isEnabled() && !_badProxyDisableBox) {
 		const auto disableCallback = [=] {
 			setCurrentProxy(
-				_settings.proxy().selected(),
+				settings().proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
 		_badProxyDisableBox = Ui::show(Box<Ui::InformBox>(
@@ -542,7 +552,7 @@ void Application::badMtprotoConfigurationError() {
 void Application::startLocalStorage() {
 	Local::start();
 	_saveSettingsTimer.emplace([=] { saveSettings(); });
-	_settings.saveDelayedRequests() | rpl::start_with_next([=] {
+	settings().saveDelayedRequests() | rpl::start_with_next([=] {
 		saveSettingsDelayed();
 	}, _lifetime);
 }
@@ -550,12 +560,12 @@ void Application::startLocalStorage() {
 void Application::startEmojiImageLoader() {
 	_emojiImageLoader.with([
 		source = prepareEmojiSourceImages(),
-		large = _settings.largeEmoji()
+		large = settings().largeEmoji()
 	](Stickers::EmojiImageLoader &loader) mutable {
 		loader.init(std::move(source), large);
 	});
 
-	_settings.largeEmojiChanges(
+	settings().largeEmojiChanges(
 	) | rpl::start_with_next([=](bool large) {
 		if (large) {
 			_clearEmojiImageLoaderTimer.cancel();
@@ -659,14 +669,14 @@ void Application::checkLocalTime() {
 
 void Application::handleAppActivated() {
 	checkLocalTime();
-	if (_window) {
-		_window->updateIsActiveFocus();
+	if (_primaryWindow) {
+		_primaryWindow->updateIsActiveFocus();
 	}
 }
 
 void Application::handleAppDeactivated() {
-	if (_window) {
-		_window->updateIsActiveBlur();
+	if (_primaryWindow) {
+		_primaryWindow->updateIsActiveBlur();
 	}
 	Ui::Tooltip::Hide();
 }
@@ -766,7 +776,7 @@ bool Application::canApplyLangPackWithoutRestart() const {
 }
 
 void Application::checkStartUrl() {
-	if (!cStartUrl().isEmpty() && _window && !_window->locked()) {
+	if (!cStartUrl().isEmpty() && _primaryWindow && !_primaryWindow->locked()) {
 		const auto url = cStartUrl();
 		cSetStartUrl(QString());
 		if (!openLocalUrl(url, {})) {
@@ -827,7 +837,9 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
-	const auto controller = _window ? _window->sessionController() : nullptr;
+	const auto controller = _primaryWindow
+		? _primaryWindow->sessionController()
+		: nullptr;
 
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
@@ -842,22 +854,22 @@ bool Application::openCustomUrl(
 }
 
 void Application::preventOrInvoke(Fn<void()> &&callback) {
-	_window->preventOrInvoke(std::move(callback));
+	_primaryWindow->preventOrInvoke(std::move(callback));
 }
 
 void Application::lockByPasscode() {
 	preventOrInvoke([=] {
-		if (_window) {
+		if (_primaryWindow) {
 			_passcodeLock = true;
-			_window->setupPasscodeLock();
+			_primaryWindow->setupPasscodeLock();
 		}
 	});
 }
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-	if (_window) {
-		_window->clearPasscodeLock();
+	if (_primaryWindow) {
+		_primaryWindow->clearPasscodeLock();
 	}
 }
 
@@ -913,9 +925,11 @@ void Application::checkAutoLock(crl::time lastNonIdleTime) {
 
 	checkLocalTime();
 	const auto now = crl::now();
-	const auto shouldLockInMs = _settings.autoLock() * 1000LL;
+	const auto shouldLockInMs = settings().autoLock() * 1000LL;
 	const auto checkTimeMs = now - lastNonIdleTime;
-	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
+	if (checkTimeMs >= shouldLockInMs
+		|| (_shouldLockAt > 0
+			&& now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
 		lockByPasscode();
@@ -940,13 +954,13 @@ void Application::localPasscodeChanged() {
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
-	if (App::quitting() || !_window) {
+	if (App::quitting() || !_primaryWindow) {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
 		return true;
-	} else if (const auto controller = _window->sessionController()) {
+	} else if (const auto controller = _primaryWindow->sessionController()) {
 		if (&controller->session() == session
-			&& _window->widget()->isActive()) {
+			&& _primaryWindow->widget()->isActive()) {
 			return true;
 		}
 	}
@@ -954,15 +968,53 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 }
 
 void Application::saveCurrentDraftsToHistories() {
-	if (!_window) {
+	if (!_primaryWindow) {
 		return;
-	} else if (const auto controller = _window->sessionController()) {
+	} else if (const auto controller = _primaryWindow->sessionController()) {
 		controller->content()->saveFieldToHistoryLocalDraft();
 	}
 }
 
+Window::Controller *Application::primaryWindow() const {
+	return _primaryWindow.get();
+}
+
+Window::Controller *Application::separateWindowForPeer(
+		not_null<PeerData*> peer) const {
+	for (const auto &[history, window] : _secondaryWindows) {
+		if (history->peer == peer) {
+			return window.get();
+		}
+	}
+	return nullptr;
+}
+
+Window::Controller *Application::ensureSeparateWindowForPeer(
+		not_null<PeerData*> peer,
+		MsgId showAtMsgId) {
+	const auto activate = [&](not_null<Window::Controller*> window) {
+		window->activate();
+		return window;
+	};
+
+	if (const auto existing = separateWindowForPeer(peer)) {
+		existing->sessionController()->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			showAtMsgId);
+		return activate(existing);
+	}
+	const auto result = _secondaryWindows.emplace(
+		peer->owner().history(peer),
+		std::make_unique<Window::Controller>(peer, showAtMsgId)
+	).first->second.get();
+	result->widget()->show();
+	result->finishFirstShow();
+	return activate(result);
+}
+
 Window::Controller *Application::activeWindow() const {
-	return _window.get();
+	return _lastActiveWindow;
 }
 
 bool Application::closeActiveWindow() {

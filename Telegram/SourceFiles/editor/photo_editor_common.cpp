@@ -18,6 +18,11 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 		return image;
 	}
 	if (mods.paint) {
+		if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+			image = image.convertToFormat(
+				QImage::Format_ARGB32_Premultiplied);
+		}
+
 		Painter p(&image);
 		PainterHighQualityEnabler hq(p);
 

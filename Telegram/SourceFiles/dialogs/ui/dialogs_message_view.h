@@ -59,6 +59,6 @@ private:
 
 [[nodiscard]] HistoryView::ItemPreview PreviewWithSender(
 	HistoryView::ItemPreview &&preview,
-	const QString &sender);
+	const TextWithEntities &sender);
 
 } // namespace Dialogs::Ui

@@ -120,18 +120,6 @@ std::vector<ItemPtr> Scene::items(
 	return copyItems;
 }
 
-std::vector<not_null<DocumentData*>> Scene::attachedStickers() const {
-	const auto allItems = items();
-
-	return ranges::views::all(
-		allItems
-	) | ranges::views::filter([](const ItemPtr &i) {
-		return i->isVisible() && (i->type() == ItemSticker::Type);
-	}) | ranges::views::transform([](const ItemPtr &i) {
-		return static_cast<ItemSticker*>(i.get())->sticker();
-	}) | ranges::to_vector;
-}
-
 std::shared_ptr<float64> Scene::lastZ() const {
 	return _lastZ;
 }
