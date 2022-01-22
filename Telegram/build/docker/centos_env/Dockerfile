@@ -731,7 +731,9 @@ RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
 	-dbus-runtime \
 	-openssl-linked \
 	-nomake examples \
-	-nomake tests
+	-nomake tests \
+	-- \
+	-DINPUT_egl_extension_platform_wayland=no
 
 RUN [ -z "${QT6}" ] || cmake --build . --parallel
 RUN [ -z "${QT6}" ] || DESTDIR="$LibrariesPath/qt-cache" cmake --install .

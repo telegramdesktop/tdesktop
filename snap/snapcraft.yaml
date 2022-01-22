@@ -376,7 +376,9 @@ parts:
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
-        -nomake tests
+        -nomake tests \
+        -- \
+        -DINPUT_egl_extension_platform_wayland=no
 
       cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
