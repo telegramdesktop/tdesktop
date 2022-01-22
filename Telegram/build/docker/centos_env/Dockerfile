@@ -148,6 +148,24 @@ RUN make DESTDIR="$LibrariesPath/opus-cache" install
 WORKDIR ..
 RUN rm -rf opus
 
+FROM builder AS libvpx
+RUN git clone -b v1.11.0 --depth=1 $GIT/webmproject/libvpx.git
+
+WORKDIR libvpx
+RUN ./configure \
+    --target=x86_64-linux-gcc \
+    --disable-examples \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libvpx-cache" install
+
+WORKDIR ..
+RUN rm -rf libvpx
+
 FROM builder AS rnnoise
 RUN git clone -b master --depth=1 $GIT/desktop-app/rnnoise
 
@@ -416,6 +434,7 @@ RUN rm -rf libvdpau
 FROM builder AS ffmpeg
 
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=libXv ${LibrariesPath}/libXv-cache /
@@ -440,6 +459,7 @@ RUN ./configure \
 	--disable-autodetect \
 	--disable-everything \
 	--enable-libopus \
+	--enable-libvpx \
 	--enable-vaapi \
 	--enable-vdpau \
 	--enable-xlib \
@@ -459,6 +479,8 @@ RUN ./configure \
 	--enable-decoder=h264 \
 	--enable-decoder=h264_vdpau \
 	--enable-decoder=hevc \
+	--enable-decoder=libvpx_vp8 \
+	--enable-decoder=libvpx_vp9 \
 	--enable-decoder=mp1 \
 	--enable-decoder=mp1float \
 	--enable-decoder=mp2 \
@@ -526,6 +548,7 @@ RUN ./configure \
 	--enable-demuxer=gif \
 	--enable-demuxer=h264 \
 	--enable-demuxer=hevc \
+	--enable-demuxer=matroska \
 	--enable-demuxer=m4v \
 	--enable-demuxer=mov \
 	--enable-demuxer=mp3 \
@@ -763,6 +786,7 @@ FROM builder AS webrtc
 
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
@@ -772,7 +796,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin b02478677baac6d563589f216800ff9cea0fd65c
+RUN git fetch --depth=1 origin 6b7955ed542fb0bc2046a6155721dc5f9037c03a
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
@@ -792,6 +816,7 @@ RUN cmake -G"Ninja Multi-Config" -B out . \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+	-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
 RUN cmake --build out --config Release --parallel
@@ -806,6 +831,7 @@ COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=rnnoise ${LibrariesPath}/rnnoise-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
