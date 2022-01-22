@@ -50,7 +50,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5368789dc7
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1206363d59
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
