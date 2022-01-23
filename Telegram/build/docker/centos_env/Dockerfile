@@ -153,13 +153,13 @@ RUN git clone -b v1.11.0 --depth=1 $GIT/webmproject/libvpx.git
 
 WORKDIR libvpx
 RUN ./configure \
-    --target=x86_64-linux-gcc \
-    --disable-examples \
-    --disable-tools \
-    --disable-docs \
-    --enable-vp8 \
-    --enable-vp9 \
-    --enable-webm-io
+	--disable-examples \
+	--disable-unit-tests \
+	--disable-tools \
+	--disable-docs \
+	--enable-vp8 \
+	--enable-vp9 \
+	--enable-webm-io
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libvpx-cache" install
 
