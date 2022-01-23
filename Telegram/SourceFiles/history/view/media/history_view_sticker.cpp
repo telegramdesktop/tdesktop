@@ -252,8 +252,6 @@ void Sticker::paintPath(
 }
 
 QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
-	const auto w = _size.width();
-	const auto h = _size.height();
 	const auto colored = context.selected()
 		? &context.st->msgStickerOverlay()
 		: nullptr;
