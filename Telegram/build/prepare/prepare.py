@@ -1234,7 +1234,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 6b7955ed54
+    git checkout 6372a0848f
     git submodule init
     git submodule update src/third_party/libyuv
 win:
@@ -1314,7 +1314,6 @@ release:
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
@@ -1328,7 +1327,6 @@ release:
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \

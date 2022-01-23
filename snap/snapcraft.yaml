@@ -422,10 +422,32 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.so
       - -./usr/share
 
+  vpx:
+    source: https://github.com/webmproject/libvpx.git
+    source-depth: 1
+    source-tag: v1.11.0
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
+      - --disable-examples
+      - --disable-unit-tests
+      - --disable-tools
+      - --disable-docs
+      - --enable-shared
+      - --disable-static
+      - --enable-vp8
+      - --enable-vp9
+      - --enable-webm-io
+    prime:
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libvpx.so
+
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: b02478677baac6d563589f216800ff9cea0fd65c
+    source-commit: 6372a0848f8dd84013e291b44f9d1427fde3a90e
     plugin: cmake
     build-packages:
       - yasm
@@ -458,10 +480,8 @@ parts:
       - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=OFF
       - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
       - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
-      - -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
@@ -469,3 +489,4 @@ parts:
     after:
       - ffmpeg
       - mozjpeg
+      - vpx

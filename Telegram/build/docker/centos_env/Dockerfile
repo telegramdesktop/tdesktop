@@ -796,7 +796,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin 6b7955ed542fb0bc2046a6155721dc5f9037c03a
+RUN git fetch --depth=1 origin 6372a0848f8dd84013e291b44f9d1427fde3a90e
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
@@ -811,7 +811,6 @@ RUN cmake -G"Ninja Multi-Config" -B out . \
 	-DCMAKE_C_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \
 	-DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG $HFLAGS" \
 	-DCMAKE_CXX_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \
-	-DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
 	-DTG_OWT_SPECIAL_TARGET=linux \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
