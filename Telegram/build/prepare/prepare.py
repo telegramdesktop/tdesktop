@@ -400,7 +400,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 1206363d59
+    git checkout 58ac8663f5
 """)
 
 stage('depot_tools', """
@@ -649,6 +649,7 @@ depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --target=arm64-darwin20-gcc \
     --disable-examples \
+    --disable-unit-tests \
     --disable-tools \
     --disable-docs \
     --enable-vp8 \
@@ -665,6 +666,7 @@ depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --target=x86_64-darwin20-gcc \
     --disable-examples \
+    --disable-unit-tests \
     --disable-tools \
     --disable-docs \
     --enable-vp8 \
