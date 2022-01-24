@@ -1611,6 +1611,7 @@ void Session::unregisterShownSpoiler(FullMsgId id) {
 void Session::hideShownSpoilers() {
 	for (const auto &item : _shownSpoilers) {
 		item->hideSpoilers();
+		requestItemTextRefresh(item);
 	}
 	_shownSpoilers = base::flat_set<not_null<HistoryItem*>>();
 }
