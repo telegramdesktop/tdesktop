@@ -2090,13 +2090,13 @@ void StickersListWidget::paintSticker(
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
 		}
 		set.lottiePlayer->unpause(sticker.lottie);
-	} else if (sticker.webm && sticker.webm->ready()) {
+	} else if (sticker.webm && sticker.webm->started()) {
 		p.drawPixmapLeft(
 			ppos,
 			width(),
 			sticker.webm->current(
 				{ .frame = size, .keepAlpha = true },
-				now));
+				paused ? 0 : now));
 	} else {
 		const auto image = media->getStickerSmall();
 		const auto pixmap = !sticker.savedFrame.isNull()
