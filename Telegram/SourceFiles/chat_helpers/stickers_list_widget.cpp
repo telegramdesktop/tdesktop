@@ -54,6 +54,8 @@ constexpr auto kSearchRequestDelay = 400;
 constexpr auto kRecentDisplayLimit = 20;
 constexpr auto kPreloadOfficialPages = 4;
 constexpr auto kOfficialLoadLimit = 40;
+constexpr auto kMinRepaintDelay = crl::time(33);
+constexpr auto kMinAfterScrollDelay = crl::time(33);
 
 using Data::StickersSet;
 using Data::StickersPack;
@@ -968,6 +970,8 @@ StickersListWidget::StickersListWidget(
 , _api(&controller->session().mtp())
 , _section(Section::Stickers)
 , _isMasks(masks)
+, _updateItemsTimer([=] { updateItems(); })
+, _updateSetsTimer([=] { updateSets(); })
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
 	st::windowBgOver,
@@ -991,7 +995,7 @@ StickersListWidget::StickersListWidget(
 	session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		if (isVisible()) {
-			repaintItems();
+			updateItems();
 			readVisibleFeatured(getVisibleTop(), getVisibleBottom());
 		}
 	}, lifetime());
@@ -1065,7 +1069,13 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 void StickersListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
+	const auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
+	if (top != getVisibleTop()) {
+		_lastScrolledAt = crl::now();
+		_repaintSetsIds.clear();
+		update();
+	}
 	if (_section == Section::Featured) {
 		checkVisibleFeatured(visibleTop, visibleBottom);
 	} else {
@@ -1925,7 +1935,7 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 			if (sets[info.section].lottiePlayer.get() != raw) {
 				return true;
 			}
-			repaintItems(info);
+			updateSet(info);
 			return false;
 		});
 	}, set.lottieLifetime);
@@ -2000,7 +2010,7 @@ void StickersListWidget::clipCallback(
 		case Notification::Repaint: break;
 		}
 
-		repaintItems(info);
+		updateSet(info);
 		return false;
 	});
 }
@@ -2016,16 +2026,73 @@ bool StickersListWidget::itemVisible(
 	return (visibleTop < bottom) && (visibleBottom > top);
 }
 
-void StickersListWidget::repaintItems(const SectionInfo &info) {
+void StickersListWidget::updateSets() {
+	if (_repaintSetsIds.empty()) {
+		return;
+	}
+	auto repaint = base::take(_repaintSetsIds);
+	auto &sets = shownSets();
+	enumerateSections([&](const SectionInfo &info) {
+		if (repaint.contains(sets[info.section].id)) {
+			updateSet(info);
+		}
+		return true;
+	});
+}
+
+void StickersListWidget::updateSet(const SectionInfo &info) {
+	auto &set = shownSets()[info.section];
+
+	const auto now = crl::now();
+	const auto delay = std::max(
+		_lastScrolledAt + kMinAfterScrollDelay - now,
+		set.lastUpdateTime + kMinRepaintDelay - now);
+	if (delay <= 0) {
+		repaintItems(info, now);
+	} else {
+		_repaintSetsIds.emplace(set.id);
+		if (!_updateSetsTimer.isActive()
+			|| _updateSetsTimer.remainingTime() > kMinRepaintDelay) {
+			_updateSetsTimer.callOnce(std::max(delay, kMinRepaintDelay));
+		}
+	}
+}
+
+void StickersListWidget::repaintItems(
+		const SectionInfo &info,
+		crl::time now) {
 	update(
 		0,
 		info.rowsTop,
 		width(),
 		info.rowsBottom - info.rowsTop);
+	auto &set = shownSets()[info.section];
+	set.lastUpdateTime = now;
 }
 
-void StickersListWidget::repaintItems() {
+void StickersListWidget::updateItems() {
+	const auto now = crl::now();
+	const auto delay = std::max(
+		_lastScrolledAt + kMinAfterScrollDelay - now,
+		_lastFullUpdatedAt + kMinRepaintDelay - now);
+	if (delay <= 0) {
+		repaintItems(now);
+	} else if (!_updateItemsTimer.isActive()
+		|| _updateItemsTimer.remainingTime() > kMinRepaintDelay) {
+		_updateItemsTimer.callOnce(std::max(delay, kMinRepaintDelay));
+	}
+}
 
+void StickersListWidget::repaintItems(crl::time now) {
+	update();
+	_repaintSetsIds.clear();
+	if (!now) {
+		now = crl::now();
+	}
+	_lastFullUpdatedAt = now;
+	for (auto &set : shownSets()) {
+		set.lastUpdateTime = now;
+	}
 }
 
 QSize StickersListWidget::boundingBoxSize() const {

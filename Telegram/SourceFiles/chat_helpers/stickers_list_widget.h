@@ -205,6 +205,7 @@ private:
 		QString shortName;
 		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
+		crl::time lastUpdateTime = 0;
 
 		std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
 		rpl::lifetime lottieLifetime;
@@ -305,8 +306,13 @@ private:
 	void takeHeavyData(Sticker &to, Sticker &from);
 	void clearHeavyIn(Set &set, bool clearSavedFrames = true);
 	void clearHeavyData();
-	void repaintItems();
-	void repaintItems(const SectionInfo &info);
+	void updateItems();
+	void updateSets();
+	void repaintItems(crl::time now = 0);
+	void updateSet(const SectionInfo &info);
+	void repaintItems(
+		const SectionInfo &info,
+		crl::time now);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
@@ -364,11 +370,18 @@ private:
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 
+	crl::time _lastScrolledAt = 0;
+	crl::time _lastFullUpdatedAt = 0;
+
 	mtpRequestId _officialRequestId = 0;
 	int _officialOffset = 0;
 
 	Section _section = Section::Stickers;
 	const bool _isMasks;
+
+	base::Timer _updateItemsTimer;
+	base::Timer _updateSetsTimer;
+	base::flat_set<uint64> _repaintSetsIds;
 
 	bool _displayingSet = false;
 	uint64 _removingSetId = 0;

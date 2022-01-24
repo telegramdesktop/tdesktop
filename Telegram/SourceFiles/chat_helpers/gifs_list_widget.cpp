@@ -46,7 +46,7 @@ namespace {
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = "gif"_cs;
-constexpr auto kMinRepaintDelay = crl::time(16);
+constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
 
 } // namespace
@@ -175,9 +175,7 @@ GifsListWidget::GifsListWidget(
 , _mosaic(st::emojiPanWidth - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
-
-	// Otherwise our optimization on repainting is too aggressive.
-	setAttribute(Qt::WA_OpaquePaintEvent, false);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_inlineRequestTimer.setSingleShot(true);
 	connect(
@@ -193,14 +191,14 @@ GifsListWidget::GifsListWidget(
 
 	controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
-		update();
+		updateInlineItems();
 	}, lifetime());
 
 	controller->gifPauseLevelChanged(
 	) | rpl::start_with_next([=] {
 		if (!controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::SavedGifs)) {
-			update();
+			updateInlineItems();
 		}
 	}, lifetime());
 
@@ -240,10 +238,11 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 void GifsListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	auto top = getVisibleTop();
+	const auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (top != getVisibleTop()) {
 		_lastScrolledAt = crl::now();
+		update();
 	}
 	checkLoadMore();
 }
