@@ -133,7 +133,7 @@ void SingleMediaPreview::clipCallback(
 		Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
-	case NotificationReinit: {
+	case Notification::Reinit: {
 		if (_gifPreview && _gifPreview->state() == State::Error) {
 			_gifPreview.setBad();
 		}
@@ -152,7 +152,7 @@ void SingleMediaPreview::clipCallback(
 		update();
 	} break;
 
-	case NotificationRepaint: {
+	case Notification::Repaint: {
 		if (_gifPreview && !_gifPreview->currentDisplayed()) {
 			update();
 		}

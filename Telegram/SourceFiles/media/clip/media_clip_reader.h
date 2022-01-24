@@ -39,15 +39,19 @@ struct FrameRequest {
 	RectParts corners = RectPart::AllCorners;
 };
 
-enum ReaderSteps : int {
-	WaitingForDimensionsStep = -3, // before ReaderPrivate read the first image and got the original frame size
-	WaitingForRequestStep = -2, // before Reader got the original frame size and prepared the frame request
-	WaitingForFirstFrameStep = -1, // before ReaderPrivate got the frame request and started waiting for the 1-2 delay
-};
+// Before ReaderPrivate read the first image and got the original frame size.
+inline constexpr auto kWaitingForDimensionsStep = -3;
 
-enum Notification : int {
-	NotificationReinit,
-	NotificationRepaint,
+// Before Reader got the original frame size and prepared the frame request.
+inline constexpr auto kWaitingForRequestStep = -2;
+
+// Before ReaderPrivate got the frame request
+// and started waiting for the 1-2 delay.
+inline constexpr auto kWaitingForFirstFrameStep = -1;
+
+enum class Notification {
+	Reinit,
+	Repaint,
 };
 
 class ReaderPrivate;
@@ -64,7 +68,10 @@ public:
 	Reader(const QByteArray &data, Callback &&callback);
 
 	// Reader can be already deleted.
-	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
+	static void SafeCallback(
+		Reader *reader,
+		int threadIndex,
+		Notification notification);
 
 	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners);
 	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, crl::time ms);
@@ -94,7 +101,7 @@ public:
 	State state() const;
 	bool started() const {
 		auto step = _step.loadAcquire();
-		return (step == WaitingForFirstFrameStep) || (step >= 0);
+		return (step == kWaitingForFirstFrameStep) || (step >= 0);
 	}
 	bool ready() const;
 
@@ -120,7 +127,7 @@ private:
 	mutable int _height = 0;
 
 	// -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
-	mutable QAtomicInt _step = WaitingForDimensionsStep;
+	mutable QAtomicInt _step = kWaitingForDimensionsStep;
 	struct Frame {
 		void clear() {
 			pix = QPixmap();

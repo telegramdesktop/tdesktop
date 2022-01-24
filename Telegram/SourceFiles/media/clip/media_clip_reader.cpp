@@ -133,12 +133,12 @@ void Reader::init(const Core::FileLocation &location, const QByteArray &data) {
 
 Reader::Frame *Reader::frameToShow(int32 *index) const { // 0 means not ready
 	int step = _step.loadAcquire(), i;
-	if (step == WaitingForDimensionsStep) {
+	if (step == kWaitingForDimensionsStep) {
 		if (index) *index = 0;
 		return nullptr;
-	} else if (step == WaitingForRequestStep) {
+	} else if (step == kWaitingForRequestStep) {
 		i = 0;
-	} else if (step == WaitingForFirstFrameStep) {
+	} else if (step == kWaitingForFirstFrameStep) {
 		i = 0;
 	} else {
 		i = (step / 2) % 3;
@@ -149,12 +149,12 @@ Reader::Frame *Reader::frameToShow(int32 *index) const { // 0 means not ready
 
 Reader::Frame *Reader::frameToWrite(int32 *index) const { // 0 means not ready
 	int32 step = _step.loadAcquire(), i;
-	if (step == WaitingForDimensionsStep) {
+	if (step == kWaitingForDimensionsStep) {
 		i = 0;
-	} else if (step == WaitingForRequestStep) {
+	} else if (step == kWaitingForRequestStep) {
 		if (index) *index = 0;
 		return nullptr;
-	} else if (step == WaitingForFirstFrameStep) {
+	} else if (step == kWaitingForFirstFrameStep) {
 		i = 0;
 	} else {
 		i = ((step + 2) / 2) % 3;
@@ -165,7 +165,9 @@ Reader::Frame *Reader::frameToWrite(int32 *index) const { // 0 means not ready
 
 Reader::Frame *Reader::frameToWriteNext(bool checkNotWriting, int32 *index) const {
 	int32 step = _step.loadAcquire(), i;
-	if (step == WaitingForDimensionsStep || step == WaitingForRequestStep || (checkNotWriting && (step % 2))) {
+	if (step == kWaitingForDimensionsStep
+		|| step == kWaitingForRequestStep
+		|| (checkNotWriting && (step % 2))) {
 		if (index) *index = 0;
 		return nullptr;
 	}
@@ -176,10 +178,10 @@ Reader::Frame *Reader::frameToWriteNext(bool checkNotWriting, int32 *index) cons
 
 void Reader::moveToNextShow() const {
 	int32 step = _step.loadAcquire();
-	if (step == WaitingForDimensionsStep) {
-	} else if (step == WaitingForRequestStep) {
-		_step.storeRelease(WaitingForFirstFrameStep);
-	} else if (step == WaitingForFirstFrameStep) {
+	if (step == kWaitingForDimensionsStep) {
+	} else if (step == kWaitingForRequestStep) {
+		_step.storeRelease(kWaitingForFirstFrameStep);
+	} else if (step == kWaitingForFirstFrameStep) {
 	} else if (!(step % 2)) {
 		_step.storeRelease(step + 1);
 	}
@@ -187,10 +189,10 @@ void Reader::moveToNextShow() const {
 
 void Reader::moveToNextWrite() const {
 	int32 step = _step.loadAcquire();
-	if (step == WaitingForDimensionsStep) {
-		_step.storeRelease(WaitingForRequestStep);
-	} else if (step == WaitingForRequestStep) {
-	} else if (step == WaitingForFirstFrameStep) {
+	if (step == kWaitingForDimensionsStep) {
+		_step.storeRelease(kWaitingForRequestStep);
+	} else if (step == kWaitingForRequestStep) {
+	} else if (step == kWaitingForFirstFrameStep) {
 		_step.storeRelease(0);
 
 		// Force paint the first frame so moveToNextShow() is called.
@@ -200,7 +202,10 @@ void Reader::moveToNextWrite() const {
 	}
 }
 
-void Reader::callback(Reader *reader, qint32 threadIndex, qint32 notification) {
+void Reader::SafeCallback(
+		Reader *reader,
+		int threadIndex,
+		Notification notification) {
 	// Check if reader is not deleted already
 	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader) && reader->_callback) {
 		reader->_callback(Notification(notification));
@@ -211,7 +216,7 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 	if (managers.size() <= _threadIndex) error();
 	if (_state == State::Error) return;
 
-	if (_step.loadAcquire() == WaitingForRequestStep) {
+	if (_step.loadAcquire() == kWaitingForRequestStep) {
 		int factor = style::DevicePixelRatio();
 		FrameRequest request;
 		request.factor = factor;
@@ -613,23 +618,29 @@ bool Manager::carries(Reader *reader) const {
 	return _readerPointers.contains(reader);
 }
 
-Manager::ReaderPointers::iterator Manager::unsafeFindReaderPointer(ReaderPrivate *reader) {
-	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
+auto Manager::unsafeFindReaderPointer(ReaderPrivate *reader)
+-> ReaderPointers::iterator {
+	const auto it = _readerPointers.find(reader->_interface);
 
 	// could be a new reader which was realloced in the same address
-	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.end();
+	return (it == _readerPointers.cend() || it.key()->_private == reader)
+		? it
+		: _readerPointers.end();
 }
 
-Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(ReaderPrivate *reader) const {
-	ReaderPointers::const_iterator it = _readerPointers.constFind(reader->_interface);
+auto Manager::constUnsafeFindReaderPointer(ReaderPrivate *reader) const
+-> ReaderPointers::const_iterator {
+	const auto it = _readerPointers.constFind(reader->_interface);
 
 	// could be a new reader which was realloced in the same address
-	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.cend();
+	return (it == _readerPointers.cend() || it.key()->_private == reader)
+		? it
+		: _readerPointers.cend();
 }
 
 void Manager::callback(Reader *reader, Notification notification) {
 	crl::on_main([=, threadIndex = reader->threadIndex()] {
-		Reader::callback(reader, threadIndex, notification);
+		Reader::SafeCallback(reader, threadIndex, notification);
 	});
 }
 
@@ -639,14 +650,14 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 	if (result == ProcessResult::Error) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
-			callback(it.key(), NotificationReinit);
+			callback(it.key(), Notification::Reinit);
 			_readerPointers.erase(it);
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {
 		if (it != _readerPointers.cend()) {
 			it.key()->finished();
-			callback(it.key(), NotificationReinit);
+			callback(it.key(), Notification::Reinit);
 		}
 		return false;
 	}
@@ -682,14 +693,14 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 		if (result == ProcessResult::Started) {
 			reader->startedAt(ms);
 			it.key()->moveToNextWrite();
-			callback(it.key(), NotificationReinit);
+			callback(it.key(), Notification::Reinit);
 		}
 	} else if (result == ProcessResult::Paused) {
 		it.key()->moveToNextWrite();
-		callback(it.key(), NotificationReinit);
+		callback(it.key(), Notification::Reinit);
 	} else if (result == ProcessResult::Repaint) {
 		it.key()->moveToNextWrite();
-		callback(it.key(), NotificationRepaint);
+		callback(it.key(), Notification::Repaint);
 	}
 	return true;
 }

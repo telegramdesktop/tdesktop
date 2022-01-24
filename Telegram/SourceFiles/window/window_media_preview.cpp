@@ -391,7 +391,7 @@ void MediaPreviewWidget::clipCallback(
 		Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
-	case NotificationReinit: {
+	case Notification::Reinit: {
 		if (_gifThumbnail && _gifThumbnail->state() == State::Error) {
 			_gifThumbnail.setBad();
 		}
@@ -413,7 +413,7 @@ void MediaPreviewWidget::clipCallback(
 		update();
 	} break;
 
-	case NotificationRepaint: {
+	case Notification::Repaint: {
 		if ((_gif && _gif->started() && !_gif->currentDisplayed())
 			|| (_gifThumbnail
 				&& _gifThumbnail->started()

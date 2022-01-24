@@ -1897,7 +1897,7 @@ QSize Gif::countFrameSize() const {
 void Gif::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
-	case NotificationReinit: {
+	case Notification::Reinit: {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
@@ -1926,7 +1926,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 		update();
 	} break;
 
-	case NotificationRepaint: {
+	case Notification::Repaint: {
 		if (_gif && !_gif->currentDisplayed()) {
 			update();
 		}

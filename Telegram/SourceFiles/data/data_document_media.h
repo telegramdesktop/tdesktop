@@ -14,7 +14,7 @@ class FileLoader;
 
 namespace Media {
 namespace Clip {
-enum Notification : int;
+enum class Notification;
 class ReaderPointer;
 } // namespace Clip
 } // namespace Media

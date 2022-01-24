@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h" // GifPauseReason.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "media/clip/media_clip_reader.h"
 #include "apiwrap.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "styles/style_chat_helpers.h"
@@ -97,6 +98,7 @@ struct StickerIcon {
 	uint64 setId = 0;
 	StickersSet *set = nullptr;
 	mutable std::unique_ptr<Lottie::SinglePlayer> lottie;
+	mutable Media::Clip::ReaderPointer webm;
 	mutable QPixmap savedFrame;
 	DocumentData *sticker = nullptr;
 	ChannelData *megagroup = nullptr;
@@ -157,6 +159,8 @@ private:
 		int newSelected,
 		ValidateIconAnimations animations);
 	void validateIconLottieAnimation(const StickerIcon &icon);
+	void validateIconWebmAnimation(const StickerIcon &icon);
+	void validateIconAnimation(const StickerIcon &icon);
 
 	void refreshIconsGeometry(ValidateIconAnimations animations);
 	void updateSelected();
@@ -792,6 +796,7 @@ void StickersListWidget::Footer::validateIconLottieAnimation(
 	if (icon.lottie
 		|| !icon.sticker
 		|| !HasLottieThumbnail(
+			icon.set ? icon.set->flags : Data::StickersSetFlags(),
 			icon.thumbnailMedia.get(),
 			icon.stickerMedia.get())) {
 		return;
@@ -817,6 +822,30 @@ void StickersListWidget::Footer::validateIconLottieAnimation(
 	}, icon.lifetime);
 }
 
+void StickersListWidget::Footer::validateIconWebmAnimation(
+		const StickerIcon &icon) {
+	icon.ensureMediaCreated();
+	if (icon.webm
+		|| !icon.sticker
+		|| !HasWebmThumbnail(
+			icon.set ? icon.set->flags : Data::StickersSetFlags(),
+			icon.thumbnailMedia.get(),
+			icon.stickerMedia.get())) {
+		return;
+	}
+	const auto id = icon.setId;
+	icon.webm = WebmThumbnail(
+		icon.thumbnailMedia.get(),
+		icon.stickerMedia.get(),
+		[=](Media::Clip::Notification) { updateSetIcon(id); });
+}
+
+void StickersListWidget::Footer::validateIconAnimation(
+		const StickerIcon &icon) {
+	validateIconWebmAnimation(icon);
+	validateIconLottieAnimation(icon);
+}
+
 void StickersListWidget::Footer::updateSetIcon(uint64 setId) {
 	enumerateVisibleIcons([&](const StickerIcon &icon, int x) {
 		if (icon.setId != setId) {
@@ -832,7 +861,7 @@ void StickersListWidget::Footer::paintSetIcon(
 		int x) const {
 	if (icon.sticker) {
 		icon.ensureMediaCreated();
-		const_cast<Footer*>(this)->validateIconLottieAnimation(icon);
+		const_cast<Footer*>(this)->validateIconAnimation(icon);
 		const auto origin = icon.sticker->stickerSetOrigin();
 		const auto thumb = icon.thumbnailMedia
 			? icon.thumbnailMedia->image()

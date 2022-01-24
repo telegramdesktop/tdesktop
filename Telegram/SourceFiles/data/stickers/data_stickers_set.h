@@ -54,6 +54,7 @@ enum class StickersSetFlag {
 	Featured = (1 << 5),
 	Unread = (1 << 6),
 	Special = (1 << 7),
+	Webm = (1 << 8),
 };
 inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
 using StickersSetFlags = base::flags<StickersSetFlag>;

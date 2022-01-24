@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_database.h"
+#include "media/clip/media_clip_reader.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "main/main_session.h"
 
@@ -130,10 +131,12 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 }
 
 bool HasLottieThumbnail(
+		Data::StickersSetFlags flags,
 		Data::StickersSetThumbnailView *thumb,
 		Data::DocumentMedia *media) {
 	if (thumb) {
-		return !thumb->content().isEmpty();
+		return !(flags & Data::StickersSetFlag::Webm)
+			&& !thumb->content().isEmpty();
 	} else if (!media) {
 		return false;
 	}
@@ -187,6 +190,44 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		session,
 		content,
 		box);
+}
+
+bool HasWebmThumbnail(
+		Data::StickersSetFlags flags,
+		Data::StickersSetThumbnailView *thumb,
+		Data::DocumentMedia *media) {
+	if (thumb) {
+		return (flags & Data::StickersSetFlag::Webm)
+			&& !thumb->content().isEmpty();
+	} else if (!media) {
+		return false;
+	}
+	const auto document = media->owner();
+	if (const auto info = document->sticker()) {
+		if (!info->isWebm()) {
+			return false;
+		}
+		media->automaticLoad(document->stickerSetOrigin(), nullptr);
+		if (!media->loaded()) {
+			return false;
+		}
+		return document->bigFileBaseCacheKey().valid();
+	}
+	return false;
+}
+
+Media::Clip::ReaderPointer WebmThumbnail(
+		Data::StickersSetThumbnailView *thumb,
+		Data::DocumentMedia *media,
+		Fn<void(Media::Clip::Notification)> callback) {
+	return thumb
+		? ::Media::Clip::MakeReader(
+			thumb->content(),
+			std::move(callback))
+		: ::Media::Clip::MakeReader(
+			media->owner()->location(),
+			media->bytes(),
+			std::move(callback));
 }
 
 bool PaintStickerThumbnailPath(
