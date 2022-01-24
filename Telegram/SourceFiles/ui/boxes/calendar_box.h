@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/required.h"
 #include "base/timer.h"
 
+#include <QtCore/QDate>
+
 namespace style {
 struct CalendarSizes;
 } // namespace style
