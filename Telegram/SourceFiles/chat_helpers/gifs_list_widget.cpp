@@ -46,6 +46,8 @@ namespace {
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = "gif"_cs;
+constexpr auto kMinRepaintDelay = crl::time(16);
+constexpr auto kMinAfterScrollDelay = crl::time(33);
 
 } // namespace
 
@@ -173,7 +175,9 @@ GifsListWidget::GifsListWidget(
 , _mosaic(st::emojiPanWidth - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
-	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	// Otherwise our optimization on repainting is too aggressive.
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	_inlineRequestTimer.setSingleShot(true);
 	connect(
@@ -239,7 +243,7 @@ void GifsListWidget::visibleTopBottomUpdated(
 	auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (top != getVisibleTop()) {
-		_lastScrolled = crl::now();
+		_lastScrolledAt = crl::now();
 	}
 	checkLoadMore();
 }
@@ -498,7 +502,7 @@ void GifsListWidget::clearSelection() {
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
-	update();
+	repaintItems();
 }
 
 TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
@@ -544,7 +548,7 @@ void GifsListWidget::refreshSavedGifs() {
 		deleteUnusedGifLayouts();
 
 		resizeToWidth(width());
-		update();
+		repaintItems();
 	}
 
 	if (isVisible()) {
@@ -672,7 +676,7 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 	}
 
 	resizeToWidth(width());
-	update();
+	repaintItems();
 
 	_lastMousePos = QCursor::pos();
 	updateSelected();
@@ -711,16 +715,13 @@ void GifsListWidget::inlineItemLayoutChanged(const InlineBots::Layout::ItemBase 
 	}
 }
 
-void GifsListWidget::inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
-	}
+void GifsListWidget::inlineItemRepaint(
+		const InlineBots::Layout::ItemBase *layout) {
+	updateInlineItems();
 }
 
-bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
+bool GifsListWidget::inlineItemVisible(
+		const InlineBots::Layout::ItemBase *layout) {
 	auto position = layout->position();
 	if (position < 0 || !isVisible()) {
 		return false;
@@ -930,12 +931,22 @@ void GifsListWidget::showPreview() {
 }
 
 void GifsListWidget::updateInlineItems() {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
+	const auto now = crl::now();
+
+	const auto delay = std::max(
+		_lastScrolledAt + kMinAfterScrollDelay - now,
+		_lastUpdatedAt + kMinRepaintDelay - now);
+	if (delay <= 0) {
+		repaintItems();
+	} else if (!_updateInlineItems.isActive()
+		|| _updateInlineItems.remainingTime() > kMinRepaintDelay) {
+		_updateInlineItems.callOnce(std::max(delay, kMinRepaintDelay));
 	}
+}
+
+void GifsListWidget::repaintItems(crl::time now) {
+	_lastUpdatedAt = now ? now : crl::now();
+	update();
 }
 
 } // namespace ChatHelpers

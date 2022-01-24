@@ -285,9 +285,11 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				? _gif
 				: _gifThumbnail;
 			if (gif && gif->started()) {
-				auto s = currentDimensions();
-				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
-				return gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
+				const auto paused = _controller->isGifPausedAtLeastFor(
+					Window::GifPauseReason::MediaPreview);
+				return gif->current(
+					{ .frame = currentDimensions() },
+					paused ? 0 : crl::now());
 			}
 			if (_cacheStatus != CacheThumbLoaded
 				&& _document->hasThumbnail()) {
@@ -335,14 +337,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 
 void MediaPreviewWidget::startGifAnimation(
 		const Media::Clip::ReaderPointer &gif) {
-	const auto s = currentDimensions();
-	gif->start(
-		s.width(),
-		s.height(),
-		s.width(),
-		s.height(),
-		ImageRoundRadius::None,
-		RectPart::None);
+	gif->start({ .frame = currentDimensions() });
 }
 
 void MediaPreviewWidget::validateGifAnimation() {

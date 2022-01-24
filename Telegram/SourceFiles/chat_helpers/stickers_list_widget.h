@@ -39,6 +39,11 @@ class DocumentMedia;
 class StickersSet;
 } // namespace Data
 
+namespace Media::Clip {
+class ReaderPointer;
+enum class Notification;
+} // namespace Media::Clip
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -113,6 +118,7 @@ protected:
 
 private:
 	class Footer;
+	struct Sticker;
 
 	enum class Section {
 		Featured,
@@ -176,15 +182,6 @@ private:
 		int rowsCount = 0;
 		int rowsTop = 0;
 		int rowsBottom = 0;
-	};
-
-	struct Sticker {
-		not_null<DocumentData*> document;
-		std::shared_ptr<Data::DocumentMedia> documentMedia;
-		Lottie::Animation *animated = nullptr;
-		QPixmap savedFrame;
-
-		void ensureMediaCreated();
 	};
 
 	struct Set {
@@ -279,11 +276,27 @@ private:
 
 	void paintStickers(Painter &p, QRect clip);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
-	void paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected);
+	void paintSticker(
+		Painter &p,
+		Set &set,
+		int y,
+		int section,
+		int index,
+		crl::time now,
+		bool paused,
+		bool selected,
+		bool deleteSelected);
 	void paintEmptySearchResults(Painter &p);
 
 	void ensureLottiePlayer(Set &set);
 	void setupLottie(Set &set, int section, int index);
+	void setupWebm(Set &set, int section, int index);
+	void clipCallback(
+		Media::Clip::Notification notification,
+		uint64 setId,
+		not_null<DocumentData*> document,
+		int indexHint);
+	[[nodiscard]] bool itemVisible(const SectionInfo &info, int index) const;
 	void markLottieFrameShown(Set &set);
 	void checkVisibleLottie();
 	void pauseInvisibleLottieIn(const SectionInfo &info);
@@ -292,6 +305,8 @@ private:
 	void takeHeavyData(Sticker &to, Sticker &from);
 	void clearHeavyIn(Set &set, bool clearSavedFrames = true);
 	void clearHeavyData();
+	void repaintItems();
+	void repaintItems(const SectionInfo &info);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
@@ -302,8 +317,8 @@ private:
 	void refreshMegagroupSetGeometry();
 	QRect megagroupSetButtonRectFinal() const;
 
-	const Data::StickersSetsOrder &defaultSetsOrder() const;
-	Data::StickersSetsOrder &defaultSetsOrderRef();
+	[[nodiscard]] const Data::StickersSetsOrder &defaultSetsOrder() const;
+	[[nodiscard]] Data::StickersSetsOrder &defaultSetsOrderRef();
 
 	enum class AppendSkip {
 		None,
@@ -316,7 +331,6 @@ private:
 		bool externalLayout,
 		AppendSkip skip = AppendSkip::None);
 
-	void selectEmoji(EmojiPtr emoji);
 	int stickersLeft() const;
 	QRect stickerRect(int section, int sel);
 

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_database.h"
+#include "history/view/media/history_view_media_common.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "main/main_session.h"
@@ -274,6 +275,17 @@ bool PaintStickerThumbnailPath(
 		const auto gradient = v::get<QLinearGradient*>(bg);
 		return PaintStickerThumbnailPath(p, media, target, gradient);
 	});
+}
+
+QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
+	const auto sticker = document->sticker();
+	const auto dimensions = document->dimensions;
+	if (!sticker || !sticker->isLottie() || dimensions.isEmpty()) {
+		return HistoryView::DownscaledSize(dimensions, box);
+	}
+	const auto ratio = style::DevicePixelRatio();
+	const auto request = Lottie::FrameRequest{ box * ratio };
+	return HistoryView::NonEmptySize(request.size(dimensions, true) / ratio);
 }
 
 } // namespace ChatHelpers

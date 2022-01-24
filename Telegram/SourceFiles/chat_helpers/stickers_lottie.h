@@ -113,4 +113,8 @@ bool PaintStickerThumbnailPath(
 	QRect target,
 	not_null<Ui::PathShiftGradient*> gradient);
 
+[[nodiscard]] QSize ComputeStickerSize(
+	not_null<DocumentData*> document,
+	QSize box);
+
 } // namespace ChatHelpers
