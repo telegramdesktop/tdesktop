@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -437,8 +438,7 @@ void GifsListWidget::selectInlineResult(
 		return;
 	}
 
-	forceSend |= (QGuiApplication::keyboardModifiers()
-		== Qt::ControlModifier);
+	forceSend |= base::IsCtrlPressed();
 	if (const auto photo = item->getPhoto()) {
 		using Data::PhotoSize;
 		const auto media = photo->activeMediaView();

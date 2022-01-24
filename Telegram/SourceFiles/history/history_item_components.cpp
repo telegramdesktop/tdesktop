@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_components.h"
 
+#include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
@@ -53,7 +54,7 @@ void HistoryMessageVia::create(
 		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
 			ClickContext context) {
-		if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		if (base::IsCtrlPressed()) {
 			if (const auto window = App::wnd()) {
 				if (const auto controller = window->sessionController()) {
 					controller->showPeerInfo(bot);
