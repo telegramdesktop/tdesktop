@@ -1400,6 +1400,10 @@ TimeId DocumentData::getDuration() const {
 		return std::max(voice->duration, 0);
 	} else if (isAnimation() || isVideoFile()) {
 		return std::max(_duration, 0);
+	} else if (const auto sticker = this->sticker()) {
+		if (sticker->isWebm()) {
+			return std::max(_duration, 0);
+		}
 	}
 	return -1;
 }
