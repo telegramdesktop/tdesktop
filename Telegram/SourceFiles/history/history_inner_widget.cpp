@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
 #include "layout/layout_selection.h"
@@ -3351,6 +3352,9 @@ void HistoryInner::mouseActionUpdate() {
 				request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 			} else {
 				selectingText = false;
+			}
+			if (base::IsAltPressed()) {
+				request.flags &= ~Ui::Text::StateRequest::Flag::LookupLink;
 			}
 			dragState = view->textState(m, request);
 			_dragStateItem = session().data().message(dragState.itemId);

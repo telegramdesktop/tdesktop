@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -1728,6 +1729,9 @@ void InnerWidget::updateSelected() {
 			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		} else {
 			selectingText = false;
+		}
+		if (base::IsAltPressed()) {
+			request.flags &= ~Ui::Text::StateRequest::Flag::LookupLink;
 		}
 		dragState = view->textState(itemPoint, request);
 		lnkhost = view;

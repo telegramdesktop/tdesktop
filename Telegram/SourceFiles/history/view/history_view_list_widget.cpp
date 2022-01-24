@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 
 #include "base/unixtime.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -2663,6 +2664,9 @@ void ListWidget::mouseActionUpdate() {
 			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		} else {
 			inTextSelection = false;
+		}
+		if (base::IsAltPressed()) {
+			request.flags &= ~Ui::Text::StateRequest::Flag::LookupLink;
 		}
 
 		const auto dateHeight = st::msgServicePadding.bottom()
