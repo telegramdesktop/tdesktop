@@ -936,7 +936,7 @@ void GifsListWidget::updateInlineItems() {
 		_lastScrolledAt + kMinAfterScrollDelay - now,
 		_lastUpdatedAt + kMinRepaintDelay - now);
 	if (delay <= 0) {
-		repaintItems();
+		repaintItems(now);
 	} else if (!_updateInlineItems.isActive()
 		|| _updateInlineItems.remainingTime() > kMinRepaintDelay) {
 		_updateInlineItems.callOnce(std::max(delay, kMinRepaintDelay));
