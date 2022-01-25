@@ -9,8 +9,8 @@ def parse_changelog(changelog_path):
     version_re = re.compile(r'([\d.-]+)\s+(\w+)?\s*\((\d{2}.\d{2}\.\d{2})\)')
     entry_re = re.compile(r'-\s(.*)')
 
-    with open(changelog_path, "rb") as f:
-        changelog_lines = f.read().decode('utf-8').splitlines()
+    with open(changelog_path, "r", encoding="utf-8") as f:
+        changelog_lines = f.read().splitlines()
 
     releases = []
     for l in changelog_lines:
