@@ -34,9 +34,9 @@ ItemSticker::ItemSticker(
 	}
 	const auto updateThumbnail = [=] {
 		const auto guard = gsl::finally([&] {
-			setAspectRatio(_pixmap.isNull()
-				? 1.0
-				: (_pixmap.height() / float64(_pixmap.width())));
+			if (_pixmap.isNull()) {
+				setAspectRatio(1.);
+			}
 		});
 		if (stickerData->isLottie()) {
 			_lottie.player = ChatHelpers::LottiePlayerFromDocument(
@@ -53,6 +53,25 @@ ItemSticker::ItemSticker(
 				_lottie.lifetime.destroy();
 				update();
 			}, _lottie.lifetime);
+			return true;
+		} else if (stickerData->isWebm()
+			&& !_document->dimensions.isEmpty()) {
+			const auto callback = [=](::Media::Clip::Notification) {
+				const auto size = _document->dimensions;
+				if (_webm && _webm->ready() && !_webm->started()) {
+					_webm->start({ .frame = size, .keepAlpha = true });
+				}
+				if (_webm && _webm->started()) {
+					updatePixmap(_webm->current(
+						{ .frame = size, .keepAlpha = true },
+						0));
+					_webm = nullptr;
+				}
+			};
+			_webm = ::Media::Clip::MakeReader(
+				_mediaView->owner()->location(),
+				_mediaView->bytes(),
+				callback);
 			return true;
 		}
 		const auto sticker = _mediaView->getStickerLarge();
@@ -82,6 +101,9 @@ void ItemSticker::updatePixmap(QPixmap &&pixmap) {
 		performFlip();
 	} else {
 		update();
+	}
+	if (!_pixmap.isNull()) {
+		setAspectRatio(_pixmap.height() / float64(_pixmap.width()));
 	}
 }
 

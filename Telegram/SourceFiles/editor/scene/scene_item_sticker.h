@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/scene/scene_item_base.h"
+#include "media/clip/media_clip_reader.h"
 
 namespace Data {
 class DocumentMedia;
@@ -47,6 +48,7 @@ private:
 		std::unique_ptr<Lottie::SinglePlayer> player;
 		rpl::lifetime lifetime;
 	} _lottie;
+	::Media::Clip::ReaderPointer _webm;
 	QPixmap _pixmap;
 
 	rpl::lifetime _loadingLifetime;
