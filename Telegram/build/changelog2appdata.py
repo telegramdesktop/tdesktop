@@ -54,7 +54,11 @@ def get_changelog_xml(changelog, max_items=None):
 
 def update_appdata(appdata_path, changelog, max_items=None):
     appdata = ET.parse(appdata_path)
-    appdata.getroot().append(
+    root = appdata.getroot()
+    releases = root.find("releases")
+    if releases is not None:
+        root.remove(releases)
+    root.append(
         get_changelog_xml(changelog, max_items)
     )
     appdata.write(appdata_path, encoding="utf-8", xml_declaration=True)
