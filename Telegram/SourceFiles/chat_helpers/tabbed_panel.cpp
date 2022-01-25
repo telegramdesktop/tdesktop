@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "base/options.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
@@ -22,7 +23,15 @@ namespace {
 constexpr auto kHideTimeoutMs = 300;
 constexpr auto kDelayedHideTimeoutMs = 3000;
 
+base::options::toggle TabbedPanelShowOnClick({
+	.id = kOptionTabbedPanelShowOnClick,
+	.name = "Show tabbed panel by click",
+	.description = "Show Emoji / Stickers / GIFs panel only after a click.",
+});
+
 } // namespace
+
+const char kOptionTabbedPanelShowOnClick[] = "tabbed-panel-show-on-click";
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
@@ -408,7 +417,9 @@ void TabbedPanel::showStarted() {
 }
 
 bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
-	if (e->type() == QEvent::Enter) {
+	if (TabbedPanelShowOnClick.value()) {
+		return false;
+	} else if (e->type() == QEvent::Enter) {
 		otherEnter();
 	} else if (e->type() == QEvent::Leave) {
 		otherLeave();
