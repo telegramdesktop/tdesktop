@@ -129,12 +129,7 @@ protected:
 private:
 	class Inner;
 	friend class Inner;
-
-	struct StickerSuggestion {
-		not_null<DocumentData*> document;
-		std::shared_ptr<Data::DocumentMedia> documentMedia;
-		std::unique_ptr<Lottie::SinglePlayer> animated;
-	};
+	struct StickerSuggestion;
 
 	struct MentionRow {
 		not_null<UserData*> user;
