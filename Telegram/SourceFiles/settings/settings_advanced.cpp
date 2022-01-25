@@ -80,7 +80,9 @@ bool HasUpdate() {
 	return !Core::UpdaterDisabled();
 }
 
-void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
+void SetupUpdate(
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	if (!HasUpdate()) {
 		return;
 	}
@@ -111,6 +113,24 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		inner,
 		tr::lng_settings_install_beta(),
 		st::settingsButton).get();
+
+	if (showOther) {
+		const auto experimental = inner->add(
+			object_ptr<Ui::SlideWrap<Button>>(
+				inner,
+				object_ptr<Button>(
+					inner,
+					tr::lng_settings_experimental(),
+					st::settingsButton)));
+		if (!install) {
+			experimental->toggle(true, anim::type::instant);
+		} else {
+			experimental->toggleOn(install->toggledValue());
+		}
+		experimental->entity()->setClickedCallback([=] {
+			showOther(Type::Experimental);
+		});
+	}
 
 	const auto check = AddButton(
 		inner,
@@ -708,7 +728,9 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 			addDivider();
 			AddSkip(content);
 			AddSubsectionTitle(content, tr::lng_settings_version_info());
-			SetupUpdate(content);
+			SetupUpdate(content, [=](Type type) {
+				_showOther.fire_copy(type);
+			});
 			AddSkip(content);
 		}
 	};

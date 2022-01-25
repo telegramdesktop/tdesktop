@@ -41,6 +41,7 @@ enum class Type {
 	Chat,
 	Folders,
 	Calls,
+	Experimental,
 };
 
 using Button = Ui::SettingsButton;

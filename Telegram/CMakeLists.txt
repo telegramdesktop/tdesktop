@@ -1027,6 +1027,8 @@ PRIVATE
     settings/settings_codes.h
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/settings_experimental.cpp
+    settings/settings_experimental.h
     settings/settings_folders.cpp
     settings/settings_folders.h
     settings/settings_information.cpp
