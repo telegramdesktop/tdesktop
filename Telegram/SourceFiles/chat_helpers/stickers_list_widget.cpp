@@ -124,7 +124,7 @@ public:
 		uint64 setId,
 		ValidateIconAnimations animations);
 	void refreshIcons(ValidateIconAnimations animations);
-	bool hasOnlyFeaturedSets() const;
+	[[nodiscard]] bool hasOnlyFeaturedSets() const;
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
@@ -134,7 +134,7 @@ public:
 
 	void clearHeavyData();
 
-	rpl::producer<> openSettingsRequests() const;
+	[[nodiscard]] rpl::producer<> openSettingsRequests() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -153,8 +153,14 @@ private:
 		Settings,
 	};
 	using OverState = std::variant<SpecialOver, int>;
+	struct IconInfo {
+		int index = 0;
+		int left = 0;
+		bool visible = false;
+	};
 
-	void enumerateVisibleIcons(Fn<void(const StickerIcon &, int)> callback);
+	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback);
+	void enumerateIcons(Fn<void(const IconInfo &)> callback);
 
 	bool iconsAnimationCallback(crl::time now);
 	void setSelectedIcon(
@@ -167,10 +173,15 @@ private:
 	void refreshIconsGeometry(ValidateIconAnimations animations);
 	void updateSelected();
 	void updateSetIcon(uint64 setId);
+	void updateSetIconAt(int left);
 	void finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintSearchIcon(Painter &p) const;
-	void paintSetIcon(Painter &p, const StickerIcon &icon, int x) const;
+	void paintSetIcon(
+		Painter &p,
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const;
 	void paintSelectionBar(Painter &p) const;
 	void paintLeftRightFading(Painter &p) const;
 
@@ -178,6 +189,8 @@ private:
 	void toggleSearch(bool visible);
 	void resizeSearchControls();
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
+
+	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
 	const not_null<StickersListWidget*> _pan;
 	const bool _searchButtonVisible = true;
@@ -371,7 +384,7 @@ void StickersListWidget::Footer::returnFocus() {
 }
 
 void StickersListWidget::Footer::enumerateVisibleIcons(
-		Fn<void(const StickerIcon &, int)> callback) {
+		Fn<void(const IconInfo &)> callback) {
 	auto iconsX = qRound(_iconsX.current());
 	auto x = _iconsLeft - (iconsX % st::stickerIconWidth);
 	auto first = floorclamp(iconsX, st::stickerIconWidth, 0, _icons.size());
@@ -381,13 +394,32 @@ void StickersListWidget::Footer::enumerateVisibleIcons(
 		0,
 		_icons.size());
 	for (auto index = first; index != last; ++index) {
-		callback(_icons[index], x);
+		callback({ .index = index, .left = x, .visible = true });
+		x += st::stickerIconWidth;
+	}
+}
+
+void StickersListWidget::Footer::enumerateIcons(
+		Fn<void(const IconInfo &)> callback) {
+	auto iconsX = qRound(_iconsX.current());
+	auto x = _iconsLeft - (iconsX % st::stickerIconWidth);
+	auto first = floorclamp(iconsX, st::stickerIconWidth, 0, _icons.size());
+	auto last = ceilclamp(
+		iconsX + width(),
+		st::stickerIconWidth,
+		0,
+		_icons.size());
+	x -= first * st::stickerIconWidth;
+	for (auto i = 0, count = int(_icons.size()); i != count; ++i) {
+		const auto visible = (i >= first && i < last);
+		callback({ .index = i, .left = x, .visible = visible });
 		x += st::stickerIconWidth;
 	}
 }
 
 void StickersListWidget::Footer::preloadImages() {
-	enumerateVisibleIcons([](const StickerIcon &icon, int x) {
+	enumerateVisibleIcons([&](const IconInfo &info) {
+		const auto &icon = _icons[info.index];
 		if (const auto sticker = icon.sticker) {
 			Assert(icon.set != nullptr);
 			if (icon.set->hasThumbnail()) {
@@ -496,8 +528,11 @@ void StickersListWidget::Footer::paintEvent(QPaintEvent *e) {
 	}
 	p.setClipRect(clip);
 
-	enumerateVisibleIcons([&](const StickerIcon &icon, int x) {
-		paintSetIcon(p, icon, x);
+	const auto now = crl::now();
+	const auto paused = _pan->controller()->isGifPausedAtLeastFor(
+		Window::GifPauseReason::SavedGifs);
+	enumerateVisibleIcons([&](const IconInfo &info) {
+		paintSetIcon(p, info, now, paused);
 	});
 
 	paintSelectionBar(p);
@@ -690,6 +725,36 @@ void StickersListWidget::Footer::scrollByWheelEvent(
 	}
 }
 
+void StickersListWidget::Footer::clipCallback(
+		Media::Clip::Notification notification,
+		uint64 setId) {
+	using namespace Media::Clip;
+	switch (notification) {
+	case Notification::Reinit: {
+		enumerateIcons([&](const IconInfo &info) {
+			auto &icon = _icons[info.index];
+			if (icon.setId != setId || !icon.webm) {
+				return;
+			} else if (icon.webm->state() == State::Error) {
+				icon.webm.setBad();
+			} else if (!info.visible) {
+				icon.webm = nullptr;
+			} else if (icon.webm->ready() && !icon.webm->started()) {
+				icon.webm->start({
+					.frame = { icon.pixw, icon.pixh },
+					.keepAlpha = true,
+				});
+			}
+			updateSetIconAt(info.left);
+		});
+	} break;
+
+	case Notification::Repaint:
+		updateSetIcon(setId);
+		break;
+	}
+}
+
 void StickersListWidget::Footer::updateSelected() {
 	if (_iconDown != SpecialOver::None) {
 		return;
@@ -848,10 +913,13 @@ void StickersListWidget::Footer::validateIconWebmAnimation(
 		return;
 	}
 	const auto id = icon.setId;
+	auto callback = [=](Media::Clip::Notification notification) {
+		clipCallback(notification, id);
+	};
 	icon.webm = WebmThumbnail(
 		icon.thumbnailMedia.get(),
 		icon.stickerMedia.get(),
-		[=](Media::Clip::Notification) { updateSetIcon(id); });
+		std::move(callback));
 }
 
 void StickersListWidget::Footer::validateIconAnimation(
@@ -861,18 +929,24 @@ void StickersListWidget::Footer::validateIconAnimation(
 }
 
 void StickersListWidget::Footer::updateSetIcon(uint64 setId) {
-	enumerateVisibleIcons([&](const StickerIcon &icon, int x) {
-		if (icon.setId != setId) {
+	enumerateVisibleIcons([&](const IconInfo &info) {
+		if (_icons[info.index].setId != setId) {
 			return;
 		}
-		update(x, _iconsTop, st::stickerIconWidth, st::emojiFooterHeight);
+		updateSetIconAt(info.left);
 	});
+}
+
+void StickersListWidget::Footer::updateSetIconAt(int left) {
+	update(left, _iconsTop, st::stickerIconWidth, st::emojiFooterHeight);
 }
 
 void StickersListWidget::Footer::paintSetIcon(
 		Painter &p,
-		const StickerIcon &icon,
-		int x) const {
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const {
+	const auto &icon = _icons[info.index];
 	if (icon.sticker) {
 		icon.ensureMediaCreated();
 		const_cast<Footer*>(this)->validateIconAnimation(icon);
@@ -882,8 +956,35 @@ void StickersListWidget::Footer::paintSetIcon(
 			: icon.stickerMedia
 			? icon.stickerMedia->thumbnail()
 			: nullptr;
-		if (!icon.lottie
-			|| (!icon.lottie->ready() && !icon.savedFrame.isNull())) {
+		const auto x = info.left + (st::stickerIconWidth - icon.pixw) / 2;
+		const auto y = _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2;
+		if (icon.lottie && icon.lottie->ready()) {
+			const auto frame = icon.lottie->frame();
+			const auto size = frame.size() / cIntRetinaFactor();
+			if (icon.savedFrame.isNull()) {
+				icon.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
+				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
+			}
+			p.drawImage(
+				QRect(
+					info.left + (st::stickerIconWidth - size.width()) / 2,
+					_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
+					size.width(),
+					size.height()),
+				frame);
+			if (!paused) {
+				icon.lottie->markFrameShown();
+			}
+		} else if (icon.webm && icon.webm->started()) {
+			const auto frame = icon.webm->current(
+				{ .frame = { icon.pixw, icon.pixh }, .keepAlpha = true },
+				paused ? 0 : now);
+			if (icon.savedFrame.isNull()) {
+				icon.savedFrame = frame;
+				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
+			}
+			p.drawPixmapLeft(x, y, width(), frame);
+		} else if (!icon.savedFrame.isNull() || thumb) {
 			const auto pixmap = !icon.savedFrame.isNull()
 				? icon.savedFrame
 				: (!icon.lottie && thumb)
@@ -894,33 +995,17 @@ void StickersListWidget::Footer::paintSetIcon(
 			} else if (icon.savedFrame.isNull()) {
 				icon.savedFrame = pixmap;
 			}
-			p.drawPixmapLeft(
-				x + (st::stickerIconWidth - icon.pixw) / 2,
-				_iconsTop + (st::emojiFooterHeight - icon.pixh) / 2,
-				width(),
-				pixmap);
-		} else if (icon.lottie->ready()) {
-			const auto frame = icon.lottie->frame();
-			const auto size = frame.size() / cIntRetinaFactor();
-			if (icon.savedFrame.isNull()) {
-				icon.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
-				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
-			}
-			p.drawImage(
-				QRect(
-					x + (st::stickerIconWidth - size.width()) / 2,
-					_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
-					size.width(),
-					size.height()),
-				frame);
-			const auto paused = _pan->controller()->isGifPausedAtLeastFor(
-				Window::GifPauseReason::SavedGifs);
-			if (!paused) {
-				icon.lottie->markFrameShown();
-			}
+			p.drawPixmapLeft(x, y, width(), pixmap);
 		}
 	} else if (icon.megagroup) {
-		icon.megagroup->paintUserpicLeft(p, icon.megagroupUserpic, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
+		const auto size = st::stickerGroupCategorySize;
+		icon.megagroup->paintUserpicLeft(
+			p,
+			icon.megagroupUserpic,
+			info.left + (st::stickerIconWidth - size) / 2,
+			_iconsTop + (st::emojiFooterHeight - size) / 2,
+			width(),
+			st::stickerGroupCategorySize);
 	} else {
 		const auto paintedIcon = [&] {
 			if (icon.setId == Data::Stickers::FeaturedSetId) {
@@ -935,7 +1020,7 @@ void StickersListWidget::Footer::paintSetIcon(
 		}();
 		paintedIcon->paint(
 			p,
-			x + (st::stickerIconWidth - paintedIcon->width()) / 2,
+			info.left + (st::stickerIconWidth - paintedIcon->width()) / 2,
 			_iconsTop + (st::emojiFooterHeight - paintedIcon->height()) / 2,
 			width());
 	}
@@ -2158,12 +2243,14 @@ void StickersListWidget::paintSticker(
 		}
 		set.lottiePlayer->unpause(sticker.lottie);
 	} else if (sticker.webm && sticker.webm->started()) {
-		p.drawPixmapLeft(
-			ppos,
-			width(),
-			sticker.webm->current(
-				{ .frame = size, .keepAlpha = true },
-				paused ? 0 : now));
+		const auto frame = sticker.webm->current(
+			{ .frame = size, .keepAlpha = true },
+			paused ? 0 : now);
+		if (sticker.savedFrame.isNull()) {
+			sticker.savedFrame = frame;
+			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
+		}
+		p.drawPixmapLeft(ppos, width(), frame);
 	} else {
 		const auto image = media->getStickerSmall();
 		const auto pixmap = !sticker.savedFrame.isNull()
