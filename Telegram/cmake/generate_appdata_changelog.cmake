@@ -16,8 +16,6 @@ function(generate_appdata_changelog target_name changelog_path appdata_path)
     add_custom_command(
     OUTPUT
         ${gen_timestamp}
-    BYPRODUCTS
-        ${gen_files}
     COMMAND
         ${Python3_EXECUTABLE}
         ${submodules_loc}/build/changelog2appdata.py
