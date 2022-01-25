@@ -327,8 +327,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	_codecContext->pkt_timebase = _fmtContext->streams[_streamId]->time_base;
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
-	const auto codec = avcodec_find_decoder(_codecContext->codec_id);
-
+	const auto codec = FFmpeg::FindDecoder(_codecContext);
 	if (_mode == Mode::Inspecting) {
 		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 		_hasAudioStream = (audioStreamId >= 0);

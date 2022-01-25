@@ -154,6 +154,13 @@ void FormatDeleter::operator()(AVFormatContext *value) {
 	}
 }
 
+AVCodec *FindDecoder(not_null<AVCodecContext*> context) {
+	// Force libvpx-vp9, because we need alpha channel support.
+	return (context->codec_id == AV_CODEC_ID_VP9)
+		? avcodec_find_decoder_by_name("libvpx-vp9")
+		: avcodec_find_decoder(context->codec_id);
+}
+
 CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 	auto error = AvErrorWrap();
 
@@ -172,7 +179,7 @@ CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 	av_opt_set(context, "threads", "auto", 0);
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
 
-	const auto codec = avcodec_find_decoder(context->codec_id);
+	const auto codec = FindDecoder(context);
 	if (!codec) {
 		LogError(qstr("avcodec_find_decoder"), context->codec_id);
 		return {};
