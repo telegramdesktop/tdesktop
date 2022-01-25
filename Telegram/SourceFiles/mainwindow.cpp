@@ -596,11 +596,11 @@ bool MainWindow::doWeMarkAsRead() {
 	if (!_main || Ui::isLayerShown()) {
 		return false;
 	}
-	updateIsActive();
 	return isActive() && _main->doWeMarkAsRead();
 }
 
 void MainWindow::checkHistoryActivation() {
+	updateIsActive();
 	if (_main) {
 		_main->checkHistoryActivation();
 	}
