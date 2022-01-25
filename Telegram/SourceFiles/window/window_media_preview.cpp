@@ -260,7 +260,9 @@ void MediaPreviewWidget::setupLottie() {
 QPixmap MediaPreviewWidget::currentImage() const {
 	const auto blur = Images::PrepareArgs{ .options = Images::Option::Blur };
 	if (_document) {
-		if (const auto sticker = _document->sticker()) {
+		const auto sticker = _document->sticker();
+		const auto webm = sticker && sticker->isWebm();
+		if (sticker && !webm) {
 			if (_cacheStatus != CacheLoaded) {
 				if (sticker->isLottie() && !_lottie && _documentMedia->loaded()) {
 					const_cast<MediaPreviewWidget*>(this)->setupLottie();
@@ -288,7 +290,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				const auto paused = _controller->isGifPausedAtLeastFor(
 					Window::GifPauseReason::MediaPreview);
 				return gif->current(
-					{ .frame = currentDimensions() },
+					{ .frame = currentDimensions(), .keepAlpha = webm },
 					paused ? 0 : crl::now());
 			}
 			if (_cacheStatus != CacheThumbLoaded
@@ -337,7 +339,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 
 void MediaPreviewWidget::startGifAnimation(
 		const Media::Clip::ReaderPointer &gif) {
-	gif->start({ .frame = currentDimensions() });
+	gif->start({ .frame = currentDimensions(), .keepAlpha = _gifWithAlpha });
 }
 
 void MediaPreviewWidget::validateGifAnimation() {
@@ -370,6 +372,7 @@ void MediaPreviewWidget::validateGifAnimation() {
 	const auto callback = [=](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	};
+	_gifWithAlpha = (_documentMedia->owner()->sticker() != nullptr);
 	if (contentLoaded) {
 		_gif = Media::Clip::MakeReader(
 			_documentMedia->owner()->location(),
