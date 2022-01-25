@@ -225,6 +225,10 @@ private:
 	void validateAnimation(not_null<Row*> row);
 	void updateRowThumbnail(not_null<Row*> row);
 
+	void clipCallback(
+		not_null<Row*> row,
+		Media::Clip::Notification notification);
+
 	void readVisibleSets();
 
 	void updateControlsGeometry();
@@ -1361,21 +1365,16 @@ void StickersBox::Inner::paintRowThumbnail(
 		}
 	}
 	validateAnimation(row);
-	if (!row->lottie) {
-		const auto thumb = row->thumbnailMedia
-			? row->thumbnailMedia->image()
-			: row->stickerMedia
-			? row->stickerMedia->thumbnail()
-			: nullptr;
-		if (!thumb) {
-			return;
-		}
-		p.drawPixmapLeft(
-			left + (st::contactsPhotoSize - row->pixw) / 2,
-			st::contactsPadding.top() + (st::contactsPhotoSize - row->pixh) / 2,
-			width(),
-			thumb->pix(row->pixw, row->pixh));
-	} else if (row->lottie->ready()) {
+	const auto thumb = row->thumbnailMedia
+		? row->thumbnailMedia->image()
+		: row->stickerMedia
+		? row->stickerMedia->thumbnail()
+		: nullptr;
+	const auto paused = _controller->isGifPausedAtLeastFor(
+		Window::GifPauseReason::Layer);
+	const auto x = left + (st::contactsPhotoSize - row->pixw) / 2;
+	const auto y = st::contactsPadding.top() + (st::contactsPhotoSize - row->pixh) / 2;
+	if (row->lottie && row->lottie->ready()) {
 		const auto frame = row->lottie->frame();
 		const auto size = frame.size() / cIntRetinaFactor();
 		p.drawImage(
@@ -1385,11 +1384,23 @@ void StickersBox::Inner::paintRowThumbnail(
 				size.width(),
 				size.height()),
 			frame);
-		const auto paused = _controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
 		if (!paused) {
 			row->lottie->markFrameShown();
 		}
+	} else if (row->webm && row->webm->started()) {
+		p.drawPixmapLeft(
+			x,
+			y,
+			width(),
+			row->webm->current(
+				{ .frame = { row->pixw, row->pixh }, .keepAlpha = true },
+				paused ? 0 : crl::now()));
+	} else if (thumb) {
+		p.drawPixmapLeft(
+			x,
+			y,
+			width(),
+			thumb->pix(row->pixw, row->pixh));
 	}
 }
 
@@ -1426,10 +1437,36 @@ void StickersBox::Inner::validateWebmAnimation(not_null<Row*> row) {
 			row->stickerMedia.get())) {
 		return;
 	}
+	auto callback = [=](Media::Clip::Notification notification) {
+		clipCallback(row, notification);
+	};
 	row->webm = ChatHelpers::WebmThumbnail(
 		row->thumbnailMedia.get(),
 		row->stickerMedia.get(),
-		[=](Media::Clip::Notification) { updateRowThumbnail(row); });
+		std::move(callback));
+}
+
+void StickersBox::Inner::clipCallback(
+		not_null<Row*> row,
+		Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+	switch (notification) {
+	case Notification::Reinit: {
+		if (!row->webm) {
+			return;
+		} else if (row->webm->state() == State::Error) {
+			row->webm.setBad();
+		} else if (row->webm->ready() && !row->webm->started()) {
+			row->webm->start({
+				.frame = { row->pixw, row->pixh },
+				.keepAlpha = true,
+			});
+		}
+	} break;
+
+	case Notification::Repaint: break;
+	}
+	updateRowThumbnail(row);
 }
 
 void StickersBox::Inner::validateAnimation(not_null<Row*> row) {
