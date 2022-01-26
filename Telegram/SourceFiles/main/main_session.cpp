@@ -393,6 +393,7 @@ void Session::uploadsStopWithConfirmation(Fn<void()> done) {
 		}
 	});
 	window->show(std::move(box));
+	window->activate();
 }
 
 void Session::uploadsStop() {
