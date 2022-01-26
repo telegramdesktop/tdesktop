@@ -24,7 +24,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kPerPageFirst = 20;
-constexpr auto kPerPage = 200;
+constexpr auto kPerPage = 100;
 
 class Row final : public PeerListRow {
 public:
@@ -247,7 +247,7 @@ void Controller::loadMore(const QString &reaction) {
 		MTP_int(_item->id),
 		MTP_string(reaction),
 		MTP_string(offset),
-		MTP_int(kPerPageFirst)
+		MTP_int(offset.isEmpty() ? kPerPageFirst : kPerPage)
 	)).done([=](const MTPmessages_MessageReactionsList &result) {
 		_loadRequestId = 0;
 		const auto filtered = !reaction.isEmpty();
