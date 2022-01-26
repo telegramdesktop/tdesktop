@@ -8,14 +8,15 @@
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "fakepasscode/action_ui/fakepasscode_box.h"
+#include "fakepasscode/ui/fakepasscode_box.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
-#include "fakepasscode/action_ui/action_ui.h"
+#include "fakepasscode/ui/action_ui.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "boxes/abstract_box.h"
 #include "ui/text/text_utilities.h"
+#include "fakepasscode/log/fake_log.h"
 
 class FakePasscodeContentBox;
 
@@ -65,13 +66,7 @@ void FakePasscodeContent::setupContent() {
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
 
     for (const auto& type : FakePasscode::kAvailableActions) {
-        std::shared_ptr<FakePasscode::Action> action = _domain->local().GetAction(_passcodeIndex, type);
-        DEBUG_LOG(qsl("FakePasscodeContent: Found action in domain?: %1").arg(action != nullptr));
-        if (!action) {
-            action = FakePasscode::CreateAction(type, QByteArray());
-        }
-
-        const auto ui = GetUIByAction(action, _domain, _passcodeIndex, this);
+        const auto ui = GetUIByAction(type, _domain, _passcodeIndex, this);
         ui->Create(content);
         Settings::AddDivider(content);
     }
@@ -111,9 +106,10 @@ FakePasscodeList::FakePasscodeList(QWidget * parent, not_null<Main::Domain *> do
 
 void FakePasscodeList::draw(size_t passcodesSize) {
     using namespace Settings;
+    FAKE_LOG(("Draw %1 passccodes").arg(passcodesSize));
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     for (size_t i = 0; i < passcodesSize; ++i) {
-        AddButton(content, tr::lng_fakepasscode(lt_caption, rpl::single(_domain->local().GetFakePasscodeName(i))),
+        AddButton(content, tr::lng_fakepasscode(lt_caption, _domain->local().GetFakePasscodeName(i)),
                   st::settingsButton)->addClickHandler([this, i]{
             _controller->show(Box<FakePasscodeContentBox>(_domain, _controller, i),
                               Ui::LayerOption::KeepOther);
@@ -124,7 +120,26 @@ void FakePasscodeList::draw(size_t passcodesSize) {
         _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, true, 0), // _domain
                           Ui::LayerOption::KeepOther);
     });
+    AddDividerText(content, tr::lng_special_actions());
+    const auto toggledCacheCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonCacheCleaning = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton)
+            ->toggleOn(toggledCacheCleaning->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
+
+    buttonCacheCleaning->addClickHandler([=] {
+        _domain->local().SetCacheCleanedUpOnLock(buttonCacheCleaning->toggled());
+        _domain->local().writeAccounts();
+    });
+
+    const auto toggledLogging = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonLogging = AddButton(content, tr::lng_enable_advance_logging(), st::settingsButton)
+            ->toggleOn(toggledLogging->events_starting_with_copy(_domain->local().IsAdvancedLoggingEnabled()));
+
+    buttonLogging->addClickHandler([=] {
+        _domain->local().SetAdvancedLoggingEnabled(buttonLogging->toggled());
+        _domain->local().writeAccounts();
+    });
     Ui::ResizeFitChild(this, content);
+    FAKE_LOG(("Draw %1 passccodes: success").arg(passcodesSize));
 }
 
 void FakePasscodeList::setupContent() {

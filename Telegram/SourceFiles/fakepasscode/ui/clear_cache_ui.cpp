@@ -8,10 +8,9 @@
 #include "styles/style_settings.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
+#include "fakepasscode/log/fake_log.h"
 
 void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
-//    auto passcode = _domain->local().GetFakePasscode(_index);
-//    std::move(passcode) | rpl::start_with_next([this, content](FakePasscode::FakePasscode&&) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_cache());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto *button = Settings::AddButton(content, tr::lng_clear_cache(), st::settingsButton)
@@ -19,15 +18,16 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearCache)));
     button->addClickHandler([=] {
         if (button->toggled()) {
-            _domain->local().AddAction(_index, _action);
+            FAKE_LOG(qsl("Add action ClearCache to %1").arg(_index));
+            _domain->local().AddAction(_index, FakePasscode::ActionType::ClearCache);
         } else {
-            _domain->local().RemoveAction(_index, _action);
+            FAKE_LOG(qsl("Remove action ClearCache from %1").arg(_index));
+            _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearCache);
         }
+        _domain->local().writeAccounts();
     });
-//    });
 }
 
-ClearCacheUI::ClearCacheUI(QWidget * parent, std::shared_ptr<FakePasscode::Action> action,
-                           gsl::not_null<Main::Domain*> domain, size_t index)
-        : ActionUI(parent, std::move(action), domain, index) {
+ClearCacheUI::ClearCacheUI(QWidget * parent, gsl::not_null<Main::Domain*> domain, size_t index)
+        : ActionUI(parent, FakePasscode::ActionType::ClearCache, domain, index) {
 }

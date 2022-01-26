@@ -1,6 +1,7 @@
 #include "fakepasscode_translator.h"
 
 #include "lang_auto.h"
+#include "fakepasscode/log/fake_log.h"
 
 class TagParser {
 public:
@@ -47,7 +48,7 @@ TagParser::TagParser(
 bool TagParser::logError(const QString &text) {
     _failed = true;
     auto loggedKey = (_currentTag.size() > 0) ? (_currentTag) : QString("");
-    DEBUG_LOG(qsl("Lang Error: %1 (key '%2')").arg(text, loggedKey));
+    FAKE_LOG(qsl("Lang Error: %1 (key '%2')").arg(text, loggedKey));
     return false;
 }
 
@@ -87,7 +88,7 @@ bool TagParser::readTag() {
 
     if (_currentTagReplacer.isEmpty()) {
         _currentTagReplacer = QString(4, TextCommand);
-        _currentTagReplacer[1] = TextCommandLangTag;
+        _currentTagReplacer[1] = kTextCommandLangTag;
     }
     _currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
 
@@ -111,7 +112,7 @@ QString MakeTranslationWithTag(ushort key, const QString& text, const QString& t
 }
 
 QString Translate(ushort key, const QString& value, const QString& lang_id) {
-    DEBUG_LOG(qsl("FakePasscodeTranslate: lang_id=%1").arg(lang_id));
+    FAKE_LOG(qsl("FakePasscodeTranslate: lang_id=%1").arg(lang_id));
     if (lang_id == "Russian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
@@ -153,6 +154,15 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_special_actions.base: {
+                return "Специальные действия";
+            }
+            case tr::lng_clear_cache_on_lock.base: {
+                return "Очищать кэш при блокировке";
+            }
+            case tr::lng_enable_advance_logging.base: {
+                return "Включить логи (только для разработки!)";
             }
         }
     } else if (lang_id == "Belarusian") {
@@ -197,8 +207,17 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 }
                 break;
             }
+            case tr::lng_special_actions.base: {
+                return "Спецыяльныя дзеянні";
+            }
+            case tr::lng_clear_cache_on_lock.base: {
+                return "Ачысціць кэш пры блакаванні";
+            }
+            case tr::lng_enable_advance_logging.base: {
+                return "Уключыць логі (толькі для распрацоўкі!)";
+            }
         }
     }
-
+    FAKE_LOG(("Nothing found, return simple value"));
     return value;
 }

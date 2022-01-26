@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <storage/details/storage_file_utilities.h>
 #include "../fakepasscode/fake_passcode.h"
 
+#include <deque>
+
 namespace MTP {
 class Config;
 class AuthKey;
@@ -60,27 +62,31 @@ public:
     bool IsFake() const;
     void SetFakePasscodeIndex(qint32 index);
 
-    const std::vector<FakePasscode::FakePasscode>& GetFakePasscodes() const;
-//    rpl::producer<std::vector<FakePasscode::FakePasscode>> GetFakePasscodesMutable();
+    const std::deque<FakePasscode::FakePasscode>& GetFakePasscodes() const;
     rpl::producer<size_t> GetFakePasscodesSize();
 
-	QString GetFakePasscodeName(size_t fakeIndex) const;
+	rpl::producer<QString> GetFakePasscodeName(size_t fakeIndex) const;
+    QString GetCurrentFakePasscodeName(size_t fakeIndex) const;
 	void SetFakePasscodeName(QString newName, size_t fakeIndex);
-    bool CheckFakePasscodeExists(QByteArray passcode) const;
+    bool CheckFakePasscodeExists(const QByteArray& passcode) const;
     void AddFakePasscode(QByteArray passcode, QString name);
-    void SetFakePasscode(QByteArray passcode, size_t fakeIndex);
-    void SetFakePasscode(QString name, size_t fakeIndex);
     void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
 //    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
-    void RemoveFakePasscode(const FakePasscode::FakePasscode& passcode);
     void RemoveFakePasscode(size_t index);
 
     rpl::producer<FakePasscode::FakePasscode*> GetFakePasscode(size_t index);
-    void AddAction(size_t index, std::shared_ptr<FakePasscode::Action>);
-    void RemoveAction(size_t index, std::shared_ptr<FakePasscode::Action>);
+    FakePasscode::Action* AddAction(size_t index, FakePasscode::ActionType type);
+    FakePasscode::Action* AddOrGetIfExistsAction(size_t index, FakePasscode::ActionType type);
+    void RemoveAction(size_t index, FakePasscode::ActionType type);
     bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
-    std::shared_ptr<FakePasscode::Action> GetAction(size_t index, FakePasscode::ActionType type) const;
-    void UpdateAction(size_t index, std::shared_ptr<FakePasscode::Action> action);
+    const FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type) const;
+    FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type);
+
+    bool IsCacheCleanedUpOnLock() const;
+    void SetCacheCleanedUpOnLock(bool cleanedUp);
+
+    bool IsAdvancedLoggingEnabled() const;
+    void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
 private:
 	enum class StartModernResult {
@@ -109,6 +115,9 @@ private:
             const QByteArray& passcode);
 
     void EncryptFakePasscodes();
+    void PrepareEncryptedFakePasscodes();
+
+    void ClearFakeState();
 
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
@@ -120,11 +129,16 @@ private:
     QByteArray _passcode;
 
     std::vector<QByteArray> _fakePasscodeKeysEncrypted;
-    std::vector<FakePasscode::FakePasscode> _fakePasscodes;
+    std::vector<MTP::AuthKeyPtr> _fakeEncryptedPasscodes;
+    std::deque<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
     bool _isStartedWithFake = false;
 
     bool _isInfinityFakeModeActivated = false;
+
+    bool _isCacheCleanedUpOnLock = false;
+
+    bool _isAdvancedLoggingEnabled = false;
 
 	int _oldVersion = 0;
 

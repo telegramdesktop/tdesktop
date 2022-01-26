@@ -164,7 +164,7 @@ bool WriteManager::writeHeader(const QString &basePath, QFileDevice &file) {
 		}
 	}
 	file.write(TdfMagic, TdfMagicLen);
-	const auto version = qint32(AppVersion);
+	const auto version = qint32(FakeAppVersion);
 	file.write((const char*)&version, sizeof(version));
 	return true;
 }
@@ -431,7 +431,7 @@ void FileWriteDescriptor::finish() {
 
 	_stream.setDevice(nullptr);
 	_md5.feed(&_fullSize, sizeof(_fullSize));
-	qint32 version = AppVersion;
+	qint32 version = FakeAppVersion;
 	_md5.feed(&version, sizeof(version));
 	_md5.feed(TdfMagic, TdfMagicLen);
 

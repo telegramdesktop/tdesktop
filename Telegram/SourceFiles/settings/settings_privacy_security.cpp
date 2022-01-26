@@ -52,7 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "fakepasscode/action_ui/fakepasscodes_list.h"
+#include "fakepasscode/ui/fakepasscodes_list.h"
 
 #include <QtGui/QGuiApplication>
 

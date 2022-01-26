@@ -1,7 +1,7 @@
 #ifndef TELEGRAM_CLEAR_CACHE_H
 #define TELEGRAM_CLEAR_CACHE_H
 
-#include "action.h"
+#include "fakepasscode/action.h"
 
 namespace FakePasscode {
     class ClearCache : public Action {
