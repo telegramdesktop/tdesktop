@@ -639,6 +639,24 @@ void Application::logout(Main::Account *account) {
 	}
 }
 
+void Application::logoutWithChecks(Main::Account *account) {
+	const auto weak = base::make_weak(account);
+	const auto retry = [=] {
+		if (const auto account = weak.get()) {
+			logoutWithChecks(account);
+		}
+	};
+	if (!account || !account->sessionExists()) {
+		logout(account);
+	} else if (_exportManager->inProgress(&account->session())) {
+		_exportManager->stopWithConfirmation(retry);
+	} else if (account->session().uploadsInProgress()) {
+		account->session().uploadsStopWithConfirmation(retry);
+	} else {
+		logout(account);
+	}
+}
+
 void Application::forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation) {
@@ -747,6 +765,33 @@ bool Application::exportPreventsQuit() {
 		return true;
 	}
 	return false;
+}
+
+bool Application::uploadPreventsQuit() {
+	if (!_domain->started()) {
+		return false;
+	}
+	for (const auto &[index, account] : _domain->accounts()) {
+		if (!account->sessionExists()) {
+			continue;
+		}
+		if (account->session().uploadsInProgress()) {
+			account->session().uploadsStopWithConfirmation([=] {
+				for (const auto &[index, account] : _domain->accounts()) {
+					if (account->sessionExists()) {
+						account->session().uploadsStop();
+					}
+				}
+				App::quit();
+			});
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Application::preventsQuit() {
+	return exportPreventsQuit() || uploadPreventsQuit();
 }
 
 int Application::unreadBadge() const {

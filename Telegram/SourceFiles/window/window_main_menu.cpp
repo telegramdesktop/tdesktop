@@ -350,7 +350,7 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 		const auto session = _session;
 		const auto callback = [=](Fn<void()> &&close) {
 			close();
-			Core::App().logout(&session->account());
+			Core::App().logoutWithChecks(&session->account());
 		};
 		Ui::show(Box<Ui::ConfirmBox>(
 			tr::lng_sure_logout(tr::now),

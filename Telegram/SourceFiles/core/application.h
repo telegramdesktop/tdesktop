@@ -239,9 +239,11 @@ public:
 	}
 
 	void logout(Main::Account *account = nullptr);
+	void logoutWithChecks(Main::Account *account);
 	void forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
+	[[nodiscard]] bool uploadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();
@@ -252,6 +254,8 @@ public:
 	void checkAutoLock(crl::time lastNonIdleTime = 0);
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
+
+	[[nodiscard]] bool preventsQuit();
 
 	[[nodiscard]] crl::time lastNonIdleTime() const;
 	void updateNonIdle();

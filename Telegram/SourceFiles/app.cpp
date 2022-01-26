@@ -82,7 +82,7 @@ namespace App {
 		if (quitting()) {
 			return;
 		} else if (Core::IsAppLaunched()
-			&& Core::App().exportPreventsQuit()) {
+			&& Core::App().preventsQuit()) {
 			return;
 		}
 		setLaunchState(QuitRequested);

@@ -70,16 +70,11 @@ constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 		const ClickHandlerContext &context,
 		not_null<Main::Session*> session) {
 	if (const auto controller = context.sessionWindow.get()) {
-		return controller;
-	}
-	const auto &windows = session->windows();
-	if (windows.empty()) {
-		session->domain().activate(&session->account());
-		if (windows.empty()) {
-			return nullptr;
+		if (&controller->session() == session) {
+			return controller;
 		}
 	}
-	return windows.front();
+	return session->tryResolveWindow();
 }
 
 } // namespace

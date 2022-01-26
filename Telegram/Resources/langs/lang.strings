@@ -1922,6 +1922,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_delete" = "Delete";
 "lng_box_leave" = "Leave";
 
+"lng_upload_sure_stop" = "Are you sure you want to stop uploading your files?\n\nIf you do, you'll need to start over.";
+"lng_upload_show_file" = "Show file";
+
 "lng_about_version" = "version {version}";
 "lng_about_text1" = "Official free messaging app based on {api_link}\nfor speed and security.";
 "lng_about_text1_api" = "Telegram API";

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_replies_section.h"
 #include "history/view/history_view_react_button.h"
 #include "history/view/history_view_reactions.h"
+#include "history/view/history_view_scheduled_section.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "data/data_document_resolver.h"
@@ -1320,10 +1321,16 @@ void SessionController::showPeerHistoryAtItem(
 	_window->invokeForSessionController(
 		&item->history()->peer->session().account(),
 		[=](not_null<SessionController*> controller) {
-			controller->showPeerHistory(
-				item->history()->peer,
-				SectionShow::Way::ClearStack,
-				item->id);
+			if (item->isScheduled()) {
+				controller->showSection(
+					std::make_shared<HistoryView::ScheduledMemento>(
+						item->history()));
+			} else {
+				controller->showPeerHistory(
+					item->history()->peer,
+					SectionShow::Way::ClearStack,
+					item->id);
+			}
 		});
 }
 
