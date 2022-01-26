@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <any>
 
-enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
 class ReplyKeyboard;
 class HistoryMessage;
@@ -49,6 +48,10 @@ class MessageReactions;
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace HistoryUnreadThings {
+enum class AddType;
+} // namespace HistoryUnreadThings
 
 namespace HistoryView {
 struct TextState;
@@ -140,9 +143,13 @@ public:
 	void markClientSideAsRead();
 	[[nodiscard]] bool mentionsMe() const;
 	[[nodiscard]] bool isUnreadMention() const;
+	[[nodiscard]] bool hasUnreadReaction() const;
 	[[nodiscard]] bool isUnreadMedia() const;
+	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
-	void markMediaRead();
+	void markReactionsRead();
+	void markMediaAndMentionRead();
+	bool markContentsRead();
 	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.
@@ -274,7 +281,7 @@ public:
 	virtual void contributeToSlowmode(TimeId realDate = 0) {
 	}
 
-	virtual void addToUnreadMentions(UnreadMentionType type);
+	virtual void addToUnreadThings(HistoryUnreadThings::AddType type);
 	virtual void destroyHistoryEntry() {
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;

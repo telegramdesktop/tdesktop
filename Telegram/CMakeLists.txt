@@ -147,6 +147,8 @@ PRIVATE
     api/api_text_entities.h
     api/api_toggling_media.cpp
     api/api_toggling_media.h
+    api/api_unread_things.cpp
+    api/api_unread_things.h
     api/api_updates.cpp
     api/api_updates.h
     api/api_user_privacy.cpp
@@ -686,6 +688,8 @@ PRIVATE
     history/history_message.h
     history/history_service.cpp
     history/history_service.h
+    history/history_unread_things.cpp
+    history/history_unread_things.h
     history/history_widget.cpp
     history/history_widget.h
     info/info_content_widget.cpp

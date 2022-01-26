@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_item_components.h"
 #include "history/history_inner_widget.h"
+#include "history/history_unread_things.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -128,11 +129,11 @@ void History::popNotification(ItemNotification notification) {
 }
 
 bool History::hasPendingResizedItems() const {
-	return _flags & Flag::f_has_pending_resized_items;
+	return _flags & Flag::HasPendingResizedItems;
 }
 
 void History::setHasPendingResizedItems() {
-	_flags |= Flag::f_has_pending_resized_items;
+	_flags |= Flag::HasPendingResizedItems;
 }
 
 void History::itemRemoved(not_null<HistoryItem*> item) {
@@ -691,106 +692,40 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		true);
 }
 
-void History::setUnreadMentionsCount(int count) {
-	const auto had = _unreadMentionsCount && (*_unreadMentionsCount > 0);
-	if (_unreadMentions.size() > count) {
-		LOG(("API Warning: real mentions count is greater than received mentions count"));
-		count = _unreadMentions.size();
-	}
-	_unreadMentionsCount = count;
-	const auto has = (count > 0);
-	if (has != had) {
-		owner().chatsFilters().refreshHistory(this);
-		updateChatListEntry();
-	}
+void History::setUnreadThingsKnown() {
+	_flags &= ~Flag::UnreadThingsKnown;
 }
 
-bool History::addToUnreadMentions(
-		MsgId msgId,
-		UnreadMentionType type) {
-	if (peer->isChannel() && !peer->isMegagroup()) {
-		return false;
-	}
-	auto allLoaded = _unreadMentionsCount
-		? (_unreadMentions.size() >= *_unreadMentionsCount)
-		: false;
-	if (allLoaded) {
-		if (type == UnreadMentionType::New) {
-			_unreadMentions.insert(msgId);
-			setUnreadMentionsCount(*_unreadMentionsCount + 1);
-			return true;
-		}
-	} else if (!_unreadMentions.empty() && type != UnreadMentionType::New) {
-		_unreadMentions.insert(msgId);
-		return true;
-	}
-	return false;
-}
-
-void History::eraseFromUnreadMentions(MsgId msgId) {
-	_unreadMentions.remove(msgId);
-	if (_unreadMentionsCount && *_unreadMentionsCount > 0) {
-		setUnreadMentionsCount(*_unreadMentionsCount - 1);
-	}
-	session().changes().historyUpdated(this, UpdateFlag::UnreadMentions);
-}
-
-void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
-	auto count = 0;
-	auto messages = (const QVector<MTPMessage>*)nullptr;
-	auto getMessages = [&](auto &list) {
-		owner().processUsers(list.vusers());
-		owner().processChats(list.vchats());
-		return &list.vmessages().v;
+HistoryUnreadThings::Proxy History::unreadMentions() {
+	return {
+		this,
+		_unreadThings,
+		HistoryUnreadThings::Type::Mentions,
+		!!(_flags & Flag::UnreadThingsKnown),
 	};
-	switch (result.type()) {
-	case mtpc_messages_messages: {
-		auto &d = result.c_messages_messages();
-		messages = getMessages(d);
-		count = messages->size();
-	} break;
+}
 
-	case mtpc_messages_messagesSlice: {
-		auto &d = result.c_messages_messagesSlice();
-		messages = getMessages(d);
-		count = d.vcount().v;
-	} break;
+HistoryUnreadThings::ConstProxy History::unreadMentions() const {
+	return {
+		_unreadThings ? &_unreadThings->mentions : nullptr,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
 
-	case mtpc_messages_channelMessages: {
-		LOG(("API Error: unexpected messages.channelMessages! (History::addUnreadMentionsSlice)"));
-		auto &d = result.c_messages_channelMessages();
-		messages = getMessages(d);
-		count = d.vcount().v;
-	} break;
+HistoryUnreadThings::Proxy History::unreadReactions() {
+	return {
+		this,
+		_unreadThings,
+		HistoryUnreadThings::Type::Reactions,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
 
-	case mtpc_messages_messagesNotModified: {
-		LOG(("API Error: received messages.messagesNotModified! (History::addUnreadMentionsSlice)"));
-	} break;
-
-	default: Unexpected("type in History::addUnreadMentionsSlice");
-	}
-
-	auto added = false;
-	if (messages) {
-		const auto localFlags = MessageFlags();
-		const auto type = NewMessageType::Existing;
-		for (const auto &message : *messages) {
-			const auto item = addNewMessage(
-				IdFromMessage(message),
-				message,
-				localFlags,
-				type);
-			if (item && item->isUnreadMention()) {
-				_unreadMentions.insert(item->id);
-				added = true;
-			}
-		}
-	}
-	if (!added) {
-		count = _unreadMentions.size();
-	}
-	setUnreadMentionsCount(count);
-	session().changes().historyUpdated(this, UpdateFlag::UnreadMentions);
+HistoryUnreadThings::ConstProxy History::unreadReactions() const {
+	return {
+		_unreadThings ? &_unreadThings->reactions : nullptr,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
 }
 
 not_null<HistoryItem*> History::addNewToBack(
@@ -1368,7 +1303,7 @@ void History::addItemsToLists(
 		markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 	}
 	for (const auto &item : ranges::views::reverse(items)) {
-		item->addToUnreadMentions(UnreadMentionType::Existing);
+		item->addToUnreadThings(HistoryUnreadThings::AddType::Existing);
 		if (item->from()->id) {
 			if (lastAuthors) { // chats
 				if (auto user = item->from()->asUser()) {
@@ -1433,7 +1368,7 @@ void History::checkAddAllToUnreadMentions() {
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			const auto item = message->data();
-			item->addToUnreadMentions(UnreadMentionType::Existing);
+			item->addToUnreadThings(HistoryUnreadThings::AddType::Existing);
 		}
 	}
 }
@@ -1754,7 +1689,7 @@ void History::setFakeUnreadWhileOpened(bool enabled) {
 			&& (!inChatList()
 				|| (!unreadCount()
 					&& !unreadMark()
-					&& !hasUnreadMentions())))) {
+					&& !unreadMentions().has())))) {
 		return;
 	}
 	_fakeUnreadWhileOpened = enabled;
@@ -2601,7 +2536,8 @@ void History::applyDialog(
 		data.vread_outbox_max_id().v);
 	applyDialogTopMessage(data.vtop_message().v);
 	setUnreadMark(data.is_unread_mark());
-	setUnreadMentionsCount(data.vunread_mentions_count().v);
+	unreadMentions().setCount(data.vunread_mentions_count().v);
+	unreadReactions().setCount(data.vunread_reactions_count().v);
 	if (const auto channel = peer->asChannel()) {
 		if (const auto pts = data.vpts()) {
 			channel->ptsReceived(pts->v);
@@ -2832,7 +2768,7 @@ void History::resizeToWidth(int newWidth) {
 	if (!resizeAllItems && !hasPendingResizedItems()) {
 		return;
 	}
-	_flags &= ~(Flag::f_has_pending_resized_items);
+	_flags &= ~(Flag::HasPendingResizedItems);
 
 	_width = newWidth;
 	int y = 0;
@@ -2845,7 +2781,7 @@ void History::resizeToWidth(int newWidth) {
 
 void History::forceFullResize() {
 	_width = 0;
-	_flags |= Flag::f_has_pending_resized_items;
+	_flags |= Flag::HasPendingResizedItems;
 }
 
 not_null<History*> History::migrateToOrMe() const {

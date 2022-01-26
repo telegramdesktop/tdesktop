@@ -1019,7 +1019,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						if (item->hasViews()) {
 							session().api().views().scheduleIncrement(item);
 						}
-						if (item->isUnreadMention() && !item->isUnreadMedia()) {
+						if (item->isUnreadMention()
+							&& !item->isUnreadMedia()) {
 							readMentions.insert(item);
 							_widget->enqueueMessageHighlight(view);
 						}
@@ -1051,7 +1052,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (!readMentions.empty() && _widget->doWeReadMentions()) {
-			session().api().markMediaRead(readMentions);
+			session().api().markContentsRead(readMentions);
 		}
 
 		if (mtop >= 0 || htop >= 0) {

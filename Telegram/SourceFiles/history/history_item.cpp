@@ -12,10 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_service_message.h"
-#include "history/history_item_components.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/history_item_components.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
+#include "history/history_unread_things.h"
 #include "history/history.h"
 #include "mtproto/mtproto_config.h"
 #include "media/clip/media_clip_reader.h"
@@ -332,7 +333,11 @@ bool HistoryItem::hasUnreadMediaFlag() const {
 }
 
 bool HistoryItem::isUnreadMention() const {
-	return mentionsMe() && (_flags & MessageFlag::MediaIsUnread);
+	return !out() && mentionsMe() && (_flags & MessageFlag::MediaIsUnread);
+}
+
+bool HistoryItem::hasUnreadReaction() const {
+	return false;
 }
 
 bool HistoryItem::mentionsMe() const {
@@ -356,13 +361,32 @@ bool HistoryItem::isUnreadMedia() const {
 	return false;
 }
 
-void HistoryItem::markMediaRead() {
+bool HistoryItem::isIncomingUnreadMedia() const {
+	return !out() && isUnreadMedia();
+}
+
+void HistoryItem::markMediaAndMentionRead() {
 	_flags &= ~MessageFlag::MediaIsUnread;
 
 	if (mentionsMe()) {
 		history()->updateChatListEntry();
-		history()->eraseFromUnreadMentions(id);
+		history()->unreadMentions().erase(id);
 	}
+}
+
+void HistoryItem::markReactionsRead() {
+
+}
+
+bool HistoryItem::markContentsRead() {
+	if (hasUnreadReaction()) {
+		markReactionsRead();
+		return true;
+	} else if (isUnreadMention() || isIncomingUnreadMedia()) {
+		markMediaAndMentionRead();
+		return true;
+	}
+	return false;
 }
 
 void HistoryItem::setIsPinned(bool pinned) {
@@ -526,7 +550,7 @@ void HistoryItem::clearMainView() {
 	_mainView = nullptr;
 }
 
-void HistoryItem::addToUnreadMentions(UnreadMentionType type) {
+void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 }
 
 void HistoryItem::applyEditionToHistoryCleared() {
@@ -592,7 +616,7 @@ void HistoryItem::applySentMessage(
 
 void HistoryItem::indexAsNewItem() {
 	if (isRegular()) {
-		addToUnreadMentions(UnreadMentionType::New);
+		addToUnreadThings(HistoryUnreadThings::AddType::New);
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				_history->peer->id,

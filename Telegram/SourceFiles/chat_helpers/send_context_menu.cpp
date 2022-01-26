@@ -183,7 +183,11 @@ void SetupUnreadMentionsMenu(
 		}
 		return base::EventFilterResult::Continue;
 	});
+}
 
+void SetupUnreadReactionsMenu(
+		not_null<Ui::RpWidget*> button,
+		Fn<PeerData*()> currentPeer) {
 }
 
 } // namespace SendMenu

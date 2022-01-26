@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
+#include "api/api_unread_things.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
@@ -1178,25 +1179,29 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateReadMessagesContents: {
 		const auto &d = update.c_updateReadMessagesContents();
-		auto possiblyReadMentions = base::flat_set<MsgId>();
+		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (const auto item = _session->data().nonChannelMessage(msgId.v)) {
+				const auto unreadForPeer = item->isUnreadMedia()
+					|| item->isUnreadMention();
+				const auto unreadForMe = item->hasUnreadReaction();
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
-					item->markMediaRead();
+					item->markMediaAndMentionRead();
 					_session->data().requestItemRepaint(item);
 
 					if (item->out()
 						&& item->history()->peer->isUser()
 						&& !requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(base::unixtime::now());
+						item->history()->peer->asUser()->madeAction(
+							base::unixtime::now());
 					}
 				}
 			} else {
 				// Perhaps it was an unread mention!
-				possiblyReadMentions.insert(msgId.v);
+				unknownReadIds.insert(msgId.v);
 			}
 		}
-		session().api().checkForUnreadMentions(possiblyReadMentions);
+		session().api().unreadThings().mediaAndMentionsRead(unknownReadIds);
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
@@ -1565,19 +1570,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 			return;
 		}
-		auto possiblyReadMentions = base::flat_set<MsgId>();
+		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (auto item = session().data().message(channel->id, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
-					item->markMediaRead();
+					item->markMediaAndMentionRead();
 					session().data().requestItemRepaint(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!
-				possiblyReadMentions.insert(msgId.v);
+				unknownReadIds.insert(msgId.v);
 			}
 		}
-		session().api().checkForUnreadMentions(possiblyReadMentions, channel);
+		session().api().unreadThings().mediaAndMentionsRead(
+			unknownReadIds,
+			channel);
 	} break;
 
 	// Edited messages.

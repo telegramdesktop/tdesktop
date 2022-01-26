@@ -175,7 +175,7 @@ public:
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
 	void contributeToSlowmode(TimeId realDate = 0) override;
 
-	void addToUnreadMentions(UnreadMentionType type) override;
+	void addToUnreadThings(HistoryUnreadThings::AddType type) override;
 	void destroyHistoryEntry() override;
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 

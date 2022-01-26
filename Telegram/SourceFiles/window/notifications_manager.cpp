@@ -918,8 +918,8 @@ void Manager::notificationReplied(
 	history->session().api().sendMessage(std::move(message));
 
 	const auto item = history->owner().message(history->peer, id.msgId);
-	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
-		history->session().api().markMediaRead(item);
+	if (item && item->isUnreadMention() && !item->isIncomingUnreadMedia()) {
+		history->session().api().markContentsRead(item);
 	}
 }
 

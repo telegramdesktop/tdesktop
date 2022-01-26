@@ -1303,7 +1303,14 @@ void Session::photoLoadFail(
 void Session::markMediaRead(not_null<const DocumentData*> document) {
 	const auto i = _documentItems.find(document);
 	if (i != end(_documentItems)) {
-		_session->api().markMediaRead({ begin(i->second), end(i->second) });
+		auto items = base::flat_set<not_null<HistoryItem*>>();
+		items.reserve(i->second.size());
+		for (const auto &item : i->second) {
+			if (item->isUnreadMention() || item->isIncomingUnreadMedia()) {
+				items.emplace(item);
+			}
+		}
+		_session->api().markContentsRead(items);
 	}
 }
 

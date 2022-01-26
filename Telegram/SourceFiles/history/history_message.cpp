@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/history_service.h"
+#include "history/history_unread_things.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "history/view/history_view_spoiler_click_handler.h"
@@ -1529,19 +1530,32 @@ void HistoryMessage::contributeToSlowmode(TimeId realDate) {
 	}
 }
 
-void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
-	if (isRegular() && isUnreadMention()) {
-		if (history()->addToUnreadMentions(id, type)) {
+void HistoryMessage::addToUnreadThings(HistoryUnreadThings::AddType type) {
+	if (!isRegular()) {
+		return;
+	}
+	if (isUnreadMention()) {
+		if (history()->unreadMentions().add(id, type)) {
 			history()->session().changes().historyUpdated(
 				history(),
 				Data::HistoryUpdate::Flag::UnreadMentions);
+		}
+	}
+	if (hasUnreadReaction()) {
+		if (history()->unreadReactions().add(id, type)) {
+			history()->session().changes().historyUpdated(
+				history(),
+				Data::HistoryUpdate::Flag::UnreadReactions);
 		}
 	}
 }
 
 void HistoryMessage::destroyHistoryEntry() {
 	if (isUnreadMention()) {
-		history()->eraseFromUnreadMentions(id);
+		history()->unreadMentions().erase(id);
+	}
+	if (hasUnreadReaction()) {
+		history()->unreadReactions().erase(id);
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		changeReplyToTopCounter(reply, -1);

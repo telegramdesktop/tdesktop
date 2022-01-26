@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/view/history_view_send_action.h"
 #include "history/view/history_view_item_preview.h"
+#include "history/history_unread_things.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -778,7 +779,7 @@ void RowPainter::paint(
 			: QDateTime();
 	}();
 	const auto displayMentionBadge = history
-		? history->hasUnreadMentions()
+		? history->unreadMentions().has()
 		: false;
 	const auto displayUnreadCounter = [&] {
 		if (displayMentionBadge
@@ -941,7 +942,7 @@ void RowPainter::paint(
 	const auto unreadMuted = history->chatListMutedBadge();
 	const auto mentionMuted = (history->folder() != nullptr);
 	const auto displayMentionBadge = displayUnreadInfo
-		&& history->hasUnreadMentions();
+		&& history->unreadMentions().has();
 	const auto displayUnreadCounter = (unreadCount > 0);
 	const auto displayUnreadMark = !displayUnreadCounter
 		&& !displayMentionBadge
