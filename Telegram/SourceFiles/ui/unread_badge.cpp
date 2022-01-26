@@ -40,7 +40,7 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 	unreadSt.muted = !_active;
 	auto unreadRight = width();
 	auto unreadTop = 0;
-	Dialogs::Ui::paintUnreadCount(
+	Dialogs::Ui::PaintUnreadBadge(
 		p,
 		_text,
 		unreadRight,

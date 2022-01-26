@@ -333,19 +333,18 @@ void StickersBox::CounterWidget::setCounter(int counter) {
 	auto dummy = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
 	Painter p(&dummy);
 
-	auto newWidth = 0;
-	Dialogs::Ui::paintUnreadCount(p, _text, 0, 0, _st, &newWidth);
+	const auto badge = Dialogs::Ui::PaintUnreadBadge(p, _text, 0, 0, _st);
 
-	resize(newWidth, st::stickersFeaturedBadgeSize);
+	resize(badge.width(), st::stickersFeaturedBadgeSize);
 }
 
 void StickersBox::CounterWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_text.isEmpty()) {
-		auto unreadRight = rtl() ? 0 : width();
-		auto unreadTop = 0;
-		Dialogs::Ui::paintUnreadCount(p, _text, unreadRight, unreadTop, _st);
+		const auto unreadRight = rtl() ? 0 : width();
+		const auto unreadTop = 0;
+		Dialogs::Ui::PaintUnreadBadge(p, _text, unreadRight, unreadTop, _st);
 	}
 }
 

@@ -302,3 +302,7 @@ dialogsMiniPreviewRadius: 2px;
 dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
+
+dialogsUnreadMention: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
+dialogsUnreadMentionOver: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
+dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};

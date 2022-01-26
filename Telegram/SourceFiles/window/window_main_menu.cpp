@@ -293,19 +293,19 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 		const auto string = (_unreadBadge > 99)
 			? "99+"
 			: QString::number(_unreadBadge);
-		auto unreadWidth = 0;
 		const auto skip = _st.itemPadding.right()
 			- st::mainMenu.itemToggleShift;
 		const auto unreadRight = width() - skip;
 		const auto unreadTop = (height() - _unreadSt.size) / 2;
-		Dialogs::Ui::paintUnreadCount(
+		const auto badge = Dialogs::Ui::PaintUnreadBadge(
 			p,
 			string,
 			unreadRight,
 			unreadTop,
-			_unreadSt,
-			&unreadWidth);
-		available -= unreadWidth + skip + st::mainMenu.itemStyle.font->spacew;
+			_unreadSt);
+		available -= badge.width()
+			+ skip
+			+ st::mainMenu.itemStyle.font->spacew;
 	} else {
 		available -= _st.itemPadding.right();
 	}
