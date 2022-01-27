@@ -155,6 +155,9 @@ public:
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
 
+	[[nodiscard]] QString findUnread() const;
+	void markRead();
+
 private:
 	const not_null<HistoryItem*> _item;
 

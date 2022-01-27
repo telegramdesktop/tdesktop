@@ -337,13 +337,7 @@ bool HistoryItem::isUnreadMention() const {
 }
 
 bool HistoryItem::hasUnreadReaction() const {
-	const auto &recent = recentReactions();
-	for (const auto &[emoji, list] : recent) {
-		if (ranges::contains(list, true, &Data::RecentReaction::unread)) {
-			return true;
-		}
-	}
-	return false;
+	return (_flags & MessageFlag::HasUnreadReaction);
 }
 
 bool HistoryItem::mentionsMe() const {
@@ -381,7 +375,12 @@ void HistoryItem::markMediaAndMentionRead() {
 }
 
 void HistoryItem::markReactionsRead() {
-
+	if (_reactions) {
+		_reactions->markRead();
+	}
+	_flags &= ~MessageFlag::HasUnreadReaction;
+	history()->updateChatListEntry();
+	history()->unreadReactions().erase(id);
 }
 
 bool HistoryItem::markContentsRead() {
@@ -850,7 +849,15 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 		: nullptr;
 	const auto toContact = toUser && toUser->isContact();
 	const auto maybeNotify = toContact && lookupHisReaction().isEmpty();
+	const auto hadUnread = hasUnreadReaction();
 	setReactions(reactions);
+	const auto hasUnread = _reactions && !_reactions->findUnread().isEmpty();
+	if (hasUnread && !hadUnread) {
+		_flags |= MessageFlag::HasUnreadReaction;
+		addToUnreadThings(HistoryUnreadThings::AddType::New);
+	} else if (!hasUnread && hadUnread) {
+		markReactionsRead();
+	}
 	if (maybeNotify) {
 		if (const auto reaction = lookupHisReaction(); !reaction.isEmpty()) {
 			const auto notification = ItemNotification{
@@ -871,6 +878,9 @@ void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
 		if (_reactions) {
 			_reactions = nullptr;
+			if (hasUnreadReaction()) {
+				markReactionsRead();
+			}
 			history()->owner().notifyItemDataChange(this);
 		}
 		return;

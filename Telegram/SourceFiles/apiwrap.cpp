@@ -1294,7 +1294,8 @@ void ApiWrap::markContentsRead(
 		QVector<MTPint>>();
 	markedIds.reserve(items.size());
 	for (const auto &item : items) {
-		if (!item->markContentsRead() || !item->isRegular()) {
+		if (!item->markContentsRead() || !item->isRegular() || true) {
+			AssertIsDebug();
 			continue;
 		}
 		if (const auto channel = item->history()->peer->asChannel()) {

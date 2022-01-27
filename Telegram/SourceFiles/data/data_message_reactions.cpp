@@ -595,6 +595,24 @@ bool MessageReactions::empty() const {
 	return _list.empty();
 }
 
+QString MessageReactions::findUnread() const {
+	for (auto &[emoji, list] : _recent) {
+		const auto i = ranges::find(list, true, &RecentReaction::unread);
+		if (i != end(list)) {
+			return emoji;
+		}
+	}
+	return QString();
+}
+
+void MessageReactions::markRead() {
+	for (auto &[emoji, list] : _recent) {
+		for (auto &reaction : list) {
+			reaction.unread = false;
+		}
+	}
+}
+
 QString MessageReactions::chosen() const {
 	return _chosen;
 }
