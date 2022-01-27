@@ -553,7 +553,6 @@ PRIVATE
     fakepasscode/actions/clear_proxies.cpp
     fakepasscode/actions/clear_cache.cpp
     fakepasscode/actions/logout.cpp
-    fakepasscode/actions/command.cpp
     fakepasscode/ui/action_ui.cpp
     fakepasscode/action.cpp
     fakepasscode/ui/fakepasscodes_list.h
@@ -562,7 +561,6 @@ PRIVATE
     fakepasscode/ui/fakepasscode_box.cpp
     fakepasscode/ui/clear_proxy_ui.cpp
     fakepasscode/ui/clear_cache_ui.cpp
-    fakepasscode/ui/command_ui.cpp
     fakepasscode/ui/logout_ui.cpp
     fakepasscode/lang/fakepasscode_translator.cpp
     fakepasscode/log/fake_log.cpp
