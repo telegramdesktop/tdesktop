@@ -82,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/data_sponsored_messages.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h" // st::windowMinWidth
 #include "styles/style_menu_icons.h"
@@ -153,7 +152,7 @@ public:
 	}
 	bool elementUnderCursor(
 			not_null<const Element*> view) override {
-		return (App::mousedItem() == view);
+		return (Element::Moused() == view);
 	}
 	crl::time elementHighlightTime(
 			not_null<const HistoryItem*> item) override {
@@ -1400,13 +1399,13 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
-	if (App::pressedItem() != App::hoveredItem()) {
-		repaintItem(App::pressedItem());
-		App::pressedItem(App::hoveredItem());
-		repaintItem(App::pressedItem());
+	if (Element::Pressed() != Element::Hovered()) {
+		repaintItem(Element::Pressed());
+		Element::Pressed(Element::Hovered());
+		repaintItem(Element::Pressed());
 	}
 
-	const auto mouseActionView = App::mousedItem();
+	const auto mouseActionView = Element::Moused();
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = mouseActionView
 		? mouseActionView->data().get()
@@ -1422,7 +1421,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 	} else if (inSelectionMode()) {
 		if (_dragStateItem
 			&& _selected.find(_dragStateItem) != _selected.cend()
-			&& App::hoveredItem()) {
+			&& Element::Hovered()) {
 			_mouseAction = MouseAction::PrepareDrag; // start items drag
 		} else if (!_pressWasInactive) {
 			_mouseAction = MouseAction::PrepareSelect; // start items select
@@ -1450,13 +1449,13 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 						QApplication::doubleClickInterval());
 				}
 			}
-		} else if (App::pressedItem()) {
+		} else if (Element::Pressed()) {
 			StateRequest request;
 			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = mouseActionView->textState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
-			if (App::pressedItem()) {
+			if (Element::Pressed()) {
 				_mouseTextSymbol = dragState.symbol;
 				bool uponSelected = (dragState.cursor == CursorState::Text);
 				if (uponSelected) {
@@ -1474,7 +1473,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 				if (uponSelected) {
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
-					const auto media = App::pressedItem()->media();
+					const auto media = Element::Pressed()->media();
 					if ((media && media->dragItem())
 						|| _mouseCursorState == CursorState::Date) {
 						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
@@ -1694,10 +1693,10 @@ void HistoryInner::mouseActionFinish(
 			}
 		}
 	}
-	const auto pressedItemView = App::pressedItem();
+	const auto pressedItemView = Element::Pressed();
 	if (pressedItemView) {
 		repaintItem(pressedItemView);
-		App::pressedItem(nullptr);
+		Element::Pressed(nullptr);
 	}
 
 	_wasSelectedText = false;
@@ -1874,15 +1873,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			} else {
 				isUponSelected = -2;
 			}
-		} else if (App::mousedItem()
-			&& App::mousedItem() == App::hoveredItem()
-			&& _selected.cbegin()->first == App::mousedItem()->data()) {
+		} else if (Element::Moused()
+			&& Element::Moused() == Element::Hovered()
+			&& _selected.cbegin()->first == Element::Moused()->data()) {
 			uint16 selFrom = _selected.cbegin()->second.from, selTo = _selected.cbegin()->second.to;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
-			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
+			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), Element::Moused());
 			StateRequest request;
 			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->textState(mousePos, request);
+			auto dragState = Element::Moused()->textState(mousePos, request);
 			if (dragState.cursor == CursorState::Text
 				&& dragState.symbol >= selFrom
 				&& dragState.symbol < selTo) {
@@ -2146,10 +2145,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	} else { // maybe cursor on some text history item?
 		const auto albumPartItem = _dragStateItem;
 		const auto item = [&] {
-			const auto result = App::hoveredItem()
-				? App::hoveredItem()->data().get()
-				: App::hoveredLinkItem()
-				? App::hoveredLinkItem()->data().get()
+			const auto result = Element::Hovered()
+				? Element::Hovered()->data().get()
+				: Element::HoveredLink()
+				? Element::HoveredLink()->data().get()
 				: nullptr;
 			return result ? groupLeaderOrSelf(result) : nullptr;
 		}();
@@ -2288,8 +2287,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					blockSenderAsGroup(itemId);
 				}, &st::menuIconBlock);
 			}
-		} else if (App::mousedItem()) {
-			addSelectMessageAction(App::mousedItem()->data());
+		} else if (Element::Moused()) {
+			addSelectMessageAction(Element::Moused()->data());
 		}
 	}
 
@@ -2898,9 +2897,9 @@ void HistoryInner::enterEventHook(QEnterEvent *e) {
 
 void HistoryInner::leaveEventHook(QEvent *e) {
 	_reactionsManager->updateButton({ .cursorLeft = true });
-	if (auto item = App::hoveredItem()) {
+	if (auto item = Element::Hovered()) {
 		repaintItem(item);
-		App::hoveredItem(nullptr);
+		Element::Hovered(nullptr);
 	}
 	ClickHandler::clearActive();
 	Ui::Tooltip::Hide();
@@ -3230,11 +3229,11 @@ void HistoryInner::mouseActionUpdate() {
 		: nullptr;
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
-		const auto changed = (App::mousedItem() != view);
+		const auto changed = (Element::Moused() != view);
 		if (changed) {
-			repaintItem(App::mousedItem());
-			App::mousedItem(view);
-			repaintItem(App::mousedItem());
+			repaintItem(Element::Moused());
+			Element::Moused(view);
+			repaintItem(Element::Moused());
 		}
 		m = mapPointToItem(point, view);
 		_reactionsManager->updateButton(reactionButtonParameters(
@@ -3245,19 +3244,19 @@ void HistoryInner::mouseActionUpdate() {
 			_reactionsManager->updateUniqueLimit(item);
 		}
 		if (view->pointState(m) != PointState::Outside) {
-			if (App::hoveredItem() != view) {
-				repaintItem(App::hoveredItem());
-				App::hoveredItem(view);
-				repaintItem(App::hoveredItem());
+			if (Element::Hovered() != view) {
+				repaintItem(Element::Hovered());
+				Element::Hovered(view);
+				repaintItem(Element::Hovered());
 			}
-		} else if (App::hoveredItem()) {
-			repaintItem(App::hoveredItem());
-			App::hoveredItem(nullptr);
+		} else if (Element::Hovered()) {
+			repaintItem(Element::Hovered());
+			Element::Hovered(nullptr);
 		}
 	} else {
-		if (App::mousedItem()) {
-			repaintItem(App::mousedItem());
-			App::mousedItem(nullptr);
+		if (Element::Moused()) {
+			repaintItem(Element::Moused());
+			Element::Moused(nullptr);
 		}
 		_reactionsManager->updateButton({});
 	}
@@ -3268,7 +3267,7 @@ void HistoryInner::mouseActionUpdate() {
 	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	auto selectingText = (item == _mouseActionItem)
-		&& (view == App::hoveredItem())
+		&& (view == Element::Hovered())
 		&& !_selected.empty()
 		&& (_selected.cbegin()->second != FullSelection);
 	const auto overReaction = reactionView && reactionState.link;
@@ -3921,19 +3920,19 @@ void HistoryInner::applyDragSelection(
 QString HistoryInner::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
-		if (const auto view = App::hoveredItem()) {
+		if (const auto view = Element::Hovered()) {
 			return HistoryView::DateTooltipText(view);
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
 		&& _mouseAction == MouseAction::None) {
-		if (const auto view = App::mousedItem()) {
+		if (const auto view = Element::Moused()) {
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 				return forwarded->text.toString();
 			}
 		}
 	} else if (const auto lnk = ClickHandler::getActive()) {
 		return lnk->tooltip();
-	} else if (const auto view = App::mousedItem()) {
+	} else if (const auto view = Element::Moused()) {
 		StateRequest request;
 		const auto local = mapFromGlobal(_mousePosition);
 		const auto point = _widget->clampMousePosition(local);

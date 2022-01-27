@@ -798,7 +798,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 void MainWindow::closeEvent(QCloseEvent *e) {
 	if (Core::Sandbox::Instance().isSavingSession()) {
 		e->accept();
-		App::quit();
+		Core::Quit();
 	} else {
 		e->ignore();
 		const auto hasAuth = [&] {
@@ -813,7 +813,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 			return false;
 		}();
 		if (!hasAuth || !hideNoQuit()) {
-			App::quit();
+			Core::Quit();
 		}
 	}
 }

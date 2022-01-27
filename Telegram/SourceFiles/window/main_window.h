@@ -27,6 +27,7 @@ class PlainShadow;
 
 namespace Core {
 struct WindowPosition;
+enum class QuitReason;
 } // namespace Core
 
 namespace Window {
@@ -135,6 +136,10 @@ public:
 	bool minimizeToTray();
 	void updateGlobalMenu() {
 		updateGlobalMenuHook();
+	}
+
+	[[nodiscard]] virtual bool preventsQuit(Core::QuitReason reason) {
+		return false;
 	}
 
 protected:

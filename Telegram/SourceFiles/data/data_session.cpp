@@ -64,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 #include "facades.h" // Notify::switchInlineBotButtonReceived
-#include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {
@@ -291,7 +290,7 @@ void Session::clear() {
 	_sentMessagesData.clear();
 	cSetRecentInlineBots(RecentInlineBots());
 	cSetRecentStickers(RecentStickerPack());
-	App::clearMousedItems();
+	HistoryView::Element::ClearGlobal();
 	_histories->clearAll();
 	_webpages.clear();
 	_locations.clear();
@@ -3674,20 +3673,22 @@ void Session::unregisterItemView(not_null<ViewElement*> view) {
 			_views.erase(i);
 		}
 	}
-	if (App::hoveredItem() == view) {
-		App::hoveredItem(nullptr);
+
+	using namespace HistoryView;
+	if (Element::Hovered() == view) {
+		Element::Hovered(nullptr);
 	}
-	if (App::pressedItem() == view) {
-		App::pressedItem(nullptr);
+	if (Element::Pressed() == view) {
+		Element::Pressed(nullptr);
 	}
-	if (App::hoveredLinkItem() == view) {
-		App::hoveredLinkItem(nullptr);
+	if (Element::HoveredLink() == view) {
+		Element::HoveredLink(nullptr);
 	}
-	if (App::pressedLinkItem() == view) {
-		App::pressedLinkItem(nullptr);
+	if (Element::PressedLink() == view) {
+		Element::PressedLink(nullptr);
 	}
-	if (App::mousedItem() == view) {
-		App::mousedItem(nullptr);
+	if (Element::Moused() == view) {
+		Element::Moused(nullptr);
 	}
 }
 

@@ -427,6 +427,18 @@ public:
 
 	virtual ~Element();
 
+	static void Hovered(Element *view);
+	[[nodiscard]] static Element *Hovered();
+	static void Pressed(Element *view);
+	[[nodiscard]] static Element *Pressed();
+	static void HoveredLink(Element *view);
+	[[nodiscard]] static Element *HoveredLink();
+	static void PressedLink(Element *view);
+	[[nodiscard]] static Element *PressedLink();
+	static void Moused(Element *view);
+	[[nodiscard]] static Element *Moused();
+	static void ClearGlobal();
+		
 protected:
 	void repaint() const;
 

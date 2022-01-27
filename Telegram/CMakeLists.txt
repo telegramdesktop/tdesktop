@@ -1193,8 +1193,6 @@ PRIVATE
     window/themes/window_themes_generate_name.h
     apiwrap.cpp
     apiwrap.h
-    app.cpp
-    app.h
     config.h
     facades.cpp
     facades.h

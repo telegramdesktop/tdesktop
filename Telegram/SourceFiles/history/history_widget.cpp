@@ -142,7 +142,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -2040,7 +2039,7 @@ void HistoryWidget::showHistory(
 		Assert(_list == nullptr);
 	}
 
-	App::clearMousedItems();
+	HistoryView::Element::ClearGlobal();
 
 	_saveEditMsgRequestId = 0;
 	_replyEditMsg = nullptr;
@@ -3978,8 +3977,8 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	if (!toInsert.isEmpty() && !insertingInlineBot) {
 		auto bot = _peer->isUser()
 			? _peer
-			: (App::hoveredLinkItem()
-				? App::hoveredLinkItem()->data()->fromOriginal().get()
+			: (HistoryView::Element::HoveredLink()
+				? HistoryView::Element::HoveredLink()->data()->fromOriginal().get()
 				: nullptr);
 		if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
 			bot = nullptr;

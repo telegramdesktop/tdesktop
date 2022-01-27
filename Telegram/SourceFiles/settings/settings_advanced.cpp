@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "app.h"
 #include "styles/style_settings.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
@@ -243,7 +242,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		if (!Core::UpdaterDisabled()) {
 			Core::checkReadyUpdate();
 		}
-		App::restart();
+		Core::Restart();
 	});
 }
 
@@ -599,7 +598,7 @@ void SetupANGLE(
 						Core::App().settings().setDisableOpenGL(nowDisabled);
 						Local::writeSettings();
 					}
-					App::restart();
+					Core::Restart();
 				});
 				controller->show(Box<Ui::ConfirmBox>(
 					tr::lng_settings_need_restart(tr::now),
@@ -638,7 +637,7 @@ void SetupOpenGL(
 		const auto confirmed = crl::guard(button, [=] {
 			Core::App().settings().setDisableOpenGL(!enabled);
 			Local::writeSettings();
-			App::restart();
+			Core::Restart();
 		});
 		const auto cancelled = crl::guard(button, [=] {
 			toggles->fire(!enabled);

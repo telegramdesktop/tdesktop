@@ -3087,4 +3087,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
+"lng_mac_hold_to_quit" = "Hold {text} to Quit";
+
 // Keys finished

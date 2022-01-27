@@ -52,7 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "mainwidget.h"
-#include "app.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 #include "styles/style_dialogs.h"
@@ -1214,7 +1213,7 @@ void MainMenu::initResetScaleButton() {
 			_resetScaleButton->addClickHandler([] {
 				cSetConfigScale(style::kScaleDefault);
 				Local::writeSettings();
-				App::restart();
+				Core::Restart();
 			});
 			_resetScaleButton->show();
 			updateControlsGeometry();

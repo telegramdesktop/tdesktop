@@ -56,7 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -529,7 +528,7 @@ void InnerWidget::updateEmptyText() {
 QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
-		if (const auto view = App::hoveredItem()) {
+		if (const auto view = Element::Hovered()) {
 			const auto format = QLocale::system().dateTimeFormat(
 				QLocale::LongFormat);
 			auto dateText = HistoryView::DateTooltipText(view);
@@ -545,7 +544,7 @@ QString InnerWidget::tooltipText() const {
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
 		&& _mouseAction == MouseAction::None) {
-		if (const auto view = App::hoveredItem()) {
+		if (const auto view = Element::Hovered()) {
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 				return forwarded->text.toString();
 			}
@@ -582,7 +581,7 @@ std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 
 bool InnerWidget::elementUnderCursor(
 		not_null<const HistoryView::Element*> view) {
-	return (App::hoveredItem() == view);
+	return (Element::Hovered() == view);
 }
 
 crl::time InnerWidget::elementHighlightTime(
@@ -1145,13 +1144,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		auto selFrom = _selectedText.from;
 		auto selTo = _selectedText.to;
 		hasSelected = (selTo > selFrom) ? 1 : 0;
-		if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
+		if (Element::Moused() && Element::Moused() == Element::Hovered()) {
 			auto mousePos = mapPointToItem(
 				mapFromGlobal(_mousePosition),
-				App::mousedItem());
+				Element::Moused());
 			StateRequest request;
 			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->textState(mousePos, request);
+			auto dragState = Element::Moused()->textState(mousePos, request);
 			if (dragState.cursor == CursorState::Text
 				&& base::in_range(dragState.symbol, selFrom, selTo)) {
 				isUponSelected = 1;
@@ -1167,9 +1166,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		st::popupMenuWithIcons);
 
 	const auto link = ClickHandler::getActive();
-	auto view = App::hoveredItem()
-		? App::hoveredItem()
-		: App::hoveredLinkItem();
+	auto view = Element::Hovered()
+		? Element::Hovered()
+		: Element::HoveredLink();
 	const auto lnkPhoto = link
 		? reinterpret_cast<PhotoData*>(
 			link->property(kPhotoLinkMediaProperty).toULongLong())
@@ -1526,9 +1525,9 @@ void InnerWidget::enterEventHook(QEnterEvent *e) {
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {
-	if (const auto view = App::hoveredItem()) {
+	if (const auto view = Element::Hovered()) {
 		repaintItem(view);
-		App::hoveredItem(nullptr);
+		Element::Hovered(nullptr);
 	}
 	ClickHandler::clearActive();
 	Ui::Tooltip::Hide();
@@ -1544,14 +1543,14 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
-	if (App::pressedItem() != App::hoveredItem()) {
-		repaintItem(App::pressedItem());
-		App::pressedItem(App::hoveredItem());
-		repaintItem(App::pressedItem());
+	if (Element::Pressed() != Element::Hovered()) {
+		repaintItem(Element::Pressed());
+		Element::Pressed(Element::Hovered());
+		repaintItem(Element::Pressed());
 	}
 
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = App::mousedItem();
+	_mouseActionItem = Element::Moused();
 	_dragStartPosition = mapPointToItem(
 		mapFromGlobal(screenPos),
 		_mouseActionItem);
@@ -1579,13 +1578,13 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				mouseActionUpdate(_mousePosition);
 				_trippleClickTimer.callOnce(QApplication::doubleClickInterval());
 			}
-		} else if (App::pressedItem()) {
+		} else if (Element::Pressed()) {
 			StateRequest request;
 			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = _mouseActionItem->textState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
-			if (App::pressedItem()) {
+			if (Element::Pressed()) {
 				_mouseTextSymbol = dragState.symbol;
 				auto uponSelected = (dragState.cursor == CursorState::Text);
 				if (uponSelected) {
@@ -1636,9 +1635,9 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	if (_mouseAction == MouseAction::Dragging) {
 		activated = nullptr;
 	}
-	if (const auto view = App::pressedItem()) {
+	if (const auto view = Element::Pressed()) {
 		repaintItem(view);
-		App::pressedItem(nullptr);
+		Element::Pressed(nullptr);
 	}
 
 	_wasSelectedText = false;
@@ -1698,17 +1697,17 @@ void InnerWidget::updateSelected() {
 	const auto view = (from != end) ? from->get() : nullptr;
 	const auto item = view ? view->data().get() : nullptr;
 	if (item) {
-		App::mousedItem(view);
+		Element::Moused(view);
 		itemPoint = mapPointToItem(point, view);
 		if (view->pointState(itemPoint) != PointState::Outside) {
-			if (App::hoveredItem() != view) {
-				repaintItem(App::hoveredItem());
-				App::hoveredItem(view);
+			if (Element::Hovered() != view) {
+				repaintItem(Element::Hovered());
+				Element::Hovered(view);
 				repaintItem(view);
 			}
-		} else if (const auto view = App::hoveredItem()) {
+		} else if (const auto view = Element::Hovered()) {
 			repaintItem(view);
-			App::hoveredItem(nullptr);
+			Element::Hovered(nullptr);
 		}
 	}
 
@@ -1716,7 +1715,7 @@ void InnerWidget::updateSelected() {
 	ClickHandlerHost *lnkhost = nullptr;
 	auto selectingText = _selectedItem
 		&& (view == _mouseActionItem)
-		&& (view == App::hoveredItem());
+		&& (view == Element::Hovered());
 	if (view) {
 		if (view != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
@@ -1807,7 +1806,7 @@ void InnerWidget::updateSelected() {
 	}
 
 	// Voice message seek support.
-	if (const auto pressedView = App::pressedLinkItem()) {
+	if (const auto pressedView = Element::PressedLink()) {
 		const auto adjustedPoint = mapPointToItem(point, pressedView);
 		pressedView->updatePressed(adjustedPoint);
 	}
@@ -1883,7 +1882,7 @@ void InnerWidget::performDrag() {
 	//} else {
 	//	auto forwardMimeType = QString();
 	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
-	//	if (auto pressedItem = App::pressedItem()) {
+	//	if (auto pressedItem = Element::Pressed()) {
 	//		pressedMedia = pressedItem->media();
 	//		if (_mouseCursorState == CursorState::Date
 	//			|| (pressedMedia && pressedMedia->dragItem())) {
@@ -1892,7 +1891,7 @@ void InnerWidget::performDrag() {
 	//				session().data().itemOrItsGroup(pressedItem->data()));
 	//		}
 	//	}
-	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
+	//	if (auto pressedLnkItem = Element::PressedLink()) {
 	//		if ((pressedMedia = pressedLnkItem->media())) {
 	//			if (forwardMimeType.isEmpty()
 	//				&& pressedMedia->dragItemByHandler(pressedHandler)) {

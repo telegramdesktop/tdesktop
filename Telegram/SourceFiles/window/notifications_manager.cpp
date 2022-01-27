@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "ui/text/text_utilities.h"
 #include "facades.h"
-#include "app.h"
 
 #include <QtGui/QWindow>
 
@@ -174,7 +173,7 @@ System::SkipState System::computeSkipState(
 		bool showForMuted) const {
 	const auto history = item->history();
 	const auto notifyBy = item->specialNotificationPeer();
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return { SkipState::Skip };
 	} else if (!Core::App().settings().notifyFromAll()
 		&& &history->session().account() != &Core::App().domain().active()) {
@@ -432,7 +431,7 @@ void System::showGrouped() {
 void System::showNext() {
 	Expects(_manager != nullptr);
 
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return;
 	}
 

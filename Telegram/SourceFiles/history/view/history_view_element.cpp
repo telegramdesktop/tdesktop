@@ -37,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_sponsored_messages.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -45,6 +44,12 @@ namespace {
 
 // A new message from the same sender is attached to previous within 15 minutes.
 constexpr int kAttachMessageToPreviousSecondsDelta = 900;
+
+Element *HoveredElement/* = nullptr*/;
+Element *PressedElement/* = nullptr*/;
+Element *HoveredLinkElement/* = nullptr*/;
+Element *PressedLinkElement/* = nullptr*/;
+Element *MousedElement/* = nullptr*/;
 
 [[nodiscard]] bool IsAttachedToPreviousInSavedMessages(
 		not_null<HistoryItem*> previous,
@@ -1032,7 +1037,7 @@ void Element::clickHandlerActiveChanged(
 			keyboard->clickHandlerActiveChanged(handler, active);
 		}
 	}
-	App::hoveredLinkItem(active ? this : nullptr);
+	HoveredLink(active ? this : nullptr);
 	repaint();
 	if (const auto media = this->media()) {
 		media->clickHandlerActiveChanged(handler, active);
@@ -1047,7 +1052,7 @@ void Element::clickHandlerPressedChanged(
 			keyboard->clickHandlerPressedChanged(handler, pressed);
 		}
 	}
-	App::pressedLinkItem(pressed ? this : nullptr);
+	PressedLink(pressed ? this : nullptr);
 	repaint();
 	if (const auto media = this->media()) {
 		media->clickHandlerPressedChanged(handler, pressed);
@@ -1072,6 +1077,54 @@ Element::~Element() {
 		history()->owner().notifyViewRemoved(this);
 	}
 	history()->owner().unregisterItemView(this);
+}
+
+void Element::Hovered(Element *view) {
+	HoveredElement = view;
+}
+
+Element *Element::Hovered() {
+	return HoveredElement;
+}
+
+void Element::Pressed(Element *view) {
+	PressedElement = view;
+}
+
+Element *Element::Pressed() {
+	return PressedElement;
+}
+
+void Element::HoveredLink(Element *view) {
+	HoveredLinkElement = view;
+}
+
+Element *Element::HoveredLink() {
+	return HoveredLinkElement;
+}
+
+void Element::PressedLink(Element *view) {
+	PressedLinkElement = view;
+}
+
+Element *Element::PressedLink() {
+	return PressedLinkElement;
+}
+
+void Element::Moused(Element *view) {
+	MousedElement = view;
+}
+
+Element *Element::Moused() {
+	return MousedElement;
+}
+
+void Element::ClearGlobal() {
+	HoveredElement = nullptr;
+	PressedElement = nullptr;
+	HoveredLinkElement = nullptr;
+	PressedLinkElement = nullptr;
+	MousedElement = nullptr;
 }
 
 } // namespace HistoryView

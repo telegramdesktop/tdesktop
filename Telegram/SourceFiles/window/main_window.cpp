@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -362,7 +361,7 @@ Window::SessionController *MainWindow::sessionController() const {
 }
 
 bool MainWindow::hideNoQuit() {
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return false;
 	}
 	const auto workMode = Core::App().settings().workMode();
@@ -516,7 +515,7 @@ void MainWindow::showFromTray() {
 }
 
 void MainWindow::quitFromTray() {
-	App::quit();
+	Core::Quit();
 }
 
 void MainWindow::activate() {
@@ -804,7 +803,7 @@ void MainWindow::updateControlsGeometry() {
 }
 
 void MainWindow::updateUnreadCounter() {
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return;
 	}
 
@@ -894,7 +893,9 @@ void MainWindow::savePosition(Qt::WindowState state) {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (App::quitting() || !hasTrayIcon()) return false;
+	if (Core::Quitting() || !hasTrayIcon()) {
+		return false;
+	}
 
 	closeWithoutDestroy();
 	controller().updateIsActiveBlur();

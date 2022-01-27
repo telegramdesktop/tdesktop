@@ -51,9 +51,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
@@ -464,7 +464,7 @@ MediaPhoto::MediaPhoto(
 }
 
 MediaPhoto::~MediaPhoto() {
-	if (uploading() && !App::quitting()) {
+	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
 	parent()->history()->owner().unregisterPhotoItem(_photo, parent());
@@ -649,7 +649,7 @@ MediaFile::MediaFile(
 }
 
 MediaFile::~MediaFile() {
-	if (uploading() && !App::quitting()) {
+	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
 	parent()->history()->owner().unregisterDocumentItem(
