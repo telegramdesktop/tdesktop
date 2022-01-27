@@ -364,7 +364,7 @@ void Session::uploadsStopWithConfirmation(Fn<void()> done) {
 	const auto id = _uploader->currentUploadId();
 	const auto exists = !!data().message(id);
 	auto box = Box([=](not_null<Ui::GenericBox*> box) {
-		const auto label = box->addRow(
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box.get(),
 				tr::lng_upload_sure_stop(),
