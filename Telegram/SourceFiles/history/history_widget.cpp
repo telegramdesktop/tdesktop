@@ -77,6 +77,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_react_button.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
@@ -1277,14 +1279,39 @@ int HistoryWidget::itemTopForHighlight(
 			view = leader;
 		}
 	}
-	auto itemTop = _list->itemTop(view);
+	const auto itemTop = _list->itemTop(view);
 	Assert(itemTop >= 0);
 
-	auto heightLeft = (_scroll->height() - view->height());
-	if (heightLeft <= 0) {
-		return itemTop;
+	const auto reactionCenter = view->data()->hasUnreadReaction()
+		? view->reactionButtonParameters({}, {}).center.y()
+		: -1;
+
+	const auto visibleAreaHeight = _scroll->height();
+	const auto viewHeight = view->height();
+	const auto heightLeft = (visibleAreaHeight - viewHeight);
+	if (heightLeft >= 0) {
+		return std::max(itemTop - (heightLeft / 2), 0);
+	} else if (reactionCenter >= 0) {
+		const auto maxSize = st::reactionInfoImage;
+
+		// Show message right till the bottom.
+		const auto forBottom = itemTop + viewHeight - visibleAreaHeight;
+
+		// Show message bottom and some space below for the effect.
+		const auto bottomResult = forBottom + maxSize;
+
+		// Show the reaction button center in the middle.
+		const auto byReactionResult = itemTop
+			+ reactionCenter
+			- visibleAreaHeight / 2;
+
+		// Show the reaction center and some space above it for the effect.
+		const auto maxAllowed = itemTop + reactionCenter - 2 * maxSize;
+		return std::max(
+			std::min(maxAllowed, std::max(bottomResult, byReactionResult)),
+			0);
 	}
-	return qMax(itemTop - (heightLeft / 2), 0);
+	return itemTop;
 }
 
 void HistoryWidget::start() {
