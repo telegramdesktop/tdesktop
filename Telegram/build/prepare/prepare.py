@@ -67,7 +67,6 @@ pathPrefixes = [
     'ThirdParty\\NASM',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
-    'ThirdParty\\yasm',
     'ThirdParty\\gyp',
     'ThirdParty\\Ninja',
 ] if win else [
@@ -401,7 +400,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 02ee00b71c
+    git checkout 4142f82d11
 """)
 
 stage('depot_tools', """
@@ -447,8 +446,7 @@ stage('xz', """
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
-        -D CMAKE_BUILD_TYPE=Release
+        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
 """)
@@ -557,7 +555,7 @@ stage('opus', """
 win:
     cmake -B out . ^
         -A %WIN32X64% ^
-        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local/opus ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
     cmake --build out --config Debug
@@ -622,6 +620,69 @@ mac:
     make install
 """)
 
+stage('libvpx', """
+    git clone https://github.com/webmproject/libvpx.git
+    cd libvpx
+    git checkout v1.11.0
+win:
+depends:patches/libvpx/*.patch
+    for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
+
+    SET PATH_BACKUP_=%PATH%
+    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
+
+    SET CHERE_INVOKING=enabled_from_arguments
+    SET MSYS2_PATH_TYPE=inherit
+
+    if "%X8664%" equ "x64" (
+        SET "TARGET=x86_64-win64-vs17"
+    ) else (
+        SET "TARGET=x86-win32-vs17"
+    )
+
+depends:patches/build_libvpx_win.sh
+    bash --login ../patches/build_libvpx_win.sh
+
+    SET PATH=%PATH_BACKUP_%
+mac:
+depends:yasm/yasm
+    ./configure --prefix=$USED_PREFIX \
+    --target=arm64-darwin20-gcc \
+    --disable-examples \
+    --disable-unit-tests \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.arm64
+    mv libvpx.a out.arm64
+
+    make clean
+
+    ./configure --prefix=$USED_PREFIX \
+    --target=x86_64-darwin20-gcc \
+    --disable-examples \
+    --disable-unit-tests \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.x86_64
+    mv libvpx.a out.x86_64
+
+    lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
+
+    make install
+""")
+
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
@@ -630,8 +691,8 @@ win:
     SET PATH_BACKUP_=%PATH%
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
 
-    set CHERE_INVOKING=enabled_from_arguments
-    set MSYS2_PATH_TYPE=inherit
+    SET CHERE_INVOKING=enabled_from_arguments
+    SET MSYS2_PATH_TYPE=inherit
 
 depends:patches/build_ffmpeg_win.sh
     bash --login ../patches/build_ffmpeg_win.sh
@@ -647,12 +708,13 @@ depends:yasm/yasm
     --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
-    --enable-protocol=file \
-    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
     --disable-everything \
+    --enable-protocol=file \
+    --enable-libopus \
+    --enable-libvpx \
     --enable-hwaccel=h264_videotoolbox \
     --enable-hwaccel=hevc_videotoolbox \
     --enable-hwaccel=mpeg1_videotoolbox \
@@ -669,6 +731,8 @@ depends:yasm/yasm
     --enable-decoder=gif \
     --enable-decoder=h264 \
     --enable-decoder=hevc \
+    --enable-decoder=libvpx_vp8 \
+    --enable-decoder=libvpx_vp9 \
     --enable-decoder=mp1 \
     --enable-decoder=mp1float \
     --enable-decoder=mp2 \
@@ -736,6 +800,7 @@ depends:yasm/yasm
     --enable-demuxer=gif \
     --enable-demuxer=h264 \
     --enable-demuxer=hevc \
+    --enable-demuxer=matroska \
     --enable-demuxer=m4v \
     --enable-demuxer=mov \
     --enable-demuxer=mp3 \
@@ -762,12 +827,13 @@ depends:yasm/yasm
     --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
     --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
-    --enable-protocol=file \
-    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
     --disable-everything \
+    --enable-protocol=file \
+    --enable-libopus \
+    --enable-libvpx \
     --enable-hwaccel=h264_videotoolbox \
     --enable-hwaccel=hevc_videotoolbox \
     --enable-hwaccel=mpeg1_videotoolbox \
@@ -784,6 +850,8 @@ depends:yasm/yasm
     --enable-decoder=gif \
     --enable-decoder=h264 \
     --enable-decoder=hevc \
+    --enable-decoder=libvpx_vp8 \
+    --enable-decoder=libvpx_vp9 \
     --enable-decoder=mp1 \
     --enable-decoder=mp1float \
     --enable-decoder=mp2 \
@@ -842,6 +910,7 @@ depends:yasm/yasm
     --enable-parser=flac \
     --enable-parser=h264 \
     --enable-parser=hevc \
+    --enable-demuxer=matroska \
     --enable-parser=mpeg4video \
     --enable-parser=mpegaudio \
     --enable-parser=opus \
@@ -928,9 +997,9 @@ depends:patches/breakpad.diff
     git clone -b release-1.11.0 https://github.com/google/googletest src/testing
 win:
     if "%X8664%" equ "x64" (
-        set "FolderPostfix=_x64"
+        SET "FolderPostfix=_x64"
     ) else (
-        set "FolderPostfix="
+        SET "FolderPostfix="
     )
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
@@ -1167,12 +1236,14 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout b02478677b
+    git checkout 6372a0848f
     git submodule init
-    git submodule update src/third_party/libvpx/source/libvpx src/third_party/libyuv
+    git submodule update src/third_party/libyuv
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
-    SET OPUS_PATH=$LIBS_DIR/opus/include
+    SET OPUS_PATH=$USED_PREFIX/include/opus
+    SET OPENSSL_PATH=$LIBS_DIR/openssl/include
+    SET LIBVPX_PATH=$USED_PREFIX/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
     mkdir out
     cd out
@@ -1183,8 +1254,9 @@ win:
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
 release:
@@ -1196,13 +1268,15 @@ release:
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
+    LIBVPX_PATH=$USED_PREFIX/include
     FFMPEG_PATH=$USED_PREFIX/include
     mkdir out
     cd out
@@ -1216,6 +1290,7 @@ mac:
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1229,6 +1304,7 @@ mac:
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1240,11 +1316,11 @@ release:
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1253,11 +1329,11 @@ release:
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
