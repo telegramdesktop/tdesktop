@@ -848,18 +848,16 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 		? history->peer->asUser()
 		: nullptr;
 	const auto toContact = toUser && toUser->isContact();
-	const auto maybeNotify = toContact && lookupHisReaction().isEmpty();
 	const auto hadUnread = hasUnreadReaction();
 	setReactions(reactions);
-	const auto hasUnread = _reactions && !_reactions->findUnread().isEmpty();
+	const auto unreadReaction = _reactions
+		? _reactions->findUnread()
+		: QString();
+	const auto hasUnread = !unreadReaction.isEmpty();
 	if (hasUnread && !hadUnread) {
 		_flags |= MessageFlag::HasUnreadReaction;
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
-	} else if (!hasUnread && hadUnread) {
-		markReactionsRead();
-	}
-	if (maybeNotify) {
-		if (const auto reaction = lookupHisReaction(); !reaction.isEmpty()) {
+		if (toContact) {
 			const auto notification = ItemNotification{
 				this,
 				ItemNotificationType::Reaction,
@@ -867,6 +865,8 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 			history->pushNotification(notification);
 			Core::App().notifications().schedule(notification);
 		}
+	} else if (!hasUnread && hadUnread) {
+		markReactionsRead();
 	}
 }
 
