@@ -85,6 +85,7 @@ void PaintNarrowCounter(
 		bool displayUnreadCounter,
 		bool displayUnreadMark,
 		bool displayMentionBadge,
+		bool displayReactionBadge,
 		int unreadCount,
 		bool selected,
 		bool active,
@@ -95,7 +96,10 @@ void PaintNarrowCounter(
 		const auto counter = (unreadCount > 0)
 			? QString::number(unreadCount)
 			: QString();
-		const auto allowDigits = displayMentionBadge ? 1 : 3;
+		const auto allowDigits = (displayMentionBadge
+			|| displayReactionBadge)
+			? 1
+			: 3;
 		const auto unreadRight = st::dialogsPadding.x()
 			+ st::dialogsPhotoSize;
 		const auto unreadTop = st::dialogsPadding.y()
@@ -115,7 +119,7 @@ void PaintNarrowCounter(
 			allowDigits);
 		skipBeforeMention += badge.width() + st.padding;
 	}
-	if (displayMentionBadge) {
+	if (displayMentionBadge || displayReactionBadge) {
 		const auto counter = QString();
 		const auto unreadRight = st::dialogsPadding.x()
 			+ st::dialogsPhotoSize
@@ -136,11 +140,17 @@ void PaintNarrowCounter(
 			unreadRight,
 			unreadTop,
 			st);
-		(st.active
-			? st::dialogsUnreadMentionActive
-			: st.selected
-			? st::dialogsUnreadMentionOver
-			: st::dialogsUnreadMention).paintInCenter(p, badge);
+		(displayMentionBadge
+			? (st.active
+				? st::dialogsUnreadMentionActive
+				: st.selected
+				? st::dialogsUnreadMentionOver
+				: st::dialogsUnreadMention)
+			: (st.active
+				? st::dialogsUnreadReactionActive
+				: st.selected
+				? st::dialogsUnreadReactionOver
+				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
 	}
 }
 
@@ -152,6 +162,7 @@ int PaintWideCounter(
 		bool displayUnreadCounter,
 		bool displayUnreadMark,
 		bool displayMentionBadge,
+		bool displayReactionBadge,
 		bool displayPinnedIcon,
 		int unreadCount,
 		bool active,
@@ -199,7 +210,7 @@ int PaintWideCounter(
 
 		hadOneBadge = true;
 	}
-	if (displayMentionBadge) {
+	if (displayMentionBadge || displayReactionBadge) {
 		const auto counter = QString();
 		const auto unreadRight = fullWidth
 			- st::dialogsPadding.x()
@@ -221,11 +232,17 @@ int PaintWideCounter(
 			unreadRight,
 			unreadTop,
 			st);
-		(st.active
-			? st::dialogsUnreadMentionActive
-			: st.selected
-			? st::dialogsUnreadMentionOver
-			: st::dialogsUnreadMention).paintInCenter(p, badge);
+		(displayMentionBadge
+			? (st.active
+				? st::dialogsUnreadMentionActive
+				: st.selected
+				? st::dialogsUnreadMentionOver
+				: st::dialogsUnreadMention)
+			: (st.active
+				? st::dialogsUnreadReactionActive
+				: st.selected
+				? st::dialogsUnreadReactionOver
+				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
 		availableWidth -= badge.width()
 			+ st.padding
 			+ (hadOneBadge ? st::dialogsUnreadPadding : 0);
@@ -779,8 +796,10 @@ void RowPainter::paint(
 			: QDateTime();
 	}();
 	const auto displayMentionBadge = history
-		? history->unreadMentions().has()
-		: false;
+		&& history->unreadMentions().has();
+	const auto displayReactionBadge = !displayMentionBadge
+		&& history
+		&& history->unreadReactions().has();
 	const auto displayUnreadCounter = [&] {
 		if (displayMentionBadge
 			&& unreadCount == 1
@@ -796,6 +815,7 @@ void RowPainter::paint(
 		&& unreadMark;
 	const auto displayPinnedIcon = !displayUnreadCounter
 		&& !displayMentionBadge
+		&& !displayReactionBadge
 		&& !displayUnreadMark
 		&& entry->isPinnedDialog(filterId)
 		&& (filterId || !entry->fixedOnTopIndex());
@@ -824,6 +844,7 @@ void RowPainter::paint(
 			displayUnreadCounter,
 			displayUnreadMark,
 			displayMentionBadge,
+			displayReactionBadge,
 			displayPinnedIcon,
 			unreadCount,
 			active,
@@ -868,6 +889,7 @@ void RowPainter::paint(
 			displayUnreadCounter,
 			displayUnreadMark,
 			displayMentionBadge,
+			displayReactionBadge,
 			unreadCount,
 			selected,
 			active,
@@ -943,6 +965,9 @@ void RowPainter::paint(
 	const auto mentionMuted = (history->folder() != nullptr);
 	const auto displayMentionBadge = displayUnreadInfo
 		&& history->unreadMentions().has();
+	const auto displayReactionBadge = displayUnreadInfo
+		&& !displayMentionBadge
+		&& history->unreadReactions().has();
 	const auto displayUnreadCounter = (unreadCount > 0);
 	const auto displayUnreadMark = !displayUnreadCounter
 		&& !displayMentionBadge
@@ -961,6 +986,7 @@ void RowPainter::paint(
 			displayUnreadCounter,
 			displayUnreadMark,
 			displayMentionBadge,
+			displayReactionBadge,
 			displayPinnedIcon,
 			unreadCount,
 			active,
@@ -987,6 +1013,7 @@ void RowPainter::paint(
 			displayUnreadCounter,
 			displayUnreadMark,
 			displayMentionBadge,
+			displayReactionBadge,
 			unreadCount,
 			selected,
 			active,

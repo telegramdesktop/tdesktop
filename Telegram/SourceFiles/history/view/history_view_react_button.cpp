@@ -781,9 +781,9 @@ void Manager::paint(Painter &p, const PaintContext &context) {
 	}
 
 	for (const auto &[id, effect] : _collectedEffects) {
-		const auto offset = effect.offset;
+		const auto offset = effect.effectOffset;
 		p.translate(offset);
-		_activeEffectAreas[id] = effect.paint(p).translated(offset);
+		_activeEffectAreas[id] = effect.effectPaint(p).translated(offset);
 		p.translate(-offset);
 	}
 	_collectedEffects.clear();
@@ -1543,17 +1543,19 @@ std::optional<QRect> Manager::lookupEffectArea(FullMsgId itemId) const {
 
 void Manager::startEffectsCollection() {
 	_collectedEffects.clear();
-	_currentEffect = {};
+	_currentReactionInfo = {};
 }
 
-not_null<Ui::ReactionEffectPainter*> Manager::currentReactionEffect() {
-	return &_currentEffect;
+auto Manager::currentReactionPaintInfo()
+-> not_null<Ui::ReactionPaintInfo*> {
+	return &_currentReactionInfo;
 }
 
 void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
-	if (_currentEffect.paint) {
-		_currentEffect.offset += origin;
-		_collectedEffects[itemId] = base::take(_currentEffect);
+	if (_currentReactionInfo.effectPaint) {
+		_currentReactionInfo.effectOffset += origin
+			+ _currentReactionInfo.position;
+		_collectedEffects[itemId] = base::take(_currentReactionInfo);
 	} else if (!_collectedEffects.empty()) {
 		_collectedEffects.remove(itemId);
 	}

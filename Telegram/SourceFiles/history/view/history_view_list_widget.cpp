@@ -1746,8 +1746,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
-			context.reactionEffects
-				= _reactionsManager->currentReactionEffect();
+			context.reactionInfo
+				= _reactionsManager->currentReactionPaintInfo();
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
 			view->draw(p, context);

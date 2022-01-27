@@ -108,7 +108,8 @@ public:
 		known)
 	, _history(history)
 	, _data(data)
-	, _type(type) {
+	, _type(type)
+	, _known(known) {
 	}
 
 	void setCount(int count);

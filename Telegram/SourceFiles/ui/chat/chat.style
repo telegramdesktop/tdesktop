@@ -118,12 +118,12 @@ dialogsToUp: TwoIconButton(historyToDown) {
 }
 
 historyUnreadMentions: TwoIconButton(historyToDown) {
-	iconAbove: icon {{ "history_unread_mention", historyToDownFg, point(16px, 16px) }};
-	iconAboveOver: icon {{ "history_unread_mention", historyToDownFgOver, point(16px, 16px) }};
+	iconAbove: icon {{ "history_unread_mention", historyToDownFg }};
+	iconAboveOver: icon {{ "history_unread_mention", historyToDownFgOver }};
 }
 historyUnreadReactions: TwoIconButton(historyToDown) {
-	iconAbove: icon {{ "history_unread_reaction", historyToDownFg, point(16px, 16px) }};
-	iconAboveOver: icon {{ "history_unread_reaction", historyToDownFgOver, point(16px, 16px) }};
+	iconAbove: icon {{ "history_unread_reaction", historyToDownFg }};
+	iconAboveOver: icon {{ "history_unread_reaction", historyToDownFgOver }};
 }
 historyUnreadThingsSkip: 4px;
 

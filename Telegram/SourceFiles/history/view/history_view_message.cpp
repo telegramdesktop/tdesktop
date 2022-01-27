@@ -729,8 +729,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		p.translate(reactionsPosition);
 		_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
-		if (context.reactionEffects && context.reactionEffects->paint) {
-			context.reactionEffects->offset += reactionsPosition;
+		if (context.reactionInfo) {
+			context.reactionInfo->position = reactionsPosition;
 		}
 		p.translate(-reactionsPosition);
 	}
@@ -784,8 +784,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
 			p.translate(reactionsPosition);
 			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
-			if (context.reactionEffects && context.reactionEffects->paint) {
-				context.reactionEffects->offset += reactionsPosition;
+			if (context.reactionInfo) {
+				context.reactionInfo->position = reactionsPosition;
 			}
 			p.translate(-reactionsPosition);
 		}
@@ -842,10 +842,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			media->draw(p, context.translated(
 				-mediaPosition
 			).withSelection(skipTextSelection(context.selection)));
-			if (context.reactionEffects
-				&& context.reactionEffects->paint
-				&& !_reactions) {
-				context.reactionEffects->offset += mediaPosition;
+			if (context.reactionInfo && !displayInfo && !_reactions) {
+				const auto add = QPoint(0, mediaHeight);
+				context.reactionInfo->position = mediaPosition + add;
+				if (context.reactionInfo->effectPaint) {
+					context.reactionInfo->effectOffset -= add;
+				}
 			}
 			p.translate(-mediaPosition);
 		}
@@ -876,6 +878,13 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				inner.top() + inner.height(),
 				2 * inner.left() + inner.width(),
 				InfoDisplayType::Default);
+			if (context.reactionInfo && !_reactions) {
+				const auto add = QPoint(0, inner.top() + inner.height());
+				context.reactionInfo->position = add;
+				if (context.reactionInfo->effectPaint) {
+					context.reactionInfo->effectOffset -= add;
+				}
+			}
 			if (_comments) {
 				const auto o = p.opacity();
 				p.setOpacity(0.3);
@@ -901,8 +910,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		media->draw(p, context.translated(
 			-g.topLeft()
 		).withSelection(skipTextSelection(context.selection)));
-		if (context.reactionEffects && context.reactionEffects->paint && !_reactions) {
-			context.reactionEffects->offset += g.topLeft();
+		if (context.reactionInfo && !_reactions) {
+			const auto add = QPoint(0, g.height());
+			context.reactionInfo->position = g.topLeft() + add;
+			if (context.reactionInfo->effectPaint) {
+				context.reactionInfo->effectOffset -= add;
+			}
 		}
 		p.translate(-g.topLeft());
 	}

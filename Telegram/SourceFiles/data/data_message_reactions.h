@@ -125,6 +125,20 @@ private:
 
 };
 
+struct RecentReaction {
+	not_null<PeerData*> peer;
+	bool unread = false;
+	bool big = false;
+
+	inline friend constexpr bool operator==(
+			const RecentReaction &a,
+			const RecentReaction &b) noexcept {
+		return (a.peer.get() == b.peer.get())
+			&& (a.unread == b.unread)
+			&& (a.big == b.big);
+	}
+};
+
 class MessageReactions final {
 public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
@@ -137,7 +151,7 @@ public:
 		bool ignoreChosen);
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] auto recent() const
-		-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> &;
+		-> const base::flat_map<QString, std::vector<RecentReaction>> &;
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
 
@@ -146,7 +160,7 @@ private:
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
-	base::flat_map<QString, std::vector<not_null<PeerData*>>> _recent;
+	base::flat_map<QString, std::vector<RecentReaction>> _recent;
 
 };
 

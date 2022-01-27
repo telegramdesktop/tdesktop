@@ -492,7 +492,9 @@ void MessageReactions::add(const QString &reaction) {
 		}
 		const auto j = _recent.find(_chosen);
 		if (j != end(_recent)) {
-			j->second.erase(ranges::remove(j->second, self), end(j->second));
+			j->second.erase(
+				ranges::remove(j->second, self, &RecentReaction::peer),
+				end(j->second));
 			if (j->second.empty() || removed) {
 				_recent.erase(j);
 			}
@@ -502,7 +504,7 @@ void MessageReactions::add(const QString &reaction) {
 	if (!reaction.isEmpty()) {
 		if (_item->canViewReactions()) {
 			auto &list = _recent[reaction];
-			list.insert(begin(list), self);
+			list.insert(begin(list), RecentReaction{ self });
 		}
 		++_list[reaction];
 	}
@@ -557,15 +559,16 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
-	auto parsed = base::flat_map<
-		QString,
-		std::vector<not_null<PeerData*>>>();
+	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto emoji = qs(data.vreaction());
 			if (_list.contains(emoji)) {
-				parsed[emoji].push_back(
-					owner.peer(peerFromMTP(data.vpeer_id())));
+				parsed[emoji].push_back(RecentReaction{
+					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
+					.unread = data.is_unread(),
+					.big = data.is_big(),
+				});
 			}
 		});
 	}
@@ -584,7 +587,7 @@ const base::flat_map<QString, int> &MessageReactions::list() const {
 }
 
 auto MessageReactions::recent() const
--> const base::flat_map<QString, std::vector<not_null<PeerData*>>> & {
+-> const base::flat_map<QString, std::vector<RecentReaction>> & {
 	return _recent;
 }
 

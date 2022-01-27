@@ -320,7 +320,7 @@ void BottomInfo::paintReactions(
 		? _reactionAnimation->playingAroundEmoji()
 		: QString();
 	if (_reactionAnimation
-		&& context.reactionEffects
+		&& context.reactionInfo
 		&& animated.isEmpty()) {
 		_reactionAnimation = nullptr;
 	}
@@ -354,7 +354,7 @@ void BottomInfo::paintReactions(
 			p.drawImage(image.topLeft(), reaction.image);
 		}
 		if (animating) {
-			context.reactionEffects->paint = [=](QPainter &p) {
+			context.reactionInfo->effectPaint = [=](QPainter &p) {
 				return _reactionAnimation->paintGetArea(p, origin, image);
 			};
 		}

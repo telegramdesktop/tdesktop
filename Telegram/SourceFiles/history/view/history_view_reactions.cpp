@@ -274,11 +274,11 @@ void InlineList::paint(
 	const auto size = st::reactionInlineSize;
 	const auto skip = (size - st::reactionInlineImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
-	const auto animated = (_animation && context.reactionEffects)
+	const auto animated = (_animation && context.reactionInfo)
 		? _animation->playingAroundEmoji()
 		: QString();
 	const auto flipped = (_data.flags & Data::Flag::Flipped);
-	if (_animation && context.reactionEffects && animated.isEmpty()) {
+	if (_animation && context.reactionInfo && animated.isEmpty()) {
 		_animation = nullptr;
 	}
 	p.setFont(st::semiboldFont);
@@ -342,7 +342,7 @@ void InlineList::paint(
 			p.drawImage(image.topLeft(), button.image);
 		}
 		if (animating) {
-			context.reactionEffects->paint = [=](QPainter &p) {
+			context.reactionInfo->effectPaint = [=](QPainter &p) {
 				return _animation->paintGetArea(p, QPoint(), image);
 			};
 		}
@@ -480,7 +480,12 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 		return true;
 	}();
 	if (showUserpics) {
-		result.recent = recent;
+		result.recent.reserve(recent.size());
+		for (const auto &[emoji, list] : recent) {
+			result.recent.emplace(emoji).first->second = list
+				| ranges::view::transform(&Data::RecentReaction::peer)
+				| ranges::to_vector;
+		}
 	}
 	result.chosenReaction = item->chosenReaction();
 	if (!result.chosenReaction.isEmpty()) {

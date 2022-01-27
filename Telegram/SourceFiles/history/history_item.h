@@ -41,6 +41,7 @@ struct RippleAnimation;
 
 namespace Data {
 struct MessagePosition;
+struct RecentReaction;
 class Media;
 class MessageReactions;
 } // namespace Data
@@ -367,7 +368,9 @@ public:
 	void updateReactionsUnknown();
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] auto recentReactions() const
-		-> const base::flat_map<QString, std::vector<not_null<PeerData*>>> &;
+	-> const base::flat_map<
+		QString,
+		std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
 	[[nodiscard]] QString lookupHisReaction() const;

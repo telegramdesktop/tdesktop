@@ -337,6 +337,12 @@ bool HistoryItem::isUnreadMention() const {
 }
 
 bool HistoryItem::hasUnreadReaction() const {
+	const auto &recent = recentReactions();
+	for (const auto &[emoji, list] : recent) {
+		if (ranges::contains(list, true, &Data::RecentReaction::unread)) {
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -901,10 +907,10 @@ const base::flat_map<QString, int> &HistoryItem::reactions() const {
 }
 
 auto HistoryItem::recentReactions() const
--> const base::flat_map<QString, std::vector<not_null<PeerData*>>> & {
+-> const base::flat_map<QString, std::vector<Data::RecentReaction>> & {
 	static const auto kEmpty = base::flat_map<
 		QString,
-		std::vector<not_null<PeerData*>>>();
+		std::vector<Data::RecentReaction>>();
 	return _reactions ? _reactions->recent() : kEmpty;
 }
 

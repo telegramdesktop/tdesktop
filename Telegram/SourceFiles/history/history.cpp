@@ -693,7 +693,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 }
 
 void History::setUnreadThingsKnown() {
-	_flags &= ~Flag::UnreadThingsKnown;
+	_flags |= Flag::UnreadThingsKnown;
 }
 
 HistoryUnreadThings::Proxy History::unreadMentions() {
