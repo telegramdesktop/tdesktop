@@ -131,22 +131,16 @@ parts:
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       snapcraftctl pull
-
       version_file=Telegram/build/version
       version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
       beta=$(sed -n "s/BetaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
-
       if [ "$beta" != "0" ]; then
         version="$version-beta"
       fi
-
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
-
       snapcraftctl set-version "$version"
-
       sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
-      echo $TEST_VAR
       snapcraftctl build
       rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
     stage:
@@ -206,7 +200,6 @@ parts:
       - -Dtests=false
     override-pull: |
       snapcraftctl pull
-      echo $TEST_VAR
       patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
     prime: [-./*]
     after:
@@ -357,10 +350,8 @@ parts:
       - zlib1g
     override-pull: |
       QT=6_2_2
-
       git clone -b v6.2.2 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
-
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
@@ -378,8 +369,9 @@ parts:
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
-        -nomake tests
-
+        -nomake tests \
+        -- \
+        -DINPUT_egl_extension_platform_wayland=no
       cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
     stage:
@@ -422,10 +414,32 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.so
       - -./usr/share
 
+  vpx:
+    source: https://github.com/webmproject/libvpx.git
+    source-depth: 1
+    source-tag: v1.11.0
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
+      - --disable-examples
+      - --disable-unit-tests
+      - --disable-tools
+      - --disable-docs
+      - --enable-shared
+      - --disable-static
+      - --enable-vp8
+      - --enable-vp9
+      - --enable-webm-io
+    prime:
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libvpx.so
+
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: b02478677baac6d563589f216800ff9cea0fd65c
+    source-commit: 6372a0848f8dd84013e291b44f9d1427fde3a90e
     plugin: cmake
     build-packages:
       - yasm
@@ -458,10 +472,8 @@ parts:
       - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=OFF
       - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
       - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
-      - -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
@@ -469,3 +481,4 @@ parts:
     after:
       - ffmpeg
       - mozjpeg
+      - vpx
