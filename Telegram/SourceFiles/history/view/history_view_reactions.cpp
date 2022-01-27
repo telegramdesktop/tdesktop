@@ -159,6 +159,7 @@ void InlineList::setButtonUserpics(
 	while (list.size() > count) {
 		list.pop_back();
 	}
+	button.userpics->image = QImage();
 }
 
 QSize InlineList::countOptimalSize() {
