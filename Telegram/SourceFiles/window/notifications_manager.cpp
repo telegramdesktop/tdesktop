@@ -879,11 +879,13 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isUser() || history->peer->isChannel()) {
+		if (history->peer->isChannel()) {
 			return false;
 		}
 		const auto item = history->owner().message(history->peer, messageId);
-		if (!item || !item->isRegular() || !item->mentionsMe()) {
+		if (!item
+			|| !item->isRegular()
+			|| (!item->out() && !item->mentionsMe())) {
 			return false;
 		}
 		return true;
