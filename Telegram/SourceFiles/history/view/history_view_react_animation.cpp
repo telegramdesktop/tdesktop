@@ -27,11 +27,10 @@ Animation::Animation(
 	Fn<void()> repaint,
 	int size)
 : _owner(owner)
-, _emoji(args.emoji)
 , _repaint(std::move(repaint))
 , _flyFrom(args.flyFrom) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
-	const auto i = ranges::find(list, _emoji, &::Data::Reaction::emoji);
+	const auto i = ranges::find(list, args.emoji, &::Data::Reaction::emoji);
 	if (i == end(list) || !i->centerIcon) {
 		return;
 	}
@@ -172,10 +171,9 @@ float64 Animation::flyingProgress() const {
 	return _fly.value(1.);
 }
 
-QString Animation::playingAroundEmoji() const {
-	const auto finished = !_valid
+bool Animation::finished() const {
+	return !_valid
 		|| (!_flyIcon && !_center->animating() && !_effect->animating());
-	return finished ? QString() : _emoji;
 }
 
 } // namespace HistoryView::Reactions

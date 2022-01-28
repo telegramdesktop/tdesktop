@@ -268,29 +268,34 @@ void InlineList::paint(
 		const PaintContext &context,
 		int outerWidth,
 		const QRect &clip) const {
+	struct SingleAnimation {
+		not_null<Reactions::Animation*> animation;
+		QRect target;
+	};
+	std::vector<SingleAnimation> animations;
+
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
 	const auto skip = (size - st::reactionInlineImage) / 2;
 	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
-	const auto animated = (_animation && context.reactionInfo)
-		? _animation->playingAroundEmoji()
-		: QString();
 	const auto flipped = (_data.flags & Data::Flag::Flipped);
-	if (_animation && context.reactionInfo && animated.isEmpty()) {
-		_animation = nullptr;
-	}
 	p.setFont(st::semiboldFont);
 	for (const auto &button : _buttons) {
+		if (context.reactionInfo
+			&& button.animation
+			&& button.animation->finished()) {
+			button.animation = nullptr;
+		}
+		const auto animating = (button.animation != nullptr);
 		const auto &geometry = button.geometry;
 		const auto mine = (_data.chosenReaction == button.emoji);
 		const auto withoutMine = button.count - (mine ? 1 : 0);
-		const auto animating = (animated == button.emoji);
 		const auto skipImage = animating
-			&& (withoutMine < 1 || !_animation->flying());
+			&& (withoutMine < 1 || !button.animation->flying());
 		const auto bubbleProgress = skipImage
-			? _animation->flyingProgress()
+			? button.animation->flyingProgress()
 			: 1.;
 		const auto bubbleReady = (bubbleProgress == 1.);
 		const auto bubbleSkip = anim::interpolate(
@@ -299,7 +304,7 @@ void InlineList::paint(
 			bubbleProgress);
 		const auto inner = geometry.marginsRemoved(padding);
 		const auto chosen = mine
-			&& (!animating || !_animation->flying() || skipImage);
+			&& (!animating || !button.animation->flying() || skipImage);
 		if (bubbleProgress > 0.) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
@@ -342,9 +347,10 @@ void InlineList::paint(
 			p.drawImage(image.topLeft(), button.image);
 		}
 		if (animating) {
-			context.reactionInfo->effectPaint = [=](QPainter &p) {
-				return _animation->paintGetArea(p, QPoint(), image);
-			};
+			animations.push_back({
+				.animation = button.animation.get(),
+				.target = image,
+			});
 		}
 		if (bubbleProgress == 0.) {
 			continue;
@@ -381,6 +387,19 @@ void InlineList::paint(
 			p.setOpacity(1.);
 		}
 	}
+	if (!animations.empty()) {
+		context.reactionInfo->effectPaint = [=](QPainter &p) {
+			auto result = QRect();
+			for (const auto &single : animations) {
+				const auto area = single.animation->paintGetArea(
+					p,
+					QPoint(),
+					single.target);
+				result = result.isEmpty() ? area : result.united(area);
+			}
+			return result;
+		};
+	}
 }
 
 bool InlineList::getState(
@@ -411,7 +430,11 @@ bool InlineList::getState(
 void InlineList::animate(
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	_animation = std::make_unique<Reactions::Animation>(
+	const auto i = ranges::find(_buttons, args.emoji, &Button::emoji);
+	if (i == end(_buttons)) {
+		return;
+	}
+	i->animation = std::make_unique<Reactions::Animation>(
 		_owner,
 		std::move(args),
 		std::move(repaint),
@@ -447,13 +470,28 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 		kMaxRecentUserpics);
 }
 
-std::unique_ptr<Animation> InlineList::takeSendAnimation() {
-	return std::move(_animation);
+auto InlineList::takeAnimations()
+-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+	auto result = base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>>();
+	for (auto &button : _buttons) {
+		if (button.animation) {
+			result.emplace(button.emoji, std::move(button.animation));
+		}
+	}
+	return result;
 }
 
-void InlineList::continueSendAnimation(
-		std::unique_ptr<Animation> animation) {
-	_animation = std::move(animation);
+void InlineList::continueAnimations(base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>> animations) {
+	for (auto &[emoji, animation] : animations) {
+		const auto i = ranges::find(_buttons, emoji, &Button::emoji);
+		if (i != end(_buttons)) {
+			i->animation = std::move(animation);
+		}
+	}
 }
 
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {

@@ -423,8 +423,8 @@ public:
 
 	virtual void animateReaction(ReactionAnimationArgs &&args);
 	void animateUnreadReactions();
-	[[nodiscard]] virtual auto takeSendReactionAnimation()
-		-> std::unique_ptr<Reactions::Animation>;
+	[[nodiscard]] virtual auto takeReactionAnimations()
+		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
 
 	virtual ~Element();
 

@@ -75,8 +75,11 @@ public:
 	void animate(
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
-	[[nodiscard]] std::unique_ptr<Animation> takeSendAnimation();
-	void continueSendAnimation(std::unique_ptr<Animation> animation);
+	[[nodiscard]] auto takeAnimations()
+		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+	void continueAnimations(base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
 	struct Userpics {
@@ -86,6 +89,7 @@ private:
 	};
 	struct Button {
 		QRect geometry;
+		mutable std::unique_ptr<Animation> animation;
 		mutable QImage image;
 		mutable ClickHandlerPtr link;
 		std::unique_ptr<Userpics> userpics;
@@ -112,8 +116,6 @@ private:
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
-
-	mutable std::unique_ptr<Animation> _animation;
 
 };
 

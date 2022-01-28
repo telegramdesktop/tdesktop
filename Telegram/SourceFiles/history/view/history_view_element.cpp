@@ -1072,9 +1072,9 @@ void Element::animateUnreadReactions() {
 	}
 }
 
-auto Element::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::Animation> {
-	return nullptr;
+auto Element::takeReactionAnimations()
+-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+	return {};
 }
 
 Element::~Element() {

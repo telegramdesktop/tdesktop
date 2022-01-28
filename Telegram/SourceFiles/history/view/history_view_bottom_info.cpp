@@ -313,19 +313,22 @@ void BottomInfo::paintReactions(
 		int top,
 		int availableWidth,
 		const PaintContext &context) const {
+	struct SingleAnimation {
+		not_null<Reactions::Animation*> animation;
+		QRect target;
+	};
+	std::vector<SingleAnimation> animations;
+
 	auto x = left;
 	auto y = top;
 	auto widthLeft = availableWidth;
-	const auto animated = _reactionAnimation
-		? _reactionAnimation->playingAroundEmoji()
-		: QString();
-	if (_reactionAnimation
-		&& context.reactionInfo
-		&& animated.isEmpty()) {
-		_reactionAnimation = nullptr;
-	}
 	for (const auto &reaction : _reactions) {
-		const auto animating = (reaction.emoji == animated);
+		if (context.reactionInfo
+			&& reaction.animation
+			&& reaction.animation->finished()) {
+			reaction.animation = nullptr;
+		}
+		const auto animating = (reaction.animation != nullptr);
 		const auto add = (reaction.countTextWidth > 0)
 			? st::reactionInfoDigitSkip
 			: st::reactionInfoBetween;
@@ -349,14 +352,15 @@ void BottomInfo::paintReactions(
 			st::reactionInfoImage,
 			st::reactionInfoImage);
 		const auto skipImage = animating
-			&& (reaction.count < 2 || !_reactionAnimation->flying());
+			&& (reaction.count < 2 || !reaction.animation->flying());
 		if (!reaction.image.isNull() && !skipImage) {
 			p.drawImage(image.topLeft(), reaction.image);
 		}
 		if (animating) {
-			context.reactionInfo->effectPaint = [=](QPainter &p) {
-				return _reactionAnimation->paintGetArea(p, origin, image);
-			};
+			animations.push_back({
+				.animation = reaction.animation.get(),
+				.target = image,
+			});
 		}
 		if (reaction.countTextWidth > 0) {
 			p.drawText(
@@ -366,6 +370,19 @@ void BottomInfo::paintReactions(
 		}
 		x += width + add;
 		widthLeft -= width + add;
+	}
+	if (!animations.empty()) {
+		context.reactionInfo->effectPaint = [=](QPainter &p) {
+			auto result = QRect();
+			for (const auto &single : animations) {
+				const auto area = single.animation->paintGetArea(
+					p,
+					origin,
+					single.target);
+				result = result.isEmpty() ? area : result.united(area);
+			}
+			return result;
+		};
 	}
 }
 
@@ -440,11 +457,6 @@ void BottomInfo::layoutRepliesText() {
 }
 
 void BottomInfo::layoutReactionsText() {
-	if (_reactionAnimation
-		&& !_data.reactions.contains(
-			_reactionAnimation->playingAroundEmoji())) {
-		_reactionAnimation = nullptr;
-	}
 	if (_data.reactions.empty()) {
 		_reactions.clear();
 		return;
@@ -515,21 +527,39 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 void BottomInfo::animateReaction(
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	_reactionAnimation = std::make_unique<Reactions::Animation>(
+	const auto i = ranges::find(_reactions, args.emoji, &Reaction::emoji);
+	if (i == end(_reactions)) {
+		return;
+	}
+	i->animation = std::make_unique<Reactions::Animation>(
 		_reactionsOwner,
 		args.translated(QPoint(width(), height())),
 		std::move(repaint),
 		st::reactionInfoImage);
 }
 
-auto BottomInfo::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::Animation> {
-	return std::move(_reactionAnimation);
+auto BottomInfo::takeReactionAnimations()
+-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+	auto result = base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>>();
+	for (auto &reaction : _reactions) {
+		if (reaction.animation) {
+			result.emplace(reaction.emoji, std::move(reaction.animation));
+		}
+	}
+	return result;
 }
 
-void BottomInfo::continueSendReactionAnimation(
-		std::unique_ptr<Reactions::Animation> animation) {
-	_reactionAnimation = std::move(animation);
+void BottomInfo::continueReactionAnimations(base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>> animations) {
+	for (auto &[emoji, animation] : animations) {
+		const auto i = ranges::find(_reactions, emoji, &Reaction::emoji);
+		if (i != end(_reactions)) {
+			i->animation = std::move(animation);
+		}
+	}
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {

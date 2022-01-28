@@ -253,15 +253,18 @@ Message::Message(
 	initLogEntryOriginal();
 	initPsa();
 	refreshReactions();
-	auto animation = replacing
-		? replacing->takeSendReactionAnimation()
-		: nullptr;
-	if (animation) {
-		animation->setRepaintCallback([=] { repaint(); });
+	auto animations = replacing
+		? replacing->takeReactionAnimations()
+		: base::flat_map<QString, std::unique_ptr<Reactions::Animation>>();
+	if (!animations.empty()) {
+		const auto repainter = [=] { repaint(); };
+		for (const auto &[emoji, animation] : animations) {
+			animation->setRepaintCallback(repainter);
+		}
 		if (_reactions) {
-			_reactions->continueSendAnimation(std::move(animation));
+			_reactions->continueAnimations(std::move(animations));
 		} else {
-			_bottomInfo.continueSendReactionAnimation(std::move(animation));
+			_bottomInfo.continueReactionAnimations(std::move(animations));
 		}
 	}
 }
@@ -424,11 +427,11 @@ void Message::animateReaction(ReactionAnimationArgs &&args) {
 	}
 }
 
-auto Message::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::Animation> {
+auto Message::takeReactionAnimations()
+-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
 	return _reactions
-		? _reactions->takeSendAnimation()
-		: _bottomInfo.takeSendReactionAnimation();
+		? _reactions->takeAnimations()
+		: _bottomInfo.takeReactionAnimations();
 }
 
 QSize Message::performCountOptimalSize() {
