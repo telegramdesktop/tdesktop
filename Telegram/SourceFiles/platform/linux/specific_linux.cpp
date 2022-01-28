@@ -42,12 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <private/qguiapplication_p.h>
 
-#ifdef Q_OS_FREEBSD
-#include <malloc_np.h>
-#else // Q_OS_FREEBSD
-#include <jemalloc/jemalloc.h>
-#endif // Q_OS_FREEBSD
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
@@ -688,9 +682,6 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	auto backgroundThread = true;
-	mallctl("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
-
 	// Prevent any later calls into setlocale() by Qt
 	QCoreApplicationPrivate::initLocale();
 
