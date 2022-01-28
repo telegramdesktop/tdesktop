@@ -219,7 +219,8 @@ public:
 	struct NotificationFields {
 		not_null<HistoryItem*> item;
 		int forwardedCount = 0;
-		QString reaction;
+		PeerData *reactionFrom = nullptr;
+		QString reactionEmoji;
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {

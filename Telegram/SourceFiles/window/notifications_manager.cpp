@@ -657,13 +657,14 @@ void System::showNext() {
 			const auto reactionNotification
 				= (notify->type == ItemNotificationType::Reaction);
 			const auto reaction = reactionNotification
-				? notify->item->lookupHisReaction()
-				: QString();
-			if (!reactionNotification || !reaction.isEmpty()) {
+				? notify->item->lookupUnreadReaction()
+				: HistoryItemUnreadReaction();
+			if (!reactionNotification || reaction) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
-					.reaction = reaction,
+					.reactionFrom = reaction.from,
+					.reactionEmoji = reaction.emoji,
 				});
 			}
 		}
@@ -879,13 +880,14 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isChannel()) {
+		const auto peer = history->peer;
+		if (peer->isBroadcast()) {
 			return false;
 		}
 		const auto item = history->owner().message(history->peer, messageId);
 		if (!item
 			|| !item->isRegular()
-			|| (!item->out() && !item->mentionsMe())) {
+			|| (!item->out() && (!item->mentionsMe() || peer->isUser()))) {
 			return false;
 		}
 		return true;
@@ -928,17 +930,17 @@ void Manager::notificationReplied(
 void NativeManager::doShowNotification(NotificationFields &&fields) {
 	const auto options = getNotificationOptions(
 		fields.item,
-		(fields.reaction.isEmpty()
-			? ItemNotificationType::Message
-			: ItemNotificationType::Reaction));
+		(fields.reactionFrom
+			? ItemNotificationType::Reaction
+			: ItemNotificationType::Message));
 	const auto item = fields.item;
 	const auto peer = item->history()->peer;
-	const auto reaction = fields.reaction;
-	if (!reaction.isEmpty() && options.hideNameAndPhoto) {
+	const auto reactionFrom = fields.reactionFrom;
+	if (reactionFrom && options.hideNameAndPhoto) {
 		return;
 	}
 	const auto scheduled = !options.hideNameAndPhoto
-		&& fields.reaction.isEmpty()
+		&& !reactionFrom
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
 	const auto title = options.hideNameAndPhoto
@@ -947,13 +949,15 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? tr::lng_notification_reminder(tr::now)
 		: peer->name;
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
-	const auto subtitle = (options.hideNameAndPhoto || !reaction.isEmpty())
+	const auto subtitle = reactionFrom
+		? (reactionFrom != peer ? reactionFrom->name : QString())
+		: options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();
-	const auto text = !reaction.isEmpty()
+	const auto text = reactionFrom
 		? TextWithPermanentSpoiler(ComposeReactionNotification(
 			item,
-			reaction,
+			fields.reactionEmoji,
 			options.hideMessageText))
 		: options.hideMessageText
 		? tr::lng_notification_preview(tr::now)

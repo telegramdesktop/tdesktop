@@ -846,23 +846,19 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
-	const auto history = this->history();
-	const auto toUser = (reactions && out())
-		? history->peer->asUser()
-		: nullptr;
-	const auto toContact = toUser && toUser->isContact();
 	const auto hadUnread = hasUnreadReaction();
 	setReactions(reactions);
 	const auto hasUnread = hasUnreadReaction();
 	if (hasUnread && !hadUnread) {
-		// This may read the reaction already.
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
-		if (toContact && hasUnreadReaction()) {
+
+		// Call to addToUnreadThings may have read the reaction already.
+		if (hasUnreadReaction()) {
 			const auto notification = ItemNotification{
 				this,
 				ItemNotificationType::Reaction,
 			};
-			history->pushNotification(notification);
+			history()->pushNotification(notification);
 			Core::App().notifications().schedule(notification);
 		}
 	} else if (!hasUnread && hadUnread) {
@@ -947,22 +943,21 @@ QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
 }
 
-QString HistoryItem::lookupHisReaction() const {
+HistoryItemUnreadReaction HistoryItem::lookupUnreadReaction() const {
 	if (!_reactions) {
-		return QString();
+		return {};
 	}
-	const auto &list = _reactions->list();
-	if (list.empty()) {
-		return QString();
+	const auto recent = _reactions->recent();
+	for (const auto &[emoji, list] : _reactions->recent()) {
+		const auto i = ranges::find(
+			list,
+			true,
+			&Data::RecentReaction::unread);
+		if (i != end(list)) {
+			return { .from = i->peer, .emoji = emoji };
+		}
 	}
-	const auto chosen = _reactions->chosen();
-	const auto &[first, count] = list.front();
-	if (chosen.isEmpty() || first != chosen || count > 1) {
-		return first;
-	} else if (list.size() == 1) {
-		return QString();
-	}
-	return list.back().first;
+	return {};
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {
