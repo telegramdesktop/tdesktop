@@ -47,6 +47,9 @@ public:
 	void erase(MsgId msgId) {
 		_messages.remove(msgId);
 	}
+	void clear() {
+		_messages.clear();
+	}
 
 private:
 	std::optional<int> _count;
@@ -115,6 +118,7 @@ public:
 	void setCount(int count);
 	bool add(MsgId msgId, AddType type);
 	void erase(MsgId msgId);
+	void clear();
 
 	void addSlice(const MTPmessages_Messages &slice);
 

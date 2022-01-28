@@ -16,6 +16,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 namespace HistoryUnreadThings {
+namespace {
+
+[[nodiscard]] Data::HistoryUpdate::Flag UpdateFlag(Type type) {
+	using Flag = Data::HistoryUpdate::Flag;
+	switch (type) {
+	case Type::Mentions: return Flag::UnreadMentions;
+	case Type::Reactions: return Flag::UnreadReactions;
+	}
+	Unexpected("Type in Proxy::addSlice.");
+}
+
+} // namespace
 
 void Proxy::setCount(int count) {
 	if (!_known) {
@@ -34,21 +46,20 @@ void Proxy::setCount(int count) {
 			"real count is greater than received unread count"));
 		count = loaded;
 	}
-	if (!count) {
-		const auto &other = (_type == Type::Mentions)
-			? _data->reactions
-			: _data->mentions;
-		if (other.count(-1) == 0) {
-			_data = nullptr;
-			return;
-		}
-	}
-
 	const auto had = (list.count() > 0);
-	list.setCount(count);
+	const auto &other = (_type == Type::Mentions)
+		? _data->reactions
+		: _data->mentions;
+	if (!count && other.count(-1) == 0) {
+		_data = nullptr;
+	} else {
+		list.setCount(count);
+	}
 	const auto has = (count > 0);
 	if (has != had) {
-		_history->owner().chatsFilters().refreshHistory(_history);
+		if (_type == Type::Mentions) {
+			_history->owner().chatsFilters().refreshHistory(_history);
+		}
 		_history->updateChatListEntry();
 	}
 }
@@ -91,7 +102,19 @@ void Proxy::erase(MsgId msgId) {
 	}
 	_history->session().changes().historyUpdated(
 		_history,
-		Data::HistoryUpdate::Flag::UnreadMentions);
+		UpdateFlag(_type));
+}
+
+void Proxy::clear() {
+	if (!_data || !count()) {
+		return;
+	}
+	auto &list = resolveList();
+	list.clear();
+	setCount(0);
+	_history->session().changes().historyUpdated(
+		_history,
+		UpdateFlag(_type));
 }
 
 void Proxy::addSlice(const MTPmessages_Messages &slice) {
@@ -158,15 +181,9 @@ void Proxy::addSlice(const MTPmessages_Messages &slice) {
 		fullCount = list.loadedCount();
 	}
 	setCount(fullCount);
-	const auto flag = [&] {
-		using Flag = Data::HistoryUpdate::Flag;
-		switch (_type) {
-		case Type::Mentions: return Flag::UnreadMentions;
-		case Type::Reactions: return Flag::UnreadReactions;
-		}
-		Unexpected("Type in Proxy::addSlice.");
-	}();
-	_history->session().changes().historyUpdated(_history, flag);
+	_history->session().changes().historyUpdated(
+		_history,
+		UpdateFlag(_type));
 }
 
 void Proxy::createData() {
