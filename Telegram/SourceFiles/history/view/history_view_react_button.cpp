@@ -46,6 +46,7 @@ constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kSizeForDownscale = 96;
 constexpr auto kHoverScaleDuration = crl::time(200);
 constexpr auto kHoverScale = 1.24;
+constexpr auto kMaxReactionsScrollAtOnce = 2;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -153,7 +154,13 @@ bool Button::consumeWheelEvent(not_null<QWheelEvent*> e) {
 	if (horizontal) {
 		return false;
 	}
-	const auto shift = delta.y() * (expandUp() ? 1 : -1);
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = (st::reactionCornerSize.height() + between);
+	const auto max = oneHeight * kMaxReactionsScrollAtOnce;
+	const auto shift = std::clamp(
+		delta.y() * (expandUp() ? 1 : -1),
+		-max,
+		max);
 	_scroll = std::clamp(_scroll + shift, 0, scrollMax);
 	_update(_geometry);
 	e->accept();
