@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
+#include "base/unique_qptr.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
@@ -41,19 +42,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtCore/QSize>
-#include <QtCore/QTemporaryFile>
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
+#include <QtWidgets/QMenuBar>
+
+#include <private/qguiapplication_p.h>
+#include <private/qaction_p.h>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusMessage>
-#include <QtDBus/QDBusObjectPath>
-#include <QtDBus/QDBusMetaType>
-
-#include <statusnotifieritem.h>
-#include <dbusmenuexporter.h>
-
 #include <glibmm.h>
 #include <giomm.h>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -68,21 +64,6 @@ constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
-constexpr auto kTrayIconFilename = "tdesktop-trayicon-XXXXXX.png"_cs;
-
-constexpr auto kSNIWatcherService = "org.kde.StatusNotifierWatcher"_cs;
-constexpr auto kSNIWatcherObjectPath = "/StatusNotifierWatcher"_cs;
-constexpr auto kSNIWatcherInterface = kSNIWatcherService;
-
-constexpr auto kAppMenuService = "com.canonical.AppMenu.Registrar"_cs;
-constexpr auto kAppMenuObjectPath = "/com/canonical/AppMenu/Registrar"_cs;
-constexpr auto kAppMenuInterface = kAppMenuService;
-
-constexpr auto kMainMenuObjectPath = "/MenuBar"_cs;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 bool TrayIconMuted = true;
 int32 TrayIconCount = 0;
 base::flat_map<int, QImage> TrayIconImageBack;
@@ -91,96 +72,96 @@ QString TrayIconThemeName, TrayIconName;
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 void XCBSkipTaskbar(QWindow *window, bool skip) {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
-		return;
-	}
+    const auto connection = base::Platform::XCB::GetConnectionFromQt();
+    if (!connection) {
+        return;
+    }
 
-	const auto root = base::Platform::XCB::GetRootWindow(connection);
-	if (!root.has_value()) {
-		return;
-	}
+    const auto root = base::Platform::XCB::GetRootWindow(connection);
+    if (!root.has_value()) {
+        return;
+    }
 
-	const auto stateAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_NET_WM_STATE");
+    const auto stateAtom = base::Platform::XCB::GetAtom(
+            connection,
+            "_NET_WM_STATE");
 
-	if (!stateAtom.has_value()) {
-		return;
-	}
+    if (!stateAtom.has_value()) {
+        return;
+    }
 
-	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_NET_WM_STATE_SKIP_TASKBAR");
+    const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
+            connection,
+            "_NET_WM_STATE_SKIP_TASKBAR");
 
-	if (!skipTaskbarAtom.has_value()) {
-		return;
-	}
+    if (!skipTaskbarAtom.has_value()) {
+        return;
+    }
 
-	xcb_client_message_event_t xev;
-	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *stateAtom;
-	xev.sequence = 0;
-	xev.window = window->winId();
-	xev.format = 32;
-	xev.data.data32[0] = skip ? 1 : 0;
-	xev.data.data32[1] = *skipTaskbarAtom;
-	xev.data.data32[2] = 0;
-	xev.data.data32[3] = 0;
-	xev.data.data32[4] = 0;
+    xcb_client_message_event_t xev;
+    xev.response_type = XCB_CLIENT_MESSAGE;
+    xev.type = *stateAtom;
+    xev.sequence = 0;
+    xev.window = window->winId();
+    xev.format = 32;
+    xev.data.data32[0] = skip ? 1 : 0;
+    xev.data.data32[1] = *skipTaskbarAtom;
+    xev.data.data32[2] = 0;
+    xev.data.data32[3] = 0;
+    xev.data.data32[4] = 0;
 
-	xcb_send_event(
-		connection,
-		false,
-		*root,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-		reinterpret_cast<const char*>(&xev));
+    xcb_send_event(
+            connection,
+            false,
+            *root,
+            XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+            | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+            reinterpret_cast<const char*>(&xev));
 }
 
 void XCBSetDesktopFileName(QWindow *window) {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
-		return;
-	}
+    const auto connection = base::Platform::XCB::GetConnectionFromQt();
+    if (!connection) {
+        return;
+    }
 
-	const auto desktopFileAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_KDE_NET_WM_DESKTOP_FILE");
+    const auto desktopFileAtom = base::Platform::XCB::GetAtom(
+            connection,
+            "_KDE_NET_WM_DESKTOP_FILE");
 
-	const auto utf8Atom = base::Platform::XCB::GetAtom(
-		connection,
-		"UTF8_STRING");
+    const auto utf8Atom = base::Platform::XCB::GetAtom(
+            connection,
+            "UTF8_STRING");
 
-	if (!desktopFileAtom.has_value() || !utf8Atom.has_value()) {
-		return;
-	}
+    if (!desktopFileAtom.has_value() || !utf8Atom.has_value()) {
+        return;
+    }
 
-	const auto filename = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toUtf8();
+    const auto filename = QGuiApplication::desktopFileName()
+            .chopped(8)
+            .toUtf8();
 
-	xcb_change_property(
-		connection,
-		XCB_PROP_MODE_REPLACE,
-		window->winId(),
-		*desktopFileAtom,
-		*utf8Atom,
-		8,
-		filename.size(),
-		filename.data());
+    xcb_change_property(
+            connection,
+            XCB_PROP_MODE_REPLACE,
+            window->winId(),
+            *desktopFileAtom,
+            *utf8Atom,
+            8,
+            filename.size(),
+            filename.data());
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 void SkipTaskbar(QWindow *window, bool skip) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->skipTaskbar(window, skip);
-	}
+    if (const auto integration = WaylandIntegration::Instance()) {
+        integration->skipTaskbar(window, skip);
+    }
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	if (IsX11()) {
-		XCBSkipTaskbar(window, skip);
-	}
+    if (IsX11()) {
+        XCBSkipTaskbar(window, skip);
+    }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
@@ -382,971 +363,513 @@ void SendKeySequence(
 }
 
 void ForceDisabled(QAction *action, bool disabled) {
-	if (action->isEnabled()) {
-		if (disabled) action->setDisabled(true);
-	} else if (!disabled) {
-		action->setDisabled(false);
-	}
+    if (action->isEnabled()) {
+        if (disabled) action->setDisabled(true);
+    } else if (!disabled) {
+        action->setDisabled(false);
+
+        const auto privateAction = QActionPrivate::get(action);
+        privateAction->setShortcutEnabled(
+                false,
+                QGuiApplicationPrivate::instance()->shortcutMap);
+    }
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-bool IsIndicatorApplication() {
-	// Hack for indicator-application,
-	// which doesn't handle icons sent across D-Bus:
-	// save the icon to a temp file
-	// and set the icon name to that filename.
-	static const auto Result = [] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			const auto ubuntuIndicator = base::Platform::DBus::NameHasOwner(
-				connection,
-				"com.canonical.indicator.application");
-
-			const auto ayatanaIndicator = base::Platform::DBus::NameHasOwner(
-				connection,
-				"org.ayatana.indicator.application");
-
-			return ubuntuIndicator || ayatanaIndicator;
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
-}
-
-std::unique_ptr<QTemporaryFile> TrayIconFile(
-		const QIcon &icon,
-		QObject *parent = nullptr) {
-	static const auto templateName = AppRuntimeDirectory()
-		+ kTrayIconFilename.utf16();
-
-	static const auto dprSize = [](const QPixmap &pixmap) {
-		return pixmap.size() / pixmap.devicePixelRatio();
-	};
-
-	static const auto desiredSize = QSize(22, 22);
-
-	static const auto scalePixmap = [=](const QPixmap &pixmap) {
-		if (dprSize(pixmap) != desiredSize) {
-			return pixmap.scaled(
-				desiredSize * pixmap.devicePixelRatio(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		} else {
-			return pixmap;
-		}
-	};
-
-	auto ret = std::make_unique<QTemporaryFile>(
-		templateName,
-		parent);
-
-	ret->open();
-
-	const auto firstAttempt = icon.pixmap(desiredSize);
-	const auto firstAttemptSize = dprSize(firstAttempt);
-
-	if (firstAttemptSize.width() < desiredSize.width()) {
-		const auto availableSizes = icon.availableSizes();
-
-		const auto biggestSize = ranges::max_element(
-			availableSizes,
-			std::less<>(),
-			&QSize::width);
-
-		if (biggestSize->width() > firstAttemptSize.width()) {
-			scalePixmap(icon.pixmap(*biggestSize)).save(ret.get());
-		} else {
-			scalePixmap(firstAttempt).save(ret.get());
-		}
-	} else {
-		scalePixmap(firstAttempt).save(ret.get());
-	}
-
-	ret->close();
-
-	return ret;
-}
-
 bool UseUnityCounter() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
+    static const auto Result = [&] {
+        try {
+            const auto connection = Gio::DBus::Connection::get_sync(
+                    Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-			return base::Platform::DBus::NameHasOwner(
-				connection,
-				"com.canonical.Unity");
-		} catch (...) {
-		}
+            return base::Platform::DBus::NameHasOwner(
+                    connection,
+                    "com.canonical.Unity");
+        } catch (...) {
+        }
 
-		return false;
-	}();
+        return false;
+    }();
 
-	return Result;
-}
-
-bool IsSNIAvailable() {
-	try {
-		const auto connection = [] {
-			try {
-				return Gio::DBus::Connection::get_sync(
-					Gio::DBus::BusType::BUS_TYPE_SESSION);
-			} catch (...) {
-				return Glib::RefPtr<Gio::DBus::Connection>();
-			}
-		}();
-
-		if (!connection) {
-			return false;
-		}
-
-		auto reply = connection->call_sync(
-			std::string(kSNIWatcherObjectPath),
-			std::string(kPropertiesInterface),
-			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring(std::string(kSNIWatcherInterface)),
-				Glib::ustring("IsStatusNotifierHostRegistered"),
-			}),
-			std::string(kSNIWatcherService));
-
-		return base::Platform::GlibVariantCast<bool>(
-			base::Platform::GlibVariantCast<Glib::VariantBase>(
-				reply.get_child(0)));
-	} catch (const Glib::Error &e) {
-		static const auto NotSupportedErrors = {
-			"org.freedesktop.DBus.Error.ServiceUnknown",
-		};
-
-		const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
-		if (ranges::contains(NotSupportedErrors, errorName)) {
-			return false;
-		}
-
-		LOG(("SNI Error: %1")
-			.arg(QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("SNI Error: %1")
-			.arg(QString::fromStdString(e.what())));
-	}
-
-	return false;
+    return Result;
 }
 
 uint djbStringHash(const std::string &string) {
-	uint hash = 5381;
-	for (const auto &curChar : string) {
-		hash = (hash << 5) + hash + curChar;
-	}
-	return hash;
-}
-
-bool IsAppMenuSupported() {
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		return base::Platform::DBus::NameHasOwner(
-			connection,
-			std::string(kAppMenuService));
-	} catch (...) {
-	}
-
-	return false;
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void RegisterAppMenu(QWindow *window, const QString &menuPath) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->registerAppMenu(
-			window,
-			QDBusConnection::sessionBus().baseService(),
-			menuPath);
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("RegisterWindow"));
-
-	message.setArguments({
-		uint(window->winId()),
-		QVariant::fromValue(QDBusObjectPath(menuPath))
-	});
-
-	QDBusConnection::sessionBus().send(message);
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void UnregisterAppMenu(QWindow *window) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("UnregisterWindow"));
-
-	message.setArguments({
-		uint(window->winId())
-	});
-
-	QDBusConnection::sessionBus().send(message);
+    uint hash = 5381;
+    for (const auto &curChar : string) {
+        hash = (hash << 5) + hash + curChar;
+    }
+    return hash;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
 
-class MainWindow::Private {
+class MainWindow::Private : public QObject {
 public:
-	explicit Private(not_null<MainWindow*> window)
-	: _public(window) {
-	}
+    explicit Private(not_null<MainWindow*> window)
+            : _public(window) {
+        QCoreApplication::instance()->installEventFilter(this);
+    }
+
+    base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
-
-	StatusNotifierItem *sniTrayIcon = nullptr;
-	uint sniRegisteredSignalId = 0;
-	uint sniWatcherId = 0;
-	std::unique_ptr<QTemporaryFile> trayIconFile;
-
-	bool appMenuSupported = false;
-	uint appMenuWatcherId = 0;
-	DBusMenuExporter *mainMenuExporter = nullptr;
-
-	void setSNITrayIcon(int counter, bool muted);
-	void attachToSNITrayIcon();
-	void handleSNIHostRegistered();
-
-	void handleSNIOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
-
-	void handleAppMenuOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
+    Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
-	not_null<MainWindow*> _public;
+    not_null<MainWindow*> _public;
 };
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-void MainWindow::Private::setSNITrayIcon(int counter, bool muted) {
-	const auto iconName = GetTrayIconName(counter, muted);
-	const auto panelIconName = GetPanelIconName(counter, muted);
-
-	if (iconName == panelIconName) {
-		if (sniTrayIcon->iconName() == iconName) {
-			return;
-		}
-
-		sniTrayIcon->setIconByName(iconName);
-		sniTrayIcon->setToolTipIconByName(iconName);
-	} else if (IsIndicatorApplication()) {
-		if (!IsIconRegenerationNeeded(counter, muted)
-			&& trayIconFile
-			&& sniTrayIcon->iconName() == trayIconFile->fileName()) {
-			return;
-		}
-
-		const auto icon = TrayIconGen(counter, muted);
-		trayIconFile = TrayIconFile(icon, _public);
-
-		if (trayIconFile) {
-			// indicator-application doesn't support tooltips
-			sniTrayIcon->setIconByName(trayIconFile->fileName());
-		}
-	} else {
-		if (!IsIconRegenerationNeeded(counter, muted)
-			&& !sniTrayIcon->iconPixmap().isEmpty()
-			&& sniTrayIcon->iconName().isEmpty()) {
-			return;
-		}
-
-		const auto icon = TrayIconGen(counter, muted);
-		sniTrayIcon->setIconByPixmap(icon);
-		sniTrayIcon->setToolTipIconByPixmap(icon);
-	}
+bool MainWindow::Private::eventFilter(QObject *obj, QEvent *e) {
+    if (obj->objectName() == qstr("QSystemTrayIconSys")
+        && e->type() == QEvent::MouseButtonPress) {
+        const auto ee = static_cast<QMouseEvent*>(e);
+        if (ee->button() == Qt::RightButton) {
+            Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+                _public->handleTrayIconActication(QSystemTrayIcon::Context);
+            });
+            return true;
+        }
+    }
+    return QObject::eventFilter(obj, e);
 }
-
-void MainWindow::Private::attachToSNITrayIcon() {
-	sniTrayIcon->setToolTipTitle(AppName.utf16());
-	connect(sniTrayIcon,
-		&StatusNotifierItem::activateRequested,
-		[=](const QPoint &) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_public->handleTrayIconActication(QSystemTrayIcon::Trigger);
-			});
-	});
-	connect(sniTrayIcon,
-		&StatusNotifierItem::secondaryActivateRequested,
-		[=](const QPoint &) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_public->handleTrayIconActication(QSystemTrayIcon::MiddleClick);
-			});
-	});
-}
-
-void MainWindow::Private::handleSNIHostRegistered() {
-	if (_public->_sniAvailable) {
-		return;
-	}
-
-	_public->_sniAvailable = true;
-
-	if (Core::App().settings().workMode() == WorkMode::WindowOnly) {
-		return;
-	}
-
-	LOG(("Switching to SNI tray icon..."));
-
-	if (_public->trayIcon) {
-		_public->trayIcon->setContextMenu(nullptr);
-		_public->trayIcon->deleteLater();
-	}
-	_public->trayIcon = nullptr;
-
-	_public->psSetupTrayIcon();
-
-	SkipTaskbar(
-		_public->windowHandle(),
-		Core::App().settings().workMode() == WorkMode::TrayOnly);
-}
-
-void MainWindow::Private::handleSNIOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner) {
-	_public->_sniAvailable = IsSNIAvailable();
-
-	if (Core::App().settings().workMode() == WorkMode::WindowOnly) {
-		return;
-	}
-
-	if (oldOwner.isEmpty() && !newOwner.isEmpty() && _public->_sniAvailable) {
-		LOG(("Switching to SNI tray icon..."));
-	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
-		LOG(("Switching to Qt tray icon..."));
-	} else {
-		return;
-	}
-
-	if (_public->trayIcon) {
-		_public->trayIcon->setContextMenu(0);
-		_public->trayIcon->deleteLater();
-	}
-	_public->trayIcon = nullptr;
-
-	if (_public->trayAvailable()) {
-		_public->psSetupTrayIcon();
-	} else {
-		LOG(("System tray is not available."));
-	}
-
-	SkipTaskbar(
-		_public->windowHandle(),
-		(Core::App().settings().workMode() == WorkMode::TrayOnly)
-			&& _public->trayAvailable());
-}
-
-void MainWindow::Private::handleAppMenuOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner) {
-	if (oldOwner.isEmpty() && !newOwner.isEmpty()) {
-		appMenuSupported = true;
-		LOG(("Using D-Bus global menu."));
-	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
-		appMenuSupported = false;
-		LOG(("Not using D-Bus global menu."));
-	}
-
-	if (appMenuSupported && mainMenuExporter) {
-		RegisterAppMenu(_public->windowHandle(), kMainMenuObjectPath.utf16());
-	} else {
-		UnregisterAppMenu(_public->windowHandle());
-	}
-}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this)) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	qDBusRegisterMetaType<ToolTip>();
-	qDBusRegisterMetaType<IconPixmap>();
-	qDBusRegisterMetaType<IconPixmapList>();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+        : Window::MainWindow(controller)
+        , _private(std::make_unique<Private>(this)) {
 }
 
 void MainWindow::initHook() {
-	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			auto ee = static_cast<QExposeEvent*>(e.get());
-			if (ee->region().isNull()) {
-				return base::EventFilterResult::Continue;
-			}
-			if (!windowHandle()
-				|| windowHandle()->parent()
-				|| !windowHandle()->isVisible()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(true);
-		} else if (e->type() == QEvent::Hide) {
-			if (!windowHandle() || windowHandle()->parent()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(false);
-		}
-		return base::EventFilterResult::Continue;
-	});
+    base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
+        if (e->type() == QEvent::Expose) {
+            auto ee = static_cast<QExposeEvent*>(e.get());
+            if (ee->region().isNull()) {
+                return base::EventFilterResult::Continue;
+            }
+            if (!windowHandle()
+                || windowHandle()->parent()
+                || !windowHandle()->isVisible()) {
+                return base::EventFilterResult::Continue;
+            }
+            handleNativeSurfaceChanged(true);
+        } else if (e->type() == QEvent::Hide) {
+            if (!windowHandle() || windowHandle()->parent()) {
+                return base::EventFilterResult::Continue;
+            }
+            handleNativeSurfaceChanged(false);
+        }
+        return base::EventFilterResult::Continue;
+    });
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	_sniAvailable = IsSNIAvailable();
-	_private->appMenuSupported = IsAppMenuSupported();
+    try {
+        _private->dbusConnection = Gio::DBus::Connection::get_sync(
+                Gio::DBus::BusType::BUS_TYPE_SESSION);
+    } catch (...) {
+    }
 
-	try {
-		_private->dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		_private->sniRegisteredSignalId = _private->dbusConnection->signal_subscribe(
-			[](
-				const Glib::RefPtr<Gio::DBus::Connection> &connection,
-				const Glib::ustring &sender_name,
-				const Glib::ustring &object_path,
-				const Glib::ustring &interface_name,
-				const Glib::ustring &signal_name,
-				const Glib::VariantContainerBase &parameters) {
-				if (signal_name == "StatusNotifierHostRegistered") {
-					crl::on_main([] {
-						if (const auto window = App::wnd()) {
-							window->_private->handleSNIHostRegistered();
-						}
-					});
-				}
-			},
-			std::string(kSNIWatcherService),
-			std::string(kSNIWatcherInterface),
-			"StatusNotifierHostRegistered",
-			std::string(kSNIWatcherObjectPath));
-
-		_private->sniWatcherId = base::Platform::DBus::RegisterServiceWatcher(
-			_private->dbusConnection,
-			std::string(kSNIWatcherService),
-			[=](
-				const Glib::ustring &service,
-				const Glib::ustring &oldOwner,
-				const Glib::ustring &newOwner) {
-				_private->handleSNIOwnerChanged(
-					QString::fromStdString(service),
-					QString::fromStdString(oldOwner),
-					QString::fromStdString(newOwner));
-			});
-
-		_private->appMenuWatcherId = base::Platform::DBus::RegisterServiceWatcher(
-			_private->dbusConnection,
-			std::string(kAppMenuService),
-			[=](
-				const Glib::ustring &service,
-				const Glib::ustring &oldOwner,
-				const Glib::ustring &newOwner) {
-				_private->handleAppMenuOwnerChanged(
-					QString::fromStdString(service),
-					QString::fromStdString(oldOwner),
-					QString::fromStdString(newOwner));
-			});
-	} catch (...) {
-	}
-
-	if (_private->appMenuSupported) {
-		LOG(("Using D-Bus global menu."));
-	} else {
-		LOG(("Not using D-Bus global menu."));
-	}
-
-	if (UseUnityCounter()) {
-		LOG(("Using Unity launcher counter."));
-	} else {
-		LOG(("Not using Unity launcher counter."));
-	}
+    if (UseUnityCounter()) {
+        LOG(("Using Unity launcher counter."));
+    } else {
+        LOG(("Not using Unity launcher counter."));
+    }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	XCBSetDesktopFileName(windowHandle());
+    XCBSetDesktopFileName(windowHandle());
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-	LOG(("System tray available: %1").arg(Logs::b(trayAvailable())));
+    LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
 }
 
 bool MainWindow::hasTrayIcon() const {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	return trayIcon || (_sniAvailable && _private->sniTrayIcon);
-#else
-	return trayIcon;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+    return trayIcon;
 }
 
 bool MainWindow::isActiveForTrayMenu() {
-	updateIsActive();
-	return Platform::IsWayland() ? isVisible() : isActive();
+    updateIsActive();
+    return Platform::IsWayland() ? isVisible() : isActive();
 }
 
 void MainWindow::psShowTrayMenu() {
-	_trayIconMenuXEmbed->popup(QCursor::pos());
+    _private->trayIconMenuXEmbed->popup(QCursor::pos());
 }
 
 void MainWindow::psTrayMenuUpdated() {
 }
 
 void MainWindow::psSetupTrayIcon() {
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
+    if (!trayIcon) {
+        trayIcon = new QSystemTrayIcon(this);
+        trayIcon->setContextMenu(trayIconMenu);
+        trayIcon->setIcon(TrayIconGen(
+                Core::App().unreadBadge(),
+                Core::App().unreadBadgeMuted()));
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_sniAvailable) {
-		LOG(("Using SNI tray icon."));
-		if (!_private->sniTrayIcon) {
-			_private->sniTrayIcon = new StatusNotifierItem(
-				QCoreApplication::applicationName(),
-				this);
+        attachToTrayIcon(trayIcon);
+    }
+    updateIconCounters();
 
-			_private->sniTrayIcon->setTitle(AppName.utf16());
-			_private->sniTrayIcon->setCategory(qsl("Communications"));
-			_private->sniTrayIcon->setContextMenu(trayIconMenu);
-			_private->setSNITrayIcon(counter, muted);
-
-			_private->attachToSNITrayIcon();
-		}
-		updateIconCounters();
-
-		return;
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	LOG(("Using Qt tray icon."));
-	if (!trayIcon) {
-		trayIcon = new QSystemTrayIcon(this);
-		if (_sniAvailable) {
-			trayIcon->setContextMenu(trayIconMenu);
-		}
-		trayIcon->setIcon(TrayIconGen(counter, muted));
-
-		attachToTrayIcon(trayIcon);
-	}
-	updateIconCounters();
-
-	trayIcon->show();
+    trayIcon->show();
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
-	if (!trayAvailable()) {
-		return;
-	} else if (mode == WorkMode::WindowOnly) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-		if (_private->sniTrayIcon) {
-			_private->sniTrayIcon->setContextMenu(0);
-			_private->sniTrayIcon->deleteLater();
-		}
-		_private->sniTrayIcon = nullptr;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+    if (!TrayIconSupported()) {
+        return;
+    } else if (mode == WorkMode::WindowOnly) {
+        if (trayIcon) {
+            trayIcon->setContextMenu(0);
+            trayIcon->deleteLater();
+        }
+        trayIcon = nullptr;
+    } else {
+        psSetupTrayIcon();
+    }
 
-		if (trayIcon) {
-			trayIcon->setContextMenu(0);
-			trayIcon->deleteLater();
-		}
-		trayIcon = nullptr;
-	} else {
-		psSetupTrayIcon();
-	}
-
-	SkipTaskbar(windowHandle(), mode == WorkMode::TrayOnly);
+    SkipTaskbar(windowHandle(), mode == WorkMode::TrayOnly);
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+    updateIconCounters();
 }
 
 void MainWindow::updateIconCounters() {
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
+    const auto counter = Core::App().unreadBadge();
+    const auto muted = Core::App().unreadBadgeMuted();
 
-	updateWindowIcon();
+    updateWindowIcon();
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (UseUnityCounter()) {
-		const auto launcherUrl = Glib::ustring(
-			"application://"
-				+ QGuiApplication::desktopFileName().toStdString());
-		const auto counterSlice = std::min(counter, 9999);
-		std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
+    if (UseUnityCounter()) {
+        const auto launcherUrl = Glib::ustring(
+                "application://"
+                + QGuiApplication::desktopFileName().toStdString());
+        const auto counterSlice = std::min(counter, 9999);
+        std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
-		if (counterSlice > 0) {
-			// According to the spec, it should be of 'x' D-Bus signature,
-			// which corresponds to gint64 type with glib
-			// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-			dbusUnityProperties["count"] = Glib::Variant<gint64>::create(
-				counterSlice);
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(true);
-		} else {
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(false);
-		}
+        if (counterSlice > 0) {
+            // According to the spec, it should be of 'x' D-Bus signature,
+            // which corresponds to gint64 type with glib
+            // https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
+            dbusUnityProperties["count"] = Glib::Variant<gint64>::create(
+                    counterSlice);
+            dbusUnityProperties["count-visible"] =
+                    Glib::Variant<bool>::create(true);
+        } else {
+            dbusUnityProperties["count-visible"] =
+                    Glib::Variant<bool>::create(false);
+        }
 
-		try {
-			if (_private->dbusConnection) {
-				_private->dbusConnection->emit_signal(
-					"/com/canonical/unity/launcherentry/"
-						+ std::to_string(djbStringHash(launcherUrl)),
-					"com.canonical.Unity.LauncherEntry",
-					"Update",
-					{},
-					base::Platform::MakeGlibVariant(std::tuple{
-						launcherUrl,
-						dbusUnityProperties,
-					}));
-			}
-		} catch (...) {
-		}
-	}
-
-	if (_private->sniTrayIcon) {
-		_private->setSNITrayIcon(counter, muted);
-	}
+        try {
+            if (_private->dbusConnection) {
+                _private->dbusConnection->emit_signal(
+                        "/com/canonical/unity/launcherentry/"
+                        + std::to_string(djbStringHash(launcherUrl)),
+                        "com.canonical.Unity.LauncherEntry",
+                        "Update",
+                        {},
+                        base::Platform::MakeGlibVariant(std::tuple{
+                                launcherUrl,
+                                dbusUnityProperties,
+                        }));
+            }
+        } catch (...) {
+        }
+    }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-	if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
-		trayIcon->setIcon(TrayIconGen(counter, muted));
-	}
+    if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
+        trayIcon->setIcon(TrayIconGen(counter, muted));
+    }
 }
 
 void MainWindow::initTrayMenuHook() {
-	_trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
-	_trayIconMenuXEmbed->deleteOnHide(false);
+    _private->trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
+    _private->trayIconMenuXEmbed->deleteOnHide(false);
 }
 
 void MainWindow::createGlobalMenu() {
-	const auto ensureWindowShown = [=] {
-		if (isHidden()) {
-			showFromTray();
-		}
-	};
+    const auto ensureWindowShown = [=] {
+        if (isHidden()) {
+            showFromTray();
+        }
+    };
 
-	psMainMenu = new QMenu(this);
+    psMainMenu = new QMenuBar(this);
+    psMainMenu->hide();
 
-	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
+    auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
-	psLogout = file->addAction(
-		tr::lng_mac_menu_logout(tr::now),
-		this,
-		[=] {
-			ensureWindowShown();
-			controller().showLogoutConfirmation();
-		});
+    psLogout = file->addAction(
+            tr::lng_mac_menu_logout(tr::now),
+            this,
+            [=] {
+                ensureWindowShown();
+                controller().showLogoutConfirmation();
+            });
 
-	auto quit = file->addAction(
-		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, qsl("Telegram")),
-		this,
-		[=] { quitFromTray(); },
-		QKeySequence::Quit);
+    auto quit = file->addAction(
+            tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, qsl("Telegram")),
+            this,
+            [=] { quitFromTray(); },
+            QKeySequence::Quit);
 
-	quit->setMenuRole(QAction::QuitRole);
+    quit->setMenuRole(QAction::QuitRole);
 
-	auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
+    auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
 
-	psUndo = edit->addAction(
-		tr::lng_linux_menu_undo(tr::now),
-		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
-		QKeySequence::Undo);
+    psUndo = edit->addAction(
+            tr::lng_linux_menu_undo(tr::now),
+            [] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
+            QKeySequence::Undo);
 
-	psRedo = edit->addAction(
-		tr::lng_linux_menu_redo(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_Z,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		QKeySequence::Redo);
+    psRedo = edit->addAction(
+            tr::lng_linux_menu_redo(tr::now),
+            [] {
+                SendKeySequence(
+                        Qt::Key_Z,
+                        Qt::ControlModifier | Qt::ShiftModifier);
+            },
+            QKeySequence::Redo);
 
-	edit->addSeparator();
+    edit->addSeparator();
 
-	psCut = edit->addAction(
-		tr::lng_mac_menu_cut(tr::now),
-		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
-		QKeySequence::Cut);
+    psCut = edit->addAction(
+            tr::lng_mac_menu_cut(tr::now),
+            [] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
+            QKeySequence::Cut);
 
-	psCopy = edit->addAction(
-		tr::lng_mac_menu_copy(tr::now),
-		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
-		QKeySequence::Copy);
+    psCopy = edit->addAction(
+            tr::lng_mac_menu_copy(tr::now),
+            [] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
+            QKeySequence::Copy);
 
-	psPaste = edit->addAction(
-		tr::lng_mac_menu_paste(tr::now),
-		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
-		QKeySequence::Paste);
+    psPaste = edit->addAction(
+            tr::lng_mac_menu_paste(tr::now),
+            [] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
+            QKeySequence::Paste);
 
-	psDelete = edit->addAction(
-		tr::lng_mac_menu_delete(tr::now),
-		[] { SendKeySequence(Qt::Key_Delete); },
-		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+    psDelete = edit->addAction(
+            tr::lng_mac_menu_delete(tr::now),
+            [] { SendKeySequence(Qt::Key_Delete); },
+            QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
 
-	edit->addSeparator();
+    edit->addSeparator();
 
-	psBold = edit->addAction(
-		tr::lng_menu_formatting_bold(tr::now),
-		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
-		QKeySequence::Bold);
+    psBold = edit->addAction(
+            tr::lng_menu_formatting_bold(tr::now),
+            [] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
+            QKeySequence::Bold);
 
-	psItalic = edit->addAction(
-		tr::lng_menu_formatting_italic(tr::now),
-		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
-		QKeySequence::Italic);
+    psItalic = edit->addAction(
+            tr::lng_menu_formatting_italic(tr::now),
+            [] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
+            QKeySequence::Italic);
 
-	psUnderline = edit->addAction(
-		tr::lng_menu_formatting_underline(tr::now),
-		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
-		QKeySequence::Underline);
+    psUnderline = edit->addAction(
+            tr::lng_menu_formatting_underline(tr::now),
+            [] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
+            QKeySequence::Underline);
 
-	psStrikeOut = edit->addAction(
-		tr::lng_menu_formatting_strike_out(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_X,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kStrikeOutSequence);
+    psStrikeOut = edit->addAction(
+            tr::lng_menu_formatting_strike_out(tr::now),
+            [] {
+                SendKeySequence(
+                        Qt::Key_X,
+                        Qt::ControlModifier | Qt::ShiftModifier);
+            },
+            Ui::kStrikeOutSequence);
 
-	psMonospace = edit->addAction(
-		tr::lng_menu_formatting_monospace(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_M,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kMonospaceSequence);
+    psMonospace = edit->addAction(
+            tr::lng_menu_formatting_monospace(tr::now),
+            [] {
+                SendKeySequence(
+                        Qt::Key_M,
+                        Qt::ControlModifier | Qt::ShiftModifier);
+            },
+            Ui::kMonospaceSequence);
 
-	psClearFormat = edit->addAction(
-		tr::lng_menu_formatting_clear(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_N,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kClearFormatSequence);
+    psClearFormat = edit->addAction(
+            tr::lng_menu_formatting_clear(tr::now),
+            [] {
+                SendKeySequence(
+                        Qt::Key_N,
+                        Qt::ControlModifier | Qt::ShiftModifier);
+            },
+            Ui::kClearFormatSequence);
 
-	edit->addSeparator();
+    edit->addSeparator();
 
-	psSelectAll = edit->addAction(
-		tr::lng_mac_menu_select_all(tr::now),
-		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
-		QKeySequence::SelectAll);
+    psSelectAll = edit->addAction(
+            tr::lng_mac_menu_select_all(tr::now),
+            [] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
+            QKeySequence::SelectAll);
 
-	edit->addSeparator();
+    edit->addSeparator();
 
-	auto prefs = edit->addAction(
-		tr::lng_mac_menu_preferences(tr::now),
-		this,
-		[=] {
-			ensureWindowShown();
-			controller().showSettings();
-		},
-		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
+    auto prefs = edit->addAction(
+            tr::lng_mac_menu_preferences(tr::now),
+            this,
+            [=] {
+                ensureWindowShown();
+                controller().showSettings();
+            },
+            QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
-	prefs->setMenuRole(QAction::PreferencesRole);
+    prefs->setMenuRole(QAction::PreferencesRole);
 
-	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
+    auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
-	psContacts = tools->addAction(
-		tr::lng_mac_menu_contacts(tr::now),
-		crl::guard(this, [=] {
-			if (isHidden()) {
-				showFromTray();
-			}
+    psContacts = tools->addAction(
+            tr::lng_mac_menu_contacts(tr::now),
+            crl::guard(this, [=] {
+                if (isHidden()) {
+                    showFromTray();
+                }
 
-			if (!sessionController()) {
-				return;
-			}
+                if (!sessionController()) {
+                    return;
+                }
 
-			sessionController()->show(
-				PrepareContactsBox(sessionController()));
-		}));
+                sessionController()->show(
+                        PrepareContactsBox(sessionController()));
+            }));
 
-	psAddContact = tools->addAction(
-		tr::lng_mac_menu_add_contact(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showAddContact();
-		});
+    psAddContact = tools->addAction(
+            tr::lng_mac_menu_add_contact(tr::now),
+            this,
+            [=] {
+                Expects(sessionController() != nullptr);
+                ensureWindowShown();
+                sessionController()->showAddContact();
+            });
 
-	tools->addSeparator();
+    tools->addSeparator();
 
-	psNewGroup = tools->addAction(
-		tr::lng_mac_menu_new_group(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showNewGroup();
-		});
+    psNewGroup = tools->addAction(
+            tr::lng_mac_menu_new_group(tr::now),
+            this,
+            [=] {
+                Expects(sessionController() != nullptr);
+                ensureWindowShown();
+                sessionController()->showNewGroup();
+            });
 
-	psNewChannel = tools->addAction(
-		tr::lng_mac_menu_new_channel(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showNewChannel();
-		});
+    psNewChannel = tools->addAction(
+            tr::lng_mac_menu_new_channel(tr::now),
+            this,
+            [=] {
+                Expects(sessionController() != nullptr);
+                ensureWindowShown();
+                sessionController()->showNewChannel();
+            });
 
-	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
+    auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
-	auto about = help->addAction(
-		tr::lng_mac_menu_about_telegram(
-			tr::now,
-			lt_telegram,
-			qsl("Telegram")),
-		[=] {
-			ensureWindowShown();
-			controller().show(Box<AboutBox>());
-		});
+    auto about = help->addAction(
+            tr::lng_mac_menu_about_telegram(
+                    tr::now,
+                    lt_telegram,
+                    qsl("Telegram")),
+            [=] {
+                ensureWindowShown();
+                controller().show(Box<AboutBox>());
+            });
 
-	about->setMenuRole(QAction::AboutQtRole);
+    about->setMenuRole(QAction::AboutQtRole);
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	_private->mainMenuExporter = new DBusMenuExporter(
-		kMainMenuObjectPath.utf16(),
-		psMainMenu);
+    // avoid shadowing actual shortcuts by the menubar
+    for (const auto &child : psMainMenu->children()) {
+        const auto action = qobject_cast<QAction*>(child);
+        if (action) {
+            const auto privateAction = QActionPrivate::get(action);
+            privateAction->setShortcutEnabled(
+                    false,
+                    QGuiApplicationPrivate::instance()->shortcutMap);
+        }
+    }
 
-	if (_private->appMenuSupported) {
-		RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	updateGlobalMenu();
+    updateGlobalMenu();
 }
 
 void MainWindow::updateGlobalMenuHook() {
-	if (!positionInited()) {
-		return;
-	}
+    if (!positionInited()) {
+        return;
+    }
 
-	const auto focused = QApplication::focusWidget();
-	auto canUndo = false;
-	auto canRedo = false;
-	auto canCut = false;
-	auto canCopy = false;
-	auto canPaste = false;
-	auto canDelete = false;
-	auto canSelectAll = false;
-	const auto mimeData = QGuiApplication::clipboard()->mimeData();
-	const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
-	auto markdownEnabled = false;
-	if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
-		canCut = canCopy = canDelete = edit->hasSelectedText();
-		canSelectAll = !edit->text().isEmpty();
-		canUndo = edit->isUndoAvailable();
-		canRedo = edit->isRedoAvailable();
-		canPaste = clipboardHasText;
-	} else if (const auto edit = qobject_cast<QTextEdit*>(focused)) {
-		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = !edit->document()->isEmpty();
-		canUndo = edit->document()->isUndoAvailable();
-		canRedo = edit->document()->isRedoAvailable();
-		canPaste = clipboardHasText;
-		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(
-				focused->parentWidget())) {
-				markdownEnabled = inputField->isMarkdownEnabled();
-			}
-		}
-	} else if (const auto list = qobject_cast<HistoryInner*>(focused)) {
-		canCopy = list->canCopySelected();
-		canDelete = list->canDeleteSelected();
-	}
-	updateIsActive();
-	const auto logged = (sessionController() != nullptr);
-	const auto inactive = !logged || controller().locked();
-	const auto support = logged && account().session().supportMode();
-	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
-	ForceDisabled(psUndo, !canUndo);
-	ForceDisabled(psRedo, !canRedo);
-	ForceDisabled(psCut, !canCut);
-	ForceDisabled(psCopy, !canCopy);
-	ForceDisabled(psPaste, !canPaste);
-	ForceDisabled(psDelete, !canDelete);
-	ForceDisabled(psSelectAll, !canSelectAll);
-	ForceDisabled(psContacts, inactive || support);
-	ForceDisabled(psAddContact, inactive);
-	ForceDisabled(psNewGroup, inactive || support);
-	ForceDisabled(psNewChannel, inactive || support);
+    const auto focused = QApplication::focusWidget();
+    auto canUndo = false;
+    auto canRedo = false;
+    auto canCut = false;
+    auto canCopy = false;
+    auto canPaste = false;
+    auto canDelete = false;
+    auto canSelectAll = false;
+    const auto mimeData = QGuiApplication::clipboard()->mimeData();
+    const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
+    auto markdownEnabled = false;
+    if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
+        canCut = canCopy = canDelete = edit->hasSelectedText();
+        canSelectAll = !edit->text().isEmpty();
+        canUndo = edit->isUndoAvailable();
+        canRedo = edit->isRedoAvailable();
+        canPaste = clipboardHasText;
+    } else if (const auto edit = qobject_cast<QTextEdit*>(focused)) {
+        canCut = canCopy = canDelete = edit->textCursor().hasSelection();
+        canSelectAll = !edit->document()->isEmpty();
+        canUndo = edit->document()->isUndoAvailable();
+        canRedo = edit->document()->isRedoAvailable();
+        canPaste = clipboardHasText;
+        if (canCopy) {
+            if (const auto inputField = qobject_cast<Ui::InputField*>(
+                    focused->parentWidget())) {
+                markdownEnabled = inputField->isMarkdownEnabled();
+            }
+        }
+    } else if (const auto list = qobject_cast<HistoryInner*>(focused)) {
+        canCopy = list->canCopySelected();
+        canDelete = list->canDeleteSelected();
+    }
+    updateIsActive();
+    const auto logged = (sessionController() != nullptr);
+    const auto inactive = !logged || controller().locked();
+    const auto support = logged && account().session().supportMode();
+    ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
+    ForceDisabled(psUndo, !canUndo);
+    ForceDisabled(psRedo, !canRedo);
+    ForceDisabled(psCut, !canCut);
+    ForceDisabled(psCopy, !canCopy);
+    ForceDisabled(psPaste, !canPaste);
+    ForceDisabled(psDelete, !canDelete);
+    ForceDisabled(psSelectAll, !canSelectAll);
+    ForceDisabled(psContacts, inactive || support);
+    ForceDisabled(psAddContact, inactive);
+    ForceDisabled(psNewGroup, inactive || support);
+    ForceDisabled(psNewChannel, inactive || support);
 
-	ForceDisabled(psBold, !markdownEnabled);
-	ForceDisabled(psItalic, !markdownEnabled);
-	ForceDisabled(psUnderline, !markdownEnabled);
-	ForceDisabled(psStrikeOut, !markdownEnabled);
-	ForceDisabled(psMonospace, !markdownEnabled);
-	ForceDisabled(psClearFormat, !markdownEnabled);
+    ForceDisabled(psBold, !markdownEnabled);
+    ForceDisabled(psItalic, !markdownEnabled);
+    ForceDisabled(psUnderline, !markdownEnabled);
+    ForceDisabled(psStrikeOut, !markdownEnabled);
+    ForceDisabled(psMonospace, !markdownEnabled);
+    ForceDisabled(psClearFormat, !markdownEnabled);
 }
 
 void MainWindow::handleNativeSurfaceChanged(bool exist) {
-	if (exist) {
-		SkipTaskbar(
-			windowHandle(),
-			(Core::App().settings().workMode() == WorkMode::TrayOnly)
-				&& trayAvailable());
-	}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_private->appMenuSupported && _private->mainMenuExporter) {
-		if (exist) {
-			RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
-		} else {
-			UnregisterAppMenu(windowHandle());
-		}
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+    if (exist) {
+        SkipTaskbar(
+                windowHandle(),
+                (Core::App().settings().workMode() == WorkMode::TrayOnly)
+                && TrayIconSupported());
+    }
 }
 
 MainWindow::~MainWindow() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_private->dbusConnection) {
-		if (_private->sniRegisteredSignalId != 0) {
-			_private->dbusConnection->signal_unsubscribe(
-				_private->sniRegisteredSignalId);
-		}
-
-		if (_private->sniWatcherId != 0) {
-			_private->dbusConnection->signal_unsubscribe(
-				_private->sniWatcherId);
-		}
-
-		if (_private->appMenuWatcherId != 0) {
-			_private->dbusConnection->signal_unsubscribe(
-				_private->appMenuWatcherId);
-		}
-	}
-
-	if (_private->appMenuSupported) {
-		UnregisterAppMenu(windowHandle());
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace Platform
