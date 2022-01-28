@@ -1543,9 +1543,16 @@ void HistoryMessage::addToUnreadThings(HistoryUnreadThings::AddType type) {
 	}
 	if (hasUnreadReaction()) {
 		if (history()->unreadReactions().add(id, type)) {
-			history()->session().changes().historyUpdated(
-				history(),
-				Data::HistoryUpdate::Flag::UnreadReactions);
+			if (type == HistoryUnreadThings::AddType::New) {
+				history()->session().changes().messageUpdated(
+					this,
+					Data::MessageUpdate::Flag::NewUnreadReaction);
+			}
+			if (hasUnreadReaction()) {
+				history()->session().changes().historyUpdated(
+					history(),
+					Data::HistoryUpdate::Flag::UnreadReactions);
+			}
 		}
 	}
 }

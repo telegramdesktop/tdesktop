@@ -423,6 +423,7 @@ private:
 	void cornerButtonsAnimationFinish();
 	void sendButtonClicked();
 	void newItemAdded(not_null<HistoryItem*> item);
+	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
 
 	void updateCornerButtonsPositions();
 	void updateHistoryDownVisibility();

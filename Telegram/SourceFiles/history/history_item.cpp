@@ -852,8 +852,9 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	setReactions(reactions);
 	const auto hasUnread = hasUnreadReaction();
 	if (hasUnread && !hadUnread) {
+		// This may read the reaction already.
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
-		if (toContact) {
+		if (toContact && hasUnreadReaction()) {
 			const auto notification = ItemNotification{
 				this,
 				ItemNotificationType::Reaction,

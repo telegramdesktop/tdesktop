@@ -32,7 +32,7 @@ inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
 		++i;
 		Assert(i != 64);
 	}
-	return (i + 1);
+	return i;
 }
 
 } // namespace details
@@ -151,8 +151,9 @@ struct MessageUpdate {
 		BotCallbackSent    = (1U << 6),
 		NewMaybeAdded      = (1U << 7),
 		RepliesUnreadCount = (1U << 8),
+		NewUnreadReaction  = (1U << 9),
 
-		LastUsedBit        = (1U << 8),
+		LastUsedBit        = (1U << 9),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -271,9 +272,11 @@ private:
 		void sendNotifications();
 
 	private:
-		static constexpr auto kCount = details::CountBit<Flag>();
+		static constexpr auto kCount = details::CountBit<Flag>() + 1;
 
-		void sendRealtimeNotifications(not_null<DataType*> data, Flags flags);
+		void sendRealtimeNotifications(
+			not_null<DataType*> data,
+			Flags flags);
 
 		std::array<rpl::event_stream<UpdateType>, kCount> _realtimeStreams;
 		base::flat_map<not_null<DataType*>, Flags> _updates;

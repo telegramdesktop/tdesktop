@@ -651,6 +651,12 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	session().changes().realtimeMessageUpdates(
+		MessageUpdateFlag::NewUnreadReaction
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		maybeMarkReactionsRead(update.item);
+	}, lifetime());
+
 	using MediaSwitch = Media::Player::Instance::Switch;
 	Media::Player::instance()->switchToNextEvents(
 	) | rpl::filter([=](const MediaSwitch &pair) {
@@ -2800,6 +2806,26 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 		return;
 	}
 	_itemRevealPending.emplace(item);
+}
+
+void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
+	if (!_historyInited || !_list) {
+		return;
+	}
+	const auto view = item->mainView();
+	const auto itemTop = _list->itemTop(view);
+	if (itemTop <= 0 || !doWeReadMentions()) {
+		return;
+	}
+	const auto reactionCenter
+		= view->reactionButtonParameters({}, {}).center.y();
+	const auto visibleTop = _scroll->scrollTop();
+	const auto visibleBottom = visibleTop + _scroll->height();
+	if (itemTop + reactionCenter < visibleTop
+		|| itemTop + view->height() > visibleBottom) {
+		return;
+	}
+	session().api().markContentsRead(item);
 }
 
 void HistoryWidget::unreadCountUpdated() {
