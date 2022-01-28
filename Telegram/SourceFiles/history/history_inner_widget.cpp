@@ -386,7 +386,7 @@ HistoryInner::HistoryInner(
 			return;
 		} else if (const auto view = item->mainView()) {
 			if (const auto top = itemTop(view); top >= 0) {
-				view->animateSendReaction({
+				view->animateReaction({
 					.emoji = reaction.emoji,
 					.flyIcon = reaction.icon,
 					.flyFrom = reaction.geometry.translated(0, -top),

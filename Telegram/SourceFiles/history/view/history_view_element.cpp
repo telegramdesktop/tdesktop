@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "data/data_sponsored_messages.h"
+#include "data/data_message_reactions.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 
@@ -342,7 +343,7 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
-SendReactionAnimationArgs SendReactionAnimationArgs::translated(
+ReactionAnimationArgs ReactionAnimationArgs::translated(
 		QPoint point) const {
 	return {
 		.emoji = emoji,
@@ -1059,11 +1060,20 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateSendReaction(SendReactionAnimationArgs &&args) {
+void Element::animateReaction(ReactionAnimationArgs &&args) {
+}
+
+void Element::animateUnreadReactions() {
+	const auto &recent = data()->recentReactions();
+	for (const auto &[emoji, list] : recent) {
+		if (ranges::contains(list, true, &Data::RecentReaction::unread)) {
+			animateReaction({ .emoji = emoji });
+		}
+	}
 }
 
 auto Element::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::SendAnimation> {
+-> std::unique_ptr<Reactions::Animation> {
 	return nullptr;
 }
 

@@ -383,8 +383,11 @@ void HistoryItem::markReactionsRead() {
 	history()->unreadReactions().erase(id);
 }
 
-bool HistoryItem::markContentsRead() {
+bool HistoryItem::markContentsRead(bool fromThisClient) {
 	if (hasUnreadReaction()) {
+		if (fromThisClient) {
+			history()->owner().requestUnreadReactionsAnimation(this);
+		}
 		markReactionsRead();
 		return true;
 	} else if (isUnreadMention() || isIncomingUnreadMedia()) {

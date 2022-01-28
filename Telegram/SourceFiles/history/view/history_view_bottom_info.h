@@ -21,14 +21,14 @@ class Reactions;
 
 namespace HistoryView {
 namespace Reactions {
-class SendAnimation;
+class Animation;
 } // namespace Reactions
 
 using PaintContext = Ui::ChatPaintContext;
 
 class Message;
 struct TextState;
-struct SendReactionAnimationArgs;
+struct ReactionAnimationArgs;
 
 class BottomInfo final : public Object {
 public:
@@ -73,13 +73,13 @@ public:
 		bool inverted,
 		const PaintContext &context) const;
 
-	void animateReactionSend(
-		SendReactionAnimationArgs &&args,
+	void animateReaction(
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeSendReactionAnimation()
-		-> std::unique_ptr<Reactions::SendAnimation>;
+		-> std::unique_ptr<Reactions::Animation>;
 	void continueSendReactionAnimation(
-		std::unique_ptr<Reactions::SendAnimation> animation);
+		std::unique_ptr<Reactions::Animation> animation);
 
 private:
 	struct Reaction {
@@ -124,7 +124,7 @@ private:
 	Ui::Text::String _replies;
 	std::vector<Reaction> _reactions;
 	mutable ClickHandlerPtr _revokeLink;
-	mutable std::unique_ptr<Reactions::SendAnimation> _reactionAnimation;
+	mutable std::unique_ptr<Reactions::Animation> _reactionAnimation;
 	int _reactionsMaxWidth = 0;
 	int _dateWidth = 0;
 	bool _authorElided = false;

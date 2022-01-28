@@ -150,7 +150,7 @@ public:
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
 	void markReactionsRead();
 	void markMediaAndMentionRead();
-	bool markContentsRead();
+	bool markContentsRead(bool fromThisClient = false);
 	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.

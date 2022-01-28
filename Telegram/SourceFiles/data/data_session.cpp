@@ -1486,6 +1486,12 @@ void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
 	}
 }
 
+void Session::requestUnreadReactionsAnimation(not_null<HistoryItem*> item) {
+	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
+		view->animateUnreadReactions();
+	});
+}
+
 rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() const {
 	return _animationPlayInlineRequest.events();
 }

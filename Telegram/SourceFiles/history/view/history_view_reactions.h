@@ -22,13 +22,13 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
-struct SendReactionAnimationArgs;
+struct ReactionAnimationArgs;
 struct UserpicInRow;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
-class SendAnimation;
+class Animation;
 
 struct InlineListData {
 	enum class Flag : uchar {
@@ -72,11 +72,11 @@ public:
 		QPoint point,
 		not_null<TextState*> outResult) const;
 
-	void animateSend(
-		SendReactionAnimationArgs &&args,
+	void animate(
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
-	[[nodiscard]] std::unique_ptr<SendAnimation> takeSendAnimation();
-	void continueSendAnimation(std::unique_ptr<SendAnimation> animation);
+	[[nodiscard]] std::unique_ptr<Animation> takeSendAnimation();
+	void continueSendAnimation(std::unique_ptr<Animation> animation);
 
 private:
 	struct Userpics {
@@ -113,7 +113,7 @@ private:
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
 
-	mutable std::unique_ptr<SendAnimation> _animation;
+	mutable std::unique_ptr<Animation> _animation;
 
 };
 

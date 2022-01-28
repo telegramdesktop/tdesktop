@@ -21,9 +21,9 @@ constexpr auto kFlyDuration = crl::time(300);
 
 } // namespace
 
-SendAnimation::SendAnimation(
+Animation::Animation(
 	not_null<::Data::Reactions*> owner,
-	SendReactionAnimationArgs &&args,
+	ReactionAnimationArgs &&args,
 	Fn<void()> repaint,
 	int size)
 : _owner(owner)
@@ -66,9 +66,9 @@ SendAnimation::SendAnimation(
 	_valid = true;
 }
 
-SendAnimation::~SendAnimation() = default;
+Animation::~Animation() = default;
 
-QRect SendAnimation::paintGetArea(
+QRect Animation::paintGetArea(
 		QPainter &p,
 		QPoint origin,
 		QRect target) const {
@@ -105,7 +105,7 @@ QRect SendAnimation::paintGetArea(
 	return wide;
 }
 
-int SendAnimation::computeParabolicTop(
+int Animation::computeParabolicTop(
 		int from,
 		int to,
 		float64 progress) const {
@@ -141,12 +141,12 @@ int SendAnimation::computeParabolicTop(
 	return int(base::SafeRound(_cachedA * t * t + _cachedB * t + from));
 }
 
-void SendAnimation::startAnimations() {
+void Animation::startAnimations() {
 	_center->animate([=] { callback(); }, 0, _center->framesCount() - 1);
 	_effect->animate([=] { callback(); }, 0, _effect->framesCount() - 1);
 }
 
-void SendAnimation::flyCallback() {
+void Animation::flyCallback() {
 	if (!_fly.animating()) {
 		_flyIcon = nullptr;
 		startAnimations();
@@ -154,25 +154,25 @@ void SendAnimation::flyCallback() {
 	callback();
 }
 
-void SendAnimation::callback() {
+void Animation::callback() {
 	if (_repaint) {
 		_repaint();
 	}
 }
 
-void SendAnimation::setRepaintCallback(Fn<void()> repaint) {
+void Animation::setRepaintCallback(Fn<void()> repaint) {
 	_repaint = std::move(repaint);
 }
 
-bool SendAnimation::flying() const {
+bool Animation::flying() const {
 	return (_flyIcon != nullptr);
 }
 
-float64 SendAnimation::flyingProgress() const {
+float64 Animation::flyingProgress() const {
 	return _fly.value(1.);
 }
 
-QString SendAnimation::playingAroundEmoji() const {
+QString Animation::playingAroundEmoji() const {
 	const auto finished = !_valid
 		|| (!_flyIcon && !_center->animating() && !_effect->animating());
 	return finished ? QString() : _emoji;

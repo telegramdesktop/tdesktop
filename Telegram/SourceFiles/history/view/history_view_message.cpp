@@ -326,7 +326,7 @@ void Message::applyGroupAdminChanges(
 	}
 }
 
-void Message::animateSendReaction(SendReactionAnimationArgs &&args) {
+void Message::animateReaction(ReactionAnimationArgs &&args) {
 	const auto item = message();
 	const auto media = this->media();
 
@@ -353,12 +353,12 @@ void Message::animateSendReaction(SendReactionAnimationArgs &&args) {
 			: 0;
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
-		_reactions->animateSend(args.translated(-reactionsPosition), repainter);
+		_reactions->animate(args.translated(-reactionsPosition), repainter);
 		return;
 	}
 
 	const auto animateInBottomInfo = [&](QPoint bottomRight) {
-		_bottomInfo.animateReactionSend(args.translated(-bottomRight), repainter);
+		_bottomInfo.animateReaction(args.translated(-bottomRight), repainter);
 	};
 	if (bubble) {
 		auto entry = logEntryOriginal();
@@ -381,7 +381,7 @@ void Message::animateSendReaction(SendReactionAnimationArgs &&args) {
 		if (reactionsInBubble) {
 			trect.setHeight(trect.height() - reactionsHeight);
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
-			_reactions->animateSend(args.translated(-reactionsPosition), repainter);
+			_reactions->animate(args.translated(-reactionsPosition), repainter);
 			return;
 		}
 		if (_viewButton) {
@@ -425,7 +425,7 @@ void Message::animateSendReaction(SendReactionAnimationArgs &&args) {
 }
 
 auto Message::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::SendAnimation> {
+-> std::unique_ptr<Reactions::Animation> {
 	return _reactions
 		? _reactions->takeSendAnimation()
 		: _bottomInfo.takeSendReactionAnimation();
@@ -2163,7 +2163,7 @@ void Message::refreshReactions() {
 					strong->data()->toggleReaction(emoji);
 					if (const auto now = weak.get()) {
 						if (now->data()->chosenReaction() == emoji) {
-							now->animateSendReaction({
+							now->animateReaction({
 								.emoji = emoji,
 							});
 						}

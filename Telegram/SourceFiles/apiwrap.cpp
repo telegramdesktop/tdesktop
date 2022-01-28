@@ -1294,7 +1294,7 @@ void ApiWrap::markContentsRead(
 		QVector<MTPint>>();
 	markedIds.reserve(items.size());
 	for (const auto &item : items) {
-		if (!item->markContentsRead() || !item->isRegular() || true) {
+		if (!item->markContentsRead(true) || !item->isRegular() || true) {
 			AssertIsDebug();
 			continue;
 		}
@@ -1320,7 +1320,7 @@ void ApiWrap::markContentsRead(
 }
 
 void ApiWrap::markContentsRead(not_null<HistoryItem*> item) {
-	if (!item->markContentsRead() || !item->isRegular()) {
+	if (!item->markContentsRead(true) || !item->isRegular()) {
 		return;
 	}
 	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));

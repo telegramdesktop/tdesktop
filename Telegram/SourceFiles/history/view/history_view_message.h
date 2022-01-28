@@ -135,9 +135,9 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void animateSendReaction(SendReactionAnimationArgs &&args) override;
+	void animateReaction(ReactionAnimationArgs &&args) override;
 	auto takeSendReactionAnimation()
-		-> std::unique_ptr<Reactions::SendAnimation> override;
+		-> std::unique_ptr<Reactions::Animation> override;
 
 protected:
 	void refreshDataIdHook() override;

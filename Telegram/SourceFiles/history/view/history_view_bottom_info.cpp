@@ -512,10 +512,10 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 		: 0;
 }
 
-void BottomInfo::animateReactionSend(
-		SendReactionAnimationArgs &&args,
+void BottomInfo::animateReaction(
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	_reactionAnimation = std::make_unique<Reactions::SendAnimation>(
+	_reactionAnimation = std::make_unique<Reactions::Animation>(
 		_reactionsOwner,
 		args.translated(QPoint(width(), height())),
 		std::move(repaint),
@@ -523,12 +523,12 @@ void BottomInfo::animateReactionSend(
 }
 
 auto BottomInfo::takeSendReactionAnimation()
--> std::unique_ptr<Reactions::SendAnimation> {
+-> std::unique_ptr<Reactions::Animation> {
 	return std::move(_reactionAnimation);
 }
 
 void BottomInfo::continueSendReactionAnimation(
-		std::unique_ptr<Reactions::SendAnimation> animation) {
+		std::unique_ptr<Reactions::Animation> animation) {
 	_reactionAnimation = std::move(animation);
 }
 

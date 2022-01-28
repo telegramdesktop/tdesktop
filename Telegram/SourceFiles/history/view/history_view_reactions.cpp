@@ -408,10 +408,10 @@ bool InlineList::getState(
 	return false;
 }
 
-void InlineList::animateSend(
-		SendReactionAnimationArgs &&args,
+void InlineList::animate(
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	_animation = std::make_unique<Reactions::SendAnimation>(
+	_animation = std::make_unique<Reactions::Animation>(
 		_owner,
 		std::move(args),
 		std::move(repaint),
@@ -447,12 +447,12 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 		kMaxRecentUserpics);
 }
 
-std::unique_ptr<SendAnimation> InlineList::takeSendAnimation() {
+std::unique_ptr<Animation> InlineList::takeSendAnimation() {
 	return std::move(_animation);
 }
 
 void InlineList::continueSendAnimation(
-		std::unique_ptr<SendAnimation> animation) {
+		std::unique_ptr<Animation> animation) {
 	_animation = std::move(animation);
 }
 

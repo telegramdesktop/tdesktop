@@ -18,19 +18,19 @@ class Reactions;
 } // namespace Data
 
 namespace HistoryView {
-struct SendReactionAnimationArgs;
+struct ReactionAnimationArgs;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
-class SendAnimation final {
+class Animation final {
 public:
-	SendAnimation(
+	Animation(
 		not_null<::Data::Reactions*> owner,
-		SendReactionAnimationArgs &&args,
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint,
 		int size);
-	~SendAnimation();
+	~Animation();
 
 	void setRepaintCallback(Fn<void()> repaint);
 	QRect paintGetArea(QPainter &p, QPoint origin, QRect target) const;
