@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
+#include "data/data_message_reactions.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
@@ -1632,6 +1633,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				d.vmsg_id().v);
 			if (item) {
 				item->updateReactions(&d.vreactions());
+			} else if (Data::Reactions::HasUnread(d.vreactions())) {
+				history->owner().histories().requestDialogEntry(history);
 			}
 		}
 	} break;

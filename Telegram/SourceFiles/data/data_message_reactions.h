@@ -68,6 +68,11 @@ public:
 
 	void updateAllInHistory(not_null<PeerData*> peer, bool enabled);
 
+	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
+	static void CheckUnknownForUnread(
+		not_null<Session*> owner,
+		const MTPMessage &message);
+
 private:
 	struct ImageSet {
 		QImage bottomInfo;

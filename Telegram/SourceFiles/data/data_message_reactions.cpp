@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -470,6 +471,35 @@ void Reactions::pollCollected() {
 
 bool Reactions::sending(not_null<HistoryItem*> item) const {
 	return _sentRequests.contains(item->fullId());
+}
+
+bool Reactions::HasUnread(const MTPMessageReactions &data) {
+	return data.match([&](const MTPDmessageReactions &data) {
+		if (const auto &recent = data.vrecent_reactions()) {
+			for (const auto &one : recent->v) {
+				if (one.match([&](const MTPDmessagePeerReaction &data) {
+					return data.is_unread();
+				})) {
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+}
+
+void Reactions::CheckUnknownForUnread(
+		not_null<Session*> owner,
+		const MTPMessage &message) {
+	message.match([&](const MTPDmessage &data) {
+		if (data.vreactions() && HasUnread(*data.vreactions())) {
+			const auto peerId = peerFromMTP(data.vpeer_id());
+			if (const auto history = owner->historyLoaded(peerId)) {
+				owner->histories().requestDialogEntry(history);
+			}
+		}
+	}, [](const auto &) {
+	});
 }
 
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)

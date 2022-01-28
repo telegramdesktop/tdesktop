@@ -1872,6 +1872,7 @@ void Session::updateEditedMessage(const MTPMessage &data) {
 		return message(peerFromMTP(data.vpeer_id()), data.vid().v);
 	});
 	if (!existing) {
+		Reactions::CheckUnknownForUnread(this, data);
 		return;
 	}
 	if (existing->isLocalUpdateMedia() && data.type() == mtpc_message) {
