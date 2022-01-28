@@ -517,6 +517,60 @@ void MessageReactions::remove() {
 	add(QString());
 }
 
+bool MessageReactions::checkIfChanged(
+		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessagePeerReaction> &recent) const {
+	auto &owner = _item->history()->owner();
+	if (owner.reactions().sending(_item)) {
+		// We'll apply non-stale data from the request response.
+		return false;
+	}
+	auto existing = base::flat_set<QString>();
+	for (const auto &count : list) {
+		const auto changed = count.match([&](const MTPDreactionCount &data) {
+			const auto reaction = qs(data.vreaction());
+			const auto nowCount = data.vcount().v;
+			const auto i = _list.find(reaction);
+			const auto wasCount = (i != end(_list)) ? i->second : 0;
+			if (wasCount != nowCount) {
+				return true;
+			}
+			existing.emplace(reaction);
+			return false;
+		});
+		if (changed) {
+			return true;
+		}
+	}
+	for (const auto &[reaction, count] : _list) {
+		if (!existing.contains(reaction)) {
+			return true;
+		}
+	}
+	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	for (const auto &reaction : recent) {
+		reaction.match([&](const MTPDmessagePeerReaction &data) {
+			const auto emoji = qs(data.vreaction());
+			if (_list.contains(emoji)) {
+				parsed[emoji].push_back(RecentReaction{
+					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
+					.unread = data.is_unread(),
+					.big = data.is_big(),
+				});
+			}
+		});
+	}
+	return !ranges::equal(_recent, parsed, [](
+			const auto &a,
+			const auto &b) {
+		return ranges::equal(a.second, b.second, [](
+				const RecentReaction &a,
+				const RecentReaction &b) {
+			return (a.peer == b.peer) && (a.big == b.big);
+		});
+	});
+}
+
 void MessageReactions::set(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
@@ -531,9 +585,12 @@ void MessageReactions::set(
 	for (const auto &count : list) {
 		count.match([&](const MTPDreactionCount &data) {
 			const auto reaction = qs(data.vreaction());
-			if (data.is_chosen() && !ignoreChosen) {
-				if (_chosen != reaction) {
+			if (!ignoreChosen) {
+				if (data.is_chosen() && _chosen != reaction) {
 					_chosen = reaction;
+					changed = true;
+				} else if (!data.is_chosen() && _chosen == reaction) {
+					_chosen = QString();
 					changed = true;
 				}
 			}

@@ -850,12 +850,8 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	const auto toContact = toUser && toUser->isContact();
 	const auto hadUnread = hasUnreadReaction();
 	setReactions(reactions);
-	const auto unreadReaction = _reactions
-		? _reactions->findUnread()
-		: QString();
-	const auto hasUnread = !unreadReaction.isEmpty();
+	const auto hasUnread = hasUnreadReaction();
 	if (hasUnread && !hadUnread) {
-		_flags |= MessageFlag::HasUnreadReaction;
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
 		if (toContact) {
 			const auto notification = ItemNotification{
@@ -894,16 +890,29 @@ void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 		if (data.vresults().v.isEmpty()) {
 			if (_reactions) {
 				_reactions = nullptr;
+				if (hasUnreadReaction()) {
+					markReactionsRead();
+				}
 				history()->owner().notifyItemDataChange(this);
 			}
 			return;
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
-		_reactions->set(
-			data.vresults().v,
-			data.vrecent_reactions().value_or_empty(),
-			data.is_min());
+		const auto min = data.is_min();
+		const auto &list = data.vresults().v;
+		const auto &recent = data.vrecent_reactions().value_or_empty();
+		if (min && hasUnreadReaction()) {
+			// We can't update reactions from min if we have unread.
+			if (_reactions->checkIfChanged(list, recent)) {
+				updateReactionsUnknown();
+			}
+		} else {
+			_reactions->set(list, recent, min);
+			if (!_reactions->findUnread().isEmpty()) {
+				_flags |= MessageFlag::HasUnreadReaction;
+			}
+		}
 	});
 }
 

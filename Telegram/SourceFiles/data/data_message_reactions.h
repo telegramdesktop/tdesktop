@@ -149,6 +149,9 @@ public:
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen);
+	[[nodiscard]] bool checkIfChanged(
+		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessagePeerReaction> &recent) const;
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] auto recent() const
 		-> const base::flat_map<QString, std::vector<RecentReaction>> &;
