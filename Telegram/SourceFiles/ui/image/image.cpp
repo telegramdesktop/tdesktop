@@ -349,7 +349,7 @@ const QPixmap &Image::cached(
 		bool single) const {
 	const auto ratio = style::DevicePixelRatio();
 	if (w <= 0 || !width() || !height()) {
-		w = width() * ratio;
+		w = width();
 	} else if (h <= 0) {
 		h = std::max(int(int64(height()) * w / width()), 1) * ratio;
 	} else {
