@@ -24,7 +24,7 @@ ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
 ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && yum clean all
-RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm && yum clean all
+RUN yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm && yum clean all
 RUN yum -y install centos-release-scl && yum clean all
 
 RUN yum -y install git meson ninja-build autoconf automake libtool patch \
