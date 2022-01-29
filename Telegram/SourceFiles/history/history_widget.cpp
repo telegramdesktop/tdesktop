@@ -3425,7 +3425,6 @@ void HistoryWidget::showNextUnreadMention() {
 
 void HistoryWidget::showNextUnreadReaction() {
 	const auto msgId = _history->unreadReactions().minLoaded();
-	const auto already = (_showAtMsgId == msgId);
 	showHistory(_peer->id, msgId);
 }
 

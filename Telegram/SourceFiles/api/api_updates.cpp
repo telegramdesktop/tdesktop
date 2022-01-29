@@ -1183,9 +1183,6 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (const auto item = _session->data().nonChannelMessage(msgId.v)) {
-				const auto unreadForPeer = item->isUnreadMedia()
-					|| item->isUnreadMention();
-				const auto unreadForMe = item->hasUnreadReaction();
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaAndMentionRead();
 					_session->data().requestItemRepaint(item);

@@ -1908,8 +1908,6 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 						_gif->height());
 					_gif.reset();
 				} else {
-					auto height = st::inlineMediaHeight;
-					auto frame = countFrameSize();
 					_gif->start({
 						.frame = countFrameSize(),
 						.outer = { _width, st::inlineMediaHeight },
