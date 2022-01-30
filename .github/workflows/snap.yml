@@ -77,14 +77,15 @@ jobs:
           API_HASH: ${{ secrets.API_HASH }}
           TEST_VAR: "test var snap"
 
-      - name: Move artifact.
+      - name: Move and hash artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           artifact_name=$(echo telegram-desktop_*.snap)
           echo "ARTIFACT_NAME=$artifact_name" >> $GITHUB_ENV
-
+          sha256sum $artifact_name | awk -F " " 'END {print $1}' > telegram_snap_sha256.txt
           mkdir artifact
-          mv $artifact_name artifact
+          mv $artifact_name artifact/
+          mv telegram_snap_sha256.txt artifact/
 
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
