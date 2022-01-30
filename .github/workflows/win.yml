@@ -1,6 +1,10 @@
 name: Windows.
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
 
@@ -123,7 +127,7 @@ jobs:
         run: |
           mkdir artifact
           move %TBUILD%\%REPO_NAME%\out\Release\Telegram.exe artifact/Telegram_${{ matrix.arch }}.exe
-          certutil -hashfile artifact/Telegram_${{ matrix.arch }}.exe SHA256 > artifact/Telegram_${{ matrix.arch }}_sha256.txt
+          certutil -hashfile artifact/Telegram_${{ matrix.arch }}.exe SHA256 | find /i /v "SHA256" | find /i /v "CertUtil" > artifact/Telegram_${{ matrix.arch }}_sha256.txt
       - uses: actions/upload-artifact@master
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
