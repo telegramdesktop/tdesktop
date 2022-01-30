@@ -24,12 +24,13 @@ ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
 ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && yum clean all
-RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm && yum clean all
+RUN yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm && yum clean all
 RUN yum -y install centos-release-scl && yum clean all
 
 RUN yum -y install git meson ninja-build autoconf automake libtool patch \
 	fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
-	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel gtk3-devel \
+	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
+	libdrm-devel gtk3-devel \
 	perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 	devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
@@ -362,75 +363,6 @@ RUN DESTDIR="$LibrariesPath/wayland-cache" meson install -C build
 WORKDIR ..
 RUN rm -rf wayland
 
-FROM builder AS libpciaccess
-RUN git clone -b libpciaccess-0.16 --depth=1 $GIT_FREEDESKTOP/libpciaccess.git
-
-WORKDIR libpciaccess
-RUN ./autogen.sh --enable-static
-
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libpciaccess-cache" install
-
-WORKDIR ..
-RUN rm -rf libpciaccess
-
-FROM builder AS drm
-COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
-
-RUN git clone -b libdrm-2.4.109 --depth=1 $GIT_FREEDESKTOP/drm.git
-
-WORKDIR drm
-RUN meson build \
-	--buildtype=release \
-	--default-library=both
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/drm-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf drm
-
-FROM builder AS libva
-
-COPY --from=libffi ${LibrariesPath}/libffi-cache /
-COPY --from=libXext ${LibrariesPath}/libXext-cache /
-COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-
-RUN git clone -b 2.13.0 --depth=1 $GIT/intel/libva.git
-
-WORKDIR libva
-RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh \
-	--enable-static \
-	--sysconfdir=/etc \
-	--with-drivers-path=/usr/lib/dri
-
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libva-cache" install
-
-WORKDIR ..
-RUN rm -rf libva
-
-FROM builder AS libvdpau
-RUN git clone -b 1.4 --depth=1 $GIT_FREEDESKTOP/libvdpau.git
-
-WORKDIR libvdpau
-RUN sed -i 's/shared_library/library/g' src/meson.build
-
-RUN meson build \
-	--buildtype=release \
-	--default-library=both \
-	--sysconfdir=/etc \
-	-Ddocumentation=false \
-	-Dmoduledir=/usr/lib/vdpau
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/libvdpau-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf libvdpau
-
 FROM builder AS ffmpeg
 
 COPY --from=opus ${LibrariesPath}/opus-cache /
@@ -438,9 +370,6 @@ COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=libXv ${LibrariesPath}/libXv-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-COPY --from=libva ${LibrariesPath}/libva-cache /
-COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 
 RUN mkdir ffmpeg
 WORKDIR ffmpeg
@@ -460,15 +389,8 @@ RUN ./configure \
 	--disable-everything \
 	--enable-libopus \
 	--enable-libvpx \
-	--enable-vaapi \
-	--enable-vdpau \
 	--enable-xlib \
-	--enable-libdrm \
 	--enable-protocol=file \
-	--enable-hwaccel=h264_vaapi \
-	--enable-hwaccel=h264_vdpau \
-	--enable-hwaccel=mpeg4_vaapi \
-	--enable-hwaccel=mpeg4_vdpau \
 	--enable-decoder=aac \
 	--enable-decoder=aac_fixed \
 	--enable-decoder=aac_latm \
@@ -477,7 +399,6 @@ RUN ./configure \
 	--enable-decoder=flac \
 	--enable-decoder=gif \
 	--enable-decoder=h264 \
-	--enable-decoder=h264_vdpau \
 	--enable-decoder=hevc \
 	--enable-decoder=libvpx_vp8 \
 	--enable-decoder=libvpx_vp9 \
@@ -492,7 +413,6 @@ RUN ./configure \
 	--enable-decoder=mp3on4 \
 	--enable-decoder=mp3on4float \
 	--enable-decoder=mpeg4 \
-	--enable-decoder=mpeg4_vdpau \
 	--enable-decoder=msmpeg4v2 \
 	--enable-decoder=msmpeg4v3 \
 	--enable-decoder=opus \
@@ -796,7 +716,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin 6372a0848f8dd84013e291b44f9d1427fde3a90e
+RUN git fetch --depth=1 origin 1fd131d37777c445b58cad3889313a7c26ffc2ee
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
@@ -847,10 +767,6 @@ COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=libXdamage ${LibrariesPath}/libXdamage-cache /
 COPY --from=libXcomposite ${LibrariesPath}/libXcomposite-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-COPY --from=libva ${LibrariesPath}/libva-cache /
-COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg ffmpeg
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openal ${LibrariesPath}/openal-cache /
