@@ -1,10 +1,6 @@
 name: Linux.
 
-on:
-  push:
-    branches:
-      - master
-  workflow_dispatch
+on: workflow_dispatch
 
 jobs:
 
