@@ -577,7 +577,7 @@ void BackgroundRow::updateImage() {
 			if (inverted) {
 				small = Ui::InvertPatternImage(std::move(small));
 			}
-			p.drawImage(QRect(0, 0, size, size), small);
+			p.drawImage(QRect(0, 0, fullsize, fullsize), small);
 		};
 		return Ui::GenerateBackgroundImage(
 			{ fullsize, fullsize },

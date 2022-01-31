@@ -352,6 +352,7 @@ const QPixmap &Image::cached(
 		w = width();
 	} else if (h <= 0) {
 		h = std::max(int(int64(height()) * w / width()), 1) * ratio;
+		w *= ratio;
 	} else {
 		w *= ratio;
 		h *= ratio;
