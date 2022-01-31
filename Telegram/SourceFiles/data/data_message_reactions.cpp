@@ -601,14 +601,14 @@ bool MessageReactions::checkIfChanged(
 	});
 }
 
-void MessageReactions::set(
+bool MessageReactions::change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen) {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
-		return;
+		return false;
 	}
 	auto changed = false;
 	auto existing = base::flat_set<QString>();
@@ -663,10 +663,7 @@ void MessageReactions::set(
 		_recent = std::move(parsed);
 		changed = true;
 	}
-
-	if (changed) {
-		owner.notifyItemDataChange(_item);
-	}
+	return changed;
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {

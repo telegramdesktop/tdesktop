@@ -150,7 +150,7 @@ public:
 
 	void add(const QString &reaction);
 	void remove();
-	void set(
+	bool change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen);

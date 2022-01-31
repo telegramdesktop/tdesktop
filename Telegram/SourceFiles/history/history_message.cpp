@@ -513,7 +513,7 @@ HistoryMessage::HistoryMessage(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
 	if (const auto reactions = data.vreactions()) {
-		setReactions(reactions);
+		changeReactions(reactions);
 	}
 
 	applyTTL(data);

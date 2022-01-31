@@ -462,7 +462,7 @@ protected:
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
-	void setReactions(const MTPMessageReactions *reactions);
+	bool changeReactions(const MTPMessageReactions *reactions);
 
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;

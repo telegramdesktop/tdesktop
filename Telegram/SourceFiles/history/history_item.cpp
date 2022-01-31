@@ -847,9 +847,14 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	const auto hadUnread = hasUnreadReaction();
-	setReactions(reactions);
-	const auto hasUnread = hasUnreadReaction();
+	const auto changed = changeReactions(reactions);
+	if (!changed) {
+		return;
+	}
+	const auto hasUnread = _reactions && !_reactions->findUnread().isEmpty();
 	if (hasUnread && !hadUnread) {
+		_flags |= MessageFlag::HasUnreadReaction;
+
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
 
 		// Call to addToUnreadThings may have read the reaction already.
@@ -864,38 +869,25 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	} else if (!hasUnread && hadUnread) {
 		markReactionsRead();
 	}
+	history()->owner().notifyItemDataChange(this);
 }
 
-void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
+bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	if (reactions || _reactionsLastRefreshed) {
 		_reactionsLastRefreshed = crl::now();
 	}
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
-		if (_reactions) {
-			_reactions = nullptr;
-			if (hasUnreadReaction()) {
-				markReactionsRead();
-			}
-			history()->owner().notifyItemDataChange(this);
-		}
-		return;
+		return (base::take(_reactions) != nullptr);
 	}
-	reactions->match([&](const MTPDmessageReactions &data) {
+	return reactions->match([&](const MTPDmessageReactions &data) {
 		if (data.is_can_see_list()) {
 			_flags |= MessageFlag::CanViewReactions;
 		} else {
 			_flags &= ~MessageFlag::CanViewReactions;
 		}
 		if (data.vresults().v.isEmpty()) {
-			if (_reactions) {
-				_reactions = nullptr;
-				if (hasUnreadReaction()) {
-					markReactionsRead();
-				}
-				history()->owner().notifyItemDataChange(this);
-			}
-			return;
+			return (base::take(_reactions) != nullptr);
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
@@ -907,12 +899,9 @@ void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 			if (_reactions->checkIfChanged(list, recent)) {
 				updateReactionsUnknown();
 			}
-		} else {
-			_reactions->set(list, recent, min);
-			if (!_reactions->findUnread().isEmpty()) {
-				_flags |= MessageFlag::HasUnreadReaction;
-			}
+			return false;
 		}
+		return _reactions->change(list, recent, min);
 	});
 }
 

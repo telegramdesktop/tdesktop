@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "core/application.h"
 #include "storage/storage_account.h"
 #include "storage/storage_facade.h"
@@ -1630,8 +1631,13 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				d.vmsg_id().v);
 			if (item) {
 				item->updateReactions(&d.vreactions());
-			} else if (Data::Reactions::HasUnread(d.vreactions())) {
-				history->owner().histories().requestDialogEntry(history);
+			} else {
+				const auto hasUnreadReaction = Data::Reactions::HasUnread(
+					d.vreactions());
+				if (hasUnreadReaction || history->unreadReactions().has()) {
+					// The unread reactions count could change.
+					history->owner().histories().requestDialogEntry(history);
+				}
 			}
 		}
 	} break;
