@@ -113,7 +113,8 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint64)
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(windowPosition)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 2
+		+ (_accountsOrder.size() * sizeof(quint64));
 	for (const auto &[id, rating] : recentEmojiPreloadData) {
 		size += Serialize::stringSize(id) + sizeof(quint16);
 	}
@@ -229,6 +230,12 @@ QByteArray Settings::serialize() const {
 			<< qint32(_playerRepeatMode.current())
 			<< qint32(_playerOrderMode.current())
 			<< qint32(_macWarnBeforeQuit ? 1 : 0);
+
+		stream
+			<< qint32(_accountsOrder.size());
+		for (const auto &id : _accountsOrder) {
+			stream << quint64(id);
+		}
 	}
 	return result;
 }
@@ -316,6 +323,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
 	qint32 playerOrderMode = static_cast<qint32>(_playerOrderMode.current());
 	qint32 macWarnBeforeQuit = _macWarnBeforeQuit ? 1 : 0;
+	qint32 accountsOrderCount = 0;
+	std::vector<uint64> accountsOrder;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -487,6 +496,16 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> macWarnBeforeQuit;
 	}
+	if (!stream.atEnd()) {
+		stream >> accountsOrderCount;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != accountsOrderCount; ++i) {
+				quint64 sessionUniqueId;
+				stream >> sessionUniqueId;
+				accountsOrder.emplace_back(sessionUniqueId);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -629,6 +648,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_photoEditorBrush = photoEditorBrush;
 	_closeToTaskbar = (closeToTaskbar == 1);
 	_customDeviceModel = customDeviceModel;
+	_accountsOrder = accountsOrder;
 	const auto uncheckedPlayerRepeatMode = static_cast<Media::Player::RepeatMode>(playerRepeatMode);
 	switch (uncheckedPlayerRepeatMode) {
 	case Media::Player::RepeatMode::None:
@@ -922,6 +942,8 @@ void Settings::resetOnLastLogout() {
 	_emojiVariants.clear();
 
 	_workMode = WorkMode::WindowAndTray;
+
+	_accountsOrder.clear();
 }
 
 bool Settings::ThirdColumnByDefault() {

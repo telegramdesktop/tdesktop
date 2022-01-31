@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
@@ -138,6 +139,27 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		});
 	};
 	window->show(Box<PeerListBox>(std::move(controller), initBox));
+}
+
+[[nodiscard]] std::vector<not_null<Main::Account*>> OrderedAccounts() {
+	const auto order = Core::App().settings().accountsOrder();
+	auto accounts = ranges::views::all(
+		Core::App().domain().accounts()
+	) | ranges::views::transform([](const Main::Domain::AccountWithIndex &a) {
+		return not_null{ a.account.get() };
+	}) | ranges::to_vector;
+	ranges::stable_sort(accounts, [&](
+			not_null<Main::Account*> a,
+			not_null<Main::Account*> b) {
+		const auto aIt = a->sessionExists()
+			? ranges::find(order, a->session().uniqueId())
+			: end(order);
+		const auto bIt = b->sessionExists()
+			? ranges::find(order, b->session().uniqueId())
+			: end(order);
+		return aIt < bIt;
+	});
+	return accounts;
 }
 
 } // namespace
@@ -817,11 +839,37 @@ void MainMenu::setupAccounts() {
 }
 
 void MainMenu::rebuildAccounts() {
-	const auto inner = _accounts->entity();
+	const auto inner = _accounts->entity()->insert(
+		1, // After skip with the fixed height.
+		object_ptr<Ui::VerticalLayout>(_accounts.get()));
 
-	auto count = 0;
-	for (const auto &[index, pointer] : Core::App().domain().accounts()) {
-		const auto account = pointer.get();
+	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(inner);
+	_reorder->updates(
+	) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
+		using State = Ui::VerticalLayoutReorder::State;
+		if (data.state == State::Started) {
+			++_reordering;
+		} else {
+			Ui::PostponeCall(inner, [=] {
+				--_reordering;
+			});
+			if (data.state == State::Applied) {
+				std::vector<uint64> order;
+				order.reserve(inner->count());
+				for (auto i = 0; i < inner->count(); i++) {
+					for (const auto &[account, button] : _watched) {
+						if (button.get() == inner->widgetAt(i)) {
+							order.push_back(account->session().uniqueId());
+						}
+					}
+				}
+				Core::App().settings().setAccountsOrder(order);
+				Core::App().saveSettings();
+			}
+		}
+	}, inner->lifetime());
+
+	for (const auto &account : OrderedAccounts()) {
 		auto i = _watched.find(account);
 		Assert(i != _watched.end());
 
@@ -829,16 +877,19 @@ void MainMenu::rebuildAccounts() {
 		if (!account->sessionExists()) {
 			button = nullptr;
 		} else if (!button) {
-			button.reset(inner->insert(
-				++count,
+			button.reset(inner->add(
 				object_ptr<AccountButton>(inner, account)));
 			button->setClickedCallback([=] {
+				if (_reordering) {
+					return;
+				}
 				if (account == &Core::App().domain().active()) {
 					closeLayer();
 					return;
 				}
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
+						_reorder->finishReordering();
 						Core::App().domain().maybeActivate(account);
 					}
 				};
@@ -847,15 +898,15 @@ void MainMenu::rebuildAccounts() {
 					account,
 					std::move(activate));
 			});
-		} else {
-			++count;
 		}
 	}
 	inner->resizeToWidth(_accounts->width());
 
 	_addAccount->toggle(
-		(count < Main::Domain::kMaxAccounts),
+		(inner->count() < Main::Domain::kMaxAccounts),
 		anim::type::instant);
+
+	_reorder->start();
 }
 
 not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
