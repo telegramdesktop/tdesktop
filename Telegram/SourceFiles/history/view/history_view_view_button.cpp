@@ -107,7 +107,7 @@ bool ViewButton::MediaHasViewButton(
 		|| (type == WebPageType::Group)
 		|| (type == WebPageType::Channel)
 		// || (type == WebPageType::Bot)
-		// || (type == WebPageType::User)
+		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)
 		|| (type == WebPageType::Livestream)
 		|| ((type == WebPageType::Theme)
