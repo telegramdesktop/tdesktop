@@ -63,15 +63,6 @@ enum class Context : char;
 class ElementDelegate;
 } // namespace HistoryView
 
-struct HistoryItemUnreadReaction {
-	PeerData *from = nullptr;
-	QString emoji;
-
-	explicit operator bool() const {
-		return (from != nullptr) && !emoji.isEmpty();
-	}
-};
-
 struct HiddenSenderInfo;
 class History;
 
@@ -382,7 +373,8 @@ public:
 		std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
-	[[nodiscard]] HistoryItemUnreadReaction lookupUnreadReaction() const;
+	[[nodiscard]] QString lookupUnreadReaction(
+		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
 	[[nodiscard]] bool hasDirectLink() const;

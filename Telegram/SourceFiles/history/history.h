@@ -84,10 +84,13 @@ enum class ItemNotificationType {
 };
 struct ItemNotification {
 	not_null<HistoryItem*> item;
+	UserData *reactionSender = nullptr;
 	ItemNotificationType type = ItemNotificationType::Message;
 
 	friend inline bool operator==(ItemNotification a, ItemNotification b) {
-		return (a.item == b.item) && (a.type == b.type);
+		return (a.item == b.item)
+			&& (a.reactionSender == b.reactionSender)
+			&& (a.type == b.type);
 	}
 };
 

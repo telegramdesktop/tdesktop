@@ -1086,8 +1086,8 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	}
 	item->contributeToSlowmode();
 	auto notification = ItemNotification{
-		item,
-		ItemNotificationType::Message,
+		.item = item,
+		.type = ItemNotificationType::Message,
 	};
 	if (item->showNotification()) {
 		pushNotification(notification);

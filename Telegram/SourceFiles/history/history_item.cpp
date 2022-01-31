@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kNotificationTextLimit = 255;
+constexpr auto kMaxUnreadReactions = 5; // Now 3, but just in case.
 
 using ItemPreview = HistoryView::ItemPreview;
 
@@ -176,6 +177,57 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		flags |= MessageFlag::HistoryEntry;
 	}
 	return flags;
+}
+
+using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
+[[nodiscard]] OnStackUsers LookupRecentReactedUsers(
+		not_null<HistoryItem*> item) {
+	auto result = OnStackUsers();
+	auto index = 0;
+	for (const auto &[emoji, reactions] : item->recentReactions()) {
+		for (const auto &reaction : reactions) {
+			if (const auto user = reaction.peer->asUser()) {
+				result[index++] = user;
+				if (index == result.size()) {
+					return result;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+void CheckReactionNotificationSchedule(
+		not_null<HistoryItem*> item,
+		const OnStackUsers &wasUsers) {
+	if (!item->hasUnreadReaction()) {
+		return;
+	}
+	for (const auto &[emoji, reactions] : item->recentReactions()) {
+		for (const auto &reaction : reactions) {
+			if (!reaction.unread) {
+				continue;
+			}
+			const auto user = reaction.peer->asUser();
+			if (!user
+				|| !user->isContact()
+				|| ranges::contains(wasUsers, user)) {
+				continue;
+			}
+			using Status = PeerData::BlockStatus;
+			if (user->blockStatus() == Status::Unknown) {
+				user->updateFull();
+			}
+			const auto notification = ItemNotification{
+				.item = item,
+				.reactionSender = user,
+				.type = ItemNotificationType::Reaction,
+			};
+			item->history()->pushNotification(notification);
+			Core::App().notifications().schedule(notification);
+			return;
+		}
+	}
 }
 
 } // namespace
@@ -846,6 +898,7 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	const auto wasRecentUsers = LookupRecentReactedUsers(this);
 	const auto hadUnread = hasUnreadReaction();
 	const auto changed = changeReactions(reactions);
 	if (!changed) {
@@ -859,16 +912,11 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 
 		// Call to addToUnreadThings may have read the reaction already.
 		if (hasUnreadReaction()) {
-			const auto notification = ItemNotification{
-				this,
-				ItemNotificationType::Reaction,
-			};
-			history()->pushNotification(notification);
-			Core::App().notifications().schedule(notification);
 		}
 	} else if (!hasUnread && hadUnread) {
 		markReactionsRead();
 	}
+	CheckReactionNotificationSchedule(this, wasRecentUsers);
 	history()->owner().notifyItemDataChange(this);
 }
 
@@ -932,21 +980,21 @@ QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
 }
 
-HistoryItemUnreadReaction HistoryItem::lookupUnreadReaction() const {
+QString HistoryItem::lookupUnreadReaction(not_null<UserData*> from) const {
 	if (!_reactions) {
-		return {};
+		return QString();
 	}
 	const auto recent = _reactions->recent();
 	for (const auto &[emoji, list] : _reactions->recent()) {
 		const auto i = ranges::find(
 			list,
-			true,
-			&Data::RecentReaction::unread);
-		if (i != end(list)) {
-			return { .from = i->peer, .emoji = emoji };
+			from,
+			&Data::RecentReaction::peer);
+		if (i != end(list) && i->unread) {
+			return emoji;
 		}
 	}
-	return {};
+	return QString();
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {
