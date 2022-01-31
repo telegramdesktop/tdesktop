@@ -1,3 +1,16 @@
+3.5 (31.01.21)
+
+- Use a new type of detailed stickers with smooth animations.
+- Create new sets by sending .webm videos to @stickers.
+- Bring your custom animated stickers from other apps.
+- See smaller, compact animations when reacting to messages.
+- See real-time animations in chat when a user reacts to your message.
+- React with additional emoji expressing love, appreciation, anger or surprise. 
+- Tap the new button in chats to jump to your messages that have unseen reactions.
+- Watch the animations for unseen reactions play when you hit the button.
+- The app will warn you before closing if you are uploading photos or files to a chat.
+- Enjoy better screencast quality in video chats.
+
 3.4.8 (19.01.21)
 
 - Nice animations in reactions.
