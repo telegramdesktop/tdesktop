@@ -647,7 +647,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	auto inThumb = false;
 	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);
-		if (style::rtlrect(padding.left() + paintw - pw, 0, pw, _pixh, width()).contains(point)) {
+		if (style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()).contains(point)) {
 			inThumb = true;
 		}
 		paintw -= pw + st::webPagePhotoDelta;
