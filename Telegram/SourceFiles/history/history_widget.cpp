@@ -5659,23 +5659,9 @@ void HistoryWidget::updateUnreadThingsVisibility() {
 	unreadThings.preloadEnough(_history);
 
 	const auto updateWithLoadedCount = [&](CornerButton &button, int count) {
-		updateCornerButtonVisibility(button, [&] {
-			if (!count
-				|| _firstLoadRequest
-				|| _voiceRecordBar->isLockPresent()) {
-				return false;
-			}
-			// If we have an unheard voice message with the mention
-			// and our message is the last one, we can't see the status
-			// (delivered/read) of this message.
-			// (Except for MacBooks with the TouchPad.)
-			if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
-				if (const auto lastMessage = _history->lastMessage()) {
-					return !lastMessage->from()->isSelf();
-				}
-			}
-			return true;
-		}());
+		updateCornerButtonVisibility(button, (count > 0)
+			&& !_firstLoadRequest
+			&& !_voiceRecordBar->isLockPresent());
 	};
 	if (unreadThings.trackMentions(_peer)) {
 		if (const auto count = _history->unreadMentions().count(0)) {
