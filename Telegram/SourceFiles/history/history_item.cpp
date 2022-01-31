@@ -200,6 +200,7 @@ using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
 void CheckReactionNotificationSchedule(
 		not_null<HistoryItem*> item,
 		const OnStackUsers &wasUsers) {
+	// Call to addToUnreadThings may have read the reaction already.
 	if (!item->hasUnreadReaction()) {
 		return;
 	}
@@ -897,6 +898,14 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 	history()->owner().notifyItemDataChange(this);
 }
 
+void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
+	Expects(!_reactions);
+
+	if (changeReactions(reactions) && _reactions->hasUnread()) {
+		_flags |= MessageFlag::HasUnreadReaction;
+	}
+}
+
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	const auto wasRecentUsers = LookupRecentReactedUsers(this);
 	const auto hadUnread = hasUnreadReaction();
@@ -904,15 +913,11 @@ void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
 	if (!changed) {
 		return;
 	}
-	const auto hasUnread = _reactions && !_reactions->findUnread().isEmpty();
+	const auto hasUnread = _reactions && _reactions->hasUnread();
 	if (hasUnread && !hadUnread) {
 		_flags |= MessageFlag::HasUnreadReaction;
 
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
-
-		// Call to addToUnreadThings may have read the reaction already.
-		if (hasUnreadReaction()) {
-		}
 	} else if (!hasUnread && hadUnread) {
 		markReactionsRead();
 	}

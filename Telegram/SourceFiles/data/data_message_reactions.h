@@ -163,7 +163,7 @@ public:
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
 
-	[[nodiscard]] QString findUnread() const;
+	[[nodiscard]] bool hasUnread() const;
 	void markRead();
 
 private:

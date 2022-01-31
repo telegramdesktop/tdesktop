@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "apiwrap.h"
 
 namespace HistoryUnreadThings {
 namespace {
@@ -78,7 +79,7 @@ bool Proxy::add(MsgId msgId, AddType type) {
 	const auto loaded = list.loadedCount();
 	const auto allLoaded = (count >= 0) && (loaded >= count);
 	if (allLoaded) {
-		if (type == AddType::New) {
+		if (type == AddType::New || !list.contains(msgId)) {
 			list.insert(msgId);
 			setCount(count + 1);
 			return true;
@@ -117,7 +118,10 @@ void Proxy::clear() {
 		UpdateFlag(_type));
 }
 
-void Proxy::addSlice(const MTPmessages_Messages &slice) {
+void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
+	if (!alreadyLoaded && _data) {
+		resolveList().clear();
+	}
 	auto fullCount = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -148,15 +152,11 @@ void Proxy::addSlice(const MTPmessages_Messages &slice) {
 		owner.processChats(data.vchats());
 		return data.vmessages().v;
 	});
-	if (messages.isEmpty()) {
-		return;
-	}
-
-	if (!_data) {
+	if (!messages.isEmpty() && !_data) {
 		createData();
 	}
 	auto added = false;
-	auto &list = resolveList();
+	const auto list = _data ? &resolveList() : nullptr;
 	const auto localFlags = MessageFlags();
 	const auto type = NewMessageType::Existing;
 	for (const auto &message : messages) {
@@ -173,17 +173,39 @@ void Proxy::addSlice(const MTPmessages_Messages &slice) {
 			Unexpected("Type in Proxy::addSlice.");
 		}();
 		if (is) {
-			list.insert(item->id);
+			list->insert(item->id);
 			added = true;
 		}
 	}
 	if (!added) {
-		fullCount = list.loadedCount();
+		fullCount = loadedCount();
 	}
 	setCount(fullCount);
 	_history->session().changes().historyUpdated(
 		_history,
 		UpdateFlag(_type));
+}
+
+void Proxy::checkAdd(MsgId msgId, bool resolved) {
+	Expects(_type == Type::Reactions);
+
+	if (!_data) {
+		return;
+	}
+	auto &list = resolveList();
+	if (!list.loadedCount() || list.maxLoaded() <= msgId) {
+		return;
+	}
+	const auto history = _history;
+	const auto peer = history->peer;
+	const auto item = peer->owner().message(peer, msgId);
+	if (item && item->hasUnreadReaction()) {
+		item->addToUnreadThings(AddType::Existing);
+	} else if (!item && !resolved) {
+		peer->session().api().requestMessageData(peer, msgId, [=] {
+			history->unreadReactions().checkAdd(msgId, true);
+		});
+	}
 }
 
 void Proxy::createData() {

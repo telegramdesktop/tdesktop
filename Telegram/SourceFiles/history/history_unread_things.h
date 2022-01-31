@@ -38,6 +38,9 @@ public:
 	[[nodiscard]] bool has() const {
 		return (count() > 0);
 	}
+	[[nodiscard]] bool contains(MsgId msgId) const {
+		return _messages.contains(msgId);
+	}
 	void setCount(int count) {
 		_count = count;
 	}
@@ -120,7 +123,9 @@ public:
 	void erase(MsgId msgId);
 	void clear();
 
-	void addSlice(const MTPmessages_Messages &slice);
+	void addSlice(const MTPmessages_Messages &slice, int alreadyLoaded);
+
+	void checkAdd(MsgId msgId, bool resolved = false);
 
 private:
 	void createData();

@@ -454,7 +454,8 @@ protected:
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
-	bool changeReactions(const MTPMessageReactions *reactions);
+	void setReactions(const MTPMessageReactions *reactions);
+	[[nodiscard]] bool changeReactions(const MTPMessageReactions *reactions);
 
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;

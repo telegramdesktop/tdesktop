@@ -101,7 +101,7 @@ void UnreadThings::requestMentions(not_null<History*> history, int loaded) {
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
 		_mentionsRequests.remove(history);
-		history->unreadMentions().addSlice(result);
+		history->unreadMentions().addSlice(result, loaded);
 	}).fail([=] {
 		_mentionsRequests.remove(history);
 	}).send();
@@ -112,9 +112,9 @@ void UnreadThings::requestReactions(not_null<History*> history, int loaded) {
 	if (_reactionsRequests.contains(history)) {
 		return;
 	}
-	const auto offsetId = std::max(
-		history->unreadMentions().maxLoaded(),
-		MsgId(1));
+	const auto offsetId = loaded
+		? std::max(history->unreadReactions().maxLoaded(), MsgId(1))
+		: MsgId(1);
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 	const auto maxId = 0;
@@ -128,8 +128,8 @@ void UnreadThings::requestReactions(not_null<History*> history, int loaded) {
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
 		_reactionsRequests.remove(history);
-		history->unreadReactions().addSlice(result);
-	}).fail([this, history] {
+		history->unreadReactions().addSlice(result, loaded);
+	}).fail([=] {
 		_reactionsRequests.remove(history);
 	}).send();
 	_reactionsRequests.emplace(history, requestId);

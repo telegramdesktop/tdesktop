@@ -1638,6 +1638,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					// The unread reactions count could change.
 					history->owner().histories().requestDialogEntry(history);
 				}
+				if (hasUnreadReaction) {
+					history->unreadReactions().checkAdd(d.vmsg_id().v);
+				}
 			}
 		}
 	} break;

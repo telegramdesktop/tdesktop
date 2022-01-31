@@ -679,14 +679,13 @@ bool MessageReactions::empty() const {
 	return _list.empty();
 }
 
-QString MessageReactions::findUnread() const {
+bool MessageReactions::hasUnread() const {
 	for (auto &[emoji, list] : _recent) {
-		const auto i = ranges::find(list, true, &RecentReaction::unread);
-		if (i != end(list)) {
-			return emoji;
+		if (ranges::contains(list, true, &RecentReaction::unread)) {
+			return true;
 		}
 	}
-	return QString();
+	return false;
 }
 
 void MessageReactions::markRead() {
