@@ -61,7 +61,13 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 	using namespace qthelp;
 
 	return !regex_match(
-		"(^|\\.)(telegram\\.(org|me|dog)|t\\.me|telegra\\.ph|telesco\\.pe)$",
+		"(^|\\.)("
+		"telegram\\.(org|me|dog)"
+		"|t\\.me"
+		"|te\\.?legra\\.ph"
+		"|graph\\.org"
+		"|telesco\\.pe"
+		")$",
 		url.host(),
 		RegExOption::CaseInsensitive);
 }
