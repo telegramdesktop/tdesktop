@@ -289,9 +289,13 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 	// Thanks Chromium, see
 	// chromium.org/developers/design-documents/confirm-to-quit-experiment
 	return (reason == Core::QuitReason::QtQuitEvent)
+		&& Core::App().settings().macWarnBeforeQuit()
 		&& ([[NSApp currentEvent] type] == NSKeyDown)
 		&& !Platform::ConfirmQuit::RunModal(
-			tr::lng_mac_hold_to_quit(tr::now, lt_text, "{key}"));
+			tr::lng_mac_hold_to_quit(
+				tr::now,
+				lt_text,
+				Platform::ConfirmQuit::QuitKeysString()));
 }
 
 void MainWindow::psTrayMenuUpdated() {

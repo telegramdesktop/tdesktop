@@ -389,6 +389,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_start_disabled_uwp" = "Starting with the system was disabled in Windows Settings.\n\nPlease enable Telegram Desktop in the Startup Apps Settings.";
 "lng_settings_open_system_settings" = "Open Settings";
 "lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
+"lng_settings_mac_warn_before_quit" = "Show warning before quitting with {text}";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
@@ -3065,6 +3066,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_preferences" = "Preferences...";
 "lng_mac_menu_quit_telegram" = "Quit {telegram}";
 "lng_mac_menu_about_telegram" = "About {telegram}";
+//"lng_mac_menu_warn_before_quit" = "Warn Before Quitting ({text})";
 "lng_mac_menu_file" = "File";
 "lng_mac_menu_logout" = "Log Out";
 "lng_mac_menu_edit" = "Edit";

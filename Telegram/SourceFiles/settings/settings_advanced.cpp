@@ -38,6 +38,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 #include "styles/style_settings.h"
 
+#ifdef Q_OS_MAC
+#include "base/platform/mac/base_confirm_quit.h"
+#endif // Q_OS_MAC
+
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "boxes/dictionaries_manager.h"
 #include "chat_helpers/spellchecker_common.h"
@@ -399,7 +403,7 @@ void SetupSystemIntegrationContent(
 				cSetSeenTrayTooltip(false);
 			}
 			Core::App().settings().setWorkMode(newMode);
-			Local::writeSettings();
+			Core::App().saveSettingsDelayed();
 		};
 
 		tray->checkedChanges(
@@ -427,27 +431,40 @@ void SetupSystemIntegrationContent(
 		}
 	}
 
-	if (!Platform::IsMac()) {
-		const auto closeToTaskbar = addSlidingCheckbox(
-			tr::lng_settings_close_to_taskbar(),
-			Core::App().settings().closeToTaskbar());
+#ifdef Q_OS_MAC
+	const auto warnBeforeQuit = addCheckbox(
+		tr::lng_settings_mac_warn_before_quit(
+			lt_text,
+			rpl::single(Platform::ConfirmQuit::QuitKeysString())),
+		Core::App().settings().macWarnBeforeQuit());
+	warnBeforeQuit->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != Core::App().settings().macWarnBeforeQuit());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setMacWarnBeforeQuit(checked);
+		Core::App().saveSettingsDelayed();
+	}, warnBeforeQuit->lifetime());
+#else // Q_OS_MAC
+	const auto closeToTaskbar = addSlidingCheckbox(
+		tr::lng_settings_close_to_taskbar(),
+		Core::App().settings().closeToTaskbar());
 
-		const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
-		Core::App().settings().workModeValue(
-		) | rpl::start_with_next([=](WorkMode workMode) {
-			*closeToTaskbarShown = (workMode == WorkMode::WindowOnly)
-				|| !Platform::TrayIconSupported();
-		}, closeToTaskbar->lifetime());
+	const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
+	Core::App().settings().workModeValue(
+	) | rpl::start_with_next([=](WorkMode workMode) {
+		*closeToTaskbarShown = (workMode == WorkMode::WindowOnly)
+			|| !Platform::TrayIconSupported();
+	}, closeToTaskbar->lifetime());
 
-		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
-		closeToTaskbar->entity()->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return (checked != Core::App().settings().closeToTaskbar());
-		}) | rpl::start_with_next([=](bool checked) {
-			Core::App().settings().setCloseToTaskbar(checked);
-			Local::writeSettings();
-		}, closeToTaskbar->lifetime());
-	}
+	closeToTaskbar->toggleOn(closeToTaskbarShown->value());
+	closeToTaskbar->entity()->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != Core::App().settings().closeToTaskbar());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setCloseToTaskbar(checked);
+		Local::writeSettings();
+	}, closeToTaskbar->lifetime());
+#endif // Q_OS_MAC
 
 	if (Ui::Platform::NativeWindowFrameSupported()) {
 		const auto nativeFrame = addCheckbox(
