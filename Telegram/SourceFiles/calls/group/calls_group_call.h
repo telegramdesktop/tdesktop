@@ -26,6 +26,7 @@ class VideoCaptureInterface;
 namespace base {
 class GlobalShortcutManager;
 class GlobalShortcutValue;
+class PowerSaveBlocker;
 } // namespace base
 
 namespace Webrtc {
@@ -563,6 +564,8 @@ private:
 	rpl::event_stream<Error> _errors;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
+
+	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 
 	MTP::DcId _broadcastDcId = 0;
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
