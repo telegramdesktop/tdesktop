@@ -73,6 +73,19 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		: QString());
 }
 
+[[nodiscard]] ClickHandlerPtr MakeWebPageClickHandler(
+		not_null<Data::Media*> media) {
+	Expects(media->webpage() != nullptr);
+
+	const auto url = media->webpage()->url;
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			HiddenUrlClickHandler::Open(url, context.other);
+		}
+	});
+}
+
 } // namespace
 
 struct ViewButton::Inner {
@@ -146,16 +159,7 @@ ViewButton::Inner::Inner(
 	not_null<Data::Media*> media,
 	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto controller = my.sessionWindow.get()) {
-		const auto webpage = media->webpage();
-		if (!webpage) {
-			return;
-		}
-		HiddenUrlClickHandler::Open(webpage->url, context.other);
-	}
-}))
+, link(MakeWebPageClickHandler(media))
 , updateCallback(std::move(updateCallback))
 , belowInfo(false)
 , text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {
