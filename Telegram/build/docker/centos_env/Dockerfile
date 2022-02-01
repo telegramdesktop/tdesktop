@@ -687,6 +687,7 @@ WORKDIR ..
 
 FROM builder AS webrtc
 
+COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
@@ -699,7 +700,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin 1fd131d37777c445b58cad3889313a7c26ffc2ee
+RUN git fetch --depth=1 origin 25c8637f5975db830cc5d74477641a8b609e248d
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
