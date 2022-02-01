@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "lang/lang_keys.h"
+#include "window/window_peer_menu.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 
@@ -60,6 +61,10 @@ void SetupExperimental(
 	};
 
 	addToggle(ChatHelpers::kOptionTabbedPanelShowOnClick);
+
+	AddSkip(container, st::settingsCheckboxesSkip);
+
+	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
