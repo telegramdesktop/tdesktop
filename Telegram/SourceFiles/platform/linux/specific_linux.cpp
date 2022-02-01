@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
+#include <dlfcn.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>
@@ -645,6 +646,47 @@ void HaikuAutostart(bool start) {
 }
 #endif // __HAIKU__
 
+decltype(mallctl)* mallctlLoad() {
+#ifdef DESKTOP_APP_REQUIRE_JEMALLOC
+	return &mallctl;
+#elif defined(__GLIBC__)
+	// Despite using glibc, one can choose jemalloc via LD_PRELOAD.
+	// Detect the case and configure the allocator.
+
+	Dl_info info;
+	int rc = dladdr(reinterpret_cast<void*>(&malloc), &info);
+	if (!rc) {
+		LOG(("Can't retrieve malloc info: %1").arg(dlerror()));
+		return nullptr;
+	}
+	LOG(("We use allocator from %1").arg(info.dli_fname));
+	if (!QLatin1String(info.dli_fname)
+			.endsWith(QLatin1String("/libjemalloc.so.2"))) {
+		return nullptr;
+	}
+
+	void *handle = dlopen(info.dli_fname, RTLD_LAZY | RTLD_NOLOAD);
+	if (!handle) {
+		LOG(("Can't reopen jemalloc dynamic object: %1").arg(dlerror()));
+		return nullptr;
+	}
+
+	auto pointer = reinterpret_cast<decltype(mallctl)*>(
+		dlsym(handle, "mallctl"));
+	if (!pointer) {
+		LOG(("Can't find mallctl function: %1").arg(dlerror()));
+	}
+
+	rc = dlclose(handle);
+	if (rc) {
+		LOG(("Can't dlclose temporary handle: %1").arg(dlerror()));
+	}
+	return pointer;
+#else  // __GLIBC__
+	return nullptr;
+#endif
+}
+
 } // namespace
 
 QString psAppDataPath() {
@@ -688,8 +730,10 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	auto backgroundThread = true;
-	mallctl("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
+	if (auto mallctlLoaded = mallctlLoad()) {
+		bool backgroundThread = true;
+		mallctlLoaded("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
+	}
 
 	// Prevent any later calls into setlocale() by Qt
 	QCoreApplicationPrivate::initLocale();
