@@ -234,6 +234,10 @@ void Player::videoPlayedTill(crl::time position) {
 	trackPlayedTill(*_video, _information.video.state, position);
 }
 
+Mode Player::fileOpenMode() {
+	return _options.mode;
+}
+
 bool Player::fileReady(int headerSize, Stream &&video, Stream &&audio) {
 	_waitingForData = false;
 

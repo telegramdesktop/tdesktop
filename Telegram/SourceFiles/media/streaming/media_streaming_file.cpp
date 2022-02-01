@@ -20,8 +20,10 @@ constexpr auto kMaxQueuedPackets = 1024;
 
 [[nodiscard]] bool UnreliableFormatDuration(
 		not_null<AVFormatContext*> format,
-		not_null<AVStream*> stream) {
-	return stream->codec
+		not_null<AVStream*> stream,
+		Mode mode) {
+	return (mode == Mode::Video || mode == Mode::Inspection)
+		&& stream->codec
 		&& (stream->codec->codec_id == AV_CODEC_ID_VP9)
 		&& format->iformat
 		&& format->iformat->name
@@ -145,7 +147,8 @@ void File::Context::logFatal(
 
 Stream File::Context::initStream(
 		not_null<AVFormatContext*> format,
-		AVMediaType type) {
+		AVMediaType type,
+		Mode mode) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
 		format,
@@ -186,7 +189,7 @@ Stream File::Context::initStream(
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? FFmpeg::PtsToTime(info->duration, result.timeBase)
-		: UnreliableFormatDuration(format, info)
+		: UnreliableFormatDuration(format, info, mode)
 		? kTimeUnknown
 		: FFmpeg::PtsToTime(format->duration, FFmpeg::kUniversalTimeBase);
 	if (result.duration == kTimeUnknown) {
@@ -276,12 +279,13 @@ void File::Context::start(crl::time position) {
 		return logFatal(qstr("avformat_find_stream_info"), error);
 	}
 
-	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO);
+	const auto mode = _delegate->fileOpenMode();
+	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode);
 	if (unroll()) {
 		return;
 	}
 
-	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO);
+	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode);
 	if (unroll()) {
 		return;
 	}
