@@ -447,15 +447,15 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 25c8637f5975db830cc5d74477641a8b609e248d
+    source-commit: d618d0b5ff3e59bea0143e6070481f8f4316a428
     plugin: cmake
     build-packages:
       - yasm
-      - libdrm-dev
-      - libgbm-dev
-      - libglib2.0-dev
+      #- libdrm-dev
+      #- libgbm-dev
+      #- libglib2.0-dev
       - libopus-dev
-      - libpipewire-0.2-dev
+      #- libpipewire-0.2-dev
       - libssl-dev
       - libx11-dev
       - libxcomposite-dev
@@ -466,11 +466,11 @@ parts:
       - libxrandr-dev
       - libxtst-dev
     stage-packages:
-      - libdrm2
-      - libgbm1
-      - libglib2.0-0
+      #- libdrm2
+      #- libgbm1
+      #- libglib2.0-0
       - libopus0
-      - libpipewire-0.2-1
+      #- libpipewire-0.2-1
       - libssl1.1
       - libx11-6
       - libxcomposite1
@@ -486,12 +486,13 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
       - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
+      - -DTG_OWT_USE_PIPEWIRE=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
     after:
-      - epoxy
+      #- epoxy
       - ffmpeg
       - mozjpeg
       - vpx
