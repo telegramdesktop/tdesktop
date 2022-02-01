@@ -1561,7 +1561,11 @@ void ComposeControls::initTabbedSelector() {
 	}
 
 	_tabbedSelectorToggle->addClickHandler([=] {
-		toggleTabbedSelectorMode();
+		if (_tabbedPanel && _tabbedPanel->isHidden()) {
+			_tabbedPanel->showAnimated();
+		} else {
+			toggleTabbedSelectorMode();
+		}
 	});
 
 	const auto selector = _window->tabbedSelector();
