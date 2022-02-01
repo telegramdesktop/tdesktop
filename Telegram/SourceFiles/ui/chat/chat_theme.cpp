@@ -444,7 +444,8 @@ void ChatTheme::setBubblesBackground(QImage image) {
 	_bubblesBackgroundPrepared = std::move(image);
 	if (_bubblesBackgroundPrepared.isNull()) {
 		_bubblesBackgroundPattern = nullptr;
-		_repaintBackgroundRequests.fire({});
+		// setBubblesBackground called only from background thread.
+		//_repaintBackgroundRequests.fire({});
 		return;
 	}
 	_bubblesBackground = CacheBackground({
@@ -459,7 +460,14 @@ void ChatTheme::setBubblesBackground(QImage image) {
 		_bubblesBackgroundPattern = PrepareBubblePattern(palette());
 	}
 	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
-	_repaintBackgroundRequests.fire({});
+	// setBubblesBackground called only from background thread.
+	//_repaintBackgroundRequests.fire({});
+}
+
+void ChatTheme::finishCreateOnMain() {
+	if (_bubblesBackgroundPattern) {
+		FinishBubblePatternOnMain(_bubblesBackgroundPattern.get());
+	}
 }
 
 ChatPaintContext ChatTheme::preparePaintContext(
