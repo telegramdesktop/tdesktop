@@ -2,43 +2,9 @@ name: Windows.
 
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '!docs/building-win.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '!docs/building-win.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
 
@@ -156,11 +122,12 @@ jobs:
           -DCMAKE_SYSTEM_VERSION=%SDK%
           cd ..\out
           msbuild -m Telegram.sln /p:Configuration=Release,Platform=${{ matrix.arch }}
-      - name: Move artifact.
+      - name: Move and hash artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           mkdir artifact
           move %TBUILD%\%REPO_NAME%\out\Release\Telegram.exe artifact/Telegram_${{ matrix.arch }}.exe
+          certutil -hashfile artifact/Telegram_${{ matrix.arch }}.exe SHA256 | find /i /v "SHA256" | find /i /v "CertUtil" > artifact/Telegram_${{ matrix.arch }}_sha256.txt
       - uses: actions/upload-artifact@master
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'

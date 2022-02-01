@@ -2,39 +2,9 @@ name: Snap.
 
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/snap.yml'
-      - 'Telegram/build/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/Resources/winrc/**'
-      - 'Telegram/SourceFiles/platform/win/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.bat'
-      - 'Telegram/Telegram.plist'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/snap.yml'
-      - 'Telegram/build/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/Resources/winrc/**'
-      - 'Telegram/SourceFiles/platform/win/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.bat'
-      - 'Telegram/Telegram.plist'
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
 
@@ -77,14 +47,15 @@ jobs:
           API_HASH: ${{ secrets.API_HASH }}
           TEST_VAR: "test var snap"
 
-      - name: Move artifact.
+      - name: Move and hash artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           artifact_name=$(echo telegram-desktop_*.snap)
           echo "ARTIFACT_NAME=$artifact_name" >> $GITHUB_ENV
-
+          sha256sum $artifact_name | awk -F " " 'END {print $1}' > telegram_snap_sha256.txt
           mkdir artifact
-          mv $artifact_name artifact
+          mv $artifact_name artifact/
+          mv telegram_snap_sha256.txt artifact/
 
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'

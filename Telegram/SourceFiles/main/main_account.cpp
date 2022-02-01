@@ -527,6 +527,7 @@ void Account::mtpLogOut(bool performUsualLogout) {
         if (performUsualLogout) {
             loggedOut();
         }
+        local().removeMtpDataFile();
     });
 }
 
@@ -547,6 +548,8 @@ void Account::loggedOut() {
 	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
+
+    local().removeAccountSpecificData();
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {

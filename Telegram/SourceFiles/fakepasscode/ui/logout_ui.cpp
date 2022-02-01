@@ -48,6 +48,7 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
             if (_logout) {
                 FAKE_LOG(qsl("LogoutUI: Set %1 to %2").arg(index).arg(button->toggled()));
                 _logout->SetLogout(index, button->toggled());
+                _logout->SubscribeOnLoggingOut();
             }
             _domain->local().writeAccounts();
         });

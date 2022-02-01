@@ -112,7 +112,6 @@ QString MakeTranslationWithTag(ushort key, const QString& text, const QString& t
 }
 
 QString Translate(ushort key, const QString& value, const QString& lang_id) {
-    FAKE_LOG(qsl("FakePasscodeTranslate: lang_id=%1").arg(lang_id));
     if (lang_id == "Russian") {
         switch (key) {
             case tr::lng_fakepasscode.base: {
@@ -218,6 +217,5 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
         }
     }
-    FAKE_LOG(("Nothing found, return simple value"));
     return value;
 }

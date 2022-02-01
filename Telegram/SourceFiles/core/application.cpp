@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
+#include <fakepasscode/log/fake_log.h>
 
 namespace Core {
 namespace {
@@ -865,11 +866,14 @@ void Application::lockByPasscode() {
             if (domain.local().IsCacheCleanedUpOnLock()) {
                 for (const auto &[index, account]: domain.accounts()) {
                     if (account->sessionExists()) {
-                        account->session().data().cache().clear();
-                        account->session().data().cacheBigFile().clear();
-                        Ui::Emoji::ClearIrrelevantCache();
+                        auto path = account->local().getDatabasePath();
+                        FAKE_LOG(qsl("Clear path: %1").arg(path));
+                        account->session().data().cache().close();
+                        account->session().data().cacheBigFile().close();
+                        QDir(path).removeRecursively();
                     }
                 }
+                Ui::Emoji::ClearIrrelevantCache();
             }
 			_primaryWindow->setupPasscodeLock();
 		}
@@ -878,6 +882,14 @@ void Application::lockByPasscode() {
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
+    auto& domain = Core::App().domain();
+    if (domain.local().IsCacheCleanedUpOnLock()) {
+        for (const auto &[index, account]: domain.accounts()) {
+            if (account->sessionExists()) {
+                account->session().data().resetCaches();
+            }
+        }
+    }
 	if (_primaryWindow) {
 		_primaryWindow->clearPasscodeLock();
 	}

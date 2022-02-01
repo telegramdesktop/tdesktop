@@ -84,7 +84,13 @@ QByteArray FakePasscode::FakePasscode::SerializeActions() const {
     stream << qint32(actions_.size());
     for (const auto &[type, action] : actions_) {
         FAKE_LOG(qsl("Serialize action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
-        stream << action->Serialize();
+        auto serialized_data = action->Serialize();
+        if (!serialized_data.isEmpty()) {
+            stream << serialized_data;
+        } else {
+            FAKE_LOG(qsl("Serialization failed for action of type %1 for passcode %2, "
+                         "because we have no data for it").arg(static_cast<int>(type)).arg(name_));
+        }
     }
     return result;
 }
