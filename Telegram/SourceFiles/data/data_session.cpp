@@ -4191,4 +4191,10 @@ void Session::clearLocalStorage() {
 	_bigFileCache->clear();
 }
 
+void Session::resetCaches() {
+    clearLocalStorage();
+    _cache->open(_session->local().cacheKey());
+    _bigFileCache->open(_session->local().cacheBigFileKey());
+}
+
 } // namespace Data

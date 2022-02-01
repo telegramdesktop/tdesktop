@@ -689,6 +689,8 @@ public:
 
 	void clearLocalStorage();
 
+    void resetCaches();
+
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
 

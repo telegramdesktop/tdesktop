@@ -2795,4 +2795,47 @@ bool Account::decrypt(
 	return true;
 }
 
+void Account::removeAccountSpecificData() const {
+    QDir(_basePath).removeRecursively();
+    QDir(_databasePath).removeRecursively();
+}
+
+void Account::removeMtpDataFile() const {
+	QString base_path = BaseGlobalPath();
+	QString name = ToFilePart(_dataNameKey);
+	const auto base = base_path + name; // From storage_file_utilities.cpp
+	QString toTry[2];
+	const auto modern = base + 's';
+	if (QFileInfo::exists(modern)) {
+		toTry[0] = modern;
+	} else {
+		// Legacy way.
+		toTry[0] = base + '0';
+		QFileInfo toTry0(toTry[0]);
+		if (toTry0.exists()) {
+			toTry[1] = base_path + name + '1';
+			QFileInfo toTry1(toTry[1]);
+			if (toTry1.exists()) {
+				QDateTime mod0 = toTry0.lastModified();
+				QDateTime mod1 = toTry1.lastModified();
+				if (mod0 < mod1) {
+					qSwap(toTry[0], toTry[1]);
+				}
+			} else {
+				toTry[1] = QString();
+			}
+		} else {
+			toTry[0][toTry[0].size() - 1] = '1';
+		}
+	}
+
+	for (const auto& filename : toTry) {
+		QFile file(filename);
+		if (file.exists()) {
+			file.remove();
+			break;
+		}
+	}
+}
+
 } // namespace Storage

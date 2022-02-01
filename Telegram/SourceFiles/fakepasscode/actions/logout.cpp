@@ -14,17 +14,15 @@ void FakePasscode::LogoutAction::Execute() {
             account->loggedOut();
             account->mtpLogOut(false);
             index_to_logout_.remove(index);
-            if (account->sessionExists()) {
-                FAKE_LOG(qsl("Clear cache for account %1").arg(index));
-                account->session().data().cache().clear();
-                account->session().data().cacheBigFile().clear();
-                Ui::Emoji::ClearIrrelevantCache();
-            }
         }
     }
 }
 
 QByteArray FakePasscode::LogoutAction::Serialize() const {
+    if (index_to_logout_.empty()) {
+        return {};
+    }
+
     QByteArray result;
     QDataStream stream(&result, QIODevice::ReadWrite);
     stream << static_cast<qint32>(ActionType::Logout);
@@ -83,9 +81,12 @@ const base::flat_map<qint32, bool>& FakePasscode::LogoutAction::GetLogout() cons
 
 void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
     for (const auto&[index, account] : Core::App().domain().accounts()) {
-        account->sessionChanges() | rpl::map([index = index, this] (Main::Session* session) {
-            FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
-            return session == nullptr ? index_to_logout_.erase(index) : -1;
-        });
+        FAKE_LOG(qsl("Subscribe on logout for account %1").arg(index));
+        account->sessionChanges() | rpl::start_with_next([index = index, this] (const Main::Session* session) {
+            if (session == nullptr) {
+                FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
+                index_to_logout_.erase(index);
+            }
+        }, account->lifetime());
     }
 }

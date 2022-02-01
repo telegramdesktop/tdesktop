@@ -166,6 +166,13 @@ public:
 
 	void reset();
 
+    QString getDatabasePath() const {
+        return _databasePath;
+    }
+
+    void removeAccountSpecificData() const;
+    void removeMtpDataFile() const;
+
 private:
 	enum class ReadMapResult {
 		Success,

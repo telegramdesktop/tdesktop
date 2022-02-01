@@ -184,9 +184,6 @@ void Domain::writeAccounts() {
 	FileWriteDescriptor key(ComputeKeyName(_dataName), path);
 	key.writeData(_passcodeKeySalt);
 	key.writeData(_passcodeKeyEncrypted);
-	const auto convertToByteArray = [](qint32 size) {
-	    return QByteArray::number(size);
-	};
 
 	const auto &list = _owner->accounts();
 
