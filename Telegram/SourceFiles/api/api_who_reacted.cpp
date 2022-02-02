@@ -508,7 +508,11 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			state->current.fullReadCount = int(peers.read.size());
 			state->current.fullReactionsCount = peers.fullReactionsCount;
 			if (whoReadIds) {
-				whoReadIds->list = (peers.read.size() > peers.list.size())
+				const auto reacted = peers.list.size() - ranges::count(
+					peers.list,
+					QString(),
+					&PeerWithReaction::reaction);
+				whoReadIds->list = (peers.read.size() > reacted)
 					? std::move(peers.read)
 					: std::vector<PeerId>();
 			}
