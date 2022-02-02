@@ -395,6 +395,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_experimental" = "Experimental settings";
 "lng_settings_experimental_about" = "Warning! Those are experimental settings. Some may not work. Others may break the app. Any of them may disappear in the next version without a trace. Use at your own risk.";
+"lng_settings_experimental_restore" = "Restore default values";
+"lng_settings_experimental_irrelevant" = "This option isn't relevant for your system.";
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
@@ -734,7 +736,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_logout" = "Are you sure you want to log out?";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
-"lng_settings_restart_now" = "RESTART";
+"lng_settings_restart_now" = "Restart";
+"lng_settings_restart_later" = "Later";
 
 "lng_sessions_header" = "Current session";
 "lng_sessions_other_header" = "Active sessions";

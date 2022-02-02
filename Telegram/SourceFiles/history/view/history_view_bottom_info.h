@@ -40,6 +40,7 @@ public:
 			RepliesContext = 0x08,
 			Sponsored      = 0x10,
 			Pinned         = 0x20,
+			Imported       = 0x40,
 			//Unread, // We don't want to pass and update it in Date for now.
 		};
 		friend inline constexpr bool is_flag_type(Flag) { return true; };

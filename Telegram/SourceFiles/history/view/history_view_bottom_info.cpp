@@ -424,7 +424,11 @@ void BottomInfo::layoutDateText() {
 		: author;
 	const auto full = (_data.flags & Data::Flag::Sponsored)
 		? tr::lng_sponsored(tr::now)
-		: name.isEmpty() ? date : (name + afterAuthor);
+		: (_data.flags & Data::Flag::Imported)
+		? (date + ' ' + tr::lng_imported(tr::now))
+		: name.isEmpty()
+		? date
+		: (name + afterAuthor);
 	_authorEditedDate.setText(
 		st::msgDateTextStyle,
 		full,
@@ -604,6 +608,10 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (item->isSending() || item->hasFailed()) {
 		result.flags |= Flag::Sending;
+	}
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	if (forwarded && forwarded->imported) {
+		result.flags |= Flag::Imported;
 	}
 	// We don't want to pass and update it in Date for now.
 	//if (item->unread()) {
