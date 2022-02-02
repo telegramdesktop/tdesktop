@@ -128,7 +128,6 @@ private:
 	std::vector<Reaction> _reactions;
 	mutable ClickHandlerPtr _revokeLink;
 	int _reactionsMaxWidth = 0;
-	int _dateWidth = 0;
 	bool _authorElided = false;
 
 };

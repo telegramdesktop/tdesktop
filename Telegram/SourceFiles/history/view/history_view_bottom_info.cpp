@@ -115,10 +115,15 @@ TextState BottomInfo::textState(
 		result.link = link;
 		return result;
 	}
+	const auto textWidth = _authorEditedDate.maxWidth();
+	auto withTicksWidth = textWidth;
+	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {
+		withTicksWidth += st::historySendStateSpace;
+	}
 	const auto inTime = QRect(
-		width() - _dateWidth,
+		width() - withTicksWidth,
 		0,
-		_dateWidth,
+		withTicksWidth,
 		st::msgDateFont->height
 	).contains(position);
 	if (inTime) {
@@ -412,7 +417,6 @@ void BottomInfo::layoutDateText() {
 	const auto author = _data.author;
 	const auto prefix = !author.isEmpty() ? qsl(", ") : QString();
 	const auto date = edited + _data.date.toString(cTimeFormat());
-	_dateWidth = st::msgDateFont->width(date);
 	const auto afterAuthor = prefix + date;
 	const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor);
 	const auto authorWidth = st::msgDateFont->width(author);
