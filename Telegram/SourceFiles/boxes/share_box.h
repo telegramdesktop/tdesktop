@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/observer.h"
 #include "base/timer.h"
+#include "ui/chat/forward_options_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 #include "mtproto/sender.h"
@@ -41,12 +42,17 @@ class Row;
 class IndexedList;
 } // namespace Dialogs
 
+namespace Data {
+enum class ForwardOptions;
+} // namespace Data
+
 namespace Ui {
 class MultiSelect;
 class InputField;
 struct ScrollToRequest;
 template <typename Widget>
 class SlideWrap;
+class PopupMenu;
 } // namespace Ui
 
 QString AppendShareGameScoreUrl(
@@ -63,7 +69,8 @@ public:
 	using SubmitCallback = Fn<void(
 		std::vector<not_null<PeerData*>>&&,
 		TextWithTags&&,
-		Api::SendOptions)>;
+		Api::SendOptions,
+		Data::ForwardOptions option)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 
 	struct Descriptor {
@@ -79,6 +86,11 @@ public:
 		const style::MultiSelect *stMultiSelect = nullptr;
 		const style::InputField *stComment = nullptr;
 		const style::PeerList *st = nullptr;
+		struct {
+			int messagesCount = 0;
+			bool show = false;
+			bool hasCaptions = false;
+		} forwardOptions;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 
@@ -119,12 +131,17 @@ private:
 		mtpRequestId requestId);
 	void peopleFail(const MTP::Error &error, mtpRequestId requestId);
 
+	void showMenu(not_null<Ui::RpWidget*> parent);
+
 	Descriptor _descriptor;
 	MTP::Sender _api;
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;
 	object_ptr<Ui::RpWidget> _bottomWidget;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	Ui::ForwardOptions _forwardOptions;
 
 	class Inner;
 	QPointer<Inner> _inner;
