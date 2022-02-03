@@ -18,9 +18,12 @@ jobs:
       - id: parsing_step
         run: |
           wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/SourceFiles/core/version.h
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/build/ptelegram_release_body.py
           wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/ptelegram_changelog.md
 
           echo "VERSION=$(cat version.h | grep PTelegramAppVersionStr | awk -F " " 'END { print $5 }' | sed 's/"//g' | sed 's/;//g')" >> $GITHUB_ENV
+
+          python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md
 
       - name: Download Windows artifacts
         uses: dawidd6/action-download-artifact@v2
@@ -41,7 +44,7 @@ jobs:
         with:
           tag_name: "v. ${{ env.VERSION }}"
           release_name: "Version ${{ env.VERSION }}"
-          body_path: ptelegram_changelog.md
+          body_path: ptelegram_changelog_${{ env.VERSION }}.md
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
 
