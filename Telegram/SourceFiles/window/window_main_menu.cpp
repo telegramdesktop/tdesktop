@@ -652,11 +652,11 @@ MainMenu::MainMenu(
 				tr::now,
 				lt_version,
 				currentVersionText()),
-			{}) // Link 1.
+			1) // Link 1.
 		.append(QChar(' '))
 		.append(QChar(8211))
 		.append(QChar(' '))
-		.append(Ui::Text::Link(tr::lng_menu_about(tr::now), {}))); // Link 2.
+		.append(Ui::Text::Link(tr::lng_menu_about(tr::now), 2))); // Link 2.
 	_version->setLink(
 		1,
 		std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
