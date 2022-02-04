@@ -473,16 +473,23 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				} else if (const auto blurred = _dataMedia->thumbnailInline()) {
 					p.drawPixmap(rthumb.topLeft(), blurred->pixSingle(size, args.blurred()));
 				} else if (!unwrapped) {
-					const auto roundTop = (roundCorners & RectPart::TopLeft);
-					const auto roundBottom = (roundCorners & RectPart::BottomLeft);
-					const auto margin = inWebPage
-						? st::roundRadiusSmall
-						: st::historyMessageRadius;
-					const auto parts = roundCorners
-						| RectPart::NoTopBottom
-						| (roundTop ? RectPart::Top : RectPart::None)
-						| (roundBottom ? RectPart::Bottom : RectPart::None);
-					Ui::FillRoundRect(p, rthumb.marginsAdded({ 0, roundTop ? 0 : margin, 0, roundBottom ? 0 : margin }), st->imageBg(), roundRadius, parts);
+					if (roundRadius == ImageRoundRadius::Ellipse) {
+						PainterHighQualityEnabler hq(p);
+						p.setPen(Qt::NoPen);
+						p.setBrush(st->imageBg());
+						p.drawEllipse(rthumb);
+					} else {
+						const auto roundTop = (roundCorners & RectPart::TopLeft);
+						const auto roundBottom = (roundCorners & RectPart::BottomLeft);
+						const auto margin = inWebPage
+							? st::roundRadiusSmall
+							: st::historyMessageRadius;
+						const auto parts = roundCorners
+							| RectPart::NoTopBottom
+							| (roundTop ? RectPart::Top : RectPart::None)
+							| (roundBottom ? RectPart::Bottom : RectPart::None);
+						Ui::FillRoundRect(p, rthumb.marginsAdded({ 0, roundTop ? 0 : margin, 0, roundBottom ? 0 : margin }), st->imageBg(), roundRadius, parts);
+					}
 				} else {
 					paintPath(p, context, rthumb);
 				}
