@@ -13,10 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
 
-namespace base {
-class PowerSaveBlocker;
-} // namespace base
-
 namespace Media {
 namespace Audio {
 class Track;
@@ -272,8 +268,6 @@ private:
 	crl::time _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
-
-	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 
 	rpl::variable<bool> _muted = false;
 

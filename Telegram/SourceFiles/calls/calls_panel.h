@@ -19,6 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace base {
+class PowerSaveBlocker;
+} // namespace base
+
 namespace Data {
 class PhotoMedia;
 class CloudImageView;
@@ -129,6 +133,8 @@ private:
 #ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 #endif // !Q_OS_MAC
+
+	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 
 	QSize _incomingFrameSize;
 

@@ -1539,7 +1539,8 @@ void Pip::updatePowerSaveBlocker(const Player::TrackState &state) {
 		_powerSaveBlocker,
 		block,
 		base::PowerSaveBlockType::PreventDisplaySleep,
-		"Video playback is active"); // const char*, not QString-construct.
+		[] { return u"Video playback is active"_q; },
+		[=] { return _panel.widget()->windowHandle(); });
 }
 
 void Pip::updatePlaybackTexts(

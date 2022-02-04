@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
+#include "base/power_save_blocker.h"
 #include "apiwrap.h" // api().kick.
 #include "api/api_chat_participants.h" // api().kick.
 #include "webrtc/webrtc_video_track.h"
@@ -92,6 +93,10 @@ Panel::Panel(not_null<GroupCall*> call)
 	window(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
+, _powerSaveBlocker(std::make_unique<base::PowerSaveBlocker>(
+	base::PowerSaveBlockType::PreventDisplaySleep,
+	u"Video chat is active"_q,
+	window()->windowHandle()))
 , _viewport(
 	std::make_unique<Viewport>(widget(), PanelMode::Wide, _window.backend()))
 , _mute(std::make_unique<Ui::CallMuteButton>(

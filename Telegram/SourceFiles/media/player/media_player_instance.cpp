@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
@@ -577,16 +578,22 @@ void Instance::updatePowerSaveBlocker(
 	const auto blockVideo = block
 		&& data->current.audio()
 		&& data->current.audio()->isVideoMessage();
+	const auto windowResolver = [] {
+		const auto window = Core::App().activeWindow();
+		return window ? window->widget()->windowHandle() : nullptr;
+	};
 	base::UpdatePowerSaveBlocker(
 		data->powerSaveBlocker,
 		block,
 		base::PowerSaveBlockType::PreventAppSuspension,
-		"Audio playback is active"); // const char*, not QString-construct.
+		[] { return u"Audio playback is active"_q; },
+		windowResolver);
 	base::UpdatePowerSaveBlocker(
 		data->powerSaveBlockerVideo,
 		blockVideo,
 		base::PowerSaveBlockType::PreventDisplaySleep,
-		"Video playback is active"); // const char*, not QString-construct.
+		[] { return u"Video playback is active"_q; },
+		windowResolver);
 }
 
 void Instance::ensureShuffleMove(not_null<Data*> data, int delta) {

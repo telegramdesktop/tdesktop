@@ -2805,7 +2805,8 @@ void OverlayWidget::updatePowerSaveBlocker(
 		_streamed->powerSaveBlocker,
 		block,
 		base::PowerSaveBlockType::PreventDisplaySleep,
-		"Video playback is active"); // const char*, not QString-construct.
+		[] { return u"Video playback is active"_q; },
+		[=] { return window(); });
 }
 
 QImage OverlayWidget::transformedShownContent() const {

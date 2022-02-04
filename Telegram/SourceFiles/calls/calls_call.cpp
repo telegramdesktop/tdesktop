@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
-#include "base/power_save_blocker.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "mtproto/mtproto_config.h"
 #include "core/application.h"
@@ -164,17 +163,12 @@ Call::Call(
 , _api(&_user->session().mtp())
 , _type(type)
 , _discardByTimeoutTimer([=] { hangup(); })
-, _powerSaveBlocker(std::make_unique<base::PowerSaveBlocker>(
-	base::PowerSaveBlockType::PreventDisplaySleep,
-	u"Video call is active"_q))
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video)))
 , _videoOutgoing(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video))) {
-	;
-
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
 	} else {
@@ -1014,7 +1008,6 @@ void Call::setState(State state) {
 			|| state == State::Busy) {
 			// Destroy controller before destroying Call Panel,
 			// so that the panel hide animation is smooth.
-			_powerSaveBlocker = nullptr;
 			destroyController();
 		}
 		switch (state) {

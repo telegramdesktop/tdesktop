@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
-#include "base/power_save_blocker.h"
 #include "base/random.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h"
@@ -568,9 +567,6 @@ GroupCall::GroupCall(
 , _peer(info.peer)
 , _history(_peer->owner().history(_peer))
 , _api(&_peer->session().mtp())
-, _powerSaveBlocker(std::make_unique<base::PowerSaveBlocker>(
-	base::PowerSaveBlockType::PreventDisplaySleep,
-	u"Video chat is active"_q))
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
