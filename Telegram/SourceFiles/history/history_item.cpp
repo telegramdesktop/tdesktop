@@ -180,12 +180,15 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 }
 
 using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
-[[nodiscard]] OnStackUsers LookupRecentReactedUsers(
+[[nodiscard]] OnStackUsers LookupRecentUnreadReactedUsers(
 		not_null<HistoryItem*> item) {
 	auto result = OnStackUsers();
 	auto index = 0;
 	for (const auto &[emoji, reactions] : item->recentReactions()) {
 		for (const auto &reaction : reactions) {
+			if (!reaction.unread) {
+				continue;
+			}
 			if (const auto user = reaction.peer->asUser()) {
 				result[index++] = user;
 				if (index == result.size()) {
@@ -907,7 +910,7 @@ void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
-	const auto wasRecentUsers = LookupRecentReactedUsers(this);
+	const auto wasRecentUsers = LookupRecentUnreadReactedUsers(this);
 	const auto hadUnread = hasUnreadReaction();
 	const auto changed = changeReactions(reactions);
 	if (!changed) {
