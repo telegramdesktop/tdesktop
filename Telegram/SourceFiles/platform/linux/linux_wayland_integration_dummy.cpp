@@ -26,10 +26,6 @@ WaylandIntegration *WaylandIntegration::Instance() {
 	return &instance;
 }
 
-QString WaylandIntegration::nativeHandle(QWindow *window) {
-	return {};
-}
-
 bool WaylandIntegration::skipTaskbarSupported() {
 	return false;
 }

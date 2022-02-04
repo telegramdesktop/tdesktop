@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_linux_wayland_integration.h"
 #include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -57,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <iostream>
 
 using namespace Platform;
+using BaseWaylandIntegration = base::Platform::WaylandIntegration;
 using UiWaylandIntegration = Ui::Platform::WaylandIntegration;
 using Platform::internal::WaylandIntegration;
 
@@ -91,7 +93,7 @@ void PortalAutostart(bool start, bool silent) {
 			}
 
 			const auto window = activeWindow->widget()->windowHandle();
-			if (const auto integration = WaylandIntegration::Instance()) {
+			if (const auto integration = BaseWaylandIntegration::Instance()) {
 				if (const auto handle = integration->nativeHandle(window)
 					; !handle.isEmpty()) {
 					result << "wayland:" << handle.toStdString();
