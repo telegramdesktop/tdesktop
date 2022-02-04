@@ -1,4 +1,4 @@
-3.5.1 (03.02.22)
+3.5.1 (04.02.22)
 
 - Keep the screen on while watching a video or participating in a video chat.
 - Save experimental settings between relaunches.
