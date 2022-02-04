@@ -4,6 +4,22 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
   workflow_dispatch:
 
 jobs:
@@ -98,7 +114,7 @@ jobs:
           mv Telegram artifact/Telegram/
           mv Telegram_sha256.txt artifact/Telegram/
           cd artifact
-          tar -cJvf "Telegram.tar.xz" "Telegram/"
+          tar -cJvf "${{ env.ARTIFACT_NAME }}.tar.xz" "Telegram/"
           rm -rf Telegram/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'

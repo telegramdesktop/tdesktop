@@ -1,0 +1,100 @@
+name: 'Create Release'
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Prerelease or not'
+        required: true
+        default: 'true'
+      workflowCommit:
+        description: 'SHA of built commit'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - id: parsing_step
+        run: |
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/SourceFiles/core/version.h
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/build/ptelegram_release_body.py
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/ptelegram_changelog.md
+
+          echo "VERSION=$(cat version.h | grep PTelegramAppVersionStr | awk -F " " 'END { print $5 }' | sed 's/"//g' | sed 's/;//g')" >> $GITHUB_ENV
+
+          python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v. ${{ env.VERSION }}"
+          release_name: "Version ${{ env.VERSION }}"
+          body_path: ptelegram_changelog_${{ env.VERSION }}.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+
+      - name: Download Windows artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: win.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.inputs.workflowCommit }}
+          branch: master
+          repo: wrwrabbit/tdesktop
+          path: Windows
+
+      - name: Download Linux artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: linux.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.inputs.workflowCommit }}
+          branch: master
+          repo: wrwrabbit/tdesktop
+          path: Linux
+
+      - name: Download MacOS artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: mac.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.inputs.workflowCommit }}
+          branch: master
+          repo: wrwrabbit/tdesktop
+          path: MacOS
+          
+      - name: Download Snap artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: snap.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.inputs.workflowCommit }}
+          branch: master
+          repo: wrwrabbit/tdesktop
+          path: Snap
+
+      - name: Upload Files
+        id: upload-release-asset
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v. ${{ env.VERSION }}"
+          name: "Version ${{ env.VERSION }}"
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            Snap/**
+            MacOS/**
+            Windows/**
+            Linux/**
+
+      - name: Create cleanup request
+        run: touch delete_request

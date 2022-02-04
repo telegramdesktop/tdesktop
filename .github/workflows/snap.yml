@@ -4,6 +4,21 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
   workflow_dispatch:
 
 jobs:
