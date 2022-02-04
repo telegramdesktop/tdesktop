@@ -25,17 +25,6 @@ jobs:
 
           python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md
 
-      - name: Download MacOS artifacts
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: mac.yml
-          workflow_conclusion: success
-          commit: ${{ github.event.inputs.workflowCommit }}
-          branch: master
-          repo: wrwrabbit/tdesktop
-          path: MacOS
-
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -47,6 +36,17 @@ jobs:
           body_path: ptelegram_changelog_${{ env.VERSION }}.md
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
+
+      - name: Download MacOS artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: mac.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.inputs.workflowCommit }}
+          branch: master
+          repo: wrwrabbit/tdesktop
+          path: MacOS
 
       - name: Upload Files
         id: upload-release-asset

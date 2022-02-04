@@ -25,6 +25,18 @@ jobs:
 
           python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md
 
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v. ${{ env.VERSION }}"
+          release_name: "Version ${{ env.VERSION }}"
+          body_path: ptelegram_changelog_${{ env.VERSION }}.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+
       - name: Download Linux artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
@@ -46,18 +58,6 @@ jobs:
           branch: master
           repo: wrwrabbit/tdesktop
           path: Snap
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "v. ${{ env.VERSION }}"
-          release_name: "Version ${{ env.VERSION }}"
-          body_path: ptelegram_changelog_${{ env.VERSION }}.md
-          draft: false
-          prerelease: ${{ github.event.inputs.prerelease }}
 
       - name: Upload Files
         id: upload-release-asset
