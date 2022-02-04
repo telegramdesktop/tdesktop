@@ -14,7 +14,6 @@ class WaylandIntegration {
 public:
 	[[nodiscard]] static WaylandIntegration *Instance();
 
-	[[nodiscard]] QString nativeHandle(QWindow *window);
 	[[nodiscard]] bool skipTaskbarSupported();
 	void skipTaskbar(QWindow *window, bool skip);
 
