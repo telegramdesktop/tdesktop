@@ -307,9 +307,9 @@ void Panel::initWidget() {
 			updateControlsGeometry();
 		}
 
-		// title geometry depends on _controls->controls.geometry,
+		// some geometries depends on _controls->controls.geometry,
 		// which is not updated here yet.
-		crl::on_main(widget(), [=] { refreshTitle(); });
+		crl::on_main(widget(), [=] { updateControlsGeometry(); });
 	}, lifetime());
 }
 
