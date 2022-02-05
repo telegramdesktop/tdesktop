@@ -818,6 +818,13 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	if (session().supportMode()) {
+		session().data().chatListEntryRefreshes(
+		) | rpl::start_with_next([=] {
+			crl::on_main(this, [=] { checkSupportPreload(true); });
+		}, lifetime());
+	}
+
 	setupScheduledToggle();
 	setupSendAsToggle();
 	orderWidgets();
@@ -2299,9 +2306,11 @@ void HistoryWidget::setHistory(History *history) {
 			history->forceFullResize();
 		}
 	};
+
 	if (_history) {
 		unregisterDraftSources();
 		clearAllLoadRequests();
+		clearSupportPreloadRequest();
 		const auto wasHistory = base::take(_history);
 		const auto wasMigrated = base::take(_migrated);
 		unloadHeavyViewParts(wasHistory);
@@ -2368,6 +2377,16 @@ void HistoryWidget::clearDelayedShowAtRequest() {
 	if (_delayedShowAtRequest) {
 		_history->owner().histories().cancelRequest(_delayedShowAtRequest);
 		_delayedShowAtRequest = 0;
+	}
+}
+
+void HistoryWidget::clearSupportPreloadRequest() {
+	Expects(_history != nullptr);
+
+	if (_supportPreloadRequest) {
+		auto &histories = _history->owner().histories();
+		histories.cancelRequest(_supportPreloadRequest);
+		_supportPreloadRequest = 0;
 	}
 }
 
@@ -2990,6 +3009,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		setMsgId(_delayedShowAtMsgId);
 		historyLoaded();
 	}
+	if (session().supportMode()) {
+		crl::on_main(this, [=] { checkSupportPreload(); });
+	}
 }
 
 void HistoryWidget::historyLoaded() {
@@ -3337,6 +3359,96 @@ void HistoryWidget::preloadHistoryByScroll() {
 	if (scrollTop <= kPreloadHeightsCount * scrollHeight) {
 		loadMessages();
 	}
+	if (session().supportMode()) {
+		crl::on_main(this, [=] { checkSupportPreload(); });
+	}
+}
+
+void HistoryWidget::checkSupportPreload(bool force) {
+	if (!_history
+		|| _firstLoadRequest
+		|| _preloadRequest
+		|| _preloadDownRequest
+		|| (_supportPreloadRequest && !force)
+		|| controller()->activeChatEntryCurrent().key.history() != _history) {
+		return;
+	}
+
+	const auto setting = session().settings().supportSwitch();
+	const auto command = Support::GetSwitchCommand(setting);
+	const auto descriptor = !command
+		? Dialogs::RowDescriptor()
+		: (*command == Shortcuts::Command::ChatNext)
+		? controller()->resolveChatNext()
+		: controller()->resolveChatPrevious();
+	auto history = descriptor.key.history();
+	if (!history || _supportPreloadHistory == history) {
+		return;
+	}
+	clearSupportPreloadRequest();
+	_supportPreloadHistory = history;
+	auto offsetId = MsgId();
+	auto offset = 0;
+	auto loadCount = kMessagesPerPage;
+	if (const auto around = history->loadAroundId()) {
+		history->getReadyFor(ShowAtUnreadMsgId);
+		offset = -loadCount / 2;
+		offsetId = around;
+	}
+	const auto offsetDate = 0;
+	const auto maxId = 0;
+	const auto minId = 0;
+	const auto historyHash = uint64(0);
+	const auto tmp = history->peer->name.toStdString();
+	const auto tmp2 = _history->peer->name.toStdString();
+	LOG(("PRELOADING FROM: %1 FOR: %2").arg(_history->peer->name).arg(history->peer->name));
+	const auto type = Data::Histories::RequestType::History;
+	auto &histories = history->owner().histories();
+	_supportPreloadRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return history->session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(offset),
+			MTP_int(loadCount),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_long(historyHash)
+		)).done([=](const MTPmessages_Messages &result) {
+			if (const auto around = history->loadAroundId()) {
+				if (around != offsetId) {
+					LOG(("RE-PRELOADING FOR: %1").arg(history->peer->name));
+					_supportPreloadRequest = 0;
+					_supportPreloadHistory = nullptr;
+					crl::on_main(this, [=] { checkSupportPreload(); });
+					return;
+				}
+				history->clear(History::ClearType::Unload);
+				history->getReadyFor(ShowAtUnreadMsgId);
+			} else if (offsetId) {
+				LOG(("RE-PRELOADING FOR: %1").arg(history->peer->name));
+				_supportPreloadRequest = 0;
+				_supportPreloadHistory = nullptr;
+				crl::on_main(this, [=] { checkSupportPreload(); });
+				return;
+			} else {
+				history->clear(History::ClearType::Unload);
+				history->getReadyFor(ShowAtTheEndMsgId);
+			}
+			LOG(("PRELOADED FOR: %1").arg(history->peer->name));
+			auto count = 0;
+			const QVector<MTPMessage> emptyList, *histList = &emptyList;
+			result.match([](const MTPDmessages_messagesNotModified&) {
+			}, [&](const auto &data) {
+				history->owner().processUsers(data.vusers());
+				history->owner().processChats(data.vchats());
+				history->addOlderSlice(data.vmessages().v);
+			});
+			finish();
+		}).fail([=](const MTP::Error &error) {
+			finish();
+		}).send();
+	});
 }
 
 void HistoryWidget::checkReplyReturns() {
@@ -7534,10 +7646,7 @@ HistoryWidget::~HistoryWidget() {
 		// Saving a draft on account switching.
 		saveFieldToHistoryLocalDraft();
 		session().api().saveDraftToCloudDelayed(_history);
-
-		clearAllLoadRequests();
 		setHistory(nullptr);
-		unregisterDraftSources();
 	}
 	setTabbedPanel(nullptr);
 }

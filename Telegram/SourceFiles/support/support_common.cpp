@@ -21,14 +21,19 @@ Qt::KeyboardModifiers SkipSwitchModifiers() {
 	return Qt::ControlModifier | Qt::ShiftModifier;
 }
 
-FnMut<bool()> GetSwitchMethod(SwitchSettings value) {
+std::optional<Shortcuts::Command> GetSwitchCommand(SwitchSettings value) {
 	switch (value) {
 	case SwitchSettings::Next:
-		return Shortcuts::RequestHandler(Shortcuts::Command::ChatNext);
+		return Shortcuts::Command::ChatNext;
 	case SwitchSettings::Previous:
-		return Shortcuts::RequestHandler(Shortcuts::Command::ChatPrevious);
+		return Shortcuts::Command::ChatPrevious;
 	}
-	return nullptr;
+	return std::nullopt;
+}
+
+FnMut<bool()> GetSwitchMethod(SwitchSettings value) {
+	const auto command = GetSwitchCommand(value);
+	return command ? Shortcuts::RequestHandler(*command) : nullptr;
 }
 
 } // namespace Support

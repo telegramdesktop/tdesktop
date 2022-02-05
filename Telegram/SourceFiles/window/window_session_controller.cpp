@@ -795,6 +795,16 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 	return false;
 }
 
+Dialogs::RowDescriptor SessionController::resolveChatNext(
+		Dialogs::RowDescriptor from) const {
+	return content()->resolveChatNext(from);
+}
+
+Dialogs::RowDescriptor SessionController::resolveChatPrevious(
+		Dialogs::RowDescriptor from) const {
+	return content()->resolveChatPrevious(from);
+}
+
 void SessionController::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
 	if (!_chatEntryHistory.empty()
 		&& _chatEntryHistory[_chatEntryHistoryPosition] == row) {

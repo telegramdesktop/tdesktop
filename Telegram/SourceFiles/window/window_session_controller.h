@@ -301,6 +301,12 @@ public:
 	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
 	rpl::producer<Dialogs::Key> activeChatValue() const;
 	bool jumpToChatListEntry(Dialogs::RowDescriptor row);
+
+	[[nodiscard]] Dialogs::RowDescriptor resolveChatNext(
+		Dialogs::RowDescriptor from = {}) const;
+	[[nodiscard]] Dialogs::RowDescriptor resolveChatPrevious(
+		Dialogs::RowDescriptor from = {}) const;
+
 	void showEditPeerBox(PeerData *peer);
 
 	void enableGifPauseReason(GifPauseReason reason);
