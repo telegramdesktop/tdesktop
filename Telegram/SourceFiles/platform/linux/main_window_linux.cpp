@@ -394,54 +394,6 @@ bool UseUnityCounter() {
 	return Result;
 }
 
-bool IsSNIAvailable() {
-	try {
-		const auto connection = [] {
-			try {
-				return Gio::DBus::Connection::get_sync(
-					Gio::DBus::BusType::BUS_TYPE_SESSION);
-			} catch (...) {
-				return Glib::RefPtr<Gio::DBus::Connection>();
-			}
-		}();
-
-		if (!connection) {
-			return false;
-		}
-
-		auto reply = connection->call_sync(
-			std::string(kSNIWatcherObjectPath),
-			std::string(kPropertiesInterface),
-			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring(std::string(kSNIWatcherInterface)),
-				Glib::ustring("IsStatusNotifierHostRegistered"),
-			}),
-			std::string(kSNIWatcherService));
-
-		return base::Platform::GlibVariantCast<bool>(
-			base::Platform::GlibVariantCast<Glib::VariantBase>(
-				reply.get_child(0)));
-	} catch (const Glib::Error &e) {
-		static const auto NotSupportedErrors = {
-			"org.freedesktop.DBus.Error.ServiceUnknown",
-		};
-
-		const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
-		if (ranges::contains(NotSupportedErrors, errorName)) {
-			return false;
-		}
-
-		LOG(("SNI Error: %1")
-			.arg(QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("SNI Error: %1")
-			.arg(QString::fromStdString(e.what())));
-	}
-
-	return false;
-}
-
 uint djbStringHash(const std::string &string) {
 	uint hash = 5381;
 	for (const auto &curChar : string) {
@@ -449,70 +401,11 @@ uint djbStringHash(const std::string &string) {
 	}
 	return hash;
 }
-
-bool IsAppMenuSupported() {
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		return base::Platform::DBus::NameHasOwner(
-			connection,
-			std::string(kAppMenuService));
-	} catch (...) {
-	}
-
-	return false;
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void RegisterAppMenu(QWindow *window, const QString &menuPath) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->registerAppMenu(
-			window,
-			QDBusConnection::sessionBus().baseService(),
-			menuPath);
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("RegisterWindow"));
-
-	message.setArguments({
-		uint(window->winId()),
-		QVariant::fromValue(QDBusObjectPath(menuPath))
-	});
-
-	QDBusConnection::sessionBus().send(message);
-}
-
-// This call must be made from the same bus connection as DBusMenuExporter
-// So it must use QDBusConnection
-void UnregisterAppMenu(QWindow *window) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		return;
-	}
-
-	auto message = QDBusMessage::createMethodCall(
-		kAppMenuService.utf16(),
-		kAppMenuObjectPath.utf16(),
-		kAppMenuInterface.utf16(),
-		qsl("UnregisterWindow"));
-
-	message.setArguments({
-		uint(window->winId())
-	});
-
-	QDBusConnection::sessionBus().send(message);
-}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
 
-class MainWindow::Private {
+class MainWindow::Private : public QObject {
 public:
 	explicit Private(not_null<MainWindow*> window)
 	: _public(window) {
