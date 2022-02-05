@@ -1005,12 +1005,20 @@ void MainMenu::refreshMenu() {
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 
 		const auto fix = std::make_shared<QPointer<QAction>>();
-		*fix = _menu->addAction(qsl("Fix chats order"), [=] {
+		auto fixCallback = [=] {
 			(*fix)->setChecked(!(*fix)->isChecked());
 			_controller->session().settings().setSupportFixChatsOrder(
 				(*fix)->isChecked());
 			_controller->session().saveSettings();
-		}, &st::mainMenuFixOrder, &st::mainMenuFixOrderOver);
+		};
+		auto item = base::make_unique_q<Ui::Menu::Toggle>(
+			_menu,
+			st::mainMenu,
+			u"Fix chats order"_q,
+			std::move(fixCallback),
+			&st::mainMenuFixOrder,
+			&st::mainMenuFixOrderOver);
+		*fix = _menu->addAction(std::move(item));
 		(*fix)->setCheckable(true);
 		(*fix)->setChecked(
 			_controller->session().settings().supportFixChatsOrder());
