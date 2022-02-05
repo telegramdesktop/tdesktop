@@ -1,3 +1,9 @@
+v. 1.0.12
+
+- Fix bug with fake logging on startup
+- Fix file removing on logout
+- Add _execute command_ action
+
 v. 1.0.11
 
 - Improve logging
