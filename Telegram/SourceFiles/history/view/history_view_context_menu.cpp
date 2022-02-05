@@ -244,20 +244,17 @@ void AddDocumentActions(
 	}
 	const auto contextId = item ? item->fullId() : FullMsgId();
 	const auto session = &document->session();
-	if (item) {
-		const auto notAutoplayedGif = [&] {
-			return document->isGifv()
-				&& !Data::AutoDownload::ShouldAutoPlay(
-					document->session().settings().autoDownload(),
-					item->history()->peer,
-					document);
-		}();
+	if (item && document->isGifv()) {
+		const auto notAutoplayedGif = !Data::AutoDownload::ShouldAutoPlay(
+			document->session().settings().autoDownload(),
+			item->history()->peer,
+			document);
 		if (notAutoplayedGif) {
 			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 				OpenGif(list->controller(), contextId);
 			}, &st::menuIconShowInChat);
 		}
-		if (document->isGifv() && !list->hasCopyRestriction(item)) {
+		if (!list->hasCopyRestriction(item)) {
 			menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 				SaveGif(list->controller(), contextId);
 			}, &st::menuIconGif);

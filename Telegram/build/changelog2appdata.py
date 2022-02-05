@@ -9,7 +9,7 @@ def parse_changelog(changelog_path):
     version_re = re.compile(r'([\d.-]+)\s+(\w+)?\s*\((\d{2}.\d{2}\.\d{2})\)')
     entry_re = re.compile(r'-\s(.*)')
 
-    with open(changelog_path, "r") as f:
+    with open(changelog_path, "r", encoding="utf-8") as f:
         changelog_lines = f.read().splitlines()
 
     releases = []
@@ -54,7 +54,11 @@ def get_changelog_xml(changelog, max_items=None):
 
 def update_appdata(appdata_path, changelog, max_items=None):
     appdata = ET.parse(appdata_path)
-    appdata.getroot().append(
+    root = appdata.getroot()
+    releases = root.find("releases")
+    if releases is not None:
+        root.remove(releases)
+    root.append(
         get_changelog_xml(changelog, max_items)
     )
     appdata.write(appdata_path, encoding="utf-8", xml_declaration=True)

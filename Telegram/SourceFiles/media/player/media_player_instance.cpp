@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_file_click_handler.h"
 #include "base/random.h"
+#include "base/power_save_blocker.h"
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
@@ -566,6 +568,32 @@ bool Instance::moveInPlaylist(
 		}
 	}
 	return false;
+}
+
+void Instance::updatePowerSaveBlocker(
+		not_null<Data*> data,
+		const TrackState &state) {
+	const auto block = !IsPausedOrPausing(state.state)
+		&& !IsStoppedOrStopping(state.state);
+	const auto blockVideo = block
+		&& data->current.audio()
+		&& data->current.audio()->isVideoMessage();
+	const auto windowResolver = [] {
+		const auto window = Core::App().activeWindow();
+		return window ? window->widget()->windowHandle() : nullptr;
+	};
+	base::UpdatePowerSaveBlocker(
+		data->powerSaveBlocker,
+		block,
+		base::PowerSaveBlockType::PreventAppSuspension,
+		[] { return u"Audio playback is active"_q; },
+		windowResolver);
+	base::UpdatePowerSaveBlocker(
+		data->powerSaveBlockerVideo,
+		blockVideo,
+		base::PowerSaveBlockType::PreventDisplaySleep,
+		[] { return u"Video playback is active"_q; },
+		windowResolver);
 }
 
 void Instance::ensureShuffleMove(not_null<Data*> data, int delta) {
@@ -1170,6 +1198,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 				streamed->progress.updateState(state);
 			}
 		}
+		updatePowerSaveBlocker(data, state);
+
 		auto finished = false;
 		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {

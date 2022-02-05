@@ -656,6 +656,19 @@ public:
 	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeChanges() const {
 		return _playerOrderMode.changes();
 	}
+	[[nodiscard]] std::vector<uint64> accountsOrder() const {
+		return _accountsOrder;
+	}
+	void setAccountsOrder(const std::vector<uint64> &order) {
+		_accountsOrder = order;
+	}
+
+	void setMacWarnBeforeQuit(bool value) {
+		_macWarnBeforeQuit = value;
+	}
+	[[nodiscard]] bool macWarnBeforeQuit() const {
+		return _macWarnBeforeQuit;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -760,6 +773,8 @@ private:
 	rpl::variable<QString> _customDeviceModel;
 	rpl::variable<Media::Player::RepeatMode> _playerRepeatMode;
 	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
+	bool _macWarnBeforeQuit = true;
+	std::vector<uint64> _accountsOrder;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

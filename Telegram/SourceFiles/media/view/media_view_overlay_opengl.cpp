@@ -187,10 +187,13 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	const auto data = _owner->videoFrameWithInfo();
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
-	}
-	if (data.format == Streaming::FrameFormat::ARGB32) {
+	} else if (data.format == Streaming::FrameFormat::ARGB32) {
 		Assert(!data.original.isNull());
-		paintTransformedStaticContent(data.original, geometry, false, false);
+		paintTransformedStaticContent(
+			data.original,
+			geometry,
+			data.alpha,
+			data.alpha);
 		return;
 	}
 	Assert(data.format == Streaming::FrameFormat::YUV420);

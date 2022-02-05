@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -107,15 +106,23 @@ void ConvertIconToBlack(QImage &image) {
 }
 
 QIcon CreateOfficialIcon(Main::Session *session) {
-	auto image = Logo();
-	if (session && session->supportMode()) {
-		ConvertIconToBlack(image);
+	const auto support = (session && session->supportMode());
+	if (!support) {
+		return QIcon();
 	}
+	auto image = Logo();
+	ConvertIconToBlack(image);
 	return QIcon(Ui::PixmapFromImage(std::move(image)));
 }
 
-QIcon CreateIcon(Main::Session *session) {
-	auto result = CreateOfficialIcon(session);
+QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
+	const auto officialIcon = CreateOfficialIcon(session);
+	if (!officialIcon.isNull() || returnNullIfDefault) {
+		return officialIcon;
+	}
+
+	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
+
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	const auto iconFromTheme = QIcon::fromTheme(
 		Platform::GetIconName(),
@@ -155,6 +162,7 @@ QIcon CreateIcon(Main::Session *session) {
 		result.addPixmap(iconPixmap);
 	}
 #endif
+
 	return result;
 }
 
@@ -353,7 +361,7 @@ Window::SessionController *MainWindow::sessionController() const {
 }
 
 bool MainWindow::hideNoQuit() {
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return false;
 	}
 	const auto workMode = Core::App().settings().workMode();
@@ -507,7 +515,7 @@ void MainWindow::showFromTray() {
 }
 
 void MainWindow::quitFromTray() {
-	App::quit();
+	Core::Quit();
 }
 
 void MainWindow::activate() {
@@ -795,7 +803,7 @@ void MainWindow::updateControlsGeometry() {
 }
 
 void MainWindow::updateUnreadCounter() {
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return;
 	}
 
@@ -885,7 +893,9 @@ void MainWindow::savePosition(Qt::WindowState state) {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (App::quitting() || !hasTrayIcon()) return false;
+	if (Core::Quitting() || !hasTrayIcon()) {
+		return false;
+	}
 
 	closeWithoutDestroy();
 	controller().updateIsActiveBlur();

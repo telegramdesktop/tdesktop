@@ -141,7 +141,7 @@ void DicePack::generateLocal(int index, const QString &name) {
 	_map.emplace(index, document);
 
 	Ensures(document->sticker());
-	Ensures(document->sticker()->animated);
+	Ensures(document->sticker()->isLottie());
 }
 
 DicePacks::DicePacks(not_null<Main::Session*> session) : _session(session) {

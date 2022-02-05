@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "ui/text/text_utilities.h"
 #include "facades.h"
-#include "app.h"
 
 #include <QtGui/QWindow>
 
@@ -68,6 +67,13 @@ QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 }
 
 } // namespace
+
+struct System::Waiter {
+	NotificationInHistoryKey key;
+	UserData *reactionSender = nullptr;
+	ItemNotificationType type = ItemNotificationType::Message;
+	crl::time when = 0;
+};
 
 System::NotificationInHistoryKey::NotificationInHistoryKey(
 	ItemNotification notification)
@@ -156,54 +162,67 @@ System::SkipState System::skipNotification(
 			&& skipReactionNotification(item))) {
 		return { SkipState::Skip };
 	}
-	const auto showForMuted = messageNotification
-		&& item->out()
-		&& item->isFromScheduled();
-	auto result = computeSkipState(item, showForMuted);
-	if (showForMuted) {
-		result.alsoMuted = true;
-	}
-	if (messageNotification && item->isSilent()) {
-		result.silent = true;
-	}
-	return result;
+	return computeSkipState(notification);
 }
 
 System::SkipState System::computeSkipState(
-		not_null<HistoryItem*> item,
-		bool showForMuted) const {
+		ItemNotification notification) const {
+	const auto type = notification.type;
+	const auto item = notification.item;
 	const auto history = item->history();
-	const auto notifyBy = item->specialNotificationPeer();
-	if (App::quitting()) {
+	const auto messageNotification = (type == ItemNotificationType::Message);
+	const auto withSilent = [&](
+			SkipState::Value value,
+			bool forceSilent = false) {
+		return SkipState{
+			.value = value,
+			.silent = (forceSilent
+				|| (messageNotification && item->isSilent())),
+		};
+	};
+	const auto showForMuted = messageNotification
+		&& item->out()
+		&& item->isFromScheduled();
+	const auto notifyBy = messageNotification
+		? item->specialNotificationPeer()
+		: notification.reactionSender;
+	if (Core::Quitting()) {
 		return { SkipState::Skip };
 	} else if (!Core::App().settings().notifyFromAll()
 		&& &history->session().account() != &Core::App().domain().active()) {
 		return { SkipState::Skip };
 	}
 
-	history->owner().requestNotifySettings(history->peer);
+	if (messageNotification) {
+		history->owner().requestNotifySettings(history->peer);
+	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
+		notifyBy->updateFull();
+	}
 	if (notifyBy) {
 		history->owner().requestNotifySettings(notifyBy);
 	}
 
-	if (history->owner().notifyMuteUnknown(history->peer)) {
+	if (messageNotification
+		&& history->owner().notifyMuteUnknown(history->peer)) {
 		return { SkipState::Unknown };
-	} else if (!history->owner().notifyIsMuted(history->peer)) {
-		return { SkipState::DontSkip };
+	} else if (messageNotification
+		&& !history->owner().notifyIsMuted(history->peer)) {
+		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
-		return {
+		return withSilent(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
-			showForMuted,
-		};
-	} else if (history->owner().notifyMuteUnknown(notifyBy)) {
-		return { SkipState::Unknown, item->isSilent() };
-	} else if (!history->owner().notifyIsMuted(notifyBy)) {
-		return { SkipState::DontSkip, item->isSilent() };
+			showForMuted);
+	} else if (history->owner().notifyMuteUnknown(notifyBy)
+		|| (!messageNotification
+			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
+		return withSilent(SkipState::Unknown);
+	} else if (!history->owner().notifyIsMuted(notifyBy)
+		&& (messageNotification || !notifyBy->isBlocked())) {
+		return withSilent(SkipState::DontSkip);
 	} else {
-		return {
+		return withSilent(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
-			showForMuted,
-		};
+			showForMuted);
 	}
 }
 
@@ -249,7 +268,9 @@ void System::schedule(ItemNotification notification) {
 		? kMinimalForwardDelay
 		: kMinimalDelay;
 	const auto timing = countTiming(history, minimalDelay);
-	const auto notifyBy = item->specialNotificationPeer();
+	const auto notifyBy = (type == ItemNotificationType::Message)
+		? item->specialNotificationPeer()
+		: notification.reactionSender;
 	if (!skip.silent) {
 		_whenAlerts[history].emplace(timing.when, notifyBy);
 	}
@@ -266,9 +287,9 @@ void System::schedule(ItemNotification notification) {
 		if (it == addTo.end() || it->second.when > timing.when) {
 			addTo.emplace(history, Waiter{
 				.key = key,
+				.reactionSender = notification.reactionSender,
+				.type = notification.type,
 				.when = timing.when,
-				.notifyBy = notifyBy,
-				.alsoMuted = skip.alsoMuted,
 			});
 		}
 	}
@@ -368,41 +389,29 @@ void System::clearAllFast() {
 
 void System::checkDelayed() {
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
-		const auto history = i->first;
-		const auto peer = history->peer;
-		auto loaded = false;
-		auto muted = false;
-		if (!peer->owner().notifyMuteUnknown(peer)) {
-			if (!peer->owner().notifyIsMuted(peer)) {
-				loaded = true;
-			} else if (const auto from = i->second.notifyBy) {
-				if (!peer->owner().notifyMuteUnknown(from)) {
-					if (!peer->owner().notifyIsMuted(from)) {
-						loaded = true;
-					} else {
-						loaded = muted = true;
-					}
-				}
-			} else {
-				loaded = muted = true;
+		const auto remove = [&] {
+			const auto history = i->first;
+			const auto peer = history->peer;
+			const auto fullId = FullMsgId(peer->id, i->second.key.messageId);
+			const auto item = peer->owner().message(fullId);
+			if (!item) {
+				return true;
 			}
-		}
-		if (loaded) {
-			const auto fullId = FullMsgId(
-				history->peer->id,
-				i->second.key.messageId);
-			if (const auto item = peer->owner().message(fullId)) {
-				if (!item->notificationReady()) {
-					loaded = false;
-				}
-			} else {
-				muted = true;
+			const auto state = computeSkipState({
+				.item = item,
+				.reactionSender = i->second.reactionSender,
+				.type = i->second.type,
+			});
+			if (state.value == SkipState::Skip) {
+				return true;
+			} else if (state.value == SkipState::Unknown
+				|| !item->notificationReady()) {
+				return false;
 			}
-		}
-		if (loaded) {
-			if (!muted || i->second.alsoMuted) {
-				_waiters.emplace(i->first, i->second);
-			}
+			_waiters.emplace(i->first, i->second);
+			return true;
+		}();
+		if (remove) {
 			i = _settingWaiters.erase(i);
 		} else {
 			++i;
@@ -432,7 +441,7 @@ void System::showGrouped() {
 void System::showNext() {
 	Expects(_manager != nullptr);
 
-	if (App::quitting()) {
+	if (Core::Quitting()) {
 		return;
 	}
 
@@ -658,13 +667,14 @@ void System::showNext() {
 			const auto reactionNotification
 				= (notify->type == ItemNotificationType::Reaction);
 			const auto reaction = reactionNotification
-				? notify->item->lookupHisReaction()
+				? notify->item->lookupUnreadReaction(notify->reactionSender)
 				: QString();
 			if (!reactionNotification || !reaction.isEmpty()) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
-					.reaction = reaction,
+					.reactionFrom = notify->reactionSender,
+					.reactionEmoji = reaction,
 				});
 			}
 		}
@@ -880,11 +890,14 @@ void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
 	const auto openExactlyMessage = [&] {
-		if (history->peer->isUser() || history->peer->isChannel()) {
+		const auto peer = history->peer;
+		if (peer->isBroadcast()) {
 			return false;
 		}
 		const auto item = history->owner().message(history->peer, messageId);
-		if (!item || !item->isRegular() || !item->mentionsMe()) {
+		if (!item
+			|| !item->isRegular()
+			|| (!item->out() && (!item->mentionsMe() || peer->isUser()))) {
 			return false;
 		}
 		return true;
@@ -919,25 +932,25 @@ void Manager::notificationReplied(
 	history->session().api().sendMessage(std::move(message));
 
 	const auto item = history->owner().message(history->peer, id.msgId);
-	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
-		history->session().api().markMediaRead(item);
+	if (item && item->isUnreadMention() && !item->isIncomingUnreadMedia()) {
+		history->session().api().markContentsRead(item);
 	}
 }
 
 void NativeManager::doShowNotification(NotificationFields &&fields) {
 	const auto options = getNotificationOptions(
 		fields.item,
-		(fields.reaction.isEmpty()
-			? ItemNotificationType::Message
-			: ItemNotificationType::Reaction));
+		(fields.reactionFrom
+			? ItemNotificationType::Reaction
+			: ItemNotificationType::Message));
 	const auto item = fields.item;
 	const auto peer = item->history()->peer;
-	const auto reaction = fields.reaction;
-	if (!reaction.isEmpty() && options.hideNameAndPhoto) {
+	const auto reactionFrom = fields.reactionFrom;
+	if (reactionFrom && options.hideNameAndPhoto) {
 		return;
 	}
 	const auto scheduled = !options.hideNameAndPhoto
-		&& fields.reaction.isEmpty()
+		&& !reactionFrom
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
 	const auto title = options.hideNameAndPhoto
@@ -946,13 +959,15 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? tr::lng_notification_reminder(tr::now)
 		: peer->name;
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
-	const auto subtitle = (options.hideNameAndPhoto || !reaction.isEmpty())
+	const auto subtitle = reactionFrom
+		? (reactionFrom != peer ? reactionFrom->name : QString())
+		: options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();
-	const auto text = !reaction.isEmpty()
+	const auto text = reactionFrom
 		? TextWithPermanentSpoiler(ComposeReactionNotification(
 			item,
-			reaction,
+			fields.reactionEmoji,
 			options.hideMessageText))
 		: options.hideMessageText
 		? tr::lng_notification_preview(tr::now)

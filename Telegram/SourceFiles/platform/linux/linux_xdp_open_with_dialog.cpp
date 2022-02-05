@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
-#include "platform/linux/linux_wayland_integration.h"
+#include "base/platform/linux/base_linux_wayland_integration.h"
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "base/random.h"
@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <giomm.h>
 #include <private/qguiapplication_p.h>
 
-using Platform::internal::WaylandIntegration;
+using base::Platform::WaylandIntegration;
 
 namespace Platform {
 namespace File {

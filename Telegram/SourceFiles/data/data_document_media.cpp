@@ -37,6 +37,7 @@ constexpr auto kGoodThumbQuality = 87;
 
 enum class FileType {
 	Video,
+	VideoSticker,
 	AnimatedSticker,
 	WallPaper,
 	WallPatternPNG,
@@ -49,15 +50,19 @@ enum class FileType {
 		|| owner->isAnimation()
 		|| owner->isWallPaper()
 		|| owner->isTheme()
-		|| (owner->sticker() && owner->sticker()->animated);
+		|| (owner->sticker() && owner->sticker()->isAnimated());
 }
 
 [[nodiscard]] QImage PrepareGoodThumbnail(
 		const QString &path,
 		QByteArray data,
 		FileType type) {
-	if (type == FileType::Video) {
-		return ::Media::Clip::PrepareForSending(path, data).thumbnail;
+	if (type == FileType::Video || type == FileType::VideoSticker) {
+		auto result = ::Media::Clip::PrepareForSending(path, data);
+		if (result.isWebmSticker && type == FileType::Video) {
+			result.thumbnail = Images::Opaque(std::move(result.thumbnail));
+		}
+		return result.thumbnail;
 	} else if (type == FileType::AnimatedSticker) {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
 	} else if (type == FileType::Theme) {
@@ -260,7 +265,7 @@ void DocumentMedia::checkStickerLarge() {
 		return;
 	}
 	automaticLoad(_owner->stickerSetOrigin(), nullptr);
-	if (data->animated || !loaded()) {
+	if (data->isAnimated() || !loaded()) {
 		return;
 	}
 	if (_bytes.isEmpty()) {
@@ -366,9 +371,9 @@ bool DocumentMedia::thumbnailEnoughForSticker() const {
 
 void DocumentMedia::checkStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
+	if ((data && data->isAnimated()) || thumbnailEnoughForSticker()) {
 		_owner->loadThumbnail(_owner->stickerSetOrigin());
-		if (data && data->animated) {
+		if (data && data->isAnimated()) {
 			automaticLoad(_owner->stickerSetOrigin(), nullptr);
 		}
 	} else {
@@ -383,7 +388,7 @@ Image *DocumentMedia::getStickerLarge() {
 
 Image *DocumentMedia::getStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
+	if ((data && data->isAnimated()) || thumbnailEnoughForSticker()) {
 		return thumbnail();
 	}
 	return _sticker.get();
@@ -409,9 +414,11 @@ void DocumentMedia::GenerateGoodThumbnail(
 		? FileType::WallPaper
 		: document->isTheme()
 		? FileType::Theme
-		: document->sticker()
+		: !document->sticker()
+		? FileType::Video
+		: document->sticker()->isLottie()
 		? FileType::AnimatedSticker
-		: FileType::Video;
+		: FileType::VideoSticker;
 	auto location = document->location().isEmpty()
 		? nullptr
 		: std::make_unique<Core::FileLocation>(document->location());
@@ -428,7 +435,8 @@ void DocumentMedia::GenerateGoodThumbnail(
 		auto bytes = QByteArray();
 		if (!result.isNull()) {
 			auto buffer = QBuffer(&bytes);
-			const auto format = (type == FileType::AnimatedSticker)
+			const auto format = (type == FileType::AnimatedSticker
+				|| type == FileType::VideoSticker)
 				? "WEBP"
 				: (type == FileType::WallPatternPNG
 					|| type == FileType::WallPatternSVG)

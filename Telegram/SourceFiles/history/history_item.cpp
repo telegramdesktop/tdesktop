@@ -12,10 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_service_message.h"
-#include "history/history_item_components.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/history_item_components.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
+#include "history/history_unread_things.h"
 #include "history/history.h"
 #include "mtproto/mtproto_config.h"
 #include "media/clip/media_clip_reader.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kNotificationTextLimit = 255;
+constexpr auto kMaxUnreadReactions = 5; // Now 3, but just in case.
 
 using ItemPreview = HistoryView::ItemPreview;
 
@@ -175,6 +177,58 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		flags |= MessageFlag::HistoryEntry;
 	}
 	return flags;
+}
+
+using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
+[[nodiscard]] OnStackUsers LookupRecentReactedUsers(
+		not_null<HistoryItem*> item) {
+	auto result = OnStackUsers();
+	auto index = 0;
+	for (const auto &[emoji, reactions] : item->recentReactions()) {
+		for (const auto &reaction : reactions) {
+			if (const auto user = reaction.peer->asUser()) {
+				result[index++] = user;
+				if (index == result.size()) {
+					return result;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+void CheckReactionNotificationSchedule(
+		not_null<HistoryItem*> item,
+		const OnStackUsers &wasUsers) {
+	// Call to addToUnreadThings may have read the reaction already.
+	if (!item->hasUnreadReaction()) {
+		return;
+	}
+	for (const auto &[emoji, reactions] : item->recentReactions()) {
+		for (const auto &reaction : reactions) {
+			if (!reaction.unread) {
+				continue;
+			}
+			const auto user = reaction.peer->asUser();
+			if (!user
+				|| !user->isContact()
+				|| ranges::contains(wasUsers, user)) {
+				continue;
+			}
+			using Status = PeerData::BlockStatus;
+			if (user->blockStatus() == Status::Unknown) {
+				user->updateFull();
+			}
+			const auto notification = ItemNotification{
+				.item = item,
+				.reactionSender = user,
+				.type = ItemNotificationType::Reaction,
+			};
+			item->history()->pushNotification(notification);
+			Core::App().notifications().schedule(notification);
+			return;
+		}
+	}
 }
 
 } // namespace
@@ -332,7 +386,11 @@ bool HistoryItem::hasUnreadMediaFlag() const {
 }
 
 bool HistoryItem::isUnreadMention() const {
-	return mentionsMe() && (_flags & MessageFlag::MediaIsUnread);
+	return !out() && mentionsMe() && (_flags & MessageFlag::MediaIsUnread);
+}
+
+bool HistoryItem::hasUnreadReaction() const {
+	return (_flags & MessageFlag::HasUnreadReaction);
 }
 
 bool HistoryItem::mentionsMe() const {
@@ -356,13 +414,40 @@ bool HistoryItem::isUnreadMedia() const {
 	return false;
 }
 
-void HistoryItem::markMediaRead() {
+bool HistoryItem::isIncomingUnreadMedia() const {
+	return !out() && isUnreadMedia();
+}
+
+void HistoryItem::markMediaAndMentionRead() {
 	_flags &= ~MessageFlag::MediaIsUnread;
 
 	if (mentionsMe()) {
 		history()->updateChatListEntry();
-		history()->eraseFromUnreadMentions(id);
+		history()->unreadMentions().erase(id);
 	}
+}
+
+void HistoryItem::markReactionsRead() {
+	if (_reactions) {
+		_reactions->markRead();
+	}
+	_flags &= ~MessageFlag::HasUnreadReaction;
+	history()->updateChatListEntry();
+	history()->unreadReactions().erase(id);
+}
+
+bool HistoryItem::markContentsRead(bool fromThisClient) {
+	if (hasUnreadReaction()) {
+		if (fromThisClient) {
+			history()->owner().requestUnreadReactionsAnimation(this);
+		}
+		markReactionsRead();
+		return true;
+	} else if (isUnreadMention() || isIncomingUnreadMedia()) {
+		markMediaAndMentionRead();
+		return true;
+	}
+	return false;
 }
 
 void HistoryItem::setIsPinned(bool pinned) {
@@ -526,7 +611,7 @@ void HistoryItem::clearMainView() {
 	_mainView = nullptr;
 }
 
-void HistoryItem::addToUnreadMentions(UnreadMentionType type) {
+void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 }
 
 void HistoryItem::applyEditionToHistoryCleared() {
@@ -592,7 +677,7 @@ void HistoryItem::applySentMessage(
 
 void HistoryItem::indexAsNewItem() {
 	if (isRegular()) {
-		addToUnreadMentions(UnreadMentionType::New);
+		addToUnreadThings(HistoryUnreadThings::AddType::New);
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				_history->peer->id,
@@ -813,57 +898,63 @@ void HistoryItem::toggleReaction(const QString &reaction) {
 	history()->owner().notifyItemDataChange(this);
 }
 
-void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
-	const auto history = this->history();
-	const auto toUser = (reactions && out())
-		? history->peer->asUser()
-		: nullptr;
-	const auto toContact = toUser && toUser->isContact();
-	const auto maybeNotify = toContact && lookupHisReaction().isEmpty();
-	setReactions(reactions);
-	if (maybeNotify) {
-		if (const auto reaction = lookupHisReaction(); !reaction.isEmpty()) {
-			const auto notification = ItemNotification{
-				this,
-				ItemNotificationType::Reaction,
-			};
-			history->pushNotification(notification);
-			Core::App().notifications().schedule(notification);
-		}
+void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
+	Expects(!_reactions);
+
+	if (changeReactions(reactions) && _reactions->hasUnread()) {
+		_flags |= MessageFlag::HasUnreadReaction;
 	}
 }
 
-void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
+void HistoryItem::updateReactions(const MTPMessageReactions *reactions) {
+	const auto wasRecentUsers = LookupRecentReactedUsers(this);
+	const auto hadUnread = hasUnreadReaction();
+	const auto changed = changeReactions(reactions);
+	if (!changed) {
+		return;
+	}
+	const auto hasUnread = _reactions && _reactions->hasUnread();
+	if (hasUnread && !hadUnread) {
+		_flags |= MessageFlag::HasUnreadReaction;
+
+		addToUnreadThings(HistoryUnreadThings::AddType::New);
+	} else if (!hasUnread && hadUnread) {
+		markReactionsRead();
+	}
+	CheckReactionNotificationSchedule(this, wasRecentUsers);
+	history()->owner().notifyItemDataChange(this);
+}
+
+bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	if (reactions || _reactionsLastRefreshed) {
 		_reactionsLastRefreshed = crl::now();
 	}
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
-		if (_reactions) {
-			_reactions = nullptr;
-			history()->owner().notifyItemDataChange(this);
-		}
-		return;
+		return (base::take(_reactions) != nullptr);
 	}
-	reactions->match([&](const MTPDmessageReactions &data) {
+	return reactions->match([&](const MTPDmessageReactions &data) {
 		if (data.is_can_see_list()) {
 			_flags |= MessageFlag::CanViewReactions;
 		} else {
 			_flags &= ~MessageFlag::CanViewReactions;
 		}
 		if (data.vresults().v.isEmpty()) {
-			if (_reactions) {
-				_reactions = nullptr;
-				history()->owner().notifyItemDataChange(this);
-			}
-			return;
+			return (base::take(_reactions) != nullptr);
 		} else if (!_reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
-		_reactions->set(
-			data.vresults().v,
-			data.vrecent_reactons().value_or_empty(),
-			data.is_min());
+		const auto min = data.is_min();
+		const auto &list = data.vresults().v;
+		const auto &recent = data.vrecent_reactions().value_or_empty();
+		if (min && hasUnreadReaction()) {
+			// We can't update reactions from min if we have unread.
+			if (_reactions->checkIfChanged(list, recent)) {
+				updateReactionsUnknown();
+			}
+			return false;
+		}
+		return _reactions->change(list, recent, min);
 	});
 }
 
@@ -877,10 +968,10 @@ const base::flat_map<QString, int> &HistoryItem::reactions() const {
 }
 
 auto HistoryItem::recentReactions() const
--> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+-> const base::flat_map<QString, std::vector<Data::RecentReaction>> & {
 	static const auto kEmpty = base::flat_map<
 		QString,
-		std::vector<not_null<UserData*>>>();
+		std::vector<Data::RecentReaction>>();
 	return _reactions ? _reactions->recent() : kEmpty;
 }
 
@@ -894,22 +985,21 @@ QString HistoryItem::chosenReaction() const {
 	return _reactions ? _reactions->chosen() : QString();
 }
 
-QString HistoryItem::lookupHisReaction() const {
+QString HistoryItem::lookupUnreadReaction(not_null<UserData*> from) const {
 	if (!_reactions) {
 		return QString();
 	}
-	const auto &list = _reactions->list();
-	if (list.empty()) {
-		return QString();
+	const auto recent = _reactions->recent();
+	for (const auto &[emoji, list] : _reactions->recent()) {
+		const auto i = ranges::find(
+			list,
+			from,
+			&Data::RecentReaction::peer);
+		if (i != end(list) && i->unread) {
+			return emoji;
+		}
 	}
-	const auto chosen = _reactions->chosen();
-	const auto &[first, count] = list.front();
-	if (chosen.isEmpty() || first != chosen || count > 1) {
-		return first;
-	} else if (list.size() == 1) {
-		return QString();
-	}
-	return list.back().first;
+	return QString();
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {

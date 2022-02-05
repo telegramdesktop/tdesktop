@@ -114,13 +114,12 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	result.fill(Qt::transparent);
 	Painter p(&result);
 
-	Dialogs::Ui::paintUnreadCount(
+	Dialogs::Ui::PaintUnreadBadge(
 		p,
 		unread,
 		result.width(),
 		result.height() - unreadSt.size,
 		unreadSt,
-		nullptr,
 		2);
 	return result;
 }

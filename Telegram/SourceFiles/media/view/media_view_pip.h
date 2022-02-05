@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 
+namespace base {
+class PowerSaveBlocker;
+} // namespace base
+
 namespace Data {
 class DocumentMedia;
 } // namespace Data
@@ -187,6 +191,7 @@ private:
 	void saveGeometry();
 
 	void updatePlaybackState();
+	void updatePowerSaveBlocker(const Player::TrackState &state);
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void restartAtSeekPosition(crl::time position);
 
@@ -244,12 +249,13 @@ private:
 	void seekFinish(float64 value);
 
 	const not_null<Delegate*> _delegate;
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	FullMsgId _contextId;
 	Streaming::Instance _instance;
 	bool _opengl = false;
 	PipPanel _panel;
 	QSize _size;
+	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
 	std::shared_ptr<Data::DocumentMedia> _dataMedia;
 

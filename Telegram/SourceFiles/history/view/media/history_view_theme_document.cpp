@@ -292,8 +292,7 @@ void ThemeDocument::prepareThumbnailFrom(
 
 	const auto isTheme = _data->isTheme();
 	const auto isPattern = _data->isPatternWallPaper();
-	auto options = Images::Option::Smooth
-		| (good >= 0 ? Images::Option(0) : Images::Option::Blurred)
+	auto options = (good >= 0 ? Images::Option(0) : Images::Option::Blur)
 		| (isPattern
 			? Images::Option::TransparentBackground
 			: Images::Option(0));
@@ -304,20 +303,18 @@ void ThemeDocument::prepareThumbnailFrom(
 	if (!tw || !th) {
 		tw = th = 1;
 	}
-	original = Images::prepare(
+	const auto ratio = style::DevicePixelRatio();
+	original = Images::Prepare(
 		std::move(original),
-		_pixw * cIntRetinaFactor(),
-		((_pixw * th) / tw) * cIntRetinaFactor(),
-		options,
-		_pixw,
-		_pixh);
+		QSize(_pixw, (_pixw * th) / tw) * ratio,
+		{ .options = options, .outer = { _pixw, _pixh } });
 	if (isPattern) {
 		original = Ui::PreparePatternImage(
 			std::move(original),
 			_background,
 			_gradientRotation,
 			_patternOpacity);
-		original.setDevicePixelRatio(cRetinaFactor());
+		original.setDevicePixelRatio(ratio);
 	}
 	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;

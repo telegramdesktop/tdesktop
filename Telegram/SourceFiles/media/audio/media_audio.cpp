@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_audio.h"
 #include "core/application.h"
 #include "main/main_session.h"
-#include "app.h"
 
 #include <al.h>
 #include <alc.h>
@@ -244,7 +243,7 @@ bool AttachToDevice() {
 	}
 
 	crl::on_main([] {
-		if (!App::quitting()) {
+		if (!Core::Quitting()) {
 			Current().reattachTracks();
 		}
 	});
@@ -253,7 +252,7 @@ bool AttachToDevice() {
 
 void ScheduleDetachFromDeviceSafe() {
 	crl::on_main([] {
-		if (!App::quitting()) {
+		if (!Core::Quitting()) {
 			Current().scheduleDetachFromDevice();
 		}
 	});
@@ -261,7 +260,7 @@ void ScheduleDetachFromDeviceSafe() {
 
 void ScheduleDetachIfNotUsedSafe() {
 	crl::on_main([] {
-		if (!App::quitting()) {
+		if (!Core::Quitting()) {
 			Current().scheduleDetachIfNotUsed();
 		}
 	});
@@ -269,7 +268,7 @@ void ScheduleDetachIfNotUsedSafe() {
 
 void StopDetachIfNotUsedSafe() {
 	crl::on_main([] {
-		if (!App::quitting()) {
+		if (!Core::Quitting()) {
 			Current().stopDetachIfNotUsed();
 		}
 	});

@@ -102,7 +102,7 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 		st.font = st::historyToDownBadgeFont;
 		st.size = st::historyToDownBadgeSize;
 		st.sizeId = Dialogs::Ui::UnreadBadgeInHistoryToDown;
-		Dialogs::Ui::paintUnreadCount(p, unreadString, width(), 0, st, nullptr, 4);
+		Dialogs::Ui::PaintUnreadBadge(p, unreadString, width(), 0, st, 4);
 	}
 }
 
@@ -696,8 +696,7 @@ void UserpicButton::setImage(QImage &&image) {
 		size * cIntRetinaFactor(),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
-	Images::prepareCircle(small);
-	_userpic = Ui::PixmapFromImage(std::move(small));
+	_userpic = Ui::PixmapFromImage(Images::Circle(std::move(small)));
 	_userpic.setDevicePixelRatio(cRetinaFactor());
 	_userpicCustom = _userpicHasImage = true;
 	_result = std::move(image);

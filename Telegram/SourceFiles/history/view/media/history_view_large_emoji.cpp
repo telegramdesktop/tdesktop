@@ -77,17 +77,15 @@ void LargeEmoji::draw(
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	const auto size = EmojiImage::Size() / cIntRetinaFactor();
 	for (const auto &image : images) {
-		const auto w = size.width();
 		if (const auto &prepared = image->image) {
-			const auto h = size.height();
-			const auto pixmap = context.selected()
-				? prepared->pixColored(context.st->msgStickerOverlay(), w, h)
-				: prepared->pix(w, h);
-			p.drawPixmap(x, y, pixmap);
+			const auto colored = context.selected()
+				? &context.st->msgStickerOverlay()
+				: nullptr;
+			p.drawPixmap(x, y, prepared->pix(size, { .colored = colored }));
 		} else if (image->load) {
 			image->load();
 		}
-		x += w + skip;
+		x += size.width() + skip;
 	}
 }
 

@@ -162,14 +162,13 @@ Call::Call(
 , _user(user)
 , _api(&_user->session().mtp())
 , _type(type)
+, _discardByTimeoutTimer([=] { hangup(); })
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video)))
 , _videoOutgoing(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video))) {
-	_discardByTimeoutTimer.setCallback([=] { hangup(); });
-
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
 	} else {

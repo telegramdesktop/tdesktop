@@ -106,11 +106,8 @@ struct PickerScrubberItem {
 		const auto size = sticker->size()
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 		image = sticker->pixSingle(
-			size.width(),
-			size.height(),
-			kCircleDiameter,
-			kCircleDiameter,
-			ImageRoundRadius::None).toImage();
+			size,
+			{ .outer = { kCircleDiameter, kCircleDiameter } }).toImage();
 	}
 
 	bool isStickerLoaded() const {

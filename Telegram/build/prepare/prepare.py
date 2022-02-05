@@ -400,7 +400,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4142f82d11
+    git checkout 47d447b531
 """)
 
 stage('depot_tools', """
@@ -622,10 +622,10 @@ mac:
 
 stage('libvpx', """
     git clone https://github.com/webmproject/libvpx.git
+depends:patches/libvpx/*.patch
     cd libvpx
     git checkout v1.11.0
 win:
-depends:patches/libvpx/*.patch
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
     SET PATH_BACKUP_=%PATH%
@@ -645,6 +645,8 @@ depends:patches/build_libvpx_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
+    find ../patches/libvpx -type f -print0 | sort -z | xargs -0 git apply
+
 depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --target=arm64-darwin20-gcc \
@@ -1236,7 +1238,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 6372a0848f
+    git checkout 8d9c724c07
     git submodule init
     git submodule update src/third_party/libyuv
 win:

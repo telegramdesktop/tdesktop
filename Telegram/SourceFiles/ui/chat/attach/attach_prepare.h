@@ -31,6 +31,7 @@ struct PreparedFileInformation {
 	};
 	struct Video {
 		bool isGifv = false;
+		bool isWebmSticker = false;
 		bool supportsStreaming = false;
 		int duration = -1;
 		QImage thumbnail;

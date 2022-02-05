@@ -358,26 +358,12 @@ void Uploader::upload(
 void Uploader::currentFailed() {
 	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
-		if (j->second.type() == SendMediaType::Photo) {
-			_photoFailed.fire_copy(j->first);
-		} else if (j->second.type() == SendMediaType::File
-			|| j->second.type() == SendMediaType::ThemeFile
-			|| j->second.type() == SendMediaType::Audio) {
-			const auto document = session().data().document(j->second.id());
-			if (document->uploading()) {
-				document->status = FileUploadFailed;
-			}
-			_documentFailed.fire_copy(j->first);
-		} else if (j->second.type() == SendMediaType::Secure) {
-			_secureFailed.fire_copy(j->first);
-		} else {
-			Unexpected("Type in Uploader::currentFailed.");
-		}
+		const auto [msgId, file] = std::move(*j);
 		queue.erase(j);
+		notifyFailed(msgId, file);
 	}
 
-	requestsSent.clear();
-	docRequestsSent.clear();
+	cancelRequests();
 	dcMap.clear();
 	uploadingId = FullMsgId();
 	sentSize = 0;
@@ -386,6 +372,25 @@ void Uploader::currentFailed() {
 	}
 
 	sendNext();
+}
+
+void Uploader::notifyFailed(FullMsgId id, const File &file) {
+	const auto type = file.type();
+	if (type == SendMediaType::Photo) {
+		_photoFailed.fire_copy(id);
+	} else if (type == SendMediaType::File
+		|| type == SendMediaType::ThemeFile
+		|| type == SendMediaType::Audio) {
+		const auto document = session().data().document(file.id());
+		if (document->uploading()) {
+			document->status = FileUploadFailed;
+		}
+		_documentFailed.fire_copy(id);
+	} else if (type == SendMediaType::Secure) {
+		_secureFailed.fire_copy(id);
+	} else {
+		Unexpected("Type in Uploader::currentFailed.");
+	}
 }
 
 void Uploader::stopSessions() {
@@ -617,12 +622,29 @@ void Uploader::sendNext() {
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {
-	uploaded.erase(msgId);
 	if (uploadingId == msgId) {
 		currentFailed();
 	} else {
 		queue.erase(msgId);
 	}
+}
+
+void Uploader::cancelAll() {
+	const auto single = queue.empty() ? uploadingId : queue.begin()->first;
+	if (!single) {
+		return;
+	}
+	_pausedId = single;
+	if (uploadingId) {
+		currentFailed();
+	}
+	while (!queue.empty()) {
+		const auto [msgId, file] = std::move(*queue.begin());
+		queue.erase(queue.begin());
+		notifyFailed(msgId, file);
+	}
+	clear();
+	unpause();
 }
 
 void Uploader::pause(const FullMsgId &msgId) {
@@ -637,9 +659,7 @@ void Uploader::unpause() {
 void Uploader::confirm(const FullMsgId &msgId) {
 }
 
-void Uploader::clear() {
-	uploaded.clear();
-	queue.clear();
+void Uploader::cancelRequests() {
 	for (const auto &requestData : requestsSent) {
 		_api->request(requestData.first).cancel();
 	}
@@ -648,6 +668,11 @@ void Uploader::clear() {
 		_api->request(requestData.first).cancel();
 	}
 	docRequestsSent.clear();
+}
+
+void Uploader::clear() {
+	queue.clear();
+	cancelRequests();
 	dcMap.clear();
 	sentSize = 0;
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {

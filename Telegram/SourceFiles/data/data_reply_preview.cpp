@@ -41,18 +41,13 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 			st::msgReplyBarSize.height(),
 			h * st::msgReplyBarSize.height() / w);
 	thumbSize *= cIntRetinaFactor();
-	const auto prepareOptions = Images::Option::Smooth
-		| Images::Option::TransparentBackground
-		| options;
+	options |= Images::Option::TransparentBackground;
 	auto outerSize = st::msgReplyBarSize.height();
 	auto bitmap = image->pixNoCache(
-		thumbSize.width(),
-		thumbSize.height(),
-		prepareOptions,
-		outerSize,
-		outerSize);
+		thumbSize,
+		{ .options = options, .outer = { outerSize, outerSize } });
 	_image = std::make_unique<Image>(bitmap.toImage());
-	_good = ((options & Images::Option::Blurred) == 0);
+	_good = ((options & Images::Option::Blur) == 0);
 }
 
 Image *ReplyPreview::image(
@@ -69,13 +64,13 @@ Image *ReplyPreview::image(
 			}
 			const auto thumbnail = _documentMedia->thumbnail();
 			const auto option = _document->isVideoMessage()
-				? Images::Option::Circled
+				? Images::Option::RoundCircle
 				: Images::Option::None;
 			if (thumbnail) {
 				prepare(thumbnail, option);
 			} else if (!_image) {
 				if (const auto image = _documentMedia->thumbnailInline()) {
-					prepare(image, option | Images::Option::Blurred);
+					prepare(image, option | Images::Option::Blur);
 				}
 			}
 			if (_good || !_document->hasThumbnail()) {
@@ -102,7 +97,7 @@ Image *ReplyPreview::image(
 				prepare(large, Images::Option(0));
 			} else if (!_image) {
 				if (const auto blurred = _photoMedia->thumbnailInline()) {
-					prepare(blurred, Images::Option::Blurred);
+					prepare(blurred, Images::Option::Blur);
 				}
 			}
 			if (_good) {

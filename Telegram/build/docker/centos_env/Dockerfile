@@ -24,12 +24,13 @@ ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
 ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && yum clean all
-RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm && yum clean all
+RUN yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm && yum clean all
 RUN yum -y install centos-release-scl && yum clean all
 
 RUN yum -y install git meson ninja-build autoconf automake libtool patch \
 	fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
-	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel gtk3-devel \
+	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
+	libdrm-devel gtk3-devel \
 	perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 	devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
@@ -50,7 +51,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 5368789dc7
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1206363d59
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
@@ -147,6 +148,24 @@ RUN make DESTDIR="$LibrariesPath/opus-cache" install
 
 WORKDIR ..
 RUN rm -rf opus
+
+FROM builder AS libvpx
+RUN git clone -b v1.11.0 --depth=1 $GIT/webmproject/libvpx.git
+
+WORKDIR libvpx
+RUN ./configure \
+	--disable-examples \
+	--disable-unit-tests \
+	--disable-tools \
+	--disable-docs \
+	--enable-vp8 \
+	--enable-vp9 \
+	--enable-webm-io
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libvpx-cache" install
+
+WORKDIR ..
+RUN rm -rf libvpx
 
 FROM builder AS rnnoise
 RUN git clone -b master --depth=1 $GIT/desktop-app/rnnoise
@@ -267,19 +286,6 @@ RUN make DESTDIR="$LibrariesPath/libXfixes-cache" install
 WORKDIR ..
 RUN rm -rf libxfixes
 
-FROM builder AS libXv
-COPY --from=libXext ${LibrariesPath}/libXext-cache /
-
-RUN git clone -b libXv-1.0.11 --depth=1 $GIT_FREEDESKTOP/libxv.git
-
-WORKDIR libxv
-RUN ./autogen.sh --enable-static
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libXv-cache" install
-
-WORKDIR ..
-RUN rm -rf libxv
-
 FROM builder AS libXrandr
 RUN git clone -b libXrandr-1.5.2 --depth=1 $GIT_FREEDESKTOP/libxrandr.git
 
@@ -344,84 +350,10 @@ RUN DESTDIR="$LibrariesPath/wayland-cache" meson install -C build
 WORKDIR ..
 RUN rm -rf wayland
 
-FROM builder AS libpciaccess
-RUN git clone -b libpciaccess-0.16 --depth=1 $GIT_FREEDESKTOP/libpciaccess.git
-
-WORKDIR libpciaccess
-RUN ./autogen.sh --enable-static
-
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libpciaccess-cache" install
-
-WORKDIR ..
-RUN rm -rf libpciaccess
-
-FROM builder AS drm
-COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
-
-RUN git clone -b libdrm-2.4.109 --depth=1 $GIT_FREEDESKTOP/drm.git
-
-WORKDIR drm
-RUN meson build \
-	--buildtype=release \
-	--default-library=both
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/drm-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf drm
-
-FROM builder AS libva
-
-COPY --from=libffi ${LibrariesPath}/libffi-cache /
-COPY --from=libXext ${LibrariesPath}/libXext-cache /
-COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-
-RUN git clone -b 2.13.0 --depth=1 $GIT/intel/libva.git
-
-WORKDIR libva
-RUN CFLAGS="-g -O2 $HFLAGS" ./autogen.sh \
-	--enable-static \
-	--sysconfdir=/etc \
-	--with-drivers-path=/usr/lib/dri
-
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libva-cache" install
-
-WORKDIR ..
-RUN rm -rf libva
-
-FROM builder AS libvdpau
-RUN git clone -b 1.4 --depth=1 $GIT_FREEDESKTOP/libvdpau.git
-
-WORKDIR libvdpau
-RUN sed -i 's/shared_library/library/g' src/meson.build
-
-RUN meson build \
-	--buildtype=release \
-	--default-library=both \
-	--sysconfdir=/etc \
-	-Ddocumentation=false \
-	-Dmoduledir=/usr/lib/vdpau
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/libvdpau-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf libvdpau
-
 FROM builder AS ffmpeg
 
 COPY --from=opus ${LibrariesPath}/opus-cache /
-COPY --from=libXext ${LibrariesPath}/libXext-cache /
-COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=libXv ${LibrariesPath}/libXv-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-COPY --from=libva ${LibrariesPath}/libva-cache /
-COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 
 RUN mkdir ffmpeg
 WORKDIR ffmpeg
@@ -440,15 +372,8 @@ RUN ./configure \
 	--disable-autodetect \
 	--disable-everything \
 	--enable-libopus \
-	--enable-vaapi \
-	--enable-vdpau \
-	--enable-xlib \
-	--enable-libdrm \
+	--enable-libvpx \
 	--enable-protocol=file \
-	--enable-hwaccel=h264_vaapi \
-	--enable-hwaccel=h264_vdpau \
-	--enable-hwaccel=mpeg4_vaapi \
-	--enable-hwaccel=mpeg4_vdpau \
 	--enable-decoder=aac \
 	--enable-decoder=aac_fixed \
 	--enable-decoder=aac_latm \
@@ -457,8 +382,9 @@ RUN ./configure \
 	--enable-decoder=flac \
 	--enable-decoder=gif \
 	--enable-decoder=h264 \
-	--enable-decoder=h264_vdpau \
 	--enable-decoder=hevc \
+	--enable-decoder=libvpx_vp8 \
+	--enable-decoder=libvpx_vp9 \
 	--enable-decoder=mp1 \
 	--enable-decoder=mp1float \
 	--enable-decoder=mp2 \
@@ -470,7 +396,6 @@ RUN ./configure \
 	--enable-decoder=mp3on4 \
 	--enable-decoder=mp3on4float \
 	--enable-decoder=mpeg4 \
-	--enable-decoder=mpeg4_vdpau \
 	--enable-decoder=msmpeg4v2 \
 	--enable-decoder=msmpeg4v3 \
 	--enable-decoder=opus \
@@ -526,6 +451,7 @@ RUN ./configure \
 	--enable-demuxer=gif \
 	--enable-demuxer=h264 \
 	--enable-demuxer=hevc \
+	--enable-demuxer=matroska \
 	--enable-demuxer=m4v \
 	--enable-demuxer=mov \
 	--enable-demuxer=mp3 \
@@ -731,7 +657,9 @@ RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
 	-dbus-runtime \
 	-openssl-linked \
 	-nomake examples \
-	-nomake tests
+	-nomake tests \
+	-- \
+	-DINPUT_egl_extension_platform_wayland=no
 
 RUN [ -z "${QT6}" ] || cmake --build . --parallel
 RUN [ -z "${QT6}" ] || DESTDIR="$LibrariesPath/qt-cache" cmake --install .
@@ -759,8 +687,10 @@ WORKDIR ..
 
 FROM builder AS webrtc
 
+COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
@@ -770,7 +700,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin b02478677baac6d563589f216800ff9cea0fd65c
+RUN git fetch --depth=1 origin 25c8637f5975db830cc5d74477641a8b609e248d
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
@@ -785,11 +715,11 @@ RUN cmake -G"Ninja Multi-Config" -B out . \
 	-DCMAKE_C_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \
 	-DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG $HFLAGS" \
 	-DCMAKE_CXX_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \
-	-DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
 	-DTG_OWT_SPECIAL_TARGET=linux \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+	-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
 RUN cmake --build out --config Release --parallel
@@ -804,6 +734,7 @@ COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=rnnoise ${LibrariesPath}/rnnoise-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
@@ -813,17 +744,12 @@ COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
 COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=libXv ${LibrariesPath}/libXv-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
 COPY --from=libXrandr ${LibrariesPath}/libXrandr-cache /
 COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=libXdamage ${LibrariesPath}/libXdamage-cache /
 COPY --from=libXcomposite ${LibrariesPath}/libXcomposite-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=libpciaccess ${LibrariesPath}/libpciaccess-cache /
-COPY --from=drm ${LibrariesPath}/drm-cache /
-COPY --from=libva ${LibrariesPath}/libva-cache /
-COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg ffmpeg
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openal ${LibrariesPath}/openal-cache /

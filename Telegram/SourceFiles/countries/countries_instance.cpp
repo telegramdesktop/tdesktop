@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "countries/countries_instance.h"
 
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 
 namespace Countries {
 namespace {

@@ -49,7 +49,7 @@ using PaintContext = Ui::ChatPaintContext;
 
 namespace Reactions {
 struct ButtonParameters;
-class SendAnimation;
+class Animation;
 } // namespace Reactions
 
 enum class Context : char {
@@ -229,12 +229,12 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
-struct SendReactionAnimationArgs {
+struct ReactionAnimationArgs {
 	QString emoji;
 	std::shared_ptr<Lottie::Icon> flyIcon;
 	QRect flyFrom;
 
-	[[nodiscard]] SendReactionAnimationArgs translated(QPoint point) const;
+	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;
 };
 
 class Element
@@ -421,11 +421,24 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
-	virtual void animateSendReaction(SendReactionAnimationArgs &&args);
-	[[nodiscard]] virtual auto takeSendReactionAnimation()
-		-> std::unique_ptr<Reactions::SendAnimation>;
+	virtual void animateReaction(ReactionAnimationArgs &&args);
+	void animateUnreadReactions();
+	[[nodiscard]] virtual auto takeReactionAnimations()
+		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
 
 	virtual ~Element();
+
+	static void Hovered(Element *view);
+	[[nodiscard]] static Element *Hovered();
+	static void Pressed(Element *view);
+	[[nodiscard]] static Element *Pressed();
+	static void HoveredLink(Element *view);
+	[[nodiscard]] static Element *HoveredLink();
+	static void PressedLink(Element *view);
+	[[nodiscard]] static Element *PressedLink();
+	static void Moused(Element *view);
+	[[nodiscard]] static Element *Moused();
+	static void ClearGlobal();
 
 protected:
 	void repaint() const;

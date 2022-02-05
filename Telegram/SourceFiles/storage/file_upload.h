@@ -54,6 +54,10 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
+	[[nodiscard]] FullMsgId currentUploadId() const {
+		return uploadingId;
+	}
+
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
@@ -63,6 +67,7 @@ public:
 	void pause(const FullMsgId &msgId);
 	void confirm(const FullMsgId &msgId);
 
+	void cancelAll();
 	void clear();
 
 	rpl::producer<UploadedMedia> photoReady() const {
@@ -108,7 +113,9 @@ private:
 	void processDocumentProgress(const FullMsgId &msgId);
 	void processDocumentFailed(const FullMsgId &msgId);
 
+	void notifyFailed(FullMsgId id, const File &file);
 	void currentFailed();
+	void cancelRequests();
 
 	void sendProgressUpdate(
 		not_null<HistoryItem*> item,
@@ -125,7 +132,6 @@ private:
 	FullMsgId uploadingId;
 	FullMsgId _pausedId;
 	std::map<FullMsgId, File> queue;
-	std::map<FullMsgId, File> uploaded;
 	base::Timer _nextTimer, _stopSessionsTimer;
 
 	rpl::event_stream<UploadedMedia> _photoReady;

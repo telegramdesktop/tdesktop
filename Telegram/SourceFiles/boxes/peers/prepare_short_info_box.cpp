@@ -51,19 +51,15 @@ void GenerateImage(
 		bool blurred = false) {
 	using namespace Images;
 	const auto size = st::shortInfoWidth;
-	const auto factor = style::DevicePixelRatio();
-	const auto options = Option::Smooth
-		| Option::RoundedSmall
-		| Option::RoundedTopLeft
-		| Option::RoundedTopRight
-		| (blurred ? Option::Blurred : Option());
-	state->current.photo = Images::prepare(
+	const auto ratio = style::DevicePixelRatio();
+	const auto options = Option::RoundSmall
+		| Option::RoundSkipBottomLeft
+		| Option::RoundSkipBottomRight
+		| (blurred ? Option::Blur : Option());
+	state->current.photo = Images::Prepare(
 		std::move(image),
-		size * factor,
-		size * factor,
-		options,
-		size,
-		size);
+		QSize(size, size) * ratio,
+		{ .options = options, .outer = { size, size } });
 }
 
 void GenerateImage(

@@ -266,14 +266,15 @@ QPixmap PrepareSongCoverForThumbnail(QImage image, int size) {
 		size,
 		Qt::KeepAspectRatioByExpanding);
 	using Option = Images::Option;
-	return PixmapFromImage(Images::prepare(
+	const auto ratio = style::DevicePixelRatio();
+	return PixmapFromImage(Images::Prepare(
 		std::move(image),
-		scaledSize.width() * style::DevicePixelRatio(),
-		scaledSize.height() * style::DevicePixelRatio(),
-		Option::Circled | Option::Colored | Option::Smooth,
-		size,
-		size,
-		&st::songCoverOverlayFg));
+		scaledSize * ratio,
+		{
+			.colored = &st::songCoverOverlayFg,
+			.options = Option::RoundCircle,
+			.outer = { size, size },
+		}));
 }
 
 } // namespace Ui

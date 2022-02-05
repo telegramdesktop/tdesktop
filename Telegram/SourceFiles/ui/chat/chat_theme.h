@@ -163,6 +163,7 @@ public:
 	[[nodiscard]] const BubblePattern *bubblesBackgroundPattern() const {
 		return _bubblesBackgroundPattern.get();
 	}
+	void finishCreateOnMain(); // Called on_main after setBubblesBackground.
 
 	[[nodiscard]] ChatPaintContext preparePaintContext(
 		not_null<const ChatStyle*> st,

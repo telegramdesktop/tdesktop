@@ -37,9 +37,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
+#include "core/application.h"
 #include "base/call_delayed.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_settings.h"
 #include "base/platform/base_platform_info.h"
 
@@ -230,7 +230,7 @@ void SetupInterfaceScale(
 			const auto confirmed = crl::guard(button, [=] {
 				cSetConfigScale(scale);
 				Local::writeSettings();
-				App::restart();
+				Core::Restart();
 			});
 			const auto cancelled = crl::guard(button, [=] {
 				base::call_delayed(

@@ -15,11 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
+#include "ui/chat/forward_options_box.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
 #include "chat_helpers/message_field.h"
@@ -40,6 +44,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_media_player.h"
+
+namespace {
+
+class ForwardOptionItem final : public Ui::Menu::Action {
+public:
+	using Ui::Menu::Action::Action;
+
+	void init(bool checked) {
+		enableMouseSelecting();
+
+		AbstractButton::setDisabled(true);
+
+		_checkView = std::make_unique<Ui::CheckView>(st::defaultCheck, false);
+		_checkView->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			setIcon(checked ? &st::mediaPlayerMenuCheck : nullptr);
+		}, lifetime());
+
+		_checkView->setChecked(checked, anim::type::normal);
+		AbstractButton::clicks(
+		) | rpl::start_with_next([=] {
+			_checkView->setChecked(
+				!_checkView->checked(),
+				anim::type::normal);
+		}, lifetime());
+	}
+
+	not_null<Ui::CheckView*> checkView() const {
+		return _checkView.get();
+	}
+
+private:
+	std::unique_ptr<Ui::CheckView> _checkView;
+};
+
+} // namespace
 
 class ShareBox::Inner final : public Ui::RpWidget {
 public:
@@ -442,17 +484,68 @@ SendMenu::Type ShareBox::sendMenuType() const {
 		: SendMenu::Type::Scheduled;
 }
 
+void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
+	if (_menu) {
+		_menu = nullptr;
+		return;
+	}
+	_menu.emplace(parent, st::popupMenuWithIcons);
+
+	if (_descriptor.forwardOptions.show) {
+		auto createView = [&](rpl::producer<QString> &&text, bool checked) {
+			auto item = base::make_unique_q<ForwardOptionItem>(
+				_menu->menu(),
+				st::popupMenuWithIcons.menu,
+				new QAction(QString(), _menu->menu()),
+				nullptr,
+				nullptr);
+			std::move(
+				text
+			) | rpl::start_with_next([action = item->action()](QString text) {
+				action->setText(text);
+			}, item->lifetime());
+			item->init(checked);
+			const auto view = item->checkView();
+			_menu->addAction(std::move(item));
+			return view;
+		};
+		Ui::FillForwardOptions(
+			std::move(createView),
+			_descriptor.forwardOptions.messagesCount,
+			_forwardOptions,
+			[=](Ui::ForwardOptions value) { _forwardOptions = value; },
+			_menu->lifetime());
+
+		_menu->addSeparator();
+	}
+
+	const auto result = SendMenu::FillSendMenu(
+		_menu.get(),
+		sendMenuType(),
+		[=] { submitSilent(); },
+		[=] { submitScheduled(); });
+	const auto success = (result == SendMenu::FillMenuResult::Success);
+	if (_descriptor.forwardOptions.show || success) {
+		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
+		_menu->popup(QCursor::pos());
+	}
+}
+
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		SendMenu::SetupMenuAndShortcuts(
-			send,
-			[=] { return sendMenuType(); },
-			[=] { submitSilent(); },
-			[=] { submitScheduled(); });
+		_forwardOptions.hasCaptions = _descriptor.forwardOptions.hasCaptions;
+
+		send->setAcceptBoth();
+		send->clicks(
+		) | rpl::start_with_next([=](Qt::MouseButton button) {
+			if (button == Qt::RightButton) {
+				showMenu(send);
+			}
+		}, send->lifetime());
 	} else if (_descriptor.copyCallback) {
 		addButton(_copyLinkText.value(), [=] { copyLink(); });
 	}
@@ -488,10 +581,17 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 
 void ShareBox::submit(Api::SendOptions options) {
 	if (const auto onstack = _descriptor.submitCallback) {
+		const auto forwardOptions = (_forwardOptions.hasCaptions
+			&& _forwardOptions.dropCaptions)
+			? Data::ForwardOptions::NoNamesAndCaptions
+			: _forwardOptions.dropNames
+			? Data::ForwardOptions::NoSenderNames
+			: Data::ForwardOptions::PreserveInfo;
 		onstack(
 			_inner->selected(),
 			_comment->entity()->getTextWithAppliedMarkdown(),
-			options);
+			options,
+			forwardOptions);
 	}
 }
 

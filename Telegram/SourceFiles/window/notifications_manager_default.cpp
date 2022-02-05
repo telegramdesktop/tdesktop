@@ -78,8 +78,12 @@ Manager::Manager(System *system)
 Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 : history(fields.item->history())
 , peer(history->peer)
-, reaction(fields.reaction)
-, author(reaction.isEmpty() ? fields.item->notificationHeader() : QString())
+, reaction(fields.reactionEmoji)
+, author(!fields.reactionFrom
+	? fields.item->notificationHeader()
+	: (fields.reactionFrom != peer)
+	? fields.reactionFrom->name
+	: QString())
 , item((fields.forwardedCount < 2) ? fields.item.get() : nullptr)
 , forwardedCount(fields.forwardedCount)
 , fromScheduled(reaction.isEmpty() && (fields.item->out() || peer->isSelf())
@@ -814,10 +818,13 @@ void Notification::updateNotifyDisplay() {
 			p.setPen(st::dialogsTextFg);
 			p.setFont(st::dialogsTextFont);
 			const auto text = !_reaction.isEmpty()
-				? Manager::ComposeReactionNotification(
+				? (!_author.isEmpty()
+					? Ui::Text::PlainLink(_author).append(' ')
+					: TextWithEntities()
+				).append(Manager::ComposeReactionNotification(
 					_item,
 					_reaction,
-					options.hideMessageText)
+					options.hideMessageText))
 				: _item
 				? _item->toPreview({
 					.hideSender = reminder,

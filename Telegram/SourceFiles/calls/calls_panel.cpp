@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
+#include "base/power_save_blocker.h"
 #include "window/main_window.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h"
@@ -357,6 +358,7 @@ void Panel::reinitWithCall(Call *call) {
 	if (!_call) {
 		_incoming = nullptr;
 		_outgoingVideoBubble = nullptr;
+		_powerSaveBlocker = nullptr;
 		return;
 	}
 
@@ -496,6 +498,11 @@ void Panel::reinitWithCall(Call *call) {
 	_cancel->raise();
 	_camera->raise();
 	_mute->raise();
+
+	_powerSaveBlocker = std::make_unique<base::PowerSaveBlocker>(
+		base::PowerSaveBlockType::PreventDisplaySleep,
+		u"Video call is active"_q,
+		window()->windowHandle());
 
 	_incoming->widget()->lower();
 }
@@ -804,6 +811,10 @@ void Panel::stateChanged(State state) {
 		&& (state != State::EndedByOtherDevice)
 		&& (state != State::FailedHangingUp)
 		&& (state != State::Failed)) {
+		if (state == State::Busy) {
+			_powerSaveBlocker = nullptr;
+		}
+
 		auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,

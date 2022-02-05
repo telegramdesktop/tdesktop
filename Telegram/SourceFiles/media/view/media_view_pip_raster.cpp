@@ -175,27 +175,18 @@ QImage Pip::RendererSW::staticContentByRequest(
 	//	request,
 	//	std::move(_preparedCoverStorage));
 	using Option = Images::Option;
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| ((request.corners & RectPart::TopLeft)
-			? Option::RoundedTopLeft
-			: Option(0))
-		| ((request.corners & RectPart::TopRight)
-			? Option::RoundedTopRight
-			: Option(0))
-		| ((request.corners & RectPart::BottomRight)
-			? Option::RoundedBottomRight
-			: Option(0))
-		| ((request.corners & RectPart::BottomLeft)
-			? Option::RoundedBottomLeft
-			: Option(0));
-	_preparedStaticContent = Images::prepare(
+	const auto corner = [&](RectPart part, Option skip) {
+		return !(request.corners & part) ? skip : Option();
+	};
+	const auto options = Option::RoundLarge
+		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
+		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
+		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
+		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
+	_preparedStaticContent = Images::Prepare(
 		image,
-		request.resize.width(),
-		request.resize.height(),
-		options,
-		request.outer.width(),
-		request.outer.height());
+		request.resize,
+		{ .options = options, .outer = request.outer });
 	return _preparedStaticContent;
 }
 

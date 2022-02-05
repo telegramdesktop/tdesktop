@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_create_adm.h" // Webrtc::Backend.
 #include "tgcalls/VideoCaptureInterface.h"
 #include "facades.h"
-#include "app.h" // App::restart().
 #include "styles/style_layers.h"
 
 namespace Settings {
@@ -453,7 +452,7 @@ object_ptr<Ui::GenericBox> ChooseAudioInputBox(
 //		Core::App().settings().setCallAudioBackend(
 //			static_cast<Webrtc::Backend>(option));
 //		Core::App().saveSettings();
-//		App::restart();
+//		Core::Restart();
 //	};
 //	return Box([=](not_null<Ui::GenericBox*> box) {
 //		SingleChoiceBox(box, {

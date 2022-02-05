@@ -46,6 +46,7 @@ constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kSizeForDownscale = 96;
 constexpr auto kHoverScaleDuration = crl::time(200);
 constexpr auto kHoverScale = 1.24;
+constexpr auto kMaxReactionsScrollAtOnce = 2;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -153,7 +154,13 @@ bool Button::consumeWheelEvent(not_null<QWheelEvent*> e) {
 	if (horizontal) {
 		return false;
 	}
-	const auto shift = delta.y() * (expandUp() ? 1 : -1);
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = (st::reactionCornerSize.height() + between);
+	const auto max = oneHeight * kMaxReactionsScrollAtOnce;
+	const auto shift = std::clamp(
+		delta.y() * (expandUp() ? 1 : -1),
+		-max,
+		max);
 	_scroll = std::clamp(_scroll + shift, 0, scrollMax);
 	_update(_geometry);
 	e->accept();
@@ -774,9 +781,9 @@ void Manager::paint(Painter &p, const PaintContext &context) {
 	}
 
 	for (const auto &[id, effect] : _collectedEffects) {
-		const auto offset = effect.offset;
+		const auto offset = effect.effectOffset;
 		p.translate(offset);
-		_activeEffectAreas[id] = effect.paint(p).translated(offset);
+		_activeEffectAreas[id] = effect.effectPaint(p).translated(offset);
 		p.translate(-offset);
 	}
 	_collectedEffects.clear();
@@ -1144,8 +1151,7 @@ Manager::OverlayImage Manager::validateOverlayShadow(
 		p.end();
 	}
 
-	_overlayShadowScaled = Images::prepareBlur(
-		std::move(_overlayShadowScaled));
+	_overlayShadowScaled = Images::Blur(std::move(_overlayShadowScaled));
 
 	auto q = Painter(result.cache);
 	if (result.cache != &_overlayShadowScaled) {
@@ -1436,7 +1442,7 @@ QRect Manager::validateShadow(
 	}
 	p.drawRoundedRect(big.translated(0, shift), radius, radius);
 	p.end();
-	_shadowBuffer = Images::prepareBlur(std::move(_shadowBuffer));
+	_shadowBuffer = Images::Blur(std::move(_shadowBuffer));
 
 	auto q = QPainter(&_cacheParts);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
@@ -1537,17 +1543,19 @@ std::optional<QRect> Manager::lookupEffectArea(FullMsgId itemId) const {
 
 void Manager::startEffectsCollection() {
 	_collectedEffects.clear();
-	_currentEffect = {};
+	_currentReactionInfo = {};
 }
 
-not_null<Ui::ReactionEffectPainter*> Manager::currentReactionEffect() {
-	return &_currentEffect;
+auto Manager::currentReactionPaintInfo()
+-> not_null<Ui::ReactionPaintInfo*> {
+	return &_currentReactionInfo;
 }
 
 void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
-	if (_currentEffect.paint) {
-		_currentEffect.offset += origin;
-		_collectedEffects[itemId] = base::take(_currentEffect);
+	if (_currentReactionInfo.effectPaint) {
+		_currentReactionInfo.effectOffset += origin
+			+ _currentReactionInfo.position;
+		_collectedEffects[itemId] = base::take(_currentReactionInfo);
 	} else if (!_collectedEffects.empty()) {
 		_collectedEffects.remove(itemId);
 	}

@@ -51,6 +51,7 @@ struct Stream {
 
 [[nodiscard]] bool GoodForRequest(
 	const QImage &image,
+	bool hasAlpha,
 	int rotation,
 	const FrameRequest &request);
 [[nodiscard]] QImage ConvertFrame(

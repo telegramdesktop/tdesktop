@@ -103,6 +103,8 @@ public:
 	}
 
 private:
+	struct Waiter;
+
 	struct SkipState {
 		enum Value {
 			Unknown,
@@ -111,7 +113,6 @@ private:
 		};
 		Value value = Value::Unknown;
 		bool silent = false;
-		bool alsoMuted = false;
 	};
 	struct NotificationInHistoryKey {
 		NotificationInHistoryKey(ItemNotification notification);
@@ -126,12 +127,6 @@ private:
 			return std::pair(a.messageId, a.type)
 				< std::pair(b.messageId, b.type);
 		}
-	};
-	struct Waiter {
-		NotificationInHistoryKey key;
-		crl::time when = 0;
-		PeerData *notifyBy = nullptr;
-		bool alsoMuted = false;
 	};
 	struct Timing {
 		crl::time delay = 0;
@@ -152,8 +147,7 @@ private:
 	[[nodiscard]] SkipState skipNotification(
 		ItemNotification notification) const;
 	[[nodiscard]] SkipState computeSkipState(
-		not_null<HistoryItem*> item,
-		bool showForMuted) const;
+		ItemNotification notification) const;
 	[[nodiscard]] Timing countTiming(
 		not_null<History*> history,
 		crl::time minimalDelay) const;
@@ -219,7 +213,8 @@ public:
 	struct NotificationFields {
 		not_null<HistoryItem*> item;
 		int forwardedCount = 0;
-		QString reaction;
+		PeerData *reactionFrom = nullptr;
+		QString reactionEmoji;
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {

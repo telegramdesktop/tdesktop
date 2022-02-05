@@ -444,7 +444,8 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 		}
 		frame->format = FrameFormat::YUV420;
 	} else {
-		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA);
+		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA)
+			|| (frame->decoded->format == AV_PIX_FMT_YUVA420P);
 		frame->yuv420.size = {
 			frame->decoded->width,
 			frame->decoded->height
@@ -610,6 +611,8 @@ bool VideoTrackObject::processFirstFrame() {
 	if (_stream.frame->width * _stream.frame->height > kMaxFrameArea) {
 		return false;
 	}
+	const auto alpha = (_stream.frame->format == AV_PIX_FMT_BGRA)
+		|| (_stream.frame->format == AV_PIX_FMT_YUVA420P);
 	auto frame = ConvertFrame(
 		_stream,
 		_stream.frame.get(),
@@ -618,7 +621,7 @@ bool VideoTrackObject::processFirstFrame() {
 	if (frame.isNull()) {
 		return false;
 	}
-	_shared->init(std::move(frame), _syncTimePoint.trackTime);
+	_shared->init(std::move(frame), alpha, _syncTimePoint.trackTime);
 	callReady();
 	queueReadFrames();
 	return true;
@@ -658,6 +661,7 @@ void VideoTrackObject::callReady() {
 	}
 	data.cover = frame->original;
 	data.rotation = _stream.rotation;
+	data.alpha = frame->alpha;
 	data.state.duration = _stream.duration;
 	data.state.position = _syncTimePoint.trackTime;
 	data.state.receivedTill = _readTillEnd
@@ -701,12 +705,16 @@ void VideoTrackObject::fail(Error error) {
 	_error(error);
 }
 
-void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
+void VideoTrack::Shared::init(
+		QImage &&cover,
+		bool hasAlpha,
+		crl::time position) {
 	Expects(!initialized());
 
 	_frames[0].original = std::move(cover);
 	_frames[0].position = position;
 	_frames[0].format = FrameFormat::ARGB32;
+	_frames[0].alpha = hasAlpha;
 
 	// Usually main thread sets displayed time before _counter increment.
 	// But in this case we update _counter, so we set a fake displayed time.
@@ -1110,8 +1118,11 @@ QImage VideoTrack::frame(
 		&& frame->format == FrameFormat::YUV420) {
 		frame->original = ConvertToARGB32(frame->yuv420);
 	}
-	if (!frame->alpha
-		&& GoodForRequest(frame->original, _streamRotation, useRequest)) {
+	if (GoodForRequest(
+			frame->original,
+			frame->alpha,
+			_streamRotation,
+			useRequest)) {
 		return frame->original;
 	} else if (changed || none || i->second.image.isNull()) {
 		const auto j = none
@@ -1156,6 +1167,7 @@ FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
 		.yuv420 = &data.frame->yuv420,
 		.format = data.frame->format,
 		.index = data.index,
+		.alpha = data.frame->alpha,
 	};
 }
 
@@ -1187,8 +1199,11 @@ void VideoTrack::PrepareFrameByRequests(
 	const auto end = frame->prepared.end();
 	for (auto i = begin; i != end; ++i) {
 		auto &prepared = i->second;
-		if (frame->alpha
-			|| !GoodForRequest(frame->original, rotation, prepared.request)) {
+		if (!GoodForRequest(
+				frame->original,
+				frame->alpha,
+				rotation,
+				prepared.request)) {
 			auto j = begin;
 			for (; j != i; ++j) {
 				if (j->second.request == prepared.request) {

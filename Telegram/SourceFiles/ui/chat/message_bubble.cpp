@@ -266,11 +266,6 @@ std::unique_ptr<BubblePattern> PrepareBubblePattern(
 	};
 	addShadow(result->corners[2]);
 	addShadow(result->corners[3]);
-	result->tailLeft = st::historyBubbleTailOutLeft.instance(Qt::white);
-	result->tailRight = st::historyBubbleTailOutRight.instance(Qt::white);
-	result->tailCache = QImage(
-		result->tailLeft.size(),
-		QImage::Format_ARGB32_Premultiplied);
 	result->cornerTopCache = QImage(
 		result->corners[0].size(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -278,6 +273,14 @@ std::unique_ptr<BubblePattern> PrepareBubblePattern(
 		result->corners[2].size(),
 		QImage::Format_ARGB32_Premultiplied);
 	return result;
+}
+
+void FinishBubblePatternOnMain(not_null<BubblePattern*> pattern) {
+	pattern->tailLeft = st::historyBubbleTailOutLeft.instance(Qt::white);
+	pattern->tailRight = st::historyBubbleTailOutRight.instance(Qt::white);
+	pattern->tailCache = QImage(
+		pattern->tailLeft.size(),
+		QImage::Format_ARGB32_Premultiplied);
 }
 
 void PaintBubble(Painter &p, const SimpleBubble &args) {
