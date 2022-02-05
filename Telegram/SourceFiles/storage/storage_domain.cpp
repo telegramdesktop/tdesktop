@@ -511,7 +511,6 @@ void Domain::EncryptFakePasscodes() {
 
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-        _fakePasscodes[i].SetSalt(_passcodeKeySalt);
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
         _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakeEncryptedPasscodes[i]);
@@ -523,6 +522,7 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     FakePasscode::FakePasscode fakePasscode;
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
+    fakePasscode.SetSalt(_passcodeKeySalt);
     _fakePasscodes.push_back(std::move(fakePasscode));
     _fakeEncryptedPasscodes.push_back(_fakePasscodes.back().GetEncryptedPasscode());
     writeAccounts();
@@ -533,6 +533,7 @@ void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex
     FAKE_LOG(("Setup passcode with name"));
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
+    _fakePasscodes[fakeIndex].SetSalt(_passcodeKeySalt);
     _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
     writeAccounts();
     _fakePasscodeChanged.fire({});

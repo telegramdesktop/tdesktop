@@ -106,7 +106,7 @@ FakePasscodeList::FakePasscodeList(QWidget * parent, not_null<Main::Domain *> do
 
 void FakePasscodeList::draw(size_t passcodesSize) {
     using namespace Settings;
-    FAKE_LOG(("Draw %1 passccodes").arg(passcodesSize));
+    FAKE_LOG(("Draw %1 passcodes").arg(passcodesSize));
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     for (size_t i = 0; i < passcodesSize; ++i) {
         AddButton(content, tr::lng_fakepasscode(lt_caption, _domain->local().GetFakePasscodeName(i)),
@@ -139,7 +139,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
         _domain->local().writeAccounts();
     });
     Ui::ResizeFitChild(this, content);
-    FAKE_LOG(("Draw %1 passccodes: success").arg(passcodesSize));
+    FAKE_LOG(("Draw %1 passcodes: success").arg(passcodesSize));
 }
 
 void FakePasscodeList::setupContent() {

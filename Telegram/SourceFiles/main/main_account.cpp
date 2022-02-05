@@ -522,13 +522,8 @@ void Account::logOut() {
 	}
 }
 
-void Account::mtpLogOut(bool performUsualLogout) {
-    _mtp->logout([=] {
-        if (performUsualLogout) {
-            loggedOut();
-        }
-        local().removeMtpDataFile();
-    });
+void Account::mtpLogOut(Fn<void()>&& done) {
+    _mtp->logout(std::move(done));
 }
 
 bool Account::loggingOut() const {
@@ -548,8 +543,6 @@ void Account::loggedOut() {
 	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
-
-    local().removeAccountSpecificData();
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
@@ -620,6 +613,11 @@ void Account::resetAuthorizationKeys() {
 		startMtp(std::move(config));
 	}
 	local().writeMtpData();
+}
+
+void Account::postLogoutClearing() {
+    local().removeAccountSpecificData();
+    local().removeMtpDataFile();
 }
 
 } // namespace Main

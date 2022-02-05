@@ -59,9 +59,11 @@ public:
 		std::unique_ptr<SessionSettings> settings);
 
 	void logOut();
-    void mtpLogOut(bool performUsualLogout);
+    void mtpLogOut(Fn<void()>&& done);
 	void forcedLogOut();
 	[[nodiscard]] bool loggingOut() const;
+
+    void postLogoutClearing();
 
 	[[nodiscard]] AppConfig &appConfig() const {
 		Expects(_appConfig != nullptr);

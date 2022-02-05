@@ -12,7 +12,7 @@ void FakePasscode::LogoutAction::Execute() {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
             account->loggedOut();
-            account->mtpLogOut(false);
+            account->mtpLogOut([account = account.get()] { account->postLogoutClearing(); });
             index_to_logout_.remove(index);
         }
     }

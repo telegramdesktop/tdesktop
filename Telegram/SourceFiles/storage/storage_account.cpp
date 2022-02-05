@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "window/themes/window_theme.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Storage {
 namespace {
 
@@ -2796,6 +2798,7 @@ bool Account::decrypt(
 }
 
 void Account::removeAccountSpecificData() const {
+    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
     QDir(_basePath).removeRecursively();
     QDir(_databasePath).removeRecursively();
 }
