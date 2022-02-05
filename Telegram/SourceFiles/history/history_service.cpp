@@ -903,7 +903,9 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 					Ui::kQEllipsis);
 			}
 			original = Ui::Text::Wrapped(
-				std::move(original),
+				Ui::Text::Filtered(
+					std::move(original),
+					{ EntityType::Spoiler, EntityType::StrikeOut }),
 				EntityType::CustomUrl,
 				Ui::Text::Link({}, 2).entities.front().data());
 			result.text = tr::lng_action_pinned_message(
