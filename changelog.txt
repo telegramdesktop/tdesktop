@@ -1,3 +1,8 @@
+3.5.2 (06.02.22)
+
+- Fix a freeze in audio playback on Linux.
+- Fix a crash in screen sharing initialization on Linux.
+
 3.5.1 (04.02.22)
 
 - Keep the screen on while watching a video or participating in a video chat.
