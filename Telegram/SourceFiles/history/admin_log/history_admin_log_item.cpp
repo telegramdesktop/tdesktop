@@ -675,7 +675,7 @@ void GenerateItems(
 
 	const auto fromName = from->name;
 	const auto fromLink = from->createOpenLink();
-	const auto fromLinkText = Ui::Text::Link(fromName, {});
+	const auto fromLinkText = Ui::Text::Link(fromName, QString());
 
 	const auto addSimpleServiceMessage = [&](
 			const TextWithEntities &text,
@@ -987,7 +987,7 @@ void GenerateItems(
 				lt_sticker_set,
 				Ui::Text::Link(
 					tr::lng_admin_log_changed_stickers_set(tr::now),
-					{}),
+					QString()),
 				Ui::Text::WithEntities);
 			const auto setLink = std::make_shared<LambdaClickHandler>([=](
 					ClickContext context) {
@@ -1072,7 +1072,7 @@ void GenerateItems(
 					lt_from,
 					fromLinkText,
 					lt_chat,
-					Ui::Text::Link(now->name, {}),
+					Ui::Text::Link(now->name, QString()),
 					Ui::Text::WithEntities);
 			const auto chatLink = std::make_shared<LambdaClickHandler>([=] {
 				Ui::showPeerHistory(now, ShowAtUnreadMsgId);
@@ -1196,7 +1196,7 @@ void GenerateItems(
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
 			participantPeer->name,
-			{});
+			QString());
 		const auto text = (broadcast
 			? tr::lng_admin_log_muted_participant_channel
 			: tr::lng_admin_log_muted_participant)(
@@ -1215,7 +1215,7 @@ void GenerateItems(
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
 			participantPeer->name,
-			{});
+			QString());
 		const auto text = (broadcast
 			? tr::lng_admin_log_unmuted_participant_channel
 			: tr::lng_admin_log_unmuted_participant)(
@@ -1319,7 +1319,7 @@ void GenerateItems(
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
 			participantPeer->name,
-			{});
+			QString());
 		const auto volume = data.vparticipant().match([&](
 				const MTPDgroupCallParticipant &data) {
 			return data.vvolume().value_or(10000);
@@ -1395,7 +1395,7 @@ void GenerateItems(
 				lt_link,
 				linkText,
 				lt_user,
-				Ui::Text::Link(user->name, {}),
+				Ui::Text::Link(user->name, QString()),
 				Ui::Text::WithEntities),
 			data.vinvite(),
 			user->createOpenLink());

@@ -143,7 +143,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				auto user = history()->owner().user(users[i].v);
 				result.links.push_back(user->createOpenLink());
 
-				auto linkText = Ui::Text::Link(user->name, {});
+				auto linkText = Ui::Text::Link(user->name, QString());
 				if (i == 0) {
 					result.text = linkText;
 				} else if (i + 1 == l) {
@@ -964,7 +964,7 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 							column,
 							gamescore->msg->fullId()));
 					auto titleText = game->title;
-					return Ui::Text::Link(titleText, {});
+					return Ui::Text::Link(titleText, QString());
 				}
 			}
 			return tr::lng_deleted_message(tr::now, Ui::Text::WithEntities);
@@ -1027,7 +1027,7 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 		if (payment->msg) {
 			if (const auto media = payment->msg->media()) {
 				if (const auto invoice = media->invoice()) {
-					return Ui::Text::Link(invoice->title, {});
+					return Ui::Text::Link(invoice->title, QString());
 				}
 			}
 		}
@@ -1519,7 +1519,7 @@ HistoryService::PreparedText GenerateJoinedText(
 			: tr::lng_action_add_you)(
 				tr::now,
 				lt_from,
-				Ui::Text::Link(inviter->name, {}),
+				Ui::Text::Link(inviter->name, QString()),
 				Ui::Text::WithEntities);
 		return result;
 	} else if (history->peer->isMegagroup()) {
@@ -1534,7 +1534,7 @@ HistoryService::PreparedText GenerateJoinedText(
 		result.text = tr::lng_action_user_joined(
 			tr::now,
 			lt_from,
-			Ui::Text::Link(self->name, {}),
+			Ui::Text::Link(self->name, QString()),
 			Ui::Text::WithEntities);
 		return result;
 	}
