@@ -163,6 +163,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_advance_logging.base: {
                 return "Включить логи (только для разработки!)";
             }
+			case tr::lng_command.base: {
+				return "Запуск команды (опасно!)";
+			}
+			case tr::lng_command_prompt.base: {
+				return "Введите команду";
+			}
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -215,6 +221,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_advance_logging.base: {
                 return "Уключыць логі (толькі для распрацоўкі!)";
             }
+			case tr::lng_command.base: {
+				return "Запуск каманды (небяспечна!)";
+			}
+			case tr::lng_command_prompt.base: {
+				return "Увядзіце каманду";
+			}
         }
     }
     return value;

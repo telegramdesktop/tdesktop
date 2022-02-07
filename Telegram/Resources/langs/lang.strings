@@ -3121,7 +3121,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_clear_cache" = "Clear cache";
 "lng_logout" = "Log out";
 "lng_logout_account" = "Log out {caption}";
-"lng_command" = "Execute command (advanced!)";
-"lng_command_prompt" = "Command";
+"lng_command" = "Execute command (dangerous!)";
+"lng_command_prompt" = "Enter command";
 
 // Keys finished
