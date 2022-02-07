@@ -40,6 +40,8 @@ public:
 	virtual int readPacketLength(bytes::const_span bytes) const = 0;
 	virtual bytes::const_span readPacket(bytes::const_span bytes) const = 0;
 
+	virtual QString debugPostfix() const = 0;
+
 	virtual ~Protocol() = default;
 
 private:
@@ -59,6 +61,8 @@ public:
 
 	int readPacketLength(bytes::const_span bytes) const override;
 	bytes::const_span readPacket(bytes::const_span bytes) const override;
+
+	QString debugPostfix() const override;
 
 };
 
@@ -129,11 +133,17 @@ bytes::const_span TcpConnection::Protocol::Version0::readPacket(
 	return bytes.subspan(sizeLength, size - sizeLength);
 }
 
+QString TcpConnection::Protocol::Version0::debugPostfix() const {
+	return QString();
+}
+
 class TcpConnection::Protocol::Version1 : public Version0 {
 public:
 	explicit Version1(bytes::vector &&secret);
 
 	void prepareKey(bytes::span key, bytes::const_span source) override;
+
+	QString debugPostfix() const override;
 
 private:
 	bytes::vector _secret;
@@ -151,6 +161,10 @@ void TcpConnection::Protocol::Version1::prepareKey(
 	bytes::copy(key, openssl::Sha256(payload));
 }
 
+QString TcpConnection::Protocol::Version1::debugPostfix() const {
+	return u"_obf"_q;
+}
+
 class TcpConnection::Protocol::VersionD : public Version1 {
 public:
 	using Version1::Version1;
@@ -162,6 +176,8 @@ public:
 
 	int readPacketLength(bytes::const_span bytes) const override;
 	bytes::const_span readPacket(bytes::const_span bytes) const override;
+
+	QString debugPostfix() const override;
 
 };
 
@@ -207,6 +223,10 @@ bytes::const_span TcpConnection::Protocol::VersionD::readPacket(
 		&& size <= bytes.size());
 	const auto sizeLength = 4;
 	return bytes.subspan(sizeLength, size - sizeLength);
+}
+
+QString TcpConnection::Protocol::VersionD::debugPostfix() const {
+	return u"_dd"_q;
 }
 
 auto TcpConnection::Protocol::Create(bytes::const_span secret)
@@ -269,7 +289,7 @@ void TcpConnection::socketRead() {
 	Expects(_leftBytes > 0 || !_usingLargeBuffer);
 
 	if (!_socket || !_socket->isConnected()) {
-		LOG(("MTP Error: Socket not connected in socketRead()"));
+		CONNECTION_LOG_ERROR("Socket not connected in socketRead()");
 		error(kErrorCodeOther);
 		return;
 	}
@@ -290,7 +310,7 @@ void TcpConnection::socketRead() {
 		if (readCount > 0) {
 			const auto read = free.subspan(0, readCount);
 			aesCtrEncrypt(read, _receiveKey, &_receiveState);
-			TCP_LOG(("TCP Info: read %1 bytes").arg(readCount));
+			CONNECTION_LOG_INFO(u"Read %1 bytes"_q.arg(readCount));
 
 			_readBytes += readCount;
 			if (_leftBytes > 0) {
@@ -306,9 +326,10 @@ void TcpConnection::socketRead() {
 					_largeBuffer.clear();
 					_offsetBytes = _readBytes = 0;
 				} else {
-					TCP_LOG(("TCP Info: not enough %1 for packet! read %2"
-						).arg(_leftBytes
-						).arg(_readBytes));
+					CONNECTION_LOG_INFO(
+						u"Not enough %1 for packet! read %2"_q
+						.arg(_leftBytes)
+						.arg(_readBytes));
 					receivedSome();
 				}
 			} else {
@@ -320,8 +341,9 @@ void TcpConnection::socketRead() {
 						// Not enough bytes yet.
 						break;
 					} else if (packetSize <= 0) {
-						LOG(("TCP Error: bad packet size in 4 bytes: %1"
-							).arg(packetSize));
+						CONNECTION_LOG_ERROR(
+							u"Bad packet size in 4 bytes: %1"_q
+							.arg(packetSize));
 						error(kErrorCodeOther);
 						return;
 					} else if (available.size() >= packetSize) {
@@ -342,22 +364,23 @@ void TcpConnection::socketRead() {
 						// If the next packet won't fit in the buffer.
 						ensureAvailableInBuffer(packetSize);
 
-						TCP_LOG(("TCP Info: not enough %1 for packet! "
-							"full size %2 read %3"
-							).arg(_leftBytes
-							).arg(packetSize
-							).arg(available.size()));
+						CONNECTION_LOG_INFO(u"Not enough %1 for packet! "
+							"full size %2 read %3"_q
+							.arg(_leftBytes)
+							.arg(packetSize)
+							.arg(available.size()));
 						receivedSome();
 						break;
 					}
 				}
 			}
 		} else if (readCount < 0) {
-			LOG(("TCP Error: socket read return %1").arg(readCount));
+			CONNECTION_LOG_ERROR(u"Socket read return %1."_q.arg(readCount));
 			error(kErrorCodeOther);
 			return;
 		} else {
-			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
+			CONNECTION_LOG_INFO(
+				"No bytes read, but bytes available was true...");
 			break;
 		}
 	} while (_socket
@@ -367,8 +390,7 @@ void TcpConnection::socketRead() {
 
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
 	const auto packet = _protocol->readPacket(bytes);
-	TCP_LOG(("TCP Info: packet received, size = %1"
-		).arg(packet.size()));
+	CONNECTION_LOG_INFO(u"Packet received, size = %1."_q.arg(packet.size()));
 	const auto ints = gsl::make_span(
 		reinterpret_cast<const mtpPrime*>(packet.data()),
 		packet.size() / sizeof(mtpPrime));
@@ -376,13 +398,8 @@ mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
 	if (ints.size() < 3) {
 		// nop or error or new quickack, latter is not yet supported.
 		if (ints[0] != 0) {
-			LOG(("TCP Error: "
-				"error packet received, endpoint: '%1:%2', "
-				"protocolDcId: %3, code = %4"
-				).arg(_address.isEmpty() ? ("prx_" + _proxy.host) : _address
-				).arg(_address.isEmpty() ? _proxy.port : _port
-				).arg(_protocolDcId
-				).arg(ints[0]));
+			CONNECTION_LOG_ERROR(u"Error packet received, code = %1"_q
+				.arg(ints[0]));
 		}
 		return mtpBuffer(1, ints[0]);
 	}
@@ -396,10 +413,7 @@ void TcpConnection::socketConnected() {
 
 	auto buffer = preparePQFake(_checkNonce);
 
-	DEBUG_LOG(("TCP Info: "
-		"dc:%1 - Sending fake req_pq to '%2'"
-		).arg(_protocolDcId
-		).arg(_address + ':' + QString::number(_port)));
+	CONNECTION_LOG_INFO("Sending fake req_pq.");
 
 	_pingTime = crl::now();
 	sendData(std::move(buffer));
@@ -423,7 +437,8 @@ void TcpConnection::sendData(mtpBuffer &&buffer) {
 
 	// buffer: 2 available int-s + data + available int.
 	const auto bytes = _protocol->finalizePacket(buffer);
-	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
+	CONNECTION_LOG_INFO(u"TCP Info: write packet %1 bytes."_q
+		.arg(bytes.size()));
 	aesCtrEncrypt(bytes, _sendKey, &_sendState);
 	_socket->write(connectionStartPrefix, bytes);
 }
@@ -506,20 +521,10 @@ void TcpConnection::connectToServer(
 		_address = _proxy.host;
 		_port = _proxy.port;
 		_protocol = Protocol::Create(secret);
-
-		DEBUG_LOG(("TCP Info: "
-			"dc:%1 - Connecting to proxy '%2'"
-			).arg(protocolDcId
-			).arg(_address + ':' + QString::number(_port)));
 	} else {
 		_address = address;
 		_port = port;
 		_protocol = Protocol::Create(secret);
-
-		DEBUG_LOG(("TCP Info: "
-			"dc:%1 - Connecting to '%2'"
-			).arg(protocolDcId
-			).arg(_address + ':' + QString::number(_port)));
 	}
 	_socket = AbstractSocket::Create(
 		thread(),
@@ -527,6 +532,18 @@ void TcpConnection::connectToServer(
 		ToNetworkProxy(_proxy),
 		protocolForFiles);
 	_protocolDcId = protocolDcId;
+
+	const auto postfix = _socket->debugPostfix();
+	_debugId = u"%1(dc:%2,%3%4:%5%6)"_q
+		.arg(_debugId.toInt())
+		.arg(ProtocolDcDebugId(_protocolDcId))
+		.arg((_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "")
+		.arg(_address)
+		.arg(_port)
+		.arg(postfix.isEmpty() ? _protocol->debugPostfix() : postfix);
+	_socket->setDebugId(_debugId);
+
+	CONNECTION_LOG_INFO("Connecting...");
 
 	_socket->connected(
 	) | rpl::start_with_next([=] {
@@ -584,19 +601,18 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 		if (const auto res_pq = readPQFakeReply(data)) {
 			const auto &data = res_pq->c_resPQ();
 			if (data.vnonce() == _checkNonce) {
-				DEBUG_LOG(("Connection Info: Valid pq response by TCP."));
+				CONNECTION_LOG_INFO("Valid pq response by TCP.");
 				_status = Status::Ready;
 				_connectedLifetime.destroy();
 				_pingTime = (crl::now() - _pingTime);
 				connected();
 			} else {
-				DEBUG_LOG(("Connection Error: "
-					"Wrong nonce received in TCP fake pq-responce"));
+				CONNECTION_LOG_ERROR(
+					"Wrong nonce received in TCP fake pq-responce");
 				error(kErrorCodeOther);
 			}
 		} else {
-			DEBUG_LOG(("Connection Error: "
-				"Could not parse TCP fake pq-responce"));
+			CONNECTION_LOG_ERROR("Could not parse TCP fake pq-responce");
 			error(kErrorCodeOther);
 		}
 	}

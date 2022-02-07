@@ -28,4 +28,44 @@ std::unique_ptr<AbstractSocket> AbstractSocket::Create(
 	}
 }
 
+void AbstractSocket::logError(int errorCode, const QString &errorText) {
+	const auto log = [&](const QString &message) {
+		DEBUG_LOG(("Socket %1 Error: ").arg(_debugId) + message);
+	};
+	switch (errorCode) {
+	case QAbstractSocket::ConnectionRefusedError:
+		log(u"Socket connection refused - %1."_q.arg(errorText));
+		break;
+
+	case QAbstractSocket::RemoteHostClosedError:
+		log(u"Remote host closed socket connection - %1."_q.arg(errorText));
+		break;
+
+	case QAbstractSocket::HostNotFoundError:
+		log(u"Host not found - %1."_q.arg(errorText));
+		break;
+
+	case QAbstractSocket::SocketTimeoutError:
+		log(u"Socket timeout - %1."_q.arg(errorText));
+		break;
+
+	case QAbstractSocket::NetworkError: {
+		log(u"Network - %1."_q.arg(errorText));
+	} break;
+
+	case QAbstractSocket::ProxyAuthenticationRequiredError:
+	case QAbstractSocket::ProxyConnectionRefusedError:
+	case QAbstractSocket::ProxyConnectionClosedError:
+	case QAbstractSocket::ProxyConnectionTimeoutError:
+	case QAbstractSocket::ProxyNotFoundError:
+	case QAbstractSocket::ProxyProtocolError:
+		log(u"Proxy (%1) - %2."_q.arg(errorCode).arg(errorText));
+		break;
+
+	default:
+		log(u"Other (%1) - %2."_q.arg(errorCode).arg(errorText));
+		break;
+	}
+}
+
 } // namespace MTP::details

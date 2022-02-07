@@ -40,8 +40,8 @@ public:
 	QString transport() const override;
 	QString tag() const override;
 
-	static mtpBuffer handleResponse(QNetworkReply *reply);
-	static qint32 handleError(QNetworkReply *reply); // Returns error code.
+	mtpBuffer handleResponse(QNetworkReply *reply);
+	qint32 handleError(QNetworkReply *reply); // Returns error code.
 
 private:
 	QUrl url() const;

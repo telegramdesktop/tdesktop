@@ -43,7 +43,7 @@ void HttpConnection::sendData(mtpBuffer &&buffer) {
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
 	request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
-	TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
+	CONNECTION_LOG_INFO(u"Sending %1 len request."_q.arg(requestSize));
 	_requests.insert(_manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
@@ -78,10 +78,12 @@ void HttpConnection::connectToServer(
 
 	auto buffer = preparePQFake(_checkNonce);
 
-	DEBUG_LOG(("HTTP Info: "
-		"dc:%1 - Sending fake req_pq to '%2'"
-		).arg(protocolDcId
-		).arg(url().toDisplayString()));
+	if (Logs::DebugEnabled()) {
+		_debugId = u"%1(dc:%2,%3)"_q
+			.arg(_debugId.toInt())
+			.arg(ProtocolDcDebugId(protocolDcId))
+			.arg(url().toDisplayString());
+	}
 
 	_pingTime = crl::now();
 	sendData(std::move(buffer));
@@ -89,12 +91,12 @@ void HttpConnection::connectToServer(
 
 mtpBuffer HttpConnection::handleResponse(QNetworkReply *reply) {
 	QByteArray response = reply->readAll();
-	TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
+	CONNECTION_LOG_INFO(u"Read %1 bytes."_q.arg(response.size()));
 
 	if (response.isEmpty()) return mtpBuffer();
 
 	if (response.size() & 0x03 || response.size() < 8) {
-		LOG(("HTTP Error: bad response size %1").arg(response.size()));
+		CONNECTION_LOG_ERROR(u"Bad response size %1."_q.arg(response.size()));
 		return mtpBuffer(1, -500);
 	}
 
@@ -104,31 +106,46 @@ mtpBuffer HttpConnection::handleResponse(QNetworkReply *reply) {
 	return data;
 }
 
-qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad key"
+// Returns "maybe bad key".
+qint32 HttpConnection::handleError(QNetworkReply *reply) {
 	auto result = qint32(kErrorCodeOther);
 
-	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	QVariant statusCode = reply->attribute(
+		QNetworkRequest::HttpStatusCodeAttribute);
 	if (statusCode.isValid()) {
 		int status = statusCode.toInt();
 		result = -status;
 	}
 
 	switch (reply->error()) {
-	case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString())); break;
-	case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString())); break;
-	case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %1").arg(reply->errorString())); break;
-	case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %1").arg(reply->errorString())); break;
-	case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %1").arg(reply->errorString())); break;
+	case QNetworkReply::ConnectionRefusedError:
+		CONNECTION_LOG_ERROR(u"Connection refused - %1."_q
+			.arg(reply->errorString()));
+		break;
+	case QNetworkReply::RemoteHostClosedError:
+		CONNECTION_LOG_ERROR(u"Remote host closed - %1."_q
+			.arg(reply->errorString()));
+		break;
+	case QNetworkReply::HostNotFoundError:
+		CONNECTION_LOG_ERROR(u"Host not found - %1."_q
+			.arg(reply->errorString()));
+		break;
+	case QNetworkReply::TimeoutError:
+		CONNECTION_LOG_ERROR(u"Timeout - %1."_q
+			.arg(reply->errorString()));
+		break;
+	case QNetworkReply::OperationCanceledError:
+		CONNECTION_LOG_ERROR(u"Cancelled - %1."_q
+			.arg(reply->errorString()));
+		break;
 	case QNetworkReply::SslHandshakeFailedError:
 	case QNetworkReply::TemporaryNetworkFailureError:
 	case QNetworkReply::NetworkSessionFailedError:
 	case QNetworkReply::BackgroundRequestNotAllowedError:
 	case QNetworkReply::UnknownNetworkError:
-		if (reply->error() == QNetworkReply::UnknownNetworkError) {
-			DEBUG_LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
-		} else {
-			LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
-		}
+		CONNECTION_LOG_ERROR(u"Network error %1 - %2."_q
+			.arg(reply->error())
+			.arg(reply->errorString()));
 		break;
 
 	// proxy errors (101-199):
@@ -137,7 +154,11 @@ qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	case QNetworkReply::ProxyNotFoundError:
 	case QNetworkReply::ProxyTimeoutError:
 	case QNetworkReply::ProxyAuthenticationRequiredError:
-	case QNetworkReply::UnknownProxyError: LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::UnknownProxyError:
+		CONNECTION_LOG_ERROR(u"Proxy error %1 - %2."_q
+			.arg(reply->error())
+			.arg(reply->errorString()));
+		break;
 
 	// content errors (201-299):
 	case QNetworkReply::ContentAccessDenied:
@@ -145,14 +166,21 @@ qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	case QNetworkReply::ContentNotFoundError:
 	case QNetworkReply::AuthenticationRequiredError:
 	case QNetworkReply::ContentReSendError:
-	case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::UnknownContentError:
+		CONNECTION_LOG_ERROR(u"Content error %1 - %2."_q
+			.arg(reply->error())
+			.arg(reply->errorString()));
+		break;
 
 	// protocol errors
 	case QNetworkReply::ProtocolUnknownError:
 	case QNetworkReply::ProtocolInvalidOperationError:
-	case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::ProtocolFailure:
+		CONNECTION_LOG_ERROR(u"Protocol error %1 - %2."_q
+			.arg(reply->error())
+			.arg(reply->errorString()));
+		break;
 	};
-	TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
 
 	return result;
 }
@@ -178,20 +206,19 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 			} else if (const auto res_pq = readPQFakeReply(data)) {
 				const auto &data = res_pq->c_resPQ();
 				if (data.vnonce() == _checkNonce) {
-					DEBUG_LOG(("Connection Info: "
-						"HTTP-transport to %1 connected by pq-response"
-						).arg(_address));
+					CONNECTION_LOG_INFO(
+						"HTTP-transport connected by pq-response.");
 					_status = Status::Ready;
 					_pingTime = crl::now() - _pingTime;
 					connected();
 				} else {
-					DEBUG_LOG(("Connection Error: "
-						"Wrong nonce received in HTTP fake pq-responce"));
+					CONNECTION_LOG_ERROR(
+						"Wrong nonce in HTTP fake pq-response.");
 					error(kErrorCodeOther);
 				}
 			} else {
-				DEBUG_LOG(("Connection Error: "
-					"Could not parse HTTP fake pq-responce"));
+				CONNECTION_LOG_ERROR(
+					"Could not parse HTTP fake pq-response.");
 				error(kErrorCodeOther);
 			}
 		}

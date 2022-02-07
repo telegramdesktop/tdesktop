@@ -16,6 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 namespace details {
+namespace {
+
+std::atomic<int> GlobalConnectionCounter/* = 0*/;
+
+} // namespace
 
 ConnectionPointer::ConnectionPointer() = default;
 
@@ -158,7 +163,8 @@ std::optional<MTPResPQ> AbstractConnection::readPQFakeReply(
 AbstractConnection::AbstractConnection(
 	QThread *thread,
 	const ProxyData &proxy)
-: _proxy(proxy) {
+: _proxy(proxy)
+, _debugId(QString::number(++GlobalConnectionCounter)) {
 	moveToThread(thread);
 }
 
@@ -186,6 +192,24 @@ ConnectionPointer AbstractConnection::Create(
 			std::move(result));
 	}
 	return result;
+}
+
+QString AbstractConnection::ProtocolDcDebugId(int16 protocolDcId) {
+	const auto postfix = (protocolDcId < 0) ? "_media" : "";
+	protocolDcId = (protocolDcId < 0) ? (-protocolDcId) : protocolDcId;
+	const auto prefix = (protocolDcId > kTestModeDcIdShift) ? "test_" : "";
+	protocolDcId = (protocolDcId > kTestModeDcIdShift)
+		? (protocolDcId - kTestModeDcIdShift)
+		: protocolDcId;
+	return prefix + QString::number(protocolDcId) + postfix;
+}
+
+void AbstractConnection::logInfo(const QString &message) {
+	DEBUG_LOG(("Connection %1 Info: ").arg(_debugId) + message);
+}
+
+void AbstractConnection::logError(const QString &message) {
+	DEBUG_LOG(("Connection %1 Error: ").arg(_debugId) + message);
 }
 
 uint32 AbstractConnection::extendedNotSecurePadding() const {

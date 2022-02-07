@@ -114,50 +114,12 @@ int32 TcpSocket::debugState() {
 	return _socket.state();
 }
 
-void TcpSocket::LogError(int errorCode, const QString &errorText) {
-	switch (errorCode) {
-	case QAbstractSocket::ConnectionRefusedError:
-		LOG(("TCP Error: socket connection refused - %1").arg(errorText));
-		break;
-
-	case QAbstractSocket::RemoteHostClosedError:
-		TCP_LOG(("TCP Info: remote host closed socket connection - %1"
-			).arg(errorText));
-		break;
-
-	case QAbstractSocket::HostNotFoundError:
-		LOG(("TCP Error: host not found - %1").arg(errorText));
-		break;
-
-	case QAbstractSocket::SocketTimeoutError:
-		LOG(("TCP Error: socket timeout - %1").arg(errorText));
-		break;
-
-	case QAbstractSocket::NetworkError: {
-		DEBUG_LOG(("TCP Error: network - %1").arg(errorText));
-	} break;
-
-	case QAbstractSocket::ProxyAuthenticationRequiredError:
-	case QAbstractSocket::ProxyConnectionRefusedError:
-	case QAbstractSocket::ProxyConnectionClosedError:
-	case QAbstractSocket::ProxyConnectionTimeoutError:
-	case QAbstractSocket::ProxyNotFoundError:
-	case QAbstractSocket::ProxyProtocolError:
-		LOG(("TCP Error: proxy (%1) - %2").arg(errorCode).arg(errorText));
-		break;
-
-	default:
-		LOG(("TCP Error: other (%1) - %2").arg(errorCode).arg(errorText));
-		break;
-	}
-
-	TCP_LOG(("TCP Error %1, restarting! - %2"
-		).arg(errorCode
-		).arg(errorText));
+QString TcpSocket::debugPostfix() const {
+	return QString();
 }
 
 void TcpSocket::handleError(int errorCode) {
-	LogError(errorCode, _socket.errorString());
+	logError(errorCode, _socket.errorString());
 	_error.fire({});
 }
 
