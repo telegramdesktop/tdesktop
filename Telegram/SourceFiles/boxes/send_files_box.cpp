@@ -916,7 +916,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::boxTitleFg);
 		p.drawTextLeft(
 			st::boxPhotoTitlePosition.x(),
-			st::boxTitlePosition.y(),
+			st::boxTitlePosition.y() - st::boxTopMargin,
 			width(),
 			_titleText);
 	}

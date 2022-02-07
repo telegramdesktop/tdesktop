@@ -139,8 +139,8 @@ contactUserIcon: icon {{ "settings/settings_name", menuIconFg }};
 contactPhoneIcon: icon {{ "settings/settings_phone_number", menuIconFg }};
 contactIconPosition: point(-5px, 23px);
 
-contactPadding: margins(49px, 2px, 0px, 12px);
-contactSkip: 6px;
+contactPadding: margins(49px, 2px, 0px, 14px);
+contactSkip: 9px;
 contactPhoneSkip: 30px;
 
 contactsPhotoSize: 42px;

@@ -41,6 +41,8 @@ struct UserpicState {
 	std::vector<std::shared_ptr<Data::PhotoMedia>> photoPreloads;
 	InMemoryKey userpicKey;
 	PhotoId photoId = PeerData::kUnknownPhotoId;
+	std::array<QImage, 4> roundMask;
+	int size = 0;
 	bool waitingFull = false;
 	bool waitingLoad = false;
 };
@@ -50,16 +52,16 @@ void GenerateImage(
 		QImage image,
 		bool blurred = false) {
 	using namespace Images;
-	const auto size = st::shortInfoWidth;
+	const auto size = state->size;
 	const auto ratio = style::DevicePixelRatio();
-	const auto options = Option::RoundSmall
-		| Option::RoundSkipBottomLeft
-		| Option::RoundSkipBottomRight
-		| (blurred ? Option::Blur : Option());
-	state->current.photo = Images::Prepare(
-		std::move(image),
-		QSize(size, size) * ratio,
-		{ .options = options, .outer = { size, size } });
+	const auto options = blurred ? Option::Blur : Option();
+	state->current.photo = Images::Round(
+		Images::Prepare(
+			std::move(image),
+			QSize(size, size) * ratio,
+			{ .options = options, .outer = { size, size } }),
+		state->roundMask,
+		RectPart::TopLeft | RectPart::TopRight);
 }
 
 void GenerateImage(
@@ -350,14 +352,19 @@ bool ProcessCurrent(
 }
 
 [[nodiscard]] PreparedShortInfoUserpic UserpicValue(
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		const style::ShortInfoCover &st) {
 	const auto moveRequests = std::make_shared<rpl::event_stream<int>>();
 	auto move = [=](int shift) {
 		moveRequests->fire_copy(shift);
 	};
+	const auto size = st.size;
+	const auto radius = st.radius;
 	auto value = [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		const auto state = lifetime.make_state<UserpicState>();
+		state->size = size;
+		state->roundMask = Images::CornersMask(radius);
 		const auto push = [=](bool force = false) {
 			if (ProcessCurrent(peer, state) || force) {
 				consumer.put_next_copy(state->current);
@@ -421,7 +428,7 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel
 		: PeerShortInfoType::Group;
-	auto userpic = UserpicValue(peer);
+	auto userpic = UserpicValue(peer, st::shortInfoCover);
 	auto result = Box<PeerShortInfoBox>(
 		type,
 		FieldsValue(peer),
@@ -456,6 +463,8 @@ rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {
 	return StatusValue(peer);
 }
 
-PreparedShortInfoUserpic PrepareShortInfoUserpic(not_null<PeerData*> peer) {
-	return UserpicValue(peer);
+PreparedShortInfoUserpic PrepareShortInfoUserpic(
+		not_null<PeerData*> peer,
+		const style::ShortInfoCover &st) {
+	return UserpicValue(peer, st);
 }

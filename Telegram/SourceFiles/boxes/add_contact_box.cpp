@@ -1381,7 +1381,7 @@ void EditNameBox::prepare() {
 	newHeight += st::contactSkip + _last->height();
 
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
-	setDimensions(st::boxWideWidth, newHeight);
+	setDimensions(st::boxWidth, newHeight);
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });

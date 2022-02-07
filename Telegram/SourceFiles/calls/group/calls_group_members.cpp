@@ -1263,7 +1263,9 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				participantPeer
 			) | rpl::map([](const auto &text) { return text.text; }),
 			PrepareShortInfoStatus(participantPeer),
-			PrepareShortInfoUserpic(participantPeer)));
+			PrepareShortInfoUserpic(
+				participantPeer,
+				st::groupCallMenuCover)));
 
 		if (const auto about = participantPeer->about(); !about.isEmpty()) {
 			result->addAction(base::make_unique_q<AboutItem>(
