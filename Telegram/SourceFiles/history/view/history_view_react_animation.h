@@ -18,26 +18,26 @@ class Reactions;
 } // namespace Data
 
 namespace HistoryView {
-struct SendReactionAnimationArgs;
+struct ReactionAnimationArgs;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
-class SendAnimation final {
+class Animation final {
 public:
-	SendAnimation(
+	Animation(
 		not_null<::Data::Reactions*> owner,
-		SendReactionAnimationArgs &&args,
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint,
 		int size);
-	~SendAnimation();
+	~Animation();
 
 	void setRepaintCallback(Fn<void()> repaint);
 	QRect paintGetArea(QPainter &p, QPoint origin, QRect target) const;
 
-	[[nodiscard]] QString playingAroundEmoji() const;
 	[[nodiscard]] bool flying() const;
 	[[nodiscard]] float64 flyingProgress() const;
+	[[nodiscard]] bool finished() const;
 
 private:
 	void flyCallback();
@@ -46,7 +46,6 @@ private:
 	int computeParabolicTop(int from, int to, float64 progress) const;
 
 	const not_null<::Data::Reactions*> _owner;
-	const QString _emoji;
 	Fn<void()> _repaint;
 	std::shared_ptr<Lottie::Icon> _flyIcon;
 	std::unique_ptr<Lottie::Icon> _center;

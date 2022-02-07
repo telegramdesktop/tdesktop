@@ -356,13 +356,18 @@ void Document::draw(
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 	const auto radialOpacity = radial ? _animation->radial.opacity() : 1.;
 	if (thumbed) {
-		auto inWebPage = (_parent->media() != this);
-		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+		const auto inWebPage = (_parent->media() != this);
+		const auto args = Images::PrepareArgs{
+			.options = (inWebPage
+				? Images::Option::RoundSmall
+				: Images::Option::RoundLarge),
+			.outer = QSize(st.thumbSize, st.thumbSize),
+		};
 		QPixmap thumb;
 		if (const auto normal = _dataMedia->thumbnail()) {
-			thumb = normal->pixSingle(thumbed->_thumbw, 0, st.thumbSize, st.thumbSize, roundRadius);
+			thumb = normal->pixSingle(thumbed->_thumbw, args);
 		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-			thumb = blurred->pixBlurredSingle(thumbed->_thumbw, 0, st.thumbSize, st.thumbSize, roundRadius);
+			thumb = blurred->pixSingle(thumbed->_thumbw, args.blurred());
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (context.selected()) {
@@ -1090,32 +1095,27 @@ bool DrawThumbnailAsSongCover(
 		return false;
 	}
 
-	QPixmap cover;
-
-	const auto ow = rect.width();
-	const auto oh = rect.height();
-	const auto r = ImageRoundRadius::Ellipse;
-	const auto c = RectPart::AllCorners;
-	const auto aspectRatio = Qt::KeepAspectRatioByExpanding;
-
-	const auto scaled = [&](not_null<Image*> image) -> std::pair<int, int> {
-		const auto size = image->size().scaled(ow, oh, aspectRatio);
-		return { size.width(), size.height() };
+	auto cover = QPixmap();
+	const auto scaled = [&](not_null<Image*> image) {
+		const auto aspectRatio = Qt::KeepAspectRatioByExpanding;
+		return image->size().scaled(rect.size(), aspectRatio);
 	};
-
+	const auto args = Images::PrepareArgs{
+		.colored = &colored,
+		.options = Images::Option::RoundCircle,
+		.outer = rect.size(),
+	};
 	if (const auto normal = dataMedia->thumbnail()) {
-		const auto &[w, h] = scaled(normal);
-		cover = normal->pixSingle(w, h, ow, oh, r, c, &colored);
+		cover = normal->pixSingle(scaled(normal), args);
 	} else if (const auto blurred = dataMedia->thumbnailInline()) {
-		const auto &[w, h] = scaled(blurred);
-		cover = blurred->pixBlurredSingle(w, h, ow, oh, r, c, &colored);
+		cover = blurred->pixSingle(scaled(blurred), args.blurred());
 	} else {
 		return false;
 	}
 	if (selected) {
-		auto selectedCover = Images::prepareColored(
-			p.textPalette().selectOverlay,
-			cover.toImage());
+		auto selectedCover = Images::Colored(
+			cover.toImage(),
+			p.textPalette().selectOverlay);
 		cover = QPixmap::fromImage(
 			std::move(selectedCover),
 			Qt::ColorOnly);

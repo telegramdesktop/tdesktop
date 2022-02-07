@@ -72,9 +72,10 @@ private:
 		void logFatal(QLatin1String method, FFmpeg::AvErrorWrap error);
 		void fail(Error error);
 
-		Stream initStream(
+		[[nodiscard]] Stream initStream(
 			not_null<AVFormatContext *> format,
-			AVMediaType type);
+			AVMediaType type,
+			Mode mode);
 		void seekToPosition(
 			not_null<AVFormatContext *> format,
 			const Stream &stream,

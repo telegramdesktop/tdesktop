@@ -22,13 +22,13 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
-struct SendReactionAnimationArgs;
+struct ReactionAnimationArgs;
 struct UserpicInRow;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
-class SendAnimation;
+class Animation;
 
 struct InlineListData {
 	enum class Flag : uchar {
@@ -40,7 +40,7 @@ struct InlineListData {
 	using Flags = base::flags<Flag>;
 
 	base::flat_map<QString, int> reactions;
-	base::flat_map<QString, std::vector<not_null<UserData*>>> recent;
+	base::flat_map<QString, std::vector<not_null<PeerData*>>> recent;
 	QString chosenReaction;
 	Flags flags = {};
 };
@@ -72,11 +72,14 @@ public:
 		QPoint point,
 		not_null<TextState*> outResult) const;
 
-	void animateSend(
-		SendReactionAnimationArgs &&args,
+	void animate(
+		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
-	[[nodiscard]] std::unique_ptr<SendAnimation> takeSendAnimation();
-	void continueSendAnimation(std::unique_ptr<SendAnimation> animation);
+	[[nodiscard]] auto takeAnimations()
+		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+	void continueAnimations(base::flat_map<
+		QString,
+		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
 	struct Userpics {
@@ -86,6 +89,7 @@ private:
 	};
 	struct Button {
 		QRect geometry;
+		mutable std::unique_ptr<Animation> animation;
 		mutable QImage image;
 		mutable ClickHandlerPtr link;
 		std::unique_ptr<Userpics> userpics;
@@ -101,7 +105,7 @@ private:
 	void setButtonCount(Button &button, int count);
 	void setButtonUserpics(
 		Button &button,
-		const std::vector<not_null<UserData*>> &users);
+		const std::vector<not_null<PeerData*>> &peers);
 	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
 	void resolveUserpicsImage(const Button &button) const;
 
@@ -112,8 +116,6 @@ private:
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
-
-	mutable std::unique_ptr<SendAnimation> _animation;
 
 };
 

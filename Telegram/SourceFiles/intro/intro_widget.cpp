@@ -41,10 +41,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "api/api_text_entities.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 
 namespace Intro {
 namespace {
@@ -304,7 +303,7 @@ void Widget::checkUpdateStatus() {
 		_update->toggle(!stepHasCover, anim::type::instant);
 		_update->entity()->setClickedCallback([] {
 			Core::checkReadyUpdate();
-			App::restart();
+			Core::Restart();
 		});
 	} else {
 		if (!_update) return;

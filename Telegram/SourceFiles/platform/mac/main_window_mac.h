@@ -35,6 +35,8 @@ public:
 
 	void psShowTrayMenu();
 
+	bool preventsQuit(Core::QuitReason reason) override;
+
 	class Private;
 
 public Q_SLOTS:

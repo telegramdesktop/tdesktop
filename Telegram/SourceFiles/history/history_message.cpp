@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/history_service.h"
+#include "history/history_unread_things.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "history/view/history_view_spoiler_click_handler.h"
@@ -208,6 +209,18 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		&& (item->media()->game() != nullptr);
 	const auto canCopyLink = item->hasDirectLink() || isGame;
 
+	const auto items = owner->idsToItems(data->msgIds);
+	const auto hasCaptions = ranges::any_of(items, [](auto item) {
+		return item->media()
+			&& !item->originalText().text.isEmpty()
+			&& item->media()->allowsEditCaption();
+	});
+	const auto hasOnlyForcedForwardedInfo = hasCaptions
+		? false
+		: ranges::all_of(items, [](auto item) {
+			return item->media() && item->media()->forceForwardedInfo();
+		});
+
 	auto copyCallback = [=]() {
 		if (const auto item = owner->message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
@@ -234,7 +247,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto submitCallback = [=](
 			std::vector<not_null<PeerData*>> &&result,
 			TextWithTags &&comment,
-			Api::SendOptions options) {
+			Api::SendOptions options,
+			Data::ForwardOptions forwardOptions) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
@@ -273,6 +287,12 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			| MTPmessages_ForwardMessages::Flag::f_with_my_score
 			| (options.scheduled
 				? MTPmessages_ForwardMessages::Flag::f_schedule_date
+				: MTPmessages_ForwardMessages::Flag(0))
+			| ((forwardOptions != Data::ForwardOptions::PreserveInfo)
+				? MTPmessages_ForwardMessages::Flag::f_drop_author
+				: MTPmessages_ForwardMessages::Flag(0))
+			| ((forwardOptions == Data::ForwardOptions::NoNamesAndCaptions)
+				? MTPmessages_ForwardMessages::Flag::f_drop_media_captions
 				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
 		msgIds.reserve(data->msgIds.size());
@@ -345,7 +365,13 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		.copyCallback = std::move(copyLinkCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
-		.navigation = App::wnd()->sessionController() }));
+		.navigation = App::wnd()->sessionController(),
+		.forwardOptions = {
+			.messagesCount = int(data->msgIds.size()),
+			.show = !hasOnlyForcedForwardedInfo,
+			.hasCaptions = hasCaptions,
+		},
+	}));
 }
 
 void RequestDependentMessageData(
@@ -511,10 +537,7 @@ HistoryMessage::HistoryMessage(
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
-	if (const auto reactions = data.vreactions()) {
-		setReactions(reactions);
-	}
-
+	setReactions(data.vreactions());
 	applyTTL(data);
 }
 
@@ -1529,19 +1552,39 @@ void HistoryMessage::contributeToSlowmode(TimeId realDate) {
 	}
 }
 
-void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
-	if (isRegular() && isUnreadMention()) {
-		if (history()->addToUnreadMentions(id, type)) {
+void HistoryMessage::addToUnreadThings(HistoryUnreadThings::AddType type) {
+	if (!isRegular()) {
+		return;
+	}
+	if (isUnreadMention()) {
+		if (history()->unreadMentions().add(id, type)) {
 			history()->session().changes().historyUpdated(
 				history(),
 				Data::HistoryUpdate::Flag::UnreadMentions);
+		}
+	}
+	if (hasUnreadReaction()) {
+		if (history()->unreadReactions().add(id, type)) {
+			if (type == HistoryUnreadThings::AddType::New) {
+				history()->session().changes().messageUpdated(
+					this,
+					Data::MessageUpdate::Flag::NewUnreadReaction);
+			}
+			if (hasUnreadReaction()) {
+				history()->session().changes().historyUpdated(
+					history(),
+					Data::HistoryUpdate::Flag::UnreadReactions);
+			}
 		}
 	}
 }
 
 void HistoryMessage::destroyHistoryEntry() {
 	if (isUnreadMention()) {
-		history()->eraseFromUnreadMentions(id);
+		history()->unreadMentions().erase(id);
+	}
+	if (hasUnreadReaction()) {
+		history()->unreadReactions().erase(id);
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		changeReplyToTopCounter(reply, -1);

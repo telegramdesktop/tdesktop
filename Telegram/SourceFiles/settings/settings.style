@@ -21,6 +21,13 @@ settingsAttentionButton: SettingsButton(settingsButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
+settingsOptionDisabled: SettingsButton(settingsButton) {
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFg;
+	textBg: windowBg;
+	textBgOver: windowBg;
+	toggleOver: infoProfileToggle;
+}
 settingsSectionSkip: 9px;
 settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);

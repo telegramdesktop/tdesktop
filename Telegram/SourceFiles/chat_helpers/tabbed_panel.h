@@ -24,6 +24,8 @@ namespace ChatHelpers {
 
 class TabbedSelector;
 
+extern const char kOptionTabbedPanelShowOnClick[];
+
 class TabbedPanel : public Ui::RpWidget {
 public:
 	TabbedPanel(

@@ -446,8 +446,9 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 		if (!backThumb) {
 			p.drawPixmap(0, 0, _background);
 		} else {
-			const auto &pix = backThumb->pixBlurred(
-				st::settingsBackgroundThumb);
+			const auto &pix = backThumb->pix(
+				st::settingsBackgroundThumb,
+				{ .options = Images::Option::Blur });
 			const auto factor = cIntRetinaFactor();
 			p.drawPixmap(
 				0,
@@ -576,7 +577,7 @@ void BackgroundRow::updateImage() {
 			if (inverted) {
 				small = Ui::InvertPatternImage(std::move(small));
 			}
-			p.drawImage(QRect(0, 0, size, size), small);
+			p.drawImage(QRect(0, 0, fullsize, fullsize), small);
 		};
 		return Ui::GenerateBackgroundImage(
 			{ fullsize, fullsize },
@@ -612,8 +613,8 @@ void BackgroundRow::updateImage() {
 	auto back = (paper.isPattern() || !background.gradientForFill().isNull())
 		? preparePattern()
 		: prepareNormal();
-	Images::prepareRound(back, ImageRoundRadius::Small);
-	_background = Ui::PixmapFromImage(std::move(back));
+	_background = Ui::PixmapFromImage(
+		Images::Round(std::move(back), ImageRoundRadius::Small));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
 	rtlupdate(radialRect());

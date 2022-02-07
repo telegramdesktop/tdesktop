@@ -19,6 +19,7 @@ enum class Error;
 
 class FileDelegate {
 public:
+	[[nodiscard]] virtual Mode fileOpenMode() = 0;
 	[[nodiscard]] virtual bool fileReady(
 		int headerSize,
 		Stream &&video,

@@ -173,7 +173,7 @@ void Float::prepareShadow() {
 		auto extend = 2 * st::lineWidth;
 		p.drawEllipse(getInnerRect().marginsAdded(QMargins(extend, extend, extend, extend)));
 	}
-	_shadow = Ui::PixmapFromImage(Images::prepareBlur(std::move(shadow)));
+	_shadow = Ui::PixmapFromImage(Images::Blur(std::move(shadow)));
 }
 
 QRect Float::getInnerRect() const {

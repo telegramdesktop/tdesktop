@@ -265,21 +265,28 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		} else {
 			Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
 		}
-		auto inWebPage = (_parent->media() != this);
-		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+		const auto inWebPage = (_parent->media() != this);
+		const auto roundRadius = inWebPage
+			? ImageRoundRadius::Small
+			: ImageRoundRadius::Large;
+		const auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = [&] {
+			const auto size = QSize(_pixw, _pixh);
+			const auto args = Images::PrepareArgs{
+				.options = Images::RoundOptions(roundRadius, roundCorners),
+				.outer = QSize(paintw, painth),
+			};
 			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return large->pixSingle(size, args);
 			} else if (const auto thumbnail = _dataMedia->image(
 					PhotoSize::Thumbnail)) {
-				return thumbnail->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return thumbnail->pixSingle(size, args.blurred());
 			} else if (const auto small = _dataMedia->image(
 					PhotoSize::Small)) {
-				return small->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return small->pixSingle(size, args.blurred());
 			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return blurred->pixSingle(size, args.blurred());
 			} else {
 				return QPixmap();
 			}
@@ -389,16 +396,20 @@ void Photo::paintUserpicFrame(
 		return;
 	}
 	const auto pix = [&] {
+		const auto size = QSize(_pixw, _pixh);
+		const auto args = Images::PrepareArgs{
+			.options = Images::Option::RoundCircle,
+		};
 		if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-			return large->pixCircled(_pixw, _pixh);
+			return large->pix(size, args);
 		} else if (const auto thumbnail = _dataMedia->image(
 				PhotoSize::Thumbnail)) {
-			return thumbnail->pixBlurredCircled(_pixw, _pixh);
+			return thumbnail->pix(size, args.blurred());
 		} else if (const auto small = _dataMedia->image(
 				PhotoSize::Small)) {
-			return small->pixBlurredCircled(_pixw, _pixh);
+			return small->pix(size, args.blurred());
 		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-			return blurred->pixBlurredCircled(_pixw, _pixh);
+			return blurred->pix(size, args.blurred());
 		} else {
 			return QPixmap();
 		}
@@ -652,13 +663,15 @@ void Photo::validateGroupedCache(
 		: 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| (loaded ? Option::None : Option::Blurred)
-		| ((corners & RectPart::TopLeft) ? Option::RoundedTopLeft : Option::None)
-		| ((corners & RectPart::TopRight) ? Option::RoundedTopRight : Option::None)
-		| ((corners & RectPart::BottomLeft) ? Option::RoundedBottomLeft : Option::None)
-		| ((corners & RectPart::BottomRight) ? Option::RoundedBottomRight : Option::None);
+	const auto corner = [&](RectPart part, Option skip) {
+		return !(corners & part) ? skip : Option();
+	};
+	const auto options = Option::RoundLarge
+		| (loaded ? Option() : Option::Blur)
+		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
+		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
+		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
+		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
@@ -672,8 +685,7 @@ void Photo::validateGroupedCache(
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
-	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
+	const auto ratio = style::DevicePixelRatio();
 	const auto image = _dataMedia->image(PhotoSize::Large)
 		? _dataMedia->image(PhotoSize::Large)
 		: _dataMedia->image(PhotoSize::Thumbnail)
@@ -685,7 +697,9 @@ void Photo::validateGroupedCache(
 		: Image::BlankMedia().get();
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
+	*cache = image->pixNoCache(
+		pixSize * ratio,
+		{ .options = options, .outer = { width, height } });
 }
 
 bool Photo::createStreamingObjects() {

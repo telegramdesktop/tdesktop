@@ -59,6 +59,7 @@ struct VideoInformation {
 	QSize size;
 	QImage cover;
 	int rotation = 0;
+	bool alpha = false;
 };
 
 struct AudioInformation {
@@ -120,7 +121,9 @@ struct FrameRequest {
 	QSize outer;
 	ImageRoundRadius radius = ImageRoundRadius();
 	RectParts corners = RectPart::AllCorners;
+	QColor colored = QColor(0, 0, 0, 0);
 	bool requireARGB32 = true;
+	bool keepAlpha = false;
 	bool strict = true;
 
 	static FrameRequest NonStrict() {
@@ -138,6 +141,8 @@ struct FrameRequest {
 			&& (outer == other.outer)
 			&& (radius == other.radius)
 			&& (corners == other.corners)
+			&& (colored == other.colored)
+			&& (keepAlpha == other.keepAlpha)
 			&& (requireARGB32 == other.requireARGB32);
 	}
 	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
@@ -146,7 +151,9 @@ struct FrameRequest {
 
 	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
 		return (requireARGB32 == other.requireARGB32)
-			&& ((*this == other) || (strict && !other.strict));
+			&& (keepAlpha == other.keepAlpha)
+			&& (colored == other.colored)
+			&& ((strict && !other.strict) || (*this == other));
 	}
 };
 
@@ -174,6 +181,7 @@ struct FrameWithInfo {
 	FrameYUV420 *yuv420 = nullptr;
 	FrameFormat format = FrameFormat::None;
 	int index = -1;
+	bool alpha = false;
 };
 
 } // namespace Streaming

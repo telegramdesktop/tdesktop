@@ -35,6 +35,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace InlineBots {
 namespace Layout {
+namespace {
+
+constexpr auto kMinRepaintDelay = crl::time(33);
+constexpr auto kMinAfterScrollDelay = crl::time(33);
+
+} // namespace
 
 Inner::Inner(
 	QWidget *parent,
@@ -44,7 +50,7 @@ Inner::Inner(
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
 	st::windowBgOver,
-	[=] { update(); }))
+	[=] { repaintItems(); }))
 , _updateInlineItems([=] { updateInlineItems(); })
 , _mosaic(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
@@ -55,14 +61,14 @@ Inner::Inner(
 
 	_controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
-		update();
+		updateInlineItems();
 	}, lifetime());
 
 	controller->gifPauseLevelChanged(
 	) | rpl::start_with_next([=] {
 		if (!_controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::InlineResults)) {
-			update();
+			updateInlineItems();
 		}
 	}, lifetime());
 
@@ -92,7 +98,8 @@ void Inner::visibleTopBottomUpdated(
 	_visibleBottom = visibleBottom;
 	if (_visibleTop != visibleTop) {
 		_visibleTop = visibleTop;
-		_lastScrolled = crl::now();
+		_lastScrolledAt = crl::now();
+		update();
 	}
 }
 
@@ -110,7 +117,7 @@ void Inner::checkRestrictedPeer() {
 				if (_switchPmButton) {
 					_switchPmButton->hide();
 				}
-				update();
+				repaintItems();
 			}
 			return;
 		}
@@ -120,7 +127,7 @@ void Inner::checkRestrictedPeer() {
 		if (_switchPmButton) {
 			_switchPmButton->show();
 		}
-		update();
+		repaintItems();
 	}
 }
 
@@ -332,7 +339,7 @@ void Inner::clearSelection() {
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
-	update();
+	updateInlineItems();
 }
 
 void Inner::hideFinished() {
@@ -433,7 +440,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 			_switchPmButton->hide();
 		}
 	}
-	update();
+	repaintItems();
 }
 
 int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntry *entry, bool resultsDeleted) {
@@ -485,7 +492,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 
 	auto h = countHeight();
 	if (h != height()) resize(width(), h);
-	update();
+	repaintItems();
 
 	_lastMousePos = QCursor::pos();
 	updateSelected();
@@ -525,12 +532,7 @@ void Inner::inlineItemLayoutChanged(const ItemBase *layout) {
 }
 
 void Inner::inlineItemRepaint(const ItemBase *layout) {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
-	}
+	updateInlineItems();
 }
 
 bool Inner::inlineItemVisible(const ItemBase *layout) {
@@ -618,12 +620,22 @@ void Inner::showPreview() {
 }
 
 void Inner::updateInlineItems() {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
+	const auto now = crl::now();
+
+	const auto delay = std::max(
+		_lastScrolledAt + kMinAfterScrollDelay - now,
+		_lastUpdatedAt + kMinRepaintDelay - now);
+	if (delay <= 0) {
+		repaintItems();
+	} else if (!_updateInlineItems.isActive()
+		|| _updateInlineItems.remainingTime() > kMinRepaintDelay) {
+		_updateInlineItems.callOnce(std::max(delay, kMinRepaintDelay));
 	}
+}
+
+void Inner::repaintItems(crl::time now) {
+	_lastUpdatedAt = now ? now : crl::now();
+	update();
 }
 
 void Inner::switchPm() {

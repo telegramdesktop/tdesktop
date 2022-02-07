@@ -57,12 +57,22 @@ struct DocumentAdditionalData {
 
 };
 
-struct StickerData : public DocumentAdditionalData {
-	Data::FileOrigin setOrigin() const;
+enum class StickerType : uchar {
+	Webp,
+	Tgs,
+	Webm,
+};
 
-	bool animated = false;
+struct StickerData : public DocumentAdditionalData {
+	[[nodiscard]] Data::FileOrigin setOrigin() const;
+	[[nodiscard]] bool isStatic() const;
+	[[nodiscard]] bool isLottie() const;
+	[[nodiscard]] bool isAnimated() const;
+	[[nodiscard]] bool isWebm() const;
+
 	QString alt;
 	StickerSetIdentifier set;
+	StickerType type = StickerType::Webp;
 };
 
 struct SongData : public DocumentAdditionalData {

@@ -20,6 +20,7 @@ class UserpicButton;
 class PopupMenu;
 class ScrollArea;
 class VerticalLayout;
+class VerticalLayoutReorder;
 class RippleButton;
 class PlainShadow;
 template <typename Widget>
@@ -93,6 +94,9 @@ private:
 	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+
+	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
+	int _reordering = 0;
 
 	base::binary_guard _accountSwitchGuard;
 

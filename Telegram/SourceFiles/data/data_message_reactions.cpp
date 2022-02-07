@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -471,6 +473,35 @@ bool Reactions::sending(not_null<HistoryItem*> item) const {
 	return _sentRequests.contains(item->fullId());
 }
 
+bool Reactions::HasUnread(const MTPMessageReactions &data) {
+	return data.match([&](const MTPDmessageReactions &data) {
+		if (const auto &recent = data.vrecent_reactions()) {
+			for (const auto &one : recent->v) {
+				if (one.match([&](const MTPDmessagePeerReaction &data) {
+					return data.is_unread();
+				})) {
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+}
+
+void Reactions::CheckUnknownForUnread(
+		not_null<Session*> owner,
+		const MTPMessage &message) {
+	message.match([&](const MTPDmessage &data) {
+		if (data.vreactions() && HasUnread(*data.vreactions())) {
+			const auto peerId = peerFromMTP(data.vpeer_id());
+			if (const auto history = owner->historyLoaded(peerId)) {
+				owner->histories().requestDialogEntry(history);
+			}
+		}
+	}, [](const auto &) {
+	});
+}
+
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)
 : _item(item) {
 }
@@ -491,7 +522,9 @@ void MessageReactions::add(const QString &reaction) {
 		}
 		const auto j = _recent.find(_chosen);
 		if (j != end(_recent)) {
-			j->second.erase(ranges::remove(j->second, self), end(j->second));
+			j->second.erase(
+				ranges::remove(j->second, self, &RecentReaction::peer),
+				end(j->second));
 			if (j->second.empty() || removed) {
 				_recent.erase(j);
 			}
@@ -501,7 +534,7 @@ void MessageReactions::add(const QString &reaction) {
 	if (!reaction.isEmpty()) {
 		if (_item->canViewReactions()) {
 			auto &list = _recent[reaction];
-			list.insert(begin(list), self);
+			list.insert(begin(list), RecentReaction{ self });
 		}
 		++_list[reaction];
 	}
@@ -514,23 +547,80 @@ void MessageReactions::remove() {
 	add(QString());
 }
 
-void MessageReactions::set(
+bool MessageReactions::checkIfChanged(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessageUserReaction> &recent,
+		const QVector<MTPMessagePeerReaction> &recent) const {
+	auto &owner = _item->history()->owner();
+	if (owner.reactions().sending(_item)) {
+		// We'll apply non-stale data from the request response.
+		return false;
+	}
+	auto existing = base::flat_set<QString>();
+	for (const auto &count : list) {
+		const auto changed = count.match([&](const MTPDreactionCount &data) {
+			const auto reaction = qs(data.vreaction());
+			const auto nowCount = data.vcount().v;
+			const auto i = _list.find(reaction);
+			const auto wasCount = (i != end(_list)) ? i->second : 0;
+			if (wasCount != nowCount) {
+				return true;
+			}
+			existing.emplace(reaction);
+			return false;
+		});
+		if (changed) {
+			return true;
+		}
+	}
+	for (const auto &[reaction, count] : _list) {
+		if (!existing.contains(reaction)) {
+			return true;
+		}
+	}
+	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	for (const auto &reaction : recent) {
+		reaction.match([&](const MTPDmessagePeerReaction &data) {
+			const auto emoji = qs(data.vreaction());
+			if (_list.contains(emoji)) {
+				parsed[emoji].push_back(RecentReaction{
+					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
+					.unread = data.is_unread(),
+					.big = data.is_big(),
+				});
+			}
+		});
+	}
+	return !ranges::equal(_recent, parsed, [](
+			const auto &a,
+			const auto &b) {
+		return ranges::equal(a.second, b.second, [](
+				const RecentReaction &a,
+				const RecentReaction &b) {
+			return (a.peer == b.peer) && (a.big == b.big);
+		});
+	});
+}
+
+bool MessageReactions::change(
+		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen) {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
-		return;
+		return false;
 	}
 	auto changed = false;
 	auto existing = base::flat_set<QString>();
 	for (const auto &count : list) {
 		count.match([&](const MTPDreactionCount &data) {
 			const auto reaction = qs(data.vreaction());
-			if (data.is_chosen() && !ignoreChosen) {
-				if (_chosen != reaction) {
+			if (!ignoreChosen) {
+				if (data.is_chosen() && _chosen != reaction) {
 					_chosen = reaction;
+					changed = true;
+				} else if (!data.is_chosen() && _chosen == reaction) {
+					_chosen = QString();
 					changed = true;
 				}
 			}
@@ -556,14 +646,16 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
-	auto parsed = base::flat_map<
-		QString,
-		std::vector<not_null<UserData*>>>();
+	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
-		reaction.match([&](const MTPDmessageUserReaction &data) {
+		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto emoji = qs(data.vreaction());
 			if (_list.contains(emoji)) {
-				parsed[emoji].push_back(owner.user(data.vuser_id()));
+				parsed[emoji].push_back(RecentReaction{
+					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
+					.unread = data.is_unread(),
+					.big = data.is_big(),
+				});
 			}
 		});
 	}
@@ -571,10 +663,7 @@ void MessageReactions::set(
 		_recent = std::move(parsed);
 		changed = true;
 	}
-
-	if (changed) {
-		owner.notifyItemDataChange(_item);
-	}
+	return changed;
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {
@@ -582,12 +671,29 @@ const base::flat_map<QString, int> &MessageReactions::list() const {
 }
 
 auto MessageReactions::recent() const
--> const base::flat_map<QString, std::vector<not_null<UserData*>>> & {
+-> const base::flat_map<QString, std::vector<RecentReaction>> & {
 	return _recent;
 }
 
 bool MessageReactions::empty() const {
 	return _list.empty();
+}
+
+bool MessageReactions::hasUnread() const {
+	for (auto &[emoji, list] : _recent) {
+		if (ranges::contains(list, true, &RecentReaction::unread)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void MessageReactions::markRead() {
+	for (auto &[emoji, list] : _recent) {
+		for (auto &reaction : list) {
+			reaction.unread = false;
+		}
+	}
 }
 
 QString MessageReactions::chosen() const {

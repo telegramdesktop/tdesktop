@@ -395,19 +395,12 @@ void Controller::showLogoutConfirmation() {
 		? &sessionController()->session().account()
 		: nullptr;
 	const auto weak = base::make_weak(account);
-	const auto callback = [=] {
-		if (account && !weak) {
-			return;
+	const auto callback = [=](Fn<void()> close) {
+		if (!account || weak) {
+			Core::App().logoutWithChecks(account);
 		}
-		if (account
-			&& account->sessionExists()
-			&& Core::App().exportManager().inProgress(&account->session())) {
-			Ui::hideLayer();
-			Core::App().exportManager().stopWithConfirmation([=] {
-				Core::App().logout(account);
-			});
-		} else {
-			Core::App().logout(account);
+		if (close) {
+			close();
 		}
 	};
 	show(Box<Ui::ConfirmBox>(

@@ -169,8 +169,8 @@ void BackgroundSelector::updateThumbnail() {
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
 		p.drawImage(QRect(0, 0, size, size), pix, QRect(sx, sy, s, s));
 	}
-	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = Ui::PixmapFromImage(std::move(back));
+	_thumbnail = Ui::PixmapFromImage(
+		Images::Round(std::move(back), ImageRoundRadius::Small));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	update();
 }

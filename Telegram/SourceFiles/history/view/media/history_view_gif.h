@@ -119,6 +119,7 @@ private:
 	struct Streamed;
 
 	void validateVideoThumbnail() const;
+	[[nodiscard]] QSize countThumbSize(int &inOutWidthMax) const;
 
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -155,8 +156,7 @@ private:
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
-	[[nodiscard]] QString mediaTypeString() const;
-	[[nodiscard]] bool isSeparateRoundVideo() const;
+	[[nodiscard]] bool isUnwrapped() const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
@@ -177,6 +177,11 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
+	void paintPath(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) const;
+
 	const not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
@@ -184,6 +189,7 @@ private:
 	std::unique_ptr<Streamed> _streamed;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
+	ClickHandlerPtr _stickerLink;
 
 	QString _downloadSize;
 

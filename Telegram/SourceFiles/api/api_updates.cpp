@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
+#include "api/api_unread_things.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
@@ -30,10 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
+#include "data/data_message_reactions.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "core/application.h"
 #include "storage/storage_account.h"
 #include "storage/storage_facade.h"
@@ -46,7 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
-#include "app.h" // App::quitting
 
 namespace Api {
 namespace {
@@ -912,7 +914,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 
 		_lastWasOnline = isOnline;
 		_lastSetOnline = ms;
-		if (!App::quitting()) {
+		if (!Core::Quitting()) {
 			_onlineRequest = api().request(MTPaccount_UpdateStatus(
 				MTP_bool(!isOnline)
 			)).send();
@@ -1179,25 +1181,26 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateReadMessagesContents: {
 		const auto &d = update.c_updateReadMessagesContents();
-		auto possiblyReadMentions = base::flat_set<MsgId>();
+		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (const auto item = _session->data().nonChannelMessage(msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
-					item->markMediaRead();
+					item->markMediaAndMentionRead();
 					_session->data().requestItemRepaint(item);
 
 					if (item->out()
 						&& item->history()->peer->isUser()
 						&& !requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(base::unixtime::now());
+						item->history()->peer->asUser()->madeAction(
+							base::unixtime::now());
 					}
 				}
 			} else {
 				// Perhaps it was an unread mention!
-				possiblyReadMentions.insert(msgId.v);
+				unknownReadIds.insert(msgId.v);
 			}
 		}
-		session().api().checkForUnreadMentions(possiblyReadMentions);
+		session().api().unreadThings().mediaAndMentionsRead(unknownReadIds);
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
@@ -1566,19 +1569,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 			return;
 		}
-		auto possiblyReadMentions = base::flat_set<MsgId>();
+		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (auto item = session().data().message(channel->id, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
-					item->markMediaRead();
+					item->markMediaAndMentionRead();
 					session().data().requestItemRepaint(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!
-				possiblyReadMentions.insert(msgId.v);
+				unknownReadIds.insert(msgId.v);
 			}
 		}
-		session().api().checkForUnreadMentions(possiblyReadMentions, channel);
+		session().api().unreadThings().mediaAndMentionsRead(
+			unknownReadIds,
+			channel);
 	} break;
 
 	// Edited messages.
@@ -1626,6 +1631,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				d.vmsg_id().v);
 			if (item) {
 				item->updateReactions(&d.vreactions());
+			} else {
+				const auto hasUnreadReaction = Data::Reactions::HasUnread(
+					d.vreactions());
+				if (hasUnreadReaction || history->unreadReactions().has()) {
+					// The unread reactions count could change.
+					history->owner().histories().requestDialogEntry(history);
+				}
+				if (hasUnreadReaction) {
+					history->unreadReactions().checkAdd(d.vmsg_id().v);
+				}
 			}
 		}
 	} break;

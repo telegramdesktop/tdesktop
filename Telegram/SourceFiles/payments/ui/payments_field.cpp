@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 #include "styles/style_payments.h"
 
 #include <QtCore/QRegularExpression>

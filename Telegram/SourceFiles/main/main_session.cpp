@@ -29,11 +29,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_stickers.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "window/window_lock_widgets.h"
 #include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
+#include "lang/lang_keys.h"
+#include "core/application.h"
 #include "ui/text/text_utilities.h"
+#include "ui/layers/generic_box.h"
+#include "styles/style_layers.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
@@ -347,9 +352,67 @@ void Session::addWindow(not_null<Window::SessionController*> controller) {
 	}) | rpl::distinct_until_changed());
 }
 
+bool Session::uploadsInProgress() const {
+	return !!_uploader->currentUploadId();
+}
+
+void Session::uploadsStopWithConfirmation(Fn<void()> done) {
+	const auto window = Core::App().primaryWindow();
+	if (!window) {
+		return;
+	}
+	const auto id = _uploader->currentUploadId();
+	const auto exists = !!data().message(id);
+	auto box = Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box.get(),
+				tr::lng_upload_sure_stop(),
+				st::boxLabel),
+			st::boxPadding + QMargins(0, 0, 0, st::boxPadding.bottom()));
+		box->setStyle(st::defaultBox);
+		box->addButton(tr::lng_selected_upload_stop(), [=] {
+			box->closeBox();
+
+			uploadsStop();
+			if (done) {
+				done();
+			}
+		}, st::attentionBoxButton);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		if (exists) {
+			box->addLeftButton(tr::lng_upload_show_file(), [=] {
+				box->closeBox();
+
+				if (const auto item = data().message(id)) {
+					if (const auto window = tryResolveWindow()) {
+						window->showPeerHistoryAtItem(item);
+					}
+				}
+			});
+		}
+	});
+	window->show(std::move(box));
+	window->activate();
+}
+
+void Session::uploadsStop() {
+	_uploader->cancelAll();
+}
+
 auto Session::windows() const
 -> const base::flat_set<not_null<Window::SessionController*>> & {
 	return _windows;
+}
+
+Window::SessionController *Session::tryResolveWindow() const {
+	if (_windows.empty()) {
+		domain().activate(_account);
+		if (_windows.empty()) {
+			return nullptr;
+		}
+	}
+	return _windows.front();
 }
 
 } // namespace Main

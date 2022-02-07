@@ -214,7 +214,9 @@ void CloudListCheck::validateBackgroundCache(int width) {
 			0,
 			imageWidth,
 			_backgroundFull.height());
-	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
+	_backgroundCache = Images::Round(
+		std::move(_backgroundCache),
+		ImageRoundRadius::Large);
 	_backgroundCache.setDevicePixelRatio(cRetinaFactor());
 }
 

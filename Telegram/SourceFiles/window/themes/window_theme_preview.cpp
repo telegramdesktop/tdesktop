@@ -968,7 +968,7 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 		p.setPen(st::historyPeerUserpicFg[_palette]);
 		p.drawText(QRect(0, 0, st::dialogsPhotoSize, st::dialogsPhotoSize), letters, QTextOption(style::al_center));
 	}
-	Images::prepareCircle(image);
+	image = Images::Circle(std::move(image));
 	_p->drawImage(rtl() ? (_rect.width() - x - st::dialogsPhotoSize) : x, y, image);
 }
 

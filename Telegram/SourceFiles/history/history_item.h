@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <any>
 
-enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
 class ReplyKeyboard;
 class HistoryMessage;
@@ -42,6 +41,7 @@ struct RippleAnimation;
 
 namespace Data {
 struct MessagePosition;
+struct RecentReaction;
 class Media;
 class MessageReactions;
 } // namespace Data
@@ -49,6 +49,10 @@ class MessageReactions;
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace HistoryUnreadThings {
+enum class AddType;
+} // namespace HistoryUnreadThings
 
 namespace HistoryView {
 struct TextState;
@@ -140,9 +144,13 @@ public:
 	void markClientSideAsRead();
 	[[nodiscard]] bool mentionsMe() const;
 	[[nodiscard]] bool isUnreadMention() const;
+	[[nodiscard]] bool hasUnreadReaction() const;
 	[[nodiscard]] bool isUnreadMedia() const;
+	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
-	void markMediaRead();
+	void markReactionsRead();
+	void markMediaAndMentionRead();
+	bool markContentsRead(bool fromThisClient = false);
 	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.
@@ -274,7 +282,7 @@ public:
 	virtual void contributeToSlowmode(TimeId realDate = 0) {
 	}
 
-	virtual void addToUnreadMentions(UnreadMentionType type);
+	virtual void addToUnreadThings(HistoryUnreadThings::AddType type);
 	virtual void destroyHistoryEntry() {
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
@@ -360,10 +368,13 @@ public:
 	void updateReactionsUnknown();
 	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
 	[[nodiscard]] auto recentReactions() const
-		-> const base::flat_map<QString, std::vector<not_null<UserData*>>> &;
+	-> const base::flat_map<
+		QString,
+		std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] QString chosenReaction() const;
-	[[nodiscard]] QString lookupHisReaction() const;
+	[[nodiscard]] QString lookupUnreadReaction(
+		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
@@ -444,6 +455,7 @@ protected:
 	void finishEditionToEmpty();
 
 	void setReactions(const MTPMessageReactions *reactions);
+	[[nodiscard]] bool changeReactions(const MTPMessageReactions *reactions);
 
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 
 #include "base/unixtime.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -352,7 +353,7 @@ ListWidget::ListWidget(
 			return;
 		} else if (const auto view = viewForItem(item)) {
 			if (const auto top = itemTop(view); top >= 0) {
-				view->animateSendReaction({
+				view->animateReaction({
 					.emoji = reaction.emoji,
 					.flyIcon = reaction.icon,
 					.flyFrom = reaction.geometry.translated(0, -top),
@@ -1745,8 +1746,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
-			context.reactionEffects
-				= _reactionsManager->currentReactionEffect();
+			context.reactionInfo
+				= _reactionsManager->currentReactionPaintInfo();
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
 			view->draw(p, context);
@@ -2664,6 +2665,9 @@ void ListWidget::mouseActionUpdate() {
 		} else {
 			inTextSelection = false;
 		}
+		if (base::IsAltPressed()) {
+			request.flags &= ~Ui::Text::StateRequest::Flag::LookupLink;
+		}
 
 		const auto dateHeight = st::msgServicePadding.bottom()
 			+ st::msgServiceFont->height
@@ -3177,7 +3181,10 @@ void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
 	_emptyInfo = std::move(w);
 }
 
-ListWidget::~ListWidget() = default;
+ListWidget::~ListWidget() {
+	// Destroy child widgets first, because they may invoke leaveEvent-s.
+	_emptyInfo = nullptr;
+}
 
 void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	const auto items = widget->getSelectedItems();

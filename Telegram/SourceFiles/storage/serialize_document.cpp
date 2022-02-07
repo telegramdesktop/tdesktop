@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 2;
+constexpr auto kVersion = 3;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -43,9 +43,8 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		} else {
 			stream << qint32(StickerSetTypeEmpty);
 		}
-	} else {
-		stream << qint32(document->getDuration());
 	}
+	stream << qint32(document->getDuration());
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());
@@ -114,6 +113,9 @@ DocumentData *Document::readFromStreamHelper(
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 			} break;
 			}
+		}
+		if (version >= 3) {
+			stream >> duration;
 		}
 	} else {
 		stream >> duration;

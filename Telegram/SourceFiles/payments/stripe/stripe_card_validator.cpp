@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "stripe/stripe_card_validator.h"
 
-#include "base/qt_adapters.h"
+#include "base/qt/qt_string_view.h"
 
 #include <QtCore/QDate>
 #include <QtCore/QRegularExpression>

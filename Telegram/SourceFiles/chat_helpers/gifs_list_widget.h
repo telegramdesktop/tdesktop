@@ -133,12 +133,14 @@ private:
 	void paintInlineItems(Painter &p, QRect clip);
 
 	void updateInlineItems();
+	void repaintItems(crl::time now = 0);
 	void showPreview();
 
 	MTP::Sender _api;
 
 	Section _section = Section::Gifs;
-	crl::time _lastScrolled = 0;
+	crl::time _lastScrolledAt = 0;
+	crl::time _lastUpdatedAt = 0;
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 

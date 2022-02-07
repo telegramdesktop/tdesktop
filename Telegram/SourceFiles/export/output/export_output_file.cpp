@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_stats.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_string_view.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>

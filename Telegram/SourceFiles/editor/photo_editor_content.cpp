@@ -90,9 +90,7 @@ PhotoEditorContent::PhotoEditorContent(
 
 		p.setTransform(_imageMatrix);
 
-		p.drawPixmap(
-			_imageRect,
-			_photo->pix(_imageRect.width(), _imageRect.height()));
+		p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
 	}, lifetime());
 
 	setupDragArea();

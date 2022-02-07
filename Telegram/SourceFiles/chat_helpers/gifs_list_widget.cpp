@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -45,6 +46,8 @@ namespace {
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = "gif"_cs;
+constexpr auto kMinRepaintDelay = crl::time(33);
+constexpr auto kMinAfterScrollDelay = crl::time(33);
 
 } // namespace
 
@@ -188,14 +191,14 @@ GifsListWidget::GifsListWidget(
 
 	controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
-		update();
+		updateInlineItems();
 	}, lifetime());
 
 	controller->gifPauseLevelChanged(
 	) | rpl::start_with_next([=] {
 		if (!controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::SavedGifs)) {
-			update();
+			updateInlineItems();
 		}
 	}, lifetime());
 
@@ -235,10 +238,11 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 void GifsListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	auto top = getVisibleTop();
+	const auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (top != getVisibleTop()) {
-		_lastScrolled = crl::now();
+		_lastScrolledAt = crl::now();
+		update();
 	}
 	checkLoadMore();
 }
@@ -437,8 +441,7 @@ void GifsListWidget::selectInlineResult(
 		return;
 	}
 
-	forceSend |= (QGuiApplication::keyboardModifiers()
-		== Qt::ControlModifier);
+	forceSend |= base::IsCtrlPressed();
 	if (const auto photo = item->getPhoto()) {
 		using Data::PhotoSize;
 		const auto media = photo->activeMediaView();
@@ -498,7 +501,7 @@ void GifsListWidget::clearSelection() {
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
-	update();
+	repaintItems();
 }
 
 TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
@@ -544,7 +547,7 @@ void GifsListWidget::refreshSavedGifs() {
 		deleteUnusedGifLayouts();
 
 		resizeToWidth(width());
-		update();
+		repaintItems();
 	}
 
 	if (isVisible()) {
@@ -672,7 +675,7 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 	}
 
 	resizeToWidth(width());
-	update();
+	repaintItems();
 
 	_lastMousePos = QCursor::pos();
 	updateSelected();
@@ -711,16 +714,13 @@ void GifsListWidget::inlineItemLayoutChanged(const InlineBots::Layout::ItemBase 
 	}
 }
 
-void GifsListWidget::inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
-	}
+void GifsListWidget::inlineItemRepaint(
+		const InlineBots::Layout::ItemBase *layout) {
+	updateInlineItems();
 }
 
-bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
+bool GifsListWidget::inlineItemVisible(
+		const InlineBots::Layout::ItemBase *layout) {
 	auto position = layout->position();
 	if (position < 0 || !isVisible()) {
 		return false;
@@ -930,12 +930,22 @@ void GifsListWidget::showPreview() {
 }
 
 void GifsListWidget::updateInlineItems() {
-	auto ms = crl::now();
-	if (_lastScrolled + 100 <= ms) {
-		update();
-	} else {
-		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
+	const auto now = crl::now();
+
+	const auto delay = std::max(
+		_lastScrolledAt + kMinAfterScrollDelay - now,
+		_lastUpdatedAt + kMinRepaintDelay - now);
+	if (delay <= 0) {
+		repaintItems(now);
+	} else if (!_updateInlineItems.isActive()
+		|| _updateInlineItems.remainingTime() > kMinRepaintDelay) {
+		_updateInlineItems.callOnce(std::max(delay, kMinRepaintDelay));
 	}
+}
+
+void GifsListWidget::repaintItems(crl::time now) {
+	_lastUpdatedAt = now ? now : crl::now();
+	update();
 }
 
 } // namespace ChatHelpers

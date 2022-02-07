@@ -35,6 +35,8 @@ class Controller;
 class SessionController;
 class SessionNavigation;
 
+extern const char kOptionViewProfileInChatsListContextMenu[];
+
 using PeerMenuCallback = Fn<QAction*(
 	const QString &text,
 	Fn<void()> handler,

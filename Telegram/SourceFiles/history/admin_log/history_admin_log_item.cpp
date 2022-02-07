@@ -219,7 +219,7 @@ TextWithEntities GenerateAdminChangeText(
 	return result;
 };
 
-QString GenerateBannedChangeText(
+QString GeneratePermissionsChangeText(
 		ChatRestrictionsInfo newRights,
 		ChatRestrictionsInfo prevRights) {
 	using Flag = ChatRestriction;
@@ -242,7 +242,7 @@ QString GenerateBannedChangeText(
 	return CollectChanges(phraseMap, prevRights.flags, newRights.flags);
 }
 
-TextWithEntities GenerateBannedChangeText(
+TextWithEntities GeneratePermissionsChangeText(
 		PeerId participantId,
 		const TextWithEntities &user,
 		ChatRestrictionsInfo newRights,
@@ -281,7 +281,7 @@ TextWithEntities GenerateBannedChangeText(
 		lt_until,
 		TextWithEntities { untilText },
 		Ui::Text::WithEntities);
-	const auto changes = GenerateBannedChangeText(newRights, prevRights);
+	const auto changes = GeneratePermissionsChangeText(newRights, prevRights);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
@@ -478,7 +478,13 @@ auto GenerateParticipantChangeText(
 				ChatAdminRightsInfo(),
 				oldRights);
 		} else if (oldParticipant && oldParticipant->type() == Type::Banned) {
-			return GenerateBannedChangeText(
+			return GeneratePermissionsChangeText(
+				participantId,
+				user,
+				ChatRestrictionsInfo(),
+				oldRestrictions);
+		} else if (oldParticipant && oldParticipant->type() == Type::Restricted && participant.type() == Type::Member) {
+			return GeneratePermissionsChangeText(
 				participantId,
 				user,
 				ChatRestrictionsInfo(),
@@ -517,7 +523,7 @@ auto GenerateParticipantChangeText(
 			const auto user = GenerateParticipantString(
 				&channel->session(),
 				peerId);
-			return GenerateBannedChangeText(
+			return GeneratePermissionsChangeText(
 				peerId,
 				user,
 				participant.restrictions(),
@@ -556,7 +562,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	auto result = TextWithEntities{
 		tr::lng_admin_log_changed_default_permissions(tr::now)
 	};
-	const auto changes = GenerateBannedChangeText(rights, oldRights);
+	const auto changes = GeneratePermissionsChangeText(rights, oldRights);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}

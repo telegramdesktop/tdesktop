@@ -36,8 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "app.h"
 #include "styles/style_settings.h"
+
+#ifdef Q_OS_MAC
+#include "base/platform/mac/base_confirm_quit.h"
+#endif // Q_OS_MAC
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "boxes/dictionaries_manager.h"
@@ -81,7 +84,9 @@ bool HasUpdate() {
 	return !Core::UpdaterDisabled();
 }
 
-void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
+void SetupUpdate(
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	if (!HasUpdate()) {
 		return;
 	}
@@ -112,6 +117,24 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		inner,
 		tr::lng_settings_install_beta(),
 		st::settingsButton).get();
+
+	if (showOther) {
+		const auto experimental = inner->add(
+			object_ptr<Ui::SlideWrap<Button>>(
+				inner,
+				object_ptr<Button>(
+					inner,
+					tr::lng_settings_experimental(),
+					st::settingsButton)));
+		if (!install) {
+			experimental->toggle(true, anim::type::instant);
+		} else {
+			experimental->toggleOn(install->toggledValue());
+		}
+		experimental->entity()->setClickedCallback([=] {
+			showOther(Type::Experimental);
+		});
+	}
 
 	const auto check = AddButton(
 		inner,
@@ -243,7 +266,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		if (!Core::UpdaterDisabled()) {
 			Core::checkReadyUpdate();
 		}
-		App::restart();
+		Core::Restart();
 	});
 }
 
@@ -380,7 +403,7 @@ void SetupSystemIntegrationContent(
 				cSetSeenTrayTooltip(false);
 			}
 			Core::App().settings().setWorkMode(newMode);
-			Local::writeSettings();
+			Core::App().saveSettingsDelayed();
 		};
 
 		tray->checkedChanges(
@@ -408,27 +431,40 @@ void SetupSystemIntegrationContent(
 		}
 	}
 
-	if (!Platform::IsMac()) {
-		const auto closeToTaskbar = addSlidingCheckbox(
-			tr::lng_settings_close_to_taskbar(),
-			Core::App().settings().closeToTaskbar());
+#ifdef Q_OS_MAC
+	const auto warnBeforeQuit = addCheckbox(
+		tr::lng_settings_mac_warn_before_quit(
+			lt_text,
+			rpl::single(Platform::ConfirmQuit::QuitKeysString())),
+		Core::App().settings().macWarnBeforeQuit());
+	warnBeforeQuit->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != Core::App().settings().macWarnBeforeQuit());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setMacWarnBeforeQuit(checked);
+		Core::App().saveSettingsDelayed();
+	}, warnBeforeQuit->lifetime());
+#else // Q_OS_MAC
+	const auto closeToTaskbar = addSlidingCheckbox(
+		tr::lng_settings_close_to_taskbar(),
+		Core::App().settings().closeToTaskbar());
 
-		const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
-		Core::App().settings().workModeValue(
-		) | rpl::start_with_next([=](WorkMode workMode) {
-			*closeToTaskbarShown = (workMode == WorkMode::WindowOnly)
-				|| !Platform::TrayIconSupported();
-		}, closeToTaskbar->lifetime());
+	const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
+	Core::App().settings().workModeValue(
+	) | rpl::start_with_next([=](WorkMode workMode) {
+		*closeToTaskbarShown = (workMode == WorkMode::WindowOnly)
+			|| !Platform::TrayIconSupported();
+	}, closeToTaskbar->lifetime());
 
-		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
-		closeToTaskbar->entity()->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return (checked != Core::App().settings().closeToTaskbar());
-		}) | rpl::start_with_next([=](bool checked) {
-			Core::App().settings().setCloseToTaskbar(checked);
-			Local::writeSettings();
-		}, closeToTaskbar->lifetime());
-	}
+	closeToTaskbar->toggleOn(closeToTaskbarShown->value());
+	closeToTaskbar->entity()->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != Core::App().settings().closeToTaskbar());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setCloseToTaskbar(checked);
+		Local::writeSettings();
+	}, closeToTaskbar->lifetime());
+#endif // Q_OS_MAC
 
 	if (Ui::Platform::NativeWindowFrameSupported()) {
 		const auto nativeFrame = addCheckbox(
@@ -599,7 +635,7 @@ void SetupANGLE(
 						Core::App().settings().setDisableOpenGL(nowDisabled);
 						Local::writeSettings();
 					}
-					App::restart();
+					Core::Restart();
 				});
 				controller->show(Box<Ui::ConfirmBox>(
 					tr::lng_settings_need_restart(tr::now),
@@ -638,7 +674,7 @@ void SetupOpenGL(
 		const auto confirmed = crl::guard(button, [=] {
 			Core::App().settings().setDisableOpenGL(!enabled);
 			Local::writeSettings();
-			App::restart();
+			Core::Restart();
 		});
 		const auto cancelled = crl::guard(button, [=] {
 			toggles->fire(!enabled);
@@ -709,7 +745,9 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 			addDivider();
 			AddSkip(content);
 			AddSubsectionTitle(content, tr::lng_settings_version_info());
-			SetupUpdate(content);
+			SetupUpdate(content, [=](Type type) {
+				_showOther.fire_copy(type);
+			});
 			AddSkip(content);
 		}
 	};

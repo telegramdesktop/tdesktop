@@ -15,6 +15,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+void FillForwardOptions(
+		Fn<not_null<AbstractCheckView*>(
+			rpl::producer<QString> &&,
+			bool)> createView,
+		int count,
+		ForwardOptions options,
+		Fn<void(ForwardOptions)> optionsChanged,
+		rpl::lifetime &lifetime) {
+	Expects(optionsChanged != nullptr);
+
+	const auto names = createView(
+		(count == 1
+			? tr::lng_forward_show_sender
+			: tr::lng_forward_show_senders)(),
+		!options.dropNames);
+	const auto captions = options.hasCaptions
+		? createView(
+			(count == 1
+				? tr::lng_forward_show_caption
+				: tr::lng_forward_show_captions)(),
+			!options.dropCaptions).get()
+		: nullptr;
+
+	const auto notify = [=] {
+		optionsChanged({
+			.dropNames = !names->checked(),
+			.hasCaptions = options.hasCaptions,
+			.dropCaptions = (captions && !captions->checked()),
+		});
+	};
+	names->checkedChanges(
+	) | rpl::start_with_next([=](bool showNames) {
+		if (showNames && captions && !captions->checked()) {
+			captions->setChecked(true, anim::type::normal);
+		} else {
+			notify();
+		}
+	}, lifetime);
+	if (captions) {
+		captions->checkedChanges(
+		) | rpl::start_with_next([=](bool showCaptions) {
+			if (!showCaptions && names->checked()) {
+				names->setChecked(false, anim::type::normal);
+			} else {
+				notify();
+			}
+		}, lifetime);
+	}
+}
+
 void ForwardOptionsBox(
 		not_null<GenericBox*> box,
 		int count,
@@ -45,51 +95,23 @@ void ForwardOptionsBox(
 		st::boxRowPadding.left(),
 		st::boxRowPadding.right(),
 		st::boxRowPadding.bottom());
-	const auto names = box->addRow(
-		object_ptr<Ui::Checkbox>(
-			box.get(),
-			(count == 1
-				? tr::lng_forward_show_sender
-				: tr::lng_forward_show_senders)(),
-			!options.dropNames,
-			st::defaultBoxCheckbox),
-		checkboxPadding);
-	const auto captions = options.hasCaptions
-		? box->addRow(
+
+	auto createView = [&](rpl::producer<QString> &&text, bool checked) {
+		return box->addRow(
 			object_ptr<Ui::Checkbox>(
 				box.get(),
-				(count == 1
-					? tr::lng_forward_show_caption
-					: tr::lng_forward_show_captions)(),
-				!options.dropCaptions,
+				std::move(text),
+				checked,
 				st::defaultBoxCheckbox),
-			checkboxPadding)
-		: nullptr;
-	const auto notify = [=] {
-		optionsChanged({
-			.dropNames = !names->checked(),
-			.hasCaptions = options.hasCaptions,
-			.dropCaptions = (captions && !captions->checked()),
-		});
+			checkboxPadding)->checkView();
 	};
-	names->checkedChanges(
-	) | rpl::start_with_next([=](bool showNames) {
-		if (showNames && captions && !captions->checked()) {
-			captions->setChecked(true);
-		} else {
-			notify();
-		}
-	}, names->lifetime());
-	if (captions) {
-		captions->checkedChanges(
-		) | rpl::start_with_next([=](bool showCaptions) {
-			if (!showCaptions && names->checked()) {
-				names->setChecked(false);
-			} else {
-				notify();
-			}
-		}, captions->lifetime());
-	}
+	FillForwardOptions(
+		std::move(createView),
+		count,
+		options,
+		std::move(optionsChanged),
+		box->lifetime());
+
 	box->addRow(
 		object_ptr<Ui::LinkButton>(
 			box.get(),

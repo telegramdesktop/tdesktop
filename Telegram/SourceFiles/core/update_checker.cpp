@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
 #include "core/changelogs.h"
@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
 #include "ui/layers/box_content.h"
-#include "app.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -1175,7 +1174,7 @@ void Updater::check() {
 void Updater::handleReady() {
 	stop();
 	_action = Action::Ready;
-	if (!App::quitting()) {
+	if (!Quitting()) {
 		cSetLastUpdateCheck(base::unixtime::now());
 		Local::writeSettings();
 	}
@@ -1203,7 +1202,7 @@ void Updater::handleProgress() {
 
 void Updater::scheduleNext() {
 	stop();
-	if (!App::quitting()) {
+	if (!Quitting()) {
 		cSetLastUpdateCheck(base::unixtime::now());
 		Local::writeSettings();
 		start(true);
