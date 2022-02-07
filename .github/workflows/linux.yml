@@ -40,11 +40,7 @@ jobs:
 
     strategy:
       matrix:
-        defines:
-          - ""
-          - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
+        defines: [""]
         experimental: [false]
         include:
           - defines: "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
