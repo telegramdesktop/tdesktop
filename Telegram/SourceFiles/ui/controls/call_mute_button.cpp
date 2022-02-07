@@ -788,7 +788,7 @@ void CallMuteButton::init() {
 
 			const auto radialShowProgress = (radialShowFrom == radialShowTo)
 				? radialShowTo
-				: anim::interpolateF(radialShowFrom, radialShowTo, value);
+				: anim::interpolateToF(radialShowFrom, radialShowTo, value);
 			if (radialShowProgress != _radialInfo.rawShowProgress.current()) {
 				_radialInfo.rawShowProgress = radialShowProgress;
 				_blobs->setSwitchConnectingProgress(Clamp(

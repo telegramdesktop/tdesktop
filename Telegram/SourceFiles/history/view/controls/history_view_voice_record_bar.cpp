@@ -766,15 +766,15 @@ void RecordLock::drawProgress(Painter &p) {
 
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
 
-		const auto blockRectWidth = anim::interpolateF(
+		const auto blockRectWidth = anim::interpolateToF(
 			size.width(),
 			st::historyRecordStopIconWidth,
 			_lockToStopProgress);
-		const auto blockRectHeight = anim::interpolateF(
+		const auto blockRectHeight = anim::interpolateToF(
 			blockHeight,
 			st::historyRecordStopIconWidth,
 			_lockToStopProgress);
-		const auto blockRectTop = anim::interpolateF(
+		const auto blockRectTop = anim::interpolateToF(
 			size.height() - blockHeight,
 			base::SafeRound((size.height() - blockRectHeight) / 2.),
 			_lockToStopProgress);
