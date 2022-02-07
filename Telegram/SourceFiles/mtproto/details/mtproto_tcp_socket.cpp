@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_tcp_socket.h"
 
 #include "base/invoke_queued.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 
 namespace MTP::details {
 

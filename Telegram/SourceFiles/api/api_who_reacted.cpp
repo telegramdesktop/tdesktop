@@ -289,6 +289,7 @@ struct State {
 				result.match([&](
 						const MTPDmessages_messageReactionsList &data) {
 					session->data().processUsers(data.vusers());
+					session->data().processChats(data.vchats());
 
 					auto parsed = PeersWithReactions{
 						.fullReactionsCount = data.vcount().v,
@@ -297,7 +298,7 @@ struct State {
 					for (const auto &vote : data.vreactions().v) {
 						vote.match([&](const auto &data) {
 							parsed.list.push_back(PeerWithReaction{
-								.peer = peerFromUser(data.vuser_id()),
+								.peer = peerFromMTP(data.vpeer_id()),
 								.reaction = qs(data.vreaction()),
 							});
 						});
@@ -507,7 +508,11 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			state->current.fullReadCount = int(peers.read.size());
 			state->current.fullReactionsCount = peers.fullReactionsCount;
 			if (whoReadIds) {
-				whoReadIds->list = (peers.read.size() > peers.list.size())
+				const auto reacted = peers.list.size() - ranges::count(
+					peers.list,
+					QString(),
+					&PeerWithReaction::reaction);
+				whoReadIds->list = (peers.read.size() > reacted)
 					? std::move(peers.read)
 					: std::vector<PeerId>();
 			}

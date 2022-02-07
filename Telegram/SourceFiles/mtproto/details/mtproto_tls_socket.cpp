@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/invoke_queued.h"
 #include "base/unixtime.h"
-#include "base/qt_adapters.h"
+#include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QtEndian>
 #include <range/v3/algorithm/reverse.hpp>

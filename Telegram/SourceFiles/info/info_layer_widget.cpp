@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
 #include "core/application.h"
-#include "app.h" // App::quitting.
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "styles/style_layers.h"
@@ -297,7 +296,7 @@ void LayerWidget::closeHook() {
 }
 
 LayerWidget::~LayerWidget() {
-	if (!App::quitting()) {
+	if (!Core::Quitting()) {
 		restoreFloatPlayerDelegate();
 	}
 }

@@ -39,10 +39,6 @@ namespace ChatHelpers {
 class EmojiKeywords;
 } // namespace ChatHelpers
 
-namespace App {
-void quit();
-} // namespace App
-
 namespace Main {
 class Domain;
 class Account;
@@ -106,6 +102,17 @@ namespace Core {
 
 class Launcher;
 struct LocalUrlHandler;
+
+enum class LaunchState {
+	Running,
+	QuitRequested,
+	QuitProcessed,
+};
+
+enum class QuitReason {
+	Default,
+	QtQuitEvent,
+};
 
 class Application final : public QObject {
 public:
@@ -239,9 +246,11 @@ public:
 	}
 
 	void logout(Main::Account *account = nullptr);
+	void logoutWithChecks(Main::Account *account);
 	void forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
+	[[nodiscard]] bool uploadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();
@@ -252,6 +261,8 @@ public:
 	void checkAutoLock(crl::time lastNonIdleTime = 0);
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
+
+	[[nodiscard]] bool preventsQuit(QuitReason reason);
 
 	[[nodiscard]] crl::time lastNonIdleTime() const;
 	void updateNonIdle();
@@ -301,8 +312,7 @@ private:
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
 
-	friend void App::quit();
-	static void QuitAttempt();
+	friend void QuitAttempt();
 	void quitDelayed();
 	[[nodiscard]] bool readyToQuit();
 
@@ -386,5 +396,13 @@ private:
 
 [[nodiscard]] bool IsAppLaunched();
 [[nodiscard]] Application &App();
+
+[[nodiscard]] LaunchState CurrentLaunchState();
+void SetLaunchState(LaunchState state);
+
+void Quit(QuitReason reason = QuitReason::Default);
+[[nodiscard]] bool Quitting();
+
+void Restart();
 
 } // namespace Core

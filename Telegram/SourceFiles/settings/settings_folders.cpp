@@ -25,9 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/filter_icons.h"
 #include "settings/settings_common.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
-#include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -575,7 +575,7 @@ Folders::Folders(
 }
 
 Folders::~Folders() {
-	if (!App::quitting()) {
+	if (!Core::Quitting()) {
 		_save();
 	}
 }

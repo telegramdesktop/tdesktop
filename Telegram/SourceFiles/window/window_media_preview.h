@@ -66,6 +66,7 @@ private:
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Media::Clip::ReaderPointer _gif, _gifThumbnail;
+	bool _gifWithAlpha = false;
 	crl::time _gifLastPosition = 0;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 

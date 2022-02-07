@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
-#include "app.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QAbstractNativeEventFilter>
@@ -66,7 +65,7 @@ bool WindowsIntegration::processEvent(
 		LRESULT *result) {
 	switch (msg) {
 	case WM_ENDSESSION:
-		App::quit();
+		Core::Quit();
 		break;
 
 	case WM_TIMECHANGE:

@@ -33,6 +33,7 @@ struct BubblePattern {
 
 [[nodiscard]] std::unique_ptr<BubblePattern> PrepareBubblePattern(
 	not_null<const style::palette*> st);
+void FinishBubblePatternOnMain(not_null<BubblePattern*> pattern);
 
 struct SimpleBubble {
 	not_null<const ChatStyle*> st;

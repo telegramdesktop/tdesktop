@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -67,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 #include <QtCore/QMimeData>
-#include <QtGui/QGuiApplication>
 
 namespace HistoryView {
 namespace {
@@ -1265,7 +1265,7 @@ void RepliesWidget::reloadUnreadCountIfNeeded() {
 }
 
 void RepliesWidget::scrollDownClicked() {
-	if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+	if (base::IsCtrlPressed()) {
 		showAtEnd();
 	} else if (_replyReturn) {
 		showAtPosition(_replyReturn->position());

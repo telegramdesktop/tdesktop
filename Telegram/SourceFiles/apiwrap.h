@@ -67,6 +67,7 @@ class ConfirmPhone;
 class PeerPhoto;
 class Polls;
 class ChatParticipants;
+class UnreadThings;
 
 namespace details {
 
@@ -206,8 +207,9 @@ public:
 		FnMut<void(not_null<ChannelData*>)> done,
 		Fn<void(const QString &)> fail = nullptr);
 
-	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
-	void markMediaRead(not_null<HistoryItem*> item);
+	void markContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items);
+	void markContentsRead(not_null<HistoryItem*> item);
 
 	void deleteAllFromParticipant(
 		not_null<ChannelData*> channel,
@@ -249,11 +251,6 @@ public:
 	bool isQuitPrevent();
 
 	void jumpToDate(Dialogs::Key chat, const QDate &date);
-
-	void preloadEnoughUnreadMentions(not_null<History*> history);
-	void checkForUnreadMentions(
-		const base::flat_set<MsgId> &possiblyReadMentions,
-		ChannelData *channel = nullptr);
 
 	using SliceType = Data::LoadDirection;
 	void requestSharedMedia(
@@ -356,6 +353,7 @@ public:
 	[[nodiscard]] Api::PeerPhoto &peerPhoto();
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
+	[[nodiscard]] Api::UnreadThings &unreadThings();
 
 	void updatePrivacyLastSeens();
 
@@ -562,8 +560,6 @@ private:
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
 
-	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
-
 	base::flat_set<std::tuple<
 		not_null<PeerData*>,
 		SharedMediaType,
@@ -636,6 +632,7 @@ private:
 	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
+	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

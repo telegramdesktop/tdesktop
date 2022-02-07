@@ -173,8 +173,8 @@ public:
 	[[nodiscard]] std::optional<QRect> lookupEffectArea(
 		FullMsgId itemId) const;
 	void startEffectsCollection();
-	[[nodiscard]] auto currentReactionEffect()
-		-> not_null<Ui::ReactionEffectPainter*>;
+	[[nodiscard]] auto currentReactionPaintInfo()
+		-> not_null<Ui::ReactionPaintInfo*>;
 	void recordCurrentReactionEffect(FullMsgId itemId, QPoint origin);
 
 	bool showContextMenu(
@@ -354,8 +354,8 @@ private:
 
 	base::flat_map<FullMsgId, QRect> _activeEffectAreas;
 
-	Ui::ReactionEffectPainter _currentEffect;
-	base::flat_map<FullMsgId, Ui::ReactionEffectPainter> _collectedEffects;
+	Ui::ReactionPaintInfo _currentReactionInfo;
+	base::flat_map<FullMsgId, Ui::ReactionPaintInfo> _collectedEffects;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<QString> _faveRequests;

@@ -596,11 +596,11 @@ bool MainWindow::doWeMarkAsRead() {
 	if (!_main || Ui::isLayerShown()) {
 		return false;
 	}
-	updateIsActive();
 	return isActive() && _main->doWeMarkAsRead();
 }
 
 void MainWindow::checkHistoryActivation() {
+	updateIsActive();
 	if (_main) {
 		_main->checkHistoryActivation();
 	}
@@ -796,9 +796,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	if (Core::Sandbox::Instance().isSavingSession()) {
+	if (Core::Sandbox::Instance().isSavingSession() || Core::Quitting()) {
 		e->accept();
-		App::quit();
+		Core::Quit();
 	} else {
 		e->ignore();
 		const auto hasAuth = [&] {
@@ -813,7 +813,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 			return false;
 		}();
 		if (!hasAuth || !hideNoQuit()) {
-			App::quit();
+			Core::Quit();
 		}
 	}
 }

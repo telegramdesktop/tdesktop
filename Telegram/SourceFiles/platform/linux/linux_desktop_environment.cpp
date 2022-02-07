@@ -92,7 +92,7 @@ std::vector<Type> Compute() {
 		}
 	}
 
-	ranges::unique(result);
+	result = result | ranges::views::unique | ranges::to_vector;
 	return result;
 }
 

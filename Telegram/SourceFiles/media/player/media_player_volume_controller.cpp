@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace Media::Player {
 
 VolumeController::VolumeController(

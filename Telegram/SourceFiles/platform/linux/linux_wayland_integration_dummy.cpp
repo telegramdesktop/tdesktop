@@ -26,21 +26,11 @@ WaylandIntegration *WaylandIntegration::Instance() {
 	return &instance;
 }
 
-QString WaylandIntegration::nativeHandle(QWindow *window) {
-	return {};
-}
-
 bool WaylandIntegration::skipTaskbarSupported() {
 	return false;
 }
 
 void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
-}
-
-void WaylandIntegration::registerAppMenu(
-		QWindow *window,
-		const QString &serviceName,
-		const QString &objectPath) {
 }
 
 } // namespace internal

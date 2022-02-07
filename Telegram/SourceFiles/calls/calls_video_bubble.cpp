@@ -169,12 +169,12 @@ void VideoBubble::prepareFrame() {
 	for (; from != till; from += fromPerLine, to += toPerLine) {
 		memcpy(to, from, lineSize);
 	}
-	Images::prepareRound(
-		_frame,
+	_frame = Images::Round(
+		std::move(_frame),
 		ImageRoundRadius::Large,
 		RectPart::AllCorners,
-		QRect(QPoint(), size));
-	_frame = std::move(_frame).mirrored(true, false);
+		QRect(QPoint(), size)
+	).mirrored(true, false);
 }
 
 void VideoBubble::setState(Webrtc::VideoState state) {

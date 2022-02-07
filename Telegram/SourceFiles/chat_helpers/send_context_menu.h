@@ -54,4 +54,8 @@ void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<PeerData*()> currentPeer);
 
+void SetupUnreadReactionsMenu(
+	not_null<Ui::RpWidget*> button,
+	Fn<PeerData*()> currentPeer);
+
 } // namespace SendMenu

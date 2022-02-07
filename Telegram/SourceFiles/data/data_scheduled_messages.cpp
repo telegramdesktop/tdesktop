@@ -375,6 +375,10 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 }
 
 void ScheduledMessages::request(not_null<History*> history) {
+	const auto peer = history->peer;
+	if (peer->isBroadcast() && !peer->canWrite()) {
+		return;
+	}
 	auto &request = _requests[history];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
@@ -384,9 +388,7 @@ void ScheduledMessages::request(not_null<History*> history) {
 		? countListHash(i->second)
 		: uint64(0);
 	request.requestId = _session->api().request(
-		MTPmessages_GetScheduledHistory(
-			history->peer->input,
-			MTP_long(hash))
+		MTPmessages_GetScheduledHistory(peer->input, MTP_long(hash))
 	).done([=](const MTPmessages_Messages &result) {
 		parse(history, result);
 	}).fail([=] {

@@ -321,15 +321,11 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 	const auto takeHeight = (width > height)
 		? size
 		: (height * size / width);
-	return Images::prepare(
-		image,
-		takeWidth * cIntRetinaFactor(),
-		takeHeight * cIntRetinaFactor(),
-		Images::Option::Smooth
-		| Images::Option::TransparentBackground
-		| blur,
-		size,
-		size);
+	const auto ratio = style::DevicePixelRatio();
+	return Images::Prepare(image, QSize(takeWidth, takeHeight) * ratio, {
+		.options = Images::Option::TransparentBackground | blur,
+		.outer = { size, size },
+	});
 }
 
 [[nodiscard]] QImage PrepareScaledFromFull(
@@ -667,7 +663,7 @@ void BackgroundPreviewBox::setScaledFromThumb() {
 		_paper.backgroundColors(),
 		_paper.gradientRotation(),
 		_paper.patternOpacity(),
-		_paper.document() ? Images::Option::Blurred : Images::Option(0));
+		_paper.document() ? Images::Option::Blur : Images::Option());
 	auto blurred = (_paper.document() || _paper.isPattern())
 		? QImage()
 		: PrepareScaledNonPattern(

@@ -252,12 +252,13 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 
 	if (_photo) {
 		if (const auto image = _photo->image(Data::PhotoSize::Small)) {
+			const auto size = st::confirmInvitePhotoSize;
 			p.drawPixmap(
-				(width() - st::confirmInvitePhotoSize) / 2,
+				(width() - size) / 2,
 				st::confirmInvitePhotoTop,
-				image->pixCircled(
-					st::confirmInvitePhotoSize,
-					st::confirmInvitePhotoSize));
+				image->pix(
+					{ size, size },
+					{ .options = Images::Option::RoundCircle }));
 		}
 	} else if (_photoEmpty) {
 		_photoEmpty->paint(

@@ -1,28 +1,47 @@
-3.4.8 (19.01.21)
+3.5.1 (03.02.22)
+
+- Keep the screen on while watching a video or participating in a video chat.
+- Save experimental settings between relaunches.
+- Bug fixes and other minor improvements.
+
+3.5 (31.01.22)
+
+- Use a new type of detailed stickers with smooth animations.
+- Create new sets by sending .webm videos to @stickers.
+- Bring your custom animated stickers from other apps.
+- See smaller, compact animations when reacting to messages.
+- See real-time animations in chat when a user reacts to your message.
+- React with additional emoji expressing love, appreciation, anger or surprise. 
+- Tap the new button in chats to jump to your messages that have unseen reactions.
+- Watch the animations for unseen reactions play when you hit the button.
+- The app will warn you before closing if you are uploading photos or files to a chat.
+- Enjoy better screencast quality in video chats.
+
+3.4.8 (19.01.22)
 
 - Nice animations in reactions.
 - Add snap layouts support on Windows 11.
 - Bug fixes and other minor improvements.
 
-3.4.7 beta (19.01.21)
+3.4.7 beta (19.01.22)
 
 - Fix a crash on launch on Windows.
 
-3.4.6 beta (18.01.21)
+3.4.6 beta (18.01.22)
 
 - Add snap layouts support on Windows 11.
 - Fix crash in drafts after accounts switching.
 
-3.4.5 beta (16.01.21)
+3.4.5 beta (16.01.22)
 
 - Fix crash in monospace blocks processing.
 - Fix reaction animations stopping after an hour uptime.
 
-3.4.4 beta (14.01.21)
+3.4.4 beta (14.01.22)
 
 - Nice animations in reactions.
 
-3.4.3 (03.01.21)
+3.4.3 (03.01.22)
 
 - Bug fixes and other minor improvements.
 

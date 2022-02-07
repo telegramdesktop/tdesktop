@@ -68,6 +68,11 @@ public:
 
 	void updateAllInHistory(not_null<PeerData*> peer, bool enabled);
 
+	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
+	static void CheckUnknownForUnread(
+		not_null<Session*> owner,
+		const MTPMessage &message);
+
 private:
 	struct ImageSet {
 		QImage bottomInfo;
@@ -125,28 +130,48 @@ private:
 
 };
 
+struct RecentReaction {
+	not_null<PeerData*> peer;
+	bool unread = false;
+	bool big = false;
+
+	inline friend constexpr bool operator==(
+			const RecentReaction &a,
+			const RecentReaction &b) noexcept {
+		return (a.peer.get() == b.peer.get())
+			&& (a.unread == b.unread)
+			&& (a.big == b.big);
+	}
+};
+
 class MessageReactions final {
 public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
 	void add(const QString &reaction);
 	void remove();
-	void set(
+	bool change(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessageUserReaction> &recent,
+		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen);
+	[[nodiscard]] bool checkIfChanged(
+		const QVector<MTPReactionCount> &list,
+		const QVector<MTPMessagePeerReaction> &recent) const;
 	[[nodiscard]] const base::flat_map<QString, int> &list() const;
 	[[nodiscard]] auto recent() const
-		-> const base::flat_map<QString, std::vector<not_null<UserData*>>> &;
+		-> const base::flat_map<QString, std::vector<RecentReaction>> &;
 	[[nodiscard]] QString chosen() const;
 	[[nodiscard]] bool empty() const;
+
+	[[nodiscard]] bool hasUnread() const;
+	void markRead();
 
 private:
 	const not_null<HistoryItem*> _item;
 
 	QString _chosen;
 	base::flat_map<QString, int> _list;
-	base::flat_map<QString, std::vector<not_null<UserData*>>> _recent;
+	base::flat_map<QString, std::vector<RecentReaction>> _recent;
 
 };
 

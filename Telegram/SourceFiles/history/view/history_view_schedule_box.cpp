@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -25,8 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-
-#include <QGuiApplication>
 
 namespace HistoryView {
 namespace {
@@ -70,11 +69,9 @@ void ScheduleBox(
 		if (!scheduleDate) {
 			return;
 		}
-		// Pro tip: Hold Ctrl key to send a silent scheduled message!
-		auto ctrl =
-			(QGuiApplication::keyboardModifiers() == Qt::ControlModifier);
 		auto result = Api::SendOptions();
-		result.silent = silent || ctrl;
+		// Pro tip: Hold Ctrl key to send a silent scheduled message!
+		result.silent = silent || base::IsCtrlPressed();
 		result.scheduled = scheduleDate;
 		const auto copy = done;
 		box->closeBox();

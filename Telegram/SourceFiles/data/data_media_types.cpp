@@ -51,9 +51,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
@@ -128,9 +128,9 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 					Images::CornersMask(pxRadius)).first->second;
 			}
 		}
-		Images::prepareRound(square, *cache.lastUsed);
+		square = Images::Round(std::move(square), *cache.lastUsed);
 	} else {
-		Images::prepareRound(square, radius);
+		square = Images::Round(std::move(square), radius);
 	}
 	square.setDevicePixelRatio(factor);
 	return square;
@@ -464,7 +464,7 @@ MediaPhoto::MediaPhoto(
 }
 
 MediaPhoto::~MediaPhoto() {
-	if (uploading() && !App::quitting()) {
+	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
 	parent()->history()->owner().unregisterPhotoItem(_photo, parent());
@@ -649,7 +649,7 @@ MediaFile::MediaFile(
 }
 
 MediaFile::~MediaFile() {
-	if (uploading() && !App::quitting()) {
+	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
 	parent()->history()->owner().unregisterDocumentItem(
@@ -947,14 +947,16 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (_document->sticker()) {
+	if (const auto info = _document->sticker(); info && !info->isWebm()) {
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Sticker>(
 				message,
 				_document,
 				replacing));
-	} else if (_document->isAnimation() || _document->isVideoFile()) {
+	} else if (_document->isAnimation()
+		|| _document->isVideoFile()
+		|| (info && info->isWebm())) {
 		return std::make_unique<HistoryView::Gif>(
 			message,
 			realParent,

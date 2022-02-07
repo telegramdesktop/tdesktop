@@ -83,13 +83,12 @@ struct UnreadBadgeStyle {
 	UnreadBadgeSize sizeId = UnreadBadgeInDialogs;
 	style::font font;
 };
-void paintUnreadCount(
+QRect PaintUnreadBadge(
 	Painter &p,
 	const QString &t,
 	int x,
 	int y,
 	const UnreadBadgeStyle &st,
-	int *outUnreadWidth = nullptr,
 	int allowDigits = 0);
 
 void clearUnreadBadgesCache();

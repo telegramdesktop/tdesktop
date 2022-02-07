@@ -135,6 +135,7 @@ private:
 
 	void showPreview();
 	void updateInlineItems();
+	void repaintItems(crl::time now = 0);
 	void clearInlineRows(bool resultsDeleted);
 	ItemBase *layoutPrepareInlineResult(Result *result);
 
@@ -154,7 +155,8 @@ private:
 
 	UserData *_inlineBot = nullptr;
 	PeerData *_inlineQueryPeer = nullptr;
-	crl::time _lastScrolled = 0;
+	crl::time _lastScrolledAt = 0;
+	crl::time _lastUpdatedAt = 0;
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 

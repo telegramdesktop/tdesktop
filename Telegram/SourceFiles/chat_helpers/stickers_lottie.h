@@ -7,11 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace base {
+template <typename Enum>
+class Flags;
+} // namespace base
+
 namespace Storage {
 namespace Cache {
 struct Key;
 } // namespace Cache
 } // namespace Storage
+
+namespace Media::Clip {
+class ReaderPointer;
+enum class Notification;
+} // namespace Media::Clip
 
 namespace Lottie {
 class SinglePlayer;
@@ -33,6 +43,8 @@ class PathShiftGradient;
 namespace Data {
 class DocumentMedia;
 class StickersSetThumbnailView;
+enum class StickersSetFlag;
+using StickersSetFlags = base::flags<StickersSetFlag>;
 } // namespace Data
 
 namespace ChatHelpers {
@@ -70,6 +82,7 @@ enum class StickerLottieSize : uchar {
 	QSize box);
 
 [[nodiscard]] bool HasLottieThumbnail(
+	Data::StickersSetFlags flags,
 	Data::StickersSetThumbnailView *thumb,
 	Data::DocumentMedia *media);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
@@ -78,6 +91,15 @@ enum class StickerLottieSize : uchar {
 	StickerLottieSize sizeTag,
 	QSize box,
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
+
+[[nodiscard]] bool HasWebmThumbnail(
+	Data::StickersSetFlags flags,
+	Data::StickersSetThumbnailView *thumb,
+	Data::DocumentMedia *media);
+[[nodiscard]] Media::Clip::ReaderPointer WebmThumbnail(
+	Data::StickersSetThumbnailView *thumb,
+	Data::DocumentMedia *media,
+	Fn<void(Media::Clip::Notification)> callback);
 
 bool PaintStickerThumbnailPath(
 	QPainter &p,
@@ -90,5 +112,9 @@ bool PaintStickerThumbnailPath(
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
 	not_null<Ui::PathShiftGradient*> gradient);
+
+[[nodiscard]] QSize ComputeStickerSize(
+	not_null<DocumentData*> document,
+	QSize box);
 
 } // namespace ChatHelpers

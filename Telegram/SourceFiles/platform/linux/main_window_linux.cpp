@@ -363,16 +363,17 @@ void SendKeySequence(
 }
 
 void ForceDisabled(QAction *action, bool disabled) {
-    if (action->isEnabled()) {
-        if (disabled) action->setDisabled(true);
-    } else if (!disabled) {
-        action->setDisabled(false);
+	if (action->isEnabled()) {
+		if (disabled) action->setDisabled(true);
+	} else if (!disabled) {
+		action->setDisabled(false);
 
-        const auto privateAction = QActionPrivate::get(action);
+		const auto privateAction = QActionPrivate::get(action);
         privateAction->setShortcutEnabled(
                 false,
                 QGuiApplicationPrivate::instance()->shortcutMap);
-    }
+
+	}
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -407,41 +408,41 @@ uint djbStringHash(const std::string &string) {
 
 class MainWindow::Private : public QObject {
 public:
-    explicit Private(not_null<MainWindow*> window)
-            : _public(window) {
-        QCoreApplication::instance()->installEventFilter(this);
-    }
+	explicit Private(not_null<MainWindow*> window)
+	: _public(window) {
+		QCoreApplication::instance()->installEventFilter(this);
+	}
 
-    base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
+	base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-    Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
+	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 protected:
-    bool eventFilter(QObject *obj, QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
     not_null<MainWindow*> _public;
 };
 
 bool MainWindow::Private::eventFilter(QObject *obj, QEvent *e) {
-    if (obj->objectName() == qstr("QSystemTrayIconSys")
-        && e->type() == QEvent::MouseButtonPress) {
-        const auto ee = static_cast<QMouseEvent*>(e);
-        if (ee->button() == Qt::RightButton) {
-            Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-                _public->handleTrayIconActication(QSystemTrayIcon::Context);
-            });
-            return true;
-        }
-    }
-    return QObject::eventFilter(obj, e);
+	if (obj->objectName() == qstr("QSystemTrayIconSys")
+			&& e->type() == QEvent::MouseButtonPress) {
+		const auto ee = static_cast<QMouseEvent*>(e);
+		if (ee->button() == Qt::RightButton) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				_public->handleTrayIconActication(QSystemTrayIcon::Context);
+			});
+			return true;
+		}
+	}
+	return QObject::eventFilter(obj, e);
 }
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-        : Window::MainWindow(controller)
-        , _private(std::make_unique<Private>(this)) {
+: Window::MainWindow(controller)
+, _private(std::make_unique<Private>(this)) {
 }
 
 void MainWindow::initHook() {
@@ -467,28 +468,28 @@ void MainWindow::initHook() {
     });
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-    try {
-        _private->dbusConnection = Gio::DBus::Connection::get_sync(
-                Gio::DBus::BusType::BUS_TYPE_SESSION);
-    } catch (...) {
-    }
+	try {
+		_private->dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+	} catch (...) {
+	}
 
-    if (UseUnityCounter()) {
-        LOG(("Using Unity launcher counter."));
-    } else {
-        LOG(("Not using Unity launcher counter."));
-    }
+	if (UseUnityCounter()) {
+		LOG(("Using Unity launcher counter."));
+	} else {
+		LOG(("Not using Unity launcher counter."));
+	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
     XCBSetDesktopFileName(windowHandle());
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-    LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
+	LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
 }
 
 bool MainWindow::hasTrayIcon() const {
-    return trayIcon;
+	return trayIcon;
 }
 
 bool MainWindow::isActiveForTrayMenu() {
@@ -497,19 +498,19 @@ bool MainWindow::isActiveForTrayMenu() {
 }
 
 void MainWindow::psShowTrayMenu() {
-    _private->trayIconMenuXEmbed->popup(QCursor::pos());
+	_private->trayIconMenuXEmbed->popup(QCursor::pos());
 }
 
 void MainWindow::psTrayMenuUpdated() {
 }
 
 void MainWindow::psSetupTrayIcon() {
-    if (!trayIcon) {
-        trayIcon = new QSystemTrayIcon(this);
-        trayIcon->setContextMenu(trayIconMenu);
-        trayIcon->setIcon(TrayIconGen(
-                Core::App().unreadBadge(),
-                Core::App().unreadBadgeMuted()));
+	if (!trayIcon) {
+		trayIcon = new QSystemTrayIcon(this);
+		trayIcon->setContextMenu(trayIconMenu);
+		trayIcon->setIcon(TrayIconGen(
+			Core::App().unreadBadge(),
+			Core::App().unreadBadgeMuted()));
 
         attachToTrayIcon(trayIcon);
     }
@@ -519,17 +520,17 @@ void MainWindow::psSetupTrayIcon() {
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
-    if (!TrayIconSupported()) {
-        return;
-    } else if (mode == WorkMode::WindowOnly) {
-        if (trayIcon) {
-            trayIcon->setContextMenu(0);
-            trayIcon->deleteLater();
-        }
-        trayIcon = nullptr;
-    } else {
-        psSetupTrayIcon();
-    }
+	if (!TrayIconSupported()) {
+		return;
+	} else if (mode == WorkMode::WindowOnly) {
+		if (trayIcon) {
+			trayIcon->setContextMenu(0);
+			trayIcon->deleteLater();
+		}
+		trayIcon = nullptr;
+	} else {
+		psSetupTrayIcon();
+	}
 
     SkipTaskbar(windowHandle(), mode == WorkMode::TrayOnly);
 }
@@ -565,22 +566,22 @@ void MainWindow::updateIconCounters() {
                     Glib::Variant<bool>::create(false);
         }
 
-        try {
-            if (_private->dbusConnection) {
-                _private->dbusConnection->emit_signal(
-                        "/com/canonical/unity/launcherentry/"
-                        + std::to_string(djbStringHash(launcherUrl)),
-                        "com.canonical.Unity.LauncherEntry",
-                        "Update",
-                        {},
-                        base::Platform::MakeGlibVariant(std::tuple{
-                                launcherUrl,
-                                dbusUnityProperties,
-                        }));
-            }
-        } catch (...) {
-        }
-    }
+		try {
+			if (_private->dbusConnection) {
+				_private->dbusConnection->emit_signal(
+					"/com/canonical/unity/launcherentry/"
+						+ std::to_string(djbStringHash(launcherUrl)),
+					"com.canonical.Unity.LauncherEntry",
+					"Update",
+					{},
+					base::Platform::MakeGlibVariant(std::tuple{
+						launcherUrl,
+						dbusUnityProperties,
+					}));
+			}
+		} catch (...) {
+		}
+	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
     if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
@@ -589,8 +590,8 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::initTrayMenuHook() {
-    _private->trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
-    _private->trayIconMenuXEmbed->deleteOnHide(false);
+	_private->trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
+	_private->trayIconMenuXEmbed->deleteOnHide(false);
 }
 
 void MainWindow::createGlobalMenu() {
@@ -600,8 +601,8 @@ void MainWindow::createGlobalMenu() {
         }
     };
 
-    psMainMenu = new QMenuBar(this);
-    psMainMenu->hide();
+	psMainMenu = new QMenuBar(this);
+	psMainMenu->hide();
 
     auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
@@ -783,16 +784,16 @@ void MainWindow::createGlobalMenu() {
 
     about->setMenuRole(QAction::AboutQtRole);
 
-    // avoid shadowing actual shortcuts by the menubar
-    for (const auto &child : psMainMenu->children()) {
-        const auto action = qobject_cast<QAction*>(child);
-        if (action) {
-            const auto privateAction = QActionPrivate::get(action);
-            privateAction->setShortcutEnabled(
-                    false,
-                    QGuiApplicationPrivate::instance()->shortcutMap);
-        }
-    }
+	// avoid shadowing actual shortcuts by the menubar
+	for (const auto &child : psMainMenu->children()) {
+		const auto action = qobject_cast<QAction*>(child);
+		if (action) {
+			const auto privateAction = QActionPrivate::get(action);
+			privateAction->setShortcutEnabled(
+				false,
+				QGuiApplicationPrivate::instance()->shortcutMap);
+		}
+	}
 
     updateGlobalMenu();
 }
@@ -861,12 +862,12 @@ void MainWindow::updateGlobalMenuHook() {
 }
 
 void MainWindow::handleNativeSurfaceChanged(bool exist) {
-    if (exist) {
-        SkipTaskbar(
-                windowHandle(),
-                (Core::App().settings().workMode() == WorkMode::TrayOnly)
-                && TrayIconSupported());
-    }
+	if (exist) {
+		SkipTaskbar(
+			windowHandle(),
+			(Core::App().settings().workMode() == WorkMode::TrayOnly)
+				&& TrayIconSupported());
+	}
 }
 
 MainWindow::~MainWindow() {

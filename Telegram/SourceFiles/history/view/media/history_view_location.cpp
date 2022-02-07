@@ -194,8 +194,12 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	auto rthumb = QRect(paintx, painty, paintw, painth);
 	ensureMediaCreated();
 	if (const auto thumbnail = _media->image()) {
-		const auto &pix = thumbnail->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
-		p.drawPixmap(rthumb.topLeft(), pix);
+		p.drawPixmap(rthumb.topLeft(), thumbnail->pixSingle(
+			rthumb.size(),
+			{
+				.options = Images::RoundOptions(roundRadius, roundCorners),
+				.outer = rthumb.size(),
+			}));
 	} else {
 		Ui::FillComplexLocationRect(p, st, rthumb, roundRadius, roundCorners);
 	}

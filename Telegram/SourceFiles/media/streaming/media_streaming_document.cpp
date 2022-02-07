@@ -28,7 +28,7 @@ namespace {
 constexpr auto kWaitingFastDuration = crl::time(200);
 constexpr auto kWaitingShowDuration = crl::time(500);
 constexpr auto kWaitingShowDelay = crl::time(500);
-constexpr auto kGoodThumbnailQuality = 87;
+constexpr auto kGoodThumbQuality = 87;
 
 } // namespace
 
@@ -217,6 +217,7 @@ void Document::validateGoodThumbnail() {
 		|| _document->goodThumbnailChecked()) {
 		return;
 	}
+	const auto sticker = (_document->sticker() != nullptr);
 	const auto document = _document;
 	const auto information = _info.video;
 	const auto key = document->goodThumbnailCacheKey();
@@ -238,12 +239,15 @@ void Document::validateGoodThumbnail() {
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 			}
+			if (!sticker && information.alpha) {
+				result = Images::Opaque(std::move(result));
+			}
 			return result;
 		}();
 		auto bytes = QByteArray();
 		{
 			auto buffer = QBuffer(&bytes);
-			image.save(&buffer, "JPG", kGoodThumbnailQuality);
+			image.save(&buffer, sticker ? "WEBP" : "JPG", kGoodThumbQuality);
 		}
 		const auto length = bytes.size();
 		if (!length || length > Storage::kMaxFileInMemory) {

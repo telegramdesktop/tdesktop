@@ -35,6 +35,10 @@ enum class Error;
 } // namespace Streaming
 } // namespace Media
 
+namespace base {
+class PowerSaveBlocker;
+} // namespace base
+
 namespace Media {
 namespace Player {
 
@@ -195,6 +199,8 @@ private:
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
 		std::unique_ptr<ShuffleData> shuffleData;
+		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
+		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlockerVideo;
 	};
 
 	struct SeekingChanges {
@@ -234,6 +240,9 @@ private:
 	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
+	void updatePowerSaveBlocker(
+		not_null<Data*> data,
+		const TrackState &state);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 	void stopAndClear(not_null<Data*> data);
 

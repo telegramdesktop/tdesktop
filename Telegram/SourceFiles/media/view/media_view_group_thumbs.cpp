@@ -300,10 +300,7 @@ void GroupThumbs::Thumb::validateImage() {
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation));
 	} else {
-		_full = _image->pixNoCache(
-			pixSize.width() * cIntRetinaFactor(),
-			pixSize.height() * cIntRetinaFactor(),
-			Images::Option::Smooth);
+		_full = _image->pixNoCache(pixSize * style::DevicePixelRatio());
 	}
 	_fullWidth = std::min(
 		wantedPixSize().width(),

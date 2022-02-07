@@ -188,8 +188,16 @@ crl::time FFMpegReaderImplementation::framePresentationTime() const {
 }
 
 crl::time FFMpegReaderImplementation::durationMs() const {
-	if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
-	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+	const auto rebase = [](int64_t duration, const AVRational &base) {
+		return (duration * 1000LL * base.num) / base.den;
+	};
+	const auto stream = _fmtContext->streams[_streamId];
+	if (stream->duration != AV_NOPTS_VALUE) {
+		return rebase(stream->duration, stream->time_base);
+	} else if (_fmtContext->duration != AV_NOPTS_VALUE) {
+		return rebase(_fmtContext->duration, AVRational{ 1, AV_TIME_BASE });
+	}
+	return 0;
 }
 
 bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
@@ -211,8 +219,12 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	if (to.isNull() || to.size() != toSize || !to.isDetached() || !isAlignedImage(to)) {
 		to = createAlignedImage(toSize);
 	}
-	hasAlpha = (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA));
-	if (_frame->width == toSize.width() && _frame->height == toSize.height() && hasAlpha) {
+	const auto format = (_frame->format == AV_PIX_FMT_NONE)
+		? _codecContext->pix_fmt
+		: _frame->format;
+	const auto bgra = (format == AV_PIX_FMT_BGRA);
+	hasAlpha = bgra || (format == AV_PIX_FMT_YUVA420P);
+	if (_frame->width == toSize.width() && _frame->height == toSize.height() && bgra) {
 		int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
 		uchar *s = _frame->data[0], *d = to.bits();
 		for (int32 i = 0, l = _frame->height; i < l; ++i) {
@@ -315,8 +327,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	_codecContext->pkt_timebase = _fmtContext->streams[_streamId]->time_base;
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
-	const auto codec = avcodec_find_decoder(_codecContext->codec_id);
-
+	const auto codec = FFmpeg::FindDecoder(_codecContext);
 	if (_mode == Mode::Inspecting) {
 		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 		_hasAudioStream = (audioStreamId >= 0);
@@ -386,6 +397,19 @@ bool FFMpegReaderImplementation::isGifv() const {
 		return false;
 	}
 	if (_codecContext->codec_id != AV_CODEC_ID_H264) {
+		return false;
+	}
+	return true;
+}
+
+bool FFMpegReaderImplementation::isWebmSticker() const {
+	if (_hasAudioStream) {
+		return false;
+	}
+	if (dataSize() > kMaxInMemory) {
+		return false;
+	}
+	if (_codecContext->codec_id != AV_CODEC_ID_VP9) {
 		return false;
 	}
 	return true;

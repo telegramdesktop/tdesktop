@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
+#include "base/options.h"
 
 #include <QtCore/QLoggingCategory>
 
@@ -320,6 +321,7 @@ int Launcher::exec() {
 
 	// Must be started before Platform is started.
 	Logs::start(this);
+	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
 
 	if (Logs::DebugEnabled()) {
 		const auto openalLogPath = QDir::toNativeSeparators(

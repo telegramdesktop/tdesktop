@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_main_window.h"
-#include "base/unique_qptr.h"
 
 class QMenuBar;
 
@@ -23,10 +22,6 @@ public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	void psShowTrayMenu();
-
-	bool trayAvailable() {
-		return _sniAvailable || QSystemTrayIcon::isSystemTrayAvailable();
-	}
 
 	bool isActiveForTrayMenu() override;
 

@@ -389,8 +389,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_start_disabled_uwp" = "Starting with the system was disabled in Windows Settings.\n\nPlease enable Telegram Desktop in the Startup Apps Settings.";
 "lng_settings_open_system_settings" = "Open Settings";
 "lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
+"lng_settings_mac_warn_before_quit" = "Show warning before quitting with {text}";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
+
+"lng_settings_experimental" = "Experimental settings";
+"lng_settings_experimental_about" = "Warning! Those are experimental settings. Some may not work. Others may break the app. Any of them may disappear in the next version without a trace. Use at your own risk.";
+"lng_settings_experimental_restore" = "Restore default values";
+"lng_settings_experimental_irrelevant" = "This option isn't relevant for your system.";
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
@@ -730,7 +736,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_logout" = "Are you sure you want to log out?";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
-"lng_settings_restart_now" = "RESTART";
+"lng_settings_restart_now" = "Restart";
+"lng_settings_restart_later" = "Later";
 
 "lng_sessions_header" = "Current session";
 "lng_sessions_other_header" = "Active sessions";
@@ -1748,6 +1755,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_mark_read_all" = "Mark all chats as read";
 "lng_context_mark_read_all_sure" = "Are you sure you want to mark all chats as read?";
 "lng_context_mark_read_mentions_all" = "Mark all mentions as read";
+"lng_context_mark_read_reactions_all" = "Read all reactions";
 "lng_context_archive_expand" = "Expand";
 "lng_context_archive_collapse" = "Collapse";
 "lng_context_archive_to_menu" = "Move to main menu";
@@ -1908,6 +1916,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_for_me_chat_hint#other" = "This will delete them just for you, not for other participants of the chat.";
 "lng_delete_for_me_hint#one" = "This will delete it just for you.";
 "lng_delete_for_me_hint#other" = "This will delete them just for you.";
+"lng_delete_clear_for_me" = "This will clear history just for you, not for other participants of the chat.";
 "lng_edit_auto_delete_settings" = "Edit Auto-Delete Settings";
 "lng_enable_auto_delete" = "Enable Auto-Delete";
 "lng_selected_unsend_about_user_one" = "You can also delete the message you sent from {user}'s inbox by checking \"Unsend my messages\".";
@@ -1921,6 +1930,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_for_other_my" = "Unsend my messages";
 "lng_box_delete" = "Delete";
 "lng_box_leave" = "Leave";
+
+"lng_upload_sure_stop" = "Are you sure you want to stop uploading your files?\n\nIf you do, you'll need to start over.";
+"lng_upload_show_file" = "Show file";
 
 "lng_about_version" = "version {version}";
 "lng_about_text1" = "Official free messaging app based on {api_link}\nfor speed and security.";
@@ -3058,6 +3070,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_preferences" = "Preferences...";
 "lng_mac_menu_quit_telegram" = "Quit {telegram}";
 "lng_mac_menu_about_telegram" = "About {telegram}";
+//"lng_mac_menu_warn_before_quit" = "Warn Before Quitting ({text})";
 "lng_mac_menu_file" = "File";
 "lng_mac_menu_logout" = "Log Out";
 "lng_mac_menu_edit" = "Edit";
@@ -3083,6 +3096,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_player_stop" = "Stop";
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
+"lng_mac_hold_to_quit" = "Hold {text} to Quit";
 
 "lng_fakepasscode" = "Passcode {caption}";
 "lng_ptelegram_version" = "PTelegram v. {version}";

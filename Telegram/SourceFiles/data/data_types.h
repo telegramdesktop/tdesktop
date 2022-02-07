@@ -234,52 +234,53 @@ enum class MessageFlag : uint32 {
 	Outgoing              = (1U << 11),
 	Pinned                = (1U << 12),
 	MediaIsUnread         = (1U << 13),
-	MentionsMe            = (1U << 14),
-	IsOrWasScheduled      = (1U << 15),
-	NoForwards            = (1U << 16),
+	HasUnreadReaction     = (1U << 14),
+	MentionsMe            = (1U << 15),
+	IsOrWasScheduled      = (1U << 16),
+	NoForwards            = (1U << 17),
 
 	// Needs to return back to inline mode.
-	HasSwitchInlineButton = (1U << 17),
+	HasSwitchInlineButton = (1U << 18),
 
 	// For "shared links" indexing.
-	HasTextLinks          = (1U << 18),
+	HasTextLinks          = (1U << 19),
 
 	// Group / channel create or migrate service message.
-	IsGroupEssential      = (1U << 19),
+	IsGroupEssential      = (1U << 20),
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1U << 20),
+	IsLocalUpdateMedia    = (1U << 21),
 
 	// Sent from inline bot, need to re-set media when sent.
-	FromInlineBot         = (1U << 21),
+	FromInlineBot         = (1U << 22),
 
 	// Generated on the client side and should be unread.
-	ClientSideUnread      = (1U << 22),
+	ClientSideUnread      = (1U << 23),
 
 	// In a supergroup.
-	HasAdminBadge         = (1U << 23),
+	HasAdminBadge         = (1U << 24),
 
 	// Outgoing message that is being sent.
-	BeingSent             = (1U << 24),
+	BeingSent             = (1U << 25),
 
 	// Outgoing message and failed to be sent.
-	SendingFailed         = (1U << 25),
+	SendingFailed         = (1U << 26),
 
 	// No media and only a several emoji text.
-	IsolatedEmoji         = (1U << 26),
+	IsolatedEmoji         = (1U << 27),
 
 	// Message existing in the message history.
-	HistoryEntry          = (1U << 27),
+	HistoryEntry          = (1U << 28),
 
 	// Local message, not existing on the server.
-	Local                 = (1U << 28),
+	Local                 = (1U << 29),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1U << 29),
+	FakeHistoryItem       = (1U << 30),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1U << 30),
+	IsContactSignUp       = (1U << 31),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

@@ -74,16 +74,10 @@ bool SingleMediaPreview::drawBackground() const {
 
 bool SingleMediaPreview::tryPaintAnimation(Painter &p) {
 	if (_gifPreview && _gifPreview->started()) {
-		auto s = QSize(previewWidth(), previewHeight());
-		auto paused = _gifPaused();
-		auto frame = _gifPreview->current(
-			s.width(),
-			s.height(),
-			s.width(),
-			s.height(),
-			ImageRoundRadius::None,
-			RectPart::None,
-			paused ? 0 : crl::now());
+		const auto paused = _gifPaused();
+		const auto frame = _gifPreview->current({
+			.frame = QSize(previewWidth(), previewHeight()),
+		}, paused ? 0 : crl::now());
 		p.drawPixmap(previewLeft(), previewTop(), frame);
 		return true;
 	} else if (_lottiePreview && _lottiePreview->ready()) {
@@ -133,26 +127,21 @@ void SingleMediaPreview::clipCallback(
 		Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
-	case NotificationReinit: {
+	case Notification::Reinit: {
 		if (_gifPreview && _gifPreview->state() == State::Error) {
 			_gifPreview.setBad();
 		}
 
 		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
-			const auto s = QSize(previewWidth(), previewHeight());
-			_gifPreview->start(
-				s.width(),
-				s.height(),
-				s.width(),
-				s.height(),
-				ImageRoundRadius::None,
-				RectPart::None);
+			_gifPreview->start({
+				.frame = QSize(previewWidth(), previewHeight()),
+			});
 		}
 
 		update();
 	} break;
 
-	case NotificationRepaint: {
+	case Notification::Repaint: {
 		if (_gifPreview && !_gifPreview->currentDisplayed()) {
 			update();
 		}

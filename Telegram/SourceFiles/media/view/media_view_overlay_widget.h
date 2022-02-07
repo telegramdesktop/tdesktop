@@ -310,6 +310,7 @@ private:
 	[[nodiscard]] bool createStreamingObjects();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
+	void updatePowerSaveBlocker(const Player::TrackState &state);
 
 	void initThemePreview();
 	void destroyThemePreview();
