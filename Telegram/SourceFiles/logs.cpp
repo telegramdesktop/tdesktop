@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/launcher.h"
+#include "mtproto/facade.h"
 
 namespace {
 
@@ -569,10 +570,43 @@ void writeTcp(const QString &v) {
 }
 
 void writeMtp(int32 dc, const QString &v) {
-	const auto msg = QString("%1 (dc:%2) %3\n").arg(
-		_logsEntryStart(),
-		QString::number(dc),
-		v);
+	const auto expanded = [&] {
+		const auto bare = MTP::isTemporaryDcId(dc)
+			? MTP::getRealIdFromTemporaryDcId(dc)
+			: MTP::BareDcId(dc);
+		const auto base = (MTP::isTemporaryDcId(dc) ? "temporary_" : "")
+			+ QString::number(bare);
+		const auto shift = MTP::GetDcIdShift(dc);
+		if (shift == 0) {
+			return base + "_main";
+		} else if (shift == MTP::kExportDcShift) {
+			return base + "_export";
+		} else if (shift == MTP::kExportMediaDcShift) {
+			return base + "_export_download";
+		} else if (shift == MTP::kConfigDcShift) {
+			return base + "_config_enumeration";
+		} else if (shift == MTP::kLogoutDcShift) {
+			return base + "_logout_guest";
+		} else if (shift == MTP::kUpdaterDcShift) {
+			return base + "_download_update";
+		} else if (shift == MTP::kGroupCallStreamDcShift) {
+			return base + "_stream";
+		} else if (MTP::isDownloadDcId(dc)) {
+			const auto index = shift - MTP::kBaseDownloadDcShift;
+			return base + "_download" + QString::number(index);
+		} else if (MTP::isUploadDcId(dc)) {
+			const auto index = shift - MTP::kBaseUploadDcShift;
+			return base + "_upload" + QString::number(index);
+		} else if (shift >= MTP::kDestroyKeyStartDcShift) {
+			const auto index = shift - MTP::kDestroyKeyStartDcShift;
+			return base + "_key_destroyer" + QString::number(index);
+		}
+		return base + "_unknown" + QString::number(shift);
+	}();
+	const auto msg = _logsEntryStart()
+		+ u" (dc:%1) "_q.arg(expanded)
+		+ v
+		+ '\n';
 	_logsWrite(LogDataMtp, msg);
 }
 

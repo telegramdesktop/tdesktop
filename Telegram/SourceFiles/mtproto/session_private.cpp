@@ -1355,8 +1355,8 @@ void SessionPrivate::handleReceived() {
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
 		MTP_LOG(_shiftedDcId, ("Recv: ")
 			+ DumpToText(sfrom, end)
-			+ QString(" (protocolDcId:%1,key:%2)"
-			).arg(getProtocolDcId()
+			+ QString(" (dc:%1,key:%2)"
+			).arg(AbstractConnection::ProtocolDcDebugId(getProtocolDcId())
 			).arg(_encryptionKey->keyId()));
 
 		const auto registered = _receivedMessageIds.registerMsgId(
@@ -2614,8 +2614,8 @@ bool SessionPrivate::sendSecureRequest(
 	auto from = request->constData() + 4;
 	MTP_LOG(_shiftedDcId, ("Send: ")
 		+ DumpToText(from, from + messageSize)
-		+ QString(" (protocolDcId:%1,key:%2)"
-		).arg(getProtocolDcId()
+		+ QString(" (dc:%1,key:%2)"
+		).arg(AbstractConnection::ProtocolDcDebugId(getProtocolDcId())
 		).arg(_encryptionKey->keyId()));
 
 	uchar encryptedSHA256[32];
