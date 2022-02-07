@@ -1,3 +1,8 @@
+v 1.1.0
+
+- Increase version because of new action
+- Update base version to 3.5.1
+
 v. 1.0.12
 
 - Fix bug with fake logging on startup
