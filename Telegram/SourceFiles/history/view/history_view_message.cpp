@@ -2748,6 +2748,19 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 	return HistoryView::ShiftItemSelection(selection, message()->_text);
 }
 
+QRect Message::innerGeometry() const {
+	auto result = countGeometry();
+	if (!hasOutLayout()) {
+		const auto w = std::max(
+			(media() ? media()->resolveCustomInfoRightBottom().x() : 0),
+			result.width());
+		result.setWidth(std::min(
+			w + rightActionSize().value_or(QSize(0, 0)).width() * 2,
+			width()));
+	}
+	return result;
+}
+
 QRect Message::countGeometry() const {
 	const auto commentsRoot = (context() == Context::Replies)
 		&& data()->isDiscussionPost();
