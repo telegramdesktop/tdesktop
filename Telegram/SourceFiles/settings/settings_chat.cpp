@@ -286,8 +286,6 @@ void ColorsPalette::show(
 		int selected,
 		int customLightnessMin,
 		int customLightnessMax) {
-	Expects(selected >= 0 && selected < colors.size());
-
 	_outer->show(anim::type::instant);
 
 	while (_buttons.size() > colors.size()) {
@@ -1029,23 +1027,51 @@ void SetupAppIcon(
 		not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(container, rpl::single(u"App Icon"_q));
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			rpl::single(u"App Icon"_q),
+			st::settingsSubsectionTitle),
+		(st::settingsSubsectionTitlePadding
+			- QMargins(0, 0, 0, st::settingsSubsectionTitlePadding.bottom())));
 
 	const auto palette = Ui::CreateChild<ColorsPalette>(
 		container.get(),
 		container.get());
-	auto list = Window::Theme::DefaultAccentColors(
-		Window::Theme::EmbeddedType::Night);
 	const auto original = QColor(29, 148, 208);
-	list[0] = original;
-	palette->show(std::move(list), 0, 0, 255);
+	const auto refresh = [=](uint64 currentDigest) {
+		auto list = Window::Theme::DefaultAccentColors(
+			Window::Theme::EmbeddedType::Night);
+		list[0] = original;
+		const auto current = Core::App().settings().customAppIcon();
+		const auto selected = !currentDigest
+			? 0
+			: (currentDigest != current.digest)
+			? -1
+			: std::min(
+				int(ranges::find(list, current.color) - begin(list)),
+				int(size(list)) - 1);
+		if (selected == size(list) - 1) {
+			list[selected] = current.color;
+		}
+		palette->show(std::move(list), selected, 0, 255);
+	};
+	refresh(base::CurrentCustomAppIconDigest().value_or(0));
 
 	const auto logo = QImage(":/gui/art/logo_256.png").convertToFormat(
 		QImage::Format_ARGB32);
 	palette->selected(
 	) | rpl::start_with_next([=](QColor color) {
 		if (color == original) {
-			base::ClearCustomAppIcon();
+			const auto success = base::ClearCustomAppIcon();
+			if (success) {
+				Core::App().settings().setCustomAppIcon({});
+				Core::App().saveSettingsDelayed();
+				refresh(0);
+			}
+			Ui::Toast::Show(success
+				? "Icon cleared. Restarting the Dock."
+				: "Icon clear failed. See log.txt for details.");
 		} else {
 			auto colorizer = style::colorizer{
 				.hueThreshold = 64,
@@ -1060,11 +1086,20 @@ void SetupAppIcon(
 				&colorizer.now.value);
 			auto image = logo;
 			style::colorize(image, colorizer);
-			base::SetCustomAppIcon(std::move(image));
+			const auto digest = base::SetCustomAppIcon(std::move(image));
+			if (digest) {
+				Core::App().settings().setCustomAppIcon({ color, *digest });
+				Core::App().saveSettingsDelayed();
+				refresh(*digest);
+			}
+			Ui::Toast::Show(digest
+				? "Icon updated. Restarting the Dock."
+				: "Icon update failed. See log.txt for details.");
 		}
 	}, container->lifetime());
 
 	AddSkip(container);
+	AddDivider(container);
 }
 #endif // Q_OS_MAC && !OS_MAC_STORE
 

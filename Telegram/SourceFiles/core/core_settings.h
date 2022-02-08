@@ -51,6 +51,11 @@ struct WindowPosition {
 	int h = 0;
 };
 
+struct CustomAppIcon {
+	QColor color;
+	uint64 digest = 0;
+};
+
 class Settings final {
 public:
 	enum class ScreenCorner {
@@ -669,6 +674,12 @@ public:
 	[[nodiscard]] bool macWarnBeforeQuit() const {
 		return _macWarnBeforeQuit;
 	}
+	void setCustomAppIcon(CustomAppIcon icon) {
+		_customAppIcon = icon;
+	}
+	[[nodiscard]] CustomAppIcon customAppIcon() const {
+		return _customAppIcon;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -775,6 +786,7 @@ private:
 	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
+	CustomAppIcon _customAppIcon;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

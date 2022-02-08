@@ -66,6 +66,21 @@ constexpr auto kRecentEmojiLimit = 42;
 	return result;
 }
 
+[[nodiscard]] quint32 SerializeColor(QColor color) {
+	return (quint32(std::clamp(color.alpha(), 0, 255)) << 24)
+		| (quint32(std::clamp(color.red(), 0, 255)) << 16)
+		| (quint32(std::clamp(color.green(), 0, 255)) << 8)
+		| quint32(std::clamp(color.blue(), 0, 255));
+}
+
+[[nodiscard]] QColor DeserializeColor(quint32 value) {
+	return QColor(
+		(value >> 16) & 0xFF,
+		(value >> 8) & 0xFF,
+		value & 0xFF,
+		(value >> 24) & 0xFF);
+}
+
 } // namespace
 
 Settings::Settings()
@@ -236,6 +251,10 @@ QByteArray Settings::serialize() const {
 		for (const auto &id : _accountsOrder) {
 			stream << quint64(id);
 		}
+
+		stream
+			<< SerializeColor(_customAppIcon.color)
+			<< quint64(_customAppIcon.digest);
 	}
 	return result;
 }
@@ -325,6 +344,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 macWarnBeforeQuit = _macWarnBeforeQuit ? 1 : 0;
 	qint32 accountsOrderCount = 0;
 	std::vector<uint64> accountsOrder;
+	quint32 customAppIconColor = SerializeColor(_customAppIcon.color);
+	quint64 customAppIconDigest = _customAppIcon.digest;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -506,6 +527,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream
+			>> customAppIconColor
+			>> customAppIconDigest;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -662,6 +688,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case Media::Player::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
 	}
 	_macWarnBeforeQuit = macWarnBeforeQuit ? 1 : 0;
+	_customAppIcon = { DeserializeColor(customAppIconColor), customAppIconDigest };
 }
 
 QString Settings::getSoundPath(const QString &key) const {
