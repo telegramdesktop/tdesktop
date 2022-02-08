@@ -147,7 +147,7 @@ struct Instance::Inner::Private {
 	AVIOContext *ioContext = nullptr;
 	AVFormatContext *fmtContext = nullptr;
 	AVStream *stream = nullptr;
-	AVCodec *codec = nullptr;
+	const AVCodec *codec = nullptr;
 	AVCodecContext *codecContext = nullptr;
 	bool opened = false;
 	bool processing = false;

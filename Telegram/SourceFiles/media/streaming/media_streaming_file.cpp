@@ -23,8 +23,8 @@ constexpr auto kMaxQueuedPackets = 1024;
 		not_null<AVStream*> stream,
 		Mode mode) {
 	return (mode == Mode::Video || mode == Mode::Inspection)
-		&& stream->codec
-		&& (stream->codec->codec_id == AV_CODEC_ID_VP9)
+		&& stream->codecpar
+		&& (stream->codecpar->codec_id == AV_CODEC_ID_VP9)
 		&& format->iformat
 		&& format->iformat->name
 		&& QString::fromLatin1(
