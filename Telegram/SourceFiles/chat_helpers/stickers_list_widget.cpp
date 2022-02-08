@@ -2468,15 +2468,21 @@ void StickersListWidget::fillContextMenu(
 		return;
 	}
 	if (auto sticker = std::get_if<OverSticker>(&selected)) {
-		Assert(sticker->section >= 0 && sticker->section < sets.size());
-		auto &set = sets[sticker->section];
-		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
+		const auto section = sticker->section;
+		const auto index = sticker->index;
+		Assert(section >= 0 && section < sets.size());
+		auto &set = sets[section];
+		Assert(index >= 0 && index < set.stickers.size());
 
 		const auto document = set.stickers[sticker->index].document;
 		const auto send = [=](Api::SendOptions options) {
-			_chosen.fire_copy({
+			_chosen.fire({
 				.document = document,
-				.options = options });
+				.options = options,
+				.messageSendingFrom = options.scheduled
+					? Ui::MessageSendingAnimationFrom()
+					: messageSentAnimationInfo(section, index, document),
+			});
 		};
 		SendMenu::FillSendMenu(
 			menu,
@@ -2510,6 +2516,23 @@ void StickersListWidget::fillContextMenu(
 			}, &st::menuIconDelete);
 		}
 	}
+}
+
+Ui::MessageSendingAnimationFrom StickersListWidget::messageSentAnimationInfo(
+		int section,
+		int index,
+		not_null<DocumentData*> document) {
+	const auto rect = stickerRect(section, index);
+	const auto size = ComputeStickerSize(document, boundingBoxSize());
+	const auto innerPos = QPoint(
+		(rect.width() - size.width()) / 2,
+		(rect.height() - size.height()) / 2);
+
+	return {
+		.localId = session().data().nextLocalMessageId(),
+		.globalStartGeometry = mapToGlobal(
+			QRect(rect.topLeft() + innerPos, size)),
+	};
 }
 
 void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
@@ -2550,7 +2573,13 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			if (e->modifiers() & Qt::ControlModifier) {
 				showStickerSetBox(document);
 			} else {
-				_chosen.fire_copy({ .document = document });
+				_chosen.fire({
+					.document = document,
+					.messageSendingFrom = messageSentAnimationInfo(
+						sticker->section,
+						sticker->index,
+						document),
+				});
 			}
 		} else if (auto set = std::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());

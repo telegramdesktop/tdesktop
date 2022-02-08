@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/chat/forward_options_box.h"
@@ -996,7 +997,12 @@ void HistoryWidget::initTabbedSelector() {
 
 	selector->fileChosen(
 	) | filter | rpl::start_with_next([=](Selector::FileChosen data) {
-		sendExistingDocument(data.document, data.options);
+		controller()->sendingAnimation().appendSending(
+			data.messageSendingFrom);
+		sendExistingDocument(
+			data.document,
+			data.options,
+			data.messageSendingFrom.localId);
 	}, lifetime());
 
 	selector->photoChosen(
@@ -5354,6 +5360,7 @@ void HistoryWidget::startItemRevealAnimations() {
 		if (const auto view = item->mainView()) {
 			if (const auto top = _list->itemTop(view); top >= 0) {
 				if (const auto height = view->height()) {
+					startMessageSendingAnimation(item);
 					if (!_itemRevealAnimations.contains(item)) {
 						auto &animation = _itemRevealAnimations[item];
 						animation.startHeight = height;
@@ -5372,6 +5379,38 @@ void HistoryWidget::startItemRevealAnimations() {
 			}
 		}
 	}
+}
+
+void HistoryWidget::startMessageSendingAnimation(
+		not_null<HistoryItem*> item) {
+	auto &sendingAnimation = controller()->sendingAnimation();
+	if (!sendingAnimation.hasLocalMessage(item->fullId().msg)) {
+		return;
+	}
+	Assert(item->mainView() != nullptr);
+	Assert(item->mainView()->media() != nullptr);
+
+	auto globalEndGeometry = rpl::merge(
+		_scroll->innerResizes() | rpl::to_empty,
+		session().data().newItemAdded() | rpl::to_empty,
+		geometryValue() | rpl::to_empty,
+		_scroll->geometryValue() | rpl::to_empty,
+		_list->geometryValue() | rpl::to_empty
+	) | rpl::map([=] {
+		const auto view = item->mainView();
+		const auto additional = (_list->height() == _scroll->height())
+			? view->height()
+			: 0;
+		return _list->mapToGlobal(view->innerGeometry().translated(
+			0,
+			_list->itemTop(view) - additional));
+	});
+
+	sendingAnimation.startAnimation({
+		.globalEndGeometry = std::move(globalEndGeometry),
+		.item = item,
+		.theme = _list->theme(),
+	});
 }
 
 void HistoryWidget::updateListSize() {
@@ -6376,7 +6415,8 @@ void HistoryWidget::requestMessageData(MsgId msgId) {
 
 bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		std::optional<MsgId> localId) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::SendStickers)
 		: std::nullopt;
@@ -6393,7 +6433,8 @@ bool HistoryWidget::sendExistingDocument(
 
 	Api::SendExistingDocument(
 		Api::MessageToSend(prepareSendAction(options)),
-		document);
+		document,
+		localId);
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();

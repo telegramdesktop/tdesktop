@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/text/text_options.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
@@ -1017,9 +1018,12 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			QRect(0, hdrawtop, width(), clip.top() + clip.height()));
 		context.translate(0, -top);
 		p.translate(0, top);
+		const auto &sendingAnimation = _controller->sendingAnimation();
 		while (top < drawToY) {
 			const auto height = view->height();
-			if (context.clip.y() < height && hdrawtop < top + height) {
+			if ((context.clip.y() < height)
+				&& (hdrawtop < top + height)
+				&& !sendingAnimation.hasAnimatedMessage(view->data())) {
 				context.reactionInfo
 					= _reactionsManager->currentReactionPaintInfo();
 				context.outbg = view->hasOutLayout();

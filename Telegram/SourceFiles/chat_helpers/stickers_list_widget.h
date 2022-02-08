@@ -330,6 +330,11 @@ private:
 
 	void showPreview();
 
+	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
+		int section,
+		int index,
+		not_null<DocumentData*> document);
+
 	MTP::Sender _api;
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;

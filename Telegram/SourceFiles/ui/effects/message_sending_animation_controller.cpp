@@ -152,7 +152,7 @@ void Content::updateCache() {
 	 	});
 	 	using Context = Ui::ChatPaintContext;
 		context.skipDrawingParts = Context::SkipDrawingParts::Surrounding;
-		context.outbg = true;
+		context.outbg = _item->mainView()->hasOutLayout();
 		p.translate(-innerContentRect.left(), -innerContentRect.top());
 		_media->draw(p, context);
 	}
