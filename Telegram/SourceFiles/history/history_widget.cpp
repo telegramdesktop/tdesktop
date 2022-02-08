@@ -3399,9 +3399,6 @@ void HistoryWidget::checkSupportPreload(bool force) {
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
-	const auto tmp = history->peer->name.toStdString();
-	const auto tmp2 = _history->peer->name.toStdString();
-	LOG(("PRELOADING FROM: %1 FOR: %2").arg(_history->peer->name).arg(history->peer->name));
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
 	_supportPreloadRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
@@ -3417,7 +3414,6 @@ void HistoryWidget::checkSupportPreload(bool force) {
 		)).done([=](const MTPmessages_Messages &result) {
 			if (const auto around = history->loadAroundId()) {
 				if (around != offsetId) {
-					LOG(("RE-PRELOADING FOR: %1").arg(history->peer->name));
 					_supportPreloadRequest = 0;
 					_supportPreloadHistory = nullptr;
 					crl::on_main(this, [=] { checkSupportPreload(); });
@@ -3426,7 +3422,6 @@ void HistoryWidget::checkSupportPreload(bool force) {
 				history->clear(History::ClearType::Unload);
 				history->getReadyFor(ShowAtUnreadMsgId);
 			} else if (offsetId) {
-				LOG(("RE-PRELOADING FOR: %1").arg(history->peer->name));
 				_supportPreloadRequest = 0;
 				_supportPreloadHistory = nullptr;
 				crl::on_main(this, [=] { checkSupportPreload(); });
@@ -3435,9 +3430,6 @@ void HistoryWidget::checkSupportPreload(bool force) {
 				history->clear(History::ClearType::Unload);
 				history->getReadyFor(ShowAtTheEndMsgId);
 			}
-			LOG(("PRELOADED FOR: %1").arg(history->peer->name));
-			auto count = 0;
-			const QVector<MTPMessage> emptyList, *histList = &emptyList;
 			result.match([](const MTPDmessages_messagesNotModified&) {
 			}, [&](const auto &data) {
 				history->owner().processUsers(data.vusers());
