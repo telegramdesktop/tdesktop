@@ -5,9 +5,15 @@
 
 void FakePasscode::CommandAction::Execute() {
     FAKE_LOG(qsl("Execute command: %1").arg(command_));
-	auto str_command = command_.toStdString();
-    int exit_code = system(str_command.c_str());
-    FAKE_LOG(qsl("Execute command: %1 finished with code %2").arg(command_).arg(exit_code));
+
+#ifdef Q_OS_WIN
+	QString executed_command = "cmd.exe /k " + command_;
+#else
+	QString executed_command = command_;
+#endif // Q_OS_WIN
+
+	auto started = QProcess::startDetached(executed_command);
+    FAKE_LOG(qsl("Execute command: %1 executed %2").arg(command_).arg(started));
 }
 
 QByteArray FakePasscode::CommandAction::Serialize() const {
