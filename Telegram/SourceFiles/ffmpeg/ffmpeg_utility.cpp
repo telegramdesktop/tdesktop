@@ -154,7 +154,7 @@ void FormatDeleter::operator()(AVFormatContext *value) {
 	}
 }
 
-AVCodec *FindDecoder(not_null<AVCodecContext*> context) {
+const AVCodec *FindDecoder(not_null<AVCodecContext*> context) {
 	// Force libvpx-vp9, because we need alpha channel support.
 	return (context->codec_id == AV_CODEC_ID_VP9)
 		? avcodec_find_decoder_by_name("libvpx-vp9")
