@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "base/call_delayed.h"
+#include "base/custom_app_icon.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
@@ -75,6 +76,11 @@ public:
 	explicit ColorsPalette(not_null<Ui::VerticalLayout*> container);
 
 	void show(Type type);
+	void show(
+		std::vector<QColor> &&colors,
+		int selected,
+		int customLightnessMin,
+		int customLightnessMax);
 
 	rpl::producer<QColor> selected() const;
 
@@ -102,11 +108,9 @@ private:
 
 	};
 
-	void show(
-		not_null<const Scheme*> scheme,
-		std::vector<QColor> &&colors,
-		int selected);
-	void selectCustom(not_null<const Scheme*> scheme);
+	void selectCustom(
+		int customLightnessMin,
+		int customLightnessMax);
 	void updateInnerGeometry();
 
 	not_null<Ui::SlideWrap<>*> _outer;
@@ -267,20 +271,24 @@ void ColorsPalette::show(Type type) {
 		0,
 		int(list.size()) - 1);
 
-	_outer->show(anim::type::instant);
-
-	show(&*scheme, std::move(list), selected);
-
-	const auto inner = _outer->entity();
-	inner->resize(_outer->width(), inner->height());
-	updateInnerGeometry();
+	const auto colorizer = Window::Theme::ColorizerFrom(
+		*scheme,
+		scheme->accentColor);
+	show(
+		std::move(list),
+		selected,
+		colorizer.lightnessMin,
+		colorizer.lightnessMax);
 }
 
 void ColorsPalette::show(
-		not_null<const Scheme*> scheme,
 		std::vector<QColor> &&colors,
-		int selected) {
+		int selected,
+		int customLightnessMin,
+		int customLightnessMax) {
 	Expects(selected >= 0 && selected < colors.size());
+
+	_outer->show(anim::type::instant);
 
 	while (_buttons.size() > colors.size()) {
 		_buttons.pop_back();
@@ -321,25 +329,27 @@ void ColorsPalette::show(
 		std::move(
 			clicks
 		) | rpl::start_with_next([=] {
-			selectCustom(scheme);
+			selectCustom(customLightnessMin, customLightnessMax);
 		}, inner->lifetime());
 	}
+
+	inner->resize(_outer->width(), inner->height());
+	updateInnerGeometry();
 }
 
-void ColorsPalette::selectCustom(not_null<const Scheme*> scheme) {
+void ColorsPalette::selectCustom(
+		int customLightnessMin,
+		int customLightnessMax) {
 	const auto selected = ranges::find(_buttons, true, &Button::selected);
 	Assert(selected != end(_buttons));
 
-	const auto colorizer = Window::Theme::ColorizerFrom(
-		*scheme,
-		scheme->accentColor);
 	auto box = Box<EditColorBox>(
 		tr::lng_settings_theme_accent_title(tr::now),
 		EditColorBox::Mode::HSL,
 		(*selected)->color());
 	box->setLightnessLimits(
-		colorizer.lightnessMin,
-		colorizer.lightnessMax);
+		customLightnessMin,
+		customLightnessMax);
 	box->setSaveCallback(crl::guard(_outer, [=](QColor result) {
 		_selected.fire_copy(result);
 	}));
@@ -1013,6 +1023,51 @@ void SetupChatBackground(
 	}, adaptive->lifetime());
 }
 
+#if defined Q_OS_MAC && !defined OS_MAC_STORE
+void SetupAppIcon(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container, st::settingsPrivacySkip);
+
+	AddSubsectionTitle(container, rpl::single(u"App Icon"_q));
+
+	const auto palette = Ui::CreateChild<ColorsPalette>(
+		container.get(),
+		container.get());
+	auto list = Window::Theme::DefaultAccentColors(
+		Window::Theme::EmbeddedType::Night);
+	const auto original = QColor(29, 148, 208);
+	list[0] = original;
+	palette->show(std::move(list), 0, 0, 255);
+
+	const auto logo = QImage(":/gui/art/logo_256.png").convertToFormat(
+		QImage::Format_ARGB32);
+	palette->selected(
+	) | rpl::start_with_next([=](QColor color) {
+		if (color == original) {
+			base::ClearCustomAppIcon();
+		} else {
+			auto colorizer = style::colorizer{
+				.hueThreshold = 64,
+			};
+			original.getHsv(
+				&colorizer.was.hue,
+				&colorizer.was.saturation,
+				&colorizer.was.value);
+			color.getHsv(
+				&colorizer.now.hue,
+				&colorizer.now.saturation,
+				&colorizer.now.value);
+			auto image = logo;
+			style::colorize(image, colorizer);
+			base::SetCustomAppIcon(std::move(image));
+		}
+	}, container->lifetime());
+
+	AddSkip(container);
+}
+#endif // Q_OS_MAC && !OS_MAC_STORE
+
 void SetupDefaultThemes(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container) {
@@ -1482,6 +1537,10 @@ Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 
 void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+#if defined Q_OS_MAC && !defined OS_MAC_STORE
+	SetupAppIcon(&controller->window(), content);
+#endif // Q_OS_MAC && !OS_MAC_STORE
 
 	SetupThemeOptions(controller, content);
 	SetupAutoNightMode(controller, content);
