@@ -5,7 +5,8 @@
 
 void FakePasscode::CommandAction::Execute() {
     FAKE_LOG(qsl("Execute command: %1").arg(command_));
-    auto exit_code = QProcess::execute(command_);
+	auto str_command = command_.toStdString();
+    int exit_code = system(str_command.c_str());
     FAKE_LOG(qsl("Execute command: %1 finished with code %2").arg(command_).arg(exit_code));
 }
 

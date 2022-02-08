@@ -56,6 +56,8 @@ public:
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 
+	[[nodiscard]] QByteArray GetPasscodeSalt() const;
+
     void ExecuteIfFake();
     bool CheckAndExecuteIfFake(const QByteArray& passcode);
     bool IsFakeWithoutInfinityFlag() const;

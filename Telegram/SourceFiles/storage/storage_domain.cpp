@@ -283,7 +283,7 @@ bool Domain::checkPasscode(const QByteArray &passcode) const {
 }
 
 bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) const {
-    const auto checkKey = CreateLocalKey(passcode, _fakePasscodes[fakeIndex].GetSalt());
+    const auto checkKey = CreateLocalKey(passcode, _passcodeKeySalt);
     return checkKey->equals(_fakePasscodes[fakeIndex].GetEncryptedPasscode());
 }
 
@@ -522,7 +522,6 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     FakePasscode::FakePasscode fakePasscode;
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
-    fakePasscode.SetSalt(_passcodeKeySalt);
     _fakePasscodes.push_back(std::move(fakePasscode));
     _fakeEncryptedPasscodes.push_back(_fakePasscodes.back().GetEncryptedPasscode());
     writeAccounts();
@@ -533,8 +532,6 @@ void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex
     FAKE_LOG(("Setup passcode with name"));
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
-    _fakePasscodes[fakeIndex].SetSalt(_passcodeKeySalt);
-    _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -678,6 +675,10 @@ void Domain::PrepareEncryptedFakePasscodes() {
         _fakeEncryptedPasscodes.resize(_fakePasscodes.size());
         for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
             _fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
+			_fakePasscodes[i].GetPasscodeStream() | rpl::start_with_next([=] {
+				FAKE_LOG(qsl("Encrypted via RPL"));
+				_fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
+			}, _fakePasscodes[i].lifetime());
         }
     }
 }
@@ -706,6 +707,10 @@ bool Domain::IsAdvancedLoggingEnabled() const {
 void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
     FAKE_LOG(("Setup advanced logging to %1").arg(loggingEnabled));
     _isAdvancedLoggingEnabled = loggingEnabled;
+}
+
+[[nodiscard]] QByteArray Domain::GetPasscodeSalt() const {
+	return _passcodeKeySalt;
 }
 
 } // namespace Storage

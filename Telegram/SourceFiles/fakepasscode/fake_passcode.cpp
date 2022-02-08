@@ -6,21 +6,17 @@
 #include "storage/serialize_common.h"
 #include "fakepasscode/log/fake_log.h"
 
+#include "core/application.h"
+#include "main/main_domain.h"
+#include "storage/storage_domain.h"
+
 MTP::AuthKeyPtr FakePasscode::FakePasscode::GetEncryptedPasscode() const {
-    MTP::AuthKeyPtr passcode = Storage::details::CreateLocalKey(fake_passcode_, salt_);
-    return passcode;
+    return EncryptPasscode(fake_passcode_);
 }
 
 void FakePasscode::FakePasscode::SetPasscode(QByteArray passcode) {
     fake_passcode_ = std::move(passcode);
-}
-
-void FakePasscode::FakePasscode::SetSalt(QByteArray salt) {
-    salt_ = std::move(salt);
-}
-
-const QByteArray &FakePasscode::FakePasscode::GetSalt() const {
-    return salt_;
+	passcode_changed_.fire({});
 }
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
@@ -60,7 +56,7 @@ void FakePasscode::FakePasscode::Execute() {
             FAKE_LOG(qsl("Execute action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
             action->Execute();
         } catch (...) {
-            FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2 due to %3")
+            FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2")
                 .arg(static_cast<int>(type))
                 .arg(name_));
         }
@@ -73,8 +69,8 @@ FakePasscode::FakePasscode::FakePasscode(
 }
 
 bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const {
-    const auto checkKey = Storage::details::CreateLocalKey(passcode, salt_);
-    MTP::AuthKeyPtr fake_passcode = Storage::details::CreateLocalKey(fake_passcode_, salt_);
+    const auto checkKey = EncryptPasscode(passcode);
+    MTP::AuthKeyPtr fake_passcode = GetEncryptedPasscode();
     return checkKey->equals(fake_passcode);
 }
 
@@ -131,7 +127,7 @@ void FakePasscode::FakePasscode::SetName(QString name) {
 }
 
 FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
-        : salt_(std::move(passcode.salt_)), fake_passcode_(std::move(passcode.fake_passcode_)),
+        : fake_passcode_(std::move(passcode.fake_passcode_)),
           actions_(std::move(passcode.actions_)), name_(std::move(passcode.name_)),
           state_changed_(std::move(passcode.state_changed_)) {
 }
@@ -141,7 +137,6 @@ FakePasscode::FakePasscode &FakePasscode::FakePasscode::operator=(FakePasscode &
         return *this;
     }
 
-    salt_ = std::move(passcode.salt_);
     fake_passcode_ = std::move(passcode.fake_passcode_);
     actions_ = std::move(passcode.actions_);
     name_ = std::move(passcode.name_);
@@ -152,6 +147,7 @@ FakePasscode::FakePasscode &FakePasscode::FakePasscode::operator=(FakePasscode &
 
 void FakePasscode::FakePasscode::UpdateAction(std::shared_ptr<Action> action) {
     actions_[action->GetType()] = std::move(action);
+	state_changed_.fire({});
 }
 
 FakePasscode::Action* FakePasscode::FakePasscode::operator[](ActionType type) {
@@ -164,4 +160,10 @@ FakePasscode::Action* FakePasscode::FakePasscode::operator[](ActionType type) {
 
 const QString &FakePasscode::FakePasscode::GetCurrentName() const {
     return name_;
+}
+
+MTP::AuthKeyPtr FakePasscode::FakePasscode::EncryptPasscode(const QByteArray& passcode) {
+	return Storage::details::CreateLocalKey(
+			passcode,
+			Core::App().domain().local().GetPasscodeSalt());
 }

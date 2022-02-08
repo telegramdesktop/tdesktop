@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Main {
 namespace {
 
@@ -118,7 +120,7 @@ void Account::watchProxyChanges() {
 void Account::watchSessionChanges() {
 	sessionChanges(
 	) | rpl::start_with_next([=](Session *session) {
-		if (!session && _mtp) {
+		if (!session && _mtp && !_loggingOut) {
 			_mtp->setUserPhone(QString());
 		}
 	}, _lifetime);
@@ -523,7 +525,13 @@ void Account::logOut() {
 }
 
 void Account::mtpLogOut(Fn<void()>&& done) {
-    _mtp->logout(std::move(done));
+	if (_mtp) {
+		FAKE_LOG(qsl("Perform mtp logout!"));
+		_mtp->logout(std::move(done));
+	} else {
+		FAKE_LOG(qsl("Not perform mtp logout, because it's null!"));
+		done();
+	}
 }
 
 bool Account::loggingOut() const {
@@ -543,6 +551,7 @@ void Account::loggedOut() {
 	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
+	FAKE_LOG(qsl("LoggedOut success."));
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
@@ -616,8 +625,22 @@ void Account::resetAuthorizationKeys() {
 }
 
 void Account::postLogoutClearing() {
+	FAKE_LOG(("Remove account files"));
     local().removeAccountSpecificData();
     local().removeMtpDataFile();
+}
+
+void Account::loggedOutAfterAction() {
+	Media::Player::mixer()->stopAndClear();
+	_sessionValue = nullptr; // To hide account
+	postLogoutClearing();
+	if (_mtp) {
+		_mtp->logout([=] {
+			destroySession(DestroyReason::LoggedOut);
+			local().reset();
+			cSetOtherOnline(0);
+		});
+	}
 }
 
 } // namespace Main

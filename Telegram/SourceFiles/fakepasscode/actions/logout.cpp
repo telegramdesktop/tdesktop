@@ -11,8 +11,7 @@ void FakePasscode::LogoutAction::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
-            account->loggedOut();
-            account->mtpLogOut([account = account.get()] { account->postLogoutClearing(); });
+            account->loggedOutAfterAction();
             index_to_logout_.remove(index);
         }
     }
@@ -85,7 +84,7 @@ void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
         account->sessionChanges() | rpl::start_with_next([index = index, this] (const Main::Session* session) {
             if (session == nullptr) {
                 FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
-                index_to_logout_.erase(index);
+                index_to_logout_.remove(index);
             }
         }, account->lifetime());
     }

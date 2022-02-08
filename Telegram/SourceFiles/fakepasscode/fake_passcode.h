@@ -42,21 +42,29 @@ namespace FakePasscode {
       [[nodiscard]] rpl::producer<const base::flat_map<ActionType, std::shared_ptr<Action>>*> GetActions() const;
       const Action* operator[](ActionType type) const;
 
-      void SetSalt(QByteArray salt);
-      const QByteArray& GetSalt() const;
-
       QByteArray SerializeActions() const;
       void DeSerializeActions(QByteArray serialized);
 
       FakePasscode& operator=(FakePasscode&& passcode) noexcept;
 
+	  [[nodiscard]] rpl::producer<> GetPasscodeStream() {
+		  return passcode_changed_.events();
+	  }
+
+	  [[nodiscard]] rpl::lifetime &lifetime() {
+		  return lifetime_;
+	  }
+
    protected:
-      QByteArray salt_;
       QByteArray fake_passcode_;
       base::flat_map<ActionType, std::shared_ptr<Action>> actions_;
       QString name_;
 
       rpl::event_stream<> state_changed_;
+	  rpl::event_stream<> passcode_changed_;
+	  rpl::lifetime lifetime_;
+
+	  static MTP::AuthKeyPtr EncryptPasscode(const QByteArray& passcode);
   };
 }
 

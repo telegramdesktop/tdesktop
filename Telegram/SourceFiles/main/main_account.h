@@ -119,6 +119,8 @@ public:
 
     void loggedOut();
 
+	void loggedOutAfterAction();
+
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 	enum class DestroyReason {
