@@ -12,7 +12,7 @@ using "boxes/boxes.style";
 
 settingsSectionButton: SettingsButton(infoProfileButton) {
 	font: boxTextFont;
-	padding: margins(79px, 13px, 22px, 11px);
+	padding: margins(60px, 11px, 22px, 9px);
 }
 settingsButton: SettingsButton(settingsSectionButton) {
 	padding: margins(22px, 10px, 22px, 8px);
@@ -28,12 +28,13 @@ settingsOptionDisabled: SettingsButton(settingsButton) {
 	textBgOver: windowBg;
 	toggleOver: infoProfileToggle;
 }
-settingsSectionSkip: 9px;
+settingsSectionSkip: 5px;
+settingsSectionBottomSkip: 7px;
 settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
-settingsButtonRightSkip: 28px;
-settingsScalePadding: margins(79px, 10px, 28px, 8px);
-settingsBigScalePadding: margins(22px, 10px, 22px, 8px);
+settingsButtonRightSkip: 23px;
+settingsScalePadding: margins(63px, 8px, 21px, 5px);
+settingsBigScalePadding: margins(21px, 8px, 21px, 5px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: windowBgOver;
 	labelFg: windowSubTextFg;

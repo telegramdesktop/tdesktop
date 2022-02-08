@@ -319,7 +319,7 @@ void SetupSections(
 
 	SetupLanguageButton(container);
 
-	AddSkip(container);
+	AddSkip(container, st::settingsSectionBottomSkip);
 }
 
 bool HasInterfaceScale() {
@@ -499,8 +499,6 @@ void SetupHelp(
 		box->setStrictCancel(true);
 		controller->show(std::move(box));
 	});
-
-	AddSkip(container);
 }
 
 Main::Main(

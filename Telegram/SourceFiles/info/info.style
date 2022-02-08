@@ -385,7 +385,7 @@ infoProfileButton: SettingsButton(defaultSettingsButton) {
 
 	toggle: infoProfileToggle;
 	toggleOver: infoProfileToggleOver;
-	toggleSkip: 22px;
+	toggleSkip: 20px;
 
 	ripple: defaultRippleAnimation;
 }
