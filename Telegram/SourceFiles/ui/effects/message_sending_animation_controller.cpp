@@ -24,6 +24,76 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+constexpr auto kSurroundingProgress = 0.5;
+
+inline float64 OffsetMid(int value, float64 min, float64 max = 1.) {
+	return ((value * max) - (value * min)) / 2.;
+}
+
+class Surrounding final : public RpWidget {
+public:
+	Surrounding(
+		not_null<RpWidget*> parent,
+		QPoint offset,
+		QImage &&image,
+		float64 minScale);
+
+	void setProgress(float64 value);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const QPoint _offset;
+	const float64 _minScale = 0;
+	QImage _cache;
+	float64 _progress = 0;
+
+};
+
+Surrounding::Surrounding(
+	not_null<RpWidget*> parent,
+	QPoint offset,
+	QImage &&image,
+	float64 minScale)
+: RpWidget(parent)
+, _offset(offset)
+, _minScale(minScale)
+, _cache(std::move(image)) {
+	resize(_cache.size() / style::DevicePixelRatio());
+}
+
+void Surrounding::setProgress(float64 value) {
+	_progress = value;
+	update();
+}
+
+void Surrounding::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(e->rect(), Qt::transparent);
+
+	if (_cache.isNull()) {
+		return;
+	}
+
+	const auto revProgress = 1. - _progress;
+
+	const auto divider = 1. - kSurroundingProgress;
+	const auto alpha = (divider - revProgress) / divider;
+	p.setOpacity(alpha);
+
+ 	const auto scale = anim::interpolateF(_minScale, 1., _progress);
+
+ 	const auto size = _cache.size() / style::DevicePixelRatio();
+ 	p.translate(
+ 		revProgress * OffsetMid(size.width() + _offset.x(), _minScale),
+ 		revProgress * OffsetMid(size.height() + _offset.y(), _minScale));
+ 	p.scale(scale, scale);
+
+ 	p.drawImage(QPoint(), _cache);
+}
+
 class Content final : public RpWidget {
 public:
 	Content(
@@ -38,18 +108,24 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+ 	using Context = Ui::ChatPaintContext;
+
+	QImage drawMedia(
+		Context::SkipDrawingParts skipParts,
+		const QRect &rect) const;
 	void updateCache();
 
 	const not_null<Window::SessionController*> _controller;
 	not_null<HistoryItem*> _item;
 	not_null<ChatTheme*> _theme;
-	not_null<HistoryView::Media*> _media;
 	QImage _cache;
 	QRect _from;
 	QRect _to;
 
 	Animations::Simple _animation;
 	float64 _minScale = 0;
+
+	base::unique_qptr<Surrounding> _surrounding;
 
 	rpl::event_stream<> _destroyRequests;
 
@@ -64,7 +140,6 @@ Content::Content(
 , _controller(controller)
 , _item(to.item)
 , _theme(to.theme)
-, _media(_item->mainView()->media())
 , _from(parent->mapFromGlobal(globalGeometryFrom)) {
 
 	show();
@@ -86,7 +161,8 @@ Content::Content(
 		updateCache();
 	}, lifetime());
 
-	const auto innerContentRect = _media->contentRectForReactions();
+	const auto innerContentRect
+		= _item->mainView()->media()->contentRectForReactions();
 	auto animationCallback = [=](float64 value) {
 		auto resultFrom = QRect(
 			QPoint(),
@@ -94,10 +170,31 @@ Content::Content(
 		resultFrom.moveCenter(_from.center());
 
 		const auto resultTo = _to.topLeft() + innerContentRect.topLeft();
-		moveToLeft(
-			anim::interpolate(resultFrom.x(), resultTo.x(), value),
-			anim::interpolate(resultFrom.y(), resultTo.y(), value));
+		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), value);
+		const auto y = anim::interpolate(resultFrom.y(), resultTo.y(), value);
+		moveToLeft(x, y);
 		update();
+
+		if ((value > kSurroundingProgress) && !_surrounding) {
+			_surrounding = base::make_unique_q<Surrounding>(
+				parent,
+				innerContentRect.topLeft(),
+				drawMedia(
+					Context::SkipDrawingParts::Content,
+					QRect(
+						QPoint(),
+						_item->mainView()->innerGeometry().size())),
+				_minScale);
+			_surrounding->show();
+			_surrounding->raise();
+			stackUnder(_surrounding.get());
+		}
+		if (_surrounding) {
+			_surrounding->moveToLeft(
+				x - innerContentRect.x(),
+				y - innerContentRect.y());
+			_surrounding->setProgress(value);
+		}
 
 		if (value == 1.) {
 			_destroyRequests.fire({});
@@ -126,8 +223,8 @@ void Content::paintEvent(QPaintEvent *e) {
 
 	const auto size = _cache.size() / style::DevicePixelRatio();
 	p.translate(
-		(1 - progress) * ((size.width() - (size.width() * _minScale)) / 2),
-		(1 - progress) * ((size.height() - (size.height() * _minScale)) / 2));
+		(1 - progress) * OffsetMid(size.width(), _minScale),
+		(1 - progress) * OffsetMid(size.height(), _minScale));
 	p.scale(scale, scale);
 	p.drawImage(QPoint(), _cache);
 }
@@ -137,28 +234,33 @@ rpl::producer<> Content::destroyRequests() const {
 }
 
 void Content::updateCache() {
-	const auto innerContentRect = _media->contentRectForReactions();
-	_cache = QImage(
-		innerContentRect.size() * style::DevicePixelRatio(),
+	_cache = drawMedia(
+		Context::SkipDrawingParts::Surrounding,
+		_item->mainView()->media()->contentRectForReactions());
+	resize(_cache.size() / style::DevicePixelRatio());
+}
+
+QImage Content::drawMedia(
+		Context::SkipDrawingParts skipParts,
+		const QRect &rect) const {
+	auto image = QImage(
+		rect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	_cache.setDevicePixelRatio(style::DevicePixelRatio());
-	_cache.fill(Qt::transparent);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.fill(Qt::transparent);
 	{
-		Painter p(&_cache);
+		Painter p(&image);
 		PainterHighQualityEnabler hq(p);
 
 		auto context = _controller->preparePaintContext({
 			.theme = _theme,
-	 	});
-	 	using Context = Ui::ChatPaintContext;
-		context.skipDrawingParts = Context::SkipDrawingParts::Surrounding;
+		});
+		context.skipDrawingParts = skipParts;
 		context.outbg = _item->mainView()->hasOutLayout();
-		p.translate(-innerContentRect.left(), -innerContentRect.top());
-		_media->draw(p, context);
+		p.translate(-rect.left(), -rect.top());
+		_item->mainView()->media()->draw(p, context);
 	}
-	resize(
-		_cache.width() / style::DevicePixelRatio(),
-		_cache.height() / style::DevicePixelRatio());
+	return image;
 }
 
 } // namespace
