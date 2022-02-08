@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
@@ -526,6 +527,8 @@ SessionController::SessionController(
 , _window(window)
 , _emojiInteractions(
 	std::make_unique<ChatHelpers::EmojiInteractions>(session))
+, _sendingAnimation(
+	std::make_unique<Ui::MessageSendingAnimationController>(this))
 , _tabbedSelector(
 	std::make_unique<ChatHelpers::TabbedSelector>(
 		_window->widget(),
@@ -625,6 +628,11 @@ bool SessionController::isPrimary() const {
 
 not_null<::MainWindow*> SessionController::widget() const {
 	return _window->widget();
+}
+
+auto SessionController::sendingAnimation() const
+-> Ui::MessageSendingAnimationController & {
+	return *_sendingAnimation;
 }
 
 auto SessionController::tabbedSelector() const

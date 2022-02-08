@@ -1125,6 +1125,9 @@ PRIVATE
     ui/chat/choose_theme_controller.h
     ui/effects/fireworks_animation.cpp
     ui/effects/fireworks_animation.h
+    ui/effects/message_sending_animation_common.h
+    ui/effects/message_sending_animation_controller.cpp
+    ui/effects/message_sending_animation_controller.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/send_action_animations.cpp
