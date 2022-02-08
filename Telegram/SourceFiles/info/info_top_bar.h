@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/round_rect.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/numbers_animation.h"
@@ -139,6 +140,7 @@ private:
 	const not_null<Window::SessionNavigation*> _navigation;
 
 	const style::InfoTopBar &_st;
+	std::optional<Ui::RoundRect> _roundRect;
 	Ui::Animations::Simple _a_highlight;
 	bool _highlight = false;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _back;

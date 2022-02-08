@@ -43,7 +43,10 @@ TopBar::TopBar(
 , _navigation(navigation)
 , _st(st)
 , _selectedItems(Section::MediaType::kCount) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
+	if (_st.radius) {
+		_roundRect.emplace(_st.radius, _st.bg);
+	}
+	setAttribute(Qt::WA_OpaquePaintEvent, !_roundRect);
 	setSelectedItems(std::move(selectedItems));
 	updateControlsVisibility(anim::type::instant);
 }
@@ -367,8 +370,22 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		_highlight = false;
 		startHighlightAnimation();
 	}
-	auto brush = anim::brush(_st.bg, _st.highlightBg, highlight);
-	p.fillRect(e->rect(), brush);
+	if (!_roundRect) {
+		const auto brush = anim::brush(_st.bg, _st.highlightBg, highlight);
+		p.fillRect(e->rect(), brush);
+	} else if (highlight > 0.) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::brush(_st.bg, _st.highlightBg, highlight));
+		p.drawRoundedRect(
+			rect() + style::margins(0, 0, 0, _st.radius * 2),
+			_st.radius,
+			_st.radius);
+	} else {
+		_roundRect->paintSomeRounded(
+			p,
+			rect(),
+			RectPart::TopLeft | RectPart::TopRight);
+	}
 }
 
 void TopBar::highlight() {

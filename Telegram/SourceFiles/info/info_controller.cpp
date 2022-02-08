@@ -316,18 +316,6 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 		limitAfter);
 }
 
-void Controller::setCanSaveChanges(rpl::producer<bool> can) {
-	_canSaveChanges = std::move(can);
-}
-
-rpl::producer<bool> Controller::canSaveChanges() const {
-	return _canSaveChanges.value();
-}
-
-bool Controller::canSaveChangesNow() const {
-	return _canSaveChanges.current();
-}
-
 Controller::~Controller() = default;
 
 } // namespace Info

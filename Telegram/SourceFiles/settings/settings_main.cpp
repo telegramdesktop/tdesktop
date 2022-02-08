@@ -11,13 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
 #include "boxes/language_box.h"
+#include "boxes/username_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
+#include "ui/special_buttons.h"
 #include "info/profile/info_profile_cover.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -31,19 +36,171 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "api/api_cloud_password.h"
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
+#include "info/profile/info_profile_values.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
 #include "base/call_delayed.h"
+#include "base/platform/base_platform_info.h"
 #include "facades.h"
 #include "styles/style_settings.h"
-#include "base/platform/base_platform_info.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Settings {
+namespace {
+
+class Cover final : public Ui::FixedHeightWidget {
+public:
+	Cover(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user);
+	~Cover();
+
+private:
+	void setupChildGeometry();
+	void initViewers();
+	void refreshStatusText();
+	void refreshNameGeometry(int newWidth);
+	void refreshPhoneGeometry(int newWidth);
+	void refreshUsernameGeometry(int newWidth);
+
+	const not_null<Window::SessionController*> _controller;
+	const not_null<UserData*> _user;
+
+	object_ptr<Ui::UserpicButton> _userpic;
+	object_ptr<Ui::FlatLabel> _name = { nullptr };
+	object_ptr<Ui::FlatLabel> _phone = { nullptr };
+	object_ptr<Ui::FlatLabel> _username = { nullptr };
+
+};
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<UserData*> user)
+: FixedHeightWidget(
+	parent,
+	st::settingsPhotoTop
+		+ st::infoProfilePhoto.size.height()
+		+ st::settingsPhotoBottom)
+, _controller(controller)
+, _user(user)
+, _userpic(
+	this,
+	controller,
+	_user,
+	Ui::UserpicButton::Role::OpenPhoto,
+	st::infoProfilePhoto)
+, _name(this, st::infoProfileNameLabel)
+, _phone(this, st::defaultFlatLabel)
+, _username(this, st::infoProfileMegagroupStatusLabel) {
+	_user->updateFull();
+
+	_name->setSelectable(true);
+	_name->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
+
+	initViewers();
+	setupChildGeometry();
+
+	_userpic->switchChangePhotoOverlay(_user->isSelf());
+
+	_userpic->uploadPhotoRequests(
+	) | rpl::start_with_next([=] {
+		_user->session().api().peerPhoto().upload(
+			_user,
+			_userpic->takeResultImage());
+	}, _userpic->lifetime());
+}
+
+Cover::~Cover() = default;
+
+void Cover::setupChildGeometry() {
+	using namespace rpl::mappers;
+	widthValue(
+	) | rpl::start_with_next([=](int newWidth) {
+		_userpic->moveToLeft(
+			st::settingsPhotoLeft,
+			st::settingsPhotoTop,
+			newWidth);
+		refreshNameGeometry(newWidth);
+		refreshPhoneGeometry(newWidth);
+		refreshUsernameGeometry(newWidth);
+	}, lifetime());
+}
+
+void Cover::initViewers() {
+	Info::Profile::NameValue(
+		_user
+	) | rpl::start_with_next([=](const TextWithEntities &value) {
+		_name->setText(value.text);
+		refreshNameGeometry(width());
+	}, lifetime());
+
+	Info::Profile::PhoneValue(
+		_user
+	) | rpl::start_with_next([=](const TextWithEntities &value) {
+		_phone->setText(value.text);
+		refreshPhoneGeometry(width());
+	}, lifetime());
+
+	Info::Profile::UsernameValue(
+		_user
+	) | rpl::start_with_next([=](const TextWithEntities &value) {
+		_username->setMarkedText(Ui::Text::Link(value.text.isEmpty()
+			? tr::lng_settings_username_add(tr::now)
+			: value.text));
+		refreshUsernameGeometry(width());
+	}, lifetime());
+
+	_username->setClickHandlerFilter([=](auto&&...) {
+		const auto username = _user->userName();
+		if (username.isEmpty()) {
+			_controller->show(Box<UsernameBox>(&_user->session()));
+		} else {
+			QGuiApplication::clipboard()->setText(
+				_user->session().createInternalLinkFull(username));
+			Ui::Toast::Show(tr::lng_username_copied(tr::now));
+		}
+		return false;
+	});
+}
+
+void Cover::refreshNameGeometry(int newWidth) {
+	const auto nameLeft = st::settingsNameLeft;
+	const auto nameTop = st::settingsNameTop;
+	const auto nameWidth = newWidth - nameLeft - st::infoProfileNameRight;
+	_name->resizeToNaturalWidth(nameWidth);
+	_name->moveToLeft(nameLeft, nameTop, newWidth);
+}
+
+void Cover::refreshPhoneGeometry(int newWidth) {
+	const auto phoneLeft = st::settingsPhoneLeft;
+	const auto phoneTop = st::settingsPhoneTop;
+	const auto phoneWidth = newWidth - phoneLeft - st::infoProfileNameRight;
+	_phone->resizeToWidth(phoneWidth);
+	_phone->moveToLeft(phoneLeft, phoneTop, newWidth);
+}
+
+void Cover::refreshUsernameGeometry(int newWidth) {
+	const auto usernameLeft = st::settingsUsernameLeft;
+	const auto usernameTop = st::settingsUsernameTop;
+	const auto usernameRight = st::infoProfileNameRight;
+	const auto usernameWidth = newWidth - usernameLeft - usernameRight;
+	_username->resizeToWidth(usernameWidth);
+	_username->moveToLeft(usernameLeft, usernameTop, newWidth);
+}
+
+} // namespace
 
 void SetupLanguageButton(
 		not_null<Ui::VerticalLayout*> container,
@@ -364,11 +521,10 @@ void Main::keyPressEvent(QKeyEvent *e) {
 void Main::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto cover = content->add(object_ptr<Info::Profile::Cover>(
+	const auto cover = content->add(object_ptr<Cover>(
 		content,
-		controller->session().user(),
-		controller));
-	cover->setOnlineCount(rpl::single(0));
+		controller,
+		controller->session().user()));
 
 	SetupSections(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);

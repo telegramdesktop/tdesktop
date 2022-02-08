@@ -390,14 +390,10 @@ void WrapWidget::createTopBar() {
 		&& (wrapValue != Wrap::Side || hasStackHistory())) {
 		addTopBarMenuButton();
 		addProfileCallsButton();
-//		addProfileNotificationsButton();
 	} else if (section.type() == Section::Type::Settings
 		&& (section.settingsType() == Section::SettingsType::Main
 			|| section.settingsType() == Section::SettingsType::Chat)) {
 		addTopBarMenuButton();
-	} else if (section.type() == Section::Type::Settings
-		&& section.settingsType() == Section::SettingsType::Information) {
-		addContentSaveButton();
 	}
 
 	_topBar->lower();
@@ -407,18 +403,8 @@ void WrapWidget::createTopBar() {
 }
 
 void WrapWidget::checkBeforeClose(Fn<void()> close) {
-	const auto confirmed = [=] {
-		Ui::hideLayer();
-		close();
-	};
-	if (_controller->canSaveChangesNow()) {
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_settings_close_sure(tr::now),
-			tr::lng_close(tr::now),
-			confirmed));
-	} else {
-		confirmed();
-	}
+	Ui::hideLayer();
+	close();
 }
 
 void WrapWidget::addTopBarMenuButton() {
@@ -435,25 +421,8 @@ void WrapWidget::addTopBarMenuButton() {
 	});
 }
 
-void WrapWidget::addContentSaveButton() {
-	Expects(_topBar != nullptr);
-
-	_topBar->addButtonWithVisibility(
-		base::make_unique_q<Ui::IconButton>(
-			_topBar,
-			(wrap() == Wrap::Layer
-				? st::infoLayerTopBarSave
-				: st::infoTopBarSave)),
-		_controller->canSaveChanges()
-	)->addClickHandler([=] {
-		_content->saveChanges(crl::guard(_content.data(), [=] {
-			_controller->showBackFromStack();
-		}));
-	});
-}
-
 bool WrapWidget::closeByOutsideClick() const {
-	return !_controller->canSaveChangesNow();
+	return true;
 }
 
 void WrapWidget::addProfileCallsButton() {
@@ -489,39 +458,6 @@ void WrapWidget::addProfileCallsButton() {
 	if (user && user->callsStatus() == UserData::CallsStatus::Unknown) {
 		user->updateFull();
 	}
-}
-
-void WrapWidget::addProfileNotificationsButton() {
-	Expects(_topBar != nullptr);
-
-	const auto peer = key().peer();
-	if (!peer) {
-		return;
-	}
-	auto notifications = _topBar->addButton(
-		base::make_unique_q<Ui::IconButton>(
-			_topBar,
-			(wrap() == Wrap::Layer
-				? st::infoLayerTopBarNotifications
-				: st::infoTopBarNotifications)));
-	notifications->addClickHandler([=] {
-		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
-			? 0
-			: Data::NotifySettings::kDefaultMutePeriod;
-		peer->owner().updateNotifySettings(peer, muteForSeconds);
-	});
-	Profile::NotificationsEnabledValue(
-		peer
-	) | rpl::start_with_next([notifications](bool enabled) {
-		const auto iconOverride = enabled
-			? &st::infoNotificationsActive
-			: nullptr;
-		const auto rippleOverride = enabled
-			? &st::lightButtonBgOver
-			: nullptr;
-		notifications->setIconOverride(iconOverride, iconOverride);
-		notifications->setRippleColorOverride(rippleOverride);
-	}, notifications->lifetime());
 }
 
 void WrapWidget::showTopBarMenu() {

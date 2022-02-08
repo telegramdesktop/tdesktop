@@ -136,30 +136,12 @@ infoTopBarMenu: IconButton(infoTopBarBack) {
 	iconPosition: point(18px, -1px);
 	rippleAreaPosition: point(1px, 6px);
 }
-infoTopBarNotifications: IconButton(infoTopBarMenu) {
+infoTopBarCall: IconButton(infoTopBarMenu) {
 	width: 42px;
-	icon: icon {{ "info_notifications", boxTitleCloseFg }};
-	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
-	iconPosition: point(5px, 10px);
-	rippleAreaPosition: point(0px, 6px);
-}
-infoNotificationsActive: icon {{
-	"info_notifications",
-	windowBgActive
-}};
-infoTopBarCall: IconButton(infoTopBarNotifications) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 	iconPosition: point(5px, -1px);
-}
-infoTopBarSave: IconButton(infoTopBarNotifications) {
-	width: 48px;
-	icon: icon {{ "passport_ready", windowActiveTextFg }};
-	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
-	iconPosition: point(11px, 17px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgOver;
-	}
+	rippleAreaPosition: point(0px, 6px);
 }
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
@@ -186,24 +168,25 @@ infoTopBar: InfoTopBar {
 	searchRow: infoTopBarSearchRow;
 	highlightBg: windowBgOver;
 	highlightDuration: 240;
+	radius: 0px;
 }
 infoTopBarScale: 0.7;
 infoTopBarDuration: 150;
 
 infoLayerTopMinimal: 20px;
 infoLayerTopMaximal: 40px;
-infoLayerTopBarHeight: boxTitleHeight;
+infoLayerTopBarHeight: 56px;
 infoLayerTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoLayerTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
 infoLayerTopBarBack: IconButton(infoTopBarBack) {
-	width: infoLayerTopBarHeight;
+	width: 48px;
 	height: infoLayerTopBarHeight;
 
 	iconPosition: point(10px, -1px);
 	icon: infoLayerTopBarBackIcon;
 	iconOver: infoLayerTopBarBackIconOver;
 	rippleAreaSize: 40px;
-	rippleAreaPosition: point(6px, 4px);
+	rippleAreaPosition: point(6px, 8px);
 }
 infoLayerTopBarMediaCancel: IconButton(infoLayerTopBarBack) {
 	icon: icon {{ "info_close", boxTitleCloseFg }};
@@ -211,7 +194,7 @@ infoLayerTopBarMediaCancel: IconButton(infoLayerTopBarBack) {
 }
 infoLayerTopBarClose: IconButton(infoLayerTopBarMediaCancel) {
 	iconPosition: point(4px, -1px);
-	rippleAreaPosition: point(0px, 4px);
+	rippleAreaPosition: point(0px, 8px);
 }
 infoLayerTopBarMenu: IconButton(infoLayerTopBarClose) {
 	width: 40px;
@@ -219,23 +202,10 @@ infoLayerTopBarMenu: IconButton(infoLayerTopBarClose) {
 	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
 	iconPosition: point(16px, -1px);
 }
-infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
-	icon: icon {{ "info_notifications", boxTitleCloseFg }};
-	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
-	iconPosition: point(3px, 9px);
-}
 infoLayerTopBarCall: IconButton(infoLayerTopBarMenu) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 	iconPosition: point(3px, -1px);
-}
-infoLayerTopBarSave: IconButton(infoLayerTopBarNotifications) {
-	icon: icon {{ "passport_ready", windowActiveTextFg }};
-	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
-	iconPosition: point(11px, 16px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgOver;
-	}
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
@@ -252,7 +222,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;
-	titlePosition: point(24px, 13px);
+	titlePosition: point(24px, 18px);
 	bg: boxBg;
 	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
@@ -260,6 +230,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	mediaDelete: infoLayerTopBarDelete;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
+	radius: boxRadius;
 }
 
 infoTopBarMenuPosition: point(-2px, 35px);

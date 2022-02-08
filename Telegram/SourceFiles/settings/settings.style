@@ -339,3 +339,13 @@ sessionList: PeerList(defaultPeerList) {
 sessionListThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 sessionListThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
 sessionListThreeDotsSkip: 12px;
+
+settingsPhotoLeft: 22px;
+settingsPhotoTop: 8px;
+settingsPhotoBottom: 16px;
+settingsNameLeft: 112px;
+settingsNameTop: 12px;
+settingsPhoneLeft: settingsNameLeft;
+settingsPhoneTop: 37px;
+settingsUsernameLeft: settingsNameLeft;
+settingsUsernameTop: 58px;

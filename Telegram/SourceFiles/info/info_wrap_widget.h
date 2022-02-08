@@ -190,9 +190,7 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();
-	void addContentSaveButton();
 	void addProfileCallsButton();
-	void addProfileNotificationsButton();
 	void showTopBarMenu();
 
 	rpl::variable<Wrap> _wrap;

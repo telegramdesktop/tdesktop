@@ -221,7 +221,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 
 	// First resize content to new width and get the new desired height.
 	auto contentLeft = 0;
-	auto contentTop = st::boxRadius;
+	auto contentTop = 0;
 	auto contentBottom = st::boxRadius;
 	auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;

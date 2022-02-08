@@ -63,7 +63,6 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
-	rpl::producer<bool> canSaveChanges() const override;
 	void saveChanges(FnMut<void()> done) override;
 
 	rpl::producer<bool> desiredShadowVisibility() const override;
