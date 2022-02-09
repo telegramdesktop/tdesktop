@@ -317,6 +317,10 @@ void SetupSections(
 		tr::lng_settings_advanced(),
 		Type::Advanced,
 		{ &st::settingsIconGeneral, kIconPurple });
+	addSection(
+		tr::lng_settings_section_call_settings(),
+		Type::Calls,
+		{ &st::settingsIconCalls, kIconGreen });
 
 	SetupLanguageButton(container);
 
