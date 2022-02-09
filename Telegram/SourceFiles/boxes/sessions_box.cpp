@@ -929,9 +929,7 @@ void SessionsContent::Inner::setupContent() {
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
 			st::sessionsTerminateAll,
-			&st::sessionsTerminateAllIcon,
-			st::sessionsTerminateAllIconLeft,
-			&st::attentionButtonFg));
+			{ .icon = &st::sessionsTerminateAllIcon }));
 	AddSkip(terminateInner);
 	AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 

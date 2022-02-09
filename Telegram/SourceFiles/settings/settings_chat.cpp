@@ -747,9 +747,8 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_stickers_you_have(),
-		st::settingsChatButton,
-		&st::settingsIconStickers,
-		st::settingsChatIconLeft
+		st::settingsSectionButton,
+		{ &st::settingsIconStickers, kIconLightOrange }
 	)->addClickHandler([=] {
 		controller->show(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
@@ -758,9 +757,8 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_emoji_manage_sets(),
-		st::settingsChatButton,
-		&st::settingsIconEmoji,
-		st::settingsChatIconLeft
+		st::settingsSectionButton,
+		{ &st::settingsIconEmoji, kIconDarkOrange }
 	)->addClickHandler([=] {
 		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
@@ -1274,9 +1272,8 @@ void SetupCloudThemes(
 	AddButton(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
-		st::settingsChatButton,
-		&st::settingsIconThemes,
-		st::settingsChatIconLeft
+		st::settingsSectionButton,
+		{ &st::settingsIconThemes, kIconGreen }
 	)->addClickHandler([=] {
 		StartEditor(
 			&controller->window(),

@@ -707,13 +707,6 @@ void SetupSystemIntegration(
 	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_system_integration());
-	AddButton(
-		container,
-		tr::lng_settings_section_call_settings(),
-		st::settingsButton
-	)->addClickHandler([=] {
-		showOther(Type::Calls);
-	});
 	SetupSystemIntegrationOptions(controller, container);
 	AddSkip(container);
 }

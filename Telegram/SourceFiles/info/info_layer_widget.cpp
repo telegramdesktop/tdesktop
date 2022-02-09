@@ -216,7 +216,9 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
 	auto newBottom = newTop;
-	auto desiredHeight = st::boxRadius + _desiredHeight + st::boxRadius;
+
+	// Top rounding is included in _desiredHeight.
+	auto desiredHeight = _desiredHeight + st::boxRadius;
 	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
 
 	// First resize content to new width and get the new desired height.

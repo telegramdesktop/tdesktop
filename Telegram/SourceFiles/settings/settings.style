@@ -12,7 +12,8 @@ using "boxes/boxes.style";
 
 settingsSectionButton: SettingsButton(infoProfileButton) {
 	font: boxTextFont;
-	padding: margins(60px, 11px, 22px, 9px);
+	padding: margins(60px, 10px, 22px, 10px);
+	iconLeft: 20px;
 }
 settingsButton: SettingsButton(settingsSectionButton) {
 	padding: margins(22px, 10px, 22px, 8px);
@@ -28,13 +29,11 @@ settingsOptionDisabled: SettingsButton(settingsButton) {
 	textBgOver: windowBg;
 	toggleOver: infoProfileToggle;
 }
-settingsSectionSkip: 5px;
-settingsSectionBottomSkip: 7px;
-settingsSectionIconLeft: 22px;
+settingsSectionSkip: 6px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightSkip: 23px;
-settingsScalePadding: margins(63px, 8px, 21px, 5px);
-settingsBigScalePadding: margins(21px, 8px, 21px, 5px);
+settingsScalePadding: margins(63px, 7px, 21px, 4px);
+settingsBigScalePadding: margins(21px, 7px, 21px, 4px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: windowBgOver;
 	labelFg: windowSubTextFg;
@@ -52,18 +51,20 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButton) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
-settingsIconInformation: icon {{ "settings/settings_information", menuIconFg }};
-settingsIconNotifications: icon {{ "settings/settings_notifications", menuIconFg }};
-settingsIconChat: icon {{ "settings/settings_chat", menuIconFg }};
-settingsIconFolders: icon {{ "settings/settings_folders", menuIconFg }};
-settingsIconGeneral: icon {{ "settings/settings_advanced", menuIconFg }};
-settingsIconPrivacySecurity: icon {{ "settings/settings_privacy_security", menuIconFg }};
-settingsIconLanguage: icon {{ "settings/settings_language", menuIconFg }};
-settingsIconInterfaceScale: icon {{ "settings/settings_interface_scale", menuIconFg }};
-settingsIconFaq: icon {{ "settings/settings_faq", menuIconFg }};
-settingsIconStickers: icon {{ "settings/settings_stickers", menuIconFg }};
-settingsIconEmoji: icon {{ "settings/settings_emoji", menuIconFg }};
-settingsIconThemes: icon {{ "settings/settings_themes", menuIconFg }};
+settingsIconInformation: icon {{ "settings/account", settingsIconFg }};
+settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
+settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
+settingsIconFolders: icon {{ "settings/folders", settingsIconFg }};
+settingsIconGeneral: icon {{ "settings/advanced", settingsIconFg }};
+settingsIconPrivacySecurity: icon {{ "settings/lock", settingsIconFg }};
+settingsIconLanguage: icon {{ "settings/language", settingsIconFg }};
+settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
+settingsIconFaq: icon {{ "settings/faq", settingsIconFg }};
+settingsIconCalls: icon {{ "settings/calls", settingsIconFg }};
+settingsIconAskQuestion: icon {{ "settings/ask_question", settingsIconFg }};
+settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
+settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
+settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};
 
 settingsSetPhotoSkip: 7px;
 
@@ -167,11 +168,6 @@ settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);
 
 settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
 
-settingsChatButton: SettingsButton(settingsSectionButton) {
-	padding: margins(59px, 13px, 22px, 11px);
-}
-settingsChatIconLeft: 19px;
-
 settingsThemesTopSkip: 10px;
 settingsThemesBottomSkip: 8px;
 settingsTheme: Checkbox(defaultCheckbox) {
@@ -254,9 +250,9 @@ sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
 	font: font(boxFontSize semibold);
 	height: 20px;
 	padding: margins(77px, 12px, 22px, 10px);
+	iconLeft: 30px;
 }
 sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
-sessionsTerminateAllIconLeft: 30px;
 sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
@@ -350,3 +346,5 @@ settingsPhoneLeft: settingsNameLeft;
 settingsPhoneTop: 37px;
 settingsUsernameLeft: settingsNameLeft;
 settingsUsernameTop: 58px;
+
+settingsIconRadius: 6px;

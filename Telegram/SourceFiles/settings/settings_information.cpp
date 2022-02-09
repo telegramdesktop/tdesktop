@@ -110,7 +110,7 @@ void AddRow(
 		container,
 		rpl::single(QString()),
 		st::settingsInfoRow,
-		&icon);
+		{ .icon = &icon });
 	const auto forcopy = Ui::CreateChild<QString>(wrap.get());
 	wrap->setAcceptBoth();
 	wrap->clicks(

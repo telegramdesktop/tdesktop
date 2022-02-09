@@ -749,11 +749,11 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 
 	height: 22px;
 	padding: margins(63px, 17px, 22px, 11px);
+	iconLeft: 16px;
 
 	ripple: groupCallRipple;
 }
 groupCallAddMemberIcon: icon {{ "info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
-groupCallAddMemberIconLeft: 16px;
 groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: groupCallMemberNotJoinedStatus;

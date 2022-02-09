@@ -490,7 +490,7 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 			std::move(title),
 			rpl::single(label),
 			st::paymentsSectionButton,
-			icon);
+			{ .icon = icon });
 		button->addClickHandler(std::move(handler));
 		if (_invoice.receipt) {
 			button->setAttribute(Qt::WA_TransparentForMouseEvents);

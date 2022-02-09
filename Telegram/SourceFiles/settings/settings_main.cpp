@@ -214,7 +214,7 @@ void SetupLanguageButton(
 			Lang::GetInstance().idChanges()
 		) | rpl::map([] { return Lang::GetInstance().nativeName(); }),
 		icon ? st::settingsSectionButton : st::settingsButton,
-		icon ? &st::settingsIconLanguage : nullptr);
+		{ icon ? &st::settingsIconLanguage : nullptr, kIconDarkOrange });
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
@@ -236,12 +236,12 @@ void SetupSections(
 	const auto addSection = [&](
 			rpl::producer<QString> label,
 			Type type,
-			const style::icon *icon) {
+			IconDescriptor &&descriptor) {
 		AddButton(
 			container,
 			std::move(label),
 			st::settingsSectionButton,
-			icon
+			std::move(descriptor)
 		)->addClickHandler([=] { showOther(type); });
 	};
 	if (controller->session().supportMode()) {
@@ -253,20 +253,20 @@ void SetupSections(
 		addSection(
 			tr::lng_settings_information(),
 			Type::Information,
-			&st::settingsIconInformation);
+			{ &st::settingsIconInformation, kIconLightOrange });
 	}
 	addSection(
 		tr::lng_settings_section_notify(),
 		Type::Notifications,
-		&st::settingsIconNotifications);
+		{ &st::settingsIconNotifications, kIconRed });
 	addSection(
 		tr::lng_settings_section_privacy(),
 		Type::PrivacySecurity,
-		&st::settingsIconPrivacySecurity);
+		{ &st::settingsIconPrivacySecurity, kIconGreen });
 	addSection(
 		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
-		&st::settingsIconChat);
+		{ &st::settingsIconChat, kIconLightBlue });
 
 	const auto preload = [=] {
 		controller->session().data().chatsFilters().requestSuggested();
@@ -279,7 +279,8 @@ void SetupSections(
 				container,
 				tr::lng_settings_section_filters(),
 				st::settingsSectionButton,
-				&st::settingsIconFolders)))->setDuration(0);
+				{ &st::settingsIconFolders, kIconDarkBlue }))
+	)->setDuration(0);
 	if (!controller->session().data().chatsFilters().list().empty()
 		|| controller->session().settings().dialogsFiltersEnabled()) {
 		slided->show(anim::type::instant);
@@ -315,11 +316,11 @@ void SetupSections(
 	addSection(
 		tr::lng_settings_advanced(),
 		Type::Advanced,
-		&st::settingsIconGeneral);
+		{ &st::settingsIconGeneral, kIconPurple });
 
 	SetupLanguageButton(container);
 
-	AddSkip(container, st::settingsSectionBottomSkip);
+	AddSkip(container);
 }
 
 bool HasInterfaceScale() {
@@ -342,7 +343,7 @@ void SetupInterfaceScale(
 		container,
 		tr::lng_settings_default_scale(),
 		icon ? st::settingsSectionButton : st::settingsButton,
-		icon ? &st::settingsIconInterfaceScale : nullptr
+		{ icon ? &st::settingsIconInterfaceScale : nullptr, kIconLightBlue }
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
@@ -449,7 +450,7 @@ void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 		container,
 		tr::lng_settings_faq(),
 		icon ? st::settingsSectionButton : st::settingsButton,
-		icon ? &st::settingsIconFaq : nullptr
+		{ icon ? &st::settingsIconFaq : nullptr, kIconLightBlue }
 	)->addClickHandler(OpenFaq);
 }
 
@@ -464,7 +465,8 @@ void SetupHelp(
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_ask_question(),
-		st::settingsSectionButton);
+		st::settingsSectionButton,
+		{ &st::settingsIconAskQuestion, kIconLightOrange });
 	const auto requestId = button->lifetime().make_state<mtpRequestId>();
 	button->lifetime().add([=] {
 		if (*requestId) {

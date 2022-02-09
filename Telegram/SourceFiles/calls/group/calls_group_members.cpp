@@ -1685,9 +1685,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			_layout.get(),
 			tr::lng_group_call_invite(),
 			st::groupCallAddMember,
-			&st::groupCallAddMemberIcon,
-			st::groupCallAddMemberIconLeft,
-			&st::groupCallMemberInactiveIcon);
+			{ .icon = &st::groupCallAddMemberIcon });
 		addMember->clicks(
 		) | rpl::to_empty | rpl::start_to_stream(
 			_addMemberRequests,
