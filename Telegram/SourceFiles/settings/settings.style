@@ -62,6 +62,7 @@ settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }
 settingsIconFaq: icon {{ "settings/faq", settingsIconFg }};
 settingsIconCalls: icon {{ "settings/calls", settingsIconFg }};
 settingsIconAskQuestion: icon {{ "settings/ask_question", settingsIconFg }};
+settingsIconTips: icon {{ "settings/tips", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
 settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
 settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};

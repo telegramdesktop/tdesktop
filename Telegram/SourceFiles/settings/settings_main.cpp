@@ -466,11 +466,20 @@ void SetupHelp(
 
 	SetupFaq(container);
 
+	AddButton(
+		container,
+		rpl::single(u"Telegram Features"_q),
+		st::settingsSectionButton,
+		{ &st::settingsIconTips, kIconLightOrange }
+	)->setClickedCallback([=] {
+		UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
+	});
+
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_ask_question(),
 		st::settingsSectionButton,
-		{ &st::settingsIconAskQuestion, kIconLightOrange });
+		{ &st::settingsIconAskQuestion, kIconGreen });
 	const auto requestId = button->lifetime().make_state<mtpRequestId>();
 	button->lifetime().add([=] {
 		if (*requestId) {
