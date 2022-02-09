@@ -65,6 +65,14 @@ settingsIconAskQuestion: icon {{ "settings/ask_question", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
 settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
 settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};
+settingsIconNewGroup: icon {{ "settings/group", settingsIconFg }};
+settingsIconNewChannel: icon {{ "settings/channel", settingsIconFg }};
+settingsIconContacts: icon {{ "settings/user", settingsIconFg }};
+settingsIconSavedMessages: icon {{ "settings/saved_messages", settingsIconFg }};
+settingsIconKey: icon {{ "settings/key", settingsIconFg }};
+settingsIconReload: icon {{ "settings/reload", settingsIconFg }};
+settingsIconNight: icon {{ "settings/night", settingsIconFg }};
+settingsIconSettings: icon {{ "settings/settings", settingsIconFg }};
 
 settingsSetPhotoSkip: 7px;
 

@@ -373,22 +373,14 @@ infoProfileToggleOver: Toggle(infoProfileToggle) {
 	untoggledFg: menuIconFgOver;
 }
 infoProfileButton: SettingsButton(defaultSettingsButton) {
-	textFg: windowBoldFg;
-	textFgOver: windowBoldFgOver;
-	textBg: windowBg;
-	textBgOver: windowBgOver;
-
 	font: normalFont;
 
-	height: 20px;
 	padding: margins(79px, 10px, 8px, 8px);
 	iconLeft: 22px;
 
 	toggle: infoProfileToggle;
 	toggleOver: infoProfileToggleOver;
 	toggleSkip: 20px;
-
-	ripple: defaultRippleAnimation;
 }
 infoNotificationsButton: SettingsButton(infoProfileButton) {
 	padding: margins(79px, 13px, 8px, 9px);

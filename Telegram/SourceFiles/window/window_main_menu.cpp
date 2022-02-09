@@ -13,9 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/menu/menu.h"
-#include "ui/widgets/menu/menu_common.h"
-#include "ui/widgets/menu/menu_toggle.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -584,7 +581,6 @@ MainMenu::MainMenu(
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
 , _archiveButton(this, st::mainMenuCloudButton)
-, _cloudButton(this, st::mainMenuCloudButton)
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
@@ -595,7 +591,7 @@ MainMenu::MainMenu(
 	_inner.get(),
 	object_ptr<Ui::PlainShadow>(_inner.get()))))
 , _menu(_inner->add(
-	object_ptr<Ui::Menu::Menu>(_inner.get(), st::mainMenu),
+	object_ptr<Ui::VerticalLayout>(_inner.get()),
 	{ 0, st::mainMenuSkip, 0, 0 }))
 , _footer(_inner->add(object_ptr<Ui::RpWidget>(_inner.get())))
 , _telegram(
@@ -607,18 +603,18 @@ MainMenu::MainMenu(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	setupArchiveButton();
-	setupCloudButton();
 	setupUserpicButton();
 	setupAccountsToggle();
 	setupAccounts();
+	setupMenu();
 
 	_nightThemeSwitch.setCallback([this] {
-		if (const auto action = *_nightThemeAction) {
-			const auto nightMode = Window::Theme::IsNightMode();
-			if (action->isChecked() != nightMode) {
-				Window::Theme::ToggleNightMode();
-				Window::Theme::KeepApplied();
-			}
+		Expects(_nightThemeToggle != nullptr);
+
+		const auto nightMode = Window::Theme::IsNightMode();
+		if (_nightThemeToggle->toggled() != nightMode) {
+			Window::Theme::ToggleNightMode();
+			Window::Theme::KeepApplied();
 		}
 	});
 
@@ -636,10 +632,6 @@ MainMenu::MainMenu(
 	}, _inner->lifetime());
 
 	parentResized();
-	_menu->setTriggeredCallback([](const Ui::Menu::CallbackData &data) {
-		data.action->triggered();
-	});
-	refreshMenu();
 	refreshBackground();
 
 	_telegram->setMarkedText(Ui::Text::Link(
@@ -682,13 +674,7 @@ MainMenu::MainMenu(
 	Window::Theme::Background()->updates(
 	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
 		if (update.type == BackgroundUpdate::Type::ApplyingTheme) {
-			if (const auto action = *_nightThemeAction) {
-				const auto nightMode = Window::Theme::IsNightMode();
-				if (action->isChecked() != nightMode) {
-					action->setChecked(nightMode);
-					_menu->finishAnimating();
-				}
-			}
+			_nightThemeSwitches.fire(Window::Theme::IsNightMode());
 		}
 		if (update.type == BackgroundUpdate::Type::New) {
 			refreshBackground();
@@ -766,15 +752,6 @@ void MainMenu::setupArchiveButton() {
 		}
 		update();
 	}, lifetime());
-}
-
-void MainMenu::setupCloudButton() {
-	_cloudButton->setClickedCallback([=] {
-		_controller->content()->choosePeer(
-			_controller->session().userPeerId(),
-			ShowAtUnreadMsgId);
-	});
-	_cloudButton->show();
 }
 
 void MainMenu::setupUserpicButton() {
@@ -976,60 +953,95 @@ void MainMenu::parentResized() {
 	resize(st::mainMenuWidth, parentWidget()->height());
 }
 
-void MainMenu::refreshMenu() {
-	_menu->clearActions();
+void MainMenu::setupMenu() {
+	using namespace Settings;
+
 	const auto controller = _controller;
-	if (!_controller->session().supportMode()) {
-		_menu->addAction(tr::lng_create_group_title(tr::now), [=] {
-			controller->showNewGroup();
-		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
-		_menu->addAction(tr::lng_create_channel_title(tr::now), [=] {
-			controller->showNewChannel();
-		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
-		_menu->addAction(tr::lng_menu_contacts(tr::now), [=] {
-			controller->show(PrepareContactsBox(controller));
-		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
-		if (_controller->session().serverConfig().phoneCallsEnabled.current()) {
-			_menu->addAction(tr::lng_menu_calls(tr::now), [=] {
-				ShowCallsBox(controller);
-			}, &st::mainMenuCalls, &st::mainMenuCallsOver);
-		}
-	} else {
-		_menu->addAction(tr::lng_profile_add_contact(tr::now), [=] {
-			controller->showAddContact();
-		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
-
-		const auto fix = std::make_shared<QPointer<QAction>>();
-		auto fixCallback = [=] {
-			(*fix)->setChecked(!(*fix)->isChecked());
-			_controller->session().settings().setSupportFixChatsOrder(
-				(*fix)->isChecked());
-			_controller->session().saveSettings();
-		};
-		auto item = base::make_unique_q<Ui::Menu::Toggle>(
+	const auto addAction = [&](
+			rpl::producer<QString> text,
+			IconDescriptor &&descriptor) {
+		return AddButton(
 			_menu,
-			st::mainMenu,
-			u"Fix chats order"_q,
-			std::move(fixCallback),
-			&st::mainMenuFixOrder,
-			&st::mainMenuFixOrderOver);
-		*fix = _menu->addAction(std::move(item));
-		(*fix)->setCheckable(true);
-		(*fix)->setChecked(
-			_controller->session().settings().supportFixChatsOrder());
-
-		_menu->addAction(qsl("Reload templates"), [=] {
+			std::move(text),
+			st::mainMenuButton,
+			std::move(descriptor));
+	};
+	if (!_controller->session().supportMode()) {
+		addAction(
+			tr::lng_create_group_title(),
+			{ &st::settingsIconNewGroup, kIconLightBlue }
+		)->setClickedCallback([=] {
+			controller->showNewGroup();
+		});
+		addAction(
+			tr::lng_create_channel_title(),
+			{ &st::settingsIconNewChannel, kIconLightOrange }
+		)->setClickedCallback([=] {
+			controller->showNewChannel();
+		});
+		addAction(
+			tr::lng_menu_contacts(),
+			{ &st::settingsIconContacts, kIconRed }
+		)->setClickedCallback([=] {
+			controller->show(PrepareContactsBox(controller));
+		});
+		addAction(
+			tr::lng_menu_calls(),
+			{ &st::settingsIconCalls, kIconGreen }
+		)->setClickedCallback([=] {
+			ShowCallsBox(controller);
+		});
+		addAction(
+			tr::lng_saved_messages(),
+			{ &st::settingsIconSavedMessages, kIconLightBlue }
+		)->setClickedCallback([=] {
+			controller->content()->choosePeer(
+				controller->session().userPeerId(),
+				ShowAtUnreadMsgId);
+		});
+	} else {
+		addAction(
+			tr::lng_profile_add_contact(),
+			{ &st::settingsIconContacts, kIconRed }
+		)->setClickedCallback([=] {
+			controller->showAddContact();
+		});
+		addAction(
+			rpl::single(u"Fix chats order"_q),
+			{ &st::settingsIconKey, kIconGreen }
+		)->toggleOn(rpl::single(
+			_controller->session().settings().supportFixChatsOrder()
+		))->toggledChanges(
+		) | rpl::start_with_next([=](bool fix) {
+			_controller->session().settings().setSupportFixChatsOrder(fix);
+			_controller->session().saveSettings();
+		}, _menu->lifetime());
+		addAction(
+			rpl::single(u"Reload templates"_q),
+			{ &st::settingsIconReload, kIconLightBlue }
+		)->setClickedCallback([=] {
 			_controller->session().supportTemplates().reload();
-		}, &st::mainMenuReload, &st::mainMenuReloadOver);
+		});
 	}
-	_menu->addAction(tr::lng_menu_settings(tr::now), [=] {
+	addAction(
+		tr::lng_menu_settings(),
+		{ &st::settingsIconSettings, kIconPurple }
+	)->setClickedCallback([=] {
 		controller->showSettings();
-	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
+	});
 
-	_nightThemeAction = std::make_shared<QPointer<QAction>>();
-
-	auto nightCallback = [=] {
+	_nightThemeToggle = addAction(
+		tr::lng_menu_night_mode(),
+		{ &st::settingsIconNight, kIconDarkBlue }
+	)->toggleOn(_nightThemeSwitches.events_starting_with(
+		Window::Theme::IsNightMode()
+	));
+	_nightThemeToggle->toggledChanges(
+	) | rpl::filter([=](bool night) {
+		return (night != Window::Theme::IsNightMode());
+	}) | rpl::start_with_next([=](bool night) {
 		if (Window::Theme::Background()->editingTheme()) {
+			_nightThemeSwitches.fire(!night);
 			controller->show(Box<Ui::InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 			return;
@@ -1039,36 +1051,23 @@ void MainMenu::refreshMenu() {
 			if (!weak) {
 				Window::Theme::ToggleNightMode();
 				Window::Theme::KeepApplied();
-			} else if (auto action = *_nightThemeAction) {
-				action->setChecked(!action->isChecked());
+			} else {
 				_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
 			}
 		};
 		Window::Theme::ToggleNightModeWithConfirmation(
 			&_controller->window(),
 			toggle);
-	};
+	}, _nightThemeToggle->lifetime());
 
-	auto item = base::make_unique_q<Ui::Menu::Toggle>(
-		_menu,
-		st::mainMenu,
-		tr::lng_menu_night_mode(tr::now),
-		std::move(nightCallback),
-		&st::mainMenuNightMode,
-		&st::mainMenuNightModeOver);
-
-	auto action = _menu->addAction(std::move(item));
-	*_nightThemeAction = action;
-	action->setCheckable(true);
-	action->setChecked(Window::Theme::IsNightMode());
 	Core::App().settings().systemDarkModeValue(
 	) | rpl::start_with_next([=](std::optional<bool> darkMode) {
-		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
+		const auto darkModeEnabled
+			= Core::App().settings().systemDarkModeEnabled();
 		if (darkModeEnabled && darkMode.has_value()) {
-			action->setChecked(*darkMode);
+			_nightThemeSwitches.fire_copy(*darkMode);
 		}
-	}, lifetime());
-	_menu->finishAnimating();
+	}, _nightThemeToggle->lifetime());
 
 	updatePhone();
 }
@@ -1107,7 +1106,7 @@ void MainMenu::refreshBackground() {
 
 	// Cut off the part of the background that is under text.
 	const QRect underText(
-		st::mainMenuCoverTextLeft,
+		st::mainMenuCoverNameLeft,
 		st::mainMenuCoverNameTop,
 		std::max(
 			st::semiboldFont->width(
@@ -1121,7 +1120,6 @@ void MainMenu::refreshBackground() {
 }
 
 void MainMenu::resizeEvent(QResizeEvent *e) {
-	_menu->setForceWidth(width());
 	_inner->resizeToWidth(width());
 	updateControlsGeometry();
 }
@@ -1132,17 +1130,13 @@ void MainMenu::updateControlsGeometry() {
 		st::mainMenuUserpicTop);
 	if (_resetScaleButton) {
 		_resetScaleButton->moveToRight(0, 0);
-		_cloudButton->moveToRight(_resetScaleButton->width(), 0);
-		_archiveButton->moveToRight(
-			_resetScaleButton->width() + _cloudButton->width(),
-			0);
+		_archiveButton->moveToRight(_resetScaleButton->width(), 0);
 	} else {
 		const auto right = st::mainMenuTogglePosition.x()
-			- (_cloudButton->width() / 2);
+			- (_archiveButton->width() / 2);
 		const auto top = st::mainMenuUserpicTop
-			- (_cloudButton->height() - st::mainMenuCloudSize) / 2;
-		_cloudButton->moveToRight(right, top);
-		_archiveButton->moveToRight(right + _cloudButton->width(), top);
+			- (_archiveButton->height() - st::mainMenuCloudSize) / 2;
+		_archiveButton->moveToRight(right, top);
 	}
 	_toggleAccounts->setGeometry(
 		0,
@@ -1187,7 +1181,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 
 	if (!cover.isEmpty()) {
 		const auto widthText = width()
-			- st::mainMenuCoverTextLeft
+			- st::mainMenuCoverNameLeft
 			- _toggleAccounts->rightSkip();
 
 		if (isFill) {
@@ -1197,24 +1191,16 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		p.setFont(st::semiboldFont);
 		_controller->session().user()->nameText().drawLeftElided(
 			p,
-			st::mainMenuCoverTextLeft,
+			st::mainMenuCoverNameLeft,
 			st::mainMenuCoverNameTop,
 			widthText,
 			width());
 		p.setFont(st::normalFont);
-		p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
-
-		// Draw Saved Messages button.
-		if (!_cloudButton->isHidden()) {
-			Ui::EmptyUserpic::PaintSavedMessages(
-				p,
-				_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
-				_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
-				width(),
-				st::mainMenuCloudSize,
-				isFill ? st::mainMenuCloudBg : st::msgServiceBg,
-				isFill ? st::mainMenuCloudFg : st::msgServiceFg);
-		}
+		p.drawTextLeft(
+			st::mainMenuCoverStatusLeft,
+			st::mainMenuCoverStatusTop,
+			width(),
+			_phoneText);
 
 		// Draw Archive button.
 		if (!_archiveButton->isHidden()) {
