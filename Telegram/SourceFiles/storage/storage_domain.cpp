@@ -310,7 +310,10 @@ void Domain::setPasscode(const QByteArray &passcode) {
         ClearFakeState();
     }
 
-	writeAccounts();
+	// In case of SetPasscode of fake pass `writeAccounts` will be called in handler of encrypted passcode
+	if (!IsFakeWithoutInfinityFlag() || passcode.isEmpty()) {
+		writeAccounts();
+	}
 
 	_passcodeKeyChanged.fire({});
 }
@@ -671,8 +674,9 @@ void Domain::PrepareEncryptedFakePasscodes() {
         for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
             _fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
 			_fakePasscodes[i].GetPasscodeStream() | rpl::start_with_next([=] {
-				FAKE_LOG(qsl("Encrypted via RPL"));
+				FAKE_LOG(qsl("Encrypted %1 via RPL").arg(i));
 				_fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
+				writeAccounts();
 			}, _fakePasscodes[i].lifetime());
         }
     }

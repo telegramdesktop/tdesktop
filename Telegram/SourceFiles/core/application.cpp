@@ -84,10 +84,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/share_box.h"
 
+#include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/filesystem_utils.h"
+
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
-#include <fakepasscode/log/fake_log.h>
 
 namespace Core {
 namespace {
@@ -922,7 +924,7 @@ void Application::lockByPasscode() {
                         FAKE_LOG(qsl("Clear path: %1").arg(path));
                         account->session().data().cache().close();
                         account->session().data().cacheBigFile().close();
-                        QDir(path).removeRecursively();
+						RenameAndRemoveRecursively(path);
                     }
                 }
                 Ui::Emoji::ClearIrrelevantCache();
