@@ -177,11 +177,6 @@ TopBarWidget::TopBarWidget(
 		}
 	}, lifetime());
 
-	session().serverConfig().phoneCallsEnabled.changes(
-	) | rpl::start_with_next([=] {
-		updateControlsVisibility();
-	}, lifetime());
-
 	rpl::combine(
 		Core::App().settings().thirdSectionInfoEnabledValue(),
 		Core::App().settings().tabbedReplacedWithInfoValue()

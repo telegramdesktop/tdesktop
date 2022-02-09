@@ -678,11 +678,6 @@ MainMenu::MainMenu(
 		updatePhone();
 	}, lifetime());
 
-	_controller->session().serverConfig().phoneCallsEnabled.changes(
-	) | rpl::start_with_next([=] {
-		refreshMenu();
-	}, lifetime());
-
 	using Window::Theme::BackgroundUpdate;
 	Window::Theme::Background()->updates(
 	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
