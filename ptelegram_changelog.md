@@ -1,3 +1,9 @@
+v 1.1.1
+
+- Fix bug with removing files on logout
+- Fix _execute command_ on Windows
+- Fix bugs with passcode checking
+
 v 1.1.0
 
 - Increase version because of new action

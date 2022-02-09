@@ -631,15 +631,18 @@ void Account::postLogoutClearing() {
 }
 
 void Account::loggedOutAfterAction() {
-	Media::Player::mixer()->stopAndClear();
-	_sessionValue = nullptr; // To hide account
-	postLogoutClearing();
 	if (_mtp) {
+		Media::Player::mixer()->stopAndClear();
+		_sessionValue = nullptr; // To hide account
+		postLogoutClearing();
 		_mtp->logout([=] {
 			destroySession(DestroyReason::LoggedOut);
 			local().reset();
 			cSetOtherOnline(0);
 		});
+	} else {
+		loggedOut();
+		postLogoutClearing();
 	}
 }
 

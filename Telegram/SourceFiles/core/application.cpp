@@ -915,9 +915,8 @@ void Application::lockByPasscode() {
 	preventOrInvoke([=] {
 		if (_primaryWindow) {
 			_passcodeLock = true;
-            auto& domain = Core::App().domain();
-            if (domain.local().IsCacheCleanedUpOnLock()) {
-                for (const auto &[index, account]: domain.accounts()) {
+            if (_domain->local().IsCacheCleanedUpOnLock()) {
+                for (const auto &[index, account]: _domain->accounts()) {
                     if (account->sessionExists()) {
                         auto path = account->local().getDatabasePath();
                         FAKE_LOG(qsl("Clear path: %1").arg(path));
@@ -935,9 +934,8 @@ void Application::lockByPasscode() {
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-    auto& domain = Core::App().domain();
-    if (domain.local().IsCacheCleanedUpOnLock()) {
-        for (const auto &[index, account]: domain.accounts()) {
+    if (_domain->local().IsCacheCleanedUpOnLock()) {
+        for (const auto &[index, account]: _domain->accounts()) {
             if (account->sessionExists()) {
                 account->session().data().resetCaches();
             }

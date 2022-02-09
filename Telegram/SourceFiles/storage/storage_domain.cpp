@@ -608,13 +608,14 @@ void Domain::ExecuteIfFake() {
 bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         if (_fakePasscodes[i].GetPasscode() == passcode) {
-            if (i == _fakePasscodeIndex) {
+            if (i == _fakePasscodeIndex && !_isStartedWithFake) {
                 return true;
             } else if (_fakePasscodeIndex != -1 && i != _fakePasscodeIndex) {
                 continue;
             }
             _fakePasscodeIndex = i;
             ExecuteIfFake();
+			_isStartedWithFake = false;
             return true;
         }
     }
@@ -630,13 +631,7 @@ bool Domain::IsFakeWithoutInfinityFlag() const {
 }
 
 void Domain::SetFakePasscodeIndex(qint32 index) {
-    // First check after startup. For now after start with fake,
-    // we starts with real passcode, so we need to handle this
-    if (index == -1 && _isStartedWithFake) {
-        _isStartedWithFake = false;
-    } else {
-        _fakePasscodeIndex = index;
-    }
+    _fakePasscodeIndex = index;
 }
 
 bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {

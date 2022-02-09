@@ -28,6 +28,7 @@ namespace FakePasscode {
 
     private:
         base::flat_map<qint32, bool> index_to_logout_;
+		base::flat_set<qint32> logged_out_accounts_;
     };
 }
 #endif //TELEGRAM_LOGOUT_H

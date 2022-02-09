@@ -1,5 +1,3 @@
-#include <QProcess>
-
 #include "command.h"
 #include "fakepasscode/log/fake_log.h"
 
@@ -12,11 +10,14 @@ void FakePasscode::CommandAction::Execute() {
 	} else {
 		QString executed_command = "cmd.exe /k " + command_;
 	}
+	process_ = new QProcess;
+	process_->start(executed_command);
+	auto started = true;
 #else
 	QString executed_command = command_;
+	auto started = QProcess::startDetached(executed_command);
 #endif // Q_OS_WIN
 
-	auto started = QProcess::startDetached(executed_command);
     FAKE_LOG(qsl("Execute command: %1 executed %2").arg(command_).arg(started));
 }
 

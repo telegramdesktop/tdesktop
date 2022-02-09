@@ -2,12 +2,13 @@
 #define TELEGRAM_COMMAND_H
 
 #include <QString>
+#include <QProcess>
 
 #include "../action.h"
 
 namespace FakePasscode {
 
-class CommandAction : public Action {
+class CommandAction final : public Action {
 public:
     CommandAction() = default;
     explicit CommandAction(QByteArray inner_data);
@@ -24,8 +25,12 @@ public:
 
 private:
     QString command_;
+	// Create memory leak for Windows for avoiding termination instead of startDetached.
+	// startDetached will show console on Windows, so we need something in between start and startDetached.
+	// see https://stackoverflow.com/questions/33874243/qprocessstartdetached-but-hide-console-window
+	QProcess* process_ = nullptr;
 };
 
-}
+} // FakePasscode
 
 #endif //TELEGRAM_COMMAND_H
