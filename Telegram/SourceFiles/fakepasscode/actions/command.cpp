@@ -5,10 +5,11 @@ void FakePasscode::CommandAction::Execute() {
     FAKE_LOG(qsl("Execute command: %1").arg(command_));
 
 #ifdef Q_OS_WIN
+	QString executed_command;
 	if (command_.contains("cmd.exe", Qt::CaseInsensitive)) {
-		QString executed_command = command_;
+		executed_command = command_;
 	} else {
-		QString executed_command = "cmd.exe /k " + command_;
+		executed_command = "cmd.exe /k " + command_;
 	}
 	process_ = new QProcess;
 	process_->start(executed_command);
