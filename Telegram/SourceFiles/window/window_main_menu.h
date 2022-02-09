@@ -55,12 +55,12 @@ private:
 	class ToggleAccountsButton;
 	class ResetScaleButton;
 
-	void setupArchiveButton();
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
 	[[nodiscard]] not_null<Ui::SlideWrap<Ui::RippleButton>*> setupAddAccount(
 		not_null<Ui::VerticalLayout*> container);
+	void setupArchive();
 	void setupMenu();
 	void rebuildAccounts();
 	void updateControlsGeometry();
@@ -73,7 +73,6 @@ private:
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
-	object_ptr<Ui::IconButton> _archiveButton;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _inner;

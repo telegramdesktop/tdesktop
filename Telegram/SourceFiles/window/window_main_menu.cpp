@@ -580,7 +580,6 @@ MainMenu::MainMenu(
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
-, _archiveButton(this, st::mainMenuCloudButton)
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
@@ -602,10 +601,10 @@ MainMenu::MainMenu(
 		st::mainMenuVersionLabel)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	setupArchiveButton();
 	setupUserpicButton();
 	setupAccountsToggle();
 	setupAccounts();
+	setupArchive();
 	setupMenu();
 
 	_nightThemeSwitch.setCallback([this] {
@@ -684,7 +683,9 @@ MainMenu::MainMenu(
 	initResetScaleButton();
 }
 
-void MainMenu::setupArchiveButton() {
+void MainMenu::setupArchive() {
+	using namespace Settings;
+
 	const auto controller = _controller;
 	const auto folder = [=] {
 		return controller->session().data().folderLoaded(Data::Folder::kId);
@@ -701,9 +702,24 @@ void MainMenu::setupArchiveButton() {
 			&& !f->chatsList()->empty()
 			&& controller->session().settings().archiveInMainMenu();
 	};
-	_archiveButton->setVisible(checkArchive());
-	_archiveButton->setAcceptBoth(true);
-	_archiveButton->clicks(
+
+	const auto wrap = _menu->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_menu,
+			object_ptr<Ui::VerticalLayout>(_menu)));
+	const auto inner = wrap->entity();
+	wrap->toggle(checkArchive(), anim::type::instant);
+
+	const auto button = AddButton(
+		inner,
+		tr::lng_archived_name(),
+		st::mainMenuButton,
+		{ &st::settingsIconArchive, kIconGray });
+	inner->add(
+		object_ptr<Ui::PlainShadow>(inner),
+		{ 0, st::mainMenuSkip, 0, st::mainMenuSkip });
+	button->setAcceptBoth(true);
+	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
 			showArchive();
@@ -739,14 +755,14 @@ void MainMenu::setupArchiveButton() {
 			addAction);
 
 		_contextMenu->popup(QCursor::pos());
-	}, _archiveButton->lifetime());
+	}, button->lifetime());
 
 	controller->session().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		const auto isArchiveVisible = checkArchive();
-		_archiveButton->setVisible(isArchiveVisible);
+		wrap->toggle(isArchiveVisible, anim::type::normal);
 		if (!isArchiveVisible) {
 			_contextMenu = nullptr;
 		}
@@ -1130,13 +1146,6 @@ void MainMenu::updateControlsGeometry() {
 		st::mainMenuUserpicTop);
 	if (_resetScaleButton) {
 		_resetScaleButton->moveToRight(0, 0);
-		_archiveButton->moveToRight(_resetScaleButton->width(), 0);
-	} else {
-		const auto right = st::mainMenuTogglePosition.x()
-			- (_archiveButton->width() / 2);
-		const auto top = st::mainMenuUserpicTop
-			- (_archiveButton->height() - st::mainMenuCloudSize) / 2;
-		_archiveButton->moveToRight(right, top);
 	}
 	_toggleAccounts->setGeometry(
 		0,
@@ -1201,21 +1210,6 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			st::mainMenuCoverStatusTop,
 			width(),
 			_phoneText);
-
-		// Draw Archive button.
-		if (!_archiveButton->isHidden()) {
-			const auto folder = _controller->session().data().folderLoaded(
-				Data::Folder::kId);
-			if (folder) {
-				folder->paintUserpic(
-					p,
-					_archiveButton->x() + (_archiveButton->width() - st::mainMenuCloudSize) / 2,
-					_archiveButton->y() + (_archiveButton->height() - st::mainMenuCloudSize) / 2,
-					st::mainMenuCloudSize,
-					isFill ? st::mainMenuCloudBg : st::msgServiceBg,
-					isFill ? st::mainMenuCloudFg : st::msgServiceFg);
-			}
-		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);
 	if (!other.isEmpty()) {

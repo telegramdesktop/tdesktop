@@ -73,6 +73,7 @@ settingsIconKey: icon {{ "settings/key", settingsIconFg }};
 settingsIconReload: icon {{ "settings/reload", settingsIconFg }};
 settingsIconNight: icon {{ "settings/night", settingsIconFg }};
 settingsIconSettings: icon {{ "settings/settings", settingsIconFg }};
+settingsIconArchive: icon {{ "settings/archive", settingsIconFg }};
 
 settingsSetPhotoSkip: 7px;
 
