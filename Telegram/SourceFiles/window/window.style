@@ -133,7 +133,7 @@ mainMenu: Menu(defaultMenu) {
 mainMenuButton: SettingsButton(defaultSettingsButton) {
 	font: semiboldFont;
 	padding: margins(61px, 11px, 22px, 9px);
-	toggleSkip: 18px;
+	toggleSkip: 19px;
 	iconLeft: 21px;
 }
 
@@ -150,7 +150,7 @@ mainMenuAccountCheck: RoundCheckbox(defaultRoundCheckbox) {
 	check: icon {{ "account_check", overviewCheckFgActive }};
 }
 
-mainMenuFooterLeft: 30px;
+mainMenuFooterLeft: 25px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
 	textFg: windowSubTextFg;
@@ -163,15 +163,15 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 		linkFg: windowSubTextFg;
 	}
 }
-mainMenuTelegramBottom: 43px;
+mainMenuTelegramBottom: 38px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
-mainMenuVersionBottom: 21px;
+mainMenuVersionBottom: 17px;
 
-mainMenuToggleSize: 8px;
+mainMenuToggleSize: 6px;
 mainMenuToggleFourStrokes: 4px;
-mainMenuTogglePosition: point(32px, 32px);
+mainMenuTogglePosition: point(30px, 30px);
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);
