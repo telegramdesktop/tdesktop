@@ -504,6 +504,8 @@ private:
 	void startItemRevealAnimations();
 	void revealItemsCallback();
 
+	void startMessageSendingAnimation(not_null<HistoryItem*> item);
+
 	void updateHighlightedMessage();
 	void clearHighlightedMessage();
 

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
@@ -546,7 +547,12 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
-		sendExistingDocument(chosen.document, chosen.options);
+		controller()->sendingAnimation().appendSending(
+			chosen.messageSendingFrom);
+		sendExistingDocument(
+			chosen.document,
+			chosen.options,
+			chosen.messageSendingFrom.localId);
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -1060,7 +1066,7 @@ void RepliesWidget::edit(
 
 void RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document) {
-	sendExistingDocument(document, {});
+	sendExistingDocument(document, {}, std::nullopt);
 	// #TODO replies schedule
 	//const auto callback = [=](Api::SendOptions options) {
 	//	sendExistingDocument(document, options);
@@ -1072,7 +1078,8 @@ void RepliesWidget::sendExistingDocument(
 
 bool RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		std::optional<MsgId> localId) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
 		ChatRestriction::SendStickers);
@@ -1087,7 +1094,8 @@ bool RepliesWidget::sendExistingDocument(
 
 	Api::SendExistingDocument(
 		Api::MessageToSend(prepareSendAction(options)),
-		document);
+		document,
+		localId);
 
 	_composeControls->cancelReplyMessage();
 	finishSending();

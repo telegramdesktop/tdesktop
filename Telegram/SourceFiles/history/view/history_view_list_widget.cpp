@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/inactive_press.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
@@ -1555,6 +1556,7 @@ void ListWidget::resizeToWidth(int newWidth, int minHeight) {
 void ListWidget::startItemRevealAnimations() {
 	for (const auto &view : base::take(_itemRevealPending)) {
 		if (const auto height = view->height()) {
+			startMessageSendingAnimation(view->data());
 			if (!_itemRevealAnimations.contains(view)) {
 				auto &animation = _itemRevealAnimations[view];
 				animation.startHeight = height;
@@ -1571,6 +1573,30 @@ void ListWidget::startItemRevealAnimations() {
 			}
 		}
 	}
+}
+
+void ListWidget::startMessageSendingAnimation(
+		not_null<HistoryItem*> item) {
+	auto &sendingAnimation = controller()->sendingAnimation();
+	if (!sendingAnimation.hasLocalMessage(item->fullId().msg)) {
+		return;
+	}
+
+	auto globalEndGeometry = rpl::merge(
+		session().data().newItemAdded() | rpl::to_empty,
+		geometryValue() | rpl::to_empty
+	) | rpl::map([=] {
+		const auto view = viewForItem(item);
+		const auto additional = !_visibleTop ? view->height() : 0;
+		return mapToGlobal(
+			view->innerGeometry().translated(0, itemTop(view) - additional));
+	});
+
+	sendingAnimation.startAnimation({
+		.globalEndGeometry = std::move(globalEndGeometry),
+		.view = [=] { return viewForItem(item); },
+		.theme = _delegate->listChatTheme(),
+	});
 }
 
 void ListWidget::revealItemsCallback() {
@@ -1744,13 +1770,16 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			.clip = clip,
 		}).translated(0, -top);
 		p.translate(0, top);
+		const auto &sendingAnimation = _controller->sendingAnimation();
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
-			context.reactionInfo
-				= _reactionsManager->currentReactionPaintInfo();
-			context.outbg = view->hasOutLayout();
-			context.selection = itemRenderSelection(view);
-			view->draw(p, context);
+			if (!sendingAnimation.hasAnimatedMessage(view->data())) {
+				context.reactionInfo
+					= _reactionsManager->currentReactionPaintInfo();
+				context.outbg = view->hasOutLayout();
+				context.selection = itemRenderSelection(view);
+				view->draw(p, context);
+			}
 			_reactionsManager->recordCurrentReactionEffect(
 				view->data()->fullId(),
 				QPoint(0, top));
