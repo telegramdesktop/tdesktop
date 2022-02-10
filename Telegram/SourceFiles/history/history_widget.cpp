@@ -805,7 +805,7 @@ HistoryWidget::HistoryWidget(
 			action.replyTo));
 		if (action.options.scheduled) {
 			cancelReply(lastKeyboardUsed);
-			crl::on_main(this, [=, history = action.history]{
+			crl::on_main(this, [=, history = action.history] {
 				controller->showSection(
 					std::make_shared<HistoryView::ScheduledMemento>(history));
 			});
@@ -5408,7 +5408,7 @@ void HistoryWidget::startMessageSendingAnimation(
 
 	sendingAnimation.startAnimation({
 		.globalEndGeometry = std::move(globalEndGeometry),
-		.item = item,
+		.view = [=] { return item->mainView(); },
 		.theme = _list->theme(),
 	});
 }

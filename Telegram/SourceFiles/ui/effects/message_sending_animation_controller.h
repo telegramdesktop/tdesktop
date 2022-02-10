@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/effects/message_sending_animation_common.h"
 
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -26,7 +30,7 @@ public:
 
 	struct SendingInfoTo {
 		rpl::producer<QRect> globalEndGeometry;
-		not_null<HistoryItem*> item;
+		Fn<not_null<HistoryView::Element*>()> view;
 		not_null<Ui::ChatTheme*> theme;
 	};
 

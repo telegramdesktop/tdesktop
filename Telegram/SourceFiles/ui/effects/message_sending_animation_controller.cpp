@@ -116,7 +116,7 @@ private:
 	void updateCache();
 
 	const not_null<Window::SessionController*> _controller;
-	not_null<HistoryItem*> _item;
+	Fn<not_null<HistoryView::Element*>()> _view;
 	not_null<ChatTheme*> _theme;
 	QImage _cache;
 	QRect _from;
@@ -138,9 +138,10 @@ Content::Content(
 	MessageSendingAnimationController::SendingInfoTo &&to)
 : RpWidget(parent)
 , _controller(controller)
-, _item(to.item)
+, _view(std::move(to.view))
 , _theme(to.theme)
 , _from(parent->mapFromGlobal(globalGeometryFrom)) {
+	Expects(_view != nullptr);
 
 	show();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -162,7 +163,7 @@ Content::Content(
 	}, lifetime());
 
 	const auto innerContentRect
-		= _item->mainView()->media()->contentRectForReactions();
+		= _view()->media()->contentRectForReactions();
 	auto animationCallback = [=](float64 value) {
 		auto resultFrom = QRect(
 			QPoint(),
@@ -183,7 +184,7 @@ Content::Content(
 					Context::SkipDrawingParts::Content,
 					QRect(
 						QPoint(),
-						_item->mainView()->innerGeometry().size())),
+						_view()->innerGeometry().size())),
 				_minScale);
 			_surrounding->show();
 			_surrounding->raise();
@@ -236,7 +237,7 @@ rpl::producer<> Content::destroyRequests() const {
 void Content::updateCache() {
 	_cache = drawMedia(
 		Context::SkipDrawingParts::Surrounding,
-		_item->mainView()->media()->contentRectForReactions());
+		_view()->media()->contentRectForReactions());
 	resize(_cache.size() / style::DevicePixelRatio());
 }
 
@@ -255,10 +256,11 @@ QImage Content::drawMedia(
 		auto context = _controller->preparePaintContext({
 			.theme = _theme,
 		});
+		const auto view = _view();
 		context.skipDrawingParts = skipParts;
-		context.outbg = _item->mainView()->hasOutLayout();
+		context.outbg = view->hasOutLayout();
 		p.translate(-rect.left(), -rect.top());
-		_item->mainView()->media()->draw(p, context);
+		view->media()->draw(p, context);
 	}
 	return image;
 }
@@ -285,7 +287,7 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 		return;
 	}
 	const auto container = _controller->content();
-	const auto item = to.item;
+	const auto item = to.view()->data();
 
 	const auto it = _itemSendPending.find(item->fullId().msg);
 	if (it == end(_itemSendPending)) {
