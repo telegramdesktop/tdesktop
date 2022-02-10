@@ -51,15 +51,15 @@ protected:
 	}
 
 private:
-	class AccountButton;
 	class ToggleAccountsButton;
 	class ResetScaleButton;
 
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
-	[[nodiscard]] not_null<Ui::SlideWrap<Ui::RippleButton>*> setupAddAccount(
-		not_null<Ui::VerticalLayout*> container);
+	[[nodiscard]] auto setupAddAccount(
+		not_null<Ui::VerticalLayout*> container)
+		-> not_null<Ui::SlideWrap<Ui::SettingsButton>*>;
 	void setupArchive();
 	void setupMenu();
 	void rebuildAccounts();
@@ -78,9 +78,9 @@ private:
 	not_null<Ui::VerticalLayout*> _inner;
 	base::flat_map<
 		not_null<Main::Account*>,
-		base::unique_qptr<AccountButton>> _watched;
+		base::unique_qptr<Ui::SettingsButton>> _watched;
 	not_null<Ui::SlideWrap<Ui::VerticalLayout>*> _accounts;
-	Ui::SlideWrap<Ui::RippleButton> *_addAccount = nullptr;
+	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
 	not_null<Ui::SlideWrap<Ui::PlainShadow>*> _shadow;
 	not_null<Ui::VerticalLayout*> _menu;
 	not_null<Ui::RpWidget*> _footer;

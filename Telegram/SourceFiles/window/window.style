@@ -132,23 +132,18 @@ mainMenu: Menu(defaultMenu) {
 }
 mainMenuButton: SettingsButton(defaultSettingsButton) {
 	font: semiboldFont;
-	padding: margins(61px, 11px, 22px, 9px);
+	padding: margins(61px, 11px, 20px, 9px);
 	toggleSkip: 19px;
 	iconLeft: 21px;
 }
+mainMenuAddAccountButton: SettingsButton(mainMenuButton) {
+	iconLeft: 23px;
+}
 
 mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
-mainMenuAddAccount: icon {{ "menu_add_account", menuIconFg }};
-mainMenuAddAccountOver: icon {{ "menu_add_account", menuIconFgOver }};
-mainMenuAccountSize: 32px;
-mainMenuAccountCheckPosition: point(7px, 5px);
-mainMenuAccountCheckLine: 2px;
-mainMenuAccountCheck: RoundCheckbox(defaultRoundCheckbox) {
-	size: 18px;
-	bgInactive: overviewCheckBg;
-	bgActive: overviewCheckBgActive;
-	check: icon {{ "account_check", overviewCheckFgActive }};
-}
+mainMenuAddAccount: icon {{ "settings/add", settingsIconFg }};
+mainMenuAccountSize: 26px;
+mainMenuAccountLine: 2px;
 
 mainMenuFooterLeft: 25px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {

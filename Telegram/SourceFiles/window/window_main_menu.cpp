@@ -163,27 +163,203 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 
 namespace Window {
 
-class MainMenu::AccountButton final : public Ui::RippleButton {
-public:
-	AccountButton(QWidget *parent, not_null<Main::Account*> account);
-
-private:
-	void paintEvent(QPaintEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void paintUserpic(Painter &p);
-
-	const not_null<Main::Session*> _session;
-	const style::Menu &_st;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
-	InMemoryKey _userpicKey = {};
-	QImage _userpicCache;
-	base::unique_qptr<Ui::PopupMenu> _menu;
-
-	Dialogs::Ui::UnreadBadgeStyle _unreadSt;
-	int _unreadBadge = 0;
-	bool _unreadBadgeMuted = true;
-
+struct UnreadBadge {
+	int count = 0;
+	bool muted = false;
 };
+
+void AddUnreadBadge(
+		not_null<Ui::SettingsButton*> button,
+		rpl::producer<UnreadBadge> value) {
+	struct State {
+		State(QWidget *parent) : widget(parent) {
+			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+
+		Ui::RpWidget widget;
+		Dialogs::Ui::UnreadBadgeStyle st;
+		int count = 0;
+		QString string;
+	};
+	const auto state = button->lifetime().make_state<State>(button);
+
+	std::move(
+		value
+	) | rpl::start_with_next([=](UnreadBadge badge) {
+		state->st.muted = badge.muted;
+		state->count = badge.count;
+		if (!badge.count) {
+			state->widget.hide();
+			return;
+		}
+		state->string = (state->count > 99)
+			? "99+"
+			: QString::number(state->count);
+		state->widget.resize(CountUnreadBadgeSize(state->string, state->st));
+		if (state->widget.isHidden()) {
+			state->widget.show();
+		}
+	}, state->widget.lifetime());
+
+	state->widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(&state->widget);
+		Dialogs::Ui::PaintUnreadBadge(
+			p,
+			state->string,
+			state->widget.width(),
+			0,
+			state->st);
+	}, state->widget.lifetime());
+
+	rpl::combine(
+		button->sizeValue(),
+		state->widget.sizeValue(),
+		state->widget.shownValue()
+	) | rpl::start_with_next([=](QSize outer, QSize inner, bool shown) {
+		auto padding = button->st().padding;
+		if (shown) {
+			state->widget.moveToRight(
+				padding.right(),
+				(outer.height() - inner.height()) / 2,
+				outer.width());
+			padding.setRight(
+				padding.right() + inner.width() + button->st().font->spacew);
+		}
+		button->setPaddingOverride(padding);
+	}, state->widget.lifetime());
+}
+
+[[nodiscard]] object_ptr<Ui::SettingsButton> MakeAccountButton(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		Fn<void()> callback) {
+	const auto active = (account == &Core::App().activeAccount());
+	const auto session = &account->session();
+	const auto user = session->user();
+
+	auto text = rpl::single(
+		user->name
+	) | rpl::then(session->changes().realtimeNameUpdates(
+		user
+	) | rpl::map([=] {
+		return user->name;
+	}));
+	auto result = object_ptr<Ui::SettingsButton>(
+		parent,
+		std::move(text),
+		st::mainMenuAddAccountButton);
+	const auto raw = result.data();
+
+	struct State {
+		State(QWidget *parent) : userpic(parent) {
+			userpic.setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+
+		Ui::RpWidget userpic;
+		std::shared_ptr<Data::CloudImageView> view;
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto state = raw->lifetime().make_state<State>(raw);
+
+	if (!active) {
+		AddUnreadBadge(raw, rpl::single(
+			rpl::empty_value()
+		) | rpl::then(
+			session->data().unreadBadgeChanges()
+		) | rpl::map([=] {
+			auto &owner = session->data();
+			return UnreadBadge{
+				owner.unreadBadge(),
+				owner.unreadBadgeMuted(),
+			};
+		}));
+	}
+
+	const auto userpicSkip = 2 * st::mainMenuAccountLine + st::lineWidth;
+	const auto userpicSize = st::mainMenuAccountSize
+		+ userpicSkip * 2;
+	raw->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		const auto left = st::mainMenuAddAccountButton.iconLeft
+			+ (st::mainMenuAddAccount.width() - userpicSize) / 2;
+		const auto top = (height - userpicSize) / 2;
+		state->userpic.setGeometry(left, top, userpicSize, userpicSize);
+	}, state->userpic.lifetime());
+
+	state->userpic.paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(&state->userpic);
+		const auto size = st::mainMenuAccountSize;
+		const auto line = st::mainMenuAccountLine;
+		const auto skip = 2 * line + st::lineWidth;
+		const auto full = size + skip * 2;
+		user->paintUserpicLeft(p, state->view, skip, skip, full, size);
+		if (active) {
+			const auto shift = st::lineWidth + (line * 0.5);
+			const auto diameter = full - 2 * shift;
+			const auto rect = QRectF(shift, shift, diameter, diameter);
+			auto hq = PainterHighQualityEnabler(p);
+			auto pen = st::settingsIconBg4->p; // The same as '+' in add.
+			pen.setWidthF(line);
+			p.setPen(pen);
+			p.setBrush(Qt::NoBrush);
+			p.drawEllipse(rect);
+		}
+	}, state->userpic.lifetime());
+
+	raw->setAcceptBoth(true);
+	raw->clicks(
+	) | rpl::start_with_next([=](Qt::MouseButton which) {
+		if (which == Qt::LeftButton) {
+			callback();
+			return;
+		} else if (which != Qt::RightButton) {
+			return;
+		}
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
+			return state->menu->addAction(
+				text,
+				crl::guard(raw, std::move(callback)),
+				icon);
+		};
+		if (!state->menu && IsAltShift(raw->clickModifiers())) {
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
+				raw,
+				st::popupMenuWithIcons);
+			MenuAddMarkAsReadAllChatsAction(&session->data(), addAction);
+			state->menu->popup(QCursor::pos());
+			return;
+		}
+		if (&session->account() == &Core::App().activeAccount()
+			|| state->menu) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			raw,
+			st::popupMenuWithIcons);
+		addAction(tr::lng_menu_activate(tr::now), [=] {
+			Core::App().domain().activate(&session->account());
+		}, &st::menuIconProfile);
+		addAction(tr::lng_settings_logout(tr::now), [=] {
+			const auto callback = [=](Fn<void()> &&close) {
+				close();
+				Core::App().logoutWithChecks(&session->account());
+			};
+			Ui::show(Box<Ui::ConfirmBox>(
+				tr::lng_sure_logout(tr::now),
+				tr::lng_settings_logout(tr::now),
+				st::attentionBoxButton,
+				crl::guard(session, callback)));
+		}, &st::menuIconLeave);
+		state->menu->popup(QCursor::pos());
+	}, raw->lifetime());
+
+	return result;
+}
 
 class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
 public:
@@ -220,164 +396,6 @@ protected:
 	static constexpr auto kText = "100%";
 
 };
-
-MainMenu::AccountButton::AccountButton(
-	QWidget *parent,
-	not_null<Main::Account*> account)
-: RippleButton(parent, st::defaultRippleAnimation)
-, _session(&account->session())
-, _st(st::mainMenu){
-	const auto height = _st.itemPadding.top()
-		+ _st.itemStyle.font->height
-		+ _st.itemPadding.bottom();
-	resize(width(), height);
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_userpicKey = {};
-	}, lifetime());
-
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		_session->data().unreadBadgeChanges()
-	) | rpl::start_with_next([=] {
-		_unreadBadge = _session->data().unreadBadge();
-		_unreadBadgeMuted = _session->data().unreadBadgeMuted();
-		update();
-	}, lifetime());
-}
-
-void MainMenu::AccountButton::paintUserpic(Painter &p) {
-	const auto size = st::mainMenuAccountSize;
-	const auto iconSize = height() - 2 * _st.itemIconPosition.y();
-	const auto shift = (size - iconSize) / 2;
-	const auto x = _st.itemIconPosition.x() - shift;
-	const auto y = (height() - size) / 2;
-
-	const auto check = (&_session->account()
-		== &Core::App().domain().active());
-	const auto user = _session->user();
-	if (!check) {
-		user->paintUserpicLeft(p, _userpicView, x, y, width(), size);
-		return;
-	}
-	const auto added = st::mainMenuAccountCheck.size;
-	const auto cacheSize = QSize(size + added, size + added)
-		* cIntRetinaFactor();
-	const auto key = user->userpicUniqueKey(_userpicView);
-	if (_userpicKey != key) {
-		_userpicKey = key;
-		if (_userpicCache.size() != cacheSize) {
-			_userpicCache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
-			_userpicCache.setDevicePixelRatio(cRetinaFactor());
-		}
-		_userpicCache.fill(Qt::transparent);
-
-		auto q = Painter(&_userpicCache);
-		user->paintUserpicLeft(q, _userpicView, 0, 0, width(), size);
-
-		const auto iconDiameter = st::mainMenuAccountCheck.size;
-		const auto iconLeft = size + st::mainMenuAccountCheckPosition.x() - iconDiameter;
-		const auto iconTop = size + st::mainMenuAccountCheckPosition.y() - iconDiameter;
-		const auto iconEllipse = QRect(iconLeft, iconTop, iconDiameter, iconDiameter);
-		auto iconBorderPen = QPen(Qt::transparent);
-		const auto line = st::mainMenuAccountCheckLine;
-		iconBorderPen.setWidth(line);
-
-		PainterHighQualityEnabler hq(q);
-		q.setCompositionMode(QPainter::CompositionMode_Source);
-		q.setPen(iconBorderPen);
-		q.setBrush(st::dialogsUnreadBg);
-		q.drawEllipse(iconEllipse);
-
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		st::mainMenuAccountCheck.check.paintInCenter(q, iconEllipse);
-	}
-	p.drawImage(x, y, _userpicCache);
-}
-
-void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
-	const auto over = isOver();
-	p.fillRect(rect(), over ? _st.itemBgOver : _st.itemBg);
-	paintRipple(p, 0, 0);
-
-	paintUserpic(p);
-
-	auto available = width() - _st.itemPadding.left();
-	if (_unreadBadge
-		&& (&_session->account() != &Core::App().activeAccount())) {
-		_unreadSt.muted = _unreadBadgeMuted;
-		const auto string = (_unreadBadge > 99)
-			? "99+"
-			: QString::number(_unreadBadge);
-		const auto skip = _st.itemPadding.right()
-			- st::mainMenu.itemToggleShift;
-		const auto unreadRight = width() - skip;
-		const auto unreadTop = (height() - _unreadSt.size) / 2;
-		const auto badge = Dialogs::Ui::PaintUnreadBadge(
-			p,
-			string,
-			unreadRight,
-			unreadTop,
-			_unreadSt);
-		available -= badge.width()
-			+ skip
-			+ st::mainMenu.itemStyle.font->spacew;
-	} else {
-		available -= _st.itemPadding.right();
-	}
-
-	p.setPen(over ? _st.itemFgOver : _st.itemFg);
-	_session->user()->nameText().drawElided(
-		p,
-		_st.itemPadding.left(),
-		_st.itemPadding.top(),
-		available);
-}
-
-void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
-	if (!_menu && IsAltShift(e->modifiers())) {
-		_menu = base::make_unique_q<Ui::PopupMenu>(
-			this,
-			st::popupMenuWithIcons);
-		const auto addAction = [&](
-				const QString &text,
-				Fn<void()> callback,
-				const style::icon *icon) {
-			return _menu->addAction(
-				text,
-				crl::guard(this, std::move(callback)),
-				icon);
-		};
-		MenuAddMarkAsReadAllChatsAction(&_session->data(), addAction);
-		_menu->popup(QCursor::pos());
-		return;
-	}
-	if (&_session->account() == &Core::App().activeAccount() || _menu) {
-		return;
-	}
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-	_menu->addAction(tr::lng_menu_activate(tr::now), crl::guard(this, [=] {
-		Core::App().domain().activate(&_session->account());
-	}), &st::menuIconProfile);
-	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
-		const auto session = _session;
-		const auto callback = [=](Fn<void()> &&close) {
-			close();
-			Core::App().logoutWithChecks(&session->account());
-		};
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_sure_logout(tr::now),
-			tr::lng_settings_logout(tr::now),
-			st::attentionBoxButton,
-			crl::guard(session, callback)));
-	}), &st::menuIconLeave);
-	_menu->popup(QCursor::pos());
-}
 
 MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
 : AbstractButton(parent) {
@@ -865,9 +883,7 @@ void MainMenu::rebuildAccounts() {
 		if (!account->sessionExists()) {
 			button = nullptr;
 		} else if (!button) {
-			button.reset(inner->add(
-				object_ptr<AccountButton>(inner, account)));
-			button->setClickedCallback([=] {
+			button.reset(inner->add(MakeAccountButton(inner, account, [=] {
 				if (_reordering) {
 					return;
 				}
@@ -885,7 +901,7 @@ void MainMenu::rebuildAccounts() {
 					st::defaultRippleAnimation.hideDuration,
 					account,
 					std::move(activate));
-			});
+			})));
 		}
 	}
 	inner->resizeToWidth(_accounts->width());
@@ -897,39 +913,23 @@ void MainMenu::rebuildAccounts() {
 	_reorder->start();
 }
 
-not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
+not_null<Ui::SlideWrap<Ui::SettingsButton>*> MainMenu::setupAddAccount(
 		not_null<Ui::VerticalLayout*> container) {
-	const auto result = container->add(
-		object_ptr<Ui::SlideWrap<Ui::RippleButton>>(
-			container.get(),
-			object_ptr<Ui::RippleButton>(
-				container.get(),
-				st::defaultRippleAnimation)))->setDuration(0);
-	const auto st = &st::mainMenu;
-	const auto height = st->itemPadding.top()
-		+ st->itemStyle.font->height
-		+ st->itemPadding.bottom();
-	const auto button = result->entity();
-	button->resize(button->width(), height);
+	using namespace Settings;
 
-	button->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = Painter(button);
-		const auto over = button->isOver();
-		p.fillRect(button->rect(), over ? st->itemBgOver : st->itemBg);
-		button->paintRipple(p, 0, 0);
-		const auto &icon = over
-			? st::mainMenuAddAccountOver
-			: st::mainMenuAddAccount;
-		icon.paint(p, st->itemIconPosition, width());
-		p.setPen(over ? st->itemFgOver : st->itemFg);
-		p.setFont(st->itemStyle.font);
-		p.drawTextLeft(
-			st->itemPadding.left(),
-			st->itemPadding.top(),
-			width(),
-			tr::lng_menu_add_account(tr::now));
-	}, button->lifetime());
+	const auto result = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container.get(),
+			CreateButton(
+				container.get(),
+				tr::lng_menu_add_account(),
+				st::mainMenuAddAccountButton,
+				{
+					&st::mainMenuAddAccount,
+					kIconLightBlue,
+					IconType::Round,
+				})))->setDuration(0);
+	const auto button = result->entity();
 
 	const auto add = [=](MTP::Environment environment) {
 		Core::App().preventOrInvoke([=] {

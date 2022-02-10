@@ -69,9 +69,15 @@ inline constexpr auto kIconPurple = 6;
 inline constexpr auto kIconDarkOrange = 8;
 inline constexpr auto kIconGray = 9;
 
+enum class IconType {
+	Rounded,
+	Round,
+};
+
 struct IconDescriptor {
 	const style::icon *icon = nullptr;
 	int color = 0; // settingsIconBg{color}, 9 for settingsIconBgArchive.
+	IconType type = IconType::Rounded;
 	const style::color *background = nullptr;
 
 	explicit operator bool() const {

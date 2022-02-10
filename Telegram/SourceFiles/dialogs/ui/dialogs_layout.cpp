@@ -682,7 +682,15 @@ void PaintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
 }
 
-} // namepsace
+[[nodiscard]] QString ComputeUnreadBadgeText(
+	const QString &unreadCount,
+	int allowDigits) {
+	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
+		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
+		: unreadCount;
+}
+
+} // namespace
 
 const style::icon *ChatTypeIcon(
 		not_null<PeerData*> peer,
@@ -716,6 +724,19 @@ UnreadBadgeStyle::UnreadBadgeStyle()
 , font(st::dialogsUnreadFont) {
 }
 
+QSize CountUnreadBadgeSize(
+		const QString &unreadCount,
+		const UnreadBadgeStyle &st,
+		int allowDigits) {
+	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
+	const auto unreadRectHeight = st.size;
+	const auto unreadWidth = st.font->width(text);
+	return {
+		std::max(unreadWidth + 2 * st.padding, unreadRectHeight),
+		unreadRectHeight,
+	};
+}
+
 QRect PaintUnreadBadge(
 		Painter &p,
 		const QString &unreadCount,
@@ -723,10 +744,7 @@ QRect PaintUnreadBadge(
 		int y,
 		const UnreadBadgeStyle &st,
 		int allowDigits) {
-	const auto text = (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
-		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
-		: unreadCount;
-
+	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
 	const auto unreadRectHeight = st.size;
 	const auto unreadWidth = st.font->width(text);
 	const auto unreadRectWidth = std::max(

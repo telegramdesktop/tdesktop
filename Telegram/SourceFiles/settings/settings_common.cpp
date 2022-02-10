@@ -57,7 +57,10 @@ Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
 		return descriptor.background;
 	}();
 	if (background) {
-		_background.emplace(st::settingsIconRadius, *background);
+		const auto radius = (descriptor.type == IconType::Rounded)
+			? st::settingsIconRadius
+			: (std::min(_icon->width(), _icon->height()) / 2);
+		_background.emplace(radius, *background);
 	}
 }
 
