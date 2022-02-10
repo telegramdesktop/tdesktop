@@ -775,10 +775,32 @@ void MainMenu::setupArchive() {
 		_contextMenu->popup(QCursor::pos());
 	}, button->lifetime());
 
+	const auto now = folder();
+	auto folderValue = now
+		? (rpl::single(now) | rpl::type_erased())
+		: controller->session().data().chatsListChanges(
+		) | rpl::filter([](Data::Folder *folder) {
+			return folder && (folder->id() == Data::Folder::kId);
+		}) | rpl::take(1);
+
+	AddUnreadBadge(button, rpl::single(
+		rpl::empty_value()
+	) | rpl::then(std::move(
+		folderValue
+	) | rpl::map([=](not_null<Data::Folder*> folder) {
+		return folder->owner().chatsList(folder)->unreadStateChanges();
+	}) | rpl::flatten_latest() | rpl::to_empty) | rpl::map([=] {
+		const auto loaded = folder();
+		return UnreadBadge{
+			loaded ? loaded->chatListUnreadCount() : 0,
+			true,
+		};
+	}));
+
 	controller->session().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
-	}) | rpl::start_with_next([=](Data::Folder *folder) {
+	}) | rpl::start_with_next([=] {
 		const auto isArchiveVisible = checkArchive();
 		wrap->toggle(isArchiveVisible, anim::type::normal);
 		if (!isArchiveVisible) {
