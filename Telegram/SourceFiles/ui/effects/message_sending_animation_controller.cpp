@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/message_sending_animation_controller.h"
 
+#include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_list_widget.h" // kItemRevealDuration
@@ -46,18 +47,14 @@ protected:
 private:
  	using Context = Ui::ChatPaintContext;
 
-	QImage drawMedia(
-		Context::SkipDrawingParts skipParts,
-		const QRect &rect) const;
-	void updateCache();
 	void createSurrounding();
 
 	const not_null<Window::SessionController*> _controller;
 	Fn<not_null<HistoryView::Element*>()> _view;
 	not_null<ChatTheme*> _theme;
-	QImage _cache;
 	QRect _from;
 	QRect _to;
+	QRect _innerContentRect;
 
 	Animations::Simple _animation;
 	float64 _minScale = 0;
@@ -77,7 +74,8 @@ Content::Content(
 , _controller(controller)
 , _view(std::move(to.view))
 , _theme(to.theme)
-, _from(parent->mapFromGlobal(globalGeometryFrom)) {
+, _from(parent->mapFromGlobal(globalGeometryFrom))
+, _innerContentRect(_view()->media()->contentRectForReactions()) {
 	Expects(_view != nullptr);
 
 	show();
@@ -92,22 +90,18 @@ Content::Content(
 		_minScale = float64(_from.height()) / _to.height();
 	}, lifetime());
 
-	updateCache();
-
 	_controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
-		updateCache();
+		update();
 	}, lifetime());
 
-	const auto innerContentRect
-		= _view()->media()->contentRectForReactions();
+	resize(_innerContentRect.size());
+
 	auto animationCallback = [=](float64 value) {
-		auto resultFrom = QRect(
-			QPoint(),
-			_cache.size() / style::DevicePixelRatio());
+		auto resultFrom = rect();
 		resultFrom.moveCenter(_from.center());
 
-		const auto resultTo = _to.topLeft() + innerContentRect.topLeft();
+		const auto resultTo = _to.topLeft() + _innerContentRect.topLeft();
 		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), value);
 		const auto y = anim::interpolate(resultFrom.y(), resultTo.y(), value);
 		moveToLeft(x, y);
@@ -118,12 +112,15 @@ Content::Content(
 		}
 		if (_surrounding) {
 			_surrounding->moveToLeft(
-				x - innerContentRect.x(),
-				y - innerContentRect.y());
+				x - _innerContentRect.x(),
+				y - _innerContentRect.y());
 		}
 
 		if (value == 1.) {
+			const auto view = _view();
+			const auto controller = _controller;
 			_destroyRequests.fire({});
+			controller->session().data().requestViewRepaint(view);
 		}
 	};
 	animationCallback(0.);
@@ -139,55 +136,27 @@ void Content::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), Qt::transparent);
 
-	if (_cache.isNull()) {
-		return;
-	}
-
 	const auto progress = _animation.value(_animation.animating() ? 0. : 1.);
 
 	const auto scale = anim::interpolateF(_minScale, 1., progress);
 
-	const auto size = _cache.size() / style::DevicePixelRatio();
 	p.translate(
-		(1 - progress) * OffsetMid(size.width(), _minScale),
-		(1 - progress) * OffsetMid(size.height(), _minScale));
+		(1 - progress) * OffsetMid(width(), _minScale),
+		(1 - progress) * OffsetMid(height(), _minScale));
 	p.scale(scale, scale);
-	p.drawImage(QPoint(), _cache);
+
+	auto context = _controller->preparePaintContext({
+		.theme = _theme,
+	});
+	const auto view = _view();
+	context.skipDrawingParts = Context::SkipDrawingParts::Surrounding;
+	context.outbg = view->hasOutLayout();
+	p.translate(-_innerContentRect.topLeft());
+	view->media()->draw(p, context);
 }
 
 rpl::producer<> Content::destroyRequests() const {
 	return _destroyRequests.events();
-}
-
-void Content::updateCache() {
-	_cache = drawMedia(
-		Context::SkipDrawingParts::Surrounding,
-		_view()->media()->contentRectForReactions());
-	resize(_cache.size() / style::DevicePixelRatio());
-}
-
-QImage Content::drawMedia(
-		Context::SkipDrawingParts skipParts,
-		const QRect &rect) const {
-	auto image = QImage(
-		rect.size() * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(style::DevicePixelRatio());
-	image.fill(Qt::transparent);
-	{
-		Painter p(&image);
-		PainterHighQualityEnabler hq(p);
-
-		auto context = _controller->preparePaintContext({
-			.theme = _theme,
-		});
-		const auto view = _view();
-		context.skipDrawingParts = skipParts;
-		context.outbg = view->hasOutLayout();
-		p.translate(-rect.left(), -rect.top());
-		view->media()->draw(p, context);
-	}
-	return image;
 }
 
 void Content::createSurrounding() {
@@ -196,7 +165,7 @@ void Content::createSurrounding() {
 
 	const auto view = _view();
 	const auto surroundingSize = view->innerGeometry().size();
-	const auto offset = view->media()->contentRectForReactions().topLeft();
+	const auto offset = _innerContentRect.topLeft();
 
 	_surrounding->resize(surroundingSize);
 	_surrounding->show();
