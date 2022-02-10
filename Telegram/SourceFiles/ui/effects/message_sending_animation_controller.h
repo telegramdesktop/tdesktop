@@ -40,6 +40,8 @@ public:
 	[[nodiscard]] bool hasLocalMessage(MsgId msgId) const;
 	[[nodiscard]] bool hasAnimatedMessage(not_null<HistoryItem*> item) const;
 
+	void clear();
+
 private:
 
 	const not_null<Window::SessionController*> _controller;

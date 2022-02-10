@@ -324,6 +324,7 @@ RepliesWidget::~RepliesWidget() {
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
 		_rootId);
+	controller()->sendingAnimation().clear();
 }
 
 void RepliesWidget::orderWidgets() {

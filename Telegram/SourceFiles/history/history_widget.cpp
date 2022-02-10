@@ -1988,6 +1988,7 @@ void HistoryWidget::showHistory(
 	}
 
 	clearHighlightMessages();
+	controller()->sendingAnimation().clear();
 	hideInfoTooltip(anim::type::instant);
 	if (_history) {
 		if (_peer->id == peerId && !reload) {

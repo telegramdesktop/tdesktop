@@ -260,4 +260,9 @@ bool MessageSendingAnimationController::hasAnimatedMessage(
 	return _processing.contains(item);
 }
 
+void MessageSendingAnimationController::clear() {
+	_itemSendPending.clear();
+	_processing.clear();
+}
+
 } // namespace Ui
