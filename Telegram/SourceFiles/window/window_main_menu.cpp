@@ -188,13 +188,11 @@ void AddUnreadBadge(
 	) | rpl::start_with_next([=](UnreadBadge badge) {
 		state->st.muted = badge.muted;
 		state->count = badge.count;
-		if (!badge.count) {
+		if (!state->count) {
 			state->widget.hide();
 			return;
 		}
-		state->string = (state->count > 99)
-			? "99+"
-			: QString::number(state->count);
+		state->string = Lang::FormatCountToShort(state->count).string;
 		state->widget.resize(CountUnreadBadgeSize(state->string, state->st));
 		if (state->widget.isHidden()) {
 			state->widget.show();
@@ -535,10 +533,8 @@ QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
 	const auto state = OtherAccountsUnreadStateCurrent();
 	return state.allMuted
 		? QString()
-		: (state.count > 99)
-		? u"99+"_q
 		: (state.count > 0)
-		? QString::number(state.count)
+		? Lang::FormatCountToShort(state.count).string
 		: QString();
 }
 
