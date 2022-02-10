@@ -143,6 +143,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "support/support_common.h"
 #include "support/support_autocomplete.h"
+#include "support/support_preload.h"
 #include "dialogs/dialogs_key.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
@@ -3387,59 +3388,10 @@ void HistoryWidget::checkSupportPreload(bool force) {
 	}
 	clearSupportPreloadRequest();
 	_supportPreloadHistory = history;
-	auto offsetId = MsgId();
-	auto offset = 0;
-	auto loadCount = kMessagesPerPage;
-	if (const auto around = history->loadAroundId()) {
-		history->getReadyFor(ShowAtUnreadMsgId);
-		offset = -loadCount / 2;
-		offsetId = around;
-	}
-	const auto offsetDate = 0;
-	const auto maxId = 0;
-	const auto minId = 0;
-	const auto historyHash = uint64(0);
-	const auto type = Data::Histories::RequestType::History;
-	auto &histories = history->owner().histories();
-	_supportPreloadRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
-		return history->session().api().request(MTPmessages_GetHistory(
-			history->peer->input,
-			MTP_int(offsetId),
-			MTP_int(offsetDate),
-			MTP_int(offset),
-			MTP_int(loadCount),
-			MTP_int(maxId),
-			MTP_int(minId),
-			MTP_long(historyHash)
-		)).done([=](const MTPmessages_Messages &result) {
-			if (const auto around = history->loadAroundId()) {
-				if (around != offsetId) {
-					_supportPreloadRequest = 0;
-					_supportPreloadHistory = nullptr;
-					crl::on_main(this, [=] { checkSupportPreload(); });
-					return;
-				}
-				history->clear(History::ClearType::Unload);
-				history->getReadyFor(ShowAtUnreadMsgId);
-			} else if (offsetId) {
-				_supportPreloadRequest = 0;
-				_supportPreloadHistory = nullptr;
-				crl::on_main(this, [=] { checkSupportPreload(); });
-				return;
-			} else {
-				history->clear(History::ClearType::Unload);
-				history->getReadyFor(ShowAtTheEndMsgId);
-			}
-			result.match([](const MTPDmessages_messagesNotModified&) {
-			}, [&](const auto &data) {
-				history->owner().processUsers(data.vusers());
-				history->owner().processChats(data.vchats());
-				history->addOlderSlice(data.vmessages().v);
-			});
-			finish();
-		}).fail([=](const MTP::Error &error) {
-			finish();
-		}).send();
+	_supportPreloadRequest = Support::SendPreloadRequest(history, [=] {
+		_supportPreloadRequest = 0;
+		_supportPreloadHistory = nullptr;
+		crl::on_main(this, [=] { checkSupportPreload(); });
 	});
 }
 

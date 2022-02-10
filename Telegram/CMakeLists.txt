@@ -1097,6 +1097,8 @@ PRIVATE
     support/support_common.h
     support/support_helper.cpp
     support/support_helper.h
+    support/support_preload.cpp
+    support/support_preload.h
     support/support_templates.cpp
     support/support_templates.h
     ui/chat/attach/attach_item_single_file_preview.cpp
