@@ -30,70 +30,6 @@ inline float64 OffsetMid(int value, float64 min, float64 max = 1.) {
 	return ((value * max) - (value * min)) / 2.;
 }
 
-class Surrounding final : public RpWidget {
-public:
-	Surrounding(
-		not_null<RpWidget*> parent,
-		QPoint offset,
-		QImage &&image,
-		float64 minScale);
-
-	void setProgress(float64 value);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const QPoint _offset;
-	const float64 _minScale = 0;
-	QImage _cache;
-	float64 _progress = 0;
-
-};
-
-Surrounding::Surrounding(
-	not_null<RpWidget*> parent,
-	QPoint offset,
-	QImage &&image,
-	float64 minScale)
-: RpWidget(parent)
-, _offset(offset)
-, _minScale(minScale)
-, _cache(std::move(image)) {
-	resize(_cache.size() / style::DevicePixelRatio());
-}
-
-void Surrounding::setProgress(float64 value) {
-	_progress = value;
-	update();
-}
-
-void Surrounding::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	p.fillRect(e->rect(), Qt::transparent);
-
-	if (_cache.isNull()) {
-		return;
-	}
-
-	const auto revProgress = 1. - _progress;
-
-	const auto divider = 1. - kSurroundingProgress;
-	const auto alpha = (divider - revProgress) / divider;
-	p.setOpacity(alpha);
-
- 	const auto scale = anim::interpolateF(_minScale, 1., _progress);
-
- 	const auto size = _cache.size() / style::DevicePixelRatio();
- 	p.translate(
- 		revProgress * OffsetMid(size.width() + _offset.x(), _minScale),
- 		revProgress * OffsetMid(size.height() + _offset.y(), _minScale));
- 	p.scale(scale, scale);
-
- 	p.drawImage(QPoint(), _cache);
-}
-
 class Content final : public RpWidget {
 public:
 	Content(
@@ -114,6 +50,7 @@ private:
 		Context::SkipDrawingParts skipParts,
 		const QRect &rect) const;
 	void updateCache();
+	void createSurrounding();
 
 	const not_null<Window::SessionController*> _controller;
 	Fn<not_null<HistoryView::Element*>()> _view;
@@ -125,7 +62,7 @@ private:
 	Animations::Simple _animation;
 	float64 _minScale = 0;
 
-	base::unique_qptr<Surrounding> _surrounding;
+	base::unique_qptr<Ui::RpWidget> _surrounding;
 
 	rpl::event_stream<> _destroyRequests;
 
@@ -177,24 +114,12 @@ Content::Content(
 		update();
 
 		if ((value > kSurroundingProgress) && !_surrounding) {
-			_surrounding = base::make_unique_q<Surrounding>(
-				parent,
-				innerContentRect.topLeft(),
-				drawMedia(
-					Context::SkipDrawingParts::Content,
-					QRect(
-						QPoint(),
-						_view()->innerGeometry().size())),
-				_minScale);
-			_surrounding->show();
-			_surrounding->raise();
-			stackUnder(_surrounding.get());
+			createSurrounding();
 		}
 		if (_surrounding) {
 			_surrounding->moveToLeft(
 				x - innerContentRect.x(),
 				y - innerContentRect.y());
-			_surrounding->setProgress(value);
 		}
 
 		if (value == 1.) {
@@ -263,6 +188,54 @@ QImage Content::drawMedia(
 		view->media()->draw(p, context);
 	}
 	return image;
+}
+
+void Content::createSurrounding() {
+	_surrounding = base::make_unique_q<Ui::RpWidget>(parentWidget());
+	_surrounding->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto view = _view();
+	const auto surroundingSize = view->innerGeometry().size();
+	const auto offset = view->media()->contentRectForReactions().topLeft();
+
+	_surrounding->resize(surroundingSize);
+	_surrounding->show();
+
+	// Do not raise.
+	_surrounding->stackUnder(this);
+	stackUnder(_surrounding.get());
+
+	_surrounding->paintRequest(
+	) | rpl::start_with_next([=, size = surroundingSize](const QRect &r) {
+		Painter p(_surrounding);
+
+		p.fillRect(r, Qt::transparent);
+
+		const auto progress = _animation.value(0.);
+		const auto revProgress = 1. - progress;
+
+		const auto divider = 1. - kSurroundingProgress;
+		const auto alpha = (divider - revProgress) / divider;
+		p.setOpacity(alpha);
+
+	 	const auto scale = anim::interpolateF(_minScale, 1., progress);
+
+	 	p.translate(
+	 		revProgress * OffsetMid(size.width() + offset.x(), _minScale),
+	 		revProgress * OffsetMid(size.height() + offset.y(), _minScale));
+	 	p.scale(scale, scale);
+
+		auto context = _controller->preparePaintContext({
+			.theme = _theme,
+		});
+
+		const auto view = _view();
+
+		context.skipDrawingParts = Context::SkipDrawingParts::Content;
+		context.outbg = view->hasOutLayout();
+
+		view->media()->draw(p, context);
+	}, _surrounding->lifetime());
 }
 
 } // namespace
