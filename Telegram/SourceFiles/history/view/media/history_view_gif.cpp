@@ -381,7 +381,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			| ((isRoundedInBubbleBottom() && _caption.isEmpty())
 				? (RectPart::BottomLeft | RectPart::BottomRight)
 				: RectPart::None));
-	if (streamed) {
+	const auto skipDrawingContent = context.skipDrawingParts
+		== PaintContext::SkipDrawingParts::Content;
+	if (streamed && !skipDrawingContent) {
 		auto paused = autoPaused;
 		if (isRound) {
 			if (activeRoundStreamed()) {
@@ -455,7 +457,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p.setOpacity(1.);
 			}
 		}
-	} else {
+	} else if (!skipDrawingContent) {
 		ensureDataMediaCreated();
 		const auto size = QSize(_thumbw, _thumbh);
 		const auto args = Images::PrepareArgs{
@@ -591,9 +593,12 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		sti->historyVideoMessageMute.paintInCenter(p, muteRect);
 	}
 
-	if (!unwrapped) {
+	const auto skipDrawingSurrounding = context.skipDrawingParts
+		== PaintContext::SkipDrawingParts::Surrounding;
+
+	if (!unwrapped && !skipDrawingSurrounding) {
 		drawCornerStatus(p, context, QPoint());
-	} else {
+	} else if (!skipDrawingSurrounding) {
 		if (isRound) {
 			const auto mediaUnread = item->hasUnreadMediaFlag();
 			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
@@ -658,7 +663,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (!unwrapped && !_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
-	} else if (!inWebPage) {
+	} else if (!inWebPage && !skipDrawingSurrounding) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
 		auto maxRight = _parent->width() - st::msgMargin.left();
