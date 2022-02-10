@@ -67,7 +67,6 @@ private:
 	void updateInnerControlsGeometry();
 	void updatePhone();
 	void initResetScaleButton();
-	void refreshBackground();
 	void toggleAccounts();
 
 	const not_null<SessionController*> _controller;
@@ -79,6 +78,7 @@ private:
 	base::flat_map<
 		not_null<Main::Account*>,
 		base::unique_qptr<Ui::SettingsButton>> _watched;
+	not_null<Ui::RpWidget*> _topShadowSkip;
 	not_null<Ui::SlideWrap<Ui::VerticalLayout>*> _accounts;
 	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
 	not_null<Ui::SlideWrap<Ui::PlainShadow>*> _shadow;
@@ -97,7 +97,6 @@ private:
 	base::binary_guard _accountSwitchGuard;
 
 	QString _phoneText;
-	QImage _background;
 
 };
 

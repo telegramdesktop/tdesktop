@@ -62,36 +62,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 
+namespace Window {
 namespace {
-
-constexpr auto kMinDiffIntensity = 0.25;
-
-[[nodiscard]] float64 IntensityOfColor(QColor color) {
-	return (0.299 * color.red()
-			+ 0.587 * color.green()
-			+ 0.114 * color.blue()) / 255.0;
-}
-
-[[nodiscard]] bool IsShadowShown(const QImage &img, const QRect r, float64 intensityText) {
-	for (auto x = r.x(); x < r.x() + r.width(); x++) {
-		for (auto y = r.y(); y < r.y() + r.height(); y++) {
-			const auto intensity = IntensityOfColor(QColor(img.pixel(x, y)));
-			if ((std::abs(intensity - intensityText)) < kMinDiffIntensity) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-[[nodiscard]] bool IsFilledCover() {
-	const auto background = Window::Theme::Background();
-	return background->tile()
-		|| background->colorForFill().has_value()
-		|| !background->gradientForFill().isNull()
-		|| background->paper().isPattern()
-		|| Data::IsLegacy1DefaultWallPaper(background->paper());
-}
 
 [[nodiscard]] bool IsAltShift(Qt::KeyboardModifiers modifiers) {
 	return (modifiers & Qt::ShiftModifier) && (modifiers & Qt::AltModifier);
@@ -159,14 +131,18 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 	return accounts;
 }
 
-} // namespace
-
-namespace Window {
-
 struct UnreadBadge {
 	int count = 0;
 	bool muted = false;
 };
+
+[[nodiscard]] Dialogs::Ui::UnreadBadgeStyle BadgeStyle() {
+	auto result = Dialogs::Ui::UnreadBadgeStyle();
+	result.font = st::mainMenuBadgeFont;
+	result.size = st::mainMenuBadgeSize;
+	result.sizeId = Dialogs::Ui::UnreadBadgeInMainMenu;
+	return result;
+}
 
 void AddUnreadBadge(
 		not_null<Ui::SettingsButton*> button,
@@ -177,7 +153,7 @@ void AddUnreadBadge(
 		}
 
 		Ui::RpWidget widget;
-		Dialogs::Ui::UnreadBadgeStyle st;
+		Dialogs::Ui::UnreadBadgeStyle st = BadgeStyle();
 		int count = 0;
 		QString string;
 	};
@@ -359,27 +335,28 @@ void AddUnreadBadge(
 	return result;
 }
 
+} // namespace
+
 class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
 public:
 	explicit ToggleAccountsButton(QWidget *parent);
 
 	[[nodiscard]] int rightSkip() const {
-		return _rightSkip.current();
+		return _rightSkip;
 	}
 
 private:
 	void paintEvent(QPaintEvent *e) override;
-	void paintUnreadBadge(QPainter &p);
+	void paintUnreadBadge(Painter &p);
 
 	void validateUnreadBadge();
 	[[nodiscard]] QString computeUnreadBadge() const;
 
-	rpl::variable<int> _rightSkip;
+	int _rightSkip = 0;
 	Ui::Animations::Simple _toggledAnimation;
 	bool _toggled = false;
 
 	QString _unreadBadge;
-	int _unreadBadgeWidth = 0;
 	bool _unreadBadgeStale = false;
 
 };
@@ -468,12 +445,12 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	path.lineTo(points[0]);
 
 	auto hq = PainterHighQualityEnabler(p);
-	p.fillPath(path, st::mainMenuCoverFg);
+	p.fillPath(path, st::windowSubTextFg);
 
 	paintUnreadBadge(p);
 }
 
-void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
+void MainMenu::ToggleAccountsButton::paintUnreadBadge(Painter &p) {
 	const auto progress = 1. - _toggledAnimation.value(_toggled ? 1. : 0.);
 	if (!progress) {
 		return;
@@ -482,31 +459,16 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
 	if (_unreadBadge.isEmpty()) {
 		return;
 	}
-	Dialogs::Ui::UnreadBadgeStyle st;
 
-	const auto right = width() - st::mainMenuTogglePosition.x() - st::mainMenuToggleSize * 2;
-	const auto top = height() - st::mainMenuTogglePosition.y() - st::mainMenuToggleSize;
-	const auto width = _unreadBadgeWidth;
-	const auto rectHeight = st.size;
-	const auto rectWidth = std::max(width + 2 * st.padding, rectHeight);
-	const auto left = right - rectWidth;
-	const auto textLeft = left + (rectWidth - width) / 2;
-	const auto textTop = top + (st.textTop ? st.textTop : (rectHeight - st.font->height) / 2);
-
-	const auto isFill = IsFilledCover();
-
-	auto hq = PainterHighQualityEnabler(p);
-	auto brush = (isFill ? st::mainMenuCloudBg : st::msgServiceBg)->c;
-	brush.setAlphaF(progress * brush.alphaF());
-	p.setBrush(brush);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(left, top, rectWidth, rectHeight, rectHeight / 2, rectHeight / 2);
-
-	p.setFont(st.font);
-	auto pen = (isFill ? st::mainMenuCloudFg : st::msgServiceFg)->c;
-	pen.setAlphaF(progress * pen.alphaF());
-	p.setPen(pen);
-	p.drawText(textLeft, textTop + st.font->ascent, _unreadBadge);
+	auto st = BadgeStyle();
+	const auto right = width()
+		- st::mainMenuTogglePosition.x()
+		- st::mainMenuToggleSize * 3;
+	const auto top = height()
+		- st::mainMenuTogglePosition.y()
+		- st::mainMenuBadgeSize / 2;
+	p.setOpacity(progress);
+	Dialogs::Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
 }
 
 void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
@@ -520,13 +482,10 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	}
 	_unreadBadge = computeUnreadBadge();
 
-	Dialogs::Ui::UnreadBadgeStyle st;
-	_unreadBadgeWidth = st.font->width(_unreadBadge);
-	const auto rectHeight = st.size;
-	const auto rectWidth = std::max(
-		_unreadBadgeWidth + 2 * st.padding,
-		rectHeight);
-	_rightSkip = base + rectWidth + st::mainMenuToggleSize;
+	auto st = BadgeStyle();
+	_rightSkip = base
+		+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width()
+		+ 2 * st::mainMenuToggleSize;
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
@@ -597,6 +556,8 @@ MainMenu::MainMenu(
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
+, _topShadowSkip(_inner->add(
+	object_ptr<Ui::FixedHeightWidget>(_inner.get(), st::lineWidth)))
 , _accounts(_inner->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 	_inner.get(),
 	object_ptr<Ui::VerticalLayout>(_inner.get()))))
@@ -620,6 +581,13 @@ MainMenu::MainMenu(
 	setupAccounts();
 	setupArchive();
 	setupMenu();
+
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto line = st::lineWidth;
+		shadow->setGeometry(0, st::mainMenuCoverHeight - line, width, line);
+	}, shadow->lifetime());
 
 	_nightThemeSwitch.setCallback([this] {
 		Expects(_nightThemeToggle != nullptr);
@@ -645,7 +613,6 @@ MainMenu::MainMenu(
 	}, _inner->lifetime());
 
 	parentResized();
-	refreshBackground();
 
 	_telegram->setMarkedText(Ui::Text::Link(
 		qsl("Telegram Desktop"),
@@ -683,16 +650,6 @@ MainMenu::MainMenu(
 		updatePhone();
 	}, lifetime());
 
-	using Window::Theme::BackgroundUpdate;
-	Window::Theme::Background()->updates(
-	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
-		if (update.type == BackgroundUpdate::Type::ApplyingTheme) {
-			_nightThemeSwitches.fire(Window::Theme::IsNightMode());
-		}
-		if (update.type == BackgroundUpdate::Type::New) {
-			refreshBackground();
-		}
-	}, lifetime());
 	updatePhone();
 	initResetScaleButton();
 }
@@ -1106,53 +1063,6 @@ void MainMenu::setupMenu() {
 	updatePhone();
 }
 
-void MainMenu::refreshBackground() {
-	if (IsFilledCover()) {
-		return;
-	}
-	const auto fill = QSize(st::mainMenuWidth, st::mainMenuCoverHeight);
-	const auto intensityText = IntensityOfColor(st::mainMenuCoverFg->c);
-	const auto background = Window::Theme::Background();
-	const auto &prepared = background->prepared();
-
-	const auto rects = Ui::ComputeChatBackgroundRects(
-		fill,
-		prepared.size());
-
-	auto backgroundImage = QImage(
-		fill * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
-	QPainter p(&backgroundImage);
-
-	const auto drawShadow = [](QPainter &p) {
-		st::mainMenuShadow.paint(
-			p,
-			0,
-			st::mainMenuCoverHeight - st::mainMenuShadow.height(),
-			st::mainMenuWidth,
-			IntensityOfColor(st::mainMenuCoverFg->c) < 0.5
-				? Qt::white
-				: Qt::black);
-	};
-
-	// Background image.
-	p.drawImage(rects.to, prepared, rects.from);
-
-	// Cut off the part of the background that is under text.
-	const QRect underText(
-		st::mainMenuCoverNameLeft,
-		st::mainMenuCoverNameTop,
-		std::max(
-			st::semiboldFont->width(
-				_controller->session().user()->nameText().toString()),
-			st::normalFont->width(_phoneText)),
-		st::semiboldFont->height * 2);
-	if (IsShadowShown(backgroundImage, underText, intensityText)) {
-		drawShadow(p);
-	}
-	_background = backgroundImage;
-}
-
 void MainMenu::resizeEvent(QResizeEvent *e) {
 	_inner->resizeToWidth(width());
 	updateControlsGeometry();
@@ -1170,7 +1080,8 @@ void MainMenu::updateControlsGeometry() {
 		st::mainMenuCoverNameTop,
 		width(),
 		st::mainMenuCoverHeight - st::mainMenuCoverNameTop);
-	const auto top = st::mainMenuCoverHeight;
+	// Allow cover shadow over the scrolled content.
+	const auto top = st::mainMenuCoverHeight - st::lineWidth;
 	_scroll->setGeometry(0, top, width(), height() - top);
 	updateInnerControlsGeometry();
 }
@@ -1197,25 +1108,16 @@ void MainMenu::updatePhone() {
 void MainMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	const auto clip = e->rect();
-	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight)
-		.intersected(e->rect());
+	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight);
 
-	const auto isFill = IsFilledCover();
-	if (!isFill && !_background.isNull()) {
-		PainterHighQualityEnabler hq(p);
-		p.drawImage(0, 0, _background);
-	}
-
-	if (!cover.isEmpty()) {
+	p.fillRect(clip, st::mainMenuBg);
+	if (cover.intersects(clip)) {
 		const auto widthText = width()
 			- st::mainMenuCoverNameLeft
 			- _toggleAccounts->rightSkip();
 
-		if (isFill) {
-			p.fillRect(cover, st::mainMenuCoverBg);
-		}
-		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
+		p.setPen(st::windowBoldFg);
 		_controller->session().user()->nameText().drawLeftElided(
 			p,
 			st::mainMenuCoverNameLeft,
@@ -1223,15 +1125,12 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			widthText,
 			width());
 		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
 		p.drawTextLeft(
 			st::mainMenuCoverStatusLeft,
 			st::mainMenuCoverStatusTop,
 			width(),
 			_phoneText);
-	}
-	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);
-	if (!other.isEmpty()) {
-		p.fillRect(other, st::mainMenuBg);
 	}
 }
 

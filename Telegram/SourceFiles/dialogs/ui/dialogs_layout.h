@@ -63,6 +63,7 @@ void PaintCollapsedRow(
 
 enum UnreadBadgeSize {
 	UnreadBadgeInDialogs = 0,
+	UnreadBadgeInMainMenu,
 	UnreadBadgeInHistoryToDown,
 	UnreadBadgeInStickersPanel,
 	UnreadBadgeInStickersBox,
