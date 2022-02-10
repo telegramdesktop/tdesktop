@@ -415,9 +415,21 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				activeOwnPlaying->frozenFrame = QImage();
 				activeOwnPlaying->frozenStatusText = QString();
 			}
-			p.drawImage(rthumb, streamed->frame(request));
-			if (!paused) {
-				streamed->markFrameShown();
+
+			const auto frame = streamed->frameWithInfo(request);
+			const auto playOnce = sticker
+				&& !Core::App().settings().loopAnimatedStickers();
+			const auto switchToNext = !playOnce
+				|| (frame.index != 0)
+				|| !_stickerOncePlayed;
+			p.drawImage(rthumb, frame.image);
+			if (!paused
+				&& switchToNext
+				&& streamed->markFrameShown()
+				&& playOnce
+				&& !_stickerOncePlayed) {
+				_stickerOncePlayed = true;
+				_parent->delegate()->elementStartStickerLoop(_parent);
 			}
 		}
 

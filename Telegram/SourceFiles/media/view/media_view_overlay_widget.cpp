@@ -610,7 +610,7 @@ Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
 	return _streamed->instance.player().ready()
 		? _streamed->instance.frameWithInfo()
 		: Streaming::FrameWithInfo{
-			.original = _streamed->instance.info().video.cover,
+			.image = _streamed->instance.info().video.cover,
 			.format = Streaming::FrameFormat::ARGB32,
 			.index = -2,
 			.alpha = _streamed->instance.info().video.alpha,

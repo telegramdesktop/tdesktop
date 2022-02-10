@@ -154,6 +154,7 @@ private:
 	Fn<void(Error)> _error;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _resumedTime = kTimeUnknown;
+	int _frameIndex = 0;
 	int _durationByLastPacket = 0;
 	mutable TimePoint _syncTimePoint;
 	crl::time _loopingShift = 0;
@@ -330,6 +331,7 @@ bool VideoTrackObject::loopAround() {
 		return false;
 	}
 	avcodec_flush_buffers(_stream.codec.get());
+	_frameIndex = 0;
 	_loopingShift += duration;
 	_readTillEnd = false;
 	return true;
@@ -372,6 +374,7 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 		return FrameResult::Error;
 	}
 	std::swap(frame->decoded, _stream.frame);
+	frame->index = _frameIndex++;
 	frame->position = position;
 	frame->displayed = kTimeUnknown;
 	return FrameResult::Done;
@@ -651,6 +654,7 @@ void VideoTrackObject::callReady() {
 	Expects(_ready != nullptr);
 
 	const auto frame = _shared->frameForPaint();
+	++_frameIndex;
 
 	auto data = VideoInformation();
 	data.size = FFmpeg::CorrectByAspect(
@@ -961,9 +965,6 @@ bool VideoTrack::Shared::markFrameShown() {
 		if (frame->displayed == kTimeUnknown) {
 			return false;
 		}
-		if (counter == 2 * kFramesCount - 1) {
-			++_counterCycle;
-		}
 		_counter.store(
 			next,
 			std::memory_order_release);
@@ -995,7 +996,7 @@ VideoTrack::FrameWithIndex VideoTrack::Shared::frameForPaintWithIndex() {
 	Assert(frame->displayed != kTimeUnknown);
 	return {
 		.frame = frame,
-		.index = (_counterCycle * 2 * kFramesCount) + index,
+		.index = frame->index,
 	};
 }
 
@@ -1101,7 +1102,44 @@ bool VideoTrack::markFrameShown() {
 QImage VideoTrack::frame(
 		const FrameRequest &request,
 		const Instance *instance) {
-	const auto frame = _shared->frameForPaint();
+	return frameImage(_shared->frameForPaint(), request, instance);
+}
+
+FrameWithInfo VideoTrack::frameWithInfo(
+		const FrameRequest &request,
+		const Instance *instance) {
+	const auto data = _shared->frameForPaintWithIndex();
+	return {
+		.image = frameImage(data.frame, request, instance),
+		.format = FrameFormat::ARGB32,
+		.index = data.index,
+	};
+}
+
+FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
+	const auto data = _shared->frameForPaintWithIndex();
+	const auto i = data.frame->prepared.find(instance);
+	const auto none = (i == data.frame->prepared.end());
+	if (none || i->second.request.requireARGB32) {
+		_wrapped.with([=](Implementation &unwrapped) {
+			unwrapped.updateFrameRequest(
+				instance,
+				{ .requireARGB32 = false });
+		});
+	}
+	return {
+		.image = data.frame->original,
+		.yuv420 = &data.frame->yuv420,
+		.format = data.frame->format,
+		.index = data.index,
+		.alpha = data.frame->alpha,
+	};
+}
+
+QImage VideoTrack::frameImage(
+		not_null<Frame*> frame,
+		const FrameRequest &request,
+		const Instance *instance) {
 	const auto i = frame->prepared.find(instance);
 	const auto none = (i == frame->prepared.end());
 	const auto preparedFor = frame->prepared.empty()
@@ -1149,26 +1187,6 @@ QImage VideoTrack::frame(
 		return j->second.image;
 	}
 	return i->second.image;
-}
-
-FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
-	const auto data = _shared->frameForPaintWithIndex();
-	const auto i = data.frame->prepared.find(instance);
-	const auto none = (i == data.frame->prepared.end());
-	if (none || i->second.request.requireARGB32) {
-		_wrapped.with([=](Implementation &unwrapped) {
-			unwrapped.updateFrameRequest(
-				instance,
-				{ .requireARGB32 = false });
-		});
-	}
-	return {
-		.original = data.frame->original,
-		.yuv420 = &data.frame->yuv420,
-		.format = data.frame->format,
-		.index = data.index,
-		.alpha = data.frame->alpha,
-	};
 }
 
 QImage VideoTrack::currentFrameImage() {

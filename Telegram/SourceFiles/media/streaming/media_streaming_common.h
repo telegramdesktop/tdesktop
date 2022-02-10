@@ -177,7 +177,7 @@ struct FrameYUV420 {
 };
 
 struct FrameWithInfo {
-	QImage original;
+	QImage image;
 	FrameYUV420 *yuv420 = nullptr;
 	FrameFormat format = FrameFormat::None;
 	int index = -1;
