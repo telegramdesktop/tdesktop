@@ -373,6 +373,9 @@ parts:
         -release \
         -opensource \
         -confirm-license \
+        -no-feature-getentropy \
+        -no-feature-renameat2 \
+        -no-feature-statx \
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
