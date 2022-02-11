@@ -508,10 +508,12 @@ passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 
-usernamePadding: margins(22px, 6px, 21px, 12px);
-usernameSkip: 49px;
-usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
+defaultBoxLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 272px;
 }
+usernamePadding: margins(24px, 2px, 24px, 10px);
+usernameSkip: 44px;
+usernameTextStyle: defaultTextStyle;
 usernameDefaultFg: windowSubTextFg;
 
 editMediaLabelMargins: margins(0px, 11px, 0px, 0px);
