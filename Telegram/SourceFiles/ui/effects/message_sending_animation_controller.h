@@ -21,7 +21,7 @@ class SessionController;
 namespace Ui {
 
 class RpWidget;
-class ChatTheme;
+struct ChatPaintContext;
 
 class MessageSendingAnimationController final {
 public:
@@ -31,7 +31,7 @@ public:
 	struct SendingInfoTo {
 		rpl::producer<QRect> globalEndGeometry;
 		Fn<not_null<HistoryView::Element*>()> view;
-		not_null<Ui::ChatTheme*> theme;
+		Fn<Ui::ChatPaintContext()> paintContext;
 	};
 
 	void appendSending(MessageSendingAnimationFrom from);

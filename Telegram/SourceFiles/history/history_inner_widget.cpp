@@ -838,6 +838,19 @@ void HistoryInner::paintEmpty(
 	_emptyPainter->paint(p, st, width, height);
 }
 
+Ui::ChatPaintContext HistoryInner::preparePaintContext(
+		const QRect &clip) const {
+	const auto visibleAreaTopGlobal = mapToGlobal(
+		QPoint(0, _visibleAreaTop)).y();
+	return _controller->preparePaintContext({
+		.theme = _theme.get(),
+		.visibleAreaTop = _visibleAreaTop,
+		.visibleAreaTopGlobal = visibleAreaTopGlobal,
+		.visibleAreaWidth = width(),
+		.clip = clip,
+	});
+}
+
 void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -852,15 +865,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto clip = e->rect();
 
-	const auto visibleAreaTopGlobal = mapToGlobal(
-		QPoint(0, _visibleAreaTop)).y();
-	auto context = _controller->preparePaintContext({
-		.theme = _theme.get(),
-		.visibleAreaTop = _visibleAreaTop,
-		.visibleAreaTopGlobal = visibleAreaTopGlobal,
-		.visibleAreaWidth = width(),
-		.clip = clip,
-	});
+	auto context = preparePaintContext(clip);
 	_pathGradient->startFrame(
 		0,
 		width(),

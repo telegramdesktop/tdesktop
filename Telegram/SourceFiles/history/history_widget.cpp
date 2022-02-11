@@ -5413,7 +5413,7 @@ void HistoryWidget::startMessageSendingAnimation(
 	sendingAnimation.startAnimation({
 		.globalEndGeometry = std::move(globalEndGeometry),
 		.view = [=] { return item->mainView(); },
-		.theme = _list->theme(),
+		.paintContext = [=] { return _list->preparePaintContext({}); },
 	});
 }
 

@@ -22,6 +22,7 @@ class Session;
 namespace Ui {
 class PopupMenu;
 class ChatTheme;
+struct ChatPaintContext;
 } // namespace Ui
 
 namespace Window {
@@ -375,6 +376,8 @@ private:
 	ScrollTopState countScrollState() const;
 	void saveScrollState();
 	void restoreScrollState();
+
+	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
 	Element *viewForItem(FullMsgId itemId) const;
 	Element *viewForItem(const HistoryItem *item) const;

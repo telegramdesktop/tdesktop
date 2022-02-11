@@ -1595,7 +1595,7 @@ void ListWidget::startMessageSendingAnimation(
 	sendingAnimation.startAnimation({
 		.globalEndGeometry = std::move(globalEndGeometry),
 		.view = [=] { return viewForItem(item); },
-		.theme = _delegate->listChatTheme(),
+		.paintContext = [=] { return preparePaintContext({}); },
 	});
 }
 
@@ -1733,6 +1733,17 @@ TextSelection ListWidget::itemRenderSelection(
 	return TextSelection();
 }
 
+Ui::ChatPaintContext ListWidget::preparePaintContext(
+		const QRect &clip) const {
+	return controller()->preparePaintContext({
+		.theme = _delegate->listChatTheme(),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+		.visibleAreaWidth = width(),
+		.clip = clip,
+	});
+}
+
 void ListWidget::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -1762,13 +1773,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		_reactionsManager->startEffectsCollection();
 
 		auto top = itemTop(from->get());
-		auto context = controller()->preparePaintContext({
-			.theme = _delegate->listChatTheme(),
-			.visibleAreaTop = _visibleTop,
-			.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-			.visibleAreaWidth = width(),
-			.clip = clip,
-		}).translated(0, -top);
+		auto context = preparePaintContext(clip).translated(0, -top);
 		p.translate(0, top);
 		const auto &sendingAnimation = _controller->sendingAnimation();
 		for (auto i = from; i != to; ++i) {

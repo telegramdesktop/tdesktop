@@ -48,10 +48,10 @@ private:
  	using Context = Ui::ChatPaintContext;
 
 	void createSurrounding();
+	not_null<HistoryView::Element*> view() const;
 
 	const not_null<Window::SessionController*> _controller;
-	Fn<not_null<HistoryView::Element*>()> _view;
-	not_null<ChatTheme*> _theme;
+	MessageSendingAnimationController::SendingInfoTo _toInfo;
 	QRect _from;
 	QRect _to;
 	QRect _innerContentRect;
@@ -72,18 +72,18 @@ Content::Content(
 	MessageSendingAnimationController::SendingInfoTo &&to)
 : RpWidget(parent)
 , _controller(controller)
-, _view(std::move(to.view))
-, _theme(to.theme)
+, _toInfo(std::move(to))
 , _from(parent->mapFromGlobal(globalGeometryFrom))
-, _innerContentRect(_view()->media()->contentRectForReactions()) {
-	Expects(_view != nullptr);
+, _innerContentRect(view()->media()->contentRectForReactions()) {
+	Expects(_toInfo.view != nullptr);
+	Expects(_toInfo.paintContext != nullptr);
 
 	show();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	raise();
 
 	base::take(
-		to.globalEndGeometry
+		_toInfo.globalEndGeometry
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](const QRect &r) {
 		_to = parent->mapFromGlobal(r);
@@ -117,10 +117,10 @@ Content::Content(
 		}
 
 		if (value == 1.) {
-			const auto view = _view();
+			const auto currentView = view();
 			const auto controller = _controller;
 			_destroyRequests.fire({});
-			controller->session().data().requestViewRepaint(view);
+			controller->session().data().requestViewRepaint(currentView);
 		}
 	};
 	animationCallback(0.);
@@ -129,6 +129,10 @@ Content::Content(
 		0.,
 		1.,
 		HistoryView::ListWidget::kItemRevealDuration);
+}
+
+not_null<HistoryView::Element*> Content::view() const {
+	return _toInfo.view();
 }
 
 void Content::paintEvent(QPaintEvent *e) {
@@ -145,14 +149,13 @@ void Content::paintEvent(QPaintEvent *e) {
 		(1 - progress) * OffsetMid(height(), _minScale));
 	p.scale(scale, scale);
 
-	auto context = _controller->preparePaintContext({
-		.theme = _theme,
-	});
-	const auto view = _view();
+	const auto currentView = view();
+
+	auto context = _toInfo.paintContext();
 	context.skipDrawingParts = Context::SkipDrawingParts::Surrounding;
-	context.outbg = view->hasOutLayout();
+	context.outbg = currentView->hasOutLayout();
 	p.translate(-_innerContentRect.topLeft());
-	view->media()->draw(p, context);
+	currentView->media()->draw(p, context);
 }
 
 rpl::producer<> Content::destroyRequests() const {
@@ -163,8 +166,8 @@ void Content::createSurrounding() {
 	_surrounding = base::make_unique_q<Ui::RpWidget>(parentWidget());
 	_surrounding->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto view = _view();
-	const auto surroundingSize = view->innerGeometry().size();
+	const auto currentView = view();
+	const auto surroundingSize = currentView->innerGeometry().size();
 	const auto offset = _innerContentRect.topLeft();
 
 	_surrounding->resize(surroundingSize);
@@ -194,16 +197,13 @@ void Content::createSurrounding() {
 	 		revProgress * OffsetMid(size.height() + offset.y(), _minScale));
 	 	p.scale(scale, scale);
 
-		auto context = _controller->preparePaintContext({
-			.theme = _theme,
-		});
+		const auto currentView = view();
 
-		const auto view = _view();
-
+		auto context = _toInfo.paintContext();
 		context.skipDrawingParts = Context::SkipDrawingParts::Content;
-		context.outbg = view->hasOutLayout();
+		context.outbg = currentView->hasOutLayout();
 
-		view->media()->draw(p, context);
+		currentView->media()->draw(p, context);
 	}, _surrounding->lifetime());
 }
 
