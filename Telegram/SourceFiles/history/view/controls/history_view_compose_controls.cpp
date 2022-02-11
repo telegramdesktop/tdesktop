@@ -1254,6 +1254,7 @@ void ComposeControls::initAutocomplete() {
 		_fileChosen.fire(FileChosen{
 			.document = data.sticker,
 			.options = data.options,
+			.messageSendingFrom = base::take(data.messageSendingFrom),
 		});
 	}, _autocomplete->lifetime());
 

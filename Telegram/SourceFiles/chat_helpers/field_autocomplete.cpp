@@ -96,6 +96,7 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
+	QRect selectedRect(int index) const;
 	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
 	void showPreview();
@@ -1089,7 +1090,25 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 	if (!_srows->empty()) {
 		if (index < _srows->size()) {
 			const auto document = (*_srows)[index].document;
-			_stickerChosen.fire({ document, options, method });
+
+			const auto from = [&]() -> Ui::MessageSendingAnimationFrom {
+				if (options.scheduled) {
+					return {};
+				}
+				const auto bounding = selectedRect(index);
+				auto contentRect = QRect(
+					QPoint(),
+					ChatHelpers::ComputeStickerSize(
+						document,
+						stickerBoundingBox()));
+				contentRect.moveCenter(bounding.center());
+				return {
+					_controller->session().data().nextLocalMessageId(),
+					mapToGlobal(std::move(contentRect)),
+				};
+			};
+
+			_stickerChosen.fire({ document, options, method, from() });
 			return true;
 		}
 	} else if (!_mrows->empty()) {
@@ -1228,14 +1247,28 @@ void FieldAutocomplete::Inner::leaveEventHook(QEvent *e) {
 	}
 }
 
+QRect FieldAutocomplete::Inner::selectedRect(int index) const {
+	if (index < 0) {
+		return QRect();
+	}
+	if (_srows->empty()) {
+		return { 0, index * st::mentionHeight, width(), st::mentionHeight };
+	} else {
+		const auto row = int(index / _stickersPerRow);
+		const auto col = int(index % _stickersPerRow);
+		return {
+			st::stickerPanPadding + col * st::stickerPanSize.width(),
+			st::stickerPanPadding + row * st::stickerPanSize.height(),
+			st::stickerPanSize.width(),
+			st::stickerPanSize.height()
+		};
+	}
+}
+
 void FieldAutocomplete::Inner::updateSelectedRow() {
-	if (_sel >= 0) {
-		if (_srows->empty()) {
-			update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
-		} else {
-			int32 row = _sel / _stickersPerRow, col = _sel % _stickersPerRow;
-			update(st::stickerPanPadding + col * st::stickerPanSize.width(), st::stickerPanPadding + row * st::stickerPanSize.height(), st::stickerPanSize.width(), st::stickerPanSize.height());
-		}
+	const auto rect = selectedRect(_sel);
+	if (rect.isValid()) {
+		update(rect);
 	}
 }
 

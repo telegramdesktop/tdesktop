@@ -401,7 +401,10 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->stickerChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
-		sendExistingDocument(data.sticker, data.options);
+		controller->sendingAnimation().appendSending(
+			data.messageSendingFrom);
+		const auto localId = data.messageSendingFrom.localId;
+		sendExistingDocument(data.sticker, data.options, localId);
 	}, lifetime());
 
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
