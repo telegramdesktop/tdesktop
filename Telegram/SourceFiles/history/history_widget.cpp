@@ -6048,9 +6048,16 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		return;
 	}
 
+	controller()->sendingAnimation().appendSending(
+		result.messageSendingFrom);
+
 	auto action = prepareSendAction(result.options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(result.bot, result.result, action);
+	session().api().sendInlineResult(
+		result.bot,
+		result.result,
+		action,
+		result.messageSendingFrom.localId);
 
 	clearFieldText();
 	_saveDraftText = true;

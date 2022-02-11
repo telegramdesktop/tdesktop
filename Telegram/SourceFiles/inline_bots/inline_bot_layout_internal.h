@@ -201,6 +201,8 @@ public:
 
 	void unloadHeavyPart() override;
 
+	QRect innerContentRect() const override;
+
 private:
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
 	void setupLottie() const;

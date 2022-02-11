@@ -563,7 +563,10 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->inlineResultChosen(
 	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
-		sendInlineResult(chosen.result, chosen.bot, chosen.options);
+		controller()->sendingAnimation().appendSending(
+			chosen.messageSendingFrom);
+		const auto localId = chosen.messageSendingFrom.localId;
+		sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
 	}, lifetime());
 
 	_composeControls->scrollRequests(
@@ -1146,7 +1149,7 @@ void RepliesWidget::sendInlineResult(
 		controller()->show(Box<Ui::InformBox>(errorText));
 		return;
 	}
-	sendInlineResult(result, bot, {});
+	sendInlineResult(result, bot, {}, std::nullopt);
 	//const auto callback = [=](Api::SendOptions options) {
 	//	sendInlineResult(result, bot, options);
 	//};
@@ -1158,10 +1161,11 @@ void RepliesWidget::sendInlineResult(
 void RepliesWidget::sendInlineResult(
 		not_null<InlineBots::Result*> result,
 		not_null<UserData*> bot,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		std::optional<MsgId> localMessageId) {
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(bot, result, action);
+	session().api().sendInlineResult(bot, result, action, localMessageId);
 
 	_composeControls->clear();
 	//_saveDraftText = true;

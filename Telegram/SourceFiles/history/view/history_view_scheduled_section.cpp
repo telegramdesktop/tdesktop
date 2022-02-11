@@ -752,7 +752,7 @@ void ScheduledWidget::sendInlineResult(
 		Api::SendOptions options) {
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(bot, result, action);
+	session().api().sendInlineResult(bot, result, action, std::nullopt);
 
 	_composeControls->clear();
 	//_saveDraftText = true;

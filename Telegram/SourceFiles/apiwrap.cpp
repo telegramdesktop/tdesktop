@@ -3616,14 +3616,17 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 void ApiWrap::sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
-		const SendAction &action) {
+		const SendAction &action,
+		std::optional<MsgId> localMessageId) {
 	sendAction(action);
 
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto newId = FullMsgId(
 		peer->id,
-		_session->data().nextLocalMessageId());
+		localMessageId
+			? (*localMessageId)
+			: _session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
 	auto flags = NewMessageFlags(peer);

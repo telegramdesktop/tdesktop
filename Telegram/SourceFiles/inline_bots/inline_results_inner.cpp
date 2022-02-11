@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "core/click_handler_types.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_session.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "lang/lang_keys.h"
@@ -264,6 +266,20 @@ void Inner::selectInlineResult(
 	if (!item) {
 		return;
 	}
+	const auto messageSendingFrom = [&]() -> Ui::MessageSendingAnimationFrom {
+		const auto document = item->getDocument()
+			? item->getDocument()
+			: item->getPreviewDocument();
+		if (options.scheduled || !document || !document->sticker()) {
+			return {};
+		}
+		const auto rect = item->innerContentRect().translated(
+			_mosaic.findRect(index).topLeft());
+		return {
+			.localId = _controller->session().data().nextLocalMessageId(),
+			.globalStartGeometry = mapToGlobal(rect),
+		};
+	};
 
 	if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
@@ -271,6 +287,7 @@ void Inner::selectInlineResult(
 				.result = inlineResult,
 				.bot = _inlineBot,
 				.options = std::move(options),
+				.messageSendingFrom = messageSendingFrom(),
 				.open = open,
 			});
 		}
