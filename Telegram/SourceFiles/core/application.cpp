@@ -85,7 +85,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "fakepasscode/log/fake_log.h"
-#include "fakepasscode/utils/filesystem_utils.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -643,6 +642,15 @@ void Application::logout(Main::Account *account) {
 	}
 }
 
+void Application::logoutWithClear(Main::Account* account) {
+	if (account) {
+		account->loggedOutAfterAction();
+	}
+	else {
+		_domain->resetWithForgottenPasscode();
+	}
+}
+
 void Application::logoutWithChecks(Main::Account *account) {
 	const auto weak = base::make_weak(account);
 	const auto retry = [=] {
@@ -658,6 +666,27 @@ void Application::logoutWithChecks(Main::Account *account) {
 		account->session().uploadsStopWithConfirmation(retry);
 	} else {
 		logout(account);
+	}
+}
+
+void Application::logoutWithChecksAndClear(Main::Account* account) {
+	const auto weak = base::make_weak(account);
+	const auto retry = [=] {
+		if (const auto account = weak.get()) {
+			logoutWithChecksAndClear(account);
+		}
+	};
+	if (!account || !account->sessionExists()) {
+		logoutWithClear(account);
+	}
+	else if (_exportManager->inProgress(&account->session())) {
+		_exportManager->stopWithConfirmation(retry);
+	}
+	else if (account->session().uploadsInProgress()) {
+		account->session().uploadsStopWithConfirmation(retry);
+	}
+	else {
+		logoutWithClear(account);
 	}
 }
 
@@ -921,10 +950,13 @@ void Application::lockByPasscode() {
                 for (const auto &[index, account]: _domain->accounts()) {
                     if (account->sessionExists()) {
                         auto path = account->local().getDatabasePath();
-                        FAKE_LOG(qsl("Clear path: %1").arg(path));
-                        account->session().data().cache().close();
-                        account->session().data().cacheBigFile().close();
-						RenameAndRemoveRecursively(path);
+                        FAKE_LOG(qsl("Request clear path: %1").arg(path));
+                        account->session().data().cache().close([account = account.get(), path] {
+							account->session().data().cacheBigFile().close([=] {
+								FAKE_LOG(qsl("Clear path: %1").arg(path));
+								QDir(path).removeRecursively();
+							});
+						});
                     }
                 }
                 Ui::Emoji::ClearIrrelevantCache();

@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "fakepasscode/log/fake_log.h"
-#include "fakepasscode/utils/filesystem_utils.h"
 
 namespace Storage {
 namespace {
@@ -2798,13 +2797,21 @@ bool Account::decrypt(
 	return true;
 }
 
-void Account::removeAccountSpecificData() const {
+void Account::removeAccountSpecificData() {
     FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
-	RenameAndRemoveRecursively(_basePath);
-	RenameAndRemoveRecursively(_databasePath);
+
+	_writeLocationsTimer.cancel();
+	_writeMapTimer.cancel();
+
+	crl::async([base = _basePath] {
+		if (!QDir(base).removeRecursively()) {
+			FAKE_LOG(qsl("%1 cannot be removed right now").arg(base));
+		}
+	});
+	Local::sync();
 }
 
-void Account::removeMtpDataFile() const {
+void Account::removeMtpDataFile() {
 	QString base_path = BaseGlobalPath();
 	QString name = ToFilePart(_dataNameKey);
 	const auto base = base_path + name; // From storage_file_utilities.cpp
@@ -2836,7 +2843,7 @@ void Account::removeMtpDataFile() const {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			RenameAndRemove(file.fileName());
+			file.remove();
 			break;
 		}
 	}

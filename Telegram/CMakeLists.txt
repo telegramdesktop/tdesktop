@@ -568,7 +568,6 @@ PRIVATE
     fakepasscode/ui/logout_ui.cpp
     fakepasscode/lang/fakepasscode_translator.cpp
     fakepasscode/log/fake_log.cpp
-    fakepasscode/utils/filesystem_utils.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

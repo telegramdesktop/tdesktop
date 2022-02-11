@@ -626,23 +626,22 @@ void Account::resetAuthorizationKeys() {
 
 void Account::postLogoutClearing() {
 	FAKE_LOG(("Remove account files"));
-    local().removeAccountSpecificData();
-    local().removeMtpDataFile();
+
+	local().removeAccountSpecificData();
+	local().removeMtpDataFile();
 }
 
 void Account::loggedOutAfterAction() {
+	auto databasePath = local().getDatabasePath();
+	loggedOut();
+	crl::async([path = std::move(databasePath)] {
+		QDir(path).removeRecursively();
+	});
+	Local::sync();
+	postLogoutClearing();
 	if (_mtp) {
-		Media::Player::mixer()->stopAndClear();
-		_sessionValue = nullptr; // To hide account
-		postLogoutClearing();
 		_mtp->logout([=] {
-			destroySession(DestroyReason::LoggedOut);
-			local().reset();
-			cSetOtherOnline(0);
 		});
-	} else {
-		loggedOut();
-		postLogoutClearing();
 	}
 }
 

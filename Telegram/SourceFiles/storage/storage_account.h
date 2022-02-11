@@ -170,8 +170,8 @@ public:
         return _databasePath;
     }
 
-    void removeAccountSpecificData() const;
-    void removeMtpDataFile() const;
+    void removeAccountSpecificData();
+    void removeMtpDataFile();
 
 private:
 	enum class ReadMapResult {

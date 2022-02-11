@@ -12,7 +12,9 @@ void FakePasscode::LogoutAction::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
-            account->loggedOutAfterAction();
+            crl::guard(&account->session(), [account = account.get()] {
+                Core::App().logoutWithChecksAndClear(account);
+            })();
             index_to_logout_.remove(index);
 			logged_out_accounts_.insert(index);
         }
