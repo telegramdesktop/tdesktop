@@ -27,7 +27,7 @@ os.chdir(scriptPath + '/../../../..')
 
 dirSep = '\\' if win else '/'
 pathSep = ';' if win else ':'
-libsLoc = 'Libraries' if not win64 else 'Libraries/win64'
+libsLoc = 'Libraries' if not win64 else ('Libraries' + dirSep + 'win64')
 keysLoc = 'cache_keys'
 
 rootDir = os.getcwd()
