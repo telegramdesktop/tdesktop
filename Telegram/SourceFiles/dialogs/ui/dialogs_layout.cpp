@@ -129,6 +129,9 @@ void PaintNarrowCounter(
 			- st::dialogsUnreadHeight;
 
 		UnreadBadgeStyle st;
+		st.sizeId = displayMentionBadge
+			? UnreadBadgeInDialogs
+			: UnreadBadgeReactionInDialogs;
 		st.active = active;
 		st.selected = selected;
 		st.muted = mentionOrReactionMuted;
@@ -221,6 +224,9 @@ int PaintWideCounter(
 			- (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 
 		UnreadBadgeStyle st;
+		st.sizeId = displayMentionBadge
+			? UnreadBadgeInDialogs
+			: UnreadBadgeReactionInDialogs;
 		st.active = active;
 		st.selected = selected;
 		st.muted = mentionOrReactionMuted;
@@ -618,6 +624,14 @@ public:
 		st::dialogsUnreadBgMutedOver,
 		st::dialogsUnreadBgMutedActive
 	};
+	style::color reactionBg[6] = {
+		st::dialogsDraftFg,
+		st::dialogsDraftFgOver,
+		st::dialogsDraftFgActive,
+		st::dialogsUnreadBgMuted,
+		st::dialogsUnreadBgMutedOver,
+		st::dialogsUnreadBgMutedActive
+	};
 	rpl::lifetime lifetime;
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
@@ -660,7 +674,9 @@ void PaintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 		Assert(st.sizeId < UnreadBadgeSizesCount);
 		badgeData = &unreadBadgeStyle->sizes[st.sizeId];
 	}
-	auto bg = unreadBadgeStyle->bg[index];
+	auto bg = (st.sizeId == UnreadBadgeReactionInDialogs)
+		? unreadBadgeStyle->reactionBg[index]
+		: unreadBadgeStyle->bg[index];
 	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
 		createCircleMask(badgeData, size);

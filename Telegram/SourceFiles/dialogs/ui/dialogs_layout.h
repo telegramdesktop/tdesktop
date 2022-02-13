@@ -68,6 +68,7 @@ enum UnreadBadgeSize {
 	UnreadBadgeInStickersPanel,
 	UnreadBadgeInStickersBox,
 	UnreadBadgeInTouchBar,
+	UnreadBadgeReactionInDialogs,
 
 	UnreadBadgeSizesCount
 };
