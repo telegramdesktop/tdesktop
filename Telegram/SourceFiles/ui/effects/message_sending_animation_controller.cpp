@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {
@@ -36,7 +37,7 @@ public:
 	Content(
 		not_null<RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		QRect globalGeometryFrom,
+		const MessageSendingAnimationFrom &fromInfo,
 		MessageSendingAnimationController::SendingInfoTo &&to);
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
@@ -48,9 +49,12 @@ private:
  	using Context = Ui::ChatPaintContext;
 
 	void createSurrounding();
+	void createBubble();
 	not_null<HistoryView::Element*> view() const;
+	void drawContent(Painter &p, float64 progress) const;
 
 	const not_null<Window::SessionController*> _controller;
+	const bool _crop;
 	MessageSendingAnimationController::SendingInfoTo _toInfo;
 	QRect _from;
 	QPoint _to;
@@ -59,6 +63,10 @@ private:
 	Animations::Simple _animation;
 	float64 _minScale = 0;
 
+	struct {
+		base::unique_qptr<Ui::RpWidget> widget;
+		QPoint offsetFromContent;
+	} _bubble;
 	base::unique_qptr<Ui::RpWidget> _surrounding;
 
 	rpl::event_stream<> _destroyRequests;
@@ -68,12 +76,13 @@ private:
 Content::Content(
 	not_null<RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
-	QRect globalGeometryFrom,
+	const MessageSendingAnimationFrom &fromInfo,
 	MessageSendingAnimationController::SendingInfoTo &&to)
 : RpWidget(parent)
 , _controller(controller)
+, _crop(fromInfo.crop)
 , _toInfo(std::move(to))
-, _from(parent->mapFromGlobal(globalGeometryFrom))
+, _from(parent->mapFromGlobal(fromInfo.globalStartGeometry))
 , _innerContentRect(view()->media()->contentRectForReactions())
 , _minScale(float64(_from.height()) / _innerContentRect.height()) {
 	Expects(_toInfo.view != nullptr);
@@ -111,13 +120,24 @@ Content::Content(
 		moveToLeft(x, y);
 		update();
 
-		if ((value > kSurroundingProgress) && !_surrounding) {
-			createSurrounding();
+		if ((value > kSurroundingProgress)
+			&& !_surrounding
+			&& !_bubble.widget) {
+			if (view()->hasBubble()) {
+				createBubble();
+			} else {
+				createSurrounding();
+			}
 		}
 		if (_surrounding) {
 			_surrounding->moveToLeft(
 				x - _innerContentRect.x(),
 				y - _innerContentRect.y());
+		}
+		if (_bubble.widget) {
+			_bubble.widget->moveToLeft(
+				x - _bubble.offsetFromContent.x(),
+				y - _bubble.offsetFromContent.y());
 		}
 
 		if (value == 1.) {
@@ -140,12 +160,50 @@ not_null<HistoryView::Element*> Content::view() const {
 }
 
 void Content::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	p.fillRect(e->rect(), Qt::transparent);
-
 	const auto progress = _animation.value(_animation.animating() ? 0. : 1.);
 
+	if (!_crop) {
+		Painter p(this);
+		p.fillRect(e->rect(), Qt::transparent);
+		drawContent(p, progress);
+	} else {
+		// Use QImage to make CompositionMode_Clear work.
+		auto image = QImage(
+			size() * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+		image.fill(Qt::transparent);
+
+		const auto scaledFromSize = _from.size().scaled(
+			_innerContentRect.size(),
+			Qt::KeepAspectRatio);
+		const auto cropW = std::ceil(
+			(_innerContentRect.width() - scaledFromSize.width())
+				/ 2.
+				* (1. - std::clamp(progress / kSurroundingProgress, 0., 1.)));
+
+		{
+			Painter p(&image);
+			drawContent(p, progress);
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			p.fillRect(
+				QRect(0, 0, cropW, _innerContentRect.height()),
+				Qt::black);
+			p.fillRect(
+				QRect(
+					_innerContentRect.width() - cropW,
+					0,
+					cropW,
+					_innerContentRect.height()),
+				Qt::black);
+		}
+
+		Painter p(this);
+		p.drawImage(QPoint(), std::move(image));
+	}
+}
+
+void Content::drawContent(Painter &p, float64 progress) const {
 	const auto scale = anim::interpolateF(_minScale, 1., progress);
 
 	p.translate(
@@ -211,6 +269,65 @@ void Content::createSurrounding() {
 	}, _surrounding->lifetime());
 }
 
+void Content::createBubble() {
+	_bubble.widget = base::make_unique_q<Ui::RpWidget>(parentWidget());
+	_bubble.widget->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto currentView = view();
+	const auto innerGeometry = currentView->innerGeometry();
+
+	const auto tailWidth = st::historyBubbleTailOutLeft.width();
+	_bubble.offsetFromContent = QPoint(
+		currentView->hasOutLayout() ? 0 : tailWidth,
+		innerGeometry.y());
+
+	const auto scaleOffset = QPoint(0, innerGeometry.y());
+	const auto paintOffsetLeft = innerGeometry.x()
+		- _bubble.offsetFromContent.x();
+
+	const auto hasCommentsButton = currentView->data()->repliesAreComments()
+		|| currentView->data()->externalReply();
+	_bubble.widget->resize(innerGeometry.size()
+		+ QSize(
+			currentView->hasOutLayout() ? tailWidth : 0,
+			hasCommentsButton ? innerGeometry.y() : 0));
+	_bubble.widget->show();
+
+	_bubble.widget->stackUnder(this);
+
+	_bubble.widget->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		Painter p(_bubble.widget);
+
+		p.fillRect(r, Qt::transparent);
+
+		const auto progress = _animation.value(0.);
+		const auto revProgress = 1. - progress;
+
+		const auto divider = 1. - kSurroundingProgress;
+		const auto alpha = (divider - revProgress) / divider;
+		p.setOpacity(alpha);
+
+	 	const auto scale = anim::interpolateF(_minScale, 1., progress);
+
+	 	p.translate(
+	 		revProgress * OffsetMid(width() + scaleOffset.x(), _minScale),
+	 		revProgress * OffsetMid(height() + scaleOffset.y(), _minScale));
+	 	p.scale(scale, scale);
+
+		const auto currentView = view();
+
+		auto context = _toInfo.paintContext();
+		context.skipDrawingParts = Context::SkipDrawingParts::Content;
+		context.outbg = currentView->hasOutLayout();
+
+		context.translate(paintOffsetLeft, 0);
+		p.translate(-paintOffsetLeft, 0);
+
+		currentView->draw(p, context);
+	}, _bubble.widget->lifetime());
+}
+
 } // namespace
 
 MessageSendingAnimationController::MessageSendingAnimationController(
@@ -224,7 +341,7 @@ void MessageSendingAnimationController::appendSending(
 		return;
 	}
 	if (from.localId) {
-		_itemSendPending[*from.localId] = from.globalStartGeometry;
+		_itemSendPending[*from.localId] = std::move(from);
 	}
 }
 

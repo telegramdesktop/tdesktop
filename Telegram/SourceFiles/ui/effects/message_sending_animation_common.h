@@ -12,6 +12,7 @@ namespace Ui {
 struct MessageSendingAnimationFrom {
 	std::optional<MsgId> localId;
 	QRect globalStartGeometry;
+	bool crop = false;
 };
 
 } // namespace Ui

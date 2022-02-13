@@ -2758,6 +2758,29 @@ QRect Message::innerGeometry() const {
 			w + rightActionSize().value_or(QSize(0, 0)).width() * 2,
 			width()));
 	}
+	if (hasBubble()) {
+		result.translate(0, st::msgPadding.top() + st::mediaInBubbleSkip);
+
+		if (displayFromName()) {
+			// See paintFromName().
+			result.translate(0, st::msgNameFont->height);
+		}
+		// Skip displayForwardedFrom() until there are no animations for it.
+		if (displayedReply()) {
+			// See paintReplyInfo().
+			result.translate(
+				0,
+				st::msgReplyPadding.top()
+					+ st::msgReplyBarSize.height()
+					+ st::msgReplyPadding.bottom());
+		}
+		if (!displayFromName() && !displayForwardedFrom()) {
+			// See paintViaBotIdInfo().
+			if (message()->Has<HistoryMessageVia>()) {
+				result.translate(0, st::msgServiceNameFont->height);
+			}
+		}
+	}
 	return result;
 }
 

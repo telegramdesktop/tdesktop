@@ -45,7 +45,7 @@ public:
 private:
 
 	const not_null<Window::SessionController*> _controller;
-	base::flat_map<MsgId, QRect> _itemSendPending;
+	base::flat_map<MsgId, MessageSendingAnimationFrom> _itemSendPending;
 
 	base::flat_map<
 		not_null<HistoryItem*>,

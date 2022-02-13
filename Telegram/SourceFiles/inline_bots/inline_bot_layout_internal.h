@@ -86,6 +86,8 @@ public:
 
 	void unloadHeavyPart() override;
 
+	QRect innerContentRect() const override;
+
 private:
 	enum class StateFlag {
 		Over = (1 << 0),

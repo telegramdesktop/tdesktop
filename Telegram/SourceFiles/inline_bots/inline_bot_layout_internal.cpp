@@ -139,6 +139,15 @@ int Gif::resizeGetHeight(int width) {
 	return _height;
 }
 
+QRect Gif::innerContentRect() const {
+	ensureDataMediaCreated(getShownDocument());
+
+	const auto size = (!_thumb.isNull())
+		? (_thumb.size() / style::DevicePixelRatio())
+		: countFrameSize();
+	return QRect(QPoint(), size);
+}
+
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
 	ensureDataMediaCreated(document);

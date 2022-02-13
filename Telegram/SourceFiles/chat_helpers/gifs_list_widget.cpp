@@ -441,6 +441,19 @@ void GifsListWidget::selectInlineResult(
 		return;
 	}
 
+	const auto messageSendingFrom = [&] {
+		if (options.scheduled) {
+			return Ui::MessageSendingAnimationFrom();
+		}
+		const auto rect = item->innerContentRect().translated(
+			_mosaic.findRect(index).topLeft());
+		return Ui::MessageSendingAnimationFrom{
+			.localId = controller()->session().data().nextLocalMessageId(),
+			.globalStartGeometry = mapToGlobal(rect),
+			.crop = true,
+		};
+	};
+
 	forceSend |= base::IsCtrlPressed();
 	if (const auto photo = item->getPhoto()) {
 		using Data::PhotoSize;
@@ -448,7 +461,7 @@ void GifsListWidget::selectInlineResult(
 		if (forceSend
 			|| (media && media->image(PhotoSize::Thumbnail))
 			|| (media && media->image(PhotoSize::Large))) {
-			_photoChosen.fire_copy({
+			_photoChosen.fire({
 				.photo = photo,
 				.options = options });
 		} else if (!photo->loading(PhotoSize::Thumbnail)) {
@@ -458,9 +471,11 @@ void GifsListWidget::selectInlineResult(
 		const auto media = document->activeMediaView();
 		const auto preview = Data::VideoPreviewState(media.get());
 		if (forceSend || (media && preview.loaded())) {
-			_fileChosen.fire_copy({
+			_fileChosen.fire({
 				.document = document,
-				.options = options });
+				.options = options,
+				.messageSendingFrom = messageSendingFrom(),
+			});
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {
 				document->cancel();
@@ -472,7 +487,12 @@ void GifsListWidget::selectInlineResult(
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			_inlineResultChosen.fire({ inlineResult, _searchBot, options });
+			_inlineResultChosen.fire({
+				.result = inlineResult,
+				.bot = _searchBot,
+				.options = options,
+				.messageSendingFrom = messageSendingFrom(),
+			});
 		}
 	}
 }

@@ -270,7 +270,10 @@ void Inner::selectInlineResult(
 		const auto document = item->getDocument()
 			? item->getDocument()
 			: item->getPreviewDocument();
-		if (options.scheduled || !document || !document->sticker()) {
+		if (options.scheduled
+			|| item->isFullLine()
+			|| !document
+			|| (!document->sticker() && !document->isGifv())) {
 			return {};
 		}
 		const auto rect = item->innerContentRect().translated(
@@ -278,6 +281,7 @@ void Inner::selectInlineResult(
 		return {
 			.localId = _controller->session().data().nextLocalMessageId(),
 			.globalStartGeometry = mapToGlobal(rect),
+			.crop = document->isGifv(),
 		};
 	};
 
