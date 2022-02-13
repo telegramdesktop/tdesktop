@@ -32,3 +32,5 @@ std::shared_ptr<FakePasscode::Action> FakePasscode::CreateAction(FakePasscode::A
     FAKE_LOG(qsl("No realization found for type %1").arg(static_cast<int>(type)));
     return nullptr;
 }
+
+void FakePasscode::Action::Prepare() {}

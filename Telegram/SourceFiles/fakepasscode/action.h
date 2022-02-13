@@ -23,6 +23,7 @@ namespace FakePasscode {
     public:
         virtual ~Action() = default;
 
+        virtual void Prepare();
         virtual void Execute() = 0;
 
         virtual QByteArray Serialize() const = 0;
