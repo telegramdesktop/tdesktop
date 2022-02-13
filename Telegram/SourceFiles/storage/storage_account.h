@@ -165,13 +165,17 @@ public:
 		const void *key128) const;
 
 	void reset();
+	void resetWithoutWrite();
 
     QString getDatabasePath() const {
         return _databasePath;
     }
+	QString getBasePath() const {
+		return _basePath;
+	}
 
     void removeAccountSpecificData();
-    void removeMtpDataFile();
+	void removeMtpDataFile();
 
 private:
 	enum class ReadMapResult {

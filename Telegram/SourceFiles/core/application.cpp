@@ -644,7 +644,7 @@ void Application::logout(Main::Account *account) {
 
 void Application::logoutWithClear(Main::Account* account) {
 	if (account) {
-		account->loggedOutAfterAction();
+		account->logOutAfterAction();
 	}
 	else {
 		_domain->resetWithForgottenPasscode();

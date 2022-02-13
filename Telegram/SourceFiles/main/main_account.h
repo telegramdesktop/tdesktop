@@ -118,8 +118,9 @@ public:
 	}
 
     void loggedOut();
-
 	void loggedOutAfterAction();
+
+	void logOutAfterAction();
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
@@ -143,6 +144,7 @@ private:
 	void resetAuthorizationKeys();
 
 	void destroySession(DestroyReason reason);
+	void destroySessionAfterAction(DestroyReason reason);
 
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;

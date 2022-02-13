@@ -624,6 +624,49 @@ void Account::reset() {
 	Local::sync();
 }
 
+void Account::resetWithoutWrite() {
+	auto names = collectGoodNames();
+	_draftsMap.clear();
+	_draftCursorsMap.clear();
+	_draftsNotReadMap.clear();
+	_locationsKey = _trustedBotsKey = 0;
+	_recentStickersKeyOld = 0;
+	_installedStickersKey = 0;
+	_featuredStickersKey = 0;
+	_recentStickersKey = 0;
+	_favedStickersKey = 0;
+	_archivedStickersKey = 0;
+	_savedGifsKey = 0;
+	_installedMasksKey = 0;
+	_recentMasksKey = 0;
+	_archivedMasksKey = 0;
+	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
+	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
+	_oldMapVersion = 0;
+	_fileLocations.clear();
+	_fileLocationPairs.clear();
+	_fileLocationAliases.clear();
+	_cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
+	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
+
+	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)]{
+		for (const auto& name : names) {
+			if (!name.endsWith(qstr("map0"))
+				&& !name.endsWith(qstr("map1"))
+				&& !name.endsWith(qstr("maps"))
+				&& !name.endsWith(qstr("configs"))) {
+				QFile::remove(base + name);
+			}
+		}
+		QDir(LegacyTempDirectory()).removeRecursively();
+		QDir(temp).removeRecursively();
+	});
+
+	Local::sync();
+}
+
 void Account::writeLocations() {
 	_writeLocationsTimer.cancel();
 	if (!_locationsChanged) {
@@ -2798,13 +2841,13 @@ bool Account::decrypt(
 }
 
 void Account::removeAccountSpecificData() {
-    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath, _databasePath));
+    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
 
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
-	crl::async([base = _basePath, databasePath = _databasePath] {
-		for (const auto& dir : {base, databasePath}) {
+	crl::async([base = _basePath, database = _databasePath] {
+		for (const auto& dir : {base, database}) {
 			if (!QDir(dir).removeRecursively()) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}

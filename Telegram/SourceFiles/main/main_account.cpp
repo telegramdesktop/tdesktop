@@ -211,6 +211,24 @@ void Account::destroySession(DestroyReason reason) {
 	_session = nullptr;
 }
 
+void Account::destroySessionAfterAction(DestroyReason reason) {
+	_storedSessionSettings.reset();
+	_sessionUserId = 0;
+	_sessionUserSerialized = {};
+	if (!sessionExists()) {
+		return;
+	}
+
+	_sessionValue = nullptr;
+
+	if (reason == DestroyReason::LoggedOut) {
+		_session->finishLogout();
+		_session->data().cache().close();
+		_session->data().cacheBigFile().close();
+	}
+	_session = nullptr;
+}
+
 bool Account::sessionExists() const {
 	return (_sessionValue.current() != nullptr);
 }
@@ -554,6 +572,15 @@ void Account::loggedOut() {
 	FAKE_LOG(qsl("LoggedOut success."));
 }
 
+void Account::loggedOutAfterAction() {
+	_loggingOut = false;
+	Media::Player::mixer()->stopAndClear();
+	destroySessionAfterAction(DestroyReason::LoggedOut);
+	local().resetWithoutWrite();
+	cSetOtherOnline(0);
+	FAKE_LOG(qsl("LoggedOut success."));
+}
+
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	Expects(_mtp != nullptr);
 
@@ -631,8 +658,8 @@ void Account::postLogoutClearing() {
 	local().removeMtpDataFile();
 }
 
-void Account::loggedOutAfterAction() {
-	loggedOut();
+void Account::logOutAfterAction() {
+	loggedOutAfterAction();
 	postLogoutClearing();
 	if (_mtp) {
 		_mtp->logout([=] {
