@@ -201,28 +201,42 @@ Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::AddOption(
 			group,
 			option,
 			controller->optionLabel(option),
-			st::settingsSendType),
-		st::settingsSendTypePadding);
+			st::settingsPrivacyOption),
+		(st::settingsSendTypePadding + style::margins(
+			-st::lineWidth,
+			st::settingsPrivacySkipTop,
+			0,
+			0)));
 }
 
 Ui::FlatLabel *EditPrivacyBox::addLabel(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text) {
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+		rpl::producer<QString> text,
+		int topSkip) {
+	if (!text) {
+		return nullptr;
+	}
+	return container->add(
+		object_ptr<Ui::DividerLabel>(
 			container,
 			object_ptr<Ui::FlatLabel>(
 				container,
 				rpl::duplicate(text),
 				st::boxDividerLabel),
-			st::settingsPrivacyEditLabelPadding));
-	wrap->hide(anim::type::instant);
-	wrap->toggleOn(std::move(
-		text
-	) | rpl::map([](const QString &text) {
-		return !text.isEmpty();
-	}));
-	return wrap->entity();
+			st::settingsDividerLabelPadding),
+		{ 0, topSkip, 0, 0 }
+	)->entity();
+}
+
+void EditPrivacyBox::addLabelOrDivider(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		int topSkip) {
+	if (!addLabel(container, std::move(text), topSkip)) {
+		container->add(
+			object_ptr<Ui::BoxContentDivider>(container),
+			{ 0, topSkip, 0, 0 });
+	}
 }
 
 void EditPrivacyBox::setupContent() {
@@ -262,13 +276,20 @@ void EditPrivacyBox::setupContent() {
 				: tr::lng_edit_privacy_exceptions_add(tr::now);
 		});
 		auto text = _controller->exceptionButtonTextKey(exception);
+		const auto always = (exception == Exception::Always);
 		const auto button = content->add(
 			object_ptr<Ui::SlideWrap<Button>>(
 				content,
-				object_ptr<Button>(
+				CreateButton(
 					content,
 					rpl::duplicate(text),
-					st::settingsButton)));
+					st::settingsButton,
+					{
+						(always
+							? &st::settingsIconPlus
+							: &st::settingsIconMinus),
+						always ? kIconGreen : kIconRed,
+					})));
 		CreateRightLabel(
 			button->entity(),
 			std::move(label),
@@ -286,17 +307,23 @@ void EditPrivacyBox::setupContent() {
 
 	auto above = _controller->setupAboveWidget(
 		content,
-		rpl::duplicate(optionValue));
+		rpl::duplicate(optionValue),
+		getDelegate()->outerContainer());
 	if (above) {
 		content->add(std::move(above));
 	}
 
-	AddSubsectionTitle(content, _controller->optionsTitleKey());
+	AddSubsectionTitle(
+		content,
+		_controller->optionsTitleKey(),
+		{ 0, st::settingsPrivacySkipTop, 0, 0 });
 	addOptionRow(Option::Everyone);
 	addOptionRow(Option::Contacts);
 	addOptionRow(Option::Nobody);
-	addLabel(content, _controller->warning());
-	AddSkip(content);
+	addLabelOrDivider(
+		content,
+		_controller->warning(),
+		st::settingsSectionSkip + st::settingsPrivacySkipTop);
 
 	auto middle = _controller->setupMiddleWidget(
 		_window,
@@ -306,13 +333,17 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(middle));
 	}
 
-	AddDivider(content);
 	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_edit_privacy_exceptions());
+	AddSubsectionTitle(
+		content,
+		tr::lng_edit_privacy_exceptions(),
+		{ 0, st::settingsPrivacySkipTop, 0, 0 });
 	const auto always = addExceptionLink(Exception::Always);
 	const auto never = addExceptionLink(Exception::Never);
-	addLabel(content, _controller->exceptionsDescription());
-	AddSkip(content);
+	addLabel(
+		content,
+		_controller->exceptionsDescription(),
+		st::settingsSectionSkip);
 
 	if (auto below = _controller->setupBelowWidget(_window, content)) {
 		content->add(std::move(below));

@@ -43,7 +43,9 @@ void AddOption(
 	const auto button = AddButton(
 		container,
 		rpl::single(name),
-		option.relevant() ? st::settingsButton : st::settingsOptionDisabled
+		(option.relevant()
+			? st::settingsButtonNoIcon
+			: st::settingsOptionDisabled)
 	)->toggleOn(toggles->events_starting_with(option.value()));
 
 	const auto restarter = (option.relevant() && option.restartRequired())
@@ -68,7 +70,7 @@ void AddOption(
 		}
 		option.set(toggled);
 		if (restarter) {
-			restarter->callOnce(st::settingsButton.toggle.duration);
+			restarter->callOnce(st::settingsButtonNoIcon.toggle.duration);
 		}
 	}, container->lifetime());
 
@@ -104,7 +106,7 @@ void SetupExperimental(
 		reset = AddButton(
 			inner,
 			tr::lng_settings_experimental_restore(),
-			st::settingsButton);
+			st::settingsButtonNoIcon);
 		reset->addClickHandler([=] {
 			base::options::reset();
 			wrap->hide(anim::type::normal);

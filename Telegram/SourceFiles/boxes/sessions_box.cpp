@@ -966,9 +966,8 @@ void SessionsContent::Inner::setupContent() {
 	AddButtonWithLabel(
 		ttlInner,
 		tr::lng_settings_terminate_if(),
-		_ttlDays.value(
-	) | rpl::map(SelfDestructionBox::DaysLabel),
-		st::settingsButton
+		_ttlDays.value() | rpl::map(SelfDestructionBox::DaysLabel),
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(Box<SelfDestructionBox>(
 			&_controller->session(),

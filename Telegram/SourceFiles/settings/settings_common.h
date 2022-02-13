@@ -140,7 +140,8 @@ void CreateRightLabel(
 	rpl::producer<QString> buttonText);
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text);
+	rpl::producer<QString> text,
+	style::margins addPadding = {});
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,

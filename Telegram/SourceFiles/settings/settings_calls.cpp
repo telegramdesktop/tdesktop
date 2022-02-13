@@ -99,7 +99,7 @@ void Calls::setupContent() {
 			) | rpl::then(
 				_cameraNameStream.events()
 			),
-			st::settingsButton
+			st::settingsButtonNoIcon
 		)->addClickHandler([=] {
 			const auto &devices = GetVideoInputList();
 			const auto options = ranges::views::concat(
@@ -143,7 +143,7 @@ void Calls::setupContent() {
 		const auto bubble = content->lifetime().make_state<::Calls::VideoBubble>(
 			bubbleWrap,
 			track);
-		const auto padding = st::settingsButton.padding.left();
+		const auto padding = st::settingsButtonNoIcon.padding.left();
 		const auto top = st::boxRoundShadow.extend.top();
 		const auto bottom = st::boxRoundShadow.extend.bottom();
 
@@ -216,7 +216,7 @@ void Calls::setupContent() {
 		) | rpl::then(
 			_outputNameStream.events()
 		),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(ChooseAudioOutputBox(crl::guard(this, [=](
 				const QString &id,
@@ -237,7 +237,7 @@ void Calls::setupContent() {
 		) | rpl::then(
 			_inputNameStream.events()
 		),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(ChooseAudioInputBox(crl::guard(this, [=](
 				const QString &id,
@@ -273,7 +273,7 @@ void Calls::setupContent() {
 	AddButton(
 		content,
 		tr::lng_settings_call_accept_calls(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		api->authorizations().callsDisabledHereValue(
 		) | rpl::map(!rpl::mappers::_1)
@@ -287,7 +287,7 @@ void Calls::setupContent() {
 	AddButton(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		const auto opened = Platform::OpenSystemSettings(
 			Platform::SystemSettingsType::Audio);

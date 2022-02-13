@@ -960,13 +960,13 @@ void MainMenu::setupMenu() {
 	if (!_controller->session().supportMode()) {
 		addAction(
 			tr::lng_create_group_title(),
-			{ &st::settingsIconNewGroup, kIconLightBlue }
+			{ &st::settingsIconGroup, kIconLightBlue }
 		)->setClickedCallback([=] {
 			controller->showNewGroup();
 		});
 		addAction(
 			tr::lng_create_channel_title(),
-			{ &st::settingsIconNewChannel, kIconLightOrange }
+			{ &st::settingsIconChannel, kIconLightOrange }
 		)->setClickedCallback([=] {
 			controller->showNewChannel();
 		});

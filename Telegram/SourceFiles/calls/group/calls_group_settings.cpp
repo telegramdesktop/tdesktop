@@ -367,11 +367,10 @@ void SettingsBox(
 				layout,
 				object_ptr<Ui::VerticalLayout>(layout)));
 		const auto pushToTalkInner = pushToTalkWrap->entity();
-		const auto recording = pushToTalkInner->add(
-			object_ptr<Button>(
-				layout,
-				state->recordText.value(),
-				st::groupCallSettingsButton));
+		const auto recording = AddButton(
+			pushToTalkInner,
+			state->recordText.value(),
+			st::groupCallSettingsButton);
 		CreateRightLabel(
 			recording,
 			state->shortcutText.value(),

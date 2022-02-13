@@ -356,7 +356,7 @@ void ColorsPalette::updateInnerGeometry() {
 	}
 	const auto inner = _outer->entity();
 	const auto size = st::settingsAccentColorSize;
-	const auto padding = st::settingsButton.padding;
+	const auto padding = st::settingsButtonNoIcon.padding;
 	const auto width = inner->width() - padding.left() - padding.right();
 	const auto skip = (width - size * _buttons.size())
 		/ float64(_buttons.size() - 1);
@@ -747,7 +747,7 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_stickers_you_have(),
-		st::settingsSectionButton,
+		st::settingsButton,
 		{ &st::settingsIconStickers, kIconLightOrange }
 	)->addClickHandler([=] {
 		controller->show(
@@ -757,7 +757,7 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_emoji_manage_sets(),
-		st::settingsSectionButton,
+		st::settingsButton,
 		{ &st::settingsIconEmoji, kIconDarkOrange }
 	)->addClickHandler([=] {
 		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
@@ -821,7 +821,7 @@ void SetupExport(
 	AddButton(
 		container,
 		tr::lng_settings_export_data(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		const auto session = &controller->session();
 		Ui::hideSettingsAndLayer();
@@ -838,7 +838,7 @@ void SetupLocalStorage(
 	AddButton(
 		container,
 		tr::lng_settings_manage_local_storage(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		LocalStorageBox::Show(&controller->session());
 	});
@@ -857,7 +857,7 @@ void SetupDataStorage(
 	const auto ask = AddButton(
 		container,
 		tr::lng_download_path_ask(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 #ifndef OS_WIN_STORE
@@ -865,10 +865,10 @@ void SetupDataStorage(
 	const auto path = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
-			object_ptr<Button>(
+			CreateButton(
 				container,
 				tr::lng_download_path(),
-				st::settingsButton)));
+				st::settingsButtonNoIcon)));
 	auto pathtext = Core::App().settings().downloadPathValue(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
@@ -881,7 +881,7 @@ void SetupDataStorage(
 	CreateRightLabel(
 		path->entity(),
 		std::move(pathtext),
-		st::settingsButton,
+		st::settingsButtonNoIcon,
 		tr::lng_download_path());
 	path->entity()->addClickHandler([=] {
 		controller->show(Box<DownloadPathBox>(controller));
@@ -921,7 +921,7 @@ void SetupAutoDownload(
 		AddButton(
 			container,
 			std::move(label),
-			st::settingsButton
+			st::settingsButtonNoIcon
 		)->addClickHandler([=] {
 			controller->show(
 				Box<AutoDownloadBox>(&controller->session(), source));
@@ -1139,7 +1139,7 @@ void SetupDefaultThemes(
 	) | rpl::start_with_next([buttons = std::move(buttons)](int width) {
 		Expects(!buttons.empty());
 
-		const auto padding = st::settingsButton.padding;
+		const auto padding = st::settingsButtonNoIcon.padding;
 		width -= padding.left() + padding.right();
 		const auto desired = st::settingsThemePreviewSize.width();
 		const auto count = int(buttons.size());
@@ -1247,9 +1247,9 @@ void SetupCloudThemes(
 	inner->add(
 		list->takeWidget(),
 		style::margins(
-			st::settingsButton.padding.left(),
+			st::settingsButtonNoIcon.padding.left(),
 			0,
-			st::settingsButton.padding.right(),
+			st::settingsButtonNoIcon.padding.right(),
 			0));
 
 	list->allShown(
@@ -1272,7 +1272,7 @@ void SetupCloudThemes(
 	AddButton(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
-		st::settingsSectionButton,
+		st::settingsButton,
 		{ &st::settingsIconThemes, kIconGreen }
 	)->addClickHandler([=] {
 		StartEditor(

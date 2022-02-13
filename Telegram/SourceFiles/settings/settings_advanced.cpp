@@ -74,7 +74,7 @@ void SetupConnectionType(
 			// Handle language switch.
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
-		st::settingsButton);
+		st::settingsButtonNoIcon);
 	button->addClickHandler([=] {
 		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
@@ -116,16 +116,16 @@ void SetupUpdate(
 	const auto install = cAlphaVersion() ? nullptr : AddButton(
 		inner,
 		tr::lng_settings_install_beta(),
-		st::settingsButton).get();
+		st::settingsButtonNoIcon).get();
 
 	if (showOther) {
 		const auto experimental = inner->add(
 			object_ptr<Ui::SlideWrap<Button>>(
 				inner,
-				object_ptr<Button>(
+				CreateButton(
 					inner,
 					tr::lng_settings_experimental(),
-					st::settingsButton)));
+					st::settingsButtonNoIcon)));
 		if (!install) {
 			experimental->toggle(true, anim::type::instant);
 		} else {
@@ -139,7 +139,7 @@ void SetupUpdate(
 	const auto check = AddButton(
 		inner,
 		tr::lng_settings_check_now(),
-		st::settingsButton);
+		st::settingsButtonNoIcon);
 	const auto update = Ui::CreateChild<Button>(
 		check.get(),
 		tr::lng_update_telegram() | Ui::Text::ToUpper(),
@@ -289,7 +289,7 @@ void SetupSpellchecker(
 		isSystem
 			? tr::lng_settings_system_spellchecker()
 			: tr::lng_settings_custom_spellchecker(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		rpl::single(settings->spellcheckerEnabled())
 	);
@@ -314,7 +314,7 @@ void SetupSpellchecker(
 	AddButton(
 		sliding->entity(),
 		tr::lng_settings_auto_download_dictionaries(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		rpl::single(settings->autoDownloadDictionaries())
 	)->toggledValue(
@@ -329,7 +329,7 @@ void SetupSpellchecker(
 		sliding->entity(),
 		tr::lng_settings_manage_dictionaries(),
 		Spellchecker::ButtonManageDictsState(session),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		controller->show(Box<Ui::ManageDictionariesBox>(controller));
 	});
@@ -568,7 +568,7 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		tr::lng_settings_enable_animations(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		rpl::single(!anim::Disabled())
 	)->toggledValue(
@@ -609,7 +609,7 @@ void SetupANGLE(
 		container,
 		tr::lng_settings_angle_backend(),
 		rpl::single(options[backendIndex]),
-		st::settingsButton);
+		st::settingsButtonNoIcon);
 	button->addClickHandler([=] {
 		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 			const auto save = [=](int index) {
@@ -662,7 +662,7 @@ void SetupOpenGL(
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_enable_opengl(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		toggles->events_starting_with_copy(
 			!Core::App().settings().disableOpenGL())

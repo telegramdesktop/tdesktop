@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
+#include "settings/settings_common.h"
 #include "window/window_session_controller.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -54,7 +55,7 @@ inline auto AddCountedButton(
 		Ui::MultiSlideTracker &tracker) {
 	using namespace rpl::mappers;
 
-	using Button = Ui::SettingsButton;
+	using namespace ::Settings;
 	auto forked = std::move(count)
 		| start_spawning(parent->lifetime());
 	auto text = rpl::duplicate(
@@ -66,7 +67,7 @@ inline auto AddCountedButton(
 	});
 	auto button = parent->add(object_ptr<Ui::SlideWrap<Button>>(
 		parent,
-		object_ptr<Button>(
+		CreateButton(
 			parent,
 			std::move(text),
 			st::infoSharedMediaButton))

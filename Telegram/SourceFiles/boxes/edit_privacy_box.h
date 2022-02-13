@@ -58,7 +58,8 @@ public:
 
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
 			not_null<QWidget*> parent,
-			rpl::producer<Option> option) {
+			rpl::producer<Option> option,
+			not_null<QWidget*> outerContainer) {
 		return { nullptr };
 	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupMiddleWidget(
@@ -126,7 +127,12 @@ private:
 
 	Ui::FlatLabel *addLabel(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text);
+		rpl::producer<QString> text,
+		int topSkip);
+	void addLabelOrDivider(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		int topSkip);
 
 	void editExceptions(Exception exception, Fn<void()> done);
 	std::vector<not_null<PeerData*>> &exceptions(Exception exception);

@@ -213,7 +213,7 @@ void SetupLanguageButton(
 		) | rpl::then(
 			Lang::GetInstance().idChanges()
 		) | rpl::map([] { return Lang::GetInstance().nativeName(); }),
-		icon ? st::settingsSectionButton : st::settingsButton,
+		icon ? st::settingsButton : st::settingsButtonNoIcon,
 		{ icon ? &st::settingsIconLanguage : nullptr, kIconDarkOrange });
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
 	button->addClickHandler([=] {
@@ -240,7 +240,7 @@ void SetupSections(
 		AddButton(
 			container,
 			std::move(label),
-			st::settingsSectionButton,
+			st::settingsButton,
 			std::move(descriptor)
 		)->addClickHandler([=] { showOther(type); });
 	};
@@ -253,7 +253,7 @@ void SetupSections(
 		addSection(
 			tr::lng_settings_information(),
 			Type::Information,
-			{ &st::settingsIconInformation, kIconLightOrange });
+			{ &st::settingsIconAccount, kIconLightOrange });
 	}
 	addSection(
 		tr::lng_settings_section_notify(),
@@ -262,7 +262,7 @@ void SetupSections(
 	addSection(
 		tr::lng_settings_section_privacy(),
 		Type::PrivacySecurity,
-		{ &st::settingsIconPrivacySecurity, kIconGreen });
+		{ &st::settingsIconLock, kIconGreen });
 	addSection(
 		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
@@ -278,7 +278,7 @@ void SetupSections(
 			CreateButton(
 				container,
 				tr::lng_settings_section_filters(),
-				st::settingsSectionButton,
+				st::settingsButton,
 				{ &st::settingsIconFolders, kIconDarkBlue }))
 	)->setDuration(0);
 	if (!controller->session().data().chatsFilters().list().empty()
@@ -346,7 +346,7 @@ void SetupInterfaceScale(
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_default_scale(),
-		icon ? st::settingsSectionButton : st::settingsButton,
+		icon ? st::settingsButton : st::settingsButtonNoIcon,
 		{ icon ? &st::settingsIconInterfaceScale : nullptr, kIconLightBlue }
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
@@ -453,7 +453,7 @@ void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	AddButton(
 		container,
 		tr::lng_settings_faq(),
-		icon ? st::settingsSectionButton : st::settingsButton,
+		icon ? st::settingsButton : st::settingsButtonNoIcon,
 		{ icon ? &st::settingsIconFaq : nullptr, kIconLightBlue }
 	)->addClickHandler(OpenFaq);
 }
@@ -469,7 +469,7 @@ void SetupHelp(
 	AddButton(
 		container,
 		rpl::single(u"Telegram Features"_q),
-		st::settingsSectionButton,
+		st::settingsButton,
 		{ &st::settingsIconTips, kIconLightOrange }
 	)->setClickedCallback([=] {
 		UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
@@ -478,7 +478,7 @@ void SetupHelp(
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_ask_question(),
-		st::settingsSectionButton,
+		st::settingsButton,
 		{ &st::settingsIconAskQuestion, kIconGreen });
 	const auto requestId = button->lifetime().make_state<mtpRequestId>();
 	button->lifetime().add([=] {

@@ -184,17 +184,13 @@ public:
 
 	object_ptr<Ui::RpWidget> setupAboveWidget(
 		not_null<QWidget*> parent,
-		rpl::producer<Option> optionValue) override;
+		rpl::producer<Option> optionValue,
+		not_null<QWidget*> outerContainer) override;
 
 private:
 	using Element = HistoryView::Element;
 	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
-
-	static void PaintForwardedTooltip(
-		Painter &p,
-		not_null<HistoryView::Element*> view,
-		Option value);
 
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
