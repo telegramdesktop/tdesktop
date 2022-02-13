@@ -2798,14 +2798,16 @@ bool Account::decrypt(
 }
 
 void Account::removeAccountSpecificData() {
-    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
+    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath, _databasePath));
 
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
-	crl::async([base = _basePath] {
-		if (!QDir(base).removeRecursively()) {
-			FAKE_LOG(qsl("%1 cannot be removed right now").arg(base));
+	crl::async([base = _basePath, databasePath = _databasePath] {
+		for (const auto& dir : {base, databasePath}) {
+			if (!QDir(dir).removeRecursively()) {
+				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
+			}
 		}
 	});
 	Local::sync();

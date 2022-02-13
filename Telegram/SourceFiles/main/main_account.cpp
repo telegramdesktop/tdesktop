@@ -632,12 +632,7 @@ void Account::postLogoutClearing() {
 }
 
 void Account::loggedOutAfterAction() {
-	auto databasePath = local().getDatabasePath();
 	loggedOut();
-	crl::async([path = std::move(databasePath)] {
-		QDir(path).removeRecursively();
-	});
-	Local::sync();
 	postLogoutClearing();
 	if (_mtp) {
 		_mtp->logout([=] {

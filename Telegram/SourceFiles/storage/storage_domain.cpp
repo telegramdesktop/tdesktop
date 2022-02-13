@@ -303,17 +303,14 @@ void Domain::setPasscode(const QByteArray &passcode) {
         }
     } else {
         encryptLocalKey(passcode);
+        PrepareEncryptedFakePasscodes(); // Since salt was changed
     }
 
     if (passcode.isEmpty()) {
         FAKE_LOG(qsl("Clear fake state"));
         ClearFakeState();
     }
-
-	// In case of SetPasscode of fake pass `writeAccounts` will be called in handler of encrypted passcode
-	if (!IsFakeWithoutInfinityFlag() || passcode.isEmpty()) {
-		writeAccounts();
-	}
+	writeAccounts();
 
 	_passcodeKeyChanged.fire({});
 }
@@ -510,13 +507,11 @@ const std::deque<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const {
 }
 
 void Domain::EncryptFakePasscodes() {
-    PrepareEncryptedFakePasscodes();
-
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
-        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakeEncryptedPasscodes[i]);
+        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakePasscodes[i].GetEncryptedPasscode());
     }
 }
 
@@ -526,7 +521,6 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
     _fakePasscodes.push_back(std::move(fakePasscode));
-    _fakeEncryptedPasscodes.push_back(_fakePasscodes.back().GetEncryptedPasscode());
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -559,7 +553,6 @@ void Domain::RemoveFakePasscode(size_t index) {
     FAKE_LOG(qsl("Remove passcode %1").arg(index));
     _fakePasscodes.erase(_fakePasscodes.begin() + index);
     _fakePasscodeKeysEncrypted.erase(_fakePasscodeKeysEncrypted.begin() + index);
-    _fakeEncryptedPasscodes.erase(_fakeEncryptedPasscodes.begin() + index);
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -669,16 +662,8 @@ FakePasscode::Action *Domain::GetAction(size_t index, FakePasscode::ActionType t
 }
 
 void Domain::PrepareEncryptedFakePasscodes() {
-    if (_fakeEncryptedPasscodes.empty()) {
-        _fakeEncryptedPasscodes.resize(_fakePasscodes.size());
-        for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-            _fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
-			_fakePasscodes[i].GetPasscodeStream() | rpl::start_with_next([=] {
-				FAKE_LOG(qsl("Encrypted %1 via RPL").arg(i));
-				_fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
-				writeAccounts();
-			}, _fakePasscodes[i].lifetime());
-        }
+    for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
+        _fakePasscodes[i].ReEncryptPasscode();
     }
 }
 
@@ -694,7 +679,6 @@ void Domain::SetCacheCleanedUpOnLock(bool cleanedUp) {
 void Domain::ClearFakeState() {
     _fakePasscodes.clear();
     _fakePasscodeKeysEncrypted.clear();
-    _fakeEncryptedPasscodes.clear();
     _isCacheCleanedUpOnLock = false;
     _isAdvancedLoggingEnabled = false;
 }

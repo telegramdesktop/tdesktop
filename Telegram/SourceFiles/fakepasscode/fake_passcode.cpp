@@ -11,12 +11,14 @@
 #include "storage/storage_domain.h"
 
 MTP::AuthKeyPtr FakePasscode::FakePasscode::GetEncryptedPasscode() const {
-    return EncryptPasscode(fake_passcode_);
+    if (!encrypted_passcode_) {
+        encrypted_passcode_ = EncryptPasscode(fake_passcode_.current());
+    }    
+    return encrypted_passcode_;
 }
 
 void FakePasscode::FakePasscode::SetPasscode(QByteArray passcode) {
     fake_passcode_ = std::move(passcode);
-	passcode_changed_.fire({});
 }
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
@@ -66,6 +68,11 @@ void FakePasscode::FakePasscode::Execute() {
 FakePasscode::FakePasscode::FakePasscode(
         base::flat_map<ActionType, std::shared_ptr<Action>> actions)
         : actions_(std::move(actions)) {
+    SetEncryptedChangeOnPasscode();
+}
+
+FakePasscode::FakePasscode::FakePasscode() {
+    SetEncryptedChangeOnPasscode();
 }
 
 bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const {
@@ -107,7 +114,7 @@ void FakePasscode::FakePasscode::DeSerializeActions(QByteArray serialized) {
 }
 
 QByteArray FakePasscode::FakePasscode::GetPasscode() const {
-    return fake_passcode_;
+    return fake_passcode_.current();
 }
 
 bool FakePasscode::FakePasscode::ContainsAction(ActionType type) const {
@@ -130,6 +137,7 @@ FakePasscode::FakePasscode::FakePasscode(FakePasscode &&passcode) noexcept
         : fake_passcode_(std::move(passcode.fake_passcode_)),
           actions_(std::move(passcode.actions_)), name_(std::move(passcode.name_)),
           state_changed_(std::move(passcode.state_changed_)) {
+    SetEncryptedChangeOnPasscode();
 }
 
 FakePasscode::FakePasscode &FakePasscode::FakePasscode::operator=(FakePasscode &&passcode) noexcept {
@@ -166,4 +174,15 @@ MTP::AuthKeyPtr FakePasscode::FakePasscode::EncryptPasscode(const QByteArray& pa
 	return Storage::details::CreateLocalKey(
 			passcode,
 			Core::App().domain().local().GetPasscodeSalt());
+}
+
+void FakePasscode::FakePasscode::SetEncryptedChangeOnPasscode() {
+    fake_passcode_.changes() | rpl::start_with_next([=](QByteArray passcode) {
+        FAKE_LOG(qsl("Change and encrypt pass to %1").arg(QString::fromUtf8(passcode)));
+        encrypted_passcode_ = EncryptPasscode(passcode);
+    }, lifetime_);
+}
+
+void FakePasscode::FakePasscode::ReEncryptPasscode() {
+    encrypted_passcode_ = EncryptPasscode(fake_passcode_.current());
 }

@@ -131,7 +131,6 @@ private:
     QByteArray _passcode;
 
     std::vector<QByteArray> _fakePasscodeKeysEncrypted;
-    std::vector<MTP::AuthKeyPtr> _fakeEncryptedPasscodes;
     std::deque<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
     bool _isStartedWithFake = false;

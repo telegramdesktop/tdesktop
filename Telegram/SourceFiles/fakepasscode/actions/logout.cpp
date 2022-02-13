@@ -8,7 +8,6 @@
 #include "fakepasscode/log/fake_log.h"
 
 void FakePasscode::LogoutAction::Execute() {
-	logged_out_accounts_.clear();
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
@@ -16,7 +15,6 @@ void FakePasscode::LogoutAction::Execute() {
                 Core::App().logoutWithChecksAndClear(account);
             })();
             index_to_logout_.remove(index);
-			logged_out_accounts_.insert(index);
         }
     }
 }
@@ -72,10 +70,7 @@ bool FakePasscode::LogoutAction::IsLogout(qint32 index) const {
     if (auto pos = index_to_logout_.find(index); pos != index_to_logout_.end()) {
         FAKE_LOG(qsl("Found logout for %1. Send %2").arg(index).arg(pos->second));
         return pos->second;
-    } else if (auto logged_out_pos = logged_out_accounts_.find(index); logged_out_pos != logged_out_accounts_.end()) {
-		FAKE_LOG(qsl("Found logged out for %1").arg(index));
-		return true;
-	}
+    }
 	FAKE_LOG(qsl("Not found logout for %1. Send false").arg(index));
 	return false;
 }
@@ -92,6 +87,6 @@ void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
                 FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
                 index_to_logout_.remove(index);
             }
-        }, account->lifetime());
+        }, lifetime_);
     }
 }
