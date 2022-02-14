@@ -142,6 +142,9 @@ Account::~Account() {
 	if (_localKey && _mapChanged) {
 		writeMap();
 	}
+	if (!QDir(_databasePath).removeRecursively()) {
+		FAKE_LOG(qsl("Someone else holds cache %1").arg(_databasePath));
+	}
 }
 
 QString Account::tempDirectory() const {
