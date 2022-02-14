@@ -1582,18 +1582,17 @@ void ListWidget::startMessageSendingAnimation(
 		return;
 	}
 
-	auto globalEndGeometry = rpl::merge(
+	auto globalEndTopLeft = rpl::merge(
 		session().data().newItemAdded() | rpl::to_empty,
 		geometryValue() | rpl::to_empty
 	) | rpl::map([=] {
 		const auto view = viewForItem(item);
 		const auto additional = !_visibleTop ? view->height() : 0;
-		return mapToGlobal(
-			view->innerGeometry().translated(0, itemTop(view) - additional));
+		return mapToGlobal(QPoint(0, itemTop(view) - additional));
 	});
 
 	sendingAnimation.startAnimation({
-		.globalEndGeometry = std::move(globalEndGeometry),
+		.globalEndTopLeft = std::move(globalEndTopLeft),
 		.view = [=] { return viewForItem(item); },
 		.paintContext = [=] { return preparePaintContext({}); },
 	});

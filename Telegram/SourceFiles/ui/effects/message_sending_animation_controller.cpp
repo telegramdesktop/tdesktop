@@ -53,7 +53,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	MessageSendingAnimationController::SendingInfoTo _toInfo;
 	QRect _from;
-	QRect _to;
+	QPoint _to;
 	QRect _innerContentRect;
 
 	Animations::Simple _animation;
@@ -74,7 +74,8 @@ Content::Content(
 , _controller(controller)
 , _toInfo(std::move(to))
 , _from(parent->mapFromGlobal(globalGeometryFrom))
-, _innerContentRect(view()->media()->contentRectForReactions()) {
+, _innerContentRect(view()->media()->contentRectForReactions())
+, _minScale(float64(_from.height()) / _innerContentRect.height()) {
 	Expects(_toInfo.view != nullptr);
 	Expects(_toInfo.paintContext != nullptr);
 
@@ -83,11 +84,10 @@ Content::Content(
 	raise();
 
 	base::take(
-		_toInfo.globalEndGeometry
+		_toInfo.globalEndTopLeft
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const QRect &r) {
-		_to = parent->mapFromGlobal(r);
-		_minScale = float64(_from.height()) / _to.height();
+	) | rpl::start_with_next([=](const QPoint &p) {
+		_to = parent->mapFromGlobal(p);
 	}, lifetime());
 
 	_controller->session().downloaderTaskFinished(
@@ -97,11 +97,15 @@ Content::Content(
 
 	resize(_innerContentRect.size());
 
+	const auto innerGeometry = view()->innerGeometry();
+
 	auto animationCallback = [=](float64 value) {
 		auto resultFrom = rect();
 		resultFrom.moveCenter(_from.center());
 
-		const auto resultTo = _to.topLeft() + _innerContentRect.topLeft();
+		const auto resultTo = _to
+			+ innerGeometry.topLeft()
+			+ _innerContentRect.topLeft();
 		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), value);
 		const auto y = anim::interpolate(resultFrom.y(), resultTo.y(), value);
 		moveToLeft(x, y);

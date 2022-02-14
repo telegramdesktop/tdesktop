@@ -5394,7 +5394,7 @@ void HistoryWidget::startMessageSendingAnimation(
 	Assert(item->mainView() != nullptr);
 	Assert(item->mainView()->media() != nullptr);
 
-	auto globalEndGeometry = rpl::merge(
+	auto globalEndTopLeft = rpl::merge(
 		_scroll->innerResizes() | rpl::to_empty,
 		session().data().newItemAdded() | rpl::to_empty,
 		geometryValue() | rpl::to_empty,
@@ -5405,13 +5405,13 @@ void HistoryWidget::startMessageSendingAnimation(
 		const auto additional = (_list->height() == _scroll->height())
 			? view->height()
 			: 0;
-		return _list->mapToGlobal(view->innerGeometry().translated(
+		return _list->mapToGlobal(QPoint(
 			0,
 			_list->itemTop(view) - additional));
 	});
 
 	sendingAnimation.startAnimation({
-		.globalEndGeometry = std::move(globalEndGeometry),
+		.globalEndTopLeft = std::move(globalEndTopLeft),
 		.view = [=] { return item->mainView(); },
 		.paintContext = [=] { return _list->preparePaintContext({}); },
 	});

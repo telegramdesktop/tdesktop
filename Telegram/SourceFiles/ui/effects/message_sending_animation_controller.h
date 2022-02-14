@@ -29,7 +29,7 @@ public:
 		not_null<Window::SessionController*> controller);
 
 	struct SendingInfoTo {
-		rpl::producer<QRect> globalEndGeometry;
+		rpl::producer<QPoint> globalEndTopLeft;
 		Fn<not_null<HistoryView::Element*>()> view;
 		Fn<Ui::ChatPaintContext()> paintContext;
 	};
