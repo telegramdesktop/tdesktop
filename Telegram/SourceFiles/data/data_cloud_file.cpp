@@ -146,7 +146,7 @@ std::shared_ptr<CloudImageView> CloudImage::createView() {
 	return view;
 }
 
-std::shared_ptr<CloudImageView> CloudImage::activeView() {
+std::shared_ptr<CloudImageView> CloudImage::activeView() const {
 	return _view.lock();
 }
 

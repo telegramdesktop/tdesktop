@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_cloud_file.h"
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
@@ -75,8 +76,16 @@ struct HiddenSenderInfo {
 	QString firstName;
 	QString lastName;
 	PeerId colorPeerId = 0;
-	Ui::EmptyUserpic userpic;
 	Ui::Text::String nameText;
+	Ui::EmptyUserpic emptyUserpic;
+	mutable Data::CloudImage customUserpic;
+
+	[[nodiscard]] bool paintCustomUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) const;
 
 	inline bool operator==(const HiddenSenderInfo &other) const {
 		return name == other.name;

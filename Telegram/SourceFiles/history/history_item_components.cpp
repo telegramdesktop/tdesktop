@@ -89,7 +89,7 @@ void HistoryMessageVia::resize(int32 availw) const {
 HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
-, userpic(
+, emptyUserpic(
 	Data::PeerUserpicColor(colorPeerId),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
@@ -104,6 +104,26 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 			lastName.append(' ');
 		}
 		lastName.append(part);
+	}
+}
+
+bool HiddenSenderInfo::paintCustomUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) const {
+	const auto view = customUserpic.activeView();
+	if (const auto image = view ? view->image() : nullptr) {
+		const auto circled = Images::Option::RoundCircle;
+		p.drawPixmap(
+			x,
+			y,
+			image->pix(size, size, { .options = circled }));
+		return true;
+	} else {
+		emptyUserpic.paint(p, x, y, outerWidth, size);
+		return false;
 	}
 }
 

@@ -365,7 +365,7 @@ void paintRow(
 			active,
 			fullWidth);
 	} else if (hiddenSenderInfo) {
-		hiddenSenderInfo->userpic.paint(
+		hiddenSenderInfo->emptyUserpic.paint(
 			p,
 			st::dialogsPadding.x(),
 			st::dialogsPadding.y(),

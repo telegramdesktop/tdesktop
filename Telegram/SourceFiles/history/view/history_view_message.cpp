@@ -1390,8 +1390,10 @@ bool Message::hasFromPhoto() const {
 	case Context::Pinned:
 	case Context::Replies: {
 		const auto item = message();
-		if (item->isPost()
-			|| item->isEmpty()
+		if (item->isPost()) {
+			return item->isSponsored();
+		}
+		if (item->isEmpty()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (delegate()->elementIsChatWide()) {

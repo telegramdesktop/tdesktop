@@ -80,7 +80,7 @@ public:
 	[[nodiscard]] int byteSize() const;
 
 	[[nodiscard]] std::shared_ptr<CloudImageView> createView();
-	[[nodiscard]] std::shared_ptr<CloudImageView> activeView();
+	[[nodiscard]] std::shared_ptr<CloudImageView> activeView() const;
 	[[nodiscard]] bool isCurrentView(
 		const std::shared_ptr<CloudImageView> &view) const;
 
