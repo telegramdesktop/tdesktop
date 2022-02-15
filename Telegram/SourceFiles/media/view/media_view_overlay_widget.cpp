@@ -358,6 +358,7 @@ OverlayWidget::OverlayWidget()
 			DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
 				.arg(position.x())
 				.arg(position.y()));
+			moveToScreen(true);
 		} else if (type == QEvent::Resize) {
 			const auto size = static_cast<QResizeEvent*>(e.get())->size();
 			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
@@ -477,7 +478,7 @@ void OverlayWidget::refreshLang() {
 	InvokeQueued(_widget, [=] { updateThemePreviewGeometry(); });
 }
 
-void OverlayWidget::moveToScreen() {
+void OverlayWidget::moveToScreen(bool inMove) {
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
@@ -498,10 +499,10 @@ void OverlayWidget::moveToScreen() {
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
 			.arg(screenList.indexOf(window()->screen())));
 	}
-	updateGeometry();
+	updateGeometry(inMove);
 }
 
-void OverlayWidget::updateGeometry() {
+void OverlayWidget::updateGeometry(bool inMove) {
 	if (Platform::IsWayland()) {
 		return;
 	}
@@ -522,6 +523,9 @@ void OverlayWidget::updateGeometry() {
 	const auto mask = useSizeHack
 		? QRegion(QRect(QPoint(), available.size()))
 		: QRegion();
+	if (inMove && use.contains(_widget->geometry())) {
+		return;
+	}
 	if ((_widget->geometry() == use)
 		&& (!useSizeHack || window()->mask() == mask)) {
 		return;
