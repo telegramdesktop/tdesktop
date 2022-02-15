@@ -190,7 +190,8 @@ Session::~Session() {
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
 
-	crl::async([path = local().getDatabasePath()] {
+	_data.reset(); // Release storage databases
+	crl::on_main([path = local().getDatabasePath()] {
 		if (!QDir(path).removeRecursively()) {
 			FAKE_LOG(qsl("%1 cannot be removed right now").arg(path));
 		}
