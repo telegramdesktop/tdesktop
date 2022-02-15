@@ -660,11 +660,11 @@ void Account::postLogoutClearing() {
 
 void Account::logOutAfterAction() {
 	loggedOutAfterAction();
-	postLogoutClearing();
 	if (_mtp) {
-		_mtp->logout([=] {
-		});
+		_mtp->logout([] {});
+		resetAuthorizationKeys();
 	}
+	postLogoutClearing();
 }
 
 } // namespace Main
