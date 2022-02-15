@@ -1094,7 +1094,7 @@ void MainMenu::updateInnerControlsGeometry() {
 	const auto available = height() - st::mainMenuCoverHeight - contentHeight;
 	const auto footerHeight = std::max(
 		available,
-		st::mainMenuTelegramBottom + _telegram->height() + st::mainMenuSkip);
+		st::mainMenuFooterHeightMin);
 	if (_footer->height() != footerHeight) {
 		_footer->resize(_footer->width(), footerHeight);
 	}
