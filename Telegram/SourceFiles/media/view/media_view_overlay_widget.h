@@ -223,8 +223,8 @@ private:
 	void assignMediaPointer(not_null<PhotoData*> photo);
 
 	void updateOver(QPoint mpos);
-	void moveToScreen();
-	void updateGeometry();
+	void moveToScreen(bool inMove = false);
+	void updateGeometry(bool inMove = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
