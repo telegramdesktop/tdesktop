@@ -1588,7 +1588,12 @@ TextState Message::textState(
 	}
 
 	if (keyboard && item->isHistoryEntry()) {
-		auto keyboardTop = g.top() + g.height() + st::msgBotKbButton.margin;
+		const auto keyboardTop = g.top()
+			+ g.height()
+			+ st::msgBotKbButton.margin
+			+ ((_reactions && !reactionsInBubble)
+				? (st::mediaInBubbleSkip + _reactions->height())
+				: 0);
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
 			result.link = keyboard->getLink(point - QPoint(g.left(), keyboardTop));
 			return result;
