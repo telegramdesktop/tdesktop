@@ -2375,7 +2375,7 @@ void OverlayWidget::show(OpenRequest request) {
 			request.cloudTheme()
 				? *request.cloudTheme()
 				: Data::CloudTheme(),
-			request.continueStreaming());
+			{ request.continueStreaming(), request.startTime() });
 		if (!isHidden()) {
 			preloadData(0);
 			activateControls();
@@ -2453,7 +2453,7 @@ void OverlayWidget::redisplayContent() {
 void OverlayWidget::displayDocument(
 		DocumentData *doc,
 		const Data::CloudTheme &cloud,
-		bool continueStreaming) {
+		const StartStreaming &startStreaming) {
 	_fullScreenVideo = false;
 	_staticContent = QImage();
 	clearStreaming(_document != doc);
@@ -2481,7 +2481,7 @@ void OverlayWidget::displayDocument(
 			}
 		} else {
 			if (_documentMedia->canBePlayed(_message)
-				&& initStreaming(continueStreaming)) {
+				&& initStreaming(startStreaming)) {
 			} else if (_document->isVideoFile()) {
 				_documentMedia->automaticLoad(fileOrigin(), _message);
 				initStreamingThumbnail();
@@ -2632,7 +2632,7 @@ bool OverlayWidget::canInitStreaming() const {
 		|| (_photo && _photo->videoCanBePlayed());
 }
 
-bool OverlayWidget::initStreaming(bool continueStreaming) {
+bool OverlayWidget::initStreaming(const StartStreaming &startStreaming) {
 	Expects(canInitStreaming());
 
 	if (_streamed) {
@@ -2657,20 +2657,21 @@ bool OverlayWidget::initStreaming(bool continueStreaming) {
 		handleStreamingError(std::move(error));
 	}, _streamed->instance.lifetime());
 
-	if (continueStreaming) {
+	if (startStreaming.continueStreaming) {
 		_pip = nullptr;
 	}
-	if (!continueStreaming
+	if (!startStreaming.continueStreaming
 		|| (!_streamed->instance.player().active()
 			&& !_streamed->instance.player().finished())) {
-		startStreamingPlayer();
+		startStreamingPlayer(startStreaming);
 	} else {
 		updatePlaybackState();
 	}
 	return true;
 }
 
-void OverlayWidget::startStreamingPlayer() {
+void OverlayWidget::startStreamingPlayer(
+		const StartStreaming &startStreaming) {
 	Expects(_streamed != nullptr);
 
 	const auto &player = _streamed->instance.player();
@@ -2686,8 +2687,7 @@ void OverlayWidget::startStreamingPlayer() {
 	}
 
 	const auto position = _document
-		? _document->session().settings().mediaLastPlaybackPosition(
-			_document->id)
+		? startStreaming.startTime
 		: _photo
 		? _photo->videoStartPosition()
 		: 0;

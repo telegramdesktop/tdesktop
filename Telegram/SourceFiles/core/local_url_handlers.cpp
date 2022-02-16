@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
 #include "media/player/media_player_instance.h"
+#include "media/view/media_view_open_common.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
@@ -443,12 +444,18 @@ bool OpenMediaTimestamp(
 			MsgId(parts.value(2).toLongLong()));
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
-		session->settings().setMediaLastPlaybackPosition(
-			documentId,
-			time * crl::time(1000));
+		const auto timeMs = time * crl::time(1000);
 		if (document->isVideoFile()) {
-			controller->openDocument(document, itemId, true);
+			controller->window().openInMediaView(Media::View::OpenRequest(
+				controller,
+				document,
+				session->data().message(itemId),
+				false,
+				timeMs));
 		} else if (document->isSong() || document->isVoiceMessage()) {
+			session->settings().setMediaLastPlaybackPosition(
+				documentId,
+				timeMs);
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
