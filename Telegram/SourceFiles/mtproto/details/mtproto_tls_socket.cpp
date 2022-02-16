@@ -505,7 +505,7 @@ void TlsSocket::plainConnected() {
 		domainFromSecret(),
 		keyFromSecret());
 	if (hello.data.isEmpty()) {
-		LOG(("TLS Error: Could not generate Client Hello!"));
+		logError(888, "Could not generate Client Hello.");
 		_state = State::Error;
 		_error.fire({});
 	} else {
@@ -563,7 +563,7 @@ void TlsSocket::checkHelloParts12(int parts1Size) {
 			- kLengthSize
 			- kServerHelloPart1.size();
 		if (!CheckPart(data.subspan(part1Offset), kServerHelloPart1)) {
-			LOG(("TLS Error: Bad Server Hello part1."));
+			logError(888, "Bad Server Hello part1.");
 			handleError();
 			return;
 		}
@@ -587,7 +587,7 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 			- kLengthSize
 			- kServerHelloPart3.size();
 		if (!CheckPart(data.subspan(part3Offset), kServerHelloPart3)) {
-			LOG(("TLS Error: Bad Server Hello part."));
+			logError(888, "Bad Server Hello part.");
 			handleError();
 			return;
 		}
@@ -611,7 +611,7 @@ void TlsSocket::checkHelloDigest() {
 	bytes::set_with_const(digest, bytes::type(0));
 	const auto check = openssl::HmacSha256(keyFromSecret(), fulldata);
 	if (bytes::compare(digestCopy, check) != 0) {
-		LOG(("TLS Error: Bad Server Hello digest."));
+		logError(888, "Bad Server Hello digest.");
 		handleError();
 		return;
 	}
@@ -649,7 +649,7 @@ bool TlsSocket::checkNextPacket() {
 			return true;
 		}
 		if (!CheckPart(incoming.subspan(offset), kServerHeader)) {
-			LOG(("TLS Error: Bad packet header."));
+			logError(888, "Bad packet header.");
 			return false;
 		}
 		const auto length = ReadPartLength(
@@ -773,12 +773,16 @@ int32 TlsSocket::debugState() {
 	return _socket.state();
 }
 
+QString TlsSocket::debugPostfix() const {
+	return u"_ee"_q;
+}
+
 void TlsSocket::handleError(int errorCode) {
 	if (_state != State::Connected) {
 		_syncTimeRequests.fire({});
 	}
 	if (errorCode) {
-		TcpSocket::LogError(errorCode, _socket.errorString());
+		logError(errorCode, _socket.errorString());
 	}
 	_state = State::Error;
 	_error.fire({});

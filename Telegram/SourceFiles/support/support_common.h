@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Shortcuts {
+enum class Command;
+} // namespace Shortcuts
+
 namespace Support {
 
 enum class SwitchSettings {
@@ -15,8 +19,10 @@ enum class SwitchSettings {
 	Previous,
 };
 
-Qt::KeyboardModifiers SkipSwitchModifiers();
-bool HandleSwitch(Qt::KeyboardModifiers modifiers);
-FnMut<bool()> GetSwitchMethod(SwitchSettings value);
+[[nodiscard]] Qt::KeyboardModifiers SkipSwitchModifiers();
+[[nodiscard]] bool HandleSwitch(Qt::KeyboardModifiers modifiers);
+[[nodiscard]] std::optional<Shortcuts::Command> GetSwitchCommand(
+	SwitchSettings value);
+[[nodiscard]] FnMut<bool()> GetSwitchMethod(SwitchSettings value);
 
 } // namespace Support

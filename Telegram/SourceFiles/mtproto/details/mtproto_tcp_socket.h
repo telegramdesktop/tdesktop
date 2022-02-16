@@ -27,8 +27,7 @@ public:
 	void write(bytes::const_span prefix, bytes::const_span buffer) override;
 
 	int32 debugState() override;
-
-	static void LogError(int errorCode, const QString &errorText);
+	QString debugPostfix() const override;
 
 private:
 	void handleError(int errorCode);

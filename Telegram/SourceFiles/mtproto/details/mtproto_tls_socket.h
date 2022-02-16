@@ -28,6 +28,7 @@ public:
 	void write(bytes::const_span prefix, bytes::const_span buffer) override;
 
 	int32 debugState() override;
+	QString debugPostfix() const override;
 
 private:
 	enum class State {

@@ -128,6 +128,11 @@ public:
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
 
+	[[nodiscard]] Dialogs::RowDescriptor resolveChatNext(
+		Dialogs::RowDescriptor from) const;
+	[[nodiscard]] Dialogs::RowDescriptor resolveChatPrevious(
+		Dialogs::RowDescriptor from) const;
+
 	void returnTabbedSelector();
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);

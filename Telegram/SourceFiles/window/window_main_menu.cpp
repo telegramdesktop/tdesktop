@@ -652,11 +652,11 @@ MainMenu::MainMenu(
 				tr::now,
 				lt_version,
 				currentVersionText()),
-			{}) // Link 1.
+			1) // Link 1.
 		.append(QChar(' '))
 		.append(QChar(8211))
 		.append(QChar(' '))
-		.append(Ui::Text::Link(tr::lng_menu_about(tr::now), {}))); // Link 2.
+		.append(Ui::Text::Link(tr::lng_menu_about(tr::now), 2))); // Link 2.
 	_version->setLink(
 		1,
 		std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
@@ -1005,12 +1005,20 @@ void MainMenu::refreshMenu() {
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 
 		const auto fix = std::make_shared<QPointer<QAction>>();
-		*fix = _menu->addAction(qsl("Fix chats order"), [=] {
+		auto fixCallback = [=] {
 			(*fix)->setChecked(!(*fix)->isChecked());
 			_controller->session().settings().setSupportFixChatsOrder(
 				(*fix)->isChecked());
 			_controller->session().saveSettings();
-		}, &st::mainMenuFixOrder, &st::mainMenuFixOrderOver);
+		};
+		auto item = base::make_unique_q<Ui::Menu::Toggle>(
+			_menu,
+			st::mainMenu,
+			u"Fix chats order"_q,
+			std::move(fixCallback),
+			&st::mainMenuFixOrder,
+			&st::mainMenuFixOrderOver);
+		*fix = _menu->addAction(std::move(item));
 		(*fix)->setCheckable(true);
 		(*fix)->setChecked(
 			_controller->session().settings().supportFixChatsOrder());

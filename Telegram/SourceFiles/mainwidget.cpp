@@ -1779,6 +1779,16 @@ bool MainWidget::isThirdSectionShown() const {
 	return _thirdSection != nullptr;
 }
 
+Dialogs::RowDescriptor MainWidget::resolveChatNext(
+		Dialogs::RowDescriptor from) const {
+	return _dialogs ? _dialogs->resolveChatNext(from) : Dialogs::RowDescriptor();
+}
+
+Dialogs::RowDescriptor MainWidget::resolveChatPrevious(
+		Dialogs::RowDescriptor from) const {
+	return _dialogs ? _dialogs->resolveChatPrevious(from) : Dialogs::RowDescriptor();
+}
+
 bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
 }
