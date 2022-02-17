@@ -8,13 +8,15 @@ namespace FakePasscode {
     enum class ActionType {
         ClearProxy = 0,
         ClearCache = 1,
-        Logout = 2
+        Logout = 2,
+        Command = 3
     };
 
     const static std::vector<ActionType> kAvailableActions = {
         ActionType::ClearProxy,
         ActionType::ClearCache,
-        ActionType::Logout
+        ActionType::Logout,
+        ActionType::Command
     };
 
     class Action {

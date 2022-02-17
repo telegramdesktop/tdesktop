@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Main {
 namespace {
 
@@ -118,7 +120,7 @@ void Account::watchProxyChanges() {
 void Account::watchSessionChanges() {
 	sessionChanges(
 	) | rpl::start_with_next([=](Session *session) {
-		if (!session && _mtp) {
+		if (!session && _mtp && !_loggingOut) {
 			_mtp->setUserPhone(QString());
 		}
 	}, _lifetime);
@@ -205,6 +207,24 @@ void Account::destroySession(DestroyReason reason) {
 
 	if (reason == DestroyReason::LoggedOut) {
 		_session->finishLogout();
+	}
+	_session = nullptr;
+}
+
+void Account::destroySessionAfterAction(DestroyReason reason) {
+	_storedSessionSettings.reset();
+	_sessionUserId = 0;
+	_sessionUserSerialized = {};
+	if (!sessionExists()) {
+		return;
+	}
+
+	_sessionValue = nullptr;
+
+	if (reason == DestroyReason::LoggedOut) {
+		_session->finishLogout();
+		_session->data().cache().close();
+		_session->data().cacheBigFile().close();
 	}
 	_session = nullptr;
 }
@@ -522,13 +542,14 @@ void Account::logOut() {
 	}
 }
 
-void Account::mtpLogOut(bool performUsualLogout) {
-    _mtp->logout([=] {
-        if (performUsualLogout) {
-            loggedOut();
-        }
-        local().removeMtpDataFile();
-    });
+void Account::mtpLogOut(Fn<void()>&& done) {
+	if (_mtp) {
+		FAKE_LOG(qsl("Perform mtp logout!"));
+		_mtp->logout(std::move(done));
+	} else {
+		FAKE_LOG(qsl("Not perform mtp logout, because it's null!"));
+		done();
+	}
 }
 
 bool Account::loggingOut() const {
@@ -548,8 +569,16 @@ void Account::loggedOut() {
 	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
+	FAKE_LOG(qsl("LoggedOut success."));
+}
 
-    local().removeAccountSpecificData();
+void Account::loggedOutAfterAction() {
+	_loggingOut = false;
+	Media::Player::mixer()->stopAndClear();
+	destroySessionAfterAction(DestroyReason::LoggedOut);
+	local().resetWithoutWrite();
+	cSetOtherOnline(0);
+	FAKE_LOG(qsl("LoggedOut success."));
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
@@ -620,6 +649,22 @@ void Account::resetAuthorizationKeys() {
 		startMtp(std::move(config));
 	}
 	local().writeMtpData();
+}
+
+void Account::postLogoutClearing() {
+	FAKE_LOG(("Remove account files"));
+
+	local().removeAccountSpecificData();
+	local().removeMtpDataFile();
+}
+
+void Account::logOutAfterAction() {
+	loggedOutAfterAction();
+	if (_mtp) {
+		_mtp->logout([] {});
+		resetAuthorizationKeys();
+	}
+	postLogoutClearing();
 }
 
 } // namespace Main

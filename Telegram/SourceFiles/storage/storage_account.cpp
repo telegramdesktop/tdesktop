@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "window/themes/window_theme.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Storage {
 namespace {
 
@@ -139,6 +141,9 @@ Account::Account(not_null<Main::Account*> owner, const QString &dataName)
 Account::~Account() {
 	if (_localKey && _mapChanged) {
 		writeMap();
+	}
+	if (!QDir(_databasePath).removeRecursively()) {
+		FAKE_LOG(qsl("Someone else holds cache %1").arg(_databasePath));
 	}
 }
 
@@ -608,6 +613,49 @@ void Account::reset() {
 
 	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)] {
 		for (const auto &name : names) {
+			if (!name.endsWith(qstr("map0"))
+				&& !name.endsWith(qstr("map1"))
+				&& !name.endsWith(qstr("maps"))
+				&& !name.endsWith(qstr("configs"))) {
+				QFile::remove(base + name);
+			}
+		}
+		QDir(LegacyTempDirectory()).removeRecursively();
+		QDir(temp).removeRecursively();
+	});
+
+	Local::sync();
+}
+
+void Account::resetWithoutWrite() {
+	auto names = collectGoodNames();
+	_draftsMap.clear();
+	_draftCursorsMap.clear();
+	_draftsNotReadMap.clear();
+	_locationsKey = _trustedBotsKey = 0;
+	_recentStickersKeyOld = 0;
+	_installedStickersKey = 0;
+	_featuredStickersKey = 0;
+	_recentStickersKey = 0;
+	_favedStickersKey = 0;
+	_archivedStickersKey = 0;
+	_savedGifsKey = 0;
+	_installedMasksKey = 0;
+	_recentMasksKey = 0;
+	_archivedMasksKey = 0;
+	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
+	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
+	_oldMapVersion = 0;
+	_fileLocations.clear();
+	_fileLocationPairs.clear();
+	_fileLocationAliases.clear();
+	_cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
+	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
+
+	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)]{
+		for (const auto& name : names) {
 			if (!name.endsWith(qstr("map0"))
 				&& !name.endsWith(qstr("map1"))
 				&& !name.endsWith(qstr("maps"))
@@ -2795,12 +2843,23 @@ bool Account::decrypt(
 	return true;
 }
 
-void Account::removeAccountSpecificData() const {
-    QDir(_basePath).removeRecursively();
-    QDir(_databasePath).removeRecursively();
+void Account::removeAccountSpecificData() {
+    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
+
+	_writeLocationsTimer.cancel();
+	_writeMapTimer.cancel();
+
+	crl::async([base = _basePath, database = _databasePath] {
+		for (const auto& dir : {base, database}) {
+			if (!QDir(dir).removeRecursively()) {
+				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
+			}
+		}
+	});
+	Local::sync();
 }
 
-void Account::removeMtpDataFile() const {
+void Account::removeMtpDataFile() {
 	QString base_path = BaseGlobalPath();
 	QString name = ToFilePart(_dataNameKey);
 	const auto base = base_path + name; // From storage_file_utilities.cpp

@@ -37,8 +37,8 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
 
             if (any_activate && !_logout) {
                 FAKE_LOG(("LogoutUI: Activate"));
-                _action = _domain->local().AddAction(_index, FakePasscode::ActionType::Logout);
-                _logout = dynamic_cast<FakePasscode::LogoutAction*>(_action);
+                _logout = dynamic_cast<FakePasscode::LogoutAction*>(
+                        _domain->local().AddAction(_index, FakePasscode::ActionType::Logout));
             } else if (!any_activate) {
                 FAKE_LOG(("LogoutUI: Remove"));
                 _domain->local().RemoveAction(_index, FakePasscode::ActionType::Logout);
@@ -57,7 +57,10 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
 }
 
 LogoutUI::LogoutUI(QWidget *parent, gsl::not_null<Main::Domain*> domain, size_t index)
-: ActionUI(parent, FakePasscode::ActionType::Logout, domain, index)
-, _logout(_action ? dynamic_cast<FakePasscode::LogoutAction*>(_action) : nullptr)
+: ActionUI(parent, domain, index)
+, _logout(nullptr)
 {
+    if (auto* action = domain->local().GetAction(index, FakePasscode::ActionType::Logout); action != nullptr) {
+        _logout = dynamic_cast<FakePasscode::LogoutAction*>(action);
+    }
 }

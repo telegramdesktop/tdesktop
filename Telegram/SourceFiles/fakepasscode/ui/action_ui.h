@@ -16,15 +16,13 @@ namespace Main {
 
 class ActionUI: public Ui::RpWidget {
 public:
-    ActionUI(QWidget* parent, FakePasscode::ActionType type,
-             gsl::not_null<Main::Domain*> domain, size_t index);
+    ActionUI(QWidget* parent, gsl::not_null<Main::Domain*> domain, size_t index);
 
     virtual void Create(not_null<Ui::VerticalLayout*> content) = 0;
 
 protected:
     QWidget* _parent;
     Main::Domain* _domain;
-    FakePasscode::Action* _action;
     size_t _index;
 };
 

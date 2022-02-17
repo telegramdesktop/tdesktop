@@ -29,5 +29,5 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content) {
 }
 
 ClearCacheUI::ClearCacheUI(QWidget * parent, gsl::not_null<Main::Domain*> domain, size_t index)
-        : ActionUI(parent, FakePasscode::ActionType::ClearCache, domain, index) {
+: ActionUI(parent, domain, index) {
 }

@@ -131,14 +131,19 @@ parts:
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       snapcraftctl pull
+
       version_file=Telegram/build/version
       version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
       beta=$(sed -n "s/BetaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
+
       if [ "$beta" != "0" ]; then
         version="$version-beta"
       fi
+
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
+
       snapcraftctl set-version "$version"
+
       sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
       snapcraftctl build
@@ -350,8 +355,10 @@ parts:
       - zlib1g
     override-pull: |
       QT=6_2_2
+
       git clone -b v6.2.2 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
+
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland

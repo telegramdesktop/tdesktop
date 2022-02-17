@@ -84,10 +84,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/share_box.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
-#include <fakepasscode/log/fake_log.h>
 
 namespace Core {
 namespace {
@@ -641,6 +642,15 @@ void Application::logout(Main::Account *account) {
 	}
 }
 
+void Application::logoutWithClear(Main::Account* account) {
+	if (account) {
+		account->logOutAfterAction();
+	}
+	else {
+		_domain->resetWithForgottenPasscode();
+	}
+}
+
 void Application::logoutWithChecks(Main::Account *account) {
 	const auto weak = base::make_weak(account);
 	const auto retry = [=] {
@@ -656,6 +666,27 @@ void Application::logoutWithChecks(Main::Account *account) {
 		account->session().uploadsStopWithConfirmation(retry);
 	} else {
 		logout(account);
+	}
+}
+
+void Application::logoutWithChecksAndClear(Main::Account* account) {
+	const auto weak = base::make_weak(account);
+	const auto retry = [=] {
+		if (const auto account = weak.get()) {
+			logoutWithChecksAndClear(account);
+		}
+	};
+	if (!account || !account->sessionExists()) {
+		logoutWithClear(account);
+	}
+	else if (_exportManager->inProgress(&account->session())) {
+		_exportManager->stopWithConfirmation(retry);
+	}
+	else if (account->session().uploadsInProgress()) {
+		account->session().uploadsStopWithConfirmation(retry);
+	}
+	else {
+		logoutWithClear(account);
 	}
 }
 
@@ -915,15 +946,17 @@ void Application::lockByPasscode() {
 	preventOrInvoke([=] {
 		if (_primaryWindow) {
 			_passcodeLock = true;
-            auto& domain = Core::App().domain();
-            if (domain.local().IsCacheCleanedUpOnLock()) {
-                for (const auto &[index, account]: domain.accounts()) {
+            if (_domain->local().IsCacheCleanedUpOnLock()) {
+                for (const auto &[index, account]: _domain->accounts()) {
                     if (account->sessionExists()) {
                         auto path = account->local().getDatabasePath();
-                        FAKE_LOG(qsl("Clear path: %1").arg(path));
-                        account->session().data().cache().close();
-                        account->session().data().cacheBigFile().close();
-                        QDir(path).removeRecursively();
+                        FAKE_LOG(qsl("Request clear path: %1").arg(path));
+                        account->session().data().cache().close([account = account.get(), path] {
+							account->session().data().cacheBigFile().close([=] {
+								FAKE_LOG(qsl("Clear path: %1").arg(path));
+								QDir(path).removeRecursively();
+							});
+						});
                     }
                 }
                 Ui::Emoji::ClearIrrelevantCache();
@@ -935,9 +968,8 @@ void Application::lockByPasscode() {
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-    auto& domain = Core::App().domain();
-    if (domain.local().IsCacheCleanedUpOnLock()) {
-        for (const auto &[index, account]: domain.accounts()) {
+    if (_domain->local().IsCacheCleanedUpOnLock()) {
+        for (const auto &[index, account]: _domain->accounts()) {
             if (account->sessionExists()) {
                 account->session().data().resetCaches();
             }

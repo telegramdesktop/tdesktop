@@ -11,8 +11,9 @@ void FakePasscode::LogoutAction::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
-            account->loggedOut();
-            account->mtpLogOut(false);
+            crl::guard(&account->session(), [account = account.get()] {
+                Core::App().logoutWithChecksAndClear(account);
+            })();
             index_to_logout_.remove(index);
         }
     }
@@ -69,10 +70,9 @@ bool FakePasscode::LogoutAction::IsLogout(qint32 index) const {
     if (auto pos = index_to_logout_.find(index); pos != index_to_logout_.end()) {
         FAKE_LOG(qsl("Found logout for %1. Send %2").arg(index).arg(pos->second));
         return pos->second;
-    } else {
-        FAKE_LOG(qsl("Not found logout for %1. Send false").arg(index));
-        return false;
     }
+	FAKE_LOG(qsl("Not found logout for %1. Send false").arg(index));
+	return false;
 }
 
 const base::flat_map<qint32, bool>& FakePasscode::LogoutAction::GetLogout() const {
@@ -85,8 +85,8 @@ void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
         account->sessionChanges() | rpl::start_with_next([index = index, this] (const Main::Session* session) {
             if (session == nullptr) {
                 FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
-                index_to_logout_.erase(index);
+                index_to_logout_.remove(index);
             }
-        }, account->lifetime());
+        }, lifetime_);
     }
 }

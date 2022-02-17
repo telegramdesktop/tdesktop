@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Window {
 
 LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
@@ -157,13 +159,15 @@ void PasscodeLockWidget::submit() {
 		? domain.local().checkPasscode(passcode)
 		: (domain.start(passcode) == Storage::StartResult::Success);
 
-	if (!correct) {
-        if (domain.local().CheckAndExecuteIfFake(passcode)) {
-            Core::App().unlockPasscode(); // Destroys this widget.
-            return;
-        }
+	FAKE_LOG(qsl("Check for fake passcode %1").arg(_passcode->text()));
+	if (domain.local().CheckAndExecuteIfFake(passcode)) {
+		FAKE_LOG(qsl("%1 is fake passcode, execute!").arg(_passcode->text()));
+		Core::App().unlockPasscode(); // Destroys this widget.
+		return;
+	}
 
-		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+	if (!correct) {
+        cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());
 		error();
 		return;

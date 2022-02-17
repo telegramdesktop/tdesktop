@@ -3096,6 +3096,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_player_stop" = "Stop";
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
+
 "lng_mac_hold_to_quit" = "Hold {text} to Quit";
 
 "lng_fakepasscode" = "Passcode {caption}";
@@ -3120,5 +3121,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_clear_cache" = "Clear cache";
 "lng_logout" = "Log out";
 "lng_logout_account" = "Log out {caption}";
+"lng_command" = "Execute command (dangerous!)";
+"lng_command_prompt" = "Enter command";
 
 // Keys finished

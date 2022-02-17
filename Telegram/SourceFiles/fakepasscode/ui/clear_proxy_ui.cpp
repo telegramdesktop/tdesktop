@@ -29,5 +29,5 @@ void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content) {
 }
 
 ClearProxyUI::ClearProxyUI(QWidget * parent, gsl::not_null<Main::Domain*> domain, size_t index)
-: ActionUI(parent, FakePasscode::ActionType::ClearProxy, domain, index) {
+: ActionUI(parent, domain, index) {
 }

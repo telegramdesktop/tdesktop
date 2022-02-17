@@ -283,7 +283,7 @@ bool Domain::checkPasscode(const QByteArray &passcode) const {
 }
 
 bool Domain::checkFakePasscode(const QByteArray &passcode, size_t fakeIndex) const {
-    const auto checkKey = CreateLocalKey(passcode, _fakePasscodes[fakeIndex].GetSalt());
+    const auto checkKey = CreateLocalKey(passcode, _passcodeKeySalt);
     return checkKey->equals(_fakePasscodes[fakeIndex].GetEncryptedPasscode());
 }
 
@@ -303,13 +303,13 @@ void Domain::setPasscode(const QByteArray &passcode) {
         }
     } else {
         encryptLocalKey(passcode);
+        PrepareEncryptedFakePasscodes(); // Since salt was changed
     }
 
     if (passcode.isEmpty()) {
         FAKE_LOG(qsl("Clear fake state"));
         ClearFakeState();
     }
-
 	writeAccounts();
 
 	_passcodeKeyChanged.fire({});
@@ -507,14 +507,11 @@ const std::deque<FakePasscode::FakePasscode> &Domain::GetFakePasscodes() const {
 }
 
 void Domain::EncryptFakePasscodes() {
-    PrepareEncryptedFakePasscodes();
-
     _fakePasscodeKeysEncrypted.resize(_fakePasscodes.size());
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-        _fakePasscodes[i].SetSalt(_passcodeKeySalt);
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
-        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakeEncryptedPasscodes[i]);
+        _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakePasscodes[i].GetEncryptedPasscode());
     }
 }
 
@@ -524,7 +521,6 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
     _fakePasscodes.push_back(std::move(fakePasscode));
-    _fakeEncryptedPasscodes.push_back(_fakePasscodes.back().GetEncryptedPasscode());
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -533,7 +529,6 @@ void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex
     FAKE_LOG(("Setup passcode with name"));
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
-    _fakeEncryptedPasscodes[fakeIndex] = _fakePasscodes[fakeIndex].GetEncryptedPasscode();
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -558,7 +553,6 @@ void Domain::RemoveFakePasscode(size_t index) {
     FAKE_LOG(qsl("Remove passcode %1").arg(index));
     _fakePasscodes.erase(_fakePasscodes.begin() + index);
     _fakePasscodeKeysEncrypted.erase(_fakePasscodeKeysEncrypted.begin() + index);
-    _fakeEncryptedPasscodes.erase(_fakeEncryptedPasscodes.begin() + index);
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -610,13 +604,14 @@ void Domain::ExecuteIfFake() {
 bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
         if (_fakePasscodes[i].GetPasscode() == passcode) {
-            if (i == _fakePasscodeIndex) {
+            if (i == _fakePasscodeIndex && !_isStartedWithFake) {
                 return true;
             } else if (_fakePasscodeIndex != -1 && i != _fakePasscodeIndex) {
                 continue;
             }
             _fakePasscodeIndex = i;
             ExecuteIfFake();
+			_isStartedWithFake = false;
             return true;
         }
     }
@@ -632,13 +627,7 @@ bool Domain::IsFakeWithoutInfinityFlag() const {
 }
 
 void Domain::SetFakePasscodeIndex(qint32 index) {
-    // First check after startup. For now after start with fake,
-    // we starts with real passcode, so we need to handle this
-    if (index == -1 && _isStartedWithFake) {
-        _isStartedWithFake = false;
-    } else {
-        _fakePasscodeIndex = index;
-    }
+    _fakePasscodeIndex = index;
 }
 
 bool Domain::checkRealOrFakePasscode(const QByteArray &passcode) const {
@@ -673,11 +662,8 @@ FakePasscode::Action *Domain::GetAction(size_t index, FakePasscode::ActionType t
 }
 
 void Domain::PrepareEncryptedFakePasscodes() {
-    if (_fakeEncryptedPasscodes.empty()) {
-        _fakeEncryptedPasscodes.resize(_fakePasscodes.size());
-        for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-            _fakeEncryptedPasscodes[i] = _fakePasscodes[i].GetEncryptedPasscode();
-        }
+    for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
+        _fakePasscodes[i].ReEncryptPasscode();
     }
 }
 
@@ -693,7 +679,6 @@ void Domain::SetCacheCleanedUpOnLock(bool cleanedUp) {
 void Domain::ClearFakeState() {
     _fakePasscodes.clear();
     _fakePasscodeKeysEncrypted.clear();
-    _fakeEncryptedPasscodes.clear();
     _isCacheCleanedUpOnLock = false;
     _isAdvancedLoggingEnabled = false;
 }
@@ -705,6 +690,10 @@ bool Domain::IsAdvancedLoggingEnabled() const {
 void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
     FAKE_LOG(("Setup advanced logging to %1").arg(loggingEnabled));
     _isAdvancedLoggingEnabled = loggingEnabled;
+}
+
+[[nodiscard]] QByteArray Domain::GetPasscodeSalt() const {
+	return _passcodeKeySalt;
 }
 
 } // namespace Storage

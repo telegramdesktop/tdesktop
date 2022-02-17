@@ -27,6 +27,7 @@ jobs:
   linux:
     name: CentOS 7
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
     container:
       image: docker.pkg.github.com/telegramdesktop/tdesktop/centos_env
       credentials:
@@ -39,11 +40,15 @@ jobs:
 
     strategy:
       matrix:
-        defines:
-          - ""
-          - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
+        defines: [""]
+        experimental: [false]
+        include:
+          - defines: "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
+            experimental: true
+          - defines: "DESKTOP_APP_DISABLE_X11_INTEGRATION"
+            experimental: true
+          - defines: "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
+            experimental: true
 
     env:
       UPLOAD_ARTIFACT: "true"

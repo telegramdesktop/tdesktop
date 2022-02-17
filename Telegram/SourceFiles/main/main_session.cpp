@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include <fakepasscode/log/fake_log.h>
+#include <storage/localstorage.h>
 #include "main/main_session.h"
 
 #include "apiwrap.h"
@@ -187,6 +189,14 @@ Session::~Session() {
 	data().clear();
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
+
+	_data.reset(); // Release storage databases
+	crl::on_main([path = local().getDatabasePath()] {
+		if (!QDir(path).removeRecursively()) {
+			FAKE_LOG(qsl("%1 cannot be removed right now").arg(path));
+		}
+	});
+	Local::sync();
 }
 
 Account &Session::account() const {

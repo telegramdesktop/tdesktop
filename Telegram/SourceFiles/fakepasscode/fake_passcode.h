@@ -13,7 +13,7 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 namespace FakePasscode {
   class FakePasscode {
    public:
-      FakePasscode() = default;
+      FakePasscode();
 
       explicit FakePasscode(base::flat_map<ActionType, std::shared_ptr<Action>> actions);
 
@@ -24,6 +24,7 @@ namespace FakePasscode {
       void Execute();
 
       [[nodiscard]] MTP::AuthKeyPtr GetEncryptedPasscode() const;
+      void ReEncryptPasscode();
       [[nodiscard]] QByteArray GetPasscode() const;
       void SetPasscode(QByteArray passcode);
 
@@ -42,21 +43,32 @@ namespace FakePasscode {
       [[nodiscard]] rpl::producer<const base::flat_map<ActionType, std::shared_ptr<Action>>*> GetActions() const;
       const Action* operator[](ActionType type) const;
 
-      void SetSalt(QByteArray salt);
-      const QByteArray& GetSalt() const;
-
       QByteArray SerializeActions() const;
       void DeSerializeActions(QByteArray serialized);
 
       FakePasscode& operator=(FakePasscode&& passcode) noexcept;
 
+	  [[nodiscard]] rpl::producer<QByteArray> GetPasscodeStream() {
+		  return fake_passcode_.changes();
+	  }
+
+	  [[nodiscard]] rpl::lifetime &lifetime() {
+		  return lifetime_;
+	  }
+
    protected:
-      QByteArray salt_;
-      QByteArray fake_passcode_;
+      rpl::variable<QByteArray> fake_passcode_;
       base::flat_map<ActionType, std::shared_ptr<Action>> actions_;
       QString name_;
+      
+      mutable MTP::AuthKeyPtr encrypted_passcode_;
 
       rpl::event_stream<> state_changed_;
+	  rpl::lifetime lifetime_;
+
+	  static MTP::AuthKeyPtr EncryptPasscode(const QByteArray& passcode);
+
+      void SetEncryptedChangeOnPasscode();
   };
 }
 

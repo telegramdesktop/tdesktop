@@ -188,7 +188,7 @@ private:
 	const std::unique_ptr<Storage::Facade> _storage;
 
 	// _data depends on _downloader / _uploader.
-	const std::unique_ptr<Data::Session> _data;
+	std::unique_ptr<Data::Session> _data;
 	const UserId _userId;
 	const not_null<UserData*> _user;
 

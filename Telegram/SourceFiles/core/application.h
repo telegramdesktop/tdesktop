@@ -246,7 +246,9 @@ public:
 	}
 
 	void logout(Main::Account *account = nullptr);
+	void logoutWithClear(Main::Account* account = nullptr);
 	void logoutWithChecks(Main::Account *account);
+	void logoutWithChecksAndClear(Main::Account* account);
 	void forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
