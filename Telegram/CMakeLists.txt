@@ -552,6 +552,7 @@ PRIVATE
     export/view/export_view_top_bar.cpp
     export/view/export_view_top_bar.h
     fakepasscode/fake_passcode.cpp
+    fakepasscode/multiaccount_action.cpp
     fakepasscode/actions/clear_proxies.cpp
     fakepasscode/actions/clear_cache.cpp
     fakepasscode/actions/logout.cpp
