@@ -125,6 +125,9 @@ public:
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
+	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
+	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
+
 	~InnerWidget();
 
 public Q_SLOTS:
@@ -238,7 +241,7 @@ private:
 	void setupShortcuts();
 	RowDescriptor computeJump(
 		const RowDescriptor &to,
-		JumpSkip skip);
+		JumpSkip skip) const;
 	bool jumpToDialogRow(RowDescriptor to);
 
 	RowDescriptor chatListEntryBefore(const RowDescriptor &which) const;

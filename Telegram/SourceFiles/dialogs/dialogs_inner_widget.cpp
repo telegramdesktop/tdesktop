@@ -3025,6 +3025,24 @@ void InnerWidget::updateRowCornerStatusShown(
 	}
 }
 
+RowDescriptor InnerWidget::resolveChatNext(RowDescriptor from) const {
+	const auto row = from.key ? from : _controller->activeChatEntryCurrent();
+	return row.key
+		? computeJump(
+			chatListEntryAfter(row),
+			JumpSkip::NextOrEnd)
+		: row;
+}
+
+RowDescriptor InnerWidget::resolveChatPrevious(RowDescriptor from) const {
+	const auto row = from.key ? from : _controller->activeChatEntryCurrent();
+	return row.key
+		? computeJump(
+			chatListEntryBefore(row),
+			JumpSkip::PreviousOrBegin)
+		: row;
+}
+
 void InnerWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
@@ -3197,7 +3215,7 @@ void InnerWidget::setupShortcuts() {
 
 RowDescriptor InnerWidget::computeJump(
 		const RowDescriptor &to,
-		JumpSkip skip) {
+		JumpSkip skip) const {
 	auto result = to;
 	if (result.key) {
 		const auto down = (skip == JumpSkip::NextOrEnd)

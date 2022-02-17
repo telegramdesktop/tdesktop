@@ -20,6 +20,10 @@ public:
 		const QNetworkProxy &proxy,
 		bool protocolForFiles);
 
+	void setDebugId(const QString &id) {
+		_debugId = id;
+	}
+
 	explicit AbstractSocket(not_null<QThread*> thread) {
 		moveToThread(thread);
 	}
@@ -52,11 +56,15 @@ public:
 		bytes::const_span buffer) = 0;
 
 	virtual int32 debugState() = 0;
+	[[nodiscard]] virtual QString debugPostfix() const = 0;
 
 protected:
 	static const int kFilesSendBufferSize = 2 * 1024 * 1024;
 	static const int kFilesReceiveBufferSize = 2 * 1024 * 1024;
 
+	void logError(int errorCode, const QString &errorText);
+
+	QString _debugId;
 	rpl::event_stream<> _connected;
 	rpl::event_stream<> _disconnected;
 	rpl::event_stream<> _readyRead;

@@ -1685,6 +1685,14 @@ void Widget::updateForwardBar() {
 	update();
 }
 
+RowDescriptor Widget::resolveChatNext(RowDescriptor from) const {
+	return _inner->resolveChatNext(from);
+}
+
+RowDescriptor Widget::resolveChatPrevious(RowDescriptor from) const {
+   return _inner->resolveChatPrevious(from);
+}
+
 void Widget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (_openedFolder) {
