@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QMenuBar;
 
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -45,7 +49,10 @@ private:
 	friend class Private;
 	const std::unique_ptr<Private> _private;
 
-	QMenuBar *psMainMenu = nullptr;
+	bool _sniAvailable = false;
+	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
+
+    QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
 	QAction *psRedo = nullptr;

@@ -622,6 +622,69 @@ mac:
 
 stage('libvpx', """
     git clone https://github.com/webmproject/libvpx.git
+    cd libvpx
+    git checkout v1.11.0
+win:
+depends:patches/libvpx/*.patch
+    for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
+
+    SET PATH_BACKUP_=%PATH%
+    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
+
+    SET CHERE_INVOKING=enabled_from_arguments
+    SET MSYS2_PATH_TYPE=inherit
+
+    if "%X8664%" equ "x64" (
+        SET "TARGET=x86_64-win64-vs17"
+    ) else (
+        SET "TARGET=x86-win32-vs17"
+    )
+
+depends:patches/build_libvpx_win.sh
+    bash --login ../patches/build_libvpx_win.sh
+
+    SET PATH=%PATH_BACKUP_%
+mac:
+depends:yasm/yasm
+    ./configure --prefix=$USED_PREFIX \
+    --target=arm64-darwin20-gcc \
+    --disable-examples \
+    --disable-unit-tests \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.arm64
+    mv libvpx.a out.arm64
+
+    make clean
+
+    ./configure --prefix=$USED_PREFIX \
+    --target=x86_64-darwin20-gcc \
+    --disable-examples \
+    --disable-unit-tests \
+    --disable-tools \
+    --disable-docs \
+    --enable-vp8 \
+    --enable-vp9 \
+    --enable-webm-io
+
+    make $MAKE_THREADS_CNT
+
+    mkdir out.x86_64
+    mv libvpx.a out.x86_64
+
+    lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
+
+    make install
+""")
+
+stage('libvpx', """
+    git clone https://github.com/webmproject/libvpx.git
 depends:patches/libvpx/*.patch
     cd libvpx
     git checkout v1.11.0

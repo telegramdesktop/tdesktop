@@ -40,9 +40,6 @@
 [submodule "Telegram/lib_storage"]
 	path = Telegram/lib_storage
 	url = https://github.com/desktop-app/lib_storage.git
-[submodule "cmake"]
-	path = cmake
-	url = https://github.com/desktop-app/cmake_helpers.git
 [submodule "Telegram/ThirdParty/expected"]
 	path = Telegram/ThirdParty/expected
 	url = https://github.com/TartanLlama/expected
@@ -100,3 +97,6 @@
 [submodule "Telegram/ThirdParty/wayland-protocols"]
 	path = Telegram/ThirdParty/wayland-protocols
 	url = https://github.com/gitlab-freedesktop-mirrors/wayland-protocols.git
+[submodule "cmake"]
+	path = cmake
+	url = https://github.com/desktop-app/cmake_helpers.git
