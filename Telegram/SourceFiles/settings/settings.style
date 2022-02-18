@@ -84,6 +84,10 @@ settingsIconOnline: icon {{ "settings/online", settingsIconFg }};
 settingsIconVideoCalls: icon {{ "settings/video_calls", settingsIconFg }};
 settingsIconEmail: icon {{ "settings/email", settingsIconFg }};
 settingsIconForward: icon {{ "settings/forward", settingsIconFg }};
+settingsIconSound: icon {{ "settings/sound", settingsIconFg }};
+settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
+settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
+settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 
 settingsSetPhotoSkip: 7px;
 

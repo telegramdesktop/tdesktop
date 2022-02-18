@@ -550,14 +550,12 @@ void SetupMultiAccountNotifications(
 	}
 	AddSubsectionTitle(container, tr::lng_settings_show_from());
 
-	const auto fromAll = container->add(
-		object_ptr<Ui::Checkbox>(
-			container,
-			tr::lng_settings_notify_all(tr::now),
-			Core::App().settings().notifyFromAll(),
-			st::settingsCheckbox),
-		st::settingsCheckboxPadding);
-	fromAll->checkedChanges(
+	const auto fromAll = AddButton(
+		container,
+		tr::lng_settings_notify_all(),
+		st::settingsButtonNoIcon
+	)->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
+	fromAll->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().notifyFromAll());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -584,65 +582,98 @@ void SetupMultiAccountNotifications(
 void SetupNotificationsContent(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
+	AddSkip(container);
+
 	using NotifyView = Core::Settings::NotifyView;
 	SetupMultiAccountNotifications(controller, container);
 
 	AddSubsectionTitle(container, tr::lng_settings_notify_title());
 
 	const auto session = &controller->session();
-	const auto checkbox = [&](const QString &label, bool checked) {
-		return object_ptr<Ui::Checkbox>(
+	const auto checkbox = [&](
+			rpl::producer<QString> label,
+			IconDescriptor &&descriptor,
+			rpl::producer<bool> checked) {
+		auto result = CreateButton(
 			container,
-			label,
-			checked,
-			st::settingsCheckbox);
+			std::move(label),
+			st::settingsButton,
+			std::move(descriptor)
+		);
+		result->toggleOn(std::move(checked));
+		return result;
 	};
-	const auto addCheckbox = [&](const QString &label, bool checked) {
+	const auto addCheckbox = [&](
+			rpl::producer<QString> label,
+			IconDescriptor &&descriptor,
+			rpl::producer<bool> checked) {
 		return container->add(
-			checkbox(label, checked),
-			st::settingsCheckboxPadding);
+			checkbox(
+				std::move(label),
+				std::move(descriptor),
+				std::move(checked)));
 	};
-	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
+	const auto addSlidingCheckbox = [&](
+			rpl::producer<QString> label,
+			IconDescriptor &&descriptor,
+			rpl::producer<bool> checked) {
 		return container->add(
-			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 				container,
-				checkbox(label, checked),
-				st::settingsCheckboxPadding));
+				checkbox(
+					std::move(label),
+					std::move(descriptor),
+					std::move(checked))));
 	};
 	const auto &settings = Core::App().settings();
+	const auto desktopToggles = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
 	const auto desktop = addCheckbox(
-		tr::lng_settings_desktop_notify(tr::now),
-		settings.desktopNotify());
-	const auto name = addSlidingCheckbox(
-		tr::lng_settings_show_name(tr::now),
-		(settings.notifyView() <= NotifyView::ShowName));
-	const auto preview = addSlidingCheckbox(
-		tr::lng_settings_show_preview(tr::now),
-		(settings.notifyView() <= NotifyView::ShowPreview));
+		tr::lng_settings_desktop_notify(),
+		{ &st::settingsIconNotifications, kIconRed },
+		desktopToggles->events_starting_with(settings.desktopNotify()));
+	const auto soundToggles = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
 	const auto sound = addCheckbox(
-		tr::lng_settings_sound_notify(tr::now),
-		settings.soundNotify());
+		tr::lng_settings_sound_notify(),
+		{ &st::settingsIconSound, kIconLightOrange },
+		soundToggles->events_starting_with(settings.soundNotify()));
+	const auto flashbounceToggles = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
 	const auto flashbounce = addCheckbox(
 		(Platform::IsWindows()
 			? tr::lng_settings_alert_windows
 			: Platform::IsMac()
 			? tr::lng_settings_alert_mac
-			: tr::lng_settings_alert_linux)(tr::now),
-		settings.flashBounceNotify());
+			: tr::lng_settings_alert_linux)(),
+		{ &st::settingsIconDock, kIconLightBlue },
+		flashbounceToggles->events_starting_with(
+			settings.flashBounceNotify()));
 
-	AddSkip(container, st::settingsCheckboxesSkip);
+	const auto name = addSlidingCheckbox(
+		tr::lng_settings_show_name(),
+		{},
+		rpl::single(settings.notifyView() <= NotifyView::ShowName));
+	const auto preview = addSlidingCheckbox(
+		tr::lng_settings_show_preview(),
+		{},
+		rpl::single(settings.notifyView() <= NotifyView::ShowPreview));
+
+	AddSkip(container);
 	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_events_title());
 
+	auto joinSilent = rpl::single(
+		session->api().contactSignupSilentCurrent().value_or(false)
+	) | rpl::then(session->api().contactSignupSilent());
 	const auto joined = addCheckbox(
-		tr::lng_settings_events_joined(tr::now),
-		!session->api().contactSignupSilentCurrent().value_or(false));
-	session->api().contactSignupSilent(
-	) | rpl::start_with_next([=](bool silent) {
-		joined->setChecked(!silent);
-	}, joined->lifetime());
-	joined->checkedChanges(
+		tr::lng_settings_events_joined(),
+		{ &st::settingsIconPlus, kIconGreen },
+		std::move(joinSilent) | rpl::map(!_1));
+	joined->toggledChanges(
 	) | rpl::filter([=](bool enabled) {
 		const auto silent = session->api().contactSignupSilentCurrent();
 		return (enabled == silent.value_or(false));
@@ -651,13 +682,12 @@ void SetupNotificationsContent(
 	}, joined->lifetime());
 
 	const auto pinned = addCheckbox(
-		tr::lng_settings_events_pinned(tr::now),
-		settings.notifyAboutPinned());
-	settings.notifyAboutPinnedChanges(
-	) | rpl::start_with_next([=](bool notify) {
-		pinned->setChecked(notify);
-	}, pinned->lifetime());
-	pinned->checkedChanges(
+		tr::lng_settings_events_pinned(),
+		{ &st::settingsIconPin, kIconLightOrange },
+		rpl::single(
+			settings.notifyAboutPinned()
+		) | rpl::then(settings.notifyAboutPinnedChanges()));
+	pinned->toggledChanges(
 	) | rpl::filter([=](bool notify) {
 		return (notify != Core::App().settings().notifyAboutPinned());
 	}) | rpl::start_with_next([=](bool notify) {
@@ -673,17 +703,14 @@ void SetupNotificationsContent(
 		tr::lng_settings_notifications_calls_title());
 	const auto authorizations = &session->api().authorizations();
 	const auto acceptCalls = addCheckbox(
-		tr::lng_settings_call_accept_calls(tr::now),
-		!authorizations->callsDisabledHere());
-	session->api().authorizations().callsDisabledHereChanges(
-	) | rpl::start_with_next([=](bool disabled) {
-		acceptCalls->setChecked(
-			!disabled,
-			Ui::Checkbox::NotifyAboutChange::DontNotify);
-	}, acceptCalls->lifetime());
-	acceptCalls->checkedChanges(
-	) | rpl::start_with_next([=](bool value) {
-		authorizations->toggleCallsDisabledHere(!value);
+		tr::lng_settings_call_accept_calls(),
+		{ &st::settingsIconCalls, kIconGreen },
+		authorizations->callsDisabledHereValue() | rpl::map(!_1));
+	acceptCalls->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		return (toggled == authorizations->callsDisabledHere());
+	}) | rpl::start_with_next([=](bool toggled) {
+		authorizations->toggleCallsDisabledHere(!toggled);
 	}, container->lifetime());
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -691,24 +718,28 @@ void SetupNotificationsContent(
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
-	const auto muted = addCheckbox(
-		tr::lng_settings_include_muted(tr::now),
-		settings.includeMutedCounter());
-	const auto count = addCheckbox(
-		tr::lng_settings_count_unread(tr::now),
-		settings.countUnreadMessages());
+	const auto muted = AddButton(
+		container,
+		tr::lng_settings_include_muted(),
+		st::settingsButtonNoIcon);
+	muted->toggleOn(rpl::single(settings.includeMutedCounter()));
+	const auto count = AddButton(
+		container,
+		tr::lng_settings_count_unread(),
+		st::settingsButtonNoIcon);
+	count->toggleOn(rpl::single(settings.countUnreadMessages()));
 
-	const auto nativeText = [&] {
+	auto nativeText = [&] {
 		if (!Platform::Notifications::Supported()
 			|| Platform::Notifications::Enforced()) {
-			return QString();
+			return rpl::producer<QString>();
 		} else if (Platform::IsWindows()) {
-			return tr::lng_settings_use_windows(tr::now);
+			return tr::lng_settings_use_windows();
 		}
-		return tr::lng_settings_use_native_notifications(tr::now);
+		return tr::lng_settings_use_native_notifications();
 	}();
-	const auto native = [&]() -> Ui::Checkbox* {
-		if (nativeText.isEmpty()) {
+	const auto native = [&]() -> Ui::SettingsButton* {
+		if (!nativeText) {
 			return nullptr;
 		}
 
@@ -716,7 +747,11 @@ void SetupNotificationsContent(
 		AddDivider(container);
 		AddSkip(container, st::settingsCheckboxesSkip);
 		AddSubsectionTitle(container, tr::lng_settings_native_title());
-		return addCheckbox(nativeText, settings.nativeNotifications());
+		return AddButton(
+			container,
+			std::move(nativeText),
+			st::settingsButtonNoIcon
+		)->toggleOn(rpl::single(settings.nativeNotifications()));
 	}();
 
 	const auto advancedSlide = !Platform::Notifications::Enforced()
@@ -732,10 +767,10 @@ void SetupNotificationsContent(
 		SetupAdvancedNotifications(controller, advancedWrap);
 	}
 
-	if (!name->entity()->checked()) {
+	if (!name->entity()->toggled()) {
 		preview->hide(anim::type::instant);
 	}
-	if (!desktop->checked()) {
+	if (!desktop->toggled()) {
 		name->hide(anim::type::instant);
 		preview->hide(anim::type::instant);
 	}
@@ -748,7 +783,7 @@ void SetupNotificationsContent(
 		Core::App().saveSettingsDelayed();
 		Core::App().notifications().notifySettingsChanged(change);
 	};
-	desktop->checkedChanges(
+	desktop->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().desktopNotify());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -756,11 +791,11 @@ void SetupNotificationsContent(
 		changed(Change::DesktopEnabled);
 	}, desktop->lifetime());
 
-	name->entity()->checkedChanges(
+	name->entity()->toggledChanges(
 	) | rpl::map([=](bool checked) {
 		if (!checked) {
 			return NotifyView::ShowNothing;
-		} else if (!preview->entity()->checked()) {
+		} else if (!preview->entity()->toggled()) {
 			return NotifyView::ShowName;
 		}
 		return NotifyView::ShowPreview;
@@ -771,11 +806,11 @@ void SetupNotificationsContent(
 		changed(Change::ViewParams);
 	}, name->lifetime());
 
-	preview->entity()->checkedChanges(
+	preview->entity()->toggledChanges(
 	) | rpl::map([=](bool checked) {
 		if (checked) {
 			return NotifyView::ShowPreview;
-		} else if (name->entity()->checked()) {
+		} else if (name->entity()->toggled()) {
 			return NotifyView::ShowName;
 		}
 		return NotifyView::ShowNothing;
@@ -786,7 +821,7 @@ void SetupNotificationsContent(
 		changed(Change::ViewParams);
 	}, preview->lifetime());
 
-	sound->checkedChanges(
+	sound->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().soundNotify());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -794,7 +829,7 @@ void SetupNotificationsContent(
 		changed(Change::SoundEnabled);
 	}, sound->lifetime());
 
-	flashbounce->checkedChanges(
+	flashbounce->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().flashBounceNotify());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -802,7 +837,7 @@ void SetupNotificationsContent(
 		changed(Change::FlashBounceEnabled);
 	}, flashbounce->lifetime());
 
-	muted->checkedChanges(
+	muted->toggledChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != Core::App().settings().includeMutedCounter());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -810,7 +845,7 @@ void SetupNotificationsContent(
 		changed(Change::IncludeMuted);
 	}, muted->lifetime());
 
-	count->checkedChanges(
+	count->toggledChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != Core::App().settings().countUnreadMessages());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -821,25 +856,26 @@ void SetupNotificationsContent(
 	Core::App().notifications().settingsChanged(
 	) | rpl::start_with_next([=](Change change) {
 		if (change == Change::DesktopEnabled) {
-			desktop->setChecked(Core::App().settings().desktopNotify());
+			desktopToggles->fire(Core::App().settings().desktopNotify());
 			name->toggle(
 				Core::App().settings().desktopNotify(),
 				anim::type::normal);
 			preview->toggle(
 				(Core::App().settings().desktopNotify()
-					&& name->entity()->checked()),
+					&& name->entity()->toggled()),
 				anim::type::normal);
 		} else if (change == Change::ViewParams) {
-			preview->toggle(name->entity()->checked(), anim::type::normal);
+			preview->toggle(name->entity()->toggled(), anim::type::normal);
 		} else if (change == Change::SoundEnabled) {
-			sound->setChecked(Core::App().settings().soundNotify());
+			soundToggles->fire(Core::App().settings().soundNotify());
 		} else if (change == Change::FlashBounceEnabled) {
-			flashbounce->setChecked(Core::App().settings().flashBounceNotify());
+			flashbounceToggles->fire(
+				Core::App().settings().flashBounceNotify());
 		}
 	}, desktop->lifetime());
 
 	if (native) {
-		native->checkedChanges(
+		native->toggledChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != Core::App().settings().nativeNotifications());
 		}) | rpl::start_with_next([=](bool checked) {
@@ -859,16 +895,7 @@ void SetupNotificationsContent(
 void SetupNotifications(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsCheckboxesSkip);
-
-	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupNotificationsContent(controller, wrap.data());
-
-	container->add(object_ptr<Ui::OverrideMargins>(
-		container,
-		std::move(wrap)));
-
-	AddSkip(container, st::settingsCheckboxesSkip);
+	SetupNotificationsContent(controller, container);
 }
 
 } // namespace
