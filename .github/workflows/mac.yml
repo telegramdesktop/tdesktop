@@ -20,6 +20,12 @@ on:
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
   workflow_dispatch:
+    inputs:
+      buildCommit:
+        description: 'Commit for building. Default it latest on branch'
+        required: false
+        type: string
+        default: ''
 
 jobs:
 
@@ -45,6 +51,14 @@ jobs:
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
+
+
+      - name: Change commit if needed
+        if: github.event.inputs.buildCommit != ''
+        shell: bash
+        run: |
+          cd ${{ env.REPO_NAME }}
+          git checkout ${{ github.event.inputs.buildCommit }}
 
       - name: First set up.
         run: |

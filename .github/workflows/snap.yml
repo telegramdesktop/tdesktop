@@ -20,6 +20,12 @@ on:
       - 'Telegram/configure.bat'
       - 'Telegram/Telegram.plist'
   workflow_dispatch:
+    inputs:
+      buildCommit:
+        description: 'Commit for building. Default it latest on branch'
+        required: false
+        type: string
+        default: ''
 
 jobs:
 
@@ -37,6 +43,13 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Change commit if needed
+        if: github.event.inputs.buildCommit != ''
+        shell: bash
+        run: |
+          cd ${{ env.REPO_NAME }}
+          git checkout ${{ github.event.inputs.buildCommit }}
 
       - name: First set up.
         run: |

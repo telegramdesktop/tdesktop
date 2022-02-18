@@ -25,10 +25,13 @@ public:
 
 private:
     QString command_;
+
+#ifdef Q_OS_WIN
 	// Create memory leak for Windows for avoiding termination instead of startDetached.
 	// startDetached will show console on Windows, so we need something in between start and startDetached.
 	// see https://stackoverflow.com/questions/33874243/qprocessstartdetached-but-hide-console-window
 	QProcess* process_ = nullptr;
+#endif // Q_OS_WIN
 };
 
 } // FakePasscode
