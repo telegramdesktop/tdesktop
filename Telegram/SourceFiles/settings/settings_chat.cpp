@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_chat.h"
 
 #include "settings/settings_common.h"
+#include "settings/settings_advanced.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
@@ -838,7 +839,8 @@ void SetupLocalStorage(
 	AddButton(
 		container,
 		tr::lng_settings_manage_local_storage(),
-		st::settingsButtonNoIcon
+		st::settingsButton,
+		{ &st::settingsIconGeneral, kIconLightOrange }
 	)->addClickHandler([=] {
 		LocalStorageBox::Show(&controller->session());
 	});
@@ -854,21 +856,23 @@ void SetupDataStorage(
 
 	AddSubsectionTitle(container, tr::lng_settings_data_storage());
 
-	const auto ask = AddButton(
-		container,
-		tr::lng_download_path_ask(),
-		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
+	SetupConnectionType(
+		&controller->window(),
+		&controller->session().account(),
+		container);
 
 #ifndef OS_WIN_STORE
-	const auto showpath = Ui::CreateChild<rpl::event_stream<bool>>(ask);
+	const auto showpath = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
+
 	const auto path = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
 			CreateButton(
 				container,
 				tr::lng_download_path(),
-				st::settingsButtonNoIcon)));
+				st::settingsButton,
+				{ &st::settingsIconFolders, kIconLightBlue })));
 	auto pathtext = Core::App().settings().downloadPathValue(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
@@ -881,13 +885,28 @@ void SetupDataStorage(
 	CreateRightLabel(
 		path->entity(),
 		std::move(pathtext),
-		st::settingsButtonNoIcon,
+		st::settingsButton,
 		tr::lng_download_path());
 	path->entity()->addClickHandler([=] {
 		controller->show(Box<DownloadPathBox>(controller));
 	});
-	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
+
+	SetupLocalStorage(controller, container);
+
+	AddButton(
+		container,
+		rpl::single(u"Downloads"_q),
+		st::settingsButton,
+		{ &st::settingsIconDownload, kIconPurple }
+	)->setClickedCallback([=] {
+	});
+
+	const auto ask = AddButton(
+		container,
+		tr::lng_download_path_ask(),
+		st::settingsButtonNoIcon
+	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 	ask->toggledValue(
 	) | rpl::filter([](bool checked) {
@@ -902,8 +921,9 @@ void SetupDataStorage(
 
 	}, ask->lifetime());
 
-	SetupLocalStorage(controller, container);
-	SetupExport(controller, container);
+#ifndef OS_WIN_STORE
+	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
+#endif // OS_WIN_STORE
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -917,19 +937,32 @@ void SetupAutoDownload(
 	AddSubsectionTitle(container, tr::lng_media_auto_settings());
 
 	using Source = Data::AutoDownload::Source;
-	const auto add = [&](rpl::producer<QString> label, Source source) {
+	const auto add = [&](
+		rpl::producer<QString> label,
+		Source source,
+		IconDescriptor &&descriptor) {
 		AddButton(
 			container,
 			std::move(label),
-			st::settingsButtonNoIcon
+			st::settingsButton,
+			std::move(descriptor)
 		)->addClickHandler([=] {
 			controller->show(
 				Box<AutoDownloadBox>(&controller->session(), source));
 		});
 	};
-	add(tr::lng_media_auto_in_private(), Source::User);
-	add(tr::lng_media_auto_in_groups(), Source::Group);
-	add(tr::lng_media_auto_in_channels(), Source::Channel);
+	add(
+		tr::lng_media_auto_in_private(),
+		Source::User,
+		{ &st::settingsIconUser, kIconLightBlue });
+	add(
+		tr::lng_media_auto_in_groups(),
+		Source::Group,
+		{ &st::settingsIconGroup, kIconGreen });
+	add(
+		tr::lng_media_auto_in_channels(),
+		Source::Channel,
+		{ &st::settingsIconChannel, kIconLightOrange });
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }

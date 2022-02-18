@@ -972,7 +972,7 @@ void MainMenu::setupMenu() {
 		});
 		addAction(
 			tr::lng_menu_contacts(),
-			{ &st::settingsIconContacts, kIconRed }
+			{ &st::settingsIconUser, kIconRed }
 		)->setClickedCallback([=] {
 			controller->show(PrepareContactsBox(controller));
 		});
@@ -993,7 +993,7 @@ void MainMenu::setupMenu() {
 	} else {
 		addAction(
 			tr::lng_profile_add_contact(),
-			{ &st::settingsIconContacts, kIconRed }
+			{ &st::settingsIconUser, kIconRed }
 		)->setClickedCallback([=] {
 			controller->showAddContact();
 		});

@@ -74,7 +74,8 @@ void SetupConnectionType(
 			// Handle language switch.
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
-		st::settingsButtonNoIcon);
+		st::settingsButton,
+		{ &st::settingsIconArrows, kIconGreen });
 	button->addClickHandler([=] {
 		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
@@ -747,14 +748,6 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (!cAutoUpdate()) {
 		addUpdate();
 	}
-	addDivider();
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-	SetupConnectionType(
-		&controller->window(),
-		&controller->session().account(),
-		content);
-	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
 	SetupSystemIntegration(controller, content, [=](Type type) {
@@ -778,6 +771,11 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (cAutoUpdate()) {
 		addUpdate();
 	}
+
+	AddSkip(content);
+	AddDivider(content);
+	AddSkip(content);
+	SetupExport(controller, content);
 
 	Ui::ResizeFitChild(this, content);
 }

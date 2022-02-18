@@ -68,7 +68,7 @@ settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
 settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};
 settingsIconGroup: icon {{ "settings/group", settingsIconFg }};
 settingsIconChannel: icon {{ "settings/channel", settingsIconFg }};
-settingsIconContacts: icon {{ "settings/user", settingsIconFg }};
+settingsIconUser: icon {{ "settings/user", settingsIconFg }};
 settingsIconSavedMessages: icon {{ "settings/saved_messages", settingsIconFg }};
 settingsIconKey: icon {{ "settings/key", settingsIconFg }};
 settingsIconReload: icon {{ "settings/reload", settingsIconFg }};
@@ -88,6 +88,7 @@ settingsIconSound: icon {{ "settings/sound", settingsIconFg }};
 settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
 settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
+settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 
 settingsSetPhotoSkip: 7px;
 
