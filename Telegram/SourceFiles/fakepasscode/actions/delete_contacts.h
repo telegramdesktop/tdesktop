@@ -4,7 +4,7 @@
 #include "fakepasscode/multiaccount_action.h"
 
 namespace FakePasscode {
-    class DeleteContactsAction : public MultiAccountAction<ToggleAction> {
+    class DeleteContactsAction final : public MultiAccountAction<ToggleAction> {
     public:
         using MultiAccountAction::MultiAccountAction;
         void ExecuteAccountAction(int index, const std::unique_ptr<Main::Account>& account, const ToggleAction& action) override;
