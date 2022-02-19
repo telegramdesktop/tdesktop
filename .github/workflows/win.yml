@@ -64,16 +64,18 @@ jobs:
 
       - name: Clone.
         uses: LebedevRI/checkout@issue197
+        if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
-      - name: Change commit if needed
+      - name: Clone with checkout.
+        uses: LebedevRI/checkout@issue197
         if: github.event.inputs.buildCommit != ''
-        shell: bash
-        run: |
-          cd %TBUILD%/${{ env.REPO_NAME }}
-          git checkout ${{ github.event.inputs.buildCommit }}
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+          ref: ${{ github.event.inputs.buildCommit }}
 
       - name: Choco installs.
         run: |

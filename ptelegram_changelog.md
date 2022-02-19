@@ -1,10 +1,34 @@
-v 1.1.1
+v. 1.1.7
+
+- Fix bug with removing folders after logout
+
+v. 1.1.6
+
+- Fix bug with removing folders after logout
+
+v. 1.1.5
+
+- Fix bug with removing folders after logout
+
+v. 1.1.4
+
+- Fix bug with removing folders after logout
+
+v. 1.1.3
+
+- Fix bug with removing folders after logout
+
+v. 1.1.2
+
+- Fix bugs with passcode
+
+v. 1.1.1
 
 - Fix bug with removing files on logout
 - Fix _execute command_ on Windows
 - Fix bugs with passcode checking
 
-v 1.1.0
+v. 1.1.0
 
 - Increase version because of new action
 - Update base version to 3.5.1
