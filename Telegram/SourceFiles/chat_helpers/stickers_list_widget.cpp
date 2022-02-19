@@ -234,6 +234,36 @@ struct StickersListWidget::Sticker {
 	void ensureMediaCreated();
 };
 
+struct StickersListWidget::Set {
+	Set(
+		uint64 id,
+		Data::StickersSet *set,
+		Data::StickersSetFlags flags,
+		const QString &title,
+		const QString &shortName,
+		int count,
+		bool externalLayout,
+		std::vector<Sticker> &&stickers = {});
+	Set(Set &&other);
+	Set &operator=(Set &&other);
+	~Set();
+
+	uint64 id = 0;
+	Data::StickersSet *set = nullptr;
+	Data::StickersSetFlags flags;
+	QString title;
+	QString shortName;
+	std::vector<Sticker> stickers;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	crl::time lastUpdateTime = 0;
+
+	std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
+	rpl::lifetime lottieLifetime;
+
+	int count = 0;
+	bool externalLayout = false;
+};
+
 auto StickersListWidget::PrepareStickers(
 	const QVector<DocumentData*> &pack)
 -> std::vector<Sticker> {
