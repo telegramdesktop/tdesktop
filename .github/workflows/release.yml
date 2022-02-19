@@ -10,6 +10,26 @@ on:
       workflowCommit:
         description: 'SHA of built commit'
         required: true
+      releaseWindows:
+        description: 'Release Windows assets?'
+        type: boolean
+        required: false
+        default: "true"
+      releaseLinux:
+        description: 'Release Linux assets?'
+        type: boolean
+        required: false
+        default: "true"
+      releaseSnap:
+        description: 'Release Snap assets?'
+        type: boolean
+        required: false
+        default: "true"
+      releaseMacOS:
+        description: 'Release MacOS assets?'
+        type: boolean
+        required: false
+        default: "true"
 
 jobs:
   release:
@@ -18,12 +38,14 @@ jobs:
       - id: parsing_step
         run: |
           wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/SourceFiles/core/version.h
-          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/build/ptelegram_release_body.py
-          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/ptelegram_changelog.md
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/master/Telegram/build/ptelegram_release_body.py
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/master/ptelegram_changelog.md
 
           echo "VERSION=$(cat version.h | grep PTelegramAppVersionStr | awk -F " " 'END { print $5 }' | sed 's/"//g' | sed 's/;//g')" >> $GITHUB_ENV
 
-          python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md
+      - name: Prepare changelog
+        run: |
+          python3 ptelegram_release_body.py --input_file ptelegram_changelog.md --output_file ptelegram_changelog_${{ env.VERSION }}.md --version ${{ env.VERSION }}
 
       - name: Create Release
         id: create_release
@@ -31,7 +53,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "v. ${{ env.VERSION }}"
+          tag_name: "v.${{ env.VERSION }}"
           release_name: "Version ${{ env.VERSION }}"
           body_path: ptelegram_changelog_${{ env.VERSION }}.md
           draft: false
@@ -39,6 +61,7 @@ jobs:
 
       - name: Download Windows artifacts
         uses: dawidd6/action-download-artifact@v2
+        if: github.event.inputs.releaseWindows == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: win.yml
@@ -50,6 +73,7 @@ jobs:
 
       - name: Download Linux artifacts
         uses: dawidd6/action-download-artifact@v2
+        if: github.event.inputs.releaseLinux == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: linux.yml
@@ -61,6 +85,7 @@ jobs:
 
       - name: Download MacOS artifacts
         uses: dawidd6/action-download-artifact@v2
+        if: github.event.inputs.releaseMacOS == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: mac.yml
@@ -72,6 +97,7 @@ jobs:
           
       - name: Download Snap artifacts
         uses: dawidd6/action-download-artifact@v2
+        if: github.event.inputs.releaseSnap == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: snap.yml
@@ -81,20 +107,53 @@ jobs:
           repo: wrwrabbit/tdesktop
           path: Snap
 
-      - name: Upload Files
-        id: upload-release-asset
+      - name: Upload Windows Files
         uses: softprops/action-gh-release@v1
+        if: github.event.inputs.releaseWindows == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "v. ${{ env.VERSION }}"
+          tag_name: "v.${{ env.VERSION }}"
+          name: "Version ${{ env.VERSION }}"
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            Windows/**
+
+      - name: Upload Linux Files
+        uses: softprops/action-gh-release@v1
+        if: github.event.inputs.releaseLinux == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v.${{ env.VERSION }}"
+          name: "Version ${{ env.VERSION }}"
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            Linux/**
+
+      - name: Upload Snap Files
+        uses: softprops/action-gh-release@v1
+        if: github.event.inputs.releaseSnap == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v.${{ env.VERSION }}"
           name: "Version ${{ env.VERSION }}"
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
             Snap/**
+
+      - name: Upload MacOS Files
+        uses: softprops/action-gh-release@v1
+        if: github.event.inputs.releaseMacOS == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v.${{ env.VERSION }}"
+          name: "Version ${{ env.VERSION }}"
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
             MacOS/**
-            Windows/**
-            Linux/**
 
       - name: Create cleanup request
         run: touch delete_request

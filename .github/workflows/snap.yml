@@ -40,16 +40,18 @@ jobs:
     steps:
       - name: Clone.
         uses: actions/checkout@v2
+        if: github.event.inputs.buildCommit == ''
         with:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Change commit if needed
+      - name: Clone with checkout.
+        uses: actions/checkout@v2
         if: github.event.inputs.buildCommit != ''
-        shell: bash
-        run: |
-          cd ${{ env.REPO_NAME }}
-          git checkout ${{ github.event.inputs.buildCommit }}
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ github.event.inputs.buildCommit }}
 
       - name: First set up.
         run: |
