@@ -19,11 +19,84 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "boxes/abstract_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
 namespace Api {
+
+namespace {
+
+void SubmitChatInvite(
+		base::weak_ptr<Window::SessionController> weak,
+		not_null<Main::Session*> session,
+		const QString &hash,
+		bool isGroup) {
+	session->api().request(MTPmessages_ImportChatInvite(
+		MTP_string(hash)
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+		const auto strongController = weak.get();
+		if (!strongController) {
+			return;
+		}
+
+		strongController->hideLayer();
+		const auto handleChats = [&](const MTPVector<MTPChat> &chats) {
+			if (chats.v.isEmpty()) {
+				return;
+			}
+			const auto peerId = chats.v[0].match([](const MTPDchat &data) {
+				return peerFromChat(data.vid().v);
+			}, [](const MTPDchannel &data) {
+				return peerFromChannel(data.vid().v);
+			}, [](auto&&) {
+				return PeerId(0);
+			});
+			if (const auto peer = session->data().peerLoaded(peerId)) {
+				// Shows in the primary window anyway.
+				strongController->showPeerHistory(
+					peer,
+					Window::SectionShow::Way::Forward);
+			}
+		};
+		result.match([&](const MTPDupdates &data) {
+			handleChats(data.vchats());
+		}, [&](const MTPDupdatesCombined &data) {
+			handleChats(data.vchats());
+		}, [&](auto &&) {
+			LOG(("API Error: unexpected update cons %1 "
+				"(ApiWrap::importChatInvite)").arg(result.type()));
+		});
+	}).fail([=](const MTP::Error &error) {
+		const auto strongController = weak.get();
+		if (!strongController) {
+			return;
+		}
+
+		const auto &type = error.type();
+		strongController->hideLayer();
+		Ui::ShowMultilineToast({
+			.parentOverride = Window::Show(strongController).toastParent(),
+			.text = { [&] {
+				if (type == u"INVITE_REQUEST_SENT"_q) {
+					return isGroup
+						? tr::lng_group_request_sent(tr::now)
+						: tr::lng_group_request_sent_channel(tr::now);
+				} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+					return tr::lng_join_channel_error(tr::now);
+				} else if (type == u"USERS_TOO_MUCH"_q) {
+					return tr::lng_group_invite_no_room(tr::now);
+				} else {
+					return tr::lng_group_invite_bad_link(tr::now);
+				}
+			}() },
+			.duration = ApiWrap::kJoinErrorDuration });
+	}).send();
+}
+
+} // namespace
 
 void CheckChatInvite(
 		not_null<Window::SessionController*> controller,
@@ -43,7 +116,7 @@ void CheckChatInvite(
 				session,
 				data,
 				invitePeekChannel,
-				[=] { session->api().importChatInvite(hash, isGroup); }));
+				[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
 			if (invitePeekChannel) {
 				box->boxClosing(
 				) | rpl::filter([=] {

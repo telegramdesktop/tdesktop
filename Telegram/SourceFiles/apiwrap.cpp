@@ -104,7 +104,6 @@ constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(6 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
 constexpr auto kDialogsFirstLoad = 20;
 constexpr auto kDialogsPerPage = 500;
-constexpr auto kJoinErrorDuration = 5 * crl::time(1000);
 
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
@@ -345,60 +344,6 @@ void ApiWrap::checkChatInvite(
 	_checkInviteRequestId = request(MTPmessages_CheckChatInvite(
 		MTP_string(hash)
 	)).done(std::move(done)).fail(std::move(fail)).send();
-}
-
-void ApiWrap::importChatInvite(const QString &hash, bool isGroup) {
-	request(MTPmessages_ImportChatInvite(
-		MTP_string(hash)
-	)).done([=](const MTPUpdates &result) {
-		applyUpdates(result);
-
-		Ui::hideLayer();
-		const auto handleChats = [&](const MTPVector<MTPChat> &chats) {
-			if (chats.v.isEmpty()) {
-				return;
-			}
-			const auto peerId = chats.v[0].match([](const MTPDchat &data) {
-				return peerFromChat(data.vid().v);
-			}, [](const MTPDchannel &data) {
-				return peerFromChannel(data.vid().v);
-			}, [](auto&&) {
-				return PeerId(0);
-			});
-			if (const auto peer = _session->data().peerLoaded(peerId)) {
-				const auto &windows = _session->windows();
-				if (!windows.empty()) {
-					windows.front()->showPeerHistory(
-						peer,
-						Window::SectionShow::Way::Forward);
-				}
-			}
-		};
-		result.match([&](const MTPDupdates &data) {
-			handleChats(data.vchats());
-		}, [&](const MTPDupdatesCombined &data) {
-			handleChats(data.vchats());
-		}, [&](auto &&) {
-			LOG(("API Error: unexpected update cons %1 "
-				"(ApiWrap::importChatInvite)").arg(result.type()));
-		});
-	}).fail([=](const MTP::Error &error) {
-		const auto &type = error.type();
-		Ui::hideLayer();
-		Ui::ShowMultilineToast({ .text = { [&] {
-			if (type == qstr("INVITE_REQUEST_SENT")) {
-				return isGroup
-					? tr::lng_group_request_sent(tr::now)
-					: tr::lng_group_request_sent_channel(tr::now);
-			} else if (type == qstr("CHANNELS_TOO_MUCH")) {
-				return tr::lng_join_channel_error(tr::now);
-			} else if (type == qstr("USERS_TOO_MUCH")) {
-				return tr::lng_group_invite_no_room(tr::now);
-			} else {
-				return tr::lng_group_invite_bad_link(tr::now);
-			}
-		}() }, .duration = kJoinErrorDuration });
-	}).send();
 }
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {

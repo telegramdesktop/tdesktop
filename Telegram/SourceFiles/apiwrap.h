@@ -196,7 +196,6 @@ public:
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
-	void importChatInvite(const QString &hash, bool isGroup);
 
 	void processFullPeer(
 		not_null<PeerData*> peer,
@@ -357,6 +356,8 @@ public:
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 
 	void updatePrivacyLastSeens();
+
+	static constexpr auto kJoinErrorDuration = 5 * crl::time(1000);
 
 private:
 	struct MessageDataRequest {
