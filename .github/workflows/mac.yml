@@ -110,8 +110,6 @@ jobs:
           fi
 
           ./configure.sh \
-          -D CMAKE_C_FLAGS="-Werror" \
-          -D CMAKE_CXX_FLAGS="-Werror" \
           -D TDESKTOP_API_TEST=OFF \
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} \
