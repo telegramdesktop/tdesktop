@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -669,7 +670,7 @@ void StickerSetBox::Inner::send(
 	const auto controller = _controller;
 	Ui::PostponeCall(controller, [=] {
 		if (controller->content()->sendExistingDocument(sticker, options)) {
-			Ui::hideSettingsAndLayer();
+			controller->window().hideSettingsAndLayer();
 		}
 	});
 }

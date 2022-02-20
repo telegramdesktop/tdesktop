@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -666,7 +667,7 @@ void MainMenu::setupArchive() {
 	const auto showArchive = [=] {
 		if (const auto f = folder()) {
 			controller->openFolder(f);
-			Ui::hideSettingsAndLayer();
+			controller->window().hideSettingsAndLayer();
 		}
 	};
 	const auto checkArchive = [=] {
@@ -716,7 +717,7 @@ void MainMenu::setupArchive() {
 		const auto hide = [=] {
 			controller->session().settings().setArchiveInMainMenu(false);
 			controller->session().saveSettingsDelayed();
-			Ui::hideSettingsAndLayer();
+			controller->window().hideSettingsAndLayer();
 		};
 		addAction(
 			tr::lng_context_archive_to_list(tr::now),

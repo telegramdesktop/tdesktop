@@ -242,7 +242,7 @@ void MainWindow::setupPasscodeLock() {
 	updateControlsGeometry();
 
 	Core::App().hideMediaView();
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->hide();
 	}
@@ -841,7 +841,7 @@ void MainWindow::sendPaths() {
 		return;
 	}
 	Core::App().hideMediaView();
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->activate();
 	}

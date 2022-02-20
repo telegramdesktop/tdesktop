@@ -190,7 +190,7 @@ private:
 	void setInnerWidget(object_ptr<Ui::RpWidget> content);
 	void showContent(not_null<Window::Controller*> window);
 	rpl::producer<bool> topShadowToggledValue() const;
-	void createTopBar();
+	void createTopBar(not_null<Window::Controller*> window);
 	void applyAdditionalScroll(int additionalScroll);
 
 	rpl::variable<int> _scrollTopSkip = -1;
@@ -226,7 +226,7 @@ IntroWidget::IntroWidget(
 		updateControlsGeometry();
 	}, lifetime());
 
-	createTopBar();
+	createTopBar(window);
 	showContent(window);
 	_topShadow->toggleOn(
 		topShadowToggledValue(
@@ -273,15 +273,15 @@ void IntroWidget::forceContentRepaint() {
 	}
 }
 
-void IntroWidget::createTopBar() {
+void IntroWidget::createTopBar(not_null<Window::Controller*> window) {
 	_topBar.create(this, st::infoLayerTopBar);
 	_topBar->setTitle(tr::lng_menu_settings());
 	auto close = _topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
 			st::infoLayerTopBarClose));
-	close->addClickHandler([] {
-		Ui::hideSettingsAndLayer();
+	close->addClickHandler([=] {
+		window->hideSettingsAndLayer();
 	});
 
 	_topBar->lower();

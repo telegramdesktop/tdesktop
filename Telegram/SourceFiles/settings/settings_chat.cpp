@@ -827,7 +827,7 @@ void SetupExport(
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		const auto session = &controller->session();
-		Ui::hideSettingsAndLayer();
+		controller->window().hideSettingsAndLayer();
 		base::call_delayed(
 			st::boxDuration,
 			session,

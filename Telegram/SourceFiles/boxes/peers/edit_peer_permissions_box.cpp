@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -329,8 +330,12 @@ Fn<void()> AboutGigagroupCallback(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
-			Ui::hideSettingsAndLayer();
-			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
+			if (const auto strongController = weak.get()) {
+				strongController->window().hideSettingsAndLayer();
+				Ui::Toast::Show(
+					strongController->widget(),
+					tr::lng_gigagroup_done(tr::now));
+			}
 		}).fail([=] {
 			*converting = false;
 		}).send();

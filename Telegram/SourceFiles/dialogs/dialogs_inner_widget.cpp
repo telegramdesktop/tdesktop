@@ -3102,7 +3102,7 @@ void InnerWidget::setupShortcuts() {
 				Data::Folder::kId);
 			if (folder && !folder->chatsList()->empty()) {
 				_controller->openFolder(folder);
-				Ui::hideSettingsAndLayer();
+				_controller->window().hideSettingsAndLayer();
 				return true;
 			}
 			return false;

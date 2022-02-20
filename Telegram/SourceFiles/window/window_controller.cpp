@@ -165,7 +165,7 @@ void Controller::checkLockByTerms() {
 		}
 		return;
 	}
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	hideSettingsAndLayer(anim::type::instant);
 	const auto box = show(Box<TermsBox>(
 		*data,
 		tr::lng_terms_agree(),
@@ -325,6 +325,10 @@ void Controller::showBox(
 
 void Controller::showRightColumn(object_ptr<TWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
+}
+
+void Controller::hideSettingsAndLayer(anim::type animated) {
+	_widget.ui_hideSettingsAndLayer(animated);
 }
 
 void Controller::sideBarChanged() {

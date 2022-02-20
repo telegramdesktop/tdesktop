@@ -1372,7 +1372,7 @@ void MainWidget::ui_showPeerHistory(
 
 	const auto wasActivePeer = _controller->activeChatCurrent().peer();
 	if (params.activation != anim::activation::background) {
-		Ui::hideSettingsAndLayer();
+		controller()->window().hideSettingsAndLayer();
 	}
 	if (_hider) {
 		_hider->startHide();
@@ -1649,7 +1649,7 @@ void MainWidget::showNewSection(
 	}
 
 	if (params.activation != anim::activation::background) {
-		Ui::hideSettingsAndLayer();
+		controller()->window().hideSettingsAndLayer();
 	}
 
 	_controller->dialogsListFocused().set(false, true);
