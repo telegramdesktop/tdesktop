@@ -251,7 +251,9 @@ MainWidget::MainWidget(
 		_callTopBar->finishAnimating();
 	}
 
-	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	if (isPrimary()) {
+		Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	}
 	Core::App().floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {
 		floatPlayerClosed(itemId);
