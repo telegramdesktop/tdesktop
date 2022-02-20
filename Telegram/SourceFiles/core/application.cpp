@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
+#include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/crash_reports.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -892,7 +893,10 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
-	const auto controller = _primaryWindow
+	const auto my = context.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get()
+		? my.sessionWindow.get()
+		: _primaryWindow
 		? _primaryWindow->sessionController()
 		: nullptr;
 
