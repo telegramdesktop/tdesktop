@@ -2589,7 +2589,9 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	auto useSmallColumnWidth = !isOneColumn()
 		&& !dialogsWidthRatio
 		&& !_controller->forceWideDialogs();
-	_dialogsWidth = useSmallColumnWidth
+	_dialogsWidth = !_dialogs
+		? 0
+		: useSmallColumnWidth
 		? _controller->dialogsSmallColumnWidth()
 		: layout.dialogsWidth;
 	_thirdColumnWidth = layout.thirdWidth;
