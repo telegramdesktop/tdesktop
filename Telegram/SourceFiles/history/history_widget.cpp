@@ -3935,7 +3935,7 @@ void HistoryWidget::checkSuggestToGigagroup() {
 						st::infoAboutGigagroup));
 				box->addButton(
 					tr::lng_gigagroup_suggest_more(),
-					AboutGigagroupCallback(group));
+					AboutGigagroupCallback(group, controller()));
 				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 			}));
 		}

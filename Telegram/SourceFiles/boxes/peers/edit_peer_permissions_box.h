@@ -16,6 +16,7 @@ class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
+class SessionController;
 class SessionNavigation;
 } // namespace Window
 
@@ -50,7 +51,8 @@ private:
 };
 
 [[nodiscard]] Fn<void()> AboutGigagroupCallback(
-	not_null<ChannelData*> channel);
+	not_null<ChannelData*> channel,
+	not_null<Window::SessionController*> controller);
 
 template <typename Flags>
 struct EditFlagsControl {
