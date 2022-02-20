@@ -324,7 +324,9 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		workmodeUpdated(mode);
 	}, lifetime());
 
-	Ui::Toast::SetDefaultParent(_body.data());
+	if (isPrimary()) {
+		Ui::Toast::SetDefaultParent(_body.data());
+	}
 
 	body()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
