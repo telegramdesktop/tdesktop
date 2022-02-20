@@ -1515,6 +1515,10 @@ QPointer<Ui::BoxContent> SessionController::show(
 	return _window->show(std::move(content), options, animated);
 }
 
+void SessionController::hideLayer(anim::type animated) {
+	show({ nullptr }, Ui::LayerOption::CloseOther, animated);
+}
+
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId contextId) {

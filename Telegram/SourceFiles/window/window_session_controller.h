@@ -296,6 +296,8 @@ public:
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 		anim::type animated = anim::type::normal);
 
+	void hideLayer(anim::type animated = anim::type::normal);
+
 	[[nodiscard]] auto sendingAnimation() const
 	-> Ui::MessageSendingAnimationController &;
 	[[nodiscard]] auto tabbedSelector() const
