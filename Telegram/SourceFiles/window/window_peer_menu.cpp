@@ -77,7 +77,7 @@ const char kOptionViewProfileInChatsListContextMenu[] =
 namespace {
 
 constexpr auto kArchivedToastDuration = crl::time(5000);
-constexpr auto kMaxUnreadWithoutConfirmation = 10000;
+constexpr auto kMaxUnreadWithoutConfirmation = 1000;
 
 base::options::toggle ViewProfileInChatsListContextMenu({
 	.id = kOptionViewProfileInChatsListContextMenu,
@@ -195,7 +195,10 @@ void AddChatMembers(
 	AddParticipantsBoxController::Start(navigation, chat);
 }
 
-bool PinnedLimitReached(Dialogs::Key key, FilterId filterId) {
+bool PinnedLimitReached(
+		not_null<Window::SessionController*> controller,
+		Dialogs::Key key,
+		FilterId filterId) {
 	Expects(filterId != 0 || key.entry()->folderKnown());
 
 	const auto entry = key.entry();
@@ -219,7 +222,9 @@ bool PinnedLimitReached(Dialogs::Key key, FilterId filterId) {
 				tr::now,
 				lt_count,
 				pinnedMax);
-		Ui::show(Ui::MakeInformBox(errorText));
+		controller->show(
+			Ui::MakeInformBox(errorText),
+			Ui::LayerOption::CloseOther);
 	}
 	return true;
 }
@@ -232,7 +237,7 @@ void TogglePinnedDialog(
 	}
 	const auto owner = &key.entry()->owner();
 	const auto isPinned = !key.entry()->isPinnedDialog(0);
-	if (isPinned && PinnedLimitReached(key, 0)) {
+	if (isPinned && PinnedLimitReached(controller, key, 0)) {
 		return;
 	}
 
@@ -277,7 +282,7 @@ void TogglePinnedDialog(
 	}
 
 	const auto isPinned = !key.entry()->isPinnedDialog(filterId);
-	if (isPinned && PinnedLimitReached(key, filterId)) {
+	if (isPinned && PinnedLimitReached(controller, key, filterId)) {
 		return;
 	}
 
@@ -348,7 +353,7 @@ void Filler::addToggleMute() {
 	if (_peer->isSelf()) {
 		return;
 	}
-	PeerMenuAddMuteAction(_peer, _addAction);
+	PeerMenuAddMuteAction(_controller, _peer, _addAction);
 }
 
 void Filler::addSupportInfo() {
@@ -463,7 +468,7 @@ void Filler::addClearHistory() {
 	}
 	_addAction(
 		tr::lng_profile_clear_history(tr::now),
-		ClearHistoryHandler(_peer),
+		ClearHistoryHandler(_controller, _peer),
 		&st::menuIconClear);
 }
 
@@ -475,7 +480,7 @@ void Filler::addDeleteChat() {
 		(_peer->isUser()
 			? tr::lng_profile_delete_conversation(tr::now)
 			: tr::lng_profile_clear_and_exit(tr::now)),
-		DeleteAndLeaveHandler(_peer),
+		DeleteAndLeaveHandler(_controller, _peer),
 		&st::menuIconDelete);
 }
 
@@ -488,7 +493,7 @@ void Filler::addLeaveChat() {
 		(_peer->isMegagroup()
 			? tr::lng_profile_leave_group(tr::now)
 			: tr::lng_profile_leave_channel(tr::now)),
-		DeleteAndLeaveHandler(_peer),
+		DeleteAndLeaveHandler(_controller, _peer),
 		&st::menuIconLeave);
 }
 
@@ -664,7 +669,7 @@ void Filler::addDeleteContact() {
 	}
 	_addAction(
 		tr::lng_info_delete_contact(tr::now),
-		[=] { PeerMenuDeleteContact(user); },
+		[=] { PeerMenuDeleteContact(_controller, user); },
 		&st::menuIconDelete);
 }
 
@@ -832,6 +837,7 @@ void Filler::fillArchiveActions() {
 	}, &st::menuIconToMainMenu);
 
 	MenuAddMarkAsReadChatListAction(
+		controller,
 		[folder = _folder] { return folder->chatsList(); },
 		_addAction);
 }
@@ -842,33 +848,38 @@ void PeerMenuExportChat(not_null<PeerData*> peer) {
 	Core::App().exportManager().start(peer);
 }
 
-void PeerMenuDeleteContact(not_null<UserData*> user) {
+void PeerMenuDeleteContact(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
 	const auto text = tr::lng_sure_delete_contact(
 		tr::now,
 		lt_contact,
 		user->name);
-	const auto deleteSure = [=] {
-		Ui::hideLayer();
+	const auto deleteSure = [=](Fn<void()> &&close) {
+		close();
 		user->session().api().request(MTPcontacts_DeleteContacts(
 			MTP_vector<MTPInputUser>(1, user->inputUser)
 		)).done([=](const MTPUpdates &result) {
 			user->session().api().applyUpdates(result);
 		}).send();
 	};
-	Ui::show(Ui::MakeConfirmBox({
-		.text = text,
-		.confirmed = deleteSure,
-		.confirmText = tr::lng_box_delete(),
-	}));
+	controller->show(
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = deleteSure,
+			.confirmText = tr::lng_box_delete(),
+		}),
+		Ui::LayerOption::CloseOther);
 }
 
 void PeerMenuShareContactBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> user) {
-	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	// There is no async to make weak from controller.
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [=](not_null<PeerData*> peer) {
 		if (!peer->canWrite()) {
-			Ui::show(
+			navigation->parentController()->show(
 				Ui::MakeInformBox(tr::lng_forward_share_cant()),
 				Ui::LayerOption::KeepOther);
 			return;
@@ -876,7 +887,9 @@ void PeerMenuShareContactBox(
 			auto action = Api::SendAction(peer->owner().history(peer));
 			action.clearDraft = false;
 			user->session().api().shareContact(user, action);
-			Ui::Toast::Show(tr::lng_share_done(tr::now));
+			Ui::Toast::Show(
+				navigation->parentController()->widget()->bodyWidget(),
+				tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
 				strong->closeBox();
 			}
@@ -885,13 +898,13 @@ void PeerMenuShareContactBox(
 		auto recipient = peer->isUser()
 			? peer->name
 			: '\xAB' + peer->name + '\xBB';
-		Ui::show(
+		navigation->parentController()->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_forward_share_contact(
 					tr::now,
 					lt_recipient,
 					recipient),
-				.confirmed = [peer, user, navigation] {
+				.confirmed = [peer, user, navigation](Fn<void()> &&close) {
 					const auto history = peer->owner().history(peer);
 					navigation->showPeerHistory(
 						history,
@@ -900,20 +913,23 @@ void PeerMenuShareContactBox(
 					auto action = Api::SendAction(history);
 					action.clearDraft = false;
 					user->session().api().shareContact(user, action);
+					close();
 				},
 				.confirmText = tr::lng_forward_send(),
 			}),
 			Ui::LayerOption::KeepOther);
 	};
-	*weak = Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(
-			&navigation->session(),
-			std::move(callback)),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_cancel(), [=] {
-				box->closeBox();
-			});
-		}));
+	*weak = navigation->parentController()->show(
+		Box<PeerListBox>(
+			std::make_unique<ChooseRecipientBoxController>(
+				&navigation->session(),
+				std::move(callback)),
+			[](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}),
+		Ui::LayerOption::CloseOther);
 }
 
 void PeerMenuCreatePoll(
@@ -928,12 +944,13 @@ void PeerMenuCreatePoll(
 		chosen &= ~PollData::Flag::PublicVotes;
 		disabled |= PollData::Flag::PublicVotes;
 	}
-	const auto box = Ui::show(Box<CreatePollBox>(
+	auto box = Box<CreatePollBox>(
 		controller,
 		chosen,
 		disabled,
 		sendType,
-		sendMenuType));
+		sendMenuType);
+	const auto weak = Ui::MakeWeak(box.data());
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
 	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {
@@ -949,13 +966,14 @@ void PeerMenuCreatePoll(
 			action.clearDraft = localDraft->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
-		api->polls().create(result.poll, action, crl::guard(box, [=] {
-			box->closeBox();
-		}), crl::guard(box, [=](const MTP::Error &error) {
+		api->polls().create(result.poll, action, crl::guard(weak, [=] {
+			weak->closeBox();
+		}), crl::guard(weak, [=](const MTP::Error &error) {
 			*lock = false;
-			box->submitFailed(tr::lng_attach_failed(tr::now));
+			weak->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
 	}, box->lifetime());
+	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
 
 void PeerMenuBlockUserBox(
@@ -1098,7 +1116,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		Data::ForwardDraft &&draft,
 		FnMut<void()> &&successCallback) {
-	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [
 		draft = std::move(draft),
 		callback = std::move(successCallback),
@@ -1114,9 +1132,13 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				auto action = Api::SendAction(peer->owner().history(peer));
 				action.clearDraft = false;
 				action.generateLocal = false;
-				api->forwardMessages(std::move(resolved), action, [] {
-					Ui::Toast::Show(tr::lng_share_done(tr::now));
-				});
+				const auto weakContent = Ui::MakeWeak(content);
+				api->forwardMessages(
+					std::move(resolved),
+					action,
+					crl::guard(weakContent, [w = weakContent] {
+						Ui::Toast::Show(w, tr::lng_share_done(tr::now));
+					}));
 			}
 		} else if (!content->setForwardDraft(peer->id, std::move(draft))) {
 			return;
@@ -1133,7 +1155,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			box->closeBox();
 		});
 	};
-	*weak = Ui::show(Box<PeerListBox>(
+	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
 			&navigation->session(),
 			std::move(callback)),
@@ -1167,7 +1189,8 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		TextWithTags());
 	if (!error.isEmpty()) {
 		Ui::ShowMultilineToast({
-			.text = { error },
+			navigation->parentController()->widget()->bodyWidget(),
+			{ error },
 		});
 		return { nullptr };
 	}
@@ -1196,7 +1219,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 			callback();
 		}
 	};
-	return Ui::show(
+	return navigation->parentController()->show(
 		Ui::MakeConfirmBox({
 			.text = text,
 			.confirmed = std::move(done),
@@ -1211,7 +1234,7 @@ void PeerMenuAddChannelMembers(
 	if (!channel->isMegagroup()
 		&& (channel->membersCount()
 			>= channel->session().serverConfig().chatSizeMax)) {
-		Ui::show(
+		navigation->parentController()->show(
 			Box<MaxInviteBox>(channel),
 			Ui::LayerOption::KeepOther);
 		return;
@@ -1248,12 +1271,14 @@ void ToggleMessagePinned(
 		return;
 	}
 	if (pin) {
-		Ui::show(Box<PinMessageBox>(item->history()->peer, item->id));
+		navigation->parentController()->show(
+			Box<PinMessageBox>(item->history()->peer, item->id),
+			Ui::LayerOption::CloseOther);
 	} else {
 		const auto peer = item->history()->peer;
 		const auto session = &peer->session();
-		const auto callback = crl::guard(session, [=] {
-			Ui::hideLayer();
+		const auto callback = crl::guard(session, [=](Fn<void()> &&close) {
+			close();
 			session->api().request(MTPmessages_UpdatePinnedMessage(
 				MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
 				peer->input,
@@ -1262,11 +1287,13 @@ void ToggleMessagePinned(
 				session->api().applyUpdates(result);
 			}).send();
 		});
-		Ui::show(Ui::MakeConfirmBox({
-			.text = tr::lng_pinned_unpin_sure(),
-			.confirmed = callback,
-			.confirmText = tr::lng_pinned_unpin(),
-		}));
+		navigation->parentController()->show(
+			Ui::MakeConfirmBox({
+				.text = tr::lng_pinned_unpin_sure(),
+				.confirmed = callback,
+				.confirmText = tr::lng_pinned_unpin(),
+			}),
+			Ui::LayerOption::CloseOther);
 	}
 }
 
@@ -1274,8 +1301,8 @@ void HidePinnedBar(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Fn<void()> onHidden) {
-	const auto callback = crl::guard(navigation, [=] {
-		Ui::hideLayer();
+	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
+		close();
 		auto &session = peer->session();
 		const auto migrated = peer->migrateFrom();
 		const auto top = Data::ResolveTopPinnedId(peer, migrated);
@@ -1294,18 +1321,20 @@ void HidePinnedBar(
 			session.api().requestFullPeer(peer);
 		}
 	});
-	Ui::show(Ui::MakeConfirmBox({
-		.text = tr::lng_pinned_hide_all_sure(),
-		.confirmed = callback,
-		.confirmText = tr::lng_pinned_hide_all_hide(),
-	}));
+	navigation->parentController()->show(
+		Ui::MakeConfirmBox({
+			.text = tr::lng_pinned_hide_all_sure(),
+			.confirmed = callback,
+			.confirmText = tr::lng_pinned_hide_all_hide(),
+		}),
+		Ui::LayerOption::CloseOther);
 }
 
 void UnpinAllMessages(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<History*> history) {
-	const auto callback = crl::guard(navigation, [=] {
-		Ui::hideLayer();
+	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
+		close();
 		const auto api = &history->session().api();
 		const auto sendRequest = [=](auto self) -> void {
 			api->request(MTPmessages_UnpinAllMessages(
@@ -1322,16 +1351,20 @@ void UnpinAllMessages(
 		};
 		sendRequest(sendRequest);
 	});
-	Ui::show(Ui::MakeConfirmBox({
-		.text = tr::lng_pinned_unpin_all_sure(),
-		.confirmed = callback,
-		.confirmText = tr::lng_pinned_unpin(),
-	}));
+	navigation->parentController()->show(
+		Ui::MakeConfirmBox({
+			.text = tr::lng_pinned_unpin_all_sure(),
+			.confirmed = callback,
+			.confirmText = tr::lng_pinned_unpin(),
+		}),
+		Ui::LayerOption::CloseOther);
 }
 
 void PeerMenuAddMuteAction(
+		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
+	// There is no async to make weak from controller.
 	peer->owner().requestNotifySettings(peer);
 	const auto muteText = [](bool isUnmuted) {
 		return isUnmuted
@@ -1340,7 +1373,9 @@ void PeerMenuAddMuteAction(
 	};
 	const auto muteAction = addAction(QString("-"), [=] {
 		if (!peer->owner().notifyIsMuted(peer)) {
-			Ui::show(Box<MuteSettingsBox>(peer));
+			controller->show(
+				Box<MuteSettingsBox>(peer),
+				Ui::LayerOption::CloseOther);
 		} else {
 			peer->owner().updateNotifySettings(peer, 0);
 		}
@@ -1355,9 +1390,10 @@ void PeerMenuAddMuteAction(
 }
 
 void MenuAddMarkAsReadAllChatsAction(
-		not_null<Data::Session*> data,
+		not_null<Window::SessionController*> controller,
 		const PeerMenuCallback &addAction) {
-	auto callback = [owner = data] {
+	// There is no async to make weak from controller.
+	auto callback = [=, owner = &controller->session().data()] {
 		auto boxCallback = [=](Fn<void()> &&close) {
 			close();
 
@@ -1366,10 +1402,12 @@ void MenuAddMarkAsReadAllChatsAction(
 				MarkAsReadChatList(folder->chatsList());
 			}
 		};
-		Ui::show(Ui::MakeConfirmBox({
-			tr::lng_context_mark_read_all_sure(),
-			std::move(boxCallback)
-		}));
+		controller->show(
+			Ui::MakeConfirmBox({
+				tr::lng_context_mark_read_all_sure(),
+				std::move(boxCallback)
+			}),
+			Ui::LayerOption::CloseOther);
 	};
 	addAction(
 		tr::lng_context_mark_read_all(tr::now),
@@ -1378,8 +1416,10 @@ void MenuAddMarkAsReadAllChatsAction(
 }
 
 void MenuAddMarkAsReadChatListAction(
+		not_null<Window::SessionController*> controller,
 		Fn<not_null<Dialogs::MainList*>()> &&list,
 		const PeerMenuCallback &addAction) {
+	// There is no async to make weak from controller.
 	const auto unreadState = list()->unreadState();
 	if (unreadState.empty()) {
 		return;
@@ -1391,10 +1431,12 @@ void MenuAddMarkAsReadChatListAction(
 				MarkAsReadChatList(list());
 				close();
 			};
-			Ui::show(Ui::MakeConfirmBox({
-				tr::lng_context_mark_read_sure(),
-				std::move(boxCallback)
-			}));
+			controller->show(
+				Ui::MakeConfirmBox({
+					tr::lng_context_mark_read_sure(),
+					std::move(boxCallback)
+				}),
+				Ui::LayerOption::CloseOther);
 		} else {
 			MarkAsReadChatList(list());
 		}
@@ -1424,17 +1466,21 @@ void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 		callback);
 }
 
-Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
+Fn<void()> ClearHistoryHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
 	return [=] {
-		Ui::show(
+		controller->show(
 			Box<DeleteMessagesBox>(peer, true),
 			Ui::LayerOption::KeepOther);
 	};
 }
 
-Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
+Fn<void()> DeleteAndLeaveHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
 	return [=] {
-		Ui::show(
+		controller->show(
 			Box<DeleteMessagesBox>(peer, false),
 			Ui::LayerOption::KeepOther);
 	};

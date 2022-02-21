@@ -535,13 +535,13 @@ void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
 		&st::infoIconEdit);
 }
 
-void ActionsFiller::addDeleteContactAction(
-		not_null<UserData*> user) {
+void ActionsFiller::addDeleteContactAction(not_null<UserData*> user) {
+	const auto controller = _controller->parentController();
 	AddActionButton(
 		_wrap,
 		tr::lng_info_delete_contact(),
 		IsContactValue(user),
-		[user] { Window::PeerMenuDeleteContact(user); },
+		[=] { Window::PeerMenuDeleteContact(controller, user); },
 		&st::infoIconDelete);
 }
 
@@ -668,13 +668,15 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		st::infoBlockButton);
 }
 
-void ActionsFiller::addLeaveChannelAction(
-		not_null<ChannelData*> channel) {
+void ActionsFiller::addLeaveChannelAction(not_null<ChannelData*> channel) {
+	Expects(_controller->parentController());
 	AddActionButton(
 		_wrap,
 		tr::lng_profile_leave_channel(),
 		AmInChannelValue(channel),
-		Window::DeleteAndLeaveHandler(channel),
+		Window::DeleteAndLeaveHandler(
+			_controller->parentController(),
+			channel),
 		&st::infoIconLeave);
 }
 
