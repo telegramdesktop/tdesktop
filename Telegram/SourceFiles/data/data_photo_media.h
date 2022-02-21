@@ -24,9 +24,14 @@ public:
 	[[nodiscard]] Image *thumbnailInline() const;
 
 	[[nodiscard]] Image *image(PhotoSize size) const;
+	[[nodiscard]] QByteArray imageBytes(PhotoSize size) const;
 	[[nodiscard]] QSize size(PhotoSize size) const;
 	void wanted(PhotoSize size, Data::FileOrigin origin);
-	void set(PhotoSize size, PhotoSize goodFor, QImage image);
+	void set(
+		PhotoSize size,
+		PhotoSize goodFor,
+		QImage image,
+		QByteArray bytes);
 
 	[[nodiscard]] QByteArray videoContent() const;
 	[[nodiscard]] QSize videoSize() const;
@@ -45,8 +50,11 @@ public:
 private:
 	struct PhotoImage {
 		std::unique_ptr<Image> data;
+		QByteArray bytes;
 		PhotoSize goodFor = PhotoSize();
 	};
+
+	const PhotoImage *resolveLoadedImage(PhotoSize size) const;
 
 	// NB! Right now DocumentMedia can outlive Main::Session!
 	// In DocumentData::collectLocalData a shared_ptr is sent on_main.

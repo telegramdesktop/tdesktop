@@ -480,7 +480,7 @@ void DocumentData::updateThumbnails(
 		owner().cache(),
 		Data::kImageCacheTag,
 		[&](Data::FileOrigin origin) { loadThumbnail(origin); },
-		[&](QImage preloaded) {
+		[&](QImage preloaded, QByteArray) {
 			if (const auto media = activeMediaView()) {
 				media->setThumbnail(std::move(preloaded));
 			}
@@ -530,7 +530,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		}
 		return true;
 	};
-	const auto done = [=](QImage result) {
+	const auto done = [=](QImage result, QByteArray) {
 		if (const auto active = activeMediaView()) {
 			active->setThumbnail(std::move(result));
 		}

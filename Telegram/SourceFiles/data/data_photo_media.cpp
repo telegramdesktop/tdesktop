@@ -49,16 +49,31 @@ Image *PhotoMedia::thumbnailInline() const {
 }
 
 Image *PhotoMedia::image(PhotoSize size) const {
+	if (const auto resolved = resolveLoadedImage(size)) {
+		return resolved->data.get();
+	}
+	return nullptr;
+}
+
+QByteArray PhotoMedia::imageBytes(PhotoSize size) const {
+	if (const auto resolved = resolveLoadedImage(size)) {
+		return resolved->bytes;
+	}
+	return QByteArray();
+}
+
+auto PhotoMedia::resolveLoadedImage(PhotoSize size) const
+-> const PhotoImage * {
 	const auto &original = _images[PhotoSizeIndex(size)];
 	if (const auto image = original.data.get()) {
 		if (original.goodFor >= size) {
-			return image;
+			return &original;
 		}
 	}
 	const auto &valid = _images[_owner->validSizeIndex(size)];
 	if (const auto image = valid.data.get()) {
 		if (valid.goodFor >= size) {
-			return image;
+			return &valid;
 		}
 	}
 	return nullptr;
@@ -80,7 +95,11 @@ QSize PhotoMedia::size(PhotoSize size) const {
 	return { location.width(), location.height() };
 }
 
-void PhotoMedia::set(PhotoSize size, PhotoSize goodFor, QImage image) {
+void PhotoMedia::set(
+		PhotoSize size,
+		PhotoSize goodFor,
+		QImage image,
+		QByteArray bytes) {
 	const auto index = PhotoSizeIndex(size);
 	const auto limit = PhotoData::SideLimit();
 	if (image.width() > limit || image.height() > limit) {
@@ -92,6 +111,7 @@ void PhotoMedia::set(PhotoSize size, PhotoSize goodFor, QImage image) {
 	}
 	_images[index] = PhotoImage{
 		.data = std::make_unique<Image>(std::move(image)),
+		.bytes = std::move(bytes),
 		.goodFor = goodFor,
 	};
 	_owner->session().notifyDownloaderTaskFinished();

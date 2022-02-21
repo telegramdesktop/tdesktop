@@ -417,6 +417,11 @@ private:
 
 	void applyHideWindowWorkaround();
 
+	bool saveToFile(
+		const QString &path,
+		const QByteArray &bytes,
+		const QImage &fallback);
+
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
 	bool _opengl = false;
