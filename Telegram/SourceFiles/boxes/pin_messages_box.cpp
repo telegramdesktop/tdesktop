@@ -122,8 +122,8 @@ void PinMessageBox::pinMessage() {
 		MTP_int(_msgId)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
-		Ui::hideLayer();
+		closeBox();
 	}).fail([=] {
-		Ui::hideLayer();
+		closeBox();
 	}).send();
 }
