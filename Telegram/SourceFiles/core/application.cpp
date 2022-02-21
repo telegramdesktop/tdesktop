@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_download_manager.h"
 #include "base/timer.h"
 #include "base/event_filter.h"
 #include "base/concurrent_timer.h"
@@ -139,6 +140,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
+, _downloadManager(std::make_unique<Data::DownloadManager>())
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
 , _calls(std::make_unique<Calls::Instance>())
