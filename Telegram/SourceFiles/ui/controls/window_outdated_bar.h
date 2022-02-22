@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 namespace Ui {
+
 class RpWidget;
+
+[[nodiscard]] object_ptr<RpWidget> CreateOutdatedBar(
+	not_null<QWidget*> parent,
+	const QString &workingPath);
+
 } // namespace Ui
-
-namespace Window {
-
-object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent);
-
-} // namespace Window

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "window/window_outdated_bar.h"
+#include "ui/controls/window_outdated_bar.h"
 
 #include "ui/widgets/labels.h" // Ui::FlatLabel
 #include "ui/widgets/buttons.h" // Ui::IconButton
@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
-namespace Window {
+#include <QtCore/QFile>
+
+namespace Ui {
 namespace {
 
 #ifdef DESKTOP_APP_SPECIAL_TARGET
@@ -23,22 +25,22 @@ constexpr auto kMinimalSkip = 7;
 constexpr auto kSoonSkip = 30;
 constexpr auto kNowSkip = 90;
 
-class Bar : public Ui::RpWidget {
+class Bar final : public RpWidget {
 public:
 	Bar(not_null<QWidget*> parent, QDate date);
 
 	int resizeGetHeight(int newWidth) override;
 
-	rpl::producer<> hideClicks() const;
+	[[nodiscard]] rpl::producer<> hideClicks() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	QDate _date;
-	object_ptr<Ui::FlatLabel> _title;
-	object_ptr<Ui::FlatLabel> _details;
-	object_ptr<Ui::IconButton> _close;
+	object_ptr<FlatLabel> _title;
+	object_ptr<FlatLabel> _details;
+	object_ptr<IconButton> _close;
 	bool _soon = false;
 
 };
@@ -54,7 +56,7 @@ Bar::Bar(not_null<QWidget*> parent, QDate date)
 : _date(date)
 , _title(
 	this,
-	OutdatedReasonPhrase() | Ui::Text::ToUpper(),
+	OutdatedReasonPhrase() | Text::ToUpper(),
 	st::windowOutdatedTitle)
 , _details(this,
 	QString(),
@@ -97,12 +99,12 @@ void Bar::paintEvent(QPaintEvent *e) {
 		_soon ? st::outdateSoonBg : st::outdatedBg);
 }
 
-QString LastHiddenPath() {
-	return cWorkingDir() + qsl("tdata/outdated_hidden");
+[[nodiscard]] QString LastHiddenPath(const QString &workingDir) {
+	return workingDir + u"tdata/outdated_hidden"_q;
 }
 
-[[nodiscard]] bool Skip(const QDate &date) {
-	auto file = QFile(LastHiddenPath());
+[[nodiscard]] bool Skip(const QDate &date, const QString &workingDir) {
+	auto file = QFile(LastHiddenPath(workingDir));
 	if (!file.open(QIODevice::ReadOnly) || file.size() != sizeof(qint32)) {
 		return false;
 	}
@@ -132,8 +134,8 @@ QString LastHiddenPath() {
 	}
 }
 
-void Closed() {
-	auto file = QFile(LastHiddenPath());
+void Closed(const QString &workingDir) {
+	auto file = QFile(LastHiddenPath(workingDir));
 	if (!file.open(QIODevice::WriteOnly)) {
 		return;
 	}
@@ -150,16 +152,18 @@ void Closed() {
 
 } // namespace
 
-object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
+object_ptr<RpWidget> CreateOutdatedBar(
+		not_null<QWidget*> parent,
+		const QString &workingPath) {
 #ifdef DESKTOP_APP_SPECIAL_TARGET
 	const auto date = Platform::WhenSystemBecomesOutdated();
 	if (date.isNull()) {
 		return { nullptr };
-	} else if (Skip(date)) {
+	} else if (Skip(date, workingPath)) {
 		return { nullptr };
 	}
 
-	auto result = object_ptr<Ui::SlideWrap<Bar>>(
+	auto result = object_ptr<SlideWrap<Bar>>(
 		parent.get(),
 		object_ptr<Bar>(parent.get(), date));
 	const auto wrap = result.data();
@@ -167,7 +171,7 @@ object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
 	wrap->entity()->hideClicks(
 	) | rpl::start_with_next([=] {
 		wrap->toggle(false, anim::type::normal);
-		Closed();
+		Closed(workingPath);
 	}, wrap->lifetime());
 
 	return result;
@@ -176,4 +180,4 @@ object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
 #endif // DESKTOP_APP_SPECIAL_TARGET
 }
 
-} // namespace Window
+} // namespace Ui

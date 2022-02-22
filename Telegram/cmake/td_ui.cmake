@@ -204,6 +204,8 @@ PRIVATE
     ui/controls/send_button.h
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
+    ui/controls/window_outdated_bar.cpp
+    ui/controls/window_outdated_bar.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

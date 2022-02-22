@@ -1173,8 +1173,6 @@ PRIVATE
     window/window_main_menu.h
     window/window_media_preview.cpp
     window/window_media_preview.h
-    window/window_outdated_bar.cpp
-    window/window_outdated_bar.h
     window/window_peer_menu.cpp
     window/window_peer_menu.h
     window/window_section_common.h
