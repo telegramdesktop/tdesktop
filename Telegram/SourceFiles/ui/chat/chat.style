@@ -918,14 +918,14 @@ whoReadMenu: PopupMenu(popupMenuWithIcons) {
 		separatorWidth: 6px;
 	}
 }
-whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
-whoReadChecksOver: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
+whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
-whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
-whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayed: icon{{ "menu/read_audio", windowBoldFg }};
+whoReadPlayedOver: icon{{ "menu/read_audio", windowBoldFg }};
 whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
-whoReadReactions: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
-whoReadReactionsOver: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactions: icon{{ "menu/read_reactions", windowBoldFg }};
+whoReadReactionsOver: icon{{ "menu/read_reactions", windowBoldFg }};
 whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
