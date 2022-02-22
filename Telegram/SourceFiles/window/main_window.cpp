@@ -580,8 +580,7 @@ void MainWindow::refreshTitleWidget() {
 }
 
 void MainWindow::updateMinimumSize() {
-	setMinimumWidth(computeMinWidth());
-	setMinimumHeight(computeMinHeight());
+	setMinimumSize(QSize(computeMinWidth(), computeMinHeight()));
 }
 
 void MainWindow::recountGeometryConstraints() {
