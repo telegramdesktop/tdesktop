@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/controls/download_bar.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
+#include "data/data_download_manager.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -361,6 +363,8 @@ Widget::Widget(
 	) | rpl::start_with_next([=](Data::Folder *folder) {
 		changeOpenedFolder(folder, anim::type::normal);
 	}, lifetime());
+
+	setupDownloadBar();
 }
 
 void Widget::setGeometryWithTopMoved(
@@ -397,6 +401,47 @@ void Widget::setupScrollUpButton() {
 			: base::EventFilterResult::Continue;
 	});
 	updateScrollUpVisibility();
+}
+
+void Widget::setupDownloadBar() {
+	Data::MakeDownloadBarContent(
+	) | rpl::start_with_next([=](Ui::DownloadBarContent &&content) {
+		const auto create = (content.count && !_downloadBar);
+		if (create) {
+			_downloadBar = std::make_unique<Ui::DownloadBar>(
+				this,
+				Data::MakeDownloadBarProgress());
+		}
+		if (_downloadBar) {
+			_downloadBar->show(std::move(content));
+		}
+		if (create) {
+			_downloadBar->heightValue(
+			) | rpl::start_with_next([=] {
+				updateControlsGeometry();
+			}, _downloadBar->lifetime());
+
+			_downloadBar->shownValue(
+			) | rpl::filter(
+				!rpl::mappers::_1
+			) | rpl::start_with_next([=] {
+				_downloadBar = nullptr;
+			}, _downloadBar->lifetime());
+
+			_downloadBar->clicks(
+			) | rpl::start_with_next([=] {
+				auto &&list = Core::App().downloadManager().loadingList();
+				for (const auto &id : list) {
+					controller()->showPeerHistoryAtItem(id.object.item);
+					break;
+				}
+			}, _downloadBar->lifetime());
+
+			if (_connecting) {
+				_connecting->raise();
+			}
+		}
+	}, lifetime());
 }
 
 void Widget::updateScrollUpVisibility() {
@@ -1632,7 +1677,7 @@ void Widget::updateControlsGeometry() {
 	auto scrollTop = filterAreaTop + filterAreaHeight;
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollHeight = height() - scrollTop;
-	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
+	const auto putBottomButton = [&](auto &button) {
 		if (button && !button->isHidden()) {
 			const auto buttonHeight = button->height();
 			scrollHeight -= buttonHeight;
@@ -1644,6 +1689,7 @@ void Widget::updateControlsGeometry() {
 		}
 	};
 	putBottomButton(_updateTelegram);
+	putBottomButton(_downloadBar);
 	putBottomButton(_loadMoreChats);
 	auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);

@@ -309,3 +309,22 @@ dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgAct
 dialogsUnreadReaction: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
 dialogsUnreadReactionOver: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
 dialogsUnreadReactionActive: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+
+downloadBarHeight: 46px;
+downloadArrow: icon{{ "fast_to_original", menuIconFg }};
+downloadArrowOver: icon{{ "fast_to_original", menuIconFgOver }};
+downloadArrowRight: 10px;
+downloadTitleLeft: 57px;
+downloadTitleTop: 4px;
+downloadInfoStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px);
+	linkFontOver: font(12px underline);
+}
+downloadInfoLeft: 57px;
+downloadInfoTop: 23px;
+downloadLoadingLeft: 15px;
+downloadLoadingSize: 24px;
+downloadLoadingLine: 2px;
+downloadLoadedSize: 30px;
+downloadIconDocument: icon {{ "history_file_document", windowFgActive }};

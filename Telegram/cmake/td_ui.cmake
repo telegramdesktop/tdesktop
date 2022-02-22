@@ -192,6 +192,8 @@ PRIVATE
     ui/controls/call_mute_button.h
     ui/controls/delete_message_context_action.cpp
     ui/controls/delete_message_context_action.h
+    ui/controls/download_bar.cpp
+    ui/controls/download_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
     ui/controls/invite_link_buttons.cpp
