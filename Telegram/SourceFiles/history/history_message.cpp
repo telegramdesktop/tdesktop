@@ -7,17 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_message.h"
 
-#include "base/random.h"
-#include "base/unixtime.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "apiwrap.h"
 #include "api/api_text_entities.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/history_location_manager.h"
-#include "history/history_service.h"
 #include "history/history_unread_things.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
@@ -28,34 +22,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "api/api_updates.h"
 #include "boxes/share_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_utilities.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
-#include "core/application.h"
 #include "core/ui_integration.h"
-#include "window/notifications_manager.h"
-#include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_game.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
-#include "data/data_histories.h"
 #include "data/data_web_page.h"
 #include "data/data_sponsored_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
 
 namespace {
 
@@ -186,191 +169,6 @@ QString GetErrorTextForSending(
 	}
 
 	return QString();
-}
-
-void FastShareMessage(not_null<HistoryItem*> item) {
-	struct ShareData {
-		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
-		: peer(peer)
-		, msgIds(std::move(ids)) {
-		}
-		not_null<PeerData*> peer;
-		MessageIdsList msgIds;
-		base::flat_set<mtpRequestId> requests;
-	};
-	const auto history = item->history();
-	const auto owner = &history->owner();
-	const auto session = &history->session();
-	const auto data = std::make_shared<ShareData>(
-		history->peer,
-		owner->itemOrItsGroup(item));
-	const auto isGame = item->getMessageBot()
-		&& item->media()
-		&& (item->media()->game() != nullptr);
-	const auto canCopyLink = item->hasDirectLink() || isGame;
-
-	const auto items = owner->idsToItems(data->msgIds);
-	const auto hasCaptions = ranges::any_of(items, [](auto item) {
-		return item->media()
-			&& !item->originalText().text.isEmpty()
-			&& item->media()->allowsEditCaption();
-	});
-	const auto hasOnlyForcedForwardedInfo = hasCaptions
-		? false
-		: ranges::all_of(items, [](auto item) {
-			return item->media() && item->media()->forceForwardedInfo();
-		});
-
-	auto copyCallback = [=]() {
-		if (const auto item = owner->message(data->msgIds[0])) {
-			if (item->hasDirectLink()) {
-				HistoryView::CopyPostLink(
-					session,
-					item->fullId(),
-					HistoryView::Context::History);
-			} else if (const auto bot = item->getMessageBot()) {
-				if (const auto media = item->media()) {
-					if (const auto game = media->game()) {
-						const auto link = session->createInternalLinkFull(
-							bot->username
-							+ qsl("?game=")
-							+ game->shortName);
-
-						QGuiApplication::clipboard()->setText(link);
-
-						Ui::Toast::Show(tr::lng_share_game_link_copied(tr::now));
-					}
-				}
-			}
-		}
-	};
-	auto submitCallback = [=](
-			std::vector<not_null<PeerData*>> &&result,
-			TextWithTags &&comment,
-			Api::SendOptions options,
-			Data::ForwardOptions forwardOptions) {
-		if (!data->requests.empty()) {
-			return; // Share clicked already.
-		}
-		auto items = history->owner().idsToItems(data->msgIds);
-		if (items.empty() || result.empty()) {
-			return;
-		}
-
-		const auto error = [&] {
-			for (const auto peer : result) {
-				const auto error = GetErrorTextForSending(
-					peer,
-					items,
-					comment);
-				if (!error.isEmpty()) {
-					return std::make_pair(error, peer);
-				}
-			}
-			return std::make_pair(QString(), result.front());
-		}();
-		if (!error.first.isEmpty()) {
-			auto text = TextWithEntities();
-			if (result.size() > 1) {
-				text.append(
-					Ui::Text::Bold(error.second->name)
-				).append("\n\n");
-			}
-			text.append(error.first);
-			Ui::show(
-				Ui::MakeInformBox(text),
-				Ui::LayerOption::KeepOther);
-			return;
-		}
-
-		const auto commonSendFlags = MTPmessages_ForwardMessages::Flag(0)
-			| MTPmessages_ForwardMessages::Flag::f_with_my_score
-			| (options.scheduled
-				? MTPmessages_ForwardMessages::Flag::f_schedule_date
-				: MTPmessages_ForwardMessages::Flag(0))
-			| ((forwardOptions != Data::ForwardOptions::PreserveInfo)
-				? MTPmessages_ForwardMessages::Flag::f_drop_author
-				: MTPmessages_ForwardMessages::Flag(0))
-			| ((forwardOptions == Data::ForwardOptions::NoNamesAndCaptions)
-				? MTPmessages_ForwardMessages::Flag::f_drop_media_captions
-				: MTPmessages_ForwardMessages::Flag(0));
-		auto msgIds = QVector<MTPint>();
-		msgIds.reserve(data->msgIds.size());
-		for (const auto &fullId : data->msgIds) {
-			msgIds.push_back(MTP_int(fullId.msg));
-		}
-		const auto generateRandom = [&] {
-			auto result = QVector<MTPlong>(data->msgIds.size());
-			for (auto &value : result) {
-				value = base::RandomValue<MTPlong>();
-			}
-			return result;
-		};
-		auto &api = owner->session().api();
-		auto &histories = owner->histories();
-		const auto requestType = Data::Histories::RequestType::Send;
-		for (const auto peer : result) {
-			const auto history = owner->history(peer);
-			if (!comment.text.isEmpty()) {
-				auto message = Api::MessageToSend(
-					Api::SendAction(history, options));
-				message.textWithTags = comment;
-				message.action.clearDraft = false;
-				api.sendMessage(std::move(message));
-			}
-			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-				auto &api = history->session().api();
-				const auto sendFlags = commonSendFlags
-					| (ShouldSendSilent(peer, options)
-						? MTPmessages_ForwardMessages::Flag::f_silent
-						: MTPmessages_ForwardMessages::Flag(0));
-				history->sendRequestId = api.request(MTPmessages_ForwardMessages(
-					MTP_flags(sendFlags),
-					data->peer->input,
-					MTP_vector<MTPint>(msgIds),
-					MTP_vector<MTPlong>(generateRandom()),
-					peer->input,
-					MTP_int(options.scheduled),
-					MTP_inputPeerEmpty() // send_as
-				)).done([=](const MTPUpdates &updates, mtpRequestId requestId) {
-					history->session().api().applyUpdates(updates);
-					data->requests.remove(requestId);
-					if (data->requests.empty()) {
-						Ui::Toast::Show(tr::lng_share_done(tr::now));
-						Ui::hideLayer();
-					}
-					finish();
-				}).fail([=] {
-					finish();
-				}).afterRequest(history->sendRequestId).send();
-				return history->sendRequestId;
-			});
-			data->requests.insert(history->sendRequestId);
-		}
-	};
-	auto filterCallback = [isGame](PeerData *peer) {
-		if (peer->canWrite()) {
-			if (auto channel = peer->asChannel()) {
-				return isGame ? (!channel->isBroadcast()) : true;
-			}
-			return true;
-		}
-		return false;
-	};
-	auto copyLinkCallback = canCopyLink
-		? Fn<void()>(std::move(copyCallback))
-		: Fn<void()>();
-	Ui::show(Box<ShareBox>(ShareBox::Descriptor{
-		.session = session,
-		.copyCallback = std::move(copyLinkCallback),
-		.submitCallback = std::move(submitCallback),
-		.filterCallback = std::move(filterCallback),
-		.forwardOptions = {
-			.messagesCount = int(data->msgIds.size()),
-			.show = !hasOnlyForcedForwardedInfo,
-			.hasCaptions = hasCaptions,
-		},
-	}));
 }
 
 void RequestDependentMessageData(

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
+#include "boxes/share_box.h"
 #include "ui/effects/ripple_animation.h"
 #include "base/unixtime.h"
 #include "ui/chat/message_bubble.h"
