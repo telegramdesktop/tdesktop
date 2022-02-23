@@ -842,7 +842,7 @@ bool ScheduledWidget::showAtPositionNow(Data::MessagePosition position) {
 }
 
 void ScheduledWidget::updateScrollDownVisibility() {
-	if (animating()) {
+	if (animatingShow()) {
 		return;
 	}
 
@@ -1011,11 +1011,10 @@ void ScheduledWidget::updateControlsGeometry() {
 }
 
 void ScheduledWidget::paintEvent(QPaintEvent *e) {
-	if (animating()) {
+	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	}
-	if (Ui::skipPaintEvent(this, e)) {
+	} else if (Ui::skipPaintEvent(this, e)) {
 		return;
 	}
 	//if (hasPendingResizedItems()) {

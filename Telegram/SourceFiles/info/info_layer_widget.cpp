@@ -264,16 +264,19 @@ void LayerWidget::doSetInnerFocus() {
 void LayerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto clip = e->rect();
-	auto r = st::boxRadius;
+	const auto clip = e->rect();
+	const auto radius = st::boxRadius;
 	auto parts = RectPart::None | 0;
-	if (clip.intersects({ 0, 0, width(), r })) {
-		parts |= RectPart::FullTop;
-	}
 	if (!_tillBottom) {
-		if (clip.intersects({ 0, height() - r, width(), r })) {
+		if (clip.intersects({ 0, height() - radius, width(), radius })) {
 			parts |= RectPart::FullBottom;
 		}
+	}
+	if (_content->animatingShow()) {
+		if (clip.intersects({ 0, 0, width(), radius })) {
+			parts |= RectPart::FullTop;
+		}
+		parts |= RectPart::Left | RectPart::Center | RectPart::Right;
 	}
 	if (parts) {
 		Ui::FillRoundRect(

@@ -102,7 +102,6 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	AddDivider(result);
 	AddSkip(result);
 	SetupFaq(result, false);
-	AddSkip(result);
 
 	return result;
 }
@@ -110,7 +109,6 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 TopBar::TopBar(QWidget *parent, const style::InfoTopBar &st)
 : RpWidget(parent)
 , _st(st) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void TopBar::setTitle(rpl::producer<QString> &&title) {
@@ -156,8 +154,10 @@ void TopBar::updateControlsGeometry(int newWidth) {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), _st.bg);
+	const auto radius = st::boxRadius;
+	QPainter(this).fillRect(
+		e->rect().intersected({ 0, radius, width(), height() - radius }),
+		_st.bg);
 }
 
 } // namespace
@@ -452,11 +452,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	auto windowHeight = parentSize.height();
 	auto newLeft = (windowWidth - newWidth) / 2;
 	if (!newLeft) {
-		_content->updateGeometry({
-			0,
-			st::boxRadius,
-			windowWidth,
-			windowHeight - st::boxRadius }, 0);
+		_content->updateGeometry({ 0, 0, windowWidth, windowHeight }, 0);
 		auto newGeometry = QRect(0, 0, windowWidth, windowHeight);
 		if (newGeometry != geometry()) {
 			_content->forceContentRepaint();
@@ -472,12 +468,12 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
 	auto newBottom = newTop;
-	auto desiredHeight = st::boxRadius + _desiredHeight + st::boxRadius;
+	auto desiredHeight = _desiredHeight + st::boxRadius;
 	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
 
 	// First resize content to new width and get the new desired height.
 	auto contentLeft = 0;
-	auto contentTop = st::boxRadius;
+	auto contentTop = 0;
 	auto contentBottom = st::boxRadius;
 	auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;

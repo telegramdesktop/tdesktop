@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_layers.h"
 
 namespace Info {
 namespace {
@@ -855,7 +856,9 @@ void WrapWidget::showNewContent(
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
 			animationParams);
-		animationParams.withFade = (wrap() == Wrap::Layer);
+		const auto layer = (wrap() == Wrap::Layer);
+		animationParams.withFade = layer;
+		animationParams.topSkip = layer ? st::boxRadius : 0;
 	}
 	if (saveToStack) {
 		auto item = StackItem();

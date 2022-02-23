@@ -1344,7 +1344,7 @@ bool RepliesWidget::showAtPositionNow(
 }
 
 void RepliesWidget::updateScrollDownVisibility() {
-	if (animating()) {
+	if (animatingShow()) {
 		return;
 	}
 
@@ -1617,7 +1617,7 @@ void RepliesWidget::updateControlsGeometry() {
 }
 
 void RepliesWidget::paintEvent(QPaintEvent *e) {
-	if (animating()) {
+	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
 	} else if (Ui::skipPaintEvent(this, e)) {
@@ -1667,28 +1667,28 @@ void RepliesWidget::updatePinnedVisibility() {
 }
 
 void RepliesWidget::setPinnedVisibility(bool shown) {
-	if (!animating()) {
-		if (!_rootViewInited) {
-			const auto height = shown ? st::historyReplyHeight : 0;
-			if (const auto delta = height - _rootViewHeight) {
-				_rootViewHeight = height;
-				if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
-					setGeometryWithTopMoved(geometry(), delta);
-				} else {
-					updateControlsGeometry();
-				}
-			}
-			if (shown) {
-				_rootView->show();
+	if (animatingShow()) {
+		return;
+	} else if (!_rootViewInited) {
+		const auto height = shown ? st::historyReplyHeight : 0;
+		if (const auto delta = height - _rootViewHeight) {
+			_rootViewHeight = height;
+			if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
+				setGeometryWithTopMoved(geometry(), delta);
 			} else {
-				_rootView->hide();
+				updateControlsGeometry();
 			}
-			_rootVisible = shown;
-			_rootView->finishAnimating();
-			_rootViewInited = true;
-		} else {
-			_rootVisible = shown;
 		}
+		if (shown) {
+			_rootView->show();
+		} else {
+			_rootView->hide();
+		}
+		_rootVisible = shown;
+		_rootView->finishAnimating();
+		_rootViewInited = true;
+	} else {
+		_rootVisible = shown;
 	}
 }
 

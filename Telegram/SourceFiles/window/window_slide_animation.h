@@ -18,11 +18,12 @@ enum class SlideDirection {
 
 class SlideAnimation {
 public:
-	void paintContents(Painter &p, const QRect &update) const;
+	void paintContents(Painter &p) const;
 
 	void setDirection(SlideDirection direction);
 	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
 	void setTopBarShadow(bool enabled);
+	void setTopSkip(int skip);
 	void setWithFade(bool withFade);
 
 	using RepaintCallback = Fn<void()>;
@@ -41,6 +42,7 @@ private:
 	void animationCallback();
 
 	SlideDirection _direction = SlideDirection::FromRight;
+	int _topSkip = 0;
 	bool _topBarShadowEnabled = false;
 	bool _withFade = false;
 

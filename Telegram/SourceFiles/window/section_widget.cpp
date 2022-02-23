@@ -153,6 +153,7 @@ void SectionWidget::showAnimated(
 		myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
 	_showAnimation->setWithFade(params.withFade);
+	_showAnimation->setTopSkip(params.topSkip);
 	_showAnimation->start();
 
 	show();
@@ -271,8 +272,12 @@ void SectionWidget::PaintBackground(
 void SectionWidget::paintEvent(QPaintEvent *e) {
 	if (_showAnimation) {
 		Painter p(this);
-		_showAnimation->paintContents(p, e->rect());
+		_showAnimation->paintContents(p);
 	}
+}
+
+bool SectionWidget::animatingShow() const {
+	return (_showAnimation != nullptr);
 }
 
 void SectionWidget::showFinished() {
