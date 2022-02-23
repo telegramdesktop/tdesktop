@@ -227,6 +227,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			return false;
 		} else if (SetClickContext<CashtagClickHandler>(handler, context)) {
 			return false;
+		} else if (SetClickContext<UrlClickHandler>(handler, context)) {
+			return false;
 		}
 		return true;
 	};
