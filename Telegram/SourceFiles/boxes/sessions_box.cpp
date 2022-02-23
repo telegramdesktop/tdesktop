@@ -823,13 +823,13 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		}
 		terminateRequest();
 	});
-	_terminateBox = Ui::show(
-		Box<Ui::ConfirmBox>(
-			message,
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+	auto box = Box<Ui::ConfirmBox>(
+		message,
+		tr::lng_settings_reset_button(tr::now),
+		st::attentionBoxButton,
+		callback);
+	_terminateBox = Ui::MakeWeak(box.data());
+	_controller->show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
@@ -911,7 +911,7 @@ void SessionsContent::Inner::setupContent() {
 		rename->moveToRight(x, y, outer.width());
 	}, rename->lifetime());
 	rename->setClickedCallback([=] {
-		Ui::show(Box(RenameBox), Ui::LayerOption::KeepOther);
+		_controller->show(Box(RenameBox), Ui::LayerOption::KeepOther);
 	});
 
 	const auto session = &_controller->session();
