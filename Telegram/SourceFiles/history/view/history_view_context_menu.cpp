@@ -1232,6 +1232,7 @@ void SendReport(
 		case Reason::Violence: return MTP_inputReportReasonViolence();
 		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
+		case Reason::Copyright: return MTP_inputReportReasonCopyright();
 		case Reason::IllegalDrugs:
 			return MTP_inputReportReasonIllegalDrugs();
 		case Reason::PersonalDetails:
