@@ -2634,7 +2634,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 					Window::SectionShow::Way::Forward,
 					savedFromMsgId);
 			} else {
-				FastShareMessage(item);
+				FastShareMessage(controller, item);
 			}
 		}
 	});

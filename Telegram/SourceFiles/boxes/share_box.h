@@ -62,7 +62,9 @@ QString AppendShareGameScoreUrl(
 void ShareGameScoreByHash(
 	not_null<Window::SessionController*> controller,
 	const QString &hash);
-void FastShareMessage(not_null<HistoryItem*> item);
+void FastShareMessage(
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item);
 
 class ShareBox final : public Ui::BoxContent {
 public:
