@@ -26,6 +26,7 @@ enum class Type;
 } // namespace SendMenu
 
 namespace Window {
+class SessionController;
 class SessionNavigation;
 } // namespace Window
 
@@ -60,7 +61,7 @@ QString AppendShareGameScoreUrl(
 	const QString &url,
 	const FullMsgId &fullId);
 void ShareGameScoreByHash(
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const QString &hash);
 
 class ShareBox final : public Ui::BoxContent {
