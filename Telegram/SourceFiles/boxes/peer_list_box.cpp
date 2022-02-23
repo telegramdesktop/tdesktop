@@ -138,12 +138,12 @@ void PeerListBox::prepare() {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
 		_scrollBottomFixed = true;
-		onScrollToY(0);
+		scrollToY(0);
 	}
 
 	content()->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		onScrollToY(request.ymin, request.ymax);
+		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
 
 	if (_init) {
@@ -168,7 +168,7 @@ void PeerListBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PeerListBox::searchQueryChanged(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	content()->searchQueryChanged(query);
 }
 
@@ -244,7 +244,7 @@ void PeerListBox::peerListSetForeignRowChecked(
 }
 
 void PeerListBox::peerListScrollToTop() {
-	onScrollToY(0);
+	scrollToY(0);
 }
 
 void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {

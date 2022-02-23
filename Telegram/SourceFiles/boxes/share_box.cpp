@@ -553,7 +553,7 @@ void ShareBox::createButtons() {
 }
 
 void ShareBox::applyFilterUpdate(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	_inner->updateFilter(query);
 }
 
@@ -624,7 +624,7 @@ void ShareBox::selectedChanged() {
 }
 
 void ShareBox::scrollTo(Ui::ScrollToRequest request) {
-	onScrollToY(request.ymin, request.ymax);
+	scrollToY(request.ymin, request.ymax);
 	//auto scrollTop = scrollArea()->scrollTop(), scrollBottom = scrollTop + scrollArea()->height();
 	//auto from = scrollTop, to = scrollTop;
 	//if (scrollTop > top) {

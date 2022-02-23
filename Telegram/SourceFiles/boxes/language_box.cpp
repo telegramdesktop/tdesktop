@@ -1143,7 +1143,7 @@ void LanguageBox::keyPressEvent(QKeyEvent *e) {
 		return Ui::ScrollToRequest(-1, -1);
 	}();
 	if (selected.ymin >= 0 && selected.ymax >= 0) {
-		onScrollToY(selected.ymin, selected.ymax);
+		scrollToY(selected.ymin, selected.ymax);
 	}
 }
 
