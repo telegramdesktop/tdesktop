@@ -23,8 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Media {
+namespace Info::Media {
 
 using Type = Storage::SharedMediaType;
 
@@ -118,5 +117,4 @@ inline auto AddCommonGroupsButton(
 	return result;
 };
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

@@ -40,6 +40,7 @@ public:
 		return _type;
 	}
 
+	// Only for media, not for downloads.
 	void setAroundId(FullMsgId aroundId) {
 		_aroundId = aroundId;
 	}
@@ -52,10 +53,11 @@ public:
 	int idsLimit() const {
 		return _idsLimit;
 	}
-	void setScrollTopItem(FullMsgId item) {
+
+	void setScrollTopItem(GlobalMsgId item) {
 		_scrollTopItem = item;
 	}
-	FullMsgId scrollTopItem() const {
+	GlobalMsgId scrollTopItem() const {
 		return _scrollTopItem;
 	}
 	void setScrollTopShift(int shift) {
@@ -75,7 +77,7 @@ private:
 	Type _type = Type::Photo;
 	FullMsgId _aroundId;
 	int _idsLimit = 0;
-	FullMsgId _scrollTopItem;
+	GlobalMsgId _scrollTopItem;
 	int _scrollTopShift = 0;
 	SearchState _searchState;
 

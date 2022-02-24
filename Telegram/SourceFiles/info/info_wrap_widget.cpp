@@ -871,13 +871,19 @@ void WrapWidget::showNewContent(
 		_historyStack.clear();
 	}
 
-	_controller = std::move(newController);
-	if (newContent) {
-		setupTop();
-		showContent(std::move(newContent));
-	} else {
-		showNewContent(memento);
+	{
+		// Let old controller outlive old content widget.
+		const auto oldController = std::exchange(
+			_controller,
+			std::move(newController));
+		if (newContent) {
+			setupTop();
+			showContent(std::move(newContent));
+		} else {
+			showNewContent(memento);
+		}
 	}
+
 	if (animationParams) {
 		if (Ui::InFocusChain(this)) {
 			setFocus();

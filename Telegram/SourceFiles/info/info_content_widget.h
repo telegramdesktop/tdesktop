@@ -28,6 +28,10 @@ namespace Settings {
 struct Tag;
 } // namespace Settings
 
+namespace Downloads {
+struct Tag;
+} // namespace Downloads
+
 class ContentMemento;
 class Controller;
 
@@ -120,6 +124,7 @@ public:
 	, _migratedPeerId(migratedPeerId) {
 	}
 	explicit ContentMemento(Settings::Tag settings);
+	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollContextId(contextId) {

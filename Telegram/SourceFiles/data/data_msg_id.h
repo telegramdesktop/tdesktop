@@ -181,6 +181,60 @@ struct FullMsgId {
 
 Q_DECLARE_METATYPE(FullMsgId);
 
+struct GlobalMsgId {
+	FullMsgId itemId;
+	uint64 sessionUniqueId = 0;
+
+	constexpr explicit operator bool() const noexcept {
+		return itemId && sessionUniqueId;
+	}
+	constexpr bool operator!() const noexcept {
+		return !itemId || !sessionUniqueId;
+	}
+};
+
+[[nodiscard]] inline constexpr bool operator<(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	if (a.itemId < b.itemId) {
+		return true;
+	} else if (a.itemId > b.itemId) {
+		return false;
+	}
+	return a.sessionUniqueId < b.sessionUniqueId;
+}
+
+[[nodiscard]] inline constexpr bool operator>(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return b < a;
+}
+
+[[nodiscard]] inline constexpr bool operator<=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(b < a);
+}
+
+[[nodiscard]] inline constexpr bool operator>=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(a < b);
+}
+
+[[nodiscard]] inline constexpr bool operator==(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return (a.itemId == b.itemId)
+		&& (a.sessionUniqueId == b.sessionUniqueId);
+}
+
+[[nodiscard]] inline constexpr bool operator!=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(a == b);
+}
+
 namespace std {
 
 template <>

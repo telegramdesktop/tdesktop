@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_list_widget.h"
 
+#include "info/media/info_media_common.h"
+#include "info/media/info_media_provider.h"
+#include "info/media/info_media_list_section.h"
+#include "info/downloads/info_downloads_provider.h"
 #include "info/info_controller.h"
-#include "overview/overview_layout.h"
 #include "layout/layout_mosaic.h"
 #include "layout/layout_selection.h"
 #include "data/data_media_types.h"
@@ -54,51 +57,9 @@ namespace Info {
 namespace Media {
 namespace {
 
-constexpr auto kFloatingHeaderAlpha = 0.9;
-constexpr auto kPreloadedScreensCount = 4;
-constexpr auto kPreloadIfLessThanScreens = 2;
-constexpr auto kPreloadedScreensCountFull
-	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 constexpr auto kMediaCountForSearch = 10;
 
-UniversalMsgId GetUniversalId(FullMsgId itemId) {
-	return peerIsChannel(itemId.peer)
-		? UniversalMsgId(itemId.msg)
-		: UniversalMsgId(itemId.msg - ServerMaxMsgId);
-}
-
-UniversalMsgId GetUniversalId(not_null<const HistoryItem*> item) {
-	return GetUniversalId(item->fullId());
-}
-
-UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
-	return GetUniversalId(layout->getItem()->fullId());
-}
-
-bool HasFloatingHeader(Type type) {
-	switch (type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::MusicFile:
-		return false;
-	case Type::File:
-	case Type::Link:
-		return true;
-	}
-	Unexpected("Type in HasFloatingHeader()");
-}
-
 } // namespace
-
-struct ListWidget::Context {
-	Overview::Layout::PaintContext layoutContext;
-	not_null<SelectedMap*> selected;
-	not_null<SelectedMap*> dragSelected;
-	DragSelectAction dragSelectAction;
-};
 
 struct ListWidget::DateBadge {
 	DateBadge(Type type, Fn<void()> checkCallback, Fn<void()> hideCallback);
@@ -114,111 +75,22 @@ struct ListWidget::DateBadge {
 	QRect rect;
 };
 
-class ListWidget::Section {
-public:
-	Section(Type type)
-	: _type(type)
-	, _hasFloatingHeader(HasFloatingHeader(type))
-	, _mosaic(st::emojiPanWidth - st::inlineResultsLeft) {
+[[nodiscard]] std::unique_ptr<ListProvider> MakeProvider(
+		not_null<AbstractController*> controller) {
+	if (controller->isDownloads()) {
+		return std::make_unique<Downloads::Provider>(controller);
 	}
+	return std::make_unique<Provider>(controller);
+}
 
-	bool addItem(not_null<BaseLayout*> item);
-	void finishSection();
-
-	bool empty() const {
-		return _items.empty();
-	}
-
-	UniversalMsgId minId() const {
-		Expects(!empty());
-
-		return _items.back().first;
-	}
-	UniversalMsgId maxId() const {
-		Expects(!empty());
-
-		return _items.front().first;
-	}
-
-	void setTop(int top) {
-		_top = top;
-	}
-	int top() const {
-		return _top;
-	}
-	void resizeToWidth(int newWidth);
-	int height() const {
-		return _height;
-	}
-
-	int bottom() const {
-		return top() + height();
-	}
-
-	bool removeItem(UniversalMsgId universalId);
-	FoundItem findItemNearId(UniversalMsgId universalId) const;
-	FoundItem findItemDetails(not_null<BaseLayout*> item) const;
-	FoundItem findItemByPoint(QPoint point) const;
-
-	void paint(
-		Painter &p,
-		const Context &context,
-		QRect clip,
-		int outerWidth) const;
-
-	void paintFloatingHeader(Painter &p, int visibleTop, int outerWidth);
-
-	static int MinItemHeight(Type type, int width);
-
-private:
-	using Items = base::flat_map<
-		UniversalMsgId,
-		not_null<BaseLayout*>,
-		std::greater<>>;
-	int headerHeight() const;
-	void appendItem(not_null<BaseLayout*> item);
-	void setHeader(not_null<BaseLayout*> item);
-	bool belongsHere(not_null<BaseLayout*> item) const;
-	Items::iterator findItemAfterTop(int top);
-	Items::const_iterator findItemAfterTop(int top) const;
-	Items::const_iterator findItemAfterBottom(
-		Items::const_iterator from,
-		int bottom) const;
-	QRect findItemRect(not_null<const BaseLayout*> item) const;
-	FoundItem completeResult(
-		not_null<BaseLayout*> item,
-		bool exact) const;
-	TextSelection itemSelection(
-		not_null<const BaseLayout*> item,
-		const Context &context) const;
-
-	int recountHeight();
-	void refreshHeight();
-
-	Type _type = Type::Photo;
-	bool _hasFloatingHeader = false;
-	Ui::Text::String _header;
-	Items _items;
-	int _itemsLeft = 0;
-	int _itemsTop = 0;
-	int _itemWidth = 0;
-	int _itemsInRow = 1;
-	mutable int _rowsCount = 0;
-	int _top = 0;
-	int _height = 0;
-
-	Mosaic::Layout::MosaicLayout<BaseLayout> _mosaic;
-
-};
-
-bool ListWidget::IsAfter(
+bool ListWidget::isAfter(
 		const MouseState &a,
-		const MouseState &b) {
-	if (a.itemId != b.itemId) {
-		return (a.itemId < b.itemId);
+		const MouseState &b) const {
+	if (a.item != b.item) {
+		return _provider->isAfter(a.item, b.item);
 	}
-	auto xAfter = a.cursor.x() - b.cursor.x();
-	auto yAfter = a.cursor.y() - b.cursor.y();
+	const auto xAfter = a.cursor.x() - b.cursor.x();
+	const auto yAfter = a.cursor.y() - b.cursor.y();
 	return (xAfter + yAfter >= 0);
 }
 
@@ -237,17 +109,6 @@ bool ListWidget::SkipSelectTillItem(const MouseState &state) {
 	return false;
 }
 
-ListWidget::CachedItem::CachedItem(std::unique_ptr<BaseLayout> item)
-: item(std::move(item)) {
-}
-
-ListWidget::CachedItem::CachedItem(CachedItem &&other) = default;
-
-ListWidget::CachedItem &ListWidget::CachedItem::operator=(
-	CachedItem && other) = default;
-
-ListWidget::CachedItem::~CachedItem() = default;
-
 ListWidget::DateBadge::DateBadge(
 	Type type,
 	Fn<void()> checkCallback,
@@ -259,447 +120,16 @@ ListWidget::DateBadge::DateBadge(
 	|| type == Type::GIF) {
 }
 
-bool ListWidget::Section::addItem(not_null<BaseLayout*> item) {
-	if (_items.empty() || belongsHere(item)) {
-		if (_items.empty()) setHeader(item);
-		appendItem(item);
-		return true;
-	}
-	return false;
-}
-
-void ListWidget::Section::finishSection() {
-	if (_type == Type::GIF) {
-		_mosaic.setOffset(st::infoMediaSkip, headerHeight());
-		_mosaic.setRightSkip(st::infoMediaSkip);
-		const auto items = ranges::views::values(_items) | ranges::to_vector;
-		_mosaic.addItems(items);
-	}
-}
-
-void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
-	auto text = [&] {
-		auto date = item->dateTime().date();
-		switch (_type) {
-		case Type::Photo:
-		case Type::GIF:
-		case Type::Video:
-		case Type::RoundFile:
-		case Type::RoundVoiceFile:
-		case Type::File:
-			return langMonthFull(date);
-
-		case Type::Link:
-			return langDayOfMonthFull(date);
-
-		case Type::MusicFile:
-			return QString();
-		}
-		Unexpected("Type in ListWidget::Section::setHeader()");
-	}();
-	_header.setText(st::infoMediaHeaderStyle, text);
-}
-
-bool ListWidget::Section::belongsHere(
-		not_null<BaseLayout*> item) const {
-	Expects(!_items.empty());
-
-	auto date = item->dateTime().date();
-	auto myDate = _items.back().second->dateTime().date();
-
-	switch (_type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::File:
-		return date.year() == myDate.year()
-			&& date.month() == myDate.month();
-
-	case Type::Link:
-		return date.year() == myDate.year()
-			&& date.month() == myDate.month()
-			&& date.day() == myDate.day();
-
-	case Type::MusicFile:
-		return true;
-	}
-	Unexpected("Type in ListWidget::Section::belongsHere()");
-}
-
-void ListWidget::Section::appendItem(not_null<BaseLayout*> item) {
-	_items.emplace(GetUniversalId(item), item);
-}
-
-bool ListWidget::Section::removeItem(UniversalMsgId universalId) {
-	if (auto it = _items.find(universalId); it != _items.end()) {
-		it = _items.erase(it);
-		refreshHeight();
-		return true;
-	}
-	return false;
-}
-
-QRect ListWidget::Section::findItemRect(
-		not_null<const BaseLayout*> item) const {
-	auto position = item->position();
-	if (!_mosaic.empty()) {
-		return _mosaic.findRect(position);
-	}
-	auto top = position / _itemsInRow;
-	auto indexInRow = position % _itemsInRow;
-	auto left = _itemsLeft
-		+ indexInRow * (_itemWidth + st::infoMediaSkip);
-	return QRect(left, top, _itemWidth, item->height());
-}
-
-auto ListWidget::Section::completeResult(
-		not_null<BaseLayout*> item,
-		bool exact) const -> FoundItem {
-	return { item, findItemRect(item), exact };
-}
-
-auto ListWidget::Section::findItemByPoint(
-		QPoint point) const -> FoundItem {
-	Expects(!_items.empty());
-	if (!_mosaic.empty()) {
-		const auto found = _mosaic.findByPoint(point);
-		Assert(found.index != -1);
-		const auto item = _mosaic.itemAt(found.index);
-		const auto rect = findItemRect(item);
-		return { item, rect, found.exact };
-	}
-	auto itemIt = findItemAfterTop(point.y());
-	if (itemIt == _items.end()) {
-		--itemIt;
-	}
-	auto item = itemIt->second;
-	auto rect = findItemRect(item);
-	if (point.y() >= rect.top()) {
-		auto shift = floorclamp(
-			point.x(),
-			(_itemWidth + st::infoMediaSkip),
-			0,
-			_itemsInRow);
-		while (shift-- && itemIt != _items.end()) {
-			++itemIt;
-		}
-		if (itemIt == _items.end()) {
-			--itemIt;
-		}
-		item = itemIt->second;
-		rect = findItemRect(item);
-	}
-	return { item, rect, rect.contains(point) };
-}
-
-auto ListWidget::Section::findItemNearId(UniversalMsgId universalId) const
--> FoundItem {
-	Expects(!_items.empty());
-
-	auto itemIt = ranges::lower_bound(
-		_items,
-		universalId,
-		std::greater<>(),
-		[](const auto &item) -> UniversalMsgId { return item.first; });
-	if (itemIt == _items.end()) {
-		--itemIt;
-	}
-	auto item = itemIt->second;
-	auto exact = (GetUniversalId(item) == universalId);
-	return { item, findItemRect(item), exact };
-}
-
-auto ListWidget::Section::findItemDetails(not_null<BaseLayout*> item) const
--> FoundItem {
-	return { item, findItemRect(item), true };
-}
-
-auto ListWidget::Section::findItemAfterTop(
-		int top) -> Items::iterator {
-	Expects(_mosaic.empty());
-	return ranges::lower_bound(
-		_items,
-		top,
-		std::less_equal<>(),
-		[this](const auto &item) {
-			auto itemTop = item.second->position() / _itemsInRow;
-			return itemTop + item.second->height();
-		});
-}
-
-auto ListWidget::Section::findItemAfterTop(
-		int top) const -> Items::const_iterator {
-	Expects(_mosaic.empty());
-	return ranges::lower_bound(
-		_items,
-		top,
-		std::less_equal<>(),
-		[this](const auto &item) {
-			auto itemTop = item.second->position() / _itemsInRow;
-			return itemTop + item.second->height();
-		});
-}
-
-auto ListWidget::Section::findItemAfterBottom(
-		Items::const_iterator from,
-		int bottom) const -> Items::const_iterator {
-	Expects(_mosaic.empty());
-	return ranges::lower_bound(
-		from,
-		_items.end(),
-		bottom,
-		std::less<>(),
-		[this](const auto &item) {
-			auto itemTop = item.second->position() / _itemsInRow;
-			return itemTop;
-		});
-}
-
-void ListWidget::Section::paint(
-		Painter &p,
-		const Context &context,
-		QRect clip,
-		int outerWidth) const {
-	auto header = headerHeight();
-	if (QRect(0, 0, outerWidth, header).intersects(clip)) {
-		p.setPen(st::infoMediaHeaderFg);
-		_header.drawLeftElided(
-			p,
-			st::infoMediaHeaderPosition.x(),
-			st::infoMediaHeaderPosition.y(),
-			outerWidth - 2 * st::infoMediaHeaderPosition.x(),
-			outerWidth);
-	}
-	auto localContext = context.layoutContext;
-	localContext.isAfterDate = (header > 0);
-
-	if (!_mosaic.empty()) {
-		auto paintItem = [&](not_null<BaseLayout*> item, QPoint point) {
-			p.translate(point.x(), point.y());
-			item->paint(
-				p,
-				clip.translated(-point),
-				itemSelection(item, context),
-				&localContext);
-			p.translate(-point.x(), -point.y());
-		};
-		_mosaic.paint(std::move(paintItem), clip);
-		return;
-	}
-
-	auto fromIt = findItemAfterTop(clip.y());
-	auto tillIt = findItemAfterBottom(
-		fromIt,
-		clip.y() + clip.height());
-	for (auto it = fromIt; it != tillIt; ++it) {
-		auto item = it->second;
-		auto rect = findItemRect(item);
-		localContext.isAfterDate = (header > 0)
-			&& (rect.y() <= header + _itemsTop);
-		if (rect.intersects(clip)) {
-			p.translate(rect.topLeft());
-			item->paint(
-				p,
-				clip.translated(-rect.topLeft()),
-				itemSelection(item, context),
-				&localContext);
-			p.translate(-rect.topLeft());
-		}
-	}
-}
-
-void ListWidget::Section::paintFloatingHeader(
-		Painter &p,
-		int visibleTop,
-		int outerWidth) {
-	if (!_hasFloatingHeader) {
-		return;
-	}
-	const auto headerTop = st::infoMediaHeaderPosition.y() / 2;
-	if (visibleTop <= (_top + headerTop)) {
-		return;
-	}
-	const auto header = headerHeight();
-	const auto headerLeft = st::infoMediaHeaderPosition.x();
-	const auto floatingTop = std::min(
-		visibleTop,
-		bottom() - header + headerTop);
-	p.save();
-	p.resetTransform();
-	p.setOpacity(kFloatingHeaderAlpha);
-	p.fillRect(QRect(0, floatingTop, outerWidth, header), st::boxBg);
-	p.setOpacity(1.0);
-	p.setPen(st::infoMediaHeaderFg);
-	_header.drawLeftElided(
-		p,
-		headerLeft,
-		floatingTop + headerTop,
-		outerWidth - 2 * headerLeft,
-		outerWidth);
-	p.restore();
-}
-
-TextSelection ListWidget::Section::itemSelection(
-		not_null<const BaseLayout*> item,
-		const Context &context) const {
-	auto universalId = GetUniversalId(item);
-	auto dragSelectAction = context.dragSelectAction;
-	if (dragSelectAction != DragSelectAction::None) {
-		auto i = context.dragSelected->find(universalId);
-		if (i != context.dragSelected->end()) {
-			return (dragSelectAction == DragSelectAction::Selecting)
-				? FullSelection
-				: TextSelection();
-		}
-	}
-	auto i = context.selected->find(universalId);
-	return (i == context.selected->cend())
-		? TextSelection()
-		: i->second.text;
-}
-
-int ListWidget::Section::headerHeight() const {
-	return _header.isEmpty() ? 0 : st::infoMediaHeaderHeight;
-}
-
-void ListWidget::Section::resizeToWidth(int newWidth) {
-	auto minWidth = st::infoMediaMinGridSize + st::infoMediaSkip * 2;
-	if (newWidth < minWidth) {
-		return;
-	}
-
-	auto resizeOneColumn = [&](int itemsLeft, int itemWidth) {
-		_itemsLeft = itemsLeft;
-		_itemsTop = 0;
-		_itemsInRow = 1;
-		_itemWidth = itemWidth;
-		for (auto &item : _items) {
-			item.second->resizeGetHeight(_itemWidth);
-		}
-	};
-	switch (_type) {
-	case Type::Photo:
-	case Type::Video:
-	case Type::RoundFile: {
-		_itemsLeft = st::infoMediaSkip;
-		_itemsTop = st::infoMediaSkip;
-		_itemsInRow = (newWidth - _itemsLeft)
-			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-		_itemWidth = ((newWidth - _itemsLeft) / _itemsInRow)
-			- st::infoMediaSkip;
-		for (auto &item : _items) {
-			item.second->resizeGetHeight(_itemWidth);
-		}
-	} break;
-
-	case Type::GIF: {
-		_mosaic.setFullWidth(newWidth - st::infoMediaSkip);
-	} break;
-
-	case Type::RoundVoiceFile:
-	case Type::MusicFile:
-		resizeOneColumn(0, newWidth);
-		break;
-	case Type::File:
-	case Type::Link: {
-		auto itemsLeft = st::infoMediaHeaderPosition.x();
-		auto itemWidth = newWidth - 2 * itemsLeft;
-		resizeOneColumn(itemsLeft, itemWidth);
-	} break;
-	}
-
-	refreshHeight();
-}
-
-int ListWidget::Section::MinItemHeight(Type type, int width) {
-	auto &songSt = st::overviewFileLayout;
-	switch (type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile: {
-		auto itemsLeft = st::infoMediaSkip;
-		auto itemsInRow = (width - itemsLeft)
-			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-		return (st::infoMediaMinGridSize + st::infoMediaSkip) / itemsInRow;
-	} break;
-
-	case Type::RoundVoiceFile:
-		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom() + st::lineWidth;
-	case Type::File:
-		return songSt.filePadding.top() + songSt.fileThumbSize + songSt.filePadding.bottom() + st::lineWidth;
-	case Type::MusicFile:
-		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom();
-	case Type::Link:
-		return st::linksPhotoSize + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
-	}
-	Unexpected("Type in ListWidget::Section::MinItemHeight()");
-}
-
-int ListWidget::Section::recountHeight() {
-	auto result = headerHeight();
-
-	switch (_type) {
-	case Type::Photo:
-	case Type::Video:
-	case Type::RoundFile: {
-		auto itemHeight = _itemWidth + st::infoMediaSkip;
-		auto index = 0;
-		result += _itemsTop;
-		for (auto &item : _items) {
-			item.second->setPosition(_itemsInRow * result + index);
-			if (++index == _itemsInRow) {
-				result += itemHeight;
-				index = 0;
-			}
-		}
-		if (_items.size() % _itemsInRow) {
-			_rowsCount = int(_items.size()) / _itemsInRow + 1;
-			result += itemHeight;
-		} else {
-			_rowsCount = int(_items.size()) / _itemsInRow;
-		}
-	} break;
-
-	case Type::GIF: {
-		return _mosaic.countDesiredHeight(0) + result;
-	} break;
-
-	case Type::RoundVoiceFile:
-	case Type::File:
-	case Type::MusicFile:
-	case Type::Link:
-		for (auto &item : _items) {
-			item.second->setPosition(result);
-			result += item.second->height();
-		}
-		_rowsCount = _items.size();
-		break;
-	}
-
-	return result;
-}
-
-void ListWidget::Section::refreshHeight() {
-	_height = recountHeight();
-}
-
 ListWidget::ListWidget(
 	QWidget *parent,
 	not_null<AbstractController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(_controller->key().peer())
-, _migrated(_controller->migrated())
-, _type(_controller->section().mediaType())
-, _slice(sliceKey(_universalAroundId))
+, _provider(MakeProvider(_controller))
 , _dateBadge(std::make_unique<DateBadge>(
-		_type,
+		_provider->type(),
 		[=] { scrollDateCheck(); },
 		[=] { scrollDateHide(); })) {
-	setMouseTracking(true);
 	start();
 }
 
@@ -708,68 +138,63 @@ Main::Session &ListWidget::session() const {
 }
 
 void ListWidget::start() {
+	setMouseTracking(true);
+
 	_controller->setSearchEnabledByContent(false);
-	style::PaletteChanged(
+
+	_provider->layoutRemoved(
+	) | rpl::start_with_next([=](not_null<BaseLayout*> layout) {
+		if (_overLayout == layout) {
+			_overLayout = nullptr;
+		}
+		_heavyLayouts.remove(layout);
+	}, lifetime());
+
+	_provider->refreshed(
 	) | rpl::start_with_next([=] {
-		invalidatePaletteCache();
+		refreshRows();
 	}, lifetime());
 
-	session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
-		update();
-	}, lifetime());
+	if (_controller->isDownloads()) {
+		_provider->refreshViewer();
+	} else {
+		subscribeToSession(&session());
 
-	session().data().itemLayoutChanged(
-	) | rpl::start_with_next([this](auto item) {
-		itemLayoutChanged(item);
-	}, lifetime());
-
-	session().data().itemRemoved(
-	) | rpl::start_with_next([this](auto item) {
-		itemRemoved(item);
-	}, lifetime());
-
-	session().data().itemRepaintRequest(
-	) | rpl::start_with_next([this](auto item) {
-		repaintItem(item);
-	}, lifetime());
-
-	_controller->mediaSourceQueryValue(
-	) | rpl::start_with_next([this] {
-		restart();
-	}, lifetime());
+		_controller->mediaSourceQueryValue(
+		) | rpl::start_with_next([this] {
+			restart();
+		}, lifetime());
+	}
 
 	setupSelectRestriction();
 }
 
-void ListWidget::setupSelectRestriction() {
-	if (_peer->isUser()) {
-		return;
-	}
-	const auto chat = _peer->asChat();
-	const auto channel = _peer->asChannel();
-	auto noForwards = chat
-		? Data::PeerFlagValue(chat, ChatDataFlag::NoForwards)
-		: Data::PeerFlagValue(
-			channel,
-			ChannelDataFlag::NoForwards
-		) | rpl::type_erased();
+void ListWidget::subscribeToSession(not_null<Main::Session*> session) {
+	session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 
-	auto rights = chat
-		? chat->adminRightsValue()
-		: channel->adminRightsValue();
-	auto canDelete = std::move(
-		rights
-	) | rpl::map([=] {
-		return chat
-			? chat->canDeleteMessages()
-			: channel->canDeleteMessages();
-	});
-	rpl::combine(
-		std::move(noForwards),
-		std::move(canDelete)
+	session->data().itemLayoutChanged(
+	) | rpl::start_with_next([this](auto item) {
+		itemLayoutChanged(item);
+	}, lifetime());
+
+	session->data().itemRemoved(
+	) | rpl::start_with_next([this](auto item) {
+		itemRemoved(item);
+	}, lifetime());
+
+	session->data().itemRepaintRequest(
+	) | rpl::start_with_next([this](auto item) {
+		repaintItem(item);
+	}, lifetime());
+}
+
+void ListWidget::setupSelectRestriction() {
+	_provider->hasSelectRestrictionChanges(
 	) | rpl::filter([=] {
-		return hasSelectRestriction() && hasSelectedItems();
+		return _provider->hasSelectRestriction() && hasSelectedItems();
 	}) | rpl::start_with_next([=] {
 		clearSelected();
 		if (_mouseAction == MouseAction::PrepareSelect) {
@@ -790,10 +215,12 @@ rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 QRect ListWidget::getCurrentSongGeometry() {
 	const auto type = AudioMsgId::Type::Song;
 	const auto current = ::Media::Player::instance()->current(type);
-	const auto fullMsgId = current.contextId();
-	if (fullMsgId && isPossiblyMyId(fullMsgId)) {
-		if (const auto item = findItemById(GetUniversalId(fullMsgId))) {
-			return item->geometry;
+	if (const auto document = current.audio()) {
+		const auto contextId = current.contextId();
+		if (const auto item = document->owner().message(contextId)) {
+			if (const auto found = findItemByItem(item)) {
+				return found->geometry;
+			}
 		}
 	}
 	return QRect(0, 0, width(), 0);
@@ -804,26 +231,24 @@ void ListWidget::restart() {
 
 	_overLayout = nullptr;
 	_sections.clear();
-	_layouts.clear();
 	_heavyLayouts.clear();
 
-	_universalAroundId = kDefaultAroundId;
-	_idsLimit = kMinimalIdsLimit;
-	_slice = SparseIdsMergedSlice(sliceKey(_universalAroundId));
-
-	refreshViewer();
+	_provider->restart();
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
-	if (!isMyItem(item)) {
+	if (!_provider->isMyItem(item)) {
 		return;
 	}
-	auto id = GetUniversalId(item);
+
+	if (_contextItem == item) {
+		_contextItem = nullptr;
+	}
 
 	auto needHeightRefresh = false;
-	auto sectionIt = findSectionByItem(id);
+	auto sectionIt = findSectionByItem(item);
 	if (sectionIt != _sections.end()) {
-		if (sectionIt->removeItem(id)) {
+		if (sectionIt->removeItem(item)) {
 			if (sectionIt->empty()) {
 				_sections.erase(sectionIt);
 			}
@@ -834,14 +259,17 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (isItemLayout(item, _overLayout)) {
 		_overLayout = nullptr;
 	}
+	_dragSelected.remove(item);
 
-	if (const auto i = _layouts.find(id); i != _layouts.end()) {
-		_heavyLayouts.remove(i->second.item.get());
-		_layouts.erase(i);
+	if (_pressState.item == item) {
+		mouseActionCancel();
 	}
-	_dragSelected.remove(id);
+	if (_overState.item == item) {
+		_mouseAction = MouseAction::None;
+		_overState = {};
+	}
 
-	if (const auto i = _selected.find(id); i != _selected.cend()) {
+	if (const auto i = _selected.find(item); i != _selected.cend()) {
 		removeItemSelection(i);
 	}
 
@@ -851,22 +279,11 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	mouseActionUpdate(_mousePosition);
 }
 
-FullMsgId ListWidget::computeFullId(
-		UniversalMsgId universalId) const {
-	Expects(universalId != 0);
-
-	return (universalId > 0)
-		? FullMsgId(_peer->id, universalId)
-		: FullMsgId(
-			(_migrated ? _migrated : _peer.get())->id,
-			ServerMaxMsgId + universalId);
-}
-
 auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	auto convert = [&](
-			UniversalMsgId universalId,
+			not_null<const HistoryItem*> item,
 			const SelectionData &selection) {
-		auto result = SelectedItem(computeFullId(universalId));
+		auto result = SelectedItem(item->globalId());
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
 		return result;
@@ -874,7 +291,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	auto transformation = [&](const auto &item) {
 		return convert(item.first, item.second);
 	};
-	auto items = SelectedItems(_type);
+	auto items = SelectedItems(_provider->type());
 	if (hasSelectedItems()) {
 		items.list.reserve(_selected.size());
 		std::transform(
@@ -891,7 +308,7 @@ MessageIdsList ListWidget::collectSelectedIds() const {
 	return ranges::views::all(
 		selected.list
 	) | ranges::views::transform([](const SelectedItem &item) {
-		return item.msgId;
+		return item.globalId.itemId; // #TODO downloads
 	}) | ranges::to_vector;
 }
 
@@ -936,51 +353,29 @@ void ListWidget::itemLayoutChanged(
 }
 
 void ListWidget::repaintItem(const HistoryItem *item) {
-	if (item && isMyItem(item)) {
-		repaintItem(GetUniversalId(item));
-	}
-}
-
-void ListWidget::repaintItem(UniversalMsgId universalId) {
-	if (auto item = findItemById(universalId)) {
-		repaintItem(item->geometry);
+	if (const auto found = findItemByItem(item)) {
+		repaintItem(found->geometry);
 	}
 }
 
 void ListWidget::repaintItem(const BaseLayout *item) {
 	if (item) {
-		repaintItem(GetUniversalId(item));
+		repaintItem(item->getItem());
 	}
 }
 
 void ListWidget::repaintItem(not_null<const BaseLayout*> item) {
-	repaintItem(GetUniversalId(item));
+	repaintItem(item->getItem());
 }
 
 void ListWidget::repaintItem(QRect itemGeometry) {
 	rtlupdate(itemGeometry);
 }
 
-bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
-	const auto peer = item->history()->peer;
-	return (_peer == peer) || (_migrated == peer);
-}
-
-bool ListWidget::isPossiblyMyId(FullMsgId fullId) const {
-	return (fullId.peer == _peer->id)
-		|| (_migrated && fullId.peer == _migrated->id);
-}
-
 bool ListWidget::isItemLayout(
 		not_null<const HistoryItem*> item,
 		BaseLayout *layout) const {
 	return layout && (layout->getItem() == item);
-}
-
-void ListWidget::invalidatePaletteCache() {
-	for (auto &layout : _layouts) {
-		layout.second.item->invalidateCache();
-	}
 }
 
 void ListWidget::registerHeavyItem(not_null<const BaseLayout*> item) {
@@ -999,7 +394,7 @@ void ListWidget::unregisterHeavyItem(not_null<const BaseLayout*> item) {
 }
 
 bool ListWidget::itemVisible(not_null<const BaseLayout*> item) {
-	if (const auto &found = findItemById(GetUniversalId(item))) {
+	if (const auto &found = findItemByItem(item->getItem())) {
 		const auto geometry = found->geometry;
 		return (geometry.top() < _visibleBottom)
 			&& (geometry.top() + geometry.height() > _visibleTop);
@@ -1021,166 +416,21 @@ void ListWidget::openDocument(
 		showInMediaView);
 }
 
-SparseIdsMergedSlice::Key ListWidget::sliceKey(
-		UniversalMsgId universalId) const {
-	using Key = SparseIdsMergedSlice::Key;
-	if (_migrated) {
-		return Key(_peer->id, _migrated->id, universalId);
-	}
-	if (universalId < 0) {
-		// Convert back to plain id for non-migrated histories.
-		universalId = universalId + ServerMaxMsgId;
-	}
-	return Key(_peer->id, 0, universalId);
-}
-
-void ListWidget::refreshViewer() {
-	_viewerLifetime.destroy();
-	const auto idForViewer = sliceKey(_universalAroundId).universalId;
-	_controller->mediaSource(
-		idForViewer,
-		_idsLimit,
-		_idsLimit
-	) | rpl::start_with_next([=](SparseIdsMergedSlice &&slice) {
-		if (!slice.fullCount()) {
-			// Don't display anything while full count is unknown.
-			return;
-		}
-		_slice = std::move(slice);
-		if (auto nearest = _slice.nearest(idForViewer)) {
-			_universalAroundId = GetUniversalId(*nearest);
-		}
-		refreshRows();
-	}, _viewerLifetime);
-}
-
-BaseLayout *ListWidget::getLayout(UniversalMsgId universalId) {
-	auto it = _layouts.find(universalId);
-	if (it == _layouts.end()) {
-		if (auto layout = createLayout(universalId, _type)) {
-			layout->initDimensions();
-			it = _layouts.emplace(
-				universalId,
-				std::move(layout)).first;
-		} else {
-			return nullptr;
-		}
-	}
-	it->second.stale = false;
-	return it->second.item.get();
-}
-
-BaseLayout *ListWidget::getExistingLayout(
-		UniversalMsgId universalId) const {
-	auto it = _layouts.find(universalId);
-	return (it != _layouts.end())
-		? it->second.item.get()
-		: nullptr;
-}
-
-std::unique_ptr<BaseLayout> ListWidget::createLayout(
-		UniversalMsgId universalId,
-		Type type) {
-	auto item = session().data().message(computeFullId(universalId));
-	if (!item) {
-		return nullptr;
-	}
-	auto getPhoto = [&]() -> PhotoData* {
-		if (const auto media = item->media()) {
-			return media->photo();
-		}
-		return nullptr;
-	};
-	auto getFile = [&]() -> DocumentData* {
-		if (auto media = item->media()) {
-			return media->document();
-		}
-		return nullptr;
-	};
-
-	auto &songSt = st::overviewFileLayout;
-	using namespace Overview::Layout;
-	switch (type) {
-	case Type::Photo:
-		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(this, item, photo);
-		}
-		return nullptr;
-	case Type::GIF:
-		if (const auto file = getFile()) {
-			return std::make_unique<Gif>(this, item, file);
-		}
-		return nullptr;
-	case Type::Video:
-		if (const auto file = getFile()) {
-			return std::make_unique<Video>(this, item, file);
-		}
-		return nullptr;
-	case Type::File:
-		if (const auto file = getFile()) {
-			return std::make_unique<Document>(this, item, file, songSt);
-		}
-		return nullptr;
-	case Type::MusicFile:
-		if (const auto file = getFile()) {
-			return std::make_unique<Document>(this, item, file, songSt);
-		}
-		return nullptr;
-	case Type::RoundVoiceFile:
-		if (const auto file = getFile()) {
-			return std::make_unique<Voice>(this, item, file, songSt);
-		}
-		return nullptr;
-	case Type::Link:
-		return std::make_unique<Link>(this, item, item->media());
-	case Type::RoundFile:
-		return nullptr;
-	}
-	Unexpected("Type in ListWidget::createLayout()");
-}
-
 void ListWidget::refreshRows() {
 	saveScrollState();
 
-	markLayoutsStale();
-
-
 	_sections.clear();
-	auto section = Section(_type);
-	auto count = _slice.size();
-	for (auto i = count; i != 0;) {
-		auto universalId = GetUniversalId(_slice[--i]);
-		if (auto layout = getLayout(universalId)) {
-			if (!section.addItem(layout)) {
-				section.finishSection();
-				_sections.push_back(std::move(section));
-				section = Section(_type);
-				section.addItem(layout);
-			}
-		}
-	}
-	if (!section.empty()) {
-		section.finishSection();
-		_sections.push_back(std::move(section));
-	}
+	_sections = _provider->fillSections(this);
 
-	if (auto count = _slice.fullCount()) {
+	if (const auto count = _provider->fullCount()) {
 		if (*count > kMediaCountForSearch) {
 			_controller->setSearchEnabledByContent(true);
 		}
 	}
 
-	clearStaleLayouts();
-
 	resizeToWidth(width());
 	restoreScrollState();
 	mouseActionUpdate();
-}
-
-void ListWidget::markLayoutsStale() {
-	for (auto &layout : _layouts) {
-		layout.second.stale = true;
-	}
 }
 
 bool ListWidget::preventAutoHide() const {
@@ -1188,28 +438,13 @@ bool ListWidget::preventAutoHide() const {
 }
 
 void ListWidget::saveState(not_null<Memento*> memento) {
-	if (_universalAroundId != kDefaultAroundId) {
-		auto state = countScrollState();
-		if (state.item) {
-			memento->setAroundId(computeFullId(_universalAroundId));
-			memento->setIdsLimit(_idsLimit);
-			memento->setScrollTopItem(computeFullId(state.item));
-			memento->setScrollTopShift(state.shift);
-		}
-	}
+	_provider->saveState(memento, countScrollState());
 }
 
 void ListWidget::restoreState(not_null<Memento*> memento) {
-	if (auto limit = memento->idsLimit()) {
-		auto wasAroundId = memento->aroundId();
-		if (isPossiblyMyId(wasAroundId)) {
-			_idsLimit = limit;
-			_universalAroundId = GetUniversalId(wasAroundId);
-			_scrollTopState.item = GetUniversalId(memento->scrollTopItem());
-			_scrollTopState.shift = memento->scrollTopShift();
-			refreshViewer();
-		}
-	}
+	_provider->restoreState(memento, [&](ListScrollTopState state) {
+		_scrollTopState = state;
+	});
 }
 
 int ListWidget::resizeGetHeight(int newWidth) {
@@ -1233,13 +468,15 @@ auto ListWidget::findItemByPoint(QPoint point) const -> FoundItem {
 		*sectionIt);
 }
 
-auto ListWidget::findItemById(
-		UniversalMsgId universalId) -> std::optional<FoundItem> {
-	auto sectionIt = findSectionByItem(universalId);
+auto ListWidget::findItemByItem(const HistoryItem *item)
+-> std::optional<FoundItem> {
+	if (!item || !_provider->isPossiblyMyItem(item)) {
+		return std::nullopt;
+	}
+	auto sectionIt = findSectionByItem(item);
 	if (sectionIt != _sections.end()) {
-		auto item = sectionIt->findItemNearId(universalId);
-		if (item.exact) {
-			return foundItemInSection(item, *sectionIt);
+		if (const auto found = sectionIt->findItemByItem(item)) {
+			return foundItemInSection(*found, *sectionIt);
 		}
 	}
 	return std::nullopt;
@@ -1247,7 +484,7 @@ auto ListWidget::findItemById(
 
 auto ListWidget::findItemDetails(not_null<BaseLayout*> item)
 -> FoundItem {
-	const auto sectionIt = findSectionByItem(GetUniversalId(item));
+	const auto sectionIt = findSectionByItem(item->getItem());
 	Assert(sectionIt != _sections.end());
 	return foundItemInSection(sectionIt->findItemDetails(item), *sectionIt);
 }
@@ -1259,7 +496,8 @@ auto ListWidget::foundItemInSection(
 	return {
 		item.layout,
 		item.geometry.translated(0, section.top()),
-		item.exact };
+		item.exact,
+	};
 }
 
 void ListWidget::visibleTopBottomUpdated(
@@ -1334,50 +572,16 @@ void ListWidget::checkMoveToOtherViewer() {
 	auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
 	auto bottomItem = findItemByPoint({ st::infoMediaSkip, _visibleBottom });
 
-	auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
-	auto minItemHeight = Section::MinItemHeight(_type, width());
-	auto preloadedCount = preloadedHeight / minItemHeight;
-	auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
-	auto preloadIdsLimit = preloadIdsLimitMin
-		+ (visibleHeight / minItemHeight);
-
 	auto preloadBefore = kPreloadIfLessThanScreens * visibleHeight;
-	auto after = _slice.skippedAfter();
 	auto preloadTop = (_visibleTop < preloadBefore);
-	auto topLoaded = after && (*after == 0);
-	auto before = _slice.skippedBefore();
 	auto preloadBottom = (height() - _visibleBottom < preloadBefore);
-	auto bottomLoaded = before && (*before == 0);
 
-	auto minScreenDelta = kPreloadedScreensCount
-		- kPreloadIfLessThanScreens;
-	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
-		/ minItemHeight;
-	auto preloadAroundItem = [&](const FoundItem &item) {
-		auto preloadRequired = false;
-		auto universalId = GetUniversalId(item.layout);
-		if (!preloadRequired) {
-			preloadRequired = (_idsLimit < preloadIdsLimitMin);
-		}
-		if (!preloadRequired) {
-			auto delta = _slice.distance(
-				sliceKey(_universalAroundId),
-				sliceKey(universalId));
-			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
-		}
-		if (preloadRequired) {
-			_idsLimit = preloadIdsLimit;
-			_universalAroundId = universalId;
-			refreshViewer();
-		}
-	};
-
-	if (preloadTop && !topLoaded) {
-		preloadAroundItem(topItem);
-	} else if (preloadBottom && !bottomLoaded) {
-		preloadAroundItem(bottomItem);
-	}
+	_provider->checkPreload(
+		{ width(), visibleHeight },
+		topItem.layout,
+		bottomItem.layout,
+		preloadTop,
+		preloadBottom);
 }
 
 void ListWidget::clearHeavyItems() {
@@ -1406,14 +610,14 @@ void ListWidget::clearHeavyItems() {
 	}
 }
 
-auto ListWidget::countScrollState() const -> ScrollTopState {
+ListScrollTopState ListWidget::countScrollState() const {
 	if (_sections.empty()) {
-		return { 0, 0 };
+		return {};
 	}
-	auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
+	const auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
 	return {
-		GetUniversalId(topItem.layout),
-		_visibleTop - topItem.geometry.y()
+		.item = topItem.layout->getItem(),
+		.shift = _visibleTop - topItem.geometry.y(),
 	};
 }
 
@@ -1431,14 +635,14 @@ void ListWidget::restoreScrollState() {
 	if (sectionIt == _sections.end()) {
 		--sectionIt;
 	}
-	auto item = foundItemInSection(
-		sectionIt->findItemNearId(_scrollTopState.item),
+	auto item = foundItemInSection( // #TODO downloads
+		sectionIt->findItemNearId(GetUniversalId(_scrollTopState.item)),
 		*sectionIt);
 	auto newVisibleTop = item.geometry.y() + _scrollTopState.shift;
 	if (_visibleTop != newVisibleTop) {
 		_scrollToRequests.fire_copy(newVisibleTop);
 	}
-	_scrollTopState = ScrollTopState();
+	_scrollTopState = ListScrollTopState();
 }
 
 QMargins ListWidget::padding() const {
@@ -1455,7 +659,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto tillSectionIt = findSectionAfterBottom(
 		fromSectionIt,
 		clip.y() + clip.height());
-	auto context = Context {
+	auto context = ListContext {
 		Overview::Layout::PaintContext(ms, hasSelectedItems()),
 		&_selected,
 		&_dragSelected,
@@ -1529,17 +733,18 @@ void ListWidget::showContextMenu(
 		ContextMenuSource source) {
 	if (_contextMenu) {
 		_contextMenu = nullptr;
-		repaintItem(_contextUniversalId);
+		repaintItem(_contextItem);
 	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
 	}
 
-	auto item = session().data().message(computeFullId(_overState.itemId));
+	const auto item = _overState.item;
 	if (!item || !_overState.inside) {
 		return;
 	}
-	auto universalId = _contextUniversalId = _overState.itemId;
+	_contextItem = item;
+	const auto globalId = item->globalId();
 
 	enum class SelectionState {
 		NoSelectedItems,
@@ -1558,7 +763,7 @@ void ListWidget::showContextMenu(
 	} else if (hasSelectedText()) {
 		// #TODO text selection
 	} else if (hasSelectedItems()) {
-		auto it = _selected.find(_overState.itemId);
+		auto it = _selected.find(_overState.item);
 		if (isSelectedItem(it) && _overState.inside) {
 			overSelected = SelectionState::OverSelectedItems;
 		} else {
@@ -1647,7 +852,8 @@ void ListWidget::showContextMenu(
 							lnkDocument,
 							DocumentSaveClickHandler::Mode::ToNewFile);
 					});
-				if (_peer->allowsForwarding() && !item->forbidsForward()) {
+				if (item->history()->peer->allowsForwarding()
+					&& !item->forbidsForward()) {
 					_contextMenu->addAction(
 						(isVideo
 							? tr::lng_context_save_video(tr::now)
@@ -1700,23 +906,21 @@ void ListWidget::showContextMenu(
 			if (item->allowsForward()) {
 				_contextMenu->addAction(
 					tr::lng_context_forward_msg(tr::now),
-					crl::guard(this, [this, universalId] {
-						forwardItem(universalId);
-					}),
+					crl::guard(this, [=] { forwardItem(globalId); }),
 					&st::menuIconForward);
 			}
 			if (item->canDelete()) {
 				_contextMenu->addAction(Ui::DeleteMessageContextAction(
 					_contextMenu->menu(),
-					[=] { deleteItem(universalId); },
+					crl::guard(this, [=] { deleteItem(globalId); }),
 					item->ttlDestroyAt(),
 					[=] { _contextMenu = nullptr; }));
 			}
 		}
-		if (!hasSelectRestriction()) {
+		if (!_provider->hasSelectRestriction()) {
 			_contextMenu->addAction(
 				tr::lng_context_select_msg(tr::now),
-				crl::guard(this, [this, universalId] {
+				crl::guard(this, [=] {
 					if (hasSelectedText()) {
 						clearSelected();
 					} else if (_selected.size() == MaxSelectedItems) {
@@ -1724,7 +928,9 @@ void ListWidget::showContextMenu(
 					} else if (_selected.empty()) {
 						update();
 					}
-					applyItemSelection(universalId, FullSelection);
+					applyItemSelection(
+						MessageByGlobalId(globalId),
+						FullSelection);
 				}),
 				&st::menuIconSelect);
 		}
@@ -1732,9 +938,9 @@ void ListWidget::showContextMenu(
 
 	_contextMenu->setDestroyedCallback(crl::guard(
 		this,
-		[this, universalId] {
+		[=] {
 			mouseActionUpdate(QCursor::pos());
-			repaintItem(universalId);
+			repaintItem(MessageByGlobalId(globalId));
 			_checkForHide.fire({});
 		}));
 	_contextMenu->popup(e->globalPos());
@@ -1755,9 +961,12 @@ void ListWidget::forwardSelected() {
 	}
 }
 
-void ListWidget::forwardItem(UniversalMsgId universalId) {
-	if (const auto item = session().data().message(computeFullId(universalId))) {
-		forwardItems({ 1, item->fullId() });
+void ListWidget::forwardItem(GlobalMsgId globalId) {
+	const auto session = &_controller->session();
+	if (globalId.sessionUniqueId == session->uniqueId()) {
+		if (const auto item = session->data().message(globalId.itemId)) {
+			forwardItems({ 1, item->fullId() });
+		}
 	}
 }
 
@@ -1781,10 +990,14 @@ void ListWidget::deleteSelected() {
 	}
 }
 
-void ListWidget::deleteItem(UniversalMsgId universalId) {
-	if (const auto item = session().data().message(computeFullId(universalId))) {
-		deleteItems({ 1, item->fullId() });
+void ListWidget::deleteItem(GlobalMsgId globalId) {
+	const auto session = &_controller->session();
+	if (globalId.sessionUniqueId == session->uniqueId()) {
+		if (const auto item = session->data().message(globalId.itemId)) {
+			deleteItems({ 1, item->fullId() });
+		}
 	}
+	// #TODO downloads
 }
 
 DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
@@ -1797,17 +1010,6 @@ DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 		return box;
 	}
 	return nullptr;
-}
-
-bool ListWidget::hasSelectRestriction() const {
-	if (_peer->allowsForwarding()) {
-		return false;
-	} else if (const auto chat = _peer->asChat()) {
-		return !chat->canDeleteMessages();
-	} else if (const auto channel = _peer->asChannel()) {
-		return !channel->canDeleteMessages();
-	}
-	return true;
 }
 
 void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
@@ -1852,7 +1054,7 @@ void ListWidget::switchToWordSelection() {
 			dragState.symbol,
 			dragState.symbol
 		};
-		applyItemSelection(_overState.itemId, selStatus);
+		applyItemSelection(_overState.item, selStatus);
 	}
 	mouseActionUpdate();
 
@@ -1861,56 +1063,21 @@ void ListWidget::switchToWordSelection() {
 }
 
 void ListWidget::applyItemSelection(
-		UniversalMsgId universalId,
+		HistoryItem *item,
 		TextSelection selection) {
-	if (changeItemSelection(
-			_selected,
-			universalId,
-			selection)) {
-		repaintItem(universalId);
+	if (item && ChangeItemSelection(_selected, item, selection)) {
+		repaintItem(item);
 		pushSelectedItems();
 	}
 }
 
-void ListWidget::toggleItemSelection(UniversalMsgId universalId) {
-	auto it = _selected.find(universalId);
+void ListWidget::toggleItemSelection(not_null<HistoryItem*> item) {
+	auto it = _selected.find(item);
 	if (it == _selected.cend()) {
-		applyItemSelection(universalId, FullSelection);
+		applyItemSelection(item, FullSelection);
 	} else {
 		removeItemSelection(it);
 	}
-}
-
-bool ListWidget::changeItemSelection(
-		SelectedMap &selected,
-		UniversalMsgId universalId,
-		TextSelection selection) const {
-	auto changeExisting = [&](auto it) {
-		if (it == selected.cend()) {
-			return false;
-		} else if (it->second.text != selection) {
-			it->second.text = selection;
-			return true;
-		}
-		return false;
-	};
-	if (selected.size() < MaxSelectedItems) {
-		auto [iterator, ok] = selected.try_emplace(
-			universalId,
-			selection);
-		if (ok) {
-			auto item = session().data().message(computeFullId(universalId));
-			if (!item) {
-				selected.erase(iterator);
-				return false;
-			}
-			iterator->second.canDelete = item->canDelete();
-			iterator->second.canForward = item->allowsForward();
-			return true;
-		}
-		return changeExisting(iterator);
-	}
-	return changeExisting(selected.find(universalId));
 }
 
 bool ListWidget::isItemUnderPressSelected() const {
@@ -1918,15 +1085,15 @@ bool ListWidget::isItemUnderPressSelected() const {
 }
 
 auto ListWidget::itemUnderPressSelection() -> SelectedMap::iterator {
-	return (_pressState.itemId && _pressState.inside)
-		? _selected.find(_pressState.itemId)
+	return (_pressState.item && _pressState.inside)
+		? _selected.find(_pressState.item)
 		: _selected.end();
 }
 
 auto ListWidget::itemUnderPressSelection() const
 -> SelectedMap::const_iterator {
-	return (_pressState.itemId && _pressState.inside)
-		? _selected.find(_pressState.itemId)
+	return (_pressState.item && _pressState.inside)
+		? _selected.find(_pressState.item)
 		: _selected.end();
 }
 
@@ -2014,7 +1181,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	auto point = clampMousePosition(local);
 	auto [layout, geometry, inside] = findItemByPoint(point);
 	auto state = MouseState{
-		GetUniversalId(layout),
+		layout->getItem(),
 		geometry.size(),
 		point - geometry.topLeft(),
 		inside
@@ -2029,7 +1196,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	auto inTextSelection = _overState.inside
-		&& (_overState.itemId == _pressState.itemId)
+		&& (_overState.item == _pressState.item)
 		&& hasSelectedText();
 	if (_overLayout) {
 		auto cursorDeltaLength = [&] {
@@ -2039,7 +1206,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 		auto dragStartLength = [] {
 			return QApplication::startDragDistance();
 		};
-		if (_overState.itemId != _pressState.itemId
+		if (_overState.item != _pressState.item
 			|| cursorDeltaLength() >= dragStartLength()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
@@ -2078,7 +1245,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 			if (_mouseSelectType != TextSelectType::Letters) {
 				selState = _overLayout->adjustSelection(selState, _mouseSelectType);
 			}
-			applyItemSelection(_overState.itemId, selState);
+			applyItemSelection(_overState.item, selState);
 			auto hasSelection = (selState == FullSelection)
 				|| (selState.from != selState.to);
 			if (!_wasSelectedText && hasSelection) {
@@ -2086,7 +1253,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 				setFocus();
 			}
 			clearDragSelection();
-		} else if (_pressState.itemId) {
+		} else if (_pressState.item) {
 			updateDragSelection();
 		}
 	} else if (_mouseAction == MouseAction::Dragging) {
@@ -2114,37 +1281,22 @@ style::cursor ListWidget::computeMouseCursor() const {
 void ListWidget::updateDragSelection() {
 	auto fromState = _pressState;
 	auto tillState = _overState;
-	auto swapStates = IsAfter(fromState, tillState);
+	auto swapStates = isAfter(fromState, tillState);
 	if (swapStates) {
 		std::swap(fromState, tillState);
 	}
-	if (!fromState.itemId || !tillState.itemId || hasSelectRestriction()) {
+	if (!fromState.item
+		|| !tillState.item
+		|| _provider->hasSelectRestriction()) {
 		clearDragSelection();
 		return;
 	}
-	auto fromId = SkipSelectFromItem(fromState)
-		? (fromState.itemId - 1)
-		: fromState.itemId;
-	auto tillId = SkipSelectTillItem(tillState)
-		? tillState.itemId
-		: (tillState.itemId - 1);
-	for (auto i = _dragSelected.begin(); i != _dragSelected.end();) {
-		auto itemId = i->first;
-		if (itemId > fromId || itemId <= tillId) {
-			i = _dragSelected.erase(i);
-		} else {
-			++i;
-		}
-	}
-	for (auto &layoutItem : _layouts) {
-		auto &&universalId = layoutItem.first;
-		if (universalId <= fromId && universalId > tillId) {
-			changeItemSelection(
-				_dragSelected,
-				universalId,
-				FullSelection);
-		}
-	}
+	_provider->applyDragSelection(
+		_dragSelected,
+		fromState.item,
+		SkipSelectFromItem(fromState),
+		tillState.item,
+		SkipSelectTillItem(tillState));
 	_dragSelectAction = [&] {
 		if (_dragSelected.empty()) {
 			return DragSelectAction::None;
@@ -2185,8 +1337,8 @@ void ListWidget::mouseActionStart(
 
 	ClickHandler::pressed();
 	if (_pressState != _overState) {
-		if (_pressState.itemId != _overState.itemId) {
-			repaintItem(_pressState.itemId);
+		if (_pressState.item != _overState.item) {
+			repaintItem(_pressState.item);
 		}
 		_pressState = _overState;
 		repaintItem(_overLayout);
@@ -2225,7 +1377,7 @@ void ListWidget::mouseActionStart(
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && !hasSelectedItems()) {
 					clearSelected();
-					applyItemSelection(_pressState.itemId, selStatus);
+					applyItemSelection(_pressState.item, selStatus);
 					_mouseTextSymbol = dragState.symbol;
 					_mouseAction = MouseAction::Selecting;
 					_mouseSelectType = TextSelectType::Paragraphs;
@@ -2248,18 +1400,22 @@ void ListWidget::mouseActionStart(
 						_mouseAction = MouseAction::PrepareDrag;
 					} else {
 						if (dragState.afterSymbol) ++_mouseTextSymbol;
-						TextSelection selStatus = { _mouseTextSymbol, _mouseTextSymbol };
+						TextSelection selStatus = {
+							_mouseTextSymbol,
+							_mouseTextSymbol,
+						};
 						if (selStatus != FullSelection && !hasSelectedItems()) {
 							clearSelected();
-							applyItemSelection(_pressState.itemId, selStatus);
+							applyItemSelection(_pressState.item, selStatus);
 							_mouseAction = MouseAction::Selecting;
 							repaintItem(pressLayout);
-						} else if (!hasSelectRestriction()) {
+						} else if (!_provider->hasSelectRestriction()) {
 							_mouseAction = MouseAction::PrepareSelect;
 						}
 					}
 				}
-			} else if (!_pressWasInactive && !hasSelectRestriction()) {
+			} else if (!_pressWasInactive
+				&& !_provider->hasSelectRestriction()) {
 				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
@@ -2284,14 +1440,14 @@ void ListWidget::performDrag() {
 	if (_mouseAction != MouseAction::Dragging) return;
 
 	auto uponSelected = false;
-	if (_pressState.itemId && _pressState.inside) {
+	if (_pressState.item && _pressState.inside) {
 		if (hasSelectedItems()) {
 			uponSelected = isItemUnderPressSelected();
-		} else if (auto pressLayout = getExistingLayout(
-				_pressState.itemId)) {
+		} else if (const auto pressLayout = _provider->lookupLayout(
+				_pressState.item)) {
 			StateRequest request;
 			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = pressLayout->getState(
+			const auto dragState = pressLayout->getState(
 				_pressState.cursor,
 				request);
 			uponSelected = isPressInSelectedText(dragState);
@@ -2370,9 +1526,9 @@ void ListWidget::mouseActionFinish(
 	mouseActionUpdate(globalPosition);
 
 	auto pressState = base::take(_pressState);
-	repaintItem(pressState.itemId);
+	repaintItem(pressState.item);
 
-	auto simpleSelectionChange = pressState.itemId
+	auto simpleSelectionChange = pressState.item
 		&& pressState.inside
 		&& !_pressWasInactive
 		&& (button != Qt::RightButton)
@@ -2394,7 +1550,7 @@ void ListWidget::mouseActionFinish(
 	_wasSelectedText = false;
 	if (activated) {
 		mouseActionCancel();
-		const auto found = findItemById(pressState.itemId);
+		const auto found = findItemByItem(pressState.item);
 		const auto fullId = found
 			? found->layout->getItem()->fullId()
 			: FullMsgId();
@@ -2410,7 +1566,7 @@ void ListWidget::mouseActionFinish(
 	}
 
 	if (needSelectionToggle) {
-		toggleItemSelection(pressState.itemId);
+		toggleItemSelection(pressState.item);
 	} else if (needSelectionClear) {
 		clearSelected();
 	} else if (_mouseAction == MouseAction::Selecting) {
@@ -2436,7 +1592,7 @@ void ListWidget::mouseActionFinish(
 }
 
 void ListWidget::applyDragSelection() {
-	if (!hasSelectRestriction()) {
+	if (!_provider->hasSelectRestriction()) {
 		applyDragSelection(_selected);
 	}
 	clearDragSelection();
@@ -2445,12 +1601,12 @@ void ListWidget::applyDragSelection() {
 
 void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 	if (_dragSelectAction == DragSelectAction::Selecting) {
-		for (auto &[universalId,data] : _dragSelected) {
-			changeItemSelection(applyTo, universalId, FullSelection);
+		for (auto &[item, data] : _dragSelected) {
+			ChangeItemSelection(applyTo, item, FullSelection);
 		}
 	} else if (_dragSelectAction == DragSelectAction::Deselecting) {
-		for (auto &[universalId,data] : _dragSelected) {
-			applyTo.remove(universalId);
+		for (auto &[item, data] : _dragSelected) {
+			applyTo.remove(item);
 		}
 	}
 }
@@ -2461,7 +1617,7 @@ void ListWidget::refreshHeight() {
 
 int ListWidget::recountHeight() {
 	if (_sections.empty()) {
-		if (auto count = _slice.fullCount()) {
+		if (const auto count = _provider->fullCount()) {
 			if (*count == 0) {
 				return 0;
 			}
@@ -2480,25 +1636,15 @@ void ListWidget::mouseActionUpdate() {
 	mouseActionUpdate(_mousePosition);
 }
 
-void ListWidget::clearStaleLayouts() {
-	for (auto i = _layouts.begin(); i != _layouts.end();) {
-		if (i->second.stale) {
-			if (i->second.item.get() == _overLayout) {
-				_overLayout = nullptr;
-			}
-			_heavyLayouts.erase(i->second.item.get());
-			i = _layouts.erase(i);
-		} else {
-			++i;
-		}
+std::vector<ListSection>::iterator ListWidget::findSectionByItem(
+		not_null<const HistoryItem*> item) {
+	if (_sections.size() < 2) {
+		return _sections.begin();
 	}
-}
-
-auto ListWidget::findSectionByItem(
-		UniversalMsgId universalId) -> std::vector<Section>::iterator {
+	Assert(!_controller->isDownloads());
 	return ranges::lower_bound(
 		_sections,
-		universalId,
+		GetUniversalId(item),
 		std::greater<>(),
 		[](const Section &section) { return section.minId(); });
 }

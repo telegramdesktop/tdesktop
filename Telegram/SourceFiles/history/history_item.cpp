@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
@@ -1017,6 +1019,10 @@ FullMsgId HistoryItem::fullId() const {
 	return FullMsgId(_history->peer->id, id);
 }
 
+GlobalMsgId HistoryItem::globalId() const {
+	return { fullId(), _history->session().uniqueId() };
+}
+
 Data::MessagePosition HistoryItem::position() const {
 	return { .fullId = fullId(), .date = date() };
 }
@@ -1299,6 +1305,20 @@ Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
 
 HistoryItem::~HistoryItem() {
 	applyTTL(0);
+}
+
+HistoryItem *MessageByGlobalId(GlobalMsgId globalId) {
+	if (!globalId.sessionUniqueId || !globalId.itemId) {
+		return nullptr;
+	}
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		if (const auto session = account->maybeSession()) {
+			if (session->uniqueId() == globalId.sessionUniqueId) {
+				return session->data().message(globalId.itemId);
+			}
+		}
+	}
+	return nullptr;
 }
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {

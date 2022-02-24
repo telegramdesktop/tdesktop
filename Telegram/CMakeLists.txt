@@ -712,13 +712,25 @@ PRIVATE
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp
     info/common_groups/info_common_groups_widget.h
+    info/downloads/info_downloads_inner_widget.cpp
+    info/downloads/info_downloads_inner_widget.h
+    info/downloads/info_downloads_provider.cpp
+    info/downloads/info_downloads_provider.h
+    info/downloads/info_downloads_widget.cpp
+    info/downloads/info_downloads_widget.h
     info/media/info_media_buttons.h
+    info/media/info_media_common.cpp
+    info/media/info_media_common.h
     info/media/info_media_empty_widget.cpp
     info/media/info_media_empty_widget.h
     info/media/info_media_inner_widget.cpp
     info/media/info_media_inner_widget.h
+    info/media/info_media_list_section.cpp
+    info/media/info_media_list_section.h
     info/media/info_media_list_widget.cpp
     info/media/info_media_list_widget.h
+    info/media/info_media_provider.cpp
+    info/media/info_media_provider.h
     info/media/info_media_widget.cpp
     info/media/info_media_widget.h
     info/members/info_members_widget.cpp

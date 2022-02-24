@@ -545,9 +545,13 @@ MessageIdsList TopBar::collectItems() const {
 	return ranges::views::all(
 		_selectedItems.list
 	) | ranges::views::transform([](auto &&item) {
-		return item.msgId;
-	}) | ranges::views::filter([&](FullMsgId msgId) {
-		return _navigation->session().data().message(msgId) != nullptr;
+		return item.globalId;
+	}) | ranges::views::filter([&](const GlobalMsgId &globalId) {
+		const auto session = &_navigation->session();
+		return (globalId.sessionUniqueId == session->uniqueId())
+			&& (session->data().message(globalId.itemId) != nullptr);
+	}) | ranges::views::transform([](const GlobalMsgId &globalId) {
+		return globalId.itemId;
 	}) | ranges::to_vector;
 }
 
@@ -568,6 +572,7 @@ void TopBar::performForward() {
 }
 
 void TopBar::performDelete() {
+	// #TODO downloads
 	auto items = collectItems();
 	if (items.empty()) {
 		_cancelSelectionClicks.fire({});
@@ -667,6 +672,10 @@ rpl::producer<QString> TitleValue(
 		return key.poll()->quiz()
 			? tr::lng_polls_quiz_results_title()
 			: tr::lng_polls_poll_results_title();
+
+	case Section::Type::Downloads:
+		return rpl::single(u"Downloads"_q);
+
 	}
 	Unexpected("Bad section type in Info::TitleValue()");
 }

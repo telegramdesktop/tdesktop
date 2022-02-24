@@ -14,13 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_download_manager.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 
@@ -30,6 +33,9 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
 
 Key::Key(Settings::Tag settings) : _value(settings) {
+}
+
+Key::Key(Downloads::Tag downloads) : _value(downloads) {
 }
 
 Key::Key(not_null<PollData*> poll, FullMsgId contextId)
@@ -48,6 +54,10 @@ UserData *Key::settingsSelf() const {
 		return tag->self;
 	}
 	return nullptr;
+}
+
+bool Key::isDownloads() const {
+	return v::is<Downloads::Tag>(_value);
 }
 
 PollData *Key::poll() const {
@@ -96,6 +106,28 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 
 rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
 	return rpl::single(QString());
+}
+
+rpl::producer<DownloadsSlice> AbstractController::downloadsSource() const {
+	const auto manager = &Core::App().downloadManager();
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		manager->loadingListChanges()
+	) | rpl::map([=] {
+		auto result = DownloadsSlice();
+		for (const auto &id : manager->loadingList()) {
+			result.entries.push_back(DownloadsEntry{
+				.item = id.object.item,
+				.started = id.started,
+			});
+		}
+		ranges::sort(
+			result.entries,
+			ranges::less(),
+			&DownloadsEntry::started);
+		return result;
+	});
 }
 
 AbstractController::AbstractController(
@@ -204,17 +236,19 @@ void Controller::setSection(not_null<ContentMemento*> memento) {
 void Controller::updateSearchControllers(
 		not_null<ContentMemento*> memento) {
 	using Type = Section::Type;
-	auto type = _section.type();
-	auto isMedia = (type == Type::Media);
-	auto mediaType = isMedia
+	const auto type = _section.type();
+	const auto isMedia = (type == Type::Media);
+	const auto mediaType = isMedia
 		? _section.mediaType()
 		: Section::MediaType::kCount;
-	auto hasMediaSearch = isMedia
+	const auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
-	auto hasCommonGroupsSearch
+	const auto hasCommonGroupsSearch
 		= (type == Type::CommonGroups);
-	auto hasMembersSearch = (type == Type::Members || type == Type::Profile);
-	auto searchQuery = memento->searchFieldQuery();
+	const auto hasMembersSearch = (type == Type::Members)
+		|| (type == Type::Profile);
+	const auto searchQuery = memento->searchFieldQuery();
+	const auto isDownloads = (type == Type::Downloads);
 	if (isMedia) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>(&session());
@@ -289,7 +323,9 @@ rpl::producer<bool> Controller::searchEnabledByContent() const {
 }
 
 rpl::producer<QString> Controller::mediaSourceQueryValue() const {
-	return _searchController->currentQueryValue();
+	return _searchController
+		? _searchController->currentQueryValue()
+		: rpl::never<QString>(); AssertIsDebug() // #TODO downloads
 }
 
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(

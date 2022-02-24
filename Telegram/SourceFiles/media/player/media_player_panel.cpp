@@ -301,7 +301,7 @@ void Panel::refreshList() {
 			section().mediaType());
 		memento.setAroundId(contextId);
 		memento.setIdsLimit(kPlaylistIdsLimit);
-		memento.setScrollTopItem(contextId);
+		memento.setScrollTopItem({ contextId, peer->session().uniqueId() });
 		memento.setScrollTopShift(-st::infoMediaMargin.top());
 		weak->restoreState(&memento);
 	}

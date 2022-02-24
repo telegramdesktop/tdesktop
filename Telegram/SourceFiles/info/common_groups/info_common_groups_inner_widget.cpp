@@ -282,4 +282,3 @@ void InnerWidget::peerListSetDescription(
 
 } // namespace CommonGroups
 } // namespace Info
-

@@ -380,6 +380,7 @@ public:
 	[[nodiscard]] bool hasDirectLink() const;
 
 	[[nodiscard]] FullMsgId fullId() const;
+	[[nodiscard]] GlobalMsgId globalId() const;
 	[[nodiscard]] Data::MessagePosition position() const;
 	[[nodiscard]] TimeId date() const;
 
@@ -494,9 +495,14 @@ private:
 
 };
 
-QDateTime ItemDateTime(not_null<const HistoryItem*> item);
-QString ItemDateText(not_null<const HistoryItem*> item, bool isUntilOnline);
-bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item);
+[[nodiscard]] HistoryItem *MessageByGlobalId(GlobalMsgId globalId);
+
+[[nodiscard]] QDateTime ItemDateTime(not_null<const HistoryItem*> item);
+[[nodiscard]] QString ItemDateText(
+	not_null<const HistoryItem*> item,
+	bool isUntilOnline);
+[[nodiscard]] bool IsItemScheduledUntilOnline(
+	not_null<const HistoryItem*> item);
 
 ClickHandlerPtr goToMessageClickHandler(
 	not_null<PeerData*> peer,

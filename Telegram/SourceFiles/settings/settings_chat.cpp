@@ -41,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "info/downloads/info_downloads_widget.h"
+#include "info/info_memento.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
@@ -900,6 +902,8 @@ void SetupDataStorage(
 		st::settingsButton,
 		{ &st::settingsIconDownload, kIconPurple }
 	)->setClickedCallback([=] {
+		controller->showSection(
+			Info::Downloads::Make(controller->session().user()));
 	});
 
 	const auto ask = AddButton(

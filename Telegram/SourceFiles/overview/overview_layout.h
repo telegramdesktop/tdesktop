@@ -53,9 +53,9 @@ public:
 		TextSelection selection,
 		const PaintContext *context) = 0;
 
-	QDateTime dateTime() const;
+	[[nodiscard]] QDateTime dateTime() const;
 
-	HistoryItem *getItem() const {
+	[[nodiscard]] not_null<HistoryItem*> getItem() const {
 		return _parent;
 	}
 
@@ -79,7 +79,7 @@ protected:
 		QPoint position,
 		bool selected,
 		const PaintContext *context);
-	virtual const style::RoundCheckbox &checkboxStyle() const;
+	[[nodiscard]] virtual const style::RoundCheckbox &checkboxStyle() const;
 
 private:
 	void ensureCheckboxCreated();

@@ -28,14 +28,23 @@ struct Tag {
 
 } // namespace Settings
 
+namespace Downloads {
+
+struct Tag {
+};
+
+} // namespace Downloads
+
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
 	Key(Settings::Tag settings);
+	Key(Downloads::Tag downloads);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
 	UserData *settingsSelf() const;
+	bool isDownloads() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -47,6 +56,7 @@ private:
 	std::variant<
 		not_null<PeerData*>,
 		Settings::Tag,
+		Downloads::Tag,
 		PollKey> _value;
 
 };
@@ -64,6 +74,7 @@ public:
 		CommonGroups,
 		Members,
 		Settings,
+		Downloads,
 		PollResults,
 	};
 	using SettingsType = ::Settings::Type;
@@ -102,6 +113,14 @@ private:
 
 };
 
+struct DownloadsEntry {
+	not_null<HistoryItem*> item;
+	int64 started = 0; // unixtime * 1000.
+};
+struct DownloadsSlice {
+	std::vector<DownloadsEntry> entries;
+};
+
 class AbstractController : public Window::SessionNavigation {
 public:
 	AbstractController(not_null<Window::SessionController*> parent);
@@ -115,6 +134,9 @@ public:
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}
+	bool isDownloads() const {
+		return key().isDownloads();
+	}
 	PollData *poll() const;
 	FullMsgId pollContextId() const {
 		return key().pollContextId();
@@ -127,6 +149,8 @@ public:
 		int limitBefore,
 		int limitAfter) const;
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
+
+	[[nodiscard]] rpl::producer<DownloadsSlice> downloadsSource() const;
 
 	void showSection(
 		std::shared_ptr<Window::SectionMemento> memento,

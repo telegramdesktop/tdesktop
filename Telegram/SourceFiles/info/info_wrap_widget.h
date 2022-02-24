@@ -51,10 +51,10 @@ enum class Wrap {
 };
 
 struct SelectedItem {
-	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+	explicit SelectedItem(GlobalMsgId globalId) : globalId(globalId) {
 	}
 
-	FullMsgId msgId;
+	GlobalMsgId globalId;
 	bool canDelete = false;
 	bool canForward = false;
 };
