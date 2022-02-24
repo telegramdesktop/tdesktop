@@ -16,7 +16,7 @@ class AbstractController;
 
 namespace Info::Media {
 
-class Provider final : public ListProvider {
+class Provider final : public ListProvider, private ListSectionDelegate {
 public:
 	explicit Provider(not_null<AbstractController*> controller);
 
@@ -63,6 +63,12 @@ public:
 private:
 	static constexpr auto kMinimalIdsLimit = 16;
 	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);
+
+	bool sectionHasFloatingHeader() override;
+	QString sectionTitle(not_null<const BaseLayout*> item) override;
+	bool sectionItemBelongsHere(
+		not_null<const BaseLayout*> item,
+		not_null<const BaseLayout*> previous) override;
 
 	[[nodiscard]] bool isPossiblyMyPeerId(PeerId peerId) const;
 	[[nodiscard]] FullMsgId computeFullId(UniversalMsgId universalId) const;

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/inactive_press.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "base/platform/base_platform_info.h"
@@ -158,7 +159,7 @@ void ListWidget::start() {
 	if (_controller->isDownloads()) {
 		_provider->refreshViewer();
 	} else {
-		subscribeToSession(&session());
+		subscribeToSession(&session(), lifetime());
 
 		_controller->mediaSourceQueryValue(
 		) | rpl::start_with_next([this] {
@@ -169,26 +170,28 @@ void ListWidget::start() {
 	setupSelectRestriction();
 }
 
-void ListWidget::subscribeToSession(not_null<Main::Session*> session) {
+void ListWidget::subscribeToSession(
+		not_null<Main::Session*> session,
+		rpl::lifetime &lifetime) {
 	session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
-	}, lifetime());
+	}, lifetime);
 
 	session->data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {
 		itemLayoutChanged(item);
-	}, lifetime());
+	}, lifetime);
 
 	session->data().itemRemoved(
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
-	}, lifetime());
+	}, lifetime);
 
 	session->data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		repaintItem(item);
-	}, lifetime());
+	}, lifetime);
 }
 
 void ListWidget::setupSelectRestriction() {
@@ -416,11 +419,29 @@ void ListWidget::openDocument(
 		showInMediaView);
 }
 
+void ListWidget::trackSession(not_null<Main::Session*> session) {
+	if (_trackedSessions.contains(session)) {
+		return;
+	}
+	auto &lifetime = _trackedSessions.emplace(session).first->second;
+	subscribeToSession(session, lifetime);
+	session->account().sessionChanges(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		_trackedSessions.remove(session);
+	}, lifetime);
+}
+
 void ListWidget::refreshRows() {
 	saveScrollState();
 
 	_sections.clear();
 	_sections = _provider->fillSections(this);
+
+	if (_controller->isDownloads() && !_sections.empty()) {
+		for (const auto &item : _sections.back().items()) {
+			trackSession(&item->getItem()->history()->session());
+		}
+	}
 
 	if (const auto count = _provider->fullCount()) {
 		if (*count > kMediaCountForSearch) {

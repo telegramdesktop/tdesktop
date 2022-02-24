@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_section.h"
 
 #include "storage/storage_shared_media.h"
-#include "lang/lang_keys.h"
 #include "layout/layout_selection.h"
 #include "styles/style_info.h"
 
@@ -17,27 +16,12 @@ namespace {
 
 constexpr auto kFloatingHeaderAlpha = 0.9;
 
-[[nodiscard]] bool HasFloatingHeader(Type type) {
-	switch (type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::MusicFile:
-		return false;
-	case Type::File:
-	case Type::Link:
-		return true;
-	}
-	Unexpected("Type in HasFloatingHeader()");
-}
-
 } // namespace
 
-ListSection::ListSection(Type type)
+ListSection::ListSection(Type type, not_null<ListSectionDelegate*> delegate)
 : _type(type)
-, _hasFloatingHeader(HasFloatingHeader(type))
+, _delegate(delegate)
+, _hasFloatingHeader(delegate->sectionHasFloatingHeader())
 , _mosaic(st::emojiPanWidth - st::inlineResultsLeft) {
 }
 
@@ -87,54 +71,14 @@ void ListSection::finishSection() {
 }
 
 void ListSection::setHeader(not_null<BaseLayout*> item) {
-	auto text = [&] {
-		auto date = item->dateTime().date();
-		switch (_type) {
-		case Type::Photo:
-		case Type::GIF:
-		case Type::Video:
-		case Type::RoundFile:
-		case Type::RoundVoiceFile:
-		case Type::File:
-			return langMonthFull(date);
-
-		case Type::Link:
-			return langDayOfMonthFull(date);
-
-		case Type::MusicFile:
-			return QString();
-		}
-		Unexpected("Type in ListSection::setHeader()");
-	}();
-	_header.setText(st::infoMediaHeaderStyle, text);
+	_header.setText(st::infoMediaHeaderStyle, _delegate->sectionTitle(item));
 }
 
 bool ListSection::belongsHere(
 		not_null<BaseLayout*> item) const {
 	Expects(!_items.empty());
 
-	auto date = item->dateTime().date();
-	auto myDate = _items.back()->dateTime().date();
-
-	switch (_type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::File:
-		return date.year() == myDate.year()
-			&& date.month() == myDate.month();
-
-	case Type::Link:
-		return date.year() == myDate.year()
-			&& date.month() == myDate.month()
-			&& date.day() == myDate.day();
-
-	case Type::MusicFile:
-		return true;
-	}
-	Unexpected("Type in ListSection::belongsHere()");
+	return _delegate->sectionItemBelongsHere(item, _items.back());
 }
 
 void ListSection::appendItem(not_null<BaseLayout*> item) {
@@ -277,6 +221,10 @@ auto ListSection::findItemAfterBottom(
 			const auto itemTop = item->position() / _itemsInRow;
 			return itemTop;
 		});
+}
+
+const ListSection::Items &ListSection::items() const {
+	return _items;
 }
 
 void ListSection::paint(

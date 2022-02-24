@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "layout/layout_selection.h"
 #include "main/main_session.h"
+#include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_session.h"
@@ -121,6 +122,66 @@ rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
 	}) | rpl::distinct_until_changed() | rpl::skip(1);
 }
 
+bool Provider::sectionHasFloatingHeader() {
+	switch (_type) {
+	case Type::Photo:
+	case Type::GIF:
+	case Type::Video:
+	case Type::RoundFile:
+	case Type::RoundVoiceFile:
+	case Type::MusicFile:
+		return false;
+	case Type::File:
+	case Type::Link:
+		return true;
+	}
+	Unexpected("Type in HasFloatingHeader()");
+}
+
+QString Provider::sectionTitle(not_null<const BaseLayout*> item) {
+	switch (_type) {
+	case Type::Photo:
+	case Type::GIF:
+	case Type::Video:
+	case Type::RoundFile:
+	case Type::RoundVoiceFile:
+	case Type::File:
+		return langMonthFull(item->dateTime().date());
+
+	case Type::Link:
+		return langDayOfMonthFull(item->dateTime().date());
+
+	case Type::MusicFile:
+		return QString();
+	}
+	Unexpected("Type in ListSection::setHeader()");
+}
+
+bool Provider::sectionItemBelongsHere(
+		not_null<const BaseLayout*> item,
+		not_null<const BaseLayout*> previous) {
+	const auto date = item->dateTime().date();
+	const auto sectionDate = previous->dateTime().date();
+
+	switch (_type) {
+	case Type::Photo:
+	case Type::GIF:
+	case Type::Video:
+	case Type::RoundFile:
+	case Type::RoundVoiceFile:
+	case Type::File:
+		return date.year() == sectionDate.year()
+			&& date.month() == sectionDate.month();
+
+	case Type::Link:
+		return date == sectionDate;
+
+	case Type::MusicFile:
+		return true;
+	}
+	Unexpected("Type in ListSection::belongsHere()");
+}
+
 bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
 	return isPossiblyMyPeerId(item->history()->peer->id);
 }
@@ -221,7 +282,7 @@ std::vector<ListSection> Provider::fillSections(
 	const auto guard = gsl::finally([&] { clearStaleLayouts(); });
 
 	auto result = std::vector<ListSection>();
-	auto section = ListSection(_type);
+	auto section = ListSection(_type, sectionDelegate());
 	auto count = _slice.size();
 	for (auto i = count; i != 0;) {
 		auto universalId = GetUniversalId(_slice[--i]);
@@ -229,7 +290,7 @@ std::vector<ListSection> Provider::fillSections(
 			if (!section.addItem(layout)) {
 				section.finishSection();
 				result.push_back(std::move(section));
-				section = ListSection(_type);
+				section = ListSection(_type, sectionDelegate());
 				section.addItem(layout);
 			}
 		}

@@ -13,7 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_download_manager.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
+#include "main/main_account.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "core/application.h"
 #include "storage/storage_shared_media.h"
 #include "layout/layout_selection.h"
@@ -45,6 +49,20 @@ bool Provider::hasSelectRestriction() {
 
 rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
 	return rpl::never<bool>();
+}
+
+bool Provider::sectionHasFloatingHeader() {
+	return false;
+}
+
+QString Provider::sectionTitle(not_null<const BaseLayout*> item) {
+	return QString();
+}
+
+bool Provider::sectionItemBelongsHere(
+		not_null<const BaseLayout*> item,
+		not_null<const BaseLayout*> previous) {
+	return true;
 }
 
 bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
@@ -85,6 +103,7 @@ void Provider::refreshViewer() {
 					added = true;
 					_downloading.emplace(item);
 					_elements.push_back(Element{ item, id.started });
+					trackItemSession(item);
 				}
 			}
 		}
@@ -104,6 +123,24 @@ void Provider::refreshViewer() {
 	}, _lifetime);
 }
 
+void Provider::trackItemSession(not_null<const HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	if (_trackedSessions.contains(session)) {
+		return;
+	}
+	auto &lifetime = _trackedSessions.emplace(session).first->second;
+
+	session->data().itemRemoved(
+	) | rpl::start_with_next([this](auto item) {
+		itemRemoved(item);
+	}, lifetime);
+
+	session->account().sessionChanges(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		_trackedSessions.remove(session);
+	}, lifetime);
+}
+
 rpl::producer<> Provider::refreshed() {
 	return _refreshed.events();
 }
@@ -117,7 +154,9 @@ std::vector<ListSection> Provider::fillSections(
 		return {};
 	}
 
-	auto result = std::vector<ListSection>(1, ListSection(Type::File));
+	auto result = std::vector<ListSection>(
+		1,
+		ListSection(Type::File, sectionDelegate()));
 	auto &section = result.back();
 	for (const auto &element : _elements) {
 		if (auto layout = getLayout(element, delegate)) {
@@ -170,6 +209,13 @@ bool Provider::isAfter(
 		}
 	}
 	return false;
+}
+
+void Provider::itemRemoved(not_null<const HistoryItem*> item) {
+	if (const auto i = _layouts.find(item); i != end(_layouts)) {
+		_layoutRemoved.fire(i->second.item.get());
+		_layouts.erase(i);
+	}
 }
 
 BaseLayout *Provider::getLayout(

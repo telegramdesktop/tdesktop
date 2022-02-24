@@ -145,7 +145,9 @@ private:
 	void start();
 	int recountHeight();
 	void refreshHeight();
-	void subscribeToSession(not_null<Main::Session*> session);
+	void subscribeToSession(
+		not_null<Main::Session*> session,
+		rpl::lifetime &lifetime);
 
 	void setupSelectRestriction();
 
@@ -162,6 +164,7 @@ private:
 
 	void refreshViewer();
 	void refreshRows();
+	void trackSession(not_null<Main::Session*> session);
 
 	[[nodiscard]] SelectedItems collectSelectedItems() const;
 	[[nodiscard]] MessageIdsList collectSelectedIds() const;
@@ -283,6 +286,7 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
+	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;

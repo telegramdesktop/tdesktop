@@ -15,7 +15,7 @@ namespace Info::Media {
 
 class ListSection {
 public:
-	ListSection(Type type);
+	ListSection(Type type, not_null<ListSectionDelegate*> delegate);
 
 	bool addItem(not_null<BaseLayout*> item);
 	void finishSection();
@@ -40,6 +40,9 @@ public:
 		not_null<BaseLayout*> item) const;
 	[[nodiscard]] ListFoundItem findItemByPoint(QPoint point) const;
 
+	using Items = std::vector<not_null<BaseLayout*>>;
+	const Items &items() const;
+
 	void paint(
 		Painter &p,
 		const ListContext &context,
@@ -49,8 +52,6 @@ public:
 	void paintFloatingHeader(Painter &p, int visibleTop, int outerWidth);
 
 private:
-	using Items = std::vector<not_null<BaseLayout*>>;
-
 	[[nodiscard]] int headerHeight() const;
 	void appendItem(not_null<BaseLayout*> item);
 	void setHeader(not_null<BaseLayout*> item);
@@ -72,6 +73,8 @@ private:
 	void refreshHeight();
 
 	Type _type = Type{};
+	not_null<ListSectionDelegate*> _delegate;
+
 	bool _hasFloatingHeader = false;
 	Ui::Text::String _header;
 	Items _items;

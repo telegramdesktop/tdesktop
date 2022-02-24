@@ -85,6 +85,20 @@ bool ChangeItemSelection(
 	not_null<const HistoryItem*> item,
 	TextSelection selection);
 
+class ListSectionDelegate {
+public:
+	[[nodiscard]] virtual bool sectionHasFloatingHeader() = 0;
+	[[nodiscard]] virtual QString sectionTitle(
+		not_null<const BaseLayout*> item) = 0;
+	[[nodiscard]] virtual bool sectionItemBelongsHere(
+		not_null<const BaseLayout*> item,
+		not_null<const BaseLayout*> previous) = 0;
+
+	[[nodiscard]] not_null<ListSectionDelegate*> sectionDelegate() {
+		return this;
+	}
+};
+
 class ListProvider {
 public:
 	[[nodiscard]] virtual Type type() = 0;
@@ -133,7 +147,6 @@ public:
 		Fn<void(ListScrollTopState)> restoreScrollState) = 0;
 
 	virtual ~ListProvider() = default;
-
 };
 
 } // namespace Info::Media
