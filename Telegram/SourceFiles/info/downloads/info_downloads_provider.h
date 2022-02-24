@@ -62,11 +62,26 @@ public:
 private:
 	struct Element {
 		not_null<HistoryItem*> item;
-		uint64 started = 0;
+		int64 started = 0; // unixtime * 1000
 	};
+
+	void itemRemoved(not_null<const HistoryItem*> item);
+	void markLayoutsStale();
+	void clearStaleLayouts();
+
+	[[nodiscard]] Media::BaseLayout *getLayout(
+		Element element,
+		not_null<Overview::Layout::Delegate*> delegate);
+	[[nodiscard]] std::unique_ptr<Media::BaseLayout> createLayout(
+		Element element,
+		not_null<Overview::Layout::Delegate*> delegate);
+
 	const not_null<AbstractController*> _controller;
 
 	std::vector<Element> _elements;
+	std::optional<int> _fullCount;
+	base::flat_set<not_null<const HistoryItem*>> _downloading;
+	base::flat_set<not_null<const HistoryItem*>> _downloaded;
 
 	std::unordered_map<not_null<HistoryItem*>, Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;

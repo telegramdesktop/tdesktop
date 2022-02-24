@@ -338,20 +338,20 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	if (!item) {
 		return nullptr;
 	}
-	auto getPhoto = [&]() -> PhotoData* {
+	const auto getPhoto = [&]() -> PhotoData* {
 		if (const auto media = item->media()) {
 			return media->photo();
 		}
 		return nullptr;
 	};
-	auto getFile = [&]() -> DocumentData* {
+	const auto getFile = [&]() -> DocumentData* {
 		if (auto media = item->media()) {
 			return media->document();
 		}
 		return nullptr;
 	};
 
-	auto &songSt = st::overviewFileLayout;
+	const auto &songSt = st::overviewFileLayout;
 	using namespace Overview::Layout;
 	switch (type) {
 	case Type::Photo:
