@@ -62,6 +62,14 @@ inline constexpr bool isDownloadDcId(ShiftedDcId shiftedDcId) {
 		&& (shiftedDcId < details::downloadDcId(0, kMaxMediaDcCount - 1) + kDcShift);
 }
 
+inline constexpr bool isMediaClusterDcId(ShiftedDcId shiftedDcId) {
+	const auto shift = GetDcIdShift(shiftedDcId);
+	return isDownloadDcId(shiftedDcId)
+		|| (shift == kGroupCallStreamDcShift)
+		|| (shift == kExportMediaDcShift)
+		|| (shift == kUpdaterDcShift);
+}
+
 inline bool isCdnDc(MTPDdcOption::Flags flags) {
 	return (flags & MTPDdcOption::Flag::f_cdn);
 }
