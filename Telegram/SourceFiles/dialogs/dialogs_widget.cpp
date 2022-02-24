@@ -48,6 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
+#include "info/downloads/info_downloads_widget.h"
+#include "info/info_memento.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -431,9 +433,19 @@ void Widget::setupDownloadBar() {
 			_downloadBar->clicks(
 			) | rpl::start_with_next([=] {
 				auto &&list = Core::App().downloadManager().loadingList();
+				auto first = (HistoryItem*)nullptr;
 				for (const auto &id : list) {
-					controller()->showPeerHistoryAtItem(id.object.item);
-					break;
+					if (!first) {
+						first = id.object.item;
+					} else {
+						controller()->showSection(
+							Info::Downloads::Make(
+								controller()->session().user()));
+						return;
+					}
+				}
+				if (first) {
+					controller()->showPeerHistoryAtItem(first);
 				}
 			}, _downloadBar->lifetime());
 
