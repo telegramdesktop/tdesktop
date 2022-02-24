@@ -274,7 +274,7 @@ void AddUnreadBadge(
 			const auto diameter = full - 2 * shift;
 			const auto rect = QRectF(shift, shift, diameter, diameter);
 			auto hq = PainterHighQualityEnabler(p);
-			auto pen = st::settingsIconBg4->p; // The same as '+' in add.
+			auto pen = st::windowBgActive->p; // The same as '+' in add.
 			pen.setWidthF(line);
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
@@ -901,8 +901,9 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> MainMenu::setupAddAccount(
 				st::mainMenuAddAccountButton,
 				{
 					&st::mainMenuAddAccount,
-					kIconLightBlue,
+					0,
 					IconType::Round,
+					&st::windowBgActive
 				})))->setDuration(0);
 	const auto button = result->entity();
 
@@ -1124,7 +1125,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			st::mainMenuCoverNameTop,
 			widthText,
 			width());
-		p.setFont(st::normalFont);
+		p.setFont(st::mainMenuPhoneFont);
 		p.setPen(st::windowSubTextFg);
 		p.drawTextLeft(
 			st::mainMenuCoverStatusLeft,

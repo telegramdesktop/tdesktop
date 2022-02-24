@@ -115,6 +115,7 @@ mainMenuCoverNameLeft: 26px;
 mainMenuCoverNameTop: 84px;
 mainMenuCoverStatusLeft: 24px;
 mainMenuCoverStatusTop: 103px;
+mainMenuPhoneFont: font(12px);
 mainMenuSkip: 6px;
 mainMenuFooterHeightMin: 80px;
 mainMenu: Menu(defaultMenu) {
@@ -142,7 +143,7 @@ mainMenuAddAccountButton: SettingsButton(mainMenuButton) {
 }
 
 mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
-mainMenuAddAccount: icon {{ "settings/add", settingsIconFg }};
+mainMenuAddAccount: icon {{ "settings/add", windowFgActive }};
 mainMenuAccountSize: 26px;
 mainMenuAccountLine: 2px;
 mainMenuBadgeFont: font(11px bold);
