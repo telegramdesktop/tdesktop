@@ -3004,7 +3004,7 @@ void GroupCall::setInstanceMode(InstanceMode mode) {
 		case InstanceMode::Stream: return Mode::GroupConnectionModeBroadcast;
 		}
 		Unexpected("Mode in GroupCall::setInstanceMode.");
-	}(), true);
+	}(), true, false); // #TODO streams
 }
 
 void GroupCall::setScreenInstanceMode(InstanceMode mode) {
@@ -3020,7 +3020,7 @@ void GroupCall::setScreenInstanceMode(InstanceMode mode) {
 		case InstanceMode::Stream: return Mode::GroupConnectionModeBroadcast;
 		}
 		Unexpected("Mode in GroupCall::setInstanceMode.");
-	}(), true);
+	}(), true, false);
 }
 
 void GroupCall::maybeSendMutedUpdate(MuteState previous) {
