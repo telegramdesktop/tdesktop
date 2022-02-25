@@ -79,6 +79,8 @@ PRIVATE
     group/AudioStreamingPart.h
     group/AudioStreamingPartInternal.cpp
     group/AudioStreamingPartInternal.h
+    group/AudioStreamingPartPersistentDecoder.cpp
+    group/AudioStreamingPartPersistentDecoder.h
     group/GroupInstanceCustomImpl.cpp
     group/GroupInstanceCustomImpl.h
     group/GroupInstanceImpl.h
