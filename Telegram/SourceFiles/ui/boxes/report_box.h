@@ -24,6 +24,8 @@ enum class ReportReason {
 	Violence,
 	ChildAbuse,
 	Pornography,
+	IllegalDrugs,
+	PersonalDetails,
 	Other,
 };
 

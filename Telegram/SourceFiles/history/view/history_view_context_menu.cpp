@@ -1232,6 +1232,10 @@ void SendReport(
 		case Reason::Violence: return MTP_inputReportReasonViolence();
 		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
+		case Reason::IllegalDrugs:
+			return MTP_inputReportReasonIllegalDrugs();
+		case Reason::PersonalDetails:
+			return MTP_inputReportReasonPersonalDetails();
 		case Reason::Other: return MTP_inputReportReasonOther();
 		}
 		Unexpected("Bad reason group value.");

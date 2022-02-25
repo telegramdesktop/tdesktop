@@ -1109,6 +1109,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_child_abuse" = "Child Abuse";
 "lng_report_reason_pornography" = "Pornography";
+"lng_report_reason_illegal_drugs" = "Illegal Drugs";
+"lng_report_reason_personal_details" = "Personal Details";
 "lng_report_reason_other" = "Other";
 "lng_report_reason_description" = "Description";
 "lng_report_button" = "Report";
