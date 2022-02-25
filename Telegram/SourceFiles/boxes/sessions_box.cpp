@@ -928,8 +928,8 @@ void SessionsContent::Inner::setupContent() {
 		CreateButton(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
-			st::sessionsTerminateAll,
-			{ .icon = &st::sessionsTerminateAllIcon }));
+			st::infoBlockButton,
+			{ .icon = &st::infoIconBlock }));
 	AddSkip(terminateInner);
 	AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 

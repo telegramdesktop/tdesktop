@@ -219,8 +219,8 @@ windowOutdatedSkip: 6px;
 windowOutdatedClose: IconButton(defaultIconButton) {
 	width: 60px;
 	height: 60px;
-	icon: icon {{ "info_close", outdatedFg }};
-	iconOver: icon {{ "info_close", outdatedFg }};
+	icon: icon {{ "info/info_close", outdatedFg }};
+	iconOver: icon {{ "info/info_close", outdatedFg }};
 	iconPosition: point(-1px, -1px);
 }
 

@@ -753,6 +753,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	SetupSystemIntegration(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
+	empty = false;
 
 	AddDivider(content);
 	AddSkip(content);

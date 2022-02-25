@@ -272,15 +272,6 @@ dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 
 sessionsScroll: boxScroll;
 sessionsHeight: 350px;
-sessionsTerminateAll: SettingsButton(defaultSettingsButton) {
-	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFgOver;
-	font: font(boxFontSize semibold);
-	height: 20px;
-	padding: margins(77px, 12px, 22px, 10px);
-	iconLeft: 30px;
-}
-sessionsTerminateAllIcon: icon {{ "settings/devices/terminate_all", attentionButtonFg }};
 sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
@@ -351,8 +342,8 @@ sessionListItem: PeerListItem(defaultPeerListItem) {
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: msgNameFont;
 	}
-	namePosition: point(77px, 11px);
-	statusPosition: point(77px, 32px);
+	namePosition: point(78px, 11px);
+	statusPosition: point(78px, 32px);
 	photoSize: 42px;
 	statusFg: boxTextFg;
 	statusFgOver: boxTextFg;
@@ -361,9 +352,6 @@ sessionList: PeerList(defaultPeerList) {
 	item: sessionListItem;
 	padding: margins(0px, 4px, 0px, 0px);
 }
-sessionListThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
-sessionListThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
-sessionListThreeDotsSkip: 12px;
 
 settingsPhotoLeft: 22px;
 settingsPhotoTop: 8px;

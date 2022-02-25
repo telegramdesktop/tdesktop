@@ -753,7 +753,7 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 
 	ripple: groupCallRipple;
 }
-groupCallAddMemberIcon: icon {{ "info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
+groupCallAddMemberIcon: icon {{ "info/info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
 groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: groupCallMemberNotJoinedStatus;
@@ -785,7 +785,7 @@ groupCallMenuToggle: IconButton {
 
 	icon: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
 	iconOver: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
-	iconPosition: point(6px, 6px);
+	iconPosition: point(2px, 2px);
 
 	rippleAreaPosition: point(3px, 3px);
 	rippleAreaSize: 30px;

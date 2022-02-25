@@ -130,7 +130,7 @@ void Members::setupHeader() {
 	object_ptr<FloatingIcon>(
 		parent,
 		st::infoIconMembers,
-		st::infoIconPosition);
+		st::infoGroupMembersIconPosition);
 
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();
@@ -257,7 +257,7 @@ int Members::resizeGetHeight(int newWidth) {
 //}
 
 void Members::updateHeaderControlsGeometry(int newWidth) {
-	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersHeader - st::infoProfileSkip - st::infoMembersHeaderPaddingBottom);
+	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersButton.height);
 
 	auto availableWidth = newWidth
 		- st::infoMembersButtonPosition.x();

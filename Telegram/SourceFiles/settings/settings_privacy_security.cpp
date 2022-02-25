@@ -226,6 +226,7 @@ void SetupLocalPasscode(
 	AddSkip(container);
 	AddDivider(container);
 	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_passcode_title());
 
 	auto has = rpl::single(
 		rpl::empty_value()
@@ -318,6 +319,7 @@ void SetupCloudPassword(
 	AddSkip(container);
 	AddDivider(container);
 	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_password_title());
 
 	const auto session = &controller->session();
 	auto has = rpl::single(

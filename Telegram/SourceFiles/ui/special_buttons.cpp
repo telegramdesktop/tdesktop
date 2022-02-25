@@ -737,34 +737,26 @@ rpl::producer<> UserpicButton::uploadPhotoRequests() const {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : RippleButton(parent, st::historySilentToggle.ripple)
 , _st(st::historySilentToggle)
-, _colorOver(st::historyComposeIconFgOver->c)
 , _channel(channel)
-, _checked(channel->owner().notifySilentPosts(_channel))
-, _crossLine(st::historySilentToggleCrossLine) {
+, _checked(channel->owner().notifySilentPosts(_channel)) {
 	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
 
 	resize(_st.width, _st.height);
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_crossLine.invalidate();
-	}, lifetime());
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 		paintRipple(p, _st.rippleAreaPosition, nullptr);
 
-		_crossLine.paint(
-			p,
-			(width() - _st.icon.width()) / 2,
-			(height() - _st.icon.height()) / 2,
-			_crossLineAnimation.value(_checked ? 1. : 0.),
-			// Since buttons of the compose controls have no duration
-			// for the over animation, we can skip this animation here.
-			isOver()
-				? std::make_optional<QColor>(_colorOver)
-				: std::nullopt);
+		//const auto checked = _crossLineAnimation.value(_checked ? 1. : 0.);
+		const auto over = isOver();
+		(_checked
+			? (over
+				? st::historySilentToggleOnOver
+				: st::historySilentToggleOn)
+			: (over
+				? st::historySilentToggle.iconOver
+				: st::historySilentToggle.icon)).paintInCenter(p, rect());
 	}, lifetime());
 
 	setMouseTracking(true);

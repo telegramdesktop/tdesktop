@@ -194,12 +194,10 @@ protected:
 
 private:
 	const style::IconButton &_st;
-	const QColor &_colorOver;
 
 	not_null<ChannelData*> _channel;
 	bool _checked = false;
 
-	Ui::CrossLineAnimation _crossLine;
 	Ui::Animations::Simple _crossLineAnimation;
 
 };

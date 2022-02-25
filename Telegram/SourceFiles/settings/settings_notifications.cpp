@@ -634,11 +634,21 @@ void SetupNotificationsContent(
 		tr::lng_settings_desktop_notify(),
 		{ &st::settingsIconNotifications, kIconRed },
 		desktopToggles->events_starting_with(settings.desktopNotify()));
+
+	const auto name = addSlidingCheckbox(
+		tr::lng_settings_show_name(),
+		{ &st::settingsIconUser, kIconLightOrange },
+		rpl::single(settings.notifyView() <= NotifyView::ShowName));
+	const auto preview = addSlidingCheckbox(
+		tr::lng_settings_show_preview(),
+		{ &st::settingsIconAskQuestion, kIconGreen },
+		rpl::single(settings.notifyView() <= NotifyView::ShowPreview));
+
 	const auto soundToggles = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();
 	const auto sound = addCheckbox(
 		tr::lng_settings_sound_notify(),
-		{ &st::settingsIconSound, kIconLightOrange },
+		{ &st::settingsIconSound, kIconLightBlue },
 		soundToggles->events_starting_with(settings.soundNotify()));
 	const auto flashbounceToggles = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();
@@ -648,18 +658,9 @@ void SetupNotificationsContent(
 			: Platform::IsMac()
 			? tr::lng_settings_alert_mac
 			: tr::lng_settings_alert_linux)(),
-		{ &st::settingsIconDock, kIconLightBlue },
+		{ &st::settingsIconDock, kIconDarkBlue },
 		flashbounceToggles->events_starting_with(
 			settings.flashBounceNotify()));
-
-	const auto name = addSlidingCheckbox(
-		tr::lng_settings_show_name(),
-		{},
-		rpl::single(settings.notifyView() <= NotifyView::ShowName));
-	const auto preview = addSlidingCheckbox(
-		tr::lng_settings_show_preview(),
-		{},
-		rpl::single(settings.notifyView() <= NotifyView::ShowPreview));
 
 	AddSkip(container);
 	AddDivider(container);

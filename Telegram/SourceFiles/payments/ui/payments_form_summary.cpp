@@ -167,10 +167,13 @@ void FormSummary::setupControls() {
 	setupContent(_layout.get());
 
 	if (_submit) {
+		_submit->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
 		_submit->addClickHandler([=] {
 			_delegate->panelSubmit();
 		});
 	}
+	_cancel->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_cancel->addClickHandler([=] {
 		_delegate->panelRequestClose();
 	});

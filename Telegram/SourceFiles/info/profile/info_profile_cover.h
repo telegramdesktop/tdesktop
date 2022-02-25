@@ -105,18 +105,5 @@ private:
 
 };
 
-class SharedMediaCover : public SectionWithToggle {
-public:
-	SharedMediaCover(QWidget *parent);
-
-	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown);
-
-	QMargins getMargins() const override;
-
-private:
-	void createLabel();
-
-};
-
 } // namespace Profile
 } // namespace Info

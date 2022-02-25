@@ -1196,12 +1196,12 @@ Image *MainWidget::newBackgroundThumb() {
 
 void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
-		Assert(_dialogs != nullptr);
 		if (!_hider && _mainSection) {
 			_mainSection->setInnerFocus();
 		} else if (!_hider && _thirdSection) {
 			_thirdSection->setInnerFocus();
 		} else {
+			Assert(_dialogs != nullptr);
 			_dialogs->setInnerFocus();
 		}
 	} else if (_mainSection) {

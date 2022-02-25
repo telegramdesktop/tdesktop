@@ -582,7 +582,7 @@ rightsCheckbox: Checkbox(defaultCheckbox) {
 rightsToggle: Toggle(defaultToggle) {
 	toggledFg: windowBgActive;
 	untoggledFg: attentionButtonFg;
-	lockIcon: icon {{ "info_rights_lock", windowBgActive }};
+	lockIcon: icon {{ "info/info_rights_lock", windowBgActive }};
 	xsize: 8px;
 	vsize: 5px;
 	vshift: 1px;
@@ -776,7 +776,7 @@ createPollOptionRemove: CrossButton {
 	cross: CrossAnimation {
 		size: 22px;
 		skip: 6px;
-		stroke: 1px;
+		stroke: 1.;
 		minScale: 0.3;
 	}
 	crossFg: boxTitleCloseFg;
