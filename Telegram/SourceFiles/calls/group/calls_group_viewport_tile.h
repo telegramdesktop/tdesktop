@@ -36,6 +36,9 @@ public:
 	[[nodiscard]] not_null<MembersRow*> row() const {
 		return _track.row;
 	}
+	[[nodiscard]] bool rtmp() const {
+		return _rtmp;
+	}
 	[[nodiscard]] QRect geometry() const {
 		return _geometry;
 	}
@@ -119,6 +122,7 @@ private:
 	bool _topControlsShown = false;
 	bool _pinned = false;
 	bool _hidden = true;
+	bool _rtmp = false;
 	std::optional<VideoQuality> _quality;
 
 	rpl::lifetime _lifetime;

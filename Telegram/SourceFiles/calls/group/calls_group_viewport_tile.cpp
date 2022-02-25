@@ -30,10 +30,11 @@ Viewport::VideoTile::VideoTile(
 	Fn<void()> update)
 : _endpoint(endpoint)
 , _update(std::move(update))
-, _track(track)
-, _trackSize(std::move(trackSize)) {
-	Expects(track.track != nullptr);
-	Expects(track.row != nullptr);
+, _track(std::move(track))
+, _trackSize(std::move(trackSize))
+, _rtmp(endpoint.rtmp()) {
+	Expects(_track.track != nullptr);
+	Expects(_track.row != nullptr);
 
 	using namespace rpl::mappers;
 	_track.track->stateValue(

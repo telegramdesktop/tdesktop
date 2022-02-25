@@ -35,7 +35,7 @@ constexpr ShiftedDcId updaterDcId(DcId dcId) {
 	return ShiftDcId(dcId, kUpdaterDcShift);
 }
 
-// send(MTPupload_GetFile(), MTP::groupCallStreamDcId(dc)) - for gorup call stream
+// send(MTPupload_GetFile(), MTP::groupCallStreamDcId(dc)) - for group call stream
 constexpr ShiftedDcId groupCallStreamDcId(DcId dcId) {
 	return ShiftDcId(dcId, kGroupCallStreamDcShift);
 }

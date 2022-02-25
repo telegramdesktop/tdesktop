@@ -214,6 +214,9 @@ void Instance::startOrJoinGroupCall(
 	}, [=](Group::JoinInfo info) {
 		const auto call = info.peer->groupCall();
 		info.joinHash = joinHash;
+		if (call) {
+			info.rtmp = call->rtmp();
+		}
 		createGroupCall(
 			std::move(info),
 			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));

@@ -97,6 +97,7 @@ struct VideoEndpoint {
 	PeerData *peer = nullptr;
 	std::string id;
 
+	[[nodiscard]] bool rtmp() const noexcept;
 	[[nodiscard]] bool empty() const noexcept {
 		Expects(id.empty() || peer != nullptr);
 
@@ -230,6 +231,7 @@ public:
 		return _scheduleDate;
 	}
 	[[nodiscard]] bool scheduleStartSubscribed() const;
+	[[nodiscard]] bool rtmp() const;
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
@@ -406,6 +408,7 @@ public:
 private:
 	class LoadPartTask;
 	class MediaChannelDescriptionsTask;
+	class RequestCurrentTimeTask;
 	using GlobalShortcutValue = base::GlobalShortcutValue;
 	using Error = Group::Error;
 	struct SinkPointer;
@@ -460,6 +463,10 @@ private:
 		std::shared_ptr<MediaChannelDescriptionsTask> task);
 	void mediaChannelDescriptionsCancel(
 		not_null<MediaChannelDescriptionsTask*> task);
+	void requestCurrentTimeStart(
+		std::shared_ptr<RequestCurrentTimeTask> task);
+	void requestCurrentTimeCancel(
+		not_null<RequestCurrentTimeTask*> task);
 	[[nodiscard]] int64 approximateServerTimeInMs() const;
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(
@@ -567,10 +574,14 @@ private:
 	MTP::DcId _broadcastDcId = 0;
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
 	base::flat_set<
-		std::shared_ptr<
-			MediaChannelDescriptionsTask>,
+		std::shared_ptr<MediaChannelDescriptionsTask>,
 		base::pointer_comparator<
 			MediaChannelDescriptionsTask>> _mediaChannelDescriptionses;
+	base::flat_set<
+		std::shared_ptr<RequestCurrentTimeTask>,
+		base::pointer_comparator<
+			RequestCurrentTimeTask>> _requestCurrentTimes;
+	mtpRequestId _requestCurrentTimeRequestId = 0;
 
 	rpl::variable<not_null<PeerData*>> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
@@ -648,6 +659,7 @@ private:
 	base::Timer _pushToTalkCancelTimer;
 	base::Timer _connectingSoundTimer;
 	bool _hadJoinedState = false;
+	bool _rtmp = false;
 
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
 	QString _audioInputId;

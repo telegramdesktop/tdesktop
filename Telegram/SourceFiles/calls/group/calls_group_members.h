@@ -61,6 +61,8 @@ public:
 	}
 
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
+	[[nodiscard]] not_null<MembersRow*> rtmpFakeRow(
+		not_null<PeerData*> peer) const;
 
 	void setMode(PanelMode mode);
 	[[nodiscard]] QRect getInnerGeometry() const;
@@ -107,6 +109,8 @@ private:
 	RpWidget *_bottomSkip = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
+
+	mutable std::unique_ptr<MembersRow> _rtmpFakeRow;
 
 	rpl::variable<bool> _canInviteByLink;
 	rpl::variable<bool> _canAddMembers;

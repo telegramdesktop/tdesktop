@@ -905,8 +905,11 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 			const VideoEndpoint &endpoint,
 			const std::unique_ptr<GroupCall::VideoTrack> &track) {
 		using namespace rpl::mappers;
-		const auto row = _members->lookupRow(GroupCall::TrackPeer(track));
+		const auto row = endpoint.rtmp()
+			? _members->rtmpFakeRow(GroupCall::TrackPeer(track)).get()
+			: _members->lookupRow(GroupCall::TrackPeer(track));
 		Assert(row != nullptr);
+
 		auto pinned = rpl::combine(
 			_call->videoEndpointLargeValue(),
 			_call->videoEndpointPinnedValue()

@@ -1704,6 +1704,13 @@ Row *Members::lookupRow(not_null<PeerData*> peer) const {
 	return _listController->findRow(peer);
 }
 
+not_null<MembersRow*> Members::rtmpFakeRow(not_null<PeerData*> peer) const {
+	if (!_rtmpFakeRow) {
+		_rtmpFakeRow = std::make_unique<Row>(_listController.get(), peer);
+	}
+	return _rtmpFakeRow.get();
+}
+
 void Members::setMode(PanelMode mode) {
 	if (_mode.current() == mode) {
 		return;

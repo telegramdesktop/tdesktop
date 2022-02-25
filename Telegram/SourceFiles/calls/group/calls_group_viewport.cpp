@@ -722,7 +722,7 @@ void Viewport::updateTilesGeometryColumn(int outerWidth) {
 	};
 	const auto topPeer = _large ? _large->row()->peer().get() : nullptr;
 	const auto reorderNeeded = [&] {
-		if (!_large) {
+		if (!topPeer) {
 			return false;
 		}
 		for (const auto &tile : _tiles) {
