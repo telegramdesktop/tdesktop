@@ -50,7 +50,7 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 		| (data.is_official() ? Flag::Official : Flag())
 		| (data.is_masks() ? Flag::Masks : Flag())
 		| (data.vinstalled_date() ? Flag::Installed : Flag())
-		| (data.is_gifs() ? Flag::Webm : Flag());
+		| (data.is_videos() ? Flag::Webm : Flag());
 }
 
 StickersSet::StickersSet(
