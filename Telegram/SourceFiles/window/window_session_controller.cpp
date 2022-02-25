@@ -1802,4 +1802,44 @@ SessionController::~SessionController() {
 	resetFakeUnreadWhileOpened();
 }
 
+Show::Show(not_null<SessionNavigation*> navigation)
+: Show(&navigation->parentController()->window()) {
+}
+
+Show::Show(not_null<Controller*> window)
+: _window(base::make_weak(window.get())) {
+}
+
+Show::~Show() = default;
+
+void Show::showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) const {
+	if (const auto window = _window.get()) {
+		window->show(std::move(content), options);
+	}
+}
+
+void Show::hideLayer() const {
+	if (const auto window = _window.get()) {
+		window->show(
+			object_ptr<Ui::BoxContent>{ nullptr },
+			Ui::LayerOption::CloseOther);
+	}
+}
+
+not_null<QWidget*> Show::toastParent() const {
+	const auto window = _window.get();
+	Assert(window != nullptr);
+	return window->widget()->bodyWidget();
+}
+
+bool Show::valid() const {
+	return !_window.empty();
+}
+
+Show::operator bool() const {
+	return valid();
+}
+
 } // namespace Window
