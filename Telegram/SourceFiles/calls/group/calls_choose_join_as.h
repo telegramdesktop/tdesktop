@@ -41,6 +41,10 @@ public:
 		PeerData *changingJoinAsFrom = nullptr);
 
 private:
+	void requestList();
+	void processList(std::vector<not_null<PeerData*>> &&list);
+	void finish(JoinInfo info);
+
 	struct ChannelsListRequest {
 		not_null<PeerData*> peer;
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox;
@@ -51,6 +55,7 @@ private:
 		rpl::lifetime lifetime;
 		Context context = Context();
 		mtpRequestId id = 0;
+		PeerData *changingJoinAsFrom = nullptr;
 	};
 	std::unique_ptr<ChannelsListRequest> _request;
 
