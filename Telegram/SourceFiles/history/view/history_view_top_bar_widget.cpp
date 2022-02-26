@@ -107,7 +107,7 @@ TopBarWidget::TopBarWidget(
 	_call->setClickedCallback([=] { call(); });
 	_groupCall->setClickedCallback([=] { groupCall(); });
 	_search->setClickedCallback([=] { search(); });
-	_menuToggle->setClickedCallback([=] { showMenu(); });
+	_menuToggle->setClickedCallback([=] { showPeerMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
 	_back->addClickHandler([=] { backClicked(); });
 	_cancelChoose->setClickedCallback(
@@ -272,9 +272,9 @@ void TopBarWidget::setChooseForReportReason(
 		: style::cur_default);
 }
 
-void TopBarWidget::showMenu() {
+bool TopBarWidget::createMenu() {
 	if (!_activeChat.key || _menu) {
-		return;
+		return false;
 	}
 	_menu.create(parentWidget(), st::dropdownMenuWithIcons);
 	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
@@ -295,20 +295,27 @@ void TopBarWidget::showMenu() {
 		}
 	}));
 	_menuToggle->installEventFilter(_menu);
+	return true;
+}
+
+void TopBarWidget::showPeerMenu() {
+	const auto created = createMenu();
+	if (!created) {
+		return;
+	}
 	const auto addAction = [&](
 			const QString &text,
 			Fn<void()> callback,
 			const style::icon *icon) {
 		return _menu->addAction(text, std::move(callback), icon);
 	};
-	Window::FillDialogsEntryMenu(
-		_controller,
-		_activeChat,
-		addAction);
+	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
 		_menu.destroy();
 	} else {
-		_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
+		_menu->moveToRight(
+			(parentWidget()->width() - width()) + st::topBarMenuPosition.x(),
+			st::topBarMenuPosition.y());
 		_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 	}
 }
