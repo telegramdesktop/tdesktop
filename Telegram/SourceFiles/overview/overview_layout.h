@@ -335,12 +335,16 @@ private:
 
 };
 
+struct DocumentFields {
+	not_null<DocumentData*> document;
+	TimeId dateOverride = 0;
+};
 class Document final : public RadialProgressItem {
 public:
 	Document(
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
-		not_null<DocumentData*> document,
+		DocumentFields fields,
 		const style::OverviewFileLayout &st);
 
 	void initDimensions() override;

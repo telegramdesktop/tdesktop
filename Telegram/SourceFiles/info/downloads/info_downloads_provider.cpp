@@ -320,12 +320,16 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	};
 
+	using namespace Overview::Layout;
 	auto &songSt = st::overviewFileLayout;
 	if (const auto file = getFile()) {
-		return std::make_unique<Overview::Layout::Document>(
+		return std::make_unique<Document>(
 			delegate,
 			element.item,
-			file,
+			DocumentFields{
+				.document = file,
+				.dateOverride = Data::DateFromDownloadDate(element.started),
+			},
 			songSt);
 	}
 	return nullptr;

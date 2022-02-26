@@ -432,12 +432,20 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	case Type::File:
 		if (const auto file = getFile()) {
-			return std::make_unique<Document>(delegate, item, file, songSt);
+			return std::make_unique<Document>(
+				delegate,
+				item,
+				DocumentFields{ .document = file },
+				songSt);
 		}
 		return nullptr;
 	case Type::MusicFile:
 		if (const auto file = getFile()) {
-			return std::make_unique<Document>(delegate, item, file, songSt);
+			return std::make_unique<Document>(
+				delegate,
+				item,
+				DocumentFields{ .document = file },
+				songSt);
 		}
 		return nullptr;
 	case Type::RoundVoiceFile:

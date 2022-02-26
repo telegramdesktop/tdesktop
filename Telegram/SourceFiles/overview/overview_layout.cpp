@@ -920,10 +920,10 @@ bool Voice::updateStatusText() {
 Document::Document(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
-	not_null<DocumentData*> document,
+	DocumentFields fields,
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(delegate, parent)
-, _data(document)
+, _data(fields.document)
 , _msgl(goToMessageClickHandler(parent))
 , _namel(std::make_shared<DocumentOpenClickHandler>(
 	_data,
@@ -933,7 +933,9 @@ Document::Document(
 	parent->fullId()))
 , _st(st)
 , _generic(::Layout::DocumentGenericPreview::Create(_data))
-, _date(langDateTime(base::unixtime::parse(_data->date)))
+, _date(langDateTime(base::unixtime::parse(fields.dateOverride
+	? fields.dateOverride
+	: _data->date)))
 , _ext(_generic.ext)
 , _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(

@@ -29,6 +29,10 @@ enum class DownloadType {
 // unixtime * 1000.
 using DownloadDate = int64;
 
+[[nodiscard]] inline TimeId DateFromDownloadDate(DownloadDate date) {
+	return date / 1000;
+}
+
 struct DownloadId {
 	uint64 objectId = 0;
 	DownloadType type = DownloadType::Document;
