@@ -1256,7 +1256,8 @@ bool DocumentData::isNull() const {
 	return !hasRemoteLocation()
 		&& !hasWebLocation()
 		&& _url.isEmpty()
-		&& !uploading();
+		&& !uploading()
+		&& _location.isEmpty();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {

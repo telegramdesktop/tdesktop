@@ -20,6 +20,7 @@ class Session;
 
 namespace Data {
 
+// Used in serialization!
 enum class DownloadType {
 	Document,
 	Photo,
@@ -53,6 +54,7 @@ struct DownloadedId {
 	DownloadId download;
 	DownloadDate started = 0;
 	QString path;
+	int32 size = 0;
 	FullMsgId itemId;
 	uint64 peerAccessHash = 0;
 
@@ -88,7 +90,7 @@ public:
 	[[nodiscard]] auto loadingProgressValue() const
 		-> rpl::producer<DownloadProgress>;
 
-	[[nodiscard]] auto loadedList() const
+	[[nodiscard]] auto loadedList()
 		-> ranges::any_view<const DownloadedId*, ranges::category::input>;
 	[[nodiscard]] auto loadedAdded() const
 		-> rpl::producer<not_null<const DownloadedId*>>;
@@ -99,6 +101,9 @@ private:
 	struct SessionData {
 		std::vector<DownloadedId> downloaded;
 		std::vector<DownloadingId> downloading;
+		int resolveNeeded = 0;
+		int resolveSentRequests = 0;
+		int resolveSentTotal = 0;
 		rpl::lifetime lifetime;
 	};
 
@@ -116,18 +121,39 @@ private:
 	void clearLoading();
 
 	[[nodiscard]] int64 computeNextStarted();
-	[[nodiscard]] not_null<HistoryItem*> generateItem(
-		const DownloadObject &object);
 
 	[[nodiscard]] SessionData &sessionData(not_null<Main::Session*> session);
+	[[nodiscard]] const SessionData &sessionData(
+		not_null<Main::Session*> session) const;
 	[[nodiscard]] SessionData &sessionData(
 		not_null<const HistoryItem*> item);
+
+	void resolve(not_null<Main::Session*> session, SessionData &data);
+	void resolveRequestsFinished(
+		not_null<Main::Session*> session,
+		SessionData &data);
+	[[nodiscard]] not_null<HistoryItem*> regenerateItem(
+		const DownloadObject &previous);
+	[[nodiscard]] not_null<HistoryItem*> generateFakeItem(
+		not_null<DocumentData*> document);
+	[[nodiscard]] not_null<HistoryItem*> generateItem(
+		HistoryItem *previousItem,
+		DocumentData *document,
+		PhotoData *photo);
+	void generateEntry(not_null<Main::Session*> session, DownloadedId &id);
+
+	void writePostponed(not_null<Main::Session*> session);
+	[[nodiscard]] Fn<std::optional<QByteArray>()> serializator(
+		not_null<Main::Session*> session) const;
+	[[nodiscard]] std::vector<DownloadedId> deserialize(
+		not_null<Main::Session*> session) const;
 
 	base::flat_map<not_null<Main::Session*>, SessionData> _sessions;
 	base::flat_set<not_null<const HistoryItem*>> _loading;
 	base::flat_set<not_null<const HistoryItem*>> _loadingDone;
 	base::flat_set<not_null<const HistoryItem*>> _loaded;
 	base::flat_set<not_null<HistoryItem*>> _generated;
+	base::flat_set<not_null<DocumentData*>> _generatedDocuments;
 
 	TimeId _lastStartedBase = 0;
 	int _lastStartedAdded = 0;
