@@ -243,8 +243,6 @@ void ListSection::paint(
 			outerWidth);
 	}
 	auto localContext = context.layoutContext;
-	localContext.isAfterDate = (header > 0);
-
 	if (!_mosaic.empty()) {
 		auto paintItem = [&](not_null<BaseLayout*> item, QPoint point) {
 			p.translate(point.x(), point.y());
@@ -266,8 +264,7 @@ void ListSection::paint(
 	for (auto it = fromIt; it != tillIt; ++it) {
 		auto item = *it;
 		auto rect = findItemRect(item);
-		localContext.isAfterDate = (header > 0)
-			&& (rect.y() <= header + _itemsTop);
+		localContext.skipBorder = (rect.y() <= header + _itemsTop);
 		if (rect.intersects(clip)) {
 			p.translate(rect.topLeft());
 			item->paint(

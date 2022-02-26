@@ -38,7 +38,7 @@ class PaintContext : public PaintContextBase {
 public:
 	PaintContext(crl::time ms, bool selecting) : PaintContextBase(ms, selecting) {
 	}
-	bool isAfterDate = false;
+	bool skipBorder = false;
 
 };
 

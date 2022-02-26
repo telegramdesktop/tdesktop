@@ -13,10 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
+#include "base/unixtime.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_message.h"
 #include "core/application.h"
 #include "ui/controls/download_bar.h"
 
@@ -30,7 +32,7 @@ constexpr auto ByItem = [](const auto &entry) {
 		return entry.object.item;
 	} else {
 		const auto resolved = entry.object.get();
-		return resolved ? resolved->item : nullptr;
+		return resolved ? resolved->item.get() : nullptr;
 	}
 };
 
@@ -87,6 +89,17 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	}, data.lifetime);
 }
 
+int64 DownloadManager::computeNextStarted() {
+	const auto now = base::unixtime::now();
+	if (_lastStartedBase != now) {
+		_lastStartedBase = now;
+		_lastStartedAdded = 0;
+	} else {
+		++_lastStartedAdded;
+	}
+	return int64(_lastStartedBase) * 1000 + _lastStartedAdded;
+}
+
 void DownloadManager::addLoading(DownloadObject object) {
 	Expects(object.item != nullptr);
 	Expects(object.document || object.photo);
@@ -109,7 +122,11 @@ void DownloadManager::addLoading(DownloadObject object) {
 		? object.document->size
 		: object.photo->imageByteSize(PhotoSize::Large);
 
-	data.downloading.push_back({ .object = object, .total = size });
+	data.downloading.push_back({
+		.object = object,
+		.started = computeNextStarted(),
+		.total = size,
+	});
 	_loading.emplace(item);
 	_loadingProgress = DownloadProgress{
 		.ready = _loadingProgress.current().ready,
@@ -181,6 +198,7 @@ void DownloadManager::addLoaded(
 		.object = std::make_unique<DownloadObject>(object),
 	});
 	_loaded.emplace(item);
+	_loadedAdded.fire(&data.downloaded.back());
 
 	const auto i = ranges::find(data.downloading, item, ByItem);
 	if (i != end(data.downloading)) {
@@ -208,11 +226,15 @@ void DownloadManager::addLoaded(
 }
 
 auto DownloadManager::loadingList() const
--> ranges::any_view<DownloadingId, ranges::category::input> {
+-> ranges::any_view<const DownloadingId*, ranges::category::input> {
 	return ranges::views::all(
 		_sessions
 	) | ranges::views::transform([=](const auto &pair) {
-		return ranges::views::all(pair.second.downloading);
+		return ranges::views::all(
+			pair.second.downloading
+		) | ranges::views::transform([](const DownloadingId &id) {
+			return &id;
+		});
 	}) | ranges::views::join;
 }
 
@@ -237,6 +259,31 @@ void DownloadManager::clearLoading() {
 			remove(data, data.downloading.end() - 1);
 		}
 	}
+}
+
+auto DownloadManager::loadedList() const
+-> ranges::any_view<const DownloadedId*, ranges::category::input> {
+	return ranges::views::all(
+		_sessions
+	) | ranges::views::transform([=](const auto &pair) {
+		return ranges::views::all(
+			pair.second.downloaded
+		) | ranges::views::filter([](const DownloadedId &id) {
+			return (id.object != nullptr);
+		}) | ranges::views::transform([](const DownloadedId &id) {
+			return &id;
+		});
+	}) | ranges::views::join;
+}
+
+auto DownloadManager::loadedAdded() const
+-> rpl::producer<not_null<const DownloadedId*>> {
+	return _loadedAdded.events();
+}
+
+auto DownloadManager::loadedRemoved() const
+-> rpl::producer<not_null<const HistoryItem*>> {
+	return _loadedRemoved.events();
 }
 
 void DownloadManager::remove(
@@ -271,16 +318,14 @@ void DownloadManager::cancel(
 void DownloadManager::changed(not_null<const HistoryItem*> item) {
 	if (_loaded.contains(item)) {
 		auto &data = sessionData(item);
-		const auto i = ranges::find(data.downloaded, item, ByItem);
+		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
 		Assert(i != end(data.downloaded));
 
 		const auto media = item->media();
 		const auto photo = media ? media->photo() : nullptr;
 		const auto document = media ? media->document() : nullptr;
 		if (i->object->photo != photo || i->object->document != document) {
-			*i->object = DownloadObject();
-
-			_loaded.remove(item);
+			detach(*i);
 		}
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
@@ -291,11 +336,9 @@ void DownloadManager::changed(not_null<const HistoryItem*> item) {
 void DownloadManager::removed(not_null<const HistoryItem*> item) {
 	if (_loaded.contains(item)) {
 		auto &data = sessionData(item);
-		const auto i = ranges::find(data.downloaded, item, ByItem);
+		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
 		Assert(i != end(data.downloaded));
-		*i->object = DownloadObject();
-
-		_loaded.remove(item);
+		detach(*i);
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
 		auto &data = sessionData(item);
@@ -308,6 +351,62 @@ void DownloadManager::removed(not_null<const HistoryItem*> item) {
 		//entry.object.item = nullptr;
 		cancel(data, i);
 	}
+}
+
+not_null<HistoryItem*> DownloadManager::generateItem(
+		const DownloadObject &object) {
+	Expects(object.document || object.photo);
+
+	const auto session = object.document
+		? &object.document->session()
+		: &object.photo->session();
+	const auto fromId = object.item
+		? object.item->from()->id
+		: session->userPeerId();
+	const auto history = object.item
+		? object.item->history()
+		: session->data().history(session->user());
+	const auto flags = MessageFlag::FakeHistoryItem;
+	const auto replyTo = MsgId();
+	const auto viaBotId = UserId();
+	const auto groupedId = uint64();
+	const auto date = base::unixtime::now();
+	const auto postAuthor = QString();
+	const auto caption = TextWithEntities();
+	const auto make = [&](const auto media) {
+		return history->makeMessage(
+			history->nextNonHistoryEntryId(),
+			flags,
+			replyTo,
+			viaBotId,
+			date,
+			fromId,
+			QString(),
+			media,
+			caption,
+			HistoryMessageMarkupData());
+	};
+	const auto result = object.document
+		? make(object.document)
+		: make(object.photo);
+	_generated.emplace(result);
+	return result;
+}
+
+void DownloadManager::detach(DownloadedId &id) {
+	Expects(id.object != nullptr);
+	Expects(_loaded.contains(id.object->item));
+	Expects(!_generated.contains(id.object->item));
+
+	// Maybe generate new document?
+	const auto was = id.object->item;
+	const auto now = generateItem(*id.object);
+	_loaded.remove(was);
+	_loaded.emplace(now);
+	id.object->item = now;
+
+	_loadedRemoved.fire_copy(was);
+	_loadedAdded.fire_copy(&id);
 }
 
 DownloadManager::SessionData &DownloadManager::sessionData(
@@ -357,13 +456,13 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 		manager.loadingListChanges() | rpl::to_empty
 	) | rpl::map([=, &manager] {
 		auto result = Ui::DownloadBarContent();
-		for (const auto &id : manager.loadingList()) {
+		for (const auto id : manager.loadingList()) {
 			if (result.singleName.isEmpty()) {
-				result.singleName = id.object.document->filename();
+				result.singleName = id->object.document->filename();
 				result.singleThumbnail = QImage();
 			}
 			++result.count;
-			if (id.done) {
+			if (id->done) {
 				++result.done;
 			}
 		}

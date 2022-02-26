@@ -95,33 +95,111 @@ void Provider::refreshViewer() {
 		manager.loadingListChanges() | rpl::to_empty
 	) | rpl::start_with_next([=, &manager] {
 		auto copy = _downloading;
-		auto added = false;
-		for (const auto &id : manager.loadingList()) {
-			if (!id.done) {
-				const auto item = id.object.item;
-				if (!copy.remove(item)) {
-					added = true;
+		for (const auto id : manager.loadingList()) {
+			if (!id->done) {
+				const auto item = id->object.item;
+				if (!copy.remove(item) && !_downloaded.contains(item)) {
 					_downloading.emplace(item);
-					_elements.push_back(Element{ item, id.started });
+					_elements.push_back(Element{ item, id->started });
 					trackItemSession(item);
+					refreshPostponed(true);
 				}
 			}
 		}
 		for (const auto &item : copy) {
-			_downloading.remove(item);
-			// #TODO downloads check if downloaded
-			_elements.erase(
-				ranges::remove(_elements, item, &Element::item),
-				end(_elements));
+			Assert(!_downloaded.contains(item));
+			remove(item);
 		}
-		_fullCount = _elements.size();
-		if (added) {
-			ranges::sort(_elements, ranges::less(), &Element::started);
-			_refreshed.fire({});
-		} else if (!copy.empty()) {
-			_refreshed.fire({});
+		if (!_fullCount.has_value()) {
+			refreshPostponed(false);
 		}
 	}, _lifetime);
+
+	for (const auto id : manager.loadedList()) {
+		addPostponed(id);
+	}
+
+	manager.loadedAdded(
+	) | rpl::start_with_next([=](not_null<const Data::DownloadedId*> entry) {
+		addPostponed(entry);
+	}, _lifetime);
+
+	manager.loadedRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		if (!_downloading.contains(item)) {
+			remove(item);
+		} else {
+			_downloaded.remove(item);
+			_addPostponed.remove(item);
+		}
+	}, _lifetime);
+
+	performAdd();
+	performRefresh();
+}
+
+void Provider::addPostponed(not_null<const Data::DownloadedId*> entry) {
+	Expects(entry->object != nullptr);
+
+	const auto item = entry->object->item;
+	trackItemSession(item);
+	if (_addPostponed.emplace(item, entry->started).second
+		&& _addPostponed.size() == 1) {
+		Ui::PostponeCall(this, [=] {
+			performAdd();
+		});
+	}
+}
+
+void Provider::performAdd() {
+	if (_addPostponed.empty()) {
+		return;
+	}
+	for (const auto &[item, started] : base::take(_addPostponed)) {
+		_downloaded.emplace(item);
+		if (!_downloading.remove(item)) {
+			_elements.push_back(Element{ item, started });
+		}
+	}
+	refreshPostponed(true);
+}
+
+void Provider::remove(not_null<const HistoryItem*> item) {
+	_addPostponed.remove(item);
+	_downloading.remove(item);
+	_downloaded.remove(item);
+	_elements.erase(
+		ranges::remove(_elements, item, &Element::item),
+		end(_elements));
+	if (const auto i = _layouts.find(item); i != end(_layouts)) {
+		_layoutRemoved.fire(i->second.item.get());
+		_layouts.erase(i);
+	}
+	refreshPostponed(false);
+}
+
+void Provider::refreshPostponed(bool added) {
+	if (added) {
+		_postponedRefreshSort = true;
+	}
+	if (!_postponedRefresh) {
+		_postponedRefresh = true;
+		Ui::PostponeCall(this, [=] {
+			performRefresh();
+		});
+	}
+}
+
+void Provider::performRefresh() {
+	if (!_postponedRefresh) {
+		return;
+	}
+	_postponedRefresh = false;
+	_fullCount = _elements.size();
+	if (base::take(_postponedRefreshSort)) {
+		ranges::sort(_elements, ranges::greater(), &Element::started);
+	}
+	_refreshed.fire({});
 }
 
 void Provider::trackItemSession(not_null<const HistoryItem*> item) {
@@ -213,10 +291,7 @@ bool Provider::isAfter(
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
-	if (const auto i = _layouts.find(item); i != end(_layouts)) {
-		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
-	}
+	remove(item);
 }
 
 BaseLayout *Provider::getLayout(

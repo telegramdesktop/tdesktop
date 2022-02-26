@@ -44,7 +44,7 @@ inline constexpr bool operator==(
 }
 
 struct DownloadObject {
-	HistoryItem *item = nullptr;
+	not_null<HistoryItem*> item;
 	DocumentData *document = nullptr;
 	PhotoData *photo = nullptr;
 };
@@ -82,11 +82,18 @@ public:
 		DownloadDate started);
 
 	[[nodiscard]] auto loadingList() const
-		-> ranges::any_view<DownloadingId, ranges::category::input>;
+		-> ranges::any_view<const DownloadingId*, ranges::category::input>;
 	[[nodiscard]] DownloadProgress loadingProgress() const;
 	[[nodiscard]] rpl::producer<> loadingListChanges() const;
 	[[nodiscard]] auto loadingProgressValue() const
 		-> rpl::producer<DownloadProgress>;
+
+	[[nodiscard]] auto loadedList() const
+		-> ranges::any_view<const DownloadedId*, ranges::category::input>;
+	[[nodiscard]] auto loadedAdded() const
+		-> rpl::producer<not_null<const DownloadedId*>>;
+	[[nodiscard]] auto loadedRemoved() const
+		-> rpl::producer<not_null<const HistoryItem*>>;
 
 private:
 	struct SessionData {
@@ -98,6 +105,7 @@ private:
 	void check(not_null<const HistoryItem*> item);
 	void changed(not_null<const HistoryItem*> item);
 	void removed(not_null<const HistoryItem*> item);
+	void detach(DownloadedId &id);
 	void untrack(not_null<Main::Session*> session);
 	void remove(
 		SessionData &data,
@@ -107,6 +115,10 @@ private:
 		std::vector<DownloadingId>::iterator i);
 	void clearLoading();
 
+	[[nodiscard]] int64 computeNextStarted();
+	[[nodiscard]] not_null<HistoryItem*> generateItem(
+		const DownloadObject &object);
+
 	[[nodiscard]] SessionData &sessionData(not_null<Main::Session*> session);
 	[[nodiscard]] SessionData &sessionData(
 		not_null<const HistoryItem*> item);
@@ -115,9 +127,16 @@ private:
 	base::flat_set<not_null<const HistoryItem*>> _loading;
 	base::flat_set<not_null<const HistoryItem*>> _loadingDone;
 	base::flat_set<not_null<const HistoryItem*>> _loaded;
+	base::flat_set<not_null<HistoryItem*>> _generated;
+
+	TimeId _lastStartedBase = 0;
+	int _lastStartedAdded = 0;
 
 	rpl::event_stream<> _loadingListChanges;
 	rpl::variable<DownloadProgress> _loadingProgress;
+
+	rpl::event_stream<not_null<const DownloadedId*>> _loadedAdded;
+	rpl::event_stream<not_null<const HistoryItem*>> _loadedRemoved;
 
 	base::Timer _clearLoadingTimer;
 

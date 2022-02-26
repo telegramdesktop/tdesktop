@@ -1090,7 +1090,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		datetop = st::linksBorder + _st.fileDateTop;
 
 		QRect border(style::rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
-		if (!context->isAfterDate && clip.intersects(border)) {
+		if (!context->skipBorder && clip.intersects(border)) {
 			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
@@ -1661,7 +1661,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 
 	QRect border(style::rtlrect(left, 0, w, st::linksBorder, _width));
-	if (!context->isAfterDate && clip.intersects(border)) {
+	if (!context->skipBorder && clip.intersects(border)) {
 		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
 

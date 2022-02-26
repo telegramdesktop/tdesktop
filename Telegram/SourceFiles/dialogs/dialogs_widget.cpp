@@ -434,9 +434,9 @@ void Widget::setupDownloadBar() {
 			) | rpl::start_with_next([=] {
 				auto &&list = Core::App().downloadManager().loadingList();
 				auto first = (HistoryItem*)nullptr;
-				for (const auto &id : list) {
+				for (const auto id : list) {
 					if (!first) {
-						first = id.object.item;
+						first = id->object.item;
 					} else {
 						controller()->showSection(
 							Info::Downloads::Make(

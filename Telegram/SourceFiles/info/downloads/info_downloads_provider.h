@@ -8,6 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/media/info_media_common.h"
+#include "base/weak_ptr.h"
+
+namespace Data {
+struct DownloadedId;
+} // namespace Data
 
 namespace Info {
 class AbstractController;
@@ -17,7 +22,8 @@ namespace Info::Downloads {
 
 class Provider final
 	: public Media::ListProvider
-	, private Media::ListSectionDelegate {
+	, private Media::ListSectionDelegate
+	, public base::has_weak_ptr {
 public:
 	explicit Provider(not_null<AbstractController*> controller);
 
@@ -77,6 +83,11 @@ private:
 	void markLayoutsStale();
 	void clearStaleLayouts();
 
+	void refreshPostponed(bool added);
+	void addPostponed(not_null<const Data::DownloadedId*> entry);
+	void performRefresh();
+	void performAdd();
+	void remove(not_null<const HistoryItem*> item);
 	void trackItemSession(not_null<const HistoryItem*> item);
 
 	[[nodiscard]] Media::BaseLayout *getLayout(
@@ -93,6 +104,8 @@ private:
 	base::flat_set<not_null<const HistoryItem*>> _downloading;
 	base::flat_set<not_null<const HistoryItem*>> _downloaded;
 
+	base::flat_map<not_null<HistoryItem*>, int64> _addPostponed;
+
 	std::unordered_map<
 		not_null<const HistoryItem*>,
 		Media::CachedItem> _layouts;
@@ -100,6 +113,8 @@ private:
 	rpl::event_stream<> _refreshed;
 
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
+	bool _postponedRefreshSort = false;
+	bool _postponedRefresh = false;
 
 	rpl::lifetime _lifetime;
 

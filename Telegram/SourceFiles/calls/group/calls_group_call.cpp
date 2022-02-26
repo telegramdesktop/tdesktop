@@ -1949,7 +1949,8 @@ void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 		}
 		return;
 	} else if (data.vsource().v != _joinState.ssrc) {
-		if (!_mySsrcs.contains(data.vsource().v)) {
+		const auto ssrc = uint32(data.vsource().v);
+		if (!_mySsrcs.contains(ssrc)) {
 			// I joined from another device, hangup.
 			LOG(("Call Info: "
 				"Hangup after '!left' with ssrc %1, my %2."

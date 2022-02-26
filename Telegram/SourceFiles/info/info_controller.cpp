@@ -108,28 +108,6 @@ rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
 	return rpl::single(QString());
 }
 
-rpl::producer<DownloadsSlice> AbstractController::downloadsSource() const {
-	const auto manager = &Core::App().downloadManager();
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		manager->loadingListChanges()
-	) | rpl::map([=] {
-		auto result = DownloadsSlice();
-		for (const auto &id : manager->loadingList()) {
-			result.entries.push_back(DownloadsEntry{
-				.item = id.object.item,
-				.started = id.started,
-			});
-		}
-		ranges::sort(
-			result.entries,
-			ranges::less(),
-			&DownloadsEntry::started);
-		return result;
-	});
-}
-
 AbstractController::AbstractController(
 	not_null<Window::SessionController*> parent)
 : SessionNavigation(&parent->session())

@@ -113,14 +113,6 @@ private:
 
 };
 
-struct DownloadsEntry {
-	not_null<HistoryItem*> item;
-	int64 started = 0; // unixtime * 1000.
-};
-struct DownloadsSlice {
-	std::vector<DownloadsEntry> entries;
-};
-
 class AbstractController : public Window::SessionNavigation {
 public:
 	AbstractController(not_null<Window::SessionController*> parent);
@@ -149,8 +141,6 @@ public:
 		int limitBefore,
 		int limitAfter) const;
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
-
-	[[nodiscard]] rpl::producer<DownloadsSlice> downloadsSource() const;
 
 	void showSection(
 		std::shared_ptr<Window::SectionMemento> memento,
