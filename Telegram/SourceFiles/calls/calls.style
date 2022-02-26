@@ -1349,3 +1349,33 @@ groupCallRecordingSubLabelMargins: margins(8px, 22px, 8px, 22px);
 groupCallRecordingAudioSkip: 23px;
 groupCallRecordingSelectWidth: 2px;
 groupCallRecordingInfoHeight: 204px;
+
+groupCallRtmpCopyButton: RoundButton(defaultActiveButton) {
+	height: 32px;
+	width: -26px;
+
+	textTop: 7px;
+	padding: margins(0px, 12px, 0px, 15px);
+}
+groupCallRtmpShowButton: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+
+	icon: icon {{ "menu/show_in_chat", menuIconFg }};
+	iconOver: icon {{ "menu/show_in_chat", menuIconFgOver }};
+	iconPosition: point(4px, 4px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+groupCallRtmpUrlSkip: 1px;
+groupCallRtmpKeySubsectionTitleSkip: 8px;
+groupCallRtmpSubsectionTitleAddPadding: margins(0px, -1px, 0px, -4px);
+groupCallRtmpShowButtonPosition: point(21px, -5px);
+groupCallRtmpKeyLabel: FlatLabel(boxLabel) {
+	minWidth: 230px;
+}
+groupCallRtmpTopBarMenuPosition: point(-2px, -15px);

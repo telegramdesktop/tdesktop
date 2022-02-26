@@ -639,7 +639,7 @@ GroupCall::GroupCall(
 	if (_id) {
 		join(inputCall);
 	} else {
-		start(info.scheduleDate);
+		start(info.scheduleDate, info.rtmp);
 	}
 	if (_scheduleDate) {
 		saveDefaultJoinAs(joinAs());
@@ -1013,10 +1013,11 @@ rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
 	return _realChanges.events();
 }
 
-void GroupCall::start(TimeId scheduleDate) {
+void GroupCall::start(TimeId scheduleDate, bool rtmp) {
 	using Flag = MTPphone_CreateGroupCall::Flag;
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		MTP_flags(scheduleDate ? Flag::f_schedule_date : Flag(0)),
+		MTP_flags((scheduleDate ? Flag::f_schedule_date : Flag(0))
+			| (rtmp ? Flag::f_rtmp_stream : Flag(0))),
 		_peer->input,
 		MTP_int(base::RandomValue<int32>()),
 		MTPstring(), // title

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_rtmp.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -170,7 +171,8 @@ FnMut<void()> Instance::Delegate::groupCallAddAsyncWaiter() {
 Instance::Instance()
 : _delegate(std::make_unique<Delegate>(this))
 , _cachedDhConfig(std::make_unique<DhConfig>())
-, _chooseJoinAs(std::make_unique<Group::ChooseJoinAsProcess>()) {
+, _chooseJoinAs(std::make_unique<Group::ChooseJoinAsProcess>())
+, _startWithRtmp(std::make_unique<Group::StartRtmpProcess>()) {
 }
 
 Instance::~Instance() {
@@ -202,6 +204,18 @@ void Instance::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		const StartGroupCallArgs &args) {
 	using JoinConfirm = StartGroupCallArgs::JoinConfirm;
+	if (args.rtmpNeeded) {
+		_startWithRtmp->start(peer, [=](object_ptr<Ui::BoxContent> box) {
+			Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+		}, [=](QString text) {
+			Ui::Toast::Show(text);
+		}, [=](Group::JoinInfo info) {
+			createGroupCall(
+				std::move(info),
+				MTP_inputGroupCall(MTPlong(), MTPlong()));
+		});
+		return;
+	}
 	const auto context = (args.confirm == JoinConfirm::Always)
 		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
 		: peer->groupCall()

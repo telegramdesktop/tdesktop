@@ -29,6 +29,7 @@ namespace Calls::Group {
 struct JoinInfo;
 class Panel;
 class ChooseJoinAsProcess;
+class StartRtmpProcess;
 } // namespace Calls::Group
 
 namespace tgcalls {
@@ -52,7 +53,8 @@ struct StartGroupCallArgs {
 	QString joinHash;
 	JoinConfirm confirm = JoinConfirm::IfNowInAnother;
 	bool scheduleNeeded = false;
-	bool rtmp = false;
+	bool rtmpNeeded = false;
+	bool useRtmp = false;
 };
 
 class Instance final : public base::has_weak_ptr {
@@ -150,6 +152,7 @@ private:
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
 	const std::unique_ptr<Group::ChooseJoinAsProcess> _chooseJoinAs;
+	const std::unique_ptr<Group::StartRtmpProcess> _startWithRtmp;
 
 	base::flat_set<std::unique_ptr<crl::semaphore>> _asyncWaiters;
 

@@ -280,6 +280,8 @@ PRIVATE
     calls/group/calls_group_menu.h
     calls/group/calls_group_panel.cpp
     calls/group/calls_group_panel.h
+    calls/group/calls_group_rtmp.cpp
+    calls/group/calls_group_rtmp.h
     calls/group/calls_group_settings.cpp
     calls/group/calls_group_settings.h
     calls/group/calls_group_toasts.cpp

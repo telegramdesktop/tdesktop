@@ -236,7 +236,7 @@ public:
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 
-	void start(TimeId scheduleDate);
+	void start(TimeId scheduleDate, bool rtmp);
 	void hangup();
 	void discard();
 	void rejoinAs(Group::JoinInfo info);

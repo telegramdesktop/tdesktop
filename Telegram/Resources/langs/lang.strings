@@ -2381,6 +2381,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_join_as_changed" = "Members of this voice chat will now see you as {name}";
 "lng_group_call_join_as_changed_channel" = "Members of this live stream will now see you as {name}";
 
+"lng_group_call_rtmp_title" = "Stream with other apps";
+"lng_group_call_rtmp_url_subtitle" = "Server URL";
+"lng_group_call_rtmp_url_copy" = "Copy Server URL";
+"lng_group_call_rtmp_url_copied" = "Server URL copied to clipboard.";
+"lng_group_call_rtmp_key_subtitle" = "Stream Key";
+"lng_group_call_rtmp_key_copy" = "Copy Stream Key";
+"lng_group_call_rtmp_key_copied" = "Stream Key copied to clipboard.";
+"lng_group_call_rtmp_key_warn" = "Never share your Stream Key with anyone or show it on stream!";
+"lng_group_call_rtmp_info" = "To stream video with another app, enter these Server URL and Stream Key in your streaming app.\n\nOnce you start broadcasting in your streaming app, tap Start Streaming below";
+"lng_group_call_rtmp_start" = "Start Streaming";
+"lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Server URL and Stream Key?";
+
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";
