@@ -110,9 +110,10 @@ private:
 	void startGroupCall(not_null<ChannelData*> megagroup, bool confirmed);
 	void search();
 	void showPeerMenu();
+	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();
 
-	[[nodiscard]] bool createMenu();
+	[[nodiscard]] bool createMenu(not_null<Ui::IconButton*> button);
 
 	void handleEmojiInteractionSeen(const QString &emoticon);
 	bool paintSendAction(

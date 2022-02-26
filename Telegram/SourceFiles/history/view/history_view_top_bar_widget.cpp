@@ -63,6 +63,13 @@ namespace {
 
 constexpr auto kEmojiInteractionSeenDuration = 3 * crl::time(1000);
 
+inline bool HasGroupCallMenu(const not_null<PeerData*> &peer) {
+	return !peer->groupCall()
+		&& peer->isChannel()
+		&& !peer->isMegagroup()
+		&& peer->asChannel()->amCreator();
+}
+
 } // namespace
 
 struct TopBarWidget::EmojiInteractionSeenAnimation {
@@ -240,7 +247,11 @@ void TopBarWidget::call() {
 
 void TopBarWidget::groupCall() {
 	if (const auto peer = _activeChat.key.peer()) {
-		_controller->startOrJoinGroupCall(peer, {});
+		if (HasGroupCallMenu(peer)) {
+			showGroupCallMenu(peer);
+		} else {
+			_controller->startOrJoinGroupCall(peer, {});
+		}
 	}
 }
 
@@ -272,34 +283,39 @@ void TopBarWidget::setChooseForReportReason(
 		: style::cur_default);
 }
 
-bool TopBarWidget::createMenu() {
+bool TopBarWidget::createMenu(not_null<Ui::IconButton*> button) {
 	if (!_activeChat.key || _menu) {
 		return false;
 	}
 	_menu.create(parentWidget(), st::dropdownMenuWithIcons);
-	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
+	_menu->setHiddenCallback([
+			weak = Ui::MakeWeak(this),
+			weakButton = Ui::MakeWeak(button),
+			menu = _menu.data()] {
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;
-			weak->_menuToggle->setForceRippled(false);
+			if (weakButton) {
+				weakButton->setForceRippled(false);
+			}
 		}
 	});
-	_menu->setShowStartCallback(crl::guard(this, [this, menu = _menu.data()]{
+	_menu->setShowStartCallback(crl::guard(this, [=, menu = _menu.data()] {
 		if (_menu == menu) {
-			_menuToggle->setForceRippled(true);
+			button->setForceRippled(true);
 		}
 	}));
-	_menu->setHideStartCallback(crl::guard(this, [this, menu = _menu.data()]{
+	_menu->setHideStartCallback(crl::guard(this, [=, menu = _menu.data()] {
 		if (_menu == menu) {
-			_menuToggle->setForceRippled(false);
+			button->setForceRippled(false);
 		}
 	}));
-	_menuToggle->installEventFilter(_menu);
+	button->installEventFilter(_menu);
 	return true;
 }
 
 void TopBarWidget::showPeerMenu() {
-	const auto created = createMenu();
+	const auto created = createMenu(_menuToggle);
 	if (!created) {
 		return;
 	}
@@ -318,6 +334,37 @@ void TopBarWidget::showPeerMenu() {
 			st::topBarMenuPosition.y());
 		_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 	}
+}
+
+void TopBarWidget::showGroupCallMenu(not_null<PeerData*> peer) {
+	const auto created = createMenu(_groupCall);
+	if (!created) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
+		controller->startOrJoinGroupCall(peer, std::move(args));
+	};
+	_menu->addAction(
+		tr::lng_menu_start_group_call(tr::now),
+		[=] { callback({}); },
+		&st::menuIconStartStream);
+	_menu->addAction(
+		tr::lng_menu_start_group_call_scheduled(tr::now),
+		[=] { callback({ .scheduleNeeded = true }); },
+		&st::menuIconReschedule);
+	_menu->addAction(
+		tr::lng_menu_start_group_call_with(tr::now),
+		[=] { callback({ .rtmpNeeded = true }); },
+		&st::menuIconStartStreamWith);
+	_menu->moveToRight(
+		(parentWidget()->width() - width())
+			+ (width()
+				- _groupCall->x()
+				- _groupCall->width()
+				- st::topBarMenuGroupCallSkip),
+		st::topBarMenuPosition.y());
+	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }
 
 void TopBarWidget::toggleInfoSection() {
