@@ -206,6 +206,8 @@ void Instance::startOrJoinGroupCall(
 		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
 		: peer->groupCall()
 		? Group::ChooseJoinAsProcess::Context::Join
+		: args.scheduleNeeded
+		? Group::ChooseJoinAsProcess::Context::CreateScheduled
 		: Group::ChooseJoinAsProcess::Context::Create;
 	_chooseJoinAs->start(peer, context, [=](object_ptr<Ui::BoxContent> box) {
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);

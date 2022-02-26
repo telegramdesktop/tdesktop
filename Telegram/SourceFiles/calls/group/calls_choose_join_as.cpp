@@ -243,7 +243,7 @@ void ChooseJoinAsBox(
 	auto next = (context == Context::Switch)
 		? tr::lng_settings_save()
 		: tr::lng_continue();
-	if (context == Context::Create) {
+	if ((context == Context::Create) && !livestream) {
 		const auto makeLink = [](const QString &text) {
 			return Ui::Text::Link(text);
 		};
@@ -346,7 +346,16 @@ void ChooseJoinAsProcess::start(
 		_request = nullptr;
 	}, _request->lifetime);
 
-	requestList();
+	if (context == Context::CreateScheduled) {
+		auto box = Box(
+			ScheduleGroupCallBox,
+			JoinInfo{ .peer = peer, .joinAs = peer },
+			[=](auto info) { finish(info); });
+		_request->box = Ui::MakeWeak(box.data());
+		showBox(std::move(box));
+	} else {
+		requestList();
+	}
 }
 
 void ChooseJoinAsProcess::requestList() {
