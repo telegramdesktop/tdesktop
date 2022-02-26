@@ -479,6 +479,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 
 auto ListWidget::findItemByPoint(QPoint point) const -> FoundItem {
 	Expects(!_sections.empty());
+
 	auto sectionIt = findSectionAfterTop(point.y());
 	if (sectionIt == _sections.end()) {
 		--sectionIt;

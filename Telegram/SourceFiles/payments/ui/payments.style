@@ -73,12 +73,12 @@ paymentsSectionButton: SettingsButton(infoProfileButton) {
 	padding: margins(68px, 11px, 14px, 9px);
 }
 
-paymentsIconPaymentMethod: icon {{ "payments/payment_card", menuIconFg }};
-paymentsIconShippingAddress: icon {{ "payments/payment_address", menuIconFg }};
-paymentsIconName: icon {{ "payments/payment_name", menuIconFg }};
-paymentsIconEmail: icon {{ "payments/payment_email", menuIconFg }};
-paymentsIconPhone: icon {{ "payments/payment_phone", menuIconFg }};
-paymentsIconShippingMethod: icon {{ "payments/payment_shipping", menuIconFg }};
+paymentsIconPaymentMethod: icon {{ "payments/payment_card", windowBoldFg }};
+paymentsIconShippingAddress: icon {{ "payments/payment_address", windowBoldFg }};
+paymentsIconName: icon {{ "payments/payment_name", windowBoldFg }};
+paymentsIconEmail: icon {{ "payments/payment_email", windowBoldFg }};
+paymentsIconPhone: icon {{ "payments/payment_phone", windowBoldFg }};
+paymentsIconShippingMethod: icon {{ "payments/payment_shipping", windowBoldFg }};
 
 paymentsField: defaultInputField;
 paymentsMoneyField: InputField(paymentsField) {

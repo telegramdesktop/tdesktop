@@ -27,6 +27,8 @@ public:
 protected:
 	int resizeGetHeight(int newWidth) override;
 
+	void paintEvent(QPaintEvent *e) override;
+
 private:
 	object_ptr<Ui::FlatLabel> _text;
 	int _height = 0;
@@ -68,6 +70,14 @@ int EmptyWidget::resizeGetHeight(int newWidth) {
 
 	update();
 	return _height;
+}
+
+void EmptyWidget::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	const auto iconLeft = (width() - st::infoEmptyFile.width()) / 2;
+	const auto iconTop = height() - st::infoEmptyIconTop;
+	st::infoEmptyFile.paint(p, iconLeft, iconTop, width());
 }
 
 InnerWidget::InnerWidget(

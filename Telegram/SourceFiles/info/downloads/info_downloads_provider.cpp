@@ -114,6 +114,7 @@ void Provider::refreshViewer() {
 				ranges::remove(_elements, item, &Element::item),
 				end(_elements));
 		}
+		_fullCount = _elements.size();
 		if (added) {
 			ranges::sort(_elements, ranges::less(), &Element::started);
 			_refreshed.fire({});

@@ -51,6 +51,11 @@ Widget::Widget(
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller));
+	_inner->setScrollHeightValue(scrollHeightValue());
+	_inner->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		scrollTo(request);
+	}, _inner->lifetime());
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
