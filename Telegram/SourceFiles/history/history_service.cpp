@@ -97,7 +97,7 @@ using ItemPreview = HistoryView::ItemPreview;
 					return;
 				}
 			}
-			windows.front()->startOrJoinGroupCall(peer);
+			windows.front()->startOrJoinGroupCall(peer, {});
 		}
 	});
 }

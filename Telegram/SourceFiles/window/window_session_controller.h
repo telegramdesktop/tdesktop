@@ -36,6 +36,10 @@ namespace Settings {
 enum class Type;
 } // namespace Settings
 
+namespace Calls {
+struct StartGroupCallArgs;
+} // namespace Calls
+
 namespace Passport {
 struct FormRequest;
 class FormController;
@@ -339,15 +343,9 @@ public:
 
 	void showPeer(not_null<PeerData*> peer, MsgId msgId = ShowAtUnreadMsgId);
 
-	enum class GroupCallJoinConfirm {
-		None,
-		IfNowInAnother,
-		Always,
-	};
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		QString joinHash = QString(),
-		GroupCallJoinConfirm confirm = GroupCallJoinConfirm::IfNowInAnother);
+		const Calls::StartGroupCallArgs &args);
 
 	void showSection(
 		std::shared_ptr<SectionMemento> memento,

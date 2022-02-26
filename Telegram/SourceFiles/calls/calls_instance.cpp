@@ -200,9 +200,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 
 void Instance::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const QString &joinHash,
-		bool confirmNeeded) {
-	const auto context = confirmNeeded
+		const StartGroupCallArgs &args) {
+	using JoinConfirm = StartGroupCallArgs::JoinConfirm;
+	const auto context = (args.confirm == JoinConfirm::Always)
 		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
 		: peer->groupCall()
 		? Group::ChooseJoinAsProcess::Context::Join
@@ -213,7 +213,7 @@ void Instance::startOrJoinGroupCall(
 		Ui::Toast::Show(text);
 	}, [=](Group::JoinInfo info) {
 		const auto call = info.peer->groupCall();
-		info.joinHash = joinHash;
+		info.joinHash = args.joinHash;
 		if (call) {
 			info.rtmp = call->rtmp();
 		}

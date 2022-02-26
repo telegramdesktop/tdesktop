@@ -240,7 +240,7 @@ void TopBarWidget::call() {
 
 void TopBarWidget::groupCall() {
 	if (const auto peer = _activeChat.key.peer()) {
-		_controller->startOrJoinGroupCall(peer);
+		_controller->startOrJoinGroupCall(peer, {});
 	}
 }
 

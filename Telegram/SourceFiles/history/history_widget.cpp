@@ -6346,7 +6346,7 @@ void HistoryWidget::setupGroupCallBar() {
 	) | rpl::start_with_next([=] {
 		const auto peer = _history->peer;
 		if (peer->groupCall()) {
-			controller()->startOrJoinGroupCall(peer);
+			controller()->startOrJoinGroupCall(peer, {});
 		}
 	}, _groupCallBar->lifetime());
 

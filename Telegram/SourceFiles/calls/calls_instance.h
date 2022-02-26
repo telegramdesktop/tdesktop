@@ -43,6 +43,18 @@ class GroupCall;
 class Panel;
 struct DhConfig;
 
+struct StartGroupCallArgs {
+	enum class JoinConfirm {
+		None,
+		IfNowInAnother,
+		Always,
+	};
+	QString joinHash;
+	JoinConfirm confirm = JoinConfirm::IfNowInAnother;
+	bool scheduleNeeded = false;
+	bool rtmp = false;
+};
+
 class Instance final : public base::has_weak_ptr {
 public:
 	Instance();
@@ -51,8 +63,7 @@ public:
 	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const QString &joinHash = QString(),
-		bool confirmNeeded = false);
+		const StartGroupCallArgs &args);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
