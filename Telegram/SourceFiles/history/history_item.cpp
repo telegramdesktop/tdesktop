@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "mainwindow.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
@@ -1354,16 +1355,18 @@ ClickHandlerPtr goToMessageClickHandler(
 		MsgId msgId,
 		FullMsgId returnToId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		if (const auto main = App::main()) { // multi good
-			if (&main->session() == &peer->session()) {
-				auto params = Window::SectionShow{
-					Window::SectionShow::Way::Forward
-				};
-				params.origin = Window::SectionShow::OriginMessage{
-					returnToId
-				};
-				main->controller()->showPeerHistory(peer, params, msgId);
-			}
+		const auto separate = Core::App().separateWindowForPeer(peer);
+		const auto controller = separate
+			? separate->sessionController()
+			: peer->session().tryResolveWindow();
+		if (controller) {
+			auto params = Window::SectionShow{
+				Window::SectionShow::Way::Forward
+			};
+			params.origin = Window::SectionShow::OriginMessage{
+				returnToId
+			};
+			controller->showPeerHistory(peer, params, msgId);
 		}
 	});
 }
