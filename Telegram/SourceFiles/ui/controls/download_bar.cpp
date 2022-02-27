@@ -56,9 +56,10 @@ void DownloadBar::show(DownloadBarContent &&content) {
 		_radial.start(computeProgress());
 	}
 	_content = content;
-	_title.setText(st::semiboldTextStyle,
+	_title.setMarkedText(st::defaultTextStyle,
 		(content.count > 1
-			? tr::lng_profile_files(tr::now, lt_count, content.count)
+			? Ui::Text::Bold(
+				tr::lng_profile_files(tr::now, lt_count, content.count))
 			: content.singleName));
 	refreshInfo(_progress.current());
 }

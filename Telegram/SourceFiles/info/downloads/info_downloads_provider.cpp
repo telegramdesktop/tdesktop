@@ -215,7 +215,7 @@ void Provider::performRefresh() {
 	_postponedRefresh = false;
 	_fullCount = _elements.size();
 	if (base::take(_postponedRefreshSort)) {
-		ranges::sort(_elements, ranges::greater(), &Element::started);
+		ranges::sort(_elements, ranges::less(), &Element::started);
 	}
 	_refreshed.fire({});
 }
@@ -255,7 +255,7 @@ std::vector<ListSection> Provider::fillSections(
 		1,
 		ListSection(Type::File, sectionDelegate()));
 	auto &section = result.back();
-	for (const auto &element : _elements) {
+	for (const auto &element : ranges::views::reverse(_elements)) {
 		if (auto layout = getLayout(element, delegate)) {
 			section.addItem(layout);
 		}

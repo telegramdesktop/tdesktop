@@ -212,7 +212,7 @@ infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	icon: icon {{ "info/info_media_forward", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_media_forward", boxTitleCloseFgOver }};
 	iconPosition: point(11px, -1px);
-	rippleAreaPosition: point(3px, 4px);
+	rippleAreaPosition: point(3px, 8px);
 }
 infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info/info_media_delete", boxTitleCloseFg }};

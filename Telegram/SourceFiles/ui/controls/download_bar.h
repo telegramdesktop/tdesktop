@@ -22,7 +22,7 @@ struct DownloadBarProgress {
 };
 
 struct DownloadBarContent {
-	QString singleName;
+	TextWithEntities singleName;
 	QImage singleThumbnail;
 	int count = 0;
 	int done = 0;

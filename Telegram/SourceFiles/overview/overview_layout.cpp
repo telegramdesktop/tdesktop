@@ -941,9 +941,9 @@ Document::Document(
 , _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(
 		st::defaultTextStyle,
-		(_forceFileLayout
-			? Ui::Text::Bold(_data->filename())
-			: Ui::Text::FormatSongNameFor(_data).textWithEntities()),
+		(!_forceFileLayout
+			? Ui::Text::FormatSongNameFor(_data).textWithEntities()
+			: Ui::Text::FormatDownloadsName(_data)),
 		_documentNameOptions);
 
 	AddComponents(Info::Bit());

@@ -1069,6 +1069,11 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 			? tr::lng_downloads_delete_sure_one(tr::now)
 			: tr::lng_downloads_delete_sure(tr::now, lt_count, count);
 		const auto deleteSure = [=] {
+			Ui::PostponeCall(this, [=] {
+				if (const auto box = _actionBoxWeak.data()) {
+					box->closeBox();
+				}
+			});
 			const auto ids = ranges::views::all(
 				items.list
 			) | ranges::views::transform([](const SelectedItem &item) {
@@ -1076,9 +1081,6 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 			}) | ranges::to_vector;
 			Core::App().downloadManager().deleteFiles(ids);
 			confirmed();
-			if (const auto box = _actionBoxWeak.data()) {
-				box->closeBox();
-			}
 		};
 		setActionBoxWeak(window->show(Box<Ui::ConfirmBox>(
 			phrase,

@@ -467,7 +467,7 @@ calendarPrevious: IconButton {
 	icon: icon {{ "calendar_down-flip_vertical", boxTitleFg }};
 	iconPosition: point(-1px, -1px);
 
-	rippleAreaPosition: point(6px, 6px);
+	rippleAreaPosition: point(2px, 2px);
 	rippleAreaSize: 44px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;

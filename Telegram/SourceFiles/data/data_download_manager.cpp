@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/mime_type.h"
 #include "ui/controls/download_bar.h"
+#include "ui/text/format_song_document_name.h"
 #include "storage/serialize_common.h"
 #include "apiwrap.h"
 
@@ -822,8 +823,9 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 	) | rpl::map([=, &manager] {
 		auto result = Ui::DownloadBarContent();
 		for (const auto id : manager.loadingList()) {
-			if (result.singleName.isEmpty()) {
-				result.singleName = id->object.document->filename();
+			if (result.singleName.text.isEmpty()) {
+				const auto document = id->object.document;
+				result.singleName = Ui::Text::FormatDownloadsName(document);
 				result.singleThumbnail = QImage();
 			}
 			++result.count;
