@@ -1257,7 +1257,7 @@ void ShareGameScoreByHash(
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() != key128Size + 0x20)) {
 		controller->show(
-			Box<Ui::InformBox>(tr::lng_confirm_phone_link_invalid(tr::now)),
+			Ui::MakeInformBox(tr::lng_confirm_phone_link_invalid()),
 			Ui::LayerOption::CloseOther);
 		return;
 	}
@@ -1285,7 +1285,7 @@ void ShareGameScoreByHash(
 	// Check 128 bits of SHA1() of data.
 	if (memcmp(dataSha1, hashEncrypted.constData(), key128Size) != 0) {
 		controller->show(
-			Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)),
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
 			Ui::LayerOption::CloseOther);
 		return;
 	}
@@ -1293,7 +1293,7 @@ void ShareGameScoreByHash(
 	auto hashDataInts = reinterpret_cast<uint64*>(hashData.data());
 	if (hashDataInts[0] != session.userId().bare) {
 		controller->show(
-			Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)),
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
 			Ui::LayerOption::CloseOther);
 		return;
 	}
@@ -1303,7 +1303,7 @@ void ShareGameScoreByHash(
 	if (!peerIsChannel(peerId) && channelAccessHash) {
 		// If there is no channel id, there should be no channel access_hash.
 		controller->show(
-			Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)),
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
 			Ui::LayerOption::CloseOther);
 		return;
 	}
@@ -1323,7 +1323,7 @@ void ShareGameScoreByHash(
 					FastShareMessage(item);
 				} else {
 					weak->show(
-						Box<Ui::InformBox>(tr::lng_edit_deleted(tr::now)),
+						Ui::MakeInformBox(tr::lng_edit_deleted()),
 						Ui::LayerOption::CloseOther);
 				}
 			});

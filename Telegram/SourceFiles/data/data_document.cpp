@@ -934,9 +934,10 @@ void DocumentData::handleLoaderUpdates() {
 				Ui::hideLayer();
 				save(origin, failedFileName);
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_download_finish_failed(tr::now),
-				crl::guard(&session(), retry)));
+			Ui::show(Ui::MakeConfirmBox({
+				tr::lng_download_finish_failed(),
+				crl::guard(&session(), retry)
+			}));
 		} else {
 			// Sometimes we have LOCATION_INVALID error in documents / stickers.
 			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.

@@ -636,7 +636,7 @@ private:
 	Full _data;
 
 	object_ptr<Inner> _inner;
-	QPointer<Ui::ConfirmBox> _terminateBox;
+	QPointer<Ui::BoxContent> _terminateBox;
 
 	base::Timer _shortPollTimer;
 
@@ -823,11 +823,12 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		}
 		terminateRequest();
 	});
-	auto box = Box<Ui::ConfirmBox>(
-		message,
-		tr::lng_settings_reset_button(tr::now),
-		st::attentionBoxButton,
-		callback);
+	auto box = Ui::MakeConfirmBox({
+		.text = message,
+		.confirmed = callback,
+		.confirmText = tr::lng_settings_reset_button(),
+		.confirmStyle = &st::attentionBoxButton,
+	});
 	_terminateBox = Ui::MakeWeak(box.data());
 	_controller->show(std::move(box), Ui::LayerOption::KeepOther);
 }

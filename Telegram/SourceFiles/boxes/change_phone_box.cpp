@@ -266,12 +266,11 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(
 		Ui::ShowPhoneBannedError(&_controller->window(), phoneNumber);
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		_controller->show(
-			Box<Ui::InformBox>(
+			Ui::MakeInformBox(
 				tr::lng_change_phone_occupied(
 					tr::now,
 					lt_phone,
-					Ui::FormatPhone(phoneNumber)),
-				tr::lng_box_ok(tr::now)),
+					Ui::FormatPhone(phoneNumber))),
 			Ui::LayerOption::CloseOther);
 	} else {
 		showError(Lang::Hard::ServerError());
@@ -443,9 +442,10 @@ void ChangePhoneBox::prepare() {
 				Ui::LayerOption::CloseOther);
 		};
 		controller->show(
-			Box<Ui::ConfirmBox>(
-				tr::lng_change_phone_warning(tr::now),
-				std::move(callback)),
+			Ui::MakeConfirmBox({
+				.text = tr::lng_change_phone_warning(),
+				.confirmed = std::move(callback),
+			}),
 			Ui::LayerOption::CloseOther);
 	});
 	addButton(tr::lng_cancel(), [this] {

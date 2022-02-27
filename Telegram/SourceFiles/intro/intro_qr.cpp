@@ -401,10 +401,11 @@ void QrWidget::sendCheckPasswordRequest() {
 					Core::UpdateApplication();
 					close();
 				};
-				Ui::show(Box<Ui::ConfirmBox>(
-					tr::lng_passport_app_out_of_date(tr::now),
-					tr::lng_menu_update(tr::now),
-					callback));
+				Ui::show(Ui::MakeConfirmBox({
+					.text = tr::lng_passport_app_out_of_date(),
+					.confirmed = callback,
+					.confirmText = tr::lng_menu_update(),
+				}));
 				return;
 			}
 			goReplace<PasswordCheckWidget>(Animate::Forward);

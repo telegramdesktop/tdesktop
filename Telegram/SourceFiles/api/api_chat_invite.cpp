@@ -86,8 +86,7 @@ void CheckChatInvite(
 		}
 		Core::App().hideMediaView();
 		if (const auto strong = weak.get()) {
-			strong->show(
-				Box<Ui::InformBox>(tr::lng_group_invite_bad_link(tr::now)));
+			strong->show(Ui::MakeInformBox(tr::lng_group_invite_bad_link()));
 		}
 	});
 }

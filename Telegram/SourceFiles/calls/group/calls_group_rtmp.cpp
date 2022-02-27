@@ -143,15 +143,18 @@ void StartWithBox(
 	}, box->lifetime());
 	streamKeyButton->addClickHandler([=] {
 		if (!state->warned && state->hidden.current()) {
-			showBox(Box<Ui::ConfirmBox>(
-				tr::lng_group_call_rtmp_key_warn(tr::now),
-				tr::lng_from_request_understand(tr::now),
-				tr::lng_close(tr::now),
-				[=](Fn<void()> &&close) {
+			showBox(Ui::MakeConfirmBox({
+				.text = tr::lng_group_call_rtmp_key_warning(
+					Ui::Text::RichLangValue),
+				.confirmed = [=](Fn<void()> &&close) {
 					state->warned = true;
 					state->hidden = !state->hidden.current();
 					close();
-				}));
+				},
+				.confirmText = tr::lng_from_request_understand(),
+				.cancelText = tr::lng_close(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
 		} else {
 			state->hidden = !state->hidden.current();
 		}
@@ -269,13 +272,14 @@ void StartRtmpProcess::createBox() {
 	};
 	auto revoke = [=] {
 		const auto guard = base::make_weak(&_request->guard);
-		_request->showBox(Box<Ui::ConfirmBox>(
-			tr::lng_group_call_rtmp_revoke_sure(tr::now),
-			tr::lng_group_invite_context_revoke(tr::now),
-			crl::guard(guard, [=](Fn<void()> &&close) {
+		_request->showBox(Ui::MakeConfirmBox({
+			.text = tr::lng_group_call_rtmp_revoke_sure(),
+			.confirmed = crl::guard(guard, [=](Fn<void()> &&close) {
 				requestUrl(true);
 				close();
-			})));
+			}),
+			.confirmText = tr::lng_group_invite_context_revoke(),
+		}));
 	};
 	auto object = Box(
 		StartWithBox,

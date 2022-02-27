@@ -107,8 +107,7 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	} else if (count >= serverConfig.chatSizeMax
 		&& count < serverConfig.megagroupSizeMax) {
 		Ui::show(
-			Box<Ui::InformBox>(
-				tr::lng_profile_add_more_after_create(tr::now)),
+			Ui::MakeInformBox(tr::lng_profile_add_more_after_create()),
 			Ui::LayerOption::KeepOther);
 	}
 }
@@ -570,21 +569,22 @@ void AddSpecialBoxController::showAdmin(
 			if (canBanMembers) {
 				if (!sure) {
 					_editBox = Ui::show(
-						Box<Ui::ConfirmBox>(
-							tr::lng_sure_add_admin_unremove(tr::now),
-							showAdminSure),
+						Ui::MakeConfirmBox({
+							tr::lng_sure_add_admin_unremove(),
+							showAdminSure
+						}),
 						Ui::LayerOption::KeepOther);
 					return;
 				}
 			} else {
-				Ui::show(Box<Ui::InformBox>(
-					tr::lng_error_cant_add_admin_unban(tr::now)),
+				Ui::show(
+					Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()),
 					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<Ui::InformBox>(
-				tr::lng_error_cant_add_admin_invite(tr::now)),
+			Ui::show(
+				Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -593,15 +593,16 @@ void AddSpecialBoxController::showAdmin(
 		if (canBanMembers) {
 			if (!sure) {
 				_editBox = Ui::show(
-					Box<Ui::ConfirmBox>(
-						tr::lng_sure_add_admin_unremove(tr::now),
-						showAdminSure),
+					Ui::MakeConfirmBox({
+						tr::lng_sure_add_admin_unremove(),
+						showAdminSure
+					}),
 					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<Ui::InformBox>(
-				tr::lng_error_cant_add_admin_unban(tr::now)),
+			Ui::show(
+				Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -609,20 +610,20 @@ void AddSpecialBoxController::showAdmin(
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
-				const auto text = ((_peer->isChat() || _peer->isMegagroup())
+				auto text = ((_peer->isChat() || _peer->isMegagroup())
 					? tr::lng_sure_add_admin_invite
-					: tr::lng_sure_add_admin_invite_channel)(tr::now);
+					: tr::lng_sure_add_admin_invite_channel)();
 				_editBox = Ui::show(
-					Box<Ui::ConfirmBox>(
-						text,
-						showAdminSure),
+					Ui::MakeConfirmBox({
+						std::move(text),
+						showAdminSure
+					}),
 					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
-				Box<Ui::InformBox>(
-					tr::lng_error_cant_add_admin_invite(tr::now)),
+				Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -692,15 +693,16 @@ void AddSpecialBoxController::showRestricted(
 		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
 				_editBox = Ui::show(
-					Box<Ui::ConfirmBox>(
-						tr::lng_sure_ban_admin(tr::now),
-						showRestrictedSure),
+					Ui::MakeConfirmBox({
+						tr::lng_sure_ban_admin(),
+						showRestrictedSure
+					}),
 					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
-				Box<Ui::InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
+				Ui::MakeInformBox(tr::lng_error_cant_ban_admin()),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -763,15 +765,16 @@ void AddSpecialBoxController::kickUser(
 		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
 				_editBox = Ui::show(
-					Box<Ui::ConfirmBox>(
-						tr::lng_sure_ban_admin(tr::now),
-						kickUserSure),
+					Ui::MakeConfirmBox({
+						tr::lng_sure_ban_admin(),
+						kickUserSure
+					}),
 					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
-				Box<Ui::InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
+				Ui::MakeInformBox(tr::lng_error_cant_ban_admin()),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -786,7 +789,7 @@ void AddSpecialBoxController::kickUser(
 				lt_user,
 				participant->name);
 		_editBox = Ui::show(
-			Box<Ui::ConfirmBox>(text, kickUserSure),
+			Ui::MakeConfirmBox({ text, kickUserSure }),
 			Ui::LayerOption::KeepOther);
 		return;
 	}

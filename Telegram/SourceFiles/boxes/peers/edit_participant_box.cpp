@@ -456,16 +456,17 @@ void EditAdminBox::transferOwnership() {
 				transferOwnershipChecked();
 				close();
 			});
-			getDelegate()->show(Box<Ui::ConfirmBox>(
-				tr::lng_rights_transfer_about(
+			getDelegate()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_rights_transfer_about(
 					tr::now,
 					lt_group,
 					Ui::Text::Bold(peer()->name),
 					lt_user,
 					Ui::Text::Bold(user()->shortName()),
 					Ui::Text::RichLangValue),
-				tr::lng_rights_transfer_sure(tr::now),
-				callback));
+				.confirmed = callback,
+				.confirmText = tr::lng_rights_transfer_sure(),
+			}));
 		}
 	}).send();
 }
@@ -573,7 +574,7 @@ void EditAdminBox::sendTransferRequestFrom(
 				|| (type == qstr("SESSION_TOO_FRESH_XXX"));
 		}();
 		const auto weak = Ui::MakeWeak(this);
-		getDelegate()->show(Box<Ui::InformBox>(problem));
+		getDelegate()->show(Ui::MakeInformBox(problem));
 		if (box) {
 			box->closeBox();
 		}

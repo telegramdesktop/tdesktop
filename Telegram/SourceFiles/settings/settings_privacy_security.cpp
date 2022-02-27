@@ -569,11 +569,12 @@ void SetupCloudPassword(
 					*sent = false;
 				}, container->lifetime());
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_cloud_password_reset_cancel_sure(tr::now),
-				tr::lng_box_yes(tr::now),
-				tr::lng_box_no(tr::now),
-				cancel));
+			Ui::show(Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_reset_cancel_sure(),
+				.confirmed = cancel,
+				.confirmText = tr::lng_box_yes(),
+				.cancelText = tr::lng_box_no(),
+			}));
 		}
 	});
 
@@ -931,10 +932,11 @@ object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
 		Core::UpdateApplication();
 		close();
 	};
-	return Box<Ui::ConfirmBox>(
-		tr::lng_passport_app_out_of_date(tr::now),
-		tr::lng_menu_update(tr::now),
-		callback);
+	return Ui::MakeConfirmBox({
+		.text = tr::lng_passport_app_out_of_date(),
+		.confirmed = callback,
+		.confirmText = tr::lng_menu_update(),
+	});
 }
 
 void AddPrivacyButton(

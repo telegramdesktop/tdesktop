@@ -504,7 +504,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
 		session().data().idsToItems(draft.ids),
 		true);
 	if (!error.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(error), Ui::LayerOption::KeepOther);
+		Ui::show(Ui::MakeInformBox(error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -525,7 +525,7 @@ bool MainWidget::shareUrl(
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_share_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
 	TextWithTags textWithTags = {
@@ -555,7 +555,7 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_inline_switch_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
 	const auto h = peer->owner().history(peer);
@@ -578,13 +578,12 @@ bool MainWidget::sendPaths(PeerId peerId) {
 
 	auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_forward_send_files_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else if (const auto error = Data::RestrictionError(
 			peer,
 			ChatRestriction::SendMedia)) {
-		Ui::show(Box<Ui::InformBox>(*error));
+		Ui::show(Ui::MakeInformBox(*error));
 		return false;
 	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -610,8 +609,7 @@ void MainWidget::onFilesOrForwardDrop(
 	} else {
 		auto peer = session().data().peer(peerId);
 		if (!peer->canWrite()) {
-			Ui::show(Box<Ui::InformBox>(
-				tr::lng_forward_send_files_cant(tr::now)));
+			Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 			return;
 		}
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -1302,7 +1300,7 @@ void MainWidget::ui_showPeerHistory(
 		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
-				controller()->show(Box<Ui::InformBox>(unavailable));
+				controller()->show(Ui::MakeInformBox(unavailable));
 			}
 			return;
 		}
@@ -2046,7 +2044,7 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::show(Box<Ui::InformBox>(tr::lng_cloud_password_updated(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_cloud_password_updated()));
 	}
 	if (isOneColumn()) {
 		if (_sideShadow) {
@@ -2643,7 +2641,7 @@ void MainWidget::activate() {
 						_controller,
 						path.mid(interpret.size()));
 					if (!error.isEmpty()) {
-						Ui::show(Box<Ui::InformBox>(error));
+						Ui::show(Ui::MakeInformBox(error));
 					}
 				} else {
 					showSendPathsLayer();

@@ -212,7 +212,7 @@ void SessionNavigation::resolveUsername(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
-			show(Box<Ui::InformBox>(
+			show(Ui::MakeInformBox(
 				tr::lng_username_not_found(tr::now, lt_user, username)));
 		}
 	}).send();
@@ -1127,12 +1127,14 @@ void SessionController::startOrJoinGroupCall(
 	using JoinConfirm = Calls::StartGroupCallArgs::JoinConfirm;
 	auto &calls = Core::App().calls();
 	const auto askConfirmation = [&](QString text, QString button) {
-		show(Box<Ui::ConfirmBox>(text, button, crl::guard(this, [=] {
-			Ui::hideLayer();
-			startOrJoinGroupCall(
-				peer,
-				{ args.joinHash, JoinConfirm::None });
-		})));
+		show(Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = crl::guard(this, [=, hash = args.joinHash] {
+				Ui::hideLayer();
+				startOrJoinGroupCall(peer, { hash, JoinConfirm::None });
+			}),
+			.confirmText = button,
+		}));
 	};
 	if (args.confirm != JoinConfirm::None && calls.inCall()) {
 		// Do you want to leave your active voice chat
@@ -1375,12 +1377,13 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 		session().uploader().unpause();
 	};
 
-	show(Box<Ui::ConfirmBox>(
-		tr::lng_selected_cancel_sure_this(tr::now),
-		tr::lng_selected_upload_stop(tr::now),
-		tr::lng_continue(tr::now),
-		stopUpload,
-		continueUpload));
+	show(Ui::MakeConfirmBox({
+		.text = tr::lng_selected_cancel_sure_this(),
+		.confirmed = stopUpload,
+		.cancelled = continueUpload,
+		.confirmText = tr::lng_selected_upload_stop(),
+		.cancelText = tr::lng_continue(),
+	}));
 }
 
 void SessionController::showSection(

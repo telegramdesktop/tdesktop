@@ -87,7 +87,7 @@ void PrepareProfilePhoto(
 		if (image.isNull()
 			|| (image.width() > (10 * image.height()))
 			|| (image.height() > (10 * image.width()))) {
-			controller->show(Box<Ui::InformBox>(tr::lng_bad_photo(tr::now)));
+			controller->show(Ui::MakeInformBox(tr::lng_bad_photo()));
 			return;
 		}
 		image = resizeToMinSize(

@@ -943,23 +943,18 @@ void AddPermanentLinkBlock(
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-		const auto done = crl::guard(weak, [=] {
-			const auto close = [=] {
-				if (*box) {
-					(*box)->closeBox();
-				}
-			};
+		const auto done = crl::guard(weak, [=](Fn<void()> &&close) {
 			peer->session().api().inviteLinks().revokePermanent(
 				peer,
 				admin,
 				value->current().link,
-				close);
+				std::move(close));
 		});
-		*box = Ui::show(
-			Box<Ui::ConfirmBox>(
+		Ui::show(
+			Ui::MakeConfirmBox({
 				tr::lng_group_invite_about_new(tr::now),
-				done),
+				done
+			}),
 			Ui::LayerOption::KeepOther);
 	});
 
@@ -1143,7 +1138,7 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 			}
 			text.append(error.first);
 			Ui::show(
-				Box<Ui::InformBox>(text),
+				Ui::MakeInformBox(text),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -1252,19 +1247,17 @@ void RevokeLink(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link) {
-	const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-	const auto revoke = [=] {
-		const auto done = [=](const LinkData &data) {
-			if (*box) {
-				(*box)->closeBox();
-			}
+	const auto revoke = [=](Fn<void()> &&close) {
+		const auto done = [close = std::move(close)](const LinkData &data) {
+			close();
 		};
 		peer->session().api().inviteLinks().revoke(peer, admin, link, done);
 	};
-	*box = Ui::show(
-		Box<Ui::ConfirmBox>(
-			tr::lng_group_invite_revoke_about(tr::now),
-			revoke),
+	Ui::show(
+		Ui::MakeConfirmBox({
+			tr::lng_group_invite_revoke_about(),
+			revoke
+		}),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -1272,21 +1265,18 @@ void DeleteLink(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link) {
-	const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-	const auto sure = [=] {
-		const auto finish = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
+	const auto sure = [=](Fn<void()> &&close) {
 		peer->session().api().inviteLinks().destroy(
 			peer,
 			admin,
 			link,
-			finish);
+			std::move(close));
 	};
-	*box = Ui::show(
-		Box<Ui::ConfirmBox>(tr::lng_group_invite_delete_sure(tr::now), sure),
+	Ui::show(
+		Ui::MakeConfirmBox({
+			tr::lng_group_invite_delete_sure(),
+			sure
+		}),
 		Ui::LayerOption::KeepOther);
 }
 

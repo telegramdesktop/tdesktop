@@ -208,22 +208,17 @@ private:
 void DeleteAllRevoked(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin) {
-	const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-	const auto sure = [=] {
-		const auto finish = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
+	const auto sure = [=](Fn<void()> &&close) {
 		peer->session().api().inviteLinks().destroyAllRevoked(
 			peer,
 			admin,
-			finish);
+			std::move(close));
 	};
-	*box = Ui::show(
-		Box<Ui::ConfirmBox>(
-			tr::lng_group_invite_delete_all_sure(tr::now),
-			sure),
+	Ui::show(
+		Ui::MakeConfirmBox({
+			tr::lng_group_invite_delete_all_sure(),
+			sure
+		}),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -1606,11 +1606,12 @@ void Controller::deleteWithConfirmation() {
 		deleteChannel();
 	});
 	_navigation->parentController()->show(
-		Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_box_delete(tr::now),
-			st::attentionBoxButton,
-			deleteCallback),
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = deleteCallback,
+			.confirmText = tr::lng_box_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}),
 		Ui::LayerOption::KeepOther);
 }
 

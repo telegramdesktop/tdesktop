@@ -1139,13 +1139,14 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			close();
 		};
 		Ui::show(
-			Box<Ui::ConfirmBox>(
-				text,
-				tr::lng_sure_enable(tr::now),
-				std::move(callback)),
+			Ui::MakeConfirmBox({
+				.text = text,
+				.confirmed = std::move(callback),
+				.confirmText = tr::lng_sure_enable(),
+			}),
 			Ui::LayerOption::KeepOther);
 	} else {
-		Ui::show(Box<Ui::InformBox>(
+		Ui::show(Ui::MakeInformBox(
 			(proxy.status() == ProxyData::Status::Unsupported
 				? tr::lng_proxy_unsupported(tr::now)
 				: tr::lng_proxy_invalid(tr::now))));

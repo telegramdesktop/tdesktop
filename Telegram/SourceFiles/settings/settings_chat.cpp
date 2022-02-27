@@ -1208,8 +1208,8 @@ void SetupDefaultThemes(
 			// in Window::Theme::Revert which is called by Editor.
 			//
 			// So we check here, before we change the saved accent color.
-			window->show(Box<Ui::InformBox>(
-				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			window->show(Ui::MakeInformBox(
+				tr::lng_theme_editor_cant_change_theme()));
 			return;
 		}
 		const auto type = chosen();
@@ -1361,8 +1361,8 @@ void SetupAutoNightMode(
 	}) | rpl::start_with_next([=](bool checked) {
 		if (checked && Window::Theme::Background()->editingTheme()) {
 			autoNight->setChecked(false);
-			controller->show(Box<Ui::InformBox>(
-				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			controller->show(Ui::MakeInformBox(
+				tr::lng_theme_editor_cant_change_theme()));
 		} else {
 			Core::App().settings().setSystemDarkModeEnabled(checked);
 			Core::App().saveSettingsDelayed();

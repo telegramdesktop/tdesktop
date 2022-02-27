@@ -400,10 +400,14 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 		if (!requested || enabled) {
 			return;
 		} else if (const auto window = Core::App().activeWindow()) {
-			window->show(Box<Ui::ConfirmBox>(
-				tr::lng_settings_auto_start_disabled_uwp(tr::now),
-				tr::lng_settings_open_system_settings(tr::now),
-				[] { AutostartTask::OpenSettings(); Ui::hideLayer(); }));
+			window->show(Ui::MakeConfirmBox({
+				.text = tr::lng_settings_auto_start_disabled_uwp(),
+				.confirmed = [] {
+					AutostartTask::OpenSettings();
+					Ui::hideLayer();
+				},
+				.confirmText = tr::lng_settings_open_system_settings(),
+			}));
 		}
 	}); };
 	AutostartTask::Toggle(

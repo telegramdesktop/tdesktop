@@ -595,11 +595,11 @@ void LastSeenPrivacyController::confirmSave(
 			Core::App().settings().setLastSeenWarningSeen(true);
 			Core::App().saveSettingsDelayed();
 		};
-		auto box = Box<Ui::ConfirmBox>(
-			tr::lng_edit_privacy_lastseen_warning(tr::now),
-			tr::lng_continue(tr::now),
-			tr::lng_cancel(tr::now),
-			std::move(callback));
+		auto box = Ui::MakeConfirmBox({
+			.text = tr::lng_edit_privacy_lastseen_warning(),
+			.confirmed = std::move(callback),
+			.confirmText = tr::lng_continue(),
+		});
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
 		saveCallback();

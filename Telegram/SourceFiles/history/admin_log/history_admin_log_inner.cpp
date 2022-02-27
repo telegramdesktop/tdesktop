@@ -1431,7 +1431,7 @@ void InnerWidget::suggestRestrictParticipant(
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = _controller->show(Box<Ui::ConfirmBox>(text, sure));
+			*weakBox = _controller->show(Ui::MakeConfirmBox({ text, sure }));
 		} else if (base::contains(_admins, user)) {
 			editRestrictions(true, ChatRestrictionsInfo());
 		} else {

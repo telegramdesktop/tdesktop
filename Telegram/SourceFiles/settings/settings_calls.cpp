@@ -293,7 +293,7 @@ void Calls::setupContent() {
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
 			_controller->show(
-				Box<Ui::InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
+				Ui::MakeInformBox(tr::lng_linux_no_audio_prefs()));
 		}
 	});
 
@@ -325,10 +325,11 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 				Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		};
-		_controller->show(Box<Ui::ConfirmBox>(
-			tr::lng_no_mic_permission(tr::now),
-			tr::lng_menu_settings(tr::now),
-			showSystemSettings));
+		_controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_no_mic_permission(),
+			.confirmed = showSystemSettings,
+			.confirmText = tr::lng_menu_settings(),
+		}));
 	}
 }
 

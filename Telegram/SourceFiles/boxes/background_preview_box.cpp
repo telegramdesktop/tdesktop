@@ -779,8 +779,7 @@ bool BackgroundPreviewBox::Start(
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
-		controller->show(
-			Box<Ui::InformBox>(tr::lng_background_bad_link(tr::now)));
+		controller->show(Ui::MakeInformBox(tr::lng_background_bad_link()));
 		return false;
 	}
 	controller->session().api().requestWallPaper(slug, crl::guard(controller, [=](
@@ -789,8 +788,7 @@ bool BackgroundPreviewBox::Start(
 			controller,
 			result.withUrlParams(params)));
 	}), crl::guard(controller, [=](const MTP::Error &error) {
-		controller->show(
-			Box<Ui::InformBox>(tr::lng_background_bad_link(tr::now)));
+		controller->show(Ui::MakeInformBox(tr::lng_background_bad_link()));
 	}));
 	return true;
 }

@@ -117,12 +117,13 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				? QString::fromUtf8(parsedUrl.toEncoded())
 				: ShowEncoded(displayed);
 			Ui::show(
-				Box<Ui::ConfirmBox>(
-					(tr::lng_open_this_link(tr::now)
+				Ui::MakeConfirmBox({
+					.text = (tr::lng_open_this_link(tr::now)
 						+ qsl("\n\n")
 						+ displayUrl),
-					tr::lng_open_link(tr::now),
-					[=] { Ui::hideLayer(); open(); }),
+					.confirmed = [=] { Ui::hideLayer(); open(); },
+					.confirmText = tr::lng_open_link(),
+				}),
 				Ui::LayerOption::KeepOther);
 		} else {
 			open();
@@ -151,10 +152,11 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 			bot->session().local().markBotTrustedOpenGame(bot->id);
 			open();
 		};
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_allow_bot_pass(tr::now, lt_bot_name, _bot->name),
-			tr::lng_allow_bot(tr::now),
-			callback));
+		Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_allow_bot_pass(tr::now, lt_bot_name, _bot->name),
+			.confirmed = callback,
+			.confirmText = tr::lng_allow_bot(),
+		}));
 	}
 }
 

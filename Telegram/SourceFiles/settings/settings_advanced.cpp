@@ -521,8 +521,8 @@ void SetupSystemIntegrationContent(
 		}) | rpl::start_with_next([=](bool checked) {
 			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
-				controller->show(Box<Ui::InformBox>(
-					tr::lng_error_start_minimized_passcoded(tr::now)));
+				controller->show(Ui::MakeInformBox(
+					tr::lng_error_start_minimized_passcoded()));
 			} else {
 				cSetStartMinimized(checked);
 				Local::writeSettings();
@@ -638,10 +638,11 @@ void SetupANGLE(
 					}
 					Core::Restart();
 				});
-				controller->show(Box<Ui::ConfirmBox>(
-					tr::lng_settings_need_restart(tr::now),
-					tr::lng_settings_restart_now(tr::now),
-					confirmed));
+				controller->show(Ui::MakeConfirmBox({
+					.text = tr::lng_settings_need_restart(),
+					.confirmed = confirmed,
+					.confirmText = tr::lng_settings_restart_now(),
+				}));
 			};
 			SingleChoiceBox(box, {
 				.title = tr::lng_settings_angle_backend(),
@@ -680,11 +681,12 @@ void SetupOpenGL(
 		const auto cancelled = crl::guard(button, [=] {
 			toggles->fire(!enabled);
 		});
-		controller->show(Box<Ui::ConfirmBox>(
-			tr::lng_settings_need_restart(tr::now),
-			tr::lng_settings_restart_now(tr::now),
-			confirmed,
-			cancelled));
+		controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_settings_need_restart(),
+			.confirmed = confirmed,
+			.cancelled = cancelled,
+			.confirmText = tr::lng_settings_restart_now(),
+		}));
 	}, container->lifetime());
 }
 

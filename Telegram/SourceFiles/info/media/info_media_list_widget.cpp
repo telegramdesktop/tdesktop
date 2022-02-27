@@ -1093,11 +1093,12 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 				confirmed();
 			}
 		};
-		setActionBoxWeak(window->show(Box<Ui::ConfirmBox>(
-			phrase,
-			tr::lng_box_delete(tr::now),
-			st::attentionBoxButton,
-			deleteSure)));
+		setActionBoxWeak(window->show(Ui::MakeConfirmBox({
+			.text = phrase,
+			.confirmed = deleteSure,
+			.confirmText = tr::lng_box_delete(tr::now),
+			.confirmStyle = &st::attentionBoxButton,
+		})));
 	} else if (auto list = collectSelectedIds(items); !list.empty()) {
 		auto box = Box<DeleteMessagesBox>(
 			&_controller->session(),

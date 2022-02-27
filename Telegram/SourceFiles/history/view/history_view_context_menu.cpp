@@ -1036,11 +1036,12 @@ void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
 			session->api().polls().close(item);
 		}
 	};
-	Ui::show(Box<Ui::ConfirmBox>(
-		tr::lng_polls_stop_warning(tr::now),
-		tr::lng_polls_stop_sure(tr::now),
-		tr::lng_cancel(tr::now),
-		stop));
+	Ui::show(Ui::MakeConfirmBox({
+		.text = tr::lng_polls_stop_warning(),
+		.confirmed = stop,
+		.confirmText = tr::lng_polls_stop_sure(),
+		.cancelText = tr::lng_cancel(),
+	}));
 }
 
 void AddPollActions(

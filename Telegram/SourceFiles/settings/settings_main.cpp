@@ -400,11 +400,12 @@ void SetupInterfaceScale(
 					button,
 					[=] { repeatSetScale(cConfigScale(), repeatSetScale); });
 			});
-			window->show(Box<Ui::ConfirmBox>(
-				tr::lng_settings_need_restart(tr::now),
-				tr::lng_settings_restart_now(tr::now),
-				confirmed,
-				cancelled));
+			window->show(Ui::MakeConfirmBox({
+				.text = tr::lng_settings_need_restart(),
+				.confirmed = confirmed,
+				.cancelled = cancelled,
+				.confirmText = tr::lng_settings_restart_now(),
+			}));
 		} else if (scale != cConfigScale()) {
 			cSetConfigScale(scale);
 			Local::writeSettings();
@@ -505,13 +506,14 @@ void SetupHelp(
 				*requestId = 0;
 			}).send();
 		});
-		auto box = Box<Ui::ConfirmBox>(
-			tr::lng_settings_ask_sure(tr::now),
-			tr::lng_settings_ask_ok(tr::now),
-			tr::lng_settings_faq_button(tr::now),
-			sure,
-			OpenFaq);
-		box->setStrictCancel(true);
+		auto box = Ui::MakeConfirmBox({
+			.text = tr::lng_settings_ask_sure(),
+			.confirmed = sure,
+			.cancelled = OpenFaq,
+			.confirmText = tr::lng_settings_ask_ok(),
+			.cancelText = tr::lng_settings_faq_button(),
+			.strictCancel = true,
+		});
 		controller->show(std::move(box));
 	});
 }

@@ -153,10 +153,11 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		onstack(chat);
 	};
 	Ui::show(
-		Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_manage_discussion_group_link(tr::now),
-			sure),
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = sure,
+			.confirmText = tr::lng_manage_discussion_group_link(tr::now),
+		}),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -185,10 +186,11 @@ void Controller::choose(not_null<ChatData*> chat) {
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
 	Ui::show(
-		Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_manage_discussion_group_link(tr::now),
-			sure),
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = sure,
+			.confirmText = tr::lng_manage_discussion_group_link(tr::now),
+		}),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -323,11 +323,12 @@ void AddUnreadBadge(
 				close();
 				Core::App().logoutWithChecks(&session->account());
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_sure_logout(tr::now),
-				tr::lng_settings_logout(tr::now),
-				st::attentionBoxButton,
-				crl::guard(session, callback)));
+			Ui::show(Ui::MakeConfirmBox({
+				.text = tr::lng_sure_logout(),
+				.confirmed = crl::guard(session, callback),
+				.confirmText = tr::lng_settings_logout(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
 		}, &st::menuIconLeave);
 		state->menu->popup(QCursor::pos());
 	}, raw->lifetime());
@@ -1034,8 +1035,8 @@ void MainMenu::setupMenu() {
 	}) | rpl::start_with_next([=](bool night) {
 		if (Window::Theme::Background()->editingTheme()) {
 			_nightThemeSwitches.fire(!night);
-			controller->show(Box<Ui::InformBox>(
-				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			controller->show(Ui::MakeInformBox(
+				tr::lng_theme_editor_cant_change_theme()));
 			return;
 		}
 		const auto weak = MakeWeak(this);

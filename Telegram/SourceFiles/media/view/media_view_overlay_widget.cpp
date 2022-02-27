@@ -1815,13 +1815,14 @@ void OverlayWidget::deleteMedia() {
 		if (deletingPeerPhoto) {
 			if (photo) {
 				window->show(
-					Box<Ui::ConfirmBox>(
-						tr::lng_delete_photo_sure(tr::now),
-						tr::lng_box_delete(tr::now),
-						crl::guard(_widget, [=] {
+					Ui::MakeConfirmBox({
+						.text = tr::lng_delete_photo_sure(),
+						.confirmed = crl::guard(_widget, [=] {
 							session->api().peerPhoto().clear(photo);
 							Ui::hideLayer();
-						})),
+						}),
+						.confirmText = tr::lng_box_delete(),
+					}),
 					Ui::LayerOption::CloseOther);
 			}
 		} else if (message) {

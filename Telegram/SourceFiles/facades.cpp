@@ -140,18 +140,16 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_bot_share_location_unavailable(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_bot_share_location_unavailable()));
 	} break;
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
 		const auto msgId = msg->id;
 		const auto history = msg->history();
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_bot_share_phone(tr::now),
-			tr::lng_bot_share_phone_confirm(tr::now),
-			[=] {
+		Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_bot_share_phone(),
+			.confirmed = [=] {
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 				auto action = Api::SendAction(history);
 				action.clearDraft = false;
@@ -159,7 +157,9 @@ void activateBotCommand(
 				history->session().api().shareContact(
 					history->session().user(),
 					action);
-			}));
+			},
+			.confirmText = tr::lng_bot_share_phone_confirm(),
+		}));
 	} break;
 
 	case ButtonType::RequestPoll: {

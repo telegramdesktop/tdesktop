@@ -53,11 +53,12 @@ void AddOption(
 		: nullptr;
 	if (restarter) {
 		restarter->setCallback([=] {
-			window->show(Box<Ui::ConfirmBox>(
-				tr::lng_settings_need_restart(tr::now),
-				tr::lng_settings_restart_now(tr::now),
-				tr::lng_settings_restart_later(tr::now),
-				[] { Core::Restart(); }));
+			window->show(Ui::MakeConfirmBox({
+				.text = tr::lng_settings_need_restart(),
+				.confirmed = [] { Core::Restart(); },
+				.confirmText = tr::lng_settings_restart_now(),
+				.cancelText = tr::lng_settings_restart_later(),
+			}));
 		});
 	}
 	button->toggledChanges(

@@ -352,15 +352,17 @@ void Application::showOpenGLCrashNotification() {
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
-	_primaryWindow->show(Box<Ui::ConfirmBox>(
+	_primaryWindow->show(Ui::MakeConfirmBox({
+		.text = ""
 		"There may be a problem with your graphics drivers and OpenGL. "
 		"Try updating your drivers.\n\n"
 		"OpenGL has been disabled. You can try to enable it again "
 		"or keep it disabled if crashes continue.",
-		"Enable",
-		"Keep Disabled",
-		enable,
-		keepDisabled));
+		.confirmed = enable,
+		.cancelled = keepDisabled,
+		.confirmText = "Enable",
+		.cancelText = "Keep Disabled",
+	}));
 }
 
 void Application::startDomain() {
@@ -547,9 +549,12 @@ void Application::badMtprotoConfigurationError() {
 				settings().proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
-		_badProxyDisableBox = Ui::show(Box<Ui::InformBox>(
-			Lang::Hard::ProxyConfigError(),
-			disableCallback));
+		_badProxyDisableBox = Ui::show(
+			Ui::MakeInformBox(Lang::Hard::ProxyConfigError()));
+		_badProxyDisableBox->boxClosing(
+		) | rpl::start_with_next(
+			disableCallback,
+			_badProxyDisableBox->lifetime());
 	}
 }
 
@@ -664,9 +669,11 @@ void Application::logoutWithChecks(Main::Account *account) {
 void Application::forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation) {
-	const auto box = Ui::show(Box<Ui::InformBox>(
-		explanation,
-		tr::lng_passcode_logout(tr::now)));
+	const auto box = Ui::show(Ui::MakeConfirmBox({
+		.text = explanation,
+		.confirmText = tr::lng_passcode_logout(tr::now),
+		.inform = true,
+	}));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
 	const auto weak = base::make_weak(account.get());

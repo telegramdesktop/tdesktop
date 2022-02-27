@@ -412,12 +412,13 @@ bool HandleUnknown(
 				Core::UpdateApplication();
 				close();
 			};
-			controller->show(Box<Ui::ConfirmBox>(
-				text,
-				tr::lng_menu_update(tr::now),
-				callback));
+			controller->show(Ui::MakeConfirmBox({
+				.text = text,
+				.confirmed = callback,
+				.confirmText = tr::lng_menu_update(),
+			}));
 		} else {
-			controller->show(Box<Ui::InformBox>(text));
+			controller->show(Ui::MakeInformBox(text));
 		}
 	});
 	controller->session().api().requestDeepLinkInfo(request, callback);

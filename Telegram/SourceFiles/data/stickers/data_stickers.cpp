@@ -402,7 +402,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 	notifyUpdated();
 
 	Ui::show(
-		Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)),
+		Ui::MakeInformBox(tr::lng_stickers_not_found()),
 		Ui::LayerOption::KeepOther);
 }
 
