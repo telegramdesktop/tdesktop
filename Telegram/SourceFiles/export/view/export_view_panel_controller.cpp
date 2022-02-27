@@ -329,7 +329,7 @@ void PanelController::showProgress() {
 	_panel->setHideOnDeactivate(true);
 }
 
-void PanelController::stopWithConfirmation(FnMut<void()> callback) {
+void PanelController::stopWithConfirmation(Fn<void()> callback) {
 	if (!v::is<ProcessingState>(_state)) {
 		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();

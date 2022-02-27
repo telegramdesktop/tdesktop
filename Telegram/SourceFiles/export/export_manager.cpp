@@ -67,7 +67,7 @@ bool Manager::inProgress(not_null<Main::Session*> session) const {
 	return _panel && (&_panel->session() == session);
 }
 
-void Manager::stopWithConfirmation(FnMut<void()> callback) {
+void Manager::stopWithConfirmation(Fn<void()> callback) {
 	if (!_panel) {
 		callback();
 		return;
