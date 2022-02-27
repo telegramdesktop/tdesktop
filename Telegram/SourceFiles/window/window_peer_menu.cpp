@@ -1144,7 +1144,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<History*> history,
 		MessageIdsList &&items,
-		FnMut<void()> &&successCallback) {
+		Fn<void()> &&successCallback) {
 	const auto session = &navigation->session();
 	const auto text = (items.size() > 1)
 		? tr::lng_scheduled_send_now_many(tr::now, lt_count, items.size())
@@ -1164,7 +1164,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		=,
 		list = std::move(items),
 		callback = std::move(successCallback)
-	](Fn<void()> &&close) mutable {
+	](Fn<void()> &&close) {
 		close();
 		auto ids = QVector<MTPint>();
 		for (const auto item : session->data().idsToItems(list)) {

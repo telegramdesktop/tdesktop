@@ -112,7 +112,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<History*> history,
 	MessageIdsList &&items,
-	FnMut<void()> &&successCallback = nullptr);
+	Fn<void()> &&successCallback = nullptr);
 
 void ToggleMessagePinned(
 	not_null<Window::SessionNavigation*> navigation,
