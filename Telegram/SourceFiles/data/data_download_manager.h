@@ -87,6 +87,7 @@ public:
 		const QString &path,
 		DownloadDate started);
 
+	void clearIfFinished();
 	void deleteFiles(const std::vector<GlobalMsgId> &ids);
 
 	[[nodiscard]] auto loadingList() const

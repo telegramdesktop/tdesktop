@@ -242,6 +242,13 @@ void DownloadManager::addLoaded(
 	}
 }
 
+void DownloadManager::clearIfFinished() {
+	if (_clearLoadingTimer.isActive()) {
+		_clearLoadingTimer.cancel();
+		clearLoading();
+	}
+}
+
 void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 	struct DocumentDescriptor {
 		uint64 sessionUniqueId = 0;

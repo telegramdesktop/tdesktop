@@ -433,6 +433,9 @@ void Widget::setupDownloadBar() {
 			_downloadBar->clicks(
 			) | rpl::start_with_next([=] {
 				auto &&list = Core::App().downloadManager().loadingList();
+				const auto guard = gsl::finally([] {
+					Core::App().downloadManager().clearIfFinished();
+				});
 				auto first = (HistoryItem*)nullptr;
 				for (const auto id : list) {
 					if (!first) {

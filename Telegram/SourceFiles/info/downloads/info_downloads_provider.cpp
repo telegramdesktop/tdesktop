@@ -329,6 +329,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 			DocumentFields{
 				.document = file,
 				.dateOverride = Data::DateFromDownloadDate(element.started),
+				.forceFileLayout = true,
 			},
 			songSt);
 	}

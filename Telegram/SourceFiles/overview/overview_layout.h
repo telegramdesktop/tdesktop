@@ -338,6 +338,7 @@ private:
 struct DocumentFields {
 	not_null<DocumentData*> document;
 	TimeId dateOverride = 0;
+	bool forceFileLayout = false;
 };
 class Document final : public RadialProgressItem {
 public:
@@ -369,6 +370,7 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
+	[[nodiscard]] bool songLayout() const;
 	void ensureDataMediaCreated() const;
 
 	not_null<DocumentData*> _data;
@@ -380,6 +382,7 @@ private:
 	const ::Layout::DocumentGenericPreview _generic;
 
 	bool _thumbLoaded = false;
+	bool _forceFileLayout = false;
 	QPixmap _thumb;
 
 	Ui::Text::String _name;
