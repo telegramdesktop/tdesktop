@@ -76,7 +76,7 @@ public:
 
 	virtual void confirmSave(
 			bool someAreDisallowed,
-			FnMut<void()> saveCallback) {
+			Fn<void()> saveCallback) {
 		saveCallback();
 	}
 	virtual void saveAdditional() {

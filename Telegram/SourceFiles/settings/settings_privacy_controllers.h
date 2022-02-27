@@ -100,7 +100,7 @@ public:
 
 	void confirmSave(
 		bool someAreDisallowed,
-		FnMut<void()> saveCallback) override;
+		Fn<void()> saveCallback) override;
 
 private:
 	const not_null<::Main::Session*> _session;

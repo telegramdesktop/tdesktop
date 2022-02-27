@@ -584,12 +584,12 @@ rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
 
 void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
-		FnMut<void()> saveCallback) {
+		Fn<void()> saveCallback) {
 	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		auto callback = [
 			=,
 			saveCallback = std::move(saveCallback)
-		](Fn<void()> &&close) mutable {
+		](Fn<void()> &&close) {
 			close();
 			saveCallback();
 			Core::App().settings().setLastSeenWarningSeen(true);
