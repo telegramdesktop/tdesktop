@@ -386,16 +386,49 @@ QString Provider::showInFolderPath(
 	return (i != end(_elements)) ? i->path : QString();
 }
 
+int64 Provider::scrollTopStatePosition(not_null<HistoryItem*> item) {
+	const auto i = ranges::find(_elements, item, &Element::item);
+	return (i != end(_elements)) ? i->started : 0;
+}
+
+HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
+	if (!state.position) {
+		return _elements.empty() ? nullptr : _elements.back().item.get();
+	}
+	const auto i = ranges::lower_bound(
+		_elements,
+		state.position,
+		ranges::less(),
+		&Element::started);
+	return (i != end(_elements))
+		? i->item.get()
+		: _elements.empty()
+		? nullptr
+		: _elements.back().item.get();
+}
+
 void Provider::saveState(
 		not_null<Media::Memento*> memento,
 		ListScrollTopState scrollState) {
-
+	if (!_elements.empty() && scrollState.item) {
+		memento->setAroundId({ PeerId(), 1 });
+		memento->setScrollTopItem(scrollState.item->globalId());
+		memento->setScrollTopItemPosition(scrollState.position);
+		memento->setScrollTopShift(scrollState.shift);
+	}
 }
 
 void Provider::restoreState(
 		not_null<Media::Memento*> memento,
 		Fn<void(ListScrollTopState)> restoreScrollState) {
-
+	if (memento->aroundId() == FullMsgId(PeerId(), 1)) {
+		restoreScrollState({
+			.position = memento->scrollTopItemPosition(),
+			.item = MessageByGlobalId(memento->scrollTopItem()),
+			.shift = memento->scrollTopShift(),
+		});
+		refreshViewer();
+	}
 }
 
 } // namespace Info::Downloads

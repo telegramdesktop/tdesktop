@@ -63,6 +63,8 @@ public:
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) override;
 
+	int64 scrollTopStatePosition(not_null<HistoryItem*> item) override;
+	HistoryItem *scrollTopStateItem(ListScrollTopState state) override;
 	void saveState(
 		not_null<Memento*> memento,
 		ListScrollTopState scrollState) override;

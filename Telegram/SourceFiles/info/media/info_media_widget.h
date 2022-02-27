@@ -34,9 +34,9 @@ public:
 		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override;
+	[[nodiscard]] Section section() const override;
 
-	Type type() const {
+	[[nodiscard]] Type type() const {
 		return _type;
 	}
 
@@ -44,32 +44,38 @@ public:
 	void setAroundId(FullMsgId aroundId) {
 		_aroundId = aroundId;
 	}
-	FullMsgId aroundId() const {
+	[[nodiscard]] FullMsgId aroundId() const {
 		return _aroundId;
 	}
 	void setIdsLimit(int limit) {
 		_idsLimit = limit;
 	}
-	int idsLimit() const {
+	[[nodiscard]] int idsLimit() const {
 		return _idsLimit;
 	}
 
 	void setScrollTopItem(GlobalMsgId item) {
 		_scrollTopItem = item;
 	}
-	GlobalMsgId scrollTopItem() const {
+	[[nodiscard]] GlobalMsgId scrollTopItem() const {
 		return _scrollTopItem;
+	}
+	void setScrollTopItemPosition(int64 position) {
+		_scrollTopItemPosition = position;
+	}
+	[[nodiscard]] int64 scrollTopItemPosition() const {
+		return _scrollTopItemPosition;
 	}
 	void setScrollTopShift(int shift) {
 		_scrollTopShift = shift;
 	}
-	int scrollTopShift() const {
+	[[nodiscard]] int scrollTopShift() const {
 		return _scrollTopShift;
 	}
 	void setSearchState(SearchState &&state) {
 		_searchState = std::move(state);
 	}
-	SearchState searchState() {
+	[[nodiscard]] SearchState searchState() {
 		return std::move(_searchState);
 	}
 
@@ -77,6 +83,7 @@ private:
 	Type _type = Type::Photo;
 	FullMsgId _aroundId;
 	int _idsLimit = 0;
+	int64 _scrollTopItemPosition = 0;
 	GlobalMsgId _scrollTopItem;
 	int _scrollTopShift = 0;
 	SearchState _searchState;

@@ -163,7 +163,7 @@ void ListWidget::start() {
 	if (_controller->isDownloads()) {
 		_provider->refreshViewer();
 	} else {
-		subscribeToSession(&session(), lifetime());
+		trackSession(&session());
 
 		_controller->mediaSourceQueryValue(
 		) | rpl::start_with_next([this] {
@@ -482,6 +482,7 @@ bool ListWidget::preventAutoHide() const {
 
 void ListWidget::saveState(not_null<Memento*> memento) {
 	_provider->saveState(memento, countScrollState());
+	_trackedSessions.clear();
 }
 
 void ListWidget::restoreState(not_null<Memento*> memento) {
@@ -655,12 +656,14 @@ void ListWidget::clearHeavyItems() {
 }
 
 ListScrollTopState ListWidget::countScrollState() const {
-	if (_sections.empty()) {
+	if (_sections.empty() || _visibleTop <= 0) {
 		return {};
 	}
 	const auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
+	const auto item = topItem.layout->getItem();
 	return {
-		.item = topItem.layout->getItem(),
+		.position = _provider->scrollTopStatePosition(item),
+		.item = item,
 		.shift = _visibleTop - topItem.geometry.y(),
 	};
 }
@@ -672,16 +675,22 @@ void ListWidget::saveScrollState() {
 }
 
 void ListWidget::restoreScrollState() {
-	if (_sections.empty() || !_scrollTopState.item) {
+	if (_sections.empty() || !_scrollTopState.position) {
+		return;
+	}
+	_scrollTopState.item = _provider->scrollTopStateItem(_scrollTopState);
+	if (!_scrollTopState.item) {
 		return;
 	}
 	auto sectionIt = findSectionByItem(_scrollTopState.item);
 	if (sectionIt == _sections.end()) {
 		--sectionIt;
 	}
-	auto item = foundItemInSection( // #TODO downloads
-		sectionIt->findItemNearId(GetUniversalId(_scrollTopState.item)),
-		*sectionIt);
+	const auto found = sectionIt->findItemByItem(_scrollTopState.item);
+	if (!found) {
+		return;
+	}
+	auto item = foundItemInSection(*found, *sectionIt);
 	auto newVisibleTop = item.geometry.y() + _scrollTopState.shift;
 	if (_visibleTop != newVisibleTop) {
 		_scrollToRequests.fire_copy(newVisibleTop);
@@ -1080,7 +1089,9 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 				return item.globalId;
 			}) | ranges::to_vector;
 			Core::App().downloadManager().deleteFiles(ids);
-			confirmed();
+			if (confirmed) {
+				confirmed();
+			}
 		};
 		setActionBoxWeak(window->show(Box<Ui::ConfirmBox>(
 			phrase,

@@ -511,6 +511,21 @@ void Provider::applyDragSelection(
 	}
 }
 
+int64 Provider::scrollTopStatePosition(not_null<HistoryItem*> item) {
+	return GetUniversalId(item).bare;
+}
+
+HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
+	if (state.item && _slice.indexOf(state.item->fullId())) {
+		return state.item;
+	} else if (const auto id = _slice.nearest(state.position)) {
+		if (const auto item = _controller->session().data().message(*id)) {
+			return item;
+		}
+	}
+	return state.item;
+}
+
 void Provider::saveState(
 		not_null<Memento*> memento,
 		ListScrollTopState scrollState) {
@@ -518,6 +533,7 @@ void Provider::saveState(
 		memento->setAroundId(computeFullId(_universalAroundId));
 		memento->setIdsLimit(_idsLimit);
 		memento->setScrollTopItem(scrollState.item->globalId());
+		memento->setScrollTopItemPosition(scrollState.position);
 		memento->setScrollTopShift(scrollState.shift);
 	}
 }
@@ -531,6 +547,7 @@ void Provider::restoreState(
 			_idsLimit = limit;
 			_universalAroundId = GetUniversalId(wasAroundId);
 			restoreScrollState({
+				.position = memento->scrollTopItemPosition(),
 				.item = MessageByGlobalId(memento->scrollTopItem()),
 				.shift = memento->scrollTopShift(),
 			});

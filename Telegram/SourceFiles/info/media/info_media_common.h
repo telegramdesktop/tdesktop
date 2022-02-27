@@ -59,6 +59,7 @@ struct ListContext {
 };
 
 struct ListScrollTopState {
+	int64 position = 0; // ListProvider-specific.
 	HistoryItem *item = nullptr;
 	int shift = 0;
 };
@@ -157,6 +158,10 @@ public:
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) = 0;
 
+	[[nodiscard]] virtual int64 scrollTopStatePosition(
+		not_null<HistoryItem*> item) = 0;
+	[[nodiscard]] virtual HistoryItem *scrollTopStateItem(
+		ListScrollTopState state) = 0;
 	virtual void saveState(
 		not_null<Memento*> memento,
 		ListScrollTopState scrollState) = 0;

@@ -524,7 +524,7 @@ ReplyKeyboard::ReplyKeyboard(
 				button.text.setText(
 					_st->textStyle(),
 					TextUtilities::SingleLine(text),
-					_textPlainOptions);
+					kPlainTextOptions);
 				button.characters = text.isEmpty() ? 1 : text.size();
 				newRow.push_back(std::move(button));
 			}

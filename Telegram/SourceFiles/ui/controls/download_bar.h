@@ -49,6 +49,7 @@ public:
 
 private:
 	void paint(Painter &p, QRect clip);
+	void refreshIcon();
 	void refreshInfo(const DownloadBarProgress &progress);
 	void radialAnimationCallback(crl::time now);
 	[[nodiscard]] float64 computeProgress() const;
@@ -57,6 +58,9 @@ private:
 	PlainShadow _shadow;
 	DownloadBarContent _content;
 	rpl::variable<DownloadBarProgress> _progress;
+	QImage _documentIconOriginal;
+	QImage _documentIcon;
+	QImage _documentIconDone;
 	Text::String _title;
 	Text::String _info;
 	RadialAnimation _radial;

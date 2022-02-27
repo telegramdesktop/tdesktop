@@ -39,6 +39,12 @@ DownloadBar::DownloadBar(
 		paint(p, clip);
 	}, lifetime());
 
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		refreshIcon();
+	}, lifetime());
+	refreshIcon();
+
 	_progress.value(
 	) | rpl::start_with_next([=](const DownloadBarProgress &progress) {
 		refreshInfo(progress);
@@ -56,7 +62,8 @@ void DownloadBar::show(DownloadBarContent &&content) {
 		_radial.start(computeProgress());
 	}
 	_content = content;
-	_title.setMarkedText(st::defaultTextStyle,
+	_title.setMarkedText(
+		st::defaultTextStyle,
 		(content.count > 1
 			? Ui::Text::Bold(
 				tr::lng_profile_files(tr::now, lt_count, content.count))
@@ -64,8 +71,24 @@ void DownloadBar::show(DownloadBarContent &&content) {
 	refreshInfo(_progress.current());
 }
 
+void DownloadBar::refreshIcon() {
+	_documentIconOriginal = st::downloadIconDocument.instance(
+		st::windowFgActive->c,
+		style::kScaleMax / style::DevicePixelRatio());
+	const auto make = [&](int size) {
+		auto result = _documentIconOriginal.scaledToWidth(
+			size * style::DevicePixelRatio(),
+			Qt::SmoothTransformation);
+		result.setDevicePixelRatio(style::DevicePixelRatio());
+		return result;
+	};
+	_documentIcon = make(st::downloadIconSize);
+	_documentIconDone = make(st::downloadIconSizeDone);
+}
+
 void DownloadBar::refreshInfo(const DownloadBarProgress &progress) {
-	_info.setMarkedText(st::downloadInfoStyle,
+	_info.setMarkedText(
+		st::downloadInfoStyle,
 		(progress.ready < progress.total
 			? Text::WithEntities(
 				FormatDownloadText(progress.ready, progress.total))
@@ -146,12 +169,10 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 				p.setOpacity(1.);
 			}
 		}
-		p.save();
-		p.translate(full.center());
-		p.scale(0.6, 0.6);
-		p.translate(-full.center());
-		st::downloadIconDocument.paintInCenter(p, full);
-		p.restore();
+		p.drawImage(
+			full.x() + (full.width() - st::downloadIconSize) / 2,
+			full.y() + (full.height() - st::downloadIconSize) / 2,
+			_documentIcon);
 	}
 
 	const auto minleft = std::min(

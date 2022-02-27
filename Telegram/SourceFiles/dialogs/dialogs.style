@@ -327,4 +327,6 @@ downloadLoadingLeft: 15px;
 downloadLoadingSize: 24px;
 downloadLoadingLine: 2px;
 downloadLoadedSize: 30px;
-downloadIconDocument: icon {{ "history_file_document", windowFgActive }};
+downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
+downloadIconSize: 16px;
+downloadIconSizeDone: 20px;

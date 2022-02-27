@@ -189,7 +189,7 @@ void ConfirmBox::init(const QString &text) {
 	_text.setText(
 		st::boxLabelStyle,
 		text,
-		_informative ? kInformBoxTextOptions : _textPlainOptions);
+		_informative ? kInformBoxTextOptions : kPlainTextOptions);
 }
 
 void ConfirmBox::init(const TextWithEntities &text) {

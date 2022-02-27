@@ -878,14 +878,14 @@ SetupChannelBox::SetupChannelBox(
 	(channel->isMegagroup()
 		? tr::lng_create_public_group_about
 		: tr::lng_create_public_channel_about)(tr::now),
-	_defaultOptions,
+	kDefaultTextOptions,
 	_aboutPublicWidth)
 , _aboutPrivate(
 	st::defaultTextStyle,
 	(channel->isMegagroup()
 		? tr::lng_create_private_group_about
 		: tr::lng_create_private_channel_about)(tr::now),
-	_defaultOptions,
+	kDefaultTextOptions,
 	_aboutPublicWidth)
 , _link(
 	this,
