@@ -68,9 +68,9 @@ void DownloadBar::refreshInfo(const DownloadBarProgress &progress) {
 		(progress.ready < progress.total
 			? Text::WithEntities(
 				FormatDownloadText(progress.ready, progress.total))
-			: (_content.count > 1)
-			? Text::Link(u"View downloads"_q)
-			: Text::Link(u"View in chat"_q)));
+			: Text::Link((_content.count > 1)
+				? tr::lng_downloads_view_in_section(tr::now)
+				: tr::lng_downloads_view_in_chat(tr::now))));
 	_button.entity()->update();
 }
 

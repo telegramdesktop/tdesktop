@@ -98,7 +98,7 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	}, data.lifetime);
 }
 
-int64 DownloadManager::computeNextStarted() {
+int64 DownloadManager::computeNextStartDate() {
 	const auto now = base::unixtime::now();
 	if (_lastStartedBase != now) {
 		_lastStartedBase = now;
@@ -111,7 +111,7 @@ int64 DownloadManager::computeNextStarted() {
 
 void DownloadManager::addLoading(DownloadObject object) {
 	Expects(object.item != nullptr);
-	Expects(object.document || object.photo);
+	Expects(object.document != nullptr);
 
 	const auto item = object.item;
 	auto &data = sessionData(item);
@@ -127,13 +127,16 @@ void DownloadManager::addLoading(DownloadObject object) {
 		remove(data, already);
 	}
 
-	const auto size = object.document
-		? object.document->size
-		: object.photo->imageByteSize(PhotoSize::Large);
+	const auto size = object.document->size;
+	const auto path = object.document->loadingFilePath();
+	if (path.isEmpty()) {
+		return;
+	}
 
 	data.downloading.push_back({
 		.object = object,
-		.started = computeNextStarted(),
+		.started = computeNextStartDate(),
+		.path = path,
 		.total = size,
 	});
 	_loading.emplace(item);

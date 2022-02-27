@@ -468,7 +468,7 @@ void SetupHelp(
 
 	AddButton(
 		container,
-		rpl::single(u"Telegram Features"_q),
+		tr::lng_settings_features(),
 		st::settingsButton,
 		{ &st::settingsIconTips, kIconLightOrange }
 	)->setClickedCallback([=] {

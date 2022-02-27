@@ -2422,7 +2422,7 @@ void HistoryInner::showContextInFolder(not_null<DocumentData*> document) {
 void HistoryInner::saveDocumentToFile(
 		FullMsgId contextId,
 		not_null<DocumentData*> document) {
-	DocumentSaveClickHandler::Save(
+	DocumentSaveClickHandler::SaveAndTrack(
 		contextId,
 		document,
 		DocumentSaveClickHandler::Mode::ToNewFile);

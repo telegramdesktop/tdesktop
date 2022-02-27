@@ -1320,12 +1320,12 @@ void Instance::handleStreamingError(
 	const auto document = data->streamed->id.audio();
 	const auto contextId = data->streamed->id.contextId();
 	if (error == Streaming::Error::NotStreamable) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document);
 	} else if (error == Streaming::Error::OpenFailed) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document,
 			DocumentSaveClickHandler::Mode::ToFile);
 	}

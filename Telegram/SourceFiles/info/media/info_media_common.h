@@ -153,7 +153,9 @@ public:
 	[[nodiscard]] virtual bool allowSaveFileAs(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) = 0;
-	[[nodiscard]] virtual std::optional<QString> deleteMenuPhrase() = 0;
+	[[nodiscard]] virtual QString showInFolderPath(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) = 0;
 
 	virtual void saveState(
 		not_null<Memento*> memento,

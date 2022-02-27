@@ -832,7 +832,7 @@ void SetupSecurity(
 		rpl::producer<> updateTrigger,
 		Fn<void(Type)> showOther) {
 	AddSkip(container, st::settingsPrivacySkip);
-	AddSubsectionTitle(container, rpl::single(u"Security"_q));
+	AddSubsectionTitle(container, tr::lng_settings_security());
 
 	SetupBlockedList(
 		controller,

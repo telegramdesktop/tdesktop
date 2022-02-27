@@ -59,7 +59,9 @@ public:
 	bool allowSaveFileAs(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) override;
-	std::optional<QString> deleteMenuPhrase() override;
+	QString showInFolderPath(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) override;
 
 	void saveState(
 		not_null<Memento*> memento,

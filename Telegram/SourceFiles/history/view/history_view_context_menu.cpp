@@ -205,10 +205,9 @@ void AddSaveDocumentAction(
 	if (list->hasCopyRestriction(item)) {
 		return;
 	}
-	const auto origin = Data::FileOrigin(
-		item ? item->fullId() : FullMsgId());
+	const auto origin = item ? item->fullId() : FullMsgId();
 	const auto save = [=] {
-		DocumentSaveClickHandler::Save(
+		DocumentSaveClickHandler::SaveAndTrack(
 			origin,
 			document,
 			DocumentSaveClickHandler::Mode::ToNewFile);

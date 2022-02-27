@@ -873,7 +873,9 @@ void ListWidget::showContextMenu(
 					},
 					&st::menuIconCancel);
 			} else {
-				auto filepath = lnkDocument->filepath(true);
+				const auto filepath = _provider->showInFolderPath(
+					item,
+					lnkDocument);
 				if (!filepath.isEmpty()) {
 					auto handler = App::LambdaDelayed(
 						st::defaultDropdownMenu.menu.ripple.hideDuration,
@@ -892,7 +894,7 @@ void ListWidget::showContextMenu(
 					st::defaultDropdownMenu.menu.ripple.hideDuration,
 					this,
 					[=] {
-						DocumentSaveClickHandler::Save(
+						DocumentSaveClickHandler::SaveAndTrack(
 							globalId.itemId,
 							lnkDocument,
 							DocumentSaveClickHandler::Mode::ToNewFile);
@@ -934,7 +936,7 @@ void ListWidget::showContextMenu(
 		if (canDeleteAll()) {
 			_contextMenu->addAction(
 				(_controller->isDownloads()
-					? u"Delete from disk"_q
+					? tr::lng_context_delete_from_disk(tr::now)
 					: tr::lng_context_delete_selected(tr::now)),
 				crl::guard(this, [this] {
 					deleteSelected();
@@ -961,7 +963,7 @@ void ListWidget::showContextMenu(
 			if (selectionData.canDelete) {
 				if (_controller->isDownloads()) {
 					_contextMenu->addAction(
-						u"Delete from disk"_q,
+						tr::lng_context_delete_from_disk(tr::now),
 						crl::guard(this, [=] { deleteItem(globalId); }),
 						&st::menuIconDelete);
 				} else {
@@ -1062,9 +1064,10 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 	if (items.list.empty()) {
 		return;
 	} else if (_controller->isDownloads()) {
-		const auto phrase = (items.list.size() == 1)
-			? u"Do you want to delete this file?"_q
-			: u"Do you want to delete X files?"_q;
+		const auto count = items.list.size();
+		const auto phrase = (count == 1)
+			? tr::lng_downloads_delete_sure_one(tr::now)
+			: tr::lng_downloads_delete_sure(tr::now, lt_count, count);
 		const auto deleteSure = [=] {
 			const auto ids = ranges::views::all(
 				items.list
@@ -1072,6 +1075,7 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 				return item.globalId;
 			}) | ranges::to_vector;
 			Core::App().downloadManager().deleteFiles(ids);
+			confirmed();
 			if (const auto box = _actionBoxWeak.data()) {
 				box->closeBox();
 			}

@@ -647,7 +647,7 @@ rpl::producer<QString> TitleValue(
 			: tr::lng_polls_poll_results_title();
 
 	case Section::Type::Downloads:
-		return rpl::single(u"Downloads"_q);
+		return tr::lng_downloads_section();
 
 	}
 	Unexpected("Bad section type in Info::TitleValue()");

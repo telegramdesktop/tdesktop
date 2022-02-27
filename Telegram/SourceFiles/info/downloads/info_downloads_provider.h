@@ -66,7 +66,9 @@ public:
 	bool allowSaveFileAs(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) override;
-	std::optional<QString> deleteMenuPhrase() override;
+	QString showInFolderPath(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) override;
 
 	void saveState(
 		not_null<Media::Memento*> memento,
@@ -79,6 +81,7 @@ private:
 	struct Element {
 		not_null<HistoryItem*> item;
 		int64 started = 0; // unixtime * 1000
+		QString path;
 	};
 
 	bool sectionHasFloatingHeader() override;
@@ -112,7 +115,7 @@ private:
 	base::flat_set<not_null<const HistoryItem*>> _downloading;
 	base::flat_set<not_null<const HistoryItem*>> _downloaded;
 
-	base::flat_map<not_null<HistoryItem*>, int64> _addPostponed;
+	std::vector<Element> _addPostponed;
 
 	std::unordered_map<
 		not_null<const HistoryItem*>,

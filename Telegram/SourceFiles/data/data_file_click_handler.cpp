@@ -100,11 +100,12 @@ void DocumentSaveClickHandler::Save(
 	data->save(origin, savename);
 }
 
-void DocumentSaveClickHandler::onClickImpl() const {
-	const auto document = this->document();
-	const auto itemId = context();
-	Save(itemId, document);
-	if (document->loading()) {
+void DocumentSaveClickHandler::SaveAndTrack(
+		FullMsgId itemId,
+		not_null<DocumentData*> document,
+		Mode mode) {
+	Save(itemId ? itemId : Data::FileOrigin(), document, mode);
+	if (document->loading() && !document->loadingFilePath().isEmpty()) {
 		if (const auto item = document->owner().message(itemId)) {
 			Core::App().downloadManager().addLoading({
 				.item = item,
@@ -112,6 +113,10 @@ void DocumentSaveClickHandler::onClickImpl() const {
 			});
 		}
 	}
+}
+
+void DocumentSaveClickHandler::onClickImpl() const {
+	SaveAndTrack(context(), document());
 }
 
 DocumentCancelClickHandler::DocumentCancelClickHandler(

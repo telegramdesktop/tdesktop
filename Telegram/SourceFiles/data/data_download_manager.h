@@ -63,12 +63,12 @@ struct DownloadedId {
 	uint64 peerAccessHash = 0;
 
 	std::unique_ptr<DownloadObject> object;
-
 };
 
 struct DownloadingId {
 	DownloadObject object;
 	DownloadDate started = 0;
+	QString path;
 	int ready = 0;
 	int total = 0;
 	bool done = false;
@@ -80,6 +80,8 @@ public:
 	~DownloadManager();
 
 	void trackSession(not_null<Main::Session*> session);
+
+	[[nodiscard]] DownloadDate computeNextStartDate();
 
 	void addLoading(DownloadObject object);
 	void addLoaded(
@@ -126,8 +128,6 @@ private:
 		SessionData &data,
 		std::vector<DownloadingId>::iterator i);
 	void clearLoading();
-
-	[[nodiscard]] int64 computeNextStarted();
 
 	[[nodiscard]] SessionData &sessionData(not_null<Main::Session*> session);
 	[[nodiscard]] const SessionData &sessionData(

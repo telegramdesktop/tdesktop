@@ -200,8 +200,10 @@ Key WrapWidget::key() const {
 
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
-		return Dialogs::RowDescriptor(peer->owner().history(peer), FullMsgId());
-	} else if (key().settingsSelf() || key().poll()) {
+		return Dialogs::RowDescriptor(
+			peer->owner().history(peer),
+			FullMsgId());
+	} else if (key().settingsSelf() || key().isDownloads() || key().poll()) {
 		return Dialogs::RowDescriptor();
 	}
 	Unexpected("Owner in WrapWidget::activeChat().");

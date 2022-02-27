@@ -475,6 +475,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
+"lng_settings_security" = "Security";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_password_title" = "Two-step verification";
 "lng_settings_sessions_title" = "Active sessions";
@@ -732,6 +733,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq_button" = "Go to FAQ";
 "lng_settings_ask_ok" = "Ask a Volunteer";
 "lng_settings_faq" = "Telegram FAQ";
+"lng_settings_features" = "Telegram Features";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 
@@ -1831,6 +1833,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
 "lng_context_set_as_quick" = "Set As Quick";
+"lng_context_delete_from_disk" = "Delete from disk";
+"lng_context_delete_all_files" = "Delete all files";
+
+"lng_downloads_section" = "Downloads";
+"lng_downloads_view_in_chat" = "View in chat";
+"lng_downloads_view_in_section" = "View in downloads";
+"lng_downloads_delete_sure_one" = "Do you want to delete this file?";
+"lng_downloads_delete_sure#one" = "Do you want to delete {count} file?";
+"lng_downloads_delete_sure#other" = "Do you want to delete {count} files?";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";

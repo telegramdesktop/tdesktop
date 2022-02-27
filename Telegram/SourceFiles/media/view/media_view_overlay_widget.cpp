@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_file_click_handler.h"
+#include "data/data_download_manager.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -1561,14 +1562,21 @@ void OverlayWidget::saveAs() {
 					f.open(QIODevice::WriteOnly);
 					f.write(bytes);
 				}
+				if (_message) {
+					auto &manager = Core::App().downloadManager();
+					manager.addLoaded({
+						.item = _message,
+						.document = _document,
+					}, file, manager.computeNextStartDate());
+				}
 			}
 
 			if (bytes.isEmpty()) {
 				location.accessDisable();
 			}
 		} else {
-			DocumentSaveClickHandler::Save(
-				fileOrigin(),
+			DocumentSaveClickHandler::SaveAndTrack(
+				_message ? _message->fullId() : FullMsgId(),
 				_document,
 				DocumentSaveClickHandler::Mode::ToNewFile);
 			updateControls();
@@ -1671,14 +1679,20 @@ void OverlayWidget::downloadMedia() {
 				QFile(toName).remove();
 				if (!QFile(location.name()).copy(toName)) {
 					toName = QString();
+				} else if (_message) {
+					auto &manager = Core::App().downloadManager();
+					manager.addLoaded({
+						.item = _message,
+						.document = _document,
+					}, toName, manager.computeNextStartDate());
 				}
 			}
 			location.accessDisable();
 		} else {
 			if (_document->filepath(true).isEmpty()
 				&& !_document->loading()) {
-				DocumentSaveClickHandler::Save(
-					fileOrigin(),
+				DocumentSaveClickHandler::SaveAndTrack(
+					_message ? _message->fullId() : FullMsgId(),
 					_document,
 					DocumentSaveClickHandler::Mode::ToFile);
 				updateControls();

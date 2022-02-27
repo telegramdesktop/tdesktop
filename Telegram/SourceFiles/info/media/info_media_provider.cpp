@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
+#include "data/data_document.h"
 #include "styles/style_info.h"
 
 namespace Info::Media {
@@ -476,8 +477,10 @@ bool Provider::allowSaveFileAs(
 	return item->allowsForward();
 }
 
-std::optional<QString> Provider::deleteMenuPhrase() {
-	return std::nullopt;
+QString Provider::showInFolderPath(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) {
+	return document->filepath(true);
 }
 
 void Provider::applyDragSelection(

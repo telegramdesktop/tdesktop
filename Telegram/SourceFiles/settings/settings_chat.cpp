@@ -898,7 +898,7 @@ void SetupDataStorage(
 
 	AddButton(
 		container,
-		rpl::single(u"Downloads"_q),
+		tr::lng_downloads_section(),
 		st::settingsButton,
 		{ &st::settingsIconDownload, kIconPurple }
 	)->setClickedCallback([=] {

@@ -100,7 +100,11 @@ void Provider::refreshViewer() {
 				const auto item = id->object.item;
 				if (!copy.remove(item) && !_downloaded.contains(item)) {
 					_downloading.emplace(item);
-					_elements.push_back(Element{ item, id->started });
+					_elements.push_back({
+						.item = item,
+						.started = id->started,
+						.path = id->path,
+					});
 					trackItemSession(item);
 					refreshPostponed(true);
 				}
@@ -130,7 +134,9 @@ void Provider::refreshViewer() {
 			remove(item);
 		} else {
 			_downloaded.remove(item);
-			_addPostponed.remove(item);
+			_addPostponed.erase(
+				ranges::remove(_addPostponed, item, &Element::item),
+				end(_addPostponed));
 		}
 	}, _lifetime);
 
@@ -143,11 +149,21 @@ void Provider::addPostponed(not_null<const Data::DownloadedId*> entry) {
 
 	const auto item = entry->object->item;
 	trackItemSession(item);
-	if (_addPostponed.emplace(item, entry->started).second
-		&& _addPostponed.size() == 1) {
-		Ui::PostponeCall(this, [=] {
-			performAdd();
+	const auto i = ranges::find(_addPostponed, item, &Element::item);
+	if (i != end(_addPostponed)) {
+		i->path = entry->path;
+		i->started = entry->started;
+	} else {
+		_addPostponed.push_back({
+			.item = item,
+			.started = entry->started,
+			.path = entry->path,
 		});
+		if (_addPostponed.size() == 1) {
+			Ui::PostponeCall(this, [=] {
+				performAdd();
+			});
+		}
 	}
 }
 
@@ -155,17 +171,19 @@ void Provider::performAdd() {
 	if (_addPostponed.empty()) {
 		return;
 	}
-	for (const auto &[item, started] : base::take(_addPostponed)) {
-		_downloaded.emplace(item);
-		if (!_downloading.remove(item)) {
-			_elements.push_back(Element{ item, started });
+	for (auto &element : base::take(_addPostponed)) {
+		_downloaded.emplace(element.item);
+		if (!_downloading.remove(element.item)) {
+			_elements.push_back(std::move(element));
 		}
 	}
 	refreshPostponed(true);
 }
 
 void Provider::remove(not_null<const HistoryItem*> item) {
-	_addPostponed.remove(item);
+	_addPostponed.erase(
+		ranges::remove(_addPostponed, item, &Element::item),
+		end(_addPostponed));
 	_downloading.remove(item);
 	_downloaded.remove(item);
 	_elements.erase(
@@ -361,8 +379,11 @@ bool Provider::allowSaveFileAs(
 	return false;
 }
 
-std::optional<QString> Provider::deleteMenuPhrase() {
-	return u"Delete from disk"_q;
+QString Provider::showInFolderPath(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) {
+	const auto i = ranges::find(_elements, item, &Element::item);
+	return (i != end(_elements)) ? i->path : QString();
 }
 
 void Provider::saveState(
