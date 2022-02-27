@@ -495,6 +495,7 @@ private:
 
 };
 
+[[nodiscard]] Main::Session *SessionByUniqueId(uint64 sessionUniqueId);
 [[nodiscard]] HistoryItem *MessageByGlobalId(GlobalMsgId globalId);
 
 [[nodiscard]] QDateTime ItemDateTime(not_null<const HistoryItem*> item);

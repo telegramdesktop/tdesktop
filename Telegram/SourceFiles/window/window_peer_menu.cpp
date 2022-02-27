@@ -1083,7 +1083,7 @@ void BlockSenderFromRepliesBox(
 		Window::ClearReply{ id });
 }
 
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		Data::ForwardDraft &&draft,
 		FnMut<void()> &&successCallback) {
@@ -1130,7 +1130,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	return weak->data();
 }
 
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		MessageIdsList &&items,
 		FnMut<void()> &&successCallback) {
@@ -1140,7 +1140,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		std::move(successCallback));
 }
 
-QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<History*> history,
 		MessageIdsList &&items,

@@ -93,6 +93,14 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
+rpl::producer<SelectedItems> Widget::selectedListValue() const {
+	return _inner->selectedListValue();
+}
+
+void Widget::selectionAction(SelectionAction action) {
+	_inner->selectionAction(action);
+}
+
 std::shared_ptr<Info::Memento> Make(not_null<UserData*> self) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(

@@ -87,6 +87,8 @@ public:
 		const QString &path,
 		DownloadDate started);
 
+	void deleteFiles(const std::vector<GlobalMsgId> &ids);
+
 	[[nodiscard]] auto loadingList() const
 		-> ranges::any_view<const DownloadingId*, ranges::category::input>;
 	[[nodiscard]] DownloadProgress loadingProgress() const;

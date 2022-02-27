@@ -679,7 +679,7 @@ void InnerWidget::setupContent() {
 			st::boxRowPadding.right(),
 			st::boxMediumSkip });
 	for (const auto &answer : _poll->answers) {
-		const auto session = &_controller->parentController()->session();
+		const auto session = &_controller->session();
 		const auto controller = CreateAnswerRows(
 			_content,
 			_visibleTop.value(),

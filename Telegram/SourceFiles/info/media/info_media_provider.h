@@ -46,12 +46,20 @@ public:
 		not_null<const HistoryItem*> a,
 		not_null<const HistoryItem*> b) override;
 
+	ListItemSelectionData computeSelectionData(
+		not_null<const HistoryItem*> item,
+		TextSelection selection) override;
 	void applyDragSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
 		bool skipFrom,
 		not_null<const HistoryItem*> tillItem,
 		bool skipTill) override;
+
+	bool allowSaveFileAs(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) override;
+	std::optional<QString> deleteMenuPhrase() override;
 
 	void saveState(
 		not_null<Memento*> memento,

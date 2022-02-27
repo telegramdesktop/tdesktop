@@ -461,6 +461,25 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	Unexpected("Type in ListWidget::createLayout()");
 }
 
+ListItemSelectionData Provider::computeSelectionData(
+		not_null<const HistoryItem*> item,
+		TextSelection selection) {
+	auto result = ListItemSelectionData(selection);
+	result.canDelete = item->canDelete();
+	result.canForward = item->allowsForward();
+	return result;
+}
+
+bool Provider::allowSaveFileAs(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) {
+	return item->allowsForward();
+}
+
+std::optional<QString> Provider::deleteMenuPhrase() {
+	return std::nullopt;
+}
+
 void Provider::applyDragSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
@@ -480,10 +499,11 @@ void Provider::applyDragSelection(
 	for (auto &layoutItem : _layouts) {
 		auto &&universalId = layoutItem.first;
 		if (universalId <= fromId && universalId > tillId) {
+			const auto item = layoutItem.second.item->getItem();
 			ChangeItemSelection(
 				selected,
-				layoutItem.second.item->getItem(),
-				FullSelection);
+				item,
+				computeSelectionData(item, FullSelection));
 		}
 	}
 }

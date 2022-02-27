@@ -343,9 +343,9 @@ void WrapWidget::createTopBar() {
 		_controller.get(),
 		TopBarStyle(wrapValue),
 		std::move(selectedItems));
-	_topBar->cancelSelectionRequests(
-	) | rpl::start_with_next([this] {
-		_content->cancelSelection();
+	_topBar->selectionActionRequests(
+	) | rpl::start_with_next([=](SelectionAction action) {
+		_content->selectionAction(action);
 	}, _topBar->lifetime());
 
 	_topBar->setTitle(TitleValue(

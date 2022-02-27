@@ -1308,16 +1308,24 @@ HistoryItem::~HistoryItem() {
 	applyTTL(0);
 }
 
-HistoryItem *MessageByGlobalId(GlobalMsgId globalId) {
-	if (!globalId.sessionUniqueId || !globalId.itemId) {
+Main::Session *SessionByUniqueId(uint64 sessionUniqueId) {
+	if (!sessionUniqueId) {
 		return nullptr;
 	}
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (const auto session = account->maybeSession()) {
-			if (session->uniqueId() == globalId.sessionUniqueId) {
-				return session->data().message(globalId.itemId);
+			if (session->uniqueId() == sessionUniqueId) {
+				return session;
 			}
 		}
+	}
+	return nullptr;
+}
+
+HistoryItem *MessageByGlobalId(GlobalMsgId globalId) {
+	const auto sessionId = globalId.itemId ? globalId.sessionUniqueId : 0;
+	if (const auto session = SessionByUniqueId(sessionId)) {
+		return session->data().message(globalId.itemId);
 	}
 	return nullptr;
 }

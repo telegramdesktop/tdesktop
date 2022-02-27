@@ -83,7 +83,8 @@ public:
 	void setSelectedItems(SelectedItems &&items);
 	SelectedItems takeSelectedItems();
 
-	rpl::producer<> cancelSelectionRequests() const;
+	[[nodiscard]] auto selectionActionRequests() const
+		-> rpl::producer<SelectionAction>;
 
 	void finishAnimating() {
 		updateControlsVisibility(anim::type::instant);
@@ -115,9 +116,7 @@ private:
 	[[nodiscard]] bool computeCanForward() const;
 	void updateSelectionState();
 	void createSelectionControls();
-	void clearSelectionControls();
 
-	MessageIdsList collectItems() const;
 	void performForward();
 	void performDelete();
 
@@ -161,7 +160,7 @@ private:
 	QPointer<Ui::FadeWrap<Ui::LabelWithNumbers>> _selectionText;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
-	rpl::event_stream<> _cancelSelectionClicks;
+	rpl::event_stream<SelectionAction> _selectionActionRequests;
 
 	using UpdateCallback = Fn<bool(anim::type)>;
 	std::map<QObject*, UpdateCallback> _updateControlCallbacks;

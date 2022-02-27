@@ -99,7 +99,7 @@ public:
 		not_null<Memento*> memento);
 
 	rpl::producer<SelectedItems> selectedListValue() const override;
-	void cancelSelection() override;
+	void selectionAction(SelectionAction action) override;
 
 private:
 	void saveState(not_null<Memento*> memento);

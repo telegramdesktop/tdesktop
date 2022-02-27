@@ -924,7 +924,7 @@ Document::Document(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(delegate, parent)
 , _data(fields.document)
-, _msgl(goToMessageClickHandler(parent))
+, _msgl(parent->isHistoryEntry() ? goToMessageClickHandler(parent) : nullptr)
 , _namel(std::make_shared<DocumentOpenClickHandler>(
 	_data,
 	crl::guard(this, [=](FullMsgId id) {
@@ -1189,7 +1189,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		p.drawTextLeft(nameleft, statustop, _width, _status.text());
 	}
 	if (datetop >= 0 && clip.intersects(style::rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
-		p.setFont(ClickHandler::showAsActive(_msgl) ? st::normalFont->underline() : st::normalFont);
+		p.setFont((_msgl && ClickHandler::showAsActive(_msgl))
+			? st::normalFont->underline()
+			: st::normalFont);
 		p.setPen(st::mediaInFg);
 		p.drawTextLeft(nameleft, datetop, _width, _date, _datew);
 	}

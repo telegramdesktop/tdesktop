@@ -148,8 +148,8 @@ rpl::producer<SelectedItems> InnerWidget::selectedListValue() const {
 	) | rpl::flatten_latest();
 }
 
-void InnerWidget::cancelSelection() {
-	_list->cancelSelection();
+void InnerWidget::selectionAction(SelectionAction action) {
+	_list->selectionAction(action);
 }
 
 InnerWidget::~InnerWidget() = default;

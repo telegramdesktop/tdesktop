@@ -2601,7 +2601,9 @@ void GroupCall::requestCurrentTimeStart(
 		});
 	}).fail([=] {
 		finish(0);
-	}).handleAllErrors().send();
+	}).handleAllErrors().toDC(
+		MTP::groupCallStreamDcId(_broadcastDcId)
+	).send();
 }
 
 void GroupCall::requestCurrentTimeCancel(

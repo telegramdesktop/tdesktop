@@ -335,13 +335,33 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	return nullptr;
 }
 
+ListItemSelectionData Provider::computeSelectionData(
+		not_null<const HistoryItem*> item,
+		TextSelection selection) {
+	auto result = ListItemSelectionData(selection);
+	result.canDelete = true;
+	result.canForward = item->allowsForward()
+		&& (&item->history()->session() == &_controller->session());
+	return result;
+}
+
 void Provider::applyDragSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
 		bool skipFrom,
 		not_null<const HistoryItem*> tillItem,
 		bool skipTill) {
-	// #TODO downloads
+	// #TODO downloads selection
+}
+
+bool Provider::allowSaveFileAs(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) {
+	return false;
+}
+
+std::optional<QString> Provider::deleteMenuPhrase() {
+	return u"Delete from disk"_q;
 }
 
 void Provider::saveState(

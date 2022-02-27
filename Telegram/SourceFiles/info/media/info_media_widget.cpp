@@ -93,8 +93,8 @@ rpl::producer<SelectedItems> Widget::selectedListValue() const {
 	return _inner->selectedListValue();
 }
 
-void Widget::cancelSelection() {
-	_inner->cancelSelection();
+void Widget::selectionAction(SelectionAction action) {
+	_inner->selectionAction(action);
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {

@@ -27,6 +27,7 @@ enum class PointState : char;
 
 namespace Ui {
 class PopupMenu;
+class BoxContent;
 } // namespace Ui
 
 namespace Overview {
@@ -65,9 +66,7 @@ public:
 
 	rpl::producer<int> scrollToRequests() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
-	void cancelSelection() {
-		clearSelected();
-	}
+	void selectionAction(SelectionAction action);
 
 	QRect getCurrentSongGeometry();
 	rpl::producer<> checkForHide() const {
@@ -152,7 +151,6 @@ private:
 	void setupSelectRestriction();
 
 	QMargins padding() const;
-	bool isMyItem(not_null<const HistoryItem*> item) const;
 	bool isItemLayout(
 		not_null<const HistoryItem*> item,
 		BaseLayout *layout) const;
@@ -168,6 +166,8 @@ private:
 
 	[[nodiscard]] SelectedItems collectSelectedItems() const;
 	[[nodiscard]] MessageIdsList collectSelectedIds() const;
+	[[nodiscard]] MessageIdsList collectSelectedIds(
+		const SelectedItems &items) const;
 	void pushSelectedItems();
 	[[nodiscard]] bool hasSelected() const;
 	[[nodiscard]] bool isSelectedItem(
@@ -182,7 +182,7 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void deleteItem(GlobalMsgId globalId);
-	DeleteMessagesBox *deleteItems(MessageIdsList &&items);
+	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection);
@@ -254,7 +254,7 @@ private:
 	void checkMoveToOtherViewer();
 	void clearHeavyItems();
 
-	void setActionBoxWeak(QPointer<Ui::RpWidget> box);
+	void setActionBoxWeak(QPointer<Ui::BoxContent> box);
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
@@ -290,7 +290,7 @@ private:
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
-	QPointer<Ui::RpWidget> _actionBoxWeak;
+	QPointer<Ui::BoxContent> _actionBoxWeak;
 	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;

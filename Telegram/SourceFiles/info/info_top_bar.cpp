@@ -434,8 +434,8 @@ SelectedItems TopBar::takeSelectedItems() {
 	return std::move(_selectedItems);
 }
 
-rpl::producer<> TopBar::cancelSelectionRequests() const {
-	return _cancelSelectionClicks.events();
+rpl::producer<SelectionAction> TopBar::selectionActionRequests() const {
+	return _selectionActionRequests.events();
 }
 
 void TopBar::updateSelectionState() {
@@ -466,9 +466,10 @@ void TopBar::createSelectionControls() {
 		st::infoTopBarScale));
 	_cancelSelection->setDuration(st::infoTopBarDuration);
 	_cancelSelection->entity()->clicks(
-	) | rpl::to_empty
-	| rpl::start_to_stream(
-		_cancelSelectionClicks,
+	) | rpl::map_to(
+		SelectionAction::Clear
+	) | rpl::start_to_stream(
+		_selectionActionRequests,
 		_cancelSelection->lifetime());
 	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(
 		this,
@@ -488,7 +489,12 @@ void TopBar::createSelectionControls() {
 		_forward.data(),
 		[this] { return selectionMode() && _canForward; });
 	_forward->setDuration(st::infoTopBarDuration);
-	_forward->entity()->addClickHandler([this] { performForward(); });
+	_forward->entity()->clicks(
+	) | rpl::map_to(
+		SelectionAction::Forward
+	) | rpl::start_to_stream(
+		_selectionActionRequests,
+		_cancelSelection->lifetime());
 	_forward->entity()->setVisible(_canForward);
 	_delete = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
@@ -498,7 +504,12 @@ void TopBar::createSelectionControls() {
 		_delete.data(),
 		[this] { return selectionMode() && _canDelete; });
 	_delete->setDuration(st::infoTopBarDuration);
-	_delete->entity()->addClickHandler([this] { performDelete(); });
+	_delete->entity()->clicks(
+	) | rpl::map_to(
+		SelectionAction::Delete
+	) | rpl::start_to_stream(
+		_selectionActionRequests,
+		_cancelSelection->lifetime());
 	_delete->entity()->setVisible(_canDelete);
 
 	updateControlsGeometry(width());
@@ -541,50 +552,12 @@ bool TopBar::searchMode() const {
 	return _searchModeAvailable && _searchModeEnabled;
 }
 
-MessageIdsList TopBar::collectItems() const {
-	return ranges::views::all(
-		_selectedItems.list
-	) | ranges::views::transform([](auto &&item) {
-		return item.globalId;
-	}) | ranges::views::filter([&](const GlobalMsgId &globalId) {
-		const auto session = &_navigation->session();
-		return (globalId.sessionUniqueId == session->uniqueId())
-			&& (session->data().message(globalId.itemId) != nullptr);
-	}) | ranges::views::transform([](const GlobalMsgId &globalId) {
-		return globalId.itemId;
-	}) | ranges::to_vector;
-}
-
 void TopBar::performForward() {
-	auto items = collectItems();
-	if (items.empty()) {
-		_cancelSelectionClicks.fire({});
-		return;
-	}
-	Window::ShowForwardMessagesBox(
-		_navigation,
-		std::move(items),
-		[weak = Ui::MakeWeak(this)] {
-			if (weak) {
-				weak->_cancelSelectionClicks.fire({});
-			}
-		});
+	_selectionActionRequests.fire(SelectionAction::Forward);
 }
 
 void TopBar::performDelete() {
-	// #TODO downloads
-	auto items = collectItems();
-	if (items.empty()) {
-		_cancelSelectionClicks.fire({});
-	} else {
-		auto box = Box<DeleteMessagesBox>(
-			&_navigation->session(),
-			std::move(items));
-		box->setDeleteConfirmedCallback(crl::guard(this, [=] {
-			_cancelSelectionClicks.fire({});
-		}));
-		_navigation->parentController()->show(std::move(box));
-	}
+	_selectionActionRequests.fire(SelectionAction::Delete);
 }
 
 rpl::producer<QString> TitleValue(

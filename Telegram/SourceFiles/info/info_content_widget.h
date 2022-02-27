@@ -70,7 +70,7 @@ public:
 	QRect floatPlayerAvailableRect() const;
 
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
-	virtual void cancelSelection() {
+	virtual void selectionAction(SelectionAction action) {
 	}
 
 	virtual void saveChanges(FnMut<void()> done);

@@ -242,6 +242,73 @@ void DownloadManager::addLoaded(
 	}
 }
 
+void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
+	struct DocumentDescriptor {
+		uint64 sessionUniqueId = 0;
+		DocumentId documentId = 0;
+		FullMsgId itemId;
+	};
+	auto sessions = base::flat_set<not_null<Main::Session*>>();
+	auto files = base::flat_map<QString, DocumentDescriptor>();
+	for (const auto &id : ids) {
+		if (const auto item = MessageByGlobalId(id)) {
+			const auto session = &item->history()->session();
+			const auto i = _sessions.find(session);
+			if (i == end(_sessions)) {
+				continue;
+			}
+			auto &data = i->second;
+			const auto j = ranges::find(
+				data.downloading,
+				not_null{ item },
+				ByItem);
+			if (j != end(data.downloading)) {
+				cancel(data, j);
+			}
+
+			const auto k = ranges::find(data.downloaded, item, ByItem);
+			if (k != end(data.downloaded)) {
+				const auto document = k->object->document;
+				files.emplace(k->path, DocumentDescriptor{
+					.sessionUniqueId = id.sessionUniqueId,
+					.documentId = document ? document->id : DocumentId(),
+					.itemId = id.itemId,
+				});
+				_loaded.remove(item);
+				_generated.remove(item);
+				if (document) {
+					_generatedDocuments.remove(document);
+				}
+				data.downloaded.erase(k);
+				_loadedRemoved.fire_copy(item);
+
+				sessions.emplace(session);
+			}
+		}
+	}
+	for (const auto session : sessions) {
+		writePostponed(session);
+	}
+	crl::async([files = std::move(files)] {
+		for (const auto &[path, descriptor] : files) {
+			QFile(path).remove();
+			crl::on_main([descriptor] {
+				if (const auto session = SessionByUniqueId(
+						descriptor.sessionUniqueId)) {
+					if (const auto id = descriptor.documentId) {
+						[[maybe_unused]] const auto location
+							= session->data().document(id)->location(true);
+					}
+					const auto itemId = descriptor.itemId;
+					if (const auto item = session->data().message(itemId)) {
+						session->data().requestItemRepaint(item);
+					}
+				}
+			});
+		}
+	});
+}
+
 auto DownloadManager::loadingList() const
 -> ranges::any_view<const DownloadingId*, ranges::category::input> {
 	return ranges::views::all(

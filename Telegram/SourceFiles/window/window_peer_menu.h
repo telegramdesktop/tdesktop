@@ -15,6 +15,7 @@ class History;
 
 namespace Ui {
 class RpWidget;
+class BoxContent;
 class GenericBox;
 } // namespace Ui
 
@@ -98,16 +99,16 @@ void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	Data::ForwardDraft &&draft,
 	FnMut<void()> &&successCallback = nullptr);
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
 
-QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<History*> history,
 	MessageIdsList &&items,

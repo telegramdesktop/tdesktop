@@ -303,7 +303,7 @@ rpl::producer<bool> Controller::searchEnabledByContent() const {
 rpl::producer<QString> Controller::mediaSourceQueryValue() const {
 	return _searchController
 		? _searchController->currentQueryValue()
-		: rpl::single(QString()); // #TODO downloads
+		: rpl::single(QString()); // #TODO downloads search
 }
 
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(

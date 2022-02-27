@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
+#include "data/data_download_manager.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
@@ -46,9 +48,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "facades.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
@@ -215,6 +219,14 @@ rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 		collectSelectedItems());
 }
 
+void ListWidget::selectionAction(SelectionAction action) {
+	switch (action) {
+	case SelectionAction::Clear: clearSelected(); return;
+	case SelectionAction::Forward: forwardSelected(); return;
+	case SelectionAction::Delete: deleteSelected(); return;
+	}
+}
+
 QRect ListWidget::getCurrentSongGeometry() {
 	const auto type = AudioMsgId::Type::Song;
 	const auto current = ::Media::Player::instance()->current(type);
@@ -307,11 +319,21 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 }
 
 MessageIdsList ListWidget::collectSelectedIds() const {
-	const auto selected = collectSelectedItems();
+	return collectSelectedIds(collectSelectedItems());
+}
+
+MessageIdsList ListWidget::collectSelectedIds(
+		const SelectedItems &items) const {
+	const auto session = &_controller->session();
 	return ranges::views::all(
-		selected.list
-	) | ranges::views::transform([](const SelectedItem &item) {
-		return item.globalId.itemId; // #TODO downloads
+		items.list
+	) | ranges::views::transform([](auto &&item) {
+		return item.globalId;
+	}) | ranges::views::filter([&](const GlobalMsgId &globalId) {
+		return (globalId.sessionUniqueId == session->uniqueId())
+			&& (session->data().message(globalId.itemId) != nullptr);
+	}) | ranges::views::transform([](const GlobalMsgId &globalId) {
+		return globalId.itemId;
 	}) | ranges::to_vector;
 }
 
@@ -806,19 +828,20 @@ void ListWidget::showContextMenu(
 
 	auto link = ClickHandler::getActive();
 
-	const auto itemFullId = item->fullId();
 	const auto owner = &session().data();
 	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
-	_contextMenu->addAction(
-		tr::lng_context_to_msg(tr::now),
-		[=] {
-			if (const auto item = owner->message(itemFullId)) {
-				_controller->parentController()->showPeerHistoryAtItem(item);
-			}
-		},
-		&st::menuIconShowInChat);
+	if (item->isHistoryEntry()) {
+		_contextMenu->addAction(
+			tr::lng_context_to_msg(tr::now),
+			[=] {
+				if (const auto item = MessageByGlobalId(globalId)) {
+					goToMessageClickHandler(item)->onClick({});
+				}
+			},
+			&st::menuIconShowInChat);
+	}
 
 	const auto lnkPhoto = link
 		? reinterpret_cast<PhotoData*>(
@@ -870,12 +893,11 @@ void ListWidget::showContextMenu(
 					this,
 					[=] {
 						DocumentSaveClickHandler::Save(
-							itemFullId,
+							globalId.itemId,
 							lnkDocument,
 							DocumentSaveClickHandler::Mode::ToNewFile);
 					});
-				if (item->history()->peer->allowsForwarding()
-					&& !item->forbidsForward()) {
+				if (_provider->allowSaveFileAs(item, lnkDocument)) {
 					_contextMenu->addAction(
 						(isVideo
 							? tr::lng_context_save_video(tr::now)
@@ -911,7 +933,9 @@ void ListWidget::showContextMenu(
 		}
 		if (canDeleteAll()) {
 			_contextMenu->addAction(
-				tr::lng_context_delete_selected(tr::now),
+				(_controller->isDownloads()
+					? u"Delete from disk"_q
+					: tr::lng_context_delete_selected(tr::now)),
 				crl::guard(this, [this] {
 					deleteSelected();
 				}),
@@ -925,18 +949,28 @@ void ListWidget::showContextMenu(
 			&st::menuIconSelect);
 	} else {
 		if (overSelected != SelectionState::NotOverSelectedItems) {
-			if (item->allowsForward()) {
+			const auto selectionData = _provider->computeSelectionData(
+				item,
+				FullSelection);
+			if (selectionData.canForward) {
 				_contextMenu->addAction(
 					tr::lng_context_forward_msg(tr::now),
 					crl::guard(this, [=] { forwardItem(globalId); }),
 					&st::menuIconForward);
 			}
-			if (item->canDelete()) {
-				_contextMenu->addAction(Ui::DeleteMessageContextAction(
-					_contextMenu->menu(),
-					crl::guard(this, [=] { deleteItem(globalId); }),
-					item->ttlDestroyAt(),
-					[=] { _contextMenu = nullptr; }));
+			if (selectionData.canDelete) {
+				if (_controller->isDownloads()) {
+					_contextMenu->addAction(
+						u"Delete from disk"_q,
+						crl::guard(this, [=] { deleteItem(globalId); }),
+						&st::menuIconDelete);
+				} else {
+					_contextMenu->addAction(Ui::DeleteMessageContextAction(
+						_contextMenu->menu(),
+						crl::guard(this, [=] { deleteItem(globalId); }),
+						item->ttlDestroyAt(),
+						[=] { _contextMenu = nullptr; }));
+				}
 			}
 		}
 		if (!_provider->hasSelectRestriction()) {
@@ -1005,36 +1039,62 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 }
 
 void ListWidget::deleteSelected() {
-	if (const auto box = deleteItems(collectSelectedIds())) {
-		box->setDeleteConfirmedCallback(crl::guard(this, [=]{
-			clearSelected();
-		}));
-	}
+	deleteItems(collectSelectedItems(), crl::guard(this, [=]{
+		clearSelected();
+	}));
 }
 
 void ListWidget::deleteItem(GlobalMsgId globalId) {
-	const auto session = &_controller->session();
-	if (globalId.sessionUniqueId == session->uniqueId()) {
-		if (const auto item = session->data().message(globalId.itemId)) {
-			deleteItems({ 1, item->fullId() });
+	if (const auto item = MessageByGlobalId(globalId)) {
+		auto items = SelectedItems(_provider->type());
+		items.list.push_back(SelectedItem(item->globalId()));
+		const auto selectionData = _provider->computeSelectionData(
+			item,
+			FullSelection);
+		items.list.back().canDelete = selectionData.canDelete;
+		items.list.back().canForward = selectionData.canForward;
+		deleteItems(std::move(items));
+	}
+}
+
+void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
+	const auto window = _controller->parentController();
+	if (items.list.empty()) {
+		return;
+	} else if (_controller->isDownloads()) {
+		const auto phrase = (items.list.size() == 1)
+			? u"Do you want to delete this file?"_q
+			: u"Do you want to delete X files?"_q;
+		const auto deleteSure = [=] {
+			const auto ids = ranges::views::all(
+				items.list
+			) | ranges::views::transform([](const SelectedItem &item) {
+				return item.globalId;
+			}) | ranges::to_vector;
+			Core::App().downloadManager().deleteFiles(ids);
+			if (const auto box = _actionBoxWeak.data()) {
+				box->closeBox();
+			}
+		};
+		setActionBoxWeak(window->show(Box<Ui::ConfirmBox>(
+			phrase,
+			tr::lng_box_delete(tr::now),
+			st::attentionBoxButton,
+			deleteSure)));
+	} else if (auto list = collectSelectedIds(items); !list.empty()) {
+		auto box = Box<DeleteMessagesBox>(
+			&_controller->session(),
+			std::move(list));
+		const auto weak = box.data();
+		window->show(std::move(box));
+		setActionBoxWeak(weak);
+		if (confirmed) {
+			weak->setDeleteConfirmedCallback(std::move(confirmed));
 		}
 	}
-	// #TODO downloads
 }
 
-DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
-	if (!items.empty()) {
-		const auto box = Ui::show(
-			Box<DeleteMessagesBox>(
-				&_controller->session(),
-				std::move(items))).data();
-		setActionBoxWeak(box);
-		return box;
-	}
-	return nullptr;
-}
-
-void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
+void ListWidget::setActionBoxWeak(QPointer<Ui::BoxContent> box) {
 	if ((_actionBoxWeak = box)) {
 		_actionBoxWeakLifetime = _actionBoxWeak->alive(
 		) | rpl::start_with_done([weak = Ui::MakeWeak(this)]{
@@ -1087,7 +1147,11 @@ void ListWidget::switchToWordSelection() {
 void ListWidget::applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection) {
-	if (item && ChangeItemSelection(_selected, item, selection)) {
+	if (item
+		&& ChangeItemSelection(
+			_selected,
+			item,
+			_provider->computeSelectionData(item, selection))) {
 		repaintItem(item);
 		pushSelectedItems();
 	}
@@ -1624,7 +1688,10 @@ void ListWidget::applyDragSelection() {
 void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 	if (_dragSelectAction == DragSelectAction::Selecting) {
 		for (auto &[item, data] : _dragSelected) {
-			ChangeItemSelection(applyTo, item, FullSelection);
+			ChangeItemSelection(
+				applyTo,
+				item,
+				_provider->computeSelectionData(item, FullSelection));
 		}
 	} else if (_dragSelectAction == DragSelectAction::Deselecting) {
 		for (auto &[item, data] : _dragSelected) {

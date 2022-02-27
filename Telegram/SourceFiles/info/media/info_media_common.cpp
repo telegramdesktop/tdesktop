@@ -28,22 +28,19 @@ UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
 bool ChangeItemSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> item,
-		TextSelection selection) {
+		ListItemSelectionData selectionData) {
 	const auto changeExisting = [&](auto it) {
 		if (it == selected.cend()) {
 			return false;
-		} else if (it->second.text != selection) {
-			it->second.text = selection;
+		} else if (it->second != selectionData) {
+			it->second = selectionData;
 			return true;
 		}
 		return false;
 	};
 	if (selected.size() < MaxSelectedItems) {
-		const auto [i, ok] = selected.try_emplace(item, selection);
+		const auto [i, ok] = selected.try_emplace(item, selectionData);
 		if (ok) {
-			// #TODO downloads
-			i->second.canDelete = item->canDelete();
-			i->second.canForward = item->allowsForward();
 			return true;
 		}
 		return changeExisting(i);

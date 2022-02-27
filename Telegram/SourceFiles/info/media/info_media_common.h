@@ -32,6 +32,14 @@ struct ListItemSelectionData {
 	bool canForward = false;
 };
 
+inline bool operator==(
+		ListItemSelectionData a,
+		ListItemSelectionData b) {
+	return (a.text == b.text)
+		&& (a.canDelete == b.canDelete)
+		&& (a.canForward == b.canForward);
+}
+
 using ListSelectedMap = base::flat_map<
 	not_null<const HistoryItem*>,
 	ListItemSelectionData,
@@ -83,7 +91,7 @@ using UniversalMsgId = MsgId;
 bool ChangeItemSelection(
 	ListSelectedMap &selected,
 	not_null<const HistoryItem*> item,
-	TextSelection selection);
+	ListItemSelectionData selectionData);
 
 class ListSectionDelegate {
 public:
@@ -132,12 +140,20 @@ public:
 		not_null<const HistoryItem*> a,
 		not_null<const HistoryItem*> b) = 0;
 
+	[[nodiscard]] virtual ListItemSelectionData computeSelectionData(
+		not_null<const HistoryItem*> item,
+		TextSelection selection) = 0;
 	virtual void applyDragSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
 		bool skipFrom,
 		not_null<const HistoryItem*> tillItem,
 		bool skipTill) = 0;
+
+	[[nodiscard]] virtual bool allowSaveFileAs(
+		not_null<const HistoryItem*> item,
+		not_null<DocumentData*> document) = 0;
+	[[nodiscard]] virtual std::optional<QString> deleteMenuPhrase() = 0;
 
 	virtual void saveState(
 		not_null<Memento*> memento,

@@ -21,6 +21,7 @@ namespace Info {
 
 class Controller;
 struct SelectedItems;
+enum class SelectionAction;
 
 namespace Media {
 class ListWidget;
@@ -46,7 +47,7 @@ public:
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
-	void cancelSelection();
+	void selectionAction(SelectionAction action);
 
 	~InnerWidget();
 

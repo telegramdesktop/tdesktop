@@ -66,7 +66,12 @@ struct SelectedItems {
 
 	Storage::SharedMediaType type;
 	std::vector<SelectedItem> list;
+};
 
+enum class SelectionAction {
+	Clear,
+	Forward,
+	Delete,
 };
 
 class WrapWidget final : public Window::SectionWidget {
