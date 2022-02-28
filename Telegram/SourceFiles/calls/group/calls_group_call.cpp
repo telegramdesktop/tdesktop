@@ -2601,8 +2601,17 @@ void GroupCall::requestCurrentTimeStart(
 				finish(0);
 			}
 		});
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
 		finish(0);
+
+		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q
+			|| error.type() == u"GROUPCALL_FORBIDDEN"_q) {
+			for (const auto &[task, part] : _broadcastParts) {
+				_api.request(part.requestId).cancel();
+			}
+			setState(State::Joining);
+			rejoin();
+		}
 	}).handleAllErrors().toDC(
 		MTP::groupCallStreamDcId(_broadcastDcId)
 	).send();
