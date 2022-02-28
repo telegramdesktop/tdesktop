@@ -5155,6 +5155,9 @@ int HistoryWidget::countInitialScrollTop() {
 		const auto itemTop = _list->itemTop(item);
 		if (itemTop < 0) {
 			setMsgId(0);
+			Ui::ShowMultilineToast({
+				.text = { tr::lng_message_not_found(tr::now) },
+			});
 			return countInitialScrollTop();
 		} else {
 			const auto view = item->mainView();

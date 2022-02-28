@@ -1195,6 +1195,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
+"lng_message_not_found" = "Message doesn't exist.";
 
 "lng_duration_seconds#one" = "{count} second";
 "lng_duration_seconds#other" = "{count} seconds";
