@@ -1013,7 +1013,11 @@ void PeerMenuBlockUserBox(
 	const auto allFromUser = v::is<ClearReply>(suggestClear)
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
-			tr::lng_delete_all_from(tr::now),
+			tr::lng_delete_all_from_user(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(peer->name),
+				Ui::Text::WithEntities),
 			true,
 			st::defaultBoxCheckbox))
 		: nullptr;

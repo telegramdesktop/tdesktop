@@ -1565,7 +1565,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_poll" = "Poll";
 
 "lng_ban_user" = "Ban User";
-"lng_delete_all_from" = "Delete all from this user";
+"lng_delete_all_from_user" = "Delete all from {user}";
 "lng_report_spam" = "Report Spam";
 "lng_report_spam_and_leave" = "Report spam and leave";
 "lng_report_spam_done" = "Thank you for your report.";
