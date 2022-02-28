@@ -68,7 +68,8 @@ GroupCall::GroupCall(
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
 , _scheduleDate(scheduleDate)
-, _rtmp(rtmp) {
+, _rtmp(rtmp)
+, _listenersHidden(rtmp) {
 }
 
 GroupCall::~GroupCall() {
@@ -87,6 +88,10 @@ bool GroupCall::loaded() const {
 
 bool GroupCall::rtmp() const {
 	return _rtmp;
+}
+
+bool GroupCall::listenersHidden() const {
+	return _listenersHidden;
 }
 
 not_null<PeerData*> GroupCall::peer() const {
@@ -395,6 +400,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		_version = 1;
 	}
 	_rtmp = data.is_rtmp_stream();
+	_listenersHidden = data.is_listeners_hidden();
 	_joinMuted = data.is_join_muted();
 	_canChangeJoinMuted = data.is_can_change_join_muted();
 	_joinedToTop = !data.is_join_date_asc();

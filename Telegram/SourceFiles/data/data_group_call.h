@@ -64,6 +64,7 @@ public:
 	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
 	[[nodiscard]] QString title() const {
@@ -244,6 +245,7 @@ private:
 	bool _joinedToTop = false;
 	bool _applyingQueuedUpdates = false;
 	bool _rtmp = false;
+	bool _listenersHidden = false;
 
 };
 

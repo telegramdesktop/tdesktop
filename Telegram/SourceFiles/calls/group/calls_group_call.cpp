@@ -582,6 +582,7 @@ GroupCall::GroupCall(
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
 , _connectingSoundTimer([=] { playConnectingSoundOnce(); })
+, _listenersHidden(info.rtmp)
 , _rtmp(info.rtmp)
 , _mediaDevices(CreateMediaDevices()) {
 	_muted.value(
@@ -693,7 +694,9 @@ bool GroupCall::screenSharingWithAudio() const {
 
 bool GroupCall::mutedByAdmin() const {
 	const auto mute = muted();
-	return mute == MuteState::ForceMuted || mute == MuteState::RaisedHand;
+	return _rtmp
+		|| (mute == MuteState::ForceMuted)
+		|| (mute == MuteState::RaisedHand);
 }
 
 bool GroupCall::canManage() const {
@@ -756,6 +759,8 @@ void GroupCall::setScheduledDate(TimeId date) {
 }
 
 void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
+	_listenersHidden = real->listenersHidden();
+
 	real->scheduleDateValue(
 	) | rpl::start_with_next([=](TimeId date) {
 		setScheduledDate(date);
@@ -999,6 +1004,10 @@ bool GroupCall::scheduleStartSubscribed() const {
 
 bool GroupCall::rtmp() const {
 	return _rtmp;
+}
+
+bool GroupCall::listenersHidden() const {
+	return _listenersHidden;
 }
 
 Data::GroupCall *GroupCall::lookupReal() const {

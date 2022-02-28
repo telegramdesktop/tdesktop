@@ -1433,8 +1433,9 @@ bool Panel::updateMode() {
 	if (!_viewport) {
 		return false;
 	}
-	const auto wide = _call->hasVideoWithFrames()
-		&& (widget()->width() >= st::groupCallWideModeWidthMin);
+	const auto wide = _call->rtmp()
+		|| (_call->hasVideoWithFrames()
+			&& (widget()->width() >= st::groupCallWideModeWidthMin));
 	const auto mode = wide ? PanelMode::Wide : PanelMode::Default;
 	if (_mode.current() == mode) {
 		return false;
@@ -1457,6 +1458,8 @@ bool Panel::updateMode() {
 		_subtitle.destroy();
 	} else if (!wide && !_subtitle) {
 		refreshTitle();
+	} else if (!_members) {
+		setupMembers();
 	}
 	_wideControlsShown = _showWideControls = true;
 	_wideControlsAnimation.stop();
@@ -1934,7 +1937,7 @@ void Panel::updateButtonsGeometry() {
 		const auto hidden = (shown == 0.);
 
 		if (_viewport) {
-			_viewport->setControlsShown(shown);
+			_viewport->setControlsShown(_call->rtmp() ? 0. : shown);
 		}
 
 		const auto buttonsTop = widget()->height() - anim::interpolate(
@@ -1950,8 +1953,9 @@ void Panel::updateButtonsGeometry() {
 			+ (_settings ->width() + skip)
 			+ _hangup->width();
 		const auto membersSkip = st::groupCallNarrowSkip;
-		const auto membersWidth = st::groupCallNarrowMembersWidth
-			+ 2 * membersSkip;
+		const auto membersWidth = _call->rtmp()
+			? membersSkip
+			: (st::groupCallNarrowMembersWidth + 2 * membersSkip);
 		auto left = membersSkip + (widget()->width()
 			- membersWidth
 			- membersSkip
@@ -2046,6 +2050,7 @@ void Panel::updateMembersGeometry() {
 	if (!_members) {
 		return;
 	}
+	_members->setVisible(!_call->rtmp());
 	const auto desiredHeight = _members->desiredHeight();
 	if (mode() == PanelMode::Wide) {
 		const auto skip = st::groupCallNarrowSkip;
@@ -2056,10 +2061,13 @@ void Panel::updateMembersGeometry() {
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
+		const auto viewportSkip = _call->rtmp()
+			? 0
+			: (skip + membersWidth);
 		_viewport->setGeometry({
 			skip,
 			top,
-			widget()->width() - membersWidth - 3 * skip,
+			widget()->width() - viewportSkip - 2 * skip,
 			widget()->height() - top - skip,
 		});
 	} else {

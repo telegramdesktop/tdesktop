@@ -232,6 +232,7 @@ public:
 	}
 	[[nodiscard]] bool scheduleStartSubscribed() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool listenersHidden() const;
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
@@ -659,6 +660,7 @@ private:
 	base::Timer _pushToTalkCancelTimer;
 	base::Timer _connectingSoundTimer;
 	bool _hadJoinedState = false;
+	bool _listenersHidden = false;
 	bool _rtmp = false;
 
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
