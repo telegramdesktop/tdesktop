@@ -795,6 +795,7 @@ void Panel::setupMembers() {
 
 	_members->show();
 
+	setupEmptyRtmp();
 	refreshControlsBackground();
 	raiseControls();
 
@@ -1594,6 +1595,38 @@ void Panel::updateButtonsStyles() {
 	_hangup->setStyle(wide
 		? st::groupCallHangupSmall
 		: st::groupCallHangup);
+}
+
+void Panel::setupEmptyRtmp() {
+	_call->emptyRtmpValue(
+	) | rpl::start_with_next([=](bool empty) {
+		if (!empty) {
+			_emptyRtmp.destroy();
+			return;
+		} else if (_emptyRtmp) {
+			return;
+		}
+		auto text = _call->rtmpUrl().isEmpty()
+			? tr::lng_group_call_no_stream(
+				lt_group,
+				rpl::single(_peer->name))
+			: tr::lng_group_call_no_stream_admin();
+		_emptyRtmp.create(
+			widget(),
+			std::move(text),
+			st::groupCallVideoLimitLabel);
+		widget()->sizeValue(
+		) | rpl::start_with_next([=](QSize size) {
+			const auto width = std::min(
+				size.width() - st::groupCallWidth / 10,
+				st::groupCallWidth);
+			_emptyRtmp->resizeToWidth(width);
+			_emptyRtmp->move(
+				(size.width() - _emptyRtmp->width()) / 2,
+				(size.height() - _emptyRtmp->height()) / 3);
+		}, _emptyRtmp->lifetime());
+	}, lifetime());
+
 }
 
 void Panel::refreshControlsBackground() {
