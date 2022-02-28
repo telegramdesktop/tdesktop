@@ -990,9 +990,10 @@ void GroupCall::playConnectingSoundOnce() {
 }
 
 bool GroupCall::showChooseJoinAs() const {
-	return (_possibleJoinAs.size() > 1)
-		|| (_possibleJoinAs.size() == 1
-			&& !_possibleJoinAs.front()->isSelf());
+	return !_rtmp
+		&& ((_possibleJoinAs.size() > 1)
+			|| (_possibleJoinAs.size() == 1
+				&& !_possibleJoinAs.front()->isSelf()));
 }
 
 bool GroupCall::scheduleStartSubscribed() const {
@@ -1008,6 +1009,14 @@ bool GroupCall::rtmp() const {
 
 bool GroupCall::listenersHidden() const {
 	return _listenersHidden;
+}
+
+bool GroupCall::emptyRtmp() const {
+	return _emptyRtmp.current();
+}
+
+rpl::producer<bool> GroupCall::emptyRtmpValue() const {
+	return _emptyRtmp.value();
 }
 
 Data::GroupCall *GroupCall::lookupReal() const {
@@ -2601,7 +2610,8 @@ void GroupCall::requestCurrentTimeStart(
 	).done([=](const MTPphone_GroupCallStreamChannels &result) {
 		result.match([&](const MTPDphone_groupCallStreamChannels &data) {
 			const auto &list = data.vchannels().v;
-			if (!list.isEmpty()) {
+			const auto empty = list.isEmpty();
+			if (!empty) {
 				const auto &first = list.front();
 				first.match([&](const MTPDgroupCallStreamChannel &data) {
 					finish(data.vlast_timestamp_ms().v);
@@ -2609,6 +2619,7 @@ void GroupCall::requestCurrentTimeStart(
 			} else {
 				finish(0);
 			}
+			_emptyRtmp = empty;
 		});
 	}).fail([=](const MTP::Error &error) {
 		finish(0);

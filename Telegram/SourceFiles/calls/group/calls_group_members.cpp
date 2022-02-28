@@ -1191,7 +1191,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto muted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::RaisedHand);
 	const auto addCover = true;
-	const auto addVolumeItem = !muted || isMe(participantPeer);
+	const auto addVolumeItem = !_call->rtmp()
+		&& (!muted || isMe(participantPeer));
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
@@ -1430,7 +1431,8 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	const auto addVolumeItem = !muted || isMe(participantPeer);
+	const auto addVolumeItem = !_call->rtmp()
+		&& (!muted || isMe(participantPeer));
 	if (addVolumeItem) {
 		auto otherParticipantStateValue
 			= _call->otherParticipantStateValue(
@@ -1492,6 +1494,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
+			|| _call->rtmp()
 			|| isMe(participantPeer)
 			|| (muteState == Row::State::Inactive
 				&& participantIsCallAdmin

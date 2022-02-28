@@ -876,6 +876,9 @@ rpl::producer<QString> MuteButtonTooltip(not_null<GroupCall*> call) {
 	//				: tr::lng_group_call_set_reminder();
 	//		}) | rpl::flatten_latest();
 	//	}
+	if (call->rtmp()) {
+		return nullptr;
+	}
 		return call->mutedValue(
 		) | rpl::map([](MuteState muted) {
 			switch (muted) {

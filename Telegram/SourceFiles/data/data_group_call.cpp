@@ -492,7 +492,7 @@ void GroupCall::processQueuedUpdates() {
 }
 
 void GroupCall::computeParticipantsCount() {
-	_fullCount = _allParticipantsLoaded
+	_fullCount = (_allParticipantsLoaded && !_listenersHidden)
 		? int(_participants.size())
 		: std::max(int(_participants.size()), _serverParticipantsCount);
 }

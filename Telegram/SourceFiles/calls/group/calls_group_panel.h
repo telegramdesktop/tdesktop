@@ -130,7 +130,8 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
-	void trackControls(bool track);
+	void toggleFullScreen(bool fullscreen);
+	void trackControls(bool track, bool force = false);
 	void raiseControls();
 	void enlargeVideo();
 	void minimizeVideo();
@@ -197,6 +198,7 @@ private:
 	Ui::GL::Window _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
+	rpl::variable<bool> _fullScreen = false;
 
 #ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
@@ -215,7 +217,6 @@ private:
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Viewport> _viewport;
-	rpl::lifetime _trackControlsLifetime;
 	rpl::lifetime _trackControlsOverStateLifetime;
 	rpl::lifetime _trackControlsMenuLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };

@@ -233,6 +233,8 @@ public:
 	[[nodiscard]] bool scheduleStartSubscribed() const;
 	[[nodiscard]] bool rtmp() const;
 	[[nodiscard]] bool listenersHidden() const;
+	[[nodiscard]] bool emptyRtmp() const;
+	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
@@ -593,6 +595,7 @@ private:
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	rpl::variable<bool> _canManage = false;
 	rpl::variable<bool> _videoIsWorking = false;
+	rpl::variable<bool> _emptyRtmp = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
