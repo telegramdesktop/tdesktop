@@ -1083,7 +1083,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 }
 
 void PanelController::readScanError(ReadScanError error) {
-	show(Ui::MakeInformBox([&] {
+	show(Ui::MakeInformBox([&]() -> rpl::producer<QString> {
 		switch (error) {
 		case ReadScanError::FileTooLarge:
 			return tr::lng_passport_error_too_large();
