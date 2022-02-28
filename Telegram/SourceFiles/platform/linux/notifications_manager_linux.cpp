@@ -74,6 +74,9 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 				const Glib::ustring &oldOwner,
 				const Glib::ustring &newOwner) {
 				if (activatable && newOwner.empty()) {
+					crl::on_main([] {
+						Core::App().notifications().clearAll();
+					});
 					return;
 				}
 
@@ -665,7 +668,9 @@ void NotificationData::close() {
 			_notificationId,
 		}),
 		{},
-		std::string(kService));
+		std::string(kService),
+		-1,
+		Gio::DBus::CALL_FLAGS_NO_AUTO_START);
 	_manager->clearNotification(_id);
 }
 
