@@ -337,7 +337,7 @@ void ChooseJoinAsProcess::start(
 	_request = std::make_unique<ChannelsListRequest>(
 		ChannelsListRequest{
 			.peer = peer,
-			.showBox = std::move(showBox),
+			.showBox = showBox,
 			.showToast = std::move(showToast),
 			.done = std::move(done),
 			.context = context });
