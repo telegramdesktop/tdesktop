@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
-constexpr auto kPasswordCharAmount = 28;
+constexpr auto kPasswordCharAmount = 24;
 
 void StartWithBox(
 		not_null<Ui::GenericBox*> box,
@@ -261,7 +261,7 @@ void StartRtmpProcess::FillRtmpRows(
 			const style::FlatLabel &st) {
 		const auto label = container->add(
 			object_ptr<Ui::FlatLabel>(container, std::move(text), st),
-			st::boxRowPadding);
+			st::boxRowPadding + QMargins(0, 0, showButtonStyle->width, 0));
 		label->setSelectable(true);
 		label->setBreakEverywhere(true);
 		if (disabledMenuForLabels) {
@@ -323,6 +323,8 @@ void StartRtmpProcess::FillRtmpRows(
 			: hidden
 			? QString().fill(passChar, kPasswordCharAmount)
 			: key;
+	}) | rpl::after_next([=] {
+		container->resizeToWidth(container->widthNoMargins());
 	});
 	const auto streamKeyLabel = addLabel(
 		std::move(keyLabelContent),

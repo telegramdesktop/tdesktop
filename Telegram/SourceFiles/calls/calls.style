@@ -1008,6 +1008,7 @@ groupCallSettingsToggle: Toggle(defaultToggle) {
 	untoggledFg: groupCallMemberNotJoinedStatus;
 }
 groupCallSettingsButton: SettingsButton(defaultSettingsButton) {
+	padding: margins(24px, 10px, 24px, 8px);
 	textFg: groupCallMembersFg;
 	textFgOver: groupCallMembersFg;
 	textBg: groupCallMembersBg;
@@ -1024,6 +1025,7 @@ groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
 	textFgOver: attentionButtonFgOver;
 }
 groupCallBoxLabel: FlatLabel(boxLabel) {
+	minWidth: 200px;
 	textFg: groupCallMembersFg;
 }
 groupCallJoinAsLabel: FlatLabel(defaultFlatLabel) {
