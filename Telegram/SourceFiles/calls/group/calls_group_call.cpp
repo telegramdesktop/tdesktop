@@ -2582,6 +2582,7 @@ void GroupCall::requestCurrentTimeStart(
 		return;
 	}
 	const auto finish = [=](int64 value) {
+		_requestCurrentTimeRequestId = 0;
 		for (const auto &task : base::take(_requestCurrentTimes)) {
 			task->done(value);
 		}
