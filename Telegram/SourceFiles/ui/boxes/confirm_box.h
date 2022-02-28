@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_variant.h"
 
@@ -43,29 +42,5 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args);
 [[nodiscard]] object_ptr<Ui::GenericBox> MakeConfirmBox(
 	ConfirmBoxArgs &&args);
 [[nodiscard]] object_ptr<Ui::GenericBox> MakeInformBox(v::text::data text);
-
-class ConfirmDontWarnBox : public Ui::BoxContent {
-public:
-	ConfirmDontWarnBox(
-		QWidget*,
-		rpl::producer<TextWithEntities> text,
-		const QString &checkbox,
-		rpl::producer<QString> confirm,
-		FnMut<void(bool)> callback);
-
-protected:
-	void prepare() override;
-
-private:
-	not_null<Ui::RpWidget*> setupContent(
-		rpl::producer<TextWithEntities> text,
-		const QString &checkbox,
-		FnMut<void(bool)> callback);
-
-	rpl::producer<QString> _confirm;
-	FnMut<void()> _callback;
-	not_null<Ui::RpWidget*> _content;
-
-};
 
 } // namespace Ui

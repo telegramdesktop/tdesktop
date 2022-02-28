@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "base/unixtime.h"
 #include "mtproto/mtproto_config.h"
+#include "boxes/abstract_box.h" // Ui::show().
 
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>

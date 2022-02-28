@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_create_adm.h" // Webrtc::Backend.
 #include "tgcalls/VideoCaptureInterface.h"
 #include "facades.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "styles/style_layers.h"
 
 namespace Settings {

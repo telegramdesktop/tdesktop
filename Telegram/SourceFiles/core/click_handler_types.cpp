@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "window/window_session_controller.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "facades.h"
 
 namespace {

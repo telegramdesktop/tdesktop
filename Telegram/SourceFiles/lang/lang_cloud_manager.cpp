@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "styles/style_layers.h"
 
 namespace Lang {

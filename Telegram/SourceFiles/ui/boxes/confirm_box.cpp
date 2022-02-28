@@ -8,10 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 
 #include "lang/lang_keys.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace Ui {
 
@@ -84,53 +82,6 @@ object_ptr<Ui::GenericBox> MakeInformBox(v::text::data text) {
 		.text = std::move(text),
 		.inform = true,
 	});
-}
-
-ConfirmDontWarnBox::ConfirmDontWarnBox(
-	QWidget*,
-	rpl::producer<TextWithEntities> text,
-	const QString &checkbox,
-	rpl::producer<QString> confirm,
-	FnMut<void(bool)> callback)
-: _confirm(std::move(confirm))
-, _content(setupContent(std::move(text), checkbox, std::move(callback))) {
-}
-
-void ConfirmDontWarnBox::prepare() {
-	setDimensionsToContent(st::boxWidth, _content);
-	addButton(std::move(_confirm), [=] { _callback(); });
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
-}
-
-not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(
-		rpl::producer<TextWithEntities> text,
-		const QString &checkbox,
-		FnMut<void(bool)> callback) {
-	const auto result = Ui::CreateChild<Ui::VerticalLayout>(this);
-	result->add(
-		object_ptr<Ui::FlatLabel>(
-			result,
-			std::move(text),
-			st::boxLabel),
-		st::boxPadding);
-	const auto control = result->add(
-		object_ptr<Ui::Checkbox>(
-			result,
-			checkbox,
-			false,
-			st::defaultBoxCheckbox),
-		style::margins(
-			st::boxPadding.left(),
-			st::boxPadding.bottom(),
-			st::boxPadding.right(),
-			st::boxPadding.bottom()));
-	_callback = [=, callback = std::move(callback)]() mutable {
-		const auto checked = control->checked();
-		auto local = std::move(callback);
-		closeBox();
-		local(checked);
-	};
-	return result;
 }
 
 } // namespace Ui

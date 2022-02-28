@@ -25,7 +25,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/checkbox.h"
 #include "window/window_session_controller.h"
+#include "boxes/abstract_box.h" // Ui::show().
+#include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
@@ -34,12 +37,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
+void ConfirmDontWarnBox(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<TextWithEntities> &&text,
+		rpl::producer<QString> &&confirm,
+		Fn<void(bool)> callback) {
+	auto checkbox = object_ptr<Ui::Checkbox>(
+		box.get(),
+		tr::lng_launch_exe_dont_ask(),
+		false,
+		st::defaultBoxCheckbox);
+	const auto weak = Ui::MakeWeak(checkbox.data());
+	auto confirmed = crl::guard(weak, [=, callback = std::move(callback)] {
+		const auto checked = weak->checked();
+		box->closeBox();
+		callback(checked);
+	});
+	Ui::ConfirmBox(box, {
+		.text = std::move(text),
+		.confirmed = std::move(confirmed),
+		.confirmText = std::move(confirm),
+	});
+	auto padding = st::boxPadding;
+	padding.setTop(padding.bottom());
+	box->addRow(std::move(checkbox), std::move(padding));
+}
+
 void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
 		const QString &name,
 		HistoryItem *item) {
 	const auto isExecutable = Data::IsExecutableName(name);
-	const auto isIpReveal = Data::IsIpRevealingName(name);
+	const auto isIpReveal = true;
 	auto &app = Core::App();
 	const auto warn = [&] {
 		if (item && item->history()->peer->isVerified()) {
@@ -80,9 +109,9 @@ void LaunchWithWarning(
 			rpl::single(Ui::Text::Bold(extension)),
 			Ui::Text::WithEntities)
 		: tr::lng_launch_svg_warning(Ui::Text::WithEntities);
-	Ui::show(Box<Ui::ConfirmDontWarnBox>(
+	Ui::show(Box(
+		ConfirmDontWarnBox,
 		std::move(text),
-		tr::lng_launch_exe_dont_ask(tr::now),
 		(isExecutable ? tr::lng_launch_exe_sure : tr::lng_continue)(),
 		callback));
 }
