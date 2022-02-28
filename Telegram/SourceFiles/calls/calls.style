@@ -12,6 +12,7 @@ using "ui/layers/layers.style";
 using "ui/chat/chat.style"; // GroupCallUserpics
 using "info/info.style"; // ShortInfoCover
 using "window/window.style";
+using "settings/settings.style"; // settingsSubsectionTitle
 
 CallSignalBars {
 	width: pixels;
@@ -1380,6 +1381,17 @@ groupCallRtmpShowButton: IconButton(defaultIconButton) {
 		color: windowBgOver;
 	}
 }
+groupCallSettingsRtmpShowButton: IconButton(groupCallRtmpShowButton) {
+	ripple: groupCallRipple;
+}
+groupCallSubsectionTitle: FlatLabel(settingsSubsectionTitle) {
+	textFg: groupCallActiveFg;
+}
+groupCallAttentionBoxButton: RoundButton(groupCallBoxButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+
 groupCallRtmpUrlSkip: 1px;
 groupCallRtmpKeySubsectionTitleSkip: 8px;
 groupCallRtmpSubsectionTitleAddPadding: margins(0px, -1px, 0px, -4px);

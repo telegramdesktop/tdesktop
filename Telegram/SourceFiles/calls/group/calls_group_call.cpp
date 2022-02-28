@@ -1028,6 +1028,14 @@ rpl::producer<bool> GroupCall::emptyRtmpValue() const {
 	return _emptyRtmp.value();
 }
 
+QString GroupCall::rtmpUrl() const {
+	return _rtmpUrl;
+}
+
+QString GroupCall::rtmpKey() const {
+	return _rtmpKey;
+}
+
 Data::GroupCall *GroupCall::lookupReal() const {
 	const auto real = _peer->groupCall();
 	return (real && real->id() == _id) ? real : nullptr;

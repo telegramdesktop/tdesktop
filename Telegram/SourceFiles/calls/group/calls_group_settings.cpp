@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
+#include "calls/group/calls_group_rtmp.h"
+#include "ui/toast/toast.h"
 #include "data/data_changes.h"
 #include "core/application.h"
 #include "ui/boxes/single_choice_box.h"
@@ -624,6 +626,27 @@ void SettingsBox(
 			tr::lng_group_call_share(),
 			st::groupCallSettingsButton
 		)->addClickHandler(std::move(shareLink));
+	}
+	if (rtmp) {
+		StartRtmpProcess::FillRtmpRows(
+			box->verticalLayout(),
+			false,
+			[=](object_ptr<Ui::BoxContent> &&object) {
+				box->getDelegate()->show(std::move(object));
+			},
+			[=](QString text) {
+				Ui::Toast::Show(
+					box->getDelegate()->outerContainer(),
+					text);
+			},
+			rpl::single<StartRtmpProcess::Data>({
+				call->rtmpUrl(),
+				call->rtmpKey()
+			}),
+			&st::groupCallBoxLabel,
+			&st::groupCallSettingsRtmpShowButton,
+			&st::groupCallSubsectionTitle,
+			&st::groupCallAttentionBoxButton);
 	}
 
 	if (peer->canManageGroupCall()) {
