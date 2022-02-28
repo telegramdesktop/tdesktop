@@ -271,7 +271,10 @@ void StartRtmpProcess::processUrl(Data data) {
 void StartRtmpProcess::finish(JoinInfo info) {
 	const auto done = std::move(_request->done);
 	const auto box = _request->box;
+	const auto current = _request->data.current();
 	_request = nullptr;
+	info.rtmpUrl = current.url;
+	info.rtmpKey = current.key;
 	done(std::move(info));
 	if (const auto strong = box.data()) {
 		strong->closeBox();

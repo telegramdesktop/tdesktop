@@ -93,6 +93,9 @@ struct JoinVideoEndpoint {
 };
 
 struct JoinBroadcastStream {
+	bool rtmp = false;
+	QString rtmpUrl;
+	QString rtmpKey;
 };
 
 using JoinClientFields = std::variant<
@@ -114,7 +117,11 @@ using JoinClientFields = std::variant<
 		return {};
 	}
 	if (document.object().value("stream").toBool()) {
-		return JoinBroadcastStream{};
+		return JoinBroadcastStream{
+			.rtmp = document.object().value("rtmp").toBool(),
+			.rtmpUrl = document.object().value("rtmp_stream_url").toString(),
+			.rtmpKey = document.object().value("rtmp_stream_key").toString(),
+		};
 	}
 	const auto video = document.object().value("video").toObject();
 	return JoinVideoEndpoint{
@@ -575,6 +582,8 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
+, _rtmpUrl(info.rtmpUrl)
+, _rtmpKey(info.rtmpKey)
 , _canManage(Data::CanManageGroupCallValue(_peer))
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
@@ -1855,11 +1864,17 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
 			const auto response = ParseJoinResponse(json);
+			const auto stream = std::get_if<JoinBroadcastStream>(&response);
 			const auto endpoint = std::get_if<JoinVideoEndpoint>(&response);
-			if (v::is<JoinBroadcastStream>(response)) {
+			if (stream) {
 				if (!_broadcastDcId) {
 					LOG(("Api Error: Empty stream_dc_id in groupCall."));
 					_broadcastDcId = _peer->session().mtp().mainDcId();
+				}
+				if (stream->rtmp) {
+					_rtmp = true;
+					_rtmpUrl = stream->rtmpUrl;
+					_rtmpKey = stream->rtmpKey;
 				}
 				setInstanceMode(InstanceMode::Stream);
 			} else {

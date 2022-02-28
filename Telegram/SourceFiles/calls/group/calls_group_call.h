@@ -236,6 +236,9 @@ public:
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
 
+	[[nodiscard]] QString rtmpUrl() const;
+	[[nodiscard]] QString rtmpKey() const;
+
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 
@@ -591,6 +594,9 @@ private:
 	QString _joinHash;
 	int64 _serverTimeMs = 0;
 	crl::time _serverTimeMsGotAt = 0;
+
+	QString _rtmpUrl;
+	QString _rtmpKey;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	rpl::variable<bool> _canManage = false;
