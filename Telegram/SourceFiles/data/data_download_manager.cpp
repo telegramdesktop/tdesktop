@@ -297,13 +297,13 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 			}
 		}
 	}
-	for (const auto session : sessions) {
+	for (const auto &session : sessions) {
 		writePostponed(session);
 	}
 	crl::async([files = std::move(files)] {
-		for (const auto &[path, descriptor] : files) {
-			QFile(path).remove();
-			crl::on_main([descriptor] {
+		for (const auto &file : files) {
+			QFile(file.first).remove();
+			crl::on_main([descriptor = file.second] {
 				if (const auto session = SessionByUniqueId(
 						descriptor.sessionUniqueId)) {
 					if (const auto id = descriptor.documentId) {
