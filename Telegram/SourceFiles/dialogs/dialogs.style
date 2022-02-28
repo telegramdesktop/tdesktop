@@ -179,7 +179,7 @@ dialogsCancelSearch: CrossButton {
 	ripple: emptyRippleAnimation;
 }
 
-dialogsChatTypeSkip: 22px;
+dialogsChatTypeSkip: 20px;
 dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
 dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
 dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
