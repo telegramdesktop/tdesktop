@@ -1603,7 +1603,7 @@ void Panel::setupEmptyRtmp() {
 		if (!empty) {
 			_emptyRtmp.destroy();
 			return;
-		} else if (_emptyRtmp) {
+		} else if (_emptyRtmp || _call->hasVideoWithFrames()) {
 			return;
 		}
 		auto text = _call->rtmpUrl().isEmpty()
@@ -1615,6 +1615,7 @@ void Panel::setupEmptyRtmp() {
 			widget(),
 			std::move(text),
 			st::groupCallVideoLimitLabel);
+		_emptyRtmp->show();
 		widget()->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
 			const auto width = std::min(
