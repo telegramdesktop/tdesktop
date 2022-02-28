@@ -78,6 +78,17 @@ std::map<int, const char*> BetaLogs() {
 		"- Add snap layouts support on Windows 11.\n"
 		
 		"- Fix crash in drafts after accounts switching.\n"
+	},
+	{
+		3005003,
+		"- Check the status of media and file downloads by clicking "
+		"on the new panel in the bottom of the chats list.\n"
+
+		"- View recently downloaded files "
+		"from the new Settings > Advanced > Downloads section.\n"
+
+		"- Manage Live Streams in your groups and channels "
+		"using external software like OBS Studio or XSplit Broadcaster.\n"
 	}
 	};
 };

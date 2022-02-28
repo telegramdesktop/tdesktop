@@ -1,3 +1,9 @@
+3.5.3 beta (28.02.22)
+
+- Check the status of media and file downloads by clicking on the new panel in the bottom of the chats list.
+- View recently downloaded files from the new Settings > Advanced > Downloads section.
+- Manage Live Streams in your groups and channels using external software like OBS Studio or XSplit Broadcaster.
+
 3.5.2 (06.02.22)
 
 - Fix a freeze in audio playback on Linux.
