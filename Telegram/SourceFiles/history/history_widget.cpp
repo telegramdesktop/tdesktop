@@ -1488,11 +1488,11 @@ void HistoryWidget::orderWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}
-	if (_groupCallBar) {
-		_groupCallBar->raise();
-	}
 	if (_requestsBar) {
 		_requestsBar->raise();
+	}
+	if (_groupCallBar) {
+		_groupCallBar->raise();
 	}
 	if (_chooseTheme) {
 		_chooseTheme->raise();
