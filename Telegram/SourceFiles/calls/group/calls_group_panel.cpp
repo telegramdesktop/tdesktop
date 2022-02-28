@@ -341,11 +341,11 @@ void Panel::startScheduledNow() {
 			_call->startScheduledNow();
 		};
 		auto owned = ConfirmBox({
-			.text = { (_call->peer()->isBroadcast()
+			.text = (_call->peer()->isBroadcast()
 				? tr::lng_group_call_start_now_sure_channel
-				: tr::lng_group_call_start_now_sure)(tr::now) },
-			.button = tr::lng_group_call_start_now(),
-			.callback = done,
+				: tr::lng_group_call_start_now_sure)(),
+			.confirmed = done,
+			.confirmText = tr::lng_group_call_start_now(),
 		});
 		*box = owned.data();
 		showBox(std::move(owned));
@@ -1194,9 +1194,9 @@ void Panel::chooseShareScreenSource() {
 		choose();
 	};
 	auto box = ConfirmBox({
-		.text = { text },
-		.button = tr::lng_continue(),
-		.callback = done,
+		.text = text,
+		.confirmed = done,
+		.confirmText = tr::lng_continue(),
 	});
 	*shared = box.data();
 	showBox(std::move(box));

@@ -156,7 +156,10 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			}
 			text.append(error.first);
 			if (const auto weak = *box) {
-				weak->getDelegate()->show(ConfirmBox({ .text = text }));
+				weak->getDelegate()->show(ConfirmBox({
+					.text = text,
+					.inform = true,
+				}));
 			}
 			return;
 		}

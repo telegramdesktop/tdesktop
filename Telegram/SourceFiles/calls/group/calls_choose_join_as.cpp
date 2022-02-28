@@ -466,14 +466,13 @@ void ChooseJoinAsProcess::processList(
 			}
 			return false;
 		};
-		auto box = ConfirmBox({
+		auto box = Ui::MakeConfirmBox({
 			.text = confirmation,
-			.button = (creating
+			.confirmed = crl::guard(guard, [=] { finish(info); }),
+			.confirmText = (creating
 				? tr::lng_create_group_create()
 				: tr::lng_group_call_join()),
-			.callback = crl::guard(guard, [=] { finish(info); }),
-			.st = &st::boxLabel,
-			.filter = filter,
+			.labelFilter = filter,
 		});
 		box->boxClosing(
 		) | rpl::start_with_next([=] {
