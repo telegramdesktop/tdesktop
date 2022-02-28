@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
+constexpr auto kPasswordCharAmount = 28;
+
 void StartWithBox(
 		not_null<Ui::GenericBox*> box,
 		Fn<void()> done,
@@ -123,13 +125,16 @@ void StartWithBox(
 		state->hidden.value(),
 		state->key.value()
 	) | rpl::map([passChar](bool hidden, const QString &key) {
-		return hidden
-			? QString().fill(passChar, int(key.size()))
+		return key.isEmpty()
+			? QString()
+			: hidden
+			? QString().fill(passChar, kPasswordCharAmount)
 			: key;
 	});
 	const auto streamKeyLabel = addLabel(
 		std::move(keyLabelContent),
 		st::boxLabel);
+	streamKeyLabel->setSelectable(false);
 	const auto streamKeyButton = Ui::CreateChild<Ui::IconButton>(
 		box.get(),
 		st::groupCallRtmpShowButton);
@@ -142,13 +147,21 @@ void StartWithBox(
 		streamKeyButton->raise();
 	}, box->lifetime());
 	streamKeyButton->addClickHandler([=] {
+		const auto toggle = [=] {
+			const auto newValue = !state->hidden.current();
+			state->hidden = newValue;
+			streamKeyLabel->setSelectable(!newValue);
+			streamKeyLabel->setAttribute(
+				Qt::WA_TransparentForMouseEvents,
+				newValue);
+		};
 		if (!state->warned && state->hidden.current()) {
 			showBox(Ui::MakeConfirmBox({
 				.text = tr::lng_group_call_rtmp_key_warning(
 					Ui::Text::RichLangValue),
 				.confirmed = [=](Fn<void()> &&close) {
 					state->warned = true;
-					state->hidden = !state->hidden.current();
+					toggle();
 					close();
 				},
 				.confirmText = tr::lng_from_request_understand(),
@@ -156,7 +169,7 @@ void StartWithBox(
 				.confirmStyle = &st::attentionBoxButton,
 			}));
 		} else {
-			state->hidden = !state->hidden.current();
+			toggle();
 		}
 	});
 
