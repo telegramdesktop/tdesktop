@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
@@ -628,6 +629,76 @@ void SettingsBox(
 		)->addClickHandler(std::move(shareLink));
 	}
 	if (rtmp) {
+		struct State {
+			base::unique_qptr<Ui::DropdownMenu> menu;
+			mtpRequestId requestId;
+			rpl::event_stream<StartRtmpProcess::Data> data;
+		};
+		const auto top = box->addTopButton(st::groupCallMenuToggle);
+		const auto state = top->lifetime().make_state<State>();
+		const auto revoke = [=] {
+			if (state->requestId) {
+				return;
+			}
+			const auto session = &peer->session();
+			state->requestId = session->api().request(
+				MTPphone_GetGroupCallStreamRtmpUrl(
+					peer->input,
+					MTP_bool(true)
+			)).done([=](const MTPphone_GroupCallStreamRtmpUrl &result) {
+				auto data = result.match([&](
+						const MTPDphone_groupCallStreamRtmpUrl &data) {
+					return StartRtmpProcess::Data{
+						.url = qs(data.vurl()),
+						.key = qs(data.vkey()),
+					};
+				});
+				state->data.fire(std::move(data));
+			}).fail([=] {
+				state->requestId = 0;
+			}).send();
+		};
+		top->setClickedCallback([=] {
+			state->menu = base::make_unique_q<Ui::DropdownMenu>(
+				box,
+				st::groupCallDropdownMenu);
+			state->menu->addAction(
+				tr::lng_group_call_rtmp_revoke(tr::now),
+				revoke);
+			state->menu->moveToRight(
+				st::groupCallRtmpTopBarMenuPosition.x(),
+				st::groupCallRtmpTopBarMenuPosition.y());
+			state->menu->showAnimated(
+				Ui::PanelAnimation::Origin::TopRight);
+			const auto raw = state->menu.get();
+			raw->setHiddenCallback([=] {
+				raw->deleteLater();
+				if (state->menu == raw) {
+					state->menu = nullptr;
+					if (top) {
+						top->setForceRippled(false);
+					}
+				}
+			});
+			raw->setShowStartCallback([=] {
+				if (state->menu == raw) {
+					if (top) {
+						top->setForceRippled(true);
+					}
+				}
+			});
+			raw->setHideStartCallback([=] {
+				if (state->menu == raw) {
+					if (top) {
+						top->setForceRippled(false);
+					}
+				}
+			});
+			top->installEventFilter(state->menu);
+			return true;
+		});
+
+
 		StartRtmpProcess::FillRtmpRows(
 			box->verticalLayout(),
 			false,
@@ -639,14 +710,12 @@ void SettingsBox(
 					box->getDelegate()->outerContainer(),
 					text);
 			},
-			rpl::single<StartRtmpProcess::Data>({
-				call->rtmpUrl(),
-				call->rtmpKey()
-			}),
+			state->data.events(),
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,
 			&st::groupCallSubsectionTitle,
 			&st::groupCallAttentionBoxButton);
+		state->data.fire({ call->rtmpUrl(), call->rtmpKey() });
 	}
 
 	if (peer->canManageGroupCall()) {

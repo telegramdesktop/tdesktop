@@ -2401,6 +2401,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_rtmp_key_warning" = "**Never share your Stream Key with anyone or show it on stream!**";
 "lng_group_call_rtmp_info" = "To stream video with another app, enter these Server URL and Stream Key in your streaming app.\n\nOnce you start broadcasting in your streaming app, tap Start Streaming below";
 "lng_group_call_rtmp_start" = "Start Streaming";
+"lng_group_call_rtmp_revoke" = "Revoke Stream Key";
 "lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Server URL and Stream Key?";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
