@@ -1036,6 +1036,14 @@ QString GroupCall::rtmpKey() const {
 	return _rtmpKey;
 }
 
+void GroupCall::setRtmpUrl(const QString &value) {
+	_rtmpUrl = value;
+}
+
+void GroupCall::setRtmpKey(const QString &value) {
+	_rtmpKey = value;
+}
+
 Data::GroupCall *GroupCall::lookupReal() const {
 	const auto real = _peer->groupCall();
 	return (real && real->id() == _id) ? real : nullptr;

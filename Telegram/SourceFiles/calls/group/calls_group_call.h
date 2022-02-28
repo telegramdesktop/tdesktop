@@ -239,6 +239,9 @@ public:
 	[[nodiscard]] QString rtmpUrl() const;
 	[[nodiscard]] QString rtmpKey() const;
 
+	void setRtmpUrl(const QString &value);
+	void setRtmpKey(const QString &value);
+
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 

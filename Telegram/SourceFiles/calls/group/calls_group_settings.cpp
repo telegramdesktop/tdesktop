@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
@@ -630,16 +630,13 @@ void SettingsBox(
 	}
 	if (rtmp) {
 		struct State {
-			base::unique_qptr<Ui::DropdownMenu> menu;
+			base::unique_qptr<Ui::PopupMenu> menu;
 			mtpRequestId requestId;
 			rpl::event_stream<StartRtmpProcess::Data> data;
 		};
 		const auto top = box->addTopButton(st::groupCallMenuToggle);
 		const auto state = top->lifetime().make_state<State>();
-		const auto revoke = [=] {
-			if (state->requestId) {
-				return;
-			}
+		const auto revokeSure = [=] {
 			const auto session = &peer->session();
 			state->requestId = session->api().request(
 				MTPphone_GetGroupCallStreamRtmpUrl(
@@ -653,48 +650,46 @@ void SettingsBox(
 						.key = qs(data.vkey()),
 					};
 				});
+				if (const auto call = weakCall.get()) {
+					call->setRtmpUrl(data.url);
+					call->setRtmpKey(data.key);
+				}
+				if (!top) {
+					return;
+				}
+				state->requestId = 0;
 				state->data.fire(std::move(data));
 			}).fail([=] {
 				state->requestId = 0;
 			}).send();
 		};
+		const auto revoke = [=] {
+			if (state->requestId || !top) {
+				return;
+			}
+			box->getDelegate()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_group_call_rtmp_revoke_sure(),
+				.confirmed = [=](Fn<void()> &&close) {
+					revokeSure();
+					close();
+				},
+				.confirmText = tr::lng_group_invite_context_revoke(),
+				.labelStyle = &st::groupCallBoxLabel,
+			}));
+		};
 		top->setClickedCallback([=] {
-			state->menu = base::make_unique_q<Ui::DropdownMenu>(
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				box,
-				st::groupCallDropdownMenu);
+				st::groupCallPopupMenu);
 			state->menu->addAction(
 				tr::lng_group_call_rtmp_revoke(tr::now),
 				revoke);
 			state->menu->moveToRight(
 				st::groupCallRtmpTopBarMenuPosition.x(),
 				st::groupCallRtmpTopBarMenuPosition.y());
-			state->menu->showAnimated(
+			state->menu->setForcedOrigin(
 				Ui::PanelAnimation::Origin::TopRight);
-			const auto raw = state->menu.get();
-			raw->setHiddenCallback([=] {
-				raw->deleteLater();
-				if (state->menu == raw) {
-					state->menu = nullptr;
-					if (top) {
-						top->setForceRippled(false);
-					}
-				}
-			});
-			raw->setShowStartCallback([=] {
-				if (state->menu == raw) {
-					if (top) {
-						top->setForceRippled(true);
-					}
-				}
-			});
-			raw->setHideStartCallback([=] {
-				if (state->menu == raw) {
-					if (top) {
-						top->setForceRippled(false);
-					}
-				}
-			});
-			top->installEventFilter(state->menu);
+			state->menu->popup(QCursor::pos());
 			return true;
 		});
 
