@@ -46,6 +46,7 @@ public:
 	static void FillRtmpRows(
 		not_null<Ui::VerticalLayout*> container,
 		bool divider,
+		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		rpl::producer<StartRtmpProcess::Data> &&data,

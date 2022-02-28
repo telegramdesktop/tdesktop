@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_rtmp.h"
 
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "calls/group/calls_group_common.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
@@ -50,6 +51,7 @@ void StartWithBox(
 	StartRtmpProcess::FillRtmpRows(
 		box->verticalLayout(),
 		true,
+		false,
 		std::move(showBox),
 		std::move(showToast),
 		std::move(data),
@@ -199,6 +201,7 @@ void StartRtmpProcess::createBox() {
 void StartRtmpProcess::FillRtmpRows(
 		not_null<Ui::VerticalLayout*> container,
 		bool divider,
+		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		rpl::producer<StartRtmpProcess::Data> &&data,
@@ -261,6 +264,13 @@ void StartRtmpProcess::FillRtmpRows(
 			st::boxRowPadding);
 		label->setSelectable(true);
 		label->setBreakEverywhere(true);
+		if (disabledMenuForLabels) {
+			base::install_event_filter(label, [=](not_null<QEvent*> e) {
+				return (e->type() == QEvent::ContextMenu)
+					? base::EventFilterResult::Cancel
+					: base::EventFilterResult::Continue;
+			});
+		}
 		return label;
 	};
 
