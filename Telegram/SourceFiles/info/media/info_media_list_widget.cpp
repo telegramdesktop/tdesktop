@@ -837,7 +837,6 @@ void ListWidget::showContextMenu(
 
 	auto link = ClickHandler::getActive();
 
-	const auto owner = &session().data();
 	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);

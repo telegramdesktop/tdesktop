@@ -580,7 +580,6 @@ void DownloadManager::removed(not_null<const HistoryItem*> item) {
 		auto &data = sessionData(item);
 		const auto i = ranges::find(data.downloading, item, ByItem);
 		Assert(i != end(data.downloading));
-		auto &entry = *i;
 
 		// We don't want to download files without messages.
 		// For example, there is no way to refresh a file reference for them.
@@ -617,7 +616,6 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 	const auto flags = MessageFlag::FakeHistoryItem;
 	const auto replyTo = MsgId();
 	const auto viaBotId = UserId();
-	const auto groupedId = uint64();
 	const auto date = base::unixtime::now();
 	const auto postAuthor = QString();
 	const auto caption = TextWithEntities();

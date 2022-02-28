@@ -286,7 +286,6 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 savedGifsKey = 0;
 	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
-	quint64 downloadsKey = 0;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
 		map.stream >> keyType;

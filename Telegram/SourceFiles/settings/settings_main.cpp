@@ -536,7 +536,7 @@ void Main::keyPressEvent(QKeyEvent *e) {
 void Main::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto cover = content->add(object_ptr<Cover>(
+	content->add(object_ptr<Cover>(
 		content,
 		controller,
 		controller->session().user()));

@@ -845,7 +845,6 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		}
 		state->tooltip->move(position);
 	};
-	auto &lifetime = state->tooltip->lifetime();
 	const auto watch = [&](QWidget *widget, const auto &self) -> void {
 		if (!widget) {
 			return;

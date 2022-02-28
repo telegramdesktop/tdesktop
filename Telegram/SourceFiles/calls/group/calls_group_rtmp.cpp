@@ -231,8 +231,6 @@ void StartRtmpProcess::FillRtmpRows(
 	const auto addButton = [&](
 			bool key,
 			rpl::producer<QString> &&text) {
-		const auto &padding = st::groupCallRtmpCopyButton.padding;
-
 		auto wrap = object_ptr<Ui::RpWidget>(container);
 		auto button = Ui::CreateChild<Ui::RoundButton>(
 			wrap.data(),

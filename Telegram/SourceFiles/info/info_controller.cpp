@@ -226,7 +226,6 @@ void Controller::updateSearchControllers(
 	const auto hasMembersSearch = (type == Type::Members)
 		|| (type == Type::Profile);
 	const auto searchQuery = memento->searchFieldQuery();
-	const auto isDownloads = (type == Type::Downloads);
 	if (isMedia) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>(&session());
