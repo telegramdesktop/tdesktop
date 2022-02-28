@@ -932,6 +932,9 @@ void Panel::raiseControls() {
 		}
 	}
 	_mute->raise();
+	if (_recordingMark) {
+		_recordingMark->raise();
+	}
 	_layerBg->raise();
 	if (_niceTooltip) {
 		_niceTooltip->raise();
@@ -1423,6 +1426,7 @@ void Panel::initLayout() {
 		crl::on_main(widget(), [=] { updateControlsGeometry(); });
 	}, lifetime());
 
+	raiseControls();
 #endif // !Q_OS_MAC
 }
 
