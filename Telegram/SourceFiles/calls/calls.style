@@ -1117,6 +1117,11 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: groupCallTitleCloseIcon;
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
+groupCallPinOnTop: IconButton(groupCallTitleButton) {
+	icon: icon{{ "dialogs/dialogs_pinned", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "dialogs/dialogs_pinned", groupCallMembersFg }};
+	iconPosition: point(8px, 2px);
+}
 
 groupCallMajorBlobIdleRadius: 2px;
 groupCallMajorBlobMaxRadius: 4px;

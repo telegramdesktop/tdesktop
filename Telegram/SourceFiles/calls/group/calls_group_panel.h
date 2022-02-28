@@ -160,6 +160,7 @@ private:
 	void refreshVideoButtons(
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTopButton();
+	void createPinOnTop();
 	void toggleWideControls(bool shown);
 	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
@@ -201,7 +202,7 @@ private:
 	rpl::variable<bool> _fullScreen = false;
 
 #ifndef Q_OS_MAC
-	std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
+	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 #endif // !Q_OS_MAC
 
 	const std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
@@ -212,6 +213,7 @@ private:
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
+	object_ptr<Ui::IconButton> _pinOnTop = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };

@@ -935,6 +935,9 @@ void Panel::raiseControls() {
 	if (_recordingMark) {
 		_recordingMark->raise();
 	}
+	if (_pinOnTop) {
+		_pinOnTop->raise();
+	}
 	_layerBg->raise();
 	if (_niceTooltip) {
 		_niceTooltip->raise();
@@ -1142,7 +1145,44 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	updateControlsGeometry();
 }
 
+void Panel::createPinOnTop() {
+	_pinOnTop.create(window(), st::groupCallPinOnTop);
+	const auto pinned = [=] {
+		const auto handle = window()->windowHandle();
+		return handle && (handle->flags() & Qt::WindowStaysOnTopHint);
+	};
+	const auto pin = [=](bool pin) {
+		if (const auto handle = window()->windowHandle()) {
+			handle->setFlag(Qt::WindowStaysOnTopHint, pin);
+			_pinOnTop->setIconOverride(
+				pin ? &st::groupCallPinOnTop.iconOver : nullptr,
+				nullptr);
+			if (!_pinOnTop->isHidden()) {
+				showToast({ pin
+					? tr::lng_group_call_pinned_on_top(tr::now)
+					: tr::lng_group_call_unpinned_on_top(tr::now) });
+			}
+		}
+	};
+	_fullScreen.value(
+	) | rpl::start_with_next([=](bool fullscreen) {
+		_pinOnTop->setVisible(!fullscreen);
+		if (fullscreen) {
+			pin(false);
+		}
+	}, _pinOnTop->lifetime());
+
+	_pinOnTop->setClickedCallback([=] {
+		pin(!pinned());
+	});
+
+	updateControlsGeometry();
+}
+
 void Panel::refreshTopButton() {
+	if (_call->rtmp() && !_pinOnTop) {
+		createPinOnTop();
+	}
 	if (_mode.current() == PanelMode::Wide) {
 		_menuToggle.destroy();
 		_joinAsToggle.destroy();
@@ -1458,10 +1498,15 @@ void Panel::initGeometry() {
 
 QRect Panel::computeTitleRect() const {
 	const auto skip = st::groupCallTitleTop;
-	const auto remove = skip + (_menuToggle
-		? (_menuToggle->width() + st::groupCallMenuTogglePosition.x())
-		: 0) + (_joinAsToggle
+	const auto remove = skip
+		+ (_menuToggle
+			? (_menuToggle->width() + st::groupCallMenuTogglePosition.x())
+			: 0)
+		+ (_joinAsToggle
 			? (_joinAsToggle->width() + st::groupCallMenuTogglePosition.x())
+			: 0)
+		+ (_pinOnTop
+			? (_pinOnTop->width() + skip)
 			: 0);
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
@@ -1939,20 +1984,28 @@ void Panel::updateControlsGeometry() {
 
 #ifdef Q_OS_MAC
 	const auto controlsOnTheLeft = true;
+	const auto controlsPadding = 0;
 #else // Q_OS_MAC
 	const auto center = _controls->controls.geometry().center();
 	const auto controlsOnTheLeft = center.x()
 		< widget()->width() / 2;
+	const auto controlsPadding = _controls->wrap.y();
 #endif // Q_OS_MAC
 	const auto menux = st::groupCallMenuTogglePosition.x();
 	const auto menuy = st::groupCallMenuTogglePosition.y();
 	if (controlsOnTheLeft) {
+		if (_pinOnTop) {
+			_pinOnTop->moveToRight(controlsPadding, controlsPadding);
+		}
 		if (_menuToggle) {
 			_menuToggle->moveToRight(menux, menuy);
 		} else if (_joinAsToggle) {
 			_joinAsToggle->moveToRight(menux, menuy);
 		}
 	} else {
+		if (_pinOnTop) {
+			_pinOnTop->moveToLeft(controlsPadding, controlsPadding);
+		}
 		if (_menuToggle) {
 			_menuToggle->moveToLeft(menux, menuy);
 		} else if (_joinAsToggle) {
