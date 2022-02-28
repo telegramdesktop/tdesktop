@@ -65,9 +65,8 @@ constexpr auto kEmojiInteractionSeenDuration = 3 * crl::time(1000);
 
 inline bool HasGroupCallMenu(const not_null<PeerData*> &peer) {
 	return !peer->groupCall()
-		&& peer->isChannel()
-		&& !peer->isMegagroup()
-		&& peer->asChannel()->amCreator();
+		&& ((peer->isChannel() && peer->asChannel()->amCreator())
+			|| (peer->isChat() && peer->asChat()->amCreator()));
 }
 
 } // namespace
@@ -345,16 +344,23 @@ void TopBarWidget::showGroupCallMenu(not_null<PeerData*> peer) {
 	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
 		controller->startOrJoinGroupCall(peer, std::move(args));
 	};
+	const auto livestream = !peer->isMegagroup() && peer->isChannel();
 	_menu->addAction(
-		tr::lng_menu_start_group_call(tr::now),
+		livestream
+			? tr::lng_menu_start_group_call_channel(tr::now)
+			: tr::lng_menu_start_group_call(tr::now),
 		[=] { callback({}); },
 		&st::menuIconStartStream);
 	_menu->addAction(
-		tr::lng_menu_start_group_call_scheduled(tr::now),
+		livestream
+			? tr::lng_menu_start_group_call_scheduled_channel(tr::now)
+			: tr::lng_menu_start_group_call_scheduled(tr::now),
 		[=] { callback({ .scheduleNeeded = true }); },
 		&st::menuIconReschedule);
 	_menu->addAction(
-		tr::lng_menu_start_group_call_with(tr::now),
+		livestream
+			? tr::lng_menu_start_group_call_with_channel(tr::now)
+			: tr::lng_menu_start_group_call_with(tr::now),
 		[=] { callback({ .rtmpNeeded = true }); },
 		&st::menuIconStartStreamWith);
 	_menu->moveToRight(

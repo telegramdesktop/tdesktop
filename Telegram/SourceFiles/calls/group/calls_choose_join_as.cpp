@@ -243,7 +243,8 @@ void ChooseJoinAsBox(
 	auto next = (context == Context::Switch)
 		? tr::lng_settings_save()
 		: tr::lng_continue();
-	if ((context == Context::Create) && !livestream) {
+#if 0
+	if ((context == Context::Create)) {
 		const auto makeLink = [](const QString &text) {
 			return Ui::Text::Link(text);
 		};
@@ -264,6 +265,7 @@ void ChooseJoinAsBox(
 			return false;
 		});
 	}
+#endif
 	box->addButton(std::move(next), [=] {
 		auto copy = info;
 		copy.joinAs = controller->selected();

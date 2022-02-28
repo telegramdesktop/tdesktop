@@ -2381,9 +2381,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_join_as_changed" = "Members of this voice chat will now see you as {name}";
 "lng_group_call_join_as_changed_channel" = "Members of this live stream will now see you as {name}";
 
-"lng_menu_start_group_call" = "Start live stream";
-"lng_menu_start_group_call_scheduled" = "Schedule live stream";
+"lng_menu_start_group_call" = "Start video chat";
+"lng_menu_start_group_call_scheduled" = "Schedule video chat";
 "lng_menu_start_group_call_with" = "Stream with...";
+"lng_menu_start_group_call_channel" = "Start live stream";
+"lng_menu_start_group_call_scheduled_channel" = "Schedule live stream";
+"lng_menu_start_group_call_with_channel" = "Stream with...";
 
 "lng_group_call_rtmp_title" = "Stream with other apps";
 "lng_group_call_rtmp_url_subtitle" = "Server URL";
