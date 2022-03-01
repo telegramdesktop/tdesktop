@@ -351,7 +351,7 @@ void SendKeySequence(
 	const auto focused = QApplication::focusWidget();
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
-		|| qobject_cast<HistoryInner*>(focused)) {
+		|| dynamic_cast<HistoryInner*>(focused)) {
 		QApplication::postEvent(
 			focused,
 			new QKeyEvent(QEvent::KeyPress, key, modifiers));
@@ -826,12 +826,12 @@ void MainWindow::updateGlobalMenuHook() {
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(
+			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 				focused->parentWidget())) {
 				markdownEnabled = inputField->isMarkdownEnabled();
 			}
 		}
-	} else if (const auto list = qobject_cast<HistoryInner*>(focused)) {
+	} else if (const auto list = dynamic_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
