@@ -1615,6 +1615,7 @@ void Panel::setupEmptyRtmp() {
 			widget(),
 			std::move(text),
 			st::groupCallVideoLimitLabel);
+		_emptyRtmp->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_emptyRtmp->show();
 		widget()->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
