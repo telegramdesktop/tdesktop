@@ -1367,8 +1367,10 @@ groupCallRtmpCopyButton: RoundButton(defaultActiveButton) {
 	width: -26px;
 
 	textTop: 7px;
-	padding: margins(0px, 12px, 0px, 15px);
 }
+groupCallRtmpCopyButtonTopSkip: 12px;
+groupCallRtmpCopyButtonBottomSkip: 15px;
+
 groupCallRtmpShowButton: IconButton(defaultIconButton) {
 	width: 32px;
 	height: 32px;

@@ -248,7 +248,9 @@ void StartRtmpProcess::FillRtmpRows(
 				QGuiApplication::clipboard()->setText(state->url.current());
 				showToast(tr::lng_group_call_rtmp_url_copied(tr::now));
 			}));
+		Settings::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
 		const auto weak = container->add(std::move(wrap), rowPadding);
+		Settings::AddSkip(container, st::groupCallRtmpCopyButtonBottomSkip);
 		button->heightValue(
 		) | rpl::start_with_next([=](int height) {
 			weak->resize(weak->width(), height);
