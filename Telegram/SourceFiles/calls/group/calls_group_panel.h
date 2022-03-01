@@ -226,7 +226,7 @@ private:
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
-	object_ptr<Ui::FlatLabel> _emptyRtmp = { nullptr };
+	object_ptr<Ui::RpWidget> _emptyRtmp = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 	std::optional<QRect> _lastSmallGeometry;
 	std::optional<QRect> _lastLargeGeometry;

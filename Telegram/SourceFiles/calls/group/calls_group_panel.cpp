@@ -1603,26 +1603,51 @@ void Panel::setupEmptyRtmp() {
 		if (!empty) {
 			_emptyRtmp.destroy();
 			return;
-		} else if (_emptyRtmp || _call->hasVideoWithFrames()) {
+		} else if (_emptyRtmp) {
 			return;
 		}
-		auto text = _call->rtmpInfo().url.isEmpty()
-			? tr::lng_group_call_no_stream(
-				lt_group,
-				rpl::single(_peer->name))
-			: tr::lng_group_call_no_stream_admin();
-		_emptyRtmp.create(
-			widget(),
-			std::move(text),
-			st::groupCallVideoLimitLabel);
+		struct Label {
+			Label(QWidget *parent, rpl::producer<QString> text)
+			: widget(parent, std::move(text), st::groupCallVideoLimitLabel)
+			, color([] {
+				auto result = st::groupCallBg->c;
+				result.setAlphaF(kControlsBackgroundOpacity);
+				return result;
+			})
+			, corners(st::groupCallControlsBackRadius, color.color()) {
+			}
+
+			Ui::FlatLabel widget;
+			style::complex_color color;
+			Ui::RoundRect corners;
+		};
+		_emptyRtmp.create(widget());
+		const auto label = _emptyRtmp->lifetime().make_state<Label>(
+			_emptyRtmp.data(),
+			(_call->rtmpInfo().url.isEmpty()
+				? tr::lng_group_call_no_stream(
+					lt_group,
+					rpl::single(_peer->name))
+				: tr::lng_group_call_no_stream_admin()));
 		_emptyRtmp->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_emptyRtmp->show();
+		_emptyRtmp->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(_emptyRtmp.data());
+			label->corners.paint(p, _emptyRtmp->rect());
+		}, _emptyRtmp->lifetime());
+
 		widget()->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
+			const auto padding = st::groupCallWidth / 30;
 			const auto width = std::min(
-				size.width() - st::groupCallWidth / 10,
+				size.width() - padding * 4,
 				st::groupCallWidth);
-			_emptyRtmp->resizeToWidth(width);
+			label->widget.resizeToWidth(width);
+			label->widget.move(padding, padding);
+			_emptyRtmp->resize(
+				width + 2 * padding,
+				label->widget.height() + 2 * padding);
 			_emptyRtmp->move(
 				(size.width() - _emptyRtmp->width()) / 2,
 				(size.height() - _emptyRtmp->height()) / 3);
