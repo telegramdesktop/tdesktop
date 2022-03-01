@@ -405,43 +405,18 @@ uint djbStringHash(const std::string &string) {
 
 } // namespace
 
-class MainWindow::Private : public QObject {
+class MainWindow::Private {
 public:
-	explicit Private(not_null<MainWindow*> window)
-	: _public(window) {
-		QCoreApplication::instance()->installEventFilter(this);
-	}
-
 	base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-protected:
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
-private:
-	not_null<MainWindow*> _public;
 };
-
-bool MainWindow::Private::eventFilter(QObject *obj, QEvent *e) {
-	if (obj->objectName() == qstr("QSystemTrayIconSys")
-			&& e->type() == QEvent::MouseButtonPress) {
-		const auto ee = static_cast<QMouseEvent*>(e);
-		if (ee->button() == Qt::RightButton) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_public->handleTrayIconActication(QSystemTrayIcon::Context);
-			});
-			return true;
-		}
-	}
-	return QObject::eventFilter(obj, e);
-}
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this)) {
+, _private(std::make_unique<Private>()) {
 }
 
 void MainWindow::initHook() {
@@ -858,6 +833,27 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psStrikeOut, !markdownEnabled);
 	ForceDisabled(psMonospace, !markdownEnabled);
 	ForceDisabled(psClearFormat, !markdownEnabled);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
+	QEvent::Type t = evt->type();
+	if (t == QEvent::MouseButtonPress
+		&& obj->objectName() == qstr("QSystemTrayIconSys")) {
+		const auto ee = static_cast<QMouseEvent*>(evt);
+		if (ee->button() == Qt::RightButton) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				handleTrayIconActication(QSystemTrayIcon::Context);
+			});
+			return true;
+		}
+	} else if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
+		if (qobject_cast<QLineEdit*>(obj)
+			|| qobject_cast<QTextEdit*>(obj)
+			|| dynamic_cast<HistoryInner*>(obj)) {
+			updateGlobalMenu();
+		}
+	}
+	return Window::MainWindow::eventFilter(obj, evt);
 }
 
 void MainWindow::handleNativeSurfaceChanged(bool exist) {
