@@ -394,11 +394,12 @@ void SetupInterfaceScale(
 				Local::writeSettings();
 				Core::Restart();
 			});
-			const auto cancelled = crl::guard(button, [=] {
+			const auto cancelled = crl::guard(button, [=](Fn<void()> close) {
 				base::call_delayed(
 					st::defaultSettingsSlider.duration,
 					button,
 					[=] { repeatSetScale(cConfigScale(), repeatSetScale); });
+				close();
 			});
 			window->show(Ui::MakeConfirmBox({
 				.text = tr::lng_settings_need_restart(),
