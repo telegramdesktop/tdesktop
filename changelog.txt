@@ -1,3 +1,7 @@
+3.5.4 beta (01.03.22)
+
+- Bug fixes and other minor improvements.
+
 3.5.3 beta (28.02.22)
 
 - Check the status of media and file downloads by clicking on the new panel in the bottom of the chats list.
