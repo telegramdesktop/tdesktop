@@ -46,8 +46,10 @@ public:
 	}
 	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() = 0;
 	[[nodiscard]] virtual QString optionLabel(Option option);
-	[[nodiscard]] virtual rpl::producer<QString> warning() {
+	[[nodiscard]] virtual rpl::producer<TextWithEntities> warning() {
 		return nullptr;
+	}
+	virtual void prepareWarningLabel(not_null<Ui::FlatLabel*> warning) {
 	}
 	[[nodiscard]] virtual rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) = 0;
@@ -127,11 +129,11 @@ private:
 
 	Ui::FlatLabel *addLabel(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
+		rpl::producer<TextWithEntities> text,
 		int topSkip);
-	void addLabelOrDivider(
+	Ui::FlatLabel *addLabelOrDivider(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
+		rpl::producer<TextWithEntities> text,
 		int topSkip);
 
 	void editExceptions(Exception exception, Fn<void()> done);

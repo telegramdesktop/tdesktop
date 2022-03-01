@@ -35,7 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
+#include "ui/text/text_utilities.h"
 #include "window/section_widget.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "ui/boxes/confirm_box.h"
@@ -45,12 +47,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Settings {
 namespace {
 
 using UserPrivacy = Api::UserPrivacy;
 using PrivacyRule = Api::UserPrivacy::Rule;
 using Option = EditPrivacyBox::Option;
+
+[[nodiscard]] QString PublicLinkByPhone(not_null<UserData*> user) {
+	return user->session().createInternalLinkFull('+' + user->phone());
+}
 
 class BlockPeerBoxController final : public ChatsListBoxController {
 public:
@@ -431,6 +440,11 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 	return row;
 }
 
+PhoneNumberPrivacyController::PhoneNumberPrivacyController(
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
+
 UserPrivacy::Key PhoneNumberPrivacyController::key() {
 	return Key::PhoneNumber;
 }
@@ -443,17 +457,44 @@ rpl::producer<QString> PhoneNumberPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_phone_number_header();
 }
 
-rpl::producer<QString> PhoneNumberPrivacyController::warning() {
+rpl::producer<TextWithEntities> PhoneNumberPrivacyController::warning() {
 	using namespace rpl::mappers;
+	const auto self = _controller->session().user();
 	return rpl::combine(
 		_phoneNumberOption.value(),
 		_addedByPhone.value(),
 		(_1 == Option::Nobody) && (_2 != Option::Everyone)
-	) | rpl::map([](bool onlyContactsSee) {
+	) | rpl::map([=](bool onlyContactsSee) {
 		return onlyContactsSee
-			? tr::lng_edit_privacy_phone_number_contacts()
-			: tr::lng_edit_privacy_phone_number_warning();
+			? tr::lng_edit_privacy_phone_number_contacts(
+				Ui::Text::WithEntities)
+			: rpl::combine(
+				tr::lng_edit_privacy_phone_number_warning(),
+				tr::lng_username_link()
+			) | rpl::map([=](const QString &warning, const QString &added) {
+				auto base = TextWithEntities{
+					warning + "\n\n" + added + "\n",
+				};
+				const auto link = PublicLinkByPhone(self);
+				return base.append(Ui::Text::Link(link, link));
+			});
 	}) | rpl::flatten_latest();
+}
+
+void PhoneNumberPrivacyController::prepareWarningLabel(
+		not_null<Ui::FlatLabel*> warning) {
+	warning->setClickHandlerFilter([=](
+			const ClickHandlerPtr &link,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
+			QGuiApplication::clipboard()->setText(PublicLinkByPhone(
+				_controller->session().user()));
+			_controller->window().showToast(
+				tr::lng_username_copied(tr::now));
+			return false;
+		}
+		return true;
+	});
 }
 
 rpl::producer<QString> PhoneNumberPrivacyController::exceptionButtonTextKey(
@@ -554,8 +595,8 @@ rpl::producer<QString> LastSeenPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_lastseen_header();
 }
 
-rpl::producer<QString> LastSeenPrivacyController::warning() {
-	return tr::lng_edit_privacy_lastseen_warning();
+rpl::producer<TextWithEntities> LastSeenPrivacyController::warning() {
+	return tr::lng_edit_privacy_lastseen_warning(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> LastSeenPrivacyController::exceptionButtonTextKey(
@@ -721,8 +762,8 @@ QString CallsPeer2PeerPrivacyController::optionLabel(
 	Unexpected("Option value in optionsLabelKey.");
 }
 
-rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
-	return tr::lng_settings_peer_to_peer_about();
+rpl::producer<TextWithEntities> CallsPeer2PeerPrivacyController::warning() {
+	return tr::lng_settings_peer_to_peer_about(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionButtonTextKey(
@@ -767,8 +808,8 @@ rpl::producer<QString> ForwardsPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_forwards_header();
 }
 
-rpl::producer<QString> ForwardsPrivacyController::warning() {
-	return tr::lng_edit_privacy_forwards_warning();
+rpl::producer<TextWithEntities> ForwardsPrivacyController::warning() {
+	return tr::lng_edit_privacy_forwards_warning(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> ForwardsPrivacyController::exceptionButtonTextKey(

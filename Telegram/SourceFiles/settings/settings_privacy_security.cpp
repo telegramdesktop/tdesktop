@@ -143,7 +143,8 @@ void SetupPrivacy(
 		tr::lng_settings_phone_number_privacy(),
 		{ &st::settingsIconCalls, kIconGreen },
 		Key::PhoneNumber,
-		[] { return std::make_unique<PhoneNumberPrivacyController>(); });
+		[=] { return std::make_unique<PhoneNumberPrivacyController>(
+			controller); });
 	add(
 		tr::lng_settings_last_seen(),
 		{ &st::settingsIconOnline, kIconLightBlue },

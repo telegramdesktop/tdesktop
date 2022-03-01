@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/text/text_utilities.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "history/history.h"
@@ -211,7 +212,7 @@ Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::AddOption(
 
 Ui::FlatLabel *EditPrivacyBox::addLabel(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
+		rpl::producer<TextWithEntities> text,
 		int topSkip) {
 	if (!text) {
 		return nullptr;
@@ -228,15 +229,17 @@ Ui::FlatLabel *EditPrivacyBox::addLabel(
 	)->entity();
 }
 
-void EditPrivacyBox::addLabelOrDivider(
+Ui::FlatLabel *EditPrivacyBox::addLabelOrDivider(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
+		rpl::producer<TextWithEntities> text,
 		int topSkip) {
-	if (!addLabel(container, std::move(text), topSkip)) {
-		container->add(
-			object_ptr<Ui::BoxContentDivider>(container),
-			{ 0, topSkip, 0, 0 });
+	if (const auto result = addLabel(container, std::move(text), topSkip)) {
+		return result;
 	}
+	container->add(
+		object_ptr<Ui::BoxContentDivider>(container),
+		{ 0, topSkip, 0, 0 });
+	return nullptr;
 }
 
 void EditPrivacyBox::setupContent() {
@@ -320,10 +323,13 @@ void EditPrivacyBox::setupContent() {
 	addOptionRow(Option::Everyone);
 	addOptionRow(Option::Contacts);
 	addOptionRow(Option::Nobody);
-	addLabelOrDivider(
+	const auto warning = addLabelOrDivider(
 		content,
 		_controller->warning(),
 		st::settingsSectionSkip + st::settingsPrivacySkipTop);
+	if (warning) {
+		_controller->prepareWarningLabel(warning);
+	}
 
 	auto middle = _controller->setupMiddleWidget(
 		_window,
@@ -342,7 +348,7 @@ void EditPrivacyBox::setupContent() {
 	const auto never = addExceptionLink(Exception::Never);
 	addLabel(
 		content,
-		_controller->exceptionsDescription(),
+		_controller->exceptionsDescription() | Ui::Text::ToWithEntities(),
 		st::settingsSectionSkip);
 
 	if (auto below = _controller->setupBelowWidget(_window, content)) {
