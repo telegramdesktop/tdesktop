@@ -216,7 +216,7 @@ void CreateRightLabel(
 		const auto available = width
 			- st.padding.left()
 			- st.padding.right()
-			- st.font->width(button)
+			- st.style.font->width(button)
 			- st::settingsButtonRightSkip;
 		name->setText(text);
 		name->resizeToNaturalWidth(available);

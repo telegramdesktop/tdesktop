@@ -133,7 +133,7 @@ mainMenu: Menu(defaultMenu) {
 	itemToggleShift: 11px;
 }
 mainMenuButton: SettingsButton(defaultSettingsButton) {
-	font: semiboldFont;
+	style: semiboldTextStyle;
 	padding: margins(61px, 11px, 20px, 9px);
 	toggleSkip: 19px;
 	iconLeft: 21px;
@@ -230,7 +230,7 @@ createThemeImportButton: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 20px;
 	padding: margins(22px, 10px, 22px, 8px);

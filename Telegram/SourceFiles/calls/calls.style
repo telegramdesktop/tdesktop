@@ -750,7 +750,7 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	textBg: groupCallMembersBg;
 	textBgOver: groupCallMembersBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 22px;
 	padding: margins(63px, 17px, 22px, 11px);

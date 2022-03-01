@@ -891,7 +891,7 @@ pollResultsShowMore: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 20px;
 	padding: margins(71px, 10px, 8px, 8px);
@@ -905,7 +905,11 @@ inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: font(14px semibold);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold underline);
+	}
 
 	height: 20px;
 	padding: margins(74px, 8px, 8px, 9px);

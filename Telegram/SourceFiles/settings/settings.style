@@ -11,7 +11,7 @@ using "info/info.style";
 using "boxes/boxes.style";
 
 settingsButton: SettingsButton(infoProfileButton) {
-	font: boxTextFont;
+	style: boxTextStyle;
 	padding: margins(60px, 10px, 22px, 10px);
 	iconLeft: 20px;
 }
@@ -267,7 +267,11 @@ settingsDeviceName: InputField(defaultInputField) {
 }
 
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
-	font: font(14px semibold);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold underline);
+	}
 }
 
 sessionsScroll: boxScroll;

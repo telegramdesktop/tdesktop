@@ -379,7 +379,7 @@ infoProfileToggleOver: Toggle(infoProfileToggle) {
 	untoggledFg: menuIconFgOver;
 }
 infoProfileButton: SettingsButton(defaultSettingsButton) {
-	font: normalFont;
+	style: defaultTextStyle;
 
 	padding: margins(79px, 10px, 8px, 8px);
 	iconLeft: 22px;
@@ -394,7 +394,7 @@ infoNotificationsButton: SettingsButton(infoProfileButton) {
 infoMainButton: SettingsButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
-	font: semiboldFont;
+	style: semiboldTextStyle;
 }
 infoSharedMediaCoverHeight: 62px;
 infoSharedMediaButton: infoProfileButton;
@@ -843,7 +843,7 @@ inviteLinkCreate: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 20px;
 	padding: margins(60px, 7px, 12px, 5px);
