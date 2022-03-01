@@ -71,6 +71,7 @@ constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
+constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
 
 } // namespace
 
@@ -121,7 +122,8 @@ Panel::Panel(not_null<GroupCall*> call)
 , _hangup(widget(), st::groupCallHangup)
 , _stickedTooltipsShown(Core::App().settings().hiddenGroupCallTooltips()
 	& ~StickedTooltip::Microphone) // Always show tooltip about mic.
-, _toasts(std::make_unique<Toasts>(this)) {
+, _toasts(std::make_unique<Toasts>(this))
+, _hideControlsTimer([=] { toggleWideControls(false); }) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
 
@@ -1170,6 +1172,17 @@ void Panel::createPinOnTop() {
 		_pinOnTop->setVisible(!fullscreen);
 		if (fullscreen) {
 			pin(false);
+
+			_viewport->rp()->events(
+			) | rpl::filter([](not_null<QEvent*> event) {
+				return (event->type() == QEvent::MouseMove);
+			}) | rpl::start_with_next([=] {
+				_hideControlsTimer.callOnce(kHideControlsTimeout);
+				toggleWideControls(true);
+			}, _hideControlsTimerLifetime);
+		} else {
+			_hideControlsTimerLifetime.destroy();
+			_hideControlsTimer.cancel();
 		}
 	}, _pinOnTop->lifetime());
 

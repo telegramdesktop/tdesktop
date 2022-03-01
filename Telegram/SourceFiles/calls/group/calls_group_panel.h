@@ -256,6 +256,9 @@ private:
 
 	std::unique_ptr<MicLevelTester> _micLevelTester;
 
+	base::Timer _hideControlsTimer;
+	rpl::lifetime _hideControlsTimerLifetime;
+
 	rpl::lifetime _peerLifetime;
 
 };
