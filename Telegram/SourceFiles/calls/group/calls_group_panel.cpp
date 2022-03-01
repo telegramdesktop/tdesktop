@@ -1147,7 +1147,7 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 }
 
 void Panel::createPinOnTop() {
-	_pinOnTop.create(window(), st::groupCallPinOnTop);
+	_pinOnTop.create(widget(), st::groupCallPinOnTop);
 	const auto pinned = [=] {
 		const auto handle = window()->windowHandle();
 		return handle && (handle->flags() & Qt::WindowStaysOnTopHint);
