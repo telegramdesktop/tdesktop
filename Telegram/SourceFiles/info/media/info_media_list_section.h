@@ -34,8 +34,6 @@ public:
 	bool removeItem(not_null<const HistoryItem*> item);
 	[[nodiscard]] std::optional<ListFoundItem> findItemByItem(
 		not_null<const HistoryItem*> item) const;
-	[[nodiscard]] ListFoundItem findItemNearId(
-		UniversalMsgId universalId) const;
 	[[nodiscard]] ListFoundItem findItemDetails(
 		not_null<BaseLayout*> item) const;
 	[[nodiscard]] ListFoundItem findItemByPoint(QPoint point) const;

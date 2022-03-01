@@ -370,7 +370,40 @@ void Provider::applyDragSelection(
 		bool skipFrom,
 		not_null<const HistoryItem*> tillItem,
 		bool skipTill) {
-	// #TODO downloads selection
+	auto from = ranges::find(_elements, fromItem, &Element::item);
+	auto till = ranges::find(_elements, tillItem, &Element::item);
+	if (from == end(_elements) || till == end(_elements)) {
+		return;
+	}
+	if (skipFrom) {
+		++from;
+	}
+	if (!skipTill) {
+		++till;
+	}
+	if (from >= till) {
+		selected.clear();
+		return;
+	}
+	auto chosen = base::flat_set<not_null<const HistoryItem*>>();
+	chosen.reserve(till - from);
+	for (auto i = from; i != till; ++i) {
+		const auto item = i->item;
+		chosen.emplace(item);
+		ChangeItemSelection(
+			selected,
+			item,
+			computeSelectionData(item, FullSelection));
+	}
+	if (selected.size() != chosen.size()) {
+		for (auto i = begin(selected); i != end(selected);) {
+			if (selected.contains(i->first)) {
+				++i;
+			} else {
+				i = selected.erase(i);
+			}
+		}
+	}
 }
 
 bool Provider::allowSaveFileAs(

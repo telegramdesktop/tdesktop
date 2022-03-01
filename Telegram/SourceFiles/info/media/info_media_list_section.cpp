@@ -158,23 +158,6 @@ std::optional<ListFoundItem> ListSection::findItemByItem(
 	return std::nullopt;
 }
 
-ListFoundItem ListSection::findItemNearId(UniversalMsgId universalId) const {
-	Expects(!_items.empty());
-
-	// #TODO downloads
-	auto itemIt = ranges::lower_bound(
-		_items,
-		universalId,
-		std::greater<>(),
-		[](const auto &item) { return GetUniversalId(item); });
-	if (itemIt == _items.end()) {
-		--itemIt;
-	}
-	const auto item = *itemIt;
-	const auto exact = (GetUniversalId(item) == universalId);
-	return { item, findItemRect(item), exact };
-}
-
 ListFoundItem ListSection::findItemDetails(
 		not_null<BaseLayout*> item) const {
 	return { item, findItemRect(item), true };
