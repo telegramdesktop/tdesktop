@@ -1391,7 +1391,8 @@ bool Message::hasFromPhoto() const {
 	case Context::Replies: {
 		const auto item = message();
 		if (item->isPost()) {
-			return item->isSponsored();
+			return item->isSponsored()
+				&& item->history()->peer->isMegagroup();
 		}
 		if (item->isEmpty()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
