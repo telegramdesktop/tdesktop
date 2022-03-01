@@ -391,6 +391,10 @@ void MainWidget::setupConnectingWidget() {
 		this,
 		&session().account(),
 		_controller->adaptive().oneColumnValue() | rpl::map(!_1));
+	_controller->connectingBottomSkipValue(
+	) | rpl::start_with_next([=](int skip) {
+		_connecting->setBottomSkip(skip);
+	}, lifetime());
 }
 
 not_null<Media::Player::FloatDelegate*> MainWidget::floatPlayerDelegate() {

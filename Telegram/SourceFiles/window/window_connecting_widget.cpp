@@ -243,11 +243,12 @@ void ConnectionState::createWidget() {
 
 	rpl::combine(
 		visibility(),
-		_parent->heightValue()
-	) | rpl::start_with_next([=](float64 visible, int height) {
+		_parent->heightValue(),
+		_bottomSkip.value()
+	) | rpl::start_with_next([=](float64 visible, int height, int skip) {
 		_widget->moveToLeft(0, anim::interpolate(
 			height - st::connectingMargin.top(),
-			height - _widget->height(),
+			height - _widget->height() - skip,
 			visible));
 	}, _widget->lifetime());
 
@@ -279,6 +280,10 @@ void ConnectionState::setForceHidden(bool hidden) {
 	if (_widget) {
 		_widget->setVisible(!hidden);
 	}
+}
+
+void ConnectionState::setBottomSkip(int skip) {
+	_bottomSkip = skip;
 }
 
 void ConnectionState::refreshState() {

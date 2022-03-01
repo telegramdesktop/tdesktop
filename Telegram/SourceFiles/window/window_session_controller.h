@@ -287,6 +287,9 @@ public:
 		return _selectingPeer;
 	}
 
+	void setConnectingBottomSkip(int skip);
+	rpl::producer<int> connectingBottomSkipValue() const;
+
 	QPointer<Ui::BoxContent> show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
@@ -540,6 +543,8 @@ private:
 	base::Timer _invitePeekTimer;
 
 	rpl::variable<FilterId> _activeChatsFilter;
+
+	rpl::variable<int> _connectingBottomSkip;
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;

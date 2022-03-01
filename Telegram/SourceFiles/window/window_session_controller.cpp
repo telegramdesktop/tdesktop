@@ -1500,6 +1500,14 @@ Window::Adaptive &SessionController::adaptive() const {
 	return _window->adaptive();
 }
 
+void SessionController::setConnectingBottomSkip(int skip) {
+	_connectingBottomSkip = skip;
+}
+
+rpl::producer<int> SessionController::connectingBottomSkipValue() const {
+	return _connectingBottomSkip.value();
+}
+
 QPointer<Ui::BoxContent> SessionController::show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,

@@ -1706,6 +1706,11 @@ void Widget::updateControlsGeometry() {
 	putBottomButton(_updateTelegram);
 	putBottomButton(_downloadBar);
 	putBottomButton(_loadMoreChats);
+	const auto bottomSkip = (height() - scrollTop) - scrollHeight;
+	if (_connecting) {
+		_connecting->setBottomSkip(bottomSkip);
+	}
+	controller()->setConnectingBottomSkip(bottomSkip);
 	auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
 	_inner->resize(width(), _inner->height());
