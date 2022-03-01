@@ -144,7 +144,7 @@ namespace {
 
 void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
 	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || qobject_cast<HistoryInner*>(focused)) {
+	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || dynamic_cast<HistoryInner*>(focused)) {
 		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
 		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
@@ -628,12 +628,12 @@ void MainWindow::updateGlobalMenuHook() {
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(
+			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 					focused->parentWidget())) {
 				canApplyMarkdown = inputField->isMarkdownEnabled();
 			}
 		}
-	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
+	} else if (auto list = dynamic_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
@@ -669,7 +669,7 @@ void MainWindow::updateGlobalMenuHook() {
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || qobject_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || dynamic_cast<HistoryInner*>(obj)) {
 			updateGlobalMenu();
 		}
 	}
