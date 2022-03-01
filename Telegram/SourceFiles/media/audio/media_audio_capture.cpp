@@ -130,8 +130,12 @@ void Instance::check() {
 }
 
 Instance::~Instance() {
-	InvokeQueued(_inner.get(), [copy = base::take(_inner)] {
-	});
+	// Send _inner to it's thread for destruction.
+	if (const auto context = _inner.get()) {
+		InvokeQueued(context, [copy = base::take(_inner)]{});
+	}
+
+	// And wait for it to finish.
 	_thread.quit();
 	_thread.wait();
 }
