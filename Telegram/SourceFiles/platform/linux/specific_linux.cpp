@@ -398,6 +398,12 @@ QString GetIconName() {
 	return Result;
 }
 
+[[nodiscard]] bool IsGtkDarkTheme(const QString &theme) {
+	const auto themeLower = theme.toLower();
+	return themeLower.contains(qsl("-dark-"))
+		|| themeLower.endsWith(qsl("-dark"));
+}
+
 std::optional<bool> IsDarkMode() {
 	[[maybe_unused]] static const auto Inited = [] {
 		static const auto Setter = [] {
@@ -474,9 +480,7 @@ std::optional<bool> IsDarkMode() {
 		const auto gtkThemeX = xSettings->setting("Net/ThemeName");
 		if (gtkThemeX.isValid()) {
 			result = false;
-			if (gtkThemeX.toString().contains(
-				qsl("-dark"),
-				Qt::CaseInsensitive)) {
+			if (IsGtkDarkTheme(gtkThemeX.toString())) {
 				result = true;
 				return result;
 			}
@@ -499,9 +503,7 @@ std::optional<bool> IsDarkMode() {
 
 			result = false;
 
-			if (gtkThemePortalString.contains(
-				qsl("-dark"),
-				Qt::CaseInsensitive)) {
+			if (IsGtkDarkTheme(gtkThemePortalString)) {
 				result = true;
 				return result;
 			}
