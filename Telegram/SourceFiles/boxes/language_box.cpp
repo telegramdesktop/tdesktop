@@ -907,6 +907,30 @@ void Content::setupContent(
 			content,
 			object_ptr<Ui::BoxContentDivider>(content)));
 	const auto other = add(official, true);
+	const auto empty = content->add(
+		object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
+			content,
+			object_ptr<Ui::FixedHeightWidget>(
+				content,
+				st::membersAbout.style.font->height * 9)));
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		empty->entity(),
+		tr::lng_languages_none(),
+		st::membersAbout);
+	empty->entity()->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		label->move(
+			(size.width() - label->width()) / 2,
+			(size.height() - label->height()) / 2);
+	}, label->lifetime());
+
+	empty->toggleOn(
+		rpl::combine(
+			main ? main->isEmpty() : rpl::single(true),
+			other ? other->isEmpty() : rpl::single(true),
+			_1 && _2),
+		anim::type::instant);
+
 	Ui::ResizeFitChild(this, content);
 
 	if (main && other) {
