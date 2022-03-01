@@ -68,7 +68,7 @@ void LaunchWithWarning(
 		const QString &name,
 		HistoryItem *item) {
 	const auto isExecutable = Data::IsExecutableName(name);
-	const auto isIpReveal = true;
+	const auto isIpReveal = Data::IsIpRevealingName(name);
 	auto &app = Core::App();
 	const auto warn = [&] {
 		if (item && item->history()->peer->isVerified()) {
