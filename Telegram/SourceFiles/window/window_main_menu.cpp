@@ -1002,7 +1002,7 @@ void MainMenu::setupMenu() {
 		});
 		addAction(
 			rpl::single(u"Fix chats order"_q),
-			{ &st::settingsIconKey, kIconGreen }
+			{ &st::settingsIconPin, kIconGreen }
 		)->toggleOn(rpl::single(
 			_controller->session().settings().supportFixChatsOrder()
 		))->toggledChanges(
