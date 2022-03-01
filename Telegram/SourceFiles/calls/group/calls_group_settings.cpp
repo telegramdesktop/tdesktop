@@ -636,7 +636,7 @@ void SettingsBox(
 			st::groupCallSettingsButton
 		)->addClickHandler(std::move(shareLink));
 	}
-	if (rtmp) {
+	if (rtmp && !call->rtmpInfo().url.isEmpty()) {
 		AddSkip(layout);
 		addDivider();
 		AddSkip(layout);
