@@ -44,6 +44,10 @@ constexpr auto ByItem = [](const auto &entry) {
 	}
 };
 
+constexpr auto ByDocument = [](const auto &entry) {
+	return entry.object.document;
+};
+
 [[nodiscard]] uint64 PeerAccessHash(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		return user->accessHash();
@@ -66,11 +70,11 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	data.downloaded = deserialize(session);
 	data.resolveNeeded = data.downloaded.size();
 
-	session->data().itemRepaintRequest(
-	) | rpl::filter([=](not_null<const HistoryItem*> item) {
-		return _loading.contains(item);
-	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
-		check(item);
+	session->data().documentLoadProgress(
+	) | rpl::filter([=](not_null<DocumentData*> document) {
+		return _loadingDocuments.contains(document);
+	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		check(document);
 	}, data.lifetime);
 
 	session->data().itemLayoutChanged(
@@ -141,6 +145,7 @@ void DownloadManager::addLoading(DownloadObject object) {
 		.total = size,
 	});
 	_loading.emplace(item);
+	_loadingDocuments.emplace(object.document);
 	_loadingProgress = DownloadProgress{
 		.ready = _loadingProgress.current().ready,
 		.total = _loadingProgress.current().total + size,
@@ -155,9 +160,25 @@ void DownloadManager::check(not_null<const HistoryItem*> item) {
 	auto &data = sessionData(item);
 	const auto i = ranges::find(data.downloading, item, ByItem);
 	Assert(i != end(data.downloading));
+	check(data, i);
+}
+
+void DownloadManager::check(not_null<DocumentData*> document) {
+	auto &data = sessionData(document);
+	const auto i = ranges::find(
+		data.downloading,
+		document.get(),
+		ByDocument);
+	Assert(i != end(data.downloading));
+	check(data, i);
+}
+
+void DownloadManager::check(
+		SessionData &data,
+		std::vector<DownloadingId>::iterator i) {
 	auto &entry = *i;
 
-	const auto media = item->media();
+	const auto media = entry.object.item->media();
 	const auto photo = media ? media->photo() : nullptr;
 	const auto document = media ? media->document() : nullptr;
 	if (entry.object.photo != photo || entry.object.document != document) {
@@ -169,7 +190,7 @@ void DownloadManager::check(not_null<const HistoryItem*> item) {
 
 	const auto path = document->filepath(true);
 	if (!path.isEmpty()) {
-		if (_loading.contains(item)) {
+		if (_loading.contains(entry.object.item)) {
 			addLoaded(entry.object, path, entry.started);
 		}
 	} else if (!document->loading()) {
@@ -224,11 +245,14 @@ void DownloadManager::addLoaded(
 	const auto i = ranges::find(data.downloading, item, ByItem);
 	if (i != end(data.downloading)) {
 		auto &entry = *i;
+		const auto document = entry.object.document;
+		if (document) {
+			_loadingDocuments.remove(document);
+		}
 		const auto j = _loading.find(entry.object.item);
 		if (j == end(_loading)) {
 			return;
 		}
-		const auto document = entry.object.document;
 		const auto totalChange = document->size - entry.total;
 		const auto readyChange = document->size - entry.ready;
 		entry.ready += readyChange;
@@ -531,6 +555,9 @@ void DownloadManager::remove(
 	};
 	_loading.remove(i->object.item);
 	_loadingDone.remove(i->object.item);
+	if (const auto document = i->object.document) {
+		_loadingDocuments.remove(document);
+	}
 	data.downloading.erase(i);
 	_loadingListChanges.fire({});
 	_loadingProgress = now;
@@ -670,6 +697,11 @@ const DownloadManager::SessionData &DownloadManager::sessionData(
 DownloadManager::SessionData &DownloadManager::sessionData(
 		not_null<const HistoryItem*> item) {
 	return sessionData(&item->history()->session());
+}
+
+DownloadManager::SessionData &DownloadManager::sessionData(
+		not_null<DocumentData*> document) {
+	return sessionData(&document->session());
 }
 
 void DownloadManager::writePostponed(not_null<Main::Session*> session) {

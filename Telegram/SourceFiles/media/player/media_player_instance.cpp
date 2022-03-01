@@ -217,23 +217,27 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		if (item) {
 			setHistory(data, item->history());
 		} else {
-			data->history = nullptr;
-			data->migrated = nullptr;
-			data->session = nullptr;
+			setHistory(
+				data,
+				nullptr,
+				audioId.audio() ? &audioId.audio()->session() : nullptr);
 		}
 		_trackChanged.fire_copy(data->type);
 		refreshPlaylist(data);
 	}
 }
 
-void Instance::setHistory(not_null<Data*> data, History *history) {
+void Instance::setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback) {
 	if (history) {
 		data->history = history->migrateToOrMe();
 		data->migrated = data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
 		data->history = data->migrated = nullptr;
-		setSession(data, nullptr);
+		setSession(data, sessionFallback);
 	}
 }
 
@@ -250,6 +254,18 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 		) | rpl::start_with_next([=] {
 			setSession(data, nullptr);
 		}, data->sessionLifetime);
+
+		session->data().documentLoadProgress(
+		) | rpl::filter([=](not_null<DocumentData*> document) {
+			// Before refactoring it was called only for audio files.
+			return document->isAudioFile();
+		}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			const auto type = AudioMsgId::Type::Song;
+			emitUpdate(type, [&](const AudioMsgId &audioId) {
+				return (audioId.audio() == document);
+			});
+		}, data->sessionLifetime);
+
 		session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (data->current.contextId() == item->fullId());
@@ -1112,15 +1128,6 @@ void Instance::updateVoicePlaybackSpeed() {
 			streamed->instance.setSpeed(VoicePlaybackSpeed());
 		}
 	}
-}
-
-void Instance::documentLoadProgress(DocumentData *document) {
-	const auto type = document->isAudioFile()
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
-	emitUpdate(type, [&](const AudioMsgId &audioId) {
-		return (audioId.audio() == document);
-	});
 }
 
 void Instance::emitUpdate(AudioMsgId::Type type) {

@@ -369,6 +369,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
+"lng_languages_none" = "No languages found.";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
 "lng_settings_install_beta" = "Install beta versions";
@@ -1844,6 +1845,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_downloads_delete_sure_one" = "Do you want to delete this file?";
 "lng_downloads_delete_sure#one" = "Do you want to delete {count} file?";
 "lng_downloads_delete_sure#other" = "Do you want to delete {count} files?";
+"lng_downloads_delete_in_cloud_one" = "It will be deleted from your disk, but will remain accessible in the cloud.";
+"lng_downloads_delete_in_cloud" = "They will be deleted from your disk, but will remain accessible in the cloud.";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";

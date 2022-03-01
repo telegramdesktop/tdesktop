@@ -679,23 +679,23 @@ void OverlayWidget::clearStreaming(bool savePosition) {
 	_streamed = nullptr;
 }
 
-void OverlayWidget::documentUpdated(DocumentData *doc) {
-	if (_document && _document == doc) {
-		if (documentBubbleShown()) {
-			if ((_document->loading() && _docCancel->isHidden()) || (!_document->loading() && !_docCancel->isHidden())) {
-				updateControls();
-			} else if (_document->loading()) {
-				updateDocSize();
-				_widget->update(_docRect);
-			}
-		} else if (_streamed) {
-			const auto ready = _documentMedia->loaded()
-				? _document->size
-				: _document->loading()
-				? std::clamp(_document->loadOffset(), 0, _document->size)
-				: 0;
-			_streamed->controls.setLoadingProgress(ready, _document->size);
+void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
+	if (_document != document) {
+		return;
+	} else if (documentBubbleShown()) {
+		if ((_document->loading() && _docCancel->isHidden()) || (!_document->loading() && !_docCancel->isHidden())) {
+			updateControls();
+		} else if (_document->loading()) {
+			updateDocSize();
+			_widget->update(_docRect);
 		}
+	} else if (_streamed) {
+		const auto ready = _documentMedia->loaded()
+			? _document->size
+			: _document->loading()
+			? std::clamp(_document->loadOffset(), 0, _document->size)
+			: 0;
+		_streamed->controls.setLoadingProgress(ready, _document->size);
 	}
 }
 
@@ -4109,12 +4109,11 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 		}
 	}, _sessionLifetime);
 
-	base::ObservableViewer(
-		session->documentUpdated
-	) | rpl::start_with_next([=](DocumentData *document) {
-		if (!isHidden()) {
-			documentUpdated(document);
-		}
+	session->data().documentLoadProgress(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		documentUpdated(document);
 	}, _sessionLifetime);
 
 	session->data().itemIdChanged(

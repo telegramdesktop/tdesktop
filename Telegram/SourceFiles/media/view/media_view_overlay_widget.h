@@ -327,7 +327,7 @@ private:
 	void destroyThemePreview();
 	void updateThemePreviewGeometry();
 
-	void documentUpdated(DocumentData *doc);
+	void documentUpdated(not_null<DocumentData*> document);
 	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
 
 	[[nodiscard]] int finalContentRotation() const;

@@ -416,6 +416,11 @@ public:
 	void documentLoadDone(not_null<DocumentData*> document);
 	void documentLoadFail(not_null<DocumentData*> document, bool started);
 
+	[[nodiscard]] auto documentLoadProgress() const
+	-> rpl::producer<not_null<DocumentData*>> {
+		return _documentLoadProgress.events();
+	}
+
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
 		MessageFlags localFlags,
@@ -930,6 +935,7 @@ private:
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	rpl::event_stream<not_null<DocumentData*>> _documentLoadProgress;
 	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;

@@ -165,8 +165,6 @@ public:
 
 	[[nodiscard]] bool pauseGifByRoundVideo() const;
 
-	void documentLoadProgress(DocumentData *document);
-
 private:
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;
@@ -293,7 +291,10 @@ private:
 	void requestRoundVideoResize() const;
 	void requestRoundVideoRepaint() const;
 
-	void setHistory(not_null<Data*> data, History *history);
+	void setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback = nullptr);
 	void setSession(not_null<Data*> data, Main::Session *session);
 
 	Data _songData;
