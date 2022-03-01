@@ -408,10 +408,6 @@ uint djbStringHash(const std::string &string) {
 class MainWindow::Private {
 public:
 	base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 };
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
@@ -442,12 +438,6 @@ void MainWindow::initHook() {
 	});
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	try {
-		_private->dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	} catch (...) {
-	}
-
 	if (UseUnityCounter()) {
 		LOG(("Using Unity launcher counter."));
 	} else {
@@ -541,18 +531,19 @@ void MainWindow::updateIconCounters() {
 		}
 
 		try {
-			if (_private->dbusConnection) {
-				_private->dbusConnection->emit_signal(
-					"/com/canonical/unity/launcherentry/"
-						+ std::to_string(djbStringHash(launcherUrl)),
-					"com.canonical.Unity.LauncherEntry",
-					"Update",
-					{},
-					base::Platform::MakeGlibVariant(std::tuple{
-						launcherUrl,
-						dbusUnityProperties,
-					}));
-			}
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			connection->emit_signal(
+				"/com/canonical/unity/launcherentry/"
+					+ std::to_string(djbStringHash(launcherUrl)),
+				"com.canonical.Unity.LauncherEntry",
+				"Update",
+				{},
+				base::Platform::MakeGlibVariant(std::tuple{
+					launcherUrl,
+					dbusUnityProperties,
+				}));
 		} catch (...) {
 		}
 	}
