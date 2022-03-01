@@ -696,7 +696,6 @@ void SettingsBox(
 		StartRtmpProcess::FillRtmpRows(
 			box->verticalLayout(),
 			false,
-			true,
 			[=](object_ptr<Ui::BoxContent> &&object) {
 				box->getDelegate()->show(std::move(object));
 			},
@@ -709,7 +708,8 @@ void SettingsBox(
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,
 			&st::groupCallSubsectionTitle,
-			&st::groupCallAttentionBoxButton);
+			&st::groupCallAttentionBoxButton,
+			&st::groupCallPopupMenu);
 		state->data.fire(call->rtmpInfo());
 	}
 

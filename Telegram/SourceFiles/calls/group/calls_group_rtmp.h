@@ -22,6 +22,7 @@ namespace style {
 struct FlatLabel;
 struct RoundButton;
 struct IconButton;
+struct PopupMenu;
 } // namespace style
 
 namespace Calls::Group {
@@ -42,14 +43,14 @@ public:
 	static void FillRtmpRows(
 		not_null<Ui::VerticalLayout*> container,
 		bool divider,
-		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		rpl::producer<RtmpInfo> &&data,
 		const style::FlatLabel *labelStyle,
 		const style::IconButton *showButtonStyle,
 		const style::FlatLabel *subsectionTitleStyle,
-		const style::RoundButton *attentionButtonStyle);
+		const style::RoundButton *attentionButtonStyle,
+		const style::PopupMenu *popupMenuStyle);
 
 private:
 	void requestUrl(bool revoke);

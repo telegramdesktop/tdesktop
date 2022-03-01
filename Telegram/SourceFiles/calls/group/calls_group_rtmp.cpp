@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_rtmp.h"
 
 #include "apiwrap.h"
-#include "base/event_filter.h"
 #include "calls/group/calls_group_common.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
@@ -51,14 +50,14 @@ void StartWithBox(
 	StartRtmpProcess::FillRtmpRows(
 		box->verticalLayout(),
 		true,
-		false,
 		std::move(showBox),
 		std::move(showToast),
 		std::move(data),
 		&st::boxLabel,
 		&st::groupCallRtmpShowButton,
 		&st::settingsSubsectionTitle,
-		&st::attentionBoxButton);
+		&st::attentionBoxButton,
+		&st::defaultPopupMenu);
 
 	box->setTitle(tr::lng_group_call_rtmp_title());
 
@@ -200,14 +199,14 @@ void StartRtmpProcess::createBox() {
 void StartRtmpProcess::FillRtmpRows(
 		not_null<Ui::VerticalLayout*> container,
 		bool divider,
-		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		rpl::producer<RtmpInfo> &&data,
 		const style::FlatLabel *labelStyle,
 		const style::IconButton *showButtonStyle,
 		const style::FlatLabel *subsectionTitleStyle,
-		const style::RoundButton *attentionButtonStyle) {
+		const style::RoundButton *attentionButtonStyle,
+		const style::PopupMenu *popupMenuStyle) {
 	struct State {
 		rpl::variable<bool> hidden = true;
 		rpl::variable<QString> key;
@@ -253,21 +252,16 @@ void StartRtmpProcess::FillRtmpRows(
 		return weak;
 	};
 
-	const auto addLabel = [&](
-			rpl::producer<QString> &&text,
-			const style::FlatLabel &st) {
+	const auto addLabel = [&](rpl::producer<QString> &&text) {
 		const auto label = container->add(
-			object_ptr<Ui::FlatLabel>(container, std::move(text), st),
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(text),
+				*labelStyle,
+				*popupMenuStyle),
 			st::boxRowPadding + QMargins(0, 0, showButtonStyle->width, 0));
 		label->setSelectable(true);
 		label->setBreakEverywhere(true);
-		if (disabledMenuForLabels) {
-			base::install_event_filter(label, [=](not_null<QEvent*> e) {
-				return (e->type() == QEvent::ContextMenu)
-					? base::EventFilterResult::Cancel
-					: base::EventFilterResult::Continue;
-			});
-		}
 		return label;
 	};
 
@@ -279,7 +273,7 @@ void StartRtmpProcess::FillRtmpRows(
 		subsectionTitleStyle);
 
 	auto urlLabelContent = state->url.value();
-	addLabel(std::move(urlLabelContent), *labelStyle);
+	addLabel(std::move(urlLabelContent));
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::groupCallRtmpUrlSkip));
@@ -313,9 +307,7 @@ void StartRtmpProcess::FillRtmpRows(
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	});
-	const auto streamKeyLabel = addLabel(
-		std::move(keyLabelContent),
-		*labelStyle);
+	const auto streamKeyLabel = addLabel(std::move(keyLabelContent));
 	streamKeyLabel->setSelectable(false);
 	const auto streamKeyButton = Ui::CreateChild<Ui::IconButton>(
 		container.get(),
