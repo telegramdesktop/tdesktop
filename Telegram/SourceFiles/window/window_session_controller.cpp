@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
@@ -175,8 +176,12 @@ Main::Session &SessionNavigation::session() const {
 
 void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	Core::App().hideMediaView();
-	if (const auto username = std::get_if<QString>(&info.usernameOrId)) {
-		resolveUsername(*username, [=](not_null<PeerData*> peer) {
+	if (!info.phone.isEmpty()) {
+		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
+			showPeerByLinkResolved(peer, info);
+		});
+	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
+		resolveUsername(*name, [=](not_null<PeerData*> peer) {
 			showPeerByLinkResolved(peer, info);
 		});
 	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
@@ -184,6 +189,29 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			showPeerByLinkResolved(channel, info);
 		});
 	}
+}
+
+void SessionNavigation::resolvePhone(
+		const QString &phone,
+		Fn<void(not_null<PeerData*>)> done) {
+	if (const auto peer = _session->data().userByPhone(phone)) {
+		done(peer);
+		return;
+	}
+	_session->api().request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _session->api().request(MTPcontacts_ResolvePhone(
+		MTP_string(phone)
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		resolveDone(result, done);
+	}).fail([=](const MTP::Error &error) {
+		_resolveRequestId = 0;
+		if (error.code() == 400) {
+			show(Ui::MakeInformBox(tr::lng_username_by_phone_not_found(
+				tr::now,
+				lt_phone,
+				Ui::FormatPhone(phone))));
+		}
+	}).send();
 }
 
 void SessionNavigation::resolveUsername(
@@ -197,18 +225,7 @@ void SessionNavigation::resolveUsername(
 	_resolveRequestId = _session->api().request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
-		_resolveRequestId = 0;
-		Ui::hideLayer();
-		if (result.type() != mtpc_contacts_resolvedPeer) {
-			return;
-		}
-
-		const auto &d(result.c_contacts_resolvedPeer());
-		_session->data().processUsers(d.vusers());
-		_session->data().processChats(d.vchats());
-		if (const auto peerId = peerFromMTP(d.vpeer())) {
-			done(_session->data().peer(peerId));
-		}
+		resolveDone(result, done);
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
@@ -216,6 +233,20 @@ void SessionNavigation::resolveUsername(
 				tr::lng_username_not_found(tr::now, lt_user, username)));
 		}
 	}).send();
+}
+
+void SessionNavigation::resolveDone(
+		const MTPcontacts_ResolvedPeer &result,
+		Fn<void(not_null<PeerData*>)> done) {
+	_resolveRequestId = 0;
+	Ui::hideLayer();
+	result.match([&](const MTPDcontacts_resolvedPeer &data) {
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		if (const auto peerId = peerFromMTP(data.vpeer())) {
+			done(_session->data().peer(peerId));
+		}
+	});
 }
 
 void SessionNavigation::resolveChannelById(

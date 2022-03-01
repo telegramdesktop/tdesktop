@@ -173,6 +173,7 @@ public:
 	using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
 	struct PeerByLinkInfo {
 		std::variant<QString, ChannelId> usernameOrId;
+		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
 		QString startToken;
@@ -230,12 +231,19 @@ public:
 
 
 private:
+	void resolvePhone(
+		const QString &phone,
+		Fn<void(not_null<PeerData*>)> done);
 	void resolveUsername(
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+
+	void resolveDone(
+		const MTPcontacts_ResolvedPeer &result,
+		Fn<void(not_null<PeerData*>)> done);
 
 	void showPeerByLinkResolved(
 		not_null<PeerData*> peer,

@@ -304,6 +304,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
+"lng_username_by_phone_not_found" = "User {phone} not found.";
 "lng_username_link_willbe" = "This link will open a chat with you:";
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";

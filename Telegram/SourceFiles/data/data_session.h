@@ -190,6 +190,7 @@ public:
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
+	[[nodiscard]] UserData *userByPhone(const QString &phone) const;
 	[[nodiscard]] PeerData *peerByUsername(const QString &username) const;
 
 	[[nodiscard]] not_null<History*> history(PeerId peerId);
