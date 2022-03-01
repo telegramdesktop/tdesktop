@@ -1401,3 +1401,4 @@ groupCallRtmpShowButtonPosition: point(21px, -5px);
 groupCallRtmpKeyLabel: FlatLabel(boxLabel) {
 	minWidth: 230px;
 }
+groupCallDividerBg: groupCallMembersBgRipple;

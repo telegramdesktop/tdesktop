@@ -278,9 +278,7 @@ void StartRtmpProcess::FillRtmpRows(
 
 	auto urlLabelContent = state->url.value();
 	addLabel(std::move(urlLabelContent));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::groupCallRtmpUrlSkip));
+	Settings::AddSkip(container, st::groupCallRtmpUrlSkip);
 	addButton(false, tr::lng_group_call_rtmp_url_copy());
 	//
 
@@ -289,9 +287,7 @@ void StartRtmpProcess::FillRtmpRows(
 	}
 
 	// Stream Key.
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::groupCallRtmpKeySubsectionTitleSkip));
+	Settings::AddSkip(container, st::groupCallRtmpKeySubsectionTitleSkip);
 
 	Settings::AddSubsectionTitle(
 		container,

@@ -248,6 +248,14 @@ void SettingsBox(
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
 	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
+
+	const auto addDivider = [&] {
+		layout->add(object_ptr<Ui::BoxContentDivider>(
+			layout,
+			st::boxDividerHeight,
+			st::groupCallDividerBg));
+	};
+
 	if (addCheck) {
 		AddSkip(layout);
 	}
@@ -629,6 +637,10 @@ void SettingsBox(
 		)->addClickHandler(std::move(shareLink));
 	}
 	if (rtmp) {
+		AddSkip(layout);
+		addDivider();
+		AddSkip(layout);
+
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
 			mtpRequestId requestId;
@@ -699,7 +711,7 @@ void SettingsBox(
 
 
 		StartRtmpProcess::FillRtmpRows(
-			box->verticalLayout(),
+			layout,
 			false,
 			[=](object_ptr<Ui::BoxContent> &&object) {
 				box->getDelegate()->show(std::move(object));
@@ -716,6 +728,9 @@ void SettingsBox(
 			&st::groupCallAttentionBoxButton,
 			&st::groupCallPopupMenu);
 		state->data.fire(call->rtmpInfo());
+
+		addDivider();
+		AddSkip(layout);
 	}
 
 	if (peer->canManageGroupCall()) {
