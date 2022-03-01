@@ -8,8 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_main_window.h"
+#include "base/unique_qptr.h"
 
 class QMenuBar;
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 namespace Platform {
 
@@ -43,9 +48,7 @@ protected:
 	void psSetupTrayIcon();
 
 private:
-	class Private;
-	friend class Private;
-	const std::unique_ptr<Private> _private;
+	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
 	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;

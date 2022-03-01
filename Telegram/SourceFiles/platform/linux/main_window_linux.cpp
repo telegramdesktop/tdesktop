@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
-#include "base/unique_qptr.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
@@ -405,14 +404,8 @@ uint djbStringHash(const std::string &string) {
 
 } // namespace
 
-class MainWindow::Private {
-public:
-	base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
-};
-
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Window::MainWindow(controller)
-, _private(std::make_unique<Private>()) {
+: Window::MainWindow(controller) {
 }
 
 void MainWindow::initHook() {
@@ -462,7 +455,7 @@ bool MainWindow::isActiveForTrayMenu() {
 }
 
 void MainWindow::psShowTrayMenu() {
-	_private->trayIconMenuXEmbed->popup(QCursor::pos());
+	_trayIconMenuXEmbed->popup(QCursor::pos());
 }
 
 void MainWindow::psTrayMenuUpdated() {
@@ -555,8 +548,8 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::initTrayMenuHook() {
-	_private->trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
-	_private->trayIconMenuXEmbed->deleteOnHide(false);
+	_trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
+	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
 void MainWindow::createGlobalMenu() {
