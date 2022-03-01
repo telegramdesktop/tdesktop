@@ -683,12 +683,17 @@ void SettingsBox(
 			state->menu->addAction(
 				tr::lng_group_call_rtmp_revoke(tr::now),
 				revoke);
-			state->menu->moveToRight(
-				st::groupCallRtmpTopBarMenuPosition.x(),
-				st::groupCallRtmpTopBarMenuPosition.y());
 			state->menu->setForcedOrigin(
 				Ui::PanelAnimation::Origin::TopRight);
-			state->menu->popup(QCursor::pos());
+			top->setForceRippled(true);
+			const auto raw = state->menu.get();
+			raw->setDestroyedCallback([=] {
+				if ((state->menu == raw) && top) {
+					top->setForceRippled(false);
+				}
+			});
+			state->menu->popup(
+				top->mapToGlobal(QPoint(top->width() / 2, top->height())));
 			return true;
 		});
 

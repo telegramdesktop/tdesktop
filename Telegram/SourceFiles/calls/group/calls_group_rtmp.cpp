@@ -78,12 +78,16 @@ void StartWithBox(
 				tr::lng_group_invite_context_revoke(tr::now),
 				revoke,
 				&st::menuIconRemove);
-			state->menu->moveToRight(
-				st::groupCallRtmpTopBarMenuPosition.x(),
-				st::groupCallRtmpTopBarMenuPosition.y());
 			state->menu->setForcedOrigin(
 				Ui::PanelAnimation::Origin::TopRight);
-			state->menu->popup(QCursor::pos());
+			top->setForceRippled(true);
+			const auto raw = state->menu.get();
+			raw->setDestroyedCallback([=] {
+				if ((state->menu == raw) && top) {
+					top->setForceRippled(false);
+				}
+			});
+			state->menu->popup(top->mapToGlobal(top->rect().center()));
 			return true;
 		});
 	}

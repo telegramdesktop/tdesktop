@@ -1401,4 +1401,3 @@ groupCallRtmpShowButtonPosition: point(21px, -5px);
 groupCallRtmpKeyLabel: FlatLabel(boxLabel) {
 	minWidth: 230px;
 }
-groupCallRtmpTopBarMenuPosition: point(-2px, -15px);
