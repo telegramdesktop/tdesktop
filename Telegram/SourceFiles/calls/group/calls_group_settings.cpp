@@ -632,7 +632,7 @@ void SettingsBox(
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
 			mtpRequestId requestId;
-			rpl::event_stream<StartRtmpProcess::Data> data;
+			rpl::event_stream<RtmpInfo> data;
 		};
 		const auto top = box->addTopButton(st::groupCallMenuToggle);
 		const auto state = top->lifetime().make_state<State>();
@@ -645,14 +645,13 @@ void SettingsBox(
 			)).done([=](const MTPphone_GroupCallStreamRtmpUrl &result) {
 				auto data = result.match([&](
 						const MTPDphone_groupCallStreamRtmpUrl &data) {
-					return StartRtmpProcess::Data{
+					return RtmpInfo{
 						.url = qs(data.vurl()),
 						.key = qs(data.vkey()),
 					};
 				});
 				if (const auto call = weakCall.get()) {
-					call->setRtmpUrl(data.url);
-					call->setRtmpKey(data.key);
+					call->setRtmpInfo(data);
 				}
 				if (!top) {
 					return;
@@ -711,7 +710,7 @@ void SettingsBox(
 			&st::groupCallSettingsRtmpShowButton,
 			&st::groupCallSubsectionTitle,
 			&st::groupCallAttentionBoxButton);
-		state->data.fire({ call->rtmpUrl(), call->rtmpKey() });
+		state->data.fire(call->rtmpInfo());
 	}
 
 	if (peer->canManageGroupCall()) {

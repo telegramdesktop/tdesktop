@@ -48,6 +48,7 @@ struct VolumeRequest;
 struct ParticipantState;
 struct JoinInfo;
 struct RejoinEvent;
+struct RtmpInfo;
 enum class VideoQuality;
 enum class Error;
 } // namespace Group
@@ -236,11 +237,9 @@ public:
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
 
-	[[nodiscard]] QString rtmpUrl() const;
-	[[nodiscard]] QString rtmpKey() const;
+	[[nodiscard]] Group::RtmpInfo rtmpInfo() const;
 
-	void setRtmpUrl(const QString &value);
-	void setRtmpKey(const QString &value);
+	void setRtmpInfo(const Group::RtmpInfo &value);
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;

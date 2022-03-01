@@ -46,12 +46,17 @@ struct RejoinEvent {
 	not_null<PeerData*> nowJoinAs;
 };
 
+struct RtmpInfo {
+	QString url;
+	QString key;
+};
+
 struct JoinInfo {
 	not_null<PeerData*> peer;
 	not_null<PeerData*> joinAs;
 	std::vector<not_null<PeerData*>> possibleJoinAs;
 	QString joinHash;
-	QString rtmpUrl, rtmpKey;
+	RtmpInfo rtmpInfo;
 	TimeId scheduleDate = 0;
 	bool rtmp = false;
 };

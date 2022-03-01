@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/object_ptr.h"
+#include "calls/group/calls_group_common.h"
 
 class PeerData;
 
@@ -32,11 +33,6 @@ public:
 	StartRtmpProcess() = default;
 	~StartRtmpProcess();
 
-	struct Data {
-		QString url;
-		QString key;
-	};
-
 	void start(
 		not_null<PeerData*> peer,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
@@ -49,7 +45,7 @@ public:
 		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
-		rpl::producer<StartRtmpProcess::Data> &&data,
+		rpl::producer<RtmpInfo> &&data,
 		const style::FlatLabel *labelStyle,
 		const style::IconButton *showButtonStyle,
 		const style::FlatLabel *subsectionTitleStyle,
@@ -57,13 +53,13 @@ public:
 
 private:
 	void requestUrl(bool revoke);
-	void processUrl(Data data);
+	void processUrl(RtmpInfo data);
 	void createBox();
 	void finish(JoinInfo info);
 
 	struct RtmpRequest {
 		not_null<PeerData*> peer;
-		rpl::variable<Data> data;
+		rpl::variable<RtmpInfo> data;
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox;
 		Fn<void(QString)> showToast;
 		Fn<void(JoinInfo)> done;

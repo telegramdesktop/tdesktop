@@ -42,7 +42,7 @@ void StartWithBox(
 		Fn<void()> revoke,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
-		rpl::producer<StartRtmpProcess::Data> &&data) {
+		rpl::producer<RtmpInfo> &&data) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
@@ -139,7 +139,7 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 	)).done([=](const MTPphone_GroupCallStreamRtmpUrl &result) {
 		auto data = result.match([&](
 				const MTPDphone_groupCallStreamRtmpUrl &data) {
-			return Data{ .url = qs(data.vurl()), .key = qs(data.vkey()) };
+			return RtmpInfo{ .url = qs(data.vurl()), .key = qs(data.vkey()) };
 		});
 		processUrl(std::move(data));
 	}).fail([=] {
@@ -147,7 +147,7 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 	}).send();
 }
 
-void StartRtmpProcess::processUrl(Data data) {
+void StartRtmpProcess::processUrl(RtmpInfo data) {
 	if (!_request->box) {
 		createBox();
 	}
@@ -159,8 +159,7 @@ void StartRtmpProcess::finish(JoinInfo info) {
 	const auto box = _request->box;
 	const auto current = _request->data.current();
 	_request = nullptr;
-	info.rtmpUrl = current.url;
-	info.rtmpKey = current.key;
+	info.rtmpInfo = current;
 	done(std::move(info));
 	if (const auto strong = box.data()) {
 		strong->closeBox();
@@ -204,7 +203,7 @@ void StartRtmpProcess::FillRtmpRows(
 		bool disabledMenuForLabels,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
-		rpl::producer<StartRtmpProcess::Data> &&data,
+		rpl::producer<RtmpInfo> &&data,
 		const style::FlatLabel *labelStyle,
 		const style::IconButton *showButtonStyle,
 		const style::FlatLabel *subsectionTitleStyle,

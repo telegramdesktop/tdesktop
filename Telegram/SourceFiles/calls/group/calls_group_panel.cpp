@@ -1606,7 +1606,7 @@ void Panel::setupEmptyRtmp() {
 		} else if (_emptyRtmp || _call->hasVideoWithFrames()) {
 			return;
 		}
-		auto text = _call->rtmpUrl().isEmpty()
+		auto text = _call->rtmpInfo().url.isEmpty()
 			? tr::lng_group_call_no_stream(
 				lt_group,
 				rpl::single(_peer->name))

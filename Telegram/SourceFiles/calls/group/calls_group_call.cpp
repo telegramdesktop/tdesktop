@@ -94,8 +94,7 @@ struct JoinVideoEndpoint {
 
 struct JoinBroadcastStream {
 	bool rtmp = false;
-	QString rtmpUrl;
-	QString rtmpKey;
+	Group::RtmpInfo rtmpInfo;
 };
 
 using JoinClientFields = std::variant<
@@ -119,8 +118,10 @@ using JoinClientFields = std::variant<
 	if (document.object().value("stream").toBool()) {
 		return JoinBroadcastStream{
 			.rtmp = document.object().value("rtmp").toBool(),
-			.rtmpUrl = document.object().value("rtmp_stream_url").toString(),
-			.rtmpKey = document.object().value("rtmp_stream_key").toString(),
+			.rtmpInfo = {
+				.url = document.object().value("rtmp_stream_url").toString(),
+				.key = document.object().value("rtmp_stream_key").toString(),
+			},
 		};
 	}
 	const auto video = document.object().value("video").toObject();
@@ -582,8 +583,8 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
-, _rtmpUrl(info.rtmpUrl)
-, _rtmpKey(info.rtmpKey)
+, _rtmpUrl(info.rtmpInfo.url)
+, _rtmpKey(info.rtmpInfo.key)
 , _canManage(Data::CanManageGroupCallValue(_peer))
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
@@ -1028,20 +1029,13 @@ rpl::producer<bool> GroupCall::emptyRtmpValue() const {
 	return _emptyRtmp.value();
 }
 
-QString GroupCall::rtmpUrl() const {
-	return _rtmpUrl;
+Calls::Group::RtmpInfo GroupCall::rtmpInfo() const {
+	return { _rtmpUrl, _rtmpKey };
 }
 
-QString GroupCall::rtmpKey() const {
-	return _rtmpKey;
-}
-
-void GroupCall::setRtmpUrl(const QString &value) {
-	_rtmpUrl = value;
-}
-
-void GroupCall::setRtmpKey(const QString &value) {
-	_rtmpKey = value;
+void GroupCall::setRtmpInfo(const Calls::Group::RtmpInfo &value) {
+	_rtmpUrl = value.url;
+	_rtmpKey = value.key;
 }
 
 Data::GroupCall *GroupCall::lookupReal() const {
@@ -1889,8 +1883,8 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 				}
 				if (stream->rtmp) {
 					_rtmp = true;
-					_rtmpUrl = stream->rtmpUrl;
-					_rtmpKey = stream->rtmpKey;
+					_rtmpUrl = stream->rtmpInfo.url;
+					_rtmpKey = stream->rtmpInfo.key;
 				}
 				setInstanceMode(InstanceMode::Stream);
 			} else {
