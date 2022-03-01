@@ -243,12 +243,13 @@ not_null<Button*> AddButtonWithLabel(
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text,
-		style::margins addPadding) {
+		style::margins addPadding,
+		const style::FlatLabel *st) {
 	return container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),
-			st::settingsSubsectionTitle),
+			st ? *st : st::settingsSubsectionTitle),
 		st::settingsSubsectionTitlePadding + addPadding);
 }
 

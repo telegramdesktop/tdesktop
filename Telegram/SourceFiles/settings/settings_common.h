@@ -27,6 +27,7 @@ class SessionController;
 } // namespace Window
 
 namespace style {
+struct FlatLabel;
 struct SettingsButton;
 } // namespace style
 
@@ -141,7 +142,8 @@ void CreateRightLabel(
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
-	style::margins addPadding = {});
+	style::margins addPadding = {},
+	const style::FlatLabel *st = nullptr);
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,

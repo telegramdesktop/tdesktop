@@ -272,16 +272,11 @@ void StartRtmpProcess::FillRtmpRows(
 	};
 
 	// Server URL.
-	{
-		// Settings::AddSubsectionTitle
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_group_call_rtmp_url_subtitle(),
-				*subsectionTitleStyle),
-			st::settingsSubsectionTitlePadding
-				+ st::groupCallRtmpSubsectionTitleAddPadding);
-	}
+	Settings::AddSubsectionTitle(
+		container,
+		tr::lng_group_call_rtmp_url_subtitle(),
+		st::groupCallRtmpSubsectionTitleAddPadding,
+		subsectionTitleStyle);
 
 	auto urlLabelContent = state->url.value();
 	addLabel(std::move(urlLabelContent), *labelStyle);
@@ -300,16 +295,11 @@ void StartRtmpProcess::FillRtmpRows(
 		container,
 		st::groupCallRtmpKeySubsectionTitleSkip));
 
-	{
-		// Settings::AddSubsectionTitle
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_group_call_rtmp_key_subtitle(),
-				*subsectionTitleStyle),
-			st::settingsSubsectionTitlePadding
-				+ st::groupCallRtmpSubsectionTitleAddPadding);
-	}
+	Settings::AddSubsectionTitle(
+		container,
+		tr::lng_group_call_rtmp_key_subtitle(),
+		st::groupCallRtmpSubsectionTitleAddPadding,
+		subsectionTitleStyle);
 
 	auto keyLabelContent = rpl::combine(
 		state->hidden.value(),
