@@ -67,7 +67,7 @@ void StartWithBox(
 
 	box->addButton(tr::lng_group_call_rtmp_start(), done);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-	box->setWidth(st::infoDesiredWidth);
+	box->setWidth(st::boxWideWidth);
 	{
 		const auto top = box->addTopButton(st::infoTopBarMenu);
 		top->setClickedCallback([=] {
