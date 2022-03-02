@@ -243,6 +243,10 @@ PRIVATE
     ${tgcalls_loc}
 )
 
+if (TDESKTOP_DISABLE_LEGACY_TGVOIP)
+    return()
+endif()
+
 add_library(lib_tgcalls_legacy STATIC)
 init_target(lib_tgcalls_legacy)
 

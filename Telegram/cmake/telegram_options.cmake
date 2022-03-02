@@ -4,7 +4,9 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
+option(TDESKTOP_DISABLE_LEGACY_TGVOIP "Disable legacy tgvoip support." OFF)
 option(TDESKTOP_API_TEST "Use test API credentials." OFF)
+
 set(TDESKTOP_API_ID "0" CACHE STRING "Provide 'api_id' for the Telegram API access.")
 set(TDESKTOP_API_HASH "" CACHE STRING "Provide 'api_hash' for the Telegram API access.")
 set(TDESKTOP_LAUNCHER_BASENAME "" CACHE STRING "Desktop file base name (Linux only).")
@@ -35,6 +37,12 @@ if (TDESKTOP_API_ID STREQUAL "0" OR TDESKTOP_API_HASH STREQUAL "")
     " > Your users will start getting internal server errors on login\n"
     " > if you deploy an app using those 'api_id' and 'api_hash'.\n"
     " ")
+endif()
+
+if (TDESKTOP_DISABLE_LEGACY_TGVOIP)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_LEGACY_TGVOIP)
+else()
+    target_link_libraries(Telegram PRIVATE tdesktop::lib_tgcalls_legacy tdesktop::lib_tgvoip)
 endif()
 
 if (DESKTOP_APP_DISABLE_SPELLCHECK)

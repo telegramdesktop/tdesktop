@@ -37,8 +37,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace tgcalls {
 class InstanceImpl;
 class InstanceV2Impl;
+#ifndef TDESKTOP_DISABLE_LEGACY_TGVOIP
 class InstanceImplLegacy;
 void SetLegacyGlobalServerConfig(const std::string &serverConfig);
+#endif
 } // namespace tgcalls
 
 namespace Calls {
@@ -52,7 +54,9 @@ const auto kDefaultVersion = "2.4.4"_q;
 
 const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
+#ifndef TDESKTOP_DISABLE_LEGACY_TGVOIP
 const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
+#endif
 
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
@@ -1268,7 +1272,9 @@ Call::~Call() {
 }
 
 void UpdateConfig(const std::string &data) {
+#ifndef TDESKTOP_DISABLE_LEGACY_TGVOIP
 	tgcalls::SetLegacyGlobalServerConfig(data);
+#endif
 }
 
 } // namespace Calls

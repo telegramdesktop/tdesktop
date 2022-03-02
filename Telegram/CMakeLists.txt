@@ -31,7 +31,9 @@ get_filename_component(res_loc Resources REALPATH)
 include(cmake/telegram_options.cmake)
 include(cmake/lib_ffmpeg.cmake)
 include(cmake/lib_stripe.cmake)
-include(cmake/lib_tgvoip.cmake)
+if (NOT TDESKTOP_DISABLE_LEGACY_TGVOIP)
+    include(cmake/lib_tgvoip.cmake)
+endif()
 include(cmake/lib_tgcalls.cmake)
 include(cmake/td_export.cmake)
 include(cmake/td_mtproto.cmake)
@@ -55,9 +57,7 @@ target_prepare_qrc(Telegram)
 
 target_link_libraries(Telegram
 PRIVATE
-    tdesktop::lib_tgcalls_legacy
     tdesktop::lib_tgcalls
-    tdesktop::lib_tgvoip
 
     # Order in this list defines the order of include paths in command line.
     # We need to place desktop-app::external_minizip this early to have its
