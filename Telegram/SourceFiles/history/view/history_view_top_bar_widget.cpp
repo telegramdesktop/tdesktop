@@ -458,6 +458,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				return tr::lng_report_reason_child_abuse(tr::now);
 			case Reason::Pornography:
 				return tr::lng_report_reason_pornography(tr::now);
+			case Reason::Copyright:
+				return tr::lng_report_reason_copyright(tr::now);
 			}
 			Unexpected("reason in TopBarWidget::paintTopBar.");
 		}();
