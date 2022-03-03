@@ -205,7 +205,7 @@ private:
 	return result;
 }
 
-void DeleteAllRevoked(
+object_ptr<Ui::BoxContent> DeleteAllRevokedBox(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin) {
 	const auto sure = [=](Fn<void()> &&close) {
@@ -214,12 +214,10 @@ void DeleteAllRevoked(
 			admin,
 			std::move(close));
 	};
-	Ui::show(
-		Ui::MakeConfirmBox({
-			tr::lng_group_invite_delete_all_sure(),
-			sure
-		}),
-		Ui::LayerOption::KeepOther);
+	return Ui::MakeConfirmBox({
+		tr::lng_group_invite_delete_all_sure(),
+		sure
+	});
 }
 
 not_null<Ui::SettingsButton*> AddCreateLinkButton(
@@ -802,7 +800,7 @@ void AdminsController::loadMoreRows() {
 }
 
 void AdminsController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::show(
+	delegate()->peerListShowBox(
 		Box(ManageInviteLinksBox, _peer, row->peer()->asUser(), 0, 0),
 		Ui::LayerOption::KeepOther);
 }
@@ -989,8 +987,8 @@ void ManageInviteLinksBox(
 			top + st::inviteLinkRevokedTitlePadding.top(),
 			outerWidth);
 	}, deleteAll->lifetime());
-	deleteAll->setClickedCallback([=] {
-		DeleteAllRevoked(peer, admin);
+	deleteAll->setClickedCallback([=, show = Ui::BoxShow(box)] {
+		show.showBox(DeleteAllRevokedBox(peer, admin));
 	});
 
 	rpl::combine(
