@@ -26,12 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
-#include "facades.h" // Ui::showPeerHistory
 #include "styles/style_boxes.h"
 
 namespace {
@@ -100,15 +97,11 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		updateTitle();
 	} else if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
 		if (!_peer->isMegagroup()) {
-			Ui::show(
-				Box<MaxInviteBox>(_peer->asChannel()),
-				Ui::LayerOption::KeepOther);
+			showBox(Box<MaxInviteBox>(_peer->asChannel()));
 		}
 	} else if (count >= serverConfig.chatSizeMax
 		&& count < serverConfig.megagroupSizeMax) {
-		Ui::show(
-			Ui::MakeInformBox(tr::lng_profile_add_more_after_create()),
-			Ui::LayerOption::KeepOther);
+		showBox(Ui::MakeInformBox(tr::lng_profile_add_more_after_create()));
 	}
 }
 
@@ -188,6 +181,13 @@ bool AddParticipantsBoxController::needsInviteLinkButton() {
 	return _peer->asChat()->canHaveInviteLink();
 }
 
+QPointer<Ui::BoxContent> AddParticipantsBoxController::showBox(
+		object_ptr<Ui::BoxContent> box) const {
+	const auto weak = Ui::MakeWeak(box.data());
+	delegate()->peerListShowBox(std::move(box), Ui::LayerOption::KeepOther);
+	return weak;
+}
+
 void AddParticipantsBoxController::addInviteLinkButton() {
 	if (!needsInviteLinkButton()) {
 		return;
@@ -204,7 +204,7 @@ void AddParticipantsBoxController::addInviteLinkButton() {
 		st::inviteViaLinkIcon,
 		st::inviteViaLinkIconPosition);
 	button->entity()->setClickedCallback([=] {
-		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
+		showBox(Box<EditPeerTypeBox>(_peer));
 	});
 	button->entity()->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
@@ -243,15 +243,16 @@ void AddParticipantsBoxController::Start(
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
 			if (weak->inviteSelectedUsers(box)) {
-				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
+				navigation->parentController()->showPeerHistory(
+					chat,
+					Window::SectionShow::Way::ClearStack,
+					ShowAtTheEndMsgId);
 			}
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
-	Ui::show(
-		Box<PeerListBox>(
-			std::move(controller),
-			std::move(initBox)),
+	Window::Show(navigation).showBox(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -268,7 +269,10 @@ void AddParticipantsBoxController::Start(
 		box->addButton(tr::lng_participant_invite(), [=] {
 			if (weak->inviteSelectedUsers(box)) {
 				if (channel->isMegagroup()) {
-					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+					navigation->parentController()->showPeerHistory(
+						channel,
+						Window::SectionShow::Way::ClearStack,
+						ShowAtTheEndMsgId);
 				} else {
 					box->closeBox();
 				}
@@ -288,10 +292,8 @@ void AddParticipantsBoxController::Start(
 			}, box->lifetime());
 		}
 	};
-	Ui::show(
-		Box<PeerListBox>(
-			std::move(controller),
-			std::move(initBox)),
+	Window::Show(navigation).showBox(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -345,6 +347,13 @@ void AddSpecialBoxController::migrate(
 		not_null<ChannelData*> channel) {
 	_peer = channel;
 	_additional.migrate(chat, channel);
+}
+
+QPointer<Ui::BoxContent> AddSpecialBoxController::showBox(
+		object_ptr<Ui::BoxContent> box) const {
+	const auto weak = Ui::MakeWeak(box.data());
+	delegate()->peerListShowBox(std::move(box), Ui::LayerOption::KeepOther);
+	return weak;
 }
 
 std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
@@ -568,42 +577,35 @@ void AddSpecialBoxController::showAdmin(
 		if (canAddMembers) {
 			if (canBanMembers) {
 				if (!sure) {
-					_editBox = Ui::show(
+					_editBox = showBox(
 						Ui::MakeConfirmBox({
 							tr::lng_sure_add_admin_unremove(),
 							showAdminSure
-						}),
-						Ui::LayerOption::KeepOther);
+						}));
 					return;
 				}
 			} else {
-				Ui::show(
-					Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()),
-					Ui::LayerOption::KeepOther);
+				showBox(
+					Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()));
 				return;
 			}
 		} else {
-			Ui::show(
-				Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()),
-				Ui::LayerOption::KeepOther);
+			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()));
 			return;
 		}
 	} else if (_additional.restrictedRights(user).has_value()) {
 		// The user is restricted.
 		if (canBanMembers) {
 			if (!sure) {
-				_editBox = Ui::show(
+				_editBox = showBox(
 					Ui::MakeConfirmBox({
 						tr::lng_sure_add_admin_unremove(),
 						showAdminSure
-					}),
-					Ui::LayerOption::KeepOther);
+					}));
 				return;
 			}
 		} else {
-			Ui::show(
-				Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()),
-				Ui::LayerOption::KeepOther);
+			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()));
 			return;
 		}
 	} else if (_additional.isExternal(user)) {
@@ -613,18 +615,15 @@ void AddSpecialBoxController::showAdmin(
 				auto text = ((_peer->isChat() || _peer->isMegagroup())
 					? tr::lng_sure_add_admin_invite
 					: tr::lng_sure_add_admin_invite_channel)();
-				_editBox = Ui::show(
+				_editBox = showBox(
 					Ui::MakeConfirmBox({
 						std::move(text),
 						showAdminSure
-					}),
-					Ui::LayerOption::KeepOther);
+					}));
 				return;
 			}
 		} else {
-			Ui::show(
-				Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()),
-				Ui::LayerOption::KeepOther);
+			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_invite()));
 			return;
 		}
 	}
@@ -651,7 +650,7 @@ void AddSpecialBoxController::showAdmin(
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	_editParticipantBox = showBox(std::move(box));
 }
 
 void AddSpecialBoxController::editAdminDone(
@@ -692,18 +691,15 @@ void AddSpecialBoxController::showRestricted(
 		// The user is an admin or creator.
 		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
-				_editBox = Ui::show(
+				_editBox = showBox(
 					Ui::MakeConfirmBox({
 						tr::lng_sure_ban_admin(),
 						showRestrictedSure
-					}),
-					Ui::LayerOption::KeepOther);
+					}));
 				return;
 			}
 		} else {
-			Ui::show(
-				Ui::MakeInformBox(tr::lng_error_cant_ban_admin()),
-				Ui::LayerOption::KeepOther);
+			showBox(Ui::MakeInformBox(tr::lng_error_cant_ban_admin()));
 			return;
 		}
 	}
@@ -730,7 +726,7 @@ void AddSpecialBoxController::showRestricted(
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	_editParticipantBox = showBox(std::move(box));
 }
 
 void AddSpecialBoxController::editRestrictedDone(
@@ -764,18 +760,15 @@ void AddSpecialBoxController::kickUser(
 		// The user is an admin or creator.
 		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
-				_editBox = Ui::show(
+				_editBox = showBox(
 					Ui::MakeConfirmBox({
 						tr::lng_sure_ban_admin(),
 						kickUserSure
-					}),
-					Ui::LayerOption::KeepOther);
+					}));
 				return;
 			}
 		} else {
-			Ui::show(
-				Ui::MakeInformBox(tr::lng_error_cant_ban_admin()),
-				Ui::LayerOption::KeepOther);
+			showBox(Ui::MakeInformBox(tr::lng_error_cant_ban_admin()));
 			return;
 		}
 	}
@@ -788,9 +781,7 @@ void AddSpecialBoxController::kickUser(
 				tr::now,
 				lt_user,
 				participant->name);
-		_editBox = Ui::show(
-			Ui::MakeConfirmBox({ text, kickUserSure }),
-			Ui::LayerOption::KeepOther);
+		_editBox = showBox(Ui::MakeConfirmBox({ text, kickUserSure }));
 		return;
 	}
 
