@@ -314,7 +314,8 @@ void InitMessageField(
 }
 
 void InitSpellchecker(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
@@ -322,13 +323,19 @@ void InitSpellchecker(
 		Core::App().settings().spellcheckerEnabledValue(),
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
-			[=] {
-				controller->show(
-					Box<Ui::ManageDictionariesBox>(&controller->session()));
-			}
+			[=] { show->showBox(Box<Ui::ManageDictionariesBox>(session)); }
 		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
+}
+
+void InitSpellchecker(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field) {
+	InitSpellchecker(
+		std::make_shared<Window::Show>(controller),
+		&controller->session(),
+		field);
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {
