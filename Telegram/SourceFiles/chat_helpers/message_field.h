@@ -39,7 +39,8 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,

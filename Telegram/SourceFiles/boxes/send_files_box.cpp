@@ -706,18 +706,21 @@ void SendFilesBox::setupCaption() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
+	const auto show = std::make_shared<Window::Show>(_controller);
+	const auto session = &_controller->session();
+
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 	_caption->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
 	_caption->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _caption));
+		DefaultEditLinkCallback(show, session, _caption));
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_caption,
-		&_controller->session());
+		session);
 
-	InitSpellchecker(_controller, _caption);
+	InitSpellchecker(show, session, _caption);
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();

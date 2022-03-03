@@ -241,7 +241,8 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field) {
 	const auto weak = Ui::MakeWeak(field);
 	return [=](
@@ -258,14 +259,8 @@ Fn<bool(
 				strong->commitMarkdownLinkEdit(selection, text, link);
 			}
 		};
-		controller->show(
-			Box(
-				EditLinkBox,
-				std::make_shared<Window::Show>(controller),
-				&controller->session(),
-				text,
-				link,
-				std::move(callback)),
+		show->showBox(
+			Box(EditLinkBox, show, session, text, link, std::move(callback)),
 			Ui::LayerOption::KeepOther);
 		return true;
 	};
@@ -288,7 +283,11 @@ void InitMessageField(
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(DefaultEditLinkCallback(controller, field));
+	field->setEditLinkCallback(
+		DefaultEditLinkCallback(
+			std::make_shared<Window::Show>(controller),
+			&controller->session(),
+			field));
 }
 
 void InitSpellchecker(

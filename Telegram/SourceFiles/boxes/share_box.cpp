@@ -258,7 +258,8 @@ void ShareBox::prepareCommentField() {
 	} else if (_descriptor.navigation) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(
-				_descriptor.navigation->parentController(),
+				std::make_shared<Window::Show>(_descriptor.navigation),
+				_descriptor.session,
 				field));
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());

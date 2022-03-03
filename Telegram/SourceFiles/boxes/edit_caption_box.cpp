@@ -238,6 +238,8 @@ void EditCaptionBox::rebuildPreview() {
 }
 
 void EditCaptionBox::setupField() {
+	const auto show = std::make_shared<Window::Show>(_controller);
+	const auto session = &_controller->session();
 	_field->setMaxLength(
 		_controller->session().serverConfig().captionLengthMax);
 	_field->setSubmitSettings(
@@ -247,10 +249,10 @@ void EditCaptionBox::setupField() {
 		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _field));
+		DefaultEditLinkCallback(show, session, _field));
 	_field->setMaxHeight(st::confirmCaptionArea.heightMax);
 
-	InitSpellchecker(_controller, _field);
+	InitSpellchecker(show, session, _field);
 
 	connect(_field, &Ui::InputField::submitted, [=] { save(); });
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
