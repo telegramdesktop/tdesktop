@@ -323,7 +323,8 @@ void InitSpellchecker(
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
 			[=] {
-				controller->show(Box<Ui::ManageDictionariesBox>(controller));
+				controller->show(
+					Box<Ui::ManageDictionariesBox>(&controller->session()));
 			}
 		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
