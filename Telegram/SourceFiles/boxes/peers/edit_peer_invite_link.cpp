@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_invite_link.h"
 
+#include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -35,9 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "mainwindow.h"
-#include "facades.h" // Ui::showPerProfile.
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "settings/settings_common.h"
 #include "mtproto/sender.h"
 #include "qr/qr_generate.h"
@@ -59,6 +60,16 @@ constexpr auto kShareQrSize = 768;
 constexpr auto kShareQrPadding = 16;
 
 using LinkData = Api::InviteLink;
+
+void ShowPeerInfoSync(not_null<PeerData*> peer) {
+	// While a peer info is demanded by the left click
+	// we can safely use activeWindow.
+	if (const auto window = Core::App().activeWindow()) {
+		if (const auto controller = window->sessionController()) {
+			controller->showPeerInfo(peer);
+		}
+	}
+}
 
 class RequestedRow final : public PeerListRow {
 public:
@@ -721,7 +732,7 @@ void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerProfile(row->peer());
+	ShowPeerInfoSync(row->peer());
 }
 
 void Controller::rowRightActionClicked(not_null<PeerListRow*> row) {
@@ -852,7 +863,7 @@ void SingleRowController::loadMoreRows() {
 }
 
 void SingleRowController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerProfile(row->peer());
+	ShowPeerInfoSync(row->peer());
 }
 
 Main::Session &SingleRowController::session() const {
