@@ -46,6 +46,7 @@ Members::Members(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : RpWidget(parent)
+, _show(std::make_unique<Window::Show>(controller->parentController()))
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
@@ -436,6 +437,20 @@ void Members::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
 }
 
 void Members::peerListFinishSelectedRowsBunch() {
+}
+
+void Members::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show->showBox(std::move(content), options);
+}
+
+void Members::peerListHideLayer() {
+	_show->hideLayer();
+}
+
+not_null<QWidget*> Members::peerListToastParent() {
+	return _show->toastParent();
 }
 
 void Members::peerListSetDescription(

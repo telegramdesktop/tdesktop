@@ -1976,4 +1976,16 @@ void Members::peerListSetDescription(
 	description.destroy();
 }
 
+void Members::peerListShowBox(
+	object_ptr<Ui::BoxContent> content,
+	Ui::LayerOptions options) {
+}
+
+void Members::peerListHideLayer() {
+}
+
+not_null<QWidget*> Members::peerListToastParent() {
+	Unexpected("...Members::peerListToastParent");
+}
+
 } // namespace Calls::Group

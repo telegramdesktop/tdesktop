@@ -300,7 +300,8 @@ PeerListsBox::Delegate::Delegate(
 	not_null<PeerListsBox*> box,
 	not_null<PeerListController*> controller)
 : _box(box)
-, _controller(controller) {
+, _controller(controller)
+, _show(_box) {
 }
 
 void PeerListsBox::Delegate::peerListSetTitle(rpl::producer<QString> title) {
@@ -368,6 +369,20 @@ void PeerListsBox::Delegate::peerListFinishSelectedRowsBunch() {
 	Expects(_box->_select != nullptr);
 
 	_box->_select->entity()->finishItemsBunch();
+}
+
+void PeerListsBox::Delegate::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show.showBox(std::move(content), options);
+}
+
+void PeerListsBox::Delegate::peerListHideLayer() {
+	_show.hideLayer();
+}
+
+not_null<QWidget*> PeerListsBox::Delegate::peerListToastParent() {
+	return _show.toastParent();
 }
 
 bool PeerListsBox::Delegate::peerListIsRowChecked(

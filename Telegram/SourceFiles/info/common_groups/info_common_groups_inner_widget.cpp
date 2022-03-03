@@ -172,6 +172,7 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
+, _show(std::make_unique<Window::Show>(controller->parentController()))
 , _controller(controller)
 , _user(user)
 , _listController(std::make_unique<ListController>(controller, _user))
@@ -278,6 +279,20 @@ void InnerWidget::peerListFinishSelectedRowsBunch() {
 void InnerWidget::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
+}
+
+void InnerWidget::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show->showBox(std::move(content), options);
+}
+
+void InnerWidget::peerListHideLayer() {
+	_show->hideLayer();
+}
+
+not_null<QWidget*> InnerWidget::peerListToastParent() {
+	return _show->toastParent();
 }
 
 } // namespace CommonGroups

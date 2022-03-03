@@ -88,6 +88,11 @@ private:
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
+	void peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
+	void peerListHideLayer() override;
+	not_null<QWidget*> peerListToastParent() override;
 
 	void setupAddMember(not_null<GroupCall*> call);
 	void resizeToList();

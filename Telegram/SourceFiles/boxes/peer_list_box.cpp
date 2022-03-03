@@ -56,7 +56,8 @@ PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,
 	Fn<void(not_null<PeerListBox*>)> init)
-: _controller(std::move(controller))
+: _show(this)
+, _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
 }
@@ -260,6 +261,20 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 		_scrollBottomFixed = false;
 		setInnerFocus();
 	}
+}
+
+void PeerListBox::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show.showBox(std::move(content), options);
+}
+
+void PeerListBox::peerListHideLayer() {
+	_show.hideLayer();
+}
+
+not_null<QWidget*> PeerListBox::peerListToastParent() {
+	return _show.toastParent();
 }
 
 PeerListController::PeerListController(std::unique_ptr<PeerListSearchController> searchController) : _searchController(std::move(searchController)) {

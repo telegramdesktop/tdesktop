@@ -313,6 +313,11 @@ public:
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
+	virtual void peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) = 0;
+	virtual void peerListHideLayer() = 0;
+	virtual not_null<QWidget*> peerListToastParent() = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -975,6 +980,17 @@ public:
 			object_ptr<Ui::FlatLabel> description) override {
 		description.destroy();
 	}
+	void peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override {
+		Unexpected("...DelegateSimple::peerListShowBox");
+	}
+	void peerListHideLayer() override {
+		Unexpected("...DelegateSimple::peerListHideLayer");
+	}
+	not_null<QWidget*> peerListToastParent() override {
+		Unexpected("...DelegateSimple::peerListToastParent");
+	}
 
 };
 
@@ -1007,6 +1023,11 @@ public:
 	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
 	void peerListScrollToTop() override;
+	void peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
+	void peerListHideLayer() override;
+	not_null<QWidget*> peerListToastParent() override;
 
 	void setAddedTopScrollSkip(int skip);
 
@@ -1046,6 +1067,7 @@ private:
 
 	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
+	const Ui::BoxShow _show;
 	std::unique_ptr<PeerListController> _controller;
 	Fn<void(PeerListBox*)> _init;
 	bool _scrollBottomFixed = false;
