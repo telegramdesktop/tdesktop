@@ -737,7 +737,7 @@ EditFlagsControl<Flags> CreateEditFlags(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
 				if (checked != toggled) {
-					Ui::Toast::Show(*locked);
+					Ui::Toast::Show(parent, *locked);
 					control->setChecked(toggled);
 				}
 			} else {
