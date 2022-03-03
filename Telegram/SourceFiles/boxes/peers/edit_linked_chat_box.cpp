@@ -19,8 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -35,7 +35,8 @@ public:
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
 		const std::vector<not_null<PeerData*>> &chats,
-		Fn<void(ChannelData*)> callback);
+		Fn<void(ChannelData*)> callback,
+		Fn<void(not_null<PeerData*>)> showHistoryCallback);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -50,20 +51,24 @@ private:
 	ChannelData *_chat = nullptr;
 	std::vector<not_null<PeerData*>> _chats;
 	Fn<void(ChannelData*)> _callback;
+	Fn<void(not_null<PeerData*>)> _showHistoryCallback;
 
 	ChannelData *_waitForFull = nullptr;
 
+	rpl::event_stream<not_null<PeerData*>> _showHistoryRequest;
 };
 
 Controller::Controller(
 	not_null<ChannelData*> channel,
 	ChannelData *chat,
 	const std::vector<not_null<PeerData*>> &chats,
-	Fn<void(ChannelData*)> callback)
+	Fn<void(ChannelData*)> callback,
+	Fn<void(not_null<PeerData*>)> showHistoryCallback)
 : _channel(channel)
 , _chat(chat)
 , _chats(std::move(chats))
-, _callback(std::move(callback)) {
+, _callback(std::move(callback))
+, _showHistoryCallback(std::move(showHistoryCallback)) {
 	channel->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::FullInfo
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
@@ -109,7 +114,7 @@ void Controller::prepare() {
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
 	if (_chat != nullptr) {
-		Ui::showPeerHistory(_chat, ShowAtUnreadMsgId);
+		_showHistoryCallback(_chat);
 		return;
 	}
 	const auto peer = row->peer();
@@ -152,7 +157,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		const auto onstack = _callback;
 		onstack(chat);
 	};
-	Ui::show(
+	delegate()->peerListShowBox(
 		Ui::MakeConfirmBox({
 			.text = text,
 			.confirmed = sure,
@@ -185,7 +190,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		};
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
-	Ui::show(
+	delegate()->peerListShowBox(
 		Ui::MakeConfirmBox({
 			.text = text,
 			.confirmed = sure,
@@ -248,7 +253,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 		st::infoCreateLinkedChatButton);
 	result->addClickHandler([=] {
 		const auto guarded = crl::guard(parent, callback);
-		Ui::show(
+		Window::Show(navigation).showBox(
 			Box<GroupInfoBox>(
 				navigation,
 				GroupInfoBox::Type::Megagroup,
@@ -312,11 +317,18 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 			: tr::lng_manage_linked_channel());
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	};
+	auto showHistoryCallback = [=](not_null<PeerData*> peer) {
+		navigation->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			ShowAtUnreadMsgId);
+	};
 	auto controller = std::make_unique<Controller>(
 		channel,
 		chat,
 		std::move(chats),
-		std::move(callback));
+		std::move(callback),
+		std::move(showHistoryCallback));
 	return Box<PeerListBox>(std::move(controller), init);
 }
 
