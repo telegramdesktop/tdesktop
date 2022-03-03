@@ -1017,15 +1017,14 @@ void ParticipantsBoxController::addNewItem() {
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 
-	_addBox = Ui::show(
+	_addBox = showBox(
 		Box<PeerListBox>(
 			std::make_unique<AddSpecialBoxController>(
 				_peer,
 				_role,
 				adminDone,
 				restrictedDone),
-			initBox),
-		Ui::LayerOption::KeepOther);
+			initBox));
 }
 
 void ParticipantsBoxController::addNewParticipants() {
@@ -1052,7 +1051,7 @@ void ParticipantsBoxController::addNewParticipants() {
 			channel,
 			{ already.begin(), already.end() });
 	} else {
-		Ui::show(Box<MaxInviteBox>(channel), Ui::LayerOption::KeepOther);
+		showBox(Box<MaxInviteBox>(channel));
 	}
 }
 
@@ -1202,6 +1201,13 @@ void ParticipantsBoxController::prepare() {
 			delegate());
 	}
 	delegate()->peerListRefreshRows();
+}
+
+QPointer<Ui::BoxContent> ParticipantsBoxController::showBox(
+		object_ptr<Ui::BoxContent> box) const {
+	const auto weak = Ui::MakeWeak(box.data());
+	delegate()->peerListShowBox(std::move(box), Ui::LayerOption::KeepOther);
+	return weak;
 }
 
 void ParticipantsBoxController::prepareChatRows(not_null<ChatData*> chat) {
@@ -1615,7 +1621,7 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	_editParticipantBox = showBox(std::move(box));
 }
 
 void ParticipantsBoxController::editAdminDone(
@@ -1669,7 +1675,7 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	_editParticipantBox = showBox(std::move(box));
 }
 
 void ParticipantsBoxController::editRestrictedDone(
@@ -1717,15 +1723,14 @@ void ParticipantsBoxController::kickParticipant(not_null<PeerData*> participant)
 			tr::now,
 			lt_user,
 			user ? user->firstName : participant->name);
-	_editBox = Ui::show(
+	_editBox = showBox(
 		Ui::MakeConfirmBox({
 			.text = text,
 			.confirmed = crl::guard(this, [=] {
 				kickParticipantSure(participant);
 			}),
 			.confirmText = tr::lng_box_remove(),
-		}),
-		Ui::LayerOption::KeepOther);
+		}));
 }
 
 void ParticipantsBoxController::unkickParticipant(not_null<UserData*> user) {
@@ -1762,7 +1767,7 @@ void ParticipantsBoxController::kickParticipantSure(
 }
 
 void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
-	_editBox = Ui::show(
+	_editBox = showBox(
 		Ui::MakeConfirmBox({
 			.text = tr::lng_profile_sure_remove_admin(
 				tr::now,
@@ -1770,8 +1775,7 @@ void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
 				user->firstName),
 			.confirmed = crl::guard(this, [=] { removeAdminSure(user); }),
 			.confirmText = tr::lng_box_remove(),
-		}),
-		Ui::LayerOption::KeepOther);
+		}));
 }
 
 void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
