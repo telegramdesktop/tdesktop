@@ -267,19 +267,23 @@ void Panel::initWindow() {
 				_call->pushToTalk(
 					e->type() == QEvent::KeyPress,
 					kSpacePushToTalkDelay);
-			} else if (key == Qt::Key_Escape && _fullScreen.current()) {
-				toggleFullScreen(false);
+			} else if (key == Qt::Key_Escape
+				&& _fullScreenOrMaximized.current()) {
+				toggleFullScreen();
 			}
 		}
 		return base::EventFilterResult::Continue;
 	});
 
-	QObject::connect(
-		window()->windowHandle(),
-		&QWindow::windowStateChanged,
-		[=](Qt::WindowState state) {
-			_fullScreen = (state == Qt::WindowFullScreen);
-		});
+	if (_call->rtmp()) {
+		QObject::connect(
+			window()->windowHandle(),
+			&QWindow::windowStateChanged,
+			[=](Qt::WindowState state) {
+				_fullScreenOrMaximized = (state == Qt::WindowFullScreen)
+					|| (state == Qt::WindowMaximized);
+			});
+	}
 
 	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
@@ -383,7 +387,7 @@ void Panel::initControls() {
 			}
 			return;
 		} else if (_call->rtmp()) {
-			toggleFullScreen(!_fullScreen.current());
+			toggleFullScreen();
 			return;
 		}
 
@@ -471,11 +475,11 @@ void Panel::initControls() {
 	refreshControlsBackground();
 }
 
-void Panel::toggleFullScreen(bool fullscreen) {
-	if (fullscreen) {
-		window()->showFullScreen();
-	} else {
+void Panel::toggleFullScreen() {
+	if (_fullScreenOrMaximized.current()) {
 		window()->showNormal();
+	} else {
+		window()->showFullScreen();
 	}
 }
 
@@ -646,7 +650,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		real->scheduleStartSubscribedValue(),
 		_call->canManageValue(),
 		_mode.value(),
-		_fullScreen.value()
+		_fullScreenOrMaximized.value()
 	) | rpl::distinct_until_changed(
 	) | rpl::filter(
 		_2 != GroupCall::InstanceState::TransitionToRtc
@@ -657,7 +661,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 			bool scheduleStartSubscribed,
 			bool canManage,
 			PanelMode mode,
-			bool fullScreen) {
+			bool fullScreenOrMaximized) {
 		const auto wide = (mode == PanelMode::Wide);
 		using Type = Ui::CallMuteButtonType;
 		using ExpandType = Ui::CallMuteButtonExpandType;
@@ -699,7 +703,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				: Type::Active),
 			.expandType = ((scheduleDate || !_call->rtmp())
 				? ExpandType::None
-				: fullScreen
+				: fullScreenOrMaximized
 				? ExpandType::Expanded
 				: ExpandType::Normal),
 		});
@@ -1142,10 +1146,10 @@ void Panel::createPinOnTop() {
 			}
 		}
 	};
-	_fullScreen.value(
-	) | rpl::start_with_next([=](bool fullscreen) {
-		_pinOnTop->setVisible(!fullscreen);
-		if (fullscreen) {
+	_fullScreenOrMaximized.value(
+	) | rpl::start_with_next([=](bool fullScreenOrMaximized) {
+		_pinOnTop->setVisible(!fullScreenOrMaximized);
+		if (fullScreenOrMaximized) {
 			pin(false);
 
 			_viewport->rp()->events(

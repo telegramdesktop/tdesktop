@@ -1125,7 +1125,7 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 groupCallPinOnTop: IconButton(groupCallTitleButton) {
 	icon: icon{{ "calls/navbar_pin", groupCallMemberNotJoinedStatus }};
 	iconOver: icon{{ "calls/navbar_pin", groupCallMembersFg }};
-	iconPosition: point(0px, 4px);
+	iconPosition: point(0px, 2px);
 }
 
 groupCallMajorBlobIdleRadius: 2px;

@@ -130,7 +130,7 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
-	void toggleFullScreen(bool fullscreen);
+	void toggleFullScreen();
 	void trackControls(bool track, bool force = false);
 	void raiseControls();
 	void enlargeVideo();
@@ -199,7 +199,7 @@ private:
 	Ui::GL::Window _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
-	rpl::variable<bool> _fullScreen = false;
+	rpl::variable<bool> _fullScreenOrMaximized = false;
 
 #ifndef Q_OS_MAC
 	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
