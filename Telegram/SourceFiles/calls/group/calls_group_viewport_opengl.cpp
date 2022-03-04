@@ -498,6 +498,7 @@ void Viewport::RendererGL::paintTile(
 	const auto height = geometry.height();
 	const auto &st = st::groupCallVideoTile;
 	const auto shown = _owner->_controlsShownRatio;
+	const auto fullscreen = _owner->_fullscreen;
 	const auto fullNameShift = st.namePosition.y() + st::normalFont->height;
 	const auto nameShift = anim::interpolate(fullNameShift, 0, shown);
 	const auto row = tile->row();
@@ -781,7 +782,7 @@ void Viewport::RendererGL::paintTile(
 	program->setUniformValue("viewport", uniformViewport);
 	program->setUniformValue("frameBg", st::groupCallBg->c);
 	program->setUniformValue("radiusOutline", QVector2D(
-		GLfloat(st::roundRadiusLarge * _factor),
+		GLfloat(st::roundRadiusLarge * _factor * (fullscreen ? 0. : 1.)),
 		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
 	program->setUniformValue("roundRect", Uniform(rect));
 	program->setUniformValue("roundBg", st::groupCallBg->c);

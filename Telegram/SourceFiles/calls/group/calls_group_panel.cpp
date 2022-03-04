@@ -92,7 +92,7 @@ Panel::Panel(not_null<GroupCall*> call)
 #ifndef Q_OS_MAC
 , _controls(Ui::Platform::SetupSeparateTitleControls(
 	window(),
-	st::groupCallTitle))
+	st::callTitle))
 #endif // !Q_OS_MAC
 , _powerSaveBlocker(std::make_unique<base::PowerSaveBlocker>(
 	base::PowerSaveBlockType::PreventDisplaySleep,
@@ -1163,6 +1163,7 @@ void Panel::createPinOnTop() {
 			_hideControlsTimerLifetime.destroy();
 			_hideControlsTimer.cancel();
 		}
+		updateMembersGeometry();
 	}, _pinOnTop->lifetime());
 
 	_pinOnTop->setClickedCallback([=] {
@@ -2220,9 +2221,10 @@ void Panel::updateMembersGeometry() {
 	_members->setVisible(!_call->rtmp());
 	const auto desiredHeight = _members->desiredHeight();
 	if (mode() == PanelMode::Wide) {
-		const auto skip = st::groupCallNarrowSkip;
+		const auto full = _fullScreenOrMaximized.current();
+		const auto skip = full ? 0 : st::groupCallNarrowSkip;
 		const auto membersWidth = st::groupCallNarrowMembersWidth;
-		const auto top = st::groupCallWideVideoTop;
+		const auto top = full ? 0 : st::groupCallWideVideoTop;
 		_members->setGeometry(
 			widget()->width() - skip - membersWidth,
 			top,
@@ -2231,7 +2233,7 @@ void Panel::updateMembersGeometry() {
 		const auto viewportSkip = _call->rtmp()
 			? 0
 			: (skip + membersWidth);
-		_viewport->setGeometry({
+		_viewport->setGeometry(full, {
 			skip,
 			top,
 			widget()->width() - viewportSkip - 2 * skip,

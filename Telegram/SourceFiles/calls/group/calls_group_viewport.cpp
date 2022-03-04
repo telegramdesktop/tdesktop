@@ -104,13 +104,17 @@ void Viewport::setup() {
 	}, lifetime());
 }
 
-void Viewport::setGeometry(QRect geometry) {
+void Viewport::setGeometry(bool fullscreen, QRect geometry) {
 	Expects(wide());
 
+	const auto changed = (_fullscreen != fullscreen);
+	if (changed) {
+		_fullscreen = fullscreen;
+	}
 	if (widget()->geometry() != geometry) {
 		_geometryStaleAfterModeChange = false;
 		widget()->setGeometry(geometry);
-	} else if (_geometryStaleAfterModeChange) {
+	} else if (_geometryStaleAfterModeChange || changed) {
 		_geometryStaleAfterModeChange = false;
 		updateTilesGeometry();
 	}
