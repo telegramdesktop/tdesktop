@@ -888,31 +888,6 @@ void Panel::enlargeVideo() {
 	}
 }
 
-void Panel::minimizeVideo() {
-	if (window()->windowState() & Qt::WindowMaximized) {
-		_lastLargeMaximized = true;
-		window()->setWindowState(
-			window()->windowState() & ~Qt::WindowMaximized);
-	} else {
-		_lastLargeMaximized = false;
-		_lastLargeGeometry = window()->geometry();
-	}
-	const auto available = window()->screen()->availableGeometry();
-	const auto width = st::groupCallWidth;
-	const auto height = _call->rtmp()
-		? st::groupCallHeightRtmpMin
-		: st::groupCallHeight;
-	const auto geometry = QRect(
-		window()->x() + (window()->width() - width) / 2,
-		window()->y() + (window()->height() - height) / 2,
-		width,
-		height);
-	window()->setGeometry((_lastSmallGeometry
-		&& available.intersects(*_lastSmallGeometry))
-		? *_lastSmallGeometry
-		: geometry);
-}
-
 void Panel::raiseControls() {
 	if (_controlsBackgroundWide) {
 		_controlsBackgroundWide->raise();
@@ -1501,12 +1476,18 @@ rpl::lifetime &Panel::lifetime() {
 
 void Panel::initGeometry() {
 	const auto center = Core::App().getPointForCallPanelCenter();
-	const auto height = (_call->rtmp() && !_call->canManage())
+	const auto width = _call->rtmp()
+		? st::groupCallWidthRtmp
+		: st::groupCallWidth;
+	const auto height = _call->rtmp()
+		? st::groupCallHeightRtmp
+		: st::groupCallHeight;
+	const auto minHeight = (_call->rtmp() && !_call->canManage())
 		? st::groupCallHeightRtmpMin
 		: st::groupCallHeight;
-	const auto rect = QRect(0, 0, st::groupCallWidth, height);
+	const auto rect = QRect(0, 0, width, height);
 	window()->setGeometry(rect.translated(center - rect.center()));
-	window()->setMinimumSize(rect.size());
+	window()->setMinimumSize({ st::groupCallWidth, minHeight });
 	window()->show();
 }
 

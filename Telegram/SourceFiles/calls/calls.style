@@ -493,6 +493,8 @@ callErrorToast: Toast(defaultToast) {
 
 groupCallWidth: 380px;
 groupCallHeight: 580px;
+groupCallWidthRtmp: 720px;
+groupCallHeightRtmp: 580px;
 groupCallHeightRtmpMin: 280px;
 
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
@@ -1121,9 +1123,9 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
 groupCallPinOnTop: IconButton(groupCallTitleButton) {
-	icon: icon{{ "dialogs/dialogs_pinned", groupCallMemberNotJoinedStatus }};
-	iconOver: icon{{ "dialogs/dialogs_pinned", groupCallMembersFg }};
-	iconPosition: point(8px, 4px);
+	icon: icon{{ "calls/navbar_pin", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_pin", groupCallMembersFg }};
+	iconPosition: point(0px, 4px);
 }
 
 groupCallMajorBlobIdleRadius: 2px;

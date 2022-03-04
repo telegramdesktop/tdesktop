@@ -134,7 +134,6 @@ private:
 	void trackControls(bool track, bool force = false);
 	void raiseControls();
 	void enlargeVideo();
-	void minimizeVideo();
 
 	void trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime);
 	void trackControlOver(not_null<Ui::RpWidget*> control, bool over);
