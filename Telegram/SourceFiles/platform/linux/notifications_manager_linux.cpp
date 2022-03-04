@@ -695,7 +695,21 @@ void NotificationData::setImage(const QString &imagePath) {
 }
 
 void NotificationData::notificationClosed(uint id, uint reason) {
-	if (id == _notificationId) {
+	/*
+	 * From: https://specifications.freedesktop.org/notification-spec/latest/ar01s09.html
+	 * The reason the notification was closed
+	 * 1 - The notification expired.
+	 * 2 - The notification was dismissed by the user.
+	 * 3 - The notification was closed by a call to CloseNotification.
+	 * 4 - Undefined/reserved reasons.
+	 *
+	 * If the notification was dismissed by the user (reason == 2), the notification is not kept in notification history.
+	 * We do not need to send a "CloseNotification" call later to clear it from history.
+	 * Therefore we can drop the notification reference now.
+	 * In all other cases we keep the notification reference so that we may clear the notification later from history,
+	 * if the message for that notification is read (e.g. chat is opened or read from another device).
+	*/
+	if (id == _notificationId && reason == 2) {
 		_manager->clearNotification(_id);
 	}
 }
