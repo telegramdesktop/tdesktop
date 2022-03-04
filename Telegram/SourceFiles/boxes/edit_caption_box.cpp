@@ -614,6 +614,19 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	auto bottom = height();
+	{
+		const auto resultScrollHeight = bottom
+			- _field->height()
+			- st::boxPhotoCaptionSkip
+			- (_controls->isHidden() ? 0 : _controls->heightNoMargins())
+			- st::boxPhotoPadding.top();
+		const auto minThumbH = st::sendBoxAlbumGroupSize.height()
+			+ st::sendBoxAlbumGroupSkipTop * 2;
+		const auto diff = resultScrollHeight - minThumbH;
+		if (diff < 0) {
+			bottom -= diff;
+		}
+	}
 
 	_field->resize(st::sendMediaPreviewSize, _field->height());
 	_field->moveToLeft(
