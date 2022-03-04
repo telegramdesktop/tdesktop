@@ -1127,6 +1127,7 @@ groupCallPinOnTop: IconButton(groupCallTitleButton) {
 	iconOver: icon{{ "calls/navbar_pin", groupCallMembersFg }};
 	iconPosition: point(0px, 2px);
 }
+groupCallPinnedOnTop: icon{{ "calls/navbar_pin_filled", groupCallMembersFg }};
 
 groupCallMajorBlobIdleRadius: 2px;
 groupCallMajorBlobMaxRadius: 4px;

@@ -123,6 +123,11 @@ Panel::Panel(not_null<GroupCall*> call)
 , _stickedTooltipsShown(Core::App().settings().hiddenGroupCallTooltips()
 	& ~StickedTooltip::Microphone) // Always show tooltip about mic.
 , _toasts(std::make_unique<Toasts>(this))
+, _controlsBackgroundColor([] {
+	auto result = st::groupCallBg->c;
+	result.setAlphaF(kControlsBackgroundOpacity);
+	return result;
+})
 , _hideControlsTimer([=] { toggleWideControls(false); }) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
@@ -914,6 +919,12 @@ void Panel::raiseControls() {
 		}
 	}
 	_mute->raise();
+	if (_titleBackground) {
+		_titleBackground->raise();
+	}
+	if (_title) {
+		_title->raise();
+	}
 	if (_recordingMark) {
 		_recordingMark->raise();
 	}
@@ -1137,8 +1148,8 @@ void Panel::createPinOnTop() {
 		if (const auto handle = window()->windowHandle()) {
 			handle->setFlag(Qt::WindowStaysOnTopHint, pin);
 			_pinOnTop->setIconOverride(
-				pin ? &st::groupCallPinOnTop.iconOver : nullptr,
-				nullptr);
+				pin ? &st::groupCallPinnedOnTop : nullptr,
+				pin ? &st::groupCallPinnedOnTop : nullptr);
 			if (!_pinOnTop->isHidden()) {
 				showToast({ pin
 					? tr::lng_group_call_pinned_on_top(tr::now)
@@ -1159,10 +1170,14 @@ void Panel::createPinOnTop() {
 				_hideControlsTimer.callOnce(kHideControlsTimeout);
 				toggleWideControls(true);
 			}, _hideControlsTimerLifetime);
+
+			_hideControlsTimer.callOnce(kHideControlsTimeout);
 		} else {
 			_hideControlsTimerLifetime.destroy();
 			_hideControlsTimer.cancel();
+			refreshTitleGeometry();
 		}
+		refreshTitleBackground();
 		updateMembersGeometry();
 	}, _pinOnTop->lifetime());
 
@@ -1606,18 +1621,15 @@ void Panel::setupEmptyRtmp() {
 			return;
 		}
 		struct Label {
-			Label(QWidget *parent, rpl::producer<QString> text)
+			Label(
+				QWidget *parent,
+				rpl::producer<QString> text,
+				const style::color &color)
 			: widget(parent, std::move(text), st::groupCallVideoLimitLabel)
-			, color([] {
-				auto result = st::groupCallBg->c;
-				result.setAlphaF(kControlsBackgroundOpacity);
-				return result;
-			})
-			, corners(st::groupCallControlsBackRadius, color.color()) {
+			, corners(st::groupCallControlsBackRadius, color) {
 			}
 
 			Ui::FlatLabel widget;
-			style::complex_color color;
 			Ui::RoundRect corners;
 		};
 		_emptyRtmp.create(widget());
@@ -1627,7 +1639,8 @@ void Panel::setupEmptyRtmp() {
 				? tr::lng_group_call_no_stream(
 					lt_group,
 					rpl::single(_peer->name))
-				: tr::lng_group_call_no_stream_admin()));
+				: tr::lng_group_call_no_stream_admin()),
+			_controlsBackgroundColor.color());
 		_emptyRtmp->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_emptyRtmp->show();
 		_emptyRtmp->paintRequest(
@@ -1675,6 +1688,31 @@ void Panel::refreshControlsBackground() {
 	}
 	raiseControls();
 	updateButtonsGeometry();
+}
+
+void Panel::refreshTitleBackground() {
+	if (!_fullScreenOrMaximized.current()) {
+		_titleBackground.destroy();
+		return;
+	} else if (_titleBackground) {
+		return;
+	}
+	_titleBackground.create(widget());
+	_titleBackground->show();
+	raiseControls();
+	auto &lifetime = _titleBackground->lifetime();
+	const auto corners = lifetime.make_state<Ui::RoundRect>(
+		st::roundRadiusLarge,
+		_controlsBackgroundColor.color());
+	_titleBackground->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_titleBackground.data());
+		corners->paintSomeRounded(
+			p,
+			_titleBackground->rect(),
+			RectPart::FullBottom);
+	}, lifetime);
+	refreshTitleGeometry();
 }
 
 void Panel::setupControlsBackgroundNarrow() {
@@ -1773,14 +1811,9 @@ void Panel::setupControlsBackgroundWide() {
 	_controlsBackgroundWide.create(widget());
 	_controlsBackgroundWide->show();
 	auto &lifetime = _controlsBackgroundWide->lifetime();
-	const auto color = lifetime.make_state<style::complex_color>([] {
-		auto result = st::groupCallBg->c;
-		result.setAlphaF(kControlsBackgroundOpacity);
-		return result;
-	});
 	const auto corners = lifetime.make_state<Ui::RoundRect>(
 		st::groupCallControlsBackRadius,
-		color->color());
+		_controlsBackgroundColor.color());
 	_controlsBackgroundWide->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(_controlsBackgroundWide.data());
@@ -2156,6 +2189,9 @@ void Panel::updateButtonsGeometry() {
 			_controlsBackgroundWide->setGeometry(
 				rect.marginsAdded(st::groupCallControlsBackMargin));
 		}
+		if (_fullScreenOrMaximized.current()) {
+			refreshTitleGeometry();
+		}
 	} else {
 		const auto muteTop = widget()->height()
 			- st::groupCallMuteBottomSkip;
@@ -2338,10 +2374,17 @@ void Panel::refreshTitleGeometry() {
 		: fullRect;
 	const auto best = _title->naturalWidth();
 	const auto from = (widget()->width() - best) / 2;
-	const auto top = (mode() == PanelMode::Default)
+	const auto shownTop = (mode() == PanelMode::Default)
 		? st::groupCallTitleTop
 		: (st::groupCallWideVideoTop
 			- st::groupCallTitleLabel.style.font->height) / 2;
+	const auto top = anim::interpolate(
+		-_title->height() - st::boxRadius,
+		shownTop,
+		(_fullScreenOrMaximized.current()
+			? _wideControlsAnimation.value(
+				_wideControlsShown ? 1. : 0.)
+			: 1.));
 	const auto left = titleRect.x();
 	if (from >= left && from + best <= left + titleRect.width()) {
 		_title->resizeToWidth(best);
@@ -2361,6 +2404,21 @@ void Panel::refreshTitleGeometry() {
 		_recordingMark->move(
 			_title->x() + _title->width(),
 			markTop - st::groupCallRecordingMarkSkip);
+	}
+	if (_titleBackground) {
+		const auto bottom = _title->y()
+			+ _title->height()
+			+ (st::boxRadius / 2);
+		const auto height = std::max(bottom, st::boxRadius * 2);
+		_titleBackground->setGeometry(
+			_title->x() - st::boxRadius,
+			bottom - height,
+			(_title->width()
+				+ st::boxRadius
+				+ (_recordingMark
+				   ? (_recordingMark->width() + st::boxRadius / 2)
+				   : st::boxRadius)),
+			height);
 	}
 }
 

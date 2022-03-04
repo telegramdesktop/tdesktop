@@ -152,6 +152,7 @@ private:
 	void updateButtonsStyles();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
+	void refreshTitleBackground();
 	void setupControlsBackgroundWide();
 	void setupControlsBackgroundNarrow();
 	void showControls();
@@ -209,6 +210,7 @@ private:
 
 	rpl::lifetime _callLifetime;
 
+	object_ptr<Ui::RpWidget> _titleBackground = { nullptr };
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
@@ -255,6 +257,7 @@ private:
 
 	std::unique_ptr<MicLevelTester> _micLevelTester;
 
+	style::complex_color _controlsBackgroundColor;
 	base::Timer _hideControlsTimer;
 	rpl::lifetime _hideControlsTimerLifetime;
 
