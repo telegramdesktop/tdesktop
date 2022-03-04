@@ -580,6 +580,7 @@ void EditCaptionBox::captionResized() {
 
 void EditCaptionBox::updateBoxSize() {
 	auto footerHeight = 0;
+	footerHeight += st::normalFont->height + errorTopSkip();
 	if (_field) {
 		footerHeight += st::boxPhotoCaptionSkip + _field->height();
 	}
@@ -613,13 +614,15 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
+	const auto errorHeight = st::normalFont->height + errorTopSkip();
 	auto bottom = height();
 	{
 		const auto resultScrollHeight = bottom
 			- _field->height()
 			- st::boxPhotoCaptionSkip
 			- (_controls->isHidden() ? 0 : _controls->heightNoMargins())
-			- st::boxPhotoPadding.top();
+			- st::boxPhotoPadding.top()
+			- errorHeight;
 		const auto minThumbH = st::sendBoxAlbumGroupSize.height()
 			+ st::sendBoxAlbumGroupSkipTop * 2;
 		const auto diff = resultScrollHeight - minThumbH;
@@ -628,6 +631,7 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 		}
 	}
 
+	bottom -= errorHeight;
 	_field->resize(st::sendMediaPreviewSize, _field->height());
 	_field->moveToLeft(
 		st::boxPhotoPadding.left(),

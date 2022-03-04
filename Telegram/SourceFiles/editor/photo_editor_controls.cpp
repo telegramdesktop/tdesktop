@@ -55,7 +55,7 @@ EdgeButton::EdgeButton(
 	const style::RippleAnimation &st)
 : Ui::RippleButton(parent, st)
 , _fg(fg)
-, _text(st::semiboldTextStyle, text.toUpper())
+, _text(st::semiboldTextStyle, text)
 , _width(_text.maxWidth()
 	+ st::photoEditorTextButtonPadding.left()
 	+ st::photoEditorTextButtonPadding.right())
