@@ -410,9 +410,14 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 			controller->session().settings().incrementPhotoEditorHintShown();
 			controller->session().saveSettings();
 		};
+		const auto clearError = [=] {
+			_error = QString();
+			update();
+		};
 		const auto previewWidth = st::sendMediaPreviewSize;
 		if (!_preparedList.files.empty()) {
 			increment();
+			clearError();
 			Editor::OpenWithPreparedFile(
 				this,
 				controller,
@@ -425,6 +430,7 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 				return;
 			}
 			increment();
+			clearError();
 			auto callback = [=](const Editor::PhotoModifications &mods) {
 				if (!mods || !_photoMedia) {
 					return;
@@ -687,6 +693,13 @@ void EditCaptionBox::save() {
 	options.scheduled = item->isScheduled() ? item->date() : 0;
 
 	if (!_preparedList.files.empty()) {
+		if ((_albumType != Ui::AlbumType::None)
+				&& !_preparedList.files.front().canBeInAlbumType(
+					_albumType)) {
+			_error = tr::lng_edit_media_album_error(tr::now);
+			update();
+			return;
+		}
 		auto action = Api::SendAction(item->history(), options);
 		action.replaceMediaOf = item->fullId().msg;
 
