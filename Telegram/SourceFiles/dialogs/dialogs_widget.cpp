@@ -428,6 +428,7 @@ void Widget::setupDownloadBar() {
 				!rpl::mappers::_1
 			) | rpl::start_with_next([=] {
 				_downloadBar = nullptr;
+				updateControlsGeometry();
 			}, _downloadBar->lifetime());
 
 			_downloadBar->clicks(
