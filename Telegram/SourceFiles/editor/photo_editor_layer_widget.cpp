@@ -27,13 +27,15 @@ void OpenWithPreparedFile(
 		not_null<Ui::PreparedFile*> file,
 		int previewWidth,
 		Fn<void()> &&doneCallback) {
-
-	if (file->type != Ui::PreparedFile::Type::Photo) {
-		return;
-	}
 	using ImageInfo = Ui::PreparedFileInformation::Image;
 	const auto image = std::get_if<ImageInfo>(&file->information->media);
 	if (!image) {
+		return;
+	}
+	const auto photoType = (file->type == Ui::PreparedFile::Type::Photo);
+	const auto modifiedFileType = (file->type == Ui::PreparedFile::Type::File)
+		&& !image->modifications.empty();
+	if (!photoType && !modifiedFileType) {
 		return;
 	}
 
@@ -41,6 +43,13 @@ void OpenWithPreparedFile(
 			const PhotoModifications &mods) {
 		image->modifications = mods;
 		Storage::UpdateImageDetails(*file, previewWidth);
+		{
+			using namespace Ui;
+			const auto size = file->preview.size();
+			file->type = ValidateThumbDimensions(size.width(), size.height())
+				? PreparedFile::Type::Photo
+				: PreparedFile::Type::File;
+		}
 		done();
 	};
 	auto copy = image->data;
