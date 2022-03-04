@@ -2570,7 +2570,7 @@ void HistoryInner::checkHistoryActivation() {
 	}
 	adjustCurrent(_visibleAreaBottom);
 	if (_history->loadedAtBottom() && _visibleAreaBottom >= height()) {
-		// Clear possible scheduled messages notifications.
+		// Clear possible message notifications.
 		Core::App().notifications().clearFromHistory(_history);
 	}
 	if (_curHistory != _history || _history->isEmpty()) {
