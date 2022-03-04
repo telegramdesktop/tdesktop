@@ -300,7 +300,9 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			st::settingsFilterIconLeft,
 			(height() - icon->height()) / 2,
 			width(),
-			(over ? st::menuIconFgOver : st::menuIconFg)->c);
+			(over
+				? st::dialogsUnreadBgMutedOver
+				: st::dialogsUnreadBgMuted)->c);
 	}
 }
 

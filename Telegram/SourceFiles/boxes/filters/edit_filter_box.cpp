@@ -407,7 +407,10 @@ void CreateIconSelector(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(toggle);
 		const auto icons = Ui::LookupFilterIcon(*type);
-		icons.normal->paintInCenter(p, toggle->rect(), st::emojiIconFg->c);
+		icons.normal->paintInCenter(
+			p,
+			toggle->rect(),
+			st::dialogsUnreadBgMuted->c);
 	}, toggle->lifetime());
 
 	const auto panel = toggle->lifetime().make_state<Ui::FilterIconPanel>(

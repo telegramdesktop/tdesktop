@@ -309,14 +309,14 @@ windwoFilterIconPanelPosition: point(-2px, -1px);
 windowFilterIconSingle: size(44px, 42px);
 windowFilterIconPadding: margins(10px, 36px, 10px, 8px);
 windowFilterIconHeaderPosition: point(18px, 14px);
-windowFilterTypeContacts: icon {{ "filters/filters_type_contacts", historyPeerUserpicFg }};
-windowFilterTypeNonContacts: icon {{ "filters/filters_type_noncontacts", historyPeerUserpicFg }};
-windowFilterTypeGroups: icon {{ "filters/filters_type_groups", historyPeerUserpicFg }};
-windowFilterTypeChannels: icon {{ "filters/filters_type_channels", historyPeerUserpicFg }};
-windowFilterTypeBots: icon {{ "filters/filters_type_bots", historyPeerUserpicFg }};
-windowFilterTypeNoMuted: icon {{ "filters/filters_type_muted", historyPeerUserpicFg }};
-windowFilterTypeNoArchived: icon {{ "filters/filters_type_archived", historyPeerUserpicFg }};
-windowFilterTypeNoRead: icon {{ "filters/filters_type_read", historyPeerUserpicFg }};
+windowFilterTypeContacts: icon {{ "folders/folders_type_contacts", historyPeerUserpicFg }};
+windowFilterTypeNonContacts: icon {{ "folders/folders_type_noncontacts", historyPeerUserpicFg }};
+windowFilterTypeGroups: icon {{ "folders/folders_type_groups", historyPeerUserpicFg }};
+windowFilterTypeChannels: icon {{ "folders/folders_type_channels", historyPeerUserpicFg }};
+windowFilterTypeBots: icon {{ "folders/folders_type_bots", historyPeerUserpicFg }};
+windowFilterTypeNoMuted: icon {{ "folders/folders_type_muted", historyPeerUserpicFg }};
+windowFilterTypeNoArchived: icon {{ "folders/folders_type_archived", historyPeerUserpicFg }};
+windowFilterTypeNoRead: icon {{ "folders/folders_type_read", historyPeerUserpicFg }};
 windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: searchedBarFont;
