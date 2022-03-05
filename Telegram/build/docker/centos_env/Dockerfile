@@ -10,9 +10,9 @@ ENV QT5_VER 5_15_2
 ENV QT5_TAG v5.15.2
 ENV QT5_PREFIX /usr/local/desktop-app/Qt-5.15.2
 ENV Qt5_DIR ${QT5_PREFIX}
-ENV QT6_VER 6_2_2
-ENV QT6_TAG v6.2.2
-ENV QT6_PREFIX /usr/local/desktop-app/Qt-6.2.2
+ENV QT6_VER 6_2_3
+ENV QT6_TAG v6.2.3
+ENV QT6_PREFIX /usr/local/desktop-app/Qt-6.2.3
 ENV Qt6_DIR ${QT6_PREFIX}
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
@@ -51,7 +51,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 1206363d59
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 49d233d5de
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
