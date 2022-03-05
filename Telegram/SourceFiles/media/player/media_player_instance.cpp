@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_streaming.h"
 #include "data/data_file_click_handler.h"
+#include "base/options.h"
 #include "base/random.h"
 #include "base/power_save_blocker.h"
 #include "media/audio/media_audio.h"
@@ -55,7 +56,16 @@ auto VoicePlaybackSpeed() {
 	return std::clamp(Core::App().settings().voicePlaybackSpeed(), 0.6, 1.7);
 }
 
+base::options::toggle OptionDisableAutoplayNext({
+	.id = kOptionDisableAutoplayNext,
+	.name = "Disable auto-play of the next track",
+	.description = "Disable auto-play of the next "
+		"Audio file / Voice Message / Video message.",
+});
+
 } // namespace
+
+const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
 
 struct Instance::Streamed {
 	Streamed(
@@ -1212,6 +1222,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (repeat(data) == RepeatMode::One) {
 				play(data->current);
+			} else if (OptionDisableAutoplayNext.value()) {
+				finished = true;
 			} else if (!moveInPlaylist(data, 1, true)) {
 				finished = true;
 			}

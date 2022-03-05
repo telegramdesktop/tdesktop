@@ -42,6 +42,8 @@ class PowerSaveBlocker;
 namespace Media {
 namespace Player {
 
+extern const char kOptionDisableAutoplayNext[];
+
 enum class RepeatMode {
 	None,
 	One,
