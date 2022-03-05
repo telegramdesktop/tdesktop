@@ -50,7 +50,8 @@ private:
 
 	void createSurrounding();
 	void createBubble();
-	not_null<HistoryView::Element*> view() const;
+	HistoryView::Element *maybeView() const;
+	bool checkView(HistoryView::Element *currentView) const;
 	void drawContent(Painter &p, float64 progress) const;
 
 	const not_null<Window::SessionController*> _controller;
@@ -83,7 +84,7 @@ Content::Content(
 , _crop(fromInfo.crop)
 , _toInfo(std::move(to))
 , _from(parent->mapFromGlobal(fromInfo.globalStartGeometry))
-, _innerContentRect(view()->media()->contentRectForReactions())
+, _innerContentRect(maybeView()->media()->contentRectForReactions())
 , _minScale(float64(_from.height()) / _innerContentRect.height()) {
 	Expects(_toInfo.view != nullptr);
 	Expects(_toInfo.paintContext != nullptr);
@@ -106,7 +107,7 @@ Content::Content(
 
 	resize(_innerContentRect.size());
 
-	const auto innerGeometry = view()->innerGeometry();
+	const auto innerGeometry = maybeView()->innerGeometry();
 
 	auto animationCallback = [=](float64 value) {
 		auto resultFrom = rect();
@@ -123,7 +124,11 @@ Content::Content(
 		if ((value > kSurroundingProgress)
 			&& !_surrounding
 			&& !_bubble.widget) {
-			if (view()->hasBubble()) {
+			const auto currentView = maybeView();
+			if (!checkView(currentView)) {
+				return;
+			}
+			if (currentView->hasBubble()) {
 				createBubble();
 			} else {
 				createSurrounding();
@@ -141,7 +146,10 @@ Content::Content(
 		}
 
 		if (value == 1.) {
-			const auto currentView = view();
+			const auto currentView = maybeView();
+			if (!checkView(currentView)) {
+				return;
+			}
 			const auto controller = _controller;
 			_destroyRequests.fire({});
 			controller->session().data().requestViewRepaint(currentView);
@@ -155,8 +163,16 @@ Content::Content(
 		HistoryView::ListWidget::kItemRevealDuration);
 }
 
-not_null<HistoryView::Element*> Content::view() const {
+HistoryView::Element *Content::maybeView() const {
 	return _toInfo.view();
+}
+
+bool Content::checkView(HistoryView::Element *currentView) const {
+	if (!currentView) {
+		_destroyRequests.fire({});
+		return false;
+	}
+	return true;
 }
 
 void Content::paintEvent(QPaintEvent *e) {
@@ -211,7 +227,10 @@ void Content::drawContent(Painter &p, float64 progress) const {
 		(1 - progress) * OffsetMid(height(), _minScale));
 	p.scale(scale, scale);
 
-	const auto currentView = view();
+	const auto currentView = maybeView();
+	if (!checkView(currentView)) {
+		return;
+	}
 
 	auto context = _toInfo.paintContext();
 	context.skipDrawingParts = Context::SkipDrawingParts::Surrounding;
@@ -228,7 +247,10 @@ void Content::createSurrounding() {
 	_surrounding = base::make_unique_q<Ui::RpWidget>(parentWidget());
 	_surrounding->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto currentView = view();
+	const auto currentView = maybeView();
+	if (!checkView(currentView)) {
+		return;
+	}
 	const auto surroundingSize = currentView->innerGeometry().size();
 	const auto offset = _innerContentRect.topLeft();
 
@@ -259,7 +281,10 @@ void Content::createSurrounding() {
 	 		revProgress * OffsetMid(size.height() + offset.y(), _minScale));
 	 	p.scale(scale, scale);
 
-		const auto currentView = view();
+		const auto currentView = maybeView();
+		if (!checkView(currentView)) {
+			return;
+		}
 
 		auto context = _toInfo.paintContext();
 		context.skipDrawingParts = Context::SkipDrawingParts::Content;
@@ -273,7 +298,10 @@ void Content::createBubble() {
 	_bubble.widget = base::make_unique_q<Ui::RpWidget>(parentWidget());
 	_bubble.widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto currentView = view();
+	const auto currentView = maybeView();
+	if (!checkView(currentView)) {
+		return;
+	}
 	const auto innerGeometry = currentView->innerGeometry();
 
 	const auto tailWidth = st::historyBubbleTailOutLeft.width();
@@ -315,7 +343,10 @@ void Content::createBubble() {
 	 		revProgress * OffsetMid(height() + scaleOffset.y(), _minScale));
 	 	p.scale(scale, scale);
 
-		const auto currentView = view();
+		const auto currentView = maybeView();
+		if (!checkView(currentView)) {
+			return;
+		}
 
 		auto context = _toInfo.paintContext();
 		context.skipDrawingParts = Context::SkipDrawingParts::Content;

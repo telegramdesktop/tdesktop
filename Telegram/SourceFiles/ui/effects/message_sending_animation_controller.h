@@ -30,7 +30,7 @@ public:
 
 	struct SendingInfoTo {
 		rpl::producer<QPoint> globalEndTopLeft;
-		Fn<not_null<HistoryView::Element*>()> view;
+		Fn<HistoryView::Element*()> view;
 		Fn<Ui::ChatPaintContext()> paintContext;
 	};
 
