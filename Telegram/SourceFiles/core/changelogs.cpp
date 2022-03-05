@@ -89,6 +89,14 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Manage Live Streams in your groups and channels "
 		"using external software like OBS Studio or XSplit Broadcaster.\n"
+	},
+	{
+		3005005,
+		"- Support stereo audio output in RTMP streams.\n"
+
+		"- Improve RTMP stream full screen mode.\n"
+
+		"- Fix a couple of crashes.\n"
 	}
 	};
 };

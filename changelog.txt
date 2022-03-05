@@ -1,3 +1,9 @@
+3.5.5 beta (05.03.22)
+
+- Support stereo audio output in RTMP streams.
+- Improve RTMP stream full screen mode.
+- Fix a couple of crashes.
+
 3.5.4 beta (01.03.22)
 
 - Bug fixes and other minor improvements.
