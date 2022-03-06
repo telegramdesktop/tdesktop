@@ -342,7 +342,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto admin = current.admin;
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
-		CopyInviteLink(link);
+		CopyInviteLink(delegate()->peerListToastParent(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		ShareInviteLinkBox(_peer, link);
@@ -949,7 +949,7 @@ void AddPermanentLinkBlock(
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			CopyInviteLink(current.link);
+			CopyInviteLink(show->toastParent(), current.link);
 		}
 	});
 	const auto shareLink = crl::guard(weak, [=] {
@@ -1111,9 +1111,9 @@ void AddPermanentLinkBlock(
 	}));
 }
 
-void CopyInviteLink(const QString &link) {
+void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	Ui::Toast::Show(toastParent, tr::lng_group_invite_copied(tr::now));
 }
 
 void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
