@@ -294,15 +294,20 @@ void InitMessageField(
 void InitSpellchecker(
 		std::shared_ptr<Ui::Show> show,
 		not_null<Main::Session*> session,
-		not_null<Ui::InputField*> field) {
+		not_null<Ui::InputField*> field,
+		bool skipDictionariesManager) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
-	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
-		field.get(),
-		Core::App().settings().spellcheckerEnabledValue(),
-		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
+	using namespace Spellchecker;
+	const auto menuItem = skipDictionariesManager
+		? std::nullopt
+		: std::make_optional(SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
 			[=] { show->showBox(Box<Ui::ManageDictionariesBox>(session)); }
 		});
+	const auto s = Ui::CreateChild<SpellingHighlighter>(
+		field.get(),
+		Core::App().settings().spellcheckerEnabledValue(),
+		menuItem);
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
 }

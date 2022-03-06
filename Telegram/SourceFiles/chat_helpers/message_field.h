@@ -48,7 +48,8 @@ void InitMessageField(
 void InitSpellchecker(
 	std::shared_ptr<Ui::Show> show,
 	not_null<Main::Session*> session,
-	not_null<Ui::InputField*> field);
+	not_null<Ui::InputField*> field,
+	bool skipDictionariesManager = false);
 void InitSpellchecker(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);
