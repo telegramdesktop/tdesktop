@@ -899,6 +899,7 @@ void ManageInviteLinksBox(
 
 	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(
+		std::make_shared<Ui::BoxShow>(box),
 		container,
 		peer,
 		admin,

@@ -896,6 +896,7 @@ void AddSinglePeerRow(
 }
 
 void AddPermanentLinkBlock(
+		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -961,7 +962,7 @@ void AddPermanentLinkBlock(
 				value->current().link,
 				std::move(close));
 		});
-		Ui::show(
+		show->showBox(
 			Ui::MakeConfirmBox({
 				tr::lng_group_invite_about_new(tr::now),
 				done

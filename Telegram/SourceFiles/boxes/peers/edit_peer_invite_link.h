@@ -17,6 +17,7 @@ struct InviteLink;
 
 namespace Ui {
 class VerticalLayout;
+class Show;
 } // namespace Ui
 
 [[nodiscard]] bool IsExpiredLink(const Api::InviteLink &data, TimeId now);
@@ -27,6 +28,7 @@ void AddSinglePeerRow(
 	rpl::producer<QString> status);
 
 void AddPermanentLinkBlock(
+	std::shared_ptr<Ui::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,

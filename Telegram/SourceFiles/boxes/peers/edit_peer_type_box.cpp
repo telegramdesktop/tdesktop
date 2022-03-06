@@ -587,6 +587,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 		AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	}
 	AddPermanentLinkBlock(
+		_show,
 		container,
 		_peer,
 		_peer->session().user(),
