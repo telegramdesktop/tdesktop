@@ -1204,7 +1204,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = [](auto peer) { return peer->canWrite(); },
-		.navigation = App::wnd()->sessionController() });
+	});
 	*box = Ui::MakeWeak(object.data());
 	return object;
 }

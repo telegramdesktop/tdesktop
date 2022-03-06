@@ -365,7 +365,6 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		.copyCallback = std::move(copyLinkCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
-		.navigation = App::wnd()->sessionController(),
 		.forwardOptions = {
 			.messagesCount = int(data->msgIds.size()),
 			.show = !hasOnlyForcedForwardedInfo,

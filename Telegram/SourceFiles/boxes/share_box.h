@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "base/observer.h"
 #include "base/timer.h"
 #include "history/view/history_view_schedule_box.h"
 #include "ui/chat/forward_options_box.h"
@@ -28,7 +27,6 @@ enum class Type;
 
 namespace Window {
 class SessionController;
-class SessionNavigation;
 } // namespace Window
 
 namespace Api {
@@ -80,7 +78,6 @@ public:
 		CopyCallback copyCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
-		Window::SessionNavigation *navigation = nullptr;
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
@@ -138,6 +135,8 @@ private:
 
 	Descriptor _descriptor;
 	MTP::Sender _api;
+
+	std::shared_ptr<Ui::BoxShow> _show;
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;

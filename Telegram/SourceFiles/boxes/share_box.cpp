@@ -197,6 +197,7 @@ private:
 ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 : _descriptor(std::move(descriptor))
 , _api(&_descriptor.session->mtp())
+, _show(std::make_shared<Ui::BoxShow>(this))
 , _select(
 	this,
 	(_descriptor.stMultiSelect
@@ -255,19 +256,20 @@ void ShareBox::prepareCommentField() {
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	if (_descriptor.initEditLink) {
 		_descriptor.initEditLink(field);
-	} else if (_descriptor.navigation) {
+	} else if (_show->valid()) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(
-				std::make_shared<Window::Show>(_descriptor.navigation),
+				_show,
 				_descriptor.session,
-				field));
+				field,
+				_descriptor.stComment));
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
 	if (_descriptor.initSpellchecker) {
 		_descriptor.initSpellchecker(field);
-	} else if (_descriptor.navigation) {
-		InitSpellchecker(_descriptor.navigation->parentController(), field);
+	} else if (_show->valid()) {
+		InitSpellchecker(_show, _descriptor.session, field, true);
 	}
 	Ui::SendPendingMoveResizeEvents(_comment);
 	if (_bottomWidget) {
@@ -602,7 +604,7 @@ void ShareBox::submitSilent() {
 
 void ShareBox::submitScheduled() {
 	const auto callback = [=](Api::SendOptions options) { submit(options); };
-	Ui::show(
+	_show->showBox(
 		HistoryView::PrepareScheduleBox(
 			this,
 			sendMenuType(),
