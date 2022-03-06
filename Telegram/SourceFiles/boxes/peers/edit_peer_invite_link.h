@@ -49,7 +49,7 @@ void DeleteLink(
 	not_null<UserData*> admin,
 	const QString &link);
 
-void ShowInviteLinkBox(
+[[nodiscard]] object_ptr<Ui::BoxContent> ShowInviteLinkBox(
 	not_null<PeerData*> peer,
 	const Api::InviteLink &link);
 

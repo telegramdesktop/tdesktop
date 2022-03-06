@@ -1092,7 +1092,9 @@ void AddPermanentLinkBlock(
 		st::inviteLinkJoinedRowPadding
 	)->setClickedCallback([=] {
 		if (!currentLinkFields->link.isEmpty()) {
-			ShowInviteLinkBox(peer, *currentLinkFields);
+			show->showBox(
+				ShowInviteLinkBox(peer, *currentLinkFields),
+				Ui::LayerOption::KeepOther);
 		}
 	});
 
@@ -1207,10 +1209,11 @@ void EditLink(
 	using Fields = Ui::InviteLinkFields;
 	const auto done = [=](Fields result) {
 		const auto finish = [=](Api::InviteLink finished) {
-			if (creating) {
-				ShowInviteLinkBox(peer, finished);
-			}
 			if (*box) {
+				if (creating) {
+					(*box)->getDelegate()->show(
+						ShowInviteLinkBox(peer, finished));
+				}
 				(*box)->closeBox();
 			}
 		};
@@ -1292,7 +1295,7 @@ void DeleteLink(
 		Ui::LayerOption::KeepOther);
 }
 
-void ShowInviteLinkBox(
+object_ptr<Ui::BoxContent> ShowInviteLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &link) {
 	const auto admin = link.admin;
@@ -1332,15 +1335,13 @@ void ShowInviteLinkBox(
 
 		box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 	};
-	Ui::show(
-		Box<PeerListBox>(
-			std::make_unique<Controller>(
-				peer,
-				link.admin,
-				std::move(data),
-				Controller::Role::Joined),
-			std::move(initBox)),
-		Ui::LayerOption::KeepOther);
+	return Box<PeerListBox>(
+		std::make_unique<Controller>(
+			peer,
+			link.admin,
+			std::move(data),
+			Controller::Role::Joined),
+		std::move(initBox));
 }
 
 QString PrepareRequestedRowStatus(TimeId date) {

@@ -542,7 +542,9 @@ void LinksController::appendSlice(const InviteLinksSlice &slice) {
 }
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
-	ShowInviteLinkBox(_peer, static_cast<Row*>(row.get())->data());
+	delegate()->peerListShowBox(
+		ShowInviteLinkBox(_peer, static_cast<Row*>(row.get())->data()),
+		Ui::LayerOption::KeepOther);
 }
 
 void LinksController::rowRightActionClicked(not_null<PeerListRow*> row) {
