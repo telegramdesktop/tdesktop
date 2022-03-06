@@ -594,7 +594,9 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 			InviteLinkQrBox(link);
 		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
-			EditLink(_peer, data);
+			delegate()->peerListShowBox(
+				EditLinkBox(_peer, data),
+				Ui::LayerOption::KeepOther);
 		}, &st::menuIconEdit);
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
 			RevokeLink(_peer, _admin, link);
@@ -881,6 +883,8 @@ void ManageInviteLinksBox(
 		int revokedCount) {
 	using namespace Settings;
 
+	const auto show = std::make_shared<Ui::BoxShow>(box);
+
 	box->setTitle(tr::lng_group_invite_title());
 	box->setWidth(st::boxWideWidth);
 
@@ -903,7 +907,7 @@ void ManageInviteLinksBox(
 
 	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(
-		std::make_shared<Ui::BoxShow>(box),
+		show,
 		container,
 		peer,
 		admin,
@@ -914,7 +918,9 @@ void ManageInviteLinksBox(
 	if (admin->isSelf()) {
 		const auto add = AddCreateLinkButton(container);
 		add->setClickedCallback([=] {
-			EditLink(peer, InviteLinkData{ .admin = admin });
+			show->showBox(
+				EditLinkBox(peer, InviteLinkData{ .admin = admin }),
+				Ui::LayerOption::KeepOther);
 		});
 	} else {
 		otherHeader = container->add(object_ptr<Ui::SlideWrap<>>(

@@ -354,7 +354,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		RevokeLink(_peer, admin, link);
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		EditLink(_peer, _data.current());
+		delegate()->peerListShowBox(
+			EditLinkBox(_peer, _data.current()),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
@@ -1203,7 +1205,7 @@ void InviteLinkQrBox(const QString &link) {
 	}));
 }
 
-void EditLink(
+object_ptr<Ui::BoxContent> EditLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &data) {
 	const auto creating = data.link.isEmpty();
@@ -1242,22 +1244,26 @@ void EditLink(
 	};
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
-	*box = Ui::show(
-		(creating
-			? Box(Ui::CreateInviteLinkBox, isGroup, isPublic, done)
-			: Box(
-				Ui::EditInviteLinkBox,
-				Fields{
-					.link = data.link,
-					.label = data.label,
-					.expireDate = data.expireDate,
-					.usageLimit = data.usageLimit,
-					.requestApproval = data.requestApproval,
-					.isGroup = isGroup,
-					.isPublic = isPublic,
-				},
-				done)),
-		Ui::LayerOption::KeepOther);
+	if (creating) {
+		auto object = Box(Ui::CreateInviteLinkBox, isGroup, isPublic, done);
+		*box = Ui::MakeWeak(object.data());
+		return object;
+	} else {
+		auto object = Box(
+			Ui::EditInviteLinkBox,
+			Fields{
+				.link = data.link,
+				.label = data.label,
+				.expireDate = data.expireDate,
+				.usageLimit = data.usageLimit,
+				.requestApproval = data.requestApproval,
+				.isGroup = isGroup,
+				.isPublic = isPublic,
+			},
+			done);
+		*box = Ui::MakeWeak(object.data());
+		return object;
+	}
 }
 
 void RevokeLink(
