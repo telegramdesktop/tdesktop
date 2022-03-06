@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "lang/lang_keys.h"
 #include "boxes/share_box.h"
+#include "history/view/history_view_schedule_box.h"
 #include "history/history_message.h" // GetErrorTextForSending.
 #include "data/data_histories.h"
 #include "data/data_session.h"
@@ -196,6 +197,23 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	auto filterCallback = [](PeerData *peer) {
 		return peer->canWrite();
 	};
+
+	const auto scheduleStyle = [&] {
+		auto date = Ui::ChooseDateTimeStyleArgs();
+		date.labelStyle = &st::groupCallBoxLabel;
+		date.dateFieldStyle = &st::groupCallScheduleDateField;
+		date.timeFieldStyle = &st::groupCallScheduleTimeField;
+		date.separatorStyle = &st::callMuteButtonLabel;
+		date.atStyle = &st::callMuteButtonLabel;
+		date.calendarStyle = &st::groupCallCalendarColors;
+
+		auto st = HistoryView::ScheduleBoxStyleArgs();
+		st.topButtonStyle = &st::groupCallMenuToggle;
+		st.popupMenuStyle = &st::groupCallPopupMenu;
+		st.chooseDateTimeArgs = std::move(date);
+		return st;
+	};
+
 	auto result = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
@@ -209,8 +227,10 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			tr::lng_group_call_copy_speaker_link(),
 			tr::lng_group_call_copy_listener_link()),
 		.stMultiSelect = &st::groupCallMultiSelect,
-		.stComment = &st::groupCallShareBoxComment,
-		.st = &st::groupCallShareBoxList });
+		.stComment = &/*st::groupCallShareBoxComment*/st::groupCallField,
+		.st = &st::groupCallShareBoxList,
+		.scheduleBoxStyle = scheduleStyle(),
+	});
 	*box = result.data();
 	return result;
 }
