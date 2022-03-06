@@ -579,7 +579,9 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		st::popupMenuWithIcons);
 	if (data.revoked) {
 		result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
-			DeleteLink(_peer, _admin, link);
+			delegate()->peerListShowBox(
+				DeleteLinkBox(_peer, _admin, link),
+				Ui::LayerOption::KeepOther);
 		}, &st::menuIconDelete);
 	} else {
 		result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {

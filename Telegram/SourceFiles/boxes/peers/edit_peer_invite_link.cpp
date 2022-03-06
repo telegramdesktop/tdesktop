@@ -357,7 +357,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		EditLink(_peer, _data.current());
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		DeleteLink(_peer, admin, link);
+		delegate()->peerListShowBox(
+			DeleteLinkBox(_peer, admin, link),
+			Ui::LayerOption::KeepOther);
 	});
 
 	const auto createMenu = [=] {
@@ -1276,7 +1278,7 @@ void RevokeLink(
 		Ui::LayerOption::KeepOther);
 }
 
-void DeleteLink(
+object_ptr<Ui::BoxContent> DeleteLinkBox(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link) {
@@ -1287,12 +1289,7 @@ void DeleteLink(
 			link,
 			std::move(close));
 	};
-	Ui::show(
-		Ui::MakeConfirmBox({
-			tr::lng_group_invite_delete_sure(),
-			sure
-		}),
-		Ui::LayerOption::KeepOther);
+	return Ui::MakeConfirmBox({ tr::lng_group_invite_delete_sure(), sure });
 }
 
 object_ptr<Ui::BoxContent> ShowInviteLinkBox(
