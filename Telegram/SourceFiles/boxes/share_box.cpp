@@ -602,7 +602,12 @@ void ShareBox::submitSilent() {
 void ShareBox::submitScheduled() {
 	const auto callback = [=](Api::SendOptions options) { submit(options); };
 	Ui::show(
-		HistoryView::PrepareScheduleBox(this, sendMenuType(), callback),
+		HistoryView::PrepareScheduleBox(
+			this,
+			sendMenuType(),
+			callback,
+			HistoryView::DefaultScheduleTime(),
+			_descriptor.scheduleBoxStyle),
 		Ui::LayerOption::KeepOther);
 }
 

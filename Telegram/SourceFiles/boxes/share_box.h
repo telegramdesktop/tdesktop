@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/observer.h"
 #include "base/timer.h"
+#include "history/view/history_view_schedule_box.h"
 #include "ui/chat/forward_options_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
@@ -92,6 +93,7 @@ public:
 			bool show = false;
 			bool hasCaptions = false;
 		} forwardOptions;
+		HistoryView::ScheduleBoxStyleArgs scheduleBoxStyle;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 
