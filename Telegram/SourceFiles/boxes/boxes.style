@@ -503,6 +503,41 @@ calendarScroll: ScrollArea(defaultSolidScroll) {
 	deltax: 3px;
 	hiding: 1000;
 }
+CalendarColors {
+	dayTextColor: color;
+	dayTextGrayedOutColor: color;
+
+	iconButtonNext: IconButton;
+	iconButtonNextDisabled: icon;
+	iconButtonPrevious: IconButton;
+	iconButtonPreviousDisabled: icon;
+
+	iconButtonRippleColorDisabled: color;
+
+	rippleColor: color;
+	rippleColorHighlighted: color;
+	rippleGrayedOutColor: color;
+
+	titleTextColor: color;
+}
+
+defaultCalendarColors: CalendarColors {
+	dayTextColor: boxTextFg;
+	dayTextGrayedOutColor: windowSubTextFg;
+
+	iconButtonNext: calendarNext;
+	iconButtonNextDisabled: calendarNextDisabled;
+	iconButtonPrevious: calendarPrevious;
+	iconButtonPreviousDisabled: calendarPreviousDisabled;
+
+	iconButtonRippleColorDisabled: boxBg;
+
+	rippleColor: windowBgOver;
+	rippleColorHighlighted: dialogsRippleBgActive;
+	rippleGrayedOutColor: windowBgRipple;
+
+	titleTextColor: boxTitleFg;
+}
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
