@@ -588,7 +588,9 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 			CopyInviteLink(delegate()->peerListToastParent(), link);
 		}, &st::menuIconCopy);
 		result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
-			ShareInviteLinkBox(_peer, link);
+			delegate()->peerListShowBox(
+				ShareInviteLinkBox(_peer, link),
+				Ui::LayerOption::KeepOther);
 		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
 			delegate()->peerListShowBox(

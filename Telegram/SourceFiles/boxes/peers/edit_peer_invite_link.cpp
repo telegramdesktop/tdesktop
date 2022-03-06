@@ -345,7 +345,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		CopyInviteLink(delegate()->peerListToastParent(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		ShareInviteLinkBox(_peer, link);
+		delegate()->peerListShowBox(
+			ShareInviteLinkBox(_peer, link),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
@@ -954,7 +956,9 @@ void AddPermanentLinkBlock(
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			ShareInviteLinkBox(peer, current.link);
+			show->showBox(
+				ShareInviteLinkBox(peer, current.link),
+				Ui::LayerOption::KeepOther);
 		}
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
@@ -1116,13 +1120,21 @@ void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link) {
 	Ui::Toast::Show(toastParent, tr::lng_group_invite_copied(tr::now));
 }
 
-void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
+object_ptr<Ui::BoxContent> ShareInviteLinkBox(
+		not_null<PeerData*> peer,
+		const QString &link) {
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
+	const auto showToast = [=](const QString &text) {
+		if (*box) {
+			Ui::Toast::Show(Ui::BoxShow(*box).toastParent(), text);
+		}
+	};
+
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+		showToast(tr::lng_group_invite_copied(tr::now));
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<PeerData*>> &&result,
@@ -1153,9 +1165,11 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 				).append("\n\n");
 			}
 			text.append(error.first);
-			Ui::show(
-				Ui::MakeInformBox(text),
-				Ui::LayerOption::KeepOther);
+			if (*box) {
+				Ui::BoxShow(*box).showBox(
+					Ui::MakeInformBox(text),
+					Ui::LayerOption::KeepOther);
+			}
 			return;
 		}
 
@@ -1173,24 +1187,25 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		auto &api = peer->session().api();
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
-			auto message = Api::MessageToSend(Api::SendAction(history, options));
+			auto message = Api::MessageToSend(
+				Api::SendAction(history, options));
 			message.textWithTags = comment;
 			message.action.clearDraft = false;
 			api.sendMessage(std::move(message));
 		}
-		Ui::Toast::Show(tr::lng_share_done(tr::now));
 		if (*box) {
+			showToast(tr::lng_share_done(tr::now));
 			(*box)->closeBox();
 		}
 	};
-	*box = Ui::show(
-		Box<ShareBox>(ShareBox::Descriptor{
-			.session = &peer->session(),
-			.copyCallback = std::move(copyCallback),
-			.submitCallback = std::move(submitCallback),
-			.filterCallback = [](auto peer) { return peer->canWrite(); },
-			.navigation = App::wnd()->sessionController() }),
-		Ui::LayerOption::KeepOther);
+	auto object = Box<ShareBox>(ShareBox::Descriptor{
+		.session = &peer->session(),
+		.copyCallback = std::move(copyCallback),
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = [](auto peer) { return peer->canWrite(); },
+		.navigation = App::wnd()->sessionController() });
+	*box = Ui::MakeWeak(object.data());
+	return object;
 }
 
 object_ptr<Ui::BoxContent> InviteLinkQrBox(const QString &link) {
