@@ -37,10 +37,11 @@ void AddPermanentLinkBlock(
 void CopyInviteLink(const QString &link);
 void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link);
 void InviteLinkQrBox(const QString &link);
-void RevokeLink(
+[[nodiscard]] object_ptr<Ui::BoxContent> RevokeLinkBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,
-	const QString &link);
+	const QString &link,
+	bool permanent = false);
 [[nodiscard]] object_ptr<Ui::BoxContent> EditLinkBox(
 	not_null<PeerData*> peer,
 	const Api::InviteLink &data);

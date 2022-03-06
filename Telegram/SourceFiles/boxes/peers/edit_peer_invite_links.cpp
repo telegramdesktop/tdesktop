@@ -599,7 +599,9 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 				Ui::LayerOption::KeepOther);
 		}, &st::menuIconEdit);
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
-			RevokeLink(_peer, _admin, link);
+			delegate()->peerListShowBox(
+				RevokeLinkBox(_peer, _admin, link),
+				Ui::LayerOption::KeepOther);
 		}, &st::menuIconRemove);
 	}
 	return result;

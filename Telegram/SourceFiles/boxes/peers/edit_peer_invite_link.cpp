@@ -351,7 +351,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		InviteLinkQrBox(link);
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		RevokeLink(_peer, admin, link);
+		delegate()->peerListShowBox(
+			RevokeLinkBox(_peer, admin, link),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto editLink = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
@@ -959,19 +961,11 @@ void AddPermanentLinkBlock(
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		const auto done = crl::guard(weak, [=](Fn<void()> &&close) {
-			peer->session().api().inviteLinks().revokePermanent(
-				peer,
-				admin,
-				value->current().link,
-				std::move(close));
-		});
-		show->showBox(
-			Ui::MakeConfirmBox({
-				tr::lng_group_invite_about_new(tr::now),
-				done
-			}),
-			Ui::LayerOption::KeepOther);
+		if (const auto current = value->current(); !current.link.isEmpty()) {
+			show->showBox(
+				RevokeLinkBox(peer, admin, current.link, true),
+				Ui::LayerOption::KeepOther);
+		}
 	});
 
 	auto link = value->value(
@@ -1266,22 +1260,26 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	}
 }
 
-void RevokeLink(
+object_ptr<Ui::BoxContent> RevokeLinkBox(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
-		const QString &link) {
+		const QString &link,
+		bool permanent) {
 	const auto revoke = [=](Fn<void()> &&close) {
-		const auto done = [close = std::move(close)](const LinkData &data) {
-			close();
-		};
-		peer->session().api().inviteLinks().revoke(peer, admin, link, done);
+		auto &l = peer->session().api().inviteLinks();
+		if (permanent) {
+			l.revokePermanent(peer, admin, link, std::move(close));
+		} else {
+			auto done = [c = std::move(close)](const LinkData &) { c(); };
+			l.revoke(peer, admin, link, std::move(done));
+		}
 	};
-	Ui::show(
-		Ui::MakeConfirmBox({
-			tr::lng_group_invite_revoke_about(),
-			revoke
-		}),
-		Ui::LayerOption::KeepOther);
+	return Ui::MakeConfirmBox({
+		permanent
+			? tr::lng_group_invite_about_new()
+			: tr::lng_group_invite_revoke_about(),
+		revoke
+	});
 }
 
 object_ptr<Ui::BoxContent> DeleteLinkBox(
