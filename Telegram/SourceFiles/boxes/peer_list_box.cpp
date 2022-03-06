@@ -52,6 +52,25 @@ PaintRoundImageCallback PaintUserpicCallback(
 	};
 }
 
+PeerListContentDelegateShow::PeerListContentDelegateShow(
+	std::shared_ptr<Ui::Show> show)
+: _show(show) {
+}
+
+void PeerListContentDelegateShow::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show->showBox(std::move(content), options);
+}
+
+void PeerListContentDelegateShow::peerListHideLayer() {
+	_show->hideLayer();
+}
+
+not_null<QWidget*> PeerListContentDelegateShow::peerListToastParent() {
+	return _show->toastParent();
+}
+
 PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,

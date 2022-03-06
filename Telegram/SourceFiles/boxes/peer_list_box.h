@@ -994,6 +994,18 @@ public:
 
 };
 
+class PeerListContentDelegateShow : public PeerListContentDelegateSimple {
+public:
+	PeerListContentDelegateShow(std::shared_ptr<Ui::Show> show);
+	void peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
+	void peerListHideLayer() override;
+	not_null<QWidget*> peerListToastParent() override;
+private:
+	std::shared_ptr<Ui::Show> _show;
+
+};
 
 class PeerListBox
 	: public Ui::BoxContent

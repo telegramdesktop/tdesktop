@@ -830,15 +830,15 @@ struct LinksList {
 };
 
 LinksList AddLinksList(
+		std::shared_ptr<Ui::BoxShow> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		int count,
 		bool revoked) {
 	auto &lifetime = container->lifetime();
-	const auto delegate = lifetime.make_state<
-		PeerListContentDelegateSimple
-	>();
+	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
+		show);
 	const auto controller = lifetime.make_state<LinksController>(
 		peer,
 		admin,
@@ -855,13 +855,13 @@ LinksList AddLinksList(
 }
 
 not_null<Ui::RpWidget*> AddAdminsList(
+		std::shared_ptr<Ui::BoxShow> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin) {
 	auto &lifetime = container->lifetime();
-	const auto delegate = lifetime.make_state<
-		PeerListContentDelegateSimple
-	>();
+	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
+		show);
 	const auto controller = lifetime.make_state<AdminsController>(
 		peer,
 		admin);
@@ -933,6 +933,7 @@ void ManageInviteLinksBox(
 	}
 
 	auto [list, controller] = AddLinksList(
+		show,
 		container,
 		peer,
 		admin,
@@ -966,7 +967,7 @@ void ManageInviteLinksBox(
 			tr::lng_group_invite_other_title(),
 			st::settingsSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
-	const auto admins = AddAdminsList(container, peer, admin);
+	const auto admins = AddAdminsList(show, container, peer, admin);
 
 	const auto revokedDivider = container->add(object_ptr<Ui::SlideWrap<>>(
 		container,
@@ -979,6 +980,7 @@ void ManageInviteLinksBox(
 			st::settingsSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
 	const auto revoked = AddLinksList(
+		show,
 		container,
 		peer,
 		admin,
