@@ -856,6 +856,9 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 			std::shared_ptr<Data::DocumentMedia> media;
 			rpl::lifetime downloadTaskLifetime;
 			QImage thumbnail;
+
+			base::has_weak_ptr guard;
+			bool scheduled = false;
 			Fn<void()> push;
 		};
 
@@ -901,7 +904,7 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 			return resolveThumbnailRecursive(resolveThumbnailRecursive);
 		};
 
-		state->push = [=, &manager] {
+		const auto notify = [=, &manager] {
 			auto content = Ui::DownloadBarContent();
 			auto single = (const Data::DownloadObject*) nullptr;
 			for (const auto id : manager.loadingList()) {
@@ -934,11 +937,23 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 			}
 			consumer.put_next(std::move(content));
 		};
+		state->push = [=] {
+			if (state->scheduled) {
+				return;
+			}
+			state->scheduled = true;
+			Ui::PostponeCall(&state->guard, [=] {
+				state->scheduled = false;
+				notify();
+			});
+		};
 
 		manager.loadingListChanges(
-		) | rpl::start_with_next(state->push, lifetime);
+		) | rpl::filter([=] {
+			return !state->scheduled;
+		}) | rpl::start_with_next(state->push, lifetime);
 
-		state->push();
+		notify();
 		return lifetime;
 	};
 }
