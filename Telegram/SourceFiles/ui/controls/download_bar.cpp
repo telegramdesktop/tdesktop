@@ -62,6 +62,15 @@ void DownloadBar::show(DownloadBarContent &&content) {
 		_radial.start(computeProgress());
 	}
 	_content = content;
+	const auto finished = (_content.done == _content.count);
+	if (_finished != finished) {
+		_finished = finished;
+		_finishedAnimation.start(
+			[=] { _button.update(); },
+			_finished ? 0. : 1.,
+			_finished ? 1. : 0.,
+			st::widgetFadeDuration);
+	}
 	_title.setMarkedText(
 		st::defaultTextStyle,
 		(content.count > 1
@@ -136,6 +145,7 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 	p.fillRect(clip, st::windowBg);
 	button->paintRipple(p, 0, 0);
 
+	const auto finished = _finishedAnimation.value(_finished ? 1. : 0.);
 	const auto size = st::downloadLoadingSize;
 	const auto added = 3 * st::downloadLoadingLine;
 	const auto skipx = st::downloadLoadingLeft;
@@ -151,7 +161,10 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::windowBgActive);
-			p.drawEllipse(full.marginsRemoved({ added, added, added, added }));
+			const auto shift = st::downloadLoadingLine
+				+ (1. - finished) * (added - st::downloadLoadingLine);
+			p.drawEllipse(QRectF(full).marginsRemoved(
+				{ shift, shift, shift, shift }));
 
 			if (loading.shown > 0) {
 				p.setOpacity(loading.shown);
@@ -169,10 +182,27 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 				p.setOpacity(1.);
 			}
 		}
-		p.drawImage(
-			full.x() + (full.width() - st::downloadIconSize) / 2,
-			full.y() + (full.height() - st::downloadIconSize) / 2,
-			_documentIcon);
+		const auto sizeLoading = st::downloadIconSize;
+		if (finished == 0. || finished == 1.) {
+			const auto size = (finished == 1.)
+				? st::downloadIconSizeDone
+				: sizeLoading;
+			p.drawImage(
+				full.x() + (full.width() - size) / 2,
+				full.y() + (full.height() - size) / 2,
+				(finished == 1.) ? _documentIconDone : _documentIcon);
+		} else {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto size = sizeLoading
+				+ (st::downloadIconSizeDone - sizeLoading) * finished;
+			p.drawImage(
+				QRectF(
+					full.x() + (full.width() - size) / 2.,
+					full.y() + (full.height() - size) / 2.,
+					size,
+					size),
+				_documentIconOriginal);
+		}
 	}
 
 	const auto minleft = std::min(

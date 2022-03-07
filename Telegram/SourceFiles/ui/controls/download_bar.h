@@ -58,6 +58,8 @@ private:
 	PlainShadow _shadow;
 	DownloadBarContent _content;
 	rpl::variable<DownloadBarProgress> _progress;
+	Ui::Animations::Simple _finishedAnimation;
+	bool _finished = false;
 	QImage _documentIconOriginal;
 	QImage _documentIcon;
 	QImage _documentIconDone;

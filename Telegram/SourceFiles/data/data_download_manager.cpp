@@ -264,6 +264,7 @@ void DownloadManager::addLoaded(
 			.ready = _loadingProgress.current().ready + readyChange,
 			.total = _loadingProgress.current().total + totalChange,
 		};
+		_loadingListChanges.fire({});
 		if (_loading.empty()) {
 			_clearLoadingTimer.callOnce(kClearLoadingTimeout);
 		}
