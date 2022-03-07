@@ -190,4 +190,21 @@ void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 	}
 }
 
+bool PhotoMedia::saveToFile(const QString &path) {
+	if (const auto video = videoContent(); !video.isEmpty()) {
+		QFile f(path);
+		return f.open(QIODevice::WriteOnly)
+			&& (f.write(video) == video.size());
+	} else if (const auto photo = imageBytes(Data::PhotoSize::Large)
+		; !photo.isEmpty()) {
+		QFile f(path);
+		return f.open(QIODevice::WriteOnly)
+			&& (f.write(photo) == photo.size());
+	} else if (const auto fallback = image(Data::PhotoSize::Large)->original()
+		; !fallback.isNull()) {
+		return fallback.save(path, "JPG");
+	}
+	return false;
+}
+
 } // namespace Data

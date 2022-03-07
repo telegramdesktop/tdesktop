@@ -105,7 +105,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(&photo->session(), [=](const QString &result) {
 			if (!result.isEmpty()) {
-				image.save(result, "JPG");
+				media->saveToFile(result);
 			}
 		}));
 }

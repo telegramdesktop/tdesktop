@@ -47,6 +47,8 @@ public:
 
 	void collectLocalData(not_null<PhotoMedia*> local);
 
+	bool saveToFile(const QString &path);
+
 private:
 	struct PhotoImage {
 		std::unique_ptr<Image> data;

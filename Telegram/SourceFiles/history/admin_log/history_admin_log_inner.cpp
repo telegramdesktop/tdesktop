@@ -1316,7 +1316,6 @@ void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	const auto image = media->image(Data::PhotoSize::Large)->original();
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
@@ -1325,7 +1324,7 @@ void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				image.save(result, "JPG");
+				media->saveToFile(result);
 			}
 		}));
 }
