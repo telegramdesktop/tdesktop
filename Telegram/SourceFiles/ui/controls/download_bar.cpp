@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
 
@@ -17,6 +18,17 @@ namespace Ui {
 namespace {
 
 constexpr auto kFullArcLength = 360 * 16;
+
+[[nodiscard]] QImage Make(const QImage &image, int size) {
+	if (image.isNull()) {
+		return QImage();
+	}
+	auto result = image.scaledToWidth(
+		size * style::DevicePixelRatio(),
+		Qt::SmoothTransformation);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	return result;
+}
 
 } // namespace
 
@@ -71,6 +83,7 @@ void DownloadBar::show(DownloadBarContent &&content) {
 			_finished ? 1. : 0.,
 			st::widgetFadeDuration);
 	}
+	refreshThumbnail();
 	_title.setMarkedText(
 		st::defaultTextStyle,
 		(content.count > 1
@@ -80,19 +93,47 @@ void DownloadBar::show(DownloadBarContent &&content) {
 	refreshInfo(_progress.current());
 }
 
+void DownloadBar::refreshThumbnail() {
+	if (_content.singleThumbnail.isNull()) {
+		_thumbnail = _thumbnailDone = QImage();
+		_thumbnailCacheKey = 0;
+		return;
+	}
+	const auto cacheKey = _content.singleThumbnail.cacheKey();
+	if (_thumbnailCacheKey == cacheKey) {
+		return;
+	}
+	_thumbnailCacheKey = cacheKey;
+	_thumbnailLarge = _content.singleThumbnail;
+	_thumbnailLarge.detach();
+	const auto width = _thumbnailLarge.width();
+	const auto height = _thumbnailLarge.height();
+	if (width != height) {
+		const auto size = std::min(width, height);
+		_thumbnailLarge = _thumbnailLarge.copy(
+			(width - size) / 2,
+			(height - size) / 2,
+			size,
+			size);
+	}
+	const auto size = st::downloadLoadingSize;
+	const auto added = 3 * st::downloadLoadingLine;
+	const auto loadingsize = size;
+	const auto donesize = size + (added - st::downloadLoadingLine) * 2;
+	const auto make = [&](int size) {
+		return Images::Circle(Make(_thumbnailLarge, size));
+	};
+	_thumbnail = make(loadingsize);
+	_thumbnailDone = make(donesize);
+	_thumbnailLarge = Images::Circle(std::move(_thumbnailLarge));
+}
+
 void DownloadBar::refreshIcon() {
-	_documentIconOriginal = st::downloadIconDocument.instance(
+	_documentIconLarge = st::downloadIconDocument.instance(
 		st::windowFgActive->c,
 		style::kScaleMax / style::DevicePixelRatio());
-	const auto make = [&](int size) {
-		auto result = _documentIconOriginal.scaledToWidth(
-			size * style::DevicePixelRatio(),
-			Qt::SmoothTransformation);
-		result.setDevicePixelRatio(style::DevicePixelRatio());
-		return result;
-	};
-	_documentIcon = make(st::downloadIconSize);
-	_documentIconDone = make(st::downloadIconSizeDone);
+	_documentIcon = Make(_documentIconLarge, st::downloadIconSize);
+	_documentIconDone = Make(_documentIconLarge, st::downloadIconSizeDone);
 }
 
 void DownloadBar::refreshInfo(const DownloadBarProgress &progress) {
@@ -156,52 +197,63 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 		size + added * 2,
 		size + added * 2);
 	if (full.intersects(clip)) {
+		const auto done = (finished == 1.);
 		const auto loading = _radial.computeState();
-		{
+		if (loading.shown > 0) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setOpacity(loading.shown);
+			auto pen = st::windowBgActive->p;
+			pen.setWidth(st::downloadLoadingLine);
+			p.setPen(pen);
+			p.setBrush(Qt::NoBrush);
+			const auto m = added / 2.;
+			auto rect = QRectF(full).marginsRemoved({ m, m, m, m });
+			if (loading.arcLength < kFullArcLength) {
+				p.drawArc(rect, loading.arcFrom, loading.arcLength);
+			} else {
+				p.drawEllipse(rect);
+			}
+			p.setOpacity(1.);
+		}
+		const auto shift = st::downloadLoadingLine
+			+ (1. - finished) * (added - st::downloadLoadingLine);
+		const auto ellipse = QRectF(full).marginsRemoved(
+			{ shift, shift, shift, shift });
+		if (_thumbnail.isNull()) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::windowBgActive);
-			const auto shift = st::downloadLoadingLine
-				+ (1. - finished) * (added - st::downloadLoadingLine);
-			p.drawEllipse(QRectF(full).marginsRemoved(
-				{ shift, shift, shift, shift }));
-
-			if (loading.shown > 0) {
-				p.setOpacity(loading.shown);
-				auto pen = st::windowBgActive->p;
-				pen.setWidth(st::downloadLoadingLine);
-				p.setPen(pen);
-				p.setBrush(Qt::NoBrush);
-				const auto m = added / 2.;
-				auto rect = QRectF(full).marginsRemoved({ m, m, m, m });
-				if (loading.arcLength < kFullArcLength) {
-					p.drawArc(rect, loading.arcFrom, loading.arcLength);
-				} else {
-					p.drawEllipse(rect);
-				}
-				p.setOpacity(1.);
+			p.drawEllipse(ellipse);
+			const auto sizeLoading = st::downloadIconSize;
+			if (finished == 0. || done) {
+				const auto size = done
+					? st::downloadIconSizeDone
+					: sizeLoading;
+				const auto image = done ? _documentIconDone : _documentIcon;
+				p.drawImage(
+					full.x() + (full.width() - size) / 2,
+					full.y() + (full.height() - size) / 2,
+					image);
+			} else {
+				auto hq = PainterHighQualityEnabler(p);
+				const auto size = sizeLoading
+					+ (st::downloadIconSizeDone - sizeLoading) * finished;
+				p.drawImage(
+					QRectF(
+						full.x() + (full.width() - size) / 2.,
+						full.y() + (full.height() - size) / 2.,
+						size,
+						size),
+					_documentIconLarge);
 			}
-		}
-		const auto sizeLoading = st::downloadIconSize;
-		if (finished == 0. || finished == 1.) {
-			const auto size = (finished == 1.)
-				? st::downloadIconSizeDone
-				: sizeLoading;
+		} else if (finished == 0. || done) {
 			p.drawImage(
-				full.x() + (full.width() - size) / 2,
-				full.y() + (full.height() - size) / 2,
-				(finished == 1.) ? _documentIconDone : _documentIcon);
+				base::SafeRound(ellipse.x()),
+				base::SafeRound(ellipse.y()),
+				done ? _thumbnailDone : _thumbnail);
 		} else {
 			auto hq = PainterHighQualityEnabler(p);
-			const auto size = sizeLoading
-				+ (st::downloadIconSizeDone - sizeLoading) * finished;
-			p.drawImage(
-				QRectF(
-					full.x() + (full.width() - size) / 2.,
-					full.y() + (full.height() - size) / 2.,
-					size,
-					size),
-				_documentIconOriginal);
+			p.drawImage(ellipse, _thumbnailLarge);
 		}
 	}
 
