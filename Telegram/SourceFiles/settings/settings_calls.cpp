@@ -148,30 +148,30 @@ void Calls::setupContent() {
 		const auto top = st::boxRoundShadow.extend.top();
 		const auto bottom = st::boxRoundShadow.extend.bottom();
 
-		bubbleWrap->widthValue(
+		auto frameSize = track->renderNextFrame(
+		) | rpl::map([=] {
+			return track->frameSize();
+		}) | rpl::filter([=](QSize size) {
+			return !size.isEmpty()
+				&& !Core::App().calls().currentCall()
+				&& !Core::App().calls().currentGroupCall();
+		});
+		auto bubbleWidth = bubbleWrap->widthValue(
 		) | rpl::filter([=](int width) {
-			return (width > 2 * padding + 1);
-		}) | rpl::start_with_next([=](int width) {
-			const auto use = (width - 2 * padding);
+			return width > 2 * padding + 1;
+		});
+		rpl::combine(
+			std::move(bubbleWidth),
+			std::move(frameSize)
+		) | rpl::start_with_next([=](int width, QSize frame) {
+			const auto useWidth = (width - 2 * padding);
+			const auto useHeight = std::min(
+				((useWidth * frame.height()) / frame.width()),
+				(useWidth * 480) / 640);
+			bubbleWrap->resize(width, top + useHeight + bottom);
 			bubble->updateGeometry(
 				::Calls::VideoBubble::DragMode::None,
-				QRect(padding, top, use, (use * 480) / 640));
-		}, bubbleWrap->lifetime());
-
-		track->renderNextFrame(
-		) | rpl::start_with_next([=] {
-			const auto size = track->frameSize();
-			if (size.isEmpty()
-				|| Core::App().calls().currentCall()
-				|| Core::App().calls().currentGroupCall()) {
-				return;
-			}
-			const auto width = bubbleWrap->width();
-			const auto use = (width - 2 * padding);
-			const auto height = std::min(
-				((use * size.height()) / size.width()),
-				(use * 480) / 640);
-			bubbleWrap->resize(width, top + height + bottom);
+				QRect(padding, top, useWidth, useHeight));
 			bubbleWrap->update();
 		}, bubbleWrap->lifetime());
 
