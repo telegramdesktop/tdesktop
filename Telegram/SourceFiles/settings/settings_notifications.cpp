@@ -607,6 +607,8 @@ void NotifyPreview::paint(Painter &p, int x, int y) {
 		p.drawImage(userpic.topLeft(), _logo);
 	}
 
+	p.setPen(st::historyTextInFg);
+
 	const auto &title = _nameShown ? _name : _title;
 	title.drawElided(
 		p,
