@@ -1,3 +1,11 @@
+3.5.6 beta (08.03.22)
+
+- Show viewers count in RTMP streams.
+- Send GIFs search results without "via @bot".
+- Display the file thumbnail in downloads bar.
+- Always try to save original photo bytes to disk.
+- Fix crash when deleting a user from your contacts list.
+
 3.5.5 beta (05.03.22)
 
 - Support stereo audio output in RTMP streams.

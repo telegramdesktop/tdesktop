@@ -97,6 +97,14 @@ std::map<int, const char*> BetaLogs() {
 		"- Improve RTMP stream full screen mode.\n"
 
 		"- Fix a couple of crashes.\n"
+	},
+	{
+		3005006,
+		"- Show viewers count in RTMP streams.\n"
+		"- Send GIFs search results without \"via @bot\".\n"
+		"- Display the file thumbnail in downloads bar.\n"
+		"- Always try to save original photo bytes to disk.\n"
+		"- Fix crash when deleting a user from your contacts list.\n"
 	}
 	};
 };
