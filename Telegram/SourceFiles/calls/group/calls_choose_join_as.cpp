@@ -323,9 +323,11 @@ void ChooseJoinAsProcess::start(
 		PeerData *changingJoinAsFrom) {
 	Expects(done != nullptr);
 
+	const auto isScheduled = (context == Context::CreateScheduled);
+
 	const auto session = &peer->session();
 	if (_request) {
-		if (_request->peer == peer) {
+		if (_request->peer == peer && !isScheduled) {
 			_request->context = context;
 			_request->showBox = std::move(showBox);
 			_request->showToast = std::move(showToast);
@@ -336,28 +338,37 @@ void ChooseJoinAsProcess::start(
 		session->api().request(_request->id).cancel();
 		_request = nullptr;
 	}
-	_request = std::make_unique<ChannelsListRequest>(
-		ChannelsListRequest{
+
+	const auto createRequest = [=,
+			showToast = std::move(showToast),
+			done = std::move(done)] {
+		_request = std::make_unique<ChannelsListRequest>(ChannelsListRequest{
 			.peer = peer,
 			.showBox = showBox,
 			.showToast = std::move(showToast),
 			.done = std::move(done),
 			.context = context });
+	};
+
+	if (isScheduled) {
+		auto box = Box(
+			ScheduleGroupCallBox,
+			JoinInfo{ .peer = peer, .joinAs = peer },
+			[=, createRequest = std::move(createRequest)](JoinInfo info) {
+				createRequest();
+				finish(info);
+			});
+		showBox(std::move(box));
+		return;
+	}
+
+	createRequest();
 	session->account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
 
-	if (context == Context::CreateScheduled) {
-		auto box = Box(
-			ScheduleGroupCallBox,
-			JoinInfo{ .peer = peer, .joinAs = peer },
-			[=](auto info) { finish(info); });
-		_request->box = Ui::MakeWeak(box.data());
-		showBox(std::move(box));
-	} else {
-		requestList();
-	}
+	requestList();
 }
 
 void ChooseJoinAsProcess::requestList() {
