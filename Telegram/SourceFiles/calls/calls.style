@@ -494,8 +494,9 @@ callErrorToast: Toast(defaultToast) {
 groupCallWidth: 380px;
 groupCallHeight: 580px;
 groupCallWidthRtmp: 720px;
+groupCallWidthRtmpMin: 240px;
 groupCallHeightRtmp: 580px;
-groupCallHeightRtmpMin: 280px;
+groupCallHeightRtmpMin: 160px;
 
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
@@ -773,6 +774,7 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 		linkFontOver: font(semibold 14px);
 	}
 }
+groupCallTitleSeparator: 4px;
 groupCallVideoLimitLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: groupCallMemberNotJoinedStatus;

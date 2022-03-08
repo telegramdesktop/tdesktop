@@ -2411,6 +2411,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_rtmp_start" = "Start Streaming";
 "lng_group_call_rtmp_revoke" = "Revoke Stream Key";
 "lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Server URL and Stream Key?";
+"lng_group_call_rtmp_viewers#one" = "{count} viewer";
+"lng_group_call_rtmp_viewers#other" = "{count} viewers";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 

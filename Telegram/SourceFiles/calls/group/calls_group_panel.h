@@ -178,6 +178,7 @@ private:
 	[[nodiscard]] QRect computeTitleRect() const;
 	void refreshTitle();
 	void refreshTitleGeometry();
+	void refreshTitleColors();
 	void setupRealCallViewers();
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 
@@ -212,6 +213,8 @@ private:
 
 	object_ptr<Ui::RpWidget> _titleBackground = { nullptr };
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
+	object_ptr<Ui::FlatLabel> _titleSeparator = { nullptr };
+	object_ptr<Ui::FlatLabel> _viewers = { nullptr };
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
