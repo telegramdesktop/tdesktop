@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/labels.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -36,94 +36,84 @@ namespace {
 
 } // namespace
 
-PinMessageBox::PinMessageBox(
-	QWidget*,
-	not_null<PeerData*> peer,
-	MsgId msgId)
-: _peer(peer)
-, _api(&peer->session().mtp())
-, _msgId(msgId)
-, _pinningOld(IsOldForPin(msgId, peer))
-, _text(
-	this,
-	(_pinningOld
-		? tr::lng_pinned_pin_old_sure(tr::now)
-		: (peer->isChat() || peer->isMegagroup())
-		? tr::lng_pinned_pin_sure_group(tr::now)
-		: tr::lng_pinned_pin_sure(tr::now)),
-	st::boxLabel) {
-}
+void PinMessageBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	struct State {
+		QPointer<Ui::Checkbox> pinForPeer;
+		QPointer<Ui::Checkbox> notify;
+		mtpRequestId requestId = 0;
+	};
 
-void PinMessageBox::prepare() {
-	addButton(tr::lng_pinned_pin(), [this] { pinMessage(); });
-	addButton(tr::lng_cancel(), [this] { closeBox(); });
+	const auto pinningOld = IsOldForPin(msgId, peer);
+	const auto state = box->lifetime().make_state<State>();
+	const auto api = box->lifetime().make_state<MTP::Sender>(
+		&peer->session().mtp());
 
-	if (_peer->isUser() && !_peer->isSelf()) {
-		_pinForPeer.create(
-			this,
-			tr::lng_pinned_also_for_other(
-				tr::now,
-				lt_user,
-				_peer->shortName()),
-			false,
-			st::defaultBoxCheckbox);
-		_checkbox = _pinForPeer;
-	} else if (!_pinningOld && (_peer->isChat() || _peer->isMegagroup())) {
-		_notify.create(
-			this,
-			tr::lng_pinned_notify(tr::now),
-			true,
-			st::defaultBoxCheckbox);
-		_checkbox = _notify;
-	}
+	auto checkbox = [&]() -> object_ptr<Ui::Checkbox> {
+		if (peer->isUser() && !peer->isSelf()) {
+			auto object = object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_pinned_also_for_other(
+					tr::now,
+					lt_user,
+					peer->shortName()),
+				false,
+				st::urlAuthCheckbox);
+			object->setAllowTextLines();
+			state->pinForPeer = Ui::MakeWeak(object.data());
+			return object;
+		} else if (!pinningOld && (peer->isChat() || peer->isMegagroup())) {
+			auto object = object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_pinned_notify(tr::now),
+				true,
+				st::urlAuthCheckbox);
+			object->setAllowTextLines();
+			state->notify = Ui::MakeWeak(object.data());
+			return object;
+		}
+		return { nullptr };
+	}();
 
-	auto height = st::boxPadding.top()
-		+ _text->height()
-		+ st::boxPadding.bottom();
-	if (_checkbox) {
-		height += st::boxMediumSkip + _checkbox->heightNoMargins();
-	}
-	setDimensions(st::boxWidth, height);
-}
+	auto pinMessage = [=] {
+		if (state->requestId) {
+			return;
+		}
 
-void PinMessageBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	if (_checkbox) {
-		_checkbox->moveToLeft(
-			st::boxPadding.left(),
-			_text->y() + _text->height() + st::boxMediumSkip);
-	}
-}
+		auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
+		if (state->notify && !state->notify->checked()) {
+			flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
+		}
+		if (state->pinForPeer && !state->pinForPeer->checked()) {
+			flags |= MTPmessages_UpdatePinnedMessage::Flag::f_pm_oneside;
+		}
+		state->requestId = api->request(MTPmessages_UpdatePinnedMessage(
+			MTP_flags(flags),
+			peer->input,
+			MTP_int(msgId)
+		)).done([=](const MTPUpdates &result) {
+			peer->session().api().applyUpdates(result);
+			box->closeBox();
+		}).fail([=] {
+			box->closeBox();
+		}).send();
+	};
 
-void PinMessageBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		pinMessage();
-	} else {
-		BoxContent::keyPressEvent(e);
-	}
-}
+	Ui::ConfirmBox(box, {
+		.text = (pinningOld
+			? tr::lng_pinned_pin_old_sure()
+			: (peer->isChat() || peer->isMegagroup())
+			? tr::lng_pinned_pin_sure_group()
+			: tr::lng_pinned_pin_sure()),
+		.confirmed = std::move(pinMessage),
+		.confirmText = tr::lng_pinned_pin(),
+	});
 
-void PinMessageBox::pinMessage() {
-	if (_requestId) {
-		return;
+	if (checkbox) {
+		auto padding = st::boxPadding;
+		padding.setTop(padding.bottom());
+		box->addRow(std::move(checkbox), std::move(padding));
 	}
-
-	auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
-	if (_notify && !_notify->checked()) {
-		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
-	}
-	if (_pinForPeer && !_pinForPeer->checked()) {
-		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_pm_oneside;
-	}
-	_requestId = _api.request(MTPmessages_UpdatePinnedMessage(
-		MTP_flags(flags),
-		_peer->input,
-		MTP_int(_msgId)
-	)).done([=](const MTPUpdates &result) {
-		_peer->session().api().applyUpdates(result);
-		closeBox();
-	}).fail([=] {
-		closeBox();
-	}).send();
 }

@@ -1273,7 +1273,7 @@ void ToggleMessagePinned(
 	}
 	if (pin) {
 		navigation->parentController()->show(
-			Box<PinMessageBox>(item->history()->peer, item->id),
+			Box(PinMessageBox, item->history()->peer, item->id),
 			Ui::LayerOption::CloseOther);
 	} else {
 		const auto peer = item->history()->peer;
