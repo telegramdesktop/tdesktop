@@ -182,6 +182,9 @@ int Sandbox::start() {
 		return 0;
 	}
 	_started = true;
+
+	style::SetRightToLeft(TRUE);
+
 	return exec();
 }
 
