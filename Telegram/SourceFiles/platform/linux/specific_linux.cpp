@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -384,7 +385,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 		+ '-'
 		+ cGUIDStr();
 
-	if (idealSocketPath.size() >= 108) {
+	if ((idealSocketPath.size() + 1) >= sizeof(sockaddr_un().sun_path)) {
 		return AppRuntimeDirectory() + hash;
 	} else {
 		return idealSocketPath;
