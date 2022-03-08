@@ -324,8 +324,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notify_all_about" = "Turn this off if you want to receive notifications only from the account you are currently using.";
 "lng_settings_notify_title" = "Notifications for chats";
 "lng_settings_desktop_notify" = "Desktop notifications";
-"lng_settings_show_name" = "Show sender's name";
-"lng_settings_show_preview" = "Show message preview";
 "lng_settings_native_title" = "Native notifications";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_use_native_notifications" = "Use native notifications";
@@ -343,6 +341,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_events_pinned" = "Pinned messages";
 "lng_settings_notifications_calls_title" = "Calls";
 
+"lng_notification_preview_title" = "Dino Rex";
+"lng_notification_preview_text" = "It's morning in Tokyo 😎";
+"lng_notification_show_name" = "Name";
+"lng_notification_show_text" = "Text";
 "lng_notification_preview" = "You have a new message";
 "lng_notification_reply" = "Reply";
 "lng_notification_hide_all" = "Hide all";

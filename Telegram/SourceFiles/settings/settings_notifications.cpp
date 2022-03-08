@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_notifications.h"
 
 #include "settings/settings_common.h"
+#include "ui/controls/chat_service_checkbox.h"
 #include "ui/effects/animations.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -18,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
+#include "window/section_widget.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
@@ -31,9 +34,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
+#include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 
+#include <QSvgRenderer>
 #include <QTimer>
 
 namespace Settings {
@@ -513,6 +519,199 @@ void NotificationsCount::SampleWidget::destroyDelayed() {
 #endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
+class NotifyPreview final {
+public:
+	NotifyPreview(bool nameShown, bool previewShown);
+
+	void setNameShown(bool shown);
+	void setPreviewShown(bool shown);
+
+	int resizeGetHeight(int newWidth);
+	void paint(Painter &p, int x, int y);
+
+private:
+	int _width = 0;
+	int _height = 0;
+	bool _nameShown = false;
+	bool _previewShown = false;
+	Ui::RoundRect _roundRect;
+	Ui::Text::String _name, _title;
+	Ui::Text::String _text, _preview;
+	QSvgRenderer _userpic;
+	QImage _logo;
+
+};
+
+NotifyPreview::NotifyPreview(bool nameShown, bool previewShown)
+: _nameShown(nameShown)
+, _previewShown(previewShown)
+, _roundRect(st::boxRadius, st::msgInBg)
+, _userpic(u":/gui/icons/settings/dino.svg"_q)
+, _logo(Window::LogoNoMargin()) {
+	const auto ratio = style::DevicePixelRatio();
+	_logo = _logo.scaledToWidth(
+		st::notifyPreviewUserpicSize * ratio,
+		Qt::SmoothTransformation);
+	_logo.setDevicePixelRatio(ratio);
+
+	_name.setText(
+		st::settingsSubsectionTitle.style,
+		tr::lng_notification_preview_title(tr::now));
+	_title.setText(st::settingsSubsectionTitle.style, AppName.utf16());
+
+	_text.setText(
+		st::boxTextStyle,
+		tr::lng_notification_preview_text(tr::now));
+	_preview.setText(
+		st::boxTextStyle,
+		tr::lng_notification_preview(tr::now));
+}
+
+void NotifyPreview::setNameShown(bool shown) {
+	_nameShown = shown;
+}
+
+void NotifyPreview::setPreviewShown(bool shown) {
+	_previewShown = shown;
+}
+
+int NotifyPreview::resizeGetHeight(int newWidth) {
+	_width = newWidth;
+	_height = st::notifyPreviewUserpicPosition.y()
+		+ st::notifyPreviewUserpicSize
+		+ st::notifyPreviewUserpicPosition.y();
+	const auto available = _width
+		- st::notifyPreviewTextPosition.x()
+		- st::notifyPreviewUserpicPosition.x();
+	if (std::max(_text.maxWidth(), _preview.maxWidth()) >= available) {
+		_height += st::defaultTextStyle.font->height;
+	}
+	return _height;
+}
+
+void NotifyPreview::paint(Painter &p, int x, int y) {
+	if (!_width || !_height) {
+		return;
+	}
+	p.translate(x, y);
+	const auto guard = gsl::finally([&] { p.translate(-x, -y); });
+
+	_roundRect.paint(p, { 0, 0, _width, _height });
+	const auto userpic = QRect(
+		st::notifyPreviewUserpicPosition,
+		QSize{ st::notifyPreviewUserpicSize, st::notifyPreviewUserpicSize });
+
+	if (_nameShown) {
+		_userpic.render(&p, QRectF(userpic));
+	} else {
+		p.drawImage(userpic.topLeft(), _logo);
+	}
+
+	const auto &title = _nameShown ? _name : _title;
+	title.drawElided(
+		p,
+		st::notifyPreviewTitlePosition.x(),
+		st::notifyPreviewTitlePosition.y(),
+		_width - st::notifyPreviewTitlePosition.x() - userpic.x());
+
+	const auto &text = _previewShown ? _text : _preview;
+	text.drawElided(
+		p,
+		st::notifyPreviewTextPosition.x(),
+		st::notifyPreviewTextPosition.y(),
+		_width - st::notifyPreviewTextPosition.x() - userpic.x(),
+		2);
+}
+
+struct NotifyViewCheckboxes {
+	not_null<Ui::SlideWrap<>*> wrap;
+	not_null<Ui::Checkbox*> name;
+	not_null<Ui::Checkbox*> preview;
+};
+
+NotifyViewCheckboxes SetupNotifyViewOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		bool nameShown,
+		bool previewShown) {
+	using namespace rpl::mappers;
+
+	auto wrap = container->add(object_ptr<Ui::SlideWrap<>>(
+		container,
+		object_ptr<Ui::RpWidget>(container)));
+	const auto widget = wrap->entity();
+
+	const auto makeCheckbox = [&](const QString &text, bool checked) {
+		return Ui::MakeChatServiceCheckbox(
+			widget,
+			text,
+			st::backgroundCheckbox,
+			st::backgroundCheck,
+			checked).release();
+	};
+	const auto name = makeCheckbox(
+		tr::lng_notification_show_name(tr::now),
+		nameShown);
+	const auto preview = makeCheckbox(
+		tr::lng_notification_show_text(tr::now),
+		previewShown);
+
+	const auto view = widget->lifetime().make_state<NotifyPreview>(
+		nameShown,
+		previewShown);
+	widget->widthValue(
+	) | rpl::filter(
+		_1 >= (st::historyMinimalWidth / 2)
+	) | rpl::start_with_next([=](int width) {
+		const auto margins = st::notifyPreviewMargins;
+		const auto bubblew = width - margins.left() - margins.right();
+		const auto bubbleh = view->resizeGetHeight(bubblew);
+		const auto height = bubbleh + margins.top() + margins.bottom();
+		widget->resize(width, height);
+
+		const auto skip = st::notifyPreviewChecksSkip;
+		const auto checksWidth = name->width() + skip + preview->width();
+		const auto checksLeft = (width - checksWidth) / 2;
+		const auto checksTop = height
+			- (margins.bottom() + name->height()) / 2;
+		name->move(checksLeft, checksTop);
+		preview->move(checksLeft + name->width() + skip, checksTop);
+	}, widget->lifetime());
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=](QRect rect) {
+		Window::SectionWidget::PaintBackground(
+			controller,
+			controller->defaultChatTheme().get(), // #TODO themes
+			widget,
+			rect);
+
+		Painter p(widget);
+		view->paint(
+			p,
+			st::notifyPreviewMargins.left(),
+			st::notifyPreviewMargins.top());
+	}, widget->lifetime());
+
+	name->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		view->setNameShown(checked);
+		widget->update();
+	}, name->lifetime());
+
+	preview->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		view->setPreviewShown(checked);
+		widget->update();
+	}, preview->lifetime());
+
+	return {
+		.wrap = wrap,
+		.name = name,
+		.preview = preview,
+	};
+}
+
 void SetupAdvancedNotifications(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -615,18 +814,6 @@ void SetupNotificationsContent(
 				std::move(descriptor),
 				std::move(checked)));
 	};
-	const auto addSlidingCheckbox = [&](
-			rpl::producer<QString> label,
-			IconDescriptor &&descriptor,
-			rpl::producer<bool> checked) {
-		return container->add(
-			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-				container,
-				checkbox(
-					std::move(label),
-					std::move(descriptor),
-					std::move(checked))));
-	};
 	const auto &settings = Core::App().settings();
 	const auto desktopToggles = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();
@@ -634,15 +821,6 @@ void SetupNotificationsContent(
 		tr::lng_settings_desktop_notify(),
 		{ &st::settingsIconNotifications, kIconRed },
 		desktopToggles->events_starting_with(settings.desktopNotify()));
-
-	const auto name = addSlidingCheckbox(
-		tr::lng_settings_show_name(),
-		{ &st::settingsIconUser, kIconLightOrange },
-		rpl::single(settings.notifyView() <= NotifyView::ShowName));
-	const auto preview = addSlidingCheckbox(
-		tr::lng_settings_show_preview(),
-		{ &st::settingsIconAskQuestion, kIconGreen },
-		rpl::single(settings.notifyView() <= NotifyView::ShowPreview));
 
 	const auto soundToggles = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();
@@ -663,8 +841,23 @@ void SetupNotificationsContent(
 			settings.flashBounceNotify()));
 
 	AddSkip(container);
-	AddDivider(container);
-	AddSkip(container);
+
+	const auto checkboxes = SetupNotifyViewOptions(
+		controller,
+		container,
+		(settings.notifyView() <= NotifyView::ShowName),
+		(settings.notifyView() <= NotifyView::ShowPreview));
+	const auto name = checkboxes.name;
+	const auto preview = checkboxes.preview;
+	const auto previewWrap = checkboxes.wrap;
+	const auto previewDivider = container->add(
+		object_ptr<Ui::SlideWrap<Ui::BoxContentDivider>>(
+			container,
+			object_ptr<Ui::BoxContentDivider>(container)));
+	previewWrap->toggle(settings.desktopNotify(), anim::type::instant);
+	previewDivider->toggle(!settings.desktopNotify(), anim::type::instant);
+
+	AddSkip(container, st::notifyPreviewBottomSkip);
 	AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	auto joinSilent = rpl::single(
@@ -768,13 +961,6 @@ void SetupNotificationsContent(
 		SetupAdvancedNotifications(controller, advancedWrap);
 	}
 
-	if (!name->entity()->toggled()) {
-		preview->hide(anim::type::instant);
-	}
-	if (!desktop->toggled()) {
-		name->hide(anim::type::instant);
-		preview->hide(anim::type::instant);
-	}
 	if (native && advancedSlide && settings.nativeNotifications()) {
 		advancedSlide->hide(anim::type::instant);
 	}
@@ -792,11 +978,12 @@ void SetupNotificationsContent(
 		changed(Change::DesktopEnabled);
 	}, desktop->lifetime());
 
-	name->entity()->toggledChanges(
+	name->checkedChanges(
 	) | rpl::map([=](bool checked) {
 		if (!checked) {
+			preview->setChecked(false);
 			return NotifyView::ShowNothing;
-		} else if (!preview->entity()->toggled()) {
+		} else if (!preview->checked()) {
 			return NotifyView::ShowName;
 		}
 		return NotifyView::ShowPreview;
@@ -807,11 +994,12 @@ void SetupNotificationsContent(
 		changed(Change::ViewParams);
 	}, name->lifetime());
 
-	preview->entity()->toggledChanges(
+	preview->checkedChanges(
 	) | rpl::map([=](bool checked) {
 		if (checked) {
+			name->setChecked(true);
 			return NotifyView::ShowPreview;
-		} else if (name->entity()->toggled()) {
+		} else if (name->checked()) {
 			return NotifyView::ShowName;
 		}
 		return NotifyView::ShowNothing;
@@ -858,15 +1046,14 @@ void SetupNotificationsContent(
 	) | rpl::start_with_next([=](Change change) {
 		if (change == Change::DesktopEnabled) {
 			desktopToggles->fire(Core::App().settings().desktopNotify());
-			name->toggle(
+			previewWrap->toggle(
 				Core::App().settings().desktopNotify(),
 				anim::type::normal);
-			preview->toggle(
-				(Core::App().settings().desktopNotify()
-					&& name->entity()->toggled()),
+			previewDivider->toggle(
+				!Core::App().settings().desktopNotify(),
 				anim::type::normal);
 		} else if (change == Change::ViewParams) {
-			preview->toggle(name->entity()->toggled(), anim::type::normal);
+			//
 		} else if (change == Change::SoundEnabled) {
 			soundToggles->fire(Core::App().settings().soundNotify());
 		} else if (change == Change::FlashBounceEnabled) {

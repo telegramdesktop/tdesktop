@@ -855,14 +855,14 @@ backgroundCheckbox: Checkbox(defaultCheckbox) {
 	width: -50px;
 	margin: margins(0px, 0px, 0px, 0px);
 
-	textPosition: point(0px, 8px);
+	textPosition: point(0px, 6px);
 	checkPosition: point(0px, 0px);
 
 	style: semiboldTextStyle;
 }
 
 backgroundCheck: ServiceCheck {
-	margin: margins(12px, 8px, 8px, 8px);
+	margin: margins(10px, 6px, 8px, 6px);
 	diameter: 18px;
 	shift: 2px;
 	thickness: 2px;

@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "window/themes/window_theme.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/controls/chat_service_checkbox.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
@@ -28,9 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_resolver.h"
 #include "data/data_file_origin.h"
 #include "base/unixtime.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_common.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -41,231 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxWallPaperSlugLength = 255;
-
-class ServiceCheck : public Ui::AbstractCheckView {
-public:
-	ServiceCheck(const style::ServiceCheck &st, bool checked);
-
-	QSize getSize() const override;
-	void paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) override;
-	QImage prepareRippleMask() const override;
-	bool checkRippleStartPosition(QPoint position) const override;
-
-private:
-	class Generator {
-	public:
-		Generator();
-
-		void paintFrame(
-			Painter &p,
-			int left,
-			int top,
-			not_null<const style::ServiceCheck*> st,
-			float64 toggled);
-		void invalidate();
-
-	private:
-		struct Frames {
-			QImage image;
-			std::vector<bool> ready;
-		};
-
-		not_null<Frames*> framesForStyle(
-			not_null<const style::ServiceCheck*> st);
-		static void FillFrame(
-			QImage &image,
-			not_null<const style::ServiceCheck*> st,
-			int index,
-			int count);
-		static void PaintFillingFrame(
-			Painter &p,
-			not_null<const style::ServiceCheck*> st,
-			float64 progress);
-		static void PaintCheckingFrame(
-			Painter &p,
-			not_null<const style::ServiceCheck*> st,
-			float64 progress);
-
-		base::flat_map<not_null<const style::ServiceCheck*>, Frames> _data;
-		rpl::lifetime _lifetime;
-
-	};
-	static Generator &Frames();
-
-	const style::ServiceCheck &_st;
-
-};
-
-ServiceCheck::Generator::Generator() {
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		invalidate();
-	}, _lifetime);
-}
-
-auto ServiceCheck::Generator::framesForStyle(
-		not_null<const style::ServiceCheck*> st) -> not_null<Frames*> {
-	if (const auto i = _data.find(st); i != _data.end()) {
-		return &i->second;
-	}
-	const auto result = &_data.emplace(st, Frames()).first->second;
-	const auto size = st->diameter;
-	const auto count = (st->duration / AnimationTimerDelta) + 2;
-	result->image = QImage(
-		QSize(count * size, size) * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
-	result->image.fill(Qt::transparent);
-	result->image.setDevicePixelRatio(cRetinaFactor());
-	result->ready.resize(count);
-	return result;
-}
-
-void ServiceCheck::Generator::FillFrame(
-		QImage &image,
-		not_null<const style::ServiceCheck*> st,
-		int index,
-		int count) {
-	Expects(count > 1);
-	Expects(index >= 0 && index < count);
-
-	Painter p(&image);
-	PainterHighQualityEnabler hq(p);
-
-	p.translate(index * st->diameter, 0);
-	const auto progress = index / float64(count - 1);
-	if (progress > 0.5) {
-		PaintCheckingFrame(p, st, (progress - 0.5) * 2);
-	} else {
-		PaintFillingFrame(p, st, progress * 2);
-	}
-}
-
-void ServiceCheck::Generator::PaintFillingFrame(
-		Painter &p,
-		not_null<const style::ServiceCheck*> st,
-		float64 progress) {
-	const auto shift = progress * st->shift;
-	p.setBrush(st->color);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(QRectF(
-		shift,
-		shift,
-		st->diameter - 2 * shift,
-		st->diameter - 2 * shift));
-	if (progress < 1.) {
-		const auto remove = progress * (st->diameter / 2. - st->thickness);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setPen(Qt::NoPen);
-		p.setBrush(Qt::transparent);
-		p.drawEllipse(QRectF(
-			st->thickness + remove,
-			st->thickness + remove,
-			st->diameter - 2 * (st->thickness + remove),
-			st->diameter - 2 * (st->thickness + remove)));
-	}
-}
-
-void ServiceCheck::Generator::PaintCheckingFrame(
-		Painter &p,
-		not_null<const style::ServiceCheck*> st,
-		float64 progress) {
-	const auto shift = (1. - progress) * st->shift;
-	p.setBrush(st->color);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(QRectF(
-		shift,
-		shift,
-		st->diameter - 2 * shift,
-		st->diameter - 2 * shift));
-	if (progress > 0.) {
-		const auto tip = QPointF(st->tip.x(), st->tip.y());
-		const auto left = tip - QPointF(st->small, st->small) * progress;
-		const auto right = tip - QPointF(-st->large, st->large) * progress;
-
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setBrush(Qt::NoBrush);
-		auto pen = QPen(Qt::transparent);
-		pen.setWidth(st->stroke);
-		pen.setCapStyle(Qt::RoundCap);
-		pen.setJoinStyle(Qt::RoundJoin);
-		p.setPen(pen);
-		auto path = QPainterPath();
-		path.moveTo(left);
-		path.lineTo(tip);
-		path.lineTo(right);
-		p.drawPath(path);
-	}
-}
-
-void ServiceCheck::Generator::paintFrame(
-		Painter &p,
-		int left,
-		int top,
-		not_null<const style::ServiceCheck*> st,
-		float64 toggled) {
-	const auto frames = framesForStyle(st);
-	auto &image = frames->image;
-	const auto count = int(frames->ready.size());
-	const auto index = int(base::SafeRound(toggled * (count - 1)));
-	Assert(index >= 0 && index < count);
-	if (!frames->ready[index]) {
-		frames->ready[index] = true;
-		FillFrame(image, st, index, count);
-	}
-	const auto size = st->diameter;
-	const auto part = size * cIntRetinaFactor();
-	p.drawImage(
-		QPoint(left, top),
-		image,
-		QRect(index * part, 0, part, part));
-}
-
-void ServiceCheck::Generator::invalidate() {
-	_data.clear();
-}
-
-ServiceCheck::Generator &ServiceCheck::Frames() {
-	static const auto Instance = Ui::CreateChild<Generator>(
-		QCoreApplication::instance());
-	return *Instance;
-}
-
-ServiceCheck::ServiceCheck(
-	const style::ServiceCheck &st,
-	bool checked)
-: AbstractCheckView(st.duration, checked, nullptr)
-, _st(st) {
-}
-
-QSize ServiceCheck::getSize() const {
-	const auto inner = QRect(0, 0, _st.diameter, _st.diameter);
-	return inner.marginsAdded(_st.margin).size();
-}
-
-void ServiceCheck::paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	Frames().paintFrame(
-		p,
-		left + _st.margin.left(),
-		top + _st.margin.top(),
-		&_st,
-		currentAnimationValue());
-}
-
-QImage ServiceCheck::prepareRippleMask() const {
-	return QImage();
-}
-
-bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
-	return false;
-}
 
 [[nodiscard]] bool IsValidWallPaperSlug(const QString &slug) {
 	if (slug.isEmpty() || slug.size() > kMaxWallPaperSlugLength) {
@@ -439,13 +216,13 @@ void BackgroundPreviewBox::prepare() {
 }
 
 void BackgroundPreviewBox::createBlurCheckbox() {
-	_blur.create(
+	_blur = Ui::MakeChatServiceCheckbox(
 		this,
 		tr::lng_background_blur(tr::now),
 		st::backgroundCheckbox,
-		std::make_unique<ServiceCheck>(
-			st::backgroundCheck,
-			_paper.isBlurred()));
+		st::backgroundCheck,
+		_paper.isBlurred(),
+		[=] { return _serviceBg.value_or(QColor(255, 255, 255, 0)); });
 
 	rpl::combine(
 		sizeValue(),
@@ -454,20 +231,6 @@ void BackgroundPreviewBox::createBlurCheckbox() {
 		_blur->move(
 			(outer.width() - inner.width()) / 2,
 			outer.height() - st::historyPaddingBottom - inner.height());
-	}, _blur->lifetime());
-
-	_blur->paintRequest(
-	) | rpl::filter([=] {
-		return _serviceBg.has_value();
-	}) | rpl::start_with_next([=] {
-		Painter p(_blur.data());
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(*_serviceBg);
-		p.drawRoundedRect(
-			_blur->rect(),
-			st::historyMessageRadius,
-			st::historyMessageRadius);
 	}, _blur->lifetime());
 
 	_blur->checkedChanges(

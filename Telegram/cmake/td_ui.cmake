@@ -190,6 +190,8 @@ PRIVATE
     ui/chat/select_scroll_manager.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
+    ui/controls/chat_service_checkbox.cpp
+    ui/controls/chat_service_checkbox.h
     ui/controls/delete_message_context_action.cpp
     ui/controls/delete_message_context_action.h
     ui/controls/download_bar.cpp

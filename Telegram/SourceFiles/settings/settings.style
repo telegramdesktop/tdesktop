@@ -369,3 +369,11 @@ settingsUsernameTop: 58px;
 settingsPeerToPeerSkip: 9px;
 
 settingsIconRadius: 6px;
+
+notifyPreviewMargins: margins(40px, 20px, 40px, 58px);
+notifyPreviewUserpicSize: 36px;
+notifyPreviewUserpicPosition: point(14px, 11px);
+notifyPreviewTitlePosition: point(64px, 9px);
+notifyPreviewTextPosition: point(64px, 30px);
+notifyPreviewChecksSkip: 12px;
+notifyPreviewBottomSkip: 9px;
