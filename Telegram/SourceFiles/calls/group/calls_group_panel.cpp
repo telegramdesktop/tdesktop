@@ -1035,7 +1035,6 @@ void Panel::updateWideControlsVisibility() {
 void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	const auto livestream = real->peer()->isBroadcast();
 	const auto validateRecordingMark = [=](bool recording) {
-		recording = true; AssertIsDebug();
 		if (!recording && _recordingMark) {
 			_recordingMark.destroy();
 		} else if (recording && !_recordingMark) {
