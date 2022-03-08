@@ -42,13 +42,23 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 
 	const auto &defaultButtonStyle = box->getDelegate()->style().button;
 
-	box->addButton(
+	const auto confirmButton = box->addButton(
 		v::text::take_plain(std::move(args.confirmText), tr::lng_box_ok()),
 		[=, c = prepareCallback(args.confirmed)]() {
 			lifetime->destroy();
 			c();
 		},
 		args.confirmStyle ? *args.confirmStyle : defaultButtonStyle);
+	box->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if ((e->type() != QEvent::KeyPress) || !confirmButton) {
+			return;
+		}
+		const auto k = static_cast<QKeyEvent*>(e.get());
+		if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+			confirmButton->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+		}
+	}, box->lifetime());
 
 	if (!args.inform) {
 		const auto cancelButton = box->addButton(
