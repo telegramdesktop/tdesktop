@@ -227,9 +227,10 @@ public:
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
 	};
-	[[nodiscard]] base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
-		return _queryItemVisibility;
-	}
+	[[nodiscard]] bool queryItemVisibility(not_null<HistoryItem*> item) const;
+	[[nodiscard]] rpl::producer<ItemVisibilityQuery> itemVisibilityQueries() const;
+	void itemVisibilitiesUpdated();
+
 	struct IdChange {
 		not_null<HistoryItem*> item;
 		MsgId oldId = 0;
@@ -839,7 +840,7 @@ private:
 	rpl::event_stream<Data::Folder*> _chatsListChanged;
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
 	rpl::event_stream<not_null<PeerData*>> _botCommandsChanges;
-	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
+	rpl::event_stream<ItemVisibilityQuery> _itemVisibilityQueries;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;

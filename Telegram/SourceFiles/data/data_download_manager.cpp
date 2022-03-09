@@ -105,6 +105,25 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	}, data.lifetime);
 }
 
+void DownloadManager::itemVisibilitiesUpdated(
+		not_null<Main::Session*> session) {
+	const auto i = _sessions.find(session);
+	if (i == end(_sessions)
+		|| i->second.downloading.empty()
+		|| !i->second.downloading.front().hiddenByView) {
+		return;
+	}
+	for (const auto &id : i->second.downloading) {
+		if (!session->data().queryItemVisibility(id.object.item)) {
+			for (auto &id : i->second.downloading) {
+				id.hiddenByView = false;
+			}
+			_loadingListChanges.fire({});
+			return;
+		}
+	}
+}
+
 int64 DownloadManager::computeNextStartDate() {
 	const auto now = base::unixtime::now();
 	if (_lastStartedBase != now) {
@@ -140,11 +159,15 @@ void DownloadManager::addLoading(DownloadObject object) {
 		return;
 	}
 
+	const auto shownExists = !data.downloading.empty()
+		&& !data.downloading.front().hiddenByView;
 	data.downloading.push_back({
 		.object = object,
 		.started = computeNextStartDate(),
 		.path = path,
 		.total = size,
+		.hiddenByView = (!shownExists
+			&& item->history()->owner().queryItemVisibility(item)),
 	});
 	_loading.emplace(item);
 	_loadingDocuments.emplace(object.document);
@@ -908,6 +931,9 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 			auto content = Ui::DownloadBarContent();
 			auto single = (const Data::DownloadObject*) nullptr;
 			for (const auto id : manager.loadingList()) {
+				if (id->hiddenByView) {
+					break;
+				}
 				if (!single) {
 					single = &id->object;
 				}

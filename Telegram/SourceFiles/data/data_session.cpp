@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_download_manager.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_web_page.h"
@@ -1371,6 +1372,24 @@ void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	}
 
 	Ensures(ok);
+}
+
+bool Session::queryItemVisibility(not_null<HistoryItem*> item) const {
+	auto result = false;
+	_itemVisibilityQueries.fire({ item, &result });
+	return result;
+}
+
+[[nodiscard]] auto Session::itemVisibilityQueries() const
+-> rpl::producer<Session::ItemVisibilityQuery> {
+	return _itemVisibilityQueries.events();
+}
+
+void Session::itemVisibilitiesUpdated() {
+	// This could be rewritten in a more generic form, like:
+	// rpl::producer<> itemVisibilitiesUpdates()
+	// if someone else requires those methods, using fast for now.
+	Core::App().downloadManager().itemVisibilitiesUpdated(_session);
 }
 
 void Session::notifyItemIdChange(IdChange event) {

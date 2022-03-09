@@ -300,20 +300,24 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
-	subscribe(session().data().queryItemVisibility(), [=](
+	session().data().itemVisibilityQueries(
+	) | rpl::filter([=](
 			const Data::Session::ItemVisibilityQuery &query) {
-		if (_history != query.item->history()
-			|| !query.item->isAdminLogEntry()
-			|| !isVisible()) {
-			return;
-		}
+		return (_history == query.item->history())
+			&& query.item->isAdminLogEntry()
+			&& isVisible();
+	}) | rpl::start_with_next([=](
+			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
-			if (top >= 0 && top + view->height() > _visibleTop && top < _visibleBottom) {
+			if (top >= 0
+				&& top + view->height() > _visibleTop
+				&& top < _visibleBottom) {
 				*query.isVisible = true;
 			}
 		}
-	});
+	}, lifetime());
+
 	updateEmptyText();
 
 	requestAdmins();
@@ -355,6 +359,7 @@ void InnerWidget::visibleTopBottomUpdated(
 		scrollDateHideByTimer();
 	}
 	_controller->floatPlayerAreaUpdated();
+	session().data().itemVisibilitiesUpdated();
 }
 
 void InnerWidget::updateVisibleTopItem() {

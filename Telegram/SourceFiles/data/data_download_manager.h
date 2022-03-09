@@ -71,6 +71,7 @@ struct DownloadingId {
 	QString path;
 	int ready = 0;
 	int total = 0;
+	bool hiddenByView = false;
 	bool done = false;
 };
 
@@ -80,6 +81,7 @@ public:
 	~DownloadManager();
 
 	void trackSession(not_null<Main::Session*> session);
+	void itemVisibilitiesUpdated(not_null<Main::Session*> session);
 
 	[[nodiscard]] DownloadDate computeNextStartDate();
 

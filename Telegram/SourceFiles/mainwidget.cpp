@@ -479,9 +479,7 @@ void MainWidget::floatPlayerEnumerateSections(Fn<void(
 }
 
 bool MainWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
-	auto isVisible = false;
-	session().data().queryItemVisibility().notify({ item, &isVisible }, true);
-	return isVisible;
+	return session().data().queryItemVisibility(item);
 }
 
 void MainWidget::floatPlayerClosed(FullMsgId itemId) {
