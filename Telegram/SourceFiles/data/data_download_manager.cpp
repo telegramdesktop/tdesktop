@@ -927,7 +927,9 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 					state->media = thumbnailed
 						? thumbnailed->createMediaView()
 						: nullptr;
-					state->media->thumbnailWanted(single->item->fullId());
+					if (const auto raw = state->media.get()) {
+						raw->thumbnailWanted(single->item->fullId());
+					}
 					state->thumbnail = QImage();
 					resolveThumbnail();
 				}
