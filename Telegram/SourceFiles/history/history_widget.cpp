@@ -7647,6 +7647,8 @@ HistoryWidget::~HistoryWidget() {
 		saveFieldToHistoryLocalDraft();
 		session().api().saveDraftToCloudDelayed(_history);
 		setHistory(nullptr);
+
+		session().data().itemVisibilitiesUpdated();
 	}
 	setTabbedPanel(nullptr);
 }
