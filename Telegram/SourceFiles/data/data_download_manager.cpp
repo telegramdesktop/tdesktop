@@ -27,8 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/controls/download_bar.h"
 #include "ui/text/format_song_document_name.h"
+#include "ui/layers/generic_box.h"
 #include "storage/serialize_common.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "apiwrap.h"
+#include "styles/style_layers.h"
 
 namespace Data {
 namespace {
@@ -394,6 +398,93 @@ rpl::producer<> DownloadManager::loadingListChanges() const {
 auto DownloadManager::loadingProgressValue() const
 -> rpl::producer<DownloadProgress> {
 	return _loadingProgress.value();
+}
+
+bool DownloadManager::loadingInProgress(Main::Session *onlyInSession) const {
+	return lookupLoadingItem(onlyInSession) != nullptr;
+}
+
+HistoryItem *DownloadManager::lookupLoadingItem(
+		Main::Session *onlyInSession) const {
+	constexpr auto find = [](const SessionData &data) {
+		constexpr auto proj = &DownloadingId::done;
+		const auto i = ranges::find(data.downloading, false, proj);
+		return (i != end(data.downloading)) ? i->object.item.get() : nullptr;
+	};
+	if (onlyInSession) {
+		const auto i = _sessions.find(onlyInSession);
+		return (i != end(_sessions)) ? find(i->second) : nullptr;
+	} else {
+		for (const auto &[session, data] : _sessions) {
+			if (const auto result = find(data)) {
+				return result;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void DownloadManager::loadingStopWithConfirmation(
+		Fn<void()> callback,
+		Main::Session *onlyInSession) {
+	const auto window = Core::App().primaryWindow();
+	const auto item = lookupLoadingItem(onlyInSession);
+	if (!window || !item) {
+		return;
+	}
+	const auto weak = base::make_weak(&item->history()->session());
+	const auto id = item->fullId();
+	auto box = Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box.get(),
+				tr::lng_download_sure_stop(),
+				st::boxLabel),
+			st::boxPadding + QMargins(0, 0, 0, st::boxPadding.bottom()));
+		box->setStyle(st::defaultBox);
+		box->addButton(tr::lng_selected_upload_stop(), [=] {
+			box->closeBox();
+
+			if (!onlyInSession || weak.get()) {
+				loadingStop(onlyInSession);
+			}
+			if (callback) {
+				callback();
+			}
+		}, st::attentionBoxButton);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		box->addLeftButton(tr::lng_upload_show_file(), [=] {
+			box->closeBox();
+
+			if (const auto strong = weak.get()) {
+				if (const auto item = strong->data().message(id)) {
+					if (const auto window = strong->tryResolveWindow()) {
+						window->showPeerHistoryAtItem(item);
+					}
+				}
+			}
+		});
+	});
+	window->show(std::move(box));
+	window->activate();
+}
+
+void DownloadManager::loadingStop(Main::Session *onlyInSession) {
+	const auto stopInSession = [&](SessionData &data) {
+		while (!data.downloading.empty()) {
+			cancel(data, data.downloading.end() - 1);
+		}
+	};
+	if (onlyInSession) {
+		const auto i = _sessions.find(onlyInSession);
+		if (i != end(_sessions)) {
+			stopInSession(i->second);
+		}
+	} else {
+		for (auto &[session, data] : _sessions) {
+			stopInSession(data);
+		}
+	}
 }
 
 void DownloadManager::clearLoading() {

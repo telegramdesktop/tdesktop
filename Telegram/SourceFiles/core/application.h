@@ -255,6 +255,7 @@ public:
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
 	[[nodiscard]] bool uploadPreventsQuit();
+	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();

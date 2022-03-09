@@ -101,6 +101,12 @@ public:
 	[[nodiscard]] auto loadingProgressValue() const
 		-> rpl::producer<DownloadProgress>;
 
+	[[nodiscard]] bool loadingInProgress(
+		Main::Session *onlyInSession = nullptr) const;
+	void loadingStopWithConfirmation(
+		Fn<void()> callback,
+		Main::Session *onlyInSession = nullptr);
+
 	[[nodiscard]] auto loadedList()
 		-> ranges::any_view<const DownloadedId*, ranges::category::input>;
 	[[nodiscard]] auto loadedAdded() const
@@ -155,6 +161,10 @@ private:
 		DocumentData *document,
 		PhotoData *photo);
 	void generateEntry(not_null<Main::Session*> session, DownloadedId &id);
+
+	[[nodiscard]] HistoryItem *lookupLoadingItem(
+		Main::Session *onlyInSession) const;
+	void loadingStop(Main::Session *onlyInSession);
 
 	void writePostponed(not_null<Main::Session*> session);
 	[[nodiscard]] Fn<std::optional<QByteArray>()> serializator(

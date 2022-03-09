@@ -661,6 +661,10 @@ void Application::logoutWithChecks(Main::Account *account) {
 		_exportManager->stopWithConfirmation(retry);
 	} else if (account->session().uploadsInProgress()) {
 		account->session().uploadsStopWithConfirmation(retry);
+	} else if (_downloadManager->loadingInProgress(&account->session())) {
+		_downloadManager->loadingStopWithConfirmation(
+			retry,
+			&account->session());
 	} else {
 		logout(account);
 	}
@@ -801,8 +805,18 @@ bool Application::uploadPreventsQuit() {
 	return false;
 }
 
+bool Application::downloadPreventsQuit() {
+	if (_downloadManager->loadingInProgress()) {
+		_downloadManager->loadingStopWithConfirmation([=] { Quit(); });
+		return true;
+	}
+	return false;
+}
+
 bool Application::preventsQuit(QuitReason reason) {
-	if (exportPreventsQuit() || uploadPreventsQuit()) {
+	if (exportPreventsQuit()
+		|| uploadPreventsQuit()
+		|| downloadPreventsQuit()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
