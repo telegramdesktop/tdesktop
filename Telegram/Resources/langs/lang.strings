@@ -1845,6 +1845,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_downloads_view_in_chat" = "View in chat";
 "lng_downloads_view_in_section" = "View in downloads";
 "lng_downloads_delete_sure_one" = "Do you want to delete this file?";
+"lng_downloads_delete_sure_all" = "Do you want to delete all files?";
 "lng_downloads_delete_sure#one" = "Do you want to delete {count} file?";
 "lng_downloads_delete_sure#other" = "Do you want to delete {count} files?";
 "lng_downloads_delete_in_cloud_one" = "It will be deleted from your disk, but will remain accessible in the cloud.";

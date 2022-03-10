@@ -63,7 +63,18 @@ constexpr auto ByDocument = [](const auto &entry) {
 	return 0;
 }
 
+struct DocumentDescriptor {
+	uint64 sessionUniqueId = 0;
+	DocumentId documentId = 0;
+	FullMsgId itemId;
+};
+
 } // namespace
+
+struct DownloadManager::DeleteFilesDescriptor {
+	base::flat_set<not_null<Main::Session*>> sessions;
+	base::flat_map<QString, DocumentDescriptor> files;
+};
 
 DownloadManager::DownloadManager()
 : _clearLoadingTimer([=] { clearLoading(); }) {
@@ -118,7 +129,8 @@ void DownloadManager::itemVisibilitiesUpdated(
 		return;
 	}
 	for (const auto &id : i->second.downloading) {
-		if (!session->data().queryItemVisibility(id.object.item)) {
+		if (!id.done
+			&& !session->data().queryItemVisibility(id.object.item)) {
 			for (auto &id : i->second.downloading) {
 				id.hiddenByView = false;
 			}
@@ -308,13 +320,7 @@ void DownloadManager::clearIfFinished() {
 }
 
 void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
-	struct DocumentDescriptor {
-		uint64 sessionUniqueId = 0;
-		DocumentId documentId = 0;
-		FullMsgId itemId;
-	};
-	auto sessions = base::flat_set<not_null<Main::Session*>>();
-	auto files = base::flat_map<QString, DocumentDescriptor>();
+	auto descriptor = DeleteFilesDescriptor();
 	for (const auto &id : ids) {
 		if (const auto item = MessageByGlobalId(id)) {
 			const auto session = &item->history()->session();
@@ -334,7 +340,7 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 			const auto k = ranges::find(data.downloaded, item, ByItem);
 			if (k != end(data.downloaded)) {
 				const auto document = k->object->document;
-				files.emplace(k->path, DocumentDescriptor{
+				descriptor.files.emplace(k->path, DocumentDescriptor{
 					.sessionUniqueId = id.sessionUniqueId,
 					.documentId = document ? document->id : DocumentId(),
 					.itemId = id.itemId,
@@ -347,14 +353,54 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 				data.downloaded.erase(k);
 				_loadedRemoved.fire_copy(item);
 
-				sessions.emplace(session);
+				descriptor.sessions.emplace(session);
 			}
 		}
 	}
-	for (const auto &session : sessions) {
+	finishFilesDelete(std::move(descriptor));
+}
+
+void DownloadManager::deleteAll() {
+	auto descriptor = DeleteFilesDescriptor();
+	for (auto &[session, data] : _sessions) {
+		if (!data.downloaded.empty()) {
+			descriptor.sessions.emplace(session);
+		} else if (data.downloading.empty()) {
+			continue;
+		}
+		const auto sessionUniqueId = session->uniqueId();
+		while (!data.downloading.empty()) {
+			cancel(data, data.downloading.end() - 1);
+		}
+		for (auto &id : base::take(data.downloaded)) {
+			const auto object = id.object.get();
+			const auto document = object ? object->document : nullptr;
+			descriptor.files.emplace(id.path, DocumentDescriptor{
+				.sessionUniqueId = sessionUniqueId,
+				.documentId = document ? document->id : DocumentId(),
+				.itemId = id.itemId,
+			});
+			if (document) {
+				_generatedDocuments.remove(document);
+			}
+			if (const auto item = object ? object->item.get() : nullptr) {
+				_loaded.remove(item);
+				_generated.remove(item);
+				_loadedRemoved.fire_copy(item);
+			}
+		}
+	}
+	for (const auto &session : descriptor.sessions) {
 		writePostponed(session);
 	}
-	crl::async([files = std::move(files)] {
+	finishFilesDelete(std::move(descriptor));
+}
+
+void DownloadManager::finishFilesDelete(DeleteFilesDescriptor &&descriptor) {
+	for (const auto &session : descriptor.sessions) {
+		writePostponed(session);
+	}
+	crl::async([files = std::move(descriptor.files)]{
 		for (const auto &file : files) {
 			QFile(file.first).remove();
 			crl::on_main([descriptor = file.second] {
@@ -372,6 +418,19 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 			});
 		}
 	});
+}
+
+bool DownloadManager::loadedHasNonCloudFile() const {
+	for (const auto &[session, data] : _sessions) {
+		for (const auto &id : data.downloaded) {
+			if (const auto object = id.object.get()) {
+				if (!object->item->isHistoryEntry()) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 auto DownloadManager::loadingList() const
@@ -515,9 +574,17 @@ auto DownloadManager::loadedList()
 	}) | ranges::views::join;
 }
 
+rpl::producer<> DownloadManager::loadedResolveDone() const {
+	using namespace rpl::mappers;
+	return _loadedResolveDone.value() | rpl::filter(_1) | rpl::to_empty;
+}
+
 void DownloadManager::resolve(
 		not_null<Main::Session*> session,
 		SessionData &data) {
+	const auto guard = gsl::finally([&] {
+		checkFullResolveDone();
+	});
 	if (data.resolveSentTotal >= data.resolveNeeded
 		|| data.resolveSentTotal >= kMaxResolvePerAttempt) {
 		return;
@@ -620,6 +687,19 @@ void DownloadManager::resolveRequestsFinished(
 	crl::on_main(session, [=] {
 		resolve(session, sessionData(session));
 	});
+}
+
+void DownloadManager::checkFullResolveDone() {
+	if (_loadedResolveDone.current()) {
+		return;
+	}
+	for (const auto &[session, data] : _sessions) {
+		if (data.resolveSentTotal < data.resolveNeeded
+			|| data.resolveSentRequests > 0) {
+			return;
+		}
+	}
+	_loadedResolveDone = true;
 }
 
 void DownloadManager::generateEntry(

@@ -85,9 +85,10 @@ void Provider::checkPreload(
 }
 
 void Provider::refreshViewer() {
-	if (_fullCount) {
+	if (_started) {
 		return;
 	}
+	_started = true;
 	auto &manager = Core::App().downloadManager();
 	rpl::single(rpl::empty) | rpl::then(
 		manager.loadingListChanges() | rpl::to_empty
@@ -135,6 +136,13 @@ void Provider::refreshViewer() {
 			_addPostponed.erase(
 				ranges::remove(_addPostponed, item, &Element::item),
 				end(_addPostponed));
+		}
+	}, _lifetime);
+
+	manager.loadedResolveDone(
+	) | rpl::start_with_next([=] {
+		if (!_fullCount.has_value()) {
+			_fullCount = 0;
 		}
 	}, _lifetime);
 
@@ -211,7 +219,9 @@ void Provider::performRefresh() {
 		return;
 	}
 	_postponedRefresh = false;
-	_fullCount = _elements.size();
+	if (!_elements.empty() || _fullCount.has_value()) {
+		_fullCount = _elements.size();
+	}
 	if (base::take(_postponedRefreshSort)) {
 		ranges::sort(_elements, ranges::less(), &Element::started);
 	}

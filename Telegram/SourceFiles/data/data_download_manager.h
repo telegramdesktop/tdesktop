@@ -93,6 +93,8 @@ public:
 
 	void clearIfFinished();
 	void deleteFiles(const std::vector<GlobalMsgId> &ids);
+	void deleteAll();
+	[[nodiscard]] bool loadedHasNonCloudFile() const;
 
 	[[nodiscard]] auto loadingList() const
 		-> ranges::any_view<const DownloadingId*, ranges::category::input>;
@@ -113,8 +115,10 @@ public:
 		-> rpl::producer<not_null<const DownloadedId*>>;
 	[[nodiscard]] auto loadedRemoved() const
 		-> rpl::producer<not_null<const HistoryItem*>>;
+	[[nodiscard]] rpl::producer<> loadedResolveDone() const;
 
 private:
+	struct DeleteFilesDescriptor;
 	struct SessionData {
 		std::vector<DownloadedId> downloaded;
 		std::vector<DownloadingId> downloading;
@@ -152,6 +156,8 @@ private:
 	void resolveRequestsFinished(
 		not_null<Main::Session*> session,
 		SessionData &data);
+	void checkFullResolveDone();
+
 	[[nodiscard]] not_null<HistoryItem*> regenerateItem(
 		const DownloadObject &previous);
 	[[nodiscard]] not_null<HistoryItem*> generateFakeItem(
@@ -166,6 +172,7 @@ private:
 		Main::Session *onlyInSession) const;
 	void loadingStop(Main::Session *onlyInSession);
 
+	void finishFilesDelete(DeleteFilesDescriptor &&descriptor);
 	void writePostponed(not_null<Main::Session*> session);
 	[[nodiscard]] Fn<std::optional<QByteArray>()> serializator(
 		not_null<Main::Session*> session) const;
@@ -188,6 +195,7 @@ private:
 
 	rpl::event_stream<not_null<const DownloadedId*>> _loadedAdded;
 	rpl::event_stream<not_null<const HistoryItem*>> _loadedRemoved;
+	rpl::variable<bool> _loadedResolveDone;
 
 	base::Timer _clearLoadingTimer;
 

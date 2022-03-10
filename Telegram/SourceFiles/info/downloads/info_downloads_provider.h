@@ -130,6 +130,7 @@ private:
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 	bool _postponedRefreshSort = false;
 	bool _postponedRefresh = false;
+	bool _started = false;
 
 	rpl::lifetime _lifetime;
 

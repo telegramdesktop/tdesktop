@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
+#include "data/data_download_manager.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -397,6 +398,29 @@ void WrapWidget::createTopBar() {
 		&& (section.settingsType() == Section::SettingsType::Main
 			|| section.settingsType() == Section::SettingsType::Chat)) {
 		addTopBarMenuButton();
+	} else if (section.type() == Section::Type::Downloads) {
+		auto &manager = Core::App().downloadManager();
+		rpl::merge(
+			rpl::single(false),
+			manager.loadingListChanges() | rpl::map_to(false),
+			manager.loadedAdded() | rpl::map_to(true),
+			manager.loadedRemoved() | rpl::map_to(false)
+		) | rpl::start_with_next([=, &manager](bool definitelyHas) {
+			const auto has = [&] {
+				for (const auto id : manager.loadingList()) {
+					return true;
+				}
+				for (const auto id : manager.loadedList()) {
+					return true;
+				}
+				return false;
+			};
+			if (!definitelyHas && !has()) {
+				_topBarMenuToggle = nullptr;
+			} else if (!_topBarMenuToggle) {
+				addTopBarMenuButton();
+			}
+		}, _topBar->lifetime());
 	}
 
 	_topBar->lower();
@@ -495,7 +519,12 @@ void WrapWidget::showTopBarMenu() {
 			const style::icon *icon) {
 		return _topBarMenu->addAction(text, std::move(callback), icon);
 	};
-	if (const auto peer = key().peer()) {
+	if (key().isDownloads()) {
+		addAction(
+			tr::lng_context_delete_all_files(tr::now),
+			[=] { deleteAllDownloads(); },
+			&st::menuIconDelete);
+	} else if (const auto peer = key().peer()) {
 		Window::FillDialogsEntryMenu(
 			_controller->parentController(),
 			Dialogs::EntryState{
@@ -523,6 +552,24 @@ void WrapWidget::showTopBarMenu() {
 		: st::infoTopBarMenuPosition;
 	_topBarMenu->moveToRight(position.x(), position.y());
 	_topBarMenu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+}
+
+void WrapWidget::deleteAllDownloads() {
+	auto &manager = Core::App().downloadManager();
+	const auto phrase = tr::lng_downloads_delete_sure_all(tr::now);
+	const auto added = manager.loadedHasNonCloudFile()
+		? QString()
+		: tr::lng_downloads_delete_in_cloud(tr::now);
+	const auto deleteSure = [=, &manager](Fn<void()> close) {
+		Ui::PostponeCall(this, close);
+		manager.deleteAll();
+	};
+	_controller->parentController()->show(Ui::MakeConfirmBox({
+		.text = phrase + (added.isEmpty() ? QString() : "\n\n" + added),
+		.confirmed = deleteSure,
+		.confirmText = tr::lng_box_delete(tr::now),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 bool WrapWidget::requireTopBarSearch() const {
