@@ -108,6 +108,10 @@ rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
 	return rpl::single(QString());
 }
 
+rpl::producer<QString> AbstractController::searchQueryValue() const {
+	return rpl::single(QString());
+}
+
 AbstractController::AbstractController(
 	not_null<Window::SessionController*> parent)
 : SessionNavigation(&parent->session())
@@ -221,8 +225,8 @@ void Controller::updateSearchControllers(
 		: Section::MediaType::kCount;
 	const auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
-	const auto hasCommonGroupsSearch
-		= (type == Type::CommonGroups);
+	const auto hasCommonGroupsSearch = (type == Type::CommonGroups);
+	const auto hasDownloadsSearch = (type == Type::Downloads);
 	const auto hasMembersSearch = (type == Type::Members)
 		|| (type == Type::Profile);
 	const auto searchQuery = memento->searchFieldQuery();
@@ -236,7 +240,10 @@ void Controller::updateSearchControllers(
 	} else {
 		_searchController = nullptr;
 	}
-	if (hasMediaSearch || hasCommonGroupsSearch || hasMembersSearch) {
+	if (hasMediaSearch
+		|| hasCommonGroupsSearch
+		|| hasDownloadsSearch
+		|| hasMembersSearch) {
 		_searchFieldController
 			= std::make_unique<Ui::SearchFieldController>(
 				searchQuery);
@@ -300,9 +307,11 @@ rpl::producer<bool> Controller::searchEnabledByContent() const {
 }
 
 rpl::producer<QString> Controller::mediaSourceQueryValue() const {
-	return _searchController
-		? _searchController->currentQueryValue()
-		: rpl::single(QString()); // #TODO downloads search
+	return _searchController->currentQueryValue();
+}
+
+rpl::producer<QString> Controller::searchQueryValue() const {
+	return searchFieldController()->queryValue();
 }
 
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(

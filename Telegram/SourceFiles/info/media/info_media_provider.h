@@ -46,6 +46,8 @@ public:
 		not_null<const HistoryItem*> a,
 		not_null<const HistoryItem*> b) override;
 
+	void setSearchQuery(QString query) override;
+
 	ListItemSelectionData computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) override;

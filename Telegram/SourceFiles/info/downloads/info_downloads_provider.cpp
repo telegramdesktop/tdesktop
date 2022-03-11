@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
+#include "ui/text/format_song_document_name.h"
 #include "data/data_download_manager.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
@@ -70,7 +71,11 @@ bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
 }
 
 std::optional<int> Provider::fullCount() {
-	return _fullCount;
+	return _queryWords.empty()
+		? _fullCount
+		: (_foundCount || _fullCount.has_value())
+		? _foundCount
+		: std::optional<int>();
 }
 
 void Provider::restart() {
@@ -82,6 +87,27 @@ void Provider::checkPreload(
 	not_null<BaseLayout*> bottomLayout,
 	bool preloadTop,
 	bool preloadBottom) {
+}
+
+void Provider::setSearchQuery(QString query) {
+	if (_query == query) {
+		return;
+	}
+	_query = query;
+	auto words = TextUtilities::PrepareSearchWords(_query);
+	if (!_started || _queryWords == words) {
+		return;
+	}
+	_queryWords = std::move(words);
+	if (searchMode()) {
+		_foundCount = 0;
+		for (auto &element : _elements) {
+			if ((element.found = computeIsFound(element))) {
+				++_foundCount;
+			}
+		}
+	}
+	_refreshed.fire({});
 }
 
 void Provider::refreshViewer() {
@@ -99,7 +125,7 @@ void Provider::refreshViewer() {
 				const auto item = id->object.item;
 				if (!copy.remove(item) && !_downloaded.contains(item)) {
 					_downloading.emplace(item);
-					_elements.push_back({
+					addElementNow({
 						.item = item,
 						.started = id->started,
 						.path = id->path,
@@ -180,10 +206,20 @@ void Provider::performAdd() {
 	for (auto &element : base::take(_addPostponed)) {
 		_downloaded.emplace(element.item);
 		if (!_downloading.remove(element.item)) {
-			_elements.push_back(std::move(element));
+			addElementNow(std::move(element));
 		}
 	}
 	refreshPostponed(true);
+}
+
+void Provider::addElementNow(Element &&element) {
+	_elements.push_back(std::move(element));
+	auto &added = _elements.back();
+	fillSearchIndex(added);
+	added.found = searchMode() && computeIsFound(added);
+	if (added.found) {
+		++_foundCount;
+	}
 }
 
 void Provider::remove(not_null<const HistoryItem*> item) {
@@ -192,9 +228,15 @@ void Provider::remove(not_null<const HistoryItem*> item) {
 		end(_addPostponed));
 	_downloading.remove(item);
 	_downloaded.remove(item);
-	_elements.erase(
-		ranges::remove(_elements, item, &Element::item),
-		end(_elements));
+	const auto proj = [&](const Element &element) {
+		if (element.item != item) {
+			return false;
+		} else if (element.found && searchMode()) {
+			--_foundCount;
+		}
+		return true;
+	};
+	_elements.erase(ranges::remove_if(_elements, proj), end(_elements));
 	if (const auto i = _layouts.find(item); i != end(_layouts)) {
 		_layoutRemoved.fire(i->second.item.get());
 		_layouts.erase(i);
@@ -252,10 +294,14 @@ rpl::producer<> Provider::refreshed() {
 
 std::vector<ListSection> Provider::fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) {
-	markLayoutsStale();
+	const auto search = searchMode();
+
+	if (!search) {
+		markLayoutsStale();
+	}
 	const auto guard = gsl::finally([&] { clearStaleLayouts(); });
 
-	if (_elements.empty()) {
+	if (_elements.empty() || (search && !_foundCount)) {
 		return {};
 	}
 
@@ -264,7 +310,9 @@ std::vector<ListSection> Provider::fillSections(
 		ListSection(Type::File, sectionDelegate()));
 	auto &section = result.back();
 	for (const auto &element : ranges::views::reverse(_elements)) {
-		if (auto layout = getLayout(element, delegate)) {
+		if (search && !element.found) {
+			continue;
+		} else if (auto layout = getLayout(element, delegate)) {
 			section.addItem(layout);
 		}
 	}
@@ -314,6 +362,47 @@ bool Provider::isAfter(
 		}
 	}
 	return false;
+}
+
+bool Provider::searchMode() const {
+	return !_queryWords.empty();
+}
+
+void Provider::fillSearchIndex(Element &element) {
+	auto strings = QStringList(QFileInfo(element.path).fileName());
+	if (const auto media = element.item->media()) {
+		if (const auto document = media->document()) {
+			strings.append(document->filename());
+			strings.append(Ui::Text::FormatDownloadsName(document).text);
+		}
+	}
+	element.words = TextUtilities::PrepareSearchWords(strings.join(' '));
+	element.letters.clear();
+	for (const auto &word : element.words) {
+		element.letters.emplace(word.front());
+	}
+}
+
+bool Provider::computeIsFound(const Element &element) const {
+	Expects(!_queryWords.empty());
+
+	const auto has = [&](const QString &queryWord) {
+		if (!element.letters.contains(queryWord.front())) {
+			return false;
+		}
+		for (const auto &word : element.words) {
+			if (word.startsWith(queryWord)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	for (const auto &queryWord : _queryWords) {
+		if (!has(queryWord)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
@@ -393,9 +482,13 @@ void Provider::applyDragSelection(
 		selected.clear();
 		return;
 	}
+	const auto search = !_queryWords.isEmpty();
 	auto chosen = base::flat_set<not_null<const HistoryItem*>>();
 	chosen.reserve(till - from);
 	for (auto i = from; i != till; ++i) {
+		if (search && !i->found) {
+			continue;
+		}
 		const auto item = i->item;
 		chosen.emplace(item);
 		ChangeItemSelection(

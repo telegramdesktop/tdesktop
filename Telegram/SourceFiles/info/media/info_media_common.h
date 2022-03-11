@@ -158,6 +158,8 @@ public:
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) = 0;
 
+	virtual void setSearchQuery(QString query) = 0;
+
 	[[nodiscard]] virtual int64 scrollTopStatePosition(
 		not_null<HistoryItem*> item) = 0;
 	[[nodiscard]] virtual HistoryItem *scrollTopStateItem(

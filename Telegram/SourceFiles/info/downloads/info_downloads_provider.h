@@ -44,6 +44,8 @@ public:
 	void refreshViewer() override;
 	rpl::producer<> refreshed() override;
 
+	void setSearchQuery(QString query);
+
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
 	rpl::producer<not_null<Media::BaseLayout*>> layoutRemoved() override;
@@ -86,6 +88,10 @@ private:
 		not_null<HistoryItem*> item;
 		int64 started = 0; // unixtime * 1000
 		QString path;
+
+		QStringList words;
+		base::flat_set<QChar> letters;
+		bool found = false;
 	};
 
 	bool sectionHasFloatingHeader() override;
@@ -93,6 +99,10 @@ private:
 	bool sectionItemBelongsHere(
 		not_null<const Media::BaseLayout*> item,
 		not_null<const Media::BaseLayout*> previous) override;
+
+	[[nodiscard]] bool searchMode() const;
+	void fillSearchIndex(Element &element);
+	[[nodiscard]] bool computeIsFound(const Element &element) const;
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
@@ -102,6 +112,7 @@ private:
 	void addPostponed(not_null<const Data::DownloadedId*> entry);
 	void performRefresh();
 	void performAdd();
+	void addElementNow(Element &&element);
 	void remove(not_null<const HistoryItem*> item);
 	void trackItemSession(not_null<const HistoryItem*> item);
 
@@ -126,6 +137,10 @@ private:
 		Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
+
+	QString _query;
+	QStringList _queryWords;
+	int _foundCount = 0;
 
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 	bool _postponedRefreshSort = false;

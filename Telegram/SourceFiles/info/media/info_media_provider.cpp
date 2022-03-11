@@ -341,6 +341,10 @@ bool Provider::isAfter(
 	return (GetUniversalId(a) < GetUniversalId(b));
 }
 
+void Provider::setSearchQuery(QString query) {
+	Unexpected("Media::Provider::setSearchQuery.");
+}
+
 SparseIdsMergedSlice::Key Provider::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;

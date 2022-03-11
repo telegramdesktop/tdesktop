@@ -141,6 +141,7 @@ public:
 		int limitBefore,
 		int limitAfter) const;
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
+	virtual rpl::producer<QString> searchQueryValue() const;
 
 	void showSection(
 		std::shared_ptr<Window::SectionMemento> memento,
@@ -198,6 +199,7 @@ public:
 		int limitBefore,
 		int limitAfter) const override;
 	rpl::producer<QString> mediaSourceQueryValue() const override;
+	rpl::producer<QString> searchQueryValue() const override;
 	bool takeSearchStartsFocused() {
 		return base::take(_searchStartsFocused);
 	}

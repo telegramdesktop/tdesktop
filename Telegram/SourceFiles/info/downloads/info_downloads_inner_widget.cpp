@@ -127,7 +127,7 @@ object_ptr<Media::ListWidget> InnerWidget::setupList() {
 		result->lifetime());
 	_selectedLists.fire(result->selectedListValue());
 	_listTops.fire(result->topValue());
-	_controller->mediaSourceQueryValue(
+	_controller->searchQueryValue(
 	) | rpl::start_with_next([this](const QString &query) {
 		_empty->setSearchQuery(query);
 	}, result->lifetime());

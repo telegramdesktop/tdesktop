@@ -162,6 +162,11 @@ void ListWidget::start() {
 
 	if (_controller->isDownloads()) {
 		_provider->refreshViewer();
+
+		_controller->searchQueryValue(
+		) | rpl::start_with_next([this](QString &&query) {
+			_provider->setSearchQuery(std::move(query));
+		}, lifetime());
 	} else {
 		trackSession(&session());
 
