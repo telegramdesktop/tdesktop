@@ -993,7 +993,7 @@ private:
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
 
-	MsgId _nonHistoryEntryId = ServerMaxMsgId;
+	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 
 	rpl::lifetime _lifetime;
 

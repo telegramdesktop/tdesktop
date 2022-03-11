@@ -439,6 +439,7 @@ public:
 	[[nodiscard]] std::pair<Element*, int> findItemAndOffset(int top) const;
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId();
+	[[nodiscard]] MsgId scheduledMessageId(MsgId remoteScheduledMsgId) const;
 
 	bool folderKnown() const override;
 	Data::Folder *folder() const override;

@@ -76,6 +76,7 @@ Q_DECLARE_METATYPE(MsgId);
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
 constexpr auto EndClientMsgId = MsgId(-(1LL << 57));
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
+constexpr auto ScheduledMsgIdsRange = (1LL << 32);
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
 
 constexpr auto SpecialMsgIdShift = EndClientMsgId.bare;

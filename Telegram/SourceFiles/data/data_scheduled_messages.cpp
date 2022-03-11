@@ -319,7 +319,7 @@ void ScheduledMessages::apply(
 	} else {
 		Assert(!list.itemById.contains(local->id));
 		Assert(!list.idByItem.contains(local));
-		local->setRealId(local->history()->nextNonHistoryEntryId());
+		local->setRealId(local->history()->scheduledMessageId(id));
 		list.idByItem.emplace(local, id);
 		list.itemById.emplace(id, local);
 	}
@@ -467,7 +467,7 @@ HistoryItem *ScheduledMessages::append(
 	}
 
 	const auto item = _session->data().addNewMessage(
-		history->nextNonHistoryEntryId(),
+		history->scheduledMessageId(id),
 		PrepareMessage(message),
 		MessageFlags(), // localFlags
 		NewMessageType::Existing);

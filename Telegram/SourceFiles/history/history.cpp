@@ -1760,6 +1760,10 @@ MsgId History::nextNonHistoryEntryId() {
 	return owner().nextNonHistoryEntryId();
 }
 
+MsgId History::scheduledMessageId(MsgId remoteScheduledMsgId) const {
+	return ServerMaxMsgId + remoteScheduledMsgId + 1;
+}
+
 bool History::folderKnown() const {
 	return _folder.has_value();
 }
