@@ -407,10 +407,10 @@ void WrapWidget::createTopBar() {
 			manager.loadedRemoved() | rpl::map_to(false)
 		) | rpl::start_with_next([=, &manager](bool definitelyHas) {
 			const auto has = [&] {
-				for (const auto id : manager.loadingList()) {
+				for ([[maybe_unused]] const auto id : manager.loadingList()) {
 					return true;
 				}
-				for (const auto id : manager.loadedList()) {
+				for ([[maybe_unused]] const auto id : manager.loadedList()) {
 					return true;
 				}
 				return false;
