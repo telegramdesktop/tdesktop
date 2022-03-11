@@ -1,3 +1,13 @@
+3.6 (11.03.22)
+
+- Active and recently finished downloads pop up in bar in the bottom left corner, like they do in browsers.
+- View recently downloaded files in Settings > Advanced > Downloads.
+- Get an alert before closing the app if you have unfinished downloads.
+- Share a direct t.me link to your phone number that instantly opens a chat with you.
+- Use the full number in international format, like t.me/+123456789
+- Manage Live Streams in your channels using external software like OBS Studio or XSplit Broadcaster.
+- Choose "Stream With..." when staring a video chat or live stream - then copy your Stream Key and paste it into your streaming software.
+
 3.5.6 beta (08.03.22)
 
 - Show viewers count in RTMP streams.
