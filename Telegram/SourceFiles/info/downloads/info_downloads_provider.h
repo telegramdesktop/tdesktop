@@ -44,7 +44,7 @@ public:
 	void refreshViewer() override;
 	rpl::producer<> refreshed() override;
 
-	void setSearchQuery(QString query);
+	void setSearchQuery(QString query) override;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
