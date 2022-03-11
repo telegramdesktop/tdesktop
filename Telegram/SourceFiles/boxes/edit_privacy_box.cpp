@@ -269,9 +269,7 @@ void EditPrivacyBox::setupContent() {
 	};
 	const auto addExceptionLink = [=](Exception exception) {
 		const auto update = Ui::CreateChild<rpl::event_stream<>>(content);
-		auto label = update->events_starting_with(
-			rpl::empty_value()
-		) | rpl::map([=] {
+		auto label = update->events_starting_with({}) | rpl::map([=] {
 			return Settings::ExceptionUsersCount(exceptions(exception));
 		}) | rpl::map([](int count) {
 			return count

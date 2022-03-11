@@ -1096,9 +1096,7 @@ rpl::producer<Data::MessagesSlice> ScheduledWidget::listSource(
 		int limitBefore,
 		int limitAfter) {
 	const auto data = &controller()->session().data();
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		data->scheduledMessages().updates(_history)
 	) | rpl::map([=] {
 		return data->scheduledMessages().list(_history);

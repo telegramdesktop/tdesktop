@@ -443,9 +443,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
 	const auto suggested = lifetime.make_state<rpl::variable<int>>();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		session->data().chatsFilters().suggestedUpdated()
 	) | rpl::map([=] {
 		return session->data().chatsFilters().suggestedFilters();

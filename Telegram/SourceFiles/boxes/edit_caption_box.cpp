@@ -309,7 +309,7 @@ void EditCaptionBox::setupShadows() {
 
 void EditCaptionBox::setupControls() {
 	auto hintLabelToggleOn = _previewRebuilds.events_starting_with(
-		rpl::empty_value()
+		{}
 	) | rpl::map([=] {
 		return _controller->session().settings().photoEditorHintShown()
 			? _isPhoto
@@ -334,9 +334,7 @@ void EditCaptionBox::setupControls() {
 			st::defaultBoxCheckbox),
 		st::editMediaCheckboxMargins)
 	)->toggleOn(
-		_previewRebuilds.events_starting_with(
-			rpl::empty_value()
-		) | rpl::map([=] {
+		_previewRebuilds.events_starting_with({}) | rpl::map([=] {
 			return _isPhoto
 				&& CanBeCompressed(_albumType)
 				&& !_preparedList.files.empty();

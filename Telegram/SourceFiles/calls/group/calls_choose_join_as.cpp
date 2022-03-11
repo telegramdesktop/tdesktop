@@ -165,9 +165,9 @@ void ScheduleGroupCallBox(
 
 	using namespace rpl::mappers;
 	*duration = rpl::combine(
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::timer_each(kLabelRefreshInterval)),
+		rpl::single(rpl::empty) | rpl::then(
+			base::timer_each(kLabelRefreshInterval)
+		),
 		std::move(descriptor.values) | rpl::filter(_1 != 0),
 		_2
 	) | rpl::map([](TimeId date) {

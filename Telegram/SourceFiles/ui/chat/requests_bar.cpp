@@ -124,9 +124,7 @@ void RequestsBar::setupInner() {
 				static_cast<QMouseEvent*>(event.get())->pos());
 		});
 	}) | rpl::flatten_latest(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_barClicks, _inner->lifetime());
+	) | rpl::to_empty | rpl::start_to_stream(_barClicks, _inner->lifetime());
 
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {

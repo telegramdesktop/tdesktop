@@ -286,7 +286,7 @@ Widget::Widget(
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
 		rpl::merge(
-			rpl::single(rpl::empty_value()),
+			rpl::single(rpl::empty),
 			checker.isLatest(),
 			checker.failed(),
 			checker.ready()
@@ -303,9 +303,7 @@ Widget::Widget(
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
 	_jumpToDate->entity()->setClickedCallback([this] { showCalendar(); });
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		session().domain().local().localPasscodeChanged()
 	) | rpl::start_with_next([=] {
 		updateLockUnlockVisibility();
@@ -519,9 +517,7 @@ void Widget::setupSupportMode() {
 void Widget::setupMainMenuToggle() {
 	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		controller()->filtersMenuChanged()
 	) | rpl::start_with_next([=] {
 		const auto filtersHidden = !controller()->filtersWidth();

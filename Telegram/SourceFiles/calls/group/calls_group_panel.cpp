@@ -728,7 +728,7 @@ void Panel::setupScheduledLabels(rpl::producer<TimeId> date) {
 		date
 	) | rpl::map([=](TimeId date) {
 		_countdownData = std::make_shared<Ui::GroupCallScheduledLeft>(date);
-		return rpl::empty_value();
+		return rpl::empty;
 	}) | rpl::start_spawning(lifetime());
 
 	_countdown = Ui::CreateGradientLabel(widget(), rpl::duplicate(
@@ -1742,9 +1742,7 @@ void Panel::setupControlsBackgroundNarrow() {
 	const auto full = lifetime.make_state<QImage>(
 		QSize(1, height * factor),
 		QImage::Format_ARGB32_Premultiplied);
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::start_with_next([=] {
 		full->fill(Qt::transparent);

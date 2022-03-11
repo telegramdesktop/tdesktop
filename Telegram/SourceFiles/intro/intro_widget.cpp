@@ -149,7 +149,7 @@ Widget::Widget(
 		Core::UpdateChecker checker;
 		checker.start();
 		rpl::merge(
-			rpl::single(rpl::empty_value()),
+			rpl::single(rpl::empty),
 			checker.isLatest(),
 			checker.failed(),
 			checker.ready()

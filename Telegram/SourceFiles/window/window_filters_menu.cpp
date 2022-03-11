@@ -34,7 +34,7 @@ namespace {
 
 [[nodiscard]] rpl::producer<Dialogs::UnreadState> MainListUnreadState(
 		not_null<Dialogs::MainList*> list) {
-	return rpl::single(rpl::empty_value()) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		list->unreadStateChanges() | rpl::to_empty
 	) | rpl::map([=] {
 		return list->unreadState();
@@ -103,9 +103,7 @@ void FiltersMenu::setup() {
 	}, _outer.lifetime());
 
 	const auto filters = &_session->session().data().chatsFilters();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		filters->changed()
 	) | rpl::start_with_next([=] {
 		refresh();

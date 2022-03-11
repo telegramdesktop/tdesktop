@@ -688,9 +688,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		updateUserpics();
 	};
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		_session->data().pinnedDialogsOrderUpdated()
 	) | rpl::start_with_next(updatePinnedChats, _lifetime);
 

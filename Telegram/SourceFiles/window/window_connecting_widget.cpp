@@ -222,7 +222,7 @@ ConnectionState::ConnectionState(
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
 		rpl::merge(
-			rpl::single(rpl::empty_value()),
+			rpl::single(rpl::empty),
 			checker.ready()
 		) | rpl::start_with_next([=] {
 			refreshState();

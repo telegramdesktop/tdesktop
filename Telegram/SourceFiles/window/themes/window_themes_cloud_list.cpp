@@ -336,9 +336,7 @@ void CloudList::setup() {
 			object.cloud.id ? object.cloud.id : kFakeCloudThemeId));
 	});
 
-	auto cloudListChanges = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto cloudListChanges = rpl::single(rpl::empty) | rpl::then(
 		_window->session().data().cloudThemes().updated()
 	);
 

@@ -229,9 +229,7 @@ void SetupLocalPasscode(
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_passcode_title());
 
-	auto has = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto has = rpl::single(rpl::empty) | rpl::then(
 		controller->session().domain().local().localPasscodeChanged()
 	) | rpl::map([=] {
 		return controller->session().domain().local().hasLocalPasscode();
@@ -272,7 +270,7 @@ void SetupLocalPasscode(
 		? tr::lng_passcode_autolock_away
 		: tr::lng_passcode_autolock_inactive;
 	auto value = autoLockBoxClosing->events_starting_with(
-		rpl::empty_value()
+		{}
 	) | rpl::map([] {
 		const auto autolock = Core::App().settings().autoLock();
 		const auto hours = autolock / 3600;
@@ -471,9 +469,7 @@ void SetupCloudPassword(
 	) | rpl::filter([](TimeId time) {
 		return time != 0;
 	}) | rpl::map([](TimeId time) {
-		return rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::timer_each(
+		return rpl::single(rpl::empty) | rpl::then(base::timer_each(
 			999
 		)) | rpl::map([=] {
 			const auto now = base::unixtime::now();

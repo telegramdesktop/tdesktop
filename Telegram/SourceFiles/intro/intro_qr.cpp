@@ -75,9 +75,7 @@ namespace {
 	) | rpl::map([](const QByteArray &code) {
 		return Qr::Encode(code, Qr::Redundancy::Quartile);
 	});
-	auto palettes = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto palettes = rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());

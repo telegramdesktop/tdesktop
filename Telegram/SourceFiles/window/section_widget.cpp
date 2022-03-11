@@ -74,9 +74,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 		peerForBackground
 	) | rpl::map([=](PeerData *peer) -> rpl::producer<> {
 		if (!peer) {
-			return rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			return rpl::single(rpl::empty) | rpl::then(
 				controller->defaultChatTheme()->repaintBackgroundRequests()
 			);
 		}
@@ -84,9 +82,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 			controller,
 			peer
 		) | rpl::map([](const std::shared_ptr<Ui::ChatTheme> &theme) {
-			return rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			return rpl::single(rpl::empty) | rpl::then(
 				theme->repaintBackgroundRequests()
 			);
 		}) | rpl::flatten_latest();

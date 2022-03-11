@@ -301,9 +301,7 @@ void SetupSections(
 			}
 		};
 		slided->toggleOn(
-			rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			rpl::single(rpl::empty) | rpl::then(
 				account->appConfig().refreshed()
 			) | rpl::map(
 				enabled

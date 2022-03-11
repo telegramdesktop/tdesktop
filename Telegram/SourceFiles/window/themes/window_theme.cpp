@@ -1371,9 +1371,7 @@ rpl::producer<bool> IsNightModeValue() {
 		return update.type == BackgroundUpdate::Type::ApplyingTheme;
 	}) | rpl::to_empty;
 
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		std::move(changes)
 	) | rpl::map([=] {
 		return IsNightMode();
@@ -1455,9 +1453,7 @@ bool LoadFromContent(
 }
 
 rpl::producer<bool> IsThemeDarkValue() {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::map([] {
 		return (st::dialogsBg->c.valueF() < kDarkValueThreshold);

@@ -1600,9 +1600,7 @@ void SetupManagerList(
 		not_null<Main::Session*> session,
 		rpl::producer<std::optional<base::flat_set<QString>>> filter) {
 	const auto reactions = &session->data().reactions();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		reactions->updates()
 	) | rpl::start_with_next([=] {
 		manager->applyList(

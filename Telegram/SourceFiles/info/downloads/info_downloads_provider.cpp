@@ -89,9 +89,7 @@ void Provider::refreshViewer() {
 		return;
 	}
 	auto &manager = Core::App().downloadManager();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		manager.loadingListChanges() | rpl::to_empty
 	) | rpl::start_with_next([=, &manager] {
 		auto copy = _downloading;

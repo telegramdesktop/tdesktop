@@ -47,9 +47,7 @@ ItemSingleFilePreview::ItemSingleFilePreview(
 	_documentMedia = document->createMediaView();
 	_documentMedia->thumbnailWanted(item->fullId());
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		document->session().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		if (_documentMedia->thumbnail()) {
