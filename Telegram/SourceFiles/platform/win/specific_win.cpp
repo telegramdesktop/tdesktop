@@ -402,9 +402,9 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 		} else if (const auto window = Core::App().activeWindow()) {
 			window->show(Ui::MakeConfirmBox({
 				.text = tr::lng_settings_auto_start_disabled_uwp(),
-				.confirmed = [] {
+				.confirmed = [](Fn<void()> close) {
 					AutostartTask::OpenSettings();
-					Ui::hideLayer();
+					close();
 				},
 				.confirmText = tr::lng_settings_open_system_settings(),
 			}));
