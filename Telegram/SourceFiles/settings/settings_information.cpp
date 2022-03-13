@@ -66,7 +66,7 @@ void SetupPhoto(
 		auto callback = [=](QImage &&image) {
 			self->session().api().peerPhoto().upload(self, std::move(image));
 		};
-		Editor::PrepareProfilePhoto(
+		Editor::PrepareProfilePhotoFromFile(
 			upload,
 			&controller->window(),
 			std::move(callback));

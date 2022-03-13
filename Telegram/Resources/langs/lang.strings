@@ -1308,6 +1308,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
+"lng_profile_camera_title" = "Capture yourself";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
@@ -1459,6 +1460,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
+"lng_attach_camera" = "Camera";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";

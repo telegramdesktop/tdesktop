@@ -36,6 +36,8 @@ struct Information;
 
 namespace Ui {
 
+class PopupMenu;
+
 class HistoryDownButton : public RippleButton {
 public:
 	HistoryDownButton(QWidget *parent, const style::TwoIconButton &st);
@@ -157,6 +159,8 @@ private:
 	QImage _result;
 	std::unique_ptr<Media::Streaming::Instance> _streamed;
 	PhotoData *_streamedPhoto = nullptr;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	bool _showSavedMessagesOnSelf = false;
 	bool _canOpenPhoto = false;

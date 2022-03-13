@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/special_buttons.h"
 
-#include "styles/style_boxes.h"
-#include "styles/style_chat.h"
+#include "base/call_delayed.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/radial_animation.h"
@@ -32,18 +31,65 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
+#include "settings/settings_calls.h" // Calls::AddCameraSubsection.
+#include "calls/calls_instance.h"
+#include "webrtc/webrtc_media_devices.h" // Webrtc::GetVideoInputList.
+#include "webrtc/webrtc_video_track.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "mainwidget.h"
-#include "facades.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kAnimationDuration = crl::time(120);
+
+bool IsCameraAvailable() {
+	return (Core::App().calls().currentCall() == nullptr)
+		&& !Webrtc::GetVideoInputList().empty();
+}
+
+void CameraBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::Controller*> controller,
+		Fn<void(QImage &&image)> &&doneCallback) {
+	using namespace Webrtc;
+
+	const auto track = Settings::Calls::AddCameraSubsection(
+		std::make_shared<Ui::BoxShow>(box),
+		box->verticalLayout(),
+		false);
+	if (!track) {
+		box->closeBox();
+		return;
+	}
+	track->stateValue(
+	) | rpl::start_with_next([=](const VideoState &state) {
+		if (state == VideoState::Inactive) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+
+	auto done = [=, done = std::move(doneCallback)](QImage &&image) {
+		box->closeBox();
+		done(std::move(image));
+	};
+
+	box->setTitle(tr::lng_profile_camera_title());
+	box->addButton(tr::lng_continue(), [=, done = std::move(done)]() mutable {
+		Editor::PrepareProfilePhoto(
+			box,
+			controller,
+			std::move(done),
+			track->frame(FrameRequest()).mirrored(true, false));
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
 
 QString CropTitle(not_null<PeerData*> peer) {
 	if (peer->isChat() || peer->isMegagroup()) {
@@ -198,10 +244,7 @@ void UserpicButton::prepare() {
 void UserpicButton::setClickHandlerByRole() {
 	switch (_role) {
 	case Role::ChangePhoto:
-		addClickHandler(App::LambdaDelayed(
-			_st.changeButton.ripple.hideDuration,
-			this,
-			[=] { changePhotoLocally(); }));
+		addClickHandler([=] { changePhotoLocally(); });
 		break;
 
 	case Role::OpenPhoto:
@@ -230,10 +273,26 @@ void UserpicButton::changePhotoLocally(bool requestToUpload) {
 			_uploadPhotoRequests.fire({});
 		}
 	};
-	Editor::PrepareProfilePhoto(
-		this,
-		_window,
-		std::move(callback));
+	const auto chooseFile = [=] {
+		base::call_delayed(
+			_st.changeButton.ripple.hideDuration,
+			crl::guard(this, [=] {
+				Editor::PrepareProfilePhotoFromFile(
+				this,
+				_window,
+				callback);
+			}));
+	};
+	if (!IsCameraAvailable()) {
+		chooseFile();
+	} else {
+		_menu = base::make_unique_q<Ui::PopupMenu>(this);
+		_menu->addAction(tr::lng_attach_file(tr::now), chooseFile);
+		_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
+			_window->show(Box(CameraBox, _window, callback));
+		});
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void UserpicButton::openPeerPhoto() {

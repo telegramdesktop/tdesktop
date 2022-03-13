@@ -67,7 +67,8 @@ void OpenWithPreparedFile(
 void PrepareProfilePhoto(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::Controller*> controller,
-		Fn<void(QImage &&image)> &&doneCallback) {
+		Fn<void(QImage &&image)> &&doneCallback,
+		QImage &&image) {
 	const auto resizeToMinSize = [=](
 			QImage &&image,
 			Qt::AspectRatioMode mode) {
@@ -82,8 +83,53 @@ void PrepareProfilePhoto(
 		return std::move(image);
 	};
 
+	if (image.isNull()
+		|| (image.width() > (10 * image.height()))
+		|| (image.height() > (10 * image.width()))) {
+		controller->show(Ui::MakeInformBox(tr::lng_bad_photo()));
+		return;
+	}
+	image = resizeToMinSize(
+		std::move(image),
+		Qt::KeepAspectRatioByExpanding);
+	const auto fileImage = std::make_shared<Image>(std::move(image));
+
+	auto applyModifications = [=, done = std::move(doneCallback)](
+			const PhotoModifications &mods) {
+		done(resizeToMinSize(
+			ImageModified(fileImage->original(), mods),
+			Qt::KeepAspectRatio));
+	};
+
+	auto crop = [&] {
+		const auto &i = fileImage;
+		const auto minSide = std::min(i->width(), i->height());
+		return QRect(
+			(i->width() - minSide) / 2,
+			(i->height() - minSide) / 2,
+			minSide,
+			minSide);
+	}();
+
+	controller->showLayer(
+		std::make_unique<LayerWidget>(
+			parent,
+			controller,
+			fileImage,
+			PhotoModifications{ .crop = std::move(crop) },
+			std::move(applyModifications),
+			EditorData{
+				.cropType = EditorData::CropType::Ellipse,
+				.keepAspectRatio = true, }),
+		Ui::LayerOption::KeepOther);
+}
+
+void PrepareProfilePhotoFromFile(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::Controller*> controller,
+		Fn<void(QImage &&image)> &&doneCallback) {
 	const auto callback = [=, done = std::move(doneCallback)](
-			const FileDialog::OpenResult &result) {
+			const FileDialog::OpenResult &result) mutable {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -93,45 +139,11 @@ void PrepareProfilePhoto(
 			.content = result.remoteContent,
 			.forceOpaque = true,
 		}).image;
-		if (image.isNull()
-			|| (image.width() > (10 * image.height()))
-			|| (image.height() > (10 * image.width()))) {
-			controller->show(Ui::MakeInformBox(tr::lng_bad_photo()));
-			return;
-		}
-		image = resizeToMinSize(
-			std::move(image),
-			Qt::KeepAspectRatioByExpanding);
-		const auto fileImage = std::make_shared<Image>(std::move(image));
-
-		auto applyModifications = [=, done = std::move(done)](
-				const PhotoModifications &mods) {
-			done(resizeToMinSize(
-				ImageModified(fileImage->original(), mods),
-				Qt::KeepAspectRatio));
-		};
-
-		auto crop = [&] {
-			const auto &i = fileImage;
-			const auto minSide = std::min(i->width(), i->height());
-			return QRect(
-				(i->width() - minSide) / 2,
-				(i->height() - minSide) / 2,
-				minSide,
-				minSide);
-		}();
-
-		controller->showLayer(
-			std::make_unique<LayerWidget>(
-				parent,
-				controller,
-				fileImage,
-				PhotoModifications{ .crop = std::move(crop) },
-				std::move(applyModifications),
-				EditorData{
-					.cropType = EditorData::CropType::Ellipse,
-					.keepAspectRatio = true, }),
-			Ui::LayerOption::KeepOther);
+		PrepareProfilePhoto(
+			parent,
+			controller,
+			std::move(done),
+			std::move(image));
 	};
 	FileDialog::GetOpenPath(
 		parent.get(),
