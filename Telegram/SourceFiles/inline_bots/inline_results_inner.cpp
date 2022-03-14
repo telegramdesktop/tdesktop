@@ -270,10 +270,7 @@ void Inner::selectInlineResult(
 		const auto document = item->getDocument()
 			? item->getDocument()
 			: item->getPreviewDocument();
-		if (options.scheduled
-			|| item->isFullLine()
-			|| !document
-			|| (!document->sticker() && !document->isGifv())) {
+		if (options.scheduled || !item->hasSendingAnimation()) {
 			return {};
 		}
 		const auto rect = item->innerContentRect().translated(

@@ -83,6 +83,9 @@ public:
 	virtual bool hasRightSkip() const {
 		return false;
 	}
+	virtual bool hasSendingAnimation() const {
+		return false;
+	}
 
 	Result *getResult() const;
 	DocumentData *getDocument() const;
