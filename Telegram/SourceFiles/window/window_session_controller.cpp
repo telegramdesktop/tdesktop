@@ -1388,8 +1388,7 @@ void SessionController::showPeerHistoryAtItem(
 void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	session().uploader().pause(itemId);
-	const auto stopUpload = [=] {
-		Ui::hideLayer();
+	const auto stopUpload = [=](Fn<void()> close) {
 		auto &data = session().data();
 		if (const auto item = data.message(itemId)) {
 			if (!item->isEditingMedia()) {
@@ -1403,17 +1402,19 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 			data.sendHistoryChangeNotifications();
 		}
 		session().uploader().unpause();
+		close();
 	};
-	const auto continueUpload = [=] {
+	const auto continueUpload = [=](Fn<void()> close) {
 		session().uploader().unpause();
+		close();
 	};
 
 	show(Ui::MakeConfirmBox({
 		.text = tr::lng_selected_cancel_sure_this(),
 		.confirmed = stopUpload,
 		.cancelled = continueUpload,
-		.confirmText = tr::lng_selected_upload_stop(),
-		.cancelText = tr::lng_continue(),
+		.confirmText = tr::lng_box_yes(),
+		.cancelText = tr::lng_box_no(),
 	}));
 }
 
