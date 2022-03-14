@@ -270,12 +270,22 @@ void Inner::selectInlineResult(
 		const auto document = item->getDocument()
 			? item->getDocument()
 			: item->getPreviewDocument();
-		if (options.scheduled || !item->hasSendingAnimation()) {
+		if (options.scheduled
+			|| item->isFullLine()
+			|| !document
+			|| (!document->sticker() && !document->isGifv())) {
 			return {};
 		}
+		using Type = Ui::MessageSendingAnimationFrom::Type;
+		const auto type = document->sticker()
+			? Type::Sticker
+			: document->isGifv()
+			? Type::Gif
+			: Type::None;
 		const auto rect = item->innerContentRect().translated(
 			_mosaic.findRect(index).topLeft());
 		return {
+			.type = type,
 			.localId = _controller->session().data().nextLocalMessageId(),
 			.globalStartGeometry = mapToGlobal(rect),
 			.crop = document->isGifv(),

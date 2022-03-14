@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/message_sending_animation_controller.h"
 
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -415,6 +416,31 @@ bool MessageSendingAnimationController::hasAnimatedMessage(
 void MessageSendingAnimationController::clear() {
 	_itemSendPending.clear();
 	_processing.clear();
+}
+
+bool MessageSendingAnimationController::checkExpectedType(
+		not_null<HistoryItem*> item) {
+	const auto it = _itemSendPending.find(item->fullId().msg);
+	if (it == end(_itemSendPending)) {
+		return false;
+	}
+	const auto type = it->second.type;
+	const auto isSticker = type == MessageSendingAnimationFrom::Type::Sticker;
+	const auto isGif = type == MessageSendingAnimationFrom::Type::Gif;
+	if (isSticker || isGif) {
+		if (item->emptyText()) {
+			if (const auto media = item->media()) {
+				if (const auto document = media->document()) {
+					if ((isGif && document->isGifv())
+						|| (isSticker && document->sticker())) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	_itemSendPending.erase(it);
+	return false;
 }
 
 } // namespace Ui

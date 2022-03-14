@@ -447,6 +447,7 @@ void GifsListWidget::selectInlineResult(
 		const auto rect = item->innerContentRect().translated(
 			_mosaic.findRect(index).topLeft());
 		return Ui::MessageSendingAnimationFrom{
+			.type = Ui::MessageSendingAnimationFrom::Type::Gif,
 			.localId = controller()->session().data().nextLocalMessageId(),
 			.globalStartGeometry = mapToGlobal(rect),
 			.crop = true,

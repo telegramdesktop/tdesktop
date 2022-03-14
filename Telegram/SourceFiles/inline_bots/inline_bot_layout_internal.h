@@ -73,9 +73,6 @@ public:
 	bool hasRightSkip() const override {
 		return true;
 	}
-	bool hasSendingAnimation() const override {
-		return true;
-	}
 
 	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	TextState getState(
@@ -193,9 +190,6 @@ public:
 	}
 	bool hasRightSkip() const override {
 		return false;
-	}
-	bool hasSendingAnimation() const override {
-		return true;
 	}
 	void preload() const override;
 

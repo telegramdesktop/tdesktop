@@ -39,6 +39,7 @@ public:
 
 	[[nodiscard]] bool hasLocalMessage(MsgId msgId) const;
 	[[nodiscard]] bool hasAnimatedMessage(not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool checkExpectedType(not_null<HistoryItem*> item);
 
 	void clear();
 

@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 struct MessageSendingAnimationFrom {
+	enum class Type {
+		None,
+		Sticker,
+		Gif,
+	};
+	Type type = Type::None;
 	std::optional<MsgId> localId;
 	QRect globalStartGeometry;
 	bool crop = false;

@@ -1103,6 +1103,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 						stickerBoundingBox()));
 				contentRect.moveCenter(bounding.center());
 				return {
+					Ui::MessageSendingAnimationFrom::Type::Sticker,
 					_controller->session().data().nextLocalMessageId(),
 					mapToGlobal(std::move(contentRect)),
 				};
