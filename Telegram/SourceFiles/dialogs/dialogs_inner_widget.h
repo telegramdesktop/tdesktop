@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "data/data_messages.h"
+#include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
@@ -125,6 +126,8 @@ public:
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
+	[[nodiscard]] rpl::producer<int> scrollByDeltaRequests() const;
+
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
 
@@ -134,7 +137,6 @@ public Q_SLOTS:
 	void onParentGeometryChanged();
 
 Q_SIGNALS:
-	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
@@ -400,6 +402,8 @@ private:
 	object_ptr<Ui::FlatLabel> _empty = { nullptr };
 	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
+
+	Ui::DraggingScrollManager _draggingScroll;
 
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;

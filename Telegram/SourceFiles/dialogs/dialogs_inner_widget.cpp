@@ -1130,7 +1130,7 @@ void InnerWidget::finishReorderPinned() {
 		_aboveIndex = -1;
 	}
 	if (wasDragging) {
-		draggingScrollDelta(0);
+		_draggingScroll.cancel();
 	}
 }
 
@@ -1220,7 +1220,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 		return 0;
 	}();
 
-	draggingScrollDelta(delta);
+	_draggingScroll.checkDeltaScroll(delta);
 	return true;
 }
 
@@ -1928,6 +1928,10 @@ auto InnerWidget::chosenRow() const -> rpl::producer<ChosenRow> {
 
 rpl::producer<> InnerWidget::updated() const {
 	return _updated.events();
+}
+
+rpl::producer<int> InnerWidget::scrollByDeltaRequests() const {
+	return _draggingScroll.scrolls();
 }
 
 rpl::producer<> InnerWidget::listBottomReached() const {

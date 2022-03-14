@@ -102,8 +102,6 @@ public:
 	~Widget();
 
 public Q_SLOTS:
-	void onDraggingScrollDelta(int delta);
-
 	void onListScroll();
 	bool onCancelSearch();
 	void onCancelSearchInChat();
@@ -116,9 +114,6 @@ public Q_SLOTS:
 	void onNeedSearchMessages();
 
 	void onChooseByDrag();
-
-private Q_SLOTS:
-	void onDraggingScrollTimer();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -246,9 +241,6 @@ private:
 	base::flat_map<mtpRequestId, QString> _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
-
-	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
-	int _draggingScrollDelta = 0;
 
 	int _topDelta = 0;
 

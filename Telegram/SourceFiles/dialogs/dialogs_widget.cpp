@@ -209,7 +209,13 @@ Widget::Widget(
 	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
 	) | rpl::to_empty);
 
-	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
+	_inner->scrollByDeltaRequests(
+	) | rpl::start_with_next([=](int delta) {
+		if (_scroll) {
+			_scroll->scrollToY(_scroll->scrollTop() + delta);
+		}
+	}, lifetime());
+
 	connect(_inner, &InnerWidget::mustScrollTo, [=](int top, int bottom) {
 		if (_scroll) {
 			_scroll->scrollToY(top, bottom);
@@ -864,27 +870,6 @@ void Widget::loadMoreBlockedByDate() {
 		return;
 	}
 	session().api().requestMoreBlockedByDateDialogs();
-}
-
-void Widget::onDraggingScrollDelta(int delta) {
-	_draggingScrollDelta = _scroll ? delta : 0;
-	if (_draggingScrollDelta) {
-		if (!_draggingScrollTimer) {
-			_draggingScrollTimer.create(this);
-			_draggingScrollTimer->setSingleShot(false);
-			connect(_draggingScrollTimer, SIGNAL(timeout()), this, SLOT(onDraggingScrollTimer()));
-		}
-		_draggingScrollTimer->start(15);
-	} else {
-		_draggingScrollTimer.destroy();
-	}
-}
-
-void Widget::onDraggingScrollTimer() {
-	const auto delta = (_draggingScrollDelta > 0)
-		? qMin(_draggingScrollDelta * 3 / 20 + 1, Ui::kMaxScrollSpeed)
-		: qMax(_draggingScrollDelta * 3 / 20 - 1, -Ui::kMaxScrollSpeed);
-	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 
 bool Widget::onSearchMessages(bool searchCache) {
