@@ -931,6 +931,9 @@ void Panel::raiseControls() {
 		_titleSeparator->raise();
 		_viewers->raise();
 	}
+	if (_menuToggle) {
+		_menuToggle->raise();
+	}
 	if (_recordingMark) {
 		_recordingMark->raise();
 	}
@@ -1215,6 +1218,7 @@ void Panel::refreshTopButton() {
 			_menuToggle->show();
 			_menuToggle->setClickedCallback([=] { showMainMenu(); });
 			updateControlsGeometry();
+			raiseControls();
 		}
 	} else if (showNarrowUserpic) {
 		_menuToggle.destroy();
