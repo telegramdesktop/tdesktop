@@ -164,9 +164,6 @@ private:
 	void addNewMembers();
 	void addDeleteContact();
 
-	void addChatActions(not_null<ChatData*> chat);
-	void addChannelActions(not_null<ChannelData*> channel);
-
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
 	PeerData *_peer = nullptr;

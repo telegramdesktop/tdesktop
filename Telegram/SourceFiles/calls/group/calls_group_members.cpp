@@ -1190,9 +1190,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto muteState = real->state();
 	const auto muted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::RaisedHand);
-	const auto addCover = true;
-	const auto addVolumeItem = !_call->rtmp()
-		&& (!muted || isMe(participantPeer));
+	const auto addCover = !_call->rtmp();
+	const auto addVolumeItem = (!muted || isMe(participantPeer));
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
@@ -1327,7 +1326,13 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			}
 		}
 
-		if (participant
+		if (_call->rtmp()) {
+			addMuteActionsToContextMenu(
+				result,
+				row->peer(),
+				false,
+				static_cast<Row*>(row.get()));
+		} else if (participant
 			&& (!isMe(participantPeer) || _peer->canManageGroupCall())
 			&& (participant->ssrc != 0
 				|| GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
@@ -1431,8 +1436,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	const auto addVolumeItem = !_call->rtmp()
-		&& (!muted || isMe(participantPeer));
+	const auto addVolumeItem = (!muted || isMe(participantPeer));
 	if (addVolumeItem) {
 		auto otherParticipantStateValue
 			= _call->otherParticipantStateValue(
@@ -1444,7 +1448,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 			menu->menu(),
 			st::groupCallPopupVolumeMenu,
 			otherParticipantStateValue,
-			row->volume(),
+			_call->rtmp() ? _call->rtmpVolume() : row->volume(),
 			Group::kMaxVolume,
 			muted);
 
@@ -1487,7 +1491,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 		menu->addAction(std::move(volumeItem));
 
-		if (!isMe(participantPeer)) {
+		if (!_call->rtmp() && !isMe(participantPeer)) {
 			menu->addSeparator();
 		}
 	};

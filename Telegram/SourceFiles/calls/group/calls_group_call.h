@@ -236,6 +236,7 @@ public:
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
+	[[nodiscard]] int rtmpVolume() const;
 
 	[[nodiscard]] Group::RtmpInfo rtmpInfo() const;
 
@@ -673,6 +674,7 @@ private:
 	bool _hadJoinedState = false;
 	bool _listenersHidden = false;
 	bool _rtmp = false;
+	int _rtmpVolume = 0;
 
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
 	QString _audioInputId;
