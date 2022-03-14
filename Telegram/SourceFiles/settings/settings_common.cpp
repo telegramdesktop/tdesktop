@@ -31,14 +31,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
+#include "base/options.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
 namespace Settings {
+namespace {
+
+base::options::toggle OptionMonoSettingsIcons({
+	.id = kOptionMonoSettingsIcons,
+	.name = "Mono settings and menu icons",
+	.description = "Use a single color for settings and main menu icons.",
+});
+
+} // namespace
+
+const char kOptionMonoSettingsIcons[] = "mono-settings-icons";
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
 	const auto background = [&] {
+		if (OptionMonoSettingsIcons.value()) {
+			return &st::transparent;
+		}
 		if (descriptor.color > 0) {
 			const auto list = std::array{
 				&st::settingsIconBg1,
@@ -72,7 +87,11 @@ void Icon::paint(QPainter &p, int x, int y) const {
 	if (_background) {
 		_background->paint(p, { { x, y }, _icon->size() });
 	}
-	_icon->paint(p, { x, y }, 2 * x + _icon->width());
+	if (OptionMonoSettingsIcons.value()) {
+		_icon->paint(p, { x, y }, 2 * x + _icon->width(), st::menuIconFg->c);
+	} else {
+		_icon->paint(p, { x, y }, 2 * x + _icon->width());
+	}
 }
 
 int Icon::width() const {

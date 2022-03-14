@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "settings/settings_common.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 
@@ -133,6 +134,7 @@ void SetupExperimental(
 	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
 	addToggle(Ui::GL::kOptionAllowLinuxNvidiaOpenGL);
 	addToggle(Media::Player::kOptionDisableAutoplayNext);
+	addToggle(Settings::kOptionMonoSettingsIcons);
 }
 
 } // namespace

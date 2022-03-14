@@ -33,6 +33,8 @@ struct SettingsButton;
 
 namespace Settings {
 
+extern const char kOptionMonoSettingsIcons[];
+
 enum class Type {
 	Main,
 	Information,
