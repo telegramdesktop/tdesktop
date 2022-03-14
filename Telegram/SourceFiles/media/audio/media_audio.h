@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 #include "data/data_audio_msg_id.h"
 #include "base/bytes.h"
+#include "base/observer.h"
 #include "base/timer.h"
 
 #include <QtCore/QTimer>

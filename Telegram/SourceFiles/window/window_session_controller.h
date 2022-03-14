@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "base/object_ptr.h"
+#include "base/observer.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"

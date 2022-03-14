@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/url_auth_box.h"
 #include "ui/layers/layer_widget.h"
 #include "lang/lang_keys.h"
-#include "base/observer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_media.h"

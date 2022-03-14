@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/observer.h"
 #include "data/data_audio_msg_id.h"
 #include "data/data_shared_media.h"
 

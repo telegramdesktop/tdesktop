@@ -40,8 +40,7 @@ enum class Column {
 
 class AbstractSectionWidget
 	: public Ui::RpWidget
-	, public Media::Player::FloatSectionDelegate
-	, protected base::Subscriber {
+	, public Media::Player::FloatSectionDelegate {
 public:
 	AbstractSectionWidget(
 		QWidget *parent,

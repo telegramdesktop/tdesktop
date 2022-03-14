@@ -169,8 +169,7 @@ private:
 class ListWidget final
 	: public Ui::RpWidget
 	, public ElementDelegate
-	, public Ui::AbstractTooltipShower
-	, private base::Subscriber {
+	, public Ui::AbstractTooltipShower {
 public:
 	ListWidget(
 		QWidget *parent,
