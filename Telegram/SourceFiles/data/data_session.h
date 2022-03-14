@@ -322,8 +322,11 @@ public:
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	int pinnedChatsCount(Data::Folder *folder, FilterId filterId) const;
-	int pinnedChatsLimit(Data::Folder *folder, FilterId filterId) const;
+	int pinnedCanPin(
+		Data::Folder *folder,
+		FilterId filterId,
+		not_null<History*> history) const;
+	int pinnedChatsLimit(Data::Folder *folder) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Data::Folder *folder,
 		FilterId filterId) const;

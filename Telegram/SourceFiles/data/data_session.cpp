@@ -1823,30 +1823,25 @@ void Session::applyDialog(
 	setPinnedFromDialog(folder, data.is_pinned());
 }
 
-int Session::pinnedChatsCount(
+int Session::pinnedCanPin(
 		Data::Folder *folder,
-		FilterId filterId) const {
+		FilterId filterId,
+		not_null<History*> history) const {
 	if (!filterId) {
-		return pinnedChatsOrder(folder, filterId).size();
+		const auto limit = pinnedChatsLimit(folder);
+		return pinnedChatsOrder(folder, FilterId()).size() < limit;
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
-	return (i != end(list)) ? i->pinned().size() : 0;
+	return (i == end(list))
+		|| (i->always().contains(history))
+		|| (i->always().size() < Data::ChatFilter::kPinnedLimit);
 }
 
-int Session::pinnedChatsLimit(
-		Data::Folder *folder,
-		FilterId filterId) const {
-	if (!filterId) {
-		return folder
-			? session().serverConfig().pinnedDialogsInFolderMax.current()
-			: session().serverConfig().pinnedDialogsCountMax.current();
-	}
-	const auto &list = chatsFilters().list();
-	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
-	const auto pinned = (i != end(list)) ? i->pinned().size() : 0;
-	const auto already = (i != end(list)) ? i->always().size() : 0;
-	return Data::ChatFilter::kPinnedLimit + pinned - already;
+int Session::pinnedChatsLimit(Data::Folder *folder) const {
+	return folder
+		? session().serverConfig().pinnedDialogsInFolderMax.current()
+		: session().serverConfig().pinnedDialogsCountMax.current();
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(

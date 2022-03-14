@@ -197,31 +197,28 @@ void AddChatMembers(
 
 bool PinnedLimitReached(
 		not_null<Window::SessionController*> controller,
-		Dialogs::Key key,
+		not_null<History*> history,
 		FilterId filterId) {
-	Expects(filterId != 0 || key.entry()->folderKnown());
+	Expects(filterId != 0 || history->folderKnown());
 
-	const auto entry = key.entry();
-	const auto owner = &entry->owner();
-	const auto folder = entry->folder();
-	const auto pinnedCount = owner->pinnedChatsCount(folder, filterId);
-	const auto pinnedMax = owner->pinnedChatsLimit(folder, filterId);
-	if (pinnedCount < pinnedMax) {
+	const auto owner = &history->owner();
+	const auto folder = history->folder();
+	if (owner->pinnedCanPin(folder, filterId, history)) {
 		return false;
 	}
 	// Some old chat, that was converted, maybe is still pinned.
 	const auto wasted = filterId ? nullptr : FindWastedPin(owner, folder);
 	if (wasted) {
 		owner->setChatPinned(wasted, FilterId(), false);
-		owner->setChatPinned(key, FilterId(), true);
-		entry->session().api().savePinnedOrder(folder);
+		owner->setChatPinned(history, FilterId(), true);
+		history->session().api().savePinnedOrder(folder);
 	} else {
 		const auto errorText = filterId
 			? tr::lng_filters_error_pinned_max(tr::now)
 			: tr::lng_error_pinned_max(
 				tr::now,
 				lt_count,
-				pinnedMax);
+				owner->pinnedChatsLimit(folder));
 		controller->show(
 			Ui::MakeInformBox(errorText),
 			Ui::LayerOption::CloseOther);
@@ -231,33 +228,26 @@ bool PinnedLimitReached(
 
 void TogglePinnedDialog(
 		not_null<Window::SessionController*> controller,
-		Dialogs::Key key) {
-	if (!key.entry()->folderKnown()) {
+		not_null<History*> history) {
+	if (!history->folderKnown()) {
 		return;
 	}
-	const auto owner = &key.entry()->owner();
-	const auto isPinned = !key.entry()->isPinnedDialog(0);
-	if (isPinned && PinnedLimitReached(controller, key, 0)) {
+	const auto owner = &history->owner();
+	const auto isPinned = !history->isPinnedDialog(0);
+	if (isPinned && PinnedLimitReached(controller, history, 0)) {
 		return;
 	}
 
-	owner->setChatPinned(key, FilterId(), isPinned);
+	owner->setChatPinned(history, FilterId(), isPinned);
 	const auto flags = isPinned
 		? MTPmessages_ToggleDialogPin::Flag::f_pinned
 		: MTPmessages_ToggleDialogPin::Flag(0);
-	if (const auto history = key.history()) {
-		history->session().api().request(MTPmessages_ToggleDialogPin(
-			MTP_flags(flags),
-			MTP_inputDialogPeer(key.history()->peer->input)
-		)).done([=] {
-			owner->notifyPinnedDialogsOrderUpdated();
-		}).send();
-	} else if (const auto folder = key.folder()) {
-		folder->session().api().request(MTPmessages_ToggleDialogPin(
-			MTP_flags(flags),
-			MTP_inputDialogPeerFolder(MTP_int(folder->id()))
-		)).send();
-	}
+	history->session().api().request(MTPmessages_ToggleDialogPin(
+		MTP_flags(flags),
+		MTP_inputDialogPeer(history->peer->input)
+	)).done([=] {
+		owner->notifyPinnedDialogsOrderUpdated();
+	}).send();
 	if (isPinned) {
 		controller->content()->dialogsToUp();
 	}
@@ -265,12 +255,12 @@ void TogglePinnedDialog(
 
 void TogglePinnedDialog(
 		not_null<Window::SessionController*> controller,
-		Dialogs::Key key,
+		not_null<History*> history,
 		FilterId filterId) {
 	if (!filterId) {
-		return TogglePinnedDialog(controller, key);
+		return TogglePinnedDialog(controller, history);
 	}
-	const auto owner = &key.entry()->owner();
+	const auto owner = &history->owner();
 
 	// This can happen when you remove this filter from another client.
 	if (!ranges::contains(
@@ -281,12 +271,12 @@ void TogglePinnedDialog(
 		return;
 	}
 
-	const auto isPinned = !key.entry()->isPinnedDialog(filterId);
-	if (isPinned && PinnedLimitReached(controller, key, filterId)) {
+	const auto isPinned = !history->isPinnedDialog(filterId);
+	if (isPinned && PinnedLimitReached(controller, history, filterId)) {
 		return;
 	}
 
-	owner->setChatPinned(key, filterId, isPinned);
+	owner->setChatPinned(history, filterId, isPinned);
 	Api::SaveNewFilterPinned(&owner->session(), filterId);
 	if (isPinned) {
 		controller->content()->dialogsToUp();
