@@ -227,8 +227,9 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			tr::lng_group_call_copy_speaker_link(),
 			tr::lng_group_call_copy_listener_link()),
 		.stMultiSelect = &st::groupCallMultiSelect,
-		.stComment = &/*st::groupCallShareBoxComment*/st::groupCallField,
+		.stComment = &st::groupCallShareBoxComment,
 		.st = &st::groupCallShareBoxList,
+		.stLabel = &st::groupCallField,
 		.scheduleBoxStyle = scheduleStyle(),
 	});
 	*box = result.data();
