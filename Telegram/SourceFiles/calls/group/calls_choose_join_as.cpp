@@ -347,7 +347,8 @@ void ChooseJoinAsProcess::start(
 			.showBox = showBox,
 			.showToast = std::move(showToast),
 			.done = std::move(done),
-			.context = context });
+			.context = context,
+			.changingJoinAsFrom = changingJoinAsFrom });
 	};
 
 	if (isScheduled) {
