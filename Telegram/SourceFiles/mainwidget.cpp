@@ -676,7 +676,7 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 
 	_hider->confirmed(
 	) | rpl::start_with_next([=] {
-		_dialogs->onCancelSearch();
+		_dialogs->cancelSearch();
 	}, _hider->lifetime());
 
 	if (isOneColumn()) {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
@@ -14,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
-
-#include <QtCore/QTimer>
 
 namespace MTP {
 class Error;
@@ -57,7 +56,6 @@ class InnerWidget;
 enum class SearchRequestType;
 
 class Widget final : public Window::AbstractSectionWidget {
-	Q_OBJECT
 
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -86,7 +84,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	void searchMessages(const QString &query, Key inChat = {});
-	void onSearchMore();
+	void searchMore();
 
 	void updateForwardBar();
 
@@ -99,20 +97,9 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
+	bool cancelSearch();
+
 	~Widget();
-
-public Q_SLOTS:
-	void onListScroll();
-	bool onCancelSearch();
-	void onCancelSearchInChat();
-
-	void onFilterCursorMoved(int from = -1, int to = -1);
-	void onCompleteHashtag(QString tag);
-
-	bool onSearchMessages(bool searchCache = false);
-	void onNeedSearchMessages();
-
-	void onChooseByDrag();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -128,6 +115,14 @@ private:
 		External,
 		Internal,
 	};
+
+	void listScrollUpdated();
+	void cancelSearchInChat();
+	void filterCursorMoved(int from = -1, int to = -1);
+	void completeHashtag(QString tag);
+
+	bool searchMessages(bool searchCache = false);
+	void needSearchMessages();
 
 	void animationCallback();
 	void searchReceived(
@@ -183,7 +178,7 @@ private:
 
 	bool _dragInScroll = false;
 	bool _dragForward = false;
-	QTimer _chooseByDragTimer;
+	base::Timer _chooseByDragTimer;
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
@@ -219,7 +214,7 @@ private:
 	PeerData *_searchFromAuthor = nullptr;
 	QString _lastFilterText;
 
-	QTimer _searchTimer;
+	base::Timer _searchTimer;
 
 	QString _peerSearchQuery;
 	bool _peerSearchFull = false;
