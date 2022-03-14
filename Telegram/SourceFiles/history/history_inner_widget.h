@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
+#include "ui/dragging_scroll_manager.h" // Has base/timer.h.
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
@@ -457,7 +457,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	base::Timer _touchSelectTimer;
 
-	Ui::SelectScrollManager _selectScroll;
+	Ui::DraggingScrollManager _selectScroll;
 
 	rpl::variable<bool> _sharingDisallowed = false;
 
