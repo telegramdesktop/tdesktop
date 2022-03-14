@@ -858,7 +858,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			});
 		}).send();
 
-		if (!state->linkSpeaker.has_value()) {
+		if (real->rtmp()) {
+			state->linkSpeaker = QString();
+			state->linkSpeakerRequestId = 0;
+			shareReady();
+		} else if (!state->linkSpeaker.has_value()) {
 			using Flag = MTPphone_ExportGroupCallInvite::Flag;
 			state->linkSpeakerRequestId = peer->session().api().request(
 				MTPphone_ExportGroupCallInvite(
