@@ -124,7 +124,6 @@ InnerWidget::InnerWidget(
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 
-	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->hide();
 
@@ -1432,7 +1431,7 @@ void InnerWidget::handleChatListEntryRefreshes() {
 			&& (from != to)
 			&& (entry->folder() == _openedFolder)
 			&& (_state == WidgetState::Default)) {
-			dialogMoved(from, to);
+			_dialogMoved.fire({ from, to });
 		}
 
 		if (event.existenceChanged) {
@@ -1786,7 +1785,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				return _menu->addAction(text, std::move(callback), icon);
 			});
 	}
-	connect(_menu.get(), &QObject::destroyed, [=] {
+	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {
 			updateDialogRow(base::take(_menuRow));
 		}
@@ -1804,7 +1803,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-void InnerWidget::onParentGeometryChanged() {
+void InnerWidget::parentGeometryChanged() {
 	const auto globalPosition = QCursor::pos();
 	if (rect().contains(mapFromGlobal(globalPosition))) {
 		setMouseTracking(true);
@@ -1849,7 +1848,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 		clearMouseSelection(true);
 	}
 	if (_state != WidgetState::Default) {
-		searchMessages();
+		_searchMessages.fire({});
 	}
 }
 
@@ -1940,6 +1939,30 @@ rpl::producer<> InnerWidget::listBottomReached() const {
 
 rpl::producer<> InnerWidget::cancelSearchFromUserRequests() const {
 	return _cancelSearchFromUser->clicks() | rpl::to_empty;
+}
+
+rpl::producer<Ui::ScrollToRequest> InnerWidget::mustScrollTo() const {
+	return _mustScrollTo.events();
+}
+
+rpl::producer<Ui::ScrollToRequest> InnerWidget::dialogMoved() const {
+	return _dialogMoved.events();
+}
+
+rpl::producer<> InnerWidget::searchMessages() const {
+	return _searchMessages.events();
+}
+
+rpl::producer<> InnerWidget::cancelSearchInChatRequests() const {
+	return _cancelSearchInChat->clicks() | rpl::to_empty;
+}
+
+rpl::producer<QString> InnerWidget::completeHashtagRequests() const {
+	return _completeHashtagRequests.events();
+}
+
+rpl::producer<> InnerWidget::refreshHashtagsRequests() const {
+	return _refreshHashtagsRequests.events();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -2194,7 +2217,7 @@ void InnerWidget::refresh(bool toTop) {
 	resize(width(), h);
 	if (toTop) {
 		stopReorderPinned();
-		mustScrollTo(0, 0);
+		_mustScrollTo.fire({ 0, 0 });
 		loadPeerPhotos();
 	}
 	_controller->dialogsListDisplayForced().set(
@@ -2419,7 +2442,7 @@ void InnerWidget::selectSkip(int32 direction) {
 			const auto fromY = (_collapsedSelected >= 0)
 				? (_collapsedSelected * st::dialogsImportantBarHeight)
 				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
-			mustScrollTo(fromY, fromY + st::dialogsRowHeight);
+			_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _searchResults.empty()) {
@@ -2468,13 +2491,32 @@ void InnerWidget::selectSkip(int32 direction) {
 			}
 		}
 		if (base::in_range(_hashtagSelected, 0, _hashtagResults.size())) {
-			mustScrollTo(_hashtagSelected * st::mentionHeight, (_hashtagSelected + 1) * st::mentionHeight);
+			_mustScrollTo.fire({
+				_hashtagSelected * st::mentionHeight,
+				(_hashtagSelected + 1) * st::mentionHeight,
+			});
 		} else if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
-			mustScrollTo(filteredOffset() + _filteredSelected * st::dialogsRowHeight, filteredOffset() + (_filteredSelected + 1) * st::dialogsRowHeight);
+			_mustScrollTo.fire({
+				filteredOffset() + _filteredSelected * st::dialogsRowHeight,
+				filteredOffset()
+					+ (_filteredSelected + 1) * st::dialogsRowHeight,
+			});
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
-			mustScrollTo(peerSearchOffset() + _peerSearchSelected * st::dialogsRowHeight + (_peerSearchSelected ? 0 : -st::searchedBarHeight), peerSearchOffset() + (_peerSearchSelected + 1) * st::dialogsRowHeight);
+			_mustScrollTo.fire({
+				peerSearchOffset()
+					+ _peerSearchSelected * st::dialogsRowHeight
+					+ (_peerSearchSelected ? 0 : -st::searchedBarHeight),
+				peerSearchOffset()
+					+ (_peerSearchSelected + 1) * st::dialogsRowHeight,
+			});
 		} else {
-			mustScrollTo(searchedOffset() + _searchedSelected * st::dialogsRowHeight + (_searchedSelected ? 0 : -st::searchedBarHeight), searchedOffset() + (_searchedSelected + 1) * st::dialogsRowHeight);
+			_mustScrollTo.fire({
+				searchedOffset()
+					+ _searchedSelected * st::dialogsRowHeight
+					+ (_searchedSelected ? 0 : -st::searchedBarHeight),
+				searchedOffset()
+					+ (_searchedSelected + 1) * st::dialogsRowHeight,
+			});
 		}
 	}
 	update();
@@ -2503,7 +2545,7 @@ void InnerWidget::scrollToEntry(const RowDescriptor &entry) {
 		}
 	}
 	if (fromY >= 0) {
-		mustScrollTo(fromY, fromY + st::dialogsRowHeight);
+		_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
 	}
 }
 
@@ -2537,7 +2579,7 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 			const auto fromY = (_collapsedSelected >= 0)
 				? (_collapsedSelected * st::dialogsImportantBarHeight)
 				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
-			mustScrollTo(fromY, fromY + st::dialogsRowHeight);
+			_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
 		}
 	} else {
 		return selectSkip(direction * toSkip);
@@ -2622,7 +2664,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		filterId = 0;
 	}
 	if (_filterId == filterId) {
-		mustScrollTo(0, 0);
+		_mustScrollTo.fire({ 0, 0 });
 		return;
 	}
 	if (_openedFolder) {
@@ -2655,11 +2697,11 @@ bool InnerWidget::chooseHashtag() {
 		}
 		cSetRecentSearchHashtags(recent);
 		session().local().writeRecentHashtagsAndBots();
-		refreshHashtags();
+		_refreshHashtagsRequests.fire({});
 		selectByMouse(QCursor::pos());
 	} else {
 		session().local().saveRecentSearchHashtags('#' + hashtag->tag);
-		completeHashtag(hashtag->tag);
+		_completeHashtagRequests.fire_copy(hashtag->tag);
 	}
 	return true;
 }

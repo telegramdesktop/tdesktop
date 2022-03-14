@@ -27,6 +27,7 @@ namespace Ui {
 class IconButton;
 class PopupMenu;
 class FlatLabel;
+struct ScrollToRequest;
 } // namespace Ui
 
 namespace Window {
@@ -65,7 +66,6 @@ enum class WidgetState {
 };
 
 class InnerWidget final : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	InnerWidget(
@@ -127,22 +127,19 @@ public:
 	[[nodiscard]] rpl::producer<> updated() const;
 
 	[[nodiscard]] rpl::producer<int> scrollByDeltaRequests() const;
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> dialogMoved() const;
+	[[nodiscard]] rpl::producer<> searchMessages() const;
+	[[nodiscard]] rpl::producer<> cancelSearchInChatRequests() const;
+	[[nodiscard]] rpl::producer<QString> completeHashtagRequests() const;
+	[[nodiscard]] rpl::producer<> refreshHashtagsRequests() const;
 
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
 
 	~InnerWidget();
 
-public Q_SLOTS:
-	void onParentGeometryChanged();
-
-Q_SIGNALS:
-	void mustScrollTo(int scrollToTop, int scrollToBottom);
-	void dialogMoved(int movedFrom, int movedTo);
-	void searchMessages();
-	void cancelSearchInChat();
-	void completeHashtag(QString tag);
-	void refreshHashtags();
+	void parentGeometryChanged();
 
 protected:
 	void visibleTopBottomUpdated(
@@ -418,6 +415,12 @@ private:
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;
+
+	rpl::event_stream<Ui::ScrollToRequest> _mustScrollTo;
+	rpl::event_stream<Ui::ScrollToRequest> _dialogMoved;
+	rpl::event_stream<> _searchMessages;
+	rpl::event_stream<QString> _completeHashtagRequests;
+	rpl::event_stream<> _refreshHashtagsRequests;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

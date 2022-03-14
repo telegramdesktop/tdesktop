@@ -109,7 +109,6 @@ public Q_SLOTS:
 	void onFilterCursorMoved(int from = -1, int to = -1);
 	void onCompleteHashtag(QString tag);
 
-	void onDialogMoved(int movedFrom, int movedTo);
 	bool onSearchMessages(bool searchCache = false);
 	void onNeedSearchMessages();
 

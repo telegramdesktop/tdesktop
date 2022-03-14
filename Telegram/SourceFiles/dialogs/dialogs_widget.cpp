@@ -216,16 +216,37 @@ Widget::Widget(
 		}
 	}, lifetime());
 
-	connect(_inner, &InnerWidget::mustScrollTo, [=](int top, int bottom) {
+	_inner->mustScrollTo(
+	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
 		if (_scroll) {
-			_scroll->scrollToY(top, bottom);
+			_scroll->scrollToY(data.ymin, data.ymax);
 		}
-	});
-	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
-	connect(_inner, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
-	connect(_inner, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
-	connect(_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
-	connect(_inner, SIGNAL(cancelSearchInChat()), this, SLOT(onCancelSearchInChat()));
+	}, lifetime());
+	_inner->dialogMoved(
+	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
+		const auto movedFrom = data.ymin;
+		const auto movedTo = data.ymax;
+		const auto st = int32(_scroll->scrollTop());
+		if (st > movedTo && st < movedFrom) {
+			_scroll->scrollToY(st + st::dialogsRowHeight);
+		}
+	}, lifetime());
+	_inner->searchMessages(
+	) | rpl::start_with_next([=] {
+		onNeedSearchMessages();
+	}, lifetime());
+	_inner->cancelSearchInChatRequests(
+	) | rpl::start_with_next([=] {
+		onCancelSearchInChat();
+	}, lifetime());
+	_inner->completeHashtagRequests(
+	) | rpl::start_with_next([=](const QString &tag) {
+		onCompleteHashtag(tag);
+	}, lifetime());
+	_inner->refreshHashtagsRequests(
+	) | rpl::start_with_next([=] {
+		onFilterCursorMoved();
+	}, lifetime());
 	_inner->cancelSearchFromUserRequests(
 	) | rpl::start_with_next([=] {
 		setSearchInChat(_searchInChat, nullptr);
@@ -264,7 +285,7 @@ Widget::Widget(
 
 	_scroll->geometryChanged(
 	) | rpl::start_with_next(crl::guard(_inner, [=] {
-		_inner->onParentGeometryChanged();
+		_inner->parentGeometryChanged();
 	}), lifetime());
 	_scroll->scrolls(
 	) | rpl::start_with_next([=] {
@@ -1879,13 +1900,6 @@ void Widget::onCancelSearchInChat() {
 	applyFilterUpdate(true);
 	if (!isOneColumn && !controller()->selectingPeer()) {
 		controller()->content()->dialogsCancelled();
-	}
-}
-
-void Widget::onDialogMoved(int movedFrom, int movedTo) {
-	int32 st = _scroll->scrollTop();
-	if (st > movedTo && st < movedFrom) {
-		_scroll->scrollToY(st + st::dialogsRowHeight);
 	}
 }
 
