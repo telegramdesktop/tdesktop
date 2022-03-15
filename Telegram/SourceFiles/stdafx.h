@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 #include <vector>
+#include <deque>
 #include <set>
 #include <map>
 #include <unordered_map>
