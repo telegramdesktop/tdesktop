@@ -185,12 +185,11 @@ uniform sampler2D n_texture;
 	return {
 		.header = R"(
 uniform vec4 frameBg;
-uniform vec3 shadow; // fullHeight, shown, maxOpacity
+uniform vec4 shadow; // fullHeight, shown, maxOpacity, blur opacity
 uniform float paused; // 0. <-> 1.
 
 )" + blur.header + round.header + noise.header + R"(
 
-const float backgroundOpacity = )" + QString::number(kBlurOpacity) + R"(;
 const float noiseGrain = )" + QString::number(kDitherNoiseAmount) + R"(;
 
 float insideTexture() {
@@ -211,6 +210,7 @@ vec4 background() {
 )",
 		.body = R"(
 	float inside = insideTexture() * (1. - paused);
+	float backgroundOpacity = shadow.w;
 	result = result * inside
 		+ (1. - inside) * (backgroundOpacity * background()
 			+ (1. - backgroundOpacity) * frameBg);
@@ -780,7 +780,9 @@ void Viewport::RendererGL::paintTile(
 	const auto uniformViewport = QSizeF(_viewport * _factor);
 
 	program->setUniformValue("viewport", uniformViewport);
-	program->setUniformValue("frameBg", st::groupCallBg->c);
+	program->setUniformValue(
+		"frameBg",
+		fullscreen ? QColor(0, 0, 0) : st::groupCallBg->c);
 	program->setUniformValue("radiusOutline", QVector2D(
 		GLfloat(st::roundRadiusLarge * _factor * (fullscreen ? 0. : 1.)),
 		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
@@ -794,9 +796,11 @@ void Viewport::RendererGL::paintTile(
 
 	const auto shadowHeight = st.shadowHeight * _factor;
 	const auto shadowAlpha = kShadowMaxAlpha / 255.f;
-	program->setUniformValue(
-		"shadow",
-		QVector3D(shadowHeight, shown, shadowAlpha));
+	program->setUniformValue("shadow", QVector4D(
+		shadowHeight,
+		shown,
+		shadowAlpha,
+		fullscreen ? 0. : kBlurOpacity));
 	program->setUniformValue("paused", GLfloat(paused));
 
 	f.glActiveTexture(_rgbaFrame ? GL_TEXTURE1 : GL_TEXTURE3);

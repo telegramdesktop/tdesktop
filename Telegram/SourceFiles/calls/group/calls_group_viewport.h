@@ -71,6 +71,7 @@ public:
 
 	void setMode(PanelMode mode, not_null<QWidget*> parent);
 	void setControlsShown(float64 shown);
+	void setCursorShown(bool shown);
 	void setGeometry(bool fullscreen, QRect geometry);
 	void resizeToWidth(int newWidth);
 	void setScrollTop(int scrollTop);
@@ -176,6 +177,7 @@ private:
 	rpl::variable<int> _fullHeight = 0;
 	bool _hasTwoOrMore = false;
 	bool _fullscreen = false;
+	bool _cursorHidden = false;
 	int _scrollTop = 0;
 	QImage _shadow;
 	rpl::event_stream<VideoEndpoint> _clicks;

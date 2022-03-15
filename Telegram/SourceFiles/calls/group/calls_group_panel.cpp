@@ -92,7 +92,9 @@ Panel::Panel(not_null<GroupCall*> call)
 #ifndef Q_OS_MAC
 , _controls(Ui::Platform::SetupSeparateTitleControls(
 	window(),
-	st::callTitle))
+	st::groupCallTitle,
+	nullptr,
+	_controlsTop.value()))
 #endif // !Q_OS_MAC
 , _powerSaveBlocker(std::make_unique<base::PowerSaveBlocker>(
 	base::PowerSaveBlockType::PreventDisplaySleep,
@@ -802,7 +804,9 @@ void Panel::setupMembers() {
 	setupVideo(_viewport.get());
 	setupVideo(_members->viewport());
 	_viewport->mouseInsideValue(
-	) | rpl::start_with_next([=](bool inside) {
+	) | rpl::filter([=] {
+		return !_fullScreenOrMaximized.current();
+	}) | rpl::start_with_next([=](bool inside) {
 		toggleWideControls(inside);
 	}, _viewport->lifetime());
 
@@ -1027,6 +1031,7 @@ void Panel::updateWideControlsVisibility() {
 	if (_wideControlsShown == shown) {
 		return;
 	}
+	_viewport->setCursorShown(!_fullScreenOrMaximized.current() || shown);
 	_wideControlsShown = shown;
 	_wideControlsAnimation.start(
 		[=] { updateButtonsGeometry(); },
@@ -1168,6 +1173,12 @@ void Panel::createPinOnTop() {
 	};
 	_fullScreenOrMaximized.value(
 	) | rpl::start_with_next([=](bool fullScreenOrMaximized) {
+#ifndef Q_OS_MAC
+		_controls->controls.setStyle(fullScreenOrMaximized
+			? st::callTitle
+			: st::groupCallTitle);
+#endif // Q_OS_MAC
+
 		_pinOnTop->setVisible(!fullScreenOrMaximized);
 		if (fullScreenOrMaximized) {
 			pin(false);
@@ -1853,7 +1864,9 @@ void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
 }
 
 void Panel::trackControlOver(not_null<Ui::RpWidget*> control, bool over) {
-	if (_stickedTooltipClose) {
+	if (_fullScreenOrMaximized.current()) {
+		return;
+	} else if (_stickedTooltipClose) {
 		if (!over) {
 			return;
 		}
@@ -2428,13 +2441,14 @@ void Panel::refreshTitleGeometry() {
 		? st::groupCallTitleTop
 		: (st::groupCallWideVideoTop
 			- st::groupCallTitleLabel.style.font->height) / 2;
+	const auto shown = _fullScreenOrMaximized.current()
+		? _wideControlsAnimation.value(
+			_wideControlsShown ? 1. : 0.)
+		: 1.;
 	const auto top = anim::interpolate(
 		-_title->height() - st::boxRadius,
 		shownTop,
-		(_fullScreenOrMaximized.current()
-			? _wideControlsAnimation.value(
-				_wideControlsShown ? 1. : 0.)
-			: 1.));
+		shown);
 	const auto left = titleRect.x();
 
 	const auto notEnough = std::max(0, best - titleRect.width());
@@ -2493,6 +2507,10 @@ void Panel::refreshTitleGeometry() {
 	} else {
 		layout(left + titleRect.width() - best);
 	}
+
+#ifndef Q_OS_MAC
+	_controlsTop = anim::interpolate(-_controls->wrap.height(), 0, shown);
+#endif // Q_OS_MAC
 }
 
 void Panel::refreshTitleColors() {

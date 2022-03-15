@@ -226,6 +226,13 @@ void Viewport::setControlsShown(float64 shown) {
 	widget()->update();
 }
 
+void Viewport::setCursorShown(bool shown) {
+	if (_cursorHidden == shown) {
+		_cursorHidden = !shown;
+		updateCursor();
+	}
+}
+
 void Viewport::add(
 		const VideoEndpoint &endpoint,
 		VideoTileTrack track,
@@ -798,7 +805,11 @@ void Viewport::setSelected(Selection value) {
 
 void Viewport::updateCursor() {
 	const auto pointer = _selected.tile && (!wide() || _hasTwoOrMore);
-	widget()->setCursor(pointer ? style::cur_pointer : style::cur_default);
+	widget()->setCursor(_cursorHidden
+		? Qt::BlankCursor
+		: pointer
+		? style::cur_pointer
+		: style::cur_default);
 }
 
 void Viewport::setPressed(Selection value) {

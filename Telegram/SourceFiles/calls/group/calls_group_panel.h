@@ -204,6 +204,7 @@ private:
 	rpl::variable<bool> _fullScreenOrMaximized = false;
 
 #ifndef Q_OS_MAC
+	rpl::variable<int> _controlsTop = 0;
 	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 #endif // !Q_OS_MAC
 
