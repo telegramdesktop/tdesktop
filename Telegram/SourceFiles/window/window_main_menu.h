@@ -20,7 +20,6 @@ class UserpicButton;
 class PopupMenu;
 class ScrollArea;
 class VerticalLayout;
-class VerticalLayoutReorder;
 class RippleButton;
 class PlainShadow;
 class SettingsButton;
@@ -57,12 +56,8 @@ private:
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
-	[[nodiscard]] auto setupAddAccount(
-		not_null<Ui::VerticalLayout*> container)
-		-> not_null<Ui::SlideWrap<Ui::SettingsButton>*>;
 	void setupArchive();
 	void setupMenu();
-	void rebuildAccounts();
 	void updateControlsGeometry();
 	void updateInnerControlsGeometry();
 	void updatePhone();
@@ -75,12 +70,8 @@ private:
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _inner;
-	base::flat_map<
-		not_null<Main::Account*>,
-		base::unique_qptr<Ui::SettingsButton>> _watched;
 	not_null<Ui::RpWidget*> _topShadowSkip;
 	not_null<Ui::SlideWrap<Ui::VerticalLayout>*> _accounts;
-	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
 	not_null<Ui::SlideWrap<Ui::PlainShadow>*> _shadow;
 	not_null<Ui::VerticalLayout*> _menu;
 	not_null<Ui::RpWidget*> _footer;
@@ -90,11 +81,6 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
-
-	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
-	int _reordering = 0;
-
-	base::binary_guard _accountSwitchGuard;
 
 	QString _phoneText;
 

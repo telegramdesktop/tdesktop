@@ -90,8 +90,6 @@ settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 
-settingsSetPhotoSkip: 7px;
-
 settingsCheckbox: Checkbox(defaultBoxCheckbox) {
 	textPosition: point(15px, 1px);
 }
@@ -138,35 +136,16 @@ settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 }
 settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
 
-settingsInfoPhotoHeight: 175px;
-settingsInfoPhotoSize: 84px;
+settingsInfoPhotoHeight: 161px;
+settingsInfoPhotoSize: 100px;
 settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
 	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
 	photoSize: settingsInfoPhotoSize;
 }
-settingsInfoPhotoTop: 17px;
-settingsInfoPhotoSkip: 16px;
-settingsInfoPhotoSet: defaultActiveButton;
+settingsInfoPhotoTop: 0px;
+settingsInfoPhotoSkip: 7px;
+settingsInfoNameSkip: -1px;
 
-settingsInfoRow: SettingsButton(settingsButtonNoIcon) {
-	height: 62px;
-	padding: margins(0px, 0px, 0px, 0px);
-}
-settingsInfoIconPosition: point(22px, 18px);
-settingsInfoValue: FlatLabel(defaultFlatLabel) {
-	textFg: windowFg;
-	style: boxTextStyle;
-	maxHeight: 20px;
-}
-settingsInfoValuePosition: point(78px, 14px);
-settingsInfoAbout: FlatLabel(settingsInfoValue) {
-	textFg: windowSubTextFg;
-	style: defaultTextStyle;
-}
-settingsInfoAboutPosition: point(78px, 34px);
-settingsInfoRightSkip: 60px;
-settingsInfoEditRight: 14px;
-settingsInfoEditIconOver: icon {{ "settings/settings_edit", menuIconFgOver }};
 settingsBio: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(0px, 7px, 0px, 13px);
@@ -178,21 +157,31 @@ settingsBio: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 
+	border: 0px;
+	borderActive: 0px;
+
 	heightMin: 32px;
 
 	font: boxTextFont;
 }
 settingsInfoAfterSkip: 14px;
-settingsInfoName: icon {{ "settings/settings_name", menuIconFg }};
-settingsInfoPhone: icon {{ "settings/settings_phone_number", menuIconFg }};
-settingsInfoUsername: icon {{ "settings/settings_username", menuIconFg }};
 
-settingsBioMargins: margins(20px, 6px, 20px, 6px);
+settingsBioMargins: margins(22px, 6px, 22px, 4px);
 settingsBioCountdown: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 	textFg: windowSubTextFg;
 }
-settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);
+
+settingsCoverName: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold);
+	}
+}
+settingsCoverStatus: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
 
 settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
 
