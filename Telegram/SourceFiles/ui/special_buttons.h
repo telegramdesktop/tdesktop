@@ -63,6 +63,7 @@ private:
 class UserpicButton : public RippleButton {
 public:
 	enum class Role {
+		ChoosePhoto,
 		ChangePhoto,
 		OpenPhoto,
 		OpenProfile,
@@ -96,11 +97,21 @@ public:
 	void switchChangePhotoOverlay(bool enabled);
 	void showSavedMessagesOnSelf(bool enabled);
 
-	rpl::producer<> uploadPhotoRequests() const;
+	// Role::ChoosePhoto
+	[[nodiscard]] rpl::producer<QImage> chosenImages() const {
+		return _chosenImages.events();
+	}
 
-	QImage takeResultImage() {
+	// Role::ChangePhoto
+	[[nodiscard]] rpl::producer<> uploadPhotoRequests() const {
+		return _uploadPhotoRequests.events();
+	}
+	[[nodiscard]] QImage takeResultImage() {
 		return std::move(_result);
 	}
+
+	// For Role::OpenPhoto as if it is Role::ChangePhoto.
+	void changeTo(QImage &&image);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -140,6 +151,7 @@ private:
 	void grabOldUserpic();
 	void setClickHandlerByRole();
 	void openPeerPhoto();
+	void choosePhotoLocally();
 	void changePhotoLocally(bool requestToUpload = false);
 
 	const style::UserpicButton &_st;
@@ -154,6 +166,7 @@ private:
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
 	bool _userpicCustom = false;
+	bool _requestToUpload = false;
 	InMemoryKey _userpicUniqueKey;
 	Ui::Animations::Simple _a_appearance;
 	QImage _result;
@@ -168,6 +181,7 @@ private:
 	bool _changeOverlayEnabled = false;
 	Ui::Animations::Simple _changeOverlayShown;
 
+	rpl::event_stream<QImage> _chosenImages;
 	rpl::event_stream<> _uploadPhotoRequests;
 
 };

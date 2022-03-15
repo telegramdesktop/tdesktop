@@ -113,7 +113,6 @@ Cover::Cover(
 	setupChildGeometry();
 
 	_userpic->switchChangePhotoOverlay(_user->isSelf());
-
 	_userpic->uploadPhotoRequests(
 	) | rpl::start_with_next([=] {
 		_user->session().api().peerPhoto().upload(

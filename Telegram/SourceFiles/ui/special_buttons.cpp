@@ -190,7 +190,7 @@ UserpicButton::UserpicButton(
 , _window(window)
 , _cropTitle(cropTitle)
 , _role(role) {
-	Expects(_role == Role::ChangePhoto);
+	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
 	_waiting = false;
 	prepare();
@@ -239,10 +239,24 @@ void UserpicButton::prepare() {
 		prepareUserpicPixmap();
 	}
 	setClickHandlerByRole();
+
+	if (_role == Role::ChangePhoto) {
+		chosenImages(
+		) | rpl::start_with_next([=](QImage &&image) {
+			setImage(std::move(image));
+			if (_requestToUpload) {
+				_uploadPhotoRequests.fire({});
+			}
+		}, lifetime());
+	}
 }
 
 void UserpicButton::setClickHandlerByRole() {
 	switch (_role) {
+	case Role::ChoosePhoto:
+		addClickHandler([=] { choosePhotoLocally(); });
+		break;
+
 	case Role::ChangePhoto:
 		addClickHandler([=] { changePhotoLocally(); });
 		break;
@@ -263,25 +277,26 @@ void UserpicButton::setClickHandlerByRole() {
 	}
 }
 
-void UserpicButton::changePhotoLocally(bool requestToUpload) {
+void UserpicButton::changeTo(QImage &&image) {
+	setImage(std::move(image));
+}
+
+void UserpicButton::choosePhotoLocally() {
 	if (!_window) {
 		return;
 	}
 	auto callback = [=](QImage &&image) {
-		setImage(std::move(image));
-		if (requestToUpload) {
-			_uploadPhotoRequests.fire({});
-		}
+		_chosenImages.fire(std::move(image));
 	};
 	const auto chooseFile = [=] {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
-				Editor::PrepareProfilePhotoFromFile(
+			Editor::PrepareProfilePhotoFromFile(
 				this,
 				_window,
 				callback);
-			}));
+		}));
 	};
 	if (!IsCameraAvailable()) {
 		chooseFile();
@@ -293,6 +308,11 @@ void UserpicButton::changePhotoLocally(bool requestToUpload) {
 		});
 		_menu->popup(QCursor::pos());
 	}
+}
+
+void UserpicButton::changePhotoLocally(bool requestToUpload) {
+	_requestToUpload = requestToUpload;
+	choosePhotoLocally();
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -368,7 +388,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 		paintUserpicFrame(p, photoPosition);
 	}
 
-	if (_role == Role::ChangePhoto) {
+	if (_role == Role::ChangePhoto || _role == Role::ChoosePhoto) {
 		auto over = isOver() || isDown();
 		if (over) {
 			PainterHighQualityEnabler hq(p);
@@ -787,10 +807,6 @@ void UserpicButton::prepareUserpicPixmap() {
 	_userpicUniqueKey = _userpicHasImage
 		? _peer->userpicUniqueKey(_userpicView)
 		: InMemoryKey();
-}
-
-rpl::producer<> UserpicButton::uploadPhotoRequests() const {
-	return _uploadPhotoRequests.events();
 }
 
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)

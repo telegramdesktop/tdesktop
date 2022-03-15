@@ -111,6 +111,40 @@ private:
 	};
 }
 
+[[nodiscard]] not_null<Ui::UserpicButton*> CreateUploadButton(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller) {
+	const auto background = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	const auto upload = Ui::CreateChild<Ui::UserpicButton>(
+		parent.get(),
+		&controller->window(),
+		tr::lng_settings_crop_profile(tr::now),
+		Ui::UserpicButton::Role::ChoosePhoto,
+		st::settingsInfoUpload);
+
+	const auto border = st::settingsInfoUploadBorder;
+	const auto size = upload->rect().marginsAdded(
+		{ border, border, border, border }
+	).size();
+
+	background->resize(size);
+	background->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(background);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::boxBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(background->rect());
+	}, background->lifetime());
+
+	upload->positionValue(
+	) | rpl::start_with_next([=](QPoint position) {
+		background->move(position - QPoint(border, border));
+	}, background->lifetime());
+
+	return upload;
+}
+
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -124,6 +158,15 @@ void SetupPhoto(
 		self,
 		Ui::UserpicButton::Role::OpenPhoto,
 		st::settingsInfoPhoto);
+	const auto upload = CreateUploadButton(wrap, controller);
+
+	upload->chosenImages(
+	) | rpl::start_with_next([=](QImage &&image) {
+		self->session().api().peerPhoto().upload(
+			self,
+			base::duplicate(image));
+		photo->changeTo(std::move(image));
+	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		wrap,
@@ -146,6 +189,12 @@ void SetupPhoto(
 		photo->moveToLeft(
 			(max - photoWidth) / 2,
 			st::settingsInfoPhotoTop);
+		upload->moveToLeft(
+			((max - photoWidth) / 2
+				+ photoWidth
+				- upload->width()
+				+ st::settingsInfoUploadLeft),
+			photo->y() + photo->height() - upload->height());
 		name->moveToLeft(
 			(max - nameWidth) / 2,
 			(photo->y() + photo->height() + st::settingsInfoPhotoSkip));
