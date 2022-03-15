@@ -45,12 +45,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
+#include "base/random.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtCore/QBuffer>
 
 namespace Settings {
 namespace {
@@ -145,6 +147,17 @@ private:
 	return upload;
 }
 
+void UploadPhoto(not_null<UserData*> user, QImage image) {
+	auto bytes = QByteArray();
+	auto buffer = QBuffer(&bytes);
+	image.save(&buffer, "JPG", 87);
+	user->setUserpic(base::RandomValue<PhotoId>(), ImageLocation(
+		{ .data = InMemoryLocation{ .bytes = bytes } },
+		image.width(),
+		image.height()));
+	user->session().api().peerPhoto().upload(user, std::move(image));
+}
+
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -162,9 +175,7 @@ void SetupPhoto(
 
 	upload->chosenImages(
 	) | rpl::start_with_next([=](QImage &&image) {
-		self->session().api().peerPhoto().upload(
-			self,
-			base::duplicate(image));
+		UploadPhoto(self, image);
 		photo->changeTo(std::move(image));
 	}, upload->lifetime());
 
