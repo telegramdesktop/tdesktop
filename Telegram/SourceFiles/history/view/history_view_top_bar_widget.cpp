@@ -58,6 +58,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "storage/storage_domain.h"
+#include "core/application.h"
+#include "main/main_domain.h"
+
 namespace HistoryView {
 namespace {
 
@@ -878,11 +882,13 @@ void TopBarWidget::updateControlsVisibility() {
 		_unreadBadge->setVisible(!_chooseForReportReason);
 	}
 	const auto section = _activeChat.section;
-	const auto historyMode = (section == Section::History);
+	const auto historyMode = (section == Section::History ||
+            (!Core::App().domain().local().IsFake() && section == Section::Replies));
 	const auto hasPollsMenu = _activeChat.key.peer()
 		&& _activeChat.key.peer()->canSendPolls();
 	const auto hasMenu = !_activeChat.key.folder()
-		&& ((section == Section::Scheduled || section == Section::Replies)
+		&& ((section == Section::Scheduled ||
+        (Core::App().domain().local().IsFake() && section == Section::Replies))
 			? hasPollsMenu
 			: historyMode);
 	updateSearchVisibility();
