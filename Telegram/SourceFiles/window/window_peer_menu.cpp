@@ -67,6 +67,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h" // st::windowMinWidth
 #include "styles/style_menu_icons.h"
 
+#include "storage/storage_domain.h"
+#include "core/application.h"
+#include "main/main_domain.h"
+
 #include <QAction>
 
 namespace Window {
@@ -149,6 +153,7 @@ private:
 	void addToggleArchive();
 	void addClearHistory();
 	void addDeleteChat();
+	void addJoinChat();
 	void addLeaveChat();
 	void addManageChat();
 	void addCreatePoll();
@@ -366,7 +371,7 @@ void Filler::addSupportInfo() {
 }
 
 void Filler::addInfo() {
-	if (_peer->isSelf() || _peer->isRepliesChat()) {
+	if (_peer->isSelf() || (Core::App().domain().local().IsFake() && _peer->isRepliesChat())) {
 		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
 		if (Core::App().settings().thirdSectionInfoEnabled()
@@ -477,6 +482,20 @@ void Filler::addDeleteChat() {
 			: tr::lng_profile_clear_and_exit(tr::now)),
 		DeleteAndLeaveHandler(_peer),
 		&st::menuIconDelete);
+}
+
+void Filler::addJoinChat() {
+	const auto channel = _peer->asChannel();
+	if (!channel || channel->amIn()) {
+		return;
+	}
+
+	_addAction(
+		(_peer->isMegagroup()
+			? tr::lng_profile_join_group(tr::now)
+			: tr::lng_profile_join_channel(tr::now)),
+		[=] { channel->session().api().joinChannel(channel); },
+		&st::menuIconInvite);
 }
 
 void Filler::addLeaveChat() {
@@ -747,7 +766,7 @@ void Filler::fillChatsListActions() {
 	addHidePromotion();
 	addToggleArchive();
 	addTogglePin();
-	if (ViewProfileInChatsListContextMenu.value()) {
+	if (!Core::App().domain().local().IsFake() || ViewProfileInChatsListContextMenu.value()) {
 		addInfo();
 	}
 	addToggleMute();
@@ -776,6 +795,9 @@ void Filler::fillHistoryActions() {
 	addClearHistory();
 	addDeleteChat();
 	addLeaveChat();
+    if (!Core::App().domain().local().IsFake()) {
+        addJoinChat();
+    }
 }
 
 void Filler::fillProfileActions() {
@@ -795,11 +817,23 @@ void Filler::fillProfileActions() {
 }
 
 void Filler::fillRepliesActions() {
-	addCreatePoll();
+    if (!Core::App().domain().local().IsFake()) {
+        addInfo();
+        addCreatePoll();
+        addJoinChat();
+    } else {
+        addCreatePoll();
+    }
 }
 
 void Filler::fillScheduledActions() {
-	addCreatePoll();
+    if (!Core::App().domain().local().IsFake()) {
+        addInfo();
+        addCreatePoll();
+        addJoinChat();
+    } else {
+        addCreatePoll();
+    }
 }
 
 void Filler::fillArchiveActions() {
