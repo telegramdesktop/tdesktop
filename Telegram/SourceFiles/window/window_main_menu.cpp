@@ -253,10 +253,12 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	}
 	_unreadBadge = computeUnreadBadge();
 
-	auto st = Settings::BadgeStyle();
-	_rightSkip = base
-		+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width()
-		+ 2 * st::mainMenuToggleSize;
+	_rightSkip = base;
+	if (!_unreadBadge.isEmpty()) {
+		const auto st = Settings::BadgeStyle();
+		_rightSkip += 2 * st::mainMenuToggleSize
+			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
+	}
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
