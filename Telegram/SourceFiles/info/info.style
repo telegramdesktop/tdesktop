@@ -189,6 +189,7 @@ infoLayerTopBarBack: IconButton(infoTopBarBack) {
 	rippleAreaPosition: point(6px, 8px);
 }
 infoLayerTopBarMediaCancel: IconButton(infoLayerTopBarBack) {
+	width: 48px;
 	icon: icon {{ "info/info_close", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_close", boxTitleCloseFgOver }};
 }

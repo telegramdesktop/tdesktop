@@ -183,6 +183,7 @@ settingsBioCountdown: FlatLabel(defaultFlatLabel) {
 }
 
 settingsCoverName: FlatLabel(defaultFlatLabel) {
+	maxHeight: 24px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
 		linkFont: font(17px semibold);

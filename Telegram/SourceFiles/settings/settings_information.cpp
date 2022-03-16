@@ -190,12 +190,12 @@ void SetupPhoto(
 	rpl::combine(
 		wrap->widthValue(),
 		photo->widthValue(),
-		name->widthValue(),
+		Info::Profile::NameValue(self),
 		status->widthValue()
 	) | rpl::start_with_next([=](
 			int max,
 			int photoWidth,
-			int nameWidth,
+			const TextWithEntities&,
 			int statusWidth) {
 		photo->moveToLeft(
 			(max - photoWidth) / 2,
@@ -206,8 +206,10 @@ void SetupPhoto(
 				- upload->width()
 				+ st::settingsInfoUploadLeft),
 			photo->y() + photo->height() - upload->height());
+		const auto skip = st::settingsButton.iconLeft;
+		name->resizeToNaturalWidth(max - 2 * skip);
 		name->moveToLeft(
-			(max - nameWidth) / 2,
+			(max - name->width()) / 2,
 			(photo->y() + photo->height() + st::settingsInfoPhotoSkip));
 		status->moveToLeft(
 			(max - statusWidth) / 2,
