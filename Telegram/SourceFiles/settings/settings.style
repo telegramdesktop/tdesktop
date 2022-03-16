@@ -89,6 +89,7 @@ settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
 settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
+settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 
 settingsCheckbox: Checkbox(defaultBoxCheckbox) {
 	textPosition: point(15px, 1px);
