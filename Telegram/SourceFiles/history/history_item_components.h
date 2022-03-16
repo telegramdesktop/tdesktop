@@ -154,8 +154,13 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	// Must be called before destructor.
 	void clearData(not_null<HistoryMessage*> holder);
 
-	bool isNameUpdated() const;
-	void updateName() const;
+	[[nodiscard]] PeerData *replyToFrom(
+		not_null<HistoryMessage*> holder) const;
+	[[nodiscard]] QString replyToFromName(
+		not_null<HistoryMessage*> holder) const;
+	[[nodiscard]] QString replyToFromName(not_null<PeerData*> peer) const;
+	[[nodiscard]] bool isNameUpdated(not_null<HistoryMessage*> holder) const;
+	void updateName(not_null<HistoryMessage*> holder) const;
 	void resize(int width) const;
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
 

@@ -244,7 +244,7 @@ bool HistoryMessageReply::updateData(
 			replyToMsg->inReplyText(),
 			Ui::DialogTextOptions());
 
-		updateName();
+		updateName(holder);
 
 		setReplyToLinkFrom(holder);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
@@ -283,25 +283,60 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	refreshReplyToMedia();
 }
 
-bool HistoryMessageReply::isNameUpdated() const {
-	if (replyToMsg && replyToMsg->author()->nameVersion > replyToVersion) {
-		updateName();
-		return true;
+PeerData *HistoryMessageReply::replyToFrom(
+		not_null<HistoryMessage*> holder) const {
+	if (!replyToMsg) {
+		return nullptr;
+	} else if (holder->Has<HistoryMessageForwarded>()) {
+		if (const auto fwd = replyToMsg->Get<HistoryMessageForwarded>()) {
+			return fwd->originalSender;
+		}
+	}
+	if (const auto from = replyToMsg->displayFrom()) {
+		return from;
+	}
+	return replyToMsg->author().get();
+}
+
+QString HistoryMessageReply::replyToFromName(
+		not_null<HistoryMessage*> holder) const {
+	if (!replyToMsg) {
+		return QString();
+	} else if (holder->Has<HistoryMessageForwarded>()) {
+		if (const auto fwd = replyToMsg->Get<HistoryMessageForwarded>()) {
+			return fwd->originalSender
+				? replyToFromName(fwd->originalSender)
+				: fwd->hiddenSenderInfo->name;
+		}
+	}
+	if (const auto from = replyToMsg->displayFrom()) {
+		return replyToFromName(from);
+	}
+	return replyToFromName(replyToMsg->author());
+}
+
+QString HistoryMessageReply::replyToFromName(
+		not_null<PeerData*> peer) const {
+	if (const auto user = replyToVia ? peer->asUser() : nullptr) {
+		return user->firstName;
+	}
+	return peer->name;
+}
+
+bool HistoryMessageReply::isNameUpdated(
+		not_null<HistoryMessage*> holder) const {
+	if (const auto from = replyToFrom(holder)) {
+		if (from->nameVersion > replyToVersion) {
+			updateName(holder);
+			return true;
+		}
 	}
 	return false;
 }
 
-void HistoryMessageReply::updateName() const {
-	if (replyToMsg) {
-		const auto from = [&] {
-			if (const auto from = replyToMsg->displayFrom()) {
-				return from;
-			}
-			return replyToMsg->author().get();
-		}();
-		const auto name = (replyToVia && from->isUser())
-			? from->asUser()->firstName
-			: from->name;
+void HistoryMessageReply::updateName(
+		not_null<HistoryMessage*> holder) const {
+	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
 		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
