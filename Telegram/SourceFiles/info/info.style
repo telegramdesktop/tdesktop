@@ -92,7 +92,7 @@ infoTopBarBackIcon: icon {{ "info/info_back", boxTitleCloseFg }};
 infoTopBarBackIconOver: icon {{ "info/info_back", boxTitleCloseFgOver }};
 infoTopBarHeight: 54px;
 infoTopBarBack: IconButton(defaultIconButton) {
-	width: 70px;
+	width: 60px;
 	height: infoTopBarHeight;
 
 	icon: infoTopBarBackIcon;
@@ -158,7 +158,7 @@ infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
 	title: infoTopBarTitle;
-	titlePosition: point(22px, 18px);
+	titlePosition: point(24px, 17px);
 	bg: windowBg;
 	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
@@ -179,7 +179,7 @@ infoLayerTopBarHeight: 56px;
 infoLayerTopBarBackIcon: icon {{ "info/info_back", boxTitleCloseFg }};
 infoLayerTopBarBackIconOver: icon {{ "info/info_back", boxTitleCloseFgOver }};
 infoLayerTopBarBack: IconButton(infoTopBarBack) {
-	width: 48px;
+	width: 60px;
 	height: infoLayerTopBarHeight;
 
 	iconPosition: point(10px, -1px);
@@ -222,7 +222,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;
-	titlePosition: point(24px, 18px);
+	titlePosition: point(24px, 17px);
 	bg: boxBg;
 	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
