@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_web_page.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -61,6 +62,28 @@ constexpr auto ByDocument = [](const auto &entry) {
 		return channel->access;
 	}
 	return 0;
+}
+
+[[nodiscard]] PhotoData *ItemPhoto(not_null<HistoryItem*> item) {
+	if (const auto media = item->media()) {
+		if (const auto page = media->webpage()) {
+			return page->document ? nullptr : page->photo;
+		} else if (const auto photo = media->photo()) {
+			return photo;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] DocumentData *ItemDocument(not_null<HistoryItem*> item) {
+	if (const auto media = item->media()) {
+		if (const auto page = media->webpage()) {
+			return page->document;
+		} else if (const auto document = media->document()) {
+			return document;
+		}
+	}
+	return nullptr;
 }
 
 struct DocumentDescriptor {
@@ -219,9 +242,8 @@ void DownloadManager::check(
 		std::vector<DownloadingId>::iterator i) {
 	auto &entry = *i;
 
-	const auto media = entry.object.item->media();
-	const auto photo = media ? media->photo() : nullptr;
-	const auto document = media ? media->document() : nullptr;
+	const auto photo = ItemPhoto(entry.object.item);
+	const auto document = ItemDocument(entry.object.item);
 	if (entry.object.photo != photo || entry.object.document != document) {
 		cancel(data, i);
 		return;
