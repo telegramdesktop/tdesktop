@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_download_manager.h"
 #include "base/timer.h"
 #include "base/event_filter.h"
 #include "base/concurrent_timer.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
+#include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/crash_reports.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -141,6 +143,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
+, _downloadManager(std::make_unique<Data::DownloadManager>())
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
 , _calls(std::make_unique<Calls::Instance>())
@@ -351,15 +354,17 @@ void Application::showOpenGLCrashNotification() {
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
-	_primaryWindow->show(Box<Ui::ConfirmBox>(
+	_primaryWindow->show(Ui::MakeConfirmBox({
+		.text = ""
 		"There may be a problem with your graphics drivers and OpenGL. "
 		"Try updating your drivers.\n\n"
 		"OpenGL has been disabled. You can try to enable it again "
 		"or keep it disabled if crashes continue.",
-		"Enable",
-		"Keep Disabled",
-		enable,
-		keepDisabled));
+		.confirmed = enable,
+		.cancelled = keepDisabled,
+		.confirmText = "Enable",
+		.cancelText = "Keep Disabled",
+	}));
 }
 
 void Application::startDomain() {
@@ -546,9 +551,12 @@ void Application::badMtprotoConfigurationError() {
 				settings().proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
-		_badProxyDisableBox = Ui::show(Box<Ui::InformBox>(
-			Lang::Hard::ProxyConfigError(),
-			disableCallback));
+		_badProxyDisableBox = Ui::show(
+			Ui::MakeInformBox(Lang::Hard::ProxyConfigError()));
+		_badProxyDisableBox->boxClosing(
+		) | rpl::start_with_next(
+			disableCallback,
+			_badProxyDisableBox->lifetime());
 	}
 }
 
@@ -664,6 +672,10 @@ void Application::logoutWithChecks(Main::Account *account) {
 		_exportManager->stopWithConfirmation(retry);
 	} else if (account->session().uploadsInProgress()) {
 		account->session().uploadsStopWithConfirmation(retry);
+	} else if (_downloadManager->loadingInProgress(&account->session())) {
+		_downloadManager->loadingStopWithConfirmation(
+			retry,
+			&account->session());
 	} else {
 		logout(account);
 	}
@@ -693,9 +705,11 @@ void Application::logoutWithChecksAndClear(Main::Account* account) {
 void Application::forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation) {
-	const auto box = Ui::show(Box<Ui::InformBox>(
-		explanation,
-		tr::lng_passcode_logout(tr::now)));
+	const auto box = Ui::show(Ui::MakeConfirmBox({
+		.text = explanation,
+		.confirmText = tr::lng_passcode_logout(tr::now),
+		.inform = true,
+	}));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
 	const auto weak = base::make_weak(account.get());
@@ -823,8 +837,18 @@ bool Application::uploadPreventsQuit() {
 	return false;
 }
 
+bool Application::downloadPreventsQuit() {
+	if (_downloadManager->loadingInProgress()) {
+		_downloadManager->loadingStopWithConfirmation([=] { Quit(); });
+		return true;
+	}
+	return false;
+}
+
 bool Application::preventsQuit(QuitReason reason) {
-	if (exportPreventsQuit() || uploadPreventsQuit()) {
+	if (exportPreventsQuit()
+		|| uploadPreventsQuit()
+		|| downloadPreventsQuit()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
@@ -922,7 +946,10 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
-	const auto controller = _primaryWindow
+	const auto my = context.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get()
+		? my.sessionWindow.get()
+		: _primaryWindow
 		? _primaryWindow->sessionController()
 		: nullptr;
 

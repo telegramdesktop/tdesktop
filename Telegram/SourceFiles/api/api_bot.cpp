@@ -100,7 +100,7 @@ void SendBotCallbackData(
 
 		if (!message.isEmpty()) {
 			if (showAlert) {
-				Ui::show(Box<Ui::InformBox>(message));
+				Ui::show(Ui::MakeInformBox(message));
 			} else {
 				if (withPassword) {
 					Ui::hideLayer();

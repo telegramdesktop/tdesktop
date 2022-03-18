@@ -27,6 +27,10 @@ namespace Settings {
 struct Tag;
 } // namespace Settings
 
+namespace Downloads {
+struct Tag;
+} // namespace Downloads
+
 class ContentMemento;
 class WrapWidget;
 

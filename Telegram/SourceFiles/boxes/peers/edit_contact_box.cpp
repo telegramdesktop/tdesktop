@@ -65,13 +65,12 @@ void SendRequest(
 			user->setSettings(*settings & ~flags);
 		}
 		if (box) {
+			if (!wasContact) {
+				Ui::Toast::Show(
+					Ui::BoxShow(box.data()).toastParent(),
+					tr::lng_new_contact_add_done(tr::now, lt_user, first));
+			}
 			box->closeBox();
-		}
-		if (!wasContact) {
-			Ui::Toast::Show(tr::lng_new_contact_add_done(
-				tr::now,
-				lt_user,
-				first));
 		}
 	}).send();
 }

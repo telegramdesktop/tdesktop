@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class UsernameInput;
 class LinkButton;
+class FlatLabel;
 } // namespace Ui
 
 namespace Main {
@@ -47,20 +48,19 @@ private:
 	void updateLinkText();
 
 	const not_null<Main::Session*> _session;
-	const style::TextStyle &_textStyle;
 	const style::font &_font;
 	const style::margins &_padding;
 	const int _textCenterTop;
 	MTP::Sender _api;
 
 	object_ptr<Ui::UsernameInput> _username;
+	object_ptr<Ui::FlatLabel> _about;
 	object_ptr<Ui::LinkButton> _link;
 
 	mtpRequestId _saveRequestId = 0;
 	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
-	Ui::Text::String _about;
 	base::Timer _checkTimer;
 
 };

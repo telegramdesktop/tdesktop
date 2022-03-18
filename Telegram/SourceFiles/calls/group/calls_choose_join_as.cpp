@@ -165,9 +165,9 @@ void ScheduleGroupCallBox(
 
 	using namespace rpl::mappers;
 	*duration = rpl::combine(
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::timer_each(kLabelRefreshInterval)),
+		rpl::single(rpl::empty) | rpl::then(
+			base::timer_each(kLabelRefreshInterval)
+		),
 		std::move(descriptor.values) | rpl::filter(_1 != 0),
 		_2
 	) | rpl::map([](TimeId date) {
@@ -243,7 +243,8 @@ void ChooseJoinAsBox(
 	auto next = (context == Context::Switch)
 		? tr::lng_settings_save()
 		: tr::lng_continue();
-	if (context == Context::Create) {
+#if 0
+	if ((context == Context::Create)) {
 		const auto makeLink = [](const QString &text) {
 			return Ui::Text::Link(text);
 		};
@@ -264,6 +265,7 @@ void ChooseJoinAsBox(
 			return false;
 		});
 	}
+#endif
 	box->addButton(std::move(next), [=] {
 		auto copy = info;
 		copy.joinAs = controller->selected();
@@ -321,45 +323,60 @@ void ChooseJoinAsProcess::start(
 		PeerData *changingJoinAsFrom) {
 	Expects(done != nullptr);
 
+	const auto isScheduled = (context == Context::CreateScheduled);
+
 	const auto session = &peer->session();
 	if (_request) {
-		if (_request->peer == peer) {
+		if (_request->peer == peer && !isScheduled) {
 			_request->context = context;
 			_request->showBox = std::move(showBox);
 			_request->showToast = std::move(showToast);
 			_request->done = std::move(done);
+			_request->changingJoinAsFrom = changingJoinAsFrom;
 			return;
 		}
 		session->api().request(_request->id).cancel();
 		_request = nullptr;
 	}
-	_request = std::make_unique<ChannelsListRequest>(
-		ChannelsListRequest{
+
+	const auto createRequest = [=,
+			showToast = std::move(showToast),
+			done = std::move(done)] {
+		_request = std::make_unique<ChannelsListRequest>(ChannelsListRequest{
 			.peer = peer,
-			.showBox = std::move(showBox),
+			.showBox = showBox,
 			.showToast = std::move(showToast),
 			.done = std::move(done),
-			.context = context });
+			.context = context,
+			.changingJoinAsFrom = changingJoinAsFrom });
+	};
+
+	if (isScheduled) {
+		auto box = Box(
+			ScheduleGroupCallBox,
+			JoinInfo{ .peer = peer, .joinAs = peer },
+			[=, createRequest = std::move(createRequest)](JoinInfo info) {
+				createRequest();
+				finish(info);
+			});
+		showBox(std::move(box));
+		return;
+	}
+
+	createRequest();
 	session->account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
 
-	const auto finish = [=](JoinInfo info) {
-		const auto done = std::move(_request->done);
-		const auto box = _request->box;
-		_request = nullptr;
-		done(std::move(info));
-		if (const auto strong = box.data()) {
-			strong->closeBox();
-		}
-	};
+	requestList();
+}
+
+void ChooseJoinAsProcess::requestList() {
+	const auto session = &_request->peer->session();
 	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
 		_request->peer->input
 	)).done([=](const MTPphone_JoinAsPeers &result) {
-		const auto peer = _request->peer;
-		const auto self = peer->session().user();
-		auto info = JoinInfo{ .peer = peer, .joinAs = self };
 		auto list = result.match([&](const MTPDphone_joinAsPeers &data) {
 			session->data().processUsers(data.vusers());
 			session->data().processChats(data.vchats());
@@ -376,90 +393,101 @@ void ChooseJoinAsProcess::start(
 			}
 			return list;
 		});
-		const auto selectedId = peer->groupCallDefaultJoinAs();
-		if (list.empty()) {
-			_request->showToast(Lang::Hard::ServerError());
+		processList(std::move(list));
+	}).fail([=] {
+		finish({
+			.peer = _request->peer,
+			.joinAs = _request->peer->session().user(),
+		});
+	}).send();
+}
+
+void ChooseJoinAsProcess::finish(JoinInfo info) {
+	const auto done = std::move(_request->done);
+	const auto box = _request->box;
+	_request = nullptr;
+	done(std::move(info));
+	if (const auto strong = box.data()) {
+		strong->closeBox();
+	}
+}
+
+void ChooseJoinAsProcess::processList(
+		std::vector<not_null<PeerData*>> &&list) {
+	const auto session = &_request->peer->session();
+	const auto peer = _request->peer;
+	const auto self = peer->session().user();
+	auto info = JoinInfo{ .peer = peer, .joinAs = self };
+	const auto selectedId = peer->groupCallDefaultJoinAs();
+	if (list.empty()) {
+		_request->showToast(Lang::Hard::ServerError());
+		return;
+	}
+	info.joinAs = [&]() -> not_null<PeerData*> {
+		const auto loaded = selectedId
+			? session->data().peerLoaded(selectedId)
+			: nullptr;
+		const auto changingJoinAsFrom = _request->changingJoinAsFrom;
+		return (changingJoinAsFrom
+			&& ranges::contains(list, not_null{ changingJoinAsFrom }))
+			? not_null(changingJoinAsFrom)
+			: (loaded && ranges::contains(list, not_null{ loaded }))
+			? not_null(loaded)
+			: ranges::contains(list, self)
+			? self
+			: list.front();
+	}();
+	info.possibleJoinAs = std::move(list);
+
+	const auto onlyByMe = (info.possibleJoinAs.size() == 1)
+		&& (info.possibleJoinAs.front() == self);
+
+	// We already joined this voice chat, just rejoin with the same.
+	const auto byAlreadyUsed = selectedId
+		&& (info.joinAs->id == selectedId)
+		&& (peer->groupCall() != nullptr);
+
+	if (!_request->changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
+		auto confirmation = CreateOrJoinConfirmation(
+			peer,
+			_request->context,
+			byAlreadyUsed);
+		if (confirmation.text.isEmpty()) {
+			finish(info);
 			return;
 		}
-		info.joinAs = [&]() -> not_null<PeerData*> {
-			const auto loaded = selectedId
-				? session->data().peerLoaded(selectedId)
-				: nullptr;
-			return (changingJoinAsFrom
-				&& ranges::contains(list, not_null{ changingJoinAsFrom }))
-				? not_null(changingJoinAsFrom)
-				: (loaded && ranges::contains(list, not_null{ loaded }))
-				? not_null(loaded)
-				: ranges::contains(list, self)
-				? self
-				: list.front();
-		}();
-		info.possibleJoinAs = std::move(list);
-
-		const auto onlyByMe = (info.possibleJoinAs.size() == 1)
-			&& (info.possibleJoinAs.front() == self);
-
-		// We already joined this voice chat, just rejoin with the same.
-		const auto byAlreadyUsed = selectedId
-			&& (info.joinAs->id == selectedId)
-			&& (peer->groupCall() != nullptr);
-
-		if (!changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
-			auto confirmation = CreateOrJoinConfirmation(
-				peer,
-				context,
-				byAlreadyUsed);
-			if (confirmation.text.isEmpty()) {
-				finish(info);
-				return;
-			}
-			const auto livestream = peer->isBroadcast();
-			const auto creating = !peer->groupCall();
-			if (creating) {
-				confirmation
-					.append("\n\n")
-					.append(tr::lng_group_call_or_schedule(
-					tr::now,
-					lt_link,
-					Ui::Text::Link((livestream
-						? tr::lng_group_call_schedule_channel
-						: tr::lng_group_call_schedule)(tr::now)),
-					Ui::Text::WithEntities));
-			}
-			const auto guard = base::make_weak(&_request->guard);
-			const auto safeFinish = crl::guard(guard, [=] { finish(info); });
-			const auto filter = [=](const auto &...) {
-				if (guard) {
-					_request->showBox(Box(
-						ScheduleGroupCallBox,
-						info,
-						crl::guard(guard, finish)));
-				}
-				return false;
-			};
-			auto box = ConfirmBox({
-				.text = confirmation,
-				.button = (creating
-					? tr::lng_create_group_create()
-					: tr::lng_group_call_join()),
-				.callback = crl::guard(guard, [=] { finish(info); }),
-				.st = &st::boxLabel,
-				.filter = filter,
-			});
-			box->boxClosing(
-			) | rpl::start_with_next([=] {
-				_request = nullptr;
-			}, _request->lifetime);
-
-			_request->box = box.data();
-			_request->showBox(std::move(box));
-			return;
+		const auto livestream = peer->isBroadcast();
+		const auto creating = !peer->groupCall();
+		if (creating) {
+			confirmation
+				.append("\n\n")
+				.append(tr::lng_group_call_or_schedule(
+				tr::now,
+				lt_link,
+				Ui::Text::Link((livestream
+					? tr::lng_group_call_schedule_channel
+					: tr::lng_group_call_schedule)(tr::now)),
+				Ui::Text::WithEntities));
 		}
-		auto box = Box(
-			ChooseJoinAsBox,
-			context,
-			std::move(info),
-			crl::guard(&_request->guard, finish));
+		const auto guard = base::make_weak(&_request->guard);
+		const auto safeFinish = crl::guard(guard, [=] { finish(info); });
+		const auto filter = [=](const auto &...) {
+			if (guard) {
+				_request->showBox(Box(
+					ScheduleGroupCallBox,
+					info,
+					crl::guard(guard, [=](auto info) { finish(info); })));
+			}
+			return false;
+		};
+		auto box = Ui::MakeConfirmBox({
+			.text = confirmation,
+			.confirmed = crl::guard(guard, [=] { finish(info); }),
+			.confirmText = (creating
+				? tr::lng_create_group_create()
+				: tr::lng_group_call_join()),
+			.labelFilter = filter,
+		});
 		box->boxClosing(
 		) | rpl::start_with_next([=] {
 			_request = nullptr;
@@ -467,12 +495,20 @@ void ChooseJoinAsProcess::start(
 
 		_request->box = box.data();
 		_request->showBox(std::move(box));
-	}).fail([=] {
-		finish({
-			.peer = _request->peer,
-			.joinAs = _request->peer->session().user(),
-		});
-	}).send();
+		return;
+	}
+	auto box = Box(
+		ChooseJoinAsBox,
+		_request->context,
+		std::move(info),
+		crl::guard(&_request->guard, [=](auto info) { finish(info); }));
+	box->boxClosing(
+	) | rpl::start_with_next([=] {
+		_request = nullptr;
+	}, _request->lifetime);
+
+	_request->box = box.data();
+	_request->showBox(std::move(box));
 }
 
 } // namespace Calls::Group

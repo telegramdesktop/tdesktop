@@ -135,6 +135,14 @@ struct ChatPaintContext {
 		return result;
 	}
 
+	// This is supported only in unwrapped media for now.
+	enum class SkipDrawingParts {
+		None,
+		Content,
+		Surrounding,
+	};
+	SkipDrawingParts skipDrawingParts = SkipDrawingParts::None;
+
 };
 
 [[nodiscard]] int HistoryServiceMsgRadius();

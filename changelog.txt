@@ -1,3 +1,47 @@
+3.6.1 (16.03.22)
+
+- Change volume for RTMP stream from the context menu.
+- Set a profile photo from your camera.
+- Improve RTMP stream full screen mode.
+- Improve edit account section design.
+- Fix switching personal account or channel in video chats.
+- Fix pinning chats in folders with 100 chats.
+- Fix YouTube timestamp links after 10 hours.
+
+3.6 (11.03.22)
+
+- Active and recently finished downloads pop up in bar in the bottom left corner, like they do in browsers.
+- View recently downloaded files in Settings > Advanced > Downloads.
+- Get an alert before closing the app if you have unfinished downloads.
+- Share a direct t.me link to your phone number that instantly opens a chat with you.
+- Use the full number in international format, like t.me/+123456789
+- Manage Live Streams in your channels using external software like OBS Studio or XSplit Broadcaster.
+- Choose "Stream With..." when staring a video chat or live stream - then copy your Stream Key and paste it into your streaming software.
+
+3.5.6 beta (08.03.22)
+
+- Show viewers count in RTMP streams.
+- Send GIFs search results without "via @bot".
+- Display the file thumbnail in downloads bar.
+- Always try to save original photo bytes to disk.
+- Fix crash when deleting a user from your contacts list.
+
+3.5.5 beta (05.03.22)
+
+- Support stereo audio output in RTMP streams.
+- Improve RTMP stream full screen mode.
+- Fix a couple of crashes.
+
+3.5.4 beta (01.03.22)
+
+- Bug fixes and other minor improvements.
+
+3.5.3 beta (28.02.22)
+
+- Check the status of media and file downloads by clicking on the new panel in the bottom of the chats list.
+- View recently downloaded files from the new Settings > Advanced > Downloads section.
+- Manage Live Streams in your groups and channels using external software like OBS Studio or XSplit Broadcaster.
+
 3.5.2 (06.02.22)
 
 - Fix a freeze in audio playback on Linux.

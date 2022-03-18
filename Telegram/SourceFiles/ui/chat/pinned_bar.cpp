@@ -135,13 +135,15 @@ void PinnedBar::createControls() {
 				static_cast<QMouseEvent*>(event.get())->pos());
 		});
 	}) | rpl::flatten_latest(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_barClicks, _bar->widget()->lifetime());
+	) | rpl::to_empty | rpl::start_to_stream(
+		_barClicks,
+		_bar->widget()->lifetime());
 
 	_bar->widget()->move(0, 0);
 	_bar->widget()->show();
-	_wrap.entity()->resize(_wrap.entity()->width(), _bar->widget()->height());
+	_wrap.entity()->resize(
+		_wrap.entity()->width(),
+		_bar->widget()->height());
 
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {

@@ -43,11 +43,18 @@ enum class CallMuteButtonType {
 	ScheduledNotify,
 };
 
+enum class CallMuteButtonExpandType {
+	None,
+	Normal,
+	Expanded,
+};
+
 struct CallMuteButtonState {
 	QString text;
 	QString subtext;
 	QString tooltip;
 	CallMuteButtonType type = CallMuteButtonType::Connecting;
+	CallMuteButtonExpandType expandType = CallMuteButtonExpandType::None;
 };
 
 class CallMuteButton final : private AbstractTooltipShower {

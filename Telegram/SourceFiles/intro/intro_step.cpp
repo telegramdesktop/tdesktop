@@ -142,7 +142,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		|| !user.c_user().vid().v) {
 		// No idea what to do here.
 		// We could've reset intro and MTP, but this really should not happen.
-		Ui::show(Box<Ui::InformBox>(
+		Ui::show(Ui::MakeInformBox(
 			"Internal error: bad user.is_self() after sign in."));
 		return;
 	}

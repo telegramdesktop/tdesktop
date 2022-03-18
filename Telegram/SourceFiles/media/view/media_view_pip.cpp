@@ -372,6 +372,7 @@ void PipPanel::setAspectRatio(QSize ratio) {
 	if (_ratio.isEmpty()) {
 		_ratio = QSize(1, 1);
 	}
+	Ui::Platform::DisableSystemWindowResize(widget(), _ratio);
 	if (!widget()->size().isEmpty()) {
 		setPosition(countPosition());
 	}

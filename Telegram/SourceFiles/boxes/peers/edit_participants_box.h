@@ -221,6 +221,8 @@ private:
 		Role role,
 		not_null<ParticipantsAdditionalData*> additional);
 
+	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
+
 	void prepareChatRows(not_null<ChatData*> chat);
 	void rebuildChatRows(not_null<ChatData*> chat);
 	void rebuildChatParticipants(not_null<ChatData*> chat);

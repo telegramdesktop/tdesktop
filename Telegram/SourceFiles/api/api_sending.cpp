@@ -63,7 +63,8 @@ void SendExistingMedia(
 		MessageToSend &&message,
 		not_null<MediaData*> media,
 		Fn<MTPInputMedia()> inputMedia,
-		Data::FileOrigin origin) {
+		Data::FileOrigin origin,
+		std::optional<MsgId> localMessageId) {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
@@ -75,7 +76,9 @@ void SendExistingMedia(
 
 	const auto newId = FullMsgId(
 		peer->id,
-		session->data().nextLocalMessageId());
+		localMessageId
+			? (*localMessageId)
+			: session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
 
 	auto flags = NewMessageFlags(peer);
@@ -185,7 +188,8 @@ void SendExistingMedia(
 
 void SendExistingDocument(
 		MessageToSend &&message,
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		std::optional<MsgId> localMessageId) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(0),
@@ -197,7 +201,8 @@ void SendExistingDocument(
 		std::move(message),
 		document,
 		inputMedia,
-		document->stickerOrGifOrigin());
+		document->stickerOrGifOrigin(),
+		std::move(localMessageId));
 
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
@@ -206,7 +211,8 @@ void SendExistingDocument(
 
 void SendExistingPhoto(
 		MessageToSend &&message,
-		not_null<PhotoData*> photo) {
+		not_null<PhotoData*> photo,
+		std::optional<MsgId> localMessageId) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
@@ -217,7 +223,8 @@ void SendExistingPhoto(
 		std::move(message),
 		photo,
 		inputMedia,
-		Data::FileOrigin());
+		Data::FileOrigin(),
+		std::move(localMessageId));
 }
 
 bool SendDice(MessageToSend &message) {

@@ -920,11 +920,11 @@ bool Voice::updateStatusText() {
 Document::Document(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
-	not_null<DocumentData*> document,
+	DocumentFields fields,
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(delegate, parent)
-, _data(document)
-, _msgl(goToMessageClickHandler(parent))
+, _data(fields.document)
+, _msgl(parent->isHistoryEntry() ? goToMessageClickHandler(parent) : nullptr)
 , _namel(std::make_shared<DocumentOpenClickHandler>(
 	_data,
 	crl::guard(this, [=](FullMsgId id) {
@@ -933,19 +933,28 @@ Document::Document(
 	parent->fullId()))
 , _st(st)
 , _generic(::Layout::DocumentGenericPreview::Create(_data))
-, _date(langDateTime(base::unixtime::parse(_data->date)))
+, _forceFileLayout(fields.forceFileLayout)
+, _date(langDateTime(base::unixtime::parse(fields.dateOverride
+	? fields.dateOverride
+	: _data->date)))
 , _ext(_generic.ext)
 , _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(
 		st::defaultTextStyle,
-		Ui::Text::FormatSongNameFor(_data).textWithEntities(),
+		(!_forceFileLayout
+			? Ui::Text::FormatSongNameFor(_data).textWithEntities()
+			: Ui::Text::FormatDownloadsName(_data)),
 		_documentNameOptions);
 
 	AddComponents(Info::Bit());
 
 	setDocumentLinks(_data);
 
-	_status.update(Ui::FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
+	_status.update(
+		Ui::FileStatusSizeReady,
+		_data->size,
+		songLayout() ? _data->song()->duration : -1,
+		0);
 
 	if (withThumb()) {
 		_data->loadThumbnail(parent->fullId());
@@ -976,7 +985,7 @@ bool Document::downloadInCorner() const {
 
 void Document::initDimensions() {
 	_maxw = _st.maxWidth;
-	if (_data->isSong()) {
+	if (songLayout()) {
 		_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom();
 	} else {
 		_minh = _st.filePadding.top() + _st.fileThumbSize + _st.filePadding.bottom() + st::lineWidth;
@@ -1006,7 +1015,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 	const auto wthumb = withThumb();
 
-	const auto isSong = _data->isSong();
+	const auto isSong = songLayout();
 	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
@@ -1090,7 +1099,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		datetop = st::linksBorder + _st.fileDateTop;
 
 		QRect border(style::rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
-		if (!context->isAfterDate && clip.intersects(border)) {
+		if (!context->skipBorder && clip.intersects(border)) {
 			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
@@ -1187,7 +1196,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		p.drawTextLeft(nameleft, statustop, _width, _status.text());
 	}
 	if (datetop >= 0 && clip.intersects(style::rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
-		p.setFont(ClickHandler::showAsActive(_msgl) ? st::normalFont->underline() : st::normalFont);
+		p.setFont((_msgl && ClickHandler::showAsActive(_msgl))
+			? st::normalFont->underline()
+			: st::normalFont);
 		p.setPen(st::mediaInFg);
 		p.drawTextLeft(nameleft, datetop, _width, _date, _datew);
 	}
@@ -1264,7 +1275,7 @@ TextState Document::getState(
 	ensureDataMediaCreated();
 	const auto loaded = dataLoaded();
 
-	if (_data->isSong()) {
+	if (songLayout()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		const auto nameright = _st.songPadding.left();
 		const auto namewidth = std::min(
@@ -1364,6 +1375,10 @@ const style::RoundCheckbox &Document::checkboxStyle() const {
 	return st::overviewSmallCheck;
 }
 
+bool Document::songLayout() const {
+	return !_forceFileLayout && _data->isSong();
+}
+
 void Document::ensureDataMediaCreated() const {
 	if (_dataMedia) {
 		return;
@@ -1392,13 +1407,13 @@ bool Document::dataLoaded() const {
 }
 
 bool Document::iconAnimated() const {
-	return _data->isSong()
+	return songLayout()
 		|| !dataLoaded()
 		|| (_radial && _radial->animating());
 }
 
 bool Document::withThumb() const {
-	return !_data->isSong()
+	return !songLayout()
 		&& _data->hasThumbnail()
 		&& !Data::IsExecutableName(_data->filename());
 }
@@ -1419,7 +1434,8 @@ bool Document::updateStatusText() {
 		statusSize = Ui::FileStatusSizeReady;
 	}
 
-	if (_data->isSong()) {
+	const auto isSong = songLayout();
+	if (isSong) {
 		const auto state = Media::Player::instance()->getState(AudioMsgId::Type::Song);
 		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.externalPlayId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
@@ -1432,7 +1448,11 @@ bool Document::updateStatusText() {
 	}
 
 	if (statusSize != _status.size()) {
-		_status.update(statusSize, _data->size, _data->isSong() ? _data->song()->duration : -1, realDuration);
+		_status.update(
+			statusSize,
+			_data->size,
+			isSong ? _data->song()->duration : -1,
+			realDuration);
 	}
 	return showPause;
 }
@@ -1661,7 +1681,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 
 	QRect border(style::rtlrect(left, 0, w, st::linksBorder, _width));
-	if (!context->isAfterDate && clip.intersects(border)) {
+	if (!context->skipBorder && clip.intersects(border)) {
 		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
 

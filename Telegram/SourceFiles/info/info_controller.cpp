@@ -14,13 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_download_manager.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 
@@ -30,6 +33,9 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
 
 Key::Key(Settings::Tag settings) : _value(settings) {
+}
+
+Key::Key(Downloads::Tag downloads) : _value(downloads) {
 }
 
 Key::Key(not_null<PollData*> poll, FullMsgId contextId)
@@ -48,6 +54,10 @@ UserData *Key::settingsSelf() const {
 		return tag->self;
 	}
 	return nullptr;
+}
+
+bool Key::isDownloads() const {
+	return v::is<Downloads::Tag>(_value);
 }
 
 PollData *Key::poll() const {
@@ -95,6 +105,10 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 }
 
 rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
+	return rpl::single(QString());
+}
+
+rpl::producer<QString> AbstractController::searchQueryValue() const {
 	return rpl::single(QString());
 }
 
@@ -204,17 +218,18 @@ void Controller::setSection(not_null<ContentMemento*> memento) {
 void Controller::updateSearchControllers(
 		not_null<ContentMemento*> memento) {
 	using Type = Section::Type;
-	auto type = _section.type();
-	auto isMedia = (type == Type::Media);
-	auto mediaType = isMedia
+	const auto type = _section.type();
+	const auto isMedia = (type == Type::Media);
+	const auto mediaType = isMedia
 		? _section.mediaType()
 		: Section::MediaType::kCount;
-	auto hasMediaSearch = isMedia
+	const auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
-	auto hasCommonGroupsSearch
-		= (type == Type::CommonGroups);
-	auto hasMembersSearch = (type == Type::Members || type == Type::Profile);
-	auto searchQuery = memento->searchFieldQuery();
+	const auto hasCommonGroupsSearch = (type == Type::CommonGroups);
+	const auto hasDownloadsSearch = (type == Type::Downloads);
+	const auto hasMembersSearch = (type == Type::Members)
+		|| (type == Type::Profile);
+	const auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>(&session());
@@ -225,7 +240,10 @@ void Controller::updateSearchControllers(
 	} else {
 		_searchController = nullptr;
 	}
-	if (hasMediaSearch || hasCommonGroupsSearch || hasMembersSearch) {
+	if (hasMediaSearch
+		|| hasCommonGroupsSearch
+		|| hasDownloadsSearch
+		|| hasMembersSearch) {
 		_searchFieldController
 			= std::make_unique<Ui::SearchFieldController>(
 				searchQuery);
@@ -292,6 +310,10 @@ rpl::producer<QString> Controller::mediaSourceQueryValue() const {
 	return _searchController->currentQueryValue();
 }
 
+rpl::producer<QString> Controller::searchQueryValue() const {
+	return searchFieldController()->queryValue();
+}
+
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
@@ -314,18 +336,6 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 			query.type),
 		limitBefore,
 		limitAfter);
-}
-
-void Controller::setCanSaveChanges(rpl::producer<bool> can) {
-	_canSaveChanges = std::move(can);
-}
-
-rpl::producer<bool> Controller::canSaveChanges() const {
-	return _canSaveChanges.value();
-}
-
-bool Controller::canSaveChangesNow() const {
-	return _canSaveChanges.current();
 }
 
 Controller::~Controller() = default;

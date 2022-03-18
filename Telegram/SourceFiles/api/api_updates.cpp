@@ -2021,7 +2021,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		} else if (d.is_popup()) {
 			const auto &windows = session().windows();
 			if (!windows.empty()) {
-				windows.front()->window().show(Box<Ui::InformBox>(text));
+				windows.front()->window().show(Ui::MakeInformBox(text));
 			}
 		} else {
 			session().data().serviceNotification(text, d.vmedia());

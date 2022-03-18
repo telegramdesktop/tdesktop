@@ -19,7 +19,6 @@ struct RippleAnimation;
 } // namespace style
 
 namespace Ui {
-class ConfirmBox;
 class PlainShadow;
 class RippleAnimation;
 class SettingsSlider;

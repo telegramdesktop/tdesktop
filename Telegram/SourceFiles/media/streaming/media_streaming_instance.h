@@ -69,6 +69,8 @@ public:
 	void callWaitingCallback();
 
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] FrameWithInfo frameWithInfo(
+		const FrameRequest &request) const;
 	[[nodiscard]] FrameWithInfo frameWithInfo() const;
 	bool markFrameShown() const;
 

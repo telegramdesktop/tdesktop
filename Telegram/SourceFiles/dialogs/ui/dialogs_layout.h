@@ -63,10 +63,12 @@ void PaintCollapsedRow(
 
 enum UnreadBadgeSize {
 	UnreadBadgeInDialogs = 0,
+	UnreadBadgeInMainMenu,
 	UnreadBadgeInHistoryToDown,
 	UnreadBadgeInStickersPanel,
 	UnreadBadgeInStickersBox,
 	UnreadBadgeInTouchBar,
+	UnreadBadgeReactionInDialogs,
 
 	UnreadBadgeSizesCount
 };
@@ -83,6 +85,10 @@ struct UnreadBadgeStyle {
 	UnreadBadgeSize sizeId = UnreadBadgeInDialogs;
 	style::font font;
 };
+[[nodiscard]] QSize CountUnreadBadgeSize(
+	const QString &unreadCount,
+	const UnreadBadgeStyle &st,
+	int allowDigits = 0);
 QRect PaintUnreadBadge(
 	Painter &p,
 	const QString &t,

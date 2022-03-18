@@ -167,6 +167,10 @@ SettingsSlider::SettingsSlider(
 	const style::SettingsSlider &st)
 : DiscreteSlider(parent)
 , _st(st) {
+	if (_st.barRadius > 0) {
+		_bar.emplace(_st.barRadius, _st.barFg);
+		_barActive.emplace(_st.barRadius, _st.barFgActive);
+	}
 	setSelectOnPress(_st.ripple.showDuration == 0);
 }
 
@@ -283,6 +287,14 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 	auto activeLeft = getCurrentActiveLeft();
 
+	const auto drawRect = [&](QRect rect, bool active = false) {
+		const auto &bar = active ? _barActive : _bar;
+		if (bar) {
+			bar->paint(p, rect);
+		} else {
+			p.fillRect(rect, active ? _st.barFgActive : _st.barFg);
+		}
+	};
 	enumerateSections([&](Section &section) {
 		auto active = 1.
 			- std::clamp(
@@ -299,19 +311,21 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 		auto from = section.left, tofill = section.width;
 		if (activeLeft > from) {
 			auto fill = qMin(tofill, activeLeft - from);
-			p.fillRect(myrtlrect(from, _st.barTop, fill, _st.barStroke), _st.barFg);
+			drawRect(myrtlrect(from, _st.barTop, fill, _st.barStroke));
 			from += fill;
 			tofill -= fill;
 		}
 		if (activeLeft + section.width > from) {
 			if (auto fill = qMin(tofill, activeLeft + section.width - from)) {
-				p.fillRect(myrtlrect(from, _st.barTop, fill, _st.barStroke), _st.barFgActive);
+				drawRect(
+					myrtlrect(from, _st.barTop, fill, _st.barStroke),
+					true);
 				from += fill;
 				tofill -= fill;
 			}
 		}
 		if (tofill) {
-			p.fillRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke), _st.barFg);
+			drawRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke));
 		}
 		if (myrtlrect(section.left, _st.labelTop, section.width, _st.labelStyle.font->height).intersects(clip)) {
 			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));

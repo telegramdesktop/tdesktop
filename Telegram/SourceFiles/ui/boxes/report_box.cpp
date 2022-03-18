@@ -54,6 +54,11 @@ void ReportReasonBox(
 	add(Reason::Violence, tr::lng_report_reason_violence);
 	add(Reason::ChildAbuse, tr::lng_report_reason_child_abuse);
 	add(Reason::Pornography, tr::lng_report_reason_pornography);
+	add(Reason::Copyright, tr::lng_report_reason_copyright);
+	if (source == Source::Message) {
+		add(Reason::IllegalDrugs, tr::lng_report_reason_illegal_drugs);
+		add(Reason::PersonalDetails, tr::lng_report_reason_personal_details);
+	}
 	add(Reason::Other, tr::lng_report_reason_other);
 
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

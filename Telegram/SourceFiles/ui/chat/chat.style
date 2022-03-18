@@ -326,7 +326,7 @@ historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
 historyEmojiCircleDuration: 500;
 historyEmojiCircleTop: 13px;
-historyEmojiCircleLine: 2px;
+historyEmojiCircleLine: 1.5;
 historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
@@ -410,8 +410,8 @@ historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
 historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
-	icon: icon {{ "info_media_delete", historyComposeIconFg }};
-	iconOver: icon {{ "info_media_delete", historyComposeIconFgOver }};
+	icon: icon {{ "info/info_media_delete", historyComposeIconFg }};
+	iconOver: icon {{ "info/info_media_delete", historyComposeIconFgOver }};
 	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformRightSkip: 10px;
@@ -428,14 +428,8 @@ historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_silent", historyComposeIconFgOver }};
 }
-
-historySilentToggleCrossLine: CrossLineAnimation {
-	fg: historyComposeIconFg;
-	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
-	startPosition: point(13px, 11px);
-	endPosition: point(29px, 26px);
-	stroke: 2px;
-}
+historySilentToggleOn: icon {{ "chat/input_silent_on", historyComposeIconFg }};
+historySilentToggleOnOver: icon {{ "chat/input_silent_on", historyComposeIconFgOver }};
 
 historyReplySkip: 51px;
 historyReplyNameFg: windowActiveTextFg;
@@ -663,7 +657,7 @@ historyAdminLogCancelSearch: CrossButton {
 	cross: CrossAnimation {
 		size: 32px;
 		skip: 10px;
-		stroke: 2px;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	crossFg: menuIconFg;
@@ -918,14 +912,14 @@ whoReadMenu: PopupMenu(popupMenuWithIcons) {
 		separatorWidth: 6px;
 	}
 }
-whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
-whoReadChecksOver: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
+whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
-whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
-whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayed: icon{{ "menu/read_audio", windowBoldFg }};
+whoReadPlayedOver: icon{{ "menu/read_audio", windowBoldFg }};
 whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
-whoReadReactions: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
-whoReadReactionsOver: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactions: icon{{ "menu/read_reactions", windowBoldFg }};
+whoReadReactionsOver: icon{{ "menu/read_reactions", windowBoldFg }};
 whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
@@ -965,7 +959,7 @@ sendAsButton: SendAsButton {
 	cross: CrossAnimation {
 		size: 28px;
 		skip: 10px;
-		stroke: 2px;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	duration: 150;

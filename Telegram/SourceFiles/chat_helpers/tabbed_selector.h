@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "base/object_ptr.h"
@@ -56,6 +57,7 @@ public:
 	struct FileChosen {
 		not_null<DocumentData*> document;
 		Api::SendOptions options;
+		Ui::MessageSendingAnimationFrom messageSendingFrom;
 	};
 	struct PhotoChosen {
 		not_null<PhotoData*> photo;

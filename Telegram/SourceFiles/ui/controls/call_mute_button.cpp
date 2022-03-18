@@ -788,7 +788,7 @@ void CallMuteButton::init() {
 
 			const auto radialShowProgress = (radialShowFrom == radialShowTo)
 				? radialShowTo
-				: anim::interpolateF(radialShowFrom, radialShowTo, value);
+				: anim::interpolateToF(radialShowFrom, radialShowTo, value);
 			if (radialShowProgress != _radialInfo.rawShowProgress.current()) {
 				_radialInfo.rawShowProgress = radialShowProgress;
 				_blobs->setSwitchConnectingProgress(Clamp(
@@ -825,7 +825,17 @@ void CallMuteButton::init() {
 	) | rpl::start_with_next([=](QRect clip) {
 		Painter p(_content);
 
-		_icons[_iconState.index]->paint(p, _muteIconRect.x(), _muteIconRect.y());
+		const auto expand = _state.current().expandType;
+		if (expand == CallMuteButtonExpandType::Expanded) {
+			st::callMuteFromFullScreen.paintInCenter(p, _muteIconRect);
+		} else if (expand == CallMuteButtonExpandType::Normal) {
+			st::callMuteToFullScreen.paintInCenter(p, _muteIconRect);
+		} else {
+			_icons[_iconState.index]->paint(
+				p,
+				_muteIconRect.x(),
+				_muteIconRect.y());
+		}
 
 		if (_radialInfo.state.has_value() && _switchAnimation.animating()) {
 			const auto radialProgress = _radialInfo.realShowProgress;

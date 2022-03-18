@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
@@ -480,7 +481,7 @@ void DocumentData::updateThumbnails(
 		owner().cache(),
 		Data::kImageCacheTag,
 		[&](Data::FileOrigin origin) { loadThumbnail(origin); },
-		[&](QImage preloaded) {
+		[&](QImage preloaded, QByteArray) {
 			if (const auto media = activeMediaView()) {
 				media->setThumbnail(std::move(preloaded));
 			}
@@ -530,7 +531,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		}
 		return true;
 	};
-	const auto done = [=](QImage result) {
+	const auto done = [=](QImage result, QByteArray) {
 		if (const auto active = activeMediaView()) {
 			active->setThumbnail(std::move(result));
 		}
@@ -934,9 +935,10 @@ void DocumentData::handleLoaderUpdates() {
 				Ui::hideLayer();
 				save(origin, failedFileName);
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_download_finish_failed(tr::now),
-				crl::guard(&session(), retry)));
+			Ui::show(Ui::MakeConfirmBox({
+				tr::lng_download_finish_failed(),
+				crl::guard(&session(), retry)
+			}));
 		} else {
 			// Sometimes we have LOCATION_INVALID error in documents / stickers.
 			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
@@ -1256,7 +1258,8 @@ bool DocumentData::isNull() const {
 	return !hasRemoteLocation()
 		&& !hasWebLocation()
 		&& _url.isEmpty()
-		&& !uploading();
+		&& !uploading()
+		&& _location.isEmpty();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {

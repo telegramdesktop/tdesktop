@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "api/api_common.h"
 #include "media/view/media_view_open_common.h"
+#include "ui/effects/message_sending_animation_common.h"
 
 class FileLoader;
 class History;
@@ -132,6 +133,7 @@ struct ResultSelected {
 	not_null<Result*> result;
 	not_null<UserData*> bot;
 	Api::SendOptions options;
+	Ui::MessageSendingAnimationFrom messageSendingFrom;
 	// Open in OverlayWidget;
 	bool open = false;
 };

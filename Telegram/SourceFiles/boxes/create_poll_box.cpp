@@ -851,7 +851,10 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 		Core::App().settings().replaceEmojiValue());
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, solution));
+		DefaultEditLinkCallback(
+			std::make_shared<Window::Show>(_controller),
+			session,
+			solution));
 	solution->customTab(true);
 
 	const auto warning = CreateWarningLabel(

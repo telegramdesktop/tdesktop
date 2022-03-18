@@ -614,9 +614,9 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	for (const auto &message : list) {
 		if (const auto item = owner.addNewMessage(message, localFlags, type)) {
 			if (item->replyToTop() == _rootId) {
-				if (toFront) {
+				if (toFront && item->id > _list.front()) {
 					refreshed.push_back(item->id);
-				} else {
+				} else if (_list.empty() || item->id < _list.back()) {
 					_list.push_back(item->id);
 				}
 			} else {

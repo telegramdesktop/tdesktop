@@ -234,6 +234,36 @@ struct StickersListWidget::Sticker {
 	void ensureMediaCreated();
 };
 
+struct StickersListWidget::Set {
+	Set(
+		uint64 id,
+		Data::StickersSet *set,
+		Data::StickersSetFlags flags,
+		const QString &title,
+		const QString &shortName,
+		int count,
+		bool externalLayout,
+		std::vector<Sticker> &&stickers = {});
+	Set(Set &&other);
+	Set &operator=(Set &&other);
+	~Set();
+
+	uint64 id = 0;
+	Data::StickersSet *set = nullptr;
+	Data::StickersSetFlags flags;
+	QString title;
+	QString shortName;
+	std::vector<Sticker> stickers;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	crl::time lastUpdateTime = 0;
+
+	std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
+	rpl::lifetime lottieLifetime;
+
+	int count = 0;
+	bool externalLayout = false;
+};
+
 auto StickersListWidget::PrepareStickers(
 	const QVector<DocumentData*> &pack)
 -> std::vector<Sticker> {
@@ -2438,15 +2468,21 @@ void StickersListWidget::fillContextMenu(
 		return;
 	}
 	if (auto sticker = std::get_if<OverSticker>(&selected)) {
-		Assert(sticker->section >= 0 && sticker->section < sets.size());
-		auto &set = sets[sticker->section];
-		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
+		const auto section = sticker->section;
+		const auto index = sticker->index;
+		Assert(section >= 0 && section < sets.size());
+		auto &set = sets[section];
+		Assert(index >= 0 && index < set.stickers.size());
 
 		const auto document = set.stickers[sticker->index].document;
 		const auto send = [=](Api::SendOptions options) {
-			_chosen.fire_copy({
+			_chosen.fire({
 				.document = document,
-				.options = options });
+				.options = options,
+				.messageSendingFrom = options.scheduled
+					? Ui::MessageSendingAnimationFrom()
+					: messageSentAnimationInfo(section, index, document),
+			});
 		};
 		SendMenu::FillSendMenu(
 			menu,
@@ -2480,6 +2516,24 @@ void StickersListWidget::fillContextMenu(
 			}, &st::menuIconDelete);
 		}
 	}
+}
+
+Ui::MessageSendingAnimationFrom StickersListWidget::messageSentAnimationInfo(
+		int section,
+		int index,
+		not_null<DocumentData*> document) {
+	const auto rect = stickerRect(section, index);
+	const auto size = ComputeStickerSize(document, boundingBoxSize());
+	const auto innerPos = QPoint(
+		(rect.width() - size.width()) / 2,
+		(rect.height() - size.height()) / 2);
+
+	return {
+		.type = Ui::MessageSendingAnimationFrom::Type::Sticker,
+		.localId = session().data().nextLocalMessageId(),
+		.globalStartGeometry = mapToGlobal(
+			QRect(rect.topLeft() + innerPos, size)),
+	};
 }
 
 void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
@@ -2520,7 +2574,13 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			if (e->modifiers() & Qt::ControlModifier) {
 				showStickerSetBox(document);
 			} else {
-				_chosen.fire_copy({ .document = document });
+				_chosen.fire({
+					.document = document,
+					.messageSendingFrom = messageSentAnimationInfo(
+						sticker->section,
+						sticker->index,
+						document),
+				});
 			}
 		} else if (auto set = std::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());
@@ -3453,9 +3513,9 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Data::Stickers::MegagroupSetId;
-	controller()->show(Box<Ui::ConfirmBox>(
-		tr::lng_stickers_remove_group_set(tr::now),
-		crl::guard(this, [this, group = _megagroupSet] {
+	controller()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_stickers_remove_group_set(),
+		.confirmed = crl::guard(this, [this, group = _megagroupSet] {
 			Expects(group->mgInfo != nullptr);
 
 			if (group->mgInfo->stickerSet) {
@@ -3464,10 +3524,12 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 			Ui::hideLayer();
 			_removingSetId = 0;
 			_checkForHide.fire({});
-		}), crl::guard(this, [this] {
+		}),
+		.cancelled = crl::guard(this, [this] {
 			_removingSetId = 0;
 			_checkForHide.fire({});
-		})));
+		}),
+	}));
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
@@ -3482,67 +3544,70 @@ void StickersListWidget::removeSet(uint64 setId) {
 		tr::now,
 		lt_sticker_pack,
 		set->title);
-	const auto confirm = tr::lng_stickers_remove_pack_confirm(tr::now);
-	controller()->show(Box<Ui::ConfirmBox>(text, confirm, crl::guard(this, [=](
-			Fn<void()> &&close) {
-		close();
-		const auto &sets = session().data().stickers().sets();
-		const auto it = sets.find(_removingSetId);
-		if (it != sets.cend()) {
-			const auto set = it->second.get();
-			if (set->id && set->accessHash) {
-				_api.request(MTPmessages_UninstallStickerSet(
-					MTP_inputStickerSetID(
-						MTP_long(set->id),
-						MTP_long(set->accessHash)))
-				).send();
-			} else if (!set->shortName.isEmpty()) {
-				_api.request(MTPmessages_UninstallStickerSet(
-					MTP_inputStickerSetShortName(
-						MTP_string(set->shortName)))
-				).send();
-			}
-			auto writeRecent = false;
-			auto &recent = session().data().stickers().getRecentPack();
-			for (auto i = recent.begin(); i != recent.cend();) {
-				if (set->stickers.indexOf(i->first) >= 0) {
-					i = recent.erase(i);
-					writeRecent = true;
-				} else {
-					++i;
+	controller()->show(Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = crl::guard(this, [=](Fn<void()> &&close) {
+			close();
+			const auto &sets = session().data().stickers().sets();
+			const auto it = sets.find(_removingSetId);
+			if (it != sets.cend()) {
+				const auto set = it->second.get();
+				if (set->id && set->accessHash) {
+					_api.request(MTPmessages_UninstallStickerSet(
+						MTP_inputStickerSetID(
+							MTP_long(set->id),
+							MTP_long(set->accessHash)))
+					).send();
+				} else if (!set->shortName.isEmpty()) {
+					_api.request(MTPmessages_UninstallStickerSet(
+						MTP_inputStickerSetShortName(
+							MTP_string(set->shortName)))
+					).send();
 				}
+				auto writeRecent = false;
+				auto &recent = session().data().stickers().getRecentPack();
+				for (auto i = recent.begin(); i != recent.cend();) {
+					if (set->stickers.indexOf(i->first) >= 0) {
+						i = recent.erase(i);
+						writeRecent = true;
+					} else {
+						++i;
+					}
+				}
+				set->flags &= ~SetFlag::Installed;
+				set->installDate = TimeId(0);
+				//
+				// Set can be in search results.
+				//
+				//if (!(set->flags & SetFlag::Featured)
+				//	&& !(set->flags & SetFlag::Special)) {
+				//	sets.erase(it);
+				//}
+				const auto removeIndex = defaultSetsOrder().indexOf(
+					_removingSetId);
+				if (removeIndex >= 0) {
+					defaultSetsOrderRef().removeAt(removeIndex);
+				}
+				refreshStickers();
+				if (set->flags & SetFlag::Masks) {
+					session().local().writeInstalledMasks();
+				} else {
+					session().local().writeInstalledStickers();
+				}
+				if (writeRecent) {
+					session().saveSettings();
+				}
+				session().data().stickers().notifyUpdated();
 			}
-			set->flags &= ~SetFlag::Installed;
-			set->installDate = TimeId(0);
-			//
-			// Set can be in search results.
-			//
-			//if (!(set->flags & SetFlag::Featured)
-			//	&& !(set->flags & SetFlag::Special)) {
-			//	sets.erase(it);
-			//}
-			const auto removeIndex = defaultSetsOrder().indexOf(
-				_removingSetId);
-			if (removeIndex >= 0) {
-				defaultSetsOrderRef().removeAt(removeIndex);
-			}
-			refreshStickers();
-			if (set->flags & SetFlag::Masks) {
-				session().local().writeInstalledMasks();
-			} else {
-				session().local().writeInstalledStickers();
-			}
-			if (writeRecent) {
-				session().saveSettings();
-			}
-			session().data().stickers().notifyUpdated();
-		}
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	}), crl::guard(this, [=] {
-		_removingSetId = 0;
-		_checkForHide.fire({});
-	})), Ui::LayerOption::KeepOther);
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		}),
+		.cancelled = crl::guard(this, [=] {
+			_removingSetId = 0;
+			_checkForHide.fire({});
+		}),
+		.confirmText = tr::lng_stickers_remove_pack_confirm(),
+	}), Ui::LayerOption::KeepOther);
 }
 
 const Data::StickersSetsOrder &StickersListWidget::defaultSetsOrder() const {

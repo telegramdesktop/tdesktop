@@ -423,8 +423,8 @@ Editor::Inner::Inner(QWidget *parent, const QString &path)
 		if (update.type == BackgroundUpdate::Type::TestingTheme) {
 			Revert();
 			base::call_delayed(st::slideDuration, this, [] {
-				Ui::show(Box<Ui::InformBox>(
-					tr::lng_theme_editor_cant_change_theme(tr::now)));
+				Ui::show(Ui::MakeInformBox(
+					tr::lng_theme_editor_cant_change_theme()));
 			});
 		}
 	}, lifetime());
@@ -668,7 +668,7 @@ Editor::Editor(
 		[=] { save(); }));
 
 	_inner->setErrorCallback([=] {
-		window->show(Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
+		window->show(Ui::MakeInformBox(tr::lng_theme_editor_error()));
 
 		// This could be from inner->_context observable notification.
 		// We should not destroy it while iterating in subscribers.
@@ -752,14 +752,12 @@ void Editor::exportTheme() {
 		QFile f(path);
 		if (!f.open(QIODevice::WriteOnly)) {
 			LOG(("Theme Error: could not open zip-ed theme file '%1' for writing").arg(path));
-			_window->show(
-				Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
+			_window->show(Ui::MakeInformBox(tr::lng_theme_editor_error()));
 			return;
 		}
 		if (f.write(result) != result.size()) {
 			LOG(("Theme Error: could not write zip-ed theme to file '%1'").arg(path));
-			_window->show(
-				Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
+			_window->show(Ui::MakeInformBox(tr::lng_theme_editor_error()));
 			return;
 		}
 		Ui::Toast::Show(tr::lng_theme_editor_done(tr::now));
@@ -906,10 +904,11 @@ void Editor::closeWithConfirmation() {
 		closeEditor();
 		close();
 	});
-	_window->show(Box<Ui::ConfirmBox>(
-		tr::lng_theme_editor_sure_close(tr::now),
-		tr::lng_close(tr::now),
-		close));
+	_window->show(Ui::MakeConfirmBox({
+		.text = tr::lng_theme_editor_sure_close(),
+		.confirmed = close,
+		.confirmText = tr::lng_close(),
+	}));
 }
 
 void Editor::closeEditor() {

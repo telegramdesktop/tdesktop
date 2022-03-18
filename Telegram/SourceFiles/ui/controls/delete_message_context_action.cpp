@@ -106,7 +106,14 @@ void ActionWithTimer::paint(Painter &p) {
 		paintRipple(p, 0, 0);
 	}
 
-	st::menuIconDelete.paint(p, _st.itemIconPosition, width());
+	const auto normalHeight = _st.itemPadding.top()
+		+ _st.itemStyle.font->height
+		+ _st.itemPadding.bottom();
+	const auto deltaHeight = _height - normalHeight;
+	st::menuIconDelete.paint(
+		p,
+		_st.itemIconPosition + QPoint(0, deltaHeight / 2),
+		width());
 
 	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
 	_text.drawLeftElided(

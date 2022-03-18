@@ -82,9 +82,7 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 		}
 	};
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		session->downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		const auto computed = computeThumbInfo();

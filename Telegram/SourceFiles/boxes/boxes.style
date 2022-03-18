@@ -139,8 +139,8 @@ contactUserIcon: icon {{ "settings/settings_name", menuIconFg }};
 contactPhoneIcon: icon {{ "settings/settings_phone_number", menuIconFg }};
 contactIconPosition: point(-5px, 23px);
 
-contactPadding: margins(49px, 2px, 0px, 12px);
-contactSkip: 6px;
+contactPadding: margins(49px, 2px, 0px, 14px);
+contactSkip: 9px;
 contactPhoneSkip: 30px;
 
 contactsPhotoSize: 42px;
@@ -467,7 +467,7 @@ calendarPrevious: IconButton {
 	icon: icon {{ "calendar_down-flip_vertical", boxTitleFg }};
 	iconPosition: point(-1px, -1px);
 
-	rippleAreaPosition: point(6px, 6px);
+	rippleAreaPosition: point(2px, 2px);
 	rippleAreaSize: 44px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
@@ -503,15 +503,52 @@ calendarScroll: ScrollArea(defaultSolidScroll) {
 	deltax: 3px;
 	hiding: 1000;
 }
+CalendarColors {
+	dayTextColor: color;
+	dayTextGrayedOutColor: color;
+
+	iconButtonNext: IconButton;
+	iconButtonNextDisabled: icon;
+	iconButtonPrevious: IconButton;
+	iconButtonPreviousDisabled: icon;
+
+	iconButtonRippleColorDisabled: color;
+
+	rippleColor: color;
+	rippleColorHighlighted: color;
+	rippleGrayedOutColor: color;
+
+	titleTextColor: color;
+}
+
+defaultCalendarColors: CalendarColors {
+	dayTextColor: boxTextFg;
+	dayTextGrayedOutColor: windowSubTextFg;
+
+	iconButtonNext: calendarNext;
+	iconButtonNextDisabled: calendarNextDisabled;
+	iconButtonPrevious: calendarPrevious;
+	iconButtonPreviousDisabled: calendarPreviousDisabled;
+
+	iconButtonRippleColorDisabled: boxBg;
+
+	rippleColor: windowBgOver;
+	rippleColorHighlighted: dialogsRippleBgActive;
+	rippleGrayedOutColor: windowBgRipple;
+
+	titleTextColor: boxTitleFg;
+}
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 
-usernamePadding: margins(22px, 6px, 21px, 12px);
-usernameSkip: 49px;
-usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
+defaultBoxLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 272px;
 }
+usernamePadding: margins(24px, 2px, 24px, 10px);
+usernameSkip: 44px;
+usernameTextStyle: defaultTextStyle;
 usernameDefaultFg: windowSubTextFg;
 
 editMediaLabelMargins: margins(0px, 11px, 0px, 0px);
@@ -580,7 +617,7 @@ rightsCheckbox: Checkbox(defaultCheckbox) {
 rightsToggle: Toggle(defaultToggle) {
 	toggledFg: windowBgActive;
 	untoggledFg: attentionButtonFg;
-	lockIcon: icon {{ "info_rights_lock", windowBgActive }};
+	lockIcon: icon {{ "info/info_rights_lock", windowBgActive }};
 	xsize: 8px;
 	vsize: 5px;
 	vshift: 1px;
@@ -774,7 +811,7 @@ createPollOptionRemove: CrossButton {
 	cross: CrossAnimation {
 		size: 22px;
 		skip: 6px;
-		stroke: 1px;
+		stroke: 1.;
 		minScale: 0.3;
 	}
 	crossFg: boxTitleCloseFg;
@@ -818,14 +855,14 @@ backgroundCheckbox: Checkbox(defaultCheckbox) {
 	width: -50px;
 	margin: margins(0px, 0px, 0px, 0px);
 
-	textPosition: point(0px, 8px);
+	textPosition: point(0px, 6px);
 	checkPosition: point(0px, 0px);
 
 	style: semiboldTextStyle;
 }
 
 backgroundCheck: ServiceCheck {
-	margin: margins(12px, 8px, 8px, 8px);
+	margin: margins(10px, 6px, 8px, 6px);
 	diameter: 18px;
 	shift: 2px;
 	thickness: 2px;
@@ -889,7 +926,7 @@ pollResultsShowMore: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 20px;
 	padding: margins(71px, 10px, 8px, 8px);
@@ -903,7 +940,11 @@ inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: font(14px semibold);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold underline);
+	}
 
 	height: 20px;
 	padding: margins(74px, 8px, 8px, 9px);

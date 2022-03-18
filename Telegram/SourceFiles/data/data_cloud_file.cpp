@@ -64,7 +64,7 @@ void CloudImage::set(
 		session->data().cache(),
 		kImageCacheTag,
 		[=](FileOrigin origin) { load(session, origin); },
-		[=](QImage preloaded) {
+		[=](QImage preloaded, QByteArray) {
 			if (const auto view = activeView()) {
 				view->set(session, data.preloaded);
 			}
@@ -80,7 +80,7 @@ void CloudImage::update(
 		session->data().cache(),
 		kImageCacheTag,
 		[=](FileOrigin origin) { load(session, origin); },
-		[=](QImage preloaded) {
+		[=](QImage preloaded, QByteArray) {
 			if (const auto view = activeView()) {
 				view->set(session, data.preloaded);
 			}
@@ -113,7 +113,7 @@ void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 		}
 		return !(_file.flags & CloudFile::Flag::Loaded);
 	};
-	const auto done = [=](QImage result) {
+	const auto done = [=](QImage result, QByteArray) {
 		if (const auto active = activeView()) {
 			active->set(session, std::move(result));
 		}
@@ -146,7 +146,7 @@ std::shared_ptr<CloudImageView> CloudImage::createView() {
 	return view;
 }
 
-std::shared_ptr<CloudImageView> CloudImage::activeView() {
+std::shared_ptr<CloudImageView> CloudImage::activeView() const {
 	return _view.lock();
 }
 
@@ -164,7 +164,7 @@ void UpdateCloudFile(
 		Storage::Cache::Database &cache,
 		uint8 cacheTag,
 		Fn<void(FileOrigin)> restartLoader,
-		Fn<void(QImage)> usePreloaded) {
+		Fn<void(QImage, QByteArray)> usePreloaded) {
 	if (!data.location.valid()) {
 		if (data.progressivePartSize && !file.location.valid()) {
 			file.progressivePartSize = data.progressivePartSize;
@@ -213,7 +213,7 @@ void UpdateCloudFile(
 	if (!data.preloaded.isNull()) {
 		file.loader = nullptr;
 		if (usePreloaded) {
-			usePreloaded(data.preloaded);
+			usePreloaded(data.preloaded, data.bytes);
 		}
 	} else if (file.loader) {
 		const auto origin = base::take(file.loader)->fileOrigin();
@@ -307,7 +307,7 @@ void LoadCloudFile(
 		bool autoLoading,
 		uint8 cacheTag,
 		Fn<bool()> finalCheck,
-		Fn<void(QImage)> done,
+		Fn<void(QImage, QByteArray)> done,
 		Fn<void(bool)> fail,
 		Fn<void()> progress,
 		int downloadFrontPartSize) {
@@ -318,7 +318,7 @@ void LoadCloudFile(
 				onstack(true);
 			}
 		} else if (const auto onstack = done) {
-			onstack(std::move(read));
+			onstack(std::move(read), file.loader->bytes());
 		}
 	};
 	LoadCloudFile(

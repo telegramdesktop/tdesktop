@@ -188,9 +188,9 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	} else if (data.format == Streaming::FrameFormat::ARGB32) {
-		Assert(!data.original.isNull());
+		Assert(!data.image.isNull());
 		paintTransformedStaticContent(
-			data.original,
+			data.image,
 			geometry,
 			data.alpha,
 			data.alpha);

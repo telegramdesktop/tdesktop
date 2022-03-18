@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_streaming.h"
 #include "data/data_file_click_handler.h"
+#include "base/options.h"
 #include "base/random.h"
 #include "base/power_save_blocker.h"
 #include "media/audio/media_audio.h"
@@ -55,7 +56,16 @@ auto VoicePlaybackSpeed() {
 	return std::clamp(Core::App().settings().voicePlaybackSpeed(), 0.6, 1.7);
 }
 
+base::options::toggle OptionDisableAutoplayNext({
+	.id = kOptionDisableAutoplayNext,
+	.name = "Disable auto-play of the next track",
+	.description = "Disable auto-play of the next "
+		"Audio file / Voice Message / Video message.",
+});
+
 } // namespace
+
+const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
 
 struct Instance::Streamed {
 	Streamed(
@@ -217,23 +227,27 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		if (item) {
 			setHistory(data, item->history());
 		} else {
-			data->history = nullptr;
-			data->migrated = nullptr;
-			data->session = nullptr;
+			setHistory(
+				data,
+				nullptr,
+				audioId.audio() ? &audioId.audio()->session() : nullptr);
 		}
 		_trackChanged.fire_copy(data->type);
 		refreshPlaylist(data);
 	}
 }
 
-void Instance::setHistory(not_null<Data*> data, History *history) {
+void Instance::setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback) {
 	if (history) {
 		data->history = history->migrateToOrMe();
 		data->migrated = data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
 		data->history = data->migrated = nullptr;
-		setSession(data, nullptr);
+		setSession(data, sessionFallback);
 	}
 }
 
@@ -250,6 +264,18 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 		) | rpl::start_with_next([=] {
 			setSession(data, nullptr);
 		}, data->sessionLifetime);
+
+		session->data().documentLoadProgress(
+		) | rpl::filter([=](not_null<DocumentData*> document) {
+			// Before refactoring it was called only for audio files.
+			return document->isAudioFile();
+		}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			const auto type = AudioMsgId::Type::Song;
+			emitUpdate(type, [&](const AudioMsgId &audioId) {
+				return (audioId.audio() == document);
+			});
+		}, data->sessionLifetime);
+
 		session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (data->current.contextId() == item->fullId());
@@ -1114,15 +1140,6 @@ void Instance::updateVoicePlaybackSpeed() {
 	}
 }
 
-void Instance::documentLoadProgress(DocumentData *document) {
-	const auto type = document->isAudioFile()
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
-	emitUpdate(type, [&](const AudioMsgId &audioId) {
-		return (audioId.audio() == document);
-	});
-}
-
 void Instance::emitUpdate(AudioMsgId::Type type) {
 	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
 }
@@ -1205,6 +1222,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (repeat(data) == RepeatMode::One) {
 				play(data->current);
+			} else if (OptionDisableAutoplayNext.value()) {
+				finished = true;
 			} else if (!moveInPlaylist(data, 1, true)) {
 				finished = true;
 			}
@@ -1320,12 +1339,12 @@ void Instance::handleStreamingError(
 	const auto document = data->streamed->id.audio();
 	const auto contextId = data->streamed->id.contextId();
 	if (error == Streaming::Error::NotStreamable) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document);
 	} else if (error == Streaming::Error::OpenFailed) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document,
 			DocumentSaveClickHandler::Mode::ToFile);
 	}

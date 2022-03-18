@@ -10,8 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_common.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/special_fields.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -23,10 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
-, _textStyle(st::usernameTextStyle)
-, _font(st::boxTextFont)
+, _font(st::normalFont)
 , _padding(st::usernamePadding)
-, _textCenterTop((_textStyle.lineHeight - _font->height) / 2)
+, _textCenterTop((_font->height - _font->height) / 2)
 , _api(&_session->mtp())
 , _username(
 	this,
@@ -34,8 +35,11 @@ UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 	rpl::single(qsl("@username")),
 	session->user()->username,
 	QString())
-, _link(this, QString(), st::boxLinkButton)
-, _about(st::boxWidth - _padding.left())
+, _about(
+	this,
+	tr::lng_username_description(Ui::Text::RichLangValue),
+	st::defaultBoxLabel)
+, _link(this, QString(), st::defaultLinkButton)
 , _checkTimer([=] { check(); }) {
 }
 
@@ -53,15 +57,19 @@ void UsernameBox::prepare() {
 	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
 	_link->addClickHandler([=] { linkClick(); });
 
-	_about.setText(_textStyle, tr::lng_username_about(tr::now));
-	setDimensions(
-		st::boxWidth,
-		_padding.top()
-			+ _username->height()
-			+ st::usernameSkip
-			+ _about.countHeight(st::boxWidth - _padding.left())
-			+ 3 * _textStyle.lineHeight
-			+ _padding.bottom());
+	_about->resizeToWidth(
+		st::boxWideWidth - _padding.left() - _padding.right());
+	_about->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(
+			st::boxWideWidth,
+			(_padding.top()
+				+ _username->height()
+				+ st::usernameSkip
+				+ height
+				+ 3 * _font->height
+				+ _padding.bottom()));
+	}, lifetime());
 
 	updateLinkText();
 }
@@ -103,20 +111,12 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 			tr::lng_username_choose(tr::now));
 	}
 	p.setPen(st::boxTextFg);
-	const auto availW = st::boxWidth - _padding.left();
-	const auto h = _about.countHeight(availW);
-	_about.drawLeft(
-		p,
-		_padding.left(),
-		_username->y() + _username->height() + st::usernameSkip,
-		availW,
-		width());
 
 	const auto linkTop = _username->y()
 		+ _username->height()
 		+ st::usernameSkip
-		+ h
-		+ _textStyle.lineHeight
+		+ _about->height()
+		+ _font->height
 		+ _textCenterTop;
 	if (_link->isHidden()) {
 		p.drawTextLeft(
@@ -129,7 +129,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 		p.drawTextLeft(
 			_padding.left(),
 			linkTop
-				+ _textStyle.lineHeight
+				+ _font->height
 				+ _textCenterTop,
 			width(),
 			link);
@@ -150,17 +150,17 @@ void UsernameBox::resizeEvent(QResizeEvent *e) {
 		_username->height());
 	_username->moveToLeft(_padding.left(), _padding.top());
 
-	const auto availW = st::boxWidth - _padding.left();
-	const auto h = _about.countHeight(availW);
-	const auto linkTop = _username->y()
-		+ _username->height()
-		+ st::usernameSkip
-		+ h
-		+ _textStyle.lineHeight
+	_about->moveToLeft(
+		_padding.left(),
+		_username->y() + _username->height() + st::usernameSkip);
+
+	const auto linkTop = _about->y()
+		+ _about->height()
+		+ _font->height
 		+ _textCenterTop;
 	_link->moveToLeft(
 		_padding.left(),
-		linkTop + _textStyle.lineHeight + _textCenterTop);
+		linkTop + _font->height + _textCenterTop);
 }
 
 void UsernameBox::save() {
@@ -305,7 +305,7 @@ void UsernameBox::updateLinkText() {
 	const auto uname = getName();
 	_link->setText(_font->elided(
 		_session->createInternalLinkFull(uname),
-		st::boxWidth - _padding.left() - _padding.right()));
+		st::boxWideWidth - _padding.left() - _padding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

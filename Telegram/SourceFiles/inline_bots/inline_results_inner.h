@@ -49,8 +49,6 @@ enum class Type;
 namespace InlineBots {
 namespace Layout {
 
-constexpr int kInlineItemsMaxPerRow = 5;
-
 class ItemBase;
 using Results = std::vector<std::unique_ptr<Result>>;
 

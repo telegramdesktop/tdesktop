@@ -46,8 +46,10 @@ public:
 	}
 	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() = 0;
 	[[nodiscard]] virtual QString optionLabel(Option option);
-	[[nodiscard]] virtual rpl::producer<QString> warning() {
+	[[nodiscard]] virtual rpl::producer<TextWithEntities> warning() {
 		return nullptr;
+	}
+	virtual void prepareWarningLabel(not_null<Ui::FlatLabel*> warning) {
 	}
 	[[nodiscard]] virtual rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) = 0;
@@ -58,7 +60,8 @@ public:
 
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
 			not_null<QWidget*> parent,
-			rpl::producer<Option> option) {
+			rpl::producer<Option> option,
+			not_null<QWidget*> outerContainer) {
 		return { nullptr };
 	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupMiddleWidget(
@@ -75,7 +78,7 @@ public:
 
 	virtual void confirmSave(
 			bool someAreDisallowed,
-			FnMut<void()> saveCallback) {
+			Fn<void()> saveCallback) {
 		saveCallback();
 	}
 	virtual void saveAdditional() {
@@ -126,7 +129,12 @@ private:
 
 	Ui::FlatLabel *addLabel(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text);
+		rpl::producer<TextWithEntities> text,
+		int topSkip);
+	Ui::FlatLabel *addLabelOrDivider(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<TextWithEntities> text,
+		int topSkip);
 
 	void editExceptions(Exception exception, Fn<void()> done);
 	std::vector<not_null<PeerData*>> &exceptions(Exception exception);
