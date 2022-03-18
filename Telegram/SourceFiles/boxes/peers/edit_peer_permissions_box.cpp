@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -314,7 +315,11 @@ ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
 	return result;
 }
 
-Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
+Fn<void()> AboutGigagroupCallback(
+		not_null<ChannelData*> channel,
+		not_null<Window::SessionController*> controller) {
+	const auto weak = base::make_weak(controller.get());
+
 	const auto converting = std::make_shared<bool>();
 	const auto convertSure = [=] {
 		if (*converting) {
@@ -325,17 +330,22 @@ Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
-			Ui::hideSettingsAndLayer();
-			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
+			if (const auto strongController = weak.get()) {
+				strongController->window().hideSettingsAndLayer();
+				Ui::Toast::Show(
+					strongController->widget(),
+					tr::lng_gigagroup_done(tr::now));
+			}
 		}).fail([=] {
 			*converting = false;
 		}).send();
 	};
 	const auto convertWarn = [=] {
-		if (*converting) {
+		const auto strongController = weak.get();
+		if (*converting || !strongController) {
 			return;
 		}
-		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+		strongController->show(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle(tr::lng_gigagroup_warning_title());
 			box->addRow(
 				object_ptr<Ui::FlatLabel>(
@@ -348,10 +358,11 @@ Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
 		}), Ui::LayerOption::KeepOther);
 	};
 	return [=] {
-		if (*converting) {
+		const auto strongController = weak.get();
+		if (*converting || !strongController) {
 			return;
 		}
-		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+		strongController->show(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle(tr::lng_gigagroup_convert_title());
 			const auto addFeature = [&](rpl::producer<QString> text) {
 				using namespace rpl::mappers;
@@ -607,7 +618,9 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 		container,
 		tr::lng_rights_gigagroup_convert(),
 		rpl::single(QString()),
-		AboutGigagroupCallback(_peer->asChannel()),
+		AboutGigagroupCallback(
+			_peer->asChannel(),
+			_navigation->parentController()),
 		st::peerPermissionsButton));
 
 	container->add(
@@ -724,7 +737,7 @@ EditFlagsControl<Flags> CreateEditFlags(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
 				if (checked != toggled) {
-					Ui::Toast::Show(*locked);
+					Ui::Toast::Show(parent, *locked);
 					control->setChecked(toggled);
 				}
 			} else {

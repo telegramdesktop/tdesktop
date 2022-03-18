@@ -31,16 +31,85 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
+#include "base/options.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
 namespace Settings {
+namespace {
+
+base::options::toggle OptionMonoSettingsIcons({
+	.id = kOptionMonoSettingsIcons,
+	.name = "Mono settings and menu icons",
+	.description = "Use a single color for settings and main menu icons.",
+});
+
+} // namespace
+
+const char kOptionMonoSettingsIcons[] = "mono-settings-icons";
+
+Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
+	const auto background = [&] {
+		if (OptionMonoSettingsIcons.value()) {
+			return &st::transparent;
+		}
+		if (descriptor.color > 0) {
+			const auto list = std::array{
+				&st::settingsIconBg1,
+				&st::settingsIconBg2,
+				&st::settingsIconBg3,
+				&st::settingsIconBg4,
+				&st::settingsIconBg5,
+				&st::settingsIconBg6,
+				(const style::color*)nullptr,
+				&st::settingsIconBg8,
+				&st::settingsIconBgArchive,
+			};
+			Assert(descriptor.color < 10 && descriptor.color != 7);
+			return list[descriptor.color - 1];
+		}
+		return descriptor.background;
+	}();
+	if (background) {
+		const auto radius = (descriptor.type == IconType::Rounded)
+			? st::settingsIconRadius
+			: (std::min(_icon->width(), _icon->height()) / 2);
+		_background.emplace(radius, *background);
+	}
+}
+
+void Icon::paint(QPainter &p, QPoint position) const {
+	paint(p, position.x(), position.y());
+}
+
+void Icon::paint(QPainter &p, int x, int y) const {
+	if (_background) {
+		_background->paint(p, { { x, y }, _icon->size() });
+	}
+	if (OptionMonoSettingsIcons.value()) {
+		_icon->paint(p, { x, y }, 2 * x + _icon->width(), st::menuIconFg->c);
+	} else {
+		_icon->paint(p, { x, y }, 2 * x + _icon->width());
+	}
+}
+
+int Icon::width() const {
+	return _icon->width();
+}
+
+int Icon::height() const {
+	return _icon->height();
+}
+
+QSize Icon::size() const {
+	return _icon->size();
+}
 
 object_ptr<Section> CreateSection(
-	Type type,
-	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller) {
+		Type type,
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller) {
 	switch (type) {
 	case Type::Main:
 		return object_ptr<Main>(parent, controller);
@@ -81,8 +150,8 @@ void AddDivider(not_null<Ui::VerticalLayout*> container) {
 }
 
 void AddDividerText(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text) {
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text) {
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		object_ptr<Ui::FlatLabel>(
@@ -92,49 +161,48 @@ void AddDividerText(
 		st::settingsDividerLabelPadding));
 }
 
-not_null<Ui::RpWidget*> AddButtonIcon(
+void AddButtonIcon(
 		not_null<Ui::AbstractButton*> button,
-		const style::icon *leftIcon,
-		int iconLeft,
-		const style::color *leftIconOver) {
-	const auto icon = Ui::CreateChild<Ui::RpWidget>(button.get());
-	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
-	icon->resize(leftIcon->size());
-	button->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		icon->moveToLeft(
-			iconLeft ? iconLeft : st::settingsSectionIconLeft,
-			(size.height() - icon->height()) / 2,
-			size.width());
-	}, icon->lifetime());
-	icon->paintRequest(
-	) | rpl::start_with_next([=] {
-		Painter p(icon);
-		const auto width = icon->width();
-		const auto paintOver = (button->isOver() || button->isDown())
-			&& !button->isDisabled();
-		if (!paintOver) {
-			leftIcon->paint(p, QPoint(), width);
-		} else if (leftIconOver) {
-			leftIcon->paint(p, QPoint(), width, (*leftIconOver)->c);
-		} else {
-			leftIcon->paint(p, QPoint(), width, st::menuIconFgOver->c);
+		const style::SettingsButton &st,
+		IconDescriptor &&descriptor) {
+	Expects(descriptor.icon != nullptr);
+
+	struct IconWidget {
+		IconWidget(QWidget *parent, IconDescriptor &&descriptor)
+		: widget(parent)
+		, icon(std::move(descriptor)) {
 		}
-	}, icon->lifetime());
-	return icon;
+		Ui::RpWidget widget;
+		Icon icon;
+	};
+	const auto icon = button->lifetime().make_state<IconWidget>(
+		button,
+		std::move(descriptor));
+	icon->widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->widget.resize(icon->icon.size());
+	button->sizeValue(
+	) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
+		icon->widget.moveToLeft(
+			left,
+			(size.height() - icon->widget.height()) / 2,
+			size.width());
+	}, icon->widget.lifetime());
+	icon->widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(&icon->widget);
+		icon->icon.paint(p, 0, 0);
+	}, icon->widget.lifetime());
 }
 
 object_ptr<Button> CreateButton(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> text,
 		const style::SettingsButton &st,
-		const style::icon *leftIcon,
-		int iconLeft,
-		const style::color *leftIconOver) {
+		IconDescriptor &&descriptor) {
 	auto result = object_ptr<Button>(parent, std::move(text), st);
 	const auto button = result.data();
-	if (leftIcon) {
-		AddButtonIcon(button, leftIcon, iconLeft, leftIconOver);
+	if (descriptor) {
+		AddButtonIcon(button, st, std::move(descriptor));
 	}
 	return result;
 }
@@ -143,10 +211,9 @@ not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text,
 		const style::SettingsButton &st,
-		const style::icon *leftIcon,
-		int iconLeft) {
+		IconDescriptor &&descriptor) {
 	return container->add(
-		CreateButton(container, std::move(text), st, leftIcon, iconLeft));
+		CreateButton(container, std::move(text), st, std::move(descriptor)));
 }
 
 void CreateRightLabel(
@@ -168,7 +235,7 @@ void CreateRightLabel(
 		const auto available = width
 			- st.padding.left()
 			- st.padding.right()
-			- st.font->width(button)
+			- st.style.font->width(button)
 			- st::settingsButtonRightSkip;
 		name->setText(text);
 		name->resizeToNaturalWidth(available);
@@ -182,27 +249,27 @@ not_null<Button*> AddButtonWithLabel(
 		rpl::producer<QString> text,
 		rpl::producer<QString> label,
 		const style::SettingsButton &st,
-		const style::icon *leftIcon,
-		int iconLeft) {
+		IconDescriptor &&descriptor) {
 	const auto button = AddButton(
 		container,
 		rpl::duplicate(text),
 		st,
-		leftIcon,
-		iconLeft);
+		std::move(descriptor));
 	CreateRightLabel(button, std::move(label), st, std::move(text));
 	return button;
 }
 
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text) {
+		rpl::producer<QString> text,
+		style::margins addPadding,
+		const style::FlatLabel *st) {
 	return container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),
-			st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding);
+			st ? *st : st::settingsSubsectionTitle),
+		st::settingsSubsectionTitlePadding + addPadding);
 }
 
 void FillMenu(

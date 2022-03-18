@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/round_rect.h"
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
@@ -115,6 +116,8 @@ private:
 	std::vector<float64> countSectionsWidths(int newWidth) const;
 
 	const style::SettingsSlider &_st;
+	std::optional<Ui::RoundRect> _bar;
+	std::optional<Ui::RoundRect> _barActive;
 	int _rippleTopRoundRadius = 0;
 
 

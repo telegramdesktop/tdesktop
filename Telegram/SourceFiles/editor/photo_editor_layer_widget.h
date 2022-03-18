@@ -34,6 +34,12 @@ void OpenWithPreparedFile(
 void PrepareProfilePhoto(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::Controller*> controller,
+	Fn<void(QImage &&image)> &&doneCallback,
+	QImage &&image);
+
+void PrepareProfilePhotoFromFile(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::Controller*> controller,
 	Fn<void(QImage &&image)> &&doneCallback);
 
 class PhotoEditor;

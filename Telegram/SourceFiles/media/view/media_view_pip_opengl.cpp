@@ -285,8 +285,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	}
 	geometry.rotation = (geometry.rotation + geometry.videoRotation) % 360;
 	if (data.format == Streaming::FrameFormat::ARGB32) {
-		Assert(!data.original.isNull());
-		paintTransformedStaticContent(data.original, geometry);
+		Assert(!data.image.isNull());
+		paintTransformedStaticContent(data.image, geometry);
 		return;
 	}
 	Assert(data.format == Streaming::FrameFormat::YUV420);

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#include "ui/image/image_location_factory.h"
 
 namespace Data {
 namespace {
@@ -164,6 +165,7 @@ void SponsoredMessages::append(
 			.isPublic = (channel && channel->isPublic()),
 			.isBot = (peer->isUser() && peer->asUser()->isBot()),
 			.isExactPost = exactPost,
+			.userpic = { .location = peer->userpicLocation() },
 		};
 	};
 	const auto from = [&]() -> SponsoredFrom {
@@ -173,13 +175,28 @@ void SponsoredMessages::append(
 				(data.vchannel_post() != nullptr));
 		}
 		Assert(data.vchat_invite());
-		return data.vchat_invite()->match([](const MTPDchatInvite &data) {
+		return data.vchat_invite()->match([&](const MTPDchatInvite &data) {
+			auto userpic = data.vphoto().match([&](const MTPDphoto &data) {
+				for (const auto &size : data.vsizes().v) {
+					const auto result = Images::FromPhotoSize(
+						_session,
+						data,
+						size);
+					if (result.location.valid()) {
+						return result;
+					}
+				}
+				return ImageWithLocation{};
+			}, [](const MTPDphotoEmpty &) {
+				return ImageWithLocation{};
+			});
 			return SponsoredFrom{
 				.title = qs(data.vtitle()),
 				.isBroadcast = data.is_broadcast(),
 				.isMegagroup = data.is_megagroup(),
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
+				.userpic = std::move(userpic),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
 			const auto chat = _session->data().processChat(data.vchat());

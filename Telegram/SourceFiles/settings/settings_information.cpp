@@ -10,45 +10,159 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/change_phone_box.h"
 #include "boxes/username_box.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_peer_values.h"
+#include "data/data_changes.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
+#include "main/main_domain.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
+#include "base/unixtime.h"
+#include "base/random.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtCore/QBuffer>
 
 namespace Settings {
 namespace {
 
 constexpr auto kSaveBioTimeout = 1000;
 
+class AccountsList final {
+public:
+	AccountsList(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] rpl::producer<> currentAccountActivations() const;
+
+private:
+	void setup();
+
+	[[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> setupAdd();
+	void rebuild();
+
+	const not_null<Window::SessionController*> _controller;
+	const not_null<Ui::VerticalLayout*> _outer;
+	int _outerIndex = 0;
+
+	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
+	base::flat_map<
+		not_null<Main::Account*>,
+		base::unique_qptr<Ui::SettingsButton>> _watched;
+
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
+	int _reordering = 0;
+
+	rpl::event_stream<> _currentAccountActivations;
+
+	base::binary_guard _accountSwitchGuard;
+
+};
+
+[[nodiscard]] rpl::producer<TextWithEntities> StatusValue(
+		not_null<UserData*> user) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto timer = lifetime.make_state<base::Timer>();
+		const auto push = [=] {
+			const auto now = base::unixtime::now();
+			consumer.put_next(Data::OnlineTextActive(user, now)
+				? Ui::Text::Link(Data::OnlineText(user, now))
+				: Ui::Text::WithEntities(Data::OnlineText(user, now)));
+			timer->callOnce(Data::OnlineChangeTimeout(user, now));
+		};
+		timer->setCallback(push);
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::OnlineStatus
+		) | rpl::start_with_next(push, lifetime);
+		return lifetime;
+	};
+}
+
+[[nodiscard]] not_null<Ui::UserpicButton*> CreateUploadButton(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller) {
+	const auto background = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	const auto upload = Ui::CreateChild<Ui::UserpicButton>(
+		parent.get(),
+		&controller->window(),
+		tr::lng_settings_crop_profile(tr::now),
+		Ui::UserpicButton::Role::ChoosePhoto,
+		st::settingsInfoUpload);
+
+	const auto border = st::settingsInfoUploadBorder;
+	const auto size = upload->rect().marginsAdded(
+		{ border, border, border, border }
+	).size();
+
+	background->resize(size);
+	background->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(background);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::boxBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(background->rect());
+	}, background->lifetime());
+
+	upload->positionValue(
+	) | rpl::start_with_next([=](QPoint position) {
+		background->move(position - QPoint(border, border));
+	}, background->lifetime());
+
+	return upload;
+}
+
+void UploadPhoto(not_null<UserData*> user, QImage image) {
+	auto bytes = QByteArray();
+	auto buffer = QBuffer(&bytes);
+	image.save(&buffer, "JPG", 87);
+	user->setUserpic(base::RandomValue<PhotoId>(), ImageLocation(
+		{ .data = InMemoryLocation{ .bytes = bytes } },
+		image.width(),
+		image.height()));
+	user->session().api().peerPhoto().upload(user, std::move(image));
+}
+
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> self) {
-	const auto wrap = container->add(object_ptr<Ui::BoxContentDivider>(
+	const auto wrap = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::settingsInfoPhotoHeight));
 	const auto photo = Ui::CreateChild<Ui::UserpicButton>(
@@ -57,33 +171,49 @@ void SetupPhoto(
 		self,
 		Ui::UserpicButton::Role::OpenPhoto,
 		st::settingsInfoPhoto);
-	const auto upload = Ui::CreateChild<Ui::RoundButton>(
+	const auto upload = CreateUploadButton(wrap, controller);
+
+	upload->chosenImages(
+	) | rpl::start_with_next([=](QImage &&image) {
+		UploadPhoto(self, image);
+		photo->changeTo(std::move(image));
+	}, upload->lifetime());
+
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		wrap,
-		tr::lng_settings_upload(),
-		st::settingsInfoPhotoSet);
-	upload->setFullRadius(true);
-	upload->addClickHandler([=] {
-		auto callback = [=](QImage &&image) {
-			self->session().api().peerPhoto().upload(self, std::move(image));
-		};
-		Editor::PrepareProfilePhoto(
-			upload,
-			&controller->window(),
-			std::move(callback));
-	});
+		Info::Profile::NameValue(self),
+		st::settingsCoverName);
+	const auto status = Ui::CreateChild<Ui::FlatLabel>(
+		wrap,
+		StatusValue(self),
+		st::settingsCoverStatus);
 	rpl::combine(
 		wrap->widthValue(),
 		photo->widthValue(),
-		upload->widthValue()
-	) | rpl::start_with_next([=](int max, int photoWidth, int uploadWidth) {
+		Info::Profile::NameValue(self),
+		status->widthValue()
+	) | rpl::start_with_next([=](
+			int max,
+			int photoWidth,
+			const TextWithEntities&,
+			int statusWidth) {
 		photo->moveToLeft(
 			(max - photoWidth) / 2,
 			st::settingsInfoPhotoTop);
 		upload->moveToLeft(
-			(max - uploadWidth) / 2,
-			(st::settingsInfoPhotoTop
-				+ photo->height()
-				+ st::settingsInfoPhotoSkip));
+			((max - photoWidth) / 2
+				+ photoWidth
+				- upload->width()
+				+ st::settingsInfoUploadLeft),
+			photo->y() + photo->height() - upload->height());
+		const auto skip = st::settingsButton.iconLeft;
+		name->resizeToNaturalWidth(max - 2 * skip);
+		name->moveToLeft(
+			(max - name->width()) / 2,
+			(photo->y() + photo->height() + st::settingsInfoPhotoSkip));
+		status->moveToLeft(
+			(max - statusWidth) / 2,
+			(name->y() + name->height() + st::settingsInfoNameSkip));
 	}, photo->lifetime());
 }
 
@@ -105,12 +235,13 @@ void AddRow(
 		rpl::producer<TextWithEntities> value,
 		const QString &copyButton,
 		Fn<void()> edit,
-		const style::icon &icon) {
-	const auto wrap = AddButton(
+		IconDescriptor &&descriptor) {
+	const auto wrap = AddButtonWithLabel(
 		container,
-		rpl::single(QString()),
-		st::settingsInfoRow,
-		&icon);
+		std::move(label),
+		std::move(value) | rpl::map([](const auto &t) { return t.text; }),
+		st::settingsButton,
+		std::move(descriptor));
 	const auto forcopy = Ui::CreateChild<QString>(wrap.get());
 	wrap->setAcceptBoth();
 	wrap->clicks(
@@ -136,62 +267,6 @@ void AddRow(
 	}) | rpl::start_with_next([=](const TextWithEntities &text) {
 		*forcopy = text.text;
 	}, wrap->lifetime());
-	const auto text = Ui::CreateChild<Ui::FlatLabel>(
-		wrap.get(),
-		std::move(value),
-		st::settingsInfoValue);
-	text->setClickHandlerFilter([=](auto&&...) {
-		edit();
-		return false;
-	});
-	base::duplicate(
-		existing
-	) | rpl::start_with_next([=](bool existing) {
-		wrap->setDisabled(!existing);
-		text->setAttribute(Qt::WA_TransparentForMouseEvents, existing);
-		text->setSelectable(existing);
-		text->setDoubleClickSelectsParagraph(existing);
-	}, text->lifetime());
-
-	const auto about = Ui::CreateChild<Ui::FlatLabel>(
-		wrap.get(),
-		std::move(label),
-		st::settingsInfoAbout);
-	about->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	const auto button = Ui::CreateChild<Ui::RpWidget>(wrap.get());
-	button->resize(st::settingsInfoEditIconOver.size());
-	button->setAttribute(Qt::WA_TransparentForMouseEvents);
-	button->paintRequest(
-	) | rpl::filter([=] {
-		return (wrap->isOver() || wrap->isDown()) && !wrap->isDisabled();
-	}) | rpl::start_with_next([=](QRect clip) {
-		Painter p(button);
-		st::settingsInfoEditIconOver.paint(p, QPoint(), button->width());
-	}, button->lifetime());
-
-	wrap->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		const auto width = size.width();
-		text->resizeToWidth(width
-			- st::settingsInfoValuePosition.x()
-			- st::settingsInfoRightSkip);
-		text->moveToLeft(
-			st::settingsInfoValuePosition.x(),
-			st::settingsInfoValuePosition.y(),
-			width);
-		about->resizeToWidth(width
-			- st::settingsInfoAboutPosition.x()
-			- st::settingsInfoRightSkip);
-		about->moveToLeft(
-			st::settingsInfoAboutPosition.x(),
-			st::settingsInfoAboutPosition.y(),
-			width);
-		button->moveToRight(
-			st::settingsInfoEditRight,
-			(size.height() - button->height()) / 2,
-			width);
-	}, wrap->lifetime());
 }
 
 void SetupRows(
@@ -208,7 +283,7 @@ void SetupRows(
 		Info::Profile::NameValue(self),
 		tr::lng_profile_copy_fullname(tr::now),
 		[=] { controller->show(Box<EditNameBox>(self)); },
-		st::settingsInfoName);
+		{ &st::settingsIconUser, kIconLightBlue });
 
 	AddRow(
 		container,
@@ -216,7 +291,7 @@ void SetupRows(
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
 		[=] { controller->show(Box<ChangePhoneBox>(controller)); },
-		st::settingsInfoPhone);
+		{ &st::settingsIconCalls, kIconGreen });
 
 	auto username = Info::Profile::UsernameValue(self);
 	auto empty = base::duplicate(
@@ -251,17 +326,14 @@ void SetupRows(
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
 		[=] { controller->show(Box<UsernameBox>(session)); },
-		st::settingsInfoUsername);
+		{ &st::settingsIconMention, kIconLightOrange });
 
-	AddSkip(container, st::settingsInfoAfterSkip);
+	AddSkip(container);
 }
 
 void SetupBio(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
-	AddDivider(container);
-	AddSkip(container);
-
 	const auto bioStyle = [] {
 		auto result = st::settingsBio;
 		result.textMargins.setRight(st::boxTextFont->spacew
@@ -372,14 +444,345 @@ void SetupBio(
 		&self->session());
 	updated();
 
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_settings_about_bio(),
-			st::boxDividerLabel),
-		st::settingsBioLabelPadding);
+	AddDividerText(container, tr::lng_settings_about_bio());
+}
 
+void SetupAccountsWrap(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller) {
 	AddSkip(container);
+	AddDivider(container);
+	AddSkip(container);
+
+	SetupAccounts(container, controller);
+}
+
+[[nodiscard]] bool IsAltShift(Qt::KeyboardModifiers modifiers) {
+	return (modifiers & Qt::ShiftModifier) && (modifiers & Qt::AltModifier);
+}
+
+[[nodiscard]] object_ptr<Ui::SettingsButton> MakeAccountButton(
+		QWidget *parent,
+		not_null<Window::SessionController*> window,
+		not_null<Main::Account*> account,
+		Fn<void()> callback) {
+	const auto active = (account == &Core::App().activeAccount());
+	const auto session = &account->session();
+	const auto user = session->user();
+
+	auto text = rpl::single(
+		user->name
+	) | rpl::then(session->changes().realtimeNameUpdates(
+		user
+	) | rpl::map([=] {
+		return user->name;
+	}));
+	auto result = object_ptr<Ui::SettingsButton>(
+		parent,
+		std::move(text),
+		st::mainMenuAddAccountButton);
+	const auto raw = result.data();
+
+	struct State {
+		State(QWidget *parent) : userpic(parent) {
+			userpic.setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+
+		Ui::RpWidget userpic;
+		std::shared_ptr<Data::CloudImageView> view;
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto state = raw->lifetime().make_state<State>(raw);
+
+	if (!active) {
+		AddUnreadBadge(raw, rpl::single(rpl::empty) | rpl::then(
+			session->data().unreadBadgeChanges()
+		) | rpl::map([=] {
+			auto &owner = session->data();
+			return UnreadBadge{
+				owner.unreadBadge(),
+				owner.unreadBadgeMuted(),
+			};
+		}));
+	}
+
+	const auto userpicSkip = 2 * st::mainMenuAccountLine + st::lineWidth;
+	const auto userpicSize = st::mainMenuAccountSize
+		+ userpicSkip * 2;
+	raw->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		const auto left = st::mainMenuAddAccountButton.iconLeft
+			+ (st::mainMenuAddAccount.width() - userpicSize) / 2;
+		const auto top = (height - userpicSize) / 2;
+		state->userpic.setGeometry(left, top, userpicSize, userpicSize);
+	}, state->userpic.lifetime());
+
+	state->userpic.paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(&state->userpic);
+		const auto size = st::mainMenuAccountSize;
+		const auto line = st::mainMenuAccountLine;
+		const auto skip = 2 * line + st::lineWidth;
+		const auto full = size + skip * 2;
+		user->paintUserpicLeft(p, state->view, skip, skip, full, size);
+		if (active) {
+			const auto shift = st::lineWidth + (line * 0.5);
+			const auto diameter = full - 2 * shift;
+			const auto rect = QRectF(shift, shift, diameter, diameter);
+			auto hq = PainterHighQualityEnabler(p);
+			auto pen = st::windowBgActive->p; // The same as '+' in add.
+			pen.setWidthF(line);
+			p.setPen(pen);
+			p.setBrush(Qt::NoBrush);
+			p.drawEllipse(rect);
+		}
+	}, state->userpic.lifetime());
+
+	raw->setAcceptBoth(true);
+	raw->clicks(
+	) | rpl::start_with_next([=](Qt::MouseButton which) {
+		if (which == Qt::LeftButton) {
+			callback();
+			return;
+		} else if (which != Qt::RightButton) {
+			return;
+		}
+		const auto addAction = [&](
+				const QString &text,
+				Fn<void()> callback,
+				const style::icon *icon) {
+			return state->menu->addAction(
+				text,
+				crl::guard(raw, std::move(callback)),
+				icon);
+		};
+		if (!state->menu && IsAltShift(raw->clickModifiers())) {
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
+				raw,
+				st::popupMenuWithIcons);
+			Window::MenuAddMarkAsReadAllChatsAction(window, addAction);
+			state->menu->popup(QCursor::pos());
+			return;
+		}
+		if (&session->account() == &Core::App().activeAccount()
+			|| state->menu) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			raw,
+			st::popupMenuWithIcons);
+		addAction(tr::lng_menu_activate(tr::now), [=] {
+			Core::App().domain().activate(&session->account());
+		}, &st::menuIconProfile);
+		addAction(tr::lng_settings_logout(tr::now), [=] {
+			const auto callback = [=](Fn<void()> &&close) {
+				close();
+				Core::App().logoutWithChecks(&session->account());
+			};
+			window->show(
+				Ui::MakeConfirmBox({
+					.text = tr::lng_sure_logout(),
+					.confirmed = crl::guard(session, callback),
+					.confirmText = tr::lng_settings_logout(),
+					.confirmStyle = &st::attentionBoxButton,
+				}),
+				Ui::LayerOption::CloseOther);
+		}, &st::menuIconLeave);
+		state->menu->popup(QCursor::pos());
+	}, raw->lifetime());
+
+	return result;
+}
+
+[[nodiscard]] std::vector<not_null<Main::Account*>> OrderedAccounts() {
+	using namespace Main;
+
+	const auto order = Core::App().settings().accountsOrder();
+	auto accounts = ranges::views::all(
+		Core::App().domain().accounts()
+	) | ranges::views::transform([](const Domain::AccountWithIndex &a) {
+		return not_null{ a.account.get() };
+	}) | ranges::to_vector;
+	ranges::stable_sort(accounts, [&](
+			not_null<Account*> a,
+			not_null<Account*> b) {
+		const auto aIt = a->sessionExists()
+			? ranges::find(order, a->session().uniqueId())
+			: end(order);
+		const auto bIt = b->sessionExists()
+			? ranges::find(order, b->session().uniqueId())
+			: end(order);
+		return aIt < bIt;
+	});
+	return accounts;
+}
+
+AccountsList::AccountsList(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller)
+: _controller(controller)
+, _outer(container)
+, _outerIndex(container->count()) {
+	setup();
+}
+
+rpl::producer<> AccountsList::currentAccountActivations() const {
+	return _currentAccountActivations.events();
+}
+
+void AccountsList::setup() {
+	_addAccount = setupAdd();
+
+	rpl::single(rpl::empty) | rpl::then(
+		Core::App().domain().accountsChanges()
+	) | rpl::start_with_next([=] {
+		const auto &list = Core::App().domain().accounts();
+		const auto exists = [&](not_null<Main::Account*> account) {
+			for (const auto &[index, existing] : list) {
+				if (account == existing.get()) {
+					return true;
+				}
+			}
+			return false;
+		};
+		for (auto i = _watched.begin(); i != _watched.end();) {
+			if (!exists(i->first)) {
+				i = _watched.erase(i);
+			} else {
+				++i;
+			}
+		}
+		for (const auto &[index, account] : list) {
+			if (_watched.emplace(account.get()).second) {
+				account->sessionChanges(
+				) | rpl::start_with_next([=](Main::Session *session) {
+					rebuild();
+				}, _outer->lifetime());
+			}
+		}
+		rebuild();
+	}, _outer->lifetime());
+}
+
+
+not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
+	const auto result = _outer->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_outer.get(),
+			CreateButton(
+				_outer.get(),
+				tr::lng_menu_add_account(),
+				st::mainMenuAddAccountButton,
+				{
+					&st::mainMenuAddAccount,
+					0,
+					IconType::Round,
+					&st::windowBgActive
+				})))->setDuration(0);
+	const auto button = result->entity();
+
+	const auto add = [=](MTP::Environment environment) {
+		Core::App().preventOrInvoke([=] {
+			Core::App().domain().addActivated(environment);
+		});
+	};
+
+	button->setAcceptBoth(true);
+	button->clicks(
+	) | rpl::start_with_next([=](Qt::MouseButton which) {
+		if (which == Qt::LeftButton) {
+			add(MTP::Environment::Production);
+			return;
+		} else if (which != Qt::RightButton
+			|| !IsAltShift(button->clickModifiers())) {
+			return;
+		}
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(_outer);
+		_contextMenu->addAction("Production Server", [=] {
+			add(MTP::Environment::Production);
+		});
+		_contextMenu->addAction("Test Server", [=] {
+			add(MTP::Environment::Test);
+		});
+		_contextMenu->popup(QCursor::pos());
+	}, button->lifetime());
+
+	return result;
+}
+
+void AccountsList::rebuild() {
+	const auto inner = _outer->insert(
+		_outerIndex,
+		object_ptr<Ui::VerticalLayout>(_outer.get()));
+
+	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(inner);
+	_reorder->updates(
+	) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
+		using State = Ui::VerticalLayoutReorder::State;
+		if (data.state == State::Started) {
+			++_reordering;
+		} else {
+			Ui::PostponeCall(inner, [=] {
+				--_reordering;
+			});
+			if (data.state == State::Applied) {
+				std::vector<uint64> order;
+				order.reserve(inner->count());
+				for (auto i = 0; i < inner->count(); i++) {
+					for (const auto &[account, button] : _watched) {
+						if (button.get() == inner->widgetAt(i)) {
+							order.push_back(account->session().uniqueId());
+						}
+					}
+				}
+				Core::App().settings().setAccountsOrder(order);
+				Core::App().saveSettings();
+			}
+		}
+	}, inner->lifetime());
+
+	const auto list = OrderedAccounts();
+	for (const auto &account : list) {
+		auto i = _watched.find(account);
+		Assert(i != _watched.end());
+
+		auto &button = i->second;
+		if (!account->sessionExists() || list.size() == 1) {
+			button = nullptr;
+		} else if (!button) {
+			auto callback = [=] {
+				if (_reordering) {
+					return;
+				}
+				if (account == &Core::App().domain().active()) {
+					_currentAccountActivations.fire({});
+					return;
+				}
+				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
+					if (guard) {
+						_reorder->finishReordering();
+						Core::App().domain().maybeActivate(account);
+					}
+				};
+				base::call_delayed(
+					st::defaultRippleAnimation.hideDuration,
+					account,
+					std::move(activate));
+			};
+			button.reset(inner->add(MakeAccountButton(
+				inner,
+				_controller,
+				account,
+				std::move(callback))));
+		}
+	}
+	inner->resizeToWidth(_outer->width());
+
+	_addAccount->toggle(
+		(inner->count() < Main::Domain::kMaxAccounts),
+		anim::type::instant);
+
+	_reorder->start();
 }
 
 } // namespace
@@ -397,10 +800,91 @@ void Information::setupContent(
 
 	const auto self = controller->session().user();
 	SetupPhoto(content, controller, self);
-	SetupRows(content, controller, self);
 	SetupBio(content, self);
+	SetupRows(content, controller, self);
+	SetupAccountsWrap(content, controller);
 
 	Ui::ResizeFitChild(this, content);
+}
+
+AccountsEvents SetupAccounts(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller) {
+	const auto list = container->lifetime().make_state<AccountsList>(
+		container,
+		controller);
+	return {
+		.currentAccountActivations = list->currentAccountActivations(),
+	};
+}
+
+Dialogs::Ui::UnreadBadgeStyle BadgeStyle() {
+	auto result = Dialogs::Ui::UnreadBadgeStyle();
+	result.font = st::mainMenuBadgeFont;
+	result.size = st::mainMenuBadgeSize;
+	result.sizeId = Dialogs::Ui::UnreadBadgeInMainMenu;
+	return result;
+}
+
+void AddUnreadBadge(
+		not_null<Ui::SettingsButton*> button,
+		rpl::producer<UnreadBadge> value) {
+	struct State {
+		State(QWidget *parent) : widget(parent) {
+			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+
+		Ui::RpWidget widget;
+		Dialogs::Ui::UnreadBadgeStyle st = BadgeStyle();
+		int count = 0;
+		QString string;
+	};
+	const auto state = button->lifetime().make_state<State>(button);
+
+	std::move(
+		value
+	) | rpl::start_with_next([=](UnreadBadge badge) {
+		state->st.muted = badge.muted;
+		state->count = badge.count;
+		if (!state->count) {
+			state->widget.hide();
+			return;
+		}
+		state->string = Lang::FormatCountToShort(state->count).string;
+		state->widget.resize(CountUnreadBadgeSize(state->string, state->st));
+		if (state->widget.isHidden()) {
+			state->widget.show();
+		}
+	}, state->widget.lifetime());
+
+	state->widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(&state->widget);
+		Dialogs::Ui::PaintUnreadBadge(
+			p,
+			state->string,
+			state->widget.width(),
+			0,
+			state->st);
+	}, state->widget.lifetime());
+
+	rpl::combine(
+		button->sizeValue(),
+		state->widget.sizeValue(),
+		state->widget.shownValue()
+	) | rpl::start_with_next([=](QSize outer, QSize inner, bool shown) {
+		auto padding = button->st().padding;
+		if (shown) {
+			state->widget.moveToRight(
+				padding.right(),
+				(outer.height() - inner.height()) / 2,
+				outer.width());
+			padding.setRight(padding.right()
+				+ inner.width()
+				+ button->st().style.font->spacew);
+		}
+		button->setPaddingOverride(padding);
+	}, state->widget.lifetime());
 }
 
 } // namespace Settings

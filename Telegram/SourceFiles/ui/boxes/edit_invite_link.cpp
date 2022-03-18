@@ -115,7 +115,7 @@ void EditInviteLinkBox(
 			object_ptr<SettingsButton>(
 				container,
 				tr::lng_group_invite_request_approve(),
-				st::settingsButton),
+				st::settingsButtonNoIcon),
 			style::margins{ 0, 0, 0, st::settingsSectionSkip });
 	if (requestApproval) {
 		requestApproval->toggleOn(state->requestApproval.value());

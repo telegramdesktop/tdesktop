@@ -20,12 +20,14 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		const PreparedFile &file,
 		AttachControls::Type type) {
 	auto preview = QImage();
-	bool animated = false;
-	bool animationPreview = false;
+	auto animated = false;
+	auto animationPreview = false;
+	auto hasModifications = false;
 	if (const auto image = std::get_if<PreparedFileInformation::Image>(
 			&file.information->media)) {
 		preview = Editor::ImageModified(image->data, image->modifications);
 		animated = animationPreview = image->animated;
+		hasModifications = !image->modifications.empty();
 	} else if (const auto video = std::get_if<PreparedFileInformation::Video>(
 			&file.information->media)) {
 		preview = video->thumbnail;
@@ -34,9 +36,9 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	}
 	if (preview.isNull()) {
 		return nullptr;
-	} else if (!animated && !ValidateThumbDimensions(
-			preview.width(),
-			preview.height())) {
+	} else if (!animated
+		&& !ValidateThumbDimensions(preview.width(), preview.height())
+		&& !hasModifications) {
 		return nullptr;
 	}
 	return CreateChild<SingleMediaPreview>(

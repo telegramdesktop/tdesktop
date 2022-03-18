@@ -28,7 +28,7 @@ public:
 	ScheduledMessages &operator=(const ScheduledMessages &other) = delete;
 	~ScheduledMessages();
 
-	[[nodiscard]] MsgId lookupId(not_null<HistoryItem*> item) const;
+	[[nodiscard]] MsgId lookupId(not_null<const HistoryItem*> item) const;
 	[[nodiscard]] HistoryItem *lookupItem(PeerId peer, MsgId msg) const;
 	[[nodiscard]] HistoryItem *lookupItem(FullMsgId itemId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
@@ -57,7 +57,6 @@ private:
 	struct List {
 		std::vector<OwnedItem> items;
 		base::flat_map<MsgId, not_null<HistoryItem*>> itemById;
-		base::flat_map<not_null<HistoryItem*>, MsgId> idByItem;
 	};
 	struct Request {
 		mtpRequestId requestId = 0;
@@ -81,6 +80,8 @@ private:
 	void remove(not_null<const HistoryItem*> item);
 	[[nodiscard]] uint64 countListHash(const List &list) const;
 	void clearOldRequests();
+
+	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
 	const not_null<Main::Session*> _session;
 

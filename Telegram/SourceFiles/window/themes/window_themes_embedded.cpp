@@ -67,6 +67,14 @@ const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("mediaviewFileYellowCornerFg"),
 	qstr("mediaviewFileGreenCornerFg"),
 	qstr("mediaviewFileBlueCornerFg"),
+	qstr("settingsIconBg1"),
+	qstr("settingsIconBg2"),
+	qstr("settingsIconBg3"),
+	qstr("settingsIconBg4"),
+	qstr("settingsIconBg5"),
+	qstr("settingsIconBg6"),
+	qstr("settingsIconBg8"),
+	qstr("settingsIconBgArchive"),
 } };
 
 style::colorizer::Color cColor(std::string_view hex) {

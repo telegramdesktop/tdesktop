@@ -84,6 +84,7 @@ class CloudManager;
 
 namespace Data {
 struct CloudTheme;
+class DownloadManager;
 } // namespace Data
 
 namespace Stickers {
@@ -142,6 +143,9 @@ public:
 		Expects(_notifications != nullptr);
 
 		return *_notifications;
+	}
+	[[nodiscard]] Data::DownloadManager &downloadManager() const {
+		return *_downloadManager;
 	}
 
 	// Windows interface.
@@ -253,6 +257,7 @@ public:
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
 	[[nodiscard]] bool uploadPreventsQuit();
+	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();
@@ -356,6 +361,7 @@ private:
 	// Mutable because is created in run() after OpenSSL is inited.
 	std::unique_ptr<Window::Notifications::System> _notifications;
 
+	const std::unique_ptr<Data::DownloadManager> _downloadManager;
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
 #include "base/unixtime.h"
+#include "boxes/abstract_box.h" // Ui::show().
 #include "styles/style_chat_helpers.h"
 
 namespace Data {
@@ -402,7 +403,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 	notifyUpdated();
 
 	Ui::show(
-		Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)),
+		Ui::MakeInformBox(tr::lng_stickers_not_found()),
 		Ui::LayerOption::KeepOther);
 }
 

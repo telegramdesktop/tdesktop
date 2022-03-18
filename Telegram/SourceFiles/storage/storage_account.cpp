@@ -603,6 +603,8 @@ void Account::reset() {
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
 	_fileLocationAliases.clear();
+	_downloadsSerialize = nullptr;
+	_downloadsSerialized = QByteArray();
 	_cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
@@ -677,7 +679,12 @@ void Account::writeLocations() {
 	}
 	_locationsChanged = false;
 
-	if (_fileLocations.isEmpty()) {
+	if (_downloadsSerialize) {
+		if (auto serialized = _downloadsSerialize()) {
+			_downloadsSerialized = std::move(*serialized);
+		}
+	}
+	if (_fileLocations.isEmpty() && _downloadsSerialized.isEmpty()) {
 		if (_locationsKey) {
 			ClearKey(_locationsKey, _basePath);
 			_locationsKey = 0;
@@ -713,6 +720,9 @@ void Account::writeLocations() {
 			size += sizeof(quint64) * 2 + sizeof(quint64) * 2;
 		}
 
+		size += sizeof(quint32); // legacy webLocationsCount
+		size += Serialize::bytearraySize(_downloadsSerialized);
+
 		EncryptedDescriptor data(size);
 		auto legacyTypeField = 0;
 		for (auto i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
@@ -733,6 +743,8 @@ void Account::writeLocations() {
 		for (auto i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
 			data.stream << quint64(i.key().first) << quint64(i.key().second) << quint64(i.value().first) << quint64(i.value().second);
 		}
+
+		data.stream << quint32(0) << _downloadsSerialized;
 
 		FileWriteDescriptor file(_locationsKey, _basePath);
 		file.writeEncrypted(data, _localKey);
@@ -805,8 +817,22 @@ void Account::readLocations() {
 				locations.stream >> url >> key >> size;
 				ClearKey(key, _basePath);
 			}
+
+			if (!locations.stream.atEnd()) {
+				locations.stream >> _downloadsSerialized;
+			}
 		}
 	}
+}
+
+void Account::updateDownloads(
+		Fn<std::optional<QByteArray>()> downloadsSerialize) {
+	_downloadsSerialize = std::move(downloadsSerialize);
+	writeLocationsDelayed();
+}
+
+QByteArray Account::downloadsSerialized() const {
+	return _downloadsSerialized;
 }
 
 void Account::writeSessionSettings() {

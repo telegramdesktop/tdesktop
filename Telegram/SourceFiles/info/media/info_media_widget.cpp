@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/media/info_media_inner_widget.h"
 #include "info/info_controller.h"
+#include "main/main_session.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -38,9 +40,13 @@ Type TabIndexToType(int index) {
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
-	controller->peer(),
+	(controller->peer()
+		? controller->peer()
+		: controller->parentController()->session().user()),
 	controller->migratedPeerId(),
-	controller->section().mediaType()) {
+	(controller->section().type() == Section::Type::Downloads
+		? Type::File
+		: controller->section().mediaType())) {
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type)
@@ -87,8 +93,8 @@ rpl::producer<SelectedItems> Widget::selectedListValue() const {
 	return _inner->selectedListValue();
 }
 
-void Widget::cancelSelection() {
-	_inner->cancelSelection();
+void Widget::selectionAction(SelectionAction action) {
+	_inner->selectionAction(action);
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {

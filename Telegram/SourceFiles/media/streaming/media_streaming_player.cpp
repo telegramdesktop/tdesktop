@@ -884,6 +884,14 @@ QImage Player::frame(
 	return _video->frame(request, instance);
 }
 
+FrameWithInfo Player::frameWithInfo(
+		const FrameRequest &request,
+		const Instance *instance) const {
+	Expects(_video != nullptr);
+
+	return _video->frameWithInfo(request, instance);
+}
+
 FrameWithInfo Player::frameWithInfo(const Instance *instance) const {
 	Expects(_video != nullptr);
 

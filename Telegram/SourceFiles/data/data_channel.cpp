@@ -718,7 +718,8 @@ void ChannelData::migrateCall(std::unique_ptr<Data::GroupCall> call) {
 
 void ChannelData::setGroupCall(
 		const MTPInputGroupCall &call,
-		TimeId scheduleDate) {
+		TimeId scheduleDate,
+		bool rtmp) {
 	call.match([&](const MTPDinputGroupCall &data) {
 		if (_call && _call->id() == data.vid().v) {
 			return;
@@ -736,7 +737,8 @@ void ChannelData::setGroupCall(
 			this,
 			data.vid().v,
 			data.vaccess_hash().v,
-			scheduleDate);
+			scheduleDate,
+			rtmp);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);

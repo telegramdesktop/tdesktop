@@ -59,8 +59,6 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 	) | rpl::start_with_next([=](const Ui::ScrollToRequest &request) {
 		scrollTo(request);
 	}, _inner->lifetime());
-
-	controller->setCanSaveChanges(rpl::single(false));
 }
 
 not_null<PollData*> Widget::poll() const {

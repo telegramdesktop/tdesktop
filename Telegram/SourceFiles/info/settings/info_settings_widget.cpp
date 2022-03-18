@@ -52,8 +52,6 @@ Widget::Widget(
 	) | rpl::start_with_next([=](Type type) {
 		controller->showSettings(type);
 	}, _inner->lifetime());
-
-	controller->setCanSaveChanges(_inner->sectionCanSaveChanges());
 }
 
 Widget::~Widget() = default;
@@ -79,10 +77,6 @@ void Widget::setInternalState(
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
-}
-
-rpl::producer<bool> Widget::canSaveChanges() const {
-	return _inner->sectionCanSaveChanges();
 }
 
 void Widget::saveChanges(FnMut<void()> done) {

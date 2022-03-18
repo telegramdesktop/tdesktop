@@ -55,7 +55,7 @@ EdgeButton::EdgeButton(
 	const style::RippleAnimation &st)
 : Ui::RippleButton(parent, st)
 , _fg(fg)
-, _text(st::semiboldTextStyle, text.toUpper())
+, _text(st::semiboldTextStyle, text)
 , _width(_text.maxWidth()
 	+ st::photoEditorTextButtonPadding.left()
 	+ st::photoEditorTextButtonPadding.right())
@@ -352,9 +352,9 @@ PhotoEditorControls::PhotoEditorControls(
 		}, _stickersButton->lifetime());
 	}
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::skip(modifications.flipped ? 0 : 1) | rpl::then(
+	rpl::single(rpl::empty) | rpl::skip(
+		modifications.flipped ? 0 : 1
+	) | rpl::then(
 		_flipButton->clicks() | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		_flipped = !_flipped;

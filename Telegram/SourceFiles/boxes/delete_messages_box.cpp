@@ -182,7 +182,11 @@ void DeleteMessagesBox::prepare() {
 		if (_moderateDeleteAll) {
 			_deleteAll.create(
 				this,
-				tr::lng_delete_all_from(tr::now),
+				tr::lng_delete_all_from_user(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(_moderateFrom->name),
+					Ui::Text::WithEntities),
 				false,
 				st::defaultBoxCheckbox);
 		}

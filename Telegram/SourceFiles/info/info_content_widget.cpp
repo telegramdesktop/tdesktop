@@ -226,10 +226,6 @@ rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
 }
 
-rpl::producer<bool> ContentWidget::canSaveChanges() const {
-	return rpl::single(false);
-}
-
 void ContentWidget::saveChanges(FnMut<void()> done) {
 	done();
 }
@@ -266,13 +262,18 @@ Key ContentMemento::key() const {
 		return Key(peer);
 	} else if (const auto poll = this->poll()) {
 		return Key(poll, pollContextId());
+	} else if (const auto self = settingsSelf()) {
+		return Settings::Tag{ self };
 	} else {
-		return Settings::Tag{ settingsSelf() };
+		return Downloads::Tag();
 	}
 }
 
 ContentMemento::ContentMemento(Settings::Tag settings)
 : _settingsSelf(settings.self.get()) {
+}
+
+ContentMemento::ContentMemento(Downloads::Tag downloads) {
 }
 
 } // namespace Info

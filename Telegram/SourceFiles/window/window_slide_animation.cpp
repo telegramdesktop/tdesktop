@@ -12,13 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
-	int retina = cIntRetinaFactor();
+void SlideAnimation::paintContents(Painter &p) const {
+	const auto retina = style::DevicePixelRatio();
 
 	auto progress = _animation.value((_direction == SlideDirection::FromLeft) ? 0. : 1.);
 	if (_withFade) {
-		p.fillRect(update, st::boxBg);
-
 		auto slideLeft = (_direction == SlideDirection::FromLeft);
 		auto dt = slideLeft
 			? (1. - progress)
@@ -37,12 +35,12 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 		auto leftWidth = (leftWidthFull + leftCoord);
 		if (leftWidth > 0) {
 			p.setOpacity(leftAlpha);
-			p.drawPixmap(0, 0, leftWidth, _cacheUnder.height() / retina, _cacheUnder, (_cacheUnder.width() - leftWidth * cIntRetinaFactor()), 0, leftWidth * cIntRetinaFactor(), _cacheUnder.height());
+			p.drawPixmap(0, _topSkip, _cacheUnder, (_cacheUnder.width() - leftWidth * cIntRetinaFactor()), _topSkip * retina, leftWidth * cIntRetinaFactor(), _cacheUnder.height() - _topSkip * retina);
 		}
 		auto rightWidth = rightWidthFull - rightCoord;
 		if (rightWidth > 0) {
 			p.setOpacity(rightAlpha);
-			p.drawPixmap(rightCoord, 0, _cacheOver, 0, 0, rightWidth * cIntRetinaFactor(), _cacheOver.height());
+			p.drawPixmap(rightCoord, _topSkip, _cacheOver, 0, _topSkip * retina, rightWidth * cIntRetinaFactor(), _cacheOver.height() - _topSkip * retina);
 		}
 	} else {
 		auto coordUnder = anim::interpolate(0, -st::slideShift, progress);
@@ -70,6 +68,10 @@ void SlideAnimation::setPixmaps(const QPixmap &oldContentCache, const QPixmap &n
 
 void SlideAnimation::setTopBarShadow(bool enabled) {
 	_topBarShadowEnabled = enabled;
+}
+
+void SlideAnimation::setTopSkip(int skip) {
+	_topSkip = skip;
 }
 
 void SlideAnimation::setWithFade(bool withFade) {

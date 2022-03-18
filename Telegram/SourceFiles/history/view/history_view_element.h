@@ -415,6 +415,8 @@ public:
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 
+	virtual QRect innerGeometry() const = 0;
+
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
 	}

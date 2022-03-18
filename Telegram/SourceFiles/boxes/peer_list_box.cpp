@@ -52,11 +52,31 @@ PaintRoundImageCallback PaintUserpicCallback(
 	};
 }
 
+PeerListContentDelegateShow::PeerListContentDelegateShow(
+	std::shared_ptr<Ui::Show> show)
+: _show(show) {
+}
+
+void PeerListContentDelegateShow::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show->showBox(std::move(content), options);
+}
+
+void PeerListContentDelegateShow::peerListHideLayer() {
+	_show->hideLayer();
+}
+
+not_null<QWidget*> PeerListContentDelegateShow::peerListToastParent() {
+	return _show->toastParent();
+}
+
 PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,
 	Fn<void(not_null<PeerListBox*>)> init)
-: _controller(std::move(controller))
+: _show(this)
+, _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
 }
@@ -138,12 +158,12 @@ void PeerListBox::prepare() {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
 		_scrollBottomFixed = true;
-		onScrollToY(0);
+		scrollToY(0);
 	}
 
 	content()->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		onScrollToY(request.ymin, request.ymax);
+		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
 
 	if (_init) {
@@ -168,7 +188,7 @@ void PeerListBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PeerListBox::searchQueryChanged(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	content()->searchQueryChanged(query);
 }
 
@@ -244,7 +264,7 @@ void PeerListBox::peerListSetForeignRowChecked(
 }
 
 void PeerListBox::peerListScrollToTop() {
-	onScrollToY(0);
+	scrollToY(0);
 }
 
 void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
@@ -260,6 +280,20 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 		_scrollBottomFixed = false;
 		setInnerFocus();
 	}
+}
+
+void PeerListBox::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show.showBox(std::move(content), options);
+}
+
+void PeerListBox::peerListHideLayer() {
+	_show.hideLayer();
+}
+
+not_null<QWidget*> PeerListBox::peerListToastParent() {
+	return _show.toastParent();
 }
 
 PeerListController::PeerListController(std::unique_ptr<PeerListSearchController> searchController) : _searchController(std::move(searchController)) {

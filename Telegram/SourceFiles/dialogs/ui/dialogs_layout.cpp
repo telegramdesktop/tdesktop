@@ -129,6 +129,9 @@ void PaintNarrowCounter(
 			- st::dialogsUnreadHeight;
 
 		UnreadBadgeStyle st;
+		st.sizeId = displayMentionBadge
+			? UnreadBadgeInDialogs
+			: UnreadBadgeReactionInDialogs;
 		st.active = active;
 		st.selected = selected;
 		st.muted = mentionOrReactionMuted;
@@ -221,6 +224,9 @@ int PaintWideCounter(
 			- (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 
 		UnreadBadgeStyle st;
+		st.sizeId = displayMentionBadge
+			? UnreadBadgeInDialogs
+			: UnreadBadgeReactionInDialogs;
 		st.active = active;
 		st.selected = selected;
 		st.muted = mentionOrReactionMuted;
@@ -359,7 +365,7 @@ void paintRow(
 			active,
 			fullWidth);
 	} else if (hiddenSenderInfo) {
-		hiddenSenderInfo->userpic.paint(
+		hiddenSenderInfo->emptyUserpic.paint(
 			p,
 			st::dialogsPadding.x(),
 			st::dialogsPadding.y(),
@@ -494,10 +500,8 @@ void paintRow(
 
 		paintItemCallback(nameleft, namewidth);
 	} else if (entry->isPinnedDialog(filterId) && (filterId || !entry->fixedOnTopIndex())) {
-		auto availableWidth = namewidth;
 		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
-		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
 	auto sendStateIcon = [&]() -> const style::icon* {
 		if (draft) {
@@ -618,6 +622,14 @@ public:
 		st::dialogsUnreadBgMutedOver,
 		st::dialogsUnreadBgMutedActive
 	};
+	style::color reactionBg[6] = {
+		st::dialogsDraftFg,
+		st::dialogsDraftFgOver,
+		st::dialogsDraftFgActive,
+		st::dialogsUnreadBgMuted,
+		st::dialogsUnreadBgMutedOver,
+		st::dialogsUnreadBgMutedActive
+	};
 	rpl::lifetime lifetime;
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
@@ -660,7 +672,9 @@ void PaintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 		Assert(st.sizeId < UnreadBadgeSizesCount);
 		badgeData = &unreadBadgeStyle->sizes[st.sizeId];
 	}
-	auto bg = unreadBadgeStyle->bg[index];
+	auto bg = (st.sizeId == UnreadBadgeReactionInDialogs)
+		? unreadBadgeStyle->reactionBg[index]
+		: unreadBadgeStyle->bg[index];
 	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
 		createCircleMask(badgeData, size);
@@ -682,7 +696,15 @@ void PaintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
 }
 
-} // namepsace
+[[nodiscard]] QString ComputeUnreadBadgeText(
+	const QString &unreadCount,
+	int allowDigits) {
+	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
+		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
+		: unreadCount;
+}
+
+} // namespace
 
 const style::icon *ChatTypeIcon(
 		not_null<PeerData*> peer,
@@ -716,6 +738,19 @@ UnreadBadgeStyle::UnreadBadgeStyle()
 , font(st::dialogsUnreadFont) {
 }
 
+QSize CountUnreadBadgeSize(
+		const QString &unreadCount,
+		const UnreadBadgeStyle &st,
+		int allowDigits) {
+	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
+	const auto unreadRectHeight = st.size;
+	const auto unreadWidth = st.font->width(text);
+	return {
+		std::max(unreadWidth + 2 * st.padding, unreadRectHeight),
+		unreadRectHeight,
+	};
+}
+
 QRect PaintUnreadBadge(
 		Painter &p,
 		const QString &unreadCount,
@@ -723,10 +758,7 @@ QRect PaintUnreadBadge(
 		int y,
 		const UnreadBadgeStyle &st,
 		int allowDigits) {
-	const auto text = (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
-		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
-		: unreadCount;
-
+	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
 	const auto unreadRectHeight = st.size;
 	const auto unreadWidth = st.font->width(text);
 	const auto unreadRectWidth = std::max(
@@ -769,7 +801,6 @@ void RowPainter::paint(
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMark = entry->chatListUnreadMark();
 	const auto unreadMuted = entry->chatListMutedBadge();
-	const auto mentionOrReactionMuted = (entry->folder() != nullptr);
 	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
 		if (history && (!item || (!unreadCount && !unreadMark))) {
@@ -800,6 +831,8 @@ void RowPainter::paint(
 	const auto displayReactionBadge = !displayMentionBadge
 		&& history
 		&& history->unreadReactions().has();
+	const auto mentionOrReactionMuted = (entry->folder() != nullptr)
+		|| (!displayMentionBadge && unreadMuted);
 	const auto displayUnreadCounter = [&] {
 		if (displayMentionBadge
 			&& unreadCount == 1

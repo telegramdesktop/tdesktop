@@ -12,6 +12,7 @@ using "ui/layers/layers.style";
 using "ui/chat/chat.style"; // GroupCallUserpics
 using "info/info.style"; // ShortInfoCover
 using "window/window.style";
+using "settings/settings.style"; // settingsSubsectionTitle
 
 CallSignalBars {
 	width: pixels;
@@ -270,6 +271,9 @@ callMuteMajorBlobMinRadius: 67px;
 callMuteMajorBlobMaxRadius: 77px;
 callMuteBlobRadiusForDiameter: 100px;
 
+callMuteToFullScreen: icon {{ "player/player_fullscreen", groupCallIconFg }};
+callMuteFromFullScreen: icon {{ "player/player_minimize", groupCallIconFg }};
+
 callConnectingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: lightButtonFg;
 	thickness: 4px;
@@ -489,6 +493,10 @@ callErrorToast: Toast(defaultToast) {
 
 groupCallWidth: 380px;
 groupCallHeight: 580px;
+groupCallWidthRtmp: 720px;
+groupCallWidthRtmpMin: 240px;
+groupCallHeightRtmp: 580px;
+groupCallHeightRtmpMin: 160px;
 
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
@@ -553,6 +561,7 @@ groupCallPopupMenuWithCover: PopupMenu(groupCallPopupMenu) {
 	}
 }
 groupCallMenuCover: ShortInfoCover(shortInfoCover) {
+	radius: roundRadiusSmall;
 	size: groupCallMenuCoverSize;
 	namePosition: point(17px, 28px);
 	statusPosition: point(17px, 8px);
@@ -744,15 +753,15 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	textBg: groupCallMembersBg;
 	textBgOver: groupCallMembersBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 22px;
 	padding: margins(63px, 17px, 22px, 11px);
+	iconLeft: 16px;
 
 	ripple: groupCallRipple;
 }
-groupCallAddMemberIcon: icon {{ "info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
-groupCallAddMemberIconLeft: 16px;
+groupCallAddMemberIcon: icon {{ "info/info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
 groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: groupCallMemberNotJoinedStatus;
@@ -765,6 +774,7 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 		linkFontOver: font(semibold 14px);
 	}
 }
+groupCallTitleSeparator: 4px;
 groupCallVideoLimitLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: groupCallMemberNotJoinedStatus;
@@ -784,7 +794,7 @@ groupCallMenuToggle: IconButton {
 
 	icon: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
 	iconOver: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
-	iconPosition: point(6px, 6px);
+	iconPosition: point(2px, 2px);
 
 	rippleAreaPosition: point(3px, 3px);
 	rippleAreaSize: 30px;
@@ -1002,6 +1012,7 @@ groupCallSettingsToggle: Toggle(defaultToggle) {
 	untoggledFg: groupCallMemberNotJoinedStatus;
 }
 groupCallSettingsButton: SettingsButton(defaultSettingsButton) {
+	padding: margins(24px, 10px, 24px, 8px);
 	textFg: groupCallMembersFg;
 	textFgOver: groupCallMembersFg;
 	textBg: groupCallMembersBg;
@@ -1018,6 +1029,7 @@ groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
 	textFgOver: attentionButtonFgOver;
 }
 groupCallBoxLabel: FlatLabel(boxLabel) {
+	minWidth: 200px;
 	textFg: groupCallMembersFg;
 }
 groupCallJoinAsLabel: FlatLabel(defaultFlatLabel) {
@@ -1112,6 +1124,12 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: groupCallTitleCloseIcon;
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
+groupCallPinOnTop: IconButton(groupCallTitleButton) {
+	icon: icon{{ "calls/navbar_pin", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_pin", groupCallMembersFg }};
+	iconPosition: point(0px, 2px);
+}
+groupCallPinnedOnTop: icon{{ "calls/navbar_pin_filled", groupCallMembersFg }};
 
 groupCallMajorBlobIdleRadius: 2px;
 groupCallMajorBlobMaxRadius: 4px;
@@ -1348,3 +1366,92 @@ groupCallRecordingSubLabelMargins: margins(8px, 22px, 8px, 22px);
 groupCallRecordingAudioSkip: 23px;
 groupCallRecordingSelectWidth: 2px;
 groupCallRecordingInfoHeight: 204px;
+
+groupCallRtmpCopyButton: RoundButton(defaultActiveButton) {
+	height: 32px;
+	width: -26px;
+
+	textTop: 7px;
+}
+groupCallRtmpCopyButtonTopSkip: 12px;
+groupCallRtmpCopyButtonBottomSkip: 15px;
+
+groupCallRtmpShowButton: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+
+	icon: icon {{ "menu/show_in_chat", menuIconFg }};
+	iconOver: icon {{ "menu/show_in_chat", menuIconFgOver }};
+	iconPosition: point(4px, 4px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+groupCallSettingsRtmpShowButton: IconButton(groupCallRtmpShowButton) {
+	ripple: groupCallRipple;
+}
+groupCallSubsectionTitle: FlatLabel(settingsSubsectionTitle) {
+	textFg: groupCallActiveFg;
+}
+groupCallAttentionBoxButton: RoundButton(groupCallBoxButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+
+groupCallRtmpUrlSkip: 1px;
+groupCallRtmpKeySubsectionTitleSkip: 8px;
+groupCallRtmpSubsectionTitleAddPadding: margins(0px, -1px, 0px, -4px);
+groupCallRtmpShowButtonPosition: point(21px, -5px);
+groupCallRtmpKeyLabel: FlatLabel(boxLabel) {
+	minWidth: 230px;
+}
+groupCallDividerBg: groupCallMembersBgRipple;
+
+groupCallScheduleDateField: InputField(groupCallField) {
+	textMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	heightMin: 30px;
+	textAlign: align(top);
+	font: font(14px);
+}
+groupCallScheduleTimeField: InputField(groupCallScheduleDateField) {
+	textBg: groupCallMembersBg;
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 28px;
+	placeholderFont: font(14px);
+}
+
+//
+groupCallCalendarPreviousDisabled: icon {{ "calendar_down-flip_vertical", groupCallMemberNotJoinedStatus }};
+groupCallCalendarNextDisabled: icon {{ "calendar_down", groupCallMemberNotJoinedStatus }};
+groupCallCalendarPrevious: IconButton(calendarPrevious) {
+	icon: icon {{ "calendar_down-flip_vertical", groupCallMembersFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMembersBgRipple;
+	}
+}
+groupCallCalendarNext: IconButton(groupCallCalendarPrevious) {
+	icon: icon {{ "calendar_down", groupCallMembersFg }};
+}
+groupCallCalendarColors: CalendarColors {
+	dayTextColor: groupCallMembersFg;
+	dayTextGrayedOutColor: groupCallMemberNotJoinedStatus;
+
+	iconButtonNext: groupCallCalendarNext;
+	iconButtonNextDisabled: groupCallCalendarNextDisabled;
+	iconButtonPrevious: groupCallCalendarPrevious;
+	iconButtonPreviousDisabled: groupCallCalendarPreviousDisabled;
+
+	iconButtonRippleColorDisabled: groupCallMembersBgRipple;
+
+	rippleColor: groupCallMembersBgRipple;
+	rippleColorHighlighted: groupCallMembersBgRipple;
+	rippleGrayedOutColor: groupCallMembersBgRipple;
+
+	titleTextColor: groupCallMembersFg;
+}
+//

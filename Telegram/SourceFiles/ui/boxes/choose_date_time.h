@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/generic_box.h"
 
+namespace style {
+struct FlatLabel;
+struct InputField;
+struct CalendarColors;
+} // namespace style
+
 namespace Ui {
 
 class RoundButton;
@@ -19,6 +25,16 @@ struct ChooseDateTimeBoxDescriptor {
 	rpl::producer<TimeId> values;
 };
 
+struct ChooseDateTimeStyleArgs {
+	ChooseDateTimeStyleArgs();
+	const style::FlatLabel *labelStyle;
+	const style::InputField *dateFieldStyle;
+	const style::InputField *timeFieldStyle;
+	const style::FlatLabel *separatorStyle;
+	const style::FlatLabel *atStyle;
+	const style::CalendarColors *calendarStyle;
+};
+
 struct ChooseDateTimeBoxArgs {
 	rpl::producer<QString> title;
 	rpl::producer<QString> submit;
@@ -27,6 +43,7 @@ struct ChooseDateTimeBoxArgs {
 	TimeId time = 0;
 	Fn<TimeId()> max;
 	rpl::producer<QString> description;
+	ChooseDateTimeStyleArgs style;
 };
 
 ChooseDateTimeBoxDescriptor ChooseDateTimeBox(

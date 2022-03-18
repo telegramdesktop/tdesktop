@@ -56,9 +56,7 @@ void EmptyListBubbleWidget::paintEvent(QPaintEvent *e) {
 
 void EmptyListBubbleWidget::setText(
 		const TextWithEntities &textWithEntities) {
-	auto options = _defaultOptions;
-	options.flags |= TextParseMarkdown;
-	_text.setMarkedText(st::defaultTextStyle, textWithEntities, options);
+	_text.setMarkedText(st::defaultTextStyle, textWithEntities);
 	updateGeometry(size());
 }
 

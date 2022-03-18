@@ -19,6 +19,8 @@ struct ParticipantVideoParams;
 
 namespace Data {
 
+[[nodiscard]] const std::string &RtmpEndpointId();
+
 struct LastSpokeTimes {
 	crl::time anything = 0;
 	crl::time voice = 0;
@@ -55,11 +57,14 @@ public:
 		not_null<PeerData*> peer,
 		CallId id,
 		CallId accessHash,
-		TimeId scheduleDate);
+		TimeId scheduleDate,
+		bool rtmp);
 	~GroupCall();
 
 	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
 	[[nodiscard]] QString title() const {
@@ -239,6 +244,8 @@ private:
 	bool _allParticipantsLoaded = false;
 	bool _joinedToTop = false;
 	bool _applyingQueuedUpdates = false;
+	bool _rtmp = false;
+	bool _listenersHidden = false;
 
 };
 

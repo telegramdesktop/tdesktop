@@ -101,7 +101,7 @@ class ChangePhoneBox::EnterCode : public Ui::BoxContent {
 public:
 	EnterCode(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const QString &phone,
 		const QString &hash,
 		int codeLength,
@@ -125,7 +125,7 @@ private:
 	}
 	int countHeight();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	QString _phone;
@@ -247,7 +247,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(
 	}();
 	_controller->show(
 		Box<EnterCode>(
-			&_controller->session(),
+			_controller,
 			phoneNumber,
 			phoneCodeHash,
 			codeLength,
@@ -266,12 +266,11 @@ void ChangePhoneBox::EnterPhone::sendPhoneFail(
 		Ui::ShowPhoneBannedError(&_controller->window(), phoneNumber);
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		_controller->show(
-			Box<Ui::InformBox>(
+			Ui::MakeInformBox(
 				tr::lng_change_phone_occupied(
 					tr::now,
 					lt_phone,
-					Ui::FormatPhone(phoneNumber)),
-				tr::lng_box_ok(tr::now)),
+					Ui::FormatPhone(phoneNumber))),
 			Ui::LayerOption::CloseOther);
 	} else {
 		showError(Lang::Hard::ServerError());
@@ -292,13 +291,13 @@ void ChangePhoneBox::EnterPhone::showError(const QString &text) {
 
 ChangePhoneBox::EnterCode::EnterCode(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const QString &phone,
 	const QString &hash,
 	int codeLength,
 	int callTimeout)
-: _session(session)
-, _api(&session->mtp())
+: _controller(controller)
+, _api(&controller->session().mtp())
 , _phone(phone)
 , _hash(hash)
 , _codeLength(codeLength)
@@ -356,20 +355,24 @@ void ChangePhoneBox::EnterCode::submit() {
 	}
 	hideError();
 
-	const auto session = _session;
+	const auto session = &_controller->session();
 	const auto code = _code->getDigitsOnly();
 	const auto weak = Ui::MakeWeak(this);
 	_requestId = session->api().request(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),
 		MTP_string(code)
-	)).done([=](const MTPUser &result) {
+	)).done([=, show = Window::Show(_controller)](const MTPUser &result) {
 		_requestId = 0;
 		session->data().processUser(result);
-		if (weak) {
-			Ui::hideLayer();
+		if (show.valid()) {
+			if (weak) {
+				show.hideLayer();
+			}
+			Ui::Toast::Show(
+				show.toastParent(),
+				tr::lng_change_phone_success(tr::now));
 		}
-		Ui::Toast::Show(tr::lng_change_phone_success(tr::now));
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		_requestId = 0;
 		sendCodeFail(error);
@@ -443,9 +446,10 @@ void ChangePhoneBox::prepare() {
 				Ui::LayerOption::CloseOther);
 		};
 		controller->show(
-			Box<Ui::ConfirmBox>(
-				tr::lng_change_phone_warning(tr::now),
-				std::move(callback)),
+			Ui::MakeConfirmBox({
+				.text = tr::lng_change_phone_warning(),
+				.confirmed = std::move(callback),
+			}),
 			Ui::LayerOption::CloseOther);
 	});
 	addButton(tr::lng_cancel(), [this] {

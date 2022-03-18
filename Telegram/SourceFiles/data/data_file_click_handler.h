@@ -52,6 +52,10 @@ public:
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
 		Mode mode = Mode::ToCacheOrFile);
+	static void SaveAndTrack(
+		FullMsgId itemId,
+		not_null<DocumentData*> document,
+		Mode mode = Mode::ToCacheOrFile);
 
 protected:
 	void onClickImpl() const override;

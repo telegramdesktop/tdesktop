@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_invite_link.h"
 
+#include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -35,9 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "mainwindow.h"
-#include "facades.h" // Ui::showPerProfile.
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "settings/settings_common.h"
 #include "mtproto/sender.h"
 #include "qr/qr_generate.h"
@@ -59,6 +60,16 @@ constexpr auto kShareQrSize = 768;
 constexpr auto kShareQrPadding = 16;
 
 using LinkData = Api::InviteLink;
+
+void ShowPeerInfoSync(not_null<PeerData*> peer) {
+	// While a peer info is demanded by the left click
+	// we can safely use activeWindow.
+	if (const auto window = Core::App().activeWindow()) {
+		if (const auto controller = window->sessionController()) {
+			controller->showPeerInfo(peer);
+		}
+	}
+}
 
 class RequestedRow final : public PeerListRow {
 public:
@@ -260,10 +271,14 @@ QImage QrForShare(const QString &text) {
 void QrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
-		Fn<void(QImage)> share) {
+		Fn<void(QImage, std::shared_ptr<Ui::BoxShow>)> share) {
 	box->setTitle(tr::lng_group_invite_qr_title());
 
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+
+	const auto copyCallback = [=, show = std::make_shared<Ui::BoxShow>(box)] {
+		share(QrForShare(link), show);
+	};
 
 	const auto qr = Qr(
 		link,
@@ -284,9 +299,7 @@ void QrBox(
 	) | rpl::start_with_next([=](int width) {
 		button->move((width - size) / 2, st::inviteLinkQrSkip);
 	}, button->lifetime());
-	button->setClickedCallback([=] {
-		share(QrForShare(link));
-	});
+	button->setClickedCallback(copyCallback);
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -295,9 +308,7 @@ void QrBox(
 			st::boxLabel),
 		st::inviteLinkQrValuePadding);
 
-	box->addLeftButton(
-		tr::lng_group_invite_context_copy(),
-		[=] { share(QrForShare(link)); });
+	box->addLeftButton(tr::lng_group_invite_context_copy(), copyCallback);
 }
 
 Controller::Controller(
@@ -331,22 +342,32 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto admin = current.admin;
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
-		CopyInviteLink(link);
+		CopyInviteLink(delegate()->peerListToastParent(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		ShareInviteLinkBox(_peer, link);
+		delegate()->peerListShowBox(
+			ShareInviteLinkBox(_peer, link),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
-		InviteLinkQrBox(link);
+		delegate()->peerListShowBox(
+			InviteLinkQrBox(link),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		RevokeLink(_peer, admin, link);
+		delegate()->peerListShowBox(
+			RevokeLinkBox(_peer, admin, link),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		EditLink(_peer, _data.current());
+		delegate()->peerListShowBox(
+			EditLinkBox(_peer, _data.current()),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		DeleteLink(_peer, admin, link);
+		delegate()->peerListShowBox(
+			DeleteLinkBox(_peer, admin, link),
+			Ui::LayerOption::KeepOther);
 	});
 
 	const auto createMenu = [=] {
@@ -721,7 +742,7 @@ void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerProfile(row->peer());
+	ShowPeerInfoSync(row->peer());
 }
 
 void Controller::rowRightActionClicked(not_null<PeerListRow*> row) {
@@ -780,6 +801,7 @@ void Controller::processRequest(
 		}
 		if (approved) {
 			Ui::ShowMultilineToast({
+				.parentOverride = delegate()->peerListToastParent(),
 				.text = (_peer->isBroadcast()
 					? tr::lng_group_requests_was_added_channel
 					: tr::lng_group_requests_was_added)(
@@ -852,7 +874,7 @@ void SingleRowController::loadMoreRows() {
 }
 
 void SingleRowController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerProfile(row->peer());
+	ShowPeerInfoSync(row->peer());
 }
 
 Main::Session &SingleRowController::session() const {
@@ -885,6 +907,7 @@ void AddSinglePeerRow(
 }
 
 void AddPermanentLinkBlock(
+		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -929,38 +952,29 @@ void AddPermanentLinkBlock(
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			CopyInviteLink(current.link);
+			CopyInviteLink(show->toastParent(), current.link);
 		}
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			ShareInviteLinkBox(peer, current.link);
+			show->showBox(
+				ShareInviteLinkBox(peer, current.link),
+				Ui::LayerOption::KeepOther);
 		}
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			InviteLinkQrBox(current.link);
+			show->showBox(
+				InviteLinkQrBox(current.link),
+				Ui::LayerOption::KeepOther);
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-		const auto done = crl::guard(weak, [=] {
-			const auto close = [=] {
-				if (*box) {
-					(*box)->closeBox();
-				}
-			};
-			peer->session().api().inviteLinks().revokePermanent(
-				peer,
-				admin,
-				value->current().link,
-				close);
-		});
-		*box = Ui::show(
-			Box<Ui::ConfirmBox>(
-				tr::lng_group_invite_about_new(tr::now),
-				done),
-			Ui::LayerOption::KeepOther);
+		if (const auto current = value->current(); !current.link.isEmpty()) {
+			show->showBox(
+				RevokeLinkBox(peer, admin, current.link, true),
+				Ui::LayerOption::KeepOther);
+		}
 	});
 
 	auto link = value->value(
@@ -1085,7 +1099,9 @@ void AddPermanentLinkBlock(
 		st::inviteLinkJoinedRowPadding
 	)->setClickedCallback([=] {
 		if (!currentLinkFields->link.isEmpty()) {
-			ShowInviteLinkBox(peer, *currentLinkFields);
+			show->showBox(
+				ShowInviteLinkBox(peer, *currentLinkFields),
+				Ui::LayerOption::KeepOther);
 		}
 	});
 
@@ -1100,18 +1116,26 @@ void AddPermanentLinkBlock(
 	}));
 }
 
-void CopyInviteLink(const QString &link) {
+void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	Ui::Toast::Show(toastParent, tr::lng_group_invite_copied(tr::now));
 }
 
-void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
+object_ptr<Ui::BoxContent> ShareInviteLinkBox(
+		not_null<PeerData*> peer,
+		const QString &link) {
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
+	const auto showToast = [=](const QString &text) {
+		if (*box) {
+			Ui::Toast::Show(Ui::BoxShow(*box).toastParent(), text);
+		}
+	};
+
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+		showToast(tr::lng_group_invite_copied(tr::now));
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<PeerData*>> &&result,
@@ -1142,9 +1166,11 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 				).append("\n\n");
 			}
 			text.append(error.first);
-			Ui::show(
-				Box<Ui::InformBox>(text),
-				Ui::LayerOption::KeepOther);
+			if (*box) {
+				Ui::BoxShow(*box).showBox(
+					Ui::MakeInformBox(text),
+					Ui::LayerOption::KeepOther);
+			}
 			return;
 		}
 
@@ -1162,37 +1188,42 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		auto &api = peer->session().api();
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
-			auto message = Api::MessageToSend(Api::SendAction(history, options));
+			auto message = Api::MessageToSend(
+				Api::SendAction(history, options));
 			message.textWithTags = comment;
 			message.action.clearDraft = false;
 			api.sendMessage(std::move(message));
 		}
-		Ui::Toast::Show(tr::lng_share_done(tr::now));
 		if (*box) {
+			showToast(tr::lng_share_done(tr::now));
 			(*box)->closeBox();
 		}
 	};
-	*box = Ui::show(
-		Box<ShareBox>(ShareBox::Descriptor{
-			.session = &peer->session(),
-			.copyCallback = std::move(copyCallback),
-			.submitCallback = std::move(submitCallback),
-			.filterCallback = [](auto peer) { return peer->canWrite(); },
-			.navigation = App::wnd()->sessionController() }),
-		Ui::LayerOption::KeepOther);
+	auto object = Box<ShareBox>(ShareBox::Descriptor{
+		.session = &peer->session(),
+		.copyCallback = std::move(copyCallback),
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = [](auto peer) { return peer->canWrite(); },
+	});
+	*box = Ui::MakeWeak(object.data());
+	return object;
 }
 
-void InviteLinkQrBox(const QString &link) {
-	Ui::show(Box(QrBox, link, [=](const QImage &image) {
+object_ptr<Ui::BoxContent> InviteLinkQrBox(const QString &link) {
+	return Box(QrBox, link, [=](
+			const QImage &image,
+			std::shared_ptr<Ui::BoxShow> show) {
 		auto mime = std::make_unique<QMimeData>();
 		mime->setImageData(image);
 		QGuiApplication::clipboard()->setMimeData(mime.release());
 
-		Ui::Toast::Show(tr::lng_group_invite_qr_copied(tr::now));
-	}));
+		Ui::Toast::Show(
+			show->toastParent(),
+			tr::lng_group_invite_qr_copied(tr::now));
+	});
 }
 
-void EditLink(
+object_ptr<Ui::BoxContent> EditLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &data) {
 	const auto creating = data.link.isEmpty();
@@ -1200,10 +1231,11 @@ void EditLink(
 	using Fields = Ui::InviteLinkFields;
 	const auto done = [=](Fields result) {
 		const auto finish = [=](Api::InviteLink finished) {
-			if (creating) {
-				ShowInviteLinkBox(peer, finished);
-			}
 			if (*box) {
+				if (creating) {
+					(*box)->getDelegate()->show(
+						ShowInviteLinkBox(peer, finished));
+				}
 				(*box)->closeBox();
 			}
 		};
@@ -1230,67 +1262,65 @@ void EditLink(
 	};
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
-	*box = Ui::show(
-		(creating
-			? Box(Ui::CreateInviteLinkBox, isGroup, isPublic, done)
-			: Box(
-				Ui::EditInviteLinkBox,
-				Fields{
-					.link = data.link,
-					.label = data.label,
-					.expireDate = data.expireDate,
-					.usageLimit = data.usageLimit,
-					.requestApproval = data.requestApproval,
-					.isGroup = isGroup,
-					.isPublic = isPublic,
-				},
-				done)),
-		Ui::LayerOption::KeepOther);
+	if (creating) {
+		auto object = Box(Ui::CreateInviteLinkBox, isGroup, isPublic, done);
+		*box = Ui::MakeWeak(object.data());
+		return object;
+	} else {
+		auto object = Box(
+			Ui::EditInviteLinkBox,
+			Fields{
+				.link = data.link,
+				.label = data.label,
+				.expireDate = data.expireDate,
+				.usageLimit = data.usageLimit,
+				.requestApproval = data.requestApproval,
+				.isGroup = isGroup,
+				.isPublic = isPublic,
+			},
+			done);
+		*box = Ui::MakeWeak(object.data());
+		return object;
+	}
 }
 
-void RevokeLink(
+object_ptr<Ui::BoxContent> RevokeLinkBox(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
-		const QString &link) {
-	const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-	const auto revoke = [=] {
-		const auto done = [=](const LinkData &data) {
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
-		peer->session().api().inviteLinks().revoke(peer, admin, link, done);
+		const QString &link,
+		bool permanent) {
+	const auto revoke = [=](Fn<void()> &&close) {
+		auto &l = peer->session().api().inviteLinks();
+		if (permanent) {
+			l.revokePermanent(peer, admin, link, std::move(close));
+		} else {
+			auto done = [c = std::move(close)](const LinkData &) { c(); };
+			l.revoke(peer, admin, link, std::move(done));
+		}
 	};
-	*box = Ui::show(
-		Box<Ui::ConfirmBox>(
-			tr::lng_group_invite_revoke_about(tr::now),
-			revoke),
-		Ui::LayerOption::KeepOther);
+	return Ui::MakeConfirmBox({
+		permanent
+			? tr::lng_group_invite_about_new()
+			: tr::lng_group_invite_revoke_about(),
+		revoke
+	});
 }
 
-void DeleteLink(
+object_ptr<Ui::BoxContent> DeleteLinkBox(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const QString &link) {
-	const auto box = std::make_shared<QPointer<Ui::ConfirmBox>>();
-	const auto sure = [=] {
-		const auto finish = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
+	const auto sure = [=](Fn<void()> &&close) {
 		peer->session().api().inviteLinks().destroy(
 			peer,
 			admin,
 			link,
-			finish);
+			std::move(close));
 	};
-	*box = Ui::show(
-		Box<Ui::ConfirmBox>(tr::lng_group_invite_delete_sure(tr::now), sure),
-		Ui::LayerOption::KeepOther);
+	return Ui::MakeConfirmBox({ tr::lng_group_invite_delete_sure(), sure });
 }
 
-void ShowInviteLinkBox(
+object_ptr<Ui::BoxContent> ShowInviteLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &link) {
 	const auto admin = link.admin;
@@ -1330,15 +1360,13 @@ void ShowInviteLinkBox(
 
 		box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 	};
-	Ui::show(
-		Box<PeerListBox>(
-			std::make_unique<Controller>(
-				peer,
-				link.admin,
-				std::move(data),
-				Controller::Role::Joined),
-			std::move(initBox)),
-		Ui::LayerOption::KeepOther);
+	return Box<PeerListBox>(
+		std::make_unique<Controller>(
+			peer,
+			link.admin,
+			std::move(data),
+			Controller::Role::Joined),
+		std::move(initBox));
 }
 
 QString PrepareRequestedRowStatus(TimeId date) {

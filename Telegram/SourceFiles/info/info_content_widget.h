@@ -28,6 +28,10 @@ namespace Settings {
 struct Tag;
 } // namespace Settings
 
+namespace Downloads {
+struct Tag;
+} // namespace Downloads
+
 class ContentMemento;
 class Controller;
 
@@ -66,10 +70,9 @@ public:
 	QRect floatPlayerAvailableRect() const;
 
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
-	virtual void cancelSelection() {
+	virtual void selectionAction(SelectionAction action) {
 	}
 
-	virtual rpl::producer<bool> canSaveChanges() const;
 	virtual void saveChanges(FnMut<void()> done);
 
 protected:
@@ -121,6 +124,7 @@ public:
 	, _migratedPeerId(migratedPeerId) {
 	}
 	explicit ContentMemento(Settings::Tag settings);
+	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollContextId(contextId) {

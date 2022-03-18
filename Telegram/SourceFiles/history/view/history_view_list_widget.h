@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
+#include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
 #include "data/data_messages.h"
@@ -22,6 +23,7 @@ class Session;
 namespace Ui {
 class PopupMenu;
 class ChatTheme;
+struct ChatPaintContext;
 } // namespace Ui
 
 namespace Window {
@@ -167,8 +169,7 @@ private:
 class ListWidget final
 	: public Ui::RpWidget
 	, public ElementDelegate
-	, public Ui::AbstractTooltipShower
-	, private base::Subscriber {
+	, public Ui::AbstractTooltipShower {
 public:
 	ListWidget(
 		QWidget *parent,
@@ -376,6 +377,8 @@ private:
 	void saveScrollState();
 	void restoreScrollState();
 
+	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
+
 	Element *viewForItem(FullMsgId itemId) const;
 	Element *viewForItem(const HistoryItem *item) const;
 	not_null<Element*> enforceViewForItem(not_null<HistoryItem*> item);
@@ -504,6 +507,8 @@ private:
 	void startItemRevealAnimations();
 	void revealItemsCallback();
 
+	void startMessageSendingAnimation(not_null<HistoryItem*> item);
+
 	void updateHighlightedMessage();
 	void clearHighlightedMessage();
 
@@ -559,6 +564,9 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+	base::flat_map<
+		MsgId,
+		std::shared_ptr<Data::CloudImageView>> _sponsoredUserpics;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
@@ -627,7 +635,7 @@ private:
 
 	Ui::Animations::Simple _spoilerOpacity;
 
-	Ui::SelectScrollManager _selectScroll;
+	Ui::DraggingScrollManager _selectScroll;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;

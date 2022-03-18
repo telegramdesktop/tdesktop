@@ -33,12 +33,6 @@ void hideLayer(anim::type animated) {
 	}
 }
 
-void hideSettingsAndLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_hideSettingsAndLayer(animated);
-	}
-}
-
 bool isLayerShown() {
 	if (auto w = App::wnd()) return w->ui_isLayerShown();
 	return false;

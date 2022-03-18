@@ -105,7 +105,7 @@ void FilterIconPanel::setupInner() {
 		Ui::FillRoundRect(
 			p,
 			_inner->rect(),
-			st::emojiPanBg,
+			st::dialogsBg,
 			ImageRoundRadius::Small);
 		p.setFont(st::emojiPanHeaderFont);
 		p.setPen(st::emojiPanHeaderFg);
@@ -121,15 +121,21 @@ void FilterIconPanel::setupInner() {
 			if (!rect.intersects(clip)) {
 				continue;
 			}
-			if (i == selected) {
+			const auto over = (i == selected);
+			if (over) {
 				Ui::FillRoundRect(
 					p,
 					rect,
-					st::emojiPanHover,
+					st::dialogsBgOver,
 					Ui::StickerHoverCorners);
 			}
 			const auto icon = LookupFilterIcon(kIcons[i]).normal;
-			icon->paintInCenter(p, rect, st::emojiIconFg->c);
+			icon->paintInCenter(
+				p,
+				rect,
+				(over
+					? st::dialogsUnreadBgMutedOver
+					: st::dialogsUnreadBgMuted)->c);
 		}
 	}, _inner->lifetime());
 
