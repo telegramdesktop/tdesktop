@@ -358,7 +358,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			usex = width() - usew;
 		}
 	}
-	if (isUnwrapped()) {
+	if (isRound) {
 		accumulate_min(usew, painth);
 	}
 	if (rtl()) usex = width() - usex - usew;
@@ -832,6 +832,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	}
 	const auto outbg = _parent->hasOutLayout();
 	const auto inWebPage = (_parent->media() != this);
+	const auto isRound = _data->isVideoMessage();
 	const auto unwrapped = isUnwrapped();
 	const auto item = _parent->data();
 	auto usew = paintw, usex = 0;
@@ -847,7 +848,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			usex = width() - usew;
 		}
 	}
-	if (isUnwrapped()) {
+	if (isRound) {
 		accumulate_min(usew, painth);
 	}
 	if (rtl()) usex = width() - usex - usew;
