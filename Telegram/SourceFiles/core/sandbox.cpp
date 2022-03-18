@@ -229,12 +229,16 @@ void Sandbox::setupScreenScale() {
 		cSetScreenScale(100); // 100%:  96 DPI (0-108)
 	} else if (dpi <= 132) {
 		cSetScreenScale(125); // 125%: 120 DPI (108-132)
-	} else if (dpi <= 168) {
-		cSetScreenScale(150); // 150%: 144 DPI (132-168)
-	} else if (dpi <= 216) {
-		cSetScreenScale(200); // 200%: 192 DPI (168-216)
+	} else if (dpi <= 156) {
+		cSetScreenScale(150); // 150%: 144 DPI (132-156)
+	} else if (dpi <= 180) {
+		cSetScreenScale(175); // 175%: 168 DPI (156-180)
+	} else if (dpi <= 204) {
+		cSetScreenScale(200); // 200%: 192 DPI (180-204)
+	} else if (dpi <= 228) {
+		cSetScreenScale(225); // 225%: 216 DPI (204-228)
 	} else if (dpi <= 264) {
-		cSetScreenScale(250); // 250%: 240 DPI (216-264)
+		cSetScreenScale(250); // 250%: 240 DPI (228-264)
 	} else {
 		cSetScreenScale(300); // 300%: 288 DPI (264-inf)
 	}
