@@ -450,7 +450,6 @@ void SetupBio(
 void SetupAccountsWrap(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller) {
-	AddSkip(container);
 	AddDivider(container);
 	AddSkip(container);
 
