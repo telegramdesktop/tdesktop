@@ -1972,6 +1972,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_found_results#other" = "Found {count} messages";
 "lng_search_global_results" = "Global search results";
 "lng_search_messages_from" = "Show messages from";
+"lng_search_messages_n_of_amount" = "{n} of {amount}";
+"lng_search_messages_none" = "No result";
 
 "lng_media_save_progress" = "{ready} of {total} {mb}";
 "lng_mediaview_save_as" = "Save As...";
