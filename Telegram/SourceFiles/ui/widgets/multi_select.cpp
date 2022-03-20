@@ -23,6 +23,105 @@ constexpr int kWideScale = 3;
 
 } // namespace
 
+class MultiSelect::Inner : public TWidget {
+public:
+	using ScrollCallback = Fn<void(int activeTop, int activeBottom)>;
+	Inner(
+		QWidget *parent,
+		const style::MultiSelect &st,
+		rpl::producer<QString> placeholder,
+		ScrollCallback callback);
+
+	QString getQuery() const;
+	bool setInnerFocus();
+	void clearQuery();
+
+	void setQueryChangedCallback(Fn<void(const QString &query)> callback);
+	void setSubmittedCallback(Fn<void(Qt::KeyboardModifiers)> callback);
+	void setCancelledCallback(Fn<void()> callback);
+
+	void addItemInBunch(std::unique_ptr<Item> item);
+	void finishItemsBunch(AddItemWay way);
+	void setItemText(uint64 itemId, const QString &text);
+
+	void setItemRemovedCallback(Fn<void(uint64 itemId)> callback);
+	void removeItem(uint64 itemId);
+
+	int getItemsCount() const;
+	QVector<uint64> getItems() const;
+	bool hasItem(uint64 itemId) const;
+
+	void setResizedCallback(Fn<void(int heightDelta)> callback);
+
+	~Inner();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+
+private:
+	void submitted(Qt::KeyboardModifiers modifiers);
+	void cancelled();
+	void queryChanged();
+	void fieldFocused();
+	void computeItemsGeometry(int newWidth);
+	void updateItemsGeometry();
+	void updateFieldGeometry();
+	void updateHasAnyItems(bool hasAnyItems);
+	void updateSelection(QPoint mousePosition);
+	void clearSelection() {
+		updateSelection(QPoint(-1, -1));
+	}
+	void updateCursor();
+	void updateHeightStep();
+	void finishHeightAnimation();
+	enum class ChangeActiveWay {
+		Default,
+		SkipSetFocus,
+	};
+	void setActiveItem(
+		int active,
+		ChangeActiveWay skipSetFocus = ChangeActiveWay::Default);
+	void setActiveItemPrevious();
+	void setActiveItemNext();
+
+	QMargins itemPaintMargins() const;
+
+	const style::MultiSelect &_st;
+	Ui::Animations::Simple _iconOpacity;
+
+	ScrollCallback _scrollCallback;
+
+	std::set<uint64> _idsMap;
+	std::vector<std::unique_ptr<Item>> _items;
+	std::set<std::unique_ptr<Item>> _removingItems;
+
+	int _selected = -1;
+	int _active = -1;
+	bool _overDelete = false;
+
+	int _fieldLeft = 0;
+	int _fieldTop = 0;
+	int _fieldWidth = 0;
+	object_ptr<Ui::InputField> _field;
+	object_ptr<Ui::CrossButton> _cancel;
+
+	int _newHeight = 0;
+	Ui::Animations::Simple _height;
+
+	Fn<void(const QString &query)> _queryChangedCallback;
+	Fn<void(Qt::KeyboardModifiers)> _submittedCallback;
+	Fn<void()> _cancelledCallback;
+	Fn<void(uint64 itemId)> _itemRemovedCallback;
+	Fn<void(int heightDelta)> _resizedCallback;
+
+};
+
 MultiSelect::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage)
 : _st(st)
 , _id(id)
