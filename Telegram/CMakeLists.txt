@@ -129,6 +129,8 @@ PRIVATE
     api/api_invite_links.h
     api/api_media.cpp
     api/api_media.h
+    api/api_messages_search.cpp
+    api/api_messages_search.h
     api/api_peer_photo.cpp
     api/api_peer_photo.h
     api/api_polls.cpp
