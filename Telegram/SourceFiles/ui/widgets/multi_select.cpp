@@ -21,6 +21,389 @@ namespace {
 
 constexpr int kWideScale = 3;
 
+class Item {
+public:
+	Item(
+		const style::MultiSelectItem &st,
+		uint64 id,
+		const QString &text,
+		style::color color,
+		MultiSelect::PaintRoundImage &&paintRoundImage);
+
+	uint64 id() const {
+		return _id;
+	}
+	int getWidth() const {
+		return _width;
+	}
+	QRect rect() const {
+		return QRect(_x, _y, _width, _st.height);
+	}
+	bool isOverDelete() const {
+		return _overDelete;
+	}
+	void setActive(bool active) {
+		_active = active;
+	}
+	void setPosition(int x, int y, int outerWidth, int maxVisiblePadding);
+	QRect paintArea(int outerWidth) const;
+
+	void setUpdateCallback(Fn<void()> updateCallback) {
+		_updateCallback = updateCallback;
+	}
+	void setText(const QString &text);
+	void paint(Painter &p, int outerWidth);
+
+	void mouseMoveEvent(QPoint point);
+	void leaveEvent();
+
+	void showAnimated() {
+		setVisibleAnimated(true);
+	}
+	void hideAnimated() {
+		setVisibleAnimated(false);
+	}
+	bool hideFinished() const {
+		return (_hiding && !_visibility.animating());
+	}
+
+
+private:
+	void setOver(bool over);
+	void paintOnce(Painter &p, int x, int y, int outerWidth);
+	void paintDeleteButton(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		float64 overOpacity);
+	bool paintCached(Painter &p, int x, int y, int outerWidth);
+	void prepareCache();
+	void setVisibleAnimated(bool visible);
+
+	const style::MultiSelectItem &_st;
+
+	uint64 _id;
+	struct SlideAnimation {
+		SlideAnimation(
+				Fn<void()> updateCallback,
+				int fromX,
+				int toX,
+				int y,
+				float64 duration)
+			: fromX(fromX)
+			, toX(toX)
+			, y(y) {
+			x.start(updateCallback, fromX, toX, duration);
+		}
+		Ui::Animations::Simple x;
+		int fromX, toX;
+		int y;
+	};
+	std::vector<SlideAnimation> _copies;
+	int _x = -1;
+	int _y = -1;
+	int _width = 0;
+	Text::String _text;
+	style::color _color;
+	bool _over = false;
+	QPixmap _cache;
+	Ui::Animations::Simple _visibility;
+	Ui::Animations::Simple _overOpacity;
+	bool _overDelete = false;
+	bool _active = false;
+	MultiSelect::PaintRoundImage _paintRoundImage;
+	Fn<void()> _updateCallback;
+	bool _hiding = false;
+
+};
+
+Item::Item(
+	const style::MultiSelectItem &st,
+	uint64 id,
+	const QString &text,
+	style::color color,
+	MultiSelect::PaintRoundImage &&paintRoundImage)
+: _st(st)
+, _id(id)
+, _color(color)
+, _paintRoundImage(std::move(paintRoundImage)) {
+	setText(text);
+}
+
+void Item::setText(const QString &text) {
+	_text.setText(_st.style, text, NameTextOptions());
+	_width = _st.height
+		+ _st.padding.left()
+		+ _text.maxWidth()
+		+ _st.padding.right();
+	accumulate_min(_width, _st.maxWidth);
+}
+
+void Item::paint(Painter &p, int outerWidth) {
+	if (!_cache.isNull() && !_visibility.animating()) {
+		if (_hiding) {
+			return;
+		} else {
+			_cache = QPixmap();
+		}
+	}
+	if (_copies.empty()) {
+		paintOnce(p, _x, _y, outerWidth);
+	} else {
+		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
+			auto x = qRound(i->x.value(_x));
+			auto y = i->y;
+			auto animating = i->x.animating();
+			if (animating || (y == _y)) {
+				paintOnce(p, x, y, outerWidth);
+			}
+			if (animating) {
+				++i;
+			} else {
+				i = _copies.erase(i);
+				e = _copies.end();
+			}
+		}
+	}
+}
+
+void Item::paintOnce(Painter &p, int x, int y, int outerWidth) {
+	if (!_cache.isNull()) {
+		paintCached(p, x, y, outerWidth);
+		return;
+	}
+
+	auto radius = _st.height / 2;
+	auto inner = style::rtlrect(
+		x + radius,
+		y,
+		_width - radius,
+		_st.height,
+		outerWidth);
+
+	auto clipEnabled = p.hasClipping();
+	auto clip = clipEnabled ? p.clipRegion() : QRegion();
+	p.setClipRect(inner);
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(_active ? _st.textActiveBg : _st.textBg);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawRoundedRect(
+			style::rtlrect(x, y, _width, _st.height, outerWidth),
+			radius,
+			radius);
+	}
+
+	if (clipEnabled) {
+		p.setClipRegion(clip);
+	} else {
+		p.setClipping(false);
+	}
+
+	auto overOpacity = _overOpacity.value(_over ? 1. : 0.);
+	if (overOpacity < 1.) {
+		_paintRoundImage(p, x, y, outerWidth, _st.height);
+	}
+	if (overOpacity > 0.) {
+		paintDeleteButton(p, x, y, outerWidth, overOpacity);
+	}
+
+	auto textLeft = _st.height + _st.padding.left();
+	auto textWidth = _width - textLeft - _st.padding.right();
+	p.setPen(_active ? _st.textActiveFg : _st.textFg);
+	_text.drawLeftElided(
+		p,
+		x + textLeft,
+		y + _st.padding.top(),
+		textWidth,
+		outerWidth);
+}
+
+void Item::paintDeleteButton(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		float64 overOpacity) {
+	p.setOpacity(overOpacity);
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(_color);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(
+			style::rtlrect(x, y, _st.height, _st.height, outerWidth));
+	}
+
+	CrossAnimation::paint(
+		p,
+		_st.deleteCross,
+		_st.deleteFg,
+		x,
+		y,
+		outerWidth,
+		overOpacity);
+
+	p.setOpacity(1.);
+}
+
+bool Item::paintCached(Painter &p, int x, int y, int outerWidth) {
+	PainterHighQualityEnabler hq(p);
+
+	auto opacity = _visibility.value(_hiding ? 0. : 1.);
+	auto height = opacity * _cache.height() / _cache.devicePixelRatio();
+	auto width = opacity * _cache.width() / _cache.devicePixelRatio();
+
+	p.setOpacity(opacity);
+	p.drawPixmap(
+		style::rtlrect(
+			x + (_width - width) / 2.,
+			y + (_st.height - height) / 2.,
+			width,
+			height,
+			outerWidth),
+		_cache);
+	p.setOpacity(1.);
+	return true;
+}
+
+void Item::mouseMoveEvent(QPoint point) {
+	if (!_cache.isNull()) {
+		return;
+	}
+	_overDelete = QRect(0, 0, _st.height, _st.height).contains(point);
+	setOver(true);
+}
+
+void Item::leaveEvent() {
+	_overDelete = false;
+	setOver(false);
+}
+
+void Item::setPosition(int x, int y, int outerWidth, int maxVisiblePadding) {
+	if (_x >= 0 && _y >= 0 && (_x != x || _y != y)) {
+		// Make an animation if it is not the first setPosition().
+		auto found = false;
+		auto leftHidden = -_width - maxVisiblePadding;
+		auto rightHidden = outerWidth + maxVisiblePadding;
+		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
+			if (i->x.animating()) {
+				if (i->y == y) {
+					i->x.start(_updateCallback, i->toX, x, _st.duration);
+					found = true;
+				} else {
+					i->x.start(
+						_updateCallback,
+						i->fromX,
+						(i->toX > i->fromX) ? rightHidden : leftHidden,
+						_st.duration);
+				}
+				++i;
+			} else {
+				i = _copies.erase(i);
+				e = _copies.end();
+			}
+		}
+		if (_copies.empty()) {
+			if (_y == y) {
+				auto copy = SlideAnimation(
+					_updateCallback,
+					_x,
+					x,
+					_y,
+					_st.duration);
+				_copies.push_back(std::move(copy));
+			} else {
+				auto copyHiding = SlideAnimation(
+					_updateCallback,
+					_x,
+					(y > _y) ? rightHidden : leftHidden,
+					_y,
+					_st.duration);
+				_copies.push_back(std::move(copyHiding));
+				auto copyShowing = SlideAnimation(
+					_updateCallback,
+					(y > _y) ? leftHidden : rightHidden,
+					x,
+					y,
+					_st.duration);
+				_copies.push_back(std::move(copyShowing));
+			}
+		} else if (!found) {
+			auto copy = SlideAnimation(
+				_updateCallback,
+				(y > _y) ? leftHidden : rightHidden,
+				x,
+				y,
+				_st.duration);
+			_copies.push_back(std::move(copy));
+		}
+	}
+	_x = x;
+	_y = y;
+}
+
+QRect Item::paintArea(int outerWidth) const {
+	if (_copies.empty()) {
+		return rect();
+	}
+	auto yMin = 0, yMax = 0;
+	for (const auto &copy : _copies) {
+		accumulate_max(yMax, copy.y);
+		if (yMin) {
+			accumulate_min(yMin, copy.y);
+		} else {
+			yMin = copy.y;
+		}
+	}
+	return QRect(0, yMin, outerWidth, yMax - yMin + _st.height);
+}
+
+void Item::prepareCache() {
+	if (!_cache.isNull()) return;
+
+	Assert(!_visibility.animating());
+	auto cacheWidth = _width * kWideScale * cIntRetinaFactor();
+	auto cacheHeight = _st.height * kWideScale * cIntRetinaFactor();
+	auto data = QImage(
+		cacheWidth,
+		cacheHeight,
+		QImage::Format_ARGB32_Premultiplied);
+	data.fill(Qt::transparent);
+	data.setDevicePixelRatio(cRetinaFactor());
+	{
+		Painter p(&data);
+		paintOnce(
+			p,
+			_width * (kWideScale - 1) / 2,
+			_st.height  * (kWideScale - 1) / 2,
+			cacheWidth);
+	}
+	_cache = Ui::PixmapFromImage(std::move(data));
+}
+
+void Item::setVisibleAnimated(bool visible) {
+	_hiding = !visible;
+	prepareCache();
+	auto from = visible ? 0. : 1.;
+	auto to = visible ? 1. : 0.;
+	auto transition = visible ? anim::bumpy(1.0625) : anim::linear;
+	_visibility.start(_updateCallback, from, to, _st.duration, transition);
+}
+
+void Item::setOver(bool over) {
+	if (over != _over) {
+		_over = over;
+		_overOpacity.start(
+			_updateCallback,
+			_over ? 0. : 1.,
+			_over ? 1. : 0.,
+			_st.duration);
+	}
+}
+
 } // namespace
 
 class MultiSelect::Inner : public TWidget {
@@ -121,214 +504,6 @@ private:
 	Fn<void(int heightDelta)> _resizedCallback;
 
 };
-
-MultiSelect::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage)
-: _st(st)
-, _id(id)
-, _color(color)
-, _paintRoundImage(std::move(paintRoundImage)) {
-	setText(text);
-}
-
-void MultiSelect::Item::setText(const QString &text) {
-	_text.setText(_st.style, text, NameTextOptions());
-	_width = _st.height + _st.padding.left() + _text.maxWidth() + _st.padding.right();
-	accumulate_min(_width, _st.maxWidth);
-}
-
-void MultiSelect::Item::paint(Painter &p, int outerWidth) {
-	if (!_cache.isNull() && !_visibility.animating()) {
-		if (_hiding) {
-			return;
-		} else {
-			_cache = QPixmap();
-		}
-	}
-	if (_copies.empty()) {
-		paintOnce(p, _x, _y, outerWidth);
-	} else {
-		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.value(_x));
-			auto y = i->y;
-			auto animating = i->x.animating();
-			if (animating || (y == _y)) {
-				paintOnce(p, x, y, outerWidth);
-			}
-			if (animating) {
-				++i;
-			} else {
-				i = _copies.erase(i);
-				e = _copies.end();
-			}
-		}
-	}
-}
-
-void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth) {
-	if (!_cache.isNull()) {
-		paintCached(p, x, y, outerWidth);
-		return;
-	}
-
-	auto radius = _st.height / 2;
-	auto inner = style::rtlrect(x + radius, y, _width - radius, _st.height, outerWidth);
-
-	auto clipEnabled = p.hasClipping();
-	auto clip = clipEnabled ? p.clipRegion() : QRegion();
-	p.setClipRect(inner);
-
-	p.setPen(Qt::NoPen);
-	p.setBrush(_active ? _st.textActiveBg : _st.textBg);
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(style::rtlrect(x, y, _width, _st.height, outerWidth), radius, radius);
-	}
-
-	if (clipEnabled) {
-		p.setClipRegion(clip);
-	} else {
-		p.setClipping(false);
-	}
-
-	auto overOpacity = _overOpacity.value(_over ? 1. : 0.);
-	if (overOpacity < 1.) {
-		_paintRoundImage(p, x, y, outerWidth, _st.height);
-	}
-	if (overOpacity > 0.) {
-		paintDeleteButton(p, x, y, outerWidth, overOpacity);
-	}
-
-	auto textLeft = _st.height + _st.padding.left();
-	auto textWidth = _width - textLeft - _st.padding.right();
-	p.setPen(_active ? _st.textActiveFg : _st.textFg);
-	_text.drawLeftElided(p, x + textLeft, y + _st.padding.top(), textWidth, outerWidth);
-}
-
-void MultiSelect::Item::paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity) {
-	p.setOpacity(overOpacity);
-
-	p.setPen(Qt::NoPen);
-	p.setBrush(_color);
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(style::rtlrect(x, y, _st.height, _st.height, outerWidth));
-	}
-
-	CrossAnimation::paint(p, _st.deleteCross, _st.deleteFg, x, y, outerWidth, overOpacity);
-
-	p.setOpacity(1.);
-}
-
-bool MultiSelect::Item::paintCached(Painter &p, int x, int y, int outerWidth) {
-	PainterHighQualityEnabler hq(p);
-
-	auto opacity = _visibility.value(_hiding ? 0. : 1.);
-	auto height = opacity * _cache.height() / _cache.devicePixelRatio();
-	auto width = opacity * _cache.width() / _cache.devicePixelRatio();
-
-	p.setOpacity(opacity);
-	p.drawPixmap(style::rtlrect(x + (_width - width) / 2., y + (_st.height - height) / 2., width, height, outerWidth), _cache);
-	p.setOpacity(1.);
-	return true;
-}
-
-void MultiSelect::Item::mouseMoveEvent(QPoint point) {
-	if (!_cache.isNull()) return;
-	_overDelete = QRect(0, 0, _st.height, _st.height).contains(point);
-	setOver(true);
-}
-
-void MultiSelect::Item::leaveEvent() {
-	_overDelete = false;
-	setOver(false);
-}
-
-void MultiSelect::Item::setPosition(int x, int y, int outerWidth, int maxVisiblePadding) {
-	if (_x >= 0 && _y >= 0 && (_x != x || _y != y)) {
-		// Make an animation if it is not the first setPosition().
-		auto found = false;
-		auto leftHidden = -_width - maxVisiblePadding;
-		auto rightHidden = outerWidth + maxVisiblePadding;
-		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			if (i->x.animating()) {
-				if (i->y == y) {
-					i->x.start(_updateCallback, i->toX, x, _st.duration);
-					found = true;
-				} else {
-					i->x.start(_updateCallback, i->fromX, (i->toX > i->fromX) ? rightHidden : leftHidden, _st.duration);
-				}
-				++i;
-			} else {
-				i = _copies.erase(i);
-				e = _copies.end();
-			}
-		}
-		if (_copies.empty()) {
-			if (_y == y) {
-				auto copy = SlideAnimation(_updateCallback, _x, x, _y, _st.duration);
-				_copies.push_back(std::move(copy));
-			} else {
-				auto copyHiding = SlideAnimation(_updateCallback, _x, (y > _y) ? rightHidden : leftHidden, _y, _st.duration);
-				_copies.push_back(std::move(copyHiding));
-				auto copyShowing = SlideAnimation(_updateCallback, (y > _y) ? leftHidden : rightHidden, x, y, _st.duration);
-				_copies.push_back(std::move(copyShowing));
-			}
-		} else if (!found) {
-			auto copy = SlideAnimation(_updateCallback, (y > _y) ? leftHidden : rightHidden, x, y, _st.duration);
-			_copies.push_back(std::move(copy));
-		}
-	}
-	_x = x;
-	_y = y;
-}
-
-QRect MultiSelect::Item::paintArea(int outerWidth) const {
-	if (_copies.empty()) {
-		return rect();
-	}
-	auto yMin = 0, yMax = 0;
-	for (const auto &copy : _copies) {
-		accumulate_max(yMax, copy.y);
-		if (yMin) {
-			accumulate_min(yMin, copy.y);
-		} else {
-			yMin = copy.y;
-		}
-	}
-	return QRect(0, yMin, outerWidth, yMax - yMin + _st.height);
-}
-
-void MultiSelect::Item::prepareCache() {
-	if (!_cache.isNull()) return;
-
-	Assert(!_visibility.animating());
-	auto cacheWidth = _width * kWideScale * cIntRetinaFactor();
-	auto cacheHeight = _st.height * kWideScale * cIntRetinaFactor();
-	auto data = QImage(cacheWidth, cacheHeight, QImage::Format_ARGB32_Premultiplied);
-	data.fill(Qt::transparent);
-	data.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&data);
-		paintOnce(p, _width * (kWideScale - 1) / 2, _st.height  * (kWideScale - 1) / 2, cacheWidth);
-	}
-	_cache = Ui::PixmapFromImage(std::move(data));
-}
-
-void MultiSelect::Item::setVisibleAnimated(bool visible) {
-	_hiding = !visible;
-	prepareCache();
-	auto from = visible ? 0. : 1.;
-	auto to = visible ? 1. : 0.;
-	auto transition = visible ? anim::bumpy(1.0625) : anim::linear;
-	_visibility.start(_updateCallback, from, to, _st.duration, transition);
-}
-
-void MultiSelect::Item::setOver(bool over) {
-	if (over != _over) {
-		_over = over;
-		_overOpacity.start(_updateCallback, _over ? 0. : 1., _over ? 1. : 0., _st.duration);
-	}
-}
 
 MultiSelect::MultiSelect(
 	QWidget *parent,

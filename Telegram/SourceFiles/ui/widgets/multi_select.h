@@ -53,8 +53,6 @@ public:
 	QVector<uint64> getItems() const;
 	bool hasItem(uint64 itemId) const;
 
-	class Item;
-
 protected:
 	int resizeGetHeight(int newWidth) override;
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -71,88 +69,6 @@ private:
 
 	Fn<void()> _resizedCallback;
 	Fn<void(const QString &query)> _queryChangedCallback;
-
-};
-
-class MultiSelect::Item {
-public:
-	Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage);
-
-	uint64 id() const {
-		return _id;
-	}
-	int getWidth() const {
-		return _width;
-	}
-	QRect rect() const {
-		return QRect(_x, _y, _width, _st.height);
-	}
-	bool isOverDelete() const {
-		return _overDelete;
-	}
-	void setActive(bool active) {
-		_active = active;
-	}
-	void setPosition(int x, int y, int outerWidth, int maxVisiblePadding);
-	QRect paintArea(int outerWidth) const;
-
-	void setUpdateCallback(Fn<void()> updateCallback) {
-		_updateCallback = updateCallback;
-	}
-	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth);
-
-	void mouseMoveEvent(QPoint point);
-	void leaveEvent();
-
-	void showAnimated() {
-		setVisibleAnimated(true);
-	}
-	void hideAnimated() {
-		setVisibleAnimated(false);
-	}
-	bool hideFinished() const {
-		return (_hiding && !_visibility.animating());
-	}
-
-
-private:
-	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth);
-	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
-	bool paintCached(Painter &p, int x, int y, int outerWidth);
-	void prepareCache();
-	void setVisibleAnimated(bool visible);
-
-	const style::MultiSelectItem &_st;
-
-	uint64 _id;
-	struct SlideAnimation {
-		SlideAnimation(Fn<void()> updateCallback, int fromX, int toX, int y, float64 duration)
-			: fromX(fromX)
-			, toX(toX)
-			, y(y) {
-			x.start(updateCallback, fromX, toX, duration);
-		}
-		Ui::Animations::Simple x;
-		int fromX, toX;
-		int y;
-	};
-	std::vector<SlideAnimation> _copies;
-	int _x = -1;
-	int _y = -1;
-	int _width = 0;
-	Text::String _text;
-	style::color _color;
-	bool _over = false;
-	QPixmap _cache;
-	Ui::Animations::Simple _visibility;
-	Ui::Animations::Simple _overOpacity;
-	bool _overDelete = false;
-	bool _active = false;
-	PaintRoundImage _paintRoundImage;
-	Fn<void()> _updateCallback;
-	bool _hiding = false;
 
 };
 
