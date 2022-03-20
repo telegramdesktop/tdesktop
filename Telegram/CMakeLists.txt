@@ -1142,8 +1142,6 @@ PRIVATE
     ui/image/image_location_factory.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
-    ui/widgets/multi_select.cpp
-    ui/widgets/multi_select.h
     ui/countryinput.cpp
     ui/countryinput.h
     ui/empty_userpic.cpp

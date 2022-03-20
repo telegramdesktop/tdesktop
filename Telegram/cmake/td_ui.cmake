@@ -221,6 +221,8 @@ PRIVATE
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
     ui/widgets/discrete_sliders.h
+    ui/widgets/multi_select.cpp
+    ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
     ui/widgets/separate_panel.cpp

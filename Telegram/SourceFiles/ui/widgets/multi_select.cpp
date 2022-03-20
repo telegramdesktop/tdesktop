@@ -365,14 +365,14 @@ void Item::prepareCache() {
 	if (!_cache.isNull()) return;
 
 	Assert(!_visibility.animating());
-	auto cacheWidth = _width * kWideScale * cIntRetinaFactor();
-	auto cacheHeight = _st.height * kWideScale * cIntRetinaFactor();
+	auto cacheWidth = _width * kWideScale * style::DevicePixelRatio();
+	auto cacheHeight = _st.height * kWideScale * style::DevicePixelRatio();
 	auto data = QImage(
 		cacheWidth,
 		cacheHeight,
 		QImage::Format_ARGB32_Premultiplied);
 	data.fill(Qt::transparent);
-	data.setDevicePixelRatio(cRetinaFactor());
+	data.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&data);
 		paintOnce(
@@ -774,7 +774,9 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	auto paintRect = e->rect();
 	p.fillRect(paintRect, _st.bg);
 
-	auto offset = QPoint(rtl() ? _st.padding.right() : _st.padding.left(), _st.padding.top());
+	auto offset = QPoint(
+		style::RightToLeft() ? _st.padding.right() : _st.padding.left(),
+		_st.padding.top());
 	p.translate(offset);
 	paintRect.translate(-offset);
 
