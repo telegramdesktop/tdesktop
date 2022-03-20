@@ -464,7 +464,16 @@ PipPanel::Position PipPanel::countPosition() const {
 
 void PipPanel::setPositionDefault() {
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
-		if (auto handle = widget ? widget->windowHandle() : nullptr) {
+		if (!widget) {
+			return nullptr;
+		}
+		if (!Platform::IsWayland()) {
+			if (const auto screen = QGuiApplication::screenAt(
+				widget->geometry().center())) {
+				return screen;
+			}
+		}
+		if (const auto handle = widget->windowHandle()) {
 			return handle->screen();
 		}
 		return nullptr;
