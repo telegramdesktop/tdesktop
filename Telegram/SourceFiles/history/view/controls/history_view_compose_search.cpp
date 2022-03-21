@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_search.h"
 
 #include "api/api_messages_search.h"
+#include "boxes/peer_list_box.h" // PaintUserpicCallback
 #include "data/data_session.h"
+#include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -25,19 +27,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+[[nodiscard]] inline bool HasChooseFrom(not_null<History*> history) {
+	if (const auto peer = history->peer) {
+		return (peer->isChat() || peer->isMegagroup());
+	}
+	return false;
+}
+
+struct SearchRequest {
+	QString query;
+	PeerData *from = nullptr;
+};
+
 class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(not_null<Ui::RpWidget*> parent);
 
-	[[nodiscard]] rpl::producer<QString> searchRequests() const;
+	[[nodiscard]] PeerData *from() const;
+
+	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
+	[[nodiscard]] rpl::producer<PeerData*> fromValue() const;
+
+	void setFrom(PeerData *peer);
 
 private:
+	void clearItems();
+	void requestSearch();
+	void requestSearchDelayed();
+
 	base::unique_qptr<Ui::IconButton> _cancel;
 	base::unique_qptr<Ui::MultiSelect> _select;
 
+	rpl::variable<PeerData*> _from = nullptr;;
+
 	base::Timer _searchTimer;
 
-	rpl::event_stream<QString> _searchRequests;
+	rpl::event_stream<SearchRequest> _searchRequests;
 };
 
 TopBar::TopBar(not_null<Ui::RpWidget*> parent)
@@ -47,7 +72,7 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 	this,
 	st::searchInChatMultiSelect,
 	tr::lng_dlg_filter()))
-, _searchTimer([=] { _searchRequests.fire(_select->getQuery()); }) {
+, _searchTimer([=] { requestSearch(); }) {
 
 	parent->geometryValue(
 	) | rpl::start_with_next([=](const QRect &r) {
@@ -72,12 +97,12 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 
-	_select->setQueryChangedCallback([=](const QString &query) {
-		_searchTimer.callOnce(AutoSearchTimeout);
+	_select->setQueryChangedCallback([=](const QString &) {
+		requestSearchDelayed();
 	});
 
 	_select->setSubmittedCallback([=](Qt::KeyboardModifiers) {
-		_searchRequests.fire(_select->getQuery());
+		requestSearch();
 	});
 
 	_select->setCancelledCallback([=] {
@@ -85,19 +110,71 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 	});
 }
 
-rpl::producer<QString> TopBar::searchRequests() const {
+void TopBar::clearItems() {
+	_select->setItemRemovedCallback(nullptr);
+
+	for (const auto &id : _select->getItems()) {
+		_select->removeItem(id);
+	}
+
+	_select->setItemRemovedCallback([=](uint64) {
+		_from = nullptr;
+		requestSearchDelayed();
+	});
+}
+
+void TopBar::requestSearch() {
+	_searchRequests.fire({ _select->getQuery(), _from.current() });
+}
+
+void TopBar::requestSearchDelayed() {
+	_searchTimer.callOnce(AutoSearchTimeout);
+}
+
+rpl::producer<SearchRequest> TopBar::searchRequests() const {
 	return _searchRequests.events();
+}
+
+rpl::producer<PeerData*> TopBar::fromValue() const {
+	return _from.value();
+}
+
+PeerData *TopBar::from() const {
+	return _from.current();
+}
+
+void TopBar::setFrom(PeerData *peer) {
+	clearItems();
+
+	const auto guard = gsl::finally([&] {
+		_from = peer;
+		requestSearchDelayed();
+	});
+	if (!peer) {
+		return;
+	}
+
+	_select->addItem(
+		peer->id.value,
+		tr::lng_dlg_search_from(tr::now, lt_user, peer->shortName()),
+		st::activeButtonBg,
+		PaintUserpicCallback(peer, false),
+		Ui::MultiSelect::AddItemWay::Default);
 }
 
 class BottomBar final : public Ui::RpWidget {
 public:
 	using Index = int;
-	BottomBar(not_null<Ui::RpWidget*> parent);
+	BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom);
 
 	void setTotal(int total);
 
 	[[nodiscard]] rpl::producer<Index> showItemRequests() const;
 	[[nodiscard]] rpl::producer<> showCalendarRequests() const;
+	[[nodiscard]] rpl::producer<> showBoxFromRequests() const;
+
+	void buttonFromToggleOn(rpl::producer<bool> &&visible);
+	void buttonCalendarToggleOn(rpl::producer<bool> &&visible);
 
 private:
 	void updateText(int current);
@@ -106,21 +183,26 @@ private:
 	base::unique_qptr<Ui::IconButton> _next;
 
 	base::unique_qptr<Ui::IconButton> _jumpToDate;
+	base::unique_qptr<Ui::IconButton> _chooseFromUser;
 	base::unique_qptr<Ui::FlatLabel> _counter;
 
 	int _total = -1;
 	rpl::variable<int> _current = 0;
 };
 
-BottomBar::BottomBar(not_null<Ui::RpWidget*> parent)
+BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 : Ui::RpWidget(parent)
 // Icons are swaped.
 , _previous(base::make_unique_q<Ui::IconButton>(this, st::calendarNext))
 , _next(base::make_unique_q<Ui::IconButton>(this, st::calendarPrevious))
 , _jumpToDate(base::make_unique_q<Ui::IconButton>(this, st::dialogCalendar))
+, _chooseFromUser(
+	base::make_unique_q<Ui::IconButton>(this, st::dialogSearchFrom))
 , _counter(base::make_unique_q<Ui::FlatLabel>(
 	this,
 	st::defaultSettingsRightLabel)) {
+
+	_chooseFromUser->setVisible(fastShowChooseFrom);
 
 	parent->geometryValue(
 	) | rpl::start_with_next([=](const QRect &r) {
@@ -129,8 +211,11 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent)
 		moveToLeft(0, r.height() - height);
 	}, lifetime());
 
+	auto mapSize = rpl::map([=] { return size(); });
 	rpl::merge(
-		_counter->sizeValue() | rpl::map([=] { return size(); }),
+		_jumpToDate->shownValue() | mapSize,
+		_chooseFromUser->shownValue() | mapSize,
+		_counter->sizeValue() | mapSize,
 		sizeValue()
 	) | rpl::start_with_next([=](const QSize &s) {
 		_previous->moveToRight(0, (s.height() - _previous->height()) / 2);
@@ -138,13 +223,18 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent)
 			_previous->width(),
 			(s.height() - _next->height()) / 2);
 
-		const auto left = st::topBarActionSkip;
-		_jumpToDate->moveToLeft(
-			left,
-			(s.height() - _jumpToDate->height()) / 2);
-		_counter->moveToLeft(
-			_jumpToDate->x() + _jumpToDate->width(),
-			(s.height() - _counter->height()) / 2);
+		auto left = st::topBarActionSkip;
+		const auto list = std::vector<not_null<Ui::RpWidget*>>{
+			_jumpToDate.get(),
+			_chooseFromUser.get(),
+			_counter.get() };
+		for (const auto &w : list) {
+			if (w->isHidden()) {
+				continue;
+			}
+			w->moveToLeft(left, (s.height() - w->height()) / 2);
+			left += w->width();
+		}
 	}, lifetime());
 
 	paintRequest(
@@ -208,6 +298,26 @@ rpl::producer<> BottomBar::showCalendarRequests() const {
 	return _jumpToDate->clicks() | rpl::to_empty;
 }
 
+rpl::producer<> BottomBar::showBoxFromRequests() const {
+	return _chooseFromUser->clicks() | rpl::to_empty;
+}
+
+void BottomBar::buttonFromToggleOn(rpl::producer<bool> &&visible) {
+	std::move(
+		visible
+	) | rpl::start_with_next([=](bool value) {
+		_chooseFromUser->setVisible(value);
+	}, _chooseFromUser->lifetime());
+}
+
+void BottomBar::buttonCalendarToggleOn(rpl::producer<bool> &&visible) {
+	std::move(
+		visible
+	) | rpl::start_with_next([=](bool value) {
+		_jumpToDate->setVisible(value);
+	}, _jumpToDate->lifetime());
+}
+
 } // namespace
 
 class ComposeSearch::Inner final {
@@ -247,17 +357,17 @@ ComposeSearch::Inner::Inner(
 : _window(window)
 , _history(history)
 , _topBar(base::make_unique_q<TopBar>(parent))
-, _bottomBar(base::make_unique_q<BottomBar>(parent))
+, _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
 , _apiSearch(&window->session(), history) {
 	showAnimated();
 
 	_topBar->searchRequests(
-	) | rpl::start_with_next([=](const QString &query) {
-		if (query.isEmpty()) {
+	) | rpl::start_with_next([=](const SearchRequest &search) {
+		if (search.query.isEmpty() && !search.from) {
 			return;
 		}
 		_apiFound = {};
-		_apiSearch.searchMessages(query, nullptr);
+		_apiSearch.searchMessages(search.query, search.from);
 	}, _topBar->lifetime());
 
 	_apiSearch.messagesFounds(
@@ -303,6 +413,30 @@ ComposeSearch::Inner::Inner(
 	) | rpl::start_with_next([=] {
 		_window->showCalendar({ _history }, QDate());
 	}, _bottomBar->lifetime());
+
+	_bottomBar->showBoxFromRequests(
+	) | rpl::start_with_next([=] {
+		const auto peer = _history->peer;
+		auto box = Dialogs::SearchFromBox(
+			peer,
+			crl::guard(_bottomBar.get(), [=](not_null<PeerData*> from) {
+				Window::Show(_window).hideLayer();
+				_topBar->setFrom(from);
+			}),
+			crl::guard(_bottomBar.get(), [=] { /*_filter->setFocus();*/ }));
+
+		Window::Show(_window).showBox(std::move(box));
+	}, _bottomBar->lifetime());
+
+	_bottomBar->buttonCalendarToggleOn(_topBar->fromValue(
+	) | rpl::map([=](PeerData *from) {
+		return !from;
+	}));
+
+	_bottomBar->buttonFromToggleOn(_topBar->fromValue(
+	) | rpl::map([=](PeerData *from) {
+		return HasChooseFrom(_history) && !from;
+	}));
 }
 
 void ComposeSearch::Inner::showAnimated() {
