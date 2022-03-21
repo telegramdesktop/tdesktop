@@ -97,12 +97,15 @@ public:
 	void setTotal(int total);
 
 	[[nodiscard]] rpl::producer<Index> showItemRequests() const;
+	[[nodiscard]] rpl::producer<> showCalendarRequests() const;
 
 private:
 	void updateText(int current);
 
 	base::unique_qptr<Ui::IconButton> _previous;
 	base::unique_qptr<Ui::IconButton> _next;
+
+	base::unique_qptr<Ui::IconButton> _jumpToDate;
 	base::unique_qptr<Ui::FlatLabel> _counter;
 
 	int _total = -1;
@@ -114,6 +117,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent)
 // Icons are swaped.
 , _previous(base::make_unique_q<Ui::IconButton>(this, st::calendarNext))
 , _next(base::make_unique_q<Ui::IconButton>(this, st::calendarPrevious))
+, _jumpToDate(base::make_unique_q<Ui::IconButton>(this, st::dialogCalendar))
 , _counter(base::make_unique_q<Ui::FlatLabel>(
 	this,
 	st::defaultSettingsRightLabel)) {
@@ -135,7 +139,12 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent)
 			(s.height() - _next->height()) / 2);
 
 		const auto left = st::topBarActionSkip;
-		_counter->moveToLeft(left, (s.height() - _counter->height()) / 2);
+		_jumpToDate->moveToLeft(
+			left,
+			(s.height() - _jumpToDate->height()) / 2);
+		_counter->moveToLeft(
+			_jumpToDate->x() + _jumpToDate->width(),
+			(s.height() - _counter->height()) / 2);
 	}, lifetime());
 
 	paintRequest(
@@ -193,6 +202,10 @@ void BottomBar::updateText(int current) {
 
 rpl::producer<BottomBar::Index> BottomBar::showItemRequests() const {
 	return _current.changes() | rpl::map(rpl::mappers::_1 - 1);
+}
+
+rpl::producer<> BottomBar::showCalendarRequests() const {
+	return _jumpToDate->clicks() | rpl::to_empty;
 }
 
 } // namespace
@@ -284,6 +297,11 @@ ComposeSearch::Inner::Inner(
 				item->fullId(),
 			});
 		}
+	}, _bottomBar->lifetime());
+
+	_bottomBar->showCalendarRequests(
+	) | rpl::start_with_next([=] {
+		_window->showCalendar({ _history }, QDate());
 	}, _bottomBar->lifetime());
 }
 
