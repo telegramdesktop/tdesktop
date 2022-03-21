@@ -318,6 +318,134 @@ void BottomBar::buttonCalendarToggleOn(rpl::producer<bool> &&visible) {
 	}, _jumpToDate->lifetime());
 }
 
+class ApiSearch final {
+public:
+	ApiSearch(not_null<Main::Session*> session, not_null<History*> history);
+
+	void clear();
+	void search(const SearchRequest &search);
+	void searchMore();
+
+	const Api::FoundMessages &messages() const;
+
+	[[nodiscard]] rpl::producer<> newFounds() const;
+	[[nodiscard]] rpl::producer<> nextFounds() const;
+
+private:
+	void addFound(const Api::FoundMessages &data);
+
+	Api::MessagesSearch _apiSearch;
+
+	std::optional<Api::MessagesSearch> _migratedSearch;
+	Api::FoundMessages _migratedFirstFound;
+
+	Api::FoundMessages _concatedFound;
+
+	bool _waitingForTotal = false;
+	bool _isFull = false;
+
+	rpl::event_stream<> _newFounds;
+	rpl::event_stream<> _nextFounds;
+
+	rpl::lifetime _lifetime;
+
+};
+
+ApiSearch::ApiSearch(
+	not_null<Main::Session*> session,
+	not_null<History*> history)
+: _apiSearch(session, history)
+, _migratedSearch(history->migrateFrom()
+	? std::make_optional<Api::MessagesSearch>(session, history->migrateFrom())
+	: std::nullopt) {
+
+	const auto checkWaitingForTotal = [=] {
+		if (_waitingForTotal) {
+			if (_concatedFound.total >= 0 && _migratedFirstFound.total >= 0) {
+				_waitingForTotal = false;
+				_concatedFound.total += _migratedFirstFound.total;
+				_newFounds.fire({});
+			}
+		} else {
+			_newFounds.fire({});
+		}
+	};
+
+	const auto checkFull = [=](const Api::FoundMessages &data) {
+		if (data.total == int(_concatedFound.messages.size())) {
+			_isFull = true;
+			addFound(_migratedFirstFound);
+		}
+	};
+
+	_apiSearch.messagesFounds(
+	) | rpl::start_with_next([=](const Api::FoundMessages &data) {
+		if (data.nextToken == _concatedFound.nextToken) {
+			addFound(data);
+			checkFull(data);
+			_nextFounds.fire({});
+		} else {
+			_concatedFound = data;
+			checkFull(data);
+			checkWaitingForTotal();
+		}
+	}, _lifetime);
+
+	if (_migratedSearch) {
+		_migratedSearch->messagesFounds(
+		) | rpl::start_with_next([=](const Api::FoundMessages &data) {
+			if (_isFull) {
+				addFound(data);
+			}
+			if (data.nextToken == _migratedFirstFound.nextToken) {
+				_nextFounds.fire({});
+			} else {
+				_migratedFirstFound = data;
+				checkWaitingForTotal();
+			}
+		}, _lifetime);
+	}
+}
+
+void ApiSearch::addFound(const Api::FoundMessages &data) {
+	for (const auto &message : data.messages) {
+		_concatedFound.messages.push_back(message);
+	}
+}
+
+const Api::FoundMessages &ApiSearch::messages() const {
+	return _concatedFound;
+}
+
+void ApiSearch::clear() {
+	_concatedFound = {};
+	_migratedFirstFound = {};
+}
+
+void ApiSearch::search(const SearchRequest &search) {
+	if (_migratedSearch) {
+		_waitingForTotal = true;
+		_migratedSearch->searchMessages(search.query, search.from);
+	}
+	_apiSearch.searchMessages(search.query, search.from);
+}
+
+void ApiSearch::searchMore() {
+	if (_migratedSearch && _isFull) {
+		_migratedSearch->searchMore();
+	} else {
+		_apiSearch.searchMore();
+	}
+}
+
+rpl::producer<> ApiSearch::newFounds() const {
+	return _newFounds.events();
+}
+
+rpl::producer<> ApiSearch::nextFounds() const {
+	return _nextFounds.events();
+}
+
 } // namespace
 
 class ComposeSearch::Inner final {
@@ -337,8 +465,7 @@ private:
 	const base::unique_qptr<TopBar> _topBar;
 	const base::unique_qptr<BottomBar> _bottomBar;
 
-	Api::MessagesSearch _apiSearch;
-	Api::FoundMessages _apiFound;
+	ApiSearch _apiSearch;
 
 	struct {
 		struct {
@@ -366,22 +493,19 @@ ComposeSearch::Inner::Inner(
 		if (search.query.isEmpty() && !search.from) {
 			return;
 		}
-		_apiFound = {};
-		_apiSearch.searchMessages(search.query, search.from);
+		_apiSearch.clear();
+		_apiSearch.search(search);
 	}, _topBar->lifetime());
 
-	_apiSearch.messagesFounds(
-	) | rpl::start_with_next([=](const Api::FoundMessages &data) {
-		if (data.nextToken == _apiFound.nextToken) {
-			for (const auto &message : data.messages) {
-				_apiFound.messages.push_back(message);
-			}
-			if (_pendingJump.data.token == data.nextToken) {
-				_pendingJump.jumps.fire_copy(_pendingJump.data.index);
-			}
-		} else {
-			_apiFound = data;
-			_bottomBar->setTotal(data.total);
+	_apiSearch.newFounds(
+	) | rpl::start_with_next([=] {
+		_bottomBar->setTotal(_apiSearch.messages().total);
+	}, _topBar->lifetime());
+
+	_apiSearch.nextFounds(
+	) | rpl::start_with_next([=] {
+		if (_pendingJump.data.token == _apiSearch.messages().nextToken) {
+			_pendingJump.jumps.fire_copy(_pendingJump.data.index);
 		}
 	}, _topBar->lifetime());
 
@@ -389,17 +513,18 @@ ComposeSearch::Inner::Inner(
 		_pendingJump.jumps.events() | rpl::filter(rpl::mappers::_1 >= 0),
 		_bottomBar->showItemRequests()
 	) | rpl::start_with_next([=](BottomBar::Index index) {
-		const auto &messages = _apiFound.messages;
+		const auto &apiData = _apiSearch.messages();
+		const auto &messages = apiData.messages;
 		const auto size = int(messages.size());
-		if (index >= (size - 1) && size != _apiFound.total) {
+		if (index >= (size - 1) && size != apiData.total) {
 			_apiSearch.searchMore();
 		}
 		if (index >= size || index < 0) {
-			_pendingJump.data = { _apiFound.nextToken, index };
+			_pendingJump.data = { apiData.nextToken, index };
 			return;
 		}
 		_pendingJump.data = {};
-		const auto itemId = _apiFound.messages[index];
+		const auto itemId = messages[index];
 		const auto item = _history->owner().message(itemId);
 		if (item) {
 			_window->jumpToChatListEntry({
