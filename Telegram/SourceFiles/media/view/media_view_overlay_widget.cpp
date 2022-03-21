@@ -337,8 +337,13 @@ OverlayWidget::OverlayWidget()
 	) | rpl::start_with_next([=](bool shown) {
 		toggleApplicationEventFilter(shown);
 		if (shown) {
+			const auto geometry = _widget->geometry();
 			const auto screenList = QGuiApplication::screens();
-			DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
+			DEBUG_LOG(("Viewer Pos: Shown, geometry: %1, %2, %3, %4, screen number: %5")
+				.arg(geometry.x())
+				.arg(geometry.y())
+				.arg(geometry.width())
+				.arg(geometry.height())
 				.arg(screenList.indexOf(_widget->screen())));
 			moveToScreen();
 		} else {
