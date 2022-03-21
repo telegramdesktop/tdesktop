@@ -399,16 +399,10 @@ bool MainWindow::initGeometryFromSystem() {
 	if (!hasTabletView()) {
 		return false;
 	}
-	const auto screen = [&] {
-		if (const auto result = windowHandle()->screen()) {
-			return result;
-		}
-		return QGuiApplication::primaryScreen();
-	}();
-	if (!screen) {
+	if (!screen()) {
 		return false;
 	}
-	Ui::RpWidget::setGeometry(screen->availableGeometry());
+	Ui::RpWidget::setGeometry(screen()->availableGeometry());
 	return true;
 }
 
