@@ -418,10 +418,7 @@ rpl::producer<> PipPanel::saveGeometryRequests() const {
 }
 
 QScreen *PipPanel::myScreen() const {
-	if (const auto window = widget()->windowHandle()) {
-		return window->screen();
-	}
-	return nullptr;
+	return widget()->screen();
 }
 
 PipPanel::Position PipPanel::countPosition() const {
@@ -473,15 +470,12 @@ void PipPanel::setPositionDefault() {
 				return screen;
 			}
 		}
-		if (const auto handle = widget->windowHandle()) {
-			return handle->screen();
-		}
-		return nullptr;
+		return widget->screen();
 	};
 	const auto parentScreen = widgetScreen(_parent);
 	const auto myScreen = widgetScreen(widget());
 	if (parentScreen && myScreen && myScreen != parentScreen) {
-		widget()->windowHandle()->setScreen(parentScreen);
+		widget()->setScreen(parentScreen);
 	}
 	const auto screen = parentScreen
 		? parentScreen

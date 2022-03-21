@@ -574,21 +574,18 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 
 void ChooseSourceProcess::setupGeometryWithParent(
 		not_null<QWidget*> parent) {
-	if (const auto handle = parent->windowHandle()) {
-		_window->createWinId();
-		const auto parentScreen = [&] {
-			if (!::Platform::IsWayland()) {
-				if (const auto screen = QGuiApplication::screenAt(
-					parent->geometry().center())) {
-					return screen;
-				}
+	const auto parentScreen = [&] {
+		if (!::Platform::IsWayland()) {
+			if (const auto screen = QGuiApplication::screenAt(
+				parent->geometry().center())) {
+				return screen;
 			}
-			return handle->screen();
-		}();
-		const auto myScreen = _window->windowHandle()->screen();
-		if (parentScreen && myScreen != parentScreen) {
-			_window->windowHandle()->setScreen(parentScreen);
 		}
+		return parent->screen();
+	}();
+	const auto myScreen = _window->screen();
+	if (parentScreen && myScreen != parentScreen) {
+		_window->setScreen(parentScreen);
 	}
 	_window->move(
 		parent->x() + (parent->width() - _window->width()) / 2,

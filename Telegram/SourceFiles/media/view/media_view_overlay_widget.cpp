@@ -339,7 +339,7 @@ OverlayWidget::OverlayWidget()
 		if (shown) {
 			const auto screenList = QGuiApplication::screens();
 			DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
-				.arg(screenList.indexOf(window()->screen())));
+				.arg(screenList.indexOf(_widget->screen())));
 			moveToScreen();
 		} else {
 			clearAfterHide();
@@ -490,10 +490,7 @@ void OverlayWidget::moveToScreen(bool inMove) {
 				return screen;
 			}
 		}
-		if (const auto handle = widget->windowHandle()) {
-			return handle->screen();
-		}
-		return nullptr;
+		return widget->screen();
 	};
 	const auto applicationWindow = Core::App().activeWindow()
 		? Core::App().activeWindow()->widget().get()
@@ -505,9 +502,9 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
 			.arg(screenList.indexOf(myScreen))
 			.arg(screenList.indexOf(activeWindowScreen)));
-		window()->setScreen(activeWindowScreen);
+		_widget->setScreen(activeWindowScreen);
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
-			.arg(screenList.indexOf(window()->screen())));
+			.arg(screenList.indexOf(_widget->screen())));
 	}
 	updateGeometry(inMove);
 }
@@ -516,8 +513,8 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	if (Platform::IsWayland()) {
 		return;
 	}
-	const auto screen = window()->screen()
-		? window()->screen()
+	const auto screen = _widget->screen()
+		? _widget->screen()
 		: QApplication::primaryScreen();
 	const auto available = screen->geometry();
 	const auto openglWidget = _opengl
@@ -537,7 +534,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		return;
 	}
 	if ((_widget->geometry() == use)
-		&& (!useSizeHack || window()->mask() == mask)) {
+		&& (!useSizeHack || _widget->mask() == mask)) {
 		return;
 	}
 	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
@@ -547,7 +544,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		.arg(use.height()));
 	_widget->setGeometry(use);
 	if (useSizeHack) {
-		window()->setMask(mask);
+		_widget->setMask(mask);
 	}
 }
 
@@ -1501,7 +1498,7 @@ void OverlayWidget::handleScreenChanged(QScreen *screen) {
 
 void OverlayWidget::subscribeToScreenGeometry() {
 	_screenGeometryLifetime.destroy();
-	const auto screen = window()->screen();
+	const auto screen = _widget->screen();
 	if (!screen) {
 		return;
 	}

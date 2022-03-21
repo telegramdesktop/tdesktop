@@ -357,7 +357,7 @@ void SeparatePanel::initGeometry(QSize size) {
 	const auto active = QApplication::activeWindow();
 	const auto available = !active
 		? QGuiApplication::primaryScreen()->availableGeometry()
-		: active->windowHandle()->screen()->availableGeometry();
+		: active->screen()->availableGeometry();
 	const auto parentGeometry = (active
 		&& active->isVisible()
 		&& active->isActiveWindow())
