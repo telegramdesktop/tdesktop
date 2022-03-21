@@ -1008,3 +1008,9 @@ searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
 searchInChatMultiSelect: MultiSelect(defaultMultiSelect) {
 	item: searchInChatMultiSelectItem;
 }
+searchInChatPeerListItem: PeerListItem(defaultPeerListItem) {
+	height: dialogsRowHeight;
+}
+searchInChatPeerList: PeerList(defaultPeerList) {
+	item: searchInChatPeerListItem;
+}

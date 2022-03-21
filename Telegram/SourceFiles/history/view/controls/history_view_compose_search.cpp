@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_search.h"
 
 #include "api/api_messages_search.h"
-#include "boxes/peer_list_box.h" // PaintUserpicCallback
+#include "boxes/peer_list_box.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
+#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -39,6 +41,208 @@ struct SearchRequest {
 	PeerData *from = nullptr;
 };
 
+class Row final : public PeerListRow {
+public:
+	Row(std::unique_ptr<Dialogs::FakeRow> fakeRow);
+
+	[[nodiscard]] FullMsgId fullId() const;
+
+	QRect elementGeometry(int element, int outerWidth) const override;
+	void elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void elementsStopLastRipple() override;
+	void elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) override;
+
+private:
+	const std::unique_ptr<Dialogs::FakeRow> _fakeRow;
+
+	int _outerWidth = 0;
+
+};
+
+Row::Row(std::unique_ptr<Dialogs::FakeRow> fakeRow)
+: PeerListRow(
+	fakeRow->searchInChat().history()->peer,
+	fakeRow->item()->fullId().msg.bare)
+, _fakeRow(std::move(fakeRow)) {
+}
+
+FullMsgId Row::fullId() const {
+	return _fakeRow->item()->fullId();
+}
+
+QRect Row::elementGeometry(int element, int outerWidth) const {
+	return QRect(0, 0, outerWidth, st::dialogsRowHeight);
+}
+
+void Row::elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	_fakeRow->addRipple(
+		point,
+		{ _outerWidth, st::dialogsRowHeight },
+		std::move(updateCallback));
+}
+
+void Row::elementsStopLastRipple() {
+	_fakeRow->stopLastRipple();
+}
+
+void Row::elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) {
+	_outerWidth = outerWidth;
+	using Row = Dialogs::Ui::RowPainter;
+	Row::paint(p, _fakeRow.get(), outerWidth, false, selected, 0, false);
+}
+
+class ListController final : public PeerListController {
+public:
+	explicit ListController(not_null<History*> history);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+
+	void loadMoreRows() override;
+
+	void addItems(const MessageIdsList &ids, bool clear);
+
+	[[nodiscard]] rpl::producer<FullMsgId> showItemRequests() const;
+	[[nodiscard]] rpl::producer<> searchMoreRequests() const;
+	[[nodiscard]] rpl::producer<> resetScrollRequests() const;
+
+private:
+	const not_null<History*> _history;
+	rpl::event_stream<FullMsgId> _showItemRequests;
+	rpl::event_stream<> _searchMoreRequests;
+	rpl::event_stream<> _resetScrollRequests;
+
+};
+
+ListController::ListController(not_null<History*> history)
+: _history(history) {
+}
+
+Main::Session &ListController::session() const {
+	return _history->owner().session();
+}
+
+void ListController::prepare() {
+}
+
+void ListController::rowClicked(not_null<PeerListRow*> row) {
+	_showItemRequests.fire_copy(static_cast<Row*>(row.get())->fullId());
+}
+
+void ListController::rowElementClicked(
+		not_null<PeerListRow*> row,
+		int element) {
+	ListController::rowClicked(row);
+}
+
+void ListController::loadMoreRows() {
+	_searchMoreRequests.fire({});
+}
+
+rpl::producer<FullMsgId> ListController::showItemRequests() const {
+	return _showItemRequests.events();
+}
+
+rpl::producer<> ListController::searchMoreRequests() const {
+	return _searchMoreRequests.events();
+}
+
+rpl::producer<> ListController::resetScrollRequests() const {
+	return _resetScrollRequests.events();
+}
+
+void ListController::addItems(const MessageIdsList &ids, bool clear) {
+	if (clear) {
+		_resetScrollRequests.fire({});
+		for (auto i = 0; i != delegate()->peerListFullRowsCount();) {
+			delegate()->peerListRemoveRow(delegate()->peerListRowAt(i));
+		}
+	}
+
+	const auto &owner = _history->owner();
+	const auto key = Dialogs::Key{ _history };
+	for (const auto &id : ids) {
+		if (const auto item = owner.message(id)) {
+			delegate()->peerListAppendRow(std::make_unique<Row>(
+				std::make_unique<Dialogs::FakeRow>(key, item)));
+		}
+	}
+
+	delegate()->peerListRefreshRows();
+
+	if (!delegate()->peerListFullRowsCount()) {
+		_showItemRequests.fire({});
+	}
+}
+
+struct List {
+	base::unique_qptr<Ui::RpWidget> container;
+	std::unique_ptr<ListController> controller;
+};
+
+List CreateList(
+		not_null<Ui::RpWidget*> parent,
+		not_null<History*> history) {
+	auto list = List{
+		base::make_unique_q<Ui::RpWidget>(parent),
+		std::make_unique<ListController>(history),
+	};
+	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(list.container.get());
+
+	using Delegate = PeerListContentDelegateSimple;
+	const auto delegate = scroll->lifetime().make_state<Delegate>();
+	list.controller->setStyleOverrides(&st::searchInChatPeerList);
+
+	const auto content = scroll->setOwnedWidget(
+		object_ptr<PeerListContent>(scroll, list.controller.get()));
+
+	list.controller->resetScrollRequests(
+	) | rpl::start_with_next([=] {
+		scroll->scrollToY(0);
+	}, scroll->lifetime());
+
+	scroll->scrolls(
+	) | rpl::start_with_next([=] {
+		const auto top = scroll->scrollTop();
+		content->setVisibleTopBottom(top, top + scroll->height());
+	}, scroll->lifetime());
+
+	delegate->setContent(content);
+	list.controller->setDelegate(delegate);
+
+	list.container->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		content->resize(size.width(), content->height());
+		scroll->resize(size);
+	}, list.container->lifetime());
+
+	list.container->paintRequest(
+	) | rpl::start_with_next([weak = Ui::MakeWeak(list.container.get())](
+			const QRect &r) {
+		Painter p(weak);
+
+		p.fillRect(r, st::dialogsBg);
+	}, list.container->lifetime());
+
+	return list;
+}
+
 class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(not_null<Ui::RpWidget*> parent);
@@ -47,6 +251,7 @@ public:
 
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 	[[nodiscard]] rpl::producer<PeerData*> fromValue() const;
+	[[nodiscard]] rpl::producer<> queryChanges() const;
 
 	void setFrom(PeerData *peer);
 
@@ -63,6 +268,7 @@ private:
 	base::Timer _searchTimer;
 
 	rpl::event_stream<SearchRequest> _searchRequests;
+	rpl::event_stream<> _queryChanges;
 };
 
 TopBar::TopBar(not_null<Ui::RpWidget*> parent)
@@ -99,6 +305,7 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 
 	_select->setQueryChangedCallback([=](const QString &) {
 		requestSearchDelayed();
+		_queryChanges.fire({});
 	});
 
 	_select->setSubmittedCallback([=](Qt::KeyboardModifiers) {
@@ -135,6 +342,10 @@ rpl::producer<SearchRequest> TopBar::searchRequests() const {
 	return _searchRequests.events();
 }
 
+rpl::producer<> TopBar::queryChanges() const {
+	return _queryChanges.events();
+}
+
 rpl::producer<PeerData*> TopBar::fromValue() const {
 	return _from.value();
 }
@@ -168,16 +379,20 @@ public:
 	BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom);
 
 	void setTotal(int total);
+	void setCurrent(int current);
 
 	[[nodiscard]] rpl::producer<Index> showItemRequests() const;
 	[[nodiscard]] rpl::producer<> showCalendarRequests() const;
 	[[nodiscard]] rpl::producer<> showBoxFromRequests() const;
+	[[nodiscard]] rpl::producer<> showListRequests() const;
 
 	void buttonFromToggleOn(rpl::producer<bool> &&visible);
 	void buttonCalendarToggleOn(rpl::producer<bool> &&visible);
 
 private:
 	void updateText(int current);
+
+	base::unique_qptr<Ui::FlatButton> _showList;
 
 	base::unique_qptr<Ui::IconButton> _previous;
 	base::unique_qptr<Ui::IconButton> _next;
@@ -192,6 +407,10 @@ private:
 
 BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 : Ui::RpWidget(parent)
+, _showList(base::make_unique_q<Ui::FlatButton>(
+	this,
+	QString(),
+	st::historyComposeButton))
 // Icons are swaped.
 , _previous(base::make_unique_q<Ui::IconButton>(this, st::calendarNext))
 , _next(base::make_unique_q<Ui::IconButton>(this, st::calendarPrevious))
@@ -202,6 +421,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	this,
 	st::defaultSettingsRightLabel)) {
 
+	_counter->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_chooseFromUser->setVisible(fastShowChooseFrom);
 
 	parent->geometryValue(
@@ -218,6 +438,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 		_counter->sizeValue() | mapSize,
 		sizeValue()
 	) | rpl::start_with_next([=](const QSize &s) {
+		_showList->setGeometry(QRect(QPoint(), s));
 		_previous->moveToRight(0, (s.height() - _previous->height()) / 2);
 		_next->moveToRight(
 			_previous->width(),
@@ -259,6 +480,9 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 			? &st::calendarNextDisabled
 			: nullptr);
 
+		_showList->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			nextDisabled && prevDisabled);
 		updateText(current);
 	}, lifetime());
 
@@ -272,7 +496,11 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 
 void BottomBar::setTotal(int total) {
 	_total = total;
-	_current.force_assign(1);
+	setCurrent(1);
+}
+
+void BottomBar::setCurrent(int current) {
+	_current.force_assign(current);
 }
 
 void BottomBar::updateText(int current) {
@@ -300,6 +528,10 @@ rpl::producer<> BottomBar::showCalendarRequests() const {
 
 rpl::producer<> BottomBar::showBoxFromRequests() const {
 	return _chooseFromUser->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> BottomBar::showListRequests() const {
+	return _showList->clicks() | rpl::to_empty;
 }
 
 void BottomBar::buttonFromToggleOn(rpl::producer<bool> &&visible) {
@@ -459,11 +691,13 @@ public:
 private:
 	void showAnimated();
 	void hideAnimated();
+	void hideList();
 
 	const not_null<Window::SessionController*> _window;
 	const not_null<History*> _history;
 	const base::unique_qptr<TopBar> _topBar;
 	const base::unique_qptr<BottomBar> _bottomBar;
+	const List _list;
 
 	ApiSearch _apiSearch;
 
@@ -485,8 +719,18 @@ ComposeSearch::Inner::Inner(
 , _history(history)
 , _topBar(base::make_unique_q<TopBar>(parent))
 , _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
+, _list(CreateList(parent, history))
 , _apiSearch(&window->session(), history) {
 	showAnimated();
+
+	rpl::combine(
+		_topBar->geometryValue(),
+		_bottomBar->geometryValue()
+	) | rpl::start_with_next([=](const QRect &top, const QRect &bottom) {
+		_list.container->setGeometry(QRect(
+			top.topLeft() + QPoint(0, top.height()),
+			bottom.topLeft() + QPoint(bottom.width(), 0)));
+	}, _list.container->lifetime());
 
 	_topBar->searchRequests(
 	) | rpl::start_with_next([=](const SearchRequest &search) {
@@ -497,9 +741,16 @@ ComposeSearch::Inner::Inner(
 		_apiSearch.search(search);
 	}, _topBar->lifetime());
 
+	_topBar->queryChanges(
+	) | rpl::start_with_next([=] {
+		hideList();
+	}, _topBar->lifetime());
+
 	_apiSearch.newFounds(
 	) | rpl::start_with_next([=] {
-		_bottomBar->setTotal(_apiSearch.messages().total);
+		const auto &apiData = _apiSearch.messages();
+		_bottomBar->setTotal(apiData.total);
+		_list.controller->addItems(apiData.messages, true);
 	}, _topBar->lifetime());
 
 	_apiSearch.nextFounds(
@@ -507,7 +758,18 @@ ComposeSearch::Inner::Inner(
 		if (_pendingJump.data.token == _apiSearch.messages().nextToken) {
 			_pendingJump.jumps.fire_copy(_pendingJump.data.index);
 		}
+		_list.controller->addItems(_apiSearch.messages().messages, false);
 	}, _topBar->lifetime());
+
+	const auto goToMessage = [=](const FullMsgId &itemId) {
+		const auto item = _history->owner().message(itemId);
+		if (item) {
+			_window->jumpToChatListEntry({
+				{ item->history() },
+				item->fullId(),
+			});
+		}
+	};
 
 	rpl::merge(
 		_pendingJump.jumps.events() | rpl::filter(rpl::mappers::_1 >= 0),
@@ -524,18 +786,30 @@ ComposeSearch::Inner::Inner(
 			return;
 		}
 		_pendingJump.data = {};
-		const auto itemId = messages[index];
-		const auto item = _history->owner().message(itemId);
-		if (item) {
-			_window->jumpToChatListEntry({
-				{ item->history() },
-				item->fullId(),
-			});
-		}
+		goToMessage(messages[index]);
+		hideList();
 	}, _bottomBar->lifetime());
+
+	_list.controller->showItemRequests(
+	) | rpl::start_with_next([=](const FullMsgId &id) {
+		const auto &messages = _apiSearch.messages().messages;
+		const auto it = ranges::find(messages, id);
+		if (it != end(messages)) {
+			_bottomBar->setCurrent(std::distance(begin(messages), it) + 1);
+		}
+	}, _list.container->lifetime());
+
+	_list.controller->searchMoreRequests(
+	) | rpl::start_with_next([=] {
+		const auto &apiData = _apiSearch.messages();
+		if (int(apiData.messages.size()) != apiData.total) {
+			_apiSearch.searchMore();
+		}
+	}, _list.container->lifetime());
 
 	_bottomBar->showCalendarRequests(
 	) | rpl::start_with_next([=] {
+		hideList();
 		_window->showCalendar({ _history }, QDate());
 	}, _bottomBar->lifetime());
 
@@ -551,6 +825,15 @@ ComposeSearch::Inner::Inner(
 			crl::guard(_bottomBar.get(), [=] { /*_filter->setFocus();*/ }));
 
 		Window::Show(_window).showBox(std::move(box));
+	}, _bottomBar->lifetime());
+
+	_bottomBar->showListRequests(
+	) | rpl::start_with_next([=] {
+		if (_list.container->isHidden()) {
+			Ui::Animations::ShowWidgets({ _list.container.get() });
+		} else {
+			hideList();
+		}
 	}, _bottomBar->lifetime());
 
 	_bottomBar->buttonCalendarToggleOn(_topBar->fromValue(
@@ -572,6 +855,12 @@ void ComposeSearch::Inner::showAnimated() {
 
 void ComposeSearch::Inner::hideAnimated() {
 	Ui::Animations::HideWidgets({ _topBar.get(), _bottomBar.get() });
+}
+
+void ComposeSearch::Inner::hideList() {
+	if (!_list.container->isHidden()) {
+		Ui::Animations::HideWidgets({ _list.container.get() });
+	}
 }
 
 ComposeSearch::Inner::~Inner() {
