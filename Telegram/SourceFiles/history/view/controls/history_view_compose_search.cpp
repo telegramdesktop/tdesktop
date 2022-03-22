@@ -252,6 +252,7 @@ public:
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 	[[nodiscard]] rpl::producer<PeerData*> fromValue() const;
 	[[nodiscard]] rpl::producer<> queryChanges() const;
+	[[nodiscard]] rpl::producer<> closeRequests() const;
 
 	void setFrom(PeerData *peer);
 
@@ -344,6 +345,10 @@ rpl::producer<SearchRequest> TopBar::searchRequests() const {
 
 rpl::producer<> TopBar::queryChanges() const {
 	return _queryChanges.events();
+}
+
+rpl::producer<> TopBar::closeRequests() const {
+	return _cancel->clicks() | rpl::to_empty;
 }
 
 rpl::producer<PeerData*> TopBar::fromValue() const {
@@ -688,9 +693,13 @@ public:
 		not_null<History*> history);
 	~Inner();
 
+	void hideAnimated();
+
+	[[nodiscard]] rpl::producer<> destroyRequests() const;
+	[[nodiscard]] rpl::lifetime &lifetime();
+
 private:
 	void showAnimated();
-	void hideAnimated();
 	void hideList();
 
 	const not_null<Window::SessionController*> _window;
@@ -708,6 +717,8 @@ private:
 		} data;
 		rpl::event_stream<BottomBar::Index> jumps;
 	} _pendingJump;
+
+	rpl::event_stream<> _destroyRequests;
 
 };
 
@@ -744,6 +755,11 @@ ComposeSearch::Inner::Inner(
 	_topBar->queryChanges(
 	) | rpl::start_with_next([=] {
 		hideList();
+	}, _topBar->lifetime());
+
+	_topBar->closeRequests(
+	) | rpl::start_with_next([=] {
+		hideAnimated();
 	}, _topBar->lifetime());
 
 	_apiSearch.newFounds(
@@ -854,13 +870,24 @@ void ComposeSearch::Inner::showAnimated() {
 }
 
 void ComposeSearch::Inner::hideAnimated() {
+	hideList();
 	Ui::Animations::HideWidgets({ _topBar.get(), _bottomBar.get() });
+
+	_destroyRequests.fire({});
 }
 
 void ComposeSearch::Inner::hideList() {
 	if (!_list.container->isHidden()) {
 		Ui::Animations::HideWidgets({ _list.container.get() });
 	}
+}
+
+rpl::producer<> ComposeSearch::Inner::destroyRequests() const {
+	return _destroyRequests.events();
+}
+
+rpl::lifetime &ComposeSearch::Inner::lifetime() {
+	return _topBar->lifetime();
 }
 
 ComposeSearch::Inner::~Inner() {
@@ -874,6 +901,18 @@ ComposeSearch::ComposeSearch(
 }
 
 ComposeSearch::~ComposeSearch() {
+}
+
+void ComposeSearch::hideAnimated() {
+	_inner->hideAnimated();
+}
+
+rpl::producer<> ComposeSearch::destroyRequests() const {
+	return _inner->destroyRequests();
+}
+
+rpl::lifetime &ComposeSearch::lifetime() {
+	return _inner->lifetime();
 }
 
 } // namespace HistoryView

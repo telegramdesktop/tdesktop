@@ -27,6 +27,12 @@ public:
 		not_null<History*> history);
 	~ComposeSearch();
 
+	void hideAnimated();
+
+	[[nodiscard]] rpl::producer<> destroyRequests() const;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
+
 private:
 	class Inner;
 	const std::unique_ptr<Inner> _inner;

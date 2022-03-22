@@ -71,21 +71,22 @@ public:
 	void showChooseMessagesForReport(Ui::ReportReason reason);
 	void clearChooseMessagesForReport();
 
-	rpl::producer<> forwardSelectionRequest() const {
+	[[nodiscard]] rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
 	}
-	rpl::producer<> sendNowSelectionRequest() const {
+	[[nodiscard]] rpl::producer<> sendNowSelectionRequest() const {
 		return _sendNowSelection.events();
 	}
-	rpl::producer<> deleteSelectionRequest() const {
+	[[nodiscard]] rpl::producer<> deleteSelectionRequest() const {
 		return _deleteSelection.events();
 	}
-	rpl::producer<> clearSelectionRequest() const {
+	[[nodiscard]] rpl::producer<> clearSelectionRequest() const {
 		return _clearSelection.events();
 	}
-	rpl::producer<> cancelChooseForReportRequest() const {
+	[[nodiscard]] rpl::producer<> cancelChooseForReportRequest() const {
 		return _cancelChooseForReport.events();
 	}
+	[[nodiscard]] rpl::producer<> searchRequest() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -108,7 +109,6 @@ private:
 	void call();
 	void groupCall();
 	void startGroupCall(not_null<ChannelData*> megagroup, bool confirmed);
-	void search();
 	void showPeerMenu();
 	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();

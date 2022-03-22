@@ -112,7 +112,6 @@ TopBarWidget::TopBarWidget(
 	_clear->setClickedCallback([=] { _clearSelection.fire({}); });
 	_call->setClickedCallback([=] { call(); });
 	_groupCall->setClickedCallback([=] { groupCall(); });
-	_search->setClickedCallback([=] { search(); });
 	_menuToggle->setClickedCallback([=] { showPeerMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
 	_back->addClickHandler([=] { backClicked(); });
@@ -230,12 +229,6 @@ void TopBarWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
-void TopBarWidget::search() {
-	if (_activeChat.key) {
-		_controller->content()->searchInChat(_activeChat.key);
-	}
-}
-
 void TopBarWidget::call() {
 	if (const auto peer = _activeChat.key.peer()) {
 		if (const auto user = peer->asUser()) {
@@ -260,6 +253,10 @@ void TopBarWidget::showChooseMessagesForReport(Ui::ReportReason reason) {
 
 void TopBarWidget::clearChooseMessagesForReport() {
 	setChooseForReportReason(std::nullopt);
+}
+
+rpl::producer<> TopBarWidget::searchRequest() const {
+	return _search->clicks() | rpl::to_empty;
 }
 
 void TopBarWidget::setChooseForReportReason(
