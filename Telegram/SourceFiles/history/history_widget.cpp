@@ -1721,7 +1721,9 @@ void HistoryWidget::setInnerFocus() {
 	if (_scroll->isHidden()) {
 		setFocus();
 	} else if (_list) {
-		if (_chooseTheme && _chooseTheme->shouldBeShown()) {
+		if (isSearching()) {
+			_composeSearch->setInnerFocus();
+		} else if (_chooseTheme && _chooseTheme->shouldBeShown()) {
 			_chooseTheme->setFocus();
 		} else if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
@@ -4397,6 +4399,7 @@ void HistoryWidget::searchInChat() {
 			_history);
 
 		update();
+		setInnerFocus();
 		_composeSearch->destroyRequests(
 		) | rpl::take(
 			1
@@ -4404,6 +4407,7 @@ void HistoryWidget::searchInChat() {
 			_composeSearch = nullptr;
 
 			update();
+			setInnerFocus();
 		}, _composeSearch->lifetime());
 	}
 }
@@ -7223,7 +7227,9 @@ void HistoryWidget::updateTopBarSelection() {
 	updateControlsVisibility();
 	updateHistoryGeometry();
 	if (!Ui::isLayerShown() && !Core::App().passcodeLocked()) {
-		if (_nonEmptySelection
+		if (isSearching()) {
+			_composeSearch->setInnerFocus();
+		} else if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
 			|| isRecording()
 			|| isBotStart()

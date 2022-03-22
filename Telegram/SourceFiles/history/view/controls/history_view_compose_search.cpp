@@ -247,6 +247,8 @@ class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(not_null<Ui::RpWidget*> parent);
 
+	void setInnerFocus();
+
 	[[nodiscard]] PeerData *from() const;
 
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
@@ -316,6 +318,10 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 	_select->setCancelledCallback([=] {
 
 	});
+}
+
+void TopBar::setInnerFocus() {
+	_select->setInnerFocus();
 }
 
 void TopBar::clearItems() {
@@ -694,6 +700,7 @@ public:
 	~Inner();
 
 	void hideAnimated();
+	void setInnerFocus();
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
@@ -863,6 +870,10 @@ ComposeSearch::Inner::Inner(
 	}));
 }
 
+void ComposeSearch::Inner::setInnerFocus() {
+	_topBar->setInnerFocus();
+}
+
 void ComposeSearch::Inner::showAnimated() {
 	// Don't animate bottom bar.
 	_bottomBar->show();
@@ -905,6 +916,10 @@ ComposeSearch::~ComposeSearch() {
 
 void ComposeSearch::hideAnimated() {
 	_inner->hideAnimated();
+}
+
+void ComposeSearch::setInnerFocus() {
+	_inner->setInnerFocus();
 }
 
 rpl::producer<> ComposeSearch::destroyRequests() const {

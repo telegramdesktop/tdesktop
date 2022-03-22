@@ -28,6 +28,7 @@ public:
 	~ComposeSearch();
 
 	void hideAnimated();
+	void setInnerFocus();
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 
