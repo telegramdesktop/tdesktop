@@ -69,6 +69,14 @@ void MessagesSearch::searchMore() {
 void MessagesSearch::searchRequest() {
 	const auto nextToken = _query
 		+ QString::number(_from ? _from->id.value : 0);
+	if (!_offsetId) {
+		const auto it = _cacheOfStartByToken.find(nextToken);
+		if (it != end(_cacheOfStartByToken)) {
+			_requestId = 0;
+			searchReceived(it->second, _requestId, nextToken);
+			return;
+		}
+	}
 	auto callback = [=](Fn<void()> finish) {
 		const auto flags = _from
 			? MTP_flags(MTPmessages_Search::Flag::f_from_id)
@@ -90,7 +98,7 @@ void MessagesSearch::searchRequest() {
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_long(0) // hash
-		)).done([=](const MTPmessages_Messages &result, mtpRequestId id) {
+		)).done([=](const TLMessages &result, mtpRequestId id) {
 			_searchInHistoryRequest = 0;
 			searchReceived(result, id, nextToken);
 			finish();
@@ -114,7 +122,7 @@ void MessagesSearch::searchRequest() {
 }
 
 void MessagesSearch::searchReceived(
-		const MTPmessages_Messages &result,
+		const TLMessages &result,
 		mtpRequestId requestId,
 		const QString &nextToken) {
 	if (requestId != _requestId) {
@@ -159,6 +167,9 @@ void MessagesSearch::searchReceived(
 	}, [](const MTPDmessages_messagesNotModified &data) {
 		return FoundMessages{};
 	});
+	if (!_offsetId) {
+		_cacheOfStartByToken.emplace(nextToken, result);
+	}
 	_requestId = 0;
 	_offsetId = found.messages.empty()
 		? MsgId()

@@ -37,15 +37,18 @@ public:
 	[[nodiscard]] rpl::producer<FoundMessages> messagesFounds() const;
 
 private:
+	using TLMessages = MTPmessages_Messages;
 	void searchRequest();
 	void searchReceived(
-		const MTPmessages_Messages &result,
+		const TLMessages &result,
 		mtpRequestId requestId,
 		const QString &nextToken);
 
 	const not_null<Main::Session*> _session;
 	const not_null<History*> _history;
 	MTP::Sender _api;
+
+	base::flat_map<QString, TLMessages> _cacheOfStartByToken;
 
 	QString _query;
 	PeerData *_from = nullptr;

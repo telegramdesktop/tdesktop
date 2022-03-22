@@ -260,7 +260,7 @@ public:
 
 private:
 	void clearItems();
-	void requestSearch();
+	void requestSearch(bool cache = true);
 	void requestSearchDelayed();
 
 	base::unique_qptr<Ui::IconButton> _cancel;
@@ -269,6 +269,8 @@ private:
 	rpl::variable<PeerData*> _from = nullptr;;
 
 	base::Timer _searchTimer;
+
+	std::vector<SearchRequest> _typedRequests;
 
 	rpl::event_stream<SearchRequest> _searchRequests;
 	rpl::event_stream<> _queryChanges;
@@ -337,11 +339,23 @@ void TopBar::clearItems() {
 	});
 }
 
-void TopBar::requestSearch() {
-	_searchRequests.fire({ _select->getQuery(), _from.current() });
+void TopBar::requestSearch(bool cache) {
+	const auto search = SearchRequest{ _select->getQuery(), _from.current() };
+	if (cache) {
+		_typedRequests.push_back(search);
+	}
+	_searchRequests.fire_copy(search);
 }
 
 void TopBar::requestSearchDelayed() {
+	// Check cached queries.
+	for (const auto &t : _typedRequests) {
+		if (t.query == _select->getQuery() && t.from == _from.current()) {
+			requestSearch(false);
+			return;
+		}
+	}
+
 	_searchTimer.callOnce(AutoSearchTimeout);
 }
 
