@@ -162,6 +162,7 @@ enum class FrameFormat {
 	None,
 	ARGB32,
 	YUV420,
+	NV12,
 };
 
 struct FrameChannel {
@@ -169,7 +170,7 @@ struct FrameChannel {
 	int stride = 0;
 };
 
-struct FrameYUV420 {
+struct FrameYUV {
 	QSize size;
 	QSize chromaSize;
 	FrameChannel y;
@@ -179,7 +180,7 @@ struct FrameYUV420 {
 
 struct FrameWithInfo {
 	QImage image;
-	FrameYUV420 *yuv420 = nullptr;
+	FrameYUV *yuv = nullptr;
 	FrameFormat format = FrameFormat::None;
 	int index = -1;
 	bool alpha = false;

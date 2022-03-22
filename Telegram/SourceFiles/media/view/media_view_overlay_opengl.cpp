@@ -106,6 +106,14 @@ void OverlayWidget::RendererGL::init(
 			FragmentSampleYUV420Texture(),
 		}));
 
+	_nv12Program.emplace();
+	LinkProgram(
+		&*_nv12Program,
+		_texturedVertexShader,
+		FragmentShader({
+			FragmentSampleNV12Texture(),
+		}));
+
 	_fillProgram.emplace();
 	LinkProgram(
 		&*_fillProgram,
@@ -136,6 +144,7 @@ void OverlayWidget::RendererGL::deinit(
 	_texturedVertexShader = nullptr;
 	_withTransparencyProgram = std::nullopt;
 	_yuv420Program = std::nullopt;
+	_nv12Program = std::nullopt;
 	_fillProgram = std::nullopt;
 	_controlsProgram = std::nullopt;
 	_contentBuffer = std::nullopt;
@@ -196,10 +205,13 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			data.alpha);
 		return;
 	}
-	Assert(data.format == Streaming::FrameFormat::YUV420);
-	Assert(!data.yuv420->size.isEmpty());
-	const auto yuv = data.yuv420;
-	_yuv420Program->bind();
+	Assert(!data.yuv->size.isEmpty());
+	const auto program = (data.format == Streaming::FrameFormat::NV12)
+		? &*_nv12Program
+		: &*_yuv420Program;
+	program->bind();
+	const auto nv12 = (data.format == Streaming::FrameFormat::NV12);
+	const auto yuv = data.yuv;
 
 	const auto upload = (_trackFrameIndex != data.index)
 		|| (_streamedIndex != _owner->streamedIndex());
@@ -223,32 +235,38 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
-			GL_ALPHA,
-			GL_ALPHA,
+			nv12 ? GL_RG : GL_ALPHA,
+			nv12 ? GL_RG : GL_ALPHA,
 			yuv->chromaSize,
 			_chromaSize,
-			yuv->u.stride,
+			yuv->u.stride / (nv12 ? 2 : 1),
 			yuv->u.data);
 	}
-	_f->glActiveTexture(GL_TEXTURE2);
-	_textures.bind(*_f, 3);
-	if (upload) {
-		uploadTexture(
-			GL_ALPHA,
-			GL_ALPHA,
-			yuv->chromaSize,
-			_chromaSize,
-			yuv->v.stride,
-			yuv->v.data);
-		_chromaSize = yuv->chromaSize;
-		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	if (!nv12) {
+		_f->glActiveTexture(GL_TEXTURE2);
+		_textures.bind(*_f, 3);
+		if (upload) {
+			uploadTexture(
+				GL_ALPHA,
+				GL_ALPHA,
+				yuv->chromaSize,
+				_chromaSize,
+				yuv->v.stride,
+				yuv->v.data);
+			_chromaSize = yuv->chromaSize;
+			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		}
 	}
-	_yuv420Program->setUniformValue("y_texture", GLint(0));
-	_yuv420Program->setUniformValue("u_texture", GLint(1));
-	_yuv420Program->setUniformValue("v_texture", GLint(2));
+	program->setUniformValue("y_texture", GLint(0));
+	if (nv12) {
+		program->setUniformValue("uv_texture", GLint(1));
+	} else {
+		program->setUniformValue("u_texture", GLint(1));
+		program->setUniformValue("v_texture", GLint(2));
+	}
 
 	toggleBlending(false);
-	paintTransformedContent(&*_yuv420Program, geometry);
+	paintTransformedContent(program, geometry);
 }
 
 void OverlayWidget::RendererGL::paintTransformedStaticContent(

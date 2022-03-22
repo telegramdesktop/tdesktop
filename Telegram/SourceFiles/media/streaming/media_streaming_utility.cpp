@@ -198,7 +198,7 @@ QImage ConvertFrame(
 	return storage;
 }
 
-FrameYUV420 ExtractYUV420(Stream &stream, AVFrame *frame) {
+FrameYUV ExtractYUV(Stream &stream, AVFrame *frame) {
 	return {
 		.size = { frame->width, frame->height },
 		.chromaSize = {
