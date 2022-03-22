@@ -87,6 +87,12 @@ menuIconImportTheme: icon {{ "menu/import_theme", menuIconColor }};
 menuIconExportTheme: icon {{ "menu/export_theme", menuIconColor }};
 menuIconRestore: icon {{ "menu/restore", menuIconColor }};
 menuIconSettings: icon {{ "menu/settings", menuIconColor }};
+menuIconCopyright: icon {{ "menu/copyright", menuIconColor }};
+menuIconDrugs: icon {{ "menu/drugs", menuIconColor }};
+menuIconFake: icon {{ "menu/fake", menuIconColor }};
+menuIconPersonal: icon {{ "menu/personal", menuIconColor }};
+menuIconPorn: icon {{ "menu/porn", menuIconColor }};
+menuIconViolence: icon {{ "menu/violence", menuIconColor }};
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};

@@ -954,3 +954,9 @@ shortInfoCover: ShortInfoCover {
 		thickness: 2px;
 	}
 }
+
+reportReasonTopSkip: 8px;
+reportReasonButton: SettingsButton(infoProfileButton) {
+	style: boxTextStyle;
+	padding: margins(62px, 7px, 8px, 7px);
+}
