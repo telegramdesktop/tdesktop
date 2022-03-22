@@ -400,7 +400,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b0ae34e08f
+    git checkout 0947a28160
 """)
 
 stage('depot_tools', """
@@ -683,6 +683,12 @@ depends:yasm/yasm
     lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
 
     make install
+""")
+
+stage('nv-codec-headers', """
+    git clone https://github.com/FFmpeg/nv-codec-headers.git
+    cd nv-codec-headers
+    git checkout n11.1.5.1
 """)
 
 stage('ffmpeg', """

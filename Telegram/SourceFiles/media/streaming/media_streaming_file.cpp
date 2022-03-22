@@ -148,7 +148,8 @@ void File::Context::logFatal(
 Stream File::Context::initStream(
 		not_null<AVFormatContext*> format,
 		AVMediaType type,
-		Mode mode) {
+		Mode mode,
+		bool hwAllowed) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
 		format,
@@ -158,14 +159,42 @@ Stream File::Context::initStream(
 		nullptr,
 		0);
 	if (index < 0) {
-		return result;
+		return {};
 	}
 
 	const auto info = format->streams[index];
+	const auto tryCreateCodec = [&](AVHWDeviceType type) {
+		result.codec = FFmpeg::MakeCodecPointer({
+			.stream = info,
+			.type = type,
+		});
+		return (result.codec != nullptr);
+	};
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		if (info->disposition & AV_DISPOSITION_ATTACHED_PIC) {
 			// ignore cover streams
 			return Stream();
+		}
+		const auto hwAccelTypes = std::array{
+#ifdef Q_OS_WIN
+			AV_HWDEVICE_TYPE_D3D11VA,
+			AV_HWDEVICE_TYPE_DXVA2,
+#elif defined Q_OS_MAC // Q_OS_WIN
+			AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
+#else // Q_OS_WIN || Q_OS_MAC
+			AV_HWDEVICE_TYPE_VAAPI,
+			AV_HWDEVICE_TYPE_VDPAU,
+#endif // Q_OS_WIN || Q_OS_MAC
+			AV_HWDEVICE_TYPE_CUDA,
+			AV_HWDEVICE_TYPE_NONE,
+		};
+		for (const auto type : hwAccelTypes) {
+			if (tryCreateCodec(type)) {
+				break;
+			}
+		}
+		if (!result.codec) {
+			return result;
 		}
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
 		result.aspect = FFmpeg::ValidateAspectRatio(info->sample_aspect_ratio);
@@ -173,16 +202,13 @@ Stream File::Context::initStream(
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
 			return result;
+		} else if (!tryCreateCodec(AV_HWDEVICE_TYPE_NONE)) {
+			return result;
 		}
 	}
 
-	result.codec = FFmpeg::MakeCodecPointer(info);
-	if (!result.codec) {
-		return result;
-	}
-
-	result.frame = FFmpeg::MakeFramePointer();
-	if (!result.frame) {
+	result.decodedFrame = FFmpeg::MakeFramePointer();
+	if (!result.decodedFrame) {
 		result.codec = nullptr;
 		return result;
 	}
@@ -260,7 +286,7 @@ std::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
 	return error;
 }
 
-void File::Context::start(crl::time position) {
+void File::Context::start(crl::time position, bool hwAllow) {
 	auto error = FFmpeg::AvErrorWrap();
 
 	if (unroll()) {
@@ -280,12 +306,12 @@ void File::Context::start(crl::time position) {
 	}
 
 	const auto mode = _delegate->fileOpenMode();
-	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode);
+	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode, hwAllow);
 	if (unroll()) {
 		return;
 	}
 
-	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode);
+	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode, false);
 	if (unroll()) {
 		return;
 	}
@@ -425,7 +451,10 @@ File::File(std::shared_ptr<Reader> reader)
 : _reader(std::move(reader)) {
 }
 
-void File::start(not_null<FileDelegate*> delegate, crl::time position) {
+void File::start(
+		not_null<FileDelegate*> delegate,
+		crl::time position,
+		bool hwAllow) {
 	stop(true);
 
 	_reader->startStreaming();
@@ -433,7 +462,7 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 
 	_thread = std::thread([=, context = &*_context] {
 		crl::toggle_fp_exceptions(true);
-		context->start(position);
+		context->start(position, hwAllow);
 		while (!context->finished()) {
 			context->readNextPacket();
 		}

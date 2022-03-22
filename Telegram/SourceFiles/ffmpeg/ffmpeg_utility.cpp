@@ -31,6 +31,15 @@ constexpr auto kAvioBlockSize = 4096;
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
 
+using GetFormatMethod = enum AVPixelFormat(*)(
+	struct AVCodecContext *s,
+	const enum AVPixelFormat *fmt);
+
+struct HwAccelDescriptor {
+	GetFormatMethod getFormat = nullptr;
+	AVPixelFormat format = AV_PIX_FMT_NONE;
+};
+
 void AlignedImageBufferCleanupHandler(void* data) {
 	const auto buffer = static_cast<uchar*>(data);
 	delete[] buffer;
@@ -74,6 +83,69 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
 	layout->fetchToARGB32PM(udst, src, 0, intsCount, nullptr, nullptr);
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
+}
+
+template <AVPixelFormat Required>
+enum AVPixelFormat GetFormatImplementation(
+		AVCodecContext *ctx,
+		const enum AVPixelFormat *pix_fmts) {
+	const enum AVPixelFormat *p = nullptr;
+	for (p = pix_fmts; *p != -1; p++) {
+		if (*p == Required) {
+			return *p;
+		}
+	}
+	return AV_PIX_FMT_NONE;
+}
+
+template <AVPixelFormat Format>
+[[nodiscard]] HwAccelDescriptor HwAccelByFormat() {
+	return {
+		.getFormat = GetFormatImplementation<Format>,
+		.format = Format,
+	};
+}
+
+[[nodiscard]] HwAccelDescriptor ResolveHwAccel(
+		not_null<const AVCodec*> decoder,
+		AVHWDeviceType type) {
+	Expects(type != AV_HWDEVICE_TYPE_NONE);
+
+	const auto format = [&] {
+		for (auto i = 0;; i++) {
+			const auto config = avcodec_get_hw_config(decoder, i);
+			if (!config) {
+				break;
+			} else if (config->device_type == type
+				&& (config->methods
+					& AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)) {
+				return config->pix_fmt;
+			}
+		}
+		return AV_PIX_FMT_NONE;
+	}();
+
+	switch (format) {
+#ifdef Q_OS_WIN
+	case AV_PIX_FMT_D3D11:
+		return HwAccelByFormat<AV_PIX_FMT_D3D11>();
+	case AV_PIX_FMT_DXVA2_VLD:
+		return HwAccelByFormat<AV_PIX_FMT_DXVA2_VLD>();
+	case AV_PIX_FMT_D3D11VA_VLD:
+		return HwAccelByFormat<AV_PIX_FMT_D3D11VA_VLD>();
+#elif defined Q_OS_MAC // Q_OS_WIN
+	case AV_PIX_FMT_VIDEOTOOLBOX:
+		return HwAccelByFormat<AV_PIX_FMT_VIDEOTOOLBOX>();
+#else // Q_OS_WIN || Q_OS_MAC
+	case AV_PIX_FMT_VAAPI:
+		return HwAccelByFormat<AV_PIX_FMT_VAAPI>();
+	case AV_PIX_FMT_VDPAU:
+		return HwAccelByFormat<AV_PIX_FMT_VDPAU>();
+#endif // Q_OS_WIN || Q_OS_MAC
+	case AV_PIX_FMT_CUDA:
+		return HwAccelByFormat<AV_PIX_FMT_CUDA>();
+	}
+	return {};
 }
 
 } // namespace
@@ -161,7 +233,7 @@ const AVCodec *FindDecoder(not_null<AVCodecContext*> context) {
 		: avcodec_find_decoder(context->codec_id);
 }
 
-CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
+CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 	auto error = AvErrorWrap();
 
 	auto result = CodecPointer(avcodec_alloc_context3(nullptr));
@@ -170,6 +242,7 @@ CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 		LogError(qstr("avcodec_alloc_context3"));
 		return {};
 	}
+	const auto stream = descriptor.stream;
 	error = avcodec_parameters_to_context(context, stream->codecpar);
 	if (error) {
 		LogError(qstr("avcodec_parameters_to_context"), error);
@@ -183,7 +256,37 @@ CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 	if (!codec) {
 		LogError(qstr("avcodec_find_decoder"), context->codec_id);
 		return {};
-	} else if ((error = avcodec_open2(context, codec, nullptr))) {
+	}
+
+	if (descriptor.type != AV_HWDEVICE_TYPE_NONE) {
+		const auto hw = ResolveHwAccel(codec, descriptor.type);
+		if (!hw.getFormat) {
+			return {};
+		}
+		context->get_format = hw.getFormat;
+		auto hwDeviceContext = (AVBufferRef*)nullptr;
+		error = av_hwdevice_ctx_create(
+			&hwDeviceContext,
+			descriptor.type,
+			nullptr,
+			nullptr,
+			0);
+		if (error || !hwDeviceContext) {
+			LogError(qstr("av_hwdevice_ctx_create"), error);
+			return {};
+		}
+		DEBUG_LOG(("Video Info: "
+			"Using \"%1\" hardware acceleration for \"%2\" decoder."
+			).arg(av_hwdevice_get_type_name(descriptor.type)
+			).arg(codec->name));
+		context->hw_device_ctx = av_buffer_ref(hwDeviceContext);
+		av_buffer_unref(&hwDeviceContext);
+	} else {
+		DEBUG_LOG(("Video Info: Using software \"%2\" decoder."
+			).arg(codec->name));
+	}
+
+	if ((error = avcodec_open2(context, codec, nullptr))) {
 		LogError(qstr("avcodec_open2"), error);
 		return {};
 	}

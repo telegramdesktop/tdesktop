@@ -3124,6 +3124,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
+	options.hwAllow = true;
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
