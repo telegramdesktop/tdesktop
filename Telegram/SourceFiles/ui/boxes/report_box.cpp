@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "styles/style_info.h"
-#include "Styles/style_menu_icons.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
