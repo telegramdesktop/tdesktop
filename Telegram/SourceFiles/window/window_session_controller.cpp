@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "boxes/add_contact_box.h"
+#include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/delete_messages_box.h"

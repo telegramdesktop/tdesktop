@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
+#include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_peer_values.h"
@@ -198,7 +199,8 @@ EditAdminBox::EditAdminBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	ChatAdminRightsInfo rights,
-	const QString &rank)
+	const QString &rank,
+	bool addingBot)
 : EditParticipantBox(
 	nullptr,
 	peer,
@@ -206,7 +208,8 @@ EditAdminBox::EditAdminBox(
 	(rights.flags != 0))
 , _show(this)
 , _oldRights(rights)
-, _oldRank(rank) {
+, _oldRank(rank)
+, _addingBot(addingBot) {
 }
 
 ChatAdminRightsInfo EditAdminBox::defaultRights() const {
@@ -236,12 +239,40 @@ void EditAdminBox::prepare() {
 
 	EditParticipantBox::prepare();
 
-	setTitle(_oldRights.flags
+	setTitle(_addingBot
+		? tr::lng_bot_add_title()
+		: _oldRights.flags
 		? tr::lng_rights_edit_admin()
 		: tr::lng_channel_add_admin());
 
-	addControl(
-		object_ptr<Ui::BoxContentDivider>(this),
+	if (_addingBot && !peer()->isBroadcast() && _saveCallback) {
+		addControl(
+			object_ptr<Ui::BoxContentDivider>(this),
+			st::rightsDividerMargin / 2);
+		_addAsAdmin = addControl(
+			object_ptr<Ui::Checkbox>(
+				this,
+				tr::lng_bot_as_admin_check(tr::now),
+				st::rightsCheckbox,
+				std::make_unique<Ui::ToggleView>(
+					st::rightsToggle,
+					true)),
+			st::rightsToggleMargin + (st::rightsDividerMargin / 2));
+		_addAsAdmin->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			_adminControlsWrap->toggle(checked, anim::type::normal);
+			refreshButtons();
+		}, _addAsAdmin->lifetime());
+	}
+
+	_adminControlsWrap = addControl(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
+	const auto inner = _adminControlsWrap->entity();
+
+	inner->add(
+		object_ptr<Ui::BoxContentDivider>(inner),
 		st::rightsDividerMargin);
 
 	const auto chat = peer()->asChat();
@@ -290,21 +321,21 @@ void EditAdminBox::prepare() {
 		? chat->anyoneCanAddMembers()
 		: channel->anyoneCanAddMembers();
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
-		this,
+		inner,
 		tr::lng_rights_edit_admin_header(),
 		prepareFlags,
 		disabledMessages,
 		isGroup,
 		anyoneCanAddMembers);
-	addControl(std::move(checkboxes), QMargins());
+	inner->add(std::move(checkboxes), QMargins());
 
 	auto selectedFlags = rpl::single(
 		getChecked()
 	) | rpl::then(std::move(
 		changes
 	));
-	_aboutAddAdmins = addControl(
-		object_ptr<Ui::FlatLabel>(this, st::boxDividerLabel),
+	_aboutAddAdmins = inner->add(
+		object_ptr<Ui::FlatLabel>(inner, st::boxDividerLabel),
 		st::rightsAboutMargin);
 	rpl::duplicate(
 		selectedFlags
@@ -318,6 +349,7 @@ void EditAdminBox::prepare() {
 	if (canTransferOwnership()) {
 		const auto allFlags = AdminRightsForOwnershipTransfer(isGroup);
 		setupTransferButton(
+			inner,
 			isGroup
 		)->toggleOn(rpl::duplicate(
 			selectedFlags
@@ -327,37 +359,76 @@ void EditAdminBox::prepare() {
 	}
 
 	if (canSave()) {
-		const auto rank = (chat || channel->isMegagroup())
-			? addRankInput().get()
+		_rank = (chat || channel->isMegagroup())
+			? addRankInput(inner).get()
 			: nullptr;
-
-		addButton(tr::lng_settings_save(), [=, value = getChecked] {
-			if (!_saveCallback) {
-				return;
-			}
+		_finishSave = [=, value = getChecked] {
 			const auto newFlags = (value() | ChatAdminRight::Other)
 				& ((!channel || channel->amCreator())
 					? ~Flags(0)
 					: channel->adminRights());
 			_saveCallback(
-				_oldRights,
+				_addingBot ? ChatAdminRightsInfo() : _oldRights,
 				ChatAdminRightsInfo(newFlags),
-				rank ? rank->getLastText().trimmed() : QString());
-		});
+				_rank ? _rank->getLastText().trimmed() : QString());
+		};
+		_save = [=] {
+			if (!_saveCallback) {
+				return;
+			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
+				AddBotToGroup(user(), peer());
+				return;
+			} else if (_addingBot) {
+				const auto phrase = peer()->isBroadcast()
+					? tr::lng_bot_sure_add_text_channel
+					: tr::lng_bot_sure_add_text_group;
+				_confirmBox = getDelegate()->show(Ui::MakeConfirmBox({
+					phrase(
+						tr::now,
+						lt_group,
+						Ui::Text::Bold(peer()->name),
+						Ui::Text::WithEntities),
+					crl::guard(this, [=] { finishAddAdmin(); })
+				}), Ui::LayerOption::KeepOther);
+			} else {
+				_finishSave();
+			}
+		};
+	}
+
+	refreshButtons();
+}
+
+void EditAdminBox::finishAddAdmin() {
+	_finishSave();
+	if (_confirmBox) {
+		_confirmBox->closeBox();
+	}
+}
+
+void EditAdminBox::refreshButtons() {
+	clearButtons();
+	if (canSave()) {
+		addButton(!_addingBot
+			? tr::lng_settings_save()
+			: _adminControlsWrap->toggled()
+			? tr::lng_bot_add_as_admin()
+			: tr::lng_bot_add_as_member(), _save);
 		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {
 		addButton(tr::lng_box_ok(), [=] { closeBox(); });
 	}
 }
 
-not_null<Ui::InputField*> EditAdminBox::addRankInput() {
-	addControl(
-		object_ptr<Ui::BoxContentDivider>(this),
+not_null<Ui::InputField*> EditAdminBox::addRankInput(
+		not_null<Ui::VerticalLayout*> container) {
+	container->add(
+		object_ptr<Ui::BoxContentDivider>(container),
 		st::rightsRankMargin);
 
-	addControl(
+	container->add(
 		object_ptr<Ui::FlatLabel>(
-			this,
+			container,
 			tr::lng_rights_edit_admin_rank_name(),
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
@@ -372,9 +443,9 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 		}
 		Unexpected("Peer type in EditAdminBox::addRankInput.");
 	}();
-	const auto result = addControl(
+	const auto result = container->add(
 		object_ptr<Ui::InputField>(
-			this,
+			container,
 			st::customBadgeField,
 			(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)(),
 			TextUtilities::RemoveEmoji(_oldRank)),
@@ -389,9 +460,9 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 		}
 	});
 
-	addControl(
+	container->add(
 		object_ptr<Ui::FlatLabel>(
-			this,
+			container,
 			tr::lng_rights_edit_admin_rank_about(
 				lt_title,
 				(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)()),
@@ -413,19 +484,20 @@ bool EditAdminBox::canTransferOwnership() const {
 }
 
 not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
+		not_null<Ui::VerticalLayout*> container,
 		bool isGroup) {
-	const auto wrap = addControl(
+	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			this,
-			object_ptr<Ui::VerticalLayout>(this)));
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
 
-	const auto container = wrap->entity();
+	const auto inner = wrap->entity();
 
-	container->add(
-		object_ptr<Ui::BoxContentDivider>(container),
+	inner->add(
+		object_ptr<Ui::BoxContentDivider>(inner),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
-	container->add(EditPeerInfoBox::CreateButton(
-		this,
+	inner->add(EditPeerInfoBox::CreateButton(
+		inner,
 		(isGroup
 			? tr::lng_rights_transfer_group
 			: tr::lng_rights_transfer_channel)(),

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/pin_messages_box.h"
+#include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "ui/boxes/report_box.h"

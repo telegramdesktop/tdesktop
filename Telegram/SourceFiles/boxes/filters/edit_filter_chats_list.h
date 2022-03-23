@@ -35,6 +35,10 @@ void PaintFilterChatsTypeIcon(
 	int outerWidth,
 	int size);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> CreatePeerListSectionSubtitle(
+	not_null<QWidget*> parent,
+	rpl::producer<QString> text);
+
 class EditFilterChatsListController final : public ChatsListBoxController {
 public:
 	using Flag = Data::ChatFilter::Flag;

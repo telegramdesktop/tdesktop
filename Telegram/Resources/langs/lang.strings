@@ -1714,6 +1714,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_channels_manage" = "Channels I manage";
 "lng_bot_groups" = "Groups";
 "lng_bot_add_title" = "Add Bot";
+"lng_bot_as_admin_check" = "Admin rights";
 "lng_bot_add_as_admin" = "Add Bot as Admin";
 "lng_bot_add_as_member" = "Add Bot as Member";
 "lng_bot_sure_add_title" = "Add bot as admin";
