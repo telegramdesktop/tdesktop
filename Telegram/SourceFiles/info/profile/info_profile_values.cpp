@@ -186,15 +186,45 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 	});
 }
 
-rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user) {
-	if (!user->isBot() || user->isSupport()) {
-		return rpl::single(false);
+[[nodiscard]] rpl::producer<QString> InviteToChatButton(
+		not_null<UserData*> user) {
+	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+		return rpl::single(QString());
 	}
+	using Flag = Data::PeerUpdate::Flag;
 	return user->session().changes().peerFlagsValue(
 		user,
-		UpdateFlag::BotCanBeInvited
+		Flag::BotCanBeInvited | Flag::Rights
 	) | rpl::map([=] {
-		return !user->botInfo->cantJoinGroups;
+		const auto info = user->botInfo.get();
+		return info->cantJoinGroups
+			? (info->channelAdminRights
+				? tr::lng_profile_invite_to_channel(tr::now)
+				: QString())
+			: (info->channelAdminRights
+				? tr::lng_profile_add_bot_as_admin(tr::now)
+				: tr::lng_profile_invite_to_group(tr::now));
+	});
+}
+
+[[nodiscard]] rpl::producer<QString> InviteToChatAbout(
+		not_null<UserData*> user) {
+	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+		return rpl::single(QString());
+	}
+	using Flag = Data::PeerUpdate::Flag;
+	return user->session().changes().peerFlagsValue(
+		user,
+		Flag::BotCanBeInvited | Flag::Rights
+	) | rpl::map([=] {
+		const auto info = user->botInfo.get();
+		return (info->cantJoinGroups || !info->groupAdminRights)
+			? (info->channelAdminRights
+				? tr::lng_profile_invite_to_channel_about(tr::now)
+				: QString())
+			: (info->channelAdminRights
+				? tr::lng_profile_add_bot_as_admin_about(tr::now)
+				: tr::lng_profile_invite_to_group_about(tr::now));
 	});
 }
 

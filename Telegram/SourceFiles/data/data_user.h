@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 
 struct BotInfo {
@@ -21,6 +22,9 @@ struct BotInfo {
 
 	QString startToken, startGroupToken, shareGameShortName;
 	Dialogs::EntryState inlineReturnTo;
+
+	ChatAdminRights groupAdminRights;
+	ChatAdminRights channelAdminRights;
 };
 
 enum class UserDataFlag {

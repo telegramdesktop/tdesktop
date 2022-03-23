@@ -914,6 +914,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_restart_bot" = "Restart bot";
 "lng_profile_invite_to_group" = "Add to Group";
+"lng_profile_add_bot_as_admin" = "Add to Group or Channel";
+"lng_profile_invite_to_channel" = "Add to Channel";
+"lng_profile_invite_to_group_about" = "This bot is able to manage a group.";
+"lng_profile_invite_to_channel_about" = "This bot is able to manage a channel.";
+"lng_profile_add_bot_as_admin_about" = "This bot is able to manage a group or channel.";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
@@ -1705,6 +1710,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_chats_not_found" = "No chats found";
 "lng_bot_sure_share_game" = "Share the game with {user}?";
 "lng_bot_sure_share_game_group" = "Share the game with «{group}»?";
+"lng_bot_groups_manage" = "Groups I manage";
+"lng_bot_channels_manage" = "Channels I manage";
+"lng_bot_groups" = "Groups";
+"lng_bot_add_title" = "Add Bot";
+"lng_bot_add_as_admin" = "Add Bot as Admin";
+"lng_bot_add_as_member" = "Add Bot as Member";
+"lng_bot_sure_add_title" = "Add bot as admin";
+"lng_bot_sure_add_text_group" = "Are you sure you want to add this bot as an admin in the group {group}?";
+"lng_bot_sure_add_text_channel" = "Are you sure you want to add this bot as an admin in the channel {group}?";
+"lng_bot_sure_add" = "Add as admin";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";

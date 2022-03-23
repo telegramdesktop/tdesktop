@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
+#include "boxes/peers/edit_participant_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "dialogs/dialogs_main_list.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
@@ -580,12 +582,42 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			return;
 		}
 	}
-	auto send = crl::guard(this, [bot = _bot, chat] {
-		AddBotToGroup(bot, chat);
-	});
-	auto confirmText = tr::lng_bot_sure_invite(tr::now, lt_group, chat->name);
+	const auto bot = _bot;
+	const auto close = [=](auto&&...) {
+		Ui::hideLayer();
+		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+	};
+	const auto saveCallback = SaveAdminCallback(
+		chat,
+		bot,
+		close,
+		close);
+	auto box = object_ptr<EditAdminBox>(nullptr);
+	if (chat->isBroadcast()) {
+		if (bot->botInfo->channelAdminRights) {
+			box = Box<EditAdminBox>(
+				chat,
+				bot,
+				ChatAdminRightsInfo(bot->botInfo->channelAdminRights),
+				QString());
+		}
+	} else if (bot->botInfo->groupAdminRights) {
+		box = Box<EditAdminBox>(
+			chat,
+			bot,
+			ChatAdminRightsInfo(bot->botInfo->groupAdminRights),
+			QString());
+	}
+	if (box) {
+		box->setSaveCallback(saveCallback);
+		Ui::show(std::move(box));
+		return;
+	}
 	Ui::show(
-		Ui::MakeConfirmBox({ confirmText, send }),
+		Ui::MakeConfirmBox({
+			tr::lng_bot_sure_invite(tr::now, lt_group, chat->name),
+			crl::guard(this, [=] { AddBotToGroup(bot, chat); }),
+		}),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "facades.h"
@@ -507,12 +508,26 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
+	const auto notEmpty = [](const QString &value) {
+		return !value.isEmpty();
+	};
 	AddActionButton(
 		_wrap,
-		tr::lng_profile_invite_to_group(),
-		CanInviteBotToGroupValue(user),
+		InviteToChatButton(user) | rpl::filter(notEmpty),
+		InviteToChatButton(user) | rpl::map(notEmpty),
 		[=] { AddBotToGroupBoxController::Start(user); },
 		&st::infoIconRequests);
+	const auto about = _wrap->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_wrap.data(),
+			object_ptr<Ui::VerticalLayout>(_wrap.data())));
+	about->toggleOn(InviteToChatAbout(user) | rpl::map(notEmpty));
+	::Settings::AddSkip(about->entity());
+	::Settings::AddDividerText(
+		about->entity(),
+		InviteToChatAbout(user) | rpl::filter(notEmpty));
+	::Settings::AddSkip(about->entity());
+	about->finishAnimating();
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {

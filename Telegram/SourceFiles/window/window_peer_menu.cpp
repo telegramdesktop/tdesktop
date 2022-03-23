@@ -617,17 +617,19 @@ void Filler::addEditContact() {
 
 void Filler::addBotToGroup() {
 	const auto user = _peer->asUser();
-	if (!user
-		|| !user->isBot()
-		|| user->isRepliesChat()
-		|| user->botInfo->cantJoinGroups) {
+	if (!user) {
 		return;
 	}
-	using AddBotToGroup = AddBotToGroupBoxController;
-	_addAction(
-		tr::lng_profile_invite_to_group(tr::now),
-		[=] { AddBotToGroup::Start(user); },
-		&st::menuIconInvite);
+	[[maybe_unused]] const auto lifetime = Info::Profile::InviteToChatButton(
+		user
+	) | rpl::take(1) | rpl::start_with_next([=](QString label) {
+		if (!label.isEmpty()) {
+			_addAction(
+				label,
+				[=] { AddBotToGroupBoxController::Start(user); },
+				&st::menuIconInvite);
+		}
+	});
 }
 
 void Filler::addNewMembers() {
