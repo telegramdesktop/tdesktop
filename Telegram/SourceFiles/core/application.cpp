@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "mainwidget.h"
+#include "tray.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/crash_reports.h"
@@ -149,6 +150,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
+, _tray(std::make_unique<Tray>())
 , _autoLockTimer([=] { checkAutoLock(); }) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
@@ -300,6 +302,8 @@ void Application::run() {
 	startShortcuts();
 	startDomain();
 
+	startTray();
+
 	_primaryWindow->widget()->show();
 
 	const auto currentGeometry = _primaryWindow->widget()->geometry();
@@ -407,6 +411,9 @@ void Application::startSystemDarkModeViewer() {
 	) | rpl::start_with_next([=] {
 		checkSystemDarkMode();
 	}, _lifetime);
+}
+
+void Application::startTray() {
 }
 
 auto Application::prepareEmojiSourceImages()

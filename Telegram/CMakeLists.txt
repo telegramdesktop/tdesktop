@@ -990,6 +990,8 @@ PRIVATE
     platform/linux/notifications_manager_linux.h
     platform/linux/specific_linux.cpp
     platform/linux/specific_linux.h
+    platform/linux/tray_linux.cpp
+    platform/linux/tray_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
@@ -1005,6 +1007,8 @@ PRIVATE
     platform/mac/specific_mac.h
     platform/mac/specific_mac_p.mm
     platform/mac/specific_mac_p.h
+    platform/mac/tray_mac.mm
+    platform/mac/tray_mac.h
     platform/mac/window_title_mac.mm
     platform/mac/touchbar/items/mac_formatter_item.h
     platform/mac/touchbar/items/mac_formatter_item.mm
@@ -1038,6 +1042,8 @@ PRIVATE
     platform/win/notifications_manager_win.h
     platform/win/specific_win.cpp
     platform/win/specific_win.h
+    platform/win/tray_win.cpp
+    platform/win/tray_win.h
     platform/win/windows_app_user_model_id.cpp
     platform/win/windows_app_user_model_id.h
     platform/win/windows_dlls.cpp
@@ -1054,6 +1060,7 @@ PRIVATE
     platform/platform_main_window.h
     platform/platform_notifications_manager.h
     platform/platform_specific.h
+    platform/platform_tray.h
     platform/platform_window_title.h
     profile/profile_back_button.cpp
     profile/profile_back_button.h
@@ -1260,6 +1267,8 @@ PRIVATE
     settings.cpp
     settings.h
     stdafx.h
+    tray.cpp
+    tray.h
 )
 
 if (NOT build_winstore)

@@ -103,6 +103,7 @@ namespace Core {
 
 class Launcher;
 struct LocalUrlHandler;
+class Tray;
 
 enum class LaunchState {
 	Running,
@@ -317,6 +318,7 @@ private:
 	void startDomain();
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
+	void startTray();
 
 	friend void QuitAttempt();
 	void quitDelayed();
@@ -376,6 +378,8 @@ private:
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
+
+	const std::unique_ptr<Tray> _tray;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
