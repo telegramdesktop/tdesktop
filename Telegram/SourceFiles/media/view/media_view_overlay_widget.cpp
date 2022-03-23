@@ -407,17 +407,12 @@ OverlayWidget::OverlayWidget()
 		return base::EventFilterResult::Continue;
 	});
 
-	if (Platform::IsLinux()) {
-		_widget->setWindowFlags(Qt::FramelessWindowHint
-			| Qt::MaximizeUsingFullscreenGeometryHint);
-	} else if (Platform::IsMac()) {
+	if constexpr (Platform::IsMac()) {
 		// Without Qt::Tool starting with Qt 5.15.1 this widget
 		// when being opened from a fullscreen main window was
 		// opening not as overlay over the main window, but as
 		// a separate fullscreen window with a separate space.
 		_widget->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
-	} else {
-		_widget->setWindowFlags(Qt::FramelessWindowHint);
 	}
 	_widget->setAttribute(Qt::WA_NoSystemBackground, true);
 	_widget->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -425,13 +420,6 @@ OverlayWidget::OverlayWidget()
 
 	hide();
 	_widget->createWinId();
-	if (Platform::IsLinux()) {
-		window()->setTransientParent(App::wnd()->windowHandle());
-		_widget->setWindowModality(Qt::WindowModal);
-	}
-	if (!Platform::IsMac()) {
-		_widget->setWindowState(Qt::WindowFullScreen);
-	}
 
 	QObject::connect(
 		window(),
@@ -548,6 +536,8 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		.arg(use.width())
 		.arg(use.height()));
 	_widget->setGeometry(use);
+	_widget->setMinimumSize(use.size());
+	_widget->setMaximumSize(use.size());
 	if (useSizeHack) {
 		_widget->setMask(mask);
 	}
@@ -2628,7 +2618,7 @@ void OverlayWidget::displayFinished() {
 		//OverlayParent::setVisibleHook(false);
 		//setAttribute(Qt::WA_DontShowOnScreen, false);
 		Ui::Platform::UpdateOverlayed(_widget);
-		if (Platform::IsLinux()) {
+		if constexpr (!Platform::IsMac()) {
 			_widget->showFullScreen();
 		} else {
 			_widget->show();
