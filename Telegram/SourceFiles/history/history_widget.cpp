@@ -7135,7 +7135,9 @@ void HistoryWidget::confirmDeleteSelected() {
 }
 
 void HistoryWidget::escape() {
-	if (_chooseForReport) {
+	if (_composeSearch) {
+		_composeSearch->hideAnimated();
+	} else if (_chooseForReport) {
 		controller()->clearChooseReportMessages();
 	} else if (_nonEmptySelection && _list) {
 		clearSelected();
