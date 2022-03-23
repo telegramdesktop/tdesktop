@@ -427,6 +427,16 @@ void Application::clearEmojiSourceImages() {
 	});
 }
 
+bool Application::isActiveForTrayMenu() const {
+	if (_primaryWindow) {
+		return _primaryWindow->widget()->isActiveForTrayMenu();
+	}
+	return ranges::any_of(ranges::views::values(_secondaryWindows), [=](
+			const std::unique_ptr<Window::Controller> &controller) {
+		return controller->widget()->isActiveForTrayMenu();
+	});
+}
+
 bool Application::hideMediaView() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->hide();

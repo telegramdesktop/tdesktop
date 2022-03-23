@@ -163,6 +163,7 @@ public:
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
 	void checkSystemDarkMode();
+	[[nodiscard]] bool isActiveForTrayMenu() const;
 
 	// Media view interface.
 	void checkMediaViewActivation();
