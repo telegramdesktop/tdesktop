@@ -350,10 +350,15 @@ RUN DESTDIR="$LibrariesPath/wayland-cache" meson install -C build
 WORKDIR ..
 RUN rm -rf wayland
 
+FROM builder AS nv-codec-headers
+RUN git clone -b n11.1.5.1 --depth=1 https://github.com/FFmpeg/nv-codec-headers.git
+RUN DESTDIR="$LibrariesPath/nv-codec-headers-cache" make -C nv-codec-headers install
+
 FROM builder AS ffmpeg
 
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
+COPY --from=nv-codec-headers ${LibrariesPath}/nv-codec-headers-cache /
 
 RUN mkdir ffmpeg
 WORKDIR ffmpeg
@@ -373,12 +378,23 @@ RUN ./configure \
 	--disable-everything \
 	--enable-libopus \
 	--enable-libvpx \
+	--enable-ffnvcodec \
+	--enable-nvdec \
+	--enable-cuvid \
 	--enable-protocol=file \
+	--enable-hwaccel=av1_nvdec \
+	--enable-hwaccel=h264_nvdec \
+	--enable-hwaccel=hevc_nvdec \
+	--enable-hwaccel=mpeg2_nvdec \
+	--enable-hwaccel=mpeg4_nvdec \
+	--enable-hwaccel=vp8_nvdec \
 	--enable-decoder=aac \
 	--enable-decoder=aac_fixed \
 	--enable-decoder=aac_latm \
 	--enable-decoder=aasc \
 	--enable-decoder=alac \
+	--enable-decoder=av1 \
+	--enable-decoder=av1_cuvid \
 	--enable-decoder=flac \
 	--enable-decoder=gif \
 	--enable-decoder=h264 \
@@ -430,6 +446,7 @@ RUN ./configure \
 	--enable-decoder=pcm_u8 \
 	--enable-decoder=pcm_zork \
 	--enable-decoder=vorbis \
+	--enable-decoder=vp8 \
 	--enable-decoder=wavpack \
 	--enable-decoder=wmalossless \
 	--enable-decoder=wmapro \
