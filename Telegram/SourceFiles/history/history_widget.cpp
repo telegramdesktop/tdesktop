@@ -4386,29 +4386,34 @@ void HistoryWidget::searchInChat() {
 	if (controller()->isPrimary()) {
 		controller()->content()->searchInChat(_history);
 	} else {
-		const auto update = [=] {
-			updateControlsVisibility();
-			updateBotKeyboard();
-			updateFieldPlaceholder();
+		const auto search = [=] {
+			const auto update = [=] {
+				updateControlsVisibility();
+				updateBotKeyboard();
+				updateFieldPlaceholder();
 
-			updateControlsGeometry();
-		};
-		_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
-			this,
-			controller(),
-			_history);
-
-		update();
-		setInnerFocus();
-		_composeSearch->destroyRequests(
-		) | rpl::take(
-			1
-		) | rpl::start_with_next([=] {
-			_composeSearch = nullptr;
+				updateControlsGeometry();
+			};
+			_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
+				this,
+				controller(),
+				_history);
 
 			update();
 			setInnerFocus();
-		}, _composeSearch->lifetime());
+			_composeSearch->destroyRequests(
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=] {
+				_composeSearch = nullptr;
+
+				update();
+				setInnerFocus();
+			}, _composeSearch->lifetime());
+		};
+		if (!preventsClose(search)) {
+			search();
+		}
 	}
 }
 
