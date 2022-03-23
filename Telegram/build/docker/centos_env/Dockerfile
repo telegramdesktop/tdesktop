@@ -1,25 +1,18 @@
-# Default value of the arg should be specified here
-ARG QT6=true
-
 FROM centos:7 AS builder
 
 ENV GIT https://github.com
 ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
-ENV QT5_VER 5_15_2
-ENV QT5_TAG v5.15.2
-ENV QT5_PREFIX /usr/local/desktop-app/Qt-5.15.2
-ENV Qt5_DIR ${QT5_PREFIX}
-ENV QT6_VER 6_2_3
-ENV QT6_TAG v6.2.3
-ENV QT6_PREFIX /usr/local/desktop-app/Qt-6.2.3
-ENV Qt6_DIR ${QT6_PREFIX}
+ENV QT 6_2_4
+ENV QT_TAG v6.2.4
+ENV QT_PREFIX /usr/local/desktop-app/Qt-6.2.4
+ENV Qt6_DIR ${QT_PREFIX}
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 ENV OPENSSL_ROOT_DIR ${OPENSSL_PREFIX}
 ENV CMAKE_VER 3.21.3
 ENV CMAKE_FILE cmake-$CMAKE_VER-Linux-x86_64.sh
-ENV PATH ${PATH}:${QT5_PREFIX}/bin:${QT6_PREFIX}/bin
+ENV PATH ${PATH}:${QT_PREFIX}/bin
 ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
 ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
@@ -51,7 +44,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 49d233d5de
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 43c34f586a
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
@@ -589,7 +582,6 @@ WORKDIR ..
 RUN rm -rf glibmm
 
 FROM patches AS qt
-ARG QT6
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=zlib ${LibrariesPath}/zlib-cache /
@@ -606,58 +598,17 @@ COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 
-RUN [ -n "${QT6}" ] || git clone -b ${QT5_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT5_VER}
-WORKDIR qt_${QT5_VER}
-RUN [ -n "${QT6}" ] || perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
+RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
+WORKDIR qt_${QT}
+RUN perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
 WORKDIR qtbase
-RUN [ -n "${QT6}" ] || find ../../patches/qtbase_${QT5_VER} -type f -print0 | sort -z | xargs -r0 git apply
+RUN find ../../patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ../qtwayland
-RUN [ -n "${QT6}" ] || find ../../patches/qtwayland_${QT5_VER} -type f -print0 | sort -z | xargs -r0 git apply
+RUN find ../../patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
-RUN [ -n "${QT6}" ] || ./configure -prefix "$QT5_PREFIX" \
-	-release \
-	-force-debug-info \
-	-opensource \
-	-confirm-license \
-	-xcb \
-	-libproxy \
-	-qt-libpng \
-	-qt-harfbuzz \
-	-qt-pcre \
-	-no-icu \
-	-no-feature-xcb-sm \
-	-no-feature-wayland-server \
-	-no-feature-egl-extension-platform-wayland \
-	-static \
-	-dbus-runtime \
-	-openssl-linked \
-	-I "$OPENSSL_PREFIX/include" \
-	OPENSSL_LIBS="$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread" \
-	LIBPROXY_LIBS="-lproxy -ldl"\
-	-nomake examples \
-	-nomake tests
-
-RUN [ -n "${QT6}" ] || make -j$(nproc)
-RUN [ -n "${QT6}" ] || make INSTALL_ROOT="$LibrariesPath/qt-cache" install
-
-WORKDIR ..
-RUN [ -n "${QT6}" ] || rm -rf qt_${QT5_VER}
-
-RUN [ -z "${QT6}" ] || git clone -b ${QT6_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT6_VER}
-WORKDIR qt_${QT6_VER}
-RUN [ -z "${QT6}" ] || perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
-
-WORKDIR qtbase
-RUN [ -z "${QT6}" ] || find ../../patches/qtbase_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
-WORKDIR ../qtwayland
-RUN [ -z "${QT6}" ] || find ../../patches/qtwayland_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
-WORKDIR ../qt5compat
-RUN [ -z "${QT6}" ] || find ../../patches/qt5compat_${QT6_VER} -type f -print0 | sort -z | xargs -r0 git apply
-WORKDIR ..
-
-RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
+RUN ./configure -prefix "$QT_PREFIX" \
 	-release \
 	-force-debug-info \
 	-opensource \
@@ -678,11 +629,11 @@ RUN [ -z "${QT6}" ] || ./configure -prefix "$QT6_PREFIX" \
 	-- \
 	-DINPUT_egl_extension_platform_wayland=no
 
-RUN [ -z "${QT6}" ] || cmake --build . --parallel
-RUN [ -z "${QT6}" ] || DESTDIR="$LibrariesPath/qt-cache" cmake --install .
+RUN cmake --build . --parallel
+RUN DESTDIR="$LibrariesPath/qt-cache" cmake --install .
 
 WORKDIR ..
-RUN [ -z "${QT6}" ] || rm -rf qt_${QT6_VER}
+RUN rm -rf qt_${QT}
 
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git
