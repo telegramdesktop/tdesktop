@@ -177,7 +177,8 @@ System::SkipState System::computeSkipState(
 		return SkipState{
 			.value = value,
 			.silent = (forceSilent
-				|| (messageNotification && item->isSilent())),
+				|| !messageNotification
+				|| item->isSilent()),
 		};
 	};
 	const auto showForMuted = messageNotification
