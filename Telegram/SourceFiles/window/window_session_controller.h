@@ -190,10 +190,14 @@ public:
 		BotStartType startType = BotStartType::None;
 		QString startToken;
 		ChatAdminRights startAdminRights;
+		QString attachBotUsername;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
+	void showAttachWebview(
+		not_null<PeerData*> peer,
+		const QString &botUsername);
 
 	void showRepliesForMessage(
 		not_null<History*> history,

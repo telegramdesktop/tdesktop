@@ -361,6 +361,7 @@ bool ResolveUsernameOrPhone(
 		.startType = startType,
 		.startToken = startToken,
 		.startAdminRights = adminRights,
+		.attachBotUsername = params.value(u"attach"_q),
 		.voicechatHash = (params.contains(u"livestream"_q)
 			? std::make_optional(params.value(u"livestream"_q))
 			: params.contains(u"videochat"_q)

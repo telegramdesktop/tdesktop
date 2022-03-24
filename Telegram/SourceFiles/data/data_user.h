@@ -15,6 +15,7 @@ struct BotInfo {
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
+	bool supportsAttachMenu = false;
 	int version = 0;
 	QString description, inlinePlaceholder;
 	std::vector<BotCommand> commands;

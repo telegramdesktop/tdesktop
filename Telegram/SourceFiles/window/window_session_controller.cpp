@@ -382,6 +382,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			// Show specific posts only in channels / supergroups.
 			msgId = ShowAtUnreadMsgId;
 		}
+		const auto attachBotUsername = info.attachBotUsername;
 		if (user && user->isBot()) {
 			user->botInfo->startToken = info.startToken;
 			user->session().changes().peerUpdated(
@@ -390,8 +391,45 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 		crl::on_main(this, [=] {
 			showPeerHistory(peer->id, params, msgId);
+			showAttachWebview(peer, attachBotUsername);
 		});
 	}
+}
+
+void SessionNavigation::showAttachWebview(
+		not_null<PeerData*> peer,
+		const QString &botUsername) {
+	if (!peer->isUser() || botUsername.isEmpty()) {
+		return;
+	}
+	resolveUsername(botUsername, [=](not_null<PeerData*> bot) {
+		const auto user = bot->asUser();
+		if (!user || !user->isBot() || !user->botInfo->supportsAttachMenu) {
+			Ui::ShowMultilineToast({
+				// #TODO webview lang
+				.text = { u"This bot isn't supported in the attach menu."_q }
+			});
+			return;
+		}
+
+		// #TODO webview cancel request in destructor
+		session().api().request(MTPmessages_RequestWebView(
+			MTP_flags(0),
+			peer->input,
+			user->inputUser,
+			MTPstring(), // start_param
+			MTPDataJSON() // theme_params
+		)).done([=](const MTPWebViewResult &result) {
+			result.match([&](const MTPDwebViewResultUrl &data) {
+				int b = 0;
+			}, [&](const MTPDwebViewResultConfirmationRequired &data) {
+				session().data().processUsers(data.vusers());
+				int a = 0;
+			});
+		}).fail([=](const MTP::Error &error) {
+			int a = error.code();
+		}).send();
+	});
 }
 
 void SessionNavigation::showRepliesForMessage(

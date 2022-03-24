@@ -541,6 +541,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				} else {
 					result->botInfo->inlinePlaceholder = QString();
 				}
+				result->botInfo->supportsAttachMenu = data.is_bot_attach_menu();
 			} else {
 				result->setBotInfoVersion(-1);
 			}

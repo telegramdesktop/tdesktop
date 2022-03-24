@@ -220,6 +220,10 @@ void activateBotCommand(
 			}
 		}
 	} break;
+
+	case ButtonType::WebView: {
+
+	} break;
 	}
 }
 
