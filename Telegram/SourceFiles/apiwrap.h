@@ -320,7 +320,10 @@ public:
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
 	void sendMessage(MessageToSend &&message);
-	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
+	void sendBotStart(
+		not_null<UserData*> bot,
+		PeerData *chat = nullptr,
+		const QString &startTokenForChat = QString());
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,

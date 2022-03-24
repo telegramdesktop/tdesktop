@@ -20,7 +20,7 @@ struct BotInfo {
 	std::vector<BotCommand> commands;
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
-	QString startToken, startGroupToken, shareGameShortName;
+	QString startToken;
 	Dialogs::EntryState inlineReturnTo;
 
 	ChatAdminRights groupAdminRights;

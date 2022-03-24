@@ -251,6 +251,39 @@ bool ShowWallPaper(
 		params);
 }
 
+[[nodiscard]] ChatAdminRights ParseRequestedAdminRights(
+		const QString &value) {
+	auto result = ChatAdminRights();
+	for (const auto &element : value.split(QRegularExpression("[+ ]"))) {
+		if (element == u"change_info"_q) {
+			result |= ChatAdminRight::ChangeInfo;
+		} else if (element == u"post_messages"_q) {
+			result |= ChatAdminRight::PostMessages;
+		} else if (element == u"edit_messages"_q) {
+			result |= ChatAdminRight::EditMessages;
+		} else if (element == u"delete_messages"_q) {
+			result |= ChatAdminRight::DeleteMessages;
+		} else if (element == u"restrict_members"_q) {
+			result |= ChatAdminRight::BanUsers;
+		} else if (element == u"invite_users"_q) {
+			result |= ChatAdminRight::InviteUsers;
+		} else if (element == u"pin_messages"_q) {
+			result |= ChatAdminRight::PinMessages;
+		} else if (element == u"promote_members"_q) {
+			result |= ChatAdminRight::AddAdmins;
+		} else if (element == u"manage_video_chats"_q) {
+			result |= ChatAdminRight::ManageCall;
+		} else if (element == u"anonymous"_q) {
+			result |= ChatAdminRight::Anonymous;
+		} else if (element == u"manage_chat"_q) {
+			result |= ChatAdminRight::Other;
+		} else {
+			return {};
+		}
+	}
+	return result;
+}
+
 bool ResolveUsernameOrPhone(
 		Window::SessionController *controller,
 		const Match &match,
@@ -278,18 +311,24 @@ bool ResolveUsernameOrPhone(
 	} else if (!validDomain(domain) && !validPhone(phone)) {
 		return false;
 	}
-	auto start = qsl("start");
-	auto startToken = params.value(start);
-	if (startToken.isEmpty()) {
-		start = qsl("startgroup");
-		startToken = params.value(start);
-		if (startToken.isEmpty()) {
-			start = QString();
-		}
+	using BotStartType = Window::BotStartType;
+	auto startType = BotStartType::None;
+	auto startToken = params.value(u"start"_q);
+	if (!startToken.isEmpty()) {
+		startType = BotStartType::Personal;
+	} else if (params.contains(u"startgroup"_q)) {
+		startType = BotStartType::Group;
+		startToken = params.value(u"startgroup"_q);
+	} else if (params.contains(u"startchannel"_q)) {
+		startType = BotStartType::Channel;
 	}
-	auto post = (start == qsl("startgroup"))
-		? ShowAtProfileMsgId
-		: ShowAtUnreadMsgId;
+	auto post = ShowAtUnreadMsgId;
+	auto adminRights = ChatAdminRights();
+	if (startType == BotStartType::Group
+		|| startType == BotStartType::Channel) {
+		post = ShowAtProfileMsgId;
+		adminRights = ParseRequestedAdminRights(params.value(u"admin"_q));
+	}
 	const auto postParam = params.value(qsl("post"));
 	if (const auto postId = postParam.toInt()) {
 		post = postId;
@@ -301,7 +340,8 @@ bool ResolveUsernameOrPhone(
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
-		post = ShowAtGameShareMsgId;
+		post = ShowAtProfileMsgId;
+		startType = BotStartType::ShareGame;
 	}
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	using Navigation = Window::SessionNavigation;
@@ -318,7 +358,9 @@ bool ResolveUsernameOrPhone(
 				Navigation::ThreadId{ threadId }
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
+		.startType = startType,
 		.startToken = startToken,
+		.startAdminRights = adminRights,
 		.voicechatHash = (params.contains(u"livestream"_q)
 			? std::make_optional(params.value(u"livestream"_q))
 			: params.contains(u"videochat"_q)

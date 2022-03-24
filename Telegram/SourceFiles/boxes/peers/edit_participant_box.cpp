@@ -200,7 +200,7 @@ EditAdminBox::EditAdminBox(
 	not_null<UserData*> user,
 	ChatAdminRightsInfo rights,
 	const QString &rank,
-	bool addingBot)
+	std::optional<EditAdminBotFields> addingBot)
 : EditParticipantBox(
 	nullptr,
 	peer,
@@ -209,7 +209,7 @@ EditAdminBox::EditAdminBox(
 , _show(this)
 , _oldRights(rights)
 , _oldRank(rank)
-, _addingBot(addingBot) {
+, _addingBot(std::move(addingBot)) {
 }
 
 ChatAdminRightsInfo EditAdminBox::defaultRights() const {
@@ -240,12 +240,17 @@ void EditAdminBox::prepare() {
 	EditParticipantBox::prepare();
 
 	setTitle(_addingBot
-		? tr::lng_bot_add_title()
+		? (_addingBot->existing
+			? tr::lng_rights_edit_admin()
+			: tr::lng_bot_add_title())
 		: _oldRights.flags
 		? tr::lng_rights_edit_admin()
 		: tr::lng_channel_add_admin());
 
-	if (_addingBot && !peer()->isBroadcast() && _saveCallback) {
+	if (_addingBot
+		&& !_addingBot->existing
+		&& !peer()->isBroadcast()
+		&& _saveCallback) {
 		addControl(
 			object_ptr<Ui::BoxContentDivider>(this),
 			st::rightsDividerMargin / 2);
@@ -277,7 +282,9 @@ void EditAdminBox::prepare() {
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
-	const auto prepareRights = _oldRights.flags
+	const auto prepareRights = _addingBot
+		? ChatAdminRightsInfo(_oldRights.flags | _addingBot->existing)
+		: _oldRights.flags
 		? _oldRights
 		: defaultRights();
 	const auto disabledByDefaults = (channel && !channel->isMegagroup())
@@ -368,7 +375,7 @@ void EditAdminBox::prepare() {
 					? ~Flags(0)
 					: channel->adminRights());
 			_saveCallback(
-				_addingBot ? ChatAdminRightsInfo() : _oldRights,
+				_oldRights,
 				ChatAdminRightsInfo(newFlags),
 				_rank ? _rank->getLastText().trimmed() : QString());
 		};
@@ -376,9 +383,9 @@ void EditAdminBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
-				AddBotToGroup(user(), peer());
+				AddBotToGroup(user(), peer(), _addingBot->token);
 				return;
-			} else if (_addingBot) {
+			} else if (_addingBot && !_addingBot->existing) {
 				const auto phrase = peer()->isBroadcast()
 					? tr::lng_bot_sure_add_text_channel
 					: tr::lng_bot_sure_add_text_group;
@@ -409,7 +416,7 @@ void EditAdminBox::finishAddAdmin() {
 void EditAdminBox::refreshButtons() {
 	clearButtons();
 	if (canSave()) {
-		addButton(!_addingBot
+		addButton((!_addingBot || _addingBot->existing)
 			? tr::lng_settings_save()
 			: _adminControlsWrap->toggled()
 			? tr::lng_bot_add_as_admin()

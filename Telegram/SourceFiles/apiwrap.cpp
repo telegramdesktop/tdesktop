@@ -3526,9 +3526,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	finishForwarding(action);
 }
 
-void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
+void ApiWrap::sendBotStart(
+		not_null<UserData*> bot,
+		PeerData *chat,
+		const QString &startTokenForChat) {
 	Expects(bot->isBot());
-	Expects(chat == nullptr || !bot->botInfo->startGroupToken.isEmpty());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {
 		ShowAddParticipantsError("USER_BOT", chat, { 1, bot });
@@ -3536,20 +3538,28 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 	}
 
 	auto &info = bot->botInfo;
-	auto &token = chat ? info->startGroupToken : info->startToken;
+	auto &token = chat ? startTokenForChat : info->startToken;
 	if (token.isEmpty()) {
 		auto message = MessageToSend(
-			Api::SendAction(_session->data().history(bot)));
-		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
+			Api::SendAction(_session->data().history(chat
+				? chat
+				: bot.get())));
+		message.textWithTags = { u"/start"_q, TextWithTags::Tags() };
+		if (chat) {
+			message.textWithTags.text += '@' + bot->username;
+		}
 		sendMessage(std::move(message));
 		return;
 	}
 	const auto randomId = base::RandomValue<uint64>();
+	if (!chat) {
+		info->startToken = QString();
+	}
 	request(MTPmessages_StartBot(
 		bot->inputUser,
 		chat ? chat->input : MTP_inputPeerEmpty(),
 		MTP_long(randomId),
-		MTP_string(base::take(token))
+		MTP_string(token)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {

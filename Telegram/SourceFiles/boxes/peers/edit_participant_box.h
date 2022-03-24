@@ -65,6 +65,11 @@ private:
 
 };
 
+struct EditAdminBotFields {
+	QString token;
+	ChatAdminRights existing;
+};
+
 class EditAdminBox : public EditParticipantBox {
 public:
 	EditAdminBox(
@@ -73,7 +78,7 @@ public:
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
 		const QString &rank,
-		bool addingBot = false);
+		std::optional<EditAdminBotFields> addingBot = {});
 
 	void setSaveCallback(
 			Fn<void(
@@ -127,7 +132,7 @@ private:
 	mtpRequestId _transferRequestId = 0;
 	Fn<void()> _save, _finishSave;
 
-	bool _addingBot = false;
+	std::optional<EditAdminBotFields> _addingBot;
 
 };
 

@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "base/random.h"
 #include "base/weak_ptr.h"
 #include "api/api_chat_participants.h"
@@ -54,7 +56,10 @@ private:
 
 };
 
-void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
+void ShareBotGame(
+		not_null<UserData*> bot,
+		not_null<PeerData*> chat,
+		const QString &shortName) {
 	const auto history = chat->owner().history(chat);
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::Send;
@@ -68,7 +73,7 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 			MTP_inputMediaGame(
 				MTP_inputGameShortName(
 					bot->inputUser,
-					MTP_string(bot->botInfo->shareGameShortName))),
+					MTP_string(shortName))),
 			MTP_string(),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
@@ -138,23 +143,40 @@ void Controller::addRow(not_null<PeerData*> peer) {
 
 } // namespace
 
-void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {
+void AddBotToGroupBoxController::Start(
+		not_null<UserData*> bot,
+		Scope scope,
+		const QString &token,
+		ChatAdminRights requestedRights) {
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(
-		std::make_unique<AddBotToGroupBoxController>(bot),
+		std::make_unique<AddBotToGroupBoxController>(
+			bot,
+			scope,
+			token,
+			requestedRights),
 		std::move(initBox)));
 }
 
 AddBotToGroupBoxController::AddBotToGroupBoxController(
-	not_null<UserData*> bot)
-: ChatsListBoxController(SharingBotGame(bot)
+	not_null<UserData*> bot,
+	Scope scope,
+	const QString &token,
+	ChatAdminRights requestedRights)
+: ChatsListBoxController((scope == Scope::ShareGame)
 	? std::make_unique<PeerListGlobalSearchController>(&bot->session())
 	: nullptr)
 , _bot(bot)
-, _adminToGroup(_bot->botInfo->groupAdminRights != 0)
-, _adminToChannel(_bot->botInfo->channelAdminRights != 0) {
+, _scope(scope)
+, _token(token)
+, _requestedRights(requestedRights)
+, _adminToGroup((scope == Scope::GroupAdmin)
+	|| (scope == Scope::All && _bot->botInfo->groupAdminRights != 0))
+, _adminToChannel((scope == Scope::ChannelAdmin)
+	|| (scope == Scope::All && _bot->botInfo->channelAdminRights != 0))
+, _memberToGroup(scope == Scope::All) {
 }
 
 Main::Session &AddBotToGroupBoxController::session() const {
@@ -170,8 +192,8 @@ void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto send = crl::guard(this, [bot = _bot, chat] {
-		ShareBotGame(bot, chat);
+	auto send = crl::guard(this, [bot = _bot, chat, token = _token] {
+		ShareBotGame(bot, chat, token);
 	});
 	auto confirmText = [chat] {
 		if (chat->isUser()) {
@@ -187,6 +209,34 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 		Ui::LayerOption::KeepOther);
 }
 
+void AddBotToGroupBoxController::requestExistingRights(
+		not_null<ChannelData*> channel) {
+	if (_existingRightsChannel == channel) {
+		return;
+	}
+	_existingRightsChannel = channel;
+	_bot->session().api().request(_existingRightsRequestId).cancel();
+	_existingRightsRequestId = _bot->session().api().request(
+		MTPchannels_GetParticipant(
+			_existingRightsChannel->inputChannel,
+			_bot->input)
+	).done([=](const MTPchannels_ChannelParticipant &result) {
+		result.match([&](const MTPDchannels_channelParticipant &data) {
+			channel->owner().processUsers(data.vusers());
+			const auto participant = Api::ChatParticipant(
+				data.vparticipant(),
+				channel);
+			_existingRights = participant.rights().flags;
+			_existingRank = participant.rank();
+			addBotToGroup(_existingRightsChannel);
+		});
+	}).fail([=] {
+		_existingRights = ChatAdminRights();
+		_existingRank = QString();
+		addBotToGroup(_existingRightsChannel);
+	}).send();
+}
+
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
@@ -196,38 +246,66 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			return;
 		}
 	}
+	if (_existingRightsChannel != chat) {
+		_existingRights = {};
+		_existingRank = QString();
+		_existingRightsChannel = nullptr;
+		_bot->session().api().request(_existingRightsRequestId).cancel();
+	}
+	const auto requestedAddAdmin = (_scope == Scope::GroupAdmin)
+		|| (_scope == Scope::ChannelAdmin);
+	if (chat->isChannel()
+		&& requestedAddAdmin
+		&& !_existingRights.has_value()) {
+		requestExistingRights(chat->asChannel());
+		return;
+	}
 	const auto bot = _bot;
 	const auto close = [=](auto&&...) {
 		Ui::hideLayer();
 		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 	};
-	const auto rights = (chat->isBroadcast()
-		&& chat->asBroadcast()->canAddAdmins())
+	const auto rights = requestedAddAdmin
+		? _requestedRights
+		: (chat->isBroadcast()
+			&& chat->asBroadcast()->canAddAdmins())
 		? bot->botInfo->channelAdminRights
 		: ((chat->isMegagroup() && chat->asMegagroup()->canAddAdmins())
 			|| (chat->isChat() && chat->asChat()->canAddAdmins()))
 		? bot->botInfo->groupAdminRights
 		: ChatAdminRights();
-	if (rights) {
+	const auto addingAdmin = requestedAddAdmin || (rights != 0);
+	if (addingAdmin) {
+		const auto scope = _scope;
+		const auto token = _token;
+		const auto done = [=](
+				ChatAdminRightsInfo newRights,
+				const QString &rank) {
+			if (scope == Scope::GroupAdmin) {
+				chat->session().api().sendBotStart(bot, chat, token);
+			}
+			close();
+		};
 		const auto saveCallback = SaveAdminCallback(
 			chat,
 			bot,
-			close,
+			done,
 			close);
-		auto box = object_ptr<EditAdminBox>(nullptr);
-		box = Box<EditAdminBox>(
+		auto box = Box<EditAdminBox>(
 			chat,
 			bot,
 			ChatAdminRightsInfo(rights),
-			QString(),
-			true);
+			_existingRank,
+			EditAdminBotFields{
+				_token,
+				_existingRights.value_or(ChatAdminRights()) });
 		box->setSaveCallback(saveCallback);
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
 		Ui::show(
 			Ui::MakeConfirmBox({
 				tr::lng_bot_sure_invite(tr::now, lt_group, chat->name),
-				crl::guard(this, [=] { AddBotToGroup(bot, chat); }),
+				crl::guard(this, [=] { AddBotToGroup(bot, chat, _token); }),
 			}),
 			Ui::LayerOption::KeepOther);
 	}
@@ -251,32 +329,33 @@ bool AddBotToGroupBoxController::needToCreateRow(
 		return true;
 	}
 	if (const auto chat = peer->asChat()) {
-		if (_adminToGroup && chat->canAddAdmins()) {
+		if (onlyAdminToGroup()) {
+			return chat->canAddAdmins();
+		} else if (_adminToGroup && chat->canAddAdmins()) {
 			_groups.fire_copy(peer);
-		} else {
+		} else if (!onlyAdminToChannel()) {
 			return chat->canAddMembers();
 		}
 	} else if (const auto group = peer->asMegagroup()) {
-		if (_adminToGroup && group->canAddAdmins()) {
+		if (onlyAdminToGroup()) {
+			return group->canAddAdmins();
+		} else if (_adminToGroup && group->canAddAdmins()) {
 			_groups.fire_copy(peer);
-		} else {
+		} else if (!onlyAdminToChannel()) {
 			return group->canAddMembers();
 		}
 	} else if (const auto channel = peer->asBroadcast()) {
-		if (_adminToChannel && channel->canAddAdmins()) {
+		if (onlyAdminToChannel()) {
+			return channel->canAddAdmins();
+		} else if (_adminToChannel && channel->canAddAdmins()) {
 			_channels.fire_copy(peer);
 		}
 	}
 	return false;
 }
 
-bool AddBotToGroupBoxController::SharingBotGame(not_null<UserData*> bot) {
-	const auto &info = bot->botInfo;
-	return (info && !info->shareGameShortName.isEmpty());
-}
-
 bool AddBotToGroupBoxController::sharingBotGame() const {
-	return SharingBotGame(_bot);
+	return (_scope == Scope::ShareGame);
 }
 
 QString AddBotToGroupBoxController::emptyBoxText() const {
@@ -310,29 +389,31 @@ object_ptr<Ui::RpWidget> AddBotToGroupBoxController::prepareAdminnedChats() {
 	const auto addList = [&](
 			tr::phrase<> subtitle,
 			rpl::event_stream<not_null<PeerData*>> &items) {
-		container->add(CreatePeerListSectionSubtitle(
-			container,
-			subtitle()));
-		container->add(object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::membersMarginTop));
+		const auto wrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		wrap->hide(anim::type::instant);
 
-		const auto delegate = container->lifetime().make_state<
+		const auto inner = wrap->entity();
+		inner->add(CreatePeerListSectionSubtitle(inner, subtitle()));
+
+		const auto delegate = inner->lifetime().make_state<
 			PeerListContentDelegateSimple
 		>();
-		const auto controller = container->lifetime().make_state<Controller>(
+		const auto controller = inner->lifetime().make_state<Controller>(
 			&session(),
 			items.events(),
 			callback);
-		const auto content = result->add(object_ptr<PeerListContent>(
+		const auto content = inner->add(object_ptr<PeerListContent>(
 			container,
 			controller));
 		delegate->setContent(content);
 		controller->setDelegate(delegate);
 
-		container->add(object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::membersMarginBottom));
+		items.events() | rpl::take(1) | rpl::start_with_next([=] {
+			wrap->show(anim::type::instant);
+		}, inner->lifetime());
 	};
 	if (_adminToChannel) {
 		addList(tr::lng_bot_channels_manage, _channels);
@@ -353,11 +434,20 @@ object_ptr<Ui::RpWidget> AddBotToGroupBoxController::prepareAdminnedChats() {
 	return result;
 }
 
+bool AddBotToGroupBoxController::onlyAdminToGroup() const {
+	return _adminToGroup && !_memberToGroup && !_adminToChannel;
+}
+
+bool AddBotToGroupBoxController::onlyAdminToChannel() const {
+	return _adminToChannel && !_memberToGroup && !_adminToGroup;
+}
+
 void AddBotToGroupBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle((sharingBotGame() || _adminToChannel)
 		? tr::lng_bot_choose_chat()
 		: tr::lng_bot_choose_group());
-	if (_adminToGroup || _adminToChannel) {
+	if ((_adminToGroup && !onlyAdminToGroup())
+		|| (_adminToChannel && !onlyAdminToChannel())) {
 		delegate()->peerListSetAboveWidget(prepareAdminnedChats());
 	}
 
@@ -370,9 +460,12 @@ void AddBotToGroupBoxController::prepareViewHook() {
 	}, lifetime());
 }
 
-void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	if (bot->isBot() && !bot->botInfo->startGroupToken.isEmpty()) {
-		chat->session().api().sendBotStart(bot, chat);
+void AddBotToGroup(
+		not_null<UserData*> bot,
+		not_null<PeerData*> chat,
+		const QString &startToken) {
+	if (!startToken.isEmpty()) {
+		chat->session().api().sendBotStart(bot, chat, startToken);
 	} else {
 		chat->session().api().chatParticipants().add(chat, { 1, bot });
 	}

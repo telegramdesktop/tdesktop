@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/layers/show.h"
@@ -85,6 +86,14 @@ enum class GifPauseReason {
 };
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
+
+enum class BotStartType {
+	None,
+	Personal,
+	Group,
+	Channel,
+	ShareGame,
+};
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
@@ -178,7 +187,9 @@ public:
 		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
+		BotStartType startType = BotStartType::None;
 		QString startToken;
+		ChatAdminRights startAdminRights;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};

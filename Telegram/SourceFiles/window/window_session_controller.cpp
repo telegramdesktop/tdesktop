@@ -338,6 +338,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		}).send();
 		return;
 	}
+	using Scope = AddBotToGroupBoxController::Scope;
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
 		showRepliesForMessage(
@@ -351,31 +352,28 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
-	} else if (info.messageId == ShowAtGameShareMsgId) {
-		const auto user = peer->asUser();
-		if (user && user->isBot() && !info.startToken.isEmpty()) {
-			user->botInfo->shareGameShortName = info.startToken;
-			AddBotToGroupBoxController::Start(user);
-		} else {
-			crl::on_main(this, [=] {
-				showPeerHistory(peer->id, params);
-			});
-		}
 	} else if (info.messageId == ShowAtProfileMsgId && !peer->isChannel()) {
 		const auto user = peer->asUser();
-		if (user
-			&& user->isBot()
-			&& !user->botInfo->cantJoinGroups
-			&& !info.startToken.isEmpty()) {
-			user->botInfo->startGroupToken = info.startToken;
-			AddBotToGroupBoxController::Start(user);
-		} else if (user && user->isBot()) {
+		const auto scope = (info.startType == BotStartType::ShareGame)
+			? Scope::ShareGame
+			: (info.startType == BotStartType::Group)
+			? (info.startAdminRights ? Scope::GroupAdmin : Scope::All)
+			: (info.startType == BotStartType::Channel)
+			? Scope::ChannelAdmin
+			: Scope::None;
+		if (!user || !user->isBot()) {
+			showPeerInfo(peer, params);
+		} else if (scope != Scope::None) {
+			AddBotToGroupBoxController::Start(
+				user,
+				scope,
+				info.startToken,
+				info.startAdminRights);
+		} else {
 			// Always open bot chats, even from mention links.
 			crl::on_main(this, [=] {
 				showPeerHistory(peer->id, params);
 			});
-		} else {
-			showPeerInfo(peer, params);
 		}
 	} else {
 		const auto user = peer->asUser();
