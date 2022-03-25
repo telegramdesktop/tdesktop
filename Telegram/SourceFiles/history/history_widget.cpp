@@ -1021,8 +1021,17 @@ void HistoryWidget::initTabbedSelector() {
 		sendExistingPhoto(data.photo, data.options);
 	}, lifetime());
 
-	selector->inlineResultChosen(
-	) | filter | rpl::start_with_next([=](Selector::InlineChosen data) {
+	rpl::merge(
+		selector->inlineResultChosen(),
+		controller()->inlineResultConfirmed()
+	) | filter | rpl::filter([=](const Selector::InlineChosen &data) {
+		if (!data.recipientOverride) {
+			return true;
+		} else if (data.recipientOverride != _peer) {
+			showHistory(data.recipientOverride->id, ShowAtTheEndMsgId);
+		}
+		return (data.recipientOverride == _peer);
+	}) | rpl::start_with_next([=](Selector::InlineChosen data) {
 		sendInlineResult(data);
 	}, lifetime());
 

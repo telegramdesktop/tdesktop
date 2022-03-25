@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -60,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
+#include "inline_bots/inline_bot_result.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
@@ -72,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
+#include "storage/storage_domain.h"
 #include "facades.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_window.h"
@@ -88,8 +91,8 @@ constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
 [[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
-		bool dark,
-		std::optional<QColor> accent) {
+	bool dark,
+	std::optional<QColor> accent) {
 	return [=](style::palette &palette) {
 		using namespace Theme;
 		const auto &embedded = EmbeddedThemes();
@@ -116,8 +119,8 @@ constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 }
 
 [[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
-		const Data::CloudTheme &theme,
-		Data::CloudThemeType type) {
+	const Data::CloudTheme &theme,
+	Data::CloudThemeType type) {
 	const auto i = theme.settings.find(type);
 	return {
 		.colors = (i != end(theme.settings)
@@ -127,6 +130,17 @@ constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 			? i->second.outgoingAccentColor
 			: std::optional<QColor>()),
 	};
+}
+
+[[nodiscard]] UserData *ParseAttachBot(
+		not_null<Main::Session*> session,
+		const MTPAttachMenuBot &bot) {
+	return bot.match([&](const MTPDattachMenuBot &data) {
+		const auto user = session->data().userLoaded(UserId(data.vbot_id()));
+		return (user && user->isBot() && user->botInfo->supportsAttachMenu)
+			? user
+			: nullptr;
+	});
 }
 
 } // namespace
@@ -147,8 +161,8 @@ bool operator!=(const PeerThemeOverride &a, const PeerThemeOverride &b) {
 }
 
 DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
-: _chat(chat)
-, _date(date) {
+	: _chat(chat)
+	, _date(date) {
 }
 
 void DateClickHandler::setDate(QDate date) {
@@ -163,13 +177,11 @@ void DateClickHandler::onClick(ClickContext context) const {
 }
 
 SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
-: _session(session) {
+	: _session(session)
+	, _api(&_session->mtp()) {
 }
 
-SessionNavigation::~SessionNavigation() {
-	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
-	_session->api().request(base::take(_resolveRequestId)).cancel();
-}
+SessionNavigation::~SessionNavigation() = default;
 
 Main::Session &SessionNavigation::session() const {
 	return *_session;
@@ -193,14 +205,14 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 }
 
 void SessionNavigation::resolvePhone(
-		const QString &phone,
-		Fn<void(not_null<PeerData*>)> done) {
+	const QString &phone,
+	Fn<void(not_null<PeerData*>)> done) {
 	if (const auto peer = _session->data().userByPhone(phone)) {
 		done(peer);
 		return;
 	}
-	_session->api().request(base::take(_resolveRequestId)).cancel();
-	_resolveRequestId = _session->api().request(MTPcontacts_ResolvePhone(
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPcontacts_ResolvePhone(
 		MTP_string(phone)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		resolveDone(result, done);
@@ -216,14 +228,14 @@ void SessionNavigation::resolvePhone(
 }
 
 void SessionNavigation::resolveUsername(
-		const QString &username,
-		Fn<void(not_null<PeerData*>)> done) {
+	const QString &username,
+	Fn<void(not_null<PeerData*>)> done) {
 	if (const auto peer = _session->data().peerByUsername(username)) {
 		done(peer);
 		return;
 	}
-	_session->api().request(base::take(_resolveRequestId)).cancel();
-	_resolveRequestId = _session->api().request(MTPcontacts_ResolveUsername(
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		resolveDone(result, done);
@@ -237,8 +249,8 @@ void SessionNavigation::resolveUsername(
 }
 
 void SessionNavigation::resolveDone(
-		const MTPcontacts_ResolvedPeer &result,
-		Fn<void(not_null<PeerData*>)> done) {
+	const MTPcontacts_ResolvedPeer &result,
+	Fn<void(not_null<PeerData*>)> done) {
 	_resolveRequestId = 0;
 	Ui::hideLayer();
 	result.match([&](const MTPDcontacts_resolvedPeer &data) {
@@ -251,8 +263,8 @@ void SessionNavigation::resolveDone(
 }
 
 void SessionNavigation::resolveChannelById(
-		ChannelId channelId,
-		Fn<void(not_null<ChannelData*>)> done) {
+	ChannelId channelId,
+	Fn<void(not_null<ChannelData*>)> done) {
 	if (const auto channel = _session->data().channelLoaded(channelId)) {
 		done(channel);
 		return;
@@ -260,10 +272,10 @@ void SessionNavigation::resolveChannelById(
 	const auto fail = [=] {
 		Ui::ShowMultilineToast({
 			.text = { tr::lng_error_post_link_invalid(tr::now) }
-		});
+			});
 	};
-	_session->api().request(base::take(_resolveRequestId)).cancel();
-	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
 			MTP_inputChannel(MTP_long(channelId.bare), MTP_long(0)))
@@ -280,8 +292,8 @@ void SessionNavigation::resolveChannelById(
 }
 
 void SessionNavigation::showPeerByLinkResolved(
-		not_null<PeerData*> peer,
-		const PeerByLinkInfo &info) {
+	not_null<PeerData*> peer,
+	const PeerByLinkInfo &info) {
 	auto params = SectionShow{
 		SectionShow::Way::Forward
 	};
@@ -298,11 +310,11 @@ void SessionNavigation::showPeerByLinkResolved(
 		const auto bad = [=] {
 			Ui::ShowMultilineToast({
 				.text = { tr::lng_group_invite_bad_link(tr::now) }
-			});
+				});
 		};
 		const auto hash = *info.voicechatHash;
-		_session->api().request(base::take(_resolveRequestId)).cancel();
-		_resolveRequestId = _session->api().request(
+		_api.request(base::take(_resolveRequestId)).cancel();
+		_resolveRequestId = _api.request(
 			MTPchannels_GetFullChannel(peer->asChannel()->inputChannel)
 		).done([=](const MTPmessages_ChatFull &result) {
 			_session->api().processFullPeer(peer, result);
@@ -322,7 +334,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			}
 			const auto id = call->id();
 			const auto limit = 5;
-			_resolveRequestId = _session->api().request(
+			_resolveRequestId = _api.request(
 				MTPphone_GetGroupCall(call->input(), MTP_int(limit))
 			).done([=](const MTPphone_GroupCall &result) {
 				if (const auto now = peer->groupCall()
@@ -391,14 +403,14 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 		crl::on_main(this, [=] {
 			showPeerHistory(peer->id, params, msgId);
-			showAttachWebview(peer, attachBotUsername);
+			resolveAttachWebview(peer, attachBotUsername);
 		});
 	}
 }
 
-void SessionNavigation::showAttachWebview(
-		not_null<PeerData*> peer,
-		const QString &botUsername) {
+void SessionNavigation::resolveAttachWebview(
+	not_null<PeerData*> peer,
+	const QString &botUsername) {
 	if (!peer->isUser() || botUsername.isEmpty()) {
 		return;
 	}
@@ -408,28 +420,108 @@ void SessionNavigation::showAttachWebview(
 			Ui::ShowMultilineToast({
 				// #TODO webview lang
 				.text = { u"This bot isn't supported in the attach menu."_q }
-			});
+				});
 			return;
 		}
+		requestAttachWebview(peer, user);
+	});
+}
 
-		// #TODO webview cancel request in destructor
-		session().api().request(MTPmessages_RequestWebView(
-			MTP_flags(0),
+void SessionNavigation::requestAttachWebview(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot) {
+	_api.request(MTPmessages_RequestWebView(
+		MTP_flags(0),
+		peer->input,
+		bot->inputUser,
+		MTPstring(), // start_param
+		MTPDataJSON() // theme_params
+	)).done([=](const MTPWebViewResult &result) {
+		result.match([&](const MTPDwebViewResultUrl &data) {
+			const auto url = qs(data.vurl());
+			showAttachWebview(peer, bot, data.vquery_id().v, url);
+		}, [&](const MTPDwebViewResultConfirmationRequired &data) {
+			session().data().processUsers(data.vusers());
+			const auto &received = data.vbot();
+			if (const auto bot = ParseAttachBot(&session(), received)) {
+				requestAddToMenu(bot, [=] {
+					requestAttachWebview(peer, bot);
+				});
+			}
+		});
+	}).fail([=](const MTP::Error &error) {
+		int a = error.code();
+	}).send();
+}
+
+void SessionNavigation::showAttachWebview(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot,
+		uint64 queryId,
+		const QString &url) {
+	const auto close = crl::guard(this, [=] {
+		_botWebView = nullptr;
+	});
+	const auto send = crl::guard(this, [=] {
+		_api.request(MTPmessages_GetWebViewResult(
 			peer->input,
-			user->inputUser,
-			MTPstring(), // start_param
-			MTPDataJSON() // theme_params
-		)).done([=](const MTPWebViewResult &result) {
-			result.match([&](const MTPDwebViewResultUrl &data) {
-				int b = 0;
-			}, [&](const MTPDwebViewResultConfirmationRequired &data) {
+			bot->inputUser,
+			MTP_long(queryId)
+		)).done([=](const MTPmessages_WebViewResult &result) {
+			result.match([&](const MTPDmessages_webViewResult &data) {
 				session().data().processUsers(data.vusers());
-				int a = 0;
+				auto result = InlineBots::Result::Create(
+					&session(),
+					queryId,
+					data.vresult());
+				_inlineResultConfirmed.fire({
+					.result = result.get(),
+					.bot = bot,
+					.recipientOverride = peer,
+					//.options =
+				});
+				close();
 			});
-		}).fail([=](const MTP::Error &error) {
-			int a = error.code();
 		}).send();
 	});
+	_botWebView = Ui::BotWebView::Show({
+		.url = url,
+		.userDataPath = session().domain().local().webviewDataPath(),
+		.send = send,
+		.close = close,
+	});
+}
+
+void SessionNavigation::requestAddToMenu(
+		not_null<UserData*> bot,
+		Fn<void()> callback) {
+	const auto done = [=](Fn<void()> close) {
+		toggleInMenu(bot, true, [=] {
+			callback();
+			close();
+		});
+	};
+	show(Ui::MakeConfirmBox({
+		u"Do you want to? "_q + bot->name,
+		done,
+	}));
+}
+
+void SessionNavigation::toggleInMenu(
+		not_null<UserData*> bot,
+		bool enabled,
+		Fn<void()> callback) {
+	_api.request(MTPmessages_ToggleBotInAttachMenu(
+		bot->inputUser,
+		MTP_bool(enabled)
+	)).done([=](const MTPBool &result) {
+		callback();
+	}).send();
+}
+
+auto SessionNavigation::inlineResultConfirmed() const
+-> rpl::producer<InlineBots::ResultSelected> {
+	return _inlineResultConfirmed.events();
 }
 
 void SessionNavigation::showRepliesForMessage(
@@ -445,7 +537,7 @@ void SessionNavigation::showRepliesForMessage(
 		// HistoryView::RepliesWidget right now handles only channels.
 		return;
 	}
-	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
+	_api.request(base::take(_showingRepliesRequestId)).cancel();
 
 	const auto postPeer = history->peer;
 	//const auto item = _session->data().message(postPeer, rootId);
@@ -461,7 +553,7 @@ void SessionNavigation::showRepliesForMessage(
 	//}
 	_showingRepliesHistory = history;
 	_showingRepliesRootId = rootId;
-	_showingRepliesRequestId = _session->api().request(
+	_showingRepliesRequestId = _api.request(
 		MTPmessages_GetDiscussionMessage(
 			history->peer->input,
 			MTP_int(rootId))

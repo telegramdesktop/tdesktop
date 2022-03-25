@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_widget.h"
 #include "ui/layers/show.h"
 #include "window/window_adaptive.h"
+#include "mtproto/sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -59,6 +60,14 @@ struct ChatThemeBackground;
 struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
 } // namespace Ui
+
+namespace Ui::BotWebView {
+class Panel;
+} // namespace Ui::BotWebView
+
+namespace InlineBots {
+struct ResultSelected;
+} // namespace InlineBots
 
 namespace Data {
 struct CloudTheme;
@@ -195,9 +204,12 @@ public:
 		FullMsgId clickFromMessageId;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
-	void showAttachWebview(
+
+	void resolveAttachWebview(
 		not_null<PeerData*> peer,
 		const QString &botUsername);
+	[[nodiscard]] auto inlineResultConfirmed() const
+		-> rpl::producer<InlineBots::ResultSelected>;
 
 	void showRepliesForMessage(
 		not_null<History*> history,
@@ -266,13 +278,33 @@ private:
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 
+	void requestAttachWebview(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot);
+	void requestAddToMenu(not_null<UserData*> bot, Fn<void()> callback);
+	void showAttachWebview(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot,
+		uint64 queryId,
+		const QString &url);
+
+	void toggleInMenu(
+		not_null<UserData*> bot,
+		bool enabled,
+		Fn<void()> callback);
+
 	const not_null<Main::Session*> _session;
+
+	MTP::Sender _api;
 
 	mtpRequestId _resolveRequestId = 0;
 
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
 	mtpRequestId _showingRepliesRequestId = 0;
+
+	std::unique_ptr<Ui::BotWebView::Panel> _botWebView;
+	rpl::event_stream<InlineBots::ResultSelected> _inlineResultConfirmed;
 
 };
 

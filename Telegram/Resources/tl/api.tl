@@ -1631,7 +1631,7 @@ messages.getUnreadReactions#e85bae1a peer:InputPeer offset_id:int add_offset:int
 messages.readReactions#82e251d7 peer:InputPeer = messages.AffectedHistory;
 messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = messages.Messages;
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
-messages.addBotToAttachMenu#f319bd48 bot:InputUser = Bool;
+messages.toggleBotInAttachMenu#1aee33af bot:InputUser enabled:Bool = Bool;
 messages.requestWebView#a17c10db flags:# peer:InputPeer bot:InputUser url:flags.0?string theme_params:flags.1?DataJSON = WebViewResult;
 messages.setWebViewResult#e41cd11d query_id:long result:InputBotInlineResult = Bool;
 messages.getWebViewResult#22b6c214 peer:InputPeer bot:InputUser query_id:long = messages.WebViewResult;
