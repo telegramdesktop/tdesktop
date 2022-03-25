@@ -50,9 +50,6 @@ protected:
 private:
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
-	bool _sniAvailable = false;
-	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
-
     QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
