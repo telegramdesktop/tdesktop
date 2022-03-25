@@ -208,6 +208,10 @@ public:
 	void resolveAttachWebview(
 		not_null<PeerData*> peer,
 		const QString &botUsername);
+	void requestAttachWebview(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot,
+		const QByteArray &url = QByteArray());
 	[[nodiscard]] auto inlineResultConfirmed() const
 		-> rpl::producer<InlineBots::ResultSelected>;
 
@@ -278,9 +282,6 @@ private:
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 
-	void requestAttachWebview(
-		not_null<PeerData*> peer,
-		not_null<UserData*> bot);
 	void requestAddToMenu(not_null<UserData*> bot, Fn<void()> callback);
 	void showAttachWebview(
 		not_null<PeerData*> peer,

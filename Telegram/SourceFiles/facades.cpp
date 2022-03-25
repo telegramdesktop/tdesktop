@@ -222,7 +222,14 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::WebView: {
-
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
+			if (const auto bot = msg->getMessageBot()) {
+				m->controller()->requestAttachWebview(
+					bot,
+					bot,
+					button->data);
+			}
+		}
 	} break;
 	}
 }

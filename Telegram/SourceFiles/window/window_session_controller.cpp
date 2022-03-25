@@ -429,12 +429,14 @@ void SessionNavigation::resolveAttachWebview(
 
 void SessionNavigation::requestAttachWebview(
 		not_null<PeerData*> peer,
-		not_null<UserData*> bot) {
+		not_null<UserData*> bot,
+		const QByteArray &url) {
+	using Flag = MTPmessages_RequestWebView::Flag;
 	_api.request(MTPmessages_RequestWebView(
-		MTP_flags(0),
+		MTP_flags(url.isEmpty() ? Flag(0) : Flag::f_url),
 		peer->input,
 		bot->inputUser,
-		MTPstring(), // start_param
+		MTP_bytes(url),
 		MTPDataJSON() // theme_params
 	)).done([=](const MTPWebViewResult &result) {
 		result.match([&](const MTPDwebViewResultUrl &data) {
