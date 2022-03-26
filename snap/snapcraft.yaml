@@ -365,8 +365,6 @@ parts:
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ../qt5compat
-      find $SNAPCRAFT_STAGE/patches/qt5compat_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
