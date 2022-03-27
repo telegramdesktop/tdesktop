@@ -21,12 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "chat_helpers/message_field.h"
+#include "menu/menu_check_item.h"
 #include "menu/menu_send.h"
 #include "history/history.h"
 #include "history/history_message.h"
@@ -49,46 +49,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_media_player.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
-
-namespace {
-
-class ForwardOptionItem final : public Ui::Menu::Action {
-public:
-	using Ui::Menu::Action::Action;
-
-	void init(bool checked) {
-		enableMouseSelecting();
-
-		AbstractButton::setDisabled(true);
-
-		_checkView = std::make_unique<Ui::CheckView>(st::defaultCheck, false);
-		_checkView->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
-			setIcon(checked ? &st::mediaPlayerMenuCheck : nullptr);
-		}, lifetime());
-
-		_checkView->setChecked(checked, anim::type::normal);
-		AbstractButton::clicks(
-		) | rpl::start_with_next([=] {
-			_checkView->setChecked(
-				!_checkView->checked(),
-				anim::type::normal);
-		}, lifetime());
-	}
-
-	not_null<Ui::CheckView*> checkView() const {
-		return _checkView.get();
-	}
-
-private:
-	std::unique_ptr<Ui::CheckView> _checkView;
-};
-
-} // namespace
 
 class ShareBox::Inner final : public Ui::RpWidget {
 public:
@@ -503,7 +466,7 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 
 	if (_descriptor.forwardOptions.show) {
 		auto createView = [&](rpl::producer<QString> &&text, bool checked) {
-			auto item = base::make_unique_q<ForwardOptionItem>(
+			auto item = base::make_unique_q<Menu::ItemWithCheck>(
 				_menu->menu(),
 				st::popupMenuWithIcons.menu,
 				new QAction(QString(), _menu->menu()),
