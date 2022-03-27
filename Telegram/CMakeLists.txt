@@ -338,8 +338,6 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
-    chat_helpers/send_context_menu.cpp
-    chat_helpers/send_context_menu.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
     chat_helpers/stickers_emoji_image_loader.cpp
@@ -892,6 +890,8 @@ PRIVATE
     media/view/media_view_playback_progress.cpp
     media/view/media_view_playback_progress.h
     media/view/media_view_open_common.h
+    menu/menu_send.cpp
+    menu/menu_send.h
     mtproto/config_loader.cpp
     mtproto/config_loader.h
     mtproto/connection_abstract.cpp

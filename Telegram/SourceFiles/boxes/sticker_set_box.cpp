@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"

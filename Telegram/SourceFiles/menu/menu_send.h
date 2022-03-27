@@ -7,14 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-
 namespace Api {
 struct SendOptions;
 } // namespace Api
 
 namespace Ui {
 class PopupMenu;
+class RpWidget;
 } // namespace Ui
 
 namespace SendMenu {

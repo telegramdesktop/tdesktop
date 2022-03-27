@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/boxes/report_box.h"
 #include "ui/ui_utility.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/sticker_set_box.h"

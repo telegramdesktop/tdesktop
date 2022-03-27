@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "data/data_poll.h"
 
 class History;
