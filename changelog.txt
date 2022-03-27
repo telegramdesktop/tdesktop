@@ -1,3 +1,8 @@
+3.6.2 (27.03.22)
+
+- Fix photo changing in settings, groups and channels.
+- Fix non-square animated video-stickers.
+
 3.6.1 (16.03.22)
 
 - Change volume for RTMP stream from the context menu.
