@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_check_item.h"
 #include "ui/effects/animation_value.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_menu_icons.h"
@@ -90,11 +92,62 @@ void MuteItem::paintEvent(QPaintEvent *e) {
 	icon.paint(p, _itemIconPosition, width(), color);
 }
 
+void FillSoundMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<PeerData*> peer,
+		rpl::producer<QString> &&soundOnText,
+		rpl::producer<QString> &&soundOffText,
+		Fn<void(bool)> notifySound) {
+	const auto createView = [&](rpl::producer<QString> &&text, bool checked) {
+		auto item = base::make_unique_q<Menu::ItemWithCheck>(
+			menu->menu(),
+			st::popupMenuWithIcons.menu,
+			new QAction(QString(), menu->menu()),
+			nullptr,
+			nullptr);
+		std::move(
+			text
+		) | rpl::start_with_next([action = item->action()](QString text) {
+			action->setText(text);
+		}, item->lifetime());
+		item->init(checked);
+		const auto view = item->checkView();
+		menu->addAction(std::move(item));
+		return view;
+	};
+
+	const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
+	const auto soundOn = createView(std::move(soundOnText), !soundIsNone);
+	const auto soundOff = createView(std::move(soundOffText), soundIsNone);
+
+	soundOn->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		soundOff->setChecked(!checked, anim::type::normal);
+		notifySound(!checked);
+	}, menu->lifetime());
+	soundOff->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		soundOn->setChecked(!checked, anim::type::normal);
+		notifySound(checked);
+	}, menu->lifetime());
+}
+
 } // namespace
 
 void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PeerData*> peer) {
+
+	FillSoundMenu(
+		menu,
+		peer,
+		tr::lng_mute_menu_sound_on(),
+		tr::lng_mute_menu_sound_off(),
+		[peer](bool silent) {
+			peer->owner().updateNotifySettings(peer, {}, {}, silent);
+		});
+
+	menu->addSeparator();
 
 	menu->addAction(
 		base::make_unique_q<MuteItem>(menu, menu->st().menu, peer));
