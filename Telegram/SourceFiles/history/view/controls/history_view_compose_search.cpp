@@ -249,8 +249,6 @@ public:
 
 	void setInnerFocus();
 
-	[[nodiscard]] PeerData *from() const;
-
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 	[[nodiscard]] rpl::producer<PeerData*> fromValue() const;
 	[[nodiscard]] rpl::producer<> queryChanges() const;
@@ -379,10 +377,6 @@ rpl::producer<> TopBar::cancelRequests() const {
 
 rpl::producer<PeerData*> TopBar::fromValue() const {
 	return _from.value();
-}
-
-PeerData *TopBar::from() const {
-	return _from.current();
 }
 
 void TopBar::setFrom(PeerData *peer) {
