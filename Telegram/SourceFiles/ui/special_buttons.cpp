@@ -240,7 +240,7 @@ void UserpicButton::prepare() {
 	}
 	setClickHandlerByRole();
 
-	if (_role == Role::ChangePhoto) {
+	if (_role == Role::ChangePhoto || _role == Role::OpenPhoto) {
 		chosenImages(
 		) | rpl::start_with_next([=](QImage &&image) {
 			setImage(std::move(image));
@@ -262,9 +262,7 @@ void UserpicButton::setClickHandlerByRole() {
 		break;
 
 	case Role::OpenPhoto:
-		addClickHandler([=] {
-			openPeerPhoto();
-		});
+		addClickHandler([=] { openPeerPhoto(); });
 		break;
 
 	case Role::OpenProfile:
