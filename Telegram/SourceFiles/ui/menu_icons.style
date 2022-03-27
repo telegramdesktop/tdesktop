@@ -93,6 +93,7 @@ menuIconFake: icon {{ "menu/fake", menuIconColor }};
 menuIconPersonal: icon {{ "menu/personal", menuIconColor }};
 menuIconPorn: icon {{ "menu/porn", menuIconColor }};
 menuIconViolence: icon {{ "menu/violence", menuIconColor }};
+menuIconSilent: icon {{ "menu/silent", menuIconColor }};
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
