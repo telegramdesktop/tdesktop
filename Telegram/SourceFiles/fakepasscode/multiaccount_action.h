@@ -30,14 +30,10 @@ namespace FakePasscode {
         void Execute() override;
         virtual void ExecuteAccountAction(int index, Main::Account* account, const Data& action) = 0;
 
+        void AddAction(qint32 index, const Data& data);
+        void AddAction(qint32 index, Data&& data);
         bool HasAction(qint32 index) const;
         void RemoveAction(qint32 index);
-        template<typename T>
-        void AddAction(qint32 index, T&& t) {
-            logAddAction(index);
-            index_actions_.insert_or_assign(index, std::forward<T>(t));
-            SubscribeOnLoggingOut();
-        }
 
         QByteArray Serialize() const override;
 
@@ -45,9 +41,6 @@ namespace FakePasscode {
         base::flat_map<qint32, Data> index_actions_;
 
         void OnAccountLoggedOut(qint32 index) override;
-
-    private:
-        void logAddAction(qint32 index);
     };
 
     struct ToggleAction {};

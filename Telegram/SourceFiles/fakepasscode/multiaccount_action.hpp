@@ -53,9 +53,17 @@ void FakePasscode::MultiAccountAction<Data>::OnAccountLoggedOut(qint32 index) {
 }
 
 template<typename Data>
-void FakePasscode::MultiAccountAction<Data>::RemoveAction(qint32 index) {
-    FAKE_LOG(qsl("Remove action %1 for account %2").arg(int(GetType())).arg(index));
-    index_actions_.erase(index);
+void FakePasscode::MultiAccountAction<Data>::AddAction(qint32 index, const Data &data) {
+    FAKE_LOG(qsl("Set action %1 for account %2").arg(int(GetType())).arg(index));
+    index_actions_.insert_or_assign(index, data);
+    SubscribeOnLoggingOut();
+}
+
+template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::AddAction(qint32 index, Data &&data) {
+    FAKE_LOG(qsl("Set action %1 for account %2").arg(int(GetType())).arg(index));
+    index_actions_.insert_or_assign(index, std::move(data));
+    SubscribeOnLoggingOut();
 }
 
 template<typename Data>
@@ -66,6 +74,12 @@ bool FakePasscode::MultiAccountAction<Data>::HasAction(qint32 index) const {
 }
 
 template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::RemoveAction(qint32 index) {
+    FAKE_LOG(qsl("Remove action %1 for account %2").arg(int(GetType())).arg(index));
+    index_actions_.erase(index);
+}
+
+template<typename Data>
 void FakePasscode::MultiAccountAction<Data>::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (const auto it = index_actions_.find(index); it != index_actions_.end()) {
@@ -73,9 +87,4 @@ void FakePasscode::MultiAccountAction<Data>::Execute() {
             ExecuteAccountAction(index, account.get(), it->second);
         }
     }
-}
-
-template<typename Data>
-void FakePasscode::MultiAccountAction<Data>::logAddAction(qint32 index) {
-    FAKE_LOG(qsl("Set action %1 for account %2").arg(int(GetType())).arg(index));
 }
