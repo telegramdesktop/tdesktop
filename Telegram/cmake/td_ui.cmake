@@ -104,6 +104,8 @@ PRIVATE
 
     menu/menu_check_item.cpp
     menu/menu_check_item.h
+    menu/menu_ttl.cpp
+    menu/menu_ttl.h
 
     passport/ui/passport_details_row.cpp
     passport/ui/passport_details_row.h

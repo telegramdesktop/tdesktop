@@ -96,6 +96,11 @@ menuIconPorn: icon {{ "menu/porn", menuIconColor }};
 menuIconViolence: icon {{ "menu/violence", menuIconColor }};
 menuIconMuteFor: icon {{ "menu/mute_for", menuIconColor }};
 menuIconSilent: icon {{ "menu/silent", menuIconColor }};
+menuIconCustomize: icon {{ "menu/customize", menuIconColor }};
+
+menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
+menuIconTTLAnyTextPosition: point(11px, 22px);
+menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
@@ -112,3 +117,4 @@ menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
+menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};

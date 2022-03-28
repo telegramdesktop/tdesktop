@@ -319,6 +319,12 @@ historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconF
 historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
 historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
 historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
+historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(topleft);
+	textFg: windowSubTextFg;
+}
+
 historyAttachEmojiFgActive: windowBgActive;
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
@@ -881,6 +887,13 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
+	menu: Menu(menuWithIcons) {
+		separatorPadding: margins(0px, 4px, 0px, 4px);
+		separatorWidth: 6px;
+	}
+}
+
 WhoRead {
 	userpics: GroupCallUserpics;
 	photoLeft: pixels;
@@ -904,13 +917,9 @@ defaultWhoRead: WhoRead {
 	iconPosition: point(15px, 7px);
 	itemPadding: margins(44px, 9px, 17px, 7px);
 }
-whoReadMenu: PopupMenu(popupMenuWithIcons) {
+whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
-	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 4px, 0px, 4px);
-		separatorWidth: 6px;
-	}
 }
 whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};

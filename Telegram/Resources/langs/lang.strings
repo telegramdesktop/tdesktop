@@ -1122,11 +1122,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_history_visibility_hidden_about" = "New members won't see earlier messages.";
 "lng_manage_history_visibility_hidden_legacy" = "New members won't see more than 100 previous messages.";
 
-"lng_manage_messages_ttl_title" = "Auto-delete messages";
-"lng_manage_messages_ttl_never" = "Off";
-"lng_manage_messages_ttl_after1" = "1 day";
-"lng_manage_messages_ttl_after2" = "1 week";
-"lng_manage_messages_ttl_after3" = "1 month";
+"lng_manage_messages_ttl_title" = "Auto-delete after...";
+"lng_manage_messages_ttl_never" = "Disable";
+"lng_manage_messages_ttl_after1" = "1 hour";
+"lng_manage_messages_ttl_after2" = "1 day";
+"lng_manage_messages_ttl_after3" = "1 week";
+"lng_manage_messages_ttl_after4" = "1 month";
+"lng_manage_messages_ttl_after_custom" = "Custom";
+"lng_manage_messages_ttl_menu" = "Auto-Delete";
 
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
