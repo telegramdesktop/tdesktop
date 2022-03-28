@@ -334,6 +334,10 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 			_chromaSize,
 			yuv->u.stride / (nv12 ? 2 : 1),
 			yuv->u.data);
+		if (nv12) {
+			_chromaSize = yuv->chromaSize;
+			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		}
 	}
 	if (!nv12) {
 		_f->glActiveTexture(GL_TEXTURE2);
