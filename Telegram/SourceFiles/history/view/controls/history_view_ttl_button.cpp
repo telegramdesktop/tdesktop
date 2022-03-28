@@ -7,102 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_ttl_button.h"
 
-#include "data/data_peer.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
 #include "data/data_changes.h"
+#include "data/data_peer.h"
 #include "main/main_session.h"
-#include "menu/menu_ttl.h"
-#include "lang/lang_keys.h"
-#include "boxes/peers/edit_peer_info_box.h"
-#include "ui/boxes/auto_delete_settings.h"
-#include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
+#include "menu/menu_ttl_validator.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "apiwrap.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Controls {
-namespace {
-
-constexpr auto kToastDuration = crl::time(3500);
-
-void ShowAutoDeleteToast(
-		not_null<QWidget*> parent,
-		not_null<PeerData*> peer) {
-	const auto period = peer->messagesTTL();
-	if (!period) {
-		Ui::Toast::Show(parent, tr::lng_ttl_about_tooltip_off(tr::now));
-		return;
-	}
-
-	const auto duration = (period == 5)
-		? u"5 seconds"_q
-		: (period < 2 * 86400)
-		? tr::lng_ttl_about_duration1(tr::now)
-		: (period < 8 * 86400)
-		? tr::lng_ttl_about_duration2(tr::now)
-		: tr::lng_ttl_about_duration3(tr::now);
-	const auto text = peer->isBroadcast()
-		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
-		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
-	Ui::ShowMultilineToast({
-		.parentOverride = parent,
-		.text = { text },
-		.duration = kToastDuration,
-	});
-}
-
-} // namespace
-
-void AutoDeleteSettingsMenu(
-		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<Ui::Show> show,
-		not_null<PeerData*> peer,
-		rpl::producer<> triggers) {
-	struct State {
-		TimeId savingPeriod = 0;
-		mtpRequestId savingRequestId = 0;
-		QPointer<Ui::RpWidget> weak;
-	};
-	const auto state = std::make_shared<State>(State{
-		.weak = Ui::MakeWeak(parent.get()),
-	});
-	auto callback = [=](TimeId period) {
-		auto &api = peer->session().api();
-		if (state->savingRequestId) {
-			if (period == state->savingPeriod) {
-				return;
-			}
-			api.request(state->savingRequestId).cancel();
-		}
-		state->savingPeriod = period;
-		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
-			peer->input,
-			MTP_int(period)
-		)).done([=](const MTPUpdates &result) {
-			peer->session().api().applyUpdates(result);
-			ShowAutoDeleteToast(show->toastParent(), peer);
-#if 0
-			if (const auto strong = state->weak.data()) {
-				strong->closeBox();
-			}
-#endif
-		}).fail([=] {
-			state->savingRequestId = 0;
-		}).send();
-	};
-	auto about = peer->isUser()
-		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
-		: peer->isBroadcast()
-		? tr::lng_ttl_edit_about_channel()
-		: tr::lng_ttl_edit_about_group();
-	const auto ttl = peer->messagesTTL();
-	TTLMenu::SetupTTLMenu(
-		parent,
-		std::move(triggers),
-		{ std::move(show), ttl, std::move(about), std::move(callback) });
-}
 
 TTLButton::TTLButton(
 	not_null<Ui::RpWidget*> parent,
@@ -110,37 +23,23 @@ TTLButton::TTLButton(
 	not_null<PeerData*> peer)
 : _peer(peer)
 , _button(parent, st::historyMessagesTTL) {
-	auto triggers = _button.clicks(
+
+	const auto validator = TTLMenu::TTLValidator(std::move(show), peer);
+	auto clicks = _button.clicks(
 	) | rpl::to_empty | rpl::filter([=] {
-		const auto canEdit = peer->isUser()
-			|| (peer->isChat()
-				&& peer->asChat()->canDeleteMessages())
-			|| (peer->isChannel()
-				&& peer->asChannel()->canDeleteMessages());
-		if (!canEdit) {
-			ShowAutoDeleteToast(show->toastParent(), peer);
+		if (!validator.can()) {
+			validator.showToast();
 			return false;
 		}
 		return true;
 	});
-	AutoDeleteSettingsMenu(parent, show, peer, std::move(triggers));
+	TTLMenu::SetupTTLMenu(parent, std::move(clicks), validator.createArgs());
 
 	peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::MessagesTTL
 	) | rpl::start_with_next([=] {
-		const auto ttl = peer->messagesTTL();
-		if (ttl < 2 * 86400) {
-			_button.setIconOverride(nullptr, nullptr);
-		} else if (ttl < 8 * 86400) {
-			_button.setIconOverride(
-				&st::historyMessagesTTL2Icon,
-				&st::historyMessagesTTL2IconOver);
-		} else {
-			_button.setIconOverride(
-				&st::historyMessagesTTL3Icon,
-				&st::historyMessagesTTL3IconOver);
-		}
+		_button.setText(Ui::FormatTTLTiny(peer->messagesTTL()));
 	}, _button.lifetime());
 }
 

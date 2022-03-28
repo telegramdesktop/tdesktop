@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 #include "styles/style_menu_icons.h"
@@ -494,7 +495,7 @@ void WrapWidget::showTopBarMenu() {
 	}
 	_topBarMenu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::popupMenuWithIcons);
+		st::popupMenuExpandedSeparator);
 
 	_topBarMenu->setDestroyedCallback([this] {
 		InvokeQueued(this, [this] { _topBarMenu = nullptr; });
@@ -506,6 +507,19 @@ void WrapWidget::showTopBarMenu() {
 
 	const auto addAction = Window::PeerMenuCallback([=](
 			Window::PeerMenuCallback::Args a) {
+		if (a.isSeparator) {
+			return _topBarMenu->addSeparator();
+		} else if (a.fillSubmenu) {
+			const auto action = _topBarMenu->addAction(
+				a.text,
+				std::move(a.handler),
+				a.icon);
+			// Dummy menu.
+			action->setMenu(
+				Ui::CreateChild<QMenu>(_topBarMenu->menu().get()));
+			a.fillSubmenu(_topBarMenu->ensureSubmenu(action));
+			return action;
+		}
 		return _topBarMenu->addAction(a.text, std::move(a.handler), a.icon);
 	});
 	if (key().isDownloads()) {

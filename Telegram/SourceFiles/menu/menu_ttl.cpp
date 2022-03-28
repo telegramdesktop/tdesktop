@@ -137,7 +137,7 @@ void TTLBox(
 	) | rpl::map([=](int seconds) {
 		state->lastSeconds = seconds;
 		return !seconds
-			? tr::lng_manage_messages_ttl_never()
+			? tr::lng_manage_messages_ttl_disable()
 			: tr::lng_enable_auto_delete();
 	}) | rpl::flatten_latest();
 	const auto confirm = box->addButton(std::move(confirmText), [=] {
@@ -178,7 +178,7 @@ void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
 
 	if (args.startTtl) {
 		const auto disable = menu->addAction(
-			tr::lng_manage_messages_ttl_never(tr::now),
+			tr::lng_manage_messages_ttl_disable(tr::now),
 			[=] { args.callback(0); },
 			&st::menuIconDisableAttention);
 		disable->setData(st::menuIconAttentionColor->c);

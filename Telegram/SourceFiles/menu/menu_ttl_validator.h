@@ -7,35 +7,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/icon_button_with_text.h"
+#include "menu/menu_ttl.h"
+
+class PeerData;
 
 namespace Ui {
 class Show;
+class RpWidget;
 } // namespace Ui
 
-namespace HistoryView::Controls {
+namespace TTLMenu {
 
-class TTLButton final {
+class TTLValidator final {
 public:
-	TTLButton(
-		not_null<Ui::RpWidget*> parent,
+	TTLValidator(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
 
-	[[nodiscard]] not_null<PeerData*> peer() const {
-		return _peer;
-	}
-
-	void show();
-	void hide();
-	void move(int x, int y);
-
-	[[nodiscard]] int width() const;
+	[[nodiscard]] bool can() const;
+	[[nodiscard]] Args createArgs() const;
+	void showToast() const;
+	const style::icon *icon() const;
 
 private:
 	const not_null<PeerData*> _peer;
-	Ui::IconButtonWithText _button;
+	const std::shared_ptr<Ui::Show> _show;
 
 };
 
-} // namespace HistoryView::Controls
+} // namespace TTLMenu

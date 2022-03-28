@@ -1123,7 +1123,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_history_visibility_hidden_legacy" = "New members won't see more than 100 previous messages.";
 
 "lng_manage_messages_ttl_title" = "Auto-delete after...";
-"lng_manage_messages_ttl_never" = "Disable";
+"lng_manage_messages_ttl_disable" = "Disable";
 "lng_manage_messages_ttl_after1" = "1 hour";
 "lng_manage_messages_ttl_after2" = "1 day";
 "lng_manage_messages_ttl_after3" = "1 week";

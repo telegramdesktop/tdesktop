@@ -898,6 +898,8 @@ PRIVATE
     menu/menu_mute.h
     menu/menu_send.cpp
     menu/menu_send.h
+    menu/menu_ttl_validator.cpp
+    menu/menu_ttl_validator.h
     mtproto/config_loader.cpp
     mtproto/config_loader.h
     mtproto/connection_abstract.cpp

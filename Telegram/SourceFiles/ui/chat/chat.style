@@ -311,14 +311,17 @@ historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_smile_face", historyComposeIconFgOver }};
 }
-historyMessagesTTL: IconButton(historyAttach) {
-	icon: icon {{ "chat/input_autodelete_1d", historyComposeIconFg }};
-	iconOver: icon {{ "chat/input_autodelete_1d", historyComposeIconFgOver }};
+historyMessagesTTL: IconButtonWithText {
+	iconButton: IconButton(historyAttach) {
+		icon: icon {{ "chat/input_autodelete", historyComposeIconFg }};
+		iconOver: icon {{ "chat/input_autodelete", historyComposeIconFgOver }};
+	}
+	textFg: historyComposeIconFg;
+	textFgOver: historyComposeIconFgOver;
+	textPadding: margins(16px, 20px, 6px, 7px);
+
+	font: font(10px semibold);
 }
-historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconFg }};
-historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
-historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
-historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
 historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 200px;
 	align: align(topleft);

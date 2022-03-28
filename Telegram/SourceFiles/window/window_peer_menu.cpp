@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_mute.h"
+#include "menu/menu_ttl_validator.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -191,6 +192,7 @@ private:
 	void addBotToGroup();
 	void addNewMembers();
 	void addDeleteContact();
+	void addTTLSubmenu(bool addSeparator);
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -764,6 +766,26 @@ void Filler::addThemeEdit() {
 		&st::menuIconChangeColors);
 }
 
+void Filler::addTTLSubmenu(bool addSeparator) {
+	const auto validator = TTLMenu::TTLValidator(
+		std::make_shared<Window::Show>(_controller),
+		_peer);
+	if (!validator.can()) {
+		return;
+	}
+	_addAction(PeerMenuCallback::Args{
+		.text = tr::lng_manage_messages_ttl_menu(tr::now),
+		.handler = nullptr,
+		.icon = validator.icon(),
+		.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
+			TTLMenu::FillTTLMenu(menu, validator.createArgs());
+		},
+	});
+	if (addSeparator) {
+		_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+	}
+}
+
 void Filler::fill() {
 	if (_folder) {
 		fillArchiveActions();
@@ -808,6 +830,7 @@ void Filler::fillHistoryActions() {
 	addThemeEdit();
 	addViewDiscussion();
 	addExportChat();
+	addTTLSubmenu(false);
 	addReport();
 	addClearHistory();
 	addDeleteChat();
@@ -816,6 +839,7 @@ void Filler::fillHistoryActions() {
 
 void Filler::fillProfileActions() {
 	addSupportInfo();
+	addTTLSubmenu(true);
 	addNewContact();
 	addShareContact();
 	addEditContact();
