@@ -18,7 +18,7 @@ namespace Ui {
 class SettingsSlider;
 class FadeShadow;
 class PlainShadow;
-class DropdownMenu;
+class PopupMenu;
 class IconButton;
 } // namespace Ui
 
@@ -212,7 +212,7 @@ private:
 
 	object_ptr<Ui::FadeShadow> _topShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
-	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;
+	base::unique_qptr<Ui::PopupMenu> _topBarMenu;
 
 //	Tab _tab = Tab::Profile;
 //	std::shared_ptr<ContentMemento> _anotherTabMemento;
