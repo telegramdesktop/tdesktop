@@ -315,12 +315,10 @@ void TopBarWidget::showPeerMenu() {
 	if (!created) {
 		return;
 	}
-	const auto addAction = [&](
-			const QString &text,
-			Fn<void()> callback,
-			const style::icon *icon) {
-		return _menu->addAction(text, std::move(callback), icon);
-	};
+	const auto addAction = Window::PeerMenuCallback([&](
+			Window::PeerMenuCallback::Args a) {
+		return _menu->addAction(a.text, std::move(a.handler), a.icon);
+	});
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
 		_menu.destroy();

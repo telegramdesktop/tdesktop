@@ -310,15 +310,13 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	_popupMenu = base::make_unique_q<Ui::PopupMenu>(
 		i->second.get(),
 		st::popupMenuWithIcons);
-	const auto addAction = [&](
-			const QString &text,
-			Fn<void()> callback,
-			const style::icon *icon) {
+	const auto addAction = Window::PeerMenuCallback([&](
+			Window::PeerMenuCallback::Args args) {
 		return _popupMenu->addAction(
-			text,
-			crl::guard(&_outer, std::move(callback)),
-			icon);
-	};
+			args.text,
+			crl::guard(&_outer, std::move(args.handler)),
+			args.icon);
+	});
 
 	addAction(
 		tr::lng_filters_context_edit(tr::now),

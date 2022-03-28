@@ -475,15 +475,13 @@ void MainMenu::setupArchive() {
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 			this,
 			st::popupMenuWithIcons);
-		const auto addAction = [&](
-				const QString &text,
-				Fn<void()> callback,
-				const style::icon *icon) {
+		const auto addAction = PeerMenuCallback([&](
+				PeerMenuCallback::Args a) {
 			return _contextMenu->addAction(
-				text,
-				std::move(callback),
-				icon);
-		};
+				a.text,
+				std::move(a.handler),
+				a.icon);
+		});
 
 		const auto hide = [=] {
 			controller->session().settings().setArchiveInMainMenu(false);

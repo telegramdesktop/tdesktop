@@ -1771,6 +1771,10 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
+		const auto addAction = Window::PeerMenuCallback([&](
+				Window::PeerMenuCallback::Args &&a) {
+			return _menu->addAction(a.text, std::move(a.handler), a.icon);
+		});
 		Window::FillDialogsEntryMenu(
 			_controller,
 			Dialogs::EntryState{
@@ -1778,12 +1782,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				.section = Dialogs::EntryState::Section::ChatsList,
 				.filterId = _filterId,
 			},
-			[&](
-					const QString &text,
-					Fn<void()> callback,
-					const style::icon *icon) {
-				return _menu->addAction(text, std::move(callback), icon);
-			});
+			addAction);
 	}
 	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {

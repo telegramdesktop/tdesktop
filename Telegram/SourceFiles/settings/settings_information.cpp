@@ -546,15 +546,13 @@ void SetupAccountsWrap(
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		const auto addAction = [&](
-				const QString &text,
-				Fn<void()> callback,
-				const style::icon *icon) {
+		const auto addAction = Window::PeerMenuCallback([&](
+				Window::PeerMenuCallback::Args args) {
 			return state->menu->addAction(
-				text,
-				crl::guard(raw, std::move(callback)),
-				icon);
-		};
+				args.text,
+				crl::guard(raw, std::move(args.handler)),
+				args.icon);
+		});
 		if (!state->menu && IsAltShift(raw->clickModifiers())) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				raw,

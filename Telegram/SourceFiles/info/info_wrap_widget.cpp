@@ -515,12 +515,10 @@ void WrapWidget::showTopBarMenu() {
 	});
 	_topBarMenuToggle->installEventFilter(_topBarMenu.get());
 
-	const auto addAction = [=](
-			const QString &text,
-			Fn<void()> callback,
-			const style::icon *icon) {
-		return _topBarMenu->addAction(text, std::move(callback), icon);
-	};
+	const auto addAction = Window::PeerMenuCallback([=](
+			Window::PeerMenuCallback::Args a) {
+		return _topBarMenu->addAction(a.text, std::move(a.handler), a.icon);
+	});
 	if (key().isDownloads()) {
 		addAction(
 			tr::lng_context_delete_all_files(tr::now),

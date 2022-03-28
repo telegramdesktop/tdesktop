@@ -38,10 +38,31 @@ class SessionNavigation;
 
 extern const char kOptionViewProfileInChatsListContextMenu[];
 
-using PeerMenuCallback = Fn<QAction*(
-	const QString &text,
-	Fn<void()> handler,
-	const style::icon *icon)>;
+struct PeerMenuCallback {
+public:
+	struct Args {
+		const QString &text;
+		Fn<void()> handler;
+		const style::icon *icon;
+	};
+	using Callback = Fn<QAction*(Args&&)>;
+
+	explicit PeerMenuCallback(Callback callback)
+	: callback(std::move(callback)) {
+	}
+
+	QAction *operator()(Args &&args) const {
+		return callback(std::move(args));
+	}
+	QAction *operator()(
+			const QString &text,
+			Fn<void()> handler,
+			const style::icon *icon) const {
+		return callback({ text, std::move(handler), icon });
+	}
+private:
+	Callback callback;
+};
 
 void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
