@@ -70,7 +70,7 @@ void FakePasscode::MultiAccountAction<Data>::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (const auto it = index_actions_.find(index); it != index_actions_.end()) {
             FAKE_LOG(qsl("Account %1 performs %2 action.").arg(index).arg(int(GetType())));
-            ExecuteAccountAction(index, account, it->second);
+            ExecuteAccountAction(index, account.get(), it->second);
         }
     }
 }

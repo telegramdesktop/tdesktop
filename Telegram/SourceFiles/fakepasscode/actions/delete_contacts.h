@@ -7,7 +7,7 @@ namespace FakePasscode {
     class DeleteContactsAction final : public MultiAccountAction<ToggleAction> {
     public:
         using MultiAccountAction::MultiAccountAction;
-        void ExecuteAccountAction(int index, const std::unique_ptr<Main::Account>& account, const ToggleAction& action) override;
+        void ExecuteAccountAction(int index, Main::Account* account, const ToggleAction& action) override;
         ActionType GetType() const override;
     };
 }

@@ -11,7 +11,7 @@
 
 using namespace FakePasscode;
 
-void DeleteContactsAction::ExecuteAccountAction(int index, const std::unique_ptr<Main::Account> &account, const ToggleAction&) {
+void DeleteContactsAction::ExecuteAccountAction(int index, Main::Account* account, const ToggleAction&) {
     //TODO check with logout
     FAKE_LOG(qsl("Executing DeleteContactsAction on account %1.").arg(index));
     if (!account->sessionExists()) {

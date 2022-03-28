@@ -28,7 +28,7 @@ namespace FakePasscode {
 
         void Prepare() override;
         void Execute() override;
-        virtual void ExecuteAccountAction(int index, const std::unique_ptr<Main::Account>& account, const Data& action) = 0;
+        virtual void ExecuteAccountAction(int index, Main::Account* account, const Data& action) = 0;
 
         bool HasAction(qint32 index) const;
         void RemoveAction(qint32 index);
