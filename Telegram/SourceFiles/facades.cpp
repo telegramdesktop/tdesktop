@@ -227,6 +227,16 @@ void activateBotCommand(
 				m->controller()->requestAttachWebview(
 					bot,
 					bot,
+					{ .text = button->text, .url = button->data });
+			}
+		}
+	} break;
+
+	case ButtonType::SimpleWebView: {
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
+			if (const auto bot = msg->getMessageBot()) {
+				m->controller()->requestAttachSimpleWebview(
+					bot,
 					button->data);
 			}
 		}

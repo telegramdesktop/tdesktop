@@ -66,19 +66,22 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 	st::paymentsLoading) {
 }
 
-Panel::Panel(const QString &userDataPath, Fn<void()> send, Fn<void()> close)
+Panel::Panel(
+	const QString &userDataPath,
+	Fn<void(QByteArray)> sendData,
+	Fn<void()> close)
 : _userDataPath(userDataPath)
-, _send(std::move(send))
+, _sendData(std::move(sendData))
 , _close(std::move(close))
 , _widget(std::make_unique<SeparatePanel>()) {
 	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
 	_widget->closeRequests(
-	) | rpl::start_with_next(close, _widget->lifetime());
+	) | rpl::start_with_next(_close, _widget->lifetime());
 
 	_widget->closeEvents(
-	) | rpl::start_with_next(close, _widget->lifetime());
+	) | rpl::start_with_next(_close, _widget->lifetime());
 
 	setTitle(rpl::single(u"Title"_q));
 }
@@ -293,11 +296,17 @@ bool Panel::createWebview() {
 				"Not an array received in buy_callback arguments."));
 			return;
 		}
-		const auto command = message.array().at(0).toString();
+		const auto list = message.array();
+		const auto command = list.at(0).toString();
 		if (command == "webview_close") {
 			_close();
-		} else if (command == "webview_send_result_message") {
-			_send();
+		} else if (command == "webview_data_send") {
+			//const auto tmp = list.at(1).toObject()["data"].toString().toUtf8();
+			const auto send = [send = _sendData, message] {
+				send(message.toJson(QJsonDocument::Compact));
+			};
+			_close();
+			send();
 		}
 	});
 
@@ -428,7 +437,7 @@ rpl::lifetime &Panel::lifetime() {
 std::unique_ptr<Panel> Show(Args &&args) {
 	auto result = std::make_unique<Panel>(
 		args.userDataPath,
-		std::move(args.send),
+		std::move(args.sendData),
 		std::move(args.close));
 	result->showWebview(args.url, rpl::single(u"smth"_q));
 	return result;

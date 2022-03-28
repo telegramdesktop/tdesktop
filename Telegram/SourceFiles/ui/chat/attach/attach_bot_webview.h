@@ -23,7 +23,10 @@ namespace Ui::BotWebView {
 
 class Panel final {
 public:
-	Panel(const QString &userDataPath, Fn<void()> send, Fn<void()> close);
+	Panel(
+		const QString &userDataPath,
+		Fn<void(QByteArray)> sendData,
+		Fn<void()> close);
 	~Panel();
 
 	void requestActivate();
@@ -56,7 +59,7 @@ private:
 	void setupProgressGeometry();
 
 	QString _userDataPath;
-	Fn<void()> _send;
+	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
@@ -69,8 +72,9 @@ private:
 struct Args {
 	QString url;
 	QString userDataPath;
-	Fn<void()> send;
+	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
+	bool simple = false;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);
 

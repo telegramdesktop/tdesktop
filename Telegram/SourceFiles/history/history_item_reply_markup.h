@@ -42,6 +42,7 @@ struct HistoryMessageMarkupButton {
 		Auth,
 		UserProfile,
 		WebView,
+		SimpleWebView,
 	};
 
 	HistoryMessageMarkupButton(

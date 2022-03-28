@@ -606,6 +606,16 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareWebViewDataSent = [this](const MTPDmessageActionWebViewDataSent &action) {
+		auto result = PreparedText{};
+		result.text = tr::lng_action_webview_data_done(
+			tr::now,
+			lt_text,
+			{ .text = qs(action.vtext()) },
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -671,6 +681,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareSetChatTheme(data);
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		return prepareChatJoinedByRequest(data);
+	}, [&](const MTPDmessageActionWebViewDataSent &data) {
+		return prepareWebViewDataSent(data);
+	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
+		LOG(("API Error: messageActionWebViewDataSentMe received."));
+		return PreparedText{
+			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
+		};
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{
 			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)

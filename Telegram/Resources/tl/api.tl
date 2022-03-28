@@ -129,7 +129,7 @@ channel#8261ac61 flags:# creator:flags.0?true left:flags.2?true broadcast:flags.
 channelForbidden#17d493d5 flags:# broadcast:flags.5?true megagroup:flags.8?true id:long access_hash:long title:string until_date:flags.16?int = Chat;
 
 chatFull#d18ee226 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true id:long about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:flags.13?ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int call:flags.12?InputGroupCall ttl_period:flags.14?int groupcall_default_join_as:flags.15?Peer theme_emoticon:flags.16?string requests_pending:flags.17?int recent_requesters:flags.17?Vector<long> available_reactions:flags.18?Vector<string> = ChatFull;
-channelFull#e13c3d20 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?Vector<string> = ChatFull;
+channelFull#ea68a619 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true flags2:# can_delete_channel:flags2.0?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?Vector<string> = ChatFull;
 
 chatParticipant#c02d4007 user_id:long inviter_id:long date:int = ChatParticipant;
 chatParticipantCreator#e46bcee4 user_id:long = ChatParticipant;
@@ -189,6 +189,8 @@ messageActionSetMessagesTTL#aa1afbfd period:int = MessageAction;
 messageActionGroupCallScheduled#b3a07661 call:InputGroupCall schedule_date:int = MessageAction;
 messageActionSetChatTheme#aa786345 emoticon:string = MessageAction;
 messageActionChatJoinedByRequest#ebbca3cb = MessageAction;
+messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
+messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
 
 dialog#a8edd0f5 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -385,6 +387,7 @@ updatePendingJoinRequests#7063c3db peer:Peer requests_pending:int recent_request
 updateBotChatInviteRequester#11dfa986 peer:Peer date:int user_id:long about:string invite:ExportedChatInvite qts:int = Update;
 updateMessageReactions#154798c3 peer:Peer msg_id:int reactions:MessageReactions = Update;
 updateAttachMenuBots#17b7a20b = Update;
+updateWebViewResultSent#f8f63baa peer:Peer bot_id:long query_id:long = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -592,6 +595,7 @@ keyboardButtonRequestPoll#bbc7515d flags:# quiz:flags.0?Bool text:string = Keybo
 inputKeyboardButtonUserProfile#e988037b text:string user_id:InputUser = KeyboardButton;
 keyboardButtonUserProfile#308660c1 text:string user_id:long = KeyboardButton;
 keyboardButtonWebView#13767230 text:string url:string = KeyboardButton;
+keyboardButtonSimpleWebView#a0c0505c text:string url:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
@@ -1331,15 +1335,19 @@ phone.groupCallStreamChannels#d0e482b2 channels:Vector<GroupCallStreamChannel> =
 
 phone.groupCallStreamRtmpUrl#2dbf3432 url:string key:string = phone.GroupCallStreamRtmpUrl;
 
-attachMenuBot#d47e3658 bot_id:long attach_menu_icon:Document = AttachMenuBot;
+attachMenuBot#4fdf05a8 flags:# inactive:flags.0?true bot_id:long attach_menu_name:string attach_menu_icon:Document = AttachMenuBot;
 
 attachMenuBotsNotModified#f1d88a5c = AttachMenuBots;
 attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> = AttachMenuBots;
 
+attachMenuBotsBot#93bf667f bot:AttachMenuBot users:Vector<User> = AttachMenuBotsBot;
+
 webViewResultUrl#c14557c query_id:long url:string = WebViewResult;
 webViewResultConfirmationRequired#b1cad385 bot:AttachMenuBot users:Vector<User> = WebViewResult;
 
-messages.webViewResult#aadf159b result:BotInlineResult users:Vector<User> = messages.WebViewResult;
+simpleWebViewResultUrl#882f76bb url:string = SimpleWebViewResult;
+
+webViewMessageSent#c94511c flags:# msg_id:flags.0?InputBotInlineMessageID = WebViewMessageSent;
 
 ---functions---
 
@@ -1631,10 +1639,13 @@ messages.getUnreadReactions#e85bae1a peer:InputPeer offset_id:int add_offset:int
 messages.readReactions#82e251d7 peer:InputPeer = messages.AffectedHistory;
 messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = messages.Messages;
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
+messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#1aee33af bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#a17c10db flags:# peer:InputPeer bot:InputUser url:flags.0?string theme_params:flags.1?DataJSON = WebViewResult;
-messages.setWebViewResult#e41cd11d query_id:long result:InputBotInlineResult = Bool;
-messages.getWebViewResult#22b6c214 peer:InputPeer bot:InputUser query_id:long = messages.WebViewResult;
+messages.requestWebView#2221fe98 flags:# silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
+messages.prolongWebView#d22ad148 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int = Bool;
+messages.requestSimpleWebView#6abb2f73 flags:# bot:InputUser url:string theme_params:flags.0?DataJSON = SimpleWebViewResult;
+messages.sendWebViewResultMessage#ddcf50eb query_id:long result:InputBotInlineResult = WebViewMessageSent;
+messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1702,7 +1713,7 @@ channels.editBanned#96e6cd81 channel:InputChannel participant:InputPeer banned_r
 channels.getAdminLog#33ddf480 flags:# channel:InputChannel q:string events_filter:flags.0?ChannelAdminLogEventsFilter admins:flags.1?Vector<InputUser> max_id:long min_id:long limit:int = channels.AdminLogResults;
 channels.setStickers#ea8ca4f9 channel:InputChannel stickerset:InputStickerSet = Bool;
 channels.readMessageContents#eab5dc38 channel:InputChannel id:Vector<int> = Bool;
-channels.deleteHistory#af369d42 channel:InputChannel max_id:int = Bool;
+channels.deleteHistory#9baa9647 flags:# for_everyone:flags.0?true channel:InputChannel max_id:int = Updates;
 channels.togglePreHistoryHidden#eabbb94c channel:InputChannel enabled:Bool = Updates;
 channels.getLeftChannels#8341ecc0 offset:int = messages.Chats;
 channels.getGroupsForDiscussion#f5dad378 = messages.Chats;

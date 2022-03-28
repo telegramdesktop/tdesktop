@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
+#include "base/random.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
@@ -61,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
-#include "inline_bots/inline_bot_result.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
@@ -430,26 +430,50 @@ void SessionNavigation::resolveAttachWebview(
 void SessionNavigation::requestAttachWebview(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
-		const QByteArray &url) {
+		const WebViewButton &button) {
 	using Flag = MTPmessages_RequestWebView::Flag;
 	_api.request(MTPmessages_RequestWebView(
-		MTP_flags(url.isEmpty() ? Flag(0) : Flag::f_url),
+		MTP_flags(button.url.isEmpty() ? Flag(0) : Flag::f_url),
 		peer->input,
 		bot->inputUser,
-		MTP_bytes(url),
-		MTPDataJSON() // theme_params
+		MTP_bytes(button.url),
+		MTPDataJSON(), // theme_params
+		MTPint() // reply_to_msg_id
 	)).done([=](const MTPWebViewResult &result) {
 		result.match([&](const MTPDwebViewResultUrl &data) {
-			const auto url = qs(data.vurl());
-			showAttachWebview(peer, bot, data.vquery_id().v, url);
+			showAttachWebview(
+				peer,
+				bot,
+				data.vquery_id().v,
+				qs(data.vurl()),
+				button.text);
 		}, [&](const MTPDwebViewResultConfirmationRequired &data) {
 			session().data().processUsers(data.vusers());
 			const auto &received = data.vbot();
 			if (const auto bot = ParseAttachBot(&session(), received)) {
 				requestAddToMenu(bot, [=] {
-					requestAttachWebview(peer, bot);
+					requestAttachWebview(peer, bot, button);
 				});
 			}
+		});
+	}).fail([=](const MTP::Error &error) {
+		int a = error.code();
+	}).send();
+}
+
+void SessionNavigation::requestAttachSimpleWebview(
+		not_null<UserData*> bot,
+		const QByteArray &url) {
+	using Flag = MTPmessages_RequestSimpleWebView::Flag;
+	_api.request(MTPmessages_RequestSimpleWebView(
+		MTP_flags(0),
+		bot->inputUser,
+		MTP_bytes(url),
+		MTPDataJSON()
+	)).done([=](const MTPSimpleWebViewResult &result) {
+		result.match([&](const MTPDsimpleWebViewResultUrl &data) {
+			const auto queryId = uint64();
+			showAttachWebview(bot, bot, queryId, qs(data.vurl()));
 		});
 	}).fail([=](const MTP::Error &error) {
 		int a = error.code();
@@ -460,36 +484,30 @@ void SessionNavigation::showAttachWebview(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
 		uint64 queryId,
-		const QString &url) {
+		const QString &url,
+		const QString &buttonText) {
 	const auto close = crl::guard(this, [=] {
 		_botWebView = nullptr;
 	});
-	const auto send = crl::guard(this, [=] {
-		_api.request(MTPmessages_GetWebViewResult(
-			peer->input,
+	const auto sendData = crl::guard(this, [=](QByteArray data) {
+		if (peer != bot || !queryId) {
+			return;
+		}
+		const auto randomId = base::RandomValue<uint64>();
+		const auto api = &session().api();
+		api->request(MTPmessages_SendWebViewData(
 			bot->inputUser,
-			MTP_long(queryId)
-		)).done([=](const MTPmessages_WebViewResult &result) {
-			result.match([&](const MTPDmessages_webViewResult &data) {
-				session().data().processUsers(data.vusers());
-				auto result = InlineBots::Result::Create(
-					&session(),
-					queryId,
-					data.vresult());
-				_inlineResultConfirmed.fire({
-					.result = result.get(),
-					.bot = bot,
-					.recipientOverride = peer,
-					//.options =
-				});
-				close();
-			});
+			MTP_long(randomId),
+			MTP_string(buttonText),
+			MTP_bytes(data)
+		)).done([=](const MTPUpdates &result) {
+			api->applyUpdates(result);
 		}).send();
 	});
 	_botWebView = Ui::BotWebView::Show({
 		.url = url,
 		.userDataPath = session().domain().local().webviewDataPath(),
-		.send = send,
+		.sendData = sendData,
 		.close = close,
 	});
 }
@@ -519,11 +537,6 @@ void SessionNavigation::toggleInMenu(
 	)).done([=](const MTPBool &result) {
 		callback();
 	}).send();
-}
-
-auto SessionNavigation::inlineResultConfirmed() const
--> rpl::producer<InlineBots::ResultSelected> {
-	return _inlineResultConfirmed.events();
 }
 
 void SessionNavigation::showRepliesForMessage(

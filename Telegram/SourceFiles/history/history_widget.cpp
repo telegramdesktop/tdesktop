@@ -1021,9 +1021,7 @@ void HistoryWidget::initTabbedSelector() {
 		sendExistingPhoto(data.photo, data.options);
 	}, lifetime());
 
-	rpl::merge(
-		selector->inlineResultChosen(),
-		controller()->inlineResultConfirmed()
+	selector->inlineResultChosen(
 	) | filter | rpl::filter([=](const Selector::InlineChosen &data) {
 		if (!data.recipientOverride) {
 			return true;

@@ -65,10 +65,6 @@ namespace Ui::BotWebView {
 class Panel;
 } // namespace Ui::BotWebView
 
-namespace InlineBots {
-struct ResultSelected;
-} // namespace InlineBots
-
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
@@ -205,15 +201,21 @@ public:
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
+	struct WebViewButton {
+		QString text;
+		QByteArray url;
+		bool simple = false;
+	};
 	void resolveAttachWebview(
 		not_null<PeerData*> peer,
 		const QString &botUsername);
 	void requestAttachWebview(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
-		const QByteArray &url = QByteArray());
-	[[nodiscard]] auto inlineResultConfirmed() const
-		-> rpl::producer<InlineBots::ResultSelected>;
+		const WebViewButton &button = WebViewButton());
+	void requestAttachSimpleWebview(
+		not_null<UserData*> bot,
+		const QByteArray &url);
 
 	void showRepliesForMessage(
 		not_null<History*> history,
@@ -287,7 +289,8 @@ private:
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
 		uint64 queryId,
-		const QString &url);
+		const QString &url,
+		const QString &buttonText = QString());
 
 	void toggleInMenu(
 		not_null<UserData*> bot,
@@ -305,7 +308,6 @@ private:
 	mtpRequestId _showingRepliesRequestId = 0;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _botWebView;
-	rpl::event_stream<InlineBots::ResultSelected> _inlineResultConfirmed;
 
 };
 
