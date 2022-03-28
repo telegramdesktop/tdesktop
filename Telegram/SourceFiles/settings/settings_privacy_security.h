@@ -30,6 +30,7 @@ void AddPrivacyButton(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> label,
+	IconDescriptor &&descriptor,
 	Api::UserPrivacy::Key key,
 	Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory);
 

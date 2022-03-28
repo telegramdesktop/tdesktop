@@ -158,7 +158,7 @@ using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
 void LogError(QLatin1String method);
 void LogError(QLatin1String method, FFmpeg::AvErrorWrap error);
 
-[[nodiscard]] AVCodec *FindDecoder(not_null<AVCodecContext*> context);
+[[nodiscard]] const AVCodec *FindDecoder(not_null<AVCodecContext*> context);
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);
 // Used for full duration conversion.
 [[nodiscard]] crl::time PtsToTimeCeil(int64_t pts, AVRational timeBase);

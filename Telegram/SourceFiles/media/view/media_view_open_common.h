@@ -46,11 +46,13 @@ public:
 		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		HistoryItem *item,
-		bool continueStreaming = false)
+		bool continueStreaming = false,
+		crl::time startTime = 0)
 	: _controller(controller)
 	, _document(document)
 	, _item(item)
-	, _continueStreaming(continueStreaming) {
+	, _continueStreaming(continueStreaming)
+	, _startTime(startTime) {
 	}
 	OpenRequest(
 		Window::SessionController *controller,
@@ -89,6 +91,10 @@ public:
 		return _continueStreaming;
 	}
 
+	crl::time startTime() const {
+		return _startTime;
+	}
+
 private:
 	Window::SessionController *_controller = nullptr;
 	DocumentData *_document = nullptr;
@@ -97,6 +103,7 @@ private:
 	HistoryItem *_item = nullptr;
 	std::optional<Data::CloudTheme> _cloudTheme = std::nullopt;
 	bool _continueStreaming = false;
+	crl::time _startTime = 0;
 
 };
 

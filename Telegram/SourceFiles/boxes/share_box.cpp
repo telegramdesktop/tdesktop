@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/share_box.h"
 
+#include "base/random.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
-#include "mainwidget.h"
 #include "base/qthelp_url.h"
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
@@ -26,15 +25,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/send_context_menu.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/history_view_element.h" // HistoryView::Context.
+#include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "history/view/history_view_schedule_box.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
+#include "data/data_game.h"
+#include "data/data_histories.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -46,6 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_media_player.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace {
 
@@ -197,6 +204,7 @@ private:
 ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 : _descriptor(std::move(descriptor))
 , _api(&_descriptor.session->mtp())
+, _show(std::make_shared<Ui::BoxShow>(this))
 , _select(
 	this,
 	(_descriptor.stMultiSelect
@@ -255,18 +263,20 @@ void ShareBox::prepareCommentField() {
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	if (_descriptor.initEditLink) {
 		_descriptor.initEditLink(field);
-	} else if (_descriptor.navigation) {
+	} else if (_show->valid()) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(
-				_descriptor.navigation->parentController(),
-				field));
+				_show,
+				_descriptor.session,
+				field,
+				_descriptor.stLabel));
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
 	if (_descriptor.initSpellchecker) {
 		_descriptor.initSpellchecker(field);
-	} else if (_descriptor.navigation) {
-		InitSpellchecker(_descriptor.navigation->parentController(), field);
+	} else if (_show->valid()) {
+		InitSpellchecker(_show, _descriptor.session, field, true);
 	}
 	Ui::SendPendingMoveResizeEvents(_comment);
 	if (_bottomWidget) {
@@ -526,7 +536,7 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 		[=] { submitScheduled(); });
 	const auto success = (result == SendMenu::FillMenuResult::Success);
 	if (_descriptor.forwardOptions.show || success) {
-		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
+		_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
 		_menu->popup(QCursor::pos());
 	}
 }
@@ -553,7 +563,7 @@ void ShareBox::createButtons() {
 }
 
 void ShareBox::applyFilterUpdate(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	_inner->updateFilter(query);
 }
 
@@ -601,8 +611,13 @@ void ShareBox::submitSilent() {
 
 void ShareBox::submitScheduled() {
 	const auto callback = [=](Api::SendOptions options) { submit(options); };
-	Ui::show(
-		HistoryView::PrepareScheduleBox(this, sendMenuType(), callback),
+	_show->showBox(
+		HistoryView::PrepareScheduleBox(
+			this,
+			sendMenuType(),
+			callback,
+			HistoryView::DefaultScheduleTime(),
+			_descriptor.scheduleBoxStyle),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -624,7 +639,7 @@ void ShareBox::selectedChanged() {
 }
 
 void ShareBox::scrollTo(Ui::ScrollToRequest request) {
-	onScrollToY(request.ymin, request.ymax);
+	scrollToY(request.ymin, request.ymax);
 	//auto scrollTop = scrollArea()->scrollTop(), scrollBottom = scrollTop + scrollArea()->height();
 	//auto from = scrollTop, to = scrollTop;
 	//if (scrollTop > top) {
@@ -1248,21 +1263,219 @@ QString AppendShareGameScoreUrl(
 	return url + shareComponent;
 }
 
+void FastShareMessage(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	struct ShareData {
+		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
+		: peer(peer)
+		, msgIds(std::move(ids)) {
+		}
+		not_null<PeerData*> peer;
+		MessageIdsList msgIds;
+		base::flat_set<mtpRequestId> requests;
+	};
+	const auto show = std::make_shared<Window::Show>(controller);
+	const auto history = item->history();
+	const auto owner = &history->owner();
+	const auto session = &history->session();
+	const auto data = std::make_shared<ShareData>(
+		history->peer,
+		owner->itemOrItsGroup(item));
+	const auto isGame = item->getMessageBot()
+		&& item->media()
+		&& (item->media()->game() != nullptr);
+	const auto canCopyLink = item->hasDirectLink() || isGame;
+
+	const auto items = owner->idsToItems(data->msgIds);
+	const auto hasCaptions = ranges::any_of(items, [](auto item) {
+		return item->media()
+			&& !item->originalText().text.isEmpty()
+			&& item->media()->allowsEditCaption();
+	});
+	const auto hasOnlyForcedForwardedInfo = hasCaptions
+		? false
+		: ranges::all_of(items, [](auto item) {
+			return item->media() && item->media()->forceForwardedInfo();
+		});
+
+	auto copyCallback = [=, toastParent = show->toastParent()] {
+		const auto item = owner->message(data->msgIds[0]);
+		if (!item) {
+			return;
+		}
+		if (item->hasDirectLink()) {
+			using namespace HistoryView;
+			CopyPostLink(session, item->fullId(), Context::History);
+		} else if (const auto bot = item->getMessageBot()) {
+			if (const auto media = item->media()) {
+				if (const auto game = media->game()) {
+					const auto link = session->createInternalLinkFull(
+						bot->username + qsl("?game=") + game->shortName);
+
+					QGuiApplication::clipboard()->setText(link);
+
+					Ui::Toast::Show(
+						toastParent,
+						tr::lng_share_game_link_copied(tr::now));
+				}
+			}
+		}
+	};
+
+	auto submitCallback = [=](
+			std::vector<not_null<PeerData*>> &&result,
+			TextWithTags &&comment,
+			Api::SendOptions options,
+			Data::ForwardOptions forwardOptions) {
+		if (!data->requests.empty()) {
+			return; // Share clicked already.
+		}
+		auto items = history->owner().idsToItems(data->msgIds);
+		if (items.empty() || result.empty()) {
+			return;
+		}
+
+		const auto error = [&] {
+			for (const auto peer : result) {
+				const auto error = GetErrorTextForSending(
+					peer,
+					items,
+					comment);
+				if (!error.isEmpty()) {
+					return std::make_pair(error, peer);
+				}
+			}
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(error.second->name)
+				).append("\n\n");
+			}
+			text.append(error.first);
+			show->showBox(
+				Ui::MakeInformBox(text),
+				Ui::LayerOption::KeepOther);
+			return;
+		}
+
+		const auto commonSendFlags = MTPmessages_ForwardMessages::Flag(0)
+			| MTPmessages_ForwardMessages::Flag::f_with_my_score
+			| (options.scheduled
+				? MTPmessages_ForwardMessages::Flag::f_schedule_date
+				: MTPmessages_ForwardMessages::Flag(0))
+			| ((forwardOptions != Data::ForwardOptions::PreserveInfo)
+				? MTPmessages_ForwardMessages::Flag::f_drop_author
+				: MTPmessages_ForwardMessages::Flag(0))
+			| ((forwardOptions == Data::ForwardOptions::NoNamesAndCaptions)
+				? MTPmessages_ForwardMessages::Flag::f_drop_media_captions
+				: MTPmessages_ForwardMessages::Flag(0));
+		auto msgIds = QVector<MTPint>();
+		msgIds.reserve(data->msgIds.size());
+		for (const auto &fullId : data->msgIds) {
+			msgIds.push_back(MTP_int(fullId.msg));
+		}
+		const auto generateRandom = [&] {
+			auto result = QVector<MTPlong>(data->msgIds.size());
+			for (auto &value : result) {
+				value = base::RandomValue<MTPlong>();
+			}
+			return result;
+		};
+		auto &api = owner->session().api();
+		auto &histories = owner->histories();
+		const auto requestType = Data::Histories::RequestType::Send;
+		for (const auto peer : result) {
+			const auto history = owner->history(peer);
+			if (!comment.text.isEmpty()) {
+				auto message = Api::MessageToSend(
+					Api::SendAction(history, options));
+				message.textWithTags = comment;
+				message.action.clearDraft = false;
+				api.sendMessage(std::move(message));
+			}
+			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+				auto &api = history->session().api();
+				const auto sendFlags = commonSendFlags
+					| (ShouldSendSilent(peer, options)
+						? MTPmessages_ForwardMessages::Flag::f_silent
+						: MTPmessages_ForwardMessages::Flag(0));
+				history->sendRequestId = api.request(
+					MTPmessages_ForwardMessages(
+						MTP_flags(sendFlags),
+						data->peer->input,
+						MTP_vector<MTPint>(msgIds),
+						MTP_vector<MTPlong>(generateRandom()),
+						peer->input,
+						MTP_int(options.scheduled),
+						MTP_inputPeerEmpty() // send_as
+				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
+					history->session().api().applyUpdates(updates);
+					data->requests.remove(reqId);
+					if (data->requests.empty()) {
+						if (show->valid()) {
+							Ui::Toast::Show(
+								show->toastParent(),
+								tr::lng_share_done(tr::now));
+							show->hideLayer();
+						}
+					}
+					finish();
+				}).fail([=] {
+					finish();
+				}).afterRequest(history->sendRequestId).send();
+				return history->sendRequestId;
+			});
+			data->requests.insert(history->sendRequestId);
+		}
+	};
+	auto filterCallback = [isGame](PeerData *peer) {
+		if (peer->canWrite()) {
+			if (auto channel = peer->asChannel()) {
+				return isGame ? (!channel->isBroadcast()) : true;
+			}
+			return true;
+		}
+		return false;
+	};
+	auto copyLinkCallback = canCopyLink
+		? Fn<void()>(std::move(copyCallback))
+		: Fn<void()>();
+	controller->show(
+		Box<ShareBox>(ShareBox::Descriptor{
+			.session = session,
+			.copyCallback = std::move(copyLinkCallback),
+			.submitCallback = std::move(submitCallback),
+			.filterCallback = std::move(filterCallback),
+			.forwardOptions = {
+				.messagesCount = int(data->msgIds.size()),
+				.show = !hasOnlyForcedForwardedInfo,
+				.hasCaptions = hasCaptions,
+			},
+		}),
+		Ui::LayerOption::CloseOther);
+}
+
 void ShareGameScoreByHash(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const QString &hash) {
+	auto &session = controller->session();
 	auto key128Size = 0x10;
 
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() != key128Size + 0x20)) {
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_confirm_phone_link_invalid(tr::now)));
+		controller->show(
+			Ui::MakeInformBox(tr::lng_confirm_phone_link_invalid()),
+			Ui::LayerOption::CloseOther);
 		return;
 	}
 
 	// Decrypt data.
 	auto hashData = QByteArray(hashEncrypted.size() - key128Size, Qt::Uninitialized);
-	if (!session->local().decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
+	if (!session.local().decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
 		return;
 	}
 
@@ -1282,13 +1495,17 @@ void ShareGameScoreByHash(
 
 	// Check 128 bits of SHA1() of data.
 	if (memcmp(dataSha1, hashEncrypted.constData(), key128Size) != 0) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
+		controller->show(
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
+			Ui::LayerOption::CloseOther);
 		return;
 	}
 
 	auto hashDataInts = reinterpret_cast<uint64*>(hashData.data());
-	if (hashDataInts[0] != session->userId().bare) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
+	if (hashDataInts[0] != session.userId().bare) {
+		controller->show(
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
+			Ui::LayerOption::CloseOther);
 		return;
 	}
 
@@ -1296,33 +1513,43 @@ void ShareGameScoreByHash(
 	const auto channelAccessHash = hashDataInts[3];
 	if (!peerIsChannel(peerId) && channelAccessHash) {
 		// If there is no channel id, there should be no channel access_hash.
-		Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
+		controller->show(
+			Ui::MakeInformBox(tr::lng_share_wrong_user()),
+			Ui::LayerOption::CloseOther);
 		return;
 	}
 
 	const auto msgId = MsgId(int64(hashDataInts[2]));
-	if (const auto item = session->data().message(peerId, msgId)) {
-		FastShareMessage(item);
+	if (const auto item = session.data().message(peerId, msgId)) {
+		FastShareMessage(controller, item);
 	} else {
-		auto resolveMessageAndShareScore = [=](PeerData *peer) {
-			session->api().requestMessageData(peer, msgId, [=] {
-				const auto item = session->data().message(peerId, msgId);
+		const auto weak = base::make_weak(controller.get());
+		const auto resolveMessageAndShareScore = crl::guard(weak, [=](
+				PeerData *peer) {
+			auto done = crl::guard(weak, [=] {
+				const auto item = weak->session().data().message(
+					peerId,
+					msgId);
 				if (item) {
-					FastShareMessage(item);
+					FastShareMessage(weak.get(), item);
 				} else {
-					Ui::show(Box<Ui::InformBox>(
-						tr::lng_edit_deleted(tr::now)));
+					weak->show(
+						Ui::MakeInformBox(tr::lng_edit_deleted()),
+						Ui::LayerOption::CloseOther);
 				}
 			});
-		};
+			auto &api = weak->session().api();
+			api.requestMessageData(peer, msgId, std::move(done));
+		});
 
 		const auto peer = peerIsChannel(peerId)
-			? session->data().peerLoaded(peerId)
+			? controller->session().data().peerLoaded(peerId)
 			: nullptr;
 		if (peer || !peerIsChannel(peerId)) {
 			resolveMessageAndShareScore(peer);
 		} else {
-			session->api().request(MTPchannels_GetChannels(
+			const auto owner = &controller->session().data();
+			controller->session().api().request(MTPchannels_GetChannels(
 				MTP_vector<MTPInputChannel>(
 					1,
 					MTP_inputChannel(
@@ -1330,9 +1557,9 @@ void ShareGameScoreByHash(
 						MTP_long(channelAccessHash)))
 			)).done([=](const MTPmessages_Chats &result) {
 				result.match([&](const auto &data) {
-					session->data().processChats(data.vchats());
+					owner->processChats(data.vchats());
 				});
-				if (const auto peer = session->data().peerLoaded(peerId)) {
+				if (const auto peer = owner->peerLoaded(peerId)) {
 					resolveMessageAndShareScore(peer);
 				}
 			}).send();

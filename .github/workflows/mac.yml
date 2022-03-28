@@ -20,6 +20,12 @@ on:
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
   workflow_dispatch:
+    inputs:
+      buildCommit:
+        description: 'Commit for building. Default it latest on branch'
+        required: false
+        type: string
+        default: ''
 
 jobs:
 
@@ -42,9 +48,18 @@ jobs:
 
       - name: Clone.
         uses: actions/checkout@v2
+        if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
+
+      - name: Clone with checkout.
+        uses: actions/checkout@v2
+        if: github.event.inputs.buildCommit != ''
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+          ref: ${{ github.event.inputs.buildCommit }}
 
       - name: First set up.
         run: |
@@ -95,8 +110,6 @@ jobs:
           fi
 
           ./configure.sh \
-          -D CMAKE_C_FLAGS="-Werror" \
-          -D CMAKE_CXX_FLAGS="-Werror" \
           -D TDESKTOP_API_TEST=OFF \
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} \

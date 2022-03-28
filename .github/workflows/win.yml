@@ -21,6 +21,12 @@ on:
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
   workflow_dispatch:
+    inputs:
+      buildCommit:
+        description: 'Commit for building. Default it latest on branch'
+        required: false
+        type: string
+        default: ''
 
 jobs:
 
@@ -58,9 +64,18 @@ jobs:
 
       - name: Clone.
         uses: LebedevRI/checkout@issue197
+        if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Clone with checkout.
+        uses: LebedevRI/checkout@issue197
+        if: github.event.inputs.buildCommit != ''
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+          ref: ${{ github.event.inputs.buildCommit }}
 
       - name: Choco installs.
         run: |

@@ -51,10 +51,10 @@ enum class Wrap {
 };
 
 struct SelectedItem {
-	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+	explicit SelectedItem(GlobalMsgId globalId) : globalId(globalId) {
 	}
 
-	FullMsgId msgId;
+	GlobalMsgId globalId;
 	bool canDelete = false;
 	bool canForward = false;
 };
@@ -66,7 +66,12 @@ struct SelectedItems {
 
 	Storage::SharedMediaType type;
 	std::vector<SelectedItem> list;
+};
 
+enum class SelectionAction {
+	Clear,
+	Forward,
+	Delete,
 };
 
 class WrapWidget final : public Window::SectionWidget {
@@ -190,10 +195,9 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();
-	void addContentSaveButton();
 	void addProfileCallsButton();
-	void addProfileNotificationsButton();
 	void showTopBarMenu();
+	void deleteAllDownloads();
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;

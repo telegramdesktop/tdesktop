@@ -165,7 +165,7 @@ void Controller::checkLockByTerms() {
 		}
 		return;
 	}
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	hideSettingsAndLayer(anim::type::instant);
 	const auto box = show(Box<TermsBox>(
 		*data,
 		tr::lng_terms_agree(),
@@ -234,11 +234,12 @@ void Controller::showTermsDelete() {
 		}
 	};
 	show(
-		Box<Ui::ConfirmBox>(
-			tr::lng_terms_delete_warning(tr::now),
-			tr::lng_terms_delete_now(tr::now),
-			st::attentionBoxButton,
-			deleteByTerms),
+		Ui::MakeConfirmBox({
+			.text = tr::lng_terms_delete_warning(),
+			.confirmed = deleteByTerms,
+			.confirmText = tr::lng_terms_delete_now(),
+			.confirmStyle = &st::attentionBoxButton,
+		}),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -326,6 +327,10 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
 }
 
+void Controller::hideSettingsAndLayer(anim::type animated) {
+	_widget.ui_hideSettingsAndLayer(animated);
+}
+
 void Controller::sideBarChanged() {
 	_widget.recountGeometryConstraints();
 }
@@ -403,11 +408,12 @@ void Controller::showLogoutConfirmation() {
 			close();
 		}
 	};
-	show(Box<Ui::ConfirmBox>(
-		tr::lng_sure_logout(tr::now),
-		tr::lng_settings_logout(tr::now),
-		st::attentionBoxButton,
-		callback));
+	show(Ui::MakeConfirmBox({
+		.text = tr::lng_sure_logout(),
+		.confirmed = callback,
+		.confirmText = tr::lng_settings_logout(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 Window::Adaptive &Controller::adaptive() const {

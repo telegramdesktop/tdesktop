@@ -22,7 +22,6 @@ class Session;
 } // namespace Main
 
 namespace Ui {
-class ConfirmBox;
 class FlatLabel;
 class InputField;
 class PhoneInput;

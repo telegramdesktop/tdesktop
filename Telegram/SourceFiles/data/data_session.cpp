@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_download_manager.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_web_page.h"
@@ -914,6 +915,18 @@ void Session::unregisterInvitedToCallUser(
 	}
 }
 
+UserData *Session::userByPhone(const QString &phone) const {
+	const auto pname = phone.trimmed();
+	for (const auto &[peerId, peer] : _peers) {
+		if (const auto user = peer->asUser()) {
+			if (user->phone() == pname) {
+				return user;
+			}
+		}
+	}
+	return nullptr;
+}
+
 PeerData *Session::peerByUsername(const QString &username) const {
 	const auto uname = username.trimmed();
 	for (const auto &[peerId, peer] : _peers) {
@@ -1269,21 +1282,19 @@ void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
 
 void Session::documentLoadProgress(not_null<DocumentData*> document) {
 	requestDocumentViewRepaint(document);
-	session().documentUpdated.notify(document, true);
-
-	if (document->isAudioFile()) {
-		::Media::Player::instance()->documentLoadProgress(document);
-	}
+	_documentLoadProgress.fire_copy(document);
 }
 
 void Session::documentLoadDone(not_null<DocumentData*> document) {
 	notifyDocumentLayoutChanged(document);
+	_documentLoadProgress.fire_copy(document);
 }
 
 void Session::documentLoadFail(
 		not_null<DocumentData*> document,
 		bool started) {
 	notifyDocumentLayoutChanged(document);
+	_documentLoadProgress.fire_copy(document);
 }
 
 void Session::photoLoadProgress(not_null<PhotoData*> photo) {
@@ -1361,6 +1372,24 @@ void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	}
 
 	Ensures(ok);
+}
+
+bool Session::queryItemVisibility(not_null<HistoryItem*> item) const {
+	auto result = false;
+	_itemVisibilityQueries.fire({ item, &result });
+	return result;
+}
+
+[[nodiscard]] auto Session::itemVisibilityQueries() const
+-> rpl::producer<Session::ItemVisibilityQuery> {
+	return _itemVisibilityQueries.events();
+}
+
+void Session::itemVisibilitiesUpdated() {
+	// This could be rewritten in a more generic form, like:
+	// rpl::producer<> itemVisibilitiesUpdates()
+	// if someone else requires those methods, using fast for now.
+	Core::App().downloadManager().itemVisibilitiesUpdated(_session);
 }
 
 void Session::notifyItemIdChange(IdChange event) {
@@ -1794,30 +1823,25 @@ void Session::applyDialog(
 	setPinnedFromDialog(folder, data.is_pinned());
 }
 
-int Session::pinnedChatsCount(
+int Session::pinnedCanPin(
 		Data::Folder *folder,
-		FilterId filterId) const {
+		FilterId filterId,
+		not_null<History*> history) const {
 	if (!filterId) {
-		return pinnedChatsOrder(folder, filterId).size();
+		const auto limit = pinnedChatsLimit(folder);
+		return pinnedChatsOrder(folder, FilterId()).size() < limit;
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
-	return (i != end(list)) ? i->pinned().size() : 0;
+	return (i == end(list))
+		|| (i->always().contains(history))
+		|| (i->always().size() < Data::ChatFilter::kPinnedLimit);
 }
 
-int Session::pinnedChatsLimit(
-		Data::Folder *folder,
-		FilterId filterId) const {
-	if (!filterId) {
-		return folder
-			? session().serverConfig().pinnedDialogsInFolderMax.current()
-			: session().serverConfig().pinnedDialogsCountMax.current();
-	}
-	const auto &list = chatsFilters().list();
-	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
-	const auto pinned = (i != end(list)) ? i->pinned().size() : 0;
-	const auto already = (i != end(list)) ? i->always().size() : 0;
-	return Data::ChatFilter::kPinnedLimit + pinned - already;
+int Session::pinnedChatsLimit(Data::Folder *folder) const {
+	return folder
+		? session().serverConfig().pinnedDialogsInFolderMax.current()
+		: session().serverConfig().pinnedDialogsCountMax.current();
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(

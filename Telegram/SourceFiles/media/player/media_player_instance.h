@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/observer.h"
 #include "data/data_audio_msg_id.h"
 #include "data/data_shared_media.h"
 
@@ -41,6 +42,8 @@ class PowerSaveBlocker;
 
 namespace Media {
 namespace Player {
+
+extern const char kOptionDisableAutoplayNext[];
 
 enum class RepeatMode {
 	None,
@@ -164,8 +167,6 @@ public:
 		AudioMsgId::Type type) const;
 
 	[[nodiscard]] bool pauseGifByRoundVideo() const;
-
-	void documentLoadProgress(DocumentData *document);
 
 private:
 	using SharedMediaType = Storage::SharedMediaType;
@@ -293,7 +294,10 @@ private:
 	void requestRoundVideoResize() const;
 	void requestRoundVideoRepaint() const;
 
-	void setHistory(not_null<Data*> data, History *history);
+	void setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback = nullptr);
 	void setSession(not_null<Data*> data, Main::Session *session);
 
 	Data _songData;

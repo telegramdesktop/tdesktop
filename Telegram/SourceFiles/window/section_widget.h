@@ -40,8 +40,7 @@ enum class Column {
 
 class AbstractSectionWidget
 	: public Ui::RpWidget
-	, public Media::Player::FloatSectionDelegate
-	, protected base::Subscriber {
+	, public Media::Player::FloatSectionDelegate {
 public:
 	AbstractSectionWidget(
 		QWidget *parent,
@@ -72,6 +71,7 @@ class SectionMemento;
 
 struct SectionSlideParams {
 	QPixmap oldContentCache;
+	int topSkip = 0;
 	bool withTopBarShadow = false;
 	bool withTabs = false;
 	bool withFade = false;
@@ -111,6 +111,7 @@ public:
 		SlideDirection direction,
 		const SectionSlideParams &params);
 	void showFast();
+	[[nodiscard]] bool animatingShow() const;
 
 	// This can be used to grab with or without top bar shadow.
 	// This will be protected when animation preparation will be done inside.
@@ -185,10 +186,6 @@ protected:
 
 	virtual void doSetInnerFocus() {
 		setFocus();
-	}
-
-	bool animating() const {
-		return _showAnimation != nullptr;
 	}
 
 	~SectionWidget();

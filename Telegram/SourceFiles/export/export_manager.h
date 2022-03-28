@@ -38,7 +38,7 @@ public:
 	[[nodiscard]] rpl::producer<View::PanelController*> currentView() const;
 	[[nodiscard]] bool inProgress() const;
 	[[nodiscard]] bool inProgress(not_null<Main::Session*> session) const;
-	void stopWithConfirmation(FnMut<void()> callback);
+	void stopWithConfirmation(Fn<void()> callback);
 	void stop();
 
 private:

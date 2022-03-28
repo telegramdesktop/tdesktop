@@ -16,4 +16,7 @@ namespace Ui::Text {
 [[nodiscard]] FormatSongName FormatSongNameFor(
 	not_null<DocumentData*> document);
 
+[[nodiscard]] TextWithEntities FormatDownloadsName(
+	not_null<DocumentData*> document);
+
 } // namespace Ui::Text

@@ -48,7 +48,7 @@ public:
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
-	void cancelSelection();
+	void selectionAction(SelectionAction action);
 
 	~InnerWidget();
 

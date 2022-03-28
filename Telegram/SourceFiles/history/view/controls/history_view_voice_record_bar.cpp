@@ -766,15 +766,15 @@ void RecordLock::drawProgress(Painter &p) {
 
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
 
-		const auto blockRectWidth = anim::interpolateF(
+		const auto blockRectWidth = anim::interpolateToF(
 			size.width(),
 			st::historyRecordStopIconWidth,
 			_lockToStopProgress);
-		const auto blockRectHeight = anim::interpolateF(
+		const auto blockRectHeight = anim::interpolateToF(
 			blockHeight,
 			st::historyRecordStopIconWidth,
 			_lockToStopProgress);
-		const auto blockRectTop = anim::interpolateF(
+		const auto blockRectTop = anim::interpolateToF(
 			size.height() - blockHeight,
 			base::SafeRound((size.height() - blockRectHeight) / 2.),
 			_lockToStopProgress);
@@ -1650,13 +1650,14 @@ void VoiceRecordBar::showDiscardBox(
 			callback();
 		}
 	};
-	_controller->show(Box<Ui::ConfirmBox>(
-		(isListenState()
+	_controller->show(Ui::MakeConfirmBox({
+		.text = (isListenState()
 			? tr::lng_record_listen_cancel_sure
-			: tr::lng_record_lock_cancel_sure)(tr::now),
-		tr::lng_record_lock_discard(tr::now),
-		st::attentionBoxButton,
-		std::move(sure)));
+			: tr::lng_record_lock_cancel_sure)(),
+		.confirmed = std::move(sure),
+		.confirmText = tr::lng_record_lock_discard(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 	_warningShown = true;
 }
 

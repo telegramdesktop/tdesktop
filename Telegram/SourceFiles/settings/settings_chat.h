@@ -27,6 +27,9 @@ void SetupDefaultThemes(
 void SetupSupport(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container);
+void SetupExport(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
 
 class Chat : public Section {
 public:

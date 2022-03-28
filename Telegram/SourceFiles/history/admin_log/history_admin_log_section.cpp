@@ -328,9 +328,9 @@ Widget::Widget(
 	}, lifetime());
 
 	_whatIsThis->setClickedCallback([=] {
-		controller->show(Box<Ui::InformBox>(channel->isMegagroup()
-			? tr::lng_admin_log_about_text(tr::now)
-			: tr::lng_admin_log_about_text_channel(tr::now)));
+		controller->show(Ui::MakeInformBox(channel->isMegagroup()
+			? tr::lng_admin_log_about_text()
+			: tr::lng_admin_log_about_text_channel()));
 	});
 
 	setupShortcuts();
@@ -458,11 +458,10 @@ void Widget::resizeEvent(QResizeEvent *e) {
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
-	if (animating()) {
+	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	}
-	if (Ui::skipPaintEvent(this, e)) {
+	} else if (Ui::skipPaintEvent(this, e)) {
 		return;
 	}
 	//if (hasPendingResizedItems()) {

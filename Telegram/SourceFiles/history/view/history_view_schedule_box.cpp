@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/boxes/choose_date_time.h"
 #include "chat_helpers/send_context_menu.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -32,12 +31,13 @@ namespace {
 
 void FillSendUntilOnlineMenu(
 		not_null<Ui::IconButton*> button,
-		Fn<void()> callback) {
+		Fn<void()> callback,
+		const ScheduleBoxStyleArgs &style) {
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	button->setClickedCallback([=] {
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
-			st::popupMenuWithIcons);
+			*style.popupMenuStyle);
 		(*menu)->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
 			std::move(callback),
@@ -48,6 +48,12 @@ void FillSendUntilOnlineMenu(
 }
 
 } // namespace
+
+ScheduleBoxStyleArgs::ScheduleBoxStyleArgs()
+: topButtonStyle(&st::infoTopBarMenu)
+, popupMenuStyle(&st::popupMenuWithIcons)
+, chooseDateTimeArgs({}) {
+}
 
 TimeId DefaultScheduleTime() {
 	return base::unixtime::now() + 600;
@@ -64,7 +70,8 @@ void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
 		SendMenu::Type type,
 		Fn<void(Api::SendOptions)> done,
-		TimeId time) {
+		TimeId time,
+		ScheduleBoxStyleArgs style) {
 	const auto save = [=](bool silent, TimeId scheduleDate) {
 		if (!scheduleDate) {
 			return;
@@ -84,6 +91,7 @@ void ScheduleBox(
 		.submit = tr::lng_schedule_button(),
 		.done = [=](TimeId result) { save(false, result); },
 		.time = time,
+		.style = style.chooseDateTimeArgs,
 	});
 
 	SendMenu::SetupMenuAndShortcuts(
@@ -93,12 +101,13 @@ void ScheduleBox(
 		nullptr);
 
 	if (type == SendMenu::Type::ScheduledToUser) {
-		const auto sendUntilOnline = box->addTopButton(st::infoTopBarMenu);
+		const auto sendUntilOnline = box->addTopButton(*style.topButtonStyle);
 		const auto timestamp
 			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
 		FillSendUntilOnlineMenu(
 			sendUntilOnline.data(),
-			[=] { save(false, timestamp); });
+			[=] { save(false, timestamp); },
+			style);
 	}
 }
 

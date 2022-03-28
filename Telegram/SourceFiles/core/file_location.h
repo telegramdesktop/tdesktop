@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QDateTime>
 
+class QFileInfo;
+
 namespace Platform {
 class FileBookmark;
 } // namespace Platform
@@ -35,6 +37,7 @@ class FileLocation {
 public:
 	FileLocation() = default;
 	explicit FileLocation(const QString &name);
+	explicit FileLocation(const QFileInfo &info);
 
 	static FileLocation InMediaCacheLocation();
 
@@ -55,6 +58,8 @@ public:
 	qint32 size;
 
 private:
+	void resolveFromInfo(const QFileInfo &info);
+
 	std::shared_ptr<Platform::FileBookmark> _bookmark;
 
 };

@@ -408,7 +408,7 @@ StickersBox::StickersBox(
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
 	) | rpl::start_with_next([=](int y) {
-		onScrollToY(y);
+		scrollToY(y);
 	}, lifetime());
 }
 
@@ -786,7 +786,7 @@ void StickersBox::switchTab() {
 		session().api().updateMasks();
 	}
 	if (_tab == newTab) {
-		onScrollToY(0);
+		scrollToY(0);
 		return;
 	}
 
@@ -808,7 +808,7 @@ void StickersBox::switchTab() {
 	_unreadBadge->raise();
 	_tab->widget()->show();
 	rebuildList();
-	onScrollToY(_tab->getScrollTop());
+	scrollToY(_tab->getScrollTop());
 	setInnerVisible(true);
 	auto nowCache = grabContentCache();
 	auto nowIndex = _tab->index();

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_chat.h"
 
 #include "settings/settings_common.h"
+#include "settings/settings_advanced.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
@@ -40,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "info/downloads/info_downloads_widget.h"
+#include "info/info_memento.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
@@ -356,7 +359,7 @@ void ColorsPalette::updateInnerGeometry() {
 	}
 	const auto inner = _outer->entity();
 	const auto size = st::settingsAccentColorSize;
-	const auto padding = st::settingsButton.padding;
+	const auto padding = st::settingsButtonNoIcon.padding;
 	const auto width = inner->width() - padding.left() - padding.right();
 	const auto skip = (width - size * _buttons.size())
 		/ float64(_buttons.size() - 1);
@@ -747,9 +750,8 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_stickers_you_have(),
-		st::settingsChatButton,
-		&st::settingsIconStickers,
-		st::settingsChatIconLeft
+		st::settingsButton,
+		{ &st::settingsIconStickers, kIconLightOrange }
 	)->addClickHandler([=] {
 		controller->show(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
@@ -758,9 +760,8 @@ void SetupStickersEmoji(
 	AddButton(
 		container,
 		tr::lng_emoji_manage_sets(),
-		st::settingsChatButton,
-		&st::settingsIconEmoji,
-		st::settingsChatIconLeft
+		st::settingsButton,
+		{ &st::settingsIconEmoji, kIconDarkOrange }
 	)->addClickHandler([=] {
 		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
@@ -823,10 +824,10 @@ void SetupExport(
 	AddButton(
 		container,
 		tr::lng_settings_export_data(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		const auto session = &controller->session();
-		Ui::hideSettingsAndLayer();
+		controller->window().hideSettingsAndLayer();
 		base::call_delayed(
 			st::boxDuration,
 			session,
@@ -840,7 +841,8 @@ void SetupLocalStorage(
 	AddButton(
 		container,
 		tr::lng_settings_manage_local_storage(),
-		st::settingsButton
+		st::settingsButton,
+		{ &st::settingsIconGeneral, kIconLightOrange }
 	)->addClickHandler([=] {
 		LocalStorageBox::Show(&controller->session());
 	});
@@ -851,26 +853,27 @@ void SetupDataStorage(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 
-	AddDivider(container);
 	AddSkip(container);
 
 	AddSubsectionTitle(container, tr::lng_settings_data_storage());
 
-	const auto ask = AddButton(
-		container,
-		tr::lng_download_path_ask(),
-		st::settingsButton
-	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
+	SetupConnectionType(
+		&controller->window(),
+		&controller->session().account(),
+		container);
 
 #ifndef OS_WIN_STORE
-	const auto showpath = Ui::CreateChild<rpl::event_stream<bool>>(ask);
+	const auto showpath = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
+
 	const auto path = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
-			object_ptr<Button>(
+			CreateButton(
 				container,
 				tr::lng_download_path(),
-				st::settingsButton)));
+				st::settingsButton,
+				{ &st::settingsIconFolders, kIconLightBlue })));
 	auto pathtext = Core::App().settings().downloadPathValue(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
@@ -888,8 +891,25 @@ void SetupDataStorage(
 	path->entity()->addClickHandler([=] {
 		controller->show(Box<DownloadPathBox>(controller));
 	});
-	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
+
+	SetupLocalStorage(controller, container);
+
+	AddButton(
+		container,
+		tr::lng_downloads_section(),
+		st::settingsButton,
+		{ &st::settingsIconDownload, kIconPurple }
+	)->setClickedCallback([=] {
+		controller->showSection(
+			Info::Downloads::Make(controller->session().user()));
+	});
+
+	const auto ask = AddButton(
+		container,
+		tr::lng_download_path_ask(),
+		st::settingsButtonNoIcon
+	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 	ask->toggledValue(
 	) | rpl::filter([](bool checked) {
@@ -904,8 +924,9 @@ void SetupDataStorage(
 
 	}, ask->lifetime());
 
-	SetupLocalStorage(controller, container);
-	SetupExport(controller, container);
+#ifndef OS_WIN_STORE
+	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
+#endif // OS_WIN_STORE
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -919,19 +940,32 @@ void SetupAutoDownload(
 	AddSubsectionTitle(container, tr::lng_media_auto_settings());
 
 	using Source = Data::AutoDownload::Source;
-	const auto add = [&](rpl::producer<QString> label, Source source) {
+	const auto add = [&](
+		rpl::producer<QString> label,
+		Source source,
+		IconDescriptor &&descriptor) {
 		AddButton(
 			container,
 			std::move(label),
-			st::settingsButton
+			st::settingsButton,
+			std::move(descriptor)
 		)->addClickHandler([=] {
 			controller->show(
 				Box<AutoDownloadBox>(&controller->session(), source));
 		});
 	};
-	add(tr::lng_media_auto_in_private(), Source::User);
-	add(tr::lng_media_auto_in_groups(), Source::Group);
-	add(tr::lng_media_auto_in_channels(), Source::Channel);
+	add(
+		tr::lng_media_auto_in_private(),
+		Source::User,
+		{ &st::settingsIconUser, kIconLightBlue });
+	add(
+		tr::lng_media_auto_in_groups(),
+		Source::Group,
+		{ &st::settingsIconGroup, kIconGreen });
+	add(
+		tr::lng_media_auto_in_channels(),
+		Source::Channel,
+		{ &st::settingsIconChannel, kIconLightOrange });
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -1141,7 +1175,7 @@ void SetupDefaultThemes(
 	) | rpl::start_with_next([buttons = std::move(buttons)](int width) {
 		Expects(!buttons.empty());
 
-		const auto padding = st::settingsButton.padding;
+		const auto padding = st::settingsButtonNoIcon.padding;
 		width -= padding.left() + padding.right();
 		const auto desired = st::settingsThemePreviewSize.width();
 		const auto count = int(buttons.size());
@@ -1173,8 +1207,8 @@ void SetupDefaultThemes(
 			// in Window::Theme::Revert which is called by Editor.
 			//
 			// So we check here, before we change the saved accent color.
-			window->show(Box<Ui::InformBox>(
-				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			window->show(Ui::MakeInformBox(
+				tr::lng_theme_editor_cant_change_theme()));
 			return;
 		}
 		const auto type = chosen();
@@ -1249,9 +1283,9 @@ void SetupCloudThemes(
 	inner->add(
 		list->takeWidget(),
 		style::margins(
-			st::settingsButton.padding.left(),
+			st::settingsButtonNoIcon.padding.left(),
 			0,
-			st::settingsButton.padding.right(),
+			st::settingsButtonNoIcon.padding.right(),
 			0));
 
 	list->allShown(
@@ -1274,9 +1308,8 @@ void SetupCloudThemes(
 	AddButton(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
-		st::settingsChatButton,
-		&st::settingsIconThemes,
-		st::settingsChatIconLeft
+		st::settingsButton,
+		{ &st::settingsIconThemes, kIconGreen }
 	)->addClickHandler([=] {
 		StartEditor(
 			&controller->window(),
@@ -1327,8 +1360,8 @@ void SetupAutoNightMode(
 	}) | rpl::start_with_next([=](bool checked) {
 		if (checked && Window::Theme::Background()->editingTheme()) {
 			autoNight->setChecked(false);
-			controller->show(Box<Ui::InformBox>(
-				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			controller->show(Ui::MakeInformBox(
+				tr::lng_theme_editor_cant_change_theme()));
 		} else {
 			Core::App().settings().setSystemDarkModeEnabled(checked);
 			Core::App().saveSettingsDelayed();

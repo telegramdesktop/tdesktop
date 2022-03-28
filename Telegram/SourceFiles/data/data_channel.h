@@ -405,7 +405,8 @@ public:
 	void migrateCall(std::unique_ptr<Data::GroupCall> call);
 	void setGroupCall(
 		const MTPInputGroupCall &call,
-		TimeId scheduleDate = 0);
+		TimeId scheduleDate = 0,
+		bool rtmp = false);
 	void clearGroupCall();
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;

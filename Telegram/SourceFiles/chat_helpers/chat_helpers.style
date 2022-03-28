@@ -41,8 +41,8 @@ stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
 
-	icon: icon {{ "info_media_delete", menuIconFg }};
-	iconOver: icon {{ "info_media_delete", menuIconFgOver }};
+	icon: icon {{ "info/info_media_delete", menuIconFg }};
+	iconOver: icon {{ "info/info_media_delete", menuIconFgOver }};
 
 	rippleAreaSize: 40px;
 	rippleAreaPosition: point(0px, 0px);
@@ -88,14 +88,14 @@ stickersReorderFg: windowSubTextFg;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
-stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
-stickersTrending: icon {{ "stickers_add", emojiIconFg }};
+stickersSettings: icon {{ "emoji/emoji_settings", emojiIconFg }};
+stickersTrending: icon {{ "emoji/stickers_add", emojiIconFg }};
 stickersTrendingUnread: icon {
-	{ "stickers_add_unread", emojiIconFg },
-	{ "stickers_add_dot", dialogsUnreadBg }
+	{ "emoji/stickers_add_unread", emojiIconFg },
+	{ "emoji/stickers_add_dot", dialogsUnreadBg }
 };
-stickersRecent: icon {{ "stickers_recent", emojiIconFg }};
-stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
+stickersRecent: icon {{ "emoji/stickers_recent", emojiIconFg }};
+stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
 
 stickersSettingsUnreadSize: 6px;
 stickersSettingsUnreadPosition: point(6px, 10px);
@@ -112,22 +112,22 @@ emojiTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 emojiScroll: defaultSolidScroll;
-emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
-emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};
-emojiPeople: icon {{ "emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji_people", emojiIconFgActive }};
-emojiNature: icon {{ "emoji_nature", emojiIconFg }};
-emojiNatureActive: icon {{ "emoji_nature", emojiIconFgActive }};
-emojiFood: icon {{ "emoji_food", emojiIconFg }};
-emojiFoodActive: icon {{ "emoji_food", emojiIconFgActive }};
-emojiActivity: icon {{ "emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji_activity", emojiIconFgActive }};
-emojiTravel: icon {{ "emoji_travel", emojiIconFg }};
-emojiTravelActive: icon {{ "emoji_travel", emojiIconFgActive }};
-emojiObjects: icon {{ "emoji_objects", emojiIconFg }};
-emojiObjectsActive: icon {{ "emoji_objects", emojiIconFgActive }};
-emojiSymbols: icon {{ "emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji_symbols", emojiIconFgActive }};
+emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
+emojiRecentActive: icon {{ "emoji/emoji_recent", emojiIconFgActive }};
+emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
+emojiPeopleActive: icon {{ "emoji/emoji_people", emojiIconFgActive }};
+emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
+emojiNatureActive: icon {{ "emoji/emoji_nature", emojiIconFgActive }};
+emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
+emojiFoodActive: icon {{ "emoji/emoji_food", emojiIconFgActive }};
+emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
+emojiActivityActive: icon {{ "emoji/emoji_activity", emojiIconFgActive }};
+emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
+emojiTravelActive: icon {{ "emoji/emoji_travel", emojiIconFgActive }};
+emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
+emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiIconFgActive }};
+emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
+emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiIconFgActive }};
 
 emojiFooterHeight: 46px;
 emojiCategorySkip: 4px;
@@ -135,7 +135,7 @@ emojiCategory: IconButton {
 	width: 42px;
 	height: emojiFooterHeight;
 
-	iconPosition: point(-1px, 9px);
+	iconPosition: point(-1px, 6px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
@@ -175,8 +175,8 @@ emojiColorsSepColor: shadowFg;
 emojiSwitchSkip: 27px;
 emojiSwitchImgSkip: 21px;
 emojiSwitchColor: windowActiveTextFg;
-emojiSwitchStickers: icon {{ "emoji_switch", emojiSwitchColor }};
-emojiSwitchEmoji: icon {{ "emoji_switch-flip_horizontal", emojiSwitchColor }};
+emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
+emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
 
 hashtagClose: IconButton {
 	width: 30px;
@@ -196,8 +196,8 @@ hashtagClose: IconButton {
 stickerPanWidthMin: 64px;
 stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
 stickerPanPadding: 11px;
-stickerPanDeleteIconBg: icon {{ "emoji_delete_bg", stickerPanDeleteBg }};
-stickerPanDeleteIconFg: icon {{ "emoji_delete", stickerPanDeleteFg }};
+stickerPanDeleteIconBg: icon {{ "emoji/emoji_delete_bg", stickerPanDeleteBg }};
+stickerPanDeleteIconFg: icon {{ "emoji/emoji_delete", stickerPanDeleteFg }};
 stickerPanDeleteOpacityBg: 0.3;
 stickerPanDeleteOpacityBgOver: 0.5;
 stickerPanDeleteOpacityFg: 0.8;

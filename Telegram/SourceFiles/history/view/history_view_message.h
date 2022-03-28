@@ -139,6 +139,8 @@ public:
 	auto takeReactionAnimations()
 		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> override;
 
+	QRect innerGeometry() const override;
+
 protected:
 	void refreshDataIdHook() override;
 

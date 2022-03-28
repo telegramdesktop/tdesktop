@@ -264,7 +264,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		});
 	};
 
-	const auto cancelCurrentByIndex = [=](int index) {
+	const auto cancelCurrentPeer = [=] {
 		Expects(*currentPeer != nullptr);
 
 		if (*currentState == State::Started) {
@@ -278,7 +278,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 	const auto cancelCurrent = [=] {
 		if (*currentPeer) {
-			cancelCurrentByIndex(indexOf(*currentPeer));
+			cancelCurrentPeer();
 		}
 	};
 
@@ -356,7 +356,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		const auto index = indexOf(*currentPeer);
 		if (*currentDesiredIndex == index
 			|| *currentState != State::Started) {
-			cancelCurrentByIndex(index);
+			cancelCurrentPeer();
 			return;
 		}
 		const auto result = *currentDesiredIndex;
@@ -688,9 +688,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		updateUserpics();
 	};
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		_session->data().pinnedDialogsOrderUpdated()
 	) | rpl::start_with_next(updatePinnedChats, _lifetime);
 

@@ -37,7 +37,7 @@ void AttachedStickers::request(
 		}
 		if (result.v.isEmpty()) {
 			strongController->show(
-				Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
+				Ui::MakeInformBox(tr::lng_stickers_not_found()));
 			return;
 		} else if (result.v.size() > 1) {
 			strongController->show(
@@ -63,7 +63,7 @@ void AttachedStickers::request(
 		_requestId = 0;
 		if (const auto strongController = weak.get()) {
 			strongController->show(
-				Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
+				Ui::MakeInformBox(tr::lng_stickers_not_found()));
 		}
 	}).send();
 }

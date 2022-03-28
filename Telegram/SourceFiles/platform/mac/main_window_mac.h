@@ -17,9 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
-	// The Q_OBJECT meta info is used for qobject_cast!
-	Q_OBJECT
-
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
@@ -38,23 +35,6 @@ public:
 	bool preventsQuit(Core::QuitReason reason) override;
 
 	class Private;
-
-public Q_SLOTS:
-	void psMacUndo();
-	void psMacRedo();
-	void psMacCut();
-	void psMacCopy();
-	void psMacPaste();
-	void psMacDelete();
-	void psMacSelectAll();
-	void psMacEmojiAndSymbols();
-
-	void psMacBold();
-	void psMacItalic();
-	void psMacUnderline();
-	void psMacStrikeOut();
-	void psMacMonospace();
-	void psMacClearFormat();
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;

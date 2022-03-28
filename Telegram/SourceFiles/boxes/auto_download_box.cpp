@@ -112,7 +112,7 @@ void AutoDownloadBox::setupContent() {
 		AddButton(
 			content,
 			std::move(label),
-			st::settingsButton
+			st::settingsButtonNoIcon
 		)->toggleOn(
 			rpl::single(value > 0)
 		)->toggledChanges(

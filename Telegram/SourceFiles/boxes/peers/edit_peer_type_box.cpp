@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
-#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
@@ -59,6 +58,7 @@ namespace {
 class Controller : public base::has_weak_ptr {
 public:
 	Controller(
+		std::shared_ptr<Ui::BoxShow> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
@@ -134,6 +134,8 @@ private:
 		const QString &text,
 		rpl::producer<QString> about);
 
+	std::shared_ptr<Ui::BoxShow> _show;
+
 	not_null<PeerData*> _peer;
 	bool _linkOnly = false;
 
@@ -157,13 +159,15 @@ private:
 };
 
 Controller::Controller(
+	std::shared_ptr<Ui::BoxShow> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue,
 	std::optional<bool> noForwardsSavedValue)
-: _peer(peer)
+: _show(show)
+, _peer(peer)
 , _linkOnly(!privacySavedValue.has_value())
 , _api(&_peer->session().mtp())
 , _privacySavedValue(privacySavedValue)
@@ -198,9 +202,11 @@ void Controller::createContent() {
 		_wrap.get(),
 		tr::lng_group_invite_manage(),
 		rpl::single(QString()),
-		[=] { Ui::show(
-			Box(ManageInviteLinksBox, _peer, _peer->session().user(), 0, 0),
-			Ui::LayerOption::KeepOther);
+		[=] {
+			const auto admin = _peer->session().user();
+			_show->showBox(
+				Box(ManageInviteLinksBox, _peer, admin, 0, 0),
+				Ui::LayerOption::KeepOther);
 		},
 		st::manageGroupButton,
 		&st::infoIconInviteLinks));
@@ -499,7 +505,7 @@ void Controller::askUsernameRevoke() {
 		_controls.privacy->setValue(Privacy::HasUsername);
 		checkUsernameAvailability();
 	});
-	Ui::show(
+	_show->showBox(
 		Box<RevokePublicLinkBox>(
 			&_peer->session(),
 			std::move(revokeCallback)),
@@ -581,6 +587,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 		AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	}
 	AddPermanentLinkBlock(
+		_show,
 		container,
 		_peer,
 		_peer->session().user(),
@@ -634,6 +641,7 @@ void EditPeerTypeBox::prepare() {
 
 	const auto controller = Ui::CreateChild<Controller>(
 		this,
+		std::make_shared<Ui::BoxShow>(this),
 		content.data(),
 		_peer,
 		_useLocationPhrases,

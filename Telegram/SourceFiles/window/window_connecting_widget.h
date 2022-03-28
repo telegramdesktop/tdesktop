@@ -30,6 +30,7 @@ public:
 
 	void raise();
 	void setForceHidden(bool hidden);
+	void setBottomSkip(int skip);
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -78,6 +79,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	not_null<Ui::RpWidget*> _parent;
+	rpl::variable<int> _bottomSkip;
 	base::unique_qptr<Widget> _widget;
 	bool _forceHidden = false;
 	base::Timer _refreshTimer;

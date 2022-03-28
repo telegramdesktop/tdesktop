@@ -34,7 +34,7 @@ namespace {
 
 [[nodiscard]] rpl::producer<Dialogs::UnreadState> MainListUnreadState(
 		not_null<Dialogs::MainList*> list) {
-	return rpl::single(rpl::empty_value()) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		list->unreadStateChanges() | rpl::to_empty
 	) | rpl::map([=] {
 		return list->unreadState();
@@ -103,9 +103,7 @@ void FiltersMenu::setup() {
 	}, _outer.lifetime());
 
 	const auto filters = &_session->session().data().chatsFilters();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single(rpl::empty) | rpl::then(
 		filters->changed()
 	) | rpl::start_with_next([=] {
 		refresh();
@@ -330,6 +328,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 		return _session->session().data().chatsFilters().chatsList(id);
 	};
 	Window::MenuAddMarkAsReadChatListAction(
+		_session,
 		std::move(filteredChats),
 		addAction);
 
@@ -345,10 +344,11 @@ void FiltersMenu::showEditBox(FilterId id) {
 }
 
 void FiltersMenu::showRemoveBox(FilterId id) {
-	_session->window().show(Box<Ui::ConfirmBox>(
-		tr::lng_filters_remove_sure(tr::now),
-		tr::lng_filters_remove_yes(tr::now),
-		[=](Fn<void()> &&close) { close(); remove(id); }));
+	_session->window().show(Ui::MakeConfirmBox({
+		.text = tr::lng_filters_remove_sure(),
+		.confirmed = [=](Fn<void()> &&close) { close(); remove(id); },
+		.confirmText = tr::lng_filters_remove_yes(),
+	}));
 }
 
 void FiltersMenu::remove(FilterId id) {

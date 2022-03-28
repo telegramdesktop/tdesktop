@@ -489,44 +489,5 @@ void Cover::refreshStatusGeometry(int newWidth) {
 		newWidth);
 }
 
-QMargins SharedMediaCover::getMargins() const {
-	return QMargins(0, 0, 0, st::infoSharedMediaBottomSkip);
-}
-
-SharedMediaCover::SharedMediaCover(QWidget *parent)
-: SectionWithToggle(parent, st::infoSharedMediaCoverHeight) {
-	createLabel();
-}
-
-SharedMediaCover *SharedMediaCover::setToggleShown(rpl::producer<bool> &&shown) {
-	return static_cast<SharedMediaCover*>(
-		SectionWithToggle::setToggleShown(std::move(shown)));
-}
-
-void SharedMediaCover::createLabel() {
-	using namespace rpl::mappers;
-	auto label = object_ptr<Ui::FlatLabel>(
-		this,
-		tr::lng_profile_shared_media() | Ui::Text::ToUpper(),
-		st::infoBlockHeaderLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	rpl::combine(
-		toggleShownValue(),
-		widthValue(),
-		_2
-	) | rpl::start_with_next([this, weak = label.data()](int newWidth) {
-		auto availableWidth = newWidth
-			- st::infoBlockHeaderPosition.x()
-			- st::infoSharedMediaButton.padding.right()
-			- toggleSkip();
-		weak->resizeToWidth(availableWidth);
-		weak->moveToLeft(
-			st::infoBlockHeaderPosition.x(),
-			st::infoBlockHeaderPosition.y(),
-			newWidth);
-	}, label->lifetime());
-}
-
 } // namespace Profile
 } // namespace Info

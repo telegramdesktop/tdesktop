@@ -636,7 +636,8 @@ ClickHandlerPtr Element::fromLink() const {
 			const auto my = context.other.value<ClickHandlerContext>();
 			if (const auto window = ContextOrSessionWindow(my, session)) {
 				auto &sponsored = session->data().sponsoredMessages();
-				const auto details = sponsored.lookupDetails(my.itemId);
+				const auto itemId = my.itemId ? my.itemId : item->fullId();
+				const auto details = sponsored.lookupDetails(itemId);
 				if (const auto &hash = details.hash) {
 					Api::CheckChatInvite(window, *hash);
 				} else if (const auto peer = details.peer) {

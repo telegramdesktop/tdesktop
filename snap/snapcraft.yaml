@@ -125,6 +125,8 @@ parts:
       - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
+      - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
       - -DTDESKTOP_API_ID=$API_ID
       - -DTDESKTOP_API_HASH=$API_HASH
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
@@ -354,17 +356,15 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_2_2
+      QT=6_2_4
 
-      git clone -b v6.2.2 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.2.4 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ../qt5compat
-      find $SNAPCRAFT_STAGE/patches/qt5compat_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
@@ -373,6 +373,9 @@ parts:
         -release \
         -opensource \
         -confirm-license \
+        -no-feature-getentropy \
+        -no-feature-renameat2 \
+        -no-feature-statx \
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \

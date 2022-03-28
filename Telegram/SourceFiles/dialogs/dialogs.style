@@ -167,7 +167,7 @@ dialogsCancelSearch: CrossButton {
 	cross: CrossAnimation {
 		size: 32px;
 		skip: 10px;
-		stroke: 2px;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	crossFg: dialogsMenuIconFg;
@@ -179,7 +179,7 @@ dialogsCancelSearch: CrossButton {
 	ripple: emptyRippleAnimation;
 }
 
-dialogsChatTypeSkip: 22px;
+dialogsChatTypeSkip: 20px;
 dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
 dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
 dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
@@ -309,3 +309,24 @@ dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgAct
 dialogsUnreadReaction: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
 dialogsUnreadReactionOver: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
 dialogsUnreadReactionActive: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+
+downloadBarHeight: 46px;
+downloadArrow: icon{{ "fast_to_original", menuIconFg }};
+downloadArrowOver: icon{{ "fast_to_original", menuIconFgOver }};
+downloadArrowRight: 10px;
+downloadTitleLeft: 57px;
+downloadTitleTop: 4px;
+downloadInfoStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px);
+	linkFontOver: font(12px underline);
+}
+downloadInfoLeft: 57px;
+downloadInfoTop: 23px;
+downloadLoadingLeft: 15px;
+downloadLoadingSize: 24px;
+downloadLoadingLine: 2px;
+downloadLoadedSize: 30px;
+downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
+downloadIconSize: 16px;
+downloadIconSizeDone: 20px;

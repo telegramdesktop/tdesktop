@@ -1606,11 +1606,12 @@ void Controller::deleteWithConfirmation() {
 		deleteChannel();
 	});
 	_navigation->parentController()->show(
-		Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_box_delete(tr::now),
-			st::attentionBoxButton,
-			deleteCallback),
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = deleteCallback,
+			.confirmText = tr::lng_box_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -1693,8 +1694,8 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 	) | rpl::map([&st](const QString &text, const QString &count, int width) {
 		const auto available = width
 			- st.button.padding.left()
-			- (st.button.font->spacew * 2)
-			- st.button.font->width(text)
+			- (st.button.style.font->spacew * 2)
+			- st.button.style.font->width(text)
 			- st.labelPosition.x();
 		const auto required = st.label.style.font->width(count);
 		return (required > available)
