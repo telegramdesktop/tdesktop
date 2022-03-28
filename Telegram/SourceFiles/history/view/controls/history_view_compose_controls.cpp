@@ -1949,7 +1949,10 @@ void ComposeControls::updateMessagesTTLShown() {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	} else if (shown && !_ttlInfo) {
-		_ttlInfo = std::make_unique<Controls::TTLButton>(_wrap.get(), peer);
+		_ttlInfo = std::make_unique<Controls::TTLButton>(
+			_wrap.get(),
+			std::make_shared<Window::Show>(_window),
+			peer);
 		orderControls();
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());

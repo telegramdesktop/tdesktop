@@ -236,6 +236,7 @@ void DeleteMessagesBox::prepare() {
 			|| (_wipeHistoryPeer->isChannel()
 				&& _wipeHistoryPeer->asChannel()->canDeleteMessages()))) {
 		_wipeHistoryPeer->updateFull();
+#if 0
 		_autoDeleteSettings.create(
 			this,
 			(_wipeHistoryPeer->messagesTTL()
@@ -245,10 +246,11 @@ void DeleteMessagesBox::prepare() {
 		_autoDeleteSettings->setClickedCallback([=] {
 			getDelegate()->show(
 				Box(
-					HistoryView::Controls::AutoDeleteSettingsBox,
+					HistoryView::Controls::AutoDeleteSettingsMenu,
 					_wipeHistoryPeer),
 				Ui::LayerOption(0));
 		});
+#endif
 	}
 
 	if (canDelete) {

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
+#include "menu/menu_ttl.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "ui/boxes/auto_delete_settings.h"
@@ -26,12 +27,12 @@ namespace {
 
 constexpr auto kToastDuration = crl::time(3500);
 
-} // namespace
-
-void ShowAutoDeleteToast(not_null<PeerData*> peer) {
+void ShowAutoDeleteToast(
+		not_null<QWidget*> parent,
+		not_null<PeerData*> peer) {
 	const auto period = peer->messagesTTL();
 	if (!period) {
-		Ui::Toast::Show(tr::lng_ttl_about_tooltip_off(tr::now));
+		Ui::Toast::Show(parent, tr::lng_ttl_about_tooltip_off(tr::now));
 		return;
 	}
 
@@ -46,20 +47,27 @@ void ShowAutoDeleteToast(not_null<PeerData*> peer) {
 		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
 		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
 	Ui::ShowMultilineToast({
+		.parentOverride = parent,
 		.text = { text },
 		.duration = kToastDuration,
 	});
 }
 
-void AutoDeleteSettingsBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
+} // namespace
+
+void AutoDeleteSettingsMenu(
+		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		rpl::producer<> triggers) {
 	struct State {
 		TimeId savingPeriod = 0;
 		mtpRequestId savingRequestId = 0;
-		QPointer<Ui::GenericBox> weak;
+		QPointer<Ui::RpWidget> weak;
 	};
-	const auto state = std::make_shared<State>(State{ .weak = box.get() });
+	const auto state = std::make_shared<State>(State{
+		.weak = Ui::MakeWeak(parent.get()),
+	});
 	auto callback = [=](TimeId period) {
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
@@ -74,42 +82,49 @@ void AutoDeleteSettingsBox(
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
-			ShowAutoDeleteToast(peer);
+			ShowAutoDeleteToast(show->toastParent(), peer);
+#if 0
 			if (const auto strong = state->weak.data()) {
 				strong->closeBox();
 			}
+#endif
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
 	};
-	Ui::AutoDeleteSettingsBox(
-		box,
-		peer->messagesTTL(),
-		(peer->isUser()
-			? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
-			: peer->isBroadcast()
-			? tr::lng_ttl_edit_about_channel()
-			: tr::lng_ttl_edit_about_group()),
-		std::move(callback));
+	auto about = peer->isUser()
+		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
+		: peer->isBroadcast()
+		? tr::lng_ttl_edit_about_channel()
+		: tr::lng_ttl_edit_about_group();
+	const auto ttl = peer->messagesTTL();
+	TTLMenu::SetupTTLMenu(
+		parent,
+		std::move(triggers),
+		{ std::move(show), ttl, std::move(about), std::move(callback) });
 }
 
-TTLButton::TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer)
+TTLButton::TTLButton(
+	not_null<Ui::RpWidget*> parent,
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer)
 : _peer(peer)
 , _button(parent, st::historyMessagesTTL) {
-	_button.setClickedCallback([=] {
+	auto triggers = _button.clicks(
+	) | rpl::to_empty | rpl::filter([=] {
 		const auto canEdit = peer->isUser()
 			|| (peer->isChat()
 				&& peer->asChat()->canDeleteMessages())
 			|| (peer->isChannel()
 				&& peer->asChannel()->canDeleteMessages());
 		if (!canEdit) {
-			ShowAutoDeleteToast(peer);
-			return;
+			ShowAutoDeleteToast(show->toastParent(), peer);
+			return false;
 		}
-		Ui::show(
-			Box(AutoDeleteSettingsBox, peer),
-			Ui::LayerOption(0));
+		return true;
 	});
+	AutoDeleteSettingsMenu(parent, show, peer, std::move(triggers));
+
 	peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::MessagesTTL

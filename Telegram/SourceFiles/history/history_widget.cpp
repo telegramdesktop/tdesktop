@@ -6386,6 +6386,7 @@ void HistoryWidget::checkMessagesTTL() {
 	} else if (!_ttlInfo || _ttlInfo->peer() != _peer) {
 		_ttlInfo = std::make_unique<HistoryView::Controls::TTLButton>(
 			this,
+			std::make_shared<Window::Show>(controller()),
 			_peer);
 		orderWidgets();
 		updateControlsGeometry();

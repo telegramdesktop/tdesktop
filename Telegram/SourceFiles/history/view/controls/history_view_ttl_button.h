@@ -10,18 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 
 namespace Ui {
-class GenericBox;
+class Show;
 } // namespace Ui
 
 namespace HistoryView::Controls {
 
-void AutoDeleteSettingsBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer);
+void AutoDeleteSettingsMenu(
+	not_null<Ui::RpWidget*> parent,
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer,
+	rpl::producer<> triggers);
 
 class TTLButton final {
 public:
-	TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer);
+	TTLButton(
+		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
