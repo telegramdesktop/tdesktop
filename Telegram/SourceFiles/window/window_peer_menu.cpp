@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "menu/menu_mute.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -122,6 +123,31 @@ void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
 	ranges::for_each(mark, MarkAsReadHistory);
 }
 
+void PeerMenuAddMuteSubmenuAction(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		const PeerMenuCallback &addAction) {
+	peer->owner().requestNotifySettings(peer);
+	const auto isMuted = peer->owner().notifyIsMuted(peer);
+	if (isMuted) {
+		addAction(tr::lng_mute_menu_unmute(tr::now), [=] {
+			peer->owner().updateNotifySettings(peer, 0);
+		}, &st::menuIconUnmute);
+	} else {
+		const auto show = std::make_shared<Window::Show>(controller);
+		addAction(PeerMenuCallback::Args{
+			.text = tr::lng_mute_menu_mute(tr::now),
+			.handler = nullptr,
+			.icon = peer->owner().notifySoundIsNone(peer)
+				? &st::menuIconSilent
+				: &st::menuIconMute,
+			.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
+				MuteMenu::FillMuteMenu(menu, { peer, show });
+			},
+		});
+	}
+}
+
 class Filler {
 public:
 	Filler(
@@ -143,6 +169,7 @@ private:
 	void addHidePromotion();
 	void addTogglePin();
 	void addToggleMute();
+	void addToggleMuteSubmenu(bool addSeparator);
 	void addSupportInfo();
 	void addInfo();
 	//void addToFolder();
@@ -342,6 +369,16 @@ void Filler::addToggleMute() {
 		return;
 	}
 	PeerMenuAddMuteAction(_controller, _peer, _addAction);
+}
+
+void Filler::addToggleMuteSubmenu(bool addSeparator) {
+	if (_peer->isSelf()) {
+		return;
+	}
+	PeerMenuAddMuteSubmenuAction(_controller, _peer, _addAction);
+	if (addSeparator) {
+		_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+	}
 }
 
 void Filler::addSupportInfo() {
@@ -746,7 +783,7 @@ void Filler::fillChatsListActions() {
 	if (ViewProfileInChatsListContextMenu.value()) {
 		addInfo();
 	}
-	addToggleMute();
+	addToggleMuteSubmenu(false);
 	addToggleUnreadMark();
 	// addToFolder();
 	if (const auto user = _peer->asUser()) {
@@ -760,8 +797,8 @@ void Filler::fillChatsListActions() {
 }
 
 void Filler::fillHistoryActions() {
+	addToggleMuteSubmenu(true);
 	addInfo();
-	addToggleMute();
 	addSupportInfo();
 	addManageChat();
 	addCreatePoll();
