@@ -23,10 +23,9 @@ void FakePasscode::FakePasscode::SetPasscode(QByteArray passcode) {
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
     FAKE_LOG(qsl("Add action of type %1 for passcode %2").arg(static_cast<int>(action->GetType())).arg(name_));
-    actions_[action->GetType()] = action;
-    if (action) {
-        action->Prepare();
-    }
+    ActionType type = action->GetType();
+    actions_[type] = std::move(action);
+    actions_[type]->Prepare();
     state_changed_.fire({});
 }
 
