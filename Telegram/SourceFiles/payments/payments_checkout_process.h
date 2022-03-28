@@ -137,6 +137,7 @@ private:
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 
+	bool _themeUpdateScheduled = false;
 	rpl::lifetime _gettingPasswordState;
 	rpl::lifetime _lifetime;
 

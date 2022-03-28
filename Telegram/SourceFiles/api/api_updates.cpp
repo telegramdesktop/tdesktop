@@ -1997,6 +1997,19 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateAttachMenuBots: {
+
+	} break;
+
+	case mtpc_updateWebViewResultSent: {
+		const auto &d = update.c_updateWebViewResultSent();
+		session().data().webViewResultSent({
+			.peerId = peerFromMTP(d.vpeer()),
+			.botId = UserId(d.vbot_id()),
+			.queryId = d.vquery_id().v,
+		});
+	} break;
+
 	case mtpc_updatePendingJoinRequests: {
 		const auto &d = update.c_updatePendingJoinRequests();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {

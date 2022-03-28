@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
 
 #include <QtCore/QJsonDocument>
@@ -104,27 +105,6 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 	return card.type().toLower()
 		+ " *"
 		+ SmartGlocal::Last4(card);
-}
-
-[[nodiscard]] QByteArray ThemeParams() {
-	const auto colors = std::vector<std::pair<QString, const style::color&>>{
-		{ "bg_color", st::windowBg },
-		{ "text_color", st::windowFg },
-		{ "hint_color", st::windowSubTextFg },
-		{ "link_color", st::windowActiveTextFg },
-		{ "button_color", st::windowBgActive },
-		{ "button_text_color", st::windowFgActive },
-	};
-	auto object = QJsonObject();
-	for (const auto &[name, color] : colors) {
-		const auto value = uint32(0xFF000000U)
-			| (uint32(color->c.red()) << 16)
-			| (uint32(color->c.green()) << 8)
-			| (uint32(color->c.blue()));
-		const auto int32value = *reinterpret_cast<const int32*>(&value);
-		object.insert(name, int32value);
-	}
-	return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
 } // namespace
@@ -262,7 +242,7 @@ void Form::requestForm() {
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
 		_peer->input,
 		MTP_int(_msgId),
-		MTP_dataJSON(MTP_bytes(ThemeParams()))
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams()))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
 		result.match([&](const auto &data) {

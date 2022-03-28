@@ -69,7 +69,8 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 Panel::Panel(
 	const QString &userDataPath,
 	Fn<void(QByteArray)> sendData,
-	Fn<void()> close)
+	Fn<void()> close,
+	Fn<QByteArray()> themeParams)
 : _userDataPath(userDataPath)
 , _sendData(std::move(sendData))
 , _close(std::move(close))
@@ -82,6 +83,17 @@ Panel::Panel(
 
 	_widget->closeEvents(
 	) | rpl::start_with_next(_close, _widget->lifetime());
+
+	style::PaletteChanged(
+	) | rpl::filter([=] {
+		return !_themeUpdateScheduled;
+	}) | rpl::start_with_next([=] {
+		_themeUpdateScheduled = true;
+		crl::on_main(_widget.get(), [=] {
+			_themeUpdateScheduled = false;
+			updateThemeParams(themeParams());
+		});
+	}, _widget->lifetime());
 
 	setTitle(rpl::single(u"Title"_q));
 }
@@ -392,6 +404,19 @@ void Panel::showCriticalError(const TextWithEntities &text) {
 	_widget->showInner(std::move(error));
 }
 
+void Panel::updateThemeParams(const QByteArray &json) {
+	if (!_webview || !_webview->window.widget()) {
+		return;
+	}
+	_webview->window.eval(R"(
+if (window.TelegramGameProxy) {
+	window.TelegramGameProxy.receiveEvent(
+		"theme_changed",
+		{ "theme_params": )" + json + R"( });
+}
+)");
+}
+
 void Panel::showWebviewError(
 		const QString &text,
 		const Webview::Available &information) {
@@ -438,7 +463,8 @@ std::unique_ptr<Panel> Show(Args &&args) {
 	auto result = std::make_unique<Panel>(
 		args.userDataPath,
 		std::move(args.sendData),
-		std::move(args.close));
+		std::move(args.close),
+		std::move(args.themeParams));
 	result->showWebview(args.url, rpl::single(u"smth"_q));
 	return result;
 }

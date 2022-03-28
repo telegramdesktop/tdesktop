@@ -698,6 +698,14 @@ public:
 	const std::vector<WallPaper> &wallpapers() const;
 	uint64 wallpapersHash() const;
 
+	struct WebViewResultSent {
+		PeerId peerId = 0;
+		UserId botId = 0;
+		uint64 queryId = 0;
+	};
+	void webViewResultSent(WebViewResultSent &&sent);
+	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
+
 	void clearLocalStorage();
 
 private:
@@ -983,6 +991,8 @@ private:
 
 	std::vector<WallPaper> _wallpapers;
 	uint64 _wallpapersHash = 0;
+
+	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

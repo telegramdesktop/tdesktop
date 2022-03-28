@@ -781,6 +781,19 @@ void Panel::showWebviewError(
 	showCriticalError(rich);
 }
 
+void Panel::updateThemeParams(const QByteArray &json) {
+	if (!_webview || !_webview->window.widget()) {
+		return;
+	}
+	_webview->window.eval(R"(
+if (window.TelegramGameProxy) {
+	window.TelegramGameProxy.receiveEvent(
+		"theme_changed",
+		{ "theme_params": )" + json + R"( });
+}
+)");
+}
+
 rpl::lifetime &Panel::lifetime() {
 	return _widget->lifetime();
 }

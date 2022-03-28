@@ -76,6 +76,7 @@ public:
 		const QString &url,
 		bool allowBack,
 		rpl::producer<QString> bottomText);
+	void updateThemeParams(const QByteArray &json);
 
 	[[nodiscard]] rpl::producer<> backRequests() const;
 

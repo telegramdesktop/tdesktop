@@ -26,7 +26,8 @@ public:
 	Panel(
 		const QString &userDataPath,
 		Fn<void(QByteArray)> sendData,
-		Fn<void()> close);
+		Fn<void()> close,
+		Fn<QByteArray()> themeParams);
 	~Panel();
 
 	void requestActivate();
@@ -39,6 +40,8 @@ public:
 	void showBox(object_ptr<BoxContent> box);
 	void showToast(const TextWithEntities &text);
 	void showCriticalError(const TextWithEntities &text);
+
+	void updateThemeParams(const QByteArray &json);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -66,6 +69,7 @@ private:
 	std::unique_ptr<RpWidget> _webviewBottom;
 	std::unique_ptr<Progress> _progress;
 	bool _webviewProgress = false;
+	bool _themeUpdateScheduled = false;
 
 };
 
@@ -74,7 +78,7 @@ struct Args {
 	QString userDataPath;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
-	bool simple = false;
+	Fn<QByteArray()> themeParams;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);
 

@@ -4225,6 +4225,14 @@ uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 
+void Session::webViewResultSent(WebViewResultSent &&sent) {
+	return _webViewResultSent.fire(std::move(sent));
+}
+
+auto Session::webViewResultSent() const -> rpl::producer<WebViewResultSent> {
+	return _webViewResultSent.events();
+}
+
 void Session::clearLocalStorage() {
 	_cache->close();
 	_cache->clear();

@@ -432,12 +432,14 @@ void SessionNavigation::requestAttachWebview(
 		not_null<UserData*> bot,
 		const WebViewButton &button) {
 	using Flag = MTPmessages_RequestWebView::Flag;
+	const auto flags = Flag::f_theme_params
+		| (button.url.isEmpty() ? Flag(0) : Flag::f_url);
 	_api.request(MTPmessages_RequestWebView(
-		MTP_flags(button.url.isEmpty() ? Flag(0) : Flag::f_url),
+		MTP_flags(flags),
 		peer->input,
 		bot->inputUser,
 		MTP_bytes(button.url),
-		MTPDataJSON(), // theme_params
+		MTP_dataJSON(MTP_bytes(Theme::WebViewParams())),
 		MTPint() // reply_to_msg_id
 	)).done([=](const MTPWebViewResult &result) {
 		result.match([&](const MTPDwebViewResultUrl &data) {
@@ -509,7 +511,17 @@ void SessionNavigation::showAttachWebview(
 		.userDataPath = session().domain().local().webviewDataPath(),
 		.sendData = sendData,
 		.close = close,
+		.themeParams = [] { return Window::Theme::WebViewParams(); },
 	});
+
+	session().data().webViewResultSent(
+	) | rpl::filter([=](const Data::Session::WebViewResultSent &sent) {
+		return (sent.peerId == peer->id)
+			&& (sent.botId == bot->id)
+			&& (sent.queryId == queryId);
+	}) | rpl::start_with_next([=] {
+		_botWebView = nullptr;
+	}, _botWebView->lifetime());
 }
 
 void SessionNavigation::requestAddToMenu(

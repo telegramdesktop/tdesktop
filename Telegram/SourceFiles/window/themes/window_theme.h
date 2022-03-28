@@ -293,5 +293,7 @@ bool ReadPaletteValues(
 	const QByteArray &content,
 	Fn<bool(QLatin1String name, QLatin1String value)> callback);
 
+[[nodiscard]] QByteArray WebViewParams();
+
 } // namespace Theme
 } // namespace Window
