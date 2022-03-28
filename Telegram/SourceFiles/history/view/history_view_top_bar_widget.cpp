@@ -283,7 +283,7 @@ bool TopBarWidget::createMenu(not_null<Ui::IconButton*> button) {
 	if (!_activeChat.key || _menu) {
 		return false;
 	}
-	_menu.create(this, st::popupMenuWithIcons);
+	_menu.create(this, st::popupMenuExpandedSeparator);
 	_menu->setDestroyedCallback([
 			weak = Ui::MakeWeak(this),
 			weakButton = Ui::MakeWeak(button),
@@ -307,6 +307,18 @@ void TopBarWidget::showPeerMenu() {
 	}
 	const auto addAction = Window::PeerMenuCallback([&](
 			Window::PeerMenuCallback::Args a) {
+		if (a.fillSubmenu) {
+			const auto action = _menu->addAction(
+				a.text,
+				std::move(a.handler),
+				a.icon);
+			// Dummy menu.
+			action->setMenu(Ui::CreateChild<QMenu>(_menu->menu().get()));
+			a.fillSubmenu(_menu->ensureSubmenu(action));
+			return action;
+		} else if (a.isSeparator) {
+			return _menu->addSeparator();
+		}
 		return _menu->addAction(a.text, std::move(a.handler), a.icon);
 	});
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);

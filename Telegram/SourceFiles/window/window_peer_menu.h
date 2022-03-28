@@ -41,9 +41,11 @@ extern const char kOptionViewProfileInChatsListContextMenu[];
 struct PeerMenuCallback {
 public:
 	struct Args {
-		const QString &text;
+		QString text;
 		Fn<void()> handler;
 		const style::icon *icon;
+		Fn<void(not_null<Ui::PopupMenu*>)> fillSubmenu;
+		bool isSeparator = false;
 	};
 	using Callback = Fn<QAction*(Args&&)>;
 
@@ -58,7 +60,7 @@ public:
 			const QString &text,
 			Fn<void()> handler,
 			const style::icon *icon) const {
-		return callback({ text, std::move(handler), icon });
+		return callback({ text, std::move(handler), icon, nullptr });
 	}
 private:
 	Callback callback;
