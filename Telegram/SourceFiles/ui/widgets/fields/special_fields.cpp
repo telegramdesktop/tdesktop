@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 
 #include "lang/lang_keys.h"
 #include "countries/countries_instance.h" // Countries::ValidPhoneCode

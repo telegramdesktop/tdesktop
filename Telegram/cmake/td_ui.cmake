@@ -237,8 +237,8 @@ PRIVATE
     ui/cached_round_corners.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
-    ui/special_fields.cpp
-    ui/special_fields.h
+    ui/widgets/fields/special_fields.cpp
+    ui/widgets/fields/special_fields.h
 
     ui/ui_pch.h
 )
