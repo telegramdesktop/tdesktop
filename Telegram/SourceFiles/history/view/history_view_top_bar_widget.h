@@ -21,7 +21,7 @@ namespace Ui {
 class AbstractButton;
 class RoundButton;
 class IconButton;
-class DropdownMenu;
+class PopupMenu;
 class UnreadBadge;
 class InfiniteRadialAnimation;
 enum class ReportReason;
@@ -179,7 +179,7 @@ private:
 	object_ptr<Ui::IconButton> _search;
 	object_ptr<Ui::IconButton> _infoToggle;
 	object_ptr<Ui::IconButton> _menuToggle;
-	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
+	object_ptr<Ui::PopupMenu> _menu = { nullptr };
 
 	object_ptr<TWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/boxes/report_box.h" // Ui::ReportReason
@@ -283,8 +283,8 @@ bool TopBarWidget::createMenu(not_null<Ui::IconButton*> button) {
 	if (!_activeChat.key || _menu) {
 		return false;
 	}
-	_menu.create(parentWidget(), st::dropdownMenuWithIcons);
-	_menu->setHiddenCallback([
+	_menu.create(this, st::popupMenuWithIcons);
+	_menu->setDestroyedCallback([
 			weak = Ui::MakeWeak(this),
 			weakButton = Ui::MakeWeak(button),
 			menu = _menu.data()] {
@@ -296,17 +296,7 @@ bool TopBarWidget::createMenu(not_null<Ui::IconButton*> button) {
 			}
 		}
 	});
-	_menu->setShowStartCallback(crl::guard(this, [=, menu = _menu.data()] {
-		if (_menu == menu) {
-			button->setForceRippled(true);
-		}
-	}));
-	_menu->setHideStartCallback(crl::guard(this, [=, menu = _menu.data()] {
-		if (_menu == menu) {
-			button->setForceRippled(false);
-		}
-	}));
-	button->installEventFilter(_menu);
+	button->setForceRippled(true);
 	return true;
 }
 
@@ -323,10 +313,10 @@ void TopBarWidget::showPeerMenu() {
 	if (_menu->empty()) {
 		_menu.destroy();
 	} else {
-		_menu->moveToRight(
-			(parentWidget()->width() - width()) + st::topBarMenuPosition.x(),
-			st::topBarMenuPosition.y());
-		_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		_menu->popup(mapToGlobal(QPoint(
+			width() + st::topBarMenuPosition.x(),
+			st::topBarMenuPosition.y())));
 	}
 }
 
@@ -358,14 +348,10 @@ void TopBarWidget::showGroupCallMenu(not_null<PeerData*> peer) {
 			: tr::lng_menu_start_group_call_with(tr::now),
 		[=] { callback({ .rtmpNeeded = true }); },
 		&st::menuIconStartStreamWith);
-	_menu->moveToRight(
-		(parentWidget()->width() - width())
-			+ (width()
-				- _groupCall->x()
-				- _groupCall->width()
-				- st::topBarMenuGroupCallSkip),
-		st::topBarMenuPosition.y());
-	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	_menu->popup(mapToGlobal(QPoint(
+		_groupCall->x() + _groupCall->width() + st::topBarMenuGroupCallSkip,
+		st::topBarMenuPosition.y())));
 }
 
 void TopBarWidget::toggleInfoSection() {
@@ -729,8 +715,7 @@ void TopBarWidget::setActiveChat(
 	updateUnreadBadge();
 	refreshInfoButton();
 	if (_menu) {
-		_menuToggle->removeEventFilter(_menu);
-		_menu->hideFast();
+		_menu = nullptr;
 	}
 	updateOnlineDisplay();
 	updateControlsVisibility();

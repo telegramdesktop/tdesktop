@@ -664,8 +664,8 @@ historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;
 }
 topBarHeight: 54px;
-topBarMenuPosition: point(-2px, 35px);
-topBarMenuGroupCallSkip: 40px;
+topBarMenuPosition: point(-6px, 45px);
+topBarMenuGroupCallSkip: 20px;
 topBarDuration: 200;
 topBarBackward: icon {{ "title_back", menuIconFg }};
 topBarForwardAlpha: 0.6;
