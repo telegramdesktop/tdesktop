@@ -12,17 +12,23 @@ class PeerData;
 namespace Ui {
 class PopupMenu;
 class RpWidget;
+class Show;
 } // namespace Ui
 
 namespace MuteMenu {
 
+struct Args {
+	not_null<PeerData*> peer;
+	std::shared_ptr<Ui::Show> show;
+};
+
 void FillMuteMenu(
 	not_null<Ui::PopupMenu*> menu,
-	not_null<PeerData*> peer);
+	Args args);
 
 void SetupMuteMenu(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<> triggers,
-	not_null<PeerData*> peer);
+	Args args);
 
 } // namespace MuteMenu

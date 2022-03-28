@@ -379,7 +379,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	MuteMenu::SetupMuteMenu(
 		result.data(),
 		result->clicks() | rpl::to_empty,
-		peer);
+		{ peer, std::make_shared<Window::Show>(_controller) });
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,

@@ -989,6 +989,16 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
 
+muteBoxTimeField: InputField(scheduleDateField) {
+	textMargins: margins(0px, 0px, 0px, 0px);
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	heightMin: 30px;
+	textAlign: align(left);
+	font: font(14px);
+}
+muteBoxTimeFieldPadding: margins(5px, 0px, 5px, 0px);
+
 boxAttentionDividerLabel: FlatLabel(boxDividerLabel) {
 	textFg: boxTextFgError;
 }
