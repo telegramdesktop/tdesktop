@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/effects/ripple_animation.h"
 #include "window/themes/window_theme.h"
@@ -31,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_menu_icons.h"
+
+#include <QSvgRenderer>
 
 namespace InlineBots {
 namespace {
@@ -81,23 +85,32 @@ public:
 	bool isEnabled() const override;
 	not_null<QAction*> action() const override;
 
+	[[nodiscard]] rpl::producer<bool> forceShown() const;
+
 	void handleKeyPress(not_null<QKeyEvent*> e) override;
 
-protected:
+private:
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
 	QPoint prepareRippleStartPosition() const override;
 	QImage prepareRippleMask() const override;
 
 	int contentHeight() const override;
 
-private:
 	void prepare();
+	void validateIcon();
 	void paint(Painter &p);
 
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
 	const AttachWebViewBot _bot;
 
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::event_stream<bool> _forceShown;
+
 	Ui::Text::String _text;
+	QImage _mask;
+	QImage _icon;
 	int _textWidth = 0;
 	const int _height;
 
@@ -115,7 +128,7 @@ BotAction::BotAction(
 , _height(_st.itemPadding.top()
 		+ _st.itemStyle.font->height
 		+ _st.itemPadding.bottom()) {
-	setAcceptBoth(true);
+	setAcceptBoth(false);
 	initResizeHook(parent->sizeValue());
 	setClickedCallback(std::move(callback));
 
@@ -125,11 +138,48 @@ BotAction::BotAction(
 		paint(p);
 	}, lifetime());
 
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_icon = QImage();
+		update();
+	}, lifetime());
+
 	enableMouseSelecting();
 	prepare();
 }
 
+void BotAction::validateIcon() {
+	if (_mask.isNull()) {
+		if (!_bot.media->loaded()) {
+			return;
+		}
+		auto icon = QSvgRenderer(_bot.media->bytes());
+		if (!icon.isValid()) {
+			_mask = QImage(
+				QSize(1, 1) * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			_mask.fill(Qt::transparent);
+		} else {
+			const auto size = style::ConvertScale(icon.defaultSize());
+			_mask = QImage(
+				size * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			_mask.fill(Qt::transparent);
+			{
+				auto p = QPainter(&_mask);
+				icon.render(&p, QRect(QPoint(), size));
+			}
+			_mask = Images::Colored(std::move(_mask), QColor(255, 255, 255));
+		}
+	}
+	if (_icon.isNull()) {
+		_icon = style::colorizeImage(_mask, st::menuIconColor);
+	}
+}
+
 void BotAction::paint(Painter &p) {
+	validateIcon();
+
 	const auto selected = isSelected();
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
@@ -139,14 +189,9 @@ void BotAction::paint(Painter &p) {
 		paintRipple(p, 0, 0);
 	}
 
-	const auto normalHeight = _st.itemPadding.top()
-		+ _st.itemStyle.font->height
-		+ _st.itemPadding.bottom();
-	const auto deltaHeight = _height - normalHeight;
-	st::menuIconDelete.paint(
-		p,
-		_st.itemIconPosition + QPoint(0, deltaHeight / 2),
-		width());
+	if (!_icon.isNull()) {
+		p.drawImage(_st.itemIconPosition, _icon);
+	}
 
 	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
 	_text.drawLeftElided(
@@ -180,6 +225,24 @@ not_null<QAction*> BotAction::action() const {
 	return _dummyAction;
 }
 
+void BotAction::contextMenuEvent(QContextMenuEvent *e) {
+	_menu = nullptr;
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	_menu->addAction(tr::lng_bot_remove_from_menu(tr::now), [=] {
+		_bot.user->session().attachWebView().removeFromMenu(_bot.user);
+	}, &st::menuIconDelete);
+
+	QObject::connect(_menu, &QObject::destroyed, [=] {
+		_forceShown.fire(false);
+	});
+
+	_forceShown.fire(true);
+	_menu->popup(e->globalPos());
+	e->accept();
+}
+
 QPoint BotAction::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
 }
@@ -190,6 +253,10 @@ QImage BotAction::prepareRippleMask() const {
 
 int BotAction::contentHeight() const {
 	return _height;
+}
+
+rpl::producer<bool> BotAction::forceShown() const {
+	return _forceShown.events();
 }
 
 void BotAction::handleKeyPress(not_null<QKeyEvent*> e) {
@@ -348,7 +415,8 @@ void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
 					} else {
 						requestBots();
 						Ui::ShowMultilineToast({
-							.text = { u"Bot is already added."_q },
+							.text = {
+								tr::lng_bot_menu_already_added(tr::now) },
 						});
 					}
 				}
@@ -358,13 +426,17 @@ void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
 		_addToMenuId = 0;
 		_addToMenuBot = nullptr;
 		Ui::ShowMultilineToast({
-			.text = { u"Bot cannot be added to the menu."_q },
-			});
+			.text = { tr::lng_bot_menu_not_supported(tr::now) },
+		});
 	}).send();
 }
 
 void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
-	toggleInMenu(bot, false, nullptr);
+	toggleInMenu(bot, false, [=] {
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_bot_remove_from_menu_done(tr::now) },
+		});
+	});
 }
 
 void AttachWebView::resolve() {
@@ -378,8 +450,7 @@ void AttachWebView::requestByUsername() {
 		_bot = bot->asUser();
 		if (!_bot || !_bot->isBot() || !_bot->botInfo->supportsAttachMenu) {
 			Ui::ShowMultilineToast({
-				// #TODO webview lang
-				.text = { u"This bot isn't supported in the attach menu."_q }
+				.text = { tr::lng_bot_menu_not_supported(tr::now) }
 			});
 			return;
 		}
@@ -529,15 +600,18 @@ void AttachWebView::confirmAddToMenu(
 			if (callback) {
 				callback();
 			}
-			close();
+			Ui::ShowMultilineToast({
+				.text = { tr::lng_bot_add_to_menu_done(tr::now) },
+			});
 		});
+		close();
 	};
 	const auto active = Core::App().activeWindow();
 	if (!active) {
 		return;
 	}
 	_confirmAddBox = active->show(Ui::MakeConfirmBox({
-		u"Do you want to? "_q + bot.name,
+		tr::lng_bot_add_to_menu(tr::now, lt_bot, bot.name),
 		done,
 	}));
 }
@@ -562,7 +636,8 @@ void AttachWebView::toggleInMenu(
 
 std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		Fn<void(bool)> forceShown) {
 	auto result = std::make_unique<Ui::DropdownMenu>(
 		parent,
 		st::dropdownMenuWithIcons);
@@ -571,12 +646,22 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	const auto refresh = [=] {
 		raw->clearActions();
 		for (const auto &bot : bots->attachBots()) {
-			raw->addAction(base::make_unique_q<BotAction>(raw, bot, raw->menu()->st(), [=] {
+			const auto callback = [=] {
 				const auto active = controller->activeChatCurrent();
 				if (const auto history = active.history()) {
 					bots->request(history->peer, bot.user);
 				}
-			}));
+			};
+			auto action = base::make_unique_q<BotAction>(
+				raw,
+				raw->menu()->st(),
+				bot,
+				callback);
+			action->forceShown(
+			) | rpl::start_with_next([=](bool shown) {
+				forceShown(shown);
+			}, action->lifetime());
+			raw->addAction(std::move(action));
 		}
 	};
 	refresh();

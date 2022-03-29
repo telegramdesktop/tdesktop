@@ -482,7 +482,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			result->showWebviewError(
-				tr::lng_payments_webview_no_card(tr::now),
+				tr::lng_bot_no_webview(tr::now),
 				available);
 		} else {
 			result->showCriticalError({

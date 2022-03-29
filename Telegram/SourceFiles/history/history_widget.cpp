@@ -489,9 +489,18 @@ HistoryWidget::HistoryWidget(
 			_attachBotsMenu = nullptr;
 			return;
 		} else if (!_attachBotsMenu) {
+			const auto forceShown = [=](bool shown) {
+				if (shown) {
+					_attachBotsMenu->setAutoHiding(false);
+				} else {
+					_attachBotsMenu->hideAnimated();
+					_attachBotsMenu->setAutoHiding(true);
+				}
+			};
 			_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
 				this,
-				controller);
+				controller,
+				forceShown);
 			_attachBotsMenu->setOrigin(
 				Ui::PanelAnimation::Origin::BottomLeft);
 			if (_history && _history->peer->isUser()) {

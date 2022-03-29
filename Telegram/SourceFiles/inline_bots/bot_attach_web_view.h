@@ -85,7 +85,7 @@ private:
 	void toggleInMenu(
 		not_null<UserData*> bot,
 		bool enabled,
-		Fn<void()> callback);
+		Fn<void()> callback = nullptr);
 
 	void show(
 		uint64 queryId,
@@ -122,6 +122,7 @@ private:
 
 [[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller);
+	not_null<Window::SessionController*> controller,
+	Fn<void(bool)> forceShown);
 
 } // namespace InlineBots
