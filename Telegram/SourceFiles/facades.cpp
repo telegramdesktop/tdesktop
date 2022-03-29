@@ -235,7 +235,7 @@ void activateBotCommand(
 		if (const auto bot = msg->getMessageBot()) {
 			bot->session().attachWebView().requestSimple(
 				bot,
-				button->data);
+				{ .text = button->text, .url = button->data });
 		}
 	} break;
 	}

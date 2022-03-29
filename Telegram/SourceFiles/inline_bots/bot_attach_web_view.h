@@ -32,14 +32,15 @@ public:
 	struct WebViewButton {
 		QString text;
 		QByteArray url;
-		bool simple = false;
 	};
 	void request(not_null<PeerData*> peer, const QString &botUsername);
 	void request(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
 		const WebViewButton &button = WebViewButton());
-	void requestSimple(not_null<UserData*> bot, const QByteArray &url);
+	void requestSimple(
+		not_null<UserData*> bot,
+		const WebViewButton &button);
 
 private:
 	void cancel();

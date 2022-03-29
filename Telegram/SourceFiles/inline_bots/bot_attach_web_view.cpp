@@ -168,7 +168,8 @@ void AttachWebView::resolveUsername(
 		if (error.code() == 400) {
 			Ui::ShowMultilineToast({
 				.text = {
-					tr::lng_username_not_found(tr::now, lt_user, username) }
+					tr::lng_username_not_found(tr::now, lt_user, username),
+				},
 			});
 		}
 	}).send();
@@ -176,25 +177,21 @@ void AttachWebView::resolveUsername(
 
 void AttachWebView::requestSimple(
 		not_null<UserData*> bot,
-		const QByteArray &url) {
-	if (_peer != bot || _bot != bot) {
-		return;
-	}
+		const WebViewButton &button) {
 	cancel();
-
 	_bot = bot;
 	_peer = bot;
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
-		MTP_flags(0),
+		MTP_flags(Flag::f_theme_params),
 		bot->inputUser,
-		MTP_bytes(url),
-		MTPDataJSON()
+		MTP_bytes(button.url),
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams()))
 	)).done([=](const MTPSimpleWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDsimpleWebViewResultUrl &data) {
 			const auto queryId = uint64();
-			show(queryId, qs(data.vurl()));
+			show(queryId, qs(data.vurl()), button.text);
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -212,7 +209,7 @@ void AttachWebView::show(
 		cancel();
 	});
 	const auto sendData = crl::guard(this, [=](QByteArray data) {
-		if (_peer != _bot || !queryId) {
+		if (_peer != _bot) {
 			cancel();
 			return;
 		}
