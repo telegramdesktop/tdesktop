@@ -702,6 +702,8 @@ public:
 
     void resetCaches();
 
+	void clearContacts();
+
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
 

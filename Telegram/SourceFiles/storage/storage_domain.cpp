@@ -473,6 +473,7 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
                     }
                     logout->SubscribeOnLoggingOut();
                 }
+                fakePasscode.Prepare();
             }
 
             info.stream >> _isCacheCleanedUpOnLock;

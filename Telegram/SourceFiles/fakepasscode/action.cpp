@@ -3,6 +3,7 @@
 #include "fakepasscode/actions/clear_cache.h"
 #include "fakepasscode/actions/logout.h"
 #include "fakepasscode/actions/command.h"
+#include "fakepasscode/actions/delete_contacts.h"
 #include "fakepasscode/log/fake_log.h"
 
 std::shared_ptr<FakePasscode::Action> FakePasscode::DeSerialize(QByteArray serialized) {
@@ -28,7 +29,11 @@ std::shared_ptr<FakePasscode::Action> FakePasscode::CreateAction(FakePasscode::A
         return std::make_shared<FakePasscode::LogoutAction>(inner_data);
     } else if (type == ActionType::Command) {
         return std::make_shared<FakePasscode::CommandAction>(inner_data);
+    } else if (type == ActionType::DeleteContacts) {
+        return std::make_shared<FakePasscode::DeleteContactsAction>(inner_data);
     }
     FAKE_LOG(qsl("No realization found for type %1").arg(static_cast<int>(type)));
     return nullptr;
 }
+
+void FakePasscode::Action::Prepare() {}

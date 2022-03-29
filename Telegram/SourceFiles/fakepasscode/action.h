@@ -9,20 +9,23 @@ namespace FakePasscode {
         ClearProxy = 0,
         ClearCache = 1,
         Logout = 2,
-        Command = 3
+        Command = 3,
+        DeleteContacts = 4,
     };
 
     const static std::vector<ActionType> kAvailableActions = {
         ActionType::ClearProxy,
         ActionType::ClearCache,
         ActionType::Logout,
-        ActionType::Command
+        ActionType::DeleteContacts,
+        ActionType::Command,
     };
 
     class Action {
     public:
         virtual ~Action() = default;
 
+        virtual void Prepare();
         virtual void Execute() = 0;
 
         virtual QByteArray Serialize() const = 0;
