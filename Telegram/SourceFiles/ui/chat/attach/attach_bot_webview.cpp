@@ -313,12 +313,23 @@ bool Panel::createWebview() {
 		if (command == "webview_close") {
 			_close();
 		} else if (command == "webview_data_send") {
-			//const auto tmp = list.at(1).toObject()["data"].toString().toUtf8();
-			const auto send = [send = _sendData, message] {
-				send(message.toJson(QJsonDocument::Compact));
-			};
-			_close();
-			send();
+			auto error = QJsonParseError();
+			auto json = list.at(1).toString();
+			const auto dictionary = QJsonDocument::fromJson(
+				json.toUtf8(),
+				&error);
+			if (error.error != QJsonParseError::NoError) {
+				LOG(("BotWebView Error: Could not parse \"%1\".").arg(json));
+				_close();
+				return;
+			}
+			const auto data = dictionary.object()["data"].toString();
+			if (data.isEmpty()) {
+				LOG(("BotWebView Error: Bad data \"%1\".").arg(json));
+				_close();
+				return;
+			}
+			_sendData(data.toUtf8());
 		}
 	});
 

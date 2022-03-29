@@ -36,6 +36,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace InlineBots {
+class AttachWebView;
+} // namespace InlineBots
+
 namespace Settings {
 enum class Type;
 } // namespace Settings
@@ -60,10 +64,6 @@ struct ChatThemeBackground;
 struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
 } // namespace Ui
-
-namespace Ui::BotWebView {
-class Panel;
-} // namespace Ui::BotWebView
 
 namespace Data {
 struct CloudTheme;
@@ -201,22 +201,6 @@ public:
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
-	struct WebViewButton {
-		QString text;
-		QByteArray url;
-		bool simple = false;
-	};
-	void resolveAttachWebview(
-		not_null<PeerData*> peer,
-		const QString &botUsername);
-	void requestAttachWebview(
-		not_null<PeerData*> peer,
-		not_null<UserData*> bot,
-		const WebViewButton &button = WebViewButton());
-	void requestAttachSimpleWebview(
-		not_null<UserData*> bot,
-		const QByteArray &url);
-
 	void showRepliesForMessage(
 		not_null<History*> history,
 		MsgId rootId,
@@ -264,7 +248,6 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
-
 private:
 	void resolvePhone(
 		const QString &phone,
@@ -284,19 +267,6 @@ private:
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 
-	void requestAddToMenu(not_null<UserData*> bot, Fn<void()> callback);
-	void showAttachWebview(
-		not_null<PeerData*> peer,
-		not_null<UserData*> bot,
-		uint64 queryId,
-		const QString &url,
-		const QString &buttonText = QString());
-
-	void toggleInMenu(
-		not_null<UserData*> bot,
-		bool enabled,
-		Fn<void()> callback);
-
 	const not_null<Main::Session*> _session;
 
 	MTP::Sender _api;
@@ -306,8 +276,6 @@ private:
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
 	mtpRequestId _showingRepliesRequestId = 0;
-
-	std::unique_ptr<Ui::BotWebView::Panel> _botWebView;
 
 };
 
