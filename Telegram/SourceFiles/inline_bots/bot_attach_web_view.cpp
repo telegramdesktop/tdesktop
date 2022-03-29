@@ -14,15 +14,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/application.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
+#include "styles/style_menu_icons.h"
 
 namespace InlineBots {
 namespace {
@@ -135,6 +139,38 @@ void AttachWebView::cancel() {
 	_panel = nullptr;
 	_peer = _bot = nullptr;
 	_botUsername = QString();
+}
+
+void AttachWebView::requestBots() {
+	if (_botsRequestId) {
+		return;
+	}
+	_botsRequestId = _session->api().request(MTPmessages_GetAttachMenuBots(
+		MTP_long(_botsHash)
+	)).done([=](const MTPAttachMenuBots &result) {
+		_botsRequestId = 0;
+		result.match([&](const MTPDattachMenuBotsNotModified &) {
+		}, [&](const MTPDattachMenuBots &data) {
+			_session->data().processUsers(data.vusers());
+			_botsHash = data.vhash().v;
+			_attachBots.clear();
+			_attachBots.reserve(data.vbots().v.size());
+			for (const auto &bot : data.vbots().v) {
+				bot.match([&](const MTPDattachMenuBot &data) {
+					if (data.is_inactive()) {
+						return;
+					}
+					_attachBots.push_back({
+						.user = _session->data().user(data.vbot_id()),
+						.name = qs(data.vattach_menu_name()),
+					});
+				});
+			}
+			_attachBotsUpdates.fire({});
+		});
+	}).fail([=] {
+		_botsRequestId = 0;
+	}).send();
 }
 
 void AttachWebView::resolve() {
@@ -318,10 +354,37 @@ void AttachWebView::toggleInMenu(bool enabled, Fn<void()> callback) {
 		MTP_bool(enabled)
 	)).done([=] {
 		_requestId = 0;
+		requestBots();
 		callback();
 	}).fail([=] {
 		cancel();
 	}).send();
+}
+
+std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller) {
+	auto result = std::make_unique<Ui::DropdownMenu>(
+		parent,
+		st::dropdownMenuWithIcons);
+	const auto bots = &controller->session().attachWebView();
+	const auto raw = result.get();
+	const auto refresh = [=] {
+		raw->clearActions();
+		for (const auto &bot : bots->attachBots()) {
+			raw->addAction(bot.name, [=, bot = bot.user]{
+				const auto active = controller->activeChatCurrent();
+				if (const auto history = active.history()) {
+					bots->request(history->peer, bot);
+				}
+			});
+		}
+	};
+	refresh();
+	bots->attachBotsUpdates(
+	) | rpl::start_with_next(refresh, raw->lifetime());
+
+	return result;
 }
 
 } // namespace InlineBots

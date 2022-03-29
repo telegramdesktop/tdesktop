@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class GenericBox;
+class DropdownMenu;
 } // namespace Ui
 
 namespace Ui::BotWebView {
@@ -22,7 +23,16 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace InlineBots {
+
+struct AttachWebViewBot {
+	not_null<UserData*> user;
+	QString name;
+};
 
 class AttachWebView final : public base::has_weak_ptr {
 public:
@@ -43,6 +53,14 @@ public:
 		const WebViewButton &button);
 
 	void cancel();
+
+	void requestBots();
+	[[nodiscard]] const std::vector<AttachWebViewBot> &attachBots() const {
+		return _attachBots;
+	}
+	[[nodiscard]] rpl::producer<> attachBotsUpdates() const {
+		return _attachBotsUpdates.events();
+	}
 
 	static void ClearAll();
 
@@ -74,8 +92,18 @@ private:
 	mtpRequestId _requestId = 0;
 	mtpRequestId _prolongId = 0;
 
+	uint64 _botsHash = 0;
+	mtpRequestId _botsRequestId = 0;
+
+	std::vector<AttachWebViewBot> _attachBots;
+	rpl::event_stream<> _attachBotsUpdates;
+
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 
 };
+
+[[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
+	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> controller);
 
 } // namespace InlineBots

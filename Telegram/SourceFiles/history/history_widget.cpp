@@ -139,6 +139,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "inline_bots/inline_results_widget.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "info/profile/info_profile_values.h" // SharedMediaCountValue.
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
@@ -477,6 +478,27 @@ HistoryWidget::HistoryWidget(
 	_botKeyboardShow->hide();
 	_botKeyboardHide->hide();
 	_botCommandStart->hide();
+
+	session().attachWebView().requestBots();
+	session().attachWebView().attachBotsUpdates(
+	) | rpl::start_with_next([=] {
+		const auto list = [=] {
+			return session().attachWebView().attachBots();
+		};
+		if (session().attachWebView().attachBots().empty()) {
+			_attachBotsMenu = nullptr;
+			return;
+		} else if (!_attachBotsMenu) {
+			_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
+				this,
+				controller);
+			_attachBotsMenu->setOrigin(
+				Ui::PanelAnimation::Origin::BottomLeft);
+			if (_history && _history->peer->isUser()) {
+				_attachToggle->installEventFilter(_attachBotsMenu.get());
+			}
+		}
+	}, lifetime());
 
 	_botKeyboardShow->addClickHandler([=] { toggleKeyboard(); });
 	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
@@ -2327,6 +2349,15 @@ void HistoryWidget::showHistory(
 void HistoryWidget::setHistory(History *history) {
 	if (_history == history) {
 		return;
+	}
+
+	const auto was = _attachBotsMenu && _history && _history->peer->isUser();
+	const auto now = _attachBotsMenu && history && history->peer->isUser();
+	if (was && !now) {
+		_attachToggle->removeEventFilter(_attachBotsMenu.get());
+		_attachBotsMenu->hideFast();
+	} else if (now && !was) {
+		_attachToggle->installEventFilter(_attachBotsMenu.get());
 	}
 
 	const auto unloadHeavyViewParts = [](History *history) {
@@ -4680,6 +4711,11 @@ void HistoryWidget::moveFieldControls() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->moveBottomRight(buttonsBottom, width());
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->moveToLeft(
+			0,
+			buttonsBottom - _attachBotsMenu->height());
 	}
 
 	const auto fullWidthButtonRect = myrtlrect(

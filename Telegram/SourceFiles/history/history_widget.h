@@ -51,6 +51,7 @@ class ItemBase;
 class Widget;
 } // namespace Layout
 struct ResultSelected;
+class AttachBotsList;
 } // namespace InlineBots
 
 namespace Support {
@@ -765,6 +766,7 @@ private:
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	std::unique_ptr<TabbedPanel> _tabbedPanel;
+	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 
 	DragArea::Areas _attachDragAreas;
 
