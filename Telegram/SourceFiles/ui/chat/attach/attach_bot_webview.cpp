@@ -478,7 +478,17 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		std::move(args.sendData),
 		std::move(args.close),
 		std::move(args.themeParams));
-	result->showWebview(args.url, std::move(args.bottom));
+	if (!result->showWebview(args.url, std::move(args.bottom))) {
+		const auto available = Webview::Availability();
+		if (available.error != Webview::Available::Error::None) {
+			result->showWebviewError(
+				tr::lng_payments_webview_no_card(tr::now),
+				available);
+		} else {
+			result->showCriticalError({
+				"Error: Could not initialize WebView." });
+		}
+	}
 	return result;
 }
 

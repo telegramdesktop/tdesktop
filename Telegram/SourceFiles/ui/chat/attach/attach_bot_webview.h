@@ -41,6 +41,9 @@ public:
 	void showBox(object_ptr<BoxContent> box);
 	void showToast(const TextWithEntities &text);
 	void showCriticalError(const TextWithEntities &text);
+	void showWebviewError(
+		const QString &text,
+		const Webview::Available &information);
 
 	void updateThemeParams(const QByteArray &json);
 
@@ -53,9 +56,6 @@ private:
 	bool createWebview();
 	void showWebviewProgress();
 	void hideWebviewProgress();
-	void showWebviewError(
-		const QString &text,
-		const Webview::Available &information);
 	void setTitle(rpl::producer<QString> title);
 
 	[[nodiscard]] bool progressWithBackground() const;

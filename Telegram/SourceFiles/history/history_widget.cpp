@@ -497,6 +497,10 @@ HistoryWidget::HistoryWidget(
 			if (_history && _history->peer->isUser()) {
 				_attachToggle->installEventFilter(_attachBotsMenu.get());
 			}
+			_attachBotsMenu->heightValue(
+			) | rpl::start_with_next([=] {
+				moveFieldControls();
+			}, _attachBotsMenu->lifetime());
 		}
 	}, lifetime());
 

@@ -27,11 +27,18 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace InlineBots {
 
 struct AttachWebViewBot {
 	not_null<UserData*> user;
+	not_null<DocumentData*> icon;
+	std::shared_ptr<Data::DocumentMedia> media;
 	QString name;
+	bool inactive = false;
 };
 
 class AttachWebView final : public base::has_weak_ptr {
@@ -62,6 +69,9 @@ public:
 		return _attachBotsUpdates.events();
 	}
 
+	void requestAddToMenu(not_null<UserData*> bot);
+	void removeFromMenu(not_null<UserData*> bot);
+
 	static void ClearAll();
 
 private:
@@ -72,13 +82,18 @@ private:
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
 
-	void toggleInMenu(bool enabled, Fn<void()> callback);
+	void toggleInMenu(
+		not_null<UserData*> bot,
+		bool enabled,
+		Fn<void()> callback);
 
 	void show(
 		uint64 queryId,
 		const QString &url,
 		const QString &buttonText = QString());
-	void requestAddToMenu(Fn<void()> callback);
+	void confirmAddToMenu(
+		AttachWebViewBot bot,
+		Fn<void()> callback = nullptr);
 	void started(uint64 queryId);
 
 	const not_null<Main::Session*> _session;
@@ -94,6 +109,9 @@ private:
 
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
+
+	UserData *_addToMenuBot = nullptr;
+	mtpRequestId _addToMenuId = 0;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;

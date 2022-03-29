@@ -196,6 +196,7 @@ public:
 		QString startToken;
 		ChatAdminRights startAdminRights;
 		QString attachBotUsername;
+		bool attachBotToggle = false;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};

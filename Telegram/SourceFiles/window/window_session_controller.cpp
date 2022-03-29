@@ -383,16 +383,22 @@ void SessionNavigation::showPeerByLinkResolved(
 			msgId = ShowAtUnreadMsgId;
 		}
 		const auto attachBotUsername = info.attachBotUsername;
-		if (user && user->isBot()) {
+		if (user
+			&& user->isBot()
+			&& user->botInfo->startToken != info.startToken) {
 			user->botInfo->startToken = info.startToken;
 			user->session().changes().peerUpdated(
 				user,
 				Data::PeerUpdate::Flag::BotStartToken);
 		}
-		crl::on_main(this, [=] {
-			showPeerHistory(peer->id, params, msgId);
-			peer->session().attachWebView().request(peer, attachBotUsername);
-		});
+		if (user && info.attachBotToggle) {
+			user->session().attachWebView().requestAddToMenu(user);
+		} else {
+			crl::on_main(this, [=] {
+				showPeerHistory(peer->id, params, msgId);
+				peer->session().attachWebView().request(peer, attachBotUsername);
+			});
+		}
 	}
 }
 

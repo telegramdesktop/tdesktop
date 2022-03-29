@@ -8,15 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/bot_attach_web_view.h"
 
 #include "data/data_user.h"
+#include "data/data_file_origin.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/widgets/dropdown_menu.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/menu/menu_item_base.h"
+#include "ui/effects/ripple_animation.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -33,20 +37,169 @@ namespace {
 
 constexpr auto kProlongTimeout = 60 * crl::time(1000);
 
-[[nodiscard]] UserData *ParseAttachBot(
+struct ParsedBot {
+	UserData *bot = nullptr;
+	bool inactive = false;
+};
+
+[[nodiscard]] std::optional<AttachWebViewBot> ParseAttachBot(
 		not_null<Main::Session*> session,
 		const MTPAttachMenuBot &bot) {
-	return bot.match([&](const MTPDattachMenuBot &data) {
+	auto result = bot.match([&](const MTPDattachMenuBot &data) {
 		const auto user = session->data().userLoaded(UserId(data.vbot_id()));
-		return (user && user->isBot() && user->botInfo->supportsAttachMenu)
-			? user
-			: nullptr;
+		const auto good = user
+			&& user->isBot()
+			&& user->botInfo->supportsAttachMenu;
+		return good
+			? AttachWebViewBot{
+				.user = user,
+				.icon = session->data().processDocument(
+					data.vattach_menu_icon()),
+				.name = qs(data.vattach_menu_name()),
+				.inactive = data.is_inactive(),
+			} : std::optional<AttachWebViewBot>();
 	});
+	if (result) {
+		result->icon->forceToCache(true);
+	}
+	return result;
 }
 
 [[nodiscard]] base::flat_set<not_null<AttachWebView*>> &ActiveWebViews() {
 	static auto result = base::flat_set<not_null<AttachWebView*>>();
 	return result;
+}
+
+class BotAction final : public Ui::Menu::ItemBase {
+public:
+	BotAction(
+		not_null<Ui::RpWidget*> parent,
+		const style::Menu &st,
+		const AttachWebViewBot &bot,
+		Fn<void()> callback);
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+protected:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	int contentHeight() const override;
+
+private:
+	void prepare();
+	void paint(Painter &p);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const AttachWebViewBot _bot;
+
+	Ui::Text::String _text;
+	int _textWidth = 0;
+	const int _height;
+
+};
+
+BotAction::BotAction(
+	not_null<Ui::RpWidget*> parent,
+	const style::Menu &st,
+	const AttachWebViewBot &bot,
+	Fn<void()> callback)
+: ItemBase(parent, st)
+, _dummyAction(new QAction(parent))
+, _st(st)
+, _bot(bot)
+, _height(_st.itemPadding.top()
+		+ _st.itemStyle.font->height
+		+ _st.itemPadding.bottom()) {
+	setAcceptBoth(true);
+	initResizeHook(parent->sizeValue());
+	setClickedCallback(std::move(callback));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		paint(p);
+	}, lifetime());
+
+	enableMouseSelecting();
+	prepare();
+}
+
+void BotAction::paint(Painter &p) {
+	const auto selected = isSelected();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	if (isEnabled()) {
+		paintRipple(p, 0, 0);
+	}
+
+	const auto normalHeight = _st.itemPadding.top()
+		+ _st.itemStyle.font->height
+		+ _st.itemPadding.bottom();
+	const auto deltaHeight = _height - normalHeight;
+	st::menuIconDelete.paint(
+		p,
+		_st.itemIconPosition + QPoint(0, deltaHeight / 2),
+		width());
+
+	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
+	_text.drawLeftElided(
+		p,
+		_st.itemPadding.left(),
+		_st.itemPadding.top(),
+		_textWidth,
+		width());
+}
+
+void BotAction::prepare() {
+	_text.setMarkedText(_st.itemStyle, { _bot.name });
+	const auto textWidth = _text.maxWidth();
+	const auto &padding = _st.itemPadding;
+
+	const auto goodWidth = padding.left()
+		+ textWidth
+		+ padding.right();
+
+	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
+	_textWidth = w - (goodWidth - textWidth);
+	setMinWidth(w);
+	update();
+}
+
+bool BotAction::isEnabled() const {
+	return true;
+}
+
+not_null<QAction*> BotAction::action() const {
+	return _dummyAction;
+}
+
+QPoint BotAction::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos());
+}
+
+QImage BotAction::prepareRippleMask() const {
+	return Ui::RippleAnimation::rectMask(size());
+}
+
+int BotAction::contentHeight() const {
+	return _height;
+}
+
+void BotAction::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (!isSelected()) {
+		return;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+		setClicked(Ui::Menu::TriggeredSource::Keyboard);
+	}
 }
 
 } // namespace
@@ -115,11 +268,11 @@ void AttachWebView::request(const WebViewButton &button) {
 			_session->data().processUsers(data.vusers());
 			const auto &received = data.vbot();
 			if (const auto bot = ParseAttachBot(_session, received)) {
-				if (_bot != bot) {
+				if (_bot != bot->user) {
 					cancel();
 					return;
 				}
-				requestAddToMenu([=] {
+				confirmAddToMenu(*bot, [=] {
 					request(button);
 				});
 			} else {
@@ -156,21 +309,62 @@ void AttachWebView::requestBots() {
 			_attachBots.clear();
 			_attachBots.reserve(data.vbots().v.size());
 			for (const auto &bot : data.vbots().v) {
-				bot.match([&](const MTPDattachMenuBot &data) {
-					if (data.is_inactive()) {
-						return;
+				if (auto parsed = ParseAttachBot(_session, bot)) {
+					if (!parsed->inactive) {
+						parsed->media = parsed->icon->createMediaView();
+						parsed->icon->save(Data::FileOrigin(), {});
+						_attachBots.push_back(std::move(*parsed));
 					}
-					_attachBots.push_back({
-						.user = _session->data().user(data.vbot_id()),
-						.name = qs(data.vattach_menu_name()),
-					});
-				});
+				}
 			}
 			_attachBotsUpdates.fire({});
 		});
 	}).fail([=] {
 		_botsRequestId = 0;
 	}).send();
+}
+
+void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
+	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
+		return;
+	} else if (_addToMenuId) {
+		if (_addToMenuBot == bot) {
+			return;
+		}
+		_session->api().request(base::take(_addToMenuId)).cancel();
+	}
+	_addToMenuBot = bot;
+	_addToMenuId = _session->api().request(MTPmessages_GetAttachMenuBot(
+		bot->inputUser
+	)).done([=](const MTPAttachMenuBotsBot &result) {
+		_addToMenuId = 0;
+		const auto requested = base::take(_addToMenuBot);
+		result.match([&](const MTPDattachMenuBotsBot &data) {
+			_session->data().processUsers(data.vusers());
+			if (const auto bot = ParseAttachBot(_session, data.vbot())) {
+				if (requested == bot->user) {
+					if (bot->inactive) {
+						confirmAddToMenu(*bot);
+					} else {
+						requestBots();
+						Ui::ShowMultilineToast({
+							.text = { u"Bot is already added."_q },
+						});
+					}
+				}
+			}
+		});
+	}).fail([=] {
+		_addToMenuId = 0;
+		_addToMenuBot = nullptr;
+		Ui::ShowMultilineToast({
+			.text = { u"Bot cannot be added to the menu."_q },
+			});
+	}).send();
+}
+
+void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
+	toggleInMenu(bot, false, nullptr);
 }
 
 void AttachWebView::resolve() {
@@ -327,12 +521,14 @@ void AttachWebView::started(uint64 queryId) {
 	}, _panel->lifetime());
 }
 
-void AttachWebView::requestAddToMenu(Fn<void()> callback) {
-	Expects(_bot != nullptr);
-
+void AttachWebView::confirmAddToMenu(
+		AttachWebViewBot bot,
+		Fn<void()> callback) {
 	const auto done = [=](Fn<void()> close) {
-		toggleInMenu( true, [=] {
-			callback();
+		toggleInMenu(bot.user, true, [=] {
+			if (callback) {
+				callback();
+			}
 			close();
 		});
 	};
@@ -341,21 +537,24 @@ void AttachWebView::requestAddToMenu(Fn<void()> callback) {
 		return;
 	}
 	_confirmAddBox = active->show(Ui::MakeConfirmBox({
-		u"Do you want to? "_q + _bot->name,
+		u"Do you want to? "_q + bot.name,
 		done,
 	}));
 }
 
-void AttachWebView::toggleInMenu(bool enabled, Fn<void()> callback) {
-	Expects(_bot != nullptr);
-
-	_requestId = _session->api().request(MTPmessages_ToggleBotInAttachMenu(
-		_bot->inputUser,
+void AttachWebView::toggleInMenu(
+		not_null<UserData*> bot,
+		bool enabled,
+		Fn<void()> callback) {
+	_session->api().request(MTPmessages_ToggleBotInAttachMenu(
+		bot->inputUser,
 		MTP_bool(enabled)
 	)).done([=] {
 		_requestId = 0;
 		requestBots();
-		callback();
+		if (callback) {
+			callback();
+		}
 	}).fail([=] {
 		cancel();
 	}).send();
@@ -372,12 +571,12 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	const auto refresh = [=] {
 		raw->clearActions();
 		for (const auto &bot : bots->attachBots()) {
-			raw->addAction(bot.name, [=, bot = bot.user]{
+			raw->addAction(base::make_unique_q<BotAction>(raw, bot, raw->menu()->st(), [=] {
 				const auto active = controller->activeChatCurrent();
 				if (const auto history = active.history()) {
-					bots->request(history->peer, bot);
+					bots->request(history->peer, bot.user);
 				}
-			});
+			}));
 		}
 	};
 	refresh();
