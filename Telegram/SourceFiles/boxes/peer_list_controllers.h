@@ -46,8 +46,7 @@ public:
 
 	void lazyInitialize(const style::PeerListItem &st) override;
 
-private:
-	void refreshActionLink();
+protected:
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
 	void rightActionPaint(
@@ -57,6 +56,9 @@ private:
 		int outerWidth,
 		bool selected,
 		bool actionSelected) override;
+
+private:
+	void refreshActionLink();
 
 	QString _action;
 	int _actionWidth = 0;

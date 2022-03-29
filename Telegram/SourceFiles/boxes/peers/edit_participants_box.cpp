@@ -1930,7 +1930,8 @@ auto ParticipantsBoxController::computeType(
 		: (user && _additional.adminRights(user).has_value())
 		? Rights::Admin
 		: Rights::Normal;
-	result.canRemove = _additional.canRemoveParticipant(participant);
+	// result.canRemove = _additional.canRemoveParticipant(participant);
+	result.adminRank = user ? _additional.adminRank(user) : QString();
 	return result;
 }
 
