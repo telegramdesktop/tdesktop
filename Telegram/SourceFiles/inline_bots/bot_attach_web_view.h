@@ -42,8 +42,11 @@ public:
 		not_null<UserData*> bot,
 		const WebViewButton &button);
 
-private:
 	void cancel();
+
+	static void ClearAll();
+
+private:
 	void resolve();
 	void request(const WebViewButton &button = WebViewButton());
 	void requestByUsername();
@@ -58,6 +61,7 @@ private:
 		const QString &url,
 		const QString &buttonText = QString());
 	void requestAddToMenu(Fn<void()> callback);
+	void started(uint64 queryId);
 
 	const not_null<Main::Session*> _session;
 
@@ -65,8 +69,10 @@ private:
 	UserData *_bot = nullptr;
 	QString _botUsername;
 	QPointer<Ui::GenericBox> _confirmAddBox;
+	MsgId _replyToMsgId;
 
 	mtpRequestId _requestId = 0;
+	mtpRequestId _prolongId = 0;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 

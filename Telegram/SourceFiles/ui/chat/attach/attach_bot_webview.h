@@ -25,6 +25,7 @@ class Panel final {
 public:
 	Panel(
 		const QString &userDataPath,
+		rpl::producer<QString> title,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
 		Fn<QByteArray()> themeParams);
@@ -76,6 +77,8 @@ private:
 struct Args {
 	QString url;
 	QString userDataPath;
+	rpl::producer<QString> title;
+	rpl::producer<QString> bottom;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
 	Fn<QByteArray()> themeParams;

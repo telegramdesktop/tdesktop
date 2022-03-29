@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
+#include "info/profile/info_profile_values.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
@@ -20,10 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
+#include "base/timer_rpl.h"
 #include "apiwrap.h"
 
 namespace InlineBots {
 namespace {
+
+constexpr auto kProlongTimeout = 60 * crl::time(1000);
 
 [[nodiscard]] UserData *ParseAttachBot(
 		not_null<Main::Session*> session,
@@ -36,13 +40,20 @@ namespace {
 	});
 }
 
+[[nodiscard]] base::flat_set<not_null<AttachWebView*>> &ActiveWebViews() {
+	static auto result = base::flat_set<not_null<AttachWebView*>>();
+	return result;
+}
+
 } // namespace
 
 AttachWebView::AttachWebView(not_null<Main::Session*> session)
 : _session(session) {
 }
 
-AttachWebView::~AttachWebView() = default;
+AttachWebView::~AttachWebView() {
+	ActiveWebViews().remove(this);
+}
 
 void AttachWebView::request(
 		not_null<PeerData*> peer,
@@ -118,7 +129,9 @@ void AttachWebView::request(const WebViewButton &button) {
 }
 
 void AttachWebView::cancel() {
+	ActiveWebViews().remove(this);
 	_session->api().request(base::take(_requestId)).cancel();
+	_session->api().request(base::take(_prolongId)).cancel();
 	_panel = nullptr;
 	_peer = _bot = nullptr;
 	_botUsername = QString();
@@ -199,6 +212,12 @@ void AttachWebView::requestSimple(
 	}).send();
 }
 
+void AttachWebView::ClearAll() {
+	while (!ActiveWebViews().empty()) {
+		ActiveWebViews().front()->cancel();
+	}
+}
+
 void AttachWebView::show(
 		uint64 queryId,
 		const QString &url,
@@ -224,13 +243,26 @@ void AttachWebView::show(
 		}).send();
 		cancel();
 	});
+	auto title = Info::Profile::NameValue(
+		_bot
+	) | rpl::map([](const TextWithEntities &value) {
+		return value.text;
+	});
+	ActiveWebViews().emplace(this);
 	_panel = Ui::BotWebView::Show({
 		.url = url,
 		.userDataPath = _session->domain().local().webviewDataPath(),
+		.title = std::move(title),
+		.bottom = rpl::single('@' + _bot->username),
 		.sendData = sendData,
 		.close = close,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
 	});
+	started(queryId);
+}
+
+void AttachWebView::started(uint64 queryId) {
+	Expects(_peer != nullptr && _bot != nullptr);
 
 	_session->data().webViewResultSent(
 	) | rpl::filter([=](const Data::Session::WebViewResultSent &sent) {
@@ -239,6 +271,23 @@ void AttachWebView::show(
 			&& (sent.queryId == queryId);
 	}) | rpl::start_with_next([=] {
 		cancel();
+	}, _panel->lifetime());
+
+	base::timer_each(
+		kProlongTimeout
+	) | rpl::start_with_next([=] {
+		using Flag = MTPmessages_ProlongWebView::Flag;
+		auto flags = Flag::f_reply_to_msg_id | Flag::f_silent;
+		_session->api().request(base::take(_prolongId)).cancel();
+		_prolongId = _session->api().request(MTPmessages_ProlongWebView(
+			MTP_flags(flags),
+			_peer->input,
+			_bot->inputUser,
+			MTP_long(queryId),
+			MTP_int(_replyToMsgId.bare)
+		)).done([=] {
+			_prolongId = 0;
+		}).send();
 	}, _panel->lifetime());
 }
 
@@ -267,7 +316,7 @@ void AttachWebView::toggleInMenu(bool enabled, Fn<void()> callback) {
 	_requestId = _session->api().request(MTPmessages_ToggleBotInAttachMenu(
 		_bot->inputUser,
 		MTP_bool(enabled)
-	)).done([=](const MTPBool &result) {
+	)).done([=] {
 		_requestId = 0;
 		callback();
 	}).fail([=] {

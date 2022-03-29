@@ -68,6 +68,7 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 
 Panel::Panel(
 	const QString &userDataPath,
+	rpl::producer<QString> title,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
 	Fn<QByteArray()> themeParams)
@@ -95,7 +96,7 @@ Panel::Panel(
 		});
 	}, _widget->lifetime());
 
-	setTitle(rpl::single(u"Title"_q));
+	setTitle(std::move(title));
 }
 
 Panel::~Panel() {
@@ -473,10 +474,11 @@ rpl::lifetime &Panel::lifetime() {
 std::unique_ptr<Panel> Show(Args &&args) {
 	auto result = std::make_unique<Panel>(
 		args.userDataPath,
+		std::move(args.title),
 		std::move(args.sendData),
 		std::move(args.close),
 		std::move(args.themeParams));
-	result->showWebview(args.url, rpl::single(u"smth"_q));
+	result->showWebview(args.url, std::move(args.bottom));
 	return result;
 }
 
