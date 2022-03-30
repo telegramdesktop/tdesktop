@@ -163,36 +163,15 @@ Stream File::Context::initStream(
 	}
 
 	const auto info = format->streams[index];
-	const auto tryCreateCodec = [&](AVHWDeviceType type) {
-		result.codec = FFmpeg::MakeCodecPointer({
-			.stream = info,
-			.type = type,
-		});
-		return (result.codec != nullptr);
-	};
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		if (info->disposition & AV_DISPOSITION_ATTACHED_PIC) {
 			// ignore cover streams
 			return Stream();
 		}
-		const auto hwAccelTypes = std::array{
-#ifdef Q_OS_WIN
-			AV_HWDEVICE_TYPE_D3D11VA,
-			AV_HWDEVICE_TYPE_DXVA2,
-#elif defined Q_OS_MAC // Q_OS_WIN
-			AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
-#else // Q_OS_WIN || Q_OS_MAC
-			AV_HWDEVICE_TYPE_VAAPI,
-			AV_HWDEVICE_TYPE_VDPAU,
-#endif // Q_OS_WIN || Q_OS_MAC
-			AV_HWDEVICE_TYPE_CUDA,
-			AV_HWDEVICE_TYPE_NONE,
-		};
-		for (const auto type : hwAccelTypes) {
-			if (tryCreateCodec(type)) {
-				break;
-			}
-		}
+		result.codec = FFmpeg::MakeCodecPointer({
+			.stream = info,
+			.hwAllowed = hwAllowed,
+		});
 		if (!result.codec) {
 			return result;
 		}
@@ -202,7 +181,9 @@ Stream File::Context::initStream(
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
 			return result;
-		} else if (!tryCreateCodec(AV_HWDEVICE_TYPE_NONE)) {
+		}
+		result.codec = FFmpeg::MakeCodecPointer({ .stream = info });
+		if (!result.codec) {
 			return result;
 		}
 	}

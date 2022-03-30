@@ -128,7 +128,7 @@ using CodecPointer = std::unique_ptr<AVCodecContext, CodecDeleter>;
 
 struct CodecDescriptor {
 	not_null<AVStream*> stream;
-	AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+	bool hwAllowed = false;
 };
 [[nodiscard]] CodecPointer MakeCodecPointer(CodecDescriptor descriptor);
 

@@ -544,7 +544,7 @@ void Player::play(const PlaybackOptions &options) {
 		_options.speed = 1.;
 	}
 	_stage = Stage::Initializing;
-	_file->start(delegate(), _options.position, _options.hwAllow);
+	_file->start(delegate(), _options.position, _options.hwAllowed);
 }
 
 void Player::savePreviousReceivedTill(

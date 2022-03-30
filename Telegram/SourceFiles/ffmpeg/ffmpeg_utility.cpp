@@ -85,6 +85,62 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 }
 
+[[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
+	auto hwDeviceContext = (AVBufferRef*)nullptr;
+	AvErrorWrap error = av_hwdevice_ctx_create(
+		&hwDeviceContext,
+		type,
+		nullptr,
+		nullptr,
+		0);
+	if (error || !hwDeviceContext) {
+		LogError(qstr("av_hwdevice_ctx_create"), error);
+		return false;
+	}
+	DEBUG_LOG(("Video Info: "
+		"Trying \"%1\" hardware acceleration for \"%2\" decoder."
+		).arg(av_hwdevice_get_type_name(type)
+		).arg(context->codec->name));
+	if (context->hw_device_ctx) {
+		av_buffer_unref(&context->hw_device_ctx);
+	}
+	context->hw_device_ctx = av_buffer_ref(hwDeviceContext);
+	av_buffer_unref(&hwDeviceContext);
+	return true;
+}
+
+[[nodiscard]] enum AVPixelFormat GetHwFormat(
+		AVCodecContext *context,
+		const enum AVPixelFormat *formats) {
+	const enum AVPixelFormat *p = nullptr;
+	for (p = formats; *p != AV_PIX_FMT_NONE; p++) {
+		const auto type = [&] {
+			switch (*p) {
+#ifdef Q_OS_WIN
+			case AV_PIX_FMT_D3D11: return AV_HWDEVICE_TYPE_D3D11VA;
+			case AV_PIX_FMT_DXVA2_VLD: return AV_HWDEVICE_TYPE_DXVA2;
+			case AV_PIX_FMT_D3D11VA_VLD: return AV_HWDEVICE_TYPE_D3D11VA;
+#elif defined Q_OS_MAC // Q_OS_WIN
+			case AV_PIX_FMT_VIDEOTOOLBOX:
+				return AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
+#else // Q_OS_WIN || Q_OS_MAC
+			case AV_PIX_FMT_VAAPI: return AV_HWDEVICE_TYPE_VAAPI;
+			case AV_PIX_FMT_VDPAU: return AV_HWDEVICE_TYPE_VDPAU;
+#endif // Q_OS_WIN || Q_OS_MAC
+			case AV_PIX_FMT_CUDA: return AV_HWDEVICE_TYPE_CUDA;
+			}
+			return AV_HWDEVICE_TYPE_NONE;
+		}();
+		if (type != AV_HWDEVICE_TYPE_NONE && !InitHw(context, type)) {
+			continue;
+		} else if (type == AV_HWDEVICE_TYPE_NONE && context->hw_device_ctx) {
+			av_buffer_unref(&context->hw_device_ctx);
+		}
+		return *p;
+	}
+	return AV_PIX_FMT_NONE;
+}
+
 template <AVPixelFormat Required>
 enum AVPixelFormat GetFormatImplementation(
 		AVCodecContext *ctx,
@@ -258,29 +314,8 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		return {};
 	}
 
-	if (descriptor.type != AV_HWDEVICE_TYPE_NONE) {
-		const auto hw = ResolveHwAccel(codec, descriptor.type);
-		if (!hw.getFormat) {
-			return {};
-		}
-		context->get_format = hw.getFormat;
-		auto hwDeviceContext = (AVBufferRef*)nullptr;
-		error = av_hwdevice_ctx_create(
-			&hwDeviceContext,
-			descriptor.type,
-			nullptr,
-			nullptr,
-			0);
-		if (error || !hwDeviceContext) {
-			LogError(qstr("av_hwdevice_ctx_create"), error);
-			return {};
-		}
-		DEBUG_LOG(("Video Info: "
-			"Using \"%1\" hardware acceleration for \"%2\" decoder."
-			).arg(av_hwdevice_get_type_name(descriptor.type)
-			).arg(codec->name));
-		context->hw_device_ctx = av_buffer_ref(hwDeviceContext);
-		av_buffer_unref(&hwDeviceContext);
+	if (descriptor.hwAllowed) {
+		context->get_format = GetHwFormat;
 	} else {
 		DEBUG_LOG(("Video Info: Using software \"%2\" decoder."
 			).arg(codec->name));

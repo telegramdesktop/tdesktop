@@ -1604,7 +1604,7 @@ void Pip::restartAtSeekPosition(crl::time position) {
 
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
-	options.hwAllow = true;
+	options.hwAllowed = true;
 	options.audioId = _instance.player().prepareLegacyState().id;
 
 	Assert(8 && _delegate->pipPlaybackSpeed() >= 0.5

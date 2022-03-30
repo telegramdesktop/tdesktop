@@ -45,7 +45,7 @@ struct PlaybackOptions {
 	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
 	bool waitForMarkAsShown = false;
-	bool hwAllow = false;
+	bool hwAllowed = false;
 	bool loop = false;
 };
 
