@@ -606,7 +606,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareWebViewDataSent = [this](const MTPDmessageActionWebViewDataSent &action) {
+	auto prepareWebViewDataSent = [](const MTPDmessageActionWebViewDataSent &action) {
 		auto result = PreparedText{};
 		result.text = tr::lng_action_webview_data_done(
 			tr::now,
