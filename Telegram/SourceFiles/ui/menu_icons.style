@@ -24,6 +24,8 @@ dropdownMenuWithIcons: DropdownMenu(defaultDropdownMenu) {
 }
 
 menuIconColor: windowBoldFg;
+menuIconAttentionColor: attentionButtonFg;
+
 menuIconReactions: icon {{ "menu/read_reactions", menuIconColor }};
 menuIconReply: icon {{ "menu/reply", menuIconColor }};
 menuIconViewReplies: icon {{ "menu/view_replies", menuIconColor }};
@@ -67,7 +69,6 @@ menuIconExport: icon {{ "menu/export", menuIconColor }};
 menuIconClear: icon {{ "menu/clear", menuIconColor }};
 menuIconManage: icon {{ "menu/manage", menuIconColor }};
 menuIconDiscussion: icon {{ "menu/discussion", menuIconColor }};
-menuIconLeave: icon {{ "menu/leave", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};
 menuIconExpand: icon {{ "menu/expand", menuIconColor }};
@@ -108,3 +109,6 @@ mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 
 menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
 menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
+
+menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
+menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

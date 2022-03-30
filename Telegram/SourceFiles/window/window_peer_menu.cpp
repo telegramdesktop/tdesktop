@@ -501,12 +501,13 @@ void Filler::addDeleteChat() {
 	if (_peer->isChannel()) {
 		return;
 	}
-	_addAction(
+	const auto action = _addAction(
 		(_peer->isUser()
 			? tr::lng_profile_delete_conversation(tr::now)
 			: tr::lng_profile_clear_and_exit(tr::now)),
 		DeleteAndLeaveHandler(_controller, _peer),
-		&st::menuIconDelete);
+		&st::menuIconDeleteAttention);
+	action->setData(st::menuIconAttentionColor->c);
 }
 
 void Filler::addLeaveChat() {
@@ -514,12 +515,13 @@ void Filler::addLeaveChat() {
 	if (!channel || !channel->amIn()) {
 		return;
 	}
-	_addAction(
+	const auto leave = _addAction(
 		(_peer->isMegagroup()
 			? tr::lng_profile_leave_group(tr::now)
 			: tr::lng_profile_leave_channel(tr::now)),
 		DeleteAndLeaveHandler(_controller, _peer),
-		&st::menuIconLeave);
+		&st::menuIconLeaveAttention);
+	leave->setData(st::menuIconAttentionColor->c);
 }
 
 void Filler::addBlockUser() {
@@ -695,10 +697,11 @@ void Filler::addDeleteContact() {
 		return;
 	}
 	const auto controller = _controller;
-	_addAction(
+	const auto action = _addAction(
 		tr::lng_info_delete_contact(tr::now),
 		[=] { PeerMenuDeleteContact(controller, user); },
-		&st::menuIconDelete);
+		&st::menuIconDeleteAttention);
+	action->setData(st::menuIconAttentionColor->c);
 }
 
 void Filler::addManageChat() {

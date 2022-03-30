@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
+#include <QAction>
+
 namespace Settings {
 namespace {
 
@@ -267,10 +269,11 @@ void FillMenu(
 				[=] { showOther(Information::Id()); },
 				&st::menuIconInfo);
 		}
-		addAction(
+		const auto logout = addAction(
 			tr::lng_settings_logout(tr::now),
 			[=] { window->showLogoutConfirmation(); },
-			&st::menuIconLeave);
+			&st::menuIconLeaveAttention);
+		logout->setData(st::menuIconAttentionColor->c);
 	}
 }
 

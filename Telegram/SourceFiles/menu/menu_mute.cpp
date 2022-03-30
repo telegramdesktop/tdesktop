@@ -89,7 +89,7 @@ void MuteItem::paintEvent(QPaintEvent *e) {
 
 	const auto progress = _animation.value(_isMuted ? 1. : 0.);
 	const auto color = anim::color(
-		st::settingsIconBg1,
+		st::menuIconAttentionColor,
 		st::settingsIconBg2,
 		progress);
 	p.setPen(color);
