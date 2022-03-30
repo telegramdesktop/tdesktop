@@ -197,8 +197,11 @@ void BasicRow::PaintCornerBadgeFrame(
 	q.setBrush(data->active
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
+	//paints corner online or calling badge next to userpic in dialogs
 	q.drawEllipse(QRectF(
-		st::dialogsPhotoSize - skip.x() - size,
+		(rtl()
+			? skip.x()
+			: (st::dialogsPhotoSize - skip.x() - size)),
 		st::dialogsPhotoSize - skip.y() - size,
 		size,
 		size
