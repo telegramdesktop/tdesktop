@@ -282,6 +282,9 @@ AttachWebView::~AttachWebView() {
 void AttachWebView::request(
 		not_null<PeerData*> peer,
 		const QString &botUsername) {
+	if (botUsername.isEmpty()) {
+		return;
+	}
 	const auto username = _bot ? _bot->username : _botUsername;
 	if (_peer == peer && username.toLower() == botUsername.toLower()) {
 		if (_panel) {
