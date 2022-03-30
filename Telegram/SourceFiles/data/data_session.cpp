@@ -3891,17 +3891,21 @@ void Session::requestNotifySettings(not_null<PeerData*> peer) {
 void Session::applyNotifySetting(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings) {
+	const auto goodForUpdate = [&](
+			not_null<const PeerData*> peer,
+			const NotifySettings &settings) {
+		return !peer->notifySettingsUnknown()
+			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
+				|| (!peer->notifySilentPosts() && settings.silentPosts()));
+	};
+
 	switch (notifyPeer.type()) {
 	case mtpc_notifyUsers: {
 		if (_defaultUserNotifySettings.change(settings)) {
 			_defaultUserNotifyUpdates.fire({});
 
 			enumerateUsers([&](not_null<UserData*> user) {
-				if (!user->notifySettingsUnknown()
-					&& ((!user->notifyMuteUntil()
-						&& _defaultUserNotifySettings.muteUntil())
-						|| (!user->notifySilentPosts()
-							&& _defaultUserNotifySettings.silentPosts()))) {
+				if (goodForUpdate(user, _defaultUserNotifySettings)) {
 					updateNotifySettingsLocal(user);
 				}
 			});
@@ -3912,11 +3916,7 @@ void Session::applyNotifySetting(
 			_defaultChatNotifyUpdates.fire({});
 
 			enumerateGroups([&](not_null<PeerData*> peer) {
-				if (!peer->notifySettingsUnknown()
-					&& ((!peer->notifyMuteUntil()
-						&& _defaultChatNotifySettings.muteUntil())
-						|| (!peer->notifySilentPosts()
-							&& _defaultChatNotifySettings.silentPosts()))) {
+				if (goodForUpdate(peer, _defaultChatNotifySettings)) {
 					updateNotifySettingsLocal(peer);
 				}
 			});
@@ -3927,11 +3927,7 @@ void Session::applyNotifySetting(
 			_defaultBroadcastNotifyUpdates.fire({});
 
 			enumerateChannels([&](not_null<ChannelData*> channel) {
-				if (!channel->notifySettingsUnknown()
-					&& ((!channel->notifyMuteUntil()
-						&& _defaultBroadcastNotifySettings.muteUntil())
-						|| (!channel->notifySilentPosts()
-							&& _defaultBroadcastNotifySettings.silentPosts()))) {
+				if (goodForUpdate(channel, _defaultBroadcastNotifySettings)) {
 					updateNotifySettingsLocal(channel);
 				}
 			});
