@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "menu/menu_check_item.h"
 #include "ui/boxes/choose_time.h"
 #include "ui/effects/animation_value.h"
 #include "ui/layers/generic_box.h"
@@ -99,99 +98,28 @@ void MuteItem::paintEvent(QPaintEvent *e) {
 	icon.paint(p, _itemIconPosition, width(), color);
 }
 
-void FillSoundMenu(
-		not_null<Ui::PopupMenu*> menu,
-		not_null<PeerData*> peer,
-		rpl::producer<QString> &&soundOnText,
-		rpl::producer<QString> &&soundOffText,
-		Fn<void(bool)> notifySound) {
-	const auto createView = [&](rpl::producer<QString> &&text, bool checked) {
-		auto item = base::make_unique_q<Menu::ItemWithCheck>(
-			menu->menu(),
-			st::popupMenuWithIcons.menu,
-			new QAction(QString(), menu->menu()),
-			nullptr,
-			nullptr);
-		std::move(
-			text
-		) | rpl::start_with_next([action = item->action()](QString text) {
-			action->setText(text);
-		}, item->lifetime());
-		item->init(checked);
-		const auto view = item->checkView();
-		menu->addAction(std::move(item));
-		return view;
-	};
-
-	const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
-	const auto soundOn = createView(std::move(soundOnText), !soundIsNone);
-	const auto soundOff = createView(std::move(soundOffText), soundIsNone);
-
-	soundOn->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
-		soundOff->setChecked(!checked, anim::type::normal);
-		notifySound(!checked);
-	}, menu->lifetime());
-	soundOff->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
-		soundOn->setChecked(!checked, anim::type::normal);
-		notifySound(checked);
-	}, menu->lifetime());
-}
-
 void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	struct State {
-		base::unique_qptr<Ui::PopupMenu> menu;
-		rpl::variable<bool> noSoundChanges;
 		int lastSeconds = 0;
 	};
 
 	auto chooseTimeResult = ChooseTimeWidget(box, kMuteDurSecondsDefault);
 	box->addRow(std::move(chooseTimeResult.widget));
 
-	const auto state = box->lifetime().make_state<State>(State{
-		.noSoundChanges = false,
-	});
+	const auto state = box->lifetime().make_state<State>();
 
 	box->setTitle(tr::lng_mute_box_title());
 
-	const auto topButton = box->addTopButton(st::infoTopBarMenu);
-	topButton->setClickedCallback([=] {
-		if (state->menu) {
-			return;
-		}
-		state->menu = base::make_unique_q<Ui::PopupMenu>(
-			topButton,
-			st::popupMenuWithIcons);
-		FillSoundMenu(
-			state->menu.get(),
-			peer,
-			tr::lng_mute_box_no_notifications(),
-			tr::lng_mute_box_silent_notifications(),
-			[=](bool silent) {
-				state->noSoundChanges = silent;
-			});
-		state->menu->popup(QCursor::pos());
-		return;
-	});
-
-	auto confirmText = rpl::combine(
-		std::move(chooseTimeResult.secondsValue),
-		state->noSoundChanges.value()
-	) | rpl::map([=](int seconds, bool noSound) {
+	auto confirmText = std::move(
+		chooseTimeResult.secondsValue
+	) | rpl::map([=](int seconds) {
 		state->lastSeconds = seconds;
 		return !seconds
 			? tr::lng_mute_menu_unmute()
-			: noSound
-			? tr::lng_mute_box_silent_notifications()
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
 	const auto confirm = box->addButton(std::move(confirmText), [=] {
-		peer->owner().updateNotifySettings(
-			peer,
-			state->lastSeconds,
-			std::nullopt,
-			state->noSoundChanges.current());
+		peer->owner().updateNotifySettings(peer, state->lastSeconds);
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -204,16 +132,16 @@ void FillMuteMenu(
 		Args args) {
 	const auto peer = args.peer;
 
-	FillSoundMenu(
-		menu,
-		peer,
-		tr::lng_mute_menu_sound_on(),
-		tr::lng_mute_menu_sound_off(),
-		[peer](bool silent) {
-			peer->owner().updateNotifySettings(peer, {}, {}, silent);
-		});
-
-	menu->addSeparator();
+	const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
+	menu->addAction(
+		soundIsNone
+			? tr::lng_mute_menu_sound_on(tr::now)
+			: tr::lng_mute_menu_sound_off(tr::now),
+		[=] {
+			const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
+			peer->owner().updateNotifySettings(peer, {}, {}, !soundIsNone);
+		},
+		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
 
 	menu->addAction(
 		tr::lng_mute_menu_duration(tr::now),

@@ -97,6 +97,8 @@ menuIconViolence: icon {{ "menu/violence", menuIconColor }};
 menuIconMuteFor: icon {{ "menu/mute_for", menuIconColor }};
 menuIconSilent: icon {{ "menu/silent", menuIconColor }};
 menuIconCustomize: icon {{ "menu/customize", menuIconColor }};
+menuIconSoundOn: icon {{ "menu/sound_enable", menuIconColor }};
+menuIconSoundOff: icon {{ "menu/sound_disable", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

@@ -133,7 +133,7 @@ void PeerMenuAddMuteSubmenuAction(
 	peer->owner().requestNotifySettings(peer);
 	const auto isMuted = peer->owner().notifyIsMuted(peer);
 	if (isMuted) {
-		const auto text = tr::lng_mute_menu_unmute(tr::now)
+		const auto text = tr::lng_context_unmute(tr::now)
 			+ '\t'
 			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
 				- base::unixtime::now());
@@ -143,7 +143,7 @@ void PeerMenuAddMuteSubmenuAction(
 	} else {
 		const auto show = std::make_shared<Window::Show>(controller);
 		addAction(PeerMenuCallback::Args{
-			.text = tr::lng_mute_menu_mute(tr::now),
+			.text = tr::lng_context_mute(tr::now),
 			.handler = nullptr,
 			.icon = peer->owner().notifySoundIsNone(peer)
 				? &st::menuIconSilent
