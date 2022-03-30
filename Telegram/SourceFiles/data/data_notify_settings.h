@@ -11,6 +11,20 @@ namespace Data {
 
 class NotifySettingsValue;
 
+struct NotifySound {
+	QString	title;
+	QString data;
+	DocumentId id = 0;
+	bool none = false;
+};
+
+inline bool operator==(const NotifySound &a, const NotifySound &b) {
+	return (a.id == b.id)
+		&& (a.none == b.none)
+		&& (a.title == b.title)
+		&& (a.data == b.data);
+}
+
 class NotifySettings {
 public:
 	NotifySettings();

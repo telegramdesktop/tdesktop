@@ -3964,7 +3964,9 @@ void Session::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
 		MTPBool(),
 		MTPBool(),
 		MTPint(),
-		MTPstring());
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound());
 	if (peer->notifyChange(empty)) {
 		updateNotifySettingsLocal(peer);
 		_session->api().updateNotifySettingsDelayed(peer);

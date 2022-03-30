@@ -220,9 +220,9 @@ inputNotifyUsers#193b4417 = InputNotifyPeer;
 inputNotifyChats#4a95e84e = InputNotifyPeer;
 inputNotifyBroadcasts#b1db7c7e = InputNotifyPeer;
 
-inputPeerNotifySettings#9c3d198e flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?string = InputPeerNotifySettings;
+inputPeerNotifySettings#df1f002b flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?NotificationSound = InputPeerNotifySettings;
 
-peerNotifySettings#af509d20 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?string = PeerNotifySettings;
+peerNotifySettings#a83b0426 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int ios_sound:flags.3?NotificationSound android_sound:flags.4?NotificationSound other_sound:flags.5?NotificationSound = PeerNotifySettings;
 
 peerSettings#a518110d flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true invite_members:flags.8?true request_chat_broadcast:flags.10?true geo_distance:flags.6?int request_chat_title:flags.9?string request_chat_date:flags.9?int = PeerSettings;
 
@@ -388,6 +388,7 @@ updateBotChatInviteRequester#11dfa986 peer:Peer date:int user_id:long about:stri
 updateMessageReactions#154798c3 peer:Peer msg_id:int reactions:MessageReactions = Update;
 updateAttachMenuBots#17b7a20b = Update;
 updateWebViewResultSent#f8f63baa peer:Peer bot_id:long query_id:long = Update;
+updateSavedRingtones#74d8be99 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1349,6 +1350,14 @@ simpleWebViewResultUrl#882f76bb url:string = SimpleWebViewResult;
 
 webViewMessageSent#c94511c flags:# msg_id:flags.0?InputBotInlineMessageID = WebViewMessageSent;
 
+account.savedRingtonesNotModified#fbf6e8b1 = account.SavedRingtones;
+account.savedRingtones#c1e92cc5 hash:long ringtones:Vector<Document> = account.SavedRingtones;
+
+notificationSoundDefault#97e8bebe = NotificationSound;
+notificationSoundNone#6f0c34df = NotificationSound;
+notificationSoundLocal#830b9ae4 title:string data:string = NotificationSound;
+notificationSoundRingtone#ff6c8049 id:long = NotificationSound;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1452,6 +1461,9 @@ account.declinePasswordReset#4c9409f6 = Bool;
 account.getChatThemes#d638de89 hash:long = account.Themes;
 account.setAuthorizationTTL#bf899aa0 authorization_ttl_days:int = Bool;
 account.changeAuthorizationSettings#40f48462 flags:# hash:long encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Bool;
+account.getSavedRingtones#e1902288 hash:long = account.SavedRingtones;
+account.saveRingtone#e9f81323 id:InputDocument unsave:Bool = Bool;
+account.uploadRingtone#831a83a2 file:InputFile file_name:string mime_type:string = Document;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#b60f5918 id:InputUser = users.UserFull;

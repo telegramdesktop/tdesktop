@@ -12,13 +12,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-MTPinputPeerNotifySettings DefaultSettings() {
+[[nodiscard]] MTPinputPeerNotifySettings DefaultSettings() {
 	return MTP_inputPeerNotifySettings(
 		MTP_flags(0),
 		MTPBool(),
 		MTPBool(),
 		MTPint(),
-		MTPstring());
+		MTPNotificationSound());
+}
+
+[[nodiscard]] NotifySound ParseSound(const MTPNotificationSound &sound) {
+	return sound.match([&](const MTPDnotificationSoundDefault &data) {
+		return NotifySound();
+	}, [&](const MTPDnotificationSoundNone &data) {
+		return NotifySound{ .none = true };
+	}, [&](const MTPDnotificationSoundLocal &data) {
+		return NotifySound{
+			.title = qs(data.vtitle()),
+			.data = qs(data.vdata()),
+		};
+	}, [&](const MTPDnotificationSoundRingtone &data) {
+		return NotifySound{ .id = data.vid().v };
+	});
+}
+
+[[nodiscard]] MTPNotificationSound SerializeSound(
+		const std::optional<NotifySound> &sound) {
+	return !sound
+		? MTPNotificationSound()
+		: sound->none
+		? MTP_notificationSoundNone()
+		: sound->id
+		? MTP_notificationSoundRingtone(MTP_long(sound->id))
+		: !sound->title.isEmpty()
+		? MTP_notificationSoundLocal(
+			MTP_string(sound->title),
+			MTP_string(sound->data))
+		: MTP_notificationSoundDefault();
 }
 
 } // namespace
@@ -39,12 +69,12 @@ public:
 private:
 	bool change(
 		std::optional<int> mute,
-		std::optional<QString> sound,
+		std::optional<NotifySound> sound,
 		std::optional<bool> showPreviews,
 		std::optional<bool> silentPosts);
 
 	std::optional<TimeId> _mute;
-	std::optional<QString> _sound;
+	std::optional<NotifySound> _sound;
 	std::optional<bool> _silent;
 	std::optional<bool> _showPreviews;
 
@@ -57,12 +87,12 @@ NotifySettingsValue::NotifySettingsValue(
 
 bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
 	const auto mute = data.vmute_until();
-	const auto sound = data.vsound();
+	const auto sound = data.vother_sound();
 	const auto showPreviews = data.vshow_previews();
 	const auto silent = data.vsilent();
 	return change(
 		mute ? std::make_optional(mute->v) : std::nullopt,
-		sound ? std::make_optional(qs(*sound)) : std::nullopt,
+		sound ? std::make_optional(ParseSound(*sound)) : std::nullopt,
 		(showPreviews
 			? std::make_optional(mtpIsTrue(*showPreviews))
 			: std::nullopt),
@@ -81,22 +111,19 @@ bool NotifySettingsValue::change(
 			? (now + *muteForSeconds)
 			: 0)
 		: _mute;
-	const auto newSound = (_sound && _sound->isEmpty() && notMuted)
-		? qsl("default")
-		: _sound;
 	const auto newSilentPosts = silentPosts
 		? base::make_optional(*silentPosts)
 		: _silent;
 	return change(
 		newMute,
-		newSound,
+		_sound,
 		_showPreviews,
 		newSilentPosts);
 }
 
 bool NotifySettingsValue::change(
 		std::optional<int> mute,
-		std::optional<QString> sound,
+		std::optional<NotifySound> sound,
 		std::optional<bool> showPreviews,
 		std::optional<bool> silentPosts) {
 	if (_mute == mute
@@ -133,7 +160,7 @@ MTPinputPeerNotifySettings NotifySettingsValue::serialize() const {
 		MTP_bool(_showPreviews ? *_showPreviews : true),
 		MTP_bool(_silent ? *_silent : false),
 		MTP_int(_mute ? *_mute : false),
-		MTP_string(_sound ? *_sound : QString()));
+		SerializeSound(_sound));
 }
 
 NotifySettings::NotifySettings() = default;
@@ -178,7 +205,9 @@ bool NotifySettings::change(
 		MTPBool(),
 		silentPosts ? MTP_bool(*silentPosts) : MTPBool(),
 		MTP_int(muteUntil),
-		MTPstring()));
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound()));
 }
 
 std::optional<TimeId> NotifySettings::muteUntil() const {

@@ -1746,7 +1746,9 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 				MTPBool(),
 				MTPBool(),
 				MTPint(),
-				MTPstring()));
+				MTPNotificationSound(),
+				MTPNotificationSound(),
+				MTPNotificationSound()));
 		_notifySettingRequests.erase(key);
 	}).send();
 
