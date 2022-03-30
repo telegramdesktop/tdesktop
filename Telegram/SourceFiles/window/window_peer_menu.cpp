@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/options.h"
+#include "base/unixtime.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/max_invite_box.h"
 #include "boxes/mute_settings_box.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_contact_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
@@ -131,7 +133,11 @@ void PeerMenuAddMuteSubmenuAction(
 	peer->owner().requestNotifySettings(peer);
 	const auto isMuted = peer->owner().notifyIsMuted(peer);
 	if (isMuted) {
-		addAction(tr::lng_mute_menu_unmute(tr::now), [=] {
+		const auto text = tr::lng_mute_menu_unmute(tr::now)
+			+ '\t'
+			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
+				- base::unixtime::now());
+		addAction(text, [=] {
 			peer->owner().updateNotifySettings(peer, 0);
 		}, &st::menuIconUnmute);
 	} else {

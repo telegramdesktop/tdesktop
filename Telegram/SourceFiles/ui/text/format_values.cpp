@@ -396,4 +396,18 @@ QString FormatTTLTiny(float64 ttl) {
 		: tr::lng_years_tiny({}, lt_count, std::ceil(ttl / (86400 * 360)));
 }
 
+QString FormatMuteForTiny(float64 sec) {
+	return (sec <= 60)
+		? QString()
+		: (sec <= 60 * 59)
+		? tr::lng_minutes_tiny(tr::now, lt_count, std::ceil(sec / 60))
+		: (sec <= 3600 * 23)
+		? tr::lng_hours_tiny(tr::now, lt_count, std::ceil(sec / 3600))
+		: (sec <= 86400 * 6)
+		? tr::lng_days_tiny(tr::now, lt_count, std::ceil(sec / 86400))
+		: (sec <= (86400 * 7) * 3)
+		? tr::lng_weeks_tiny(tr::now, lt_count, std::ceil(sec / (86400 * 7)))
+		: QString();
+}
+
 } // namespace Ui

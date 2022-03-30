@@ -28,6 +28,7 @@ inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
 [[nodiscard]] QString FormatImageSizeText(const QSize &size);
 [[nodiscard]] QString FormatPhone(const QString &phone);
 [[nodiscard]] QString FormatTTLTiny(float64 ttl);
+[[nodiscard]] QString FormatMuteForTiny(float64 sec);
 
 struct CurrencyRule {
 	const char *international = "";
