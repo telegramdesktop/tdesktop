@@ -178,7 +178,8 @@ System::SkipState System::computeSkipState(
 			.value = value,
 			.silent = (forceSilent
 				|| !messageNotification
-				|| item->isSilent()),
+				|| item->isSilent()
+				|| history->owner().notifySoundIsNone(history->peer)),
 		};
 	};
 	const auto showForMuted = messageNotification

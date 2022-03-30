@@ -3896,7 +3896,8 @@ void Session::applyNotifySetting(
 			const NotifySettings &settings) {
 		return !peer->notifySettingsUnknown()
 			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
-				|| (!peer->notifySilentPosts() && settings.silentPosts()));
+				|| (!peer->notifySilentPosts() && settings.silentPosts())
+				|| (!peer->notifySoundIsNone() && settings.soundIsNone()));
 	};
 
 	switch (notifyPeer.type()) {
@@ -3947,8 +3948,9 @@ void Session::applyNotifySetting(
 void Session::updateNotifySettings(
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts) {
-	if (peer->notifyChange(muteForSeconds, silentPosts)) {
+		std::optional<bool> silentPosts,
+		std::optional<bool> soundIsNone) {
+	if (peer->notifyChange(muteForSeconds, silentPosts, soundIsNone)) {
 		updateNotifySettingsLocal(peer);
 		_session->api().updateNotifySettingsDelayed(peer);
 	}
@@ -3967,6 +3969,10 @@ void Session::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
 		updateNotifySettingsLocal(peer);
 		_session->api().updateNotifySettingsDelayed(peer);
 	}
+}
+
+bool Session::notifyIsMuted(not_null<const PeerData*> peer) const {
+	return notifyIsMuted(peer, nullptr);
 }
 
 bool Session::notifyIsMuted(
@@ -4003,6 +4009,17 @@ bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {
 	return false;
 }
 
+bool Session::notifySoundIsNone(not_null<const PeerData*> peer) const {
+	if (const auto soundIsNone = peer->notifySoundIsNone()) {
+		return *soundIsNone;
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto soundIsNone = settings.soundIsNone()) {
+		return *soundIsNone;
+	}
+	return false;
+}
+
 bool Session::notifyMuteUnknown(not_null<const PeerData*> peer) const {
 	if (peer->notifySettingsUnknown()) {
 		return true;
@@ -4022,8 +4039,19 @@ bool Session::notifySilentPostsUnknown(
 	return defaultNotifySettings(peer).settingsUnknown();
 }
 
+bool Session::notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifySoundIsNone()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
 bool Session::notifySettingsUnknown(not_null<const PeerData*> peer) const {
-	return notifyMuteUnknown(peer) || notifySilentPostsUnknown(peer);
+	return notifyMuteUnknown(peer)
+		|| notifySilentPostsUnknown(peer)
+		|| notifySoundIsNoneUnknown(peer);
 }
 
 rpl::producer<> Session::defaultUserNotifyUpdates() const {

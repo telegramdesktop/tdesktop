@@ -666,14 +666,15 @@ public:
 	void updateNotifySettings(
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts = std::nullopt);
+		std::optional<bool> silentPosts = std::nullopt,
+		std::optional<bool> soundIsNone = std::nullopt);
 	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
-	bool notifyIsMuted(
-		not_null<const PeerData*> peer,
-		crl::time *changesIn = nullptr) const;
+	bool notifyIsMuted(not_null<const PeerData*> peer) const;
 	bool notifySilentPosts(not_null<const PeerData*> peer) const;
+	bool notifySoundIsNone(not_null<const PeerData*> peer) const;
 	bool notifyMuteUnknown(not_null<const PeerData*> peer) const;
 	bool notifySilentPostsUnknown(not_null<const PeerData*> peer) const;
+	bool notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const;
 	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
 	rpl::producer<> defaultUserNotifyUpdates() const;
 	rpl::producer<> defaultChatNotifyUpdates() const;
@@ -710,6 +711,10 @@ public:
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
+
+	bool notifyIsMuted(
+		not_null<const PeerData*> peer,
+		crl::time *changesIn) const;
 
 	void suggestStartExport();
 

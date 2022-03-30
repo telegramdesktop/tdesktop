@@ -60,10 +60,12 @@ public:
 	bool change(const MTPDpeerNotifySettings &data);
 	bool change(
 		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts);
+		std::optional<bool> silentPosts,
+		std::optional<NotifySound> sound);
 
 	std::optional<TimeId> muteUntil() const;
 	std::optional<bool> silentPosts() const;
+	std::optional<NotifySound> sound() const;
 	MTPinputPeerNotifySettings serialize() const;
 
 private:
@@ -101,7 +103,8 @@ bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
 
 bool NotifySettingsValue::change(
 		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts) {
+		std::optional<bool> silentPosts,
+		std::optional<NotifySound> sound) {
 	const auto now = base::unixtime::now();
 	const auto notMuted = muteForSeconds
 		? !(*muteForSeconds)
@@ -114,9 +117,12 @@ bool NotifySettingsValue::change(
 	const auto newSilentPosts = silentPosts
 		? base::make_optional(*silentPosts)
 		: _silent;
+	const auto newSound = sound
+		? base::make_optional(*sound)
+		: _sound;
 	return change(
 		newMute,
-		_sound,
+		newSound,
 		_showPreviews,
 		newSilentPosts);
 }
@@ -145,6 +151,10 @@ std::optional<TimeId> NotifySettingsValue::muteUntil() const {
 
 std::optional<bool> NotifySettingsValue::silentPosts() const {
 	return _silent;
+}
+
+std::optional<NotifySound> NotifySettingsValue::sound() const {
+	return _sound;
 }
 
 MTPinputPeerNotifySettings NotifySettingsValue::serialize() const {
@@ -188,15 +198,20 @@ bool NotifySettings::change(const MTPPeerNotifySettings &settings) {
 
 bool NotifySettings::change(
 		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts) {
-	if (!muteForSeconds && !silentPosts) {
+		std::optional<bool> silentPosts,
+		std::optional<bool> soundIsNone) {
+	const auto notificationSound = soundIsNone
+		? std::make_optional(NotifySound{ .none = (*soundIsNone) })
+		: std::nullopt;
+	if (!muteForSeconds && !silentPosts && !soundIsNone) {
 		return false;
 	} else if (_value) {
-		return _value->change(muteForSeconds, silentPosts);
+		return _value->change(muteForSeconds, silentPosts, notificationSound);
 	}
 	using Flag = MTPDpeerNotifySettings::Flag;
 	const auto flags = (muteForSeconds ? Flag::f_mute_until : Flag(0))
-		| (silentPosts ? Flag::f_silent : Flag(0));
+		| (silentPosts ? Flag::f_silent : Flag(0))
+		| (notificationSound ? Flag::f_other_sound : Flag(0));
 	const auto muteUntil = muteForSeconds
 		? (base::unixtime::now() + *muteForSeconds)
 		: 0;
@@ -207,7 +222,7 @@ bool NotifySettings::change(
 		MTP_int(muteUntil),
 		MTPNotificationSound(),
 		MTPNotificationSound(),
-		MTPNotificationSound()));
+		SerializeSound(notificationSound)));
 }
 
 std::optional<TimeId> NotifySettings::muteUntil() const {
@@ -224,6 +239,12 @@ std::optional<bool> NotifySettings::silentPosts() const {
 	return _value
 		? _value->silentPosts()
 		: std::nullopt;
+}
+
+std::optional<bool> NotifySettings::soundIsNone() const {
+	return (!_value || !_value->sound())
+		? std::nullopt
+		: std::make_optional(_value->sound()->none);
 }
 
 MTPinputPeerNotifySettings NotifySettings::serialize() const {
