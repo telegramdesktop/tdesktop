@@ -3116,7 +3116,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
-	options.hwAllowed = true;
+	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;

@@ -1604,7 +1604,7 @@ void Pip::restartAtSeekPosition(crl::time position) {
 
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
-	options.hwAllowed = true;
+	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
 	options.audioId = _instance.player().prepareLegacyState().id;
 
 	Assert(8 && _delegate->pipPlaybackSpeed() >= 0.5

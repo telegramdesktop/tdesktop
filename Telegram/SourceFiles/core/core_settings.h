@@ -663,6 +663,13 @@ public:
 		_accountsOrder = order;
 	}
 
+	[[nodiscard]] bool hardwareAcceleratedVideo() const {
+		return _hardwareAcceleratedVideo;
+	}
+	void setHardwareAcceleratedVideo(bool value) {
+		_hardwareAcceleratedVideo = value;
+	}
+
 	void setMacWarnBeforeQuit(bool value) {
 		_macWarnBeforeQuit = value;
 	}
@@ -775,6 +782,7 @@ private:
 	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
+	bool _hardwareAcceleratedVideo = true;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

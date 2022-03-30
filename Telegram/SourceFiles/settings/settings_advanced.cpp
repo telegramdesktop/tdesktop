@@ -582,6 +582,23 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
+	const auto settings = &Core::App().settings();
+	AddButton(
+		container,
+		tr::lng_settings_enable_hwaccel(),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		rpl::single(settings->hardwareAcceleratedVideo())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != settings->hardwareAcceleratedVideo());
+	}) | rpl::start_with_next([=](bool enabled) {
+		settings->setHardwareAcceleratedVideo(enabled);
+		Core::App().saveSettingsDelayed();
+	}, container->lifetime());
+}
+
 #ifdef Q_OS_WIN
 void SetupANGLE(
 		not_null<Window::SessionController*> controller,
@@ -695,6 +712,7 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
+	SetupHardwareAcceleration(container);
 #ifdef Q_OS_WIN
 	SetupANGLE(controller, container);
 #else // Q_OS_WIN

@@ -128,7 +128,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(_photoEditorBrush)
 		+ sizeof(qint32) * 3
 		+ Serialize::stringSize(_customDeviceModel.current())
-		+ sizeof(qint32) * 2;
+		+ sizeof(qint32) * 4;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -236,6 +236,9 @@ QByteArray Settings::serialize() const {
 		for (const auto &id : _accountsOrder) {
 			stream << quint64(id);
 		}
+
+		stream
+			<< qint32(_hardwareAcceleratedVideo ? 1 : 0);
 	}
 	return result;
 }
@@ -325,6 +328,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 macWarnBeforeQuit = _macWarnBeforeQuit ? 1 : 0;
 	qint32 accountsOrderCount = 0;
 	std::vector<uint64> accountsOrder;
+	qint32 hardwareAcceleratedVideo = _hardwareAcceleratedVideo ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -506,6 +510,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> hardwareAcceleratedVideo;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -661,7 +668,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case Media::Player::OrderMode::Reverse:
 	case Media::Player::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
 	}
-	_macWarnBeforeQuit = macWarnBeforeQuit ? 1 : 0;
+	_macWarnBeforeQuit = (macWarnBeforeQuit == 1);
+	_hardwareAcceleratedVideo = (hardwareAcceleratedVideo == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {

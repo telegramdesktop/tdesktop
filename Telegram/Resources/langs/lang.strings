@@ -492,6 +492,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
+"lng_settings_enable_hwaccel" = "Hardware accelerated video decoding";
 "lng_settings_enable_opengl" = "Enable OpenGL rendering for media";
 "lng_settings_angle_backend" = "ANGLE graphics backend";
 "lng_settings_angle_backend_auto" = "Auto";
