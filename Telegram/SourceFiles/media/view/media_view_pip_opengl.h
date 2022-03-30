@@ -108,6 +108,7 @@ private:
 	QSize _chromaSize;
 	quint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
+	bool _chromaNV12 = false;
 
 	Ui::GL::Image _radialImage;
 	Ui::GL::Image _controlsImage;

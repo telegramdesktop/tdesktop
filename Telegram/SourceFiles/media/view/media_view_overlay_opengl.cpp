@@ -212,6 +212,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	program->bind();
 	const auto nv12 = (data.format == Streaming::FrameFormat::NV12);
 	const auto yuv = data.yuv;
+	const auto nv12changed = (_chromaNV12 != nv12);
 
 	const auto upload = (_trackFrameIndex != data.index)
 		|| (_streamedIndex != _owner->streamedIndex());
@@ -238,13 +239,14 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			nv12 ? GL_RG : GL_ALPHA,
 			nv12 ? GL_RG : GL_ALPHA,
 			yuv->chromaSize,
-			_chromaSize,
+			nv12changed ? QSize() : _chromaSize,
 			yuv->u.stride / (nv12 ? 2 : 1),
 			yuv->u.data);
 		if (nv12) {
 			_chromaSize = yuv->chromaSize;
 			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
+		_chromaNV12 = nv12;
 	}
 	if (!nv12) {
 		_f->glActiveTexture(GL_TEXTURE2);

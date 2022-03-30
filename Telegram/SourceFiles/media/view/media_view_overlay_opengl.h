@@ -117,6 +117,7 @@ private:
 	qint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
+	bool _chromaNV12 = false;
 
 	Ui::GL::Image _radialImage;
 	Ui::GL::Image _documentBubbleImage;
