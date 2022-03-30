@@ -84,6 +84,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_calendar_days#one" = "{count} day";
 "lng_calendar_days#other" = "{count} days";
 
+"lng_seconds_tiny#one" = "{count}s";
+"lng_seconds_tiny#other" = "{count}s";
+"lng_minutes_tiny#one" = "{count}m";
+"lng_minutes_tiny#other" = "{count}m";
+"lng_hours_tiny#one" = "{count}h";
+"lng_hours_tiny#other" = "{count}h";
+"lng_days_tiny#one" = "{count}d";
+"lng_days_tiny#other" = "{count}d";
+"lng_weeks_tiny#one" = "{count}w";
+"lng_weeks_tiny#other" = "{count}w";
+"lng_months_tiny#one" = "{count}m";
+"lng_months_tiny#other" = "{count}m";
+"lng_years_tiny#one" = "{count}y";
+"lng_years_tiny#other" = "{count}y";
+
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
 "lng_box_yes" = "Yes";
@@ -2472,12 +2487,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_default_restrictions_header" = "What can members of this group do?";
 "lng_rights_slowmode_header" = "Slow mode";
 "lng_rights_slowmode_off" = "Off";
-"lng_rights_slowmode_seconds#one" = "{count}s";
-"lng_rights_slowmode_seconds#other" = "{count}s";
-"lng_rights_slowmode_minutes#one" = "{count}m";
-"lng_rights_slowmode_minutes#other" = "{count}m";
-"lng_rights_slowmode_hours#one" = "{count}h";
-"lng_rights_slowmode_hours#other" = "{count}h";
 "lng_rights_slowmode_about" = "Members will be able to send only one message per this interval.";
 "lng_rights_slowmode_about_interval" = "Members will be able to send only one message {interval}.";
 "lng_rights_slowmode_interval_seconds#one" = "every {count} second";

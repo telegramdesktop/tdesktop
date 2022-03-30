@@ -569,19 +569,10 @@ void EditPeerPermissionsBox::addSlowmodeLabels(
 			(!seconds
 				? tr::lng_rights_slowmode_off(tr::now)
 				: (seconds < 60)
-				? tr::lng_rights_slowmode_seconds(
-					tr::now,
-					lt_count,
-					seconds)
+				? tr::lng_seconds_tiny(tr::now, lt_count, seconds)
 				: (seconds < 3600)
-				? tr::lng_rights_slowmode_minutes(
-					tr::now,
-					lt_count,
-					seconds / 60)
-				: tr::lng_rights_slowmode_hours(
-					tr::now,
-					lt_count,
-					seconds / 3600)));
+				? tr::lng_minutes_tiny(tr::now, lt_count, seconds / 60)
+				: tr::lng_hours_tiny(tr::now, lt_count,seconds / 3600)));
 		rpl::combine(
 			labels->widthValue(),
 			label->widthValue()
