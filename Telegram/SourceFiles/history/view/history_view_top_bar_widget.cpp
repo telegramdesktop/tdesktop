@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
@@ -283,14 +284,14 @@ bool TopBarWidget::createMenu(not_null<Ui::IconButton*> button) {
 	if (!_activeChat.key || _menu) {
 		return false;
 	}
-	_menu.create(this, st::popupMenuExpandedSeparator);
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuExpandedSeparator);
 	_menu->setDestroyedCallback([
 			weak = Ui::MakeWeak(this),
 			weakButton = Ui::MakeWeak(button),
-			menu = _menu.data()] {
-		menu->deleteLater();
+			menu = _menu.get()] {
 		if (weak && weak->_menu == menu) {
-			weak->_menu = nullptr;
 			if (weakButton) {
 				weakButton->setForceRippled(false);
 			}
@@ -305,25 +306,10 @@ void TopBarWidget::showPeerMenu() {
 	if (!created) {
 		return;
 	}
-	const auto addAction = Window::PeerMenuCallback([&](
-			Window::PeerMenuCallback::Args a) {
-		if (a.fillSubmenu) {
-			const auto action = _menu->addAction(
-				a.text,
-				std::move(a.handler),
-				a.icon);
-			// Dummy menu.
-			action->setMenu(Ui::CreateChild<QMenu>(_menu->menu().get()));
-			a.fillSubmenu(_menu->ensureSubmenu(action));
-			return action;
-		} else if (a.isSeparator) {
-			return _menu->addSeparator();
-		}
-		return _menu->addAction(a.text, std::move(a.handler), a.icon);
-	});
+	const auto addAction = Menu::CreateAddActionCallback(_menu);
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
-		_menu.destroy();
+		_menu = nullptr;
 	} else {
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		_menu->popup(mapToGlobal(QPoint(

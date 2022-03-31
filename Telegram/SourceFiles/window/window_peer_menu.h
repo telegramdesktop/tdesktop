@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "menu/menu_send.h"
 #include "data/data_poll.h"
+#include "menu/add_action_callback.h"
 
 class History;
 
@@ -38,33 +39,7 @@ class SessionNavigation;
 
 extern const char kOptionViewProfileInChatsListContextMenu[];
 
-struct PeerMenuCallback {
-public:
-	struct Args {
-		QString text;
-		Fn<void()> handler;
-		const style::icon *icon;
-		Fn<void(not_null<Ui::PopupMenu*>)> fillSubmenu;
-		bool isSeparator = false;
-	};
-	using Callback = Fn<QAction*(Args&&)>;
-
-	explicit PeerMenuCallback(Callback callback)
-	: callback(std::move(callback)) {
-	}
-
-	QAction *operator()(Args &&args) const {
-		return callback(std::move(args));
-	}
-	QAction *operator()(
-			const QString &text,
-			Fn<void()> handler,
-			const style::icon *icon) const {
-		return callback({ text, std::move(handler), icon, nullptr });
-	}
-private:
-	Callback callback;
-};
+using PeerMenuCallback = Menu::MenuCallback;
 
 void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,

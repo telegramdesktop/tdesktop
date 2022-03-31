@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_download_manager.h"
 #include "data/data_session.h"
@@ -505,23 +506,7 @@ void WrapWidget::showTopBarMenu() {
 	});
 	_topBarMenuToggle->setForceRippled(true);
 
-	const auto addAction = Window::PeerMenuCallback([=](
-			Window::PeerMenuCallback::Args a) {
-		if (a.isSeparator) {
-			return _topBarMenu->addSeparator();
-		} else if (a.fillSubmenu) {
-			const auto action = _topBarMenu->addAction(
-				a.text,
-				std::move(a.handler),
-				a.icon);
-			// Dummy menu.
-			action->setMenu(
-				Ui::CreateChild<QMenu>(_topBarMenu->menu().get()));
-			a.fillSubmenu(_topBarMenu->ensureSubmenu(action));
-			return action;
-		}
-		return _topBarMenu->addAction(a.text, std::move(a.handler), a.icon);
-	});
+	const auto addAction = Menu::CreateAddActionCallback(_topBarMenu);
 	if (key().isDownloads()) {
 		addAction(
 			tr::lng_context_delete_all_files(tr::now),

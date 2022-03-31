@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "menu/add_action_callback_factory.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -1771,22 +1772,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
-		const auto addAction = Window::PeerMenuCallback([&](
-				Window::PeerMenuCallback::Args &&a) {
-			if (a.fillSubmenu) {
-				const auto action = _menu->addAction(
-					a.text,
-					std::move(a.handler),
-					a.icon);
-				// Dummy menu.
-				action->setMenu(Ui::CreateChild<QMenu>(_menu->menu().get()));
-				a.fillSubmenu(_menu->ensureSubmenu(action));
-				return action;
-			} else if (a.isSeparator) {
-				return _menu->addSeparator();
-			}
-			return _menu->addAction(a.text, std::move(a.handler), a.icon);
-		});
+		const auto addAction = Menu::CreateAddActionCallback(_menu);
 		Window::FillDialogsEntryMenu(
 			_controller,
 			Dialogs::EntryState{
