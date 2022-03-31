@@ -8,9 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/colors.palette";
 using "ui/widgets/widgets.style";
 
+menuIconColor: windowBoldFg;
+menuIconAttentionColor: attentionButtonFg;
+
+menuIconSubmenuArrow: icon {{ "menu/submenu_arrow", menuIconColor }};
+
 menuWithIcons: Menu(defaultMenu) {
 	itemIconPosition: point(15px, 5px);
 	itemPadding: margins(54px, 8px, 17px, 8px);
+
+	arrow: menuIconSubmenuArrow;
 }
 popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
@@ -22,9 +29,6 @@ dropdownMenuWithIcons: DropdownMenu(defaultDropdownMenu) {
 	}
 	menu: menuWithIcons;
 }
-
-menuIconColor: windowBoldFg;
-menuIconAttentionColor: attentionButtonFg;
 
 menuIconReactions: icon {{ "menu/read_reactions", menuIconColor }};
 menuIconReply: icon {{ "menu/reply", menuIconColor }};
