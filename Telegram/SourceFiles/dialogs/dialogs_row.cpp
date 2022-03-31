@@ -249,7 +249,9 @@ void BasicRow::paintUserpic(
 		_cornerBadgeUserpic->active = active;
 		PaintCornerBadgeFrame(_cornerBadgeUserpic.get(), peer, _userpic);
 	}
-	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
+	rtl()
+	? p.drawImage(fullWidth - st::dialogsPadding.x() - st::dialogsPhotoSize, st::dialogsPadding.y(), _cornerBadgeUserpic->frame)
+	: p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame); /**when a corner badge exists this function is called to paint userpic*/
 	if (historyForCornerBadge->peer->isUser()) {
 		return;
 	}
