@@ -236,6 +236,8 @@ PRIVATE
     ui/widgets/sent_code_field.h
     ui/widgets/separate_panel.cpp
     ui/widgets/separate_panel.h
+    ui/widgets/vertical_drum_picker.cpp
+    ui/widgets/vertical_drum_picker.h
 
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
