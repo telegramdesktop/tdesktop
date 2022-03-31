@@ -102,6 +102,7 @@ void PaintNarrowCounter(
 			: 3;
 		const auto unreadRight = st::dialogsPadding.x()
 			+ st::dialogsPhotoSize;
+		const auto unreadLeft = st::dialogsPadding.x();
 		const auto unreadTop = st::dialogsPadding.y()
 			+ st::dialogsPhotoSize
 			- st::dialogsUnreadHeight;
@@ -110,10 +111,14 @@ void PaintNarrowCounter(
 		st.active = active;
 		st.selected = selected;
 		st.muted = unreadMuted;
+		st.align = rtl() ? style::al_left : style::al_right;
+		//paints unread counter or mark badge in narrow dialogs
 		const auto badge = PaintUnreadBadge(
 			p,
 			counter,
-			unreadRight,
+			(rtl() 
+				? unreadLeft
+				: unreadRight),
 			unreadTop,
 			st,
 			allowDigits);
