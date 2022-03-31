@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/text/format_values.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -37,11 +38,7 @@ void ShowAutoDeleteToast(
 
 	const auto duration = (period == 5)
 		? u"5 seconds"_q
-		: (period < 2 * 86400)
-		? tr::lng_ttl_about_duration1(tr::now)
-		: (period < 8 * 86400)
-		? tr::lng_ttl_about_duration2(tr::now)
-		: tr::lng_ttl_about_duration3(tr::now);
+		: Ui::FormatTTL(period);
 	const auto text = peer->isBroadcast()
 		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
 		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);

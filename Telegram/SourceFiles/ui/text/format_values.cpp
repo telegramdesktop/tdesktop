@@ -117,7 +117,7 @@ QString FormatDurationWords(qint64 duration) {
 		auto secondsCount = tr::lng_duration_minsec_seconds(tr::now, lt_count, seconds);
 		return tr::lng_duration_minutes_seconds(tr::now, lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
 	}
-	return tr::lng_duration_seconds(tr::now, lt_count, duration);
+	return tr::lng_seconds(tr::now, lt_count, duration);
 }
 
 QString FormatDurationAndSizeText(qint64 duration, qint64 size) {

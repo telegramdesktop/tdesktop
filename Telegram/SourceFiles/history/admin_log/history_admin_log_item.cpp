@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "boxes/sticker_set_box.h"
@@ -1124,14 +1125,8 @@ void GenerateItems(
 	const auto createToggleSlowMode = [&](const LogSlowMode &action) {
 		if (const auto seconds = action.vnew_value().v) {
 			const auto duration = (seconds >= 60)
-				? tr::lng_admin_log_slow_mode_minutes(
-					tr::now,
-					lt_count,
-					seconds / 60)
-				: tr::lng_admin_log_slow_mode_seconds(
-					tr::now,
-					lt_count,
-					seconds);
+				? tr::lng_minutes(tr::now, lt_count, seconds / 60)
+				: tr::lng_seconds(tr::now, lt_count, seconds);
 			const auto text = tr::lng_admin_log_changed_slow_mode(
 				tr::now,
 				lt_from,
@@ -1348,11 +1343,7 @@ void GenerateItems(
 		const auto wrap = [](int duration) -> TextWithEntities {
 			const auto text = (duration == 5)
 				? u"5 seconds"_q
-				: (duration < 2 * 86400)
-				? tr::lng_manage_messages_ttl_after1(tr::now)
-				: (duration < 8 * 86400)
-				? tr::lng_manage_messages_ttl_after2(tr::now)
-				: tr::lng_manage_messages_ttl_after3(tr::now);
+				: Ui::FormatTTL(duration);
 			return { .text = text };
 		};
 		const auto text = !was

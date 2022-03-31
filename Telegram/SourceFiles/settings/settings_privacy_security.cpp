@@ -284,14 +284,8 @@ void SetupLocalPasscode(
 				lt_minutes_count,
 				QString::number(minutes))
 			: minutes
-			? tr::lng_passcode_autolock_minutes(
-				tr::now,
-				lt_count,
-				minutes)
-			: tr::lng_passcode_autolock_hours(
-				tr::now,
-				lt_count,
-				hours);
+			? tr::lng_minutes(tr::now, lt_count, minutes)
+			: tr::lng_hours(tr::now, lt_count, hours);
 	});
 
 	AddButtonWithLabel(
@@ -511,13 +505,13 @@ void SetupCloudPassword(
 		const auto hours = left / kHour;
 		const auto minutes = left / kMinute;
 		return days
-			? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+			? tr::lng_days(tr::now, lt_count, days)
 			: hours
-			? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+			? tr::lng_hours(tr::now, lt_count, hours)
 			: minutes
-			? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
+			? tr::lng_minutes(tr::now, lt_count, minutes)
 			: left
-			? tr::lng_group_call_duration_seconds(tr::now, lt_count, left)
+			? tr::lng_seconds(tr::now, lt_count, left)
 			: QString();
 	});
 

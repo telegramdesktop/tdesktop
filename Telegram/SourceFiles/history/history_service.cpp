@@ -448,12 +448,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			const auto hours = seconds / 3600;
 			const auto minutes = seconds / 60;
 			auto text = (days > 1)
-				? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+				? tr::lng_days(tr::now, lt_count, days)
 				: (hours > 1)
-				? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+				? tr::lng_hours(tr::now, lt_count, hours)
 				: (minutes > 1)
-				? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
-				: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
+				? tr::lng_minutes(tr::now, lt_count, minutes)
+				: tr::lng_seconds(tr::now, lt_count, seconds);
 			if (history()->peer->isBroadcast()) {
 				result.text = tr::lng_action_group_call_finished(
 					tr::now,
@@ -508,11 +508,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		const auto period = action.vperiod().v;
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
-			: (period < 2 * 86400)
-			? tr::lng_ttl_about_duration1(tr::now)
-			: (period < 8 * 86400)
-			? tr::lng_ttl_about_duration2(tr::now)
-			: tr::lng_ttl_about_duration3(tr::now);
+			: Ui::FormatTTL(period);
 		if (isPost()) {
 			if (!period) {
 				result.text = tr::lng_action_ttl_removed_channel(

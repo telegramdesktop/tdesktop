@@ -84,6 +84,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_calendar_days#one" = "{count} day";
 "lng_calendar_days#other" = "{count} days";
 
+"lng_seconds#one" = "{count} second";
+"lng_seconds#other" = "{count} seconds";
+"lng_minutes#one" = "{count} minute";
+"lng_minutes#other" = "{count} minutes";
+"lng_hours#one" = "{count} hour";
+"lng_hours#other" = "{count} hours";
+"lng_days#one" = "{count} day";
+"lng_days#other" = "{count} days";
+"lng_weeks#one" = "{count} week";
+"lng_weeks#other" = "{count} weeks";
+"lng_months#one" = "{count} month";
+"lng_months#other" = "{count} months";
+"lng_years#one" = "{count} year";
+"lng_years#other" = "{count} years";
+
 "lng_seconds_tiny#one" = "{count}s";
 "lng_seconds_tiny#other" = "{count}s";
 "lng_minutes_tiny#one" = "{count}m";
@@ -272,12 +287,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 "lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
-"lng_signin_reset_days#one" = "{count} day";
-"lng_signin_reset_days#other" = "{count} days";
-"lng_signin_reset_hours#one" = "{count} hour";
-"lng_signin_reset_hours#other" = "{count} hours";
-"lng_signin_reset_minutes#one" = "{count} minute";
-"lng_signin_reset_minutes#other" = "{count} minutes";
 "lng_signin_reset_in_days" = "{days_count} {hours_count} {minutes_count}";
 "lng_signin_reset_in_hours" = "{hours_count} {minutes_count}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
@@ -603,10 +612,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_local_storage_size_limit" = "Total size limit: {size}";
 "lng_local_storage_media_limit" = "Media cache limit: {size}";
 "lng_local_storage_time_limit" = "Clear files older than: {limit}";
-"lng_local_storage_limit_weeks#one" = "{count} week";
-"lng_local_storage_limit_weeks#other" = "{count} weeks";
-"lng_local_storage_limit_months#one" = "{count} month";
-"lng_local_storage_limit_months#other" = "{count} months";
 "lng_local_storage_limit_never" = "Never";
 "lng_local_storage_summary" = "Summary";
 "lng_local_storage_clear_some" = "Clear";
@@ -627,10 +632,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_autolock" = "Auto-Lock";
 "lng_passcode_autolock_away" = "Auto-Lock if away for...";
 "lng_passcode_autolock_inactive" = "Auto-Lock if inactive for...";
-"lng_passcode_autolock_minutes#one" = "{count} minute";
-"lng_passcode_autolock_minutes#other" = "{count} minutes";
-"lng_passcode_autolock_hours#one" = "{count} hour";
-"lng_passcode_autolock_hours#other" = "{count} hours";
 "lng_passcode_autolock_hours_minutes" = "{hours_count}h {minutes_count}m";
 "lng_passcode_enter_old" = "Enter current passcode";
 "lng_passcode_enter_first" = "Enter a passcode";
@@ -873,12 +874,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
 "lng_self_destruct_sessions_title" = "Session termination";
 "lng_self_destruct_sessions_description" = "If you don't come online from a specific session at least once within this period, it will be terminated.";
-"lng_self_destruct_weeks#one" = "{count} week";
-"lng_self_destruct_weeks#other" = "{count} weeks";
-"lng_self_destruct_months#one" = "{count} month";
-"lng_self_destruct_months#other" = "{count} months";
-"lng_self_destruct_years#one" = "{count} year";
-"lng_self_destruct_years#other" = "{count} years";
 
 "lng_change_phone_title" = "Change phone number";
 "lng_change_phone_about" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n**Important**: all your Telegram contacts will\nget your **new number** added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
@@ -902,12 +897,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mute_menu_sound_on" = "Enable sound";
 "lng_mute_menu_sound_off" = "Disable sound";
 "lng_mute_box_title" = "Mute notifications for...";
-"lng_mute_box_days#one" = "{count} day";
-"lng_mute_box_days#other" = "{count} days";
-"lng_mute_box_hours#one" = "{count} hour";
-"lng_mute_box_hours#other" = "{count} hours";
-"lng_mute_box_minutes#one" = "{count} minute";
-"lng_mute_box_minutes#other" = "{count} minutes";
 
 "lng_mute_duration_hours#one" = "For {count} hour";
 "lng_mute_duration_hours#other" = "For {count} hours";
@@ -1136,9 +1125,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_off" = "Auto-delete is now disabled.";
-"lng_ttl_about_duration1" = "1 day";
-"lng_ttl_about_duration2" = "1 week";
-"lng_ttl_about_duration3" = "1 month";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
@@ -1242,8 +1228,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
 "lng_message_not_found" = "Message doesn't exist.";
 
-"lng_duration_seconds#one" = "{count} second";
-"lng_duration_seconds#other" = "{count} seconds";
 "lng_duration_minsec_minutes#one" = "{count} min";
 "lng_duration_minsec_minutes#other" = "{count} min";
 "lng_duration_minsec_seconds#one" = "{count} sec";
@@ -2368,14 +2352,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
 "lng_group_call_remove_channel_from_channel" = "Remove {channel} from the live stream?";
-"lng_group_call_duration_days#one" = "{count} day";
-"lng_group_call_duration_days#other" = "{count} days";
-"lng_group_call_duration_hours#one" = "{count} hour";
-"lng_group_call_duration_hours#other" = "{count} hours";
-"lng_group_call_duration_minutes#one" = "{count} minute";
-"lng_group_call_duration_minutes#other" = "{count} minutes";
-"lng_group_call_duration_seconds#one" = "{count} second";
-"lng_group_call_duration_seconds#other" = "{count} seconds";
 "lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";
 "lng_group_call_mac_input" = "Please allow **Input Monitoring** for Telegram in Privacy Settings.";
 "lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
@@ -2607,11 +2583,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
-
-"lng_admin_log_slow_mode_seconds#one" = "{count} second";
-"lng_admin_log_slow_mode_seconds#other" = "{count} seconds";
-"lng_admin_log_slow_mode_minutes#one" = "{count} minute";
-"lng_admin_log_slow_mode_minutes#other" = "{count} minutes";
 
 "lng_admin_log_title_all" = "All actions";
 "lng_admin_log_title_selected" = "Selected actions";
@@ -2974,8 +2945,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
 "lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in {hours}. We have notified all your devices about the export request to make sure it's authorized and to give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
 "lng_export_delay_less_than_hour" = "less than an hour";
-"lng_export_delay_hours#one" = "{count} hour";
-"lng_export_delay_hours#other" = "{count} hours";
 "lng_export_suggest_title" = "Data export ready";
 "lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
 "lng_export_suggest_cancel" = "Not now";

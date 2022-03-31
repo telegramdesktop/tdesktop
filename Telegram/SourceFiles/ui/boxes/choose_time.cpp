@@ -79,14 +79,14 @@ ChooseTimeResult ChooseTimeWidget(
 	const auto hour = Ui::MakeWeak(state->hour);
 	const auto minute = Ui::MakeWeak(state->minute);
 
-	day->setPhrase(tr::lng_mute_box_days);
+	day->setPhrase(tr::lng_days);
 	day->setMaxValue(31);
 	day->setWheelStep(1);
 	day->putNext() | rpl::start_with_next([=](QChar ch) {
 		putNext(hour, ch);
 	}, content->lifetime());
 
-	hour->setPhrase(tr::lng_mute_box_hours);
+	hour->setPhrase(tr::lng_hours);
 	hour->setMaxValue(23);
 	hour->setWheelStep(1);
 	hour->putNext() | rpl::start_with_next([=](QChar ch) {
@@ -96,7 +96,7 @@ ChooseTimeResult ChooseTimeWidget(
 		erasePrevious(day);
 	}, content->lifetime());
 
-	minute->setPhrase(tr::lng_mute_box_minutes);
+	minute->setPhrase(tr::lng_minutes);
 	minute->setMaxValue(59);
 	minute->setWheelStep(10);
 	minute->erasePrevious() | rpl::start_with_next([=] {

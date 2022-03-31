@@ -131,13 +131,10 @@ void StartPendingReset(
 		const auto hours = (left / kHour);
 		const auto minutes = (left / kMinute);
 		const auto duration = days
-			? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+			? tr::lng_days(tr::now, lt_count, days)
 			: hours
-			? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
-			: tr::lng_group_call_duration_minutes(
-				tr::now,
-				lt_count,
-				minutes);
+			? tr::lng_hours(tr::now, lt_count, hours)
+			: tr::lng_minutes(tr::now, lt_count, minutes);
 		if (const auto strong = weak.data()) {
 			strong->getDelegate()->show(Ui::MakeInformBox(
 				tr::lng_cloud_password_reset_later(
