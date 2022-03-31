@@ -384,6 +384,18 @@ QString FormatPhone(const QString &phone) {
 	return Countries::Instance().format({ .phone = phone }).formatted;
 }
 
+QString FormatTTL(float64 ttl) {
+	return (ttl <= 3600 * 23)
+		? tr::lng_hours(tr::now, lt_count, std::ceil(ttl / 3600))
+		: (ttl <= (86400) * 6)
+		? tr::lng_days(tr::now, lt_count, std::ceil(ttl / (86400)))
+		: (ttl <= (86400 * 7) * 3)
+		? tr::lng_weeks(tr::now, lt_count, std::ceil(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 30) * 11)
+		? tr::lng_months({}, lt_count, std::ceil(ttl / (86400 * 30)))
+		: tr::lng_years({}, lt_count, std::ceil(ttl / (86400 * 30 * 12)));
+}
+
 QString FormatTTLTiny(float64 ttl) {
 	return (ttl <= 3600 * 9)
 		? tr::lng_hours_tiny(tr::now, lt_count, std::ceil(ttl / 3600))

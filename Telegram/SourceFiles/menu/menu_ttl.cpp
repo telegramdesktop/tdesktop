@@ -7,15 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_ttl.h"
 
+#include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/choose_time.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
+#include "ui/ui_utility.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/vertical_drum_picker.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h" // dialogsScamFont
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 namespace TTLMenu {
@@ -30,6 +34,115 @@ constexpr auto kTTLDurHours3 = crl::time(24 * 7);
 constexpr auto kTTLDurSeconds3 = kTTLDurHours3 * 3600;
 constexpr auto kTTLDurHours4 = crl::time(24 * 30);
 constexpr auto kTTLDurSeconds4 = kTTLDurHours4 * 3600;
+
+void SetupPickerAndConfirm(
+		not_null<Ui::GenericBox*> box,
+		Fn<void(TimeId)> callback,
+		TimeId startTtlPeriod) {
+	const auto ttls = std::vector<int>{
+		(86400 * 1),
+		(86400 * 2),
+		(86400 * 3),
+		(86400 * 4),
+		(86400 * 5),
+		(86400 * 6),
+		(86400 * 7 * 1),
+		(86400 * 7 * 2),
+		(86400 * 7 * 3),
+		(86400 * 30 * 1),
+		(86400 * 30 * 2),
+		(86400 * 30 * 3),
+		(86400 * 30 * 4),
+		(86400 * 30 * 5),
+		(86400 * 30 * 6),
+		(86400 * 30 * 12),
+	};
+	const auto phrases = ranges::views::all(
+		ttls
+	) | ranges::views::transform(Ui::FormatTTL) | ranges::to_vector;
+
+	const auto startIndex = [&] {
+		const auto it = ranges::find(ttls, startTtlPeriod);
+		return (it == end(ttls)) ? 0 : std::distance(begin(ttls), it);
+	}();
+
+	const auto content = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+		box,
+		st::historyMessagesTTLPickerHeight));
+
+	const auto font = st::boxTextFont;
+	const auto maxPhraseWidth = [&] {
+		const auto maxPhrase = ranges::max_element(
+			phrases,
+			std::less<>(),
+			[&](const QString &s) { return font->width(s); });
+		return font->width(*maxPhrase);
+	}();
+	const auto itemHeight = st::historyMessagesTTLPickerItemHeight;
+	auto paintCallback = [=](
+			Painter &p,
+			int index,
+			float64 y,
+			float64 distanceFromCenter,
+			int outerWidth) {
+		const auto r = QRectF(0, y, outerWidth, itemHeight);
+		const auto progress = std::abs(distanceFromCenter);
+		p.setOpacity(1. - progress);
+		p.setFont(font);
+		p.setPen(st::defaultFlatLabel.textFg);
+		p.drawText(r, phrases[index], style::al_center);
+	};
+
+	const auto picker = Ui::CreateChild<Ui::VerticalDrumPicker>(
+		content,
+		std::move(paintCallback),
+		phrases.size(),
+		itemHeight,
+		startIndex);
+
+	content->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		picker->resize(maxPhraseWidth, s.height());
+		picker->moveToLeft((s.width() - picker->width()) / 2, 0);
+	}, content->lifetime());
+
+	content->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		Painter p(content);
+
+		p.fillRect(r, Qt::transparent);
+
+		const auto lineRect = QRect(
+			0,
+			content->height() / 2,
+			content->width(),
+			st::defaultInputField.borderActive);
+		p.fillRect(lineRect.translated(0, itemHeight / 2), st::activeLineFg);
+		p.fillRect(lineRect.translated(0, -itemHeight / 2), st::activeLineFg);
+	}, content->lifetime());
+
+	base::install_event_filter(content, [=](not_null<QEvent*> e) {
+		if ((e->type() == QEvent::MouseButtonPress)
+			|| (e->type() == QEvent::MouseButtonRelease)
+			|| (e->type() == QEvent::MouseMove)) {
+			picker->handleMouseEvent(static_cast<QMouseEvent*>(e.get()));
+		} else if (e->type() == QEvent::Wheel) {
+			picker->handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
+		}
+		return base::EventFilterResult::Continue;
+	});
+	base::install_event_filter(box, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress) {
+			picker->handleKeyEvent(static_cast<QKeyEvent*>(e.get()));
+		}
+		return base::EventFilterResult::Continue;
+	});
+
+	box->addButton(tr::lng_settings_save(), [=] {
+		callback(ttls[picker->index()]);
+		box->getDelegate()->hideLayer();
+	});
+}
 
 class IconWithText final : public Ui::Menu::Action {
 public:
@@ -117,7 +230,7 @@ int TextItem::contentHeight() const {
 	return _label->height();
 }
 
-void TTLBox(
+void TTLBoxOld(
 		not_null<Ui::GenericBox*> box,
 		Fn<void(TimeId)> callback,
 		TimeId startTtlPeriod) {
@@ -147,6 +260,26 @@ void TTLBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+void TTLBox(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> &&about,
+		Fn<void(TimeId)> callback,
+		TimeId startTtlPeriod) {
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		std::move(about),
+		st::boxLabel));
+	SetupPickerAndConfirm(box, callback, startTtlPeriod);
+	box->setTitle(tr::lng_manage_messages_ttl_title());
+
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	if (startTtlPeriod) {
+		box->addLeftButton(tr::lng_manage_messages_ttl_disable(), [=] {
+			callback(0);
+		});
+	}
+}
+
 } // namespace
 
 void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
@@ -173,7 +306,10 @@ void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
 
 	menu->addAction(
 		tr::lng_manage_messages_ttl_after_custom(tr::now),
-		[a = args] { a.show->showBox(Box(TTLBox, a.callback, a.startTtl)); },
+		[a = args] {
+			a.show->showBox(
+				Box(TTLBox, std::move(a.about), a.callback, a.startTtl));
+		},
 		&st::menuIconCustomize);
 
 	if (args.startTtl) {
