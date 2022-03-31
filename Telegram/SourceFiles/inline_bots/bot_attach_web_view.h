@@ -35,7 +35,7 @@ namespace InlineBots {
 
 struct AttachWebViewBot {
 	not_null<UserData*> user;
-	not_null<DocumentData*> icon;
+	DocumentData *icon = nullptr;
 	std::shared_ptr<Data::DocumentMedia> media;
 	QString name;
 	bool inactive = false;
@@ -48,13 +48,17 @@ public:
 
 	struct WebViewButton {
 		QString text;
+		QString startCommand;
 		QByteArray url;
 	};
-	void request(not_null<PeerData*> peer, const QString &botUsername);
+	void request(
+		not_null<PeerData*> peer,
+		const QString &botUsername,
+		const QString &startCommand);
 	void request(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
-		const WebViewButton &button = WebViewButton());
+		const WebViewButton &button);
 	void requestSimple(
 		not_null<UserData*> bot,
 		const WebViewButton &button);
@@ -69,15 +73,17 @@ public:
 		return _attachBotsUpdates.events();
 	}
 
-	void requestAddToMenu(not_null<UserData*> bot);
+	void requestAddToMenu(
+		PeerData *peer,
+		not_null<UserData*> bot,
+		const QString &startCommand);
 	void removeFromMenu(not_null<UserData*> bot);
 
 	static void ClearAll();
 
 private:
 	void resolve();
-	void request(const WebViewButton &button = WebViewButton());
-	void requestByUsername();
+	void request(const WebViewButton &button);
 	void resolveUsername(
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
@@ -101,6 +107,7 @@ private:
 	PeerData *_peer = nullptr;
 	UserData *_bot = nullptr;
 	QString _botUsername;
+	QString _startCommand;
 	QPointer<Ui::GenericBox> _confirmAddBox;
 	MsgId _replyToMsgId;
 
@@ -110,8 +117,10 @@ private:
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
 
+	PeerData *_addToMenuPeer = nullptr;
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
+	QString _addToMenuStartCommand;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;

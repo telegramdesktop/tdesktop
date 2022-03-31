@@ -362,7 +362,9 @@ bool ResolveUsernameOrPhone(
 		.startToken = startToken,
 		.startAdminRights = adminRights,
 		.attachBotUsername = params.value(u"attach"_q),
-		.attachBotToggle = params.contains(u"setattach"_q),
+		.attachBotToggleCommand = (params.contains(u"startattach"_q)
+			? params.value(u"startattach"_q)
+			: std::optional<QString>()),
 		.voicechatHash = (params.contains(u"livestream"_q)
 			? std::make_optional(params.value(u"livestream"_q))
 			: params.contains(u"videochat"_q)
@@ -782,7 +784,8 @@ QString TryConvertUrlToLocal(QString url) {
 	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedView(5);
 		if (auto phoneMatch = regex_match(qsl("^\\+([0-9]+)(\\?|$)"), query, matchOptions)) {
-			return qsl("tg://resolve?phone=") + phoneMatch->captured(1);
+			auto params = query.mid(phoneMatch->captured(0).size()).toString();
+			return qsl("tg://resolve?phone=") + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {

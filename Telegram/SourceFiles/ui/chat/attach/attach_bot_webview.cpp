@@ -311,9 +311,9 @@ bool Panel::createWebview() {
 		}
 		const auto list = message.array();
 		const auto command = list.at(0).toString();
-		if (command == "webview_close") {
+		if (command == "web_app_close") {
 			_close();
-		} else if (command == "webview_data_send") {
+		} else if (command == "web_app_data_send") {
 			auto error = QJsonParseError();
 			auto json = list.at(1).toString();
 			const auto dictionary = QJsonDocument::fromJson(

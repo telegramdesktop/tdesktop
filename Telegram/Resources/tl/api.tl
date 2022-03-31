@@ -1336,7 +1336,11 @@ phone.groupCallStreamChannels#d0e482b2 channels:Vector<GroupCallStreamChannel> =
 
 phone.groupCallStreamRtmpUrl#2dbf3432 url:string key:string = phone.GroupCallStreamRtmpUrl;
 
-attachMenuBot#4fdf05a8 flags:# inactive:flags.0?true bot_id:long attach_menu_name:string attach_menu_icon:Document = AttachMenuBot;
+attachMenuBotIconColor#4576f3f0 name:string color:int = AttachMenuBotIconColor;
+
+attachMenuBotIcon#b2a7386b flags:# name:string icon:Document colors:flags.0?Vector<AttachMenuBotIconColor> = AttachMenuBotIcon;
+
+attachMenuBot#e93cb772 flags:# inactive:flags.0?true bot_id:long short_name:string icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
 
 attachMenuBotsNotModified#f1d88a5c = AttachMenuBots;
 attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> = AttachMenuBots;
@@ -1344,7 +1348,6 @@ attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> 
 attachMenuBotsBot#93bf667f bot:AttachMenuBot users:Vector<User> = AttachMenuBotsBot;
 
 webViewResultUrl#c14557c query_id:long url:string = WebViewResult;
-webViewResultConfirmationRequired#b1cad385 bot:AttachMenuBot users:Vector<User> = WebViewResult;
 
 simpleWebViewResultUrl#882f76bb url:string = SimpleWebViewResult;
 
@@ -1653,7 +1656,7 @@ messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = mes
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
 messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#1aee33af bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#2221fe98 flags:# silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
+messages.requestWebView#fa04dff flags:# silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
 messages.prolongWebView#d22ad148 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int = Bool;
 messages.requestSimpleWebView#6abb2f73 flags:# bot:InputUser url:string theme_params:flags.0?DataJSON = SimpleWebViewResult;
 messages.sendWebViewResultMessage#ddcf50eb query_id:long result:InputBotInlineResult = WebViewMessageSent;

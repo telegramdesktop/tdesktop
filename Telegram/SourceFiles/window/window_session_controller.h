@@ -196,7 +196,7 @@ public:
 		QString startToken;
 		ChatAdminRights startAdminRights;
 		QString attachBotUsername;
-		bool attachBotToggle = false;
+		std::optional<QString> attachBotToggleCommand;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};
@@ -265,6 +265,9 @@ private:
 		Fn<void(not_null<PeerData*>)> done);
 
 	void showPeerByLinkResolved(
+		not_null<PeerData*> peer,
+		const PeerByLinkInfo &info);
+	void joinVoiceChatFromLink(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 

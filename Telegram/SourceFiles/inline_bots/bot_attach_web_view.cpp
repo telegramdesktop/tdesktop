@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -46,6 +47,25 @@ struct ParsedBot {
 	bool inactive = false;
 };
 
+[[nodiscard]] DocumentData *ResolveIcon(
+		not_null<Main::Session*> session,
+		const MTPDattachMenuBot &data) {
+	for (const auto &icon : data.vicons().v) {
+		const auto document = icon.match([&](
+			const MTPDattachMenuBotIcon &data
+		) -> DocumentData* {
+			if (data.vname().v == "default_static") {
+				return session->data().processDocument(data.vicon()).get();
+			}
+			return nullptr;
+		});
+		if (document) {
+			return document;
+		}
+	}
+	return nullptr;
+}
+
 [[nodiscard]] std::optional<AttachWebViewBot> ParseAttachBot(
 		not_null<Main::Session*> session,
 		const MTPAttachMenuBot &bot) {
@@ -57,13 +77,12 @@ struct ParsedBot {
 		return good
 			? AttachWebViewBot{
 				.user = user,
-				.icon = session->data().processDocument(
-					data.vattach_menu_icon()),
-				.name = qs(data.vattach_menu_name()),
+				.icon = ResolveIcon(session, data),
+				.name = qs(data.vshort_name()),
 				.inactive = data.is_inactive(),
 			} : std::optional<AttachWebViewBot>();
 	});
-	if (result) {
+	if (result && result->icon) {
 		result->icon->forceToCache(true);
 	}
 	return result;
@@ -150,7 +169,7 @@ BotAction::BotAction(
 
 void BotAction::validateIcon() {
 	if (_mask.isNull()) {
-		if (!_bot.media->loaded()) {
+		if (!_bot.media || !_bot.media->loaded()) {
 			return;
 		}
 		auto icon = QSvgRenderer(_bot.media->bytes());
@@ -281,12 +300,15 @@ AttachWebView::~AttachWebView() {
 
 void AttachWebView::request(
 		not_null<PeerData*> peer,
-		const QString &botUsername) {
+		const QString &botUsername,
+		const QString &startCommand) {
 	if (botUsername.isEmpty()) {
 		return;
 	}
 	const auto username = _bot ? _bot->username : _botUsername;
-	if (_peer == peer && username.toLower() == botUsername.toLower()) {
+	if (_peer == peer
+		&& username.toLower() == botUsername.toLower()
+		&& _startCommand == startCommand) {
 		if (_panel) {
 			_panel->requestActivate();
 		}
@@ -296,6 +318,7 @@ void AttachWebView::request(
 
 	_peer = peer;
 	_botUsername = botUsername;
+	_startCommand = startCommand;
 	resolve();
 }
 
@@ -320,38 +343,30 @@ void AttachWebView::request(
 void AttachWebView::request(const WebViewButton &button) {
 	Expects(_peer != nullptr && _bot != nullptr);
 
+	_startCommand = button.startCommand;
+
 	using Flag = MTPmessages_RequestWebView::Flag;
 	const auto flags = Flag::f_theme_params
-		| (button.url.isEmpty() ? Flag(0) : Flag::f_url);
+		| (button.url.isEmpty() ? Flag(0) : Flag::f_url)
+		| (_startCommand.isEmpty() ? Flag(0) : Flag::f_start_param);
 	_requestId = _session->api().request(MTPmessages_RequestWebView(
 		MTP_flags(flags),
 		_peer->input,
 		_bot->inputUser,
 		MTP_bytes(button.url),
+		MTP_string(_startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams())),
 		MTPint() // reply_to_msg_id
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDwebViewResultUrl &data) {
 			show(data.vquery_id().v, qs(data.vurl()), button.text);
-		}, [&](const MTPDwebViewResultConfirmationRequired &data) {
-			_session->data().processUsers(data.vusers());
-			const auto &received = data.vbot();
-			if (const auto bot = ParseAttachBot(_session, received)) {
-				if (_bot != bot->user) {
-					cancel();
-					return;
-				}
-				confirmAddToMenu(*bot, [=] {
-					request(button);
-				});
-			} else {
-				cancel();
-			}
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
-		int a = error.code();
+		if (error.type() == u"BOT_INVALID"_q) {
+			requestBots();
+		}
 	}).send();
 }
 
@@ -362,6 +377,7 @@ void AttachWebView::cancel() {
 	_panel = nullptr;
 	_peer = _bot = nullptr;
 	_botUsername = QString();
+	_startCommand = QString();
 }
 
 void AttachWebView::requestBots() {
@@ -381,8 +397,10 @@ void AttachWebView::requestBots() {
 			for (const auto &bot : data.vbots().v) {
 				if (auto parsed = ParseAttachBot(_session, bot)) {
 					if (!parsed->inactive) {
-						parsed->media = parsed->icon->createMediaView();
-						parsed->icon->save(Data::FileOrigin(), {});
+						if (const auto icon = parsed->icon) {
+							parsed->media = icon->createMediaView();
+							icon->save(Data::FileOrigin(), {});
+						}
 						_attachBots.push_back(std::move(*parsed));
 					}
 				}
@@ -394,10 +412,19 @@ void AttachWebView::requestBots() {
 	}).send();
 }
 
-void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
+void AttachWebView::requestAddToMenu(
+		PeerData *peer,
+		not_null<UserData*> bot,
+		const QString &startCommand) {
 	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_bot_menu_not_supported(tr::now) },
+		});
 		return;
-	} else if (_addToMenuId) {
+	}
+	_addToMenuStartCommand = startCommand;
+	_addToMenuPeer = peer;
+	if (_addToMenuId) {
 		if (_addToMenuBot == bot) {
 			return;
 		}
@@ -408,19 +435,30 @@ void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
 		bot->inputUser
 	)).done([=](const MTPAttachMenuBotsBot &result) {
 		_addToMenuId = 0;
-		const auto requested = base::take(_addToMenuBot);
+		const auto bot = base::take(_addToMenuBot);
+		const auto contextPeer = base::take(_addToMenuPeer);
+		const auto startCommand = base::take(_addToMenuStartCommand);
+		const auto open = [=] {
+			if (!contextPeer) {
+				return false;
+			}
+			request(contextPeer, bot, { .startCommand = startCommand });
+			return true;
+		};
 		result.match([&](const MTPDattachMenuBotsBot &data) {
 			_session->data().processUsers(data.vusers());
-			if (const auto bot = ParseAttachBot(_session, data.vbot())) {
-				if (requested == bot->user) {
-					if (bot->inactive) {
-						confirmAddToMenu(*bot);
+			if (const auto parsed = ParseAttachBot(_session, data.vbot())) {
+				if (bot == parsed->user) {
+					if (parsed->inactive) {
+						confirmAddToMenu(*parsed, open);
 					} else {
 						requestBots();
-						Ui::ShowMultilineToast({
-							.text = {
-								tr::lng_bot_menu_already_added(tr::now) },
-						});
+						if (!open()) {
+							Ui::ShowMultilineToast({
+								.text = {
+									tr::lng_bot_menu_already_added(tr::now) },
+							});
+						}
 					}
 				}
 			}
@@ -428,6 +466,8 @@ void AttachWebView::requestAddToMenu(not_null<UserData*> bot) {
 	}).fail([=] {
 		_addToMenuId = 0;
 		_addToMenuBot = nullptr;
+		_addToMenuPeer = nullptr;
+		_addToMenuStartCommand = QString();
 		Ui::ShowMultilineToast({
 			.text = { tr::lng_bot_menu_not_supported(tr::now) },
 		});
@@ -443,21 +483,15 @@ void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
 }
 
 void AttachWebView::resolve() {
-	if (!_bot) {
-		requestByUsername();
-	}
-}
-
-void AttachWebView::requestByUsername() {
 	resolveUsername(_botUsername, [=](not_null<PeerData*> bot) {
 		_bot = bot->asUser();
-		if (!_bot || !_bot->isBot() || !_bot->botInfo->supportsAttachMenu) {
+		if (!_bot) {
 			Ui::ShowMultilineToast({
 				.text = { tr::lng_bot_menu_not_supported(tr::now) }
 			});
 			return;
 		}
-		request();
+		requestAddToMenu(_peer, _bot, _startCommand);
 	});
 }
 
@@ -652,7 +686,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			const auto callback = [=] {
 				const auto active = controller->activeChatCurrent();
 				if (const auto history = active.history()) {
-					bots->request(history->peer, bot.user);
+					bots->request(history->peer, bot.user, {});
 				}
 			};
 			auto action = base::make_unique_q<BotAction>(

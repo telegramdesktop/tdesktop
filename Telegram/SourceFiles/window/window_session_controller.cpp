@@ -295,50 +295,12 @@ void SessionNavigation::showPeerByLinkResolved(
 		});
 
 		// Then try to join the voice chat.
-		const auto bad = [=] {
-			Ui::ShowMultilineToast({
-				.text = { tr::lng_group_invite_bad_link(tr::now) }
-			});
-		};
-		const auto hash = *info.voicechatHash;
-		_api.request(base::take(_resolveRequestId)).cancel();
-		_resolveRequestId = _api.request(
-			MTPchannels_GetFullChannel(peer->asChannel()->inputChannel)
-		).done([=](const MTPmessages_ChatFull &result) {
-			_session->api().processFullPeer(peer, result);
-			const auto call = peer->groupCall();
-			if (!call) {
-				bad();
-				return;
-			}
-			const auto join = [=] {
-				parentController()->startOrJoinGroupCall(
-					peer,
-					{ hash, Calls::StartGroupCallArgs::JoinConfirm::Always });
-			};
-			if (call->loaded()) {
-				join();
-				return;
-			}
-			const auto id = call->id();
-			const auto limit = 5;
-			_resolveRequestId = _api.request(
-				MTPphone_GetGroupCall(call->input(), MTP_int(limit))
-			).done([=](const MTPphone_GroupCall &result) {
-				if (const auto now = peer->groupCall()
-					; now && now->id() == id) {
-					if (!now->loaded()) {
-						now->processFullCall(result);
-					}
-					join();
-				} else {
-					bad();
-				}
-			}).fail(bad).send();
-		}).send();
+		joinVoiceChatFromLink(peer, info);
 		return;
 	}
 	using Scope = AddBotToGroupBoxController::Scope;
+	const auto user = peer->asUser();
+	const auto bot = (user && user->isBot()) ? user : nullptr;
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
 		showRepliesForMessage(
@@ -352,8 +314,10 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
-	} else if (info.messageId == ShowAtProfileMsgId && !peer->isChannel()) {
-		const auto user = peer->asUser();
+	} else if (bot
+		&& (info.startType == BotStartType::Group
+			|| info.startType == BotStartType::Channel
+			|| info.startType == BotStartType::ShareGame)) {
 		const auto scope = (info.startType == BotStartType::ShareGame)
 			? Scope::ShareGame
 			: (info.startType == BotStartType::Group)
@@ -361,45 +325,109 @@ void SessionNavigation::showPeerByLinkResolved(
 			: (info.startType == BotStartType::Channel)
 			? Scope::ChannelAdmin
 			: Scope::None;
-		if (!user || !user->isBot()) {
-			showPeerInfo(peer, params);
-		} else if (scope != Scope::None) {
-			AddBotToGroupBoxController::Start(
-				user,
-				scope,
-				info.startToken,
-				info.startAdminRights);
-		} else {
+		Assert(scope != Scope::None);
+
+		AddBotToGroupBoxController::Start(
+			bot,
+			scope,
+			info.startToken,
+			info.startAdminRights);
+	} else if (info.messageId == ShowAtProfileMsgId) {
+		if (bot) {
 			// Always open bot chats, even from mention links.
 			crl::on_main(this, [=] {
-				showPeerHistory(peer->id, params);
+				showPeerHistory(bot->id, params);
 			});
+		} else {
+			showPeerInfo(peer, params);
 		}
 	} else {
-		const auto user = peer->asUser();
-		auto msgId = info.messageId;
-		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) {
-			// Show specific posts only in channels / supergroups.
-			msgId = ShowAtUnreadMsgId;
-		}
+		// Show specific posts only in channels / supergroups.
+		const auto msgId = peer->isChannel()
+			? info.messageId
+			: ShowAtUnreadMsgId;
 		const auto attachBotUsername = info.attachBotUsername;
-		if (user
-			&& user->isBot()
-			&& user->botInfo->startToken != info.startToken) {
-			user->botInfo->startToken = info.startToken;
-			user->session().changes().peerUpdated(
-				user,
+		if (bot && bot->botInfo->startToken != info.startToken) {
+			bot->botInfo->startToken = info.startToken;
+			bot->session().changes().peerUpdated(
+				bot,
 				Data::PeerUpdate::Flag::BotStartToken);
 		}
-		if (user && info.attachBotToggle) {
-			user->session().attachWebView().requestAddToMenu(user);
+		if (!attachBotUsername.isEmpty()) {
+			crl::on_main(this, [=] {
+				showPeerHistory(peer->id, params, msgId);
+				peer->session().attachWebView().request(
+					peer,
+					attachBotUsername,
+					info.attachBotToggleCommand.value_or(QString()));
+			});
+		} else if (bot && info.attachBotToggleCommand) {
+			const auto itemId = info.clickFromMessageId;
+			const auto item = _session->data().message(itemId);
+			const auto contextPeer = item
+				? item->history()->peer.get()
+				: nullptr;
+			const auto contextUser = contextPeer
+				? contextPeer->asUser()
+				: nullptr;
+			bot->session().attachWebView().requestAddToMenu(
+				contextUser,
+				bot,
+				*info.attachBotToggleCommand);
 		} else {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer->id, params, msgId);
-				peer->session().attachWebView().request(peer, attachBotUsername);
 			});
 		}
 	}
+}
+
+void SessionNavigation::joinVoiceChatFromLink(
+		not_null<PeerData*> peer,
+		const PeerByLinkInfo &info) {
+	Expects(info.voicechatHash.has_value());
+
+	const auto bad = [=] {
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_group_invite_bad_link(tr::now) }
+		});
+	};
+	const auto hash = *info.voicechatHash;
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(
+		MTPchannels_GetFullChannel(peer->asChannel()->inputChannel)
+	).done([=](const MTPmessages_ChatFull &result) {
+		_session->api().processFullPeer(peer, result);
+		const auto call = peer->groupCall();
+		if (!call) {
+			bad();
+			return;
+		}
+		const auto join = [=] {
+			parentController()->startOrJoinGroupCall(
+				peer,
+				{ hash, Calls::StartGroupCallArgs::JoinConfirm::Always });
+		};
+		if (call->loaded()) {
+			join();
+			return;
+		}
+		const auto id = call->id();
+		const auto limit = 5;
+		_resolveRequestId = _api.request(
+			MTPphone_GetGroupCall(call->input(), MTP_int(limit))
+		).done([=](const MTPphone_GroupCall &result) {
+			if (const auto now = peer->groupCall()
+				; now && now->id() == id) {
+				if (!now->loaded()) {
+					now->processFullCall(result);
+				}
+				join();
+			} else {
+				bad();
+			}
+		}).fail(bad).send();
+	}).send();
 }
 
 void SessionNavigation::showRepliesForMessage(
