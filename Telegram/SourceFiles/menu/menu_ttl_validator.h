@@ -24,6 +24,7 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
 
+	void showBox() const;
 	[[nodiscard]] bool can() const;
 	[[nodiscard]] Args createArgs() const;
 	void showToast() const;

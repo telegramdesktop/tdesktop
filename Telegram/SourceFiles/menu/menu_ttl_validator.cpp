@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl.h"
+#include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -101,7 +102,9 @@ Args TTLValidator::createArgs() const {
 }
 
 bool TTLValidator::can() const {
-	return _peer->isUser()
+	return (_peer->isUser()
+			&& !_peer->isSelf()
+			&& !_peer->isNotificationsUser())
 		|| (_peer->isChat()
 			&& _peer->asChat()->canDeleteMessages())
 		|| (_peer->isChannel()
@@ -114,6 +117,10 @@ void TTLValidator::showToast() const {
 
 const style::icon *TTLValidator::icon() const {
 	return &st::menuIconTTL;
+}
+
+void TTLValidator::showBox() const {
+	_show->showBox(Box(TTLBox, createArgs()));
 }
 
 } // namespace TTLMenu

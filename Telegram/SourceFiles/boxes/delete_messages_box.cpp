@@ -17,9 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/controls/history_view_ttl_button.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "menu/menu_ttl_validator.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -228,31 +228,22 @@ void DeleteMessagesBox::prepare() {
 	}
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
-	if (_wipeHistoryJustClear
-		&& _wipeHistoryPeer
-		&& ((_wipeHistoryPeer->isUser()
-			&& !_wipeHistoryPeer->isSelf()
-			&& !_wipeHistoryPeer->isNotificationsUser())
-			|| (_wipeHistoryPeer->isChat()
-				&& _wipeHistoryPeer->asChat()->canDeleteMessages())
-			|| (_wipeHistoryPeer->isChannel()
-				&& _wipeHistoryPeer->asChannel()->canDeleteMessages()))) {
-		_wipeHistoryPeer->updateFull();
-#if 0
-		_autoDeleteSettings.create(
-			this,
-			(_wipeHistoryPeer->messagesTTL()
-				? tr::lng_edit_auto_delete_settings(tr::now)
-				: tr::lng_enable_auto_delete(tr::now)),
-			st::boxLinkButton);
-		_autoDeleteSettings->setClickedCallback([=] {
-			getDelegate()->show(
-				Box(
-					HistoryView::Controls::AutoDeleteSettingsMenu,
-					_wipeHistoryPeer),
-				Ui::LayerOption(0));
-		});
-#endif
+	if (_wipeHistoryJustClear && _wipeHistoryPeer) {
+		const auto validator = TTLMenu::TTLValidator(
+			std::make_shared<Ui::BoxShow>(this),
+			_wipeHistoryPeer);
+		if (validator.can()) {
+			_wipeHistoryPeer->updateFull();
+			_autoDeleteSettings.create(
+				this,
+				(_wipeHistoryPeer->messagesTTL()
+					? tr::lng_edit_auto_delete_settings(tr::now)
+					: tr::lng_enable_auto_delete(tr::now)),
+				st::boxLinkButton);
+			_autoDeleteSettings->setClickedCallback([=] {
+				validator.showBox();
+			});
+		}
 	}
 
 	if (canDelete) {

@@ -779,14 +779,11 @@ void Filler::addTTLSubmenu(bool addSeparator) {
 	if (!validator.can()) {
 		return;
 	}
-	_addAction(PeerMenuCallback::Args{
-		.text = tr::lng_manage_messages_ttl_menu(tr::now),
-		.handler = nullptr,
-		.icon = validator.icon(),
-		.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
-			TTLMenu::FillTTLMenu(menu, validator.createArgs());
-		},
-	});
+	const auto text = tr::lng_manage_messages_ttl_menu(tr::now)
+		+ (_peer->messagesTTL()
+			? ('\t' + Ui::FormatTTLTiny(_peer->messagesTTL()))
+			: QString());
+	_addAction(text, [=] { validator.showBox(); }, validator.icon());
 	if (addSeparator) {
 		_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 	}
@@ -836,7 +833,6 @@ void Filler::fillHistoryActions() {
 	addThemeEdit();
 	addViewDiscussion();
 	addExportChat();
-	addTTLSubmenu(false);
 	addReport();
 	addClearHistory();
 	addDeleteChat();
@@ -844,8 +840,8 @@ void Filler::fillHistoryActions() {
 }
 
 void Filler::fillProfileActions() {
-	addSupportInfo();
 	addTTLSubmenu(true);
+	addSupportInfo();
 	addNewContact();
 	addShareContact();
 	addEditContact();

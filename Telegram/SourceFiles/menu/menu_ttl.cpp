@@ -9,23 +9,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "lang/lang_keys.h"
-#include "ui/boxes/choose_time.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/vertical_drum_picker.h"
+#if 0
+#include "ui/boxes/choose_time.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/vertical_drum_picker.h"
-#include "styles/style_chat.h"
 #include "styles/style_dialogs.h" // dialogsScamFont
-#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#endif
+#include "styles/style_chat.h"
+#include "styles/style_layers.h"
 
 namespace TTLMenu {
 
 namespace {
 
+#if 0
 constexpr auto kTTLDurHours1 = crl::time(1);
 constexpr auto kTTLDurSeconds1 = kTTLDurHours1 * 3600;
 constexpr auto kTTLDurHours2 = crl::time(24);
@@ -34,6 +37,7 @@ constexpr auto kTTLDurHours3 = crl::time(24 * 7);
 constexpr auto kTTLDurSeconds3 = kTTLDurHours3 * 3600;
 constexpr auto kTTLDurHours4 = crl::time(24 * 30);
 constexpr auto kTTLDurSeconds4 = kTTLDurHours4 * 3600;
+#endif
 
 void SetupPickerAndConfirm(
 		not_null<Ui::GenericBox*> box,
@@ -144,6 +148,7 @@ void SetupPickerAndConfirm(
 	});
 }
 
+#if 0
 class IconWithText final : public Ui::Menu::Action {
 public:
 	using Ui::Menu::Action::Action;
@@ -259,29 +264,27 @@ void TTLBoxOld(
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
+#endif
 
-void TTLBox(
-		not_null<Ui::GenericBox*> box,
-		rpl::producer<QString> &&about,
-		Fn<void(TimeId)> callback,
-		TimeId startTtlPeriod) {
+} // namespace
+
+void TTLBox(not_null<Ui::GenericBox*> box, Args args) {
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
-		std::move(about),
+		std::move(args.about),
 		st::boxLabel));
-	SetupPickerAndConfirm(box, callback, startTtlPeriod);
+	SetupPickerAndConfirm(box, args.callback, args.startTtl);
 	box->setTitle(tr::lng_manage_messages_ttl_title());
 
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-	if (startTtlPeriod) {
+	if (args.startTtl) {
 		box->addLeftButton(tr::lng_manage_messages_ttl_disable(), [=] {
-			callback(0);
+			args.callback(0);
 		});
 	}
 }
 
-} // namespace
-
+#if 0
 void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
 	const auto &st = menu->st().menu;
 	const auto iconTextPosition = st.itemIconPosition
@@ -306,10 +309,7 @@ void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
 
 	menu->addAction(
 		tr::lng_manage_messages_ttl_after_custom(tr::now),
-		[a = args] {
-			a.show->showBox(
-				Box(TTLBox, std::move(a.about), a.callback, a.startTtl));
-		},
+		[a = args] { a.show->showBox(Box(TTLBox, a)); },
 		&st::menuIconCustomize);
 
 	if (args.startTtl) {
@@ -349,5 +349,6 @@ void SetupTTLMenu(
 		state->menu->popup(QCursor::pos());
 	}, parent->lifetime());
 }
+#endif
 
 } // namespace TTLMenu

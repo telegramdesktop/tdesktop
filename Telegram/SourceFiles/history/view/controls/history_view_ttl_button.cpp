@@ -25,15 +25,13 @@ TTLButton::TTLButton(
 , _button(parent, st::historyMessagesTTL) {
 
 	const auto validator = TTLMenu::TTLValidator(std::move(show), peer);
-	auto clicks = _button.clicks(
-	) | rpl::to_empty | rpl::filter([=] {
+	_button.setClickedCallback([=] {
 		if (!validator.can()) {
 			validator.showToast();
-			return false;
+			return;
 		}
-		return true;
+		validator.showBox();
 	});
-	TTLMenu::SetupTTLMenu(parent, std::move(clicks), validator.createArgs());
 
 	peer->session().changes().peerFlagsValue(
 		peer,
