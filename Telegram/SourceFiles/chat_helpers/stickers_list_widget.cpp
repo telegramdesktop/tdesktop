@@ -230,6 +230,7 @@ struct StickersListWidget::Sticker {
 	Lottie::Animation *lottie = nullptr;
 	Media::Clip::ReaderPointer webm;
 	QPixmap savedFrame;
+	QSize savedFrameFor;
 
 	void ensureMediaCreated();
 };
@@ -1646,6 +1647,7 @@ void StickersListWidget::takeHeavyData(Set &to, Set &from) {
 void StickersListWidget::takeHeavyData(Sticker &to, Sticker &from) {
 	to.documentMedia = std::move(from.documentMedia);
 	to.savedFrame = std::move(from.savedFrame);
+	to.savedFrameFor = from.savedFrameFor;
 	to.lottie = base::take(from.lottie);
 	to.webm = base::take(from.webm);
 }
@@ -1941,6 +1943,7 @@ void StickersListWidget::clearHeavyIn(Set &set, bool clearSavedFrames) {
 	for (auto &sticker : set.stickers) {
 		if (clearSavedFrames) {
 			sticker.savedFrame = QPixmap();
+			sticker.savedFrameFor = QSize();
 		}
 		sticker.webm = nullptr;
 		sticker.lottie = nullptr;
@@ -2270,6 +2273,7 @@ void StickersListWidget::paintSticker(
 		if (sticker.savedFrame.isNull()) {
 			sticker.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
+			sticker.savedFrameFor = _singleSize;
 		}
 		set.lottiePlayer->unpause(sticker.lottie);
 	} else if (sticker.webm && sticker.webm->started()) {
@@ -2279,11 +2283,15 @@ void StickersListWidget::paintSticker(
 		if (sticker.savedFrame.isNull()) {
 			sticker.savedFrame = frame;
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
+			sticker.savedFrameFor = _singleSize;
 		}
 		p.drawPixmapLeft(ppos, width(), frame);
 	} else {
 		const auto image = media->getStickerSmall();
-		const auto pixmap = !sticker.savedFrame.isNull()
+		const auto ratio = style::DevicePixelRatio();
+		const auto useSavedFrame = !sticker.savedFrame.isNull()
+			&& (sticker.savedFrameFor == _singleSize);
+		const auto pixmap = useSavedFrame
 			? sticker.savedFrame
 			: image
 			? image->pixSingle(size, { .outer = size })
@@ -2292,6 +2300,7 @@ void StickersListWidget::paintSticker(
 			p.drawPixmapLeft(ppos, width(), pixmap);
 			if (sticker.savedFrame.isNull()) {
 				sticker.savedFrame = pixmap;
+				sticker.savedFrameFor = _singleSize;
 			}
 		} else {
 			PaintStickerThumbnailPath(
