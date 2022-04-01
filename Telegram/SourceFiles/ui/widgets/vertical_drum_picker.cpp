@@ -106,8 +106,10 @@ void VerticalDrumPicker::handleWheelEvent(not_null<QWheelEvent*> e) {
 	if (direction) {
 		_animation.jumpToOffset(direction);
 	} else {
-		increaseShift(
-			std::min(e->pixelDelta().y() / float64(_itemHeight), 0.99));
+		const auto delta = e->pixelDelta().y()
+			? e->pixelDelta().y()
+			: e->angleDelta().y();
+		increaseShift(std::min(delta / float64(_itemHeight), 0.99));
 		if (e->phase() == Qt::ScrollEnd) {
 			animationDataFromIndex();
 			_animation.jumpToOffset(0);
