@@ -3798,66 +3798,6 @@ auto Session::dialogsRowReplacements() const
 	return _dialogsRowReplacements.events();
 }
 
-bool Session::notifyIsMuted(not_null<const PeerData*> peer) const {
-	return notifySettings().notifyIsMuted(peer, nullptr);
-}
-
-bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {
-	if (const auto silent = peer->notifySilentPosts()) {
-		return *silent;
-	}
-	const auto &settings = notifySettings().defaultNotifySettings(peer);
-	if (const auto silent = settings.silentPosts()) {
-		return *silent;
-	}
-	return false;
-}
-
-bool Session::notifySoundIsNone(not_null<const PeerData*> peer) const {
-	if (const auto soundIsNone = peer->notifySoundIsNone()) {
-		return *soundIsNone;
-	}
-	const auto &settings = notifySettings().defaultNotifySettings(peer);
-	if (const auto soundIsNone = settings.soundIsNone()) {
-		return *soundIsNone;
-	}
-	return false;
-}
-
-bool Session::notifyMuteUnknown(not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
-		return false;
-	}
-	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
-}
-
-bool Session::notifySilentPostsUnknown(
-		not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifySilentPosts()) {
-		return false;
-	}
-	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
-}
-
-bool Session::notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifySoundIsNone()) {
-		return false;
-	}
-	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
-}
-
-bool Session::notifySettingsUnknown(not_null<const PeerData*> peer) const {
-	return notifyMuteUnknown(peer)
-		|| notifySilentPostsUnknown(peer)
-		|| notifySoundIsNoneUnknown(peer);
-}
-
 void Session::serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media) {

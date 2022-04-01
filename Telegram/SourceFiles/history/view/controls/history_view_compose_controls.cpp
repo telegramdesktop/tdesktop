@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_messages.h"
@@ -1338,7 +1339,7 @@ void ComposeControls::updateFieldPlaceholder() {
 			return tr::lng_message_ph();
 		} else if (const auto channel = _history->peer->asChannel()) {
 			if (channel->isBroadcast()) {
-				return session().data().notifySilentPosts(channel)
+				return session().data().notifySettings().silentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
 			} else if (channel->adminRights() & ChatAdminRight::Anonymous) {
@@ -1358,8 +1359,9 @@ void ComposeControls::updateSilentBroadcast() {
 		return;
 	}
 	const auto &peer = _history->peer;
-	if (!session().data().notifySilentPostsUnknown(peer)) {
-		_silent->setChecked(session().data().notifySilentPosts(peer));
+	if (!session().data().notifySettings().silentPostsUnknown(peer)) {
+		_silent->setChecked(
+			session().data().notifySettings().silentPosts(peer));
 		updateFieldPlaceholder();
 	}
 }
@@ -2465,7 +2467,7 @@ bool ComposeControls::hasSilentBroadcastToggle() const {
 		&& peer->isChannel()
 		&& !peer->isMegagroup()
 		&& peer->canWrite()
-		&& !session().data().notifySilentPostsUnknown(peer);
+		&& !session().data().notifySettings().silentPostsUnknown(peer);
 }
 
 void ComposeControls::updateInlineBotQuery() {

@@ -38,15 +38,24 @@ public:
 	[[nodiscard]] rpl::producer<> defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const;
 
-	[[nodiscard]] bool notifyIsMuted(
+	[[nodiscard]] bool isMuted(not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool silentPosts(not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool soundIsNone(not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool muteUnknown(not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool silentPostsUnknown(
+		not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool soundIsNoneUnknown(
+		not_null<const PeerData*> peer) const;
+
+private:
+	[[nodiscard]] bool isMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const;
 
-	[[nodiscard]] PeerNotifySettings &defaultNotifySettings(
-		not_null<const PeerData*> peer);
 	[[nodiscard]] const PeerNotifySettings &defaultNotifySettings(
 		not_null<const PeerData*> peer) const;
-private:
+	[[nodiscard]] bool settingsUnknown(not_null<const PeerData*> peer) const;
+
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
 	void updateNotifySettingsLocal(not_null<PeerData*> peer);

@@ -71,7 +71,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _delegateMixin(HistoryInner::DelegateMixin())
-, _mute(owner->notifyIsMuted(peer))
+, _mute(owner->notifySettings().isMuted(peer))
 , _chatListNameSortKey(owner->nameSortKey(peer->name))
 , _sendActionPainter(this) {
 	if (const auto user = peer->asUser()) {

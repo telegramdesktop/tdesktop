@@ -57,7 +57,7 @@ MuteItem::MuteItem(
 	nullptr,
 	nullptr)
 , _itemIconPosition(st.itemIconPosition)
-, _isMuted(peer->owner().notifyIsMuted(peer)) {
+, _isMuted(peer->owner().notifySettings().isMuted(peer)) {
 
 	Info::Profile::NotificationsEnabledValue(
 		peer
@@ -135,14 +135,14 @@ void FillMuteMenu(
 		Args args) {
 	const auto peer = args.peer;
 
-	const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
+	const auto soundIsNone = peer->owner().notifySettings().soundIsNone(peer);
 	menu->addAction(
 		soundIsNone
 			? tr::lng_mute_menu_sound_on(tr::now)
 			: tr::lng_mute_menu_sound_off(tr::now),
 		[=] {
-			const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
 			auto &notifySettings = peer->owner().notifySettings();
+			const auto soundIsNone = notifySettings.soundIsNone(peer);
 			notifySettings.updateNotifySettings(peer, {}, {}, !soundIsNone);
 		},
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);

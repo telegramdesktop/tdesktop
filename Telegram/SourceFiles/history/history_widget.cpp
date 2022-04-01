@@ -2499,9 +2499,10 @@ void HistoryWidget::updateNotifyControls() {
 	_muteUnmute->setText((_history->mute()
 		? tr::lng_channel_unmute(tr::now)
 		: tr::lng_channel_mute(tr::now)).toUpper());
-	if (!session().data().notifySilentPostsUnknown(_peer)) {
+	if (!session().data().notifySettings().silentPostsUnknown(_peer)) {
 		if (_silent) {
-			_silent->setChecked(session().data().notifySilentPosts(_peer));
+			_silent->setChecked(
+				session().data().notifySettings().silentPosts(_peer));
 			updateFieldPlaceholder();
 		} else if (hasSilentToggle()) {
 			refreshSilentToggle();
@@ -4286,7 +4287,7 @@ bool HistoryWidget::hasSilentToggle() const {
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup()
 		&& _peer->canWrite()
-		&& !session().data().notifySilentPostsUnknown(_peer);
+		&& !session().data().notifySettings().silentPostsUnknown(_peer);
 }
 
 void HistoryWidget::handleSupportSwitch(not_null<History*> updated) {
@@ -4832,7 +4833,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 			return rpl::single(_keyboard->placeholder());
 		} else if (const auto channel = _history->peer->asChannel()) {
 			if (channel->isBroadcast()) {
-				return session().data().notifySilentPosts(channel)
+				return session().data().notifySettings().silentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
 			} else if (channel->adminRights() & ChatAdminRight::Anonymous) {

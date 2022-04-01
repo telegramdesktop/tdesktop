@@ -662,14 +662,6 @@ public:
 	void dialogsRowReplaced(DialogsRowReplacement replacement);
 	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
 
-	bool notifyIsMuted(not_null<const PeerData*> peer) const;
-	bool notifySilentPosts(not_null<const PeerData*> peer) const;
-	bool notifySoundIsNone(not_null<const PeerData*> peer) const;
-	bool notifyMuteUnknown(not_null<const PeerData*> peer) const;
-	bool notifySilentPostsUnknown(not_null<const PeerData*> peer) const;
-	bool notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const;
-	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
-
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty());

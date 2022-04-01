@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "storage/storage_shared_media.h"
 #include "mtproto/mtproto_config.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
@@ -198,7 +199,8 @@ bool ShouldSendSilent(
 		not_null<PeerData*> peer,
 		const Api::SendOptions &options) {
 	return options.silent
-		|| (peer->isBroadcast() && peer->owner().notifySilentPosts(peer))
+		|| (peer->isBroadcast()
+			&& peer->owner().notifySettings().silentPosts(peer))
 		|| (peer->session().supportMode()
 			&& peer->session().settings().supportAllSilent());
 }

@@ -132,7 +132,7 @@ void PeerMenuAddMuteSubmenuAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
 	peer->owner().notifySettings().requestNotifySettings(peer);
-	const auto isMuted = peer->owner().notifyIsMuted(peer);
+	const auto isMuted = peer->owner().notifySettings().isMuted(peer);
 	if (isMuted) {
 		const auto text = tr::lng_context_unmute(tr::now)
 			+ '\t'
@@ -146,7 +146,7 @@ void PeerMenuAddMuteSubmenuAction(
 		addAction(PeerMenuCallback::Args{
 			.text = tr::lng_context_mute(tr::now),
 			.handler = nullptr,
-			.icon = peer->owner().notifySoundIsNone(peer)
+			.icon = peer->owner().notifySettings().soundIsNone(peer)
 				? &st::menuIconSilent
 				: &st::menuIconMute,
 			.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
@@ -1430,14 +1430,14 @@ void PeerMenuAddMuteAction(
 			: tr::lng_context_unmute(tr::now);
 	};
 	const auto muteAction = addAction(QString("-"), [=] {
-		if (!peer->owner().notifyIsMuted(peer)) {
+		if (!peer->owner().notifySettings().isMuted(peer)) {
 			controller->show(
 				Box<MuteSettingsBox>(peer),
 				Ui::LayerOption::CloseOther);
 		} else {
 			peer->owner().notifySettings().updateNotifySettings(peer, 0);
 		}
-	}, (peer->owner().notifyIsMuted(peer)
+	}, (peer->owner().notifySettings().isMuted(peer)
 		? &st::menuIconUnmute
 		: &st::menuIconMute));
 

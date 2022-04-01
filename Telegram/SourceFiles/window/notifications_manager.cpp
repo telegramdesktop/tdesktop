@@ -180,7 +180,8 @@ System::SkipState System::computeSkipState(
 			.silent = (forceSilent
 				|| !messageNotification
 				|| item->isSilent()
-				|| history->owner().notifySoundIsNone(history->peer)),
+				|| history->owner().notifySettings().soundIsNone(
+					history->peer)),
 		};
 	};
 	const auto showForMuted = messageNotification
@@ -207,20 +208,20 @@ System::SkipState System::computeSkipState(
 	}
 
 	if (messageNotification
-		&& history->owner().notifyMuteUnknown(history->peer)) {
+		&& history->owner().notifySettings().muteUnknown(history->peer)) {
 		return { SkipState::Unknown };
 	} else if (messageNotification
-		&& !history->owner().notifyIsMuted(history->peer)) {
+		&& !history->owner().notifySettings().isMuted(history->peer)) {
 		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
 		return withSilent(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
 			showForMuted);
-	} else if (history->owner().notifyMuteUnknown(notifyBy)
+	} else if (history->owner().notifySettings().muteUnknown(notifyBy)
 		|| (!messageNotification
 			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
 		return withSilent(SkipState::Unknown);
-	} else if (!history->owner().notifyIsMuted(notifyBy)
+	} else if (!history->owner().notifySettings().isMuted(notifyBy)
 		&& (messageNotification || !notifyBy->isBlocked())) {
 		return withSilent(SkipState::DontSkip);
 	} else {
@@ -470,14 +471,15 @@ void System::showNext() {
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto peer = i->first->peer;
-			const auto peerUnknown = peer->owner().notifyMuteUnknown(peer);
+			const auto &notifySettings = peer->owner().notifySettings();
+			const auto peerUnknown = notifySettings.muteUnknown(peer);
 			const auto peerAlert = !peerUnknown
-				&& !peer->owner().notifyIsMuted(peer);
+				&& !notifySettings.isMuted(peer);
 			const auto from = i->second.begin()->second;
 			const auto fromUnknown = (!from
-				|| peer->owner().notifyMuteUnknown(from));
+				|| notifySettings.muteUnknown(from));
 			const auto fromAlert = !fromUnknown
-				&& !peer->owner().notifyIsMuted(from);
+				&& !notifySettings.isMuted(from);
 			if (peerAlert || fromAlert) {
 				alert = true;
 			}

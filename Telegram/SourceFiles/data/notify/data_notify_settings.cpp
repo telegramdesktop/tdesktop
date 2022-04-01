@@ -130,16 +130,6 @@ void NotifySettings::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
 	}
 }
 
-
-PeerNotifySettings &NotifySettings::defaultNotifySettings(
-		not_null<const PeerData*> peer) {
-	return peer->isUser()
-		? _defaultUserNotifySettings
-		: (peer->isChat() || peer->isMegagroup())
-		? _defaultChatNotifySettings
-		: _defaultBroadcastNotifySettings;
-}
-
 const PeerNotifySettings &NotifySettings::defaultNotifySettings(
 		not_null<const PeerData*> peer) const {
 	return peer->isUser()
@@ -152,7 +142,7 @@ const PeerNotifySettings &NotifySettings::defaultNotifySettings(
 void NotifySettings::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 	const auto history = _owner->historyLoaded(peer->id);
 	auto changesIn = crl::time(0);
-	const auto muted = notifyIsMuted(peer, &changesIn);
+	const auto muted = isMuted(peer, &changesIn);
 	if (history && history->changeMute(muted)) {
 		// Notification already sent.
 	} else {
@@ -185,7 +175,7 @@ void NotifySettings::unmuteByFinished() {
 	for (auto i = begin(_mutedPeers); i != end(_mutedPeers);) {
 		const auto history = _owner->historyLoaded((*i)->id);
 		auto changesIn = crl::time(0);
-		const auto muted = notifyIsMuted(*i, &changesIn);
+		const auto muted = isMuted(*i, &changesIn);
 		if (muted) {
 			if (history) {
 				history->changeMute(true);
@@ -206,7 +196,7 @@ void NotifySettings::unmuteByFinished() {
 	}
 }
 
-bool NotifySettings::notifyIsMuted(
+bool NotifySettings::isMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const {
 	const auto resultFromUntil = [&](TimeId until) {
@@ -227,6 +217,67 @@ bool NotifySettings::notifyIsMuted(
 		return resultFromUntil(*until);
 	}
 	return true;
+}
+
+bool NotifySettings::isMuted(not_null<const PeerData*> peer) const {
+	return isMuted(peer, nullptr);
+}
+
+bool NotifySettings::silentPosts(not_null<const PeerData*> peer) const {
+	if (const auto silent = peer->notifySilentPosts()) {
+		return *silent;
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto silent = settings.silentPosts()) {
+		return *silent;
+	}
+	return false;
+}
+
+bool NotifySettings::soundIsNone(not_null<const PeerData*> peer) const {
+	if (const auto soundIsNone = peer->notifySoundIsNone()) {
+		return *soundIsNone;
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto soundIsNone = settings.soundIsNone()) {
+		return *soundIsNone;
+	}
+	return false;
+}
+
+bool NotifySettings::muteUnknown(not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool NotifySettings::silentPostsUnknown(
+		not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifySilentPosts()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool NotifySettings::soundIsNoneUnknown(
+		not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifySoundIsNone()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {
+	return muteUnknown(peer)
+		|| silentPostsUnknown(peer)
+		|| soundIsNoneUnknown(peer);
 }
 
 rpl::producer<> NotifySettings::defaultUserNotifyUpdates() const {

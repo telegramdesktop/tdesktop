@@ -812,8 +812,8 @@ SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : RippleButton(parent, st::historySilentToggle.ripple)
 , _st(st::historySilentToggle)
 , _channel(channel)
-, _checked(channel->owner().notifySilentPosts(_channel)) {
-	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
+, _checked(channel->owner().notifySettings().silentPosts(_channel)) {
+	Expects(!channel->owner().notifySettings().silentPostsUnknown(_channel));
 
 	resize(_st.width, _st.height);
 
