@@ -79,7 +79,7 @@ MuteItem::MuteItem(
 	setClickedCallback([=] {
 		peer->owner().updateNotifySettings(
 			peer,
-			_isMuted ? 0 : Data::NotifySettings::kDefaultMutePeriod);
+			_isMuted ? 0 : Data::PeerNotifySettings::kDefaultMutePeriod);
 	});
 }
 

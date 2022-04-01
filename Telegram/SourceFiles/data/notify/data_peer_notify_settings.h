@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-class NotifySettingsValue;
+class NotifyPeerSettingsValue;
 
 struct NotifySound {
 	QString	title;
@@ -25,9 +25,9 @@ inline bool operator==(const NotifySound &a, const NotifySound &b) {
 		&& (a.data == b.data);
 }
 
-class NotifySettings {
+class PeerNotifySettings {
 public:
-	NotifySettings();
+	PeerNotifySettings();
 
 	static constexpr auto kDefaultMutePeriod = 86400 * 365;
 
@@ -43,11 +43,11 @@ public:
 	std::optional<bool> soundIsNone() const;
 	MTPinputPeerNotifySettings serialize() const;
 
-	~NotifySettings();
+	~PeerNotifySettings();
 
 private:
 	bool _known = false;
-	std::unique_ptr<NotifySettingsValue> _value;
+	std::unique_ptr<NotifyPeerSettingsValue> _value;
 
 };
 

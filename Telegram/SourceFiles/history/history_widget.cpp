@@ -3849,7 +3849,7 @@ void HistoryWidget::joinChannel() {
 void HistoryWidget::toggleMuteUnmute() {
 	const auto muteForSeconds = _history->mute()
 		? 0
-		: Data::NotifySettings::kDefaultMutePeriod;
+		: Data::PeerNotifySettings::kDefaultMutePeriod;
 	session().data().updateNotifySettings(_peer, muteForSeconds);
 }
 

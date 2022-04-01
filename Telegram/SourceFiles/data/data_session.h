@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
-#include "data/data_notify_settings.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -822,8 +822,8 @@ private:
 
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
 
-	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
-	const NotifySettings &defaultNotifySettings(
+	PeerNotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
+	const PeerNotifySettings &defaultNotifySettings(
 		not_null<const PeerData*> peer) const;
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
@@ -976,9 +976,9 @@ private:
 
 	History *_topPromoted = nullptr;
 
-	NotifySettings _defaultUserNotifySettings;
-	NotifySettings _defaultChatNotifySettings;
-	NotifySettings _defaultBroadcastNotifySettings;
+	PeerNotifySettings _defaultUserNotifySettings;
+	PeerNotifySettings _defaultChatNotifySettings;
+	PeerNotifySettings _defaultBroadcastNotifySettings;
 	rpl::event_stream<> _defaultUserNotifyUpdates;
 	rpl::event_stream<> _defaultChatNotifyUpdates;
 	rpl::event_stream<> _defaultBroadcastNotifyUpdates;

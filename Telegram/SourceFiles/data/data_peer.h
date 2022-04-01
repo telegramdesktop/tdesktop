@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 #include "data/data_flags.h"
-#include "data/data_notify_settings.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "data/data_cloud_file.h"
 
 class PeerData;
@@ -440,7 +440,7 @@ private:
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 	Ui::Text::String _nameText;
 
-	Data::NotifySettings _notify;
+	Data::PeerNotifySettings _notify;
 
 	ClickHandlerPtr _openLink;
 	base::flat_set<QString> _nameWords; // for filtering

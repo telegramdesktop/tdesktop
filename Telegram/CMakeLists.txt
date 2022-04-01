@@ -395,6 +395,8 @@ PRIVATE
     core/version.h
     countries/countries_manager.cpp
     countries/countries_manager.h
+    data/notify/data_peer_notify_settings.cpp
+    data/notify/data_peer_notify_settings.h
     data/stickers/data_stickers_set.cpp
     data/stickers/data_stickers_set.h
     data/stickers/data_stickers.cpp
@@ -458,8 +460,6 @@ PRIVATE
     data/data_message_reactions.cpp
     data/data_message_reactions.h
     data/data_msg_id.h
-    data/data_notify_settings.cpp
-    data/data_notify_settings.h
     data/data_peer.cpp
     data/data_peer.h
     data/data_peer_id.cpp

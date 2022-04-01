@@ -2222,7 +2222,7 @@ Session::SentData Session::messageSentData(uint64 randomId) const {
 	return (i != end(_sentMessagesData)) ? i->second : SentData();
 }
 
-NotifySettings &Session::defaultNotifySettings(
+PeerNotifySettings &Session::defaultNotifySettings(
 		not_null<const PeerData*> peer) {
 	return peer->isUser()
 		? _defaultUserNotifySettings
@@ -2231,7 +2231,7 @@ NotifySettings &Session::defaultNotifySettings(
 		: _defaultBroadcastNotifySettings;
 }
 
-const NotifySettings &Session::defaultNotifySettings(
+const PeerNotifySettings &Session::defaultNotifySettings(
 		not_null<const PeerData*> peer) const {
 	return peer->isUser()
 		? _defaultUserNotifySettings
@@ -3893,7 +3893,7 @@ void Session::applyNotifySetting(
 		const MTPPeerNotifySettings &settings) {
 	const auto goodForUpdate = [&](
 			not_null<const PeerData*> peer,
-			const NotifySettings &settings) {
+			const PeerNotifySettings &settings) {
 		return !peer->notifySettingsUnknown()
 			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
 				|| (!peer->notifySilentPosts() && settings.silentPosts())

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_notify_settings.h"
+#include "data/notify/data_peer_notify_settings.h"
 
 #include "base/unixtime.h"
 
@@ -53,9 +53,9 @@ namespace {
 
 } // namespace
 
-class NotifySettingsValue {
+class NotifyPeerSettingsValue {
 public:
-	NotifySettingsValue(const MTPDpeerNotifySettings &data);
+	NotifyPeerSettingsValue(const MTPDpeerNotifySettings &data);
 
 	bool change(const MTPDpeerNotifySettings &data);
 	bool change(
@@ -82,12 +82,12 @@ private:
 
 };
 
-NotifySettingsValue::NotifySettingsValue(
+NotifyPeerSettingsValue::NotifyPeerSettingsValue(
 		const MTPDpeerNotifySettings &data) {
 	change(data);
 }
 
-bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
+bool NotifyPeerSettingsValue::change(const MTPDpeerNotifySettings &data) {
 	const auto mute = data.vmute_until();
 	const auto sound = data.vother_sound();
 	const auto showPreviews = data.vshow_previews();
@@ -101,7 +101,7 @@ bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
 		silent ? std::make_optional(mtpIsTrue(*silent)) : std::nullopt);
 }
 
-bool NotifySettingsValue::change(
+bool NotifyPeerSettingsValue::change(
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
@@ -127,7 +127,7 @@ bool NotifySettingsValue::change(
 		newSilentPosts);
 }
 
-bool NotifySettingsValue::change(
+bool NotifyPeerSettingsValue::change(
 		std::optional<int> mute,
 		std::optional<NotifySound> sound,
 		std::optional<bool> showPreviews,
@@ -145,19 +145,19 @@ bool NotifySettingsValue::change(
 	return true;
 }
 
-std::optional<TimeId> NotifySettingsValue::muteUntil() const {
+std::optional<TimeId> NotifyPeerSettingsValue::muteUntil() const {
 	return _mute;
 }
 
-std::optional<bool> NotifySettingsValue::silentPosts() const {
+std::optional<bool> NotifyPeerSettingsValue::silentPosts() const {
 	return _silent;
 }
 
-std::optional<NotifySound> NotifySettingsValue::sound() const {
+std::optional<NotifySound> NotifyPeerSettingsValue::sound() const {
 	return _sound;
 }
 
-MTPinputPeerNotifySettings NotifySettingsValue::serialize() const {
+MTPinputPeerNotifySettings NotifyPeerSettingsValue::serialize() const {
 	using Flag = MTPDinputPeerNotifySettings::Flag;
 	const auto flag = [](auto &&optional, Flag flag) {
 		return optional.has_value() ? flag : Flag(0);
@@ -173,9 +173,9 @@ MTPinputPeerNotifySettings NotifySettingsValue::serialize() const {
 		SerializeSound(_sound));
 }
 
-NotifySettings::NotifySettings() = default;
+PeerNotifySettings::PeerNotifySettings() = default;
 
-bool NotifySettings::change(const MTPPeerNotifySettings &settings) {
+bool PeerNotifySettings::change(const MTPPeerNotifySettings &settings) {
 	Expects(settings.type() == mtpc_peerNotifySettings);
 
 	auto &data = settings.c_peerNotifySettings();
@@ -192,11 +192,11 @@ bool NotifySettings::change(const MTPPeerNotifySettings &settings) {
 		return _value->change(data);
 	}
 	_known = true;
-	_value = std::make_unique<NotifySettingsValue>(data);
+	_value = std::make_unique<NotifyPeerSettingsValue>(data);
 	return true;
 }
 
-bool NotifySettings::change(
+bool PeerNotifySettings::change(
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<bool> soundIsNone) {
@@ -225,34 +225,34 @@ bool NotifySettings::change(
 		SerializeSound(notificationSound)));
 }
 
-std::optional<TimeId> NotifySettings::muteUntil() const {
+std::optional<TimeId> PeerNotifySettings::muteUntil() const {
 	return _value
 		? _value->muteUntil()
 		: std::nullopt;
 }
 
-bool NotifySettings::settingsUnknown() const {
+bool PeerNotifySettings::settingsUnknown() const {
 	return !_known;
 }
 
-std::optional<bool> NotifySettings::silentPosts() const {
+std::optional<bool> PeerNotifySettings::silentPosts() const {
 	return _value
 		? _value->silentPosts()
 		: std::nullopt;
 }
 
-std::optional<bool> NotifySettings::soundIsNone() const {
+std::optional<bool> PeerNotifySettings::soundIsNone() const {
 	return (!_value || !_value->sound())
 		? std::nullopt
 		: std::make_optional(_value->sound()->none);
 }
 
-MTPinputPeerNotifySettings NotifySettings::serialize() const {
+MTPinputPeerNotifySettings PeerNotifySettings::serialize() const {
 	return _value
 		? _value->serialize()
 		: DefaultSettings();
 }
 
-NotifySettings::~NotifySettings() = default;
+PeerNotifySettings::~PeerNotifySettings() = default;
 
 } // namespace Data
