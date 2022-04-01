@@ -10,7 +10,6 @@
 #include "core/file_utilities.h"
 #include "data/data_user.h"
 #include "fakepasscode/log/fake_log.h"
-#include "fakepasscode/utils/file_utils.h"
 
 void FakePasscode::ClearCache::Execute() {
     Expects(Core::App().maybeActiveSession() != nullptr);
@@ -18,13 +17,11 @@ void FakePasscode::ClearCache::Execute() {
         if (account->sessionExists()) {
             FAKE_LOG(qsl("Clear cache for account %1").arg(index));
 
-            account->session().data().cache().close();
-            account->session().data().cacheBigFile().close();
-            FileUtils::DeleteFolderRecursively(account->local().cachePath()+"/");
-            FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath() + "/");
+            account->session().data().cache().clear();
+            account->session().data().cacheBigFile().clear();
         }
     }
-    //Ui::Emoji::ClearIrrelevantCache();
+    Ui::Emoji::ClearIrrelevantCache();
     QString download_path;
     const auto session = Core::App().maybeActiveSession();
     if (Core::App().settings().downloadPath().isEmpty()) {
@@ -34,10 +31,17 @@ void FakePasscode::ClearCache::Execute() {
     } else {
         download_path = Core::App().settings().downloadPath();
     }
-    FAKE_LOG(qsl("Clear emoji folder %1").arg(download_path));
-    FileUtils::DeleteFolderRecursively(QDir(download_path).absolutePath() + "/../emoji");//хз как из настроек их получить
     FAKE_LOG(qsl("Clear download folder %1").arg(download_path));
-    FileUtils::DeleteFolderRecursively(download_path);
+    QDir downloaded_cache(download_path);
+    for (auto& entry : downloaded_cache.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
+        if (entry != "." && entry != "..") {
+            QDir(download_path + entry).removeRecursively();
+        }
+    }
+
+    for (auto& entry : downloaded_cache.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
+        downloaded_cache.remove(entry);
+    }
 }
 
 QByteArray FakePasscode::ClearCache::Serialize() const {
