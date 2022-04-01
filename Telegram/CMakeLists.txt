@@ -39,6 +39,7 @@ include(cmake/td_lang.cmake)
 include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 include(cmake/generate_appdata_changelog.cmake)
+include(cmake/check_atomic.cmake)
 
 if (WIN32)
     include(cmake/generate_midl.cmake)
@@ -1377,6 +1378,20 @@ else()
             desktop-app::lib_waylandshells
             desktop-app::external_kwayland
         )
+    endif()
+
+    if (NOT HAVE_CXX_ATOMICS_WITHOUT_LIB)
+        if (DESKTOP_APP_USE_PACKAGED)
+            target_link_libraries(Telegram
+            PRIVATE
+                atomic
+            )
+        else()
+            target_link_libraries(Telegram
+            PRIVATE
+                atomic-static
+            )
+        endif()
     endif()
 endif()
 
