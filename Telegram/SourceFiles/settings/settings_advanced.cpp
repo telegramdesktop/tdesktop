@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
+#include "settings/settings_experimental.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -133,7 +134,7 @@ void SetupUpdate(
 			experimental->toggleOn(install->toggledValue());
 		}
 		experimental->entity()->setClickedCallback([=] {
-			showOther(Type::Experimental);
+			showOther(Experimental::Id());
 		});
 	}
 
@@ -738,6 +739,10 @@ Advanced::Advanced(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Advanced::Title() {
+	return tr::lng_settings_advanced();
 }
 
 rpl::producer<Type> Advanced::sectionShowOther() {

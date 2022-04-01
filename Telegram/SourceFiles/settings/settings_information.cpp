@@ -793,6 +793,10 @@ Information::Information(
 	setupContent(controller);
 }
 
+rpl::producer<QString> Information::Title() {
+	return tr::lng_settings_section_info();
+}
+
 void Information::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);

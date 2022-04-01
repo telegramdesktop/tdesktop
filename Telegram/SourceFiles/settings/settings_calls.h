@@ -33,10 +33,12 @@ class VideoTrack;
 
 namespace Settings {
 
-class Calls : public Section {
+class Calls : public Section<Calls> {
 public:
 	Calls(QWidget *parent, not_null<Window::SessionController*> controller);
 	~Calls();
+
+	[[nodiscard]] static rpl::producer<QString> Title();
 
 	void sectionSaveChanges(FnMut<void()> done) override;
 

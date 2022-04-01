@@ -15,11 +15,13 @@ struct UnreadBadgeStyle;
 
 namespace Settings {
 
-class Information : public Section {
+class Information : public Section<Information> {
 public:
 	Information(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] static rpl::producer<QString> Title();
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);

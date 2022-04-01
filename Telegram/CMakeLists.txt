@@ -1071,6 +1071,7 @@ PRIVATE
     settings/settings_privacy_controllers.h
     settings/settings_privacy_security.cpp
     settings/settings_privacy_security.h
+    settings/settings_type.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp
@@ -1286,6 +1287,8 @@ PRIVATE
     qrc/emoji_6.qrc
     qrc/emoji_7.qrc
     qrc/emoji_preview.qrc
+    qrc/telegram/animations.qrc
+    qrc/telegram/export.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
     winrc/Telegram.rc

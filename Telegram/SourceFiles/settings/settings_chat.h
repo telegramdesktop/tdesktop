@@ -31,9 +31,11 @@ void SetupExport(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container);
 
-class Chat : public Section {
+class Chat : public Section<Chat> {
 public:
 	Chat(QWidget *parent, not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] static rpl::producer<QString> Title();
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);

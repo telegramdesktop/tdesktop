@@ -617,29 +617,7 @@ rpl::producer<QString> TitleValue(
 		return tr::lng_profile_participants_section();
 
 	case Section::Type::Settings:
-		switch (section.settingsType()) {
-		case Section::SettingsType::Main:
-			return tr::lng_menu_settings();
-		case Section::SettingsType::Information:
-			return tr::lng_settings_section_info();
-		case Section::SettingsType::Notifications:
-			return tr::lng_settings_section_notify();
-		case Section::SettingsType::PrivacySecurity:
-			return tr::lng_settings_section_privacy();
-		case Section::SettingsType::Sessions:
-			return tr::lng_settings_sessions_title();
-		case Section::SettingsType::Advanced:
-			return tr::lng_settings_advanced();
-		case Section::SettingsType::Chat:
-			return tr::lng_settings_section_chat_settings();
-		case Section::SettingsType::Folders:
-			return tr::lng_filters_title();
-		case Section::SettingsType::Calls:
-			return tr::lng_settings_section_call_settings();
-		case Section::SettingsType::Experimental:
-			return tr::lng_settings_experimental();
-		}
-		Unexpected("Bad settings type in Info::TitleValue()");
+		return section.settingsType()()->title();
 
 	case Section::Type::PollResults:
 		return key.poll()->quiz()

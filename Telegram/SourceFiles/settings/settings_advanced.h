@@ -21,7 +21,7 @@ namespace Settings {
 
 void SetupConnectionType(
 	not_null<Window::Controller*> controller,
-	not_null<Main::Account*> account,
+	not_null<::Main::Account*> account,
 	not_null<Ui::VerticalLayout*> container);
 bool HasUpdate();
 void SetupUpdate(
@@ -32,11 +32,13 @@ void SetupSystemIntegrationContent(
 	not_null<Ui::VerticalLayout*> container);
 void SetupAnimations(not_null<Ui::VerticalLayout*> container);
 
-class Advanced : public Section {
+class Advanced : public Section<Advanced> {
 public:
 	Advanced(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] static rpl::producer<QString> Title();
 
 	rpl::producer<Type> sectionShowOther() override;
 

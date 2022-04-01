@@ -682,6 +682,12 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	const auto raw = result.get();
 	const auto refresh = [=] {
 		raw->clearActions();
+		raw->addAction(u"Photo or video"_q, [=] {
+
+		});
+		raw->addAction(u"Document"_q, [=] {
+
+		});
 		for (const auto &bot : bots->attachBots()) {
 			const auto callback = [=] {
 				const auto active = controller->activeChatCurrent();

@@ -820,7 +820,7 @@ void SetupSessionsList(
 		st::settingsButton,
 		{ &st::settingsIconLaptop, kIconLightOrange }
 	)->addClickHandler([=] {
-		showOther(Type::Sessions);
+		showOther(Sessions::Id());
 	});
 }
 
@@ -969,6 +969,10 @@ PrivacySecurity::PrivacySecurity(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> PrivacySecurity::Title() {
+	return tr::lng_settings_section_privacy();
 }
 
 rpl::producer<Type> PrivacySecurity::sectionShowOther() {

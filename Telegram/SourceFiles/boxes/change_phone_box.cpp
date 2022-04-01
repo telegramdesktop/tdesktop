@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "mtproto/sender.h"
+#include "lottie/lottie_icon.h"
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
@@ -65,6 +66,26 @@ void CreateErrorLabel(
 }
 
 } // namespace
+
+namespace Settings {
+
+ChangePhone::ChangePhone(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
+	setupContent(controller);
+}
+
+rpl::producer<QString> ChangePhone::Title() {
+	return tr::lng_change_phone_button();
+}
+
+void ChangePhone::setupContent(
+		not_null<Window::SessionController*> controller) {
+
+}
+
+} // namespace Settings
 
 class ChangePhoneBox::EnterPhone : public Ui::BoxContent {
 public:
@@ -434,7 +455,22 @@ void ChangePhoneBox::EnterCode::sendCodeFail(const MTP::Error &error) {
 ChangePhoneBox::ChangePhoneBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller)
-: _controller(controller) {
+: _controller(controller)
+, _icon(Lottie::MakeIcon({
+	.name = u"change_number"_q,
+	.sizeOverride = {
+		st::changePhoneIconSize,
+		st::changePhoneIconSize,
+	},
+})) {
+}
+
+void ChangePhoneBox::showFinished() {
+	animateIcon();
+}
+
+void ChangePhoneBox::animateIcon() {
+	_icon->animate([=] { update(); }, 0, _icon->framesCount());
 }
 
 void ChangePhoneBox::prepare() {
@@ -473,9 +509,9 @@ void ChangePhoneBox::paintEvent(QPaintEvent *e) {
 	BoxContent::paintEvent(e);
 
 	Painter p(this);
-	st::changePhoneIcon.paint(
-		p,
-		(width() - st::changePhoneIcon.width()) / 2,
-		st::changePhoneIconTop,
-		width());
+	const auto left = (width() - st::changePhoneIconSize) / 2;
+	_icon->paint(p, left, st::changePhoneIconTop);
+	if (!_icon->animating() && _icon->frameIndex() > 0) {
+		animateIcon();
+	}
 }

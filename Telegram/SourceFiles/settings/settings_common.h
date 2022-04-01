@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
+#include "settings/settings_type.h"
 
 namespace Main {
 class Session;
@@ -35,32 +36,59 @@ namespace Settings {
 
 extern const char kOptionMonoSettingsIcons[];
 
-enum class Type {
-	Main,
-	Information,
-	Notifications,
-	PrivacySecurity,
-	Sessions,
-	Advanced,
-	Chat,
-	Folders,
-	Calls,
-	Experimental,
-};
-
 using Button = Ui::SettingsButton;
 
-class Section : public Ui::RpWidget {
+class AbstractSection;
+
+struct SectionMeta {
+	[[nodiscard]] virtual object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller) const = 0;
+	[[nodiscard]] virtual rpl::producer<QString> title() const = 0;
+};
+
+template <typename SectionType>
+struct SectionMetaImplementation : SectionMeta {
+	object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller
+	) const final override {
+		return object_ptr<SectionType>(parent, controller);
+	}
+	rpl::producer<QString> title() const final override {
+		return SectionType::Title();
+	}
+
+	[[nodiscard]] static not_null<SectionMeta*> Meta() {
+		static SectionMetaImplementation result;
+		return &result;
+	}
+};
+
+class AbstractSection : public Ui::RpWidget {
 public:
 	using RpWidget::RpWidget;
 
-	virtual rpl::producer<Type> sectionShowOther() {
+	[[nodiscard]] virtual Type id() const = 0;
+	[[nodiscard]] virtual rpl::producer<Type> sectionShowOther() {
 		return nullptr;
 	}
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
 	}
+};
 
+template <typename SectionType>
+class Section : public AbstractSection {
+public:
+	using AbstractSection::AbstractSection;
+
+	[[nodiscard]] static Type Id() {
+		return &SectionMetaImplementation<SectionType>::Meta;
+	}
+	[[nodiscard]] Type id() const final override {
+		return Id();
+	}
 };
 
 inline constexpr auto kIconRed = 1;
@@ -104,11 +132,6 @@ private:
 	std::optional<Ui::RoundRect> _background;
 
 };
-
-object_ptr<Section> CreateSection(
-	Type type,
-	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
 void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);

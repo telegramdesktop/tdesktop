@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "settings/settings_common.h"
+#include "settings/settings_folders.h"
+#include "settings/settings_main.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -435,10 +437,10 @@ bool ResolveSettings(
 		controller->session().api().authorizations().reload();
 	}
 	const auto type = (section == qstr("folders"))
-		? ::Settings::Type::Folders
+		? ::Settings::Folders::Id()
 		: (section == qstr("devices"))
-		? ::Settings::Type::Sessions
-		: ::Settings::Type::Main;
+		? ::Settings::Sessions::Id()
+		: ::Settings::Main::Id();
 	controller->showSettings(type);
 	return true;
 }

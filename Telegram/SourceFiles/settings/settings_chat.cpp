@@ -1513,6 +1513,10 @@ Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 	setupContent(controller);
 }
 
+rpl::producer<QString> Chat::Title() {
+	return tr::lng_settings_section_chat_settings();
+}
+
 void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 

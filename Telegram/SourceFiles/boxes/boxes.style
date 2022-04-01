@@ -576,17 +576,13 @@ colorValueInput: InputField(defaultInputField) {
 colorResultInput: InputField(colorValueInput) {
 }
 
-changePhoneIcon: icon {
-	{ "phone_simcard_from", changePhoneSimcardFrom },
-	{ "phone_simcard_migrate", changePhoneSimcardTo, point(30px, 11px) },
-	{ "phone_simcard_to", changePhoneSimcardTo, point(78px, 0px) }
-};
 changePhoneDescription: FlatLabel(boxLabel) {
 	minWidth: 332px;
 	align: align(top);
 }
-changePhoneIconTop: 20px;
-changePhoneDescriptionTop: 96px;
+changePhoneIconTop: 16px;
+changePhoneIconSize: 96px;
+changePhoneDescriptionTop: 128px;
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 275px;
 	textFg: windowSubTextFg;

@@ -76,6 +76,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "facades.h"
 #include "window/themes/window_theme.h"
+#include "settings/settings_main.h"
+#include "settings/settings_privacy_security.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
@@ -567,7 +569,7 @@ void SessionNavigation::showSettings(
 }
 
 void SessionNavigation::showSettings(const SectionShow &params) {
-	showSettings(Settings::Type::Main, params);
+	showSettings(Settings::Main::Id(), params);
 }
 
 void SessionNavigation::showPollResults(
@@ -667,7 +669,7 @@ void SessionController::suggestArchiveAndMute() {
 			tr::lng_suggest_hide_new_about(Ui::Text::RichLangValue),
 			st::boxLabel));
 		box->addButton(tr::lng_suggest_hide_new_to_settings(), [=] {
-			showSettings(Settings::Type::PrivacySecurity);
+			showSettings(Settings::PrivacySecurity::Id());
 		});
 		box->setCloseByOutsideClick(false);
 		box->boxClosing(

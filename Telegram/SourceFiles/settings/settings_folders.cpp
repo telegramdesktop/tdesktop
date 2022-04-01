@@ -580,6 +580,10 @@ Folders::~Folders() {
 	}
 }
 
+rpl::producer<QString> Folders::Title() {
+	return tr::lng_filters_title();
+}
+
 void Folders::setupContent(not_null<Window::SessionController*> controller) {
 	controller->session().data().chatsFilters().requestSuggested();
 

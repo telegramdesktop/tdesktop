@@ -56,6 +56,10 @@ Calls::Calls(
 
 Calls::~Calls() = default;
 
+rpl::producer<QString> Calls::Title() {
+	return tr::lng_settings_section_call_settings();
+}
+
 Webrtc::VideoTrack *Calls::AddCameraSubsection(
 		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::VerticalLayout*> content,

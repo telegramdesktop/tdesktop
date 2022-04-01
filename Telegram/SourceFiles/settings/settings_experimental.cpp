@@ -146,6 +146,10 @@ Experimental::Experimental(
 	setupContent(controller);
 }
 
+rpl::producer<QString> Experimental::Title() {
+	return tr::lng_settings_experimental();
+}
+
 void Experimental::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);

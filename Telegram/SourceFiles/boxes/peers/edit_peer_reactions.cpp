@@ -53,7 +53,7 @@ void AddReactionIcon(
 	}, icon->lifetime());
 
 	const auto initLottie = [=] {
-		state->icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+		state->icon = Lottie::MakeIcon({
 			.path = state->media->owner()->filepath(true),
 			.json = state->media->bytes(),
 			.sizeOverride = QSize(size, size),

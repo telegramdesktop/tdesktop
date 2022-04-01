@@ -1097,6 +1097,10 @@ Notifications::Notifications(
 	setupContent(controller);
 }
 
+rpl::producer<QString> Notifications::Title() {
+	return tr::lng_settings_section_notify();
+}
+
 void Notifications::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);

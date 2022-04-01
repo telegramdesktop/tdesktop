@@ -11,12 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-class Folders : public Section {
+class Folders : public Section<Folders> {
 public:
 	Folders(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 	~Folders();
+
+	[[nodiscard]] static rpl::producer<QString> Title();
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);

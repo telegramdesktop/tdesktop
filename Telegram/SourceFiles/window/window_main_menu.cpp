@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
 #include "settings/settings_common.h"
+#include "settings/settings_calls.h"
 #include "settings/settings_information.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
@@ -85,7 +86,7 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
 				window->showSettings(
-					Settings::Type::Calls,
+					Settings::Calls::Id(),
 					Window::SectionShow(anim::type::instant));
 			};
 			const auto clearAll = crl::guard(box, [=] {

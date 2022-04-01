@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/layers/show.h"
+#include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 #include "mtproto/sender.h"
 
@@ -39,10 +40,6 @@ class Session;
 namespace InlineBots {
 class AttachWebView;
 } // namespace InlineBots
-
-namespace Settings {
-enum class Type;
-} // namespace Settings
 
 namespace Calls {
 struct StartGroupCallArgs;
