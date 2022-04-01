@@ -99,6 +99,10 @@ private:
 		bool clickDisabled = false;
 	} _mouse;
 
+	struct {
+		int verticalDelta = 0;
+	} _touch;
+
 };
 
 } // namespace Ui

@@ -135,13 +135,24 @@ void VerticalDrumPicker::handleWheelEvent(not_null<QWheelEvent*> e) {
 	if (direction) {
 		_animation.jumpToOffset(direction);
 	} else {
-		const auto delta = e->pixelDelta().y()
-			? e->pixelDelta().y()
-			: e->angleDelta().y();
-		increaseShift(delta / float64(_itemHeight));
-		if (e->phase() == Qt::ScrollEnd) {
+		if (const auto delta = e->pixelDelta().y(); delta) {
+			increaseShift(delta / float64(_itemHeight));
+		} else if (e->phase() == Qt::ScrollEnd) {
 			animationDataFromIndex();
 			_animation.jumpToOffset(0);
+		} else {
+			constexpr auto step = int(QWheelEvent::DefaultDeltasPerStep);
+
+			_touch.verticalDelta += e->angleDelta().y();
+			while (std::abs(_touch.verticalDelta) >= step) {
+				if (_touch.verticalDelta < 0) {
+					_touch.verticalDelta += step;
+					_animation.jumpToOffset(1);
+				} else {
+					_touch.verticalDelta -= step;
+					_animation.jumpToOffset(-1);
+				}
+			}
 		}
 	}
 }
