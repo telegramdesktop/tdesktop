@@ -15,9 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/choose_time.h"
 #include "ui/effects/animation_value.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/boxes/time_picker_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
@@ -123,9 +125,70 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		peer->owner().notifySettings().updateNotifySettings(
 			peer,
 			state->lastSeconds);
-		box->closeBox();
+		box->getDelegate()->hideLayer();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+	struct State {
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto seconds = std::vector<TimeId>{
+		(60 * 15),
+		(60 * 30),
+		(3600 * 1),
+		(3600 * 2),
+		(3600 * 3),
+		(3600 * 4),
+		(3600 * 8),
+		(3600 * 12),
+		(84600 * 1),
+		(84600 * 2),
+		(84600 * 3),
+		(84600 * 7 * 1),
+		(84600 * 7 * 2),
+		(84600 * 30 * 1),
+		(84600 * 30 * 2),
+		(84600 * 30 * 3),
+	};
+	const auto phrases = ranges::views::all(
+		seconds
+	) | ranges::views::transform(Ui::FormatMuteFor) | ranges::to_vector;
+
+	const auto state = box->lifetime().make_state<State>();
+
+	const auto pickerCallback = TimePickerBox(box, seconds, phrases, 0);
+
+	box->addButton(tr::lng_mute_menu_mute(), [=] {
+		peer->owner().notifySettings().updateNotifySettings(
+			peer,
+			pickerCallback());
+		box->closeBox();
+	});
+
+	box->setTitle(tr::lng_mute_box_title());
+
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	const auto top = box->addTopButton(st::infoTopBarMenu);
+	top->setClickedCallback([=] {
+		if (state->menu) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			top,
+			st::popupMenuWithIcons);
+		state->menu->addAction(
+			tr::lng_manage_messages_ttl_after_custom(tr::now),
+			[=] { box->getDelegate()->show(Box(MuteBox, peer)); },
+			&st::menuIconCustomize);
+		state->menu->setDestroyedCallback(crl::guard(top, [=] {
+			top->setForceRippled(false);
+		}));
+		top->setForceRippled(true);
+		state->menu->popup(QCursor::pos());
+	});
 }
 
 } // namespace
@@ -149,7 +212,7 @@ void FillMuteMenu(
 
 	menu->addAction(
 		tr::lng_mute_menu_duration(tr::now),
-		[=, show = args.show] { show->showBox(Box(MuteBox, peer)); },
+		[=, show = args.show] { show->showBox(Box(PickMuteBox, peer)); },
 		&st::menuIconMuteFor);
 
 	menu->addAction(

@@ -408,6 +408,14 @@ QString FormatTTLTiny(float64 ttl) {
 		: tr::lng_years_tiny({}, lt_count, std::ceil(ttl / (86400 * 360)));
 }
 
+QString FormatMuteFor(float64 sec) {
+	return (sec <= 60)
+		? tr::lng_seconds(tr::now, lt_count, sec)
+		: (sec <= 60 * 59)
+		? tr::lng_minutes(tr::now, lt_count, std::ceil(sec / 60))
+		: FormatTTL(sec);
+}
+
 QString FormatMuteForTiny(float64 sec) {
 	return (sec <= 60)
 		? QString()
