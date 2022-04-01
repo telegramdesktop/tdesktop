@@ -36,6 +36,7 @@ constexpr auto kTTLDurSeconds3 = kTTLDurHours3 * 3600;
 constexpr auto kTTLDurHours4 = crl::time(24 * 30);
 constexpr auto kTTLDurSeconds4 = kTTLDurHours4 * 3600;
 
+// See menu_mute.cpp.
 class IconWithText final : public Ui::Menu::Action {
 public:
 	using Ui::Menu::Action::Action;

@@ -891,6 +891,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mute_menu_unmute" = "Unmute";
 "lng_mute_menu_duration_hours#one" = "Mute for {count} hour";
 "lng_mute_menu_duration_hours#other" = "Mute for {count} hours";
+"lng_mute_menu_duration_any" = "Mute for {duration}";
 "lng_mute_menu_duration" = "Mute for...";
 "lng_mute_menu_duration_forever" = "Mute forever";
 "lng_mute_menu_duration_unmute" = "Unmute";

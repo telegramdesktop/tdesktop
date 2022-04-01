@@ -123,6 +123,9 @@ public:
 	[[nodiscard]] bool photoEditorHintShown() const;
 	void incrementPhotoEditorHintShown();
 
+	[[nodiscard]] std::vector<TimeId> mutePeriods() const;
+	void addMutePeriod(TimeId period);
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
@@ -138,6 +141,7 @@ private:
 	base::flat_map<PeerId, MsgId> _hiddenPinnedMessages;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
+	std::vector<TimeId> _mutePeriods;
 
 	Support::SwitchSettings _supportSwitch;
 	bool _supportFixChatsOrder = true;

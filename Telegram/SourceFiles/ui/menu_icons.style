@@ -108,6 +108,10 @@ menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
 menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
 
+menuIconMuteForAny: icon {{ "menu/mute_for_plain", menuIconColor }};
+menuIconMuteForAnyTextPosition: point(14px, 9px);
+menuIconMuteForAnyTextFont: font(8px semibold);
+
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
 mediaMenuIconShowInChat: icon {{ "menu/show_in_chat", mediaviewMenuFg }};

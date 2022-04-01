@@ -7,19 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_mute.h"
 
-#include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/notify/data_notify_settings.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/boxes/choose_time.h"
+#include "ui/boxes/time_picker_box.h"
 #include "ui/effects/animation_value.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/boxes/time_picker_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
@@ -30,6 +32,35 @@ namespace MuteMenu {
 namespace {
 
 constexpr auto kMuteDurSecondsDefault = crl::time(8) * 3600;
+
+class IconWithText final : public Ui::Menu::Action {
+public:
+	using Ui::Menu::Action::Action;
+
+	void setData(const QString &text, const QPoint &iconPosition);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QPoint _iconPosition;
+	QString _text;
+
+};
+
+void IconWithText::setData(const QString &text, const QPoint &iconPosition) {
+	_iconPosition = iconPosition;
+	_text = text;
+}
+
+void IconWithText::paintEvent(QPaintEvent *e) {
+	Ui::Menu::Action::paintEvent(e);
+
+	Painter p(this);
+	p.setFont(st::menuIconMuteForAnyTextFont);
+	p.setPen(st::menuIconColor);
+	p.drawText(_iconPosition, _text);
+}
 
 class MuteItem final : public Ui::Menu::Action {
 public:
@@ -161,9 +192,10 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto pickerCallback = TimePickerBox(box, seconds, phrases, 0);
 
 	box->addButton(tr::lng_mute_menu_mute(), [=] {
-		peer->owner().notifySettings().updateNotifySettings(
-			peer,
-			pickerCallback());
+		const auto muteFor = pickerCallback();
+		peer->owner().notifySettings().updateNotifySettings(peer, muteFor);
+		peer->session().settings().addMutePeriod(muteFor);
+		peer->session().saveSettings();
 		box->closeBox();
 	});
 
@@ -209,6 +241,32 @@ void FillMuteMenu(
 			notifySettings.updateNotifySettings(peer, {}, {}, !soundIsNone);
 		},
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
+
+	const auto &st = menu->st().menu;
+	const auto iconTextPosition = st.itemIconPosition
+		+ st::menuIconMuteForAnyTextPosition;
+	for (const auto &muteFor : peer->session().settings().mutePeriods()) {
+		const auto callback = [=] {
+			peer->owner().notifySettings().updateNotifySettings(
+				peer,
+				muteFor);
+		};
+
+		auto item = base::make_unique_q<IconWithText>(
+			menu,
+			st,
+			Ui::Menu::CreateAction(
+				menu->menu().get(),
+				tr::lng_mute_menu_duration_any(
+					tr::now,
+					lt_duration,
+					Ui::FormatMuteFor(muteFor)),
+				callback),
+			&st::menuIconMuteForAny,
+			&st::menuIconMuteForAny);
+		item->setData(Ui::FormatMuteForTiny(muteFor), iconTextPosition);
+		menu->addAction(std::move(item));
+	}
 
 	menu->addAction(
 		tr::lng_mute_menu_duration(tr::now),
