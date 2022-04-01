@@ -48,7 +48,8 @@ public:
 		PaintItemCallback &&paintCallback,
 		int itemsCount,
 		int itemHeight,
-		int startIndex = 0);
+		int startIndex = 0,
+		bool looped = false);
 
 	[[nodiscard]] int index() const;
 
@@ -67,6 +68,7 @@ private:
 	void increaseShift(float64 by);
 	void animationDataFromIndex();
 	[[nodiscard]] int normalizedIndex(int index) const;
+	[[nodiscard]] bool isIndexInRange(int index) const;
 
 	const int _itemsCount;
 	const int _itemHeight;
@@ -74,9 +76,20 @@ private:
 	PaintItemCallback _paintCallback;
 
 	int _pendingStartIndex = 0;
-	int _itemsVisibleCount = 0;
+
+	struct {
+		int count = 0;
+		int centerOffset = 0;
+	} _itemsVisible;
+
 	int _index = 0;
 	float64 _shift = 0.;
+
+	struct {
+		const bool looped;
+		int minIndex = 0;
+		int maxIndex = 0;
+	} _loopData;
 
 	PickerAnimation _animation;
 

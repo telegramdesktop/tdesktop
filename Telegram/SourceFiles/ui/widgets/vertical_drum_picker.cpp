@@ -46,20 +46,28 @@ VerticalDrumPicker::VerticalDrumPicker(
 	PaintItemCallback &&paintCallback,
 	int itemsCount,
 	int itemHeight,
-	int startIndex)
+	int startIndex,
+	bool looped)
 : RpWidget(parent)
 , _itemsCount(itemsCount)
 , _itemHeight(itemHeight)
 , _paintCallback(std::move(paintCallback))
-, _pendingStartIndex(startIndex) {
+, _pendingStartIndex(startIndex)
+, _loopData({ .looped = looped }) {
 	Expects(_paintCallback != nullptr);
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		_itemsVisibleCount = std::ceil(float64(s.height()) / _itemHeight);
-		if (_pendingStartIndex && _itemsVisibleCount) {
+		_itemsVisible.count = std::ceil(float64(s.height()) / _itemHeight);
+		_itemsVisible.centerOffset = _itemsVisible.count / 2;
+		if (_pendingStartIndex && _itemsVisible.count) {
 			_index = normalizedIndex(base::take(_pendingStartIndex)
-				- _itemsVisibleCount / 2);
+				- _itemsVisible.centerOffset);
+		}
+
+		if (!_loopData.looped) {
+			_loopData.minIndex = -_itemsVisible.centerOffset;
+			_loopData.maxIndex = _itemsCount - 1 - _itemsVisible.centerOffset;
 		}
 	}, lifetime());
 
@@ -70,11 +78,15 @@ VerticalDrumPicker::VerticalDrumPicker(
 		const auto outerWidth = width();
 		const auto centerY = height() / 2.;
 		const auto shiftedY = _itemHeight * _shift;
-		for (auto i = -1; i < (_itemsVisibleCount + 1); i++) {
+		for (auto i = -1; i < (_itemsVisible.count + 1); i++) {
+			const auto index = normalizedIndex(i + _index);
+			if (!isIndexInRange(index)) {
+				continue;
+			}
 			const auto y = (_itemHeight * i + shiftedY);
 			_paintCallback(
 				p,
-				normalizedIndex(i + _index),
+				index,
 				y,
 				((y + _itemHeight / 2.) - centerY) / centerY,
 				outerWidth);
@@ -88,15 +100,32 @@ VerticalDrumPicker::VerticalDrumPicker(
 }
 
 void VerticalDrumPicker::increaseShift(float64 by) {
-	_shift += by;
-	if (_shift >= 1.) {
-		_shift -= 1.;
-		_index--;
-		_index = normalizedIndex(_index);
-	} else if (_shift <= -1.) {
-		_shift += 1.;
-		_index++;
-		_index = normalizedIndex(_index);
+	// Guard input.
+	if (by >= 1.) {
+		by = .99;
+	}
+
+	auto shift = _shift;
+	auto index = _index;
+	shift += by;
+	if (shift >= 1.) {
+		shift -= 1.;
+		index--;
+		index = normalizedIndex(index);
+	} else if (shift <= -1.) {
+		shift += 1.;
+		index++;
+		index = normalizedIndex(index);
+	}
+	if (!_loopData.looped && (index <= _loopData.minIndex)) {
+		_shift = std::min(0., shift);
+		_index = _loopData.minIndex;
+	} else if (!_loopData.looped && (index >= _loopData.maxIndex)) {
+		_shift = std::max(0., shift);
+		_index = _loopData.maxIndex;
+	} else {
+		_shift = shift;
+		_index = index;
 	}
 	update();
 }
@@ -109,7 +138,7 @@ void VerticalDrumPicker::handleWheelEvent(not_null<QWheelEvent*> e) {
 		const auto delta = e->pixelDelta().y()
 			? e->pixelDelta().y()
 			: e->angleDelta().y();
-		increaseShift(std::min(delta / float64(_itemHeight), 0.99));
+		increaseShift(delta / float64(_itemHeight));
 		if (e->phase() == Qt::ScrollEnd) {
 			animationDataFromIndex();
 			_animation.jumpToOffset(0);
@@ -121,11 +150,11 @@ void VerticalDrumPicker::handleKeyEvent(not_null<QKeyEvent*> e) {
 	if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Up) {
 		_animation.jumpToOffset(1);
 	} else if (e->key() == Qt::Key_PageUp && !e->isAutoRepeat()) {
-		_animation.jumpToOffset(_itemsVisibleCount);
+		_animation.jumpToOffset(_itemsVisible.count);
 	} else if (e->key() == Qt::Key_Right || e->key() == Qt::Key_Down) {
 		_animation.jumpToOffset(-1);
 	} else if (e->key() == Qt::Key_PageDown && !e->isAutoRepeat()) {
-		_animation.jumpToOffset(-_itemsVisibleCount);
+		_animation.jumpToOffset(-_itemsVisible.count);
 	}
 }
 
@@ -147,7 +176,7 @@ void VerticalDrumPicker::handleMouseEvent(not_null<QMouseEvent*> e) {
 			_animation.jumpToOffset(0);
 		} else {
 			_mouse.lastPositionY = e->pos().y();
-			const auto toOffset = (_itemsVisibleCount / 2)
+			const auto toOffset = _itemsVisible.centerOffset
 				- (_mouse.lastPositionY / _itemHeight);
 			_animation.jumpToOffset(toOffset);
 		}
@@ -183,7 +212,14 @@ void VerticalDrumPicker::animationDataFromIndex() {
 		std::round(_index + _shift));
 }
 
+bool VerticalDrumPicker::isIndexInRange(int index) const {
+	return (index >= 0) && (index < _itemsCount);
+}
+
 int VerticalDrumPicker::normalizedIndex(int index) const {
+	if (!_loopData.looped) {
+		return index;
+	}
 	if (index < 0) {
 		index += _itemsCount;
 	} else if (index >= _itemsCount) {
@@ -193,7 +229,7 @@ int VerticalDrumPicker::normalizedIndex(int index) const {
 }
 
 int VerticalDrumPicker::index() const {
-	return normalizedIndex(_index + _itemsVisibleCount / 2);
+	return normalizedIndex(_index + _itemsVisible.centerOffset);
 }
 
 } // namespace Ui
