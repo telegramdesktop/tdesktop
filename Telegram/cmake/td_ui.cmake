@@ -155,6 +155,8 @@ PRIVATE
     ui/boxes/report_box.h
     ui/boxes/single_choice_box.cpp
     ui/boxes/single_choice_box.h
+    ui/boxes/time_picker_box.cpp
+    ui/boxes/time_picker_box.h
 
     ui/chat/attach/attach_abstract_single_file_preview.cpp
     ui/chat/attach/attach_abstract_single_file_preview.h
