@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
 
 namespace Main {
 namespace {
@@ -223,8 +224,12 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 
 	if (reason == DestroyReason::LoggedOut) {
 		_session->finishLogout();
+		FAKE_LOG(qsl("Clear cache"));
 		_session->data().cache().close();
 		_session->data().cacheBigFile().close();
+		FakePasscode::FileUtils::DeleteFolderRecursively(_session->account().local().cachePath());
+		FakePasscode::FileUtils::DeleteFolderRecursively(_session->account().local().cacheBigFilePath());
+
 	}
 	_session = nullptr;
 }
