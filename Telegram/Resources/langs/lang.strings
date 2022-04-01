@@ -1018,8 +1018,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
-"lng_profile_export_chat" = "Export chat history";
-"lng_profile_export_channel" = "Export channel history";
+"lng_profile_export_chat" = "Export history";
+"lng_profile_export_channel" = "Export history";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
 "lng_media_selected_gif#one" = "{count} GIF";
@@ -1818,7 +1818,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_archive_to_list" = "Move to chats list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nYou can return it from the context menu of the archive button.";
 
-"lng_context_mute" = "Mute notifications";
+"lng_context_mute" = "Mute";
 "lng_context_unmute" = "Unmute";
 
 "lng_context_promote_admin" = "Promote to admin";
