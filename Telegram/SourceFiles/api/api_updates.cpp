@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -1906,7 +1907,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNotifySettings: {
 		auto &d = update.c_updateNotifySettings();
-		session().data().applyNotifySetting(d.vpeer(), d.vnotify_settings());
+		session().data().notifySettings().applyNotifySetting(
+			d.vpeer(),
+			d.vnotify_settings());
 	} break;
 
 	case mtpc_updateDcOptions: {

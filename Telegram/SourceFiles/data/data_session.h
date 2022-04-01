@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
-#include "data/notify/data_peer_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -62,6 +61,7 @@ class DocumentMedia;
 class PhotoMedia;
 class Stickers;
 class GroupCall;
+class NotifySettings;
 
 class Session final {
 public:
@@ -116,6 +116,9 @@ public:
 	}
 	[[nodiscard]] Reactions &reactions() const {
 		return *_reactions;
+	}
+	[[nodiscard]] NotifySettings &notifySettings() const {
+		return *_notifySettings;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -659,16 +662,6 @@ public:
 	void dialogsRowReplaced(DialogsRowReplacement replacement);
 	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
 
-	void requestNotifySettings(not_null<PeerData*> peer);
-	void applyNotifySetting(
-		const MTPNotifyPeer &notifyPeer,
-		const MTPPeerNotifySettings &settings);
-	void updateNotifySettings(
-		not_null<PeerData*> peer,
-		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts = std::nullopt,
-		std::optional<bool> soundIsNone = std::nullopt);
-	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
 	bool notifyIsMuted(not_null<const PeerData*> peer) const;
 	bool notifySilentPosts(not_null<const PeerData*> peer) const;
 	bool notifySoundIsNone(not_null<const PeerData*> peer) const;
@@ -676,11 +669,6 @@ public:
 	bool notifySilentPostsUnknown(not_null<const PeerData*> peer) const;
 	bool notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const;
 	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
-	rpl::producer<> defaultUserNotifyUpdates() const;
-	rpl::producer<> defaultChatNotifyUpdates() const;
-	rpl::producer<> defaultBroadcastNotifyUpdates() const;
-	rpl::producer<> defaultNotifyUpdates(
-		not_null<const PeerData*> peer) const;
 
 	void serviceNotification(
 		const TextWithEntities &message,
@@ -711,10 +699,6 @@ public:
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
-
-	bool notifyIsMuted(
-		not_null<const PeerData*> peer,
-		crl::time *changesIn) const;
 
 	void suggestStartExport();
 
@@ -821,13 +805,6 @@ private:
 		DocumentData *document);
 
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
-
-	PeerNotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
-	const PeerNotifySettings &defaultNotifySettings(
-		not_null<const PeerData*> peer) const;
-	void unmuteByFinished();
-	void unmuteByFinishedDelayed(crl::time delay);
-	void updateNotifySettingsLocal(not_null<PeerData*> peer);
 
 	template <typename Method>
 	void enumerateItemViews(
@@ -976,15 +953,6 @@ private:
 
 	History *_topPromoted = nullptr;
 
-	PeerNotifySettings _defaultUserNotifySettings;
-	PeerNotifySettings _defaultChatNotifySettings;
-	PeerNotifySettings _defaultBroadcastNotifySettings;
-	rpl::event_stream<> _defaultUserNotifyUpdates;
-	rpl::event_stream<> _defaultChatNotifyUpdates;
-	rpl::event_stream<> _defaultBroadcastNotifyUpdates;
-	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
-	base::Timer _unmuteByFinishedTimer;
-
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> _peers;
 
 	MessageIdsList _mimeForwardIds;
@@ -1010,6 +978,7 @@ private:
 	const std::unique_ptr<Stickers> _stickers;
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
+	const std::unique_ptr<NotifySettings> _notifySettings;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

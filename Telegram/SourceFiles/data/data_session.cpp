@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/stickers/data_stickers.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_media_types.h"
@@ -69,8 +70,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
-
-constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 
 using ViewElement = HistoryView::Element;
 
@@ -232,7 +231,6 @@ Session::Session(not_null<Main::Session*> session)
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _pollsClosingTimer([=] { checkPollsClosings(); })
-, _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
@@ -243,7 +241,8 @@ Session::Session(not_null<Main::Session*> session)
 , _histories(std::make_unique<Histories>(this))
 , _stickers(std::make_unique<Stickers>(this))
 , _sponsoredMessages(std::make_unique<SponsoredMessages>(this))
-, _reactions(std::make_unique<Reactions>(this)) {
+, _reactions(std::make_unique<Reactions>(this))
+, _notifySettings(std::make_unique<NotifySettings>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 
@@ -2222,81 +2221,6 @@ Session::SentData Session::messageSentData(uint64 randomId) const {
 	return (i != end(_sentMessagesData)) ? i->second : SentData();
 }
 
-PeerNotifySettings &Session::defaultNotifySettings(
-		not_null<const PeerData*> peer) {
-	return peer->isUser()
-		? _defaultUserNotifySettings
-		: (peer->isChat() || peer->isMegagroup())
-		? _defaultChatNotifySettings
-		: _defaultBroadcastNotifySettings;
-}
-
-const PeerNotifySettings &Session::defaultNotifySettings(
-		not_null<const PeerData*> peer) const {
-	return peer->isUser()
-		? _defaultUserNotifySettings
-		: (peer->isChat() || peer->isMegagroup())
-		? _defaultChatNotifySettings
-		: _defaultBroadcastNotifySettings;
-}
-
-void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
-	const auto history = historyLoaded(peer->id);
-	auto changesIn = crl::time(0);
-	const auto muted = notifyIsMuted(peer, &changesIn);
-	if (history && history->changeMute(muted)) {
-		// Notification already sent.
-	} else {
-		session().changes().peerUpdated(
-			peer,
-			PeerUpdate::Flag::Notifications);
-	}
-
-	if (muted) {
-		_mutedPeers.emplace(peer);
-		unmuteByFinishedDelayed(changesIn);
-		if (history) {
-			Core::App().notifications().clearIncomingFromHistory(history);
-		}
-	} else {
-		_mutedPeers.erase(peer);
-	}
-}
-
-void Session::unmuteByFinishedDelayed(crl::time delay) {
-	accumulate_min(delay, kMaxNotifyCheckDelay);
-	if (!_unmuteByFinishedTimer.isActive()
-		|| _unmuteByFinishedTimer.remainingTime() > delay) {
-		_unmuteByFinishedTimer.callOnce(delay);
-	}
-}
-
-void Session::unmuteByFinished() {
-	auto changesInMin = crl::time(0);
-	for (auto i = begin(_mutedPeers); i != end(_mutedPeers);) {
-		const auto history = historyLoaded((*i)->id);
-		auto changesIn = crl::time(0);
-		const auto muted = notifyIsMuted(*i, &changesIn);
-		if (muted) {
-			if (history) {
-				history->changeMute(true);
-			}
-			if (!changesInMin || changesInMin > changesIn) {
-				changesInMin = changesIn;
-			}
-			++i;
-		} else {
-			if (history) {
-				history->changeMute(false);
-			}
-			i = _mutedPeers.erase(i);
-		}
-	}
-	if (changesInMin) {
-		unmuteByFinishedDelayed(changesInMin);
-	}
-}
-
 HistoryItem *Session::addNewMessage(
 		const MTPMessage &data,
 		MessageFlags localFlags,
@@ -3874,135 +3798,15 @@ auto Session::dialogsRowReplacements() const
 	return _dialogsRowReplacements.events();
 }
 
-void Session::requestNotifySettings(not_null<PeerData*> peer) {
-	if (peer->notifySettingsUnknown()) {
-		_session->api().requestNotifySettings(
-			MTP_inputNotifyPeer(peer->input));
-	}
-	if (defaultNotifySettings(peer).settingsUnknown()) {
-		_session->api().requestNotifySettings(peer->isUser()
-			? MTP_inputNotifyUsers()
-			: (peer->isChat() || peer->isMegagroup())
-			? MTP_inputNotifyChats()
-			: MTP_inputNotifyBroadcasts());
-	}
-}
-
-void Session::applyNotifySetting(
-		const MTPNotifyPeer &notifyPeer,
-		const MTPPeerNotifySettings &settings) {
-	const auto goodForUpdate = [&](
-			not_null<const PeerData*> peer,
-			const PeerNotifySettings &settings) {
-		return !peer->notifySettingsUnknown()
-			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
-				|| (!peer->notifySilentPosts() && settings.silentPosts())
-				|| (!peer->notifySoundIsNone() && settings.soundIsNone()));
-	};
-
-	switch (notifyPeer.type()) {
-	case mtpc_notifyUsers: {
-		if (_defaultUserNotifySettings.change(settings)) {
-			_defaultUserNotifyUpdates.fire({});
-
-			enumerateUsers([&](not_null<UserData*> user) {
-				if (goodForUpdate(user, _defaultUserNotifySettings)) {
-					updateNotifySettingsLocal(user);
-				}
-			});
-		}
-	} break;
-	case mtpc_notifyChats: {
-		if (_defaultChatNotifySettings.change(settings)) {
-			_defaultChatNotifyUpdates.fire({});
-
-			enumerateGroups([&](not_null<PeerData*> peer) {
-				if (goodForUpdate(peer, _defaultChatNotifySettings)) {
-					updateNotifySettingsLocal(peer);
-				}
-			});
-		}
-	} break;
-	case mtpc_notifyBroadcasts: {
-		if (_defaultBroadcastNotifySettings.change(settings)) {
-			_defaultBroadcastNotifyUpdates.fire({});
-
-			enumerateChannels([&](not_null<ChannelData*> channel) {
-				if (goodForUpdate(channel, _defaultBroadcastNotifySettings)) {
-					updateNotifySettingsLocal(channel);
-				}
-			});
-		}
-	} break;
-	case mtpc_notifyPeer: {
-		const auto &data = notifyPeer.c_notifyPeer();
-		if (const auto peer = peerLoaded(peerFromMTP(data.vpeer()))) {
-			if (peer->notifyChange(settings)) {
-				updateNotifySettingsLocal(peer);
-			}
-		}
-	} break;
-	}
-}
-
-void Session::updateNotifySettings(
-		not_null<PeerData*> peer,
-		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts,
-		std::optional<bool> soundIsNone) {
-	if (peer->notifyChange(muteForSeconds, silentPosts, soundIsNone)) {
-		updateNotifySettingsLocal(peer);
-		_session->api().updateNotifySettingsDelayed(peer);
-	}
-}
-
-void Session::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
-	const auto empty = MTP_peerNotifySettings(
-		MTP_flags(0),
-		MTPBool(),
-		MTPBool(),
-		MTPint(),
-		MTPNotificationSound(),
-		MTPNotificationSound(),
-		MTPNotificationSound());
-	if (peer->notifyChange(empty)) {
-		updateNotifySettingsLocal(peer);
-		_session->api().updateNotifySettingsDelayed(peer);
-	}
-}
-
 bool Session::notifyIsMuted(not_null<const PeerData*> peer) const {
-	return notifyIsMuted(peer, nullptr);
-}
-
-bool Session::notifyIsMuted(
-		not_null<const PeerData*> peer,
-		crl::time *changesIn) const {
-	const auto resultFromUntil = [&](TimeId until) {
-		const auto now = base::unixtime::now();
-		const auto result = (until > now) ? (until - now) : 0;
-		if (changesIn) {
-			*changesIn = (result > 0)
-				? std::min(result * crl::time(1000), kMaxNotifyCheckDelay)
-				: kMaxNotifyCheckDelay;
-		}
-		return (result > 0);
-	};
-	if (const auto until = peer->notifyMuteUntil()) {
-		return resultFromUntil(*until);
-	}
-	const auto &settings = defaultNotifySettings(peer);
-	if (const auto until = settings.muteUntil()) {
-		return resultFromUntil(*until);
-	}
-	return true;
+	return notifySettings().notifyIsMuted(peer, nullptr);
 }
 
 bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {
 	if (const auto silent = peer->notifySilentPosts()) {
 		return *silent;
 	}
-	const auto &settings = defaultNotifySettings(peer);
+	const auto &settings = notifySettings().defaultNotifySettings(peer);
 	if (const auto silent = settings.silentPosts()) {
 		return *silent;
 	}
@@ -4013,7 +3817,7 @@ bool Session::notifySoundIsNone(not_null<const PeerData*> peer) const {
 	if (const auto soundIsNone = peer->notifySoundIsNone()) {
 		return *soundIsNone;
 	}
-	const auto &settings = defaultNotifySettings(peer);
+	const auto &settings = notifySettings().defaultNotifySettings(peer);
 	if (const auto soundIsNone = settings.soundIsNone()) {
 		return *soundIsNone;
 	}
@@ -4026,7 +3830,7 @@ bool Session::notifyMuteUnknown(not_null<const PeerData*> peer) const {
 	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
 }
 
 bool Session::notifySilentPostsUnknown(
@@ -4036,7 +3840,7 @@ bool Session::notifySilentPostsUnknown(
 	} else if (const auto nonDefault = peer->notifySilentPosts()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
 }
 
 bool Session::notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const {
@@ -4045,34 +3849,13 @@ bool Session::notifySoundIsNoneUnknown(not_null<const PeerData*> peer) const {
 	} else if (const auto nonDefault = peer->notifySoundIsNone()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return notifySettings().defaultNotifySettings(peer).settingsUnknown();
 }
 
 bool Session::notifySettingsUnknown(not_null<const PeerData*> peer) const {
 	return notifyMuteUnknown(peer)
 		|| notifySilentPostsUnknown(peer)
 		|| notifySoundIsNoneUnknown(peer);
-}
-
-rpl::producer<> Session::defaultUserNotifyUpdates() const {
-	return _defaultUserNotifyUpdates.events();
-}
-
-rpl::producer<> Session::defaultChatNotifyUpdates() const {
-	return _defaultChatNotifyUpdates.events();
-}
-
-rpl::producer<> Session::defaultBroadcastNotifyUpdates() const {
-	return _defaultBroadcastNotifyUpdates.events();
-}
-
-rpl::producer<> Session::defaultNotifyUpdates(
-		not_null<const PeerData*> peer) const {
-	return peer->isUser()
-		? defaultUserNotifyUpdates()
-		: (peer->isChat() || peer->isMegagroup())
-		? defaultChatNotifyUpdates()
-		: defaultBroadcastNotifyUpdates();
 }
 
 void Session::serviceNotification(

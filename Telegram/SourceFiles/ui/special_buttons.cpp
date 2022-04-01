@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
 #include "ui/ui_utility.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -864,7 +865,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	RippleButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	_channel->owner().updateNotifySettings(
+	_channel->owner().notifySettings().updateNotifySettings(
 		_channel,
 		std::nullopt,
 		_checked);

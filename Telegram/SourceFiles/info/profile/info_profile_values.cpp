@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
 #include "data/data_message_reactions.h"
@@ -171,7 +172,7 @@ rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
 			peer,
 			UpdateFlag::Notifications
 		) | rpl::to_empty,
-		peer->owner().defaultNotifyUpdates(peer)
+		peer->owner().notifySettings().defaultNotifyUpdates(peer)
 	) | rpl::map([=] {
 		return !peer->owner().notifyIsMuted(peer);
 	}) | rpl::distinct_until_changed();

@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -130,7 +131,7 @@ void PeerMenuAddMuteSubmenuAction(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
-	peer->owner().requestNotifySettings(peer);
+	peer->owner().notifySettings().requestNotifySettings(peer);
 	const auto isMuted = peer->owner().notifyIsMuted(peer);
 	if (isMuted) {
 		const auto text = tr::lng_context_unmute(tr::now)
@@ -138,7 +139,7 @@ void PeerMenuAddMuteSubmenuAction(
 			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
 				- base::unixtime::now());
 		addAction(text, [=] {
-			peer->owner().updateNotifySettings(peer, 0);
+			peer->owner().notifySettings().updateNotifySettings(peer, 0);
 		}, &st::menuIconUnmute);
 	} else {
 		const auto show = std::make_shared<Window::Show>(controller);
@@ -1422,7 +1423,7 @@ void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
 	// There is no async to make weak from controller.
-	peer->owner().requestNotifySettings(peer);
+	peer->owner().notifySettings().requestNotifySettings(peer);
 	const auto muteText = [](bool isUnmuted) {
 		return isUnmuted
 			? tr::lng_context_mute(tr::now)
@@ -1434,7 +1435,7 @@ void PeerMenuAddMuteAction(
 				Box<MuteSettingsBox>(peer),
 				Ui::LayerOption::CloseOther);
 		} else {
-			peer->owner().updateNotifySettings(peer, 0);
+			peer->owner().notifySettings().updateNotifySettings(peer, 0);
 		}
 	}, (peer->owner().notifyIsMuted(peer)
 		? &st::menuIconUnmute

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "api/api_confirm_phone.h"
 #include "api/api_unread_things.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_changes.h"
@@ -2089,22 +2090,23 @@ void ApiWrap::clearModifyRequest(const QString &key) {
 void ApiWrap::applyNotifySettings(
 		MTPInputNotifyPeer notifyPeer,
 		const MTPPeerNotifySettings &settings) {
+	auto &notifySettings = _session->data().notifySettings();
 	switch (notifyPeer.type()) {
 	case mtpc_inputNotifyUsers:
-		_session->data().applyNotifySetting(MTP_notifyUsers(), settings);
+		notifySettings.applyNotifySetting(MTP_notifyUsers(), settings);
 	break;
 	case mtpc_inputNotifyChats:
-		_session->data().applyNotifySetting(MTP_notifyChats(), settings);
+		notifySettings.applyNotifySetting(MTP_notifyChats(), settings);
 	break;
 	case mtpc_inputNotifyBroadcasts:
-		_session->data().applyNotifySetting(
+		notifySettings.applyNotifySetting(
 			MTP_notifyBroadcasts(),
 			settings);
 	break;
 	case mtpc_inputNotifyPeer: {
 		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer();
 		const auto apply = [&](PeerId peerId) {
-			_session->data().applyNotifySetting(
+			notifySettings.applyNotifySetting(
 				MTP_notifyPeer(peerToMTP(peerId)),
 				settings);
 		};

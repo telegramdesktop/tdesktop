@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_mute.h"
 
+#include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "info/profile/info_profile_values.h"
@@ -77,7 +78,7 @@ MuteItem::MuteItem(
 	}, lifetime());
 
 	setClickedCallback([=] {
-		peer->owner().updateNotifySettings(
+		peer->owner().notifySettings().updateNotifySettings(
 			peer,
 			_isMuted ? 0 : Data::PeerNotifySettings::kDefaultMutePeriod);
 	});
@@ -119,7 +120,9 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
 	const auto confirm = box->addButton(std::move(confirmText), [=] {
-		peer->owner().updateNotifySettings(peer, state->lastSeconds);
+		peer->owner().notifySettings().updateNotifySettings(
+			peer,
+			state->lastSeconds);
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -139,7 +142,8 @@ void FillMuteMenu(
 			: tr::lng_mute_menu_sound_off(tr::now),
 		[=] {
 			const auto soundIsNone = peer->owner().notifySoundIsNone(peer);
-			peer->owner().updateNotifySettings(peer, {}, {}, !soundIsNone);
+			auto &notifySettings = peer->owner().notifySettings();
+			notifySettings.updateNotifySettings(peer, {}, {}, !soundIsNone);
 		},
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
 

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -196,12 +197,13 @@ System::SkipState System::computeSkipState(
 	}
 
 	if (messageNotification) {
-		history->owner().requestNotifySettings(history->peer);
+		history->owner().notifySettings().requestNotifySettings(
+			history->peer);
 	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
 		notifyBy->updateFull();
 	}
 	if (notifyBy) {
-		history->owner().requestNotifySettings(notifyBy);
+		history->owner().notifySettings().requestNotifySettings(notifyBy);
 	}
 
 	if (messageNotification

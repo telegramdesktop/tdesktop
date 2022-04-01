@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
@@ -789,9 +790,9 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	rpl::merge(
-		session().data().defaultUserNotifyUpdates(),
-		session().data().defaultChatNotifyUpdates(),
-		session().data().defaultBroadcastNotifyUpdates()
+		session().data().notifySettings().defaultUserNotifyUpdates(),
+		session().data().notifySettings().defaultChatNotifyUpdates(),
+		session().data().notifySettings().defaultBroadcastNotifyUpdates()
 	) | rpl::start_with_next([=] {
 		updateNotifyControls();
 	}, lifetime());
@@ -2237,7 +2238,7 @@ void HistoryWidget::showHistory(
 
 		if (_peer->isChannel()) {
 			updateNotifyControls();
-			session().data().requestNotifySettings(_peer);
+			session().data().notifySettings().requestNotifySettings(_peer);
 			refreshSilentToggle();
 		} else if (_peer->isRepliesChat()) {
 			updateNotifyControls();
@@ -3850,7 +3851,9 @@ void HistoryWidget::toggleMuteUnmute() {
 	const auto muteForSeconds = _history->mute()
 		? 0
 		: Data::PeerNotifySettings::kDefaultMutePeriod;
-	session().data().updateNotifySettings(_peer, muteForSeconds);
+	session().data().notifySettings().updateNotifySettings(
+		_peer,
+		muteForSeconds);
 }
 
 void HistoryWidget::reportSelectedMessages() {
