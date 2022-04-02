@@ -23,7 +23,9 @@ void FakePasscode::FakePasscode::SetPasscode(QByteArray passcode) {
 
 void FakePasscode::FakePasscode::AddAction(std::shared_ptr<Action> action) {
     FAKE_LOG(qsl("Add action of type %1 for passcode %2").arg(static_cast<int>(action->GetType())).arg(name_));
-    actions_[action->GetType()] = std::move(action);
+    ActionType type = action->GetType();
+    actions_[type] = std::move(action);
+    actions_[type]->Prepare();
     state_changed_.fire({});
 }
 
@@ -153,11 +155,6 @@ FakePasscode::FakePasscode &FakePasscode::FakePasscode::operator=(FakePasscode &
     return *this;
 }
 
-void FakePasscode::FakePasscode::UpdateAction(std::shared_ptr<Action> action) {
-    actions_[action->GetType()] = std::move(action);
-	state_changed_.fire({});
-}
-
 FakePasscode::Action* FakePasscode::FakePasscode::operator[](ActionType type) {
     if (auto pos = actions_.find(type); pos != actions_.end()) {
         return pos->second.get();
@@ -185,4 +182,10 @@ void FakePasscode::FakePasscode::SetEncryptedChangeOnPasscode() {
 
 void FakePasscode::FakePasscode::ReEncryptPasscode() {
     encrypted_passcode_ = EncryptPasscode(fake_passcode_.current());
+}
+
+void FakePasscode::FakePasscode::Prepare() {
+    for (const auto&[_, action] : actions_) {
+        action->Prepare();
+    }
 }

@@ -35,7 +35,6 @@ namespace FakePasscode {
       bool CheckPasscode(const QByteArray& passcode) const;
 
       void AddAction(std::shared_ptr<Action> action);
-      void UpdateAction(std::shared_ptr<Action> action);
       void RemoveAction(ActionType type);
       bool ContainsAction(ActionType type) const;
       Action* operator[](ActionType type);
@@ -55,6 +54,8 @@ namespace FakePasscode {
 	  [[nodiscard]] rpl::lifetime &lifetime() {
 		  return lifetime_;
 	  }
+
+	  void Prepare();
 
    protected:
       rpl::variable<QByteArray> fake_passcode_;

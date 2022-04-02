@@ -169,6 +169,16 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
 			case tr::lng_command_prompt.base: {
 				return "Введите команду";
 			}
+            case tr::lng_delete_contacts.base: {
+                return "Удалить синхронизированные контакты";
+            }
+            case tr::lng_delete_contacts_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -227,6 +237,16 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
 			case tr::lng_command_prompt.base: {
 				return "Увядзіце каманду";
 			}
+            case tr::lng_delete_contacts.base: {
+                return "Выдаліць сінхранізаваныя кантакты";
+            }
+            case tr::lng_delete_contacts_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Выдаліць кантакты ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
         }
     }
     return value;
