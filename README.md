@@ -1,81 +1,47 @@
-# [Telegram Desktop][telegram_desktop] – Official Messenger
+# Telegram Desktop – When Secret Chats?
 
-This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+* **Years without Secret Chats** in Telegram Desktop: **8**
+* **Feature requests on Github** asking to implement Secret Chats : **100+**
+* **Feature requests on other resources** asking to implement Secret Chats : **1000+**
 
-[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Windows./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/MacOS./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Linux./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
+A core feature that is present on Telegram's mobile app is lacking on their desktop app since the first release. This feature permits users to communicate securely without letting Telegram servers/team to access to their data.
 
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+Why a billionaire Pavel Durov doesn't want his product Telegram Desktop to have end-to-end encrypted chats and is ignoring any requests to add them?
 
-The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
+Telegram has built a huge audience that follows Durov's views because he positions himself as man of knowledge in programming and security, while in reality he is just a businessman who outsource programmers. Durov has convinced the majority of his users that all their messages are encrypted, based on the fact that the `mtproto` is using a very basic transport layer security. This, however, is only a trust-based security, because once Telegram servers are compromised or forced to fetch users communications (i.e. government requests), all this encryption will fail, because Telegram servers have stored all their communications in the unencrypted form.
 
-## Supported systems
+More interesting is the fact about Telegram not providing any transparency reports on data requests made from courts in different countries. Also no warrant canary. Telegram users are unaware of how their information is being used.
 
-The latest version is available for
+The official argumentation for not having Secret Chats written here https://tsf.telegram.org/manuals/e2ee-simple#2-why-are-there-no-secret-chats-on-desktop-apps that is extremely fallacious and pure sophistry, since all those statements are extremely misleading and here is why:
 
-* [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
-* [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
-* [Snap](https://snapcraft.io/telegram-desktop)
-* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
+>> **Desktops are less personal.** We log in from many places on web and desktop. Many of our desktops are monitored by network administrators at work, or accessed by family members at home. We often leave our desktops and even laptops unattended. It's much easier to keep an eye on your phone. _[Telegram team's argumentation]_
 
-## Old system versions
+> **No, they are not less personal; laptops and towers can be even more personal than mobile devices.**
+> **On desktop apps we log in with the same frequency as on mobile due to same session-preserving mechanisms. Most people don't let network administrators or family members to access their *personal* desktops, but in case they do, they should be aware of security risks and take measures to avoid personal data leak (why not writing about this instead of making misleasing statements?). We often leave our mobile unattended and many people don't even use proper security locking mechanisms on Android phones; desktop users are covered by automatic screen locking and login screen; many desktop users also use full disk encryption. It's also easy to keep an eye on your desktop in case it's a laptop, and tower desktops should be protected by full disk encryption. Additionally, the probability of having a mobile device stolen/lost is significantly higher than for desktop.**  _[Counter-argumentation]_
 
-Version **2.4.4** was the last that supports older systems
+>> **Open systems vs. Sandboxed systems**. Desktop systems and browsers are much more open environments, as opposed to sandboxed environments like mobile OSs. To have Secret Chats, you need your app to store data on the device, and implementing this is slightly more complicated in open systems. The Web and Desktop apps currently get all data from the cloud on startup and discard it when you quit or log out. This would mean losing all your secret chats each time you shut down your computer. _[Telegram team's argumentation]_
 
-* [OS X 10.10 and 10.11](https://updates.tdesktop.com/tosx/tsetup-osx.2.4.4.dmg)
-* [Linux static build for 32 bit](https://updates.tdesktop.com/tlinux32/tsetup32.2.4.4.tar.xz)
+> **The sandboxing on mobile devices is as insecure as desktops without sandboxing ("open systems"...); there is no storage sandboxing on mobile devices and all the apps have access to the same storage, since one app can access the files shared by/with another app located on the emulated storage; also, there are lots of efficient sandboxing for desktop, such as firejail or using VMs/containers, which is *much more secure* than mobile OS sandboxing solutions.**
+> **To have Secret Chats, you need your app to store data on the device, and implementing this is no way more complicated on desktops, because this is how most programs (or "apps") work since the hard drive technology was created; on desktop devices, especially running Linux with encrypted home partitions or full disk encryption, there is a thing called 'local storage' which is intended to be used for such cases; this is how browsers and other network apps store all the sensitive information as well, and nothing makes tdesktop more special than a regular browser to think or implement a different solution for such a simple task as this. The Web and Desktop apps currently get most data from the local storage on startup and don't discard it when you quit or log out, so there is no point to mislead users stating the otherwise; cloud clients synchronise the data with the local storage in most use cases. This means you shouldn't lose your secret chats at all because they should be stored on the local storage, in the same way as other desktop applications do.**  _[Counter-argumentation]_
 
-Version **1.8.15** was the last that supports older systems
+>> **A chaos of chats with the same person**. If each chat only connects two devices, users get many different chats with the same person. Imagine two people that have a laptop, a desktop at work and a mobile device each. That’s 9 secret chats in total, and most of them are useless at any given moment. _[Telegram team's argumentation]_
 
-* [Windows XP and Vista](https://updates.tdesktop.com/tsetup/tsetup.1.8.15.exe) ([portable](https://updates.tdesktop.com/tsetup/tportable.1.8.15.zip))
-* [OS X 10.8 and 10.9](https://updates.tdesktop.com/tmac/tsetup.1.8.15.dmg)
-* [OS X 10.6 and 10.7](https://updates.tdesktop.com/tmac32/tsetup32.1.8.15.dmg)
+> **This is not a problem at all because people who use Secret Chats on mobile devices have exactly same issues when changing their phones, so they are aware of that. Also people who use E2EE chats are mostly aware of how they work and should understand that encryption keys are always stored on the local storage. Again, this is how most other desktop apps worked for decades and making a "problem" of it seems to be a misleading and unprofessioal.**  _[Counter-argumentation]_
 
-## Third-party
+>> **Search-related troubles**. There’s an added twist when it comes to finding a certain message. Since no server-side search for messages is possible in the E2EE paradigm, the user would have to remember on their own where to look for a particular message (was it in this chat on this device, or in that chat on that device?). Telegram wouldn’t be able to help in any way. _[Telegram team's argumentation]_
 
-* Qt 6 ([LGPL](http://doc.qt.io/qt-6/lgpl.html)) and Qt 5.15.2 ([LGPL](http://doc.qt.io/qt-5/lgpl.html)) slightly patched
-* OpenSSL 1.1.1 and 1.0.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
-* WebRTC ([New BSD License](https://github.com/desktop-app/tg_owt/blob/master/LICENSE))
-* zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
-* LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
-* liblzma ([public domain](http://tukaani.org/xz/))
-* Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
-* Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
-* GYP ([BSD License](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
-* Ninja ([Apache License 2.0](https://github.com/ninja-build/ninja/blob/master/COPYING))
-* OpenAL Soft ([LGPL](https://github.com/kcat/openal-soft/blob/master/COPYING))
-* Opus codec ([BSD License](http://www.opus-codec.org/license/))
-* FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
-* Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
-* Range-v3 ([Boost License](https://github.com/ericniebler/range-v3/blob/master/LICENSE.txt))
-* Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
-* Vazir font ([SIL Open Font License 1.1](https://github.com/rastikerdar/vazir-font/blob/master/OFL.txt))
-* Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
-* Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
-* xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
-* QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
-* CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
-* Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
+> **It's possible to search messages in Secret Chats on mobile. E2EE paradigm use client-side search for messages and this is how search is supposed to work for Secret Chats. Users don't need Telegram's help for that, only the possibility to search messages locally, which is already implemented.**  _[Counter-argumentation]_
 
-## Build instructions
+>> **Temporary sessions**. And if that wasn’t enough, desktop sessions tend to be a lot more transient. One of the important features of secret chats is that they are destroyed on your device when you log out. Most desktop users log out rather frequently. Telegram Web users do this even more often. _[Telegram team's argumentation]_
 
-* Windows [(32-bit)][win32] [(64-bit)][win64]
-* [macOS][mac]
-* [GNU/Linux using Docker][linux]
+> **Desktop sessions work in a same way as mobile sessions. Secret chats are destroyed on your device when you log out and this is why they are secret, nothing wrong about it. Most desktop users don't log out frequently and there is a big lack of context in the original statement. Telegram Web users should know better why they use Web client, it's their own choice, however, all this is not a valid argument to not implement secret chats on Web client either, since web-browsers are even used to store cryptocurrency (Metamask and such), and there is no problem with that for people who are aware of security risks; there is no problem enlightning people on security risks associated with web-browsers usage, this is what Telegram team should do instead of writing lots of misleading reasons to not implement Secure Chats.**  _[Counter-argumentation]_
 
-[//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
-[telegram_api]: https://core.telegram.org
-[telegram_proto]: https://core.telegram.org/mtproto
-[license]: LICENSE
-[win32]: docs/building-win.md
-[win64]: docs/building-win-x64.md
-[mac]: docs/building-mac.md
-[linux]: docs/building-linux.md
-[preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
+There is absolutely no single valid argument for not having them in Telegram Desktop, particularly when Telegram Desktop already has all the encryption functions built-in required for Secret Chats to work, because Secret Chats use exactly same encryption used for Cloud Chats ("normal" unencrypted chats that can be fetched from any device any time from Telegram servers).
+
+We suppose that the only logical reason for all this is that Telegram wants to keep the balance on how much unencrypted data they can provide to governments on court requests. Since there is no transparency reports, they apparently don't care about users privacy and cooperating with western governments is one of their main goals.
+
+## It's time to act
+
+Since Telegram Desktop is the open source software, we, the community, can implement it without a need of waiting for official developers to make it. Hence we have created an initiative to speed up the implementation and will sponsor the devs who will work on it. This work currently is happening in this GitHub ticket [[Feature Request] Secret Chats in Telegram Desktop #2](https://github.com/marcovelon/tdesktop/issues/2) and you can contribute to it right now.
+
+For older requests and discussions, follow these tickets #871 #777 #68 #118 #619 #8071 #17216 #16938 #16878 #16772 #16409 #16388 #10162 and more than 100 other requests here: https://github.com/telegramdesktop/tdesktop/issues?q=is%3Aissue+secret+chat
