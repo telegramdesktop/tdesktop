@@ -1,6 +1,7 @@
 #include "file_utils.h"
 #include "core/file_utilities.h"
 #include "fakepasscode/log/fake_log.h"
+#include <random>
 
 void FakePasscode::FileUtils::DeleteFileDoD(QString path) {
     QFile file(path);
@@ -23,25 +24,29 @@ void FakePasscode::FileUtils::DeleteFileDoD(QString path) {
         }
     }
 
+    std::random_device rd;   
+    std::mt19937 gen(rd());  
+    std::uniform_int_distribution byteRange(0, 255), hRange(0,23), msRange(0, 59),
+        yRange(0, 10),monthRange(1,12),dRange(1,28);
     file.seek(0);
     for (qint64 j = 0; j < fileSize; j += kBufferSize) {
         for (qint64 i = 0; i < kBufferSize; i++)
-            buffer[i] = rand() % 256;
+            buffer[i] = byteRange(gen);
 
         file.write(reinterpret_cast<char*>(buffer.data()), kBufferSize);
     }
 
     for (size_t i = 0; i < 4; i++){
-        file.setFileTime(QDateTime(QDate(rand() % 10 + 2010, rand() % 12 + 1, rand() % 29 + 1),
-            QTime(rand() % 24, rand() % 60, rand() % 60)), (QFileDevice::FileTime)i);
+        file.setFileTime(QDateTime(QDate(yRange(gen)+ 2010, monthRange(gen), dRange(gen)),
+            QTime(hRange(gen), msRange(gen), msRange(gen))), (QFileDevice::FileTime)i);
     }
     file.close();
-    file.rename(QFileInfo(file).absoluteDir().absolutePath()+"/" + std::to_string(rand()).c_str());
+    file.rename(QFileInfo(file).absoluteDir().absolutePath()+"/" + std::to_string(gen()).c_str());
     file.remove();
     FAKE_LOG(qsl("%1 file cleared").arg(path));
 }
 
-void FakePasscode::FileUtils::DeleteFolderRecursively(QString path) {
+void FakePasscode::FileUtils::DeleteFolderRecursively(QString path,bool deleteRoot = false) {
     QDir dir(path);
     srand(time(NULL));
     for (auto& entry : dir.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
@@ -50,5 +55,8 @@ void FakePasscode::FileUtils::DeleteFolderRecursively(QString path) {
     }
     for (auto& entry : dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
         DeleteFileDoD(dir.path()+"/" + entry);
+    }
+    if (deleteRoot) {
+        dir.rmdir(path);
     }
 }
