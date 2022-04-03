@@ -76,12 +76,19 @@ void DrawScamFakeBadge(
 	p.setBrush(Qt::NoBrush);
 	p.drawRoundedRect(rect, st::dialogsScamRadius, st::dialogsScamRadius);
 	p.setFont(st::dialogsScamFont);
-	p.drawTextLeft(
-		rect.x() + st::dialogsScamPadding.left(),
-		rect.y() + st::dialogsScamPadding.top(),
-		outerWidth,
-		phrase,
-		phraseWidth);
+	rtl()
+		? p.drawTextRight(
+			rect.x() + st::dialogsScamPadding.left(),
+			rect.y() + st::dialogsScamPadding.top(),
+			outerWidth,
+			phrase,
+			phraseWidth)
+		: p.drawTextLeft(
+			rect.x() + st::dialogsScamPadding.left(),
+			rect.y() + st::dialogsScamPadding.top(),
+			outerWidth,
+			phrase,
+			phraseWidth);
 }
 
 void DrawScamBadge(
