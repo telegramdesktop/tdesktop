@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
+#include "api/api_messages_search.h"
 #include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -182,6 +183,9 @@ void DeleteMessagesBox::prepare() {
 			false,
 			st::defaultBoxCheckbox);
 		if (_moderateDeleteAll) {
+			const auto search = lifetime().make_state<Api::MessagesSearch>(
+				_session,
+				_session->data().message(_ids.front())->history());
 			_deleteAll.create(
 				this,
 				tr::lng_delete_all_from_user(
@@ -191,6 +195,24 @@ void DeleteMessagesBox::prepare() {
 					Ui::Text::WithEntities),
 				false,
 				st::defaultBoxCheckbox);
+
+			*deleteText = rpl::combine(
+				rpl::single(
+					0
+				) | rpl::then(
+					search->messagesFounds(
+					) | rpl::map([](const Api::FoundMessages &found) {
+						return found.total;
+					})
+				),
+				_deleteAll->checkedValue()
+			) | rpl::map([](int total, bool checked) {
+				return tr::lng_box_delete(tr::now)
+					+ ((total <= 0 || !checked)
+						? QString()
+						: QString(" (%1)").arg(total));
+			});
+			search->searchMessages(QString(), _moderateFrom);
 		}
 	} else {
 		details.text = (_ids.size() == 1)
