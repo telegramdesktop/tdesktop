@@ -163,6 +163,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_advance_logging.base: {
                 return "Включить логи (только для разработки!)";
             }
+            case tr::lng_enable_DoD_cleaning.base: {
+                return "включить очистку с затиранием";
+            }
 			case tr::lng_command.base: {
 				return "Запуск команды (опасно!)";
 			}
@@ -230,6 +233,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_enable_advance_logging.base: {
                 return "Уключыць логі (толькі для распрацоўкі!)";
+            }
+            case tr::lng_enable_DoD_cleaning.base: {
+                return "уключыць ачыстку з заціраннем";
             }
 			case tr::lng_command.base: {
 				return "Запуск каманды (небяспечна!)";

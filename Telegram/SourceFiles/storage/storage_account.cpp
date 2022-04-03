@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
 
 namespace Storage {
 namespace {
@@ -2877,7 +2878,7 @@ void Account::removeAccountSpecificData() {
 
 	crl::async([base = _basePath, database = _databasePath] {
 		for (const auto& dir : {base, database}) {
-			if (!QDir(dir).removeRecursively()) {
+			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir)) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}
 		}
@@ -2917,7 +2918,7 @@ void Account::removeMtpDataFile() {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			file.remove();
+			FakePasscode::FileUtils::DeleteFileDoD(filename);
 			break;
 		}
 	}

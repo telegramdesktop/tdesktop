@@ -138,6 +138,16 @@ void FakePasscodeList::draw(size_t passcodesSize) {
         _domain->local().SetAdvancedLoggingEnabled(buttonLogging->toggled());
         _domain->local().writeAccounts();
     });
+
+    const auto toggledDodCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonDodCleaning = AddButton(content, tr::lng_enable_DoD_cleaning(), st::settingsButton)
+        ->toggleOn(toggledDodCleaning->events_starting_with_copy(_domain->local().IsDodCleaningEnabled()));
+
+    buttonDodCleaning->addClickHandler([=] {
+        _domain->local().SetDodCleaningState(buttonDodCleaning->toggled());
+        _domain->local().writeAccounts();
+        });
+
     Ui::ResizeFitChild(this, content);
     FAKE_LOG(("Draw %1 passcodes: success").arg(passcodesSize));
 }

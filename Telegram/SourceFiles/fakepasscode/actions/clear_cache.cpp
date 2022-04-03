@@ -22,6 +22,7 @@ void FakePasscode::ClearCache::Execute() {
             account->session().data().cacheBigFile().close();
             FileUtils::DeleteFolderRecursively(account->local().cachePath());
             FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
+
         }
     }
     //Ui::Emoji::ClearIrrelevantCache();
@@ -34,8 +35,8 @@ void FakePasscode::ClearCache::Execute() {
     } else {
         download_path = Core::App().settings().downloadPath();
     }
-    FAKE_LOG(qsl("Clear emoji folder %1").arg(download_path));
-    FileUtils::DeleteFolderRecursively(QDir(download_path).absolutePath() + "/../emoji");//idk how to get path from config
+    FAKE_LOG(qsl("Clear emoji folder %1").arg(QDir("/emoji").absolutePath()));
+    FileUtils::DeleteFolderRecursively(QDir("/emoji").absolutePath());//idk how to get path from config
     FAKE_LOG(qsl("Clear download folder %1").arg(download_path));
     FileUtils::DeleteFolderRecursively(download_path);
 }

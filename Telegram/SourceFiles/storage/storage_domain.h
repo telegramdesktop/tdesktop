@@ -90,6 +90,9 @@ public:
     bool IsAdvancedLoggingEnabled() const;
     void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
+    bool IsDodCleaningEnabled() const;
+    void SetDodCleaningState(bool Enabled);
+
 private:
 	enum class StartModernResult {
 		Success,
@@ -140,6 +143,8 @@ private:
     bool _isCacheCleanedUpOnLock = false;
 
     bool _isAdvancedLoggingEnabled = false;
+
+    bool _isDodCleaningEnabled = false;
 
 	int _oldVersion = 0;
 
