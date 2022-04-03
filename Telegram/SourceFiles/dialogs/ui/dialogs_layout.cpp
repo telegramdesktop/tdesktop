@@ -51,12 +51,16 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 			|| history->peer->asUser()->onlineTill > 0);
 }
 
-void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
+void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected, int outerw = -1) {
 	const auto width = st::dialogsDateFont->width(text);
 	rectForName.setWidth(rectForName.width() - width - st::dialogsDateSkip);
 	p.setFont(st::dialogsDateFont);
 	p.setPen(active ? st::dialogsDateFgActive : (selected ? st::dialogsDateFgOver : st::dialogsDateFg));
-	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, text);
+	auto left = rectForName.left() + rectForName.width() + st::dialogsDateSkip;
+	if (rtl() && outerw > 0){
+		left = outerw - left - width;
+	}
+	p.drawText(left, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, text);
 }
 
 void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
