@@ -179,7 +179,9 @@ void MessageView::paint(
 			break;
 		}
 		p.drawImage(
-			rect.x(),
+			(rtl() 
+				? (geometry.left() + geometry.right() - rect.left() - st::dialogsMiniPreview) 
+				: rect.x()),
 			rect.y() + st::dialogsMiniPreviewTop,
 			image.data);
 		rect.setLeft(rect.x()
