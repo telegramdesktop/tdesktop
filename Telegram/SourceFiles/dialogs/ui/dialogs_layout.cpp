@@ -63,7 +63,7 @@ void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool 
 	p.drawText(left, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, text);
 }
 
-void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
+void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected, int outerw) {
 	const auto now = QDateTime::currentDateTime();
 	const auto &lastTime = date;
 	const auto nowDate = now.date();
@@ -81,7 +81,8 @@ void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 			return lastDate.toString(cDateFormat());
 		}
 	}();
-	PaintRowTopRight(p, dt, rectForName, active, selected);
+	//paints dialogs last message date on each row
+	PaintRowTopRight(p, dt, rectForName, active, selected, outerw); 
 }
 
 void PaintNarrowCounter(
