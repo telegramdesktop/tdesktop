@@ -118,9 +118,12 @@ int DrawPeerBadgeGetWidth(
 		const PeerBadgeStyle &st) {
 	if (peer->isVerified() && st.verified) {
 		const auto iconw = st.verified->width();
+		auto x = rtl()
+			? rectForName.x() + qMin(nameWidth, rectForName.width() - iconw)
+			: rectForName.right() - qMin(nameWidth, rectForName.width() - iconw) - iconw;
 		st.verified->paint(
 			p,
-			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+			x,
 			rectForName.y(),
 			outerWidth);
 		return iconw;
