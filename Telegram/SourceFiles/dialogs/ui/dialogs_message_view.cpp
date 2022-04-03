@@ -164,7 +164,9 @@ void MessageView::paint(
 	if (!_senderCache.isEmpty()) {
 		_senderCache.drawElided(
 			p,
-			rect.left(),
+			(rtl() 
+				? (geometry.left() + geometry.right() - rect.left() - _senderCache.maxWidth()) 
+				: rect.left()),
 			rect.top(),
 			rect.width(),
 			rect.height() / st::dialogsTextFont->height);
