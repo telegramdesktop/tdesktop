@@ -229,9 +229,11 @@ int PaintWideCounter(
 	}
 	if (displayMentionBadge || displayReactionBadge) {
 		const auto counter = QString();
+		//mention or reaction badge coordination
 		const auto unreadRight = fullWidth
 			- st::dialogsPadding.x()
 			- (initial - availableWidth);
+		const auto unreadLeft = st::dialogsPadding.x() + (initial - availableWidth);
 		const auto unreadTop = texttop
 			+ st::dialogsTextFont->ascent
 			- st::dialogsUnreadFont->ascent
@@ -243,12 +245,13 @@ int PaintWideCounter(
 		st.muted = mentionOrReactionMuted;
 		st.padding = 0;
 		st.textTop = 0;
+		st.align = rtl() ? style::al_left : style::al_right;
 		const auto badge = PaintUnreadBadge(
 			p,
 			counter,
-			unreadRight,
+			rtl() ? unreadLeft : unreadRight,
 			unreadTop,
-			st);
+			st); /**paints mention or reaction badge*/
 		(displayMentionBadge
 			? (st.active
 				? st::dialogsUnreadMentionActive
@@ -259,7 +262,7 @@ int PaintWideCounter(
 				? st::dialogsUnreadReactionActive
 				: st.selected
 				? st::dialogsUnreadReactionOver
-				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
+				: st::dialogsUnreadReaction)).paintInCenter(p, badge); /**paints mention or reaction inner icon at the center*/
 		availableWidth -= badge.width()
 			+ st.padding
 			+ (hadOneBadge ? st::dialogsUnreadPadding : 0);
