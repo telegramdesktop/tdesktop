@@ -1131,12 +1131,17 @@ void PaintCollapsedRow(
 	}
 	if (!narrow && unread) {
 		const auto unreadRight = fullWidth - st::dialogsPadding.x();
+		const auto unreadLeft = st::dialogsPadding.x();
 		UnreadBadgeStyle st;
 		st.muted = true;
+		st.align = rtl() ? style::al_left : style::al_right;
+		//paints unread counter badge in collapsed archived folder in wide mode
 		PaintUnreadBadge(
 			p,
 			QString::number(unread),
-			unreadRight,
+			(rtl() 
+				? unreadLeft
+				: unreadRight),
 			unreadTop,
 			st);
 	}
