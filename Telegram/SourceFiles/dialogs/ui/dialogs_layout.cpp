@@ -180,7 +180,8 @@ int PaintWideCounter(
 			? QString::number(unreadCount)
 			: QString();
 		const auto unreadRight = fullWidth
-			- st::dialogsPadding.x();
+			- st::dialogsPadding.x(); /**unread counter or unread mark badge coordination*/
+		const auto unreadLeft = st::dialogsPadding.x();
 		const auto unreadTop = texttop
 			+ st::dialogsTextFont->ascent
 			- st::dialogsUnreadFont->ascent
@@ -190,12 +191,13 @@ int PaintWideCounter(
 		st.active = active;
 		st.selected = selected;
 		st.muted = unreadMuted;
+		st.align = rtl() ? style::al_left : style::al_right;
 		const auto badge = PaintUnreadBadge(
 			p,
 			counter,
-			unreadRight,
+			rtl() ? unreadLeft : unreadRight,
 			unreadTop,
-			st);
+			st); /**paints unread counter or unread mark badge*/
 		availableWidth -= badge.width() + st.padding;
 
 		hadOneBadge = true;
