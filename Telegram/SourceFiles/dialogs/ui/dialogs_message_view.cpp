@@ -196,7 +196,9 @@ void MessageView::paint(
 	}
 	_textCache.drawElided(
 		p,
-		rect.left(),
+		(rtl() 
+			? geometry.left() 
+			: rect.left()),
 		rect.top(),
 		rect.width(),
 		rect.height() / st::dialogsTextFont->height);
