@@ -1103,7 +1103,10 @@ void PaintCollapsedRow(
 		const auto left = narrow
 			? ((fullWidth - st::semiboldFont->width(text)) / 2)
 			: st::dialogsPadding.x();
-		p.drawText(left, textBaseline, text);
+		const auto right = narrow
+			? (fullWidth - st::semiboldFont->width(text)) / 2
+			: fullWidth - st::semiboldFont->width(text) - st::dialogsPadding.x();
+		p.drawText(rtl() ? right : left, textBaseline, text); /**draws achived chats title when collapsed*/
 	} else {
 		folder->paintUserpicLeft(
 			p,
