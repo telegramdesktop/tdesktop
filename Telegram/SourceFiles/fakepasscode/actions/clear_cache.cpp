@@ -22,7 +22,7 @@ void FakePasscode::ClearCache::Execute() {
             account->session().data().cacheBigFile().close();
             FileUtils::DeleteFolderRecursively(account->local().cachePath());
             FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
-
+            account->session().data().resetCaches();
         }
     }
     //Ui::Emoji::ClearIrrelevantCache();
