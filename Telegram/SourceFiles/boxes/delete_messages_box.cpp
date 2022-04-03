@@ -399,28 +399,31 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	const auto &padding = st::boxPadding;
+	_text->moveToLeft(padding.left(), padding.top());
 	auto top = _text->bottomNoMargins() + st::boxMediumSkip;
 	if (_moderateFrom) {
 		if (_banUser) {
-			_banUser->moveToLeft(st::boxPadding.left(), top);
+			_banUser->moveToLeft(padding.left(), top);
 			top += _banUser->heightNoMargins() + st::boxLittleSkip;
 		}
-		_reportSpam->moveToLeft(st::boxPadding.left(), top);
+		_reportSpam->moveToLeft(padding.left(), top);
 		top += _reportSpam->heightNoMargins() + st::boxLittleSkip;
 		if (_deleteAll) {
-			_deleteAll->moveToLeft(st::boxPadding.left(), top);
+			const auto availableWidth = width() - 2 * padding.left();
+			_deleteAll->resizeToNaturalWidth(availableWidth);
+			_deleteAll->moveToLeft(padding.left(), top);
 			top += _deleteAll->heightNoMargins() + st::boxLittleSkip;
 		}
 	} else if (_revoke) {
-		const auto availableWidth = width() - 2 * st::boxPadding.left();
+		const auto availableWidth = width() - 2 * padding.left();
 		_revoke->resizeToNaturalWidth(availableWidth);
-		_revoke->moveToLeft(st::boxPadding.left(), top);
+		_revoke->moveToLeft(padding.left(), top);
 		top += _revoke->heightNoMargins() + st::boxLittleSkip;
 	}
 	if (_autoDeleteSettings) {
 		top += st::boxMediumSkip - st::boxLittleSkip;
-		_autoDeleteSettings->moveToLeft(st::boxPadding.left(), top);
+		_autoDeleteSettings->moveToLeft(padding.left(), top);
 	}
 }
 
