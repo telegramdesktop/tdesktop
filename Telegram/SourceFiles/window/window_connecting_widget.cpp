@@ -507,10 +507,18 @@ void ConnectionState::Widget::paintEvent(QPaintEvent *e) {
 	const auto text = textRect();
 	const auto left = inner.topLeft();
 	const auto right = content.topLeft() + QPoint(content.width(), 0);
-	st::connectingLeftShadow.paint(p, left, width());
-	st::connectingLeft.paint(p, left, width());
-	st::connectingRightShadow.paint(p, right, width());
-	st::connectingRight.paint(p, right, width());
+	if (rtl()) {
+		st::connectingLeftShadow.paint(p, right, width());
+		st::connectingLeft.paint(p, right, width());
+		st::connectingRightShadow.paint(p, left, width());
+		st::connectingRight.paint(p, left, width());
+	}
+	else {
+		st::connectingLeftShadow.paint(p, left, width());
+		st::connectingLeft.paint(p, left, width());
+		st::connectingRightShadow.paint(p, right, width());
+		st::connectingRight.paint(p, right, width());
+	}
 	st::connectingBodyShadow.fill(p, content);
 	st::connectingBody.fill(p, content);
 
