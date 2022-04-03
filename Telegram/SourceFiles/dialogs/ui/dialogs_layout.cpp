@@ -209,9 +209,9 @@ int PaintWideCounter(
 			: st::dialogsPinnedIcon;
 		icon.paint(
 			p,
-			fullWidth - st::dialogsPadding.x() - icon.width(),
+			fullWidth - st::dialogsPadding.x() - icon.width(), /**pinned icon coordination*/
 			texttop,
-			fullWidth);
+			fullWidth); /**paints pinned icon on dialogs if unread counter or unread mark doesn't exist*/
 		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 
 		hadOneBadge = true;
