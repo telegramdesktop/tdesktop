@@ -217,6 +217,7 @@ int PaintWideCounter(
 			: selected
 			? st::dialogsPinnedIconOver
 			: st::dialogsPinnedIcon;
+		//paints pinned icon on dialogs if unread counter or unread mark doesn't exist
 		icon.paint(
 			p,
 			fullWidth - st::dialogsPadding.x() - icon.width(),
