@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_mute.h"
 
+#include "boxes/ringtones_box.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
@@ -229,6 +230,11 @@ void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
 		Args args) {
 	const auto peer = args.peer;
+
+	menu->addAction(
+		tr::lng_mute_menu_sound_select(tr::now),
+		[=, show = args.show] { show->showBox(Box(RingtonesBox, peer)); },
+		&st::menuIconSoundSelect);
 
 	const auto soundIsNone = peer->owner().notifySettings().sound(peer).none;
 	menu->addAction(

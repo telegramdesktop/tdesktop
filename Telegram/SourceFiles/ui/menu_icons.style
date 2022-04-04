@@ -107,6 +107,7 @@ menuIconSilent: icon {{ "menu/silent", menuIconColor }};
 menuIconCustomize: icon {{ "menu/customize", menuIconColor }};
 menuIconSoundOn: icon {{ "menu/sound_enable", menuIconColor }};
 menuIconSoundOff: icon {{ "menu/sound_disable", menuIconColor }};
+menuIconSoundSelect: icon {{ "menu/sound_select", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

@@ -1055,3 +1055,12 @@ requestsRejectButton: RoundButton(defaultLightButton) {
 }
 requestAcceptPosition: point(71px, 58px);
 requestButtonsSkip: 9px;
+
+ringtonesBoxListHeight: 192;
+ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	padding: margins(56px, 10px, 22px, 8px);
+	iconLeft: 25px;
+}
+ringtonesBoxSkip: 7px;

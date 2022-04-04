@@ -897,6 +897,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mute_menu_duration_unmute" = "Unmute";
 "lng_mute_menu_sound_on" = "Enable sound";
 "lng_mute_menu_sound_off" = "Disable sound";
+"lng_mute_menu_sound_select" = "Select sound";
 "lng_mute_box_title" = "Mute notifications for...";
 
 "lng_mute_duration_hours#one" = "For {count} hour";
@@ -3112,6 +3113,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_info_description2" = "Sponsored Messages are currently in test mode. Once they are fully launched and allow Telegram to cover its basic costs, we will start sharing ad revenue with the owners of public channels in which sponsored messages are displayed.\n\nOnline ads should no longer be synonymous with abuse of user privacy. Let us redefine how a tech company should operate – together.";
 
 "lng_telegram_features_url" = "https://t.me/TelegramTips";
+
+"lng_ringtones_box_title" = "Notification Sound";
+"lng_ringtones_box_cloud_subtitle" = "Telegram tones";
+"lng_ringtones_box_local_subtitle" = "System notes";
+"lng_ringtones_box_upload" = "Upload Sound";
+"lng_ringtones_box_upload_choose" = "Choose ringtone";
+"lng_ringtones_box_upload_button" = "Upload Sound";
+"lng_ringtones_box_default" = "Default";
+"lng_ringtones_box_no_sound" = "No sound";
+"lng_ringtones_box_error" = "Sorry, but your file is too big.";
 
 // Wnd specific
 
