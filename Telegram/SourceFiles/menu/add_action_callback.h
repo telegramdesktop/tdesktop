@@ -21,6 +21,7 @@ public:
 		const style::icon *icon;
 		Fn<void(not_null<Ui::PopupMenu*>)> fillSubmenu;
 		bool isSeparator = false;
+		bool isAttention = false;
 	};
 	using Callback = Fn<QAction*(Args&&)>;
 

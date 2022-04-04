@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/add_action_callback_factory.h"
 
 #include "menu/add_action_callback.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_menu_icons.h"
 
 namespace Menu {
 
@@ -26,6 +28,16 @@ MenuCallback CreateAddActionCallback(
 			return action;
 		} else if (a.isSeparator) {
 			return menu->addSeparator();
+		} else if (a.isAttention) {
+			return menu->addAction(base::make_unique_q<Ui::Menu::Action>(
+				menu,
+				st::menuWithIconsAttention,
+				Ui::Menu::CreateAction(
+					menu->menu().get(),
+					a.text,
+					std::move(a.handler)),
+				a.icon,
+				a.icon));
 		}
 		return menu->addAction(a.text, std::move(a.handler), a.icon);
 	});

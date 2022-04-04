@@ -230,11 +230,12 @@ void FillTTLMenu(not_null<Ui::PopupMenu*> menu, Args args) {
 		&st::menuIconCustomize);
 
 	if (args.startTtl) {
-		const auto disable = menu->addAction(
-			tr::lng_manage_messages_ttl_disable(tr::now),
-			[=] { args.callback(0); },
-			&st::menuIconDisableAttention);
-		disable->setData(st::menuIconAttentionColor->c);
+		menu->addAction({
+			.text = tr::lng_manage_messages_ttl_disable(tr::now),
+			.handler = [=] { args.callback(0); },
+			.icon = &st::menuIconDisableAttention,
+			.isAttention = true,
+		});
 	}
 
 	menu->addSeparator();

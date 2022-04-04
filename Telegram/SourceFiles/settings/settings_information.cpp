@@ -571,7 +571,8 @@ void SetupAccountsWrap(
 		addAction(tr::lng_menu_activate(tr::now), [=] {
 			Core::App().domain().activate(&session->account());
 		}, &st::menuIconProfile);
-		const auto logout = addAction(tr::lng_settings_logout(tr::now), [=] {
+
+		auto logoutCallback = [=] {
 			const auto callback = [=](Fn<void()> &&close) {
 				close();
 				Core::App().logoutWithChecks(&session->account());
@@ -584,8 +585,13 @@ void SetupAccountsWrap(
 					.confirmStyle = &st::attentionBoxButton,
 				}),
 				Ui::LayerOption::CloseOther);
-		}, &st::menuIconLeaveAttention);
-		logout->setData(st::menuIconAttentionColor->c);
+		};
+		addAction({
+			.text = tr::lng_settings_logout(tr::now),
+			.handler = std::move(logoutCallback),
+			.icon = &st::menuIconLeaveAttention,
+			.isAttention = true,
+		});
 		state->menu->popup(QCursor::pos());
 	}, raw->lifetime());
 

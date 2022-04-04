@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "menu/add_action_callback.h"
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
@@ -170,15 +171,10 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	style::margins addPadding = {},
 	const style::FlatLabel *st = nullptr);
 
-using MenuCallback = Fn<QAction*(
-	const QString &text,
-	Fn<void()> handler,
-	const style::icon *icon)>;
-
 void FillMenu(
 	not_null<Window::SessionController*> controller,
 	Type type,
 	Fn<void(Type)> showOther,
-	MenuCallback addAction);
+	Menu::MenuCallback addAction);
 
 } // namespace Settings

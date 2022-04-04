@@ -249,7 +249,7 @@ void FillMenu(
 		not_null<Window::SessionController*> controller,
 		Type type,
 		Fn<void(Type)> showOther,
-		MenuCallback addAction) {
+		Menu::MenuCallback addAction) {
 	const auto window = &controller->window();
 	if (type == Chat::Id()) {
 		addAction(
@@ -269,11 +269,12 @@ void FillMenu(
 				[=] { showOther(Information::Id()); },
 				&st::menuIconInfo);
 		}
-		const auto logout = addAction(
-			tr::lng_settings_logout(tr::now),
-			[=] { window->showLogoutConfirmation(); },
-			&st::menuIconLeaveAttention);
-		logout->setData(st::menuIconAttentionColor->c);
+		addAction({
+			.text = tr::lng_settings_logout(tr::now),
+			.handler = [=] { window->showLogoutConfirmation(); },
+			.icon = &st::menuIconLeaveAttention,
+			.isAttention = true,
+		});
 	}
 }
 
