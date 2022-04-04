@@ -429,6 +429,7 @@ void paintRow(
 		PaintRowTopRight(p, text, rectForName, active, selected, fullWidth);
 	} else if (from) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
+			//paints chat type icon(it's rtl compatible due to lib_ui function usage)
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 		}
