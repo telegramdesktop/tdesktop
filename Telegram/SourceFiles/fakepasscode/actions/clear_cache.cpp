@@ -25,7 +25,12 @@ void FakePasscode::ClearCache::Execute() {
             account->session().data().resetCaches();
         }
     }
-    //Ui::Emoji::ClearIrrelevantCache();
+
+    /*QString emojiPath = Ui::Emoji::internal::CacheFileFolder();
+    FAKE_LOG(qsl("Clear emoji folder %1").arg(emojiPath));
+    FileUtils::DeleteFolderRecursively(emojiPath);*/
+    Ui::Emoji::ClearIrrelevantCache();
+
     QString download_path;
     const auto session = Core::App().maybeActiveSession();
     if (Core::App().settings().downloadPath().isEmpty()) {
@@ -35,8 +40,7 @@ void FakePasscode::ClearCache::Execute() {
     } else {
         download_path = Core::App().settings().downloadPath();
     }
-    FAKE_LOG(qsl("Clear emoji folder %1").arg(QDir("/emoji").absolutePath()));
-    FileUtils::DeleteFolderRecursively(QDir("/emoji").absolutePath());//idk how to get path from config
+
     FAKE_LOG(qsl("Clear download folder %1").arg(download_path));
     FileUtils::DeleteFolderRecursively(download_path);
 }
