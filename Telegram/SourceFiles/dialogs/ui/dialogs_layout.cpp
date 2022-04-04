@@ -416,7 +416,7 @@ void paintRow(
 		PaintRowTopRight(p, text, rectForName, active, selected, fullWidth); /**paints promoted chat's type for example "proxy sponsor"*/
 	} else if (from) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
-			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
+			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth); /**paints chat type icon(it's rtl compatible due to lib_ui function usage)*/
 			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 		}
 	}
