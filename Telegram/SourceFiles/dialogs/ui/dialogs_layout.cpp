@@ -386,6 +386,7 @@ void paintRow(
 			fullWidth,
 			st::dialogsPhotoSize);
 	} else {
+		//Archived Chats folder goes here
 		entry->paintUserpicLeft(
 			p,
 			row->userpicView(),
