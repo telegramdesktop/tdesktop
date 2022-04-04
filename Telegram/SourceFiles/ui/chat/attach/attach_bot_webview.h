@@ -21,6 +21,12 @@ struct Available;
 
 namespace Ui::BotWebView {
 
+struct MainButtonArgs {
+	bool isVisible = false;
+	bool isProgressVisible = false;
+	QString text;
+};
+
 class Panel final {
 public:
 	Panel(
@@ -50,6 +56,7 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	class Button;
 	struct Progress;
 	struct WebviewWithLifetime;
 
@@ -57,6 +64,11 @@ private:
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
+	void sendDataMessage(const QJsonValue &value);
+	void processMainButtonMessage(const QJsonValue &value);
+	void createMainButton();
+
+	void postEvent(const QString &event, const QString &data = {});
 
 	[[nodiscard]] bool progressWithBackground() const;
 	[[nodiscard]] QRect progressRect() const;
@@ -68,7 +80,11 @@ private:
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
+	QPointer<QWidget> _webviewParent;
+	std::unique_ptr<Button> _mainButton;
 	std::unique_ptr<Progress> _progress;
+	rpl::lifetime _fgLifetime;
+	rpl::lifetime _bgLifetime;
 	bool _webviewProgress = false;
 	bool _themeUpdateScheduled = false;
 

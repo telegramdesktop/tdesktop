@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/file_utilities.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/box_content.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/separate_panel.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
@@ -20,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
+
+#include "base/timer_rpl.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -30,8 +34,87 @@ namespace {
 
 constexpr auto kProgressDuration = crl::time(200);
 constexpr auto kProgressOpacity = 0.3;
+constexpr auto kLightnessThreshold = 128;
+constexpr auto kLightnessDelta = 32;
+
+[[nodiscard]] QJsonObject ParseMethodArgs(const QString &json) {
+	auto error = QJsonParseError();
+	const auto dictionary = QJsonDocument::fromJson(json.toUtf8(), &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("BotWebView Error: Could not parse \"%1\".").arg(json));
+		return QJsonObject();
+	}
+	return dictionary.object();
+}
+
+[[nodiscard]] std::optional<QColor> ParseColor(const QString &text) {
+	if (!text.startsWith('#') || text.size() != 7) {
+		return {};
+	}
+	const auto data = text.data() + 1;
+	const auto hex = [&](int from) -> std::optional<int> {
+		const auto parse = [](QChar ch) -> std::optional<int> {
+			const auto code = ch.unicode();
+			return (code >= 'a' && code <= 'f')
+				? std::make_optional(10 + (code - 'a'))
+				: (code >= 'A' && code <= 'F')
+				? std::make_optional(10 + (code - 'A'))
+				: (code >= '0' && code <= '9')
+				? std::make_optional(code - '0')
+				: std::nullopt;
+		};
+		const auto h = parse(data[from]), l = parse(data[from + 1]);
+		return (h && l) ? std::make_optional(*h * 16 + *l) : std::nullopt;
+	};
+	const auto r = hex(0), g = hex(2), b = hex(4);
+	return (r && g && b) ? QColor(*r, *g, *b) : std::optional<QColor>();
+}
+
+[[nodiscard]] QColor ResolveRipple(QColor background) {
+	auto hue = 0;
+	auto saturation = 0;
+	auto lightness = 0;
+	auto alpha = 0;
+	background.getHsv(&hue, &saturation, &lightness, &alpha);
+	return QColor::fromHsv(
+		hue,
+		saturation,
+		lightness - (lightness > kLightnessThreshold
+			? kLightnessDelta
+			: -kLightnessDelta),
+		alpha);
+}
 
 } // namespace
+
+class Panel::Button final : public RippleButton {
+public:
+	Button(QWidget *parent, const style::RoundButton &st);
+	~Button();
+
+	void updateBg(QColor bg);
+	void updateFg(QColor fg);
+	void updateArgs(MainButtonArgs &&args);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+	void toggleProgress(bool shown);
+	void setupProgressGeometry();
+
+	std::unique_ptr<Progress> _progress;
+	rpl::variable<QString> _textFull;
+	Ui::Text::String _text;
+
+	const style::RoundButton &_st;
+	QColor _fg;
+	style::owned_color _bg;
+	RoundRect _roundRect;
+
+};
 
 struct Panel::Progress {
 	Progress(QWidget *parent, Fn<QRect()> rect);
@@ -52,6 +135,154 @@ struct Panel::WebviewWithLifetime {
 	QPointer<RpWidget> lastHidingBox;
 	rpl::lifetime lifetime;
 };
+
+Panel::Button::Button(QWidget *parent, const style::RoundButton &st)
+: RippleButton(parent, st.ripple)
+, _st(st)
+, _bg(st::windowBgActive->c)
+, _roundRect(st::callRadius, st::windowBgActive) {
+	_textFull.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		_text.setText(st::semiboldTextStyle, text);
+		update();
+	}, lifetime());
+
+	resize(
+		_st.padding.left() + _text.maxWidth() + _st.padding.right(),
+		_st.padding.top() + _st.height + _st.padding.bottom());
+}
+
+Panel::Button::~Button() = default;
+
+void Panel::Button::updateBg(QColor bg) {
+	_bg.update(bg);
+	_roundRect.setColor(_bg.color());
+	update();
+}
+
+void Panel::Button::updateFg(QColor fg) {
+	_fg = fg;
+	update();
+}
+
+void Panel::Button::updateArgs(MainButtonArgs &&args) {
+	_textFull = std::move(args.text);
+	setVisible(args.isVisible);
+	toggleProgress(args.isProgressVisible);
+	update();
+}
+
+void Panel::Button::toggleProgress(bool shown) {
+	if (!_progress) {
+		if (!shown) {
+			return;
+		}
+		_progress = std::make_unique<Progress>(
+			this,
+			[=] { return _progress->widget.rect(); });
+		_progress->widget.paintRequest(
+		) | rpl::start_with_next([=](QRect clip) {
+			auto p = QPainter(&_progress->widget);
+			p.setOpacity(
+				_progress->shownAnimation.value(_progress->shown ? 1. : 0.));
+			auto thickness = st::paymentsLoading.thickness;
+			const auto rect = _progress->widget.rect().marginsRemoved(
+				{ thickness, thickness, thickness, thickness });
+			InfiniteRadialAnimation::Draw(
+				p,
+				_progress->animation.computeState(),
+				rect.topLeft(),
+				rect.size() - QSize(),
+				_progress->widget.width(),
+				_fg,
+				thickness);
+		}, _progress->widget.lifetime());
+		_progress->widget.show();
+		_progress->animation.start();
+	} else if (_progress->shown == shown) {
+		return;
+	}
+	const auto callback = [=] {
+		if (!_progress->shownAnimation.animating() && !_progress->shown) {
+			_progress = nullptr;
+		} else {
+			_progress->widget.update();
+		}
+	};
+	_progress->shown = shown;
+	_progress->shownAnimation.start(
+		callback,
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		kProgressDuration);
+	if (shown) {
+		setupProgressGeometry();
+	}
+}
+
+void Panel::Button::setupProgressGeometry() {
+	if (!_progress || !_progress->shown) {
+		return;
+	}
+	_progress->geometryLifetime.destroy();
+	sizeValue(
+	) | rpl::start_with_next([=](QSize outer) {
+		const auto height = outer.height();
+		const auto size = st::paymentsLoading.size;
+		const auto skip = (height - size.height()) / 2;
+		const auto right = outer.width();
+		const auto top = outer.height() - height;
+		_progress->widget.setGeometry(QRect{
+			QPoint(right - skip - size.width(), top + skip),
+			size });
+	}, _progress->geometryLifetime);
+
+	_progress->widget.show();
+	_progress->widget.raise();
+	if (_progress->shown) {
+		_progress->widget.setFocus();
+	}
+}
+
+void Panel::Button::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	_roundRect.paintSomeRounded(
+		p,
+		rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
+		RectPart::BottomLeft | RectPart::BottomRight);
+	const auto ripple = ResolveRipple(_bg.color()->c);
+	paintRipple(p, rect().topLeft(), &ripple);
+
+	p.setFont(_st.font);
+
+	const auto height = rect().height();
+	const auto progress = st::paymentsLoading.size;
+	const auto skip = (height - progress.height()) / 2;
+	const auto padding = skip + progress.width() + skip;
+
+	const auto space = width() - padding * 2;
+	const auto textWidth = std::min(space, _text.maxWidth());
+	const auto textTop = _st.padding.top() + _st.textTop;
+	const auto textLeft = padding + (space - textWidth) / 2;
+	p.setPen(_fg);
+	_text.drawLeftElided(p, textLeft, textTop, space, width());
+}
+
+QImage Panel::Button::prepareRippleMask() const {
+	const auto drawMask = [&](QPainter &p) {
+		p.drawRoundedRect(
+			rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
+			st::callRadius,
+			st::callRadius);
+	};
+	return RippleAnimation::maskByDrawer(size(), false, drawMask);
+}
+
+QPoint Panel::Button::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos())
+		- QPoint(_st.padding.left(), _st.padding.top());
+}
 
 Panel::WebviewWithLifetime::WebviewWithLifetime(
 	QWidget *parent,
@@ -260,6 +491,7 @@ bool Panel::showWebview(
 
 bool Panel::createWebview() {
 	auto container = base::make_unique_q<RpWidget>(_widget.get());
+	_webviewParent = container.get();
 
 	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
 	const auto bottom = _webviewBottom.get();
@@ -268,6 +500,9 @@ bool Panel::createWebview() {
 	bottom->heightValue(
 	) | rpl::start_with_next([=, raw = container.get()](int height) {
 		const auto inner = _widget->innerGeometry();
+		if (_mainButton && !_mainButton->isHidden()) {
+			height = _mainButton->height();
+		}
 		bottom->move(inner.x(), inner.y() + inner.height() - height);
 		raw->resize(inner.width(), inner.height() - height);
 		bottom->resizeToWidth(inner.width());
@@ -292,6 +527,7 @@ bool Panel::createWebview() {
 		}
 		if (_webviewBottom.get() == bottom) {
 			_webviewBottom = nullptr;
+			_mainButton = nullptr;
 		}
 	});
 	if (!raw->widget()) {
@@ -314,23 +550,11 @@ bool Panel::createWebview() {
 		if (command == "web_app_close") {
 			_close();
 		} else if (command == "web_app_data_send") {
-			auto error = QJsonParseError();
-			auto json = list.at(1).toString();
-			const auto dictionary = QJsonDocument::fromJson(
-				json.toUtf8(),
-				&error);
-			if (error.error != QJsonParseError::NoError) {
-				LOG(("BotWebView Error: Could not parse \"%1\".").arg(json));
-				_close();
-				return;
-			}
-			const auto data = dictionary.object()["data"].toString();
-			if (data.isEmpty()) {
-				LOG(("BotWebView Error: Bad data \"%1\".").arg(json));
-				_close();
-				return;
-			}
-			_sendData(data.toUtf8());
+			sendDataMessage(list.at(1));
+		} else if (command == "web_app_setup_main_button") {
+			processMainButtonMessage(list.at(1));
+		} else if (command == "web_app_request_viewport") {
+
 		}
 	});
 
@@ -360,6 +584,95 @@ postEvent: function(eventType, eventData) {
 
 void Panel::setTitle(rpl::producer<QString> title) {
 	_widget->setTitle(std::move(title));
+}
+
+void Panel::sendDataMessage(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	if (args.isEmpty()) {
+		_close();
+		return;
+	}
+	const auto data = args["data"].toString();
+	if (data.isEmpty()) {
+		LOG(("BotWebView Error: Bad data \"%1\".").arg(json));
+		_close();
+		return;
+	}
+	_sendData(data.toUtf8());
+}
+
+void Panel::processMainButtonMessage(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	if (args.isEmpty()) {
+		_close();
+		return;
+	}
+
+	if (!_mainButton) {
+		if (args["is_visible"].toBool()) {
+			createMainButton();
+		} else {
+			return;
+		}
+	}
+
+	if (const auto bg = ParseColor(args["color"].toString())) {
+		_mainButton->updateBg(*bg);
+		_bgLifetime.destroy();
+	} else {
+		_mainButton->updateBg(st::windowBgActive->c);
+		_bgLifetime = style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_mainButton->updateBg(st::windowBgActive->c);
+		});
+	}
+
+	if (const auto fg = ParseColor(args["text_color"].toString())) {
+		_mainButton->updateFg(*fg);
+		_fgLifetime.destroy();
+	} else {
+		_mainButton->updateFg(st::windowFgActive->c);
+		_fgLifetime = style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_mainButton->updateFg(st::windowFgActive->c);
+		});
+	}
+
+	_mainButton->updateArgs({
+		.isVisible = args["is_visible"].toBool(),
+		.isProgressVisible = args["is_progress_visible"].toBool(),
+		.text = args["text"].toString(),
+	});
+}
+
+void Panel::createMainButton() {
+	_mainButton = std::make_unique<Button>(
+		_widget.get(),
+		st::botWebViewBottomButton);
+	const auto button = _mainButton.get();
+
+	button->setClickedCallback([=] {
+		postEvent("main_button_pressed");
+	});
+	button->hide();
+
+	rpl::combine(
+		button->shownValue(),
+		button->heightValue()
+	) | rpl::start_with_next([=](bool shown, int height) {
+		const auto inner = _widget->innerGeometry();
+		if (!shown) {
+			height = _webviewBottom->height();
+		}
+		button->move(inner.x(), inner.y() + inner.height() - height);
+		if (const auto raw = _webviewParent.data()) {
+			raw->resize(inner.width(), inner.height() - height);
+		}
+		button->resizeToWidth(inner.width());
+		_webviewBottom->setVisible(!shown);
+	}, button->lifetime());
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
@@ -420,11 +733,17 @@ void Panel::updateThemeParams(const QByteArray &json) {
 	if (!_webview || !_webview->window.widget()) {
 		return;
 	}
+	postEvent("theme_changed", "\"theme_params\": " + json);
+}
+
+void Panel::postEvent(const QString &event, const QString &data) {
 	_webview->window.eval(R"(
 if (window.TelegramGameProxy) {
 	window.TelegramGameProxy.receiveEvent(
-		"theme_changed",
-		{ "theme_params": )" + json + R"( });
+		")"
+		+ event.toUtf8()
+		+ '"' + (data.isEmpty() ? QByteArray() : ", {" + data.toUtf8() + '}')
+		+ R"();
 }
 )");
 }
