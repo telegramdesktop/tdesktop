@@ -262,7 +262,7 @@ void MainMenu::AccountButton::paintUserpic(Painter &p) {
 		== &Core::App().domain().active());
 	const auto user = _session->user();
 	if (!check) {
-		user->paintUserpicLeft(p, _userpicView, x, y, width(), size);
+		user->paintUserpicLeft(p, _userpicView, x, y, width(), size); /**draw not selected account pics*/
 		return;
 	}
 	const auto added = st::mainMenuAccountCheck.size;
