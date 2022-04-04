@@ -61,19 +61,20 @@ FileResult FakePasscode::FileUtils::DeleteFileDoD(QString path) {
 
 bool FakePasscode::FileUtils::DeleteFolderRecursively(QString path, bool deleteRoot) {
 	QDir dir(path);
-	bool isNotOk = false;
+	bool isOk = true;
 	for (auto& entry : dir.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
 		if (!(DeleteFolderRecursively(dir.path() + "/" + entry) && dir.rmdir(entry))) {
-			isNotOk = true;
+			isOk = false;
 		}
 	}
 	for (auto& entry : dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
 		if (DeleteFileDoD(dir.path() + "/" + entry) != FileResult::Success) {
-			isNotOk = true;
+			isOk = false;
 		}
 	}
 	if (deleteRoot) {
-		isNotOk |= !dir.rmdir(path);
+		if (!dir.rmdir(path))
+			isOk = false;
 	}
-	return !isNotOk;
+	return isOk;
 }
