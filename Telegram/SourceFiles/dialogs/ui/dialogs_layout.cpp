@@ -425,7 +425,8 @@ void paintRow(
 			: custom.isEmpty()
 			? tr::lng_badge_psa_default(tr::now)
 			: custom;
-		PaintRowTopRight(p, text, rectForName, active, selected);
+		//paints promoted chat's type for example "proxy sponsor"
+		PaintRowTopRight(p, text, rectForName, active, selected, fullWidth);
 	} else if (from) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
