@@ -135,6 +135,8 @@ PRIVATE
     api/api_peer_photo.h
     api/api_polls.cpp
     api/api_polls.h
+    api/api_ringtones.cpp
+    api/api_ringtones.h
     api/api_self_destruct.cpp
     api/api_self_destruct.h
     api/api_send_progress.cpp

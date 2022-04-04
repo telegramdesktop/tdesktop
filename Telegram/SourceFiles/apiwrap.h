@@ -68,6 +68,7 @@ class PeerPhoto;
 class Polls;
 class ChatParticipants;
 class UnreadThings;
+class Ringtones;
 
 namespace details {
 
@@ -357,6 +358,7 @@ public:
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
+	[[nodiscard]] Api::Ringtones &ringtones();
 
 	void updatePrivacyLastSeens();
 
@@ -638,6 +640,7 @@ private:
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
+	const std::unique_ptr<Api::Ringtones> _ringtones;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;
