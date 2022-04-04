@@ -624,8 +624,10 @@ void EditAdminBox::sendTransferRequestFrom(
 					tr::now,
 					lt_user,
 					user->shortName()));
-		if (weak) {
-			_show.hideLayer();
+		if (box) {
+			Ui::BoxShow(box).hideLayer();
+		} else if (weak) {
+			weak->_show.hideLayer();
 		}
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
