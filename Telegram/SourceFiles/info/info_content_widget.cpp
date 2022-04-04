@@ -100,6 +100,14 @@ std::shared_ptr<ContentMemento> ContentWidget::createMemento() {
 	return result;
 }
 
+void ContentWidget::setIsStackBottom(bool isStackBottom) {
+	_isStackBottom = isStackBottom;
+}
+
+bool ContentWidget::isStackBottom() const {
+	return _isStackBottom;
+}
+
 void ContentWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(e->rect(), _bg);

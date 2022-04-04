@@ -57,6 +57,8 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const override;
 	void selectionAction(SelectionAction action) override;
 
+	rpl::producer<QString> title() override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);

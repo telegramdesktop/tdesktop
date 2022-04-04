@@ -90,6 +90,10 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 		: rpl::single(true);
 }
 
+rpl::producer<QString> Widget::title() {
+	return _type()->title();
+}
+
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(self(), _type);
 	saveState(result.get());

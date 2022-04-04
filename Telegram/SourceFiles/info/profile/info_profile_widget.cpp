@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_members.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
+#include "data/data_peer.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "info/info_controller.h"
 
 namespace Info {
@@ -72,12 +76,25 @@ Widget::Widget(
 	}, lifetime());
 }
 
-void Widget::setIsStackBottom(bool isStackBottom) {
-	_inner->setIsStackBottom(isStackBottom);
-}
-
 void Widget::setInnerFocus() {
 	_inner->setFocus();
+}
+
+rpl::producer<QString> Widget::title() {
+	const auto peer = controller()->key().peer();
+	if (const auto user = peer->asUser()) {
+		return (user->isBot() && !user->isSupport())
+			? tr::lng_info_bot_title()
+			: tr::lng_info_user_title();
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->isMegagroup()
+			? tr::lng_info_group_title()
+			: tr::lng_info_channel_title();
+	} else if (peer->isChat()) {
+		return tr::lng_info_group_title();
+	}
+	Unexpected("Bad peer type in Info::TitleValue()");
+
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {

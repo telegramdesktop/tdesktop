@@ -101,6 +101,10 @@ void Widget::selectionAction(SelectionAction action) {
 	_inner->selectionAction(action);
 }
 
+rpl::producer<QString> Widget::title() {
+	return tr::lng_downloads_section();
+}
+
 std::shared_ptr<Info::Memento> Make(not_null<UserData*> self) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(

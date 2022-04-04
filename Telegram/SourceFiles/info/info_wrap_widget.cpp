@@ -355,10 +355,6 @@ void WrapWidget::createTopBar() {
 		_content->selectionAction(action);
 	}, _topBar->lifetime());
 
-	_topBar->setTitle(TitleValue(
-		_controller->section(),
-		_controller->key(),
-		!hasStackHistory()));
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest(
@@ -616,8 +612,9 @@ void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 }
 
 void WrapWidget::finishShowContent() {
-	_content->setIsStackBottom(!hasStackHistory());
 	updateContentGeometry();
+	_content->setIsStackBottom(!hasStackHistory());
+	_topBar->setTitle(_content->title());
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
 	_selectedLists.fire(_content->selectedListValue());
