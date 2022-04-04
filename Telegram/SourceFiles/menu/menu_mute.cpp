@@ -230,15 +230,16 @@ void FillMuteMenu(
 		Args args) {
 	const auto peer = args.peer;
 
-	const auto soundIsNone = peer->owner().notifySettings().soundIsNone(peer);
+	const auto soundIsNone = peer->owner().notifySettings().sound(peer).none;
 	menu->addAction(
 		soundIsNone
 			? tr::lng_mute_menu_sound_on(tr::now)
 			: tr::lng_mute_menu_sound_off(tr::now),
 		[=] {
 			auto &notifySettings = peer->owner().notifySettings();
-			const auto soundIsNone = notifySettings.soundIsNone(peer);
-			notifySettings.updateNotifySettings(peer, {}, {}, !soundIsNone);
+			auto sound = notifySettings.sound(peer);
+			sound.none = !sound.none;
+			notifySettings.updateNotifySettings(peer, {}, {}, sound);
 		},
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
 

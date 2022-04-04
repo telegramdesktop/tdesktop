@@ -35,12 +35,12 @@ public:
 	bool change(
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<bool> soundIsNone);
+		std::optional<NotifySound> sound);
 
 	bool settingsUnknown() const;
 	std::optional<TimeId> muteUntil() const;
 	std::optional<bool> silentPosts() const;
-	std::optional<bool> soundIsNone() const;
+	std::optional<NotifySound> sound() const;
 	MTPinputPeerNotifySettings serialize() const;
 
 	~PeerNotifySettings();

@@ -195,8 +195,8 @@ public:
 	bool notifyChange(
 			std::optional<int> muteForSeconds,
 			std::optional<bool> silentPosts,
-			std::optional<bool> soundIsNone) {
-		return _notify.change(muteForSeconds, silentPosts, soundIsNone);
+			std::optional<Data::NotifySound> sound) {
+		return _notify.change(muteForSeconds, silentPosts, sound);
 	}
 	[[nodiscard]] bool notifySettingsUnknown() const {
 		return _notify.settingsUnknown();
@@ -204,8 +204,8 @@ public:
 	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
 		return _notify.silentPosts();
 	}
-	[[nodiscard]] std::optional<bool> notifySoundIsNone() const {
-		return _notify.soundIsNone();
+	[[nodiscard]] std::optional<Data::NotifySound> notifySound() const {
+		return _notify.sound();
 	}
 	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
 		return _notify.serialize();

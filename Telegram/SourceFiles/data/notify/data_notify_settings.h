@@ -29,7 +29,7 @@ public:
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
-		std::optional<bool> soundIsNone = std::nullopt);
+		std::optional<NotifySound> sound = std::nullopt);
 	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<> defaultUserNotifyUpdates() const;
@@ -40,12 +40,11 @@ public:
 
 	[[nodiscard]] bool isMuted(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool silentPosts(not_null<const PeerData*> peer) const;
-	[[nodiscard]] bool soundIsNone(not_null<const PeerData*> peer) const;
+	[[nodiscard]] NotifySound sound(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool muteUnknown(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool silentPostsUnknown(
 		not_null<const PeerData*> peer) const;
-	[[nodiscard]] bool soundIsNoneUnknown(
-		not_null<const PeerData*> peer) const;
+	[[nodiscard]] bool soundUnknown(not_null<const PeerData*> peer) const;
 
 private:
 	[[nodiscard]] bool isMuted(

@@ -146,7 +146,7 @@ void PeerMenuAddMuteSubmenuAction(
 		addAction(PeerMenuCallback::Args{
 			.text = tr::lng_context_mute(tr::now),
 			.handler = nullptr,
-			.icon = peer->owner().notifySettings().soundIsNone(peer)
+			.icon = peer->owner().notifySettings().sound(peer).none
 				? &st::menuIconSilent
 				: &st::menuIconMute,
 			.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {

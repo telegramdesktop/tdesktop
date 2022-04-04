@@ -180,8 +180,8 @@ System::SkipState System::computeSkipState(
 			.silent = (forceSilent
 				|| !messageNotification
 				|| item->isSilent()
-				|| history->owner().notifySettings().soundIsNone(
-					history->peer)),
+				|| history->owner().notifySettings().sound(
+					history->peer).none),
 		};
 	};
 	const auto showForMuted = messageNotification
