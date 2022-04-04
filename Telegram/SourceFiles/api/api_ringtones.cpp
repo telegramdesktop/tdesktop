@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
@@ -112,8 +113,65 @@ void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		MTP_string(uploadedData.filemime)
 	)).done([=](const MTPDocument &result) {
 		_session->data().processDocument(result);
-	}).fail([](const MTP::Error &error) {
+	}).fail([=](const MTP::Error &error) {
+		_uploadFails.fire_copy(error.type());
 	}).send();
+}
+
+void Ringtones::requestList() {
+	if (_list.requestId) {
+		return;
+	}
+	_list.requestId = _api.request(
+		MTPaccount_GetSavedRingtones(MTP_long(_list.hash))
+	).done([=](const MTPaccount_SavedRingtones &result) {
+		result.match([&](const MTPDaccount_savedRingtones &data) {
+			_list.requestId = 0;
+			_list.hash = data.vhash().v;
+			_list.documents.reserve(_list.documents.size()
+				+ data.vringtones().v.size());
+			for (const auto &d : data.vringtones().v) {
+				const auto document = _session->data().processDocument(d);
+				_list.documents.emplace(document->id);
+			}
+			requestList();
+		}, [&](const MTPDaccount_savedRingtonesNotModified &) {
+			_list.requestId = 0;
+			_list.updates.fire({});
+		});
+	}).send();
+}
+
+const Ringtones::Ids &Ringtones::list() const {
+	return _list.documents;
+}
+
+rpl::producer<> Ringtones::listUpdates() const {
+	return _list.updates.events();
+}
+
+rpl::producer<QString> Ringtones::uploadFails() const {
+	return _uploadFails.events();
+}
+
+void Ringtones::applyUpdate() {
+	_list.hash = 0;
+	_list.documents.clear();
+	requestList();
+}
+
+void Ringtones::remove(DocumentId id) {
+	if (const auto document = _session->data().document(id)) {
+		_api.request(MTPaccount_SaveRingtone(
+			document->mtpInput(),
+			MTP_bool(true)
+		)).done([=] {
+			const auto it = ranges::find(_list.documents, id);
+			if (it != end(_list.documents)) {
+				_list.documents.erase(it);
+			}
+		}).send();
+	}
 }
 
 } // namespace Api

@@ -22,10 +22,20 @@ class Ringtones final {
 public:
 	explicit Ringtones(not_null<ApiWrap*> api);
 
+	using Ids = std::unordered_set<DocumentId>;
+
+	void requestList();
+	void applyUpdate();
+	void remove(DocumentId id);
+
 	void upload(
 		const QString &filename,
 		const QString &filemime,
 		const QByteArray &content);
+
+	[[nodiscard]] const Ids &list() const;
+	[[nodiscard]] rpl::producer<> listUpdates() const;
+	[[nodiscard]] rpl::producer<QString> uploadFails() const;
 
 private:
 	struct UploadedData {
@@ -38,6 +48,14 @@ private:
 	MTP::Sender _api;
 
 	base::flat_map<FullMsgId, UploadedData> _uploads;
+	rpl::event_stream<QString> _uploadFails;
+
+	struct {
+		uint64 hash = 0;
+		Ids documents;
+		rpl::event_stream<> updates;
+		mtpRequestId requestId;
+	} _list;
 
 };
 
