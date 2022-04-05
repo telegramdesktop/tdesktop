@@ -1489,6 +1489,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
 "lng_attach_camera" = "Camera";
+"lng_attach_document" = "Document";
+"lng_attach_photo_or_video" = "Photo or video";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";

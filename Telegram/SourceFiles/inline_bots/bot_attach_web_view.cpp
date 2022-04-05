@@ -674,7 +674,8 @@ void AttachWebView::toggleInMenu(
 std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		Fn<void(bool)> forceShown) {
+		Fn<void(bool)> forceShown,
+		Fn<void(bool)> attach) {
 	auto result = std::make_unique<Ui::DropdownMenu>(
 		parent,
 		st::dropdownMenuWithIcons);
@@ -682,12 +683,12 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	const auto raw = result.get();
 	const auto refresh = [=] {
 		raw->clearActions();
-		raw->addAction(u"Photo or video"_q, [=] {
-
-		});
-		raw->addAction(u"Document"_q, [=] {
-
-		});
+		raw->addAction(tr::lng_attach_photo_or_video(tr::now), [=] {
+			attach(true);
+		}, &st::menuIconPhoto);
+		raw->addAction(tr::lng_attach_document(tr::now), [=] {
+			attach(false);
+		}, &st::menuIconFile);
 		for (const auto &bot : bots->attachBots()) {
 			const auto callback = [=] {
 				const auto active = controller->activeChatCurrent();

@@ -498,10 +498,14 @@ HistoryWidget::HistoryWidget(
 					_attachBotsMenu->setAutoHiding(true);
 				}
 			};
+			const auto attach = [=](bool compress) {
+				chooseAttach(compress);
+			};
 			_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
 				this,
 				controller,
-				forceShown);
+				forceShown,
+				attach);
 			_attachBotsMenu->setOrigin(
 				Ui::PanelAnimation::Origin::BottomLeft);
 			if (_history && _history->peer->isUser()) {
@@ -4039,7 +4043,8 @@ void HistoryWidget::cornerButtonsAnimationFinish() {
 	updateCornerButtonsPositions();
 }
 
-void HistoryWidget::chooseAttach() {
+void HistoryWidget::chooseAttach(
+		std::optional<bool> overrideSendImagesAsPhotos) {
 	if (_editMsgId) {
 		controller()->show(Ui::MakeInformBox(tr::lng_edit_caption_attach()));
 		return;
@@ -4058,7 +4063,9 @@ void HistoryWidget::chooseAttach() {
 		return;
 	}
 
-	const auto filter = FileDialog::AllOrImagesFilter();
+	const auto filter = (overrideSendImagesAsPhotos == true)
+		? FileDialog::ImagesOrAllFilter()
+		: FileDialog::AllOrImagesFilter();
 
 	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
 			FileDialog::OpenResult &&result) {
@@ -4073,7 +4080,8 @@ void HistoryWidget::chooseAttach() {
 			if (!read.image.isNull() && !read.animated) {
 				confirmSendingFiles(
 					std::move(read.image),
-					std::move(result.remoteContent));
+					std::move(result.remoteContent),
+					overrideSendImagesAsPhotos);
 			} else {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
@@ -4081,6 +4089,7 @@ void HistoryWidget::chooseAttach() {
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
+			list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
 			confirmSendingFiles(std::move(list));
 		}
 	}), nullptr);

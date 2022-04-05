@@ -132,6 +132,7 @@ private:
 [[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
-	Fn<void(bool)> forceShown);
+	Fn<void(bool)> forceShown,
+	Fn<void(bool)> attach);
 
 } // namespace InlineBots

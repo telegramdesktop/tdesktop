@@ -423,7 +423,7 @@ private:
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
-	void chooseAttach();
+	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
 	void cornerButtonsAnimationFinish();
 	void sendButtonClicked();
 	void newItemAdded(not_null<HistoryItem*> item);
