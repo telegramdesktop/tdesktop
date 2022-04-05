@@ -474,7 +474,7 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_bar.entity()->unarchiveClicks(
 	) | rpl::start_with_next([=] {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
-		peer->owner().notifySettings().resetNotifySettingsToDefault(peer);
+		peer->owner().notifySettings().resetToDefault(peer);
 		if (const auto settings = peer->settings()) {
 			const auto flags = PeerSetting::AutoArchived
 				| PeerSetting::BlockContact

@@ -865,10 +865,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	RippleButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	_channel->owner().notifySettings().updateNotifySettings(
-		_channel,
-		std::nullopt,
-		_checked);
+	_channel->owner().notifySettings().update(_channel, {}, _checked);
 }
 
 QString SilentToggle::tooltipText() const {

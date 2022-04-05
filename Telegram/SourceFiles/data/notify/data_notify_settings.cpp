@@ -33,7 +33,7 @@ NotifySettings::NotifySettings(not_null<Session*> owner)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 }
 
-void NotifySettings::requestNotifySettings(not_null<PeerData*> peer) {
+void NotifySettings::request(not_null<PeerData*> peer) {
 	if (peer->notifySettingsUnknown()) {
 		peer->session().api().requestNotifySettings(
 			MTP_inputNotifyPeer(peer->input));
@@ -47,7 +47,7 @@ void NotifySettings::requestNotifySettings(not_null<PeerData*> peer) {
 	}
 }
 
-void NotifySettings::applyNotifySetting(
+void NotifySettings::apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings) {
 	const auto goodForUpdate = [&](
@@ -61,34 +61,34 @@ void NotifySettings::applyNotifySetting(
 
 	switch (notifyPeer.type()) {
 	case mtpc_notifyUsers: {
-		if (_defaultUserNotifySettings.change(settings)) {
-			_defaultUserNotifyUpdates.fire({});
+		if (_defaultUser.change(settings)) {
+			_defaultUserUpdates.fire({});
 
 			_owner->enumerateUsers([&](not_null<UserData*> user) {
-				if (goodForUpdate(user, _defaultUserNotifySettings)) {
-					updateNotifySettingsLocal(user);
+				if (goodForUpdate(user, _defaultUser)) {
+					updateLocal(user);
 				}
 			});
 		}
 	} break;
 	case mtpc_notifyChats: {
-		if (_defaultChatNotifySettings.change(settings)) {
-			_defaultChatNotifyUpdates.fire({});
+		if (_defaultChat.change(settings)) {
+			_defaultChatUpdates.fire({});
 
 			_owner->enumerateGroups([&](not_null<PeerData*> peer) {
-				if (goodForUpdate(peer, _defaultChatNotifySettings)) {
-					updateNotifySettingsLocal(peer);
+				if (goodForUpdate(peer, _defaultChat)) {
+					updateLocal(peer);
 				}
 			});
 		}
 	} break;
 	case mtpc_notifyBroadcasts: {
-		if (_defaultBroadcastNotifySettings.change(settings)) {
-			_defaultBroadcastNotifyUpdates.fire({});
+		if (_defaultBroadcast.change(settings)) {
+			_defaultBroadcastUpdates.fire({});
 
 			_owner->enumerateChannels([&](not_null<ChannelData*> channel) {
-				if (goodForUpdate(channel, _defaultBroadcastNotifySettings)) {
-					updateNotifySettingsLocal(channel);
+				if (goodForUpdate(channel, _defaultBroadcast)) {
+					updateLocal(channel);
 				}
 			});
 		}
@@ -97,25 +97,25 @@ void NotifySettings::applyNotifySetting(
 		const auto &data = notifyPeer.c_notifyPeer();
 		if (const auto peer = _owner->peerLoaded(peerFromMTP(data.vpeer()))) {
 			if (peer->notifyChange(settings)) {
-				updateNotifySettingsLocal(peer);
+				updateLocal(peer);
 			}
 		}
 	} break;
 	}
 }
 
-void NotifySettings::updateNotifySettings(
+void NotifySettings::update(
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
 	if (peer->notifyChange(muteForSeconds, silentPosts, sound)) {
-		updateNotifySettingsLocal(peer);
+		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
 }
 
-void NotifySettings::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
+void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 	const auto empty = MTP_peerNotifySettings(
 		MTP_flags(0),
 		MTPBool(),
@@ -125,7 +125,7 @@ void NotifySettings::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
 		MTPNotificationSound(),
 		MTPNotificationSound());
 	if (peer->notifyChange(empty)) {
-		updateNotifySettingsLocal(peer);
+		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
 }
@@ -133,13 +133,13 @@ void NotifySettings::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
 const PeerNotifySettings &NotifySettings::defaultNotifySettings(
 		not_null<const PeerData*> peer) const {
 	return peer->isUser()
-		? _defaultUserNotifySettings
+		? _defaultUser
 		: (peer->isChat() || peer->isMegagroup())
-		? _defaultChatNotifySettings
-		: _defaultBroadcastNotifySettings;
+		? _defaultChat
+		: _defaultBroadcast;
 }
 
-void NotifySettings::updateNotifySettingsLocal(not_null<PeerData*> peer) {
+void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	const auto history = _owner->historyLoaded(peer->id);
 	auto changesIn = crl::time(0);
 	const auto muted = isMuted(peer, &changesIn);
@@ -281,15 +281,15 @@ bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {
 }
 
 rpl::producer<> NotifySettings::defaultUserNotifyUpdates() const {
-	return _defaultUserNotifyUpdates.events();
+	return _defaultUserUpdates.events();
 }
 
 rpl::producer<> NotifySettings::defaultChatNotifyUpdates() const {
-	return _defaultChatNotifyUpdates.events();
+	return _defaultChatUpdates.events();
 }
 
 rpl::producer<> NotifySettings::defaultBroadcastNotifyUpdates() const {
-	return _defaultBroadcastNotifyUpdates.events();
+	return _defaultBroadcastUpdates.events();
 }
 
 rpl::producer<> NotifySettings::defaultNotifyUpdates(

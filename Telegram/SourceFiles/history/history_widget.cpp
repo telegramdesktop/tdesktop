@@ -2238,7 +2238,7 @@ void HistoryWidget::showHistory(
 
 		if (_peer->isChannel()) {
 			updateNotifyControls();
-			session().data().notifySettings().requestNotifySettings(_peer);
+			session().data().notifySettings().request(_peer);
 			refreshSilentToggle();
 		} else if (_peer->isRepliesChat()) {
 			updateNotifyControls();
@@ -3852,9 +3852,7 @@ void HistoryWidget::toggleMuteUnmute() {
 	const auto muteForSeconds = _history->mute()
 		? 0
 		: Data::PeerNotifySettings::kDefaultMutePeriod;
-	session().data().notifySettings().updateNotifySettings(
-		_peer,
-		muteForSeconds);
+	session().data().notifySettings().update(_peer, muteForSeconds);
 }
 
 void HistoryWidget::reportSelectedMessages() {

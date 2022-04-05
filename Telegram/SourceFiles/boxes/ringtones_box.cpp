@@ -222,11 +222,7 @@ void RingtonesBox(
 			: (value == kNoSoundValue)
 			? Data::NotifySound{ .none = true }
 			: Data::NotifySound{ .id = state->documentIds[value] };
-		peer->owner().notifySettings().updateNotifySettings(
-			peer,
-			std::nullopt,
-			std::nullopt,
-			sound);
+		peer->owner().notifySettings().update(peer, {}, {}, sound);
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

@@ -2095,20 +2095,20 @@ void ApiWrap::applyNotifySettings(
 	auto &notifySettings = _session->data().notifySettings();
 	switch (notifyPeer.type()) {
 	case mtpc_inputNotifyUsers:
-		notifySettings.applyNotifySetting(MTP_notifyUsers(), settings);
+		notifySettings.apply(MTP_notifyUsers(), settings);
 	break;
 	case mtpc_inputNotifyChats:
-		notifySettings.applyNotifySetting(MTP_notifyChats(), settings);
+		notifySettings.apply(MTP_notifyChats(), settings);
 	break;
 	case mtpc_inputNotifyBroadcasts:
-		notifySettings.applyNotifySetting(
+		notifySettings.apply(
 			MTP_notifyBroadcasts(),
 			settings);
 	break;
 	case mtpc_inputNotifyPeer: {
 		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer();
 		const auto apply = [&](PeerId peerId) {
-			notifySettings.applyNotifySetting(
+			notifySettings.apply(
 				MTP_notifyPeer(peerToMTP(peerId)),
 				settings);
 		};

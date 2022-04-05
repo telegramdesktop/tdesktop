@@ -21,16 +21,16 @@ class NotifySettings final {
 public:
 	NotifySettings(not_null<Session*> owner);
 
-	void requestNotifySettings(not_null<PeerData*> peer);
-	void applyNotifySetting(
+	void request(not_null<PeerData*> peer);
+	void apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings);
-	void updateNotifySettings(
+	void update(
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
-	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
+	void resetToDefault(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<> defaultUserNotifyUpdates() const;
 	[[nodiscard]] rpl::producer<> defaultChatNotifyUpdates() const;
@@ -57,16 +57,16 @@ private:
 
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
-	void updateNotifySettingsLocal(not_null<PeerData*> peer);
+	void updateLocal(not_null<PeerData*> peer);
 
 	const not_null<Session*> _owner;
 
-	PeerNotifySettings _defaultUserNotifySettings;
-	PeerNotifySettings _defaultChatNotifySettings;
-	PeerNotifySettings _defaultBroadcastNotifySettings;
-	rpl::event_stream<> _defaultUserNotifyUpdates;
-	rpl::event_stream<> _defaultChatNotifyUpdates;
-	rpl::event_stream<> _defaultBroadcastNotifyUpdates;
+	PeerNotifySettings _defaultUser;
+	PeerNotifySettings _defaultChat;
+	PeerNotifySettings _defaultBroadcast;
+	rpl::event_stream<> _defaultUserUpdates;
+	rpl::event_stream<> _defaultChatUpdates;
+	rpl::event_stream<> _defaultBroadcastUpdates;
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
 	base::Timer _unmuteByFinishedTimer;
 

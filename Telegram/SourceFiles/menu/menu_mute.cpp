@@ -112,7 +112,7 @@ MuteItem::MuteItem(
 	}, lifetime());
 
 	setClickedCallback([=] {
-		peer->owner().notifySettings().updateNotifySettings(
+		peer->owner().notifySettings().update(
 			peer,
 			_isMuted ? 0 : Data::PeerNotifySettings::kDefaultMutePeriod);
 	});
@@ -154,9 +154,7 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
 	const auto confirm = box->addButton(std::move(confirmText), [=] {
-		peer->owner().notifySettings().updateNotifySettings(
-			peer,
-			state->lastSeconds);
+		peer->owner().notifySettings().update(peer, state->lastSeconds);
 		box->getDelegate()->hideLayer();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -194,7 +192,7 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 
 	box->addButton(tr::lng_mute_menu_mute(), [=] {
 		const auto muteFor = pickerCallback();
-		peer->owner().notifySettings().updateNotifySettings(peer, muteFor);
+		peer->owner().notifySettings().update(peer, muteFor);
 		peer->session().settings().addMutePeriod(muteFor);
 		peer->session().saveSettings();
 		box->closeBox();
@@ -245,7 +243,7 @@ void FillMuteMenu(
 			auto &notifySettings = peer->owner().notifySettings();
 			auto sound = notifySettings.sound(peer);
 			sound.none = !sound.none;
-			notifySettings.updateNotifySettings(peer, {}, {}, sound);
+			notifySettings.update(peer, {}, {}, sound);
 		},
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
 
@@ -254,9 +252,7 @@ void FillMuteMenu(
 		+ st::menuIconMuteForAnyTextPosition;
 	for (const auto &muteFor : peer->session().settings().mutePeriods()) {
 		const auto callback = [=] {
-			peer->owner().notifySettings().updateNotifySettings(
-				peer,
-				muteFor);
+			peer->owner().notifySettings().update(peer, muteFor);
 		};
 
 		auto item = base::make_unique_q<IconWithText>(

@@ -131,7 +131,7 @@ void PeerMenuAddMuteSubmenuAction(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
-	peer->owner().notifySettings().requestNotifySettings(peer);
+	peer->owner().notifySettings().request(peer);
 	const auto isMuted = peer->owner().notifySettings().isMuted(peer);
 	if (isMuted) {
 		const auto text = tr::lng_context_unmute(tr::now)
@@ -139,7 +139,7 @@ void PeerMenuAddMuteSubmenuAction(
 			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
 				- base::unixtime::now());
 		addAction(text, [=] {
-			peer->owner().notifySettings().updateNotifySettings(peer, 0);
+			peer->owner().notifySettings().update(peer, 0);
 		}, &st::menuIconUnmute);
 	} else {
 		const auto show = std::make_shared<Window::Show>(controller);
@@ -1426,7 +1426,7 @@ void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
 	// There is no async to make weak from controller.
-	peer->owner().notifySettings().requestNotifySettings(peer);
+	peer->owner().notifySettings().request(peer);
 	const auto muteText = [](bool isUnmuted) {
 		return isUnmuted
 			? tr::lng_context_mute(tr::now)
@@ -1438,7 +1438,7 @@ void PeerMenuAddMuteAction(
 				Box<MuteSettingsBox>(peer),
 				Ui::LayerOption::CloseOther);
 		} else {
-			peer->owner().notifySettings().updateNotifySettings(peer, 0);
+			peer->owner().notifySettings().update(peer, 0);
 		}
 	}, (peer->owner().notifySettings().isMuted(peer)
 		? &st::menuIconUnmute

@@ -1908,7 +1908,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNotifySettings: {
 		auto &d = update.c_updateNotifySettings();
-		session().data().notifySettings().applyNotifySetting(
+		session().data().notifySettings().apply(
 			d.vpeer(),
 			d.vnotify_settings());
 	} break;

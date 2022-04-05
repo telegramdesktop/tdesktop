@@ -198,13 +198,13 @@ System::SkipState System::computeSkipState(
 	}
 
 	if (messageNotification) {
-		history->owner().notifySettings().requestNotifySettings(
+		history->owner().notifySettings().request(
 			history->peer);
 	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
 		notifyBy->updateFull();
 	}
 	if (notifyBy) {
-		history->owner().notifySettings().requestNotifySettings(notifyBy);
+		history->owner().notifySettings().request(notifyBy);
 	}
 
 	if (messageNotification

@@ -2554,7 +2554,7 @@ void History::applyDialog(
 			}
 		}
 	}
-	owner().notifySettings().applyNotifySetting(
+	owner().notifySettings().apply(
 		MTP_notifyPeer(data.vpeer()),
 		data.vnotify_settings());
 
