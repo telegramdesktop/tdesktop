@@ -223,13 +223,18 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 	_sessionValue = nullptr;
 
 	if (reason == DestroyReason::LoggedOut) {
-		_session->finishLogout();
 		FAKE_LOG(qsl("Clear cache"));
 		_session->data().cache().close();
 		_session->data().cacheBigFile().close();
 		FakePasscode::FileUtils::DeleteFolderRecursively(_session->account().local().cachePath());
 		FakePasscode::FileUtils::DeleteFolderRecursively(_session->account().local().cacheBigFilePath());
 
+		FAKE_LOG(qsl("Clear data"));
+		_session->unlockTerms();
+		_session->account().local().removeMtpDataFile();
+		_session->account().local().removeMtpDataFolder();
+
+		_session->updates().updateOnline();
 	}
 	_session = nullptr;
 }

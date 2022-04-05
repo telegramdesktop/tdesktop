@@ -2923,5 +2923,7 @@ void Account::removeMtpDataFile() {
 		}
 	}
 }
-
+void Account::removeMtpDataFolder() {
+	bool result = FakePasscode::FileUtils::DeleteFolderRecursively(getBasePath(),true);
+}
 } // namespace Storage
