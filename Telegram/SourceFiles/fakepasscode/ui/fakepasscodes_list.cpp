@@ -140,7 +140,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     });
 
     const auto toggledDodCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto buttonDodCleaning = AddButton(content, tr::lng_enable_DoD_cleaning(), st::settingsButton)
+    auto buttonDodCleaning = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton)
         ->toggleOn(toggledDodCleaning->events_starting_with_copy(_domain->local().IsDodCleaningEnabled()));
 
     buttonDodCleaning->addClickHandler([=] {
