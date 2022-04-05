@@ -176,5 +176,7 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_StickerSet &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data);
 UpdatedFileReferences GetFileReferences(const MTPWallPaper &data);
 UpdatedFileReferences GetFileReferences(const MTPTheme &data);
+UpdatedFileReferences GetFileReferences(
+	const MTPaccount_SavedRingtones &data);
 
 } // namespace Data
