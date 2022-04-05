@@ -379,6 +379,7 @@ void paintRow(
 			active,
 			fullWidth);
 	} else if (hiddenSenderInfo) {
+		//hiddenSenderInfo: For example a forwarded message from a user, who disabled forwarded links in his privacy settings, is displayed as this hidden sender info
 		hiddenSenderInfo->userpic.paint(
 			p,
 			st::dialogsPadding.x(),
