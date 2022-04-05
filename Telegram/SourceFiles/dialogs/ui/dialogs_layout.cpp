@@ -498,7 +498,7 @@ void paintRow(
 		}
 	} else if (!item->isEmpty()) {
 		if (history && !promoted) {
-			PaintRowDate(p, date, rectForName, active, selected);
+			PaintRowDate(p, date, rectForName, active, selected, fullWidth); /**paints date*/
 		}
 
 		paintItemCallback(nameleft, namewidth);
