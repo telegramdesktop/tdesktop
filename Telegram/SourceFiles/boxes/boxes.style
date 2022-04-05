@@ -1056,7 +1056,6 @@ requestsRejectButton: RoundButton(defaultLightButton) {
 requestAcceptPosition: point(71px, 58px);
 requestButtonsSkip: 9px;
 
-ringtonesBoxListHeight: 192;
 ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;

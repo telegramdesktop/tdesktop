@@ -3117,11 +3117,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_telegram_features_url" = "https://t.me/TelegramTips";
 
 "lng_ringtones_box_title" = "Notification Sound";
-"lng_ringtones_box_cloud_subtitle" = "Telegram tones";
-"lng_ringtones_box_local_subtitle" = "System notes";
-"lng_ringtones_box_upload" = "Upload Sound";
+"lng_ringtones_box_cloud_subtitle" = "Choose your tone";
 "lng_ringtones_box_upload_choose" = "Choose ringtone";
 "lng_ringtones_box_upload_button" = "Upload Sound";
+"lng_ringtones_box_about" = "Click on any short voice note or mp3 file in chat and select \"Save for Notifications\". It will appear here.";
 "lng_ringtones_box_default" = "Default";
 "lng_ringtones_box_no_sound" = "No sound";
 "lng_ringtones_box_error" = "Sorry, but your file is too big.";

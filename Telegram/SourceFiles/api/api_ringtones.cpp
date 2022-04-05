@@ -125,8 +125,8 @@ void Ringtones::requestList() {
 	_list.requestId = _api.request(
 		MTPaccount_GetSavedRingtones(MTP_long(_list.hash))
 	).done([=](const MTPaccount_SavedRingtones &result) {
+		_list.requestId = 0;
 		result.match([&](const MTPDaccount_savedRingtones &data) {
-			_list.requestId = 0;
 			_list.hash = data.vhash().v;
 			_list.documents.reserve(_list.documents.size()
 				+ data.vringtones().v.size());
@@ -135,10 +135,11 @@ void Ringtones::requestList() {
 				_list.documents.emplace(document->id);
 			}
 			requestList();
-		}, [&](const MTPDaccount_savedRingtonesNotModified &) {
-			_list.requestId = 0;
 			_list.updates.fire({});
+		}, [&](const MTPDaccount_savedRingtonesNotModified &) {
 		});
+	}).fail([=] {
+		_list.requestId = 0;
 	}).send();
 }
 

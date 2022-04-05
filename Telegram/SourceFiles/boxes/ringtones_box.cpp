@@ -55,18 +55,22 @@ void RingtonesBox(
 		std::shared_ptr<Ui::RadiobuttonGroup> group;
 		std::vector<DocumentId> documentIds;
 		base::unique_qptr<Ui::PopupMenu> menu;
+		QPointer<Ui::Radiobutton> defaultButton;
+		QPointer<Ui::Radiobutton> chosenButton;
+		std::vector<QPointer<Ui::Radiobutton>> buttons;
 	};
 	const auto state = container->lifetime().make_state<State>(State{
-		std::make_shared<Ui::RadiobuttonGroup>(
-			peer->owner().notifySettings().sound(peer).none
-				? kNoSoundValue
-				: kDefaultValue),
+		std::make_shared<Ui::RadiobuttonGroup>(),
 	});
 
 	const auto addToGroup = [=](
 			not_null<Ui::VerticalLayout*> verticalLayout,
 			int value,
-			const QString &text) {
+			const QString &text,
+			bool chosen) {
+		if (chosen) {
+			state->group->setValue(value);
+		}
 		const auto button = verticalLayout->add(
 			object_ptr<Ui::Radiobutton>(
 				verticalLayout,
@@ -75,11 +79,20 @@ void RingtonesBox(
 				text,
 				st::defaultCheckbox),
 			padding);
+		if (chosen) {
+			state->chosenButton = button;
+		}
+		if (value == kDefaultValue) {
+			state->defaultButton = button;
+		}
 		if (value < 0) {
 			return;
 		}
+		while (state->buttons.size() <= value) {
+			state->buttons.push_back(nullptr);
+		}
 		base::install_event_filter(button, [=](not_null<QEvent*> e) {
-			if (state->menu || e->type() != QEvent::ContextMenu) {
+			if (e->type() != QEvent::ContextMenu || state->menu) {
 				return base::EventFilterResult::Continue;
 			}
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
@@ -114,48 +127,48 @@ void RingtonesBox(
 		container,
 		tr::lng_ringtones_box_cloud_subtitle());
 
-	const auto emptyContent = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(container),
-		style::margins());
-	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
-		emptyContent,
-		st::boxScroll);
-	emptyContent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		scroll->resize(width, scroll->height());
-	}, emptyContent->lifetime());
-	scroll->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		emptyContent->resize(emptyContent->width(), height);
-	}, scroll->lifetime());
+	const auto noSound = peer->owner().notifySettings().sound(peer).none;
+	addToGroup(
+		container,
+		kDefaultValue,
+		tr::lng_ringtones_box_default({}),
+		false);
+	addToGroup(
+		container,
+		kNoSoundValue,
+		tr::lng_ringtones_box_no_sound({}),
+		noSound);
 
-	{
-		peer->session().api().ringtones().listUpdates(
-		) | rpl::start_with_next([=] {
-			state->documentIds.clear();
-			const auto list = scroll->setOwnedWidget(
-				object_ptr<Ui::VerticalLayout>(scroll));
-			list->sizeValue(
-			) | rpl::start_with_next([=](const QSize &s) {
-				scroll->resize(
-					scroll->width(),
-					std::min(s.height(), st::ringtonesBoxListHeight));
-			}, list->lifetime());
-			list->resize(scroll->size());
-			auto value = 0;
-			const auto checkedId = peer->owner().notifySettings().sound(peer);
-			for (const auto &id : peer->session().api().ringtones().list()) {
-				const auto document = peer->session().data().document(id);
-				addToGroup(list, value++, document->filename());
-				state->documentIds.push_back(id);
-				if (checkedId.id && checkedId.id == id) {
-					state->group->setValue(value - 1);
-				}
-			}
-		}, scroll->lifetime());
+	const auto custom = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
 
-		peer->session().api().ringtones().requestList();
-	}
+	const auto rebuild = [=] {
+		state->documentIds.clear();
+		auto value = 0;
+		while (custom->count()) {
+			delete custom->widgetAt(0);
+		}
+
+		const auto checkedId = peer->owner().notifySettings().sound(peer);
+		for (const auto &id : peer->session().api().ringtones().list()) {
+			const auto chosen = (checkedId.id && checkedId.id == id);
+			const auto document = peer->session().data().document(id);
+			addToGroup(custom, value++, document->filename(), chosen);
+			state->documentIds.push_back(id);
+		}
+
+		custom->resizeToWidth(container->width());
+		if (!state->chosenButton) {
+			state->group->setValue(kDefaultValue);
+			state->defaultButton->finishAnimating();
+		}
+	};
+
+	peer->session().api().ringtones().listUpdates(
+	) | rpl::start_with_next(rebuild, container->lifetime());
+
+	peer->session().api().ringtones().requestList();
+	rebuild();
 
 	const auto upload = box->addRow(
 		Settings::CreateButton(
@@ -201,16 +214,7 @@ void RingtonesBox(
 	});
 
 	box->addSkip(st::ringtonesBoxSkip);
-	Settings::AddDivider(container);
-
-	box->addSkip(st::ringtonesBoxSkip);
-
-	Settings::AddSubsectionTitle(
-		container,
-		tr::lng_ringtones_box_local_subtitle());
-
-	addToGroup(container, kDefaultValue, tr::lng_ringtones_box_default({}));
-	addToGroup(container, kNoSoundValue, tr::lng_ringtones_box_no_sound({}));
+	Settings::AddDividerText(container, tr::lng_ringtones_box_about());
 
 	box->addSkip(st::ringtonesBoxSkip);
 
