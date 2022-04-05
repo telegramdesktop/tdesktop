@@ -604,7 +604,8 @@ void paintRow(
 			: selected
 			? st::dialogsNameFgOver
 			: st::dialogsNameFg);
-		from->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+		//draw chat's name
+		from->nameText().drawLeftElided(p, rectForName.left(), rectForName.top(), rectForName.width(), fullWidth, 1);
 	} else if (hiddenSenderInfo) {
 		p.setPen(active
 			? st::dialogsNameFgActive
