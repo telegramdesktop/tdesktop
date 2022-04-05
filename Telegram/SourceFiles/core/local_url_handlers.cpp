@@ -62,6 +62,7 @@ bool JoinGroupByHash(
 		return false;
 	}
 	Api::CheckChatInvite(controller, match->captured(1));
+	controller->window().activate();
 	return true;
 }
 
@@ -76,6 +77,7 @@ bool ShowStickerSet(
 	controller->show(Box<StickerSetBox>(
 		controller,
 		StickerSetIdentifier{ .shortName = match->captured(1) }));
+	controller->window().activate();
 	return true;
 }
 
@@ -92,6 +94,7 @@ bool ShowTheme(
 		&controller->window(),
 		match->captured(1),
 		fromMessageId);
+	controller->window().activate();
 	return true;
 }
 
@@ -109,6 +112,9 @@ bool SetLanguage(
 	} else {
 		const auto languageId = match->captured(2);
 		Lang::CurrentCloudManager().switchWithWarning(languageId);
+	}
+	if (controller) {
+		controller->window().activate();
 	}
 	return true;
 }
@@ -128,6 +134,7 @@ bool ShareUrl(
 		return false;
 	} else {
 		controller->content()->shareUrlLayer(url, params.value("text"));
+		controller->window().activate();
 		return true;
 	}
 	return false;
@@ -152,6 +159,7 @@ bool ConfirmPhone(
 		controller,
 		phone,
 		hash);
+	controller->window().activate();
 	return true;
 }
 
@@ -166,6 +174,7 @@ bool ShareGameScore(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	ShareGameScoreByHash(controller, params.value(qsl("hash")));
+	controller->window().activate();
 	return true;
 }
 
@@ -179,6 +188,9 @@ bool ApplySocksProxy(
 	ProxiesBoxController::ShowApplyConfirmation(
 		MTP::ProxyData::Type::Socks5,
 		params);
+	if (controller) {
+		controller->window().activate();
+	}
 	return true;
 }
 
@@ -192,6 +204,9 @@ bool ApplyMtprotoProxy(
 	ProxiesBoxController::ShowApplyConfirmation(
 		MTP::ProxyData::Type::Mtproto,
 		params);
+	if (controller) {
+		controller->window().activate();
+	}
 	return true;
 }
 
@@ -243,7 +258,7 @@ bool ShowWallPaper(
 	const auto bg = params.value("bg_color");
 	const auto color = params.value("color");
 	const auto gradient = params.value("gradient");
-	return BackgroundPreviewBox::Start(
+	const auto result = BackgroundPreviewBox::Start(
 		controller,
 		(!color.isEmpty()
 			? color
@@ -251,6 +266,8 @@ bool ShowWallPaper(
 			? gradient
 			: params.value(qsl("slug"))),
 		params);
+	controller->window().activate();
+	return result;
 }
 
 [[nodiscard]] ChatAdminRights ParseRequestedAdminRights(
@@ -376,6 +393,7 @@ bool ResolveUsernameOrPhone(
 			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
 	});
+	controller->window().activate();
 	return true;
 }
 
@@ -415,6 +433,7 @@ bool ResolvePrivatePost(
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.clickFromMessageId = fromMessageId,
 	});
+	controller->window().activate();
 	return true;
 }
 
@@ -442,6 +461,7 @@ bool ResolveSettings(
 		? ::Settings::Sessions::Id()
 		: ::Settings::Main::Id();
 	controller->showSettings(type);
+	controller->window().activate();
 	return true;
 }
 

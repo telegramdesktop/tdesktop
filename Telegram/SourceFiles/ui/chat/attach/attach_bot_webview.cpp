@@ -300,10 +300,12 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 Panel::Panel(
 	const QString &userDataPath,
 	rpl::producer<QString> title,
+	Fn<bool(QString)> handleLocalUri,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
 	Fn<QByteArray()> themeParams)
 : _userDataPath(userDataPath)
+, _handleLocalUri(std::move(handleLocalUri))
 , _sendData(std::move(sendData))
 , _close(std::move(close))
 , _widget(std::make_unique<SeparatePanel>()) {
@@ -553,12 +555,15 @@ bool Panel::createWebview() {
 			sendDataMessage(list.at(1));
 		} else if (command == "web_app_setup_main_button") {
 			processMainButtonMessage(list.at(1));
-		} else if (command == "web_app_request_viewport") {
-
 		}
 	});
 
-	raw->setNavigationStartHandler([=](const QString &uri) {
+	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
+		if (_handleLocalUri(uri)) {
+			return false;
+		} else if (newWindow) {
+			return true;
+		}
 		showWebviewProgress();
 		return true;
 	});
@@ -794,6 +799,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 	auto result = std::make_unique<Panel>(
 		args.userDataPath,
 		std::move(args.title),
+		std::move(args.handleLocalUri),
 		std::move(args.sendData),
 		std::move(args.close),
 		std::move(args.themeParams));

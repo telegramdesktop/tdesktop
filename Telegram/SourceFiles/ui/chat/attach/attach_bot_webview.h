@@ -32,6 +32,7 @@ public:
 	Panel(
 		const QString &userDataPath,
 		rpl::producer<QString> title,
+		Fn<bool(QString)> handleLocalUri,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
 		Fn<QByteArray()> themeParams);
@@ -75,6 +76,7 @@ private:
 	void setupProgressGeometry();
 
 	QString _userDataPath;
+	Fn<bool(QString)> _handleLocalUri;
 	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
 	std::unique_ptr<SeparatePanel> _widget;
@@ -95,6 +97,7 @@ struct Args {
 	QString userDataPath;
 	rpl::producer<QString> title;
 	rpl::producer<QString> bottom;
+	Fn<bool(QString)> handleLocalUri;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
 	Fn<QByteArray()> themeParams;

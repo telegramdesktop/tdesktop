@@ -541,8 +541,10 @@ bool Panel::createWebview() {
 		_delegate->panelWebviewMessage(message, save);
 	});
 
-	raw->setNavigationStartHandler([=](const QString &uri) {
+	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
 		if (!_delegate->panelWebviewNavigationAttempt(uri)) {
+			return false;
+		} else if (newWindow) {
 			return false;
 		}
 		showWebviewProgress();

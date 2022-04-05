@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
+#include "core/local_url_handlers.h"
+#include "ui/basic_click_handlers.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -566,8 +568,7 @@ void AttachWebView::show(
 		cancel();
 	});
 	const auto sendData = crl::guard(this, [=](QByteArray data) {
-		if (_peer != _bot) {
-			cancel();
+		if (_peer != _bot || queryId) {
 			return;
 		}
 		const auto randomId = base::RandomValue<uint64>();
@@ -581,6 +582,17 @@ void AttachWebView::show(
 		}).send();
 		cancel();
 	});
+	const auto handleLocalUri = [close](QString uri) {
+		const auto local = Core::TryConvertUrlToLocal(uri);
+		if (uri == local || Core::InternalPassportLink(local)) {
+			return local.startsWith(qstr("tg://"));
+		} else if (!local.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+			return false;
+		}
+		UrlClickHandler::Open(local, {});
+		crl::on_main(close);
+		return true;
+	};
 	auto title = Info::Profile::NameValue(
 		_bot
 	) | rpl::map([](const TextWithEntities &value) {
@@ -592,6 +604,7 @@ void AttachWebView::show(
 		.userDataPath = _session->domain().local().webviewDataPath(),
 		.title = std::move(title),
 		.bottom = rpl::single('@' + _bot->username),
+		.handleLocalUri = handleLocalUri,
 		.sendData = sendData,
 		.close = close,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
