@@ -8,14 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 
 #include "apiwrap.h"
+#include "api/api_ringtones.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "main/main_session.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
@@ -160,6 +164,42 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	} else {
 		_mutedPeers.erase(peer);
 	}
+
+	if (const auto sound = peer->notifySound(); sound && sound->id) {
+		const auto cache = [=](DocumentId id) {
+			if (const auto document = _owner->document(id)) {
+				const auto view = document->createMediaView();
+				_ringtones.views.emplace(id, view);
+				document->forceToCache(true);
+				document->save(Data::FileOriginRingtones(), QString());
+			}
+		};
+		if (const auto doc = _owner->document(sound->id); !doc->isNull()) {
+			cache(sound->id);
+		} else {
+			_ringtones.pendingIds.push_back(sound->id);
+			if (!_ringtones.pendingLifetime) {
+				// Not requested yet.
+				_owner->session().api().ringtones().listUpdates(
+				) | rpl::start_with_next([=] {
+					for (const auto &id : base::take(_ringtones.pendingIds)) {
+						cache(id);
+					}
+					_ringtones.pendingLifetime.destroy();
+				}, _ringtones.pendingLifetime);
+				_owner->session().api().ringtones().requestList();
+			}
+		}
+	}
+}
+
+std::shared_ptr<DocumentMedia> NotifySettings::lookupRingtone(
+		DocumentId id) const {
+	if (!id) {
+		return nullptr;
+	}
+	const auto it = _ringtones.views.find(id);
+	return (it == end(_ringtones.views)) ? nullptr : it->second;
 }
 
 void NotifySettings::unmuteByFinishedDelayed(crl::time delay) {

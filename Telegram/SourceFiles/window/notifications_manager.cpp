@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -467,7 +468,8 @@ void System::showNext() {
 	};
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
-	bool alert = false;
+	auto alert = false;
+	std::shared_ptr<Data::DocumentMedia> customSound = nullptr;
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto peer = i->first->peer;
@@ -475,6 +477,9 @@ void System::showNext() {
 			const auto peerUnknown = notifySettings.muteUnknown(peer);
 			const auto peerAlert = !peerUnknown
 				&& !notifySettings.isMuted(peer);
+			const auto peerSoundId = !notifySettings.soundUnknown(peer)
+				? notifySettings.sound(peer).id
+				: 0;
 			const auto from = i->second.begin()->second;
 			const auto fromUnknown = (!from
 				|| notifySettings.muteUnknown(from));
@@ -482,6 +487,9 @@ void System::showNext() {
 				&& !notifySettings.isMuted(from);
 			if (peerAlert || fromAlert) {
 				alert = true;
+				if (peerSoundId) {
+					customSound = notifySettings.lookupRingtone(peerSoundId);
+				}
 			}
 			while (!i->second.empty()
 				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
@@ -508,9 +516,18 @@ void System::showNext() {
 			}
 		}
 		if (settings.soundNotify() && !_manager->skipAudio()) {
-			ensureSoundCreated();
-			_soundTrack->playOnce();
-			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			const auto custom = customSound
+				&& !customSound->bytes().isEmpty();
+			if (custom) {
+				const auto bytes = customSound->bytes();
+				_customSoundTrack = Media::Audio::Current().createTrack();
+				_customSoundTrack->fillFromData(bytes::make_vector(bytes));
+			} else {
+				ensureSoundCreated();
+			}
+			const auto &track = custom ? _customSoundTrack : _soundTrack;
+			track->playOnce();
+			Media::Player::mixer()->suppressAll(track->getLengthMs());
 			Media::Player::mixer()->faderOnTimer();
 		}
 	}

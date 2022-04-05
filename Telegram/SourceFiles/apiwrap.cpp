@@ -2417,6 +2417,8 @@ void ApiWrap::refreshFileReference(
 				MTP_long(data.themeId),
 				MTP_long(data.accessHash)),
 			MTP_long(0)));
+	}, [&](Data::FileOriginRingtones data) {
+		fail();
 	}, [&](v::null_t) {
 		fail();
 	});

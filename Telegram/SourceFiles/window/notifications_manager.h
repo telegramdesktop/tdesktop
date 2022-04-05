@@ -181,6 +181,7 @@ private:
 	rpl::event_stream<ChangeType> _settingsChanged;
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
+	std::unique_ptr<Media::Audio::Track> _customSoundTrack;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;

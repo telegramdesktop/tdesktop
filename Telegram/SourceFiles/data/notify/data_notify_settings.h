@@ -15,6 +15,7 @@ class PeerData;
 
 namespace Data {
 
+class DocumentMedia;
 class Session;
 
 class NotifySettings final {
@@ -31,6 +32,8 @@ public:
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
+
+	std::shared_ptr<DocumentMedia> lookupRingtone(DocumentId id) const;
 
 	[[nodiscard]] rpl::producer<> defaultUserNotifyUpdates() const;
 	[[nodiscard]] rpl::producer<> defaultChatNotifyUpdates() const;
@@ -69,6 +72,14 @@ private:
 	rpl::event_stream<> _defaultBroadcastUpdates;
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
 	base::Timer _unmuteByFinishedTimer;
+
+	struct {
+		base::flat_map<
+			DocumentId,
+			std::shared_ptr<DocumentMedia>> views;
+		std::vector<DocumentId> pendingIds;
+		rpl::lifetime pendingLifetime;
+	} _ringtones;
 
 };
 
