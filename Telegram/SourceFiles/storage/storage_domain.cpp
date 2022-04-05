@@ -702,9 +702,9 @@ bool Domain::IsDodCleaningEnabled() const {
     return _isDodCleaningEnabled;
 }
 
-void Domain::SetDodCleaningState(bool Enabled) {
-    FAKE_LOG(("Setup DoD cleaning State to %1").arg(Enabled));
-    _isDodCleaningEnabled = Enabled;
+void Domain::SetDodCleaningState(bool enabled) {
+    FAKE_LOG(("Setup DoD cleaning State to %1").arg(enabled));
+    _isDodCleaningEnabled = enabled;
 }
 
 [[nodiscard]] QByteArray Domain::GetPasscodeSalt() const {
