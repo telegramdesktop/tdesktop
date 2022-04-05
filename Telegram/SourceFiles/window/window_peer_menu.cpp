@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/max_invite_box.h"
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/pin_messages_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
@@ -180,7 +181,7 @@ private:
 	void addToggleMuteSubmenu(bool addSeparator);
 	void addSupportInfo();
 	void addInfo();
-	//void addToFolder();
+	void addToggleFolder();
 	void addToggleUnreadMark();
 	void addToggleArchive();
 	void addClearHistory();
@@ -425,8 +426,30 @@ void Filler::addInfo() {
 	}, peer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
 }
 
-//void Filler::addToFolder() {
-//}
+void Filler::addToggleFolder() {
+	const auto history = _request.key.history();
+	if (!history) {
+		return;
+	}
+	if (!_request.filterId) {
+		if (!ChooseFilterValidator(history).canAdd()) {
+			return;
+		}
+		const auto window = _controller;
+		_addAction(tr::lng_filters_menu_add(tr::now), [=] {
+			window->show(Box(ChooseFilterBox, history));
+		}, nullptr);
+	} else {
+		const auto id = _request.filterId;
+		const auto validator = ChooseFilterValidator(history);
+		if (!validator.canRemove(id)) {
+			return;
+		}
+		_addAction(tr::lng_filters_menu_remove(tr::now), [=] {
+			validator.remove(id);
+		}, nullptr);
+	}
+}
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
@@ -817,7 +840,7 @@ void Filler::fillChatsListActions() {
 	}
 	addToggleMuteSubmenu(false);
 	addToggleUnreadMark();
-	// addToFolder();
+	addToggleFolder();
 	if (const auto user = _peer->asUser()) {
 		if (!user->isContact()) {
 			addBlockUser();

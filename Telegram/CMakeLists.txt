@@ -216,6 +216,8 @@ PRIVATE
     boxes/background_preview_box.h
     boxes/change_phone_box.cpp
     boxes/change_phone_box.h
+    boxes/choose_filter_box.cpp
+    boxes/choose_filter_box.h
     boxes/connection_box.cpp
     boxes/connection_box.h
     boxes/create_poll_box.cpp
