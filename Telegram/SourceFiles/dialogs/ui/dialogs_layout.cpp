@@ -879,8 +879,11 @@ void RowPainter::paint(
 			: (selected
 				? st::dialogsTextFgServiceOver
 				: st::dialogsTextFgService);
+		//creates rect for last message in each dialog
 		const auto itemRect = QRect(
-			nameleft,
+			(rtl() 
+				? fullWidth - nameleft - availableWidth 
+				: nameleft),
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
