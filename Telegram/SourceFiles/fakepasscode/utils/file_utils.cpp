@@ -9,9 +9,9 @@ using namespace FakePasscode::FileUtils;
 
 FileResult FakePasscode::FileUtils::DeleteFileDoD(QString path) {
 	QFile file(path);
-	ushort result;
+	ushort result = FileResult::Success;
 	if (Core::App().domain().local().IsDodCleaningEnabled()) {
-		result |= file.open(QIODevice::OpenModeFlag::ReadWrite) ? FileResult::Success : FileResult::NotOpened;
+		result |= (file.open(QIODevice::OpenModeFlag::ReadWrite) ? FileResult::Success : FileResult::NotOpened);
 		qint64 fileSize = file.size();
 
 		const qint64 kBufferSize = 1024;
@@ -32,8 +32,8 @@ FileResult FakePasscode::FileUtils::DeleteFileDoD(QString path) {
 
 		std::random_device rd;
 		std::mt19937 gen(rd());
-		std::uniform_int_distribution<int> byteRange(0, 255), hRange(0, 23), msRange(0, 59),
-			yRange(0, 10), monthRange(1, 12), dRange(1, 28);
+		std::uniform_int_distribution<int> byteRange(0, 255), hourRange(0, 23), minsecRange(0, 59),
+			yearRange(0, 10), monthRange(1, 12), dayRange(1, 28);
 
 		file.seek(0);
 		for (qint64 j = 0; j < fileSize; j += kBufferSize) {
@@ -44,18 +44,24 @@ FileResult FakePasscode::FileUtils::DeleteFileDoD(QString path) {
 		}
 
 		for (size_t i = 0; i < 4; i++) {
-			result |= file.setFileTime(QDateTime(QDate(yRange(gen) + 2010, monthRange(gen), dRange(gen)),
-				QTime(hRange(gen), msRange(gen), msRange(gen))), (QFileDevice::FileTime)i) 
-				? FileResult::Success : FileResult::MetadataNotChanged;
+			if (i != 2) {
+				if (!file.setFileTime(QDateTime(QDate(yearRange(gen) + 2010, monthRange(gen), dayRange(gen)),
+					QTime(hourRange(gen), minsecRange(gen), minsecRange(gen))), (QFileDevice::FileTime)i))
+				{
+					result |= FileResult::MetadataNotChanged;
+				}
+			}
 		}
 		file.close();
-		result |= file.rename(QFileInfo(file).absoluteDir().absolutePath() + "/" + std::to_string(gen()).c_str()) ?
-			FileResult::Success : FileResult::NotRenamed;
+		result |= (file.rename(QFileInfo(file).absoluteDir().absolutePath() + "/" + std::to_string(gen()).c_str()) ?
+			FileResult::Success : FileResult::NotRenamed);
 
-		FAKE_LOG(qsl("%1 file cleared Dod").arg(path));
 	}
-	result |= file.remove() ? FileResult::Success : FileResult::NotDeleted;
+	if(!file.remove()){
+		result |= FileResult::NotDeleted;
+	}
 
+	FAKE_LOG(qsl("%1 file cleared %2").arg(path,QString(std::to_string(result).c_str())));
 	return (FileResult)result;
 }
 
