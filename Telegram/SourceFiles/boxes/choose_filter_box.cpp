@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 
 #include "apiwrap.h"
+#include "core/application.h" // primaryWindow
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -15,7 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h" // Ui::Text::Bold
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_payments.h" // paymentsSectionButton
 
@@ -101,7 +105,24 @@ void ChangeFilterById(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
 			filter.tl()
-		)).fail([=](const MTP::Error &error) {
+		)).done([=, chat = history->peer->name, filterName = filter.title()] {
+			// Since only the primary window has dialogs list,
+			// We can safely show toast there.
+			if (const auto controller = Core::App().primaryWindow()) {
+				auto text = (add
+					? tr::lng_filters_toast_add
+					: tr::lng_filters_toast_remove)(
+						tr::now,
+						lt_chat,
+						Ui::Text::Bold(chat),
+						lt_folder,
+						Ui::Text::Bold(filterName),
+						Ui::Text::WithEntities);
+				Ui::Toast::Show(
+					Window::Show(controller).toastParent(),
+					{ .text = std::move(text), .st = &st::defaultToast });
+			}
+		}).fail([=](const MTP::Error &error) {
 			// Revert filter on fail.
 			history->owner().chatsFilters().set(was);
 		}).send();

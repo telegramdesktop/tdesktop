@@ -3087,6 +3087,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_menu_add" = "Add to folder";
 "lng_filters_menu_remove" = "Remove from folder";
 "lng_filters_add_box_title" = "Add to...";
+"lng_filters_toast_add" = "{chat} added to {folder} folder";
+"lng_filters_toast_remove" = "{chat} removed from {folder} folder";
 
 "lng_chat_theme_change" = "Change colors";
 "lng_chat_theme_none" = "No\nTheme";

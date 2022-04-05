@@ -260,7 +260,7 @@ void RingtonesBox(
 			? Data::NotifySound()
 			: (value == kNoSoundValue)
 			? Data::NotifySound{ .none = true }
-		: Data::NotifySound{ .id = state->documentIds[value] };
+			: Data::NotifySound{ .id = state->documentIds[value] };
 		save(sound);
 		box->closeBox();
 	});
