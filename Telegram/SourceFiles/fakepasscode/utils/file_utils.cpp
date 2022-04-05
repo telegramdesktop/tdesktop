@@ -7,7 +7,7 @@
 #include "storage/storage_domain.h"
 using namespace FakePasscode::FileUtils;
 
-FileResult FakePasscode::FileUtils::DeleteFileDoD(QString path) {
+FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 	QFile file(path);
 	ushort result = FileResult::Success;
 	if (Core::App().domain().local().IsDodCleaningEnabled()) {
@@ -74,7 +74,7 @@ bool FakePasscode::FileUtils::DeleteFolderRecursively(QString path, bool deleteR
 		}
 	}
 	for (auto& entry : dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
-		if (DeleteFileDoD(dir.path() + "/" + entry) != FileResult::Success) {
+		if (DeleteFileDod(dir.path() + "/" + entry) != FileResult::Success) {
 			isOk = false;
 		}
 	}

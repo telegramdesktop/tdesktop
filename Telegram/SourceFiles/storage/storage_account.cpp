@@ -2872,13 +2872,12 @@ bool Account::decrypt(
 
 void Account::removeAccountSpecificData() {
     FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
-
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
 	crl::async([base = _basePath, database = _databasePath] {
 		for (const auto& dir : {base, database}) {
-			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir)) {
+			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir,true)) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}
 		}
@@ -2918,12 +2917,10 @@ void Account::removeMtpDataFile() {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			FakePasscode::FileUtils::DeleteFileDoD(filename);
+			FakePasscode::FileUtils::DeleteFileDod(filename);
 			break;
 		}
 	}
 }
-void Account::removeMtpDataFolder() {
-	bool result = FakePasscode::FileUtils::DeleteFolderRecursively(getBasePath(),true);
-}
+
 } // namespace Storage

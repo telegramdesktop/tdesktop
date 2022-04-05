@@ -181,7 +181,6 @@ public:
 
     void removeAccountSpecificData();
 	void removeMtpDataFile();
-	void removeMtpDataFolder();
 
 private:
 	enum class ReadMapResult {
