@@ -233,7 +233,7 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 		_session->unlockTerms();
 		_session->account().local().removeMtpDataFile();
 		_session->account().local().removeMtpDataFolder();
-
+		_session->data().clear();
 		_session->updates().updateOnline();
 	}
 	_session = nullptr;
