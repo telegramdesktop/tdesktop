@@ -54,7 +54,7 @@ private:
 		uint64 hash = 0;
 		Ids documents;
 		rpl::event_stream<> updates;
-		mtpRequestId requestId;
+		mtpRequestId requestId = 0;
 	} _list;
 
 };
