@@ -468,8 +468,7 @@ void System::showNext() {
 	};
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
-	auto alert = false;
-	std::shared_ptr<Data::DocumentMedia> customSound = nullptr;
+	auto alertPeer = (PeerData*)nullptr;
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto peer = i->first->peer;
@@ -477,19 +476,13 @@ void System::showNext() {
 			const auto peerUnknown = notifySettings.muteUnknown(peer);
 			const auto peerAlert = !peerUnknown
 				&& !notifySettings.isMuted(peer);
-			const auto peerSoundId = !notifySettings.soundUnknown(peer)
-				? notifySettings.sound(peer).id
-				: 0;
 			const auto from = i->second.begin()->second;
 			const auto fromUnknown = (!from
 				|| notifySettings.muteUnknown(from));
 			const auto fromAlert = !fromUnknown
 				&& !notifySettings.isMuted(from);
 			if (peerAlert || fromAlert) {
-				alert = true;
-				if (peerSoundId) {
-					customSound = notifySettings.lookupRingtone(peerSoundId);
-				}
+				alertPeer = peer;
 			}
 			while (!i->second.empty()
 				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
@@ -506,7 +499,7 @@ void System::showNext() {
 		}
 	}
 	const auto &settings = Core::App().settings();
-	if (alert) {
+	if (alertPeer) {
 		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
 			if (const auto window = Core::App().primaryWindow()) {
 				if (const auto handle = window->widget()->windowHandle()) {
@@ -516,16 +509,9 @@ void System::showNext() {
 			}
 		}
 		if (settings.soundNotify() && !_manager->skipAudio()) {
-			const auto custom = customSound
-				&& !customSound->bytes().isEmpty();
-			if (custom) {
-				const auto bytes = customSound->bytes();
-				_customSoundTrack = Media::Audio::Current().createTrack();
-				_customSoundTrack->fillFromData(bytes::make_vector(bytes));
-			} else {
-				ensureSoundCreated();
-			}
-			const auto &track = custom ? _customSoundTrack : _soundTrack;
+			const auto track = lookupSound(
+				alertPeer,
+				alertPeer->owner().notifySettings().sound(alertPeer).id);
 			track->playOnce();
 			Media::Player::mixer()->suppressAll(track->getLengthMs());
 			Media::Player::mixer()->faderOnTimer();
@@ -710,6 +696,31 @@ void System::showNext() {
 	if (nextAlert) {
 		_waitTimer.callOnce(nextAlert - ms);
 	}
+}
+
+not_null<Media::Audio::Track*> System::lookupSound(
+		not_null<PeerData*> peer,
+		DocumentId id) {
+	if (!id) {
+		ensureSoundCreated();
+		return _soundTrack.get();
+	}
+	const auto i = _customSoundTracks.find(id);
+	if (i != end(_customSoundTracks)) {
+		return i->second.get();
+	}
+	const auto &notifySettings = peer->owner().notifySettings();
+	const auto custom = notifySettings.lookupRingtone(id);
+	if (custom && !custom->bytes().isEmpty()) {
+		const auto j = _customSoundTracks.emplace(
+			id,
+			Media::Audio::Current().createTrack()
+		).first;
+		j->second->fillFromData(bytes::make_vector(custom->bytes()));
+		return j->second.get();
+	}
+	ensureSoundCreated();
+	return _soundTrack.get();
 }
 
 void System::ensureSoundCreated() {

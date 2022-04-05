@@ -158,6 +158,9 @@ private:
 	void showNext();
 	void showGrouped();
 	void ensureSoundCreated();
+	[[nodiscard]] not_null<Media::Audio::Track*> lookupSound(
+		not_null<PeerData*> peer,
+		DocumentId id);
 
 	base::flat_map<
 		not_null<History*>,
@@ -181,7 +184,9 @@ private:
 	rpl::event_stream<ChangeType> _settingsChanged;
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
-	std::unique_ptr<Media::Audio::Track> _customSoundTrack;
+	base::flat_map<
+		DocumentId,
+		std::unique_ptr<Media::Audio::Track>> _customSoundTracks;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;
