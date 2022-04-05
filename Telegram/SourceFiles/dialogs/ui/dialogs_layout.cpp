@@ -453,7 +453,8 @@ void paintRow(
 		|| (supportMode
 			&& entry->session().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
-			PaintRowDate(p, date, rectForName, active, selected);
+			//paints date when drafts exists
+			PaintRowDate(p , date, rectForName, active, selected, fullWidth);
 		}
 
 		auto availableWidth = namewidth;
