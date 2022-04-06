@@ -951,7 +951,7 @@ void Session::enumerateGroups(Fn<void(not_null<PeerData*>)> action) const {
 	}
 }
 
-void Session::enumerateChannels(
+void Session::enumerateBroadcasts(
 		Fn<void(not_null<ChannelData*>)> action) const {
 	for (const auto &[peerId, peer] : _peers) {
 		if (const auto channel = peer->asChannel()) {

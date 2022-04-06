@@ -1763,6 +1763,11 @@ void ApiWrap::updateNotifySettingsDelayed(not_null<const PeerData*> peer) {
 	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
 }
 
+void ApiWrap::updateDefaultNotifySettingsDelayed(Data::DefaultNotify type) {
+	_updateNotifySettingsDefaults.emplace(type);
+	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
+}
+
 void ApiWrap::sendNotifySettingsUpdates() {
 	while (!_updateNotifySettingsPeers.empty()) {
 		const auto peer = *_updateNotifySettingsPeers.begin();
@@ -1771,6 +1776,25 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			MTP_inputNotifyPeer(peer->input),
 			peer->notifySerialize()
 		)).afterDelay(_updateNotifySettingsPeers.empty() ? 0 : 10).send();
+	}
+	const auto &settings = session().data().notifySettings();
+	while (!_updateNotifySettingsDefaults.empty()) {
+		const auto type = *_updateNotifySettingsDefaults.begin();
+		_updateNotifySettingsDefaults.erase(
+			_updateNotifySettingsDefaults.begin());
+		const auto input = [&] {
+			switch (type) {
+			case Data::DefaultNotify::User: return MTP_inputNotifyUsers();
+			case Data::DefaultNotify::Group: return MTP_inputNotifyChats();
+			case Data::DefaultNotify::Broadcast:
+				return MTP_inputNotifyBroadcasts();
+			}
+			Unexpected("Default notify type in sendNotifySettingsUpdates");
+		}();
+		request(MTPaccount_UpdateNotifySettings(
+			input,
+			settings.defaultSettings(type).serialize()
+		)).afterDelay(_updateNotifySettingsDefaults.empty() ? 0 : 10).send();
 	}
 }
 

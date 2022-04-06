@@ -33,8 +33,8 @@ constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 } // namespace
 
 NotifySettings::NotifySettings(not_null<Session*> owner)
-: _owner(owner)
-, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
+	: _owner(owner)
+	, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 }
 
 void NotifySettings::request(not_null<PeerData*> peer) {
@@ -42,7 +42,7 @@ void NotifySettings::request(not_null<PeerData*> peer) {
 		peer->session().api().requestNotifySettings(
 			MTP_inputNotifyPeer(peer->input));
 	}
-	if (defaultNotifySettings(peer).settingsUnknown()) {
+	if (defaultSettings(peer).settingsUnknown()) {
 		peer->session().api().requestNotifySettings(peer->isUser()
 			? MTP_inputNotifyUsers()
 			: (peer->isChat() || peer->isMegagroup())
@@ -54,49 +54,15 @@ void NotifySettings::request(not_null<PeerData*> peer) {
 void NotifySettings::apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings) {
-	const auto goodForUpdate = [&](
-			not_null<const PeerData*> peer,
-			const PeerNotifySettings &settings) {
-		return !peer->notifySettingsUnknown()
-			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
-				|| (!peer->notifySilentPosts() && settings.silentPosts())
-				|| (!peer->notifySound() && settings.sound()));
+	const auto set = [&](DefaultNotify type) {
+		if (defaultValue(type).settings.change(settings)) {
+			updateLocal(type);
+		}
 	};
-
 	switch (notifyPeer.type()) {
-	case mtpc_notifyUsers: {
-		if (_defaultUser.change(settings)) {
-			_defaultUserUpdates.fire({});
-
-			_owner->enumerateUsers([&](not_null<UserData*> user) {
-				if (goodForUpdate(user, _defaultUser)) {
-					updateLocal(user);
-				}
-			});
-		}
-	} break;
-	case mtpc_notifyChats: {
-		if (_defaultChat.change(settings)) {
-			_defaultChatUpdates.fire({});
-
-			_owner->enumerateGroups([&](not_null<PeerData*> peer) {
-				if (goodForUpdate(peer, _defaultChat)) {
-					updateLocal(peer);
-				}
-			});
-		}
-	} break;
-	case mtpc_notifyBroadcasts: {
-		if (_defaultBroadcast.change(settings)) {
-			_defaultBroadcastUpdates.fire({});
-
-			_owner->enumerateChannels([&](not_null<ChannelData*> channel) {
-				if (goodForUpdate(channel, _defaultBroadcast)) {
-					updateLocal(channel);
-				}
-			});
-		}
-	} break;
+	case mtpc_notifyUsers: set(DefaultNotify::User); break;
+	case mtpc_notifyChats: set(DefaultNotify::Group); break;
+	case mtpc_notifyBroadcasts: set(DefaultNotify::Broadcast); break;
 	case mtpc_notifyPeer: {
 		const auto &data = notifyPeer.c_notifyPeer();
 		if (const auto peer = _owner->peerLoaded(peerFromMTP(data.vpeer()))) {
@@ -134,13 +100,44 @@ void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 	}
 }
 
-const PeerNotifySettings &NotifySettings::defaultNotifySettings(
+auto NotifySettings::defaultValue(DefaultNotify type)
+-> DefaultValue & {
+	const auto index = static_cast<int>(type);
+	Assert(index >= 0 && index < base::array_size(_defaultValues));
+	return _defaultValues[index];
+}
+
+auto NotifySettings::defaultValue(DefaultNotify type) const
+-> const DefaultValue & {
+	const auto index = static_cast<int>(type);
+	Assert(index >= 0 && index < base::array_size(_defaultValues));
+	return _defaultValues[index];
+}
+
+const PeerNotifySettings &NotifySettings::defaultSettings(
 		not_null<const PeerData*> peer) const {
-	return peer->isUser()
-		? _defaultUser
+	return defaultSettings(peer->isUser()
+		? DefaultNotify::User
 		: (peer->isChat() || peer->isMegagroup())
-		? _defaultChat
-		: _defaultBroadcast;
+		? DefaultNotify::Group
+		: DefaultNotify::Broadcast);
+}
+
+const PeerNotifySettings &NotifySettings::defaultSettings(
+		DefaultNotify type) const {
+	return defaultValue(type).settings;
+}
+
+void NotifySettings::defaultUpdate(
+		DefaultNotify type,
+		std::optional<int> muteForSeconds,
+		std::optional<bool> silentPosts,
+		std::optional<NotifySound> sound) {
+	auto &settings = defaultValue(type).settings;
+	if (settings.change(muteForSeconds, silentPosts, sound)) {
+		updateLocal(type);
+		_owner->session().api().updateDefaultNotifySettingsDelayed(type);
+	}
 }
 
 void NotifySettings::updateLocal(not_null<PeerData*> peer) {
@@ -190,6 +187,32 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 				_owner->session().api().ringtones().requestList();
 			}
 		}
+	}
+}
+
+void NotifySettings::updateLocal(DefaultNotify type) {
+	defaultValue(type).updates.fire({});
+
+	const auto goodForUpdate = [&](
+			not_null<const PeerData*> peer,
+			const PeerNotifySettings &settings) {
+		return !peer->notifySettingsUnknown()
+			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
+				|| (!peer->notifySilentPosts() && settings.silentPosts())
+				|| (!peer->notifySound() && settings.sound()));
+	};
+
+	const auto callback = [&](not_null<PeerData*> peer) {
+		if (goodForUpdate(peer, defaultSettings(type))) {
+			updateLocal(peer);
+		}
+	};
+	switch (type) {
+	case DefaultNotify::User: _owner->enumerateUsers(callback); break;
+	case DefaultNotify::Group: _owner->enumerateGroups(callback); break;
+	case DefaultNotify::Broadcast:
+		_owner->enumerateBroadcasts(callback);
+		break;
 	}
 }
 
@@ -252,7 +275,7 @@ bool NotifySettings::isMuted(
 	if (const auto until = peer->notifyMuteUntil()) {
 		return resultFromUntil(*until);
 	}
-	const auto &settings = defaultNotifySettings(peer);
+	const auto &settings = defaultSettings(peer);
 	if (const auto until = settings.muteUntil()) {
 		return resultFromUntil(*until);
 	}
@@ -267,7 +290,7 @@ bool NotifySettings::silentPosts(not_null<const PeerData*> peer) const {
 	if (const auto silent = peer->notifySilentPosts()) {
 		return *silent;
 	}
-	const auto &settings = defaultNotifySettings(peer);
+	const auto &settings = defaultSettings(peer);
 	if (const auto silent = settings.silentPosts()) {
 		return *silent;
 	}
@@ -278,7 +301,7 @@ NotifySound NotifySettings::sound(not_null<const PeerData*> peer) const {
 	if (const auto sound = peer->notifySound()) {
 		return *sound;
 	}
-	const auto &settings = defaultNotifySettings(peer);
+	const auto &settings = defaultSettings(peer);
 	if (const auto sound = settings.sound()) {
 		return *sound;
 	}
@@ -291,7 +314,7 @@ bool NotifySettings::muteUnknown(not_null<const PeerData*> peer) const {
 	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::silentPostsUnknown(
@@ -301,7 +324,7 @@ bool NotifySettings::silentPostsUnknown(
 	} else if (const auto nonDefault = peer->notifySilentPosts()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::soundUnknown(
@@ -311,7 +334,7 @@ bool NotifySettings::soundUnknown(
 	} else if (const auto nonDefault = peer->notifySound()) {
 		return false;
 	}
-	return defaultNotifySettings(peer).settingsUnknown();
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {
@@ -320,25 +343,17 @@ bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {
 		|| soundUnknown(peer);
 }
 
-rpl::producer<> NotifySettings::defaultUserNotifyUpdates() const {
-	return _defaultUserUpdates.events();
+rpl::producer<> NotifySettings::defaultUpdates(DefaultNotify type) const {
+	return defaultValue(type).updates.events();
 }
 
-rpl::producer<> NotifySettings::defaultChatNotifyUpdates() const {
-	return _defaultChatUpdates.events();
-}
-
-rpl::producer<> NotifySettings::defaultBroadcastNotifyUpdates() const {
-	return _defaultBroadcastUpdates.events();
-}
-
-rpl::producer<> NotifySettings::defaultNotifyUpdates(
+rpl::producer<> NotifySettings::defaultUpdates(
 		not_null<const PeerData*> peer) const {
-	return peer->isUser()
-		? defaultUserNotifyUpdates()
+	return defaultUpdates(peer->isUser()
+		? DefaultNotify::User
 		: (peer->isChat() || peer->isMegagroup())
-		? defaultChatNotifyUpdates()
-		: defaultBroadcastNotifyUpdates();
+		? DefaultNotify::Group
+		: DefaultNotify::Broadcast);
 }
 
 } // namespace Data

@@ -18,6 +18,12 @@ namespace Data {
 class DocumentMedia;
 class Session;
 
+enum class DefaultNotify {
+	User,
+	Group,
+	Broadcast,
+};
+
 class NotifySettings final {
 public:
 	NotifySettings(not_null<Session*> owner);
@@ -35,11 +41,18 @@ public:
 
 	std::shared_ptr<DocumentMedia> lookupRingtone(DocumentId id) const;
 
-	[[nodiscard]] rpl::producer<> defaultUserNotifyUpdates() const;
-	[[nodiscard]] rpl::producer<> defaultChatNotifyUpdates() const;
-	[[nodiscard]] rpl::producer<> defaultBroadcastNotifyUpdates() const;
-	[[nodiscard]] rpl::producer<> defaultNotifyUpdates(
+	[[nodiscard]] rpl::producer<> defaultUpdates(DefaultNotify type) const;
+	[[nodiscard]] rpl::producer<> defaultUpdates(
 		not_null<const PeerData*> peer) const;
+
+	[[nodiscard]] const PeerNotifySettings &defaultSettings(
+		DefaultNotify type) const;
+
+	void defaultUpdate(
+		DefaultNotify type,
+		std::optional<int> muteForSeconds,
+		std::optional<bool> silentPosts = std::nullopt,
+		std::optional<NotifySound> sound = std::nullopt);
 
 	[[nodiscard]] bool isMuted(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool silentPosts(not_null<const PeerData*> peer) const;
@@ -50,26 +63,29 @@ public:
 	[[nodiscard]] bool soundUnknown(not_null<const PeerData*> peer) const;
 
 private:
+	struct DefaultValue {
+		PeerNotifySettings settings;
+		rpl::event_stream<> updates;
+	};
+
 	[[nodiscard]] bool isMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const;
 
-	[[nodiscard]] const PeerNotifySettings &defaultNotifySettings(
+	[[nodiscard]] DefaultValue &defaultValue(DefaultNotify type);
+	[[nodiscard]] const DefaultValue &defaultValue(DefaultNotify type) const;
+	[[nodiscard]] const PeerNotifySettings &defaultSettings(
 		not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool settingsUnknown(not_null<const PeerData*> peer) const;
 
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
 	void updateLocal(not_null<PeerData*> peer);
+	void updateLocal(DefaultNotify type);
 
 	const not_null<Session*> _owner;
 
-	PeerNotifySettings _defaultUser;
-	PeerNotifySettings _defaultChat;
-	PeerNotifySettings _defaultBroadcast;
-	rpl::event_stream<> _defaultUserUpdates;
-	rpl::event_stream<> _defaultChatUpdates;
-	rpl::event_stream<> _defaultBroadcastUpdates;
+	DefaultValue _defaultValues[3];
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
 	base::Timer _unmuteByFinishedTimer;
 

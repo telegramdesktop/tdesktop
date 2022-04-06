@@ -30,6 +30,7 @@ namespace Data {
 struct UpdatedFileReferences;
 class WallPaper;
 struct ResolvedForwardDraft;
+enum class DefaultNotify;
 } // namespace Data
 
 namespace InlineBots {
@@ -239,6 +240,7 @@ public:
 
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
+	void updateDefaultNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	static int OnlineTillFromStatus(
@@ -595,6 +597,7 @@ private:
 	base::Timer _topPromotionTimer;
 
 	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
+	base::flat_set<Data::DefaultNotify> _updateNotifySettingsDefaults;
 	base::Timer _updateNotifySettingsTimer;
 
 	std::map<

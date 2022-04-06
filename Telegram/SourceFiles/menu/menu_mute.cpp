@@ -231,7 +231,9 @@ void FillMuteMenu(
 
 	menu->addAction(
 		tr::lng_mute_menu_sound_select(tr::now),
-		[=, show = args.show] { show->showBox(Box(RingtonesBox, peer)); },
+		[=, show = args.show] {
+			show->showBox(Box(PeerRingtonesBox, peer));
+		},
 		&st::menuIconSoundSelect);
 
 	const auto soundIsNone = peer->owner().notifySettings().sound(peer).none;

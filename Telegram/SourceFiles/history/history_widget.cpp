@@ -793,10 +793,11 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	using Type = Data::DefaultNotify;
 	rpl::merge(
-		session().data().notifySettings().defaultUserNotifyUpdates(),
-		session().data().notifySettings().defaultChatNotifyUpdates(),
-		session().data().notifySettings().defaultBroadcastNotifyUpdates()
+		session().data().notifySettings().defaultUpdates(Type::User),
+		session().data().notifySettings().defaultUpdates(Type::Group),
+		session().data().notifySettings().defaultUpdates(Type::Broadcast)
 	) | rpl::start_with_next([=] {
 		updateNotifyControls();
 	}, lifetime());
