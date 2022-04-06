@@ -91,6 +91,9 @@ public:
     bool IsAdvancedLoggingEnabled() const;
     void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
+    bool IsDodCleaningEnabled() const;
+    void SetDodCleaningState(bool Enabled);
+
     qint32 GetFakePasscodeIndex() const;
 private:
 	enum class StartModernResult {
@@ -142,6 +145,8 @@ private:
     bool _isCacheCleanedUpOnLock = false;
 
     bool _isAdvancedLoggingEnabled = false;
+
+    bool _isDodCleaningEnabled = false;
 
 	int _oldVersion = 0;
 

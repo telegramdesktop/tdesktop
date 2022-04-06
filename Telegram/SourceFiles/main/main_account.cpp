@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
 
 namespace Main {
 namespace {
@@ -222,9 +223,12 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 	_sessionValue = nullptr;
 
 	if (reason == DestroyReason::LoggedOut) {
-		_session->finishLogout();
 		_session->data().cache().close();
 		_session->data().cacheBigFile().close();
+		_session->unlockTerms();
+		_session->data().clear();
+		_session->updates().updateOnline();
+
 	}
 	_session = nullptr;
 }
