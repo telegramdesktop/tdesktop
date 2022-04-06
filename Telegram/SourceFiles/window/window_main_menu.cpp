@@ -479,7 +479,9 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
 	const auto width = _unreadBadgeWidth;
 	const auto rectHeight = st.size;
 	const auto rectWidth = std::max(width + 2 * st.padding, rectHeight);
-	const auto left = right - rectWidth;
+	const auto left = rtl() /**unread badge next to mainMenu accounts toggle button coordination*/
+		? st::mainMenuTogglePosition.x() + st::mainMenuToggleSize * 2
+		: right - rectWidth;
 	const auto textLeft = left + (rectWidth - width) / 2;
 	const auto textTop = top + (st.textTop ? st.textTop : (rectHeight - st.font->height) / 2);
 
