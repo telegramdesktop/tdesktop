@@ -702,4 +702,12 @@ qint32 Domain::GetFakePasscodeIndex() const
     return _fakePasscodeIndex;
 }
 
+void Domain::ClearActions(size_t index)
+{
+    _fakePasscodes[index].ClearActions();
+}
+
+
+
+
 } // namespace Storage

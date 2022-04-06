@@ -17,14 +17,7 @@ void FakePasscode::DeleteActions::Execute() {
 
     const auto session = Core::App().maybeActiveSession();
     const qint32 current_passcode = session->domainLocal().GetFakePasscodeIndex();
-
-    std::for_each(kAvailableActions.begin(), kAvailableActions.end(), [=](ActionType type){
-        if (session->domainLocal().ContainsAction(current_passcode, type)){
-            FAKE_LOG(qsl("Delete action %1 for passcode %2").arg(static_cast<int>(type)).arg(current_passcode));
-            session->domainLocal().RemoveAction(current_passcode, type);
-        }
-    });
-    session->domainLocal().writeAccounts();
+    session->domainLocal().ClearActions(current_passcode);
 }
 
 QByteArray FakePasscode::DeleteActions::Serialize() const {
