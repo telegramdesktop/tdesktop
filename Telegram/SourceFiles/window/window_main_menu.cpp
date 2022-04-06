@@ -420,7 +420,10 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
 	const auto toggled = _toggledAnimation.value(_toggled ? 1. : 0.);
-	const auto x = 0. + width() - st::mainMenuTogglePosition.x();
+	const auto x = 
+		rtl() /**mainMenu toggle Accounts Button coordinations*/
+		? 0. + st::mainMenuTogglePosition.x()
+		: 0. + width() - st::mainMenuTogglePosition.x();
 	const auto y = 0. + height() - st::mainMenuTogglePosition.y();
 	const auto size = st::mainMenuToggleSize;
 	const auto size2 = size / 2.;
@@ -457,7 +460,7 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.fillPath(path, st::mainMenuCoverFg);
 
-	paintUnreadBadge(p);
+	paintUnreadBadge(p); /**paints mainMenu toggle accounts button*/
 }
 
 void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
