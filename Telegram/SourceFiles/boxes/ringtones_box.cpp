@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
+#include "data/data_document_resolver.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
@@ -71,12 +72,15 @@ void RingtonesBox(
 		if (chosen) {
 			state->group->setValue(value);
 		}
+		const auto extension = Data::FileExtension(text);
 		const auto button = verticalLayout->add(
 			object_ptr<Ui::Radiobutton>(
 				verticalLayout,
 				state->group,
 				value,
-				text,
+				extension.isEmpty()
+					? text
+					: text.mid(0, text.length() - extension.length() - 1),
 				st::defaultCheckbox),
 			padding);
 		if (chosen) {
