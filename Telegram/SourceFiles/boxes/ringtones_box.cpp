@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/base_file_utilities.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
+#include "base/unixtime.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
@@ -135,12 +136,12 @@ void RingtonesBox(
 	addToGroup(
 		container,
 		kDefaultValue,
-		tr::lng_ringtones_box_default({}),
+		tr::lng_ringtones_box_default(tr::now),
 		false);
 	addToGroup(
 		container,
 		kNoSoundValue,
-		tr::lng_ringtones_box_no_sound({}),
+		tr::lng_ringtones_box_no_sound(tr::now),
 		noSound);
 
 	const auto custom = container->add(
@@ -157,7 +158,20 @@ void RingtonesBox(
 		for (const auto &id : peer->session().api().ringtones().list()) {
 			const auto chosen = (checkedId.id && checkedId.id == id);
 			const auto document = peer->session().data().document(id);
-			addToGroup(custom, value++, document->filename(), chosen);
+			const auto text = [&] {
+				if (!document->filename().isEmpty()) {
+					return document->filename();
+				}
+				const auto date = langDateTime(
+					base::unixtime::parse(document->date));
+				const auto base = document->isVoiceMessage()
+					? (tr::lng_in_dlg_audio(tr::now) + ' ')
+					: document->isAudioFile()
+					? (tr::lng_in_dlg_audio_file(tr::now) + ' ')
+					: QString();
+				return base + date;
+			}();
+			addToGroup(custom, value++, text, chosen);
 			state->documentIds.push_back(id);
 		}
 

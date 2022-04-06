@@ -1891,6 +1891,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_set_as_quick" = "Set As Quick";
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
+"lng_context_save_custom_sound" = "Save for notifications";
 
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
@@ -3128,6 +3129,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ringtones_box_default" = "Default";
 "lng_ringtones_box_no_sound" = "No sound";
 "lng_ringtones_box_error" = "Sorry, but your file is too big.";
+"lng_ringtones_toast_added" = "Sound added!";
 
 // Wnd specific
 

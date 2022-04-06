@@ -108,6 +108,7 @@ menuIconCustomize: icon {{ "menu/customize", menuIconColor }};
 menuIconSoundOn: icon {{ "menu/sound_enable", menuIconColor }};
 menuIconSoundOff: icon {{ "menu/sound_disable", menuIconColor }};
 menuIconSoundSelect: icon {{ "menu/sound_select", menuIconColor }};
+menuIconSoundAdd: icon {{ "menu/sound_add", menuIconColor }};
 menuIconFile: icon {{ "menu/file", menuIconColor }};
 menuIconPhoto: icon {{ "menu/image", menuIconColor }};
 

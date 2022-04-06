@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_polls.h"
+#include "api/api_ringtones.h"
 #include "api/api_who_reacted.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
@@ -68,6 +69,8 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kRescheduleLimit = 20;
+constexpr auto kMaxDurationForRingtone = 10;
+constexpr auto kMaxSizeForRingtone = 1024 * 500;
 
 bool HasEditMessageAction(
 		const ContextMenuRequest &request,
@@ -292,6 +295,9 @@ void AddDocumentActions(
 			tr::lng_context_attached_stickers(tr::now),
 			std::move(callback),
 			&st::menuIconStickers);
+	}
+	if (!list->hasCopyRestriction(item)) {
+		AddSaveSoundForNotifications(menu, document, list->controller());
 	}
 	AddSaveDocumentAction(menu, item, document, list);
 }
@@ -1068,6 +1074,42 @@ void AddPollActions(
 			StopPoll(&poll->session(), itemId);
 		}, &st::menuIconStopPoll);
 	}
+}
+
+void AddSaveSoundForNotifications(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<DocumentData*> document,
+		not_null<Window::SessionController*> controller) {
+	const auto &ringtones = document->session().api().ringtones();
+	if (document->size > kMaxSizeForRingtone) {
+		return;
+	} else if (ranges::contains(ringtones.list(), document->id)) {
+		return;
+	} else if (const auto song = document->song()) {
+		if (song->duration > kMaxDurationForRingtone) {
+			return;
+		}
+	} else if (const auto voice = document->voice()) {
+		if (voice->duration > kMaxDurationForRingtone) {
+			return;
+		}
+	} else {
+		return;
+	}
+	const auto toastParent = Window::Show(controller).toastParent();
+	menu->addAction(tr::lng_context_save_custom_sound(tr::now), [=] {
+		document->session().api().request(MTPaccount_SaveRingtone(
+			document->mtpInput(),
+			MTP_bool(false)
+		)).done([=] {
+			Ui::Toast::Show(
+				toastParent,
+				tr::lng_ringtones_toast_added(tr::now));
+		}).fail([](const MTP::Error &error) {
+			LOG(("API Error: Saving ringtone failed with %1 message."
+				).arg(error.type()));
+		}).send();
+	}, &st::menuIconSoundAdd);
 }
 
 void AddWhoReactedAction(

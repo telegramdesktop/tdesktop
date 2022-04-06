@@ -60,6 +60,10 @@ void AddPollActions(
 	not_null<PollData*> poll,
 	not_null<HistoryItem*> item,
 	Context context);
+void AddSaveSoundForNotifications(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<DocumentData*> document,
+	not_null<Window::SessionController*> controller);
 void AddWhoReactedAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<QWidget*> context,
