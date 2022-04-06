@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
+#include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -325,6 +327,7 @@ void AttachWebView::request(
 }
 
 void AttachWebView::request(
+		Window::SessionController *controller,
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
 		const WebViewButton &button) {
@@ -339,7 +342,13 @@ void AttachWebView::request(
 
 	_bot = bot;
 	_peer = peer;
-	request(button);
+	if (controller) {
+		confirmOpen(controller, [=] {
+			request(button);
+		});
+	} else {
+		request(button);
+	}
 }
 
 void AttachWebView::request(const WebViewButton &button) {
@@ -444,7 +453,11 @@ void AttachWebView::requestAddToMenu(
 			if (!contextPeer) {
 				return false;
 			}
-			request(contextPeer, bot, { .startCommand = startCommand });
+			request(
+				nullptr,
+				contextPeer,
+				bot,
+				{ .startCommand = startCommand });
 			return true;
 		};
 		result.match([&](const MTPDattachMenuBotsBot &data) {
@@ -529,15 +542,22 @@ void AttachWebView::resolveUsername(
 }
 
 void AttachWebView::requestSimple(
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		const WebViewButton &button) {
 	cancel();
 	_bot = bot;
 	_peer = bot;
+	confirmOpen(controller, [=] {
+		requestSimple(button);
+	});
+}
+
+void AttachWebView::requestSimple(const WebViewButton &button) {
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
 		MTP_flags(Flag::f_theme_params),
-		bot->inputUser,
+		_bot->inputUser,
 		MTP_bytes(button.url),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams()))
 	)).done([=](const MTPSimpleWebViewResult &result) {
@@ -550,6 +570,32 @@ void AttachWebView::requestSimple(
 		_requestId = 0;
 		int a = error.code();
 	}).send();
+}
+
+void AttachWebView::confirmOpen(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> done) {
+	if (!_bot) {
+		return;
+	} else if (_bot->isVerified()
+		|| _bot->session().local().isBotTrustedOpenWebView(_bot->id)) {
+		done();
+		return;
+	}
+	const auto callback = [=] {
+		_bot->session().local().markBotTrustedOpenWebView(_bot->id);
+		controller->hideLayer();
+		done();
+	};
+	controller->show(Ui::MakeConfirmBox({
+		.text = tr::lng_allow_bot_webview(
+			tr::now,
+			lt_bot_name,
+			Ui::Text::Bold(_bot->name),
+			Ui::Text::RichLangValue),
+		.confirmed = callback,
+		.confirmText = tr::lng_box_ok(),
+	}));
 }
 
 void AttachWebView::ClearAll() {
@@ -706,7 +752,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			const auto callback = [=] {
 				const auto active = controller->activeChatCurrent();
 				if (const auto history = active.history()) {
-					bots->request(history->peer, bot.user, {});
+					bots->request(nullptr, history->peer, bot.user, {});
 				}
 			};
 			auto action = base::make_unique_q<BotAction>(

@@ -56,10 +56,12 @@ public:
 		const QString &botUsername,
 		const QString &startCommand);
 	void request(
+		Window::SessionController *controller,
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
 		const WebViewButton &button);
 	void requestSimple(
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		const WebViewButton &button);
 
@@ -84,9 +86,14 @@ public:
 private:
 	void resolve();
 	void request(const WebViewButton &button);
+	void requestSimple(const WebViewButton &button);
 	void resolveUsername(
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
+
+	void confirmOpen(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> done);
 
 	void toggleInMenu(
 		not_null<UserData*> bot,

@@ -224,18 +224,24 @@ void activateBotCommand(
 
 	case ButtonType::WebView: {
 		if (const auto bot = msg->getMessageBot()) {
-			bot->session().attachWebView().request(
-				bot,
-				bot,
-				{ .text = button->text, .url = button->data });
+			if (sessionController) {
+				bot->session().attachWebView().request(
+					sessionController,
+					bot,
+					bot,
+					{ .text = button->text, .url = button->data });
+			}
 		}
 	} break;
 
 	case ButtonType::SimpleWebView: {
 		if (const auto bot = msg->getMessageBot()) {
-			bot->session().attachWebView().requestSimple(
-				bot,
-				{ .text = button->text, .url = button->data });
+			if (sessionController) {
+				bot->session().attachWebView().requestSimple(
+					sessionController,
+					bot,
+					{ .text = button->text, .url = button->data });
+			}
 		}
 	} break;
 	}

@@ -2797,6 +2797,31 @@ bool Account::isBotTrustedPayment(PeerId botId) {
 		&& ((i->second & BotTrustFlag::Payment) != 0);
 }
 
+void Account::markBotTrustedOpenWebView(PeerId botId) {
+	if (isBotTrustedOpenWebView(botId)) {
+		return;
+	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(
+			botId,
+			BotTrustFlag::NoOpenGame | BotTrustFlag::OpenWebView);
+	} else {
+		i->second |= BotTrustFlag::OpenWebView;
+	}
+	writeTrustedBots();
+}
+
+bool Account::isBotTrustedOpenWebView(PeerId botId) {
+	if (!_trustedBotsRead) {
+		readTrustedBots();
+		_trustedBotsRead = true;
+	}
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::OpenWebView) != 0);
+}
+
 bool Account::encrypt(
 		const void *src,
 		void *dst,
