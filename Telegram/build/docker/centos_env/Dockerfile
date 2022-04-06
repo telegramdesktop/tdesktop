@@ -762,6 +762,9 @@ COPY --from=breakpad ${LibrariesPath}/breakpad breakpad
 COPY --from=breakpad ${LibrariesPath}/breakpad-cache /
 COPY --from=webrtc ${LibrariesPath}/tg_owt tg_owt
 
+RUN yum install -y apt-utils gcc g++ openssh-server cmake build-essential devtoolset-11-toolchain rsync lximage-qt gtk+-devel gtk2-devel
+RUN yum groupinstall -y "Development Tools"
+
 WORKDIR ../tdesktop
 VOLUME [ "/usr/src/tdesktop" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]

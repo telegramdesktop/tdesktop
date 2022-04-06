@@ -90,6 +90,7 @@ public:
     bool IsAdvancedLoggingEnabled() const;
     void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
+    qint32 GetFakePasscodeIndex() const;
 private:
 	enum class StartModernResult {
 		Success,

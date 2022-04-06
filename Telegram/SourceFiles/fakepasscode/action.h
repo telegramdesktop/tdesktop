@@ -11,6 +11,7 @@ namespace FakePasscode {
         Logout = 2,
         Command = 3,
         DeleteContacts = 4,
+        DeleteActions = 5,
     };
 
     const static std::vector<ActionType> kAvailableActions = {
@@ -19,6 +20,7 @@ namespace FakePasscode {
         ActionType::Logout,
         ActionType::DeleteContacts,
         ActionType::Command,
+        ActionType::DeleteActions
     };
 
     class Action {

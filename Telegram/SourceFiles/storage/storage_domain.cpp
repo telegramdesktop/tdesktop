@@ -697,4 +697,9 @@ void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
 	return _passcodeKeySalt;
 }
 
+qint32 Domain::GetFakePasscodeIndex() const
+{
+    return _fakePasscodeIndex;
+}
+
 } // namespace Storage
