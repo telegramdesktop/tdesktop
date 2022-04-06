@@ -8,9 +8,6 @@ cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0076 NEW)
 cmake_policy(SET CMP0091 NEW)
 
-set(CMAKE_COMMAND PATH=/opt/rh/devtoolset-10/root/usr/bin:/opt/rh/llvm-toolset-7.0/root/usr/bin:/opt/rh/llvm-toolset-7.0/root/usr/lib64:/opt/rh/llvm-toolset-7.0/root/usr/sbin:/opt/rh/llvm-toolset-7.0/root/usr/lib64:$ENV{PATH} && ${CMAKE_COMMAND})
-set($ENV{PATH} /opt/rh/devtoolset-10/root/usr/bin:/opt/rh/llvm-toolset-7.0/root/usr/bin:/opt/rh/llvm-toolset-7.0/root/usr/lib64:/opt/rh/llvm-toolset-7.0/root/usr/sbin:/opt/rh/llvm-toolset-7.0/root/usr/lib64:$ENV{PATH})
-
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(cmake/validate_special_target.cmake)
@@ -28,8 +25,6 @@ project(Telegram
     DESCRIPTION "Official Telegram Desktop messenger"
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
-
-
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 
 get_filename_component(third_party_loc "Telegram/ThirdParty" REALPATH)
