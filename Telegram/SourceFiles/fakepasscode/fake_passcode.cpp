@@ -34,7 +34,11 @@ void FakePasscode::FakePasscode::RemoveAction(ActionType type) {
     actions_.erase(type);
     state_changed_.fire({});
 }
-
+void FakePasscode::FakePasscode::ClearActions(){
+    FAKE_LOG(qsl("Clear actions for passcode %1").arg(name_));
+    actions_.clear();
+    state_changed_.fire({});
+}
 const FakePasscode::Action *FakePasscode::FakePasscode::operator[](ActionType type) const {
     FAKE_LOG(qsl("Get action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
     if (auto pos = actions_.find(type); pos != actions_.end()) {

@@ -82,6 +82,7 @@ public:
     void RemoveAction(size_t index, FakePasscode::ActionType type);
     bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
     const FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type) const;
+    void ClearActions(size_t index);
     FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type);
 
     bool IsCacheCleanedUpOnLock() const;
@@ -93,6 +94,7 @@ public:
     bool IsDodCleaningEnabled() const;
     void SetDodCleaningState(bool Enabled);
 
+    qint32 GetFakePasscodeIndex() const;
 private:
 	enum class StartModernResult {
 		Success,
