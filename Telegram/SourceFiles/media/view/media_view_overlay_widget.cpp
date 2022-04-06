@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -995,6 +996,47 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { showMediaOverview(); },
 			&st::mediaMenuIconShowAll);
 	}
+	[&] { // Set userpic.
+		if (!_peer || !_photo || (_peer->userpicPhotoId() == _photo->id)) {
+			return;
+		}
+		using Type = SharedMediaType;
+		if (sharedMediaType().value_or(Type::File) == Type::ChatPhoto) {
+			if (const auto chat = _peer->asChat()) {
+				if (!chat->canEditInformation()) {
+					return;
+				}
+			} else if (const auto channel = _peer->asChannel()) {
+				if (!channel->canEditInformation()) {
+					return;
+				}
+			} else {
+				return;
+			}
+		} else if (userPhotosKey()) {
+			if (_user != _user->session().user()) {
+				return;
+			}
+		} else {
+			return;
+		}
+		const auto photo = _photo;
+		const auto peer = _peer;
+		addAction(tr::lng_mediaview_set_userpic(tr::now), [=] {
+			auto lifetime = std::make_shared<rpl::lifetime>();
+			peer->session().changes().peerFlagsValue(
+				peer,
+				Data::PeerUpdate::Flag::Photo
+			) | rpl::start_with_next([=]() mutable {
+				if (lifetime) {
+					base::take(lifetime)->destroy();
+				}
+				close();
+			}, *lifetime);
+
+			peer->session().api().peerPhoto().set(peer, photo);
+		}, &st::mediaMenuIconProfile);
+	}();
 }
 
 auto OverlayWidget::computeOverviewType() const

@@ -129,6 +129,7 @@ mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
 mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
 mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
+mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
 
 menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
 menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};

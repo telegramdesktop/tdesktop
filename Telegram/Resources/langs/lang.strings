@@ -2043,6 +2043,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_today" = "today at {time}";
 "lng_mediaview_yesterday" = "yesterday at {time}";
 "lng_mediaview_date_time" = "{date} at {time}";
+"lng_mediaview_set_userpic" = "Set as Main";
 
 "lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";
