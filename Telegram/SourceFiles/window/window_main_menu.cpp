@@ -292,7 +292,7 @@ void MainMenu::AccountButton::paintUserpic(Painter &p) {
 		q.setCompositionMode(QPainter::CompositionMode_Source);
 		q.setPen(iconBorderPen);
 		q.setBrush(st::dialogsUnreadBg);
-		q.drawEllipse(iconEllipse);
+		q.drawEllipse(iconEllipse); /**draws white border around tick badge*/
 
 		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		st::mainMenuAccountCheck.check.paintInCenter(q, iconEllipse);
