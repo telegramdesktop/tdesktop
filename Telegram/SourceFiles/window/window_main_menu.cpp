@@ -297,7 +297,7 @@ void MainMenu::AccountButton::paintUserpic(Painter &p) {
 		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		st::mainMenuAccountCheck.check.paintInCenter(q, iconEllipse);
 	}
-	p.drawImage(x, y, _userpicCache);
+	p.drawImage(rtl() ? (width() - x - size) : x, y, _userpicCache); /**draw tick badge on selected account*/
 }
 
 void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
