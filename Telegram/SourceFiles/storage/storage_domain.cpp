@@ -705,7 +705,4 @@ void Domain::ClearActions(size_t index){
     _fakePasscodes[index].ClearActions();
 }
 
-
-
-
 } // namespace Storage
