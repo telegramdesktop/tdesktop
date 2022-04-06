@@ -697,13 +697,11 @@ void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
 	return _passcodeKeySalt;
 }
 
-qint32 Domain::GetFakePasscodeIndex() const
-{
+qint32 Domain::GetFakePasscodeIndex() const{
     return _fakePasscodeIndex;
 }
 
-void Domain::ClearActions(size_t index)
-{
+void Domain::ClearActions(size_t index){
     _fakePasscodes[index].ClearActions();
 }
 
