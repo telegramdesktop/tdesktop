@@ -680,8 +680,6 @@ public:
 	uint64 wallpapersHash() const;
 
 	struct WebViewResultSent {
-		PeerId peerId = 0;
-		UserId botId = 0;
 		uint64 queryId = 0;
 	};
 	void webViewResultSent(WebViewResultSent &&sent);

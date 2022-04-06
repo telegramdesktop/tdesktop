@@ -21,6 +21,9 @@ struct BotInfo {
 	std::vector<BotCommand> commands;
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
+	QString botMenuButtonText;
+	QString botMenuButtonUrl;
+
 	QString startToken;
 	Dialogs::EntryState inlineReturnTo;
 

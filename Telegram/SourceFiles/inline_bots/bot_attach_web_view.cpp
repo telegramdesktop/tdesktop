@@ -663,9 +663,7 @@ void AttachWebView::started(uint64 queryId) {
 
 	_session->data().webViewResultSent(
 	) | rpl::filter([=](const Data::Session::WebViewResultSent &sent) {
-		return (sent.peerId == _peer->id)
-			&& (sent.botId == _bot->id)
-			&& (sent.queryId == queryId);
+		return (sent.queryId == queryId);
 	}) | rpl::start_with_next([=] {
 		cancel();
 	}, _panel->lifetime());

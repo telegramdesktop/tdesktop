@@ -637,7 +637,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 
 		using Flag = ChatDataFlag;
 		const auto flagsMask = Flag::Left
-			| Flag::Kicked
 			| Flag::Creator
 			| Flag::Deactivated
 			| Flag::Forbidden
@@ -645,7 +644,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallNotEmpty
 			| Flag::NoForwards;
 		const auto flagsSet = (data.is_left() ? Flag::Left : Flag())
-			| (data.is_kicked() ? Flag::Kicked : Flag())
 			| (data.is_creator() ? Flag::Creator : Flag())
 			| (data.is_deactivated() ? Flag::Deactivated : Flag())
 			| (data.is_call_active() ? Flag::CallActive : Flag())

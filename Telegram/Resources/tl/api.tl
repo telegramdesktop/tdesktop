@@ -123,7 +123,7 @@ userStatusLastWeek#7bf09fc = UserStatus;
 userStatusLastMonth#77ebc742 = UserStatus;
 
 chatEmpty#29562865 id:long = Chat;
-chat#41cbf256 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true deactivated:flags.5?true call_active:flags.23?true call_not_empty:flags.24?true noforwards:flags.25?true id:long title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel admin_rights:flags.14?ChatAdminRights default_banned_rights:flags.18?ChatBannedRights = Chat;
+chat#41cbf256 flags:# creator:flags.0?true left:flags.2?true deactivated:flags.5?true call_active:flags.23?true call_not_empty:flags.24?true noforwards:flags.25?true id:long title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel admin_rights:flags.14?ChatAdminRights default_banned_rights:flags.18?ChatBannedRights = Chat;
 chatForbidden#6592a1a7 id:long title:string = Chat;
 channel#8261ac61 flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true call_active:flags.23?true call_not_empty:flags.24?true fake:flags.25?true gigagroup:flags.26?true noforwards:flags.27?true id:long access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int = Chat;
 channelForbidden#17d493d5 flags:# broadcast:flags.5?true megagroup:flags.8?true id:long access_hash:long title:string until_date:flags.16?int = Chat;
@@ -387,7 +387,8 @@ updatePendingJoinRequests#7063c3db peer:Peer requests_pending:int recent_request
 updateBotChatInviteRequester#11dfa986 peer:Peer date:int user_id:long about:string invite:ExportedChatInvite qts:int = Update;
 updateMessageReactions#154798c3 peer:Peer msg_id:int reactions:MessageReactions = Update;
 updateAttachMenuBots#17b7a20b = Update;
-updateWebViewResultSent#f8f63baa peer:Peer bot_id:long query_id:long = Update;
+updateWebViewResultSent#1592b79d query_id:long = Update;
+updateBotMenuButton#14b85813 bot_id:long button:BotMenuButton = Update;
 updateSavedRingtones#74d8be99 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
@@ -580,7 +581,7 @@ messages.stickerSetNotModified#d3f924eb = messages.StickerSet;
 
 botCommand#c27ac8c7 command:string description:string = BotCommand;
 
-botInfo#1b74b335 user_id:long description:string commands:Vector<BotCommand> = BotInfo;
+botInfo#e4169b5d user_id:long description:string commands:Vector<BotCommand> menu_button:BotMenuButton = BotInfo;
 
 keyboardButton#a2fa4880 text:string = KeyboardButton;
 keyboardButtonUrl#258aff05 text:string url:string = KeyboardButton;
@@ -1353,6 +1354,10 @@ simpleWebViewResultUrl#882f76bb url:string = SimpleWebViewResult;
 
 webViewMessageSent#c94511c flags:# msg_id:flags.0?InputBotInlineMessageID = WebViewMessageSent;
 
+botMenuButtonDefault#7533a588 = BotMenuButton;
+botMenuButtonCommands#4258c205 = BotMenuButton;
+botMenuButton#c7b57ce6 text:string url:string = BotMenuButton;
+
 account.savedRingtonesNotModified#fbf6e8b1 = account.SavedRingtones;
 account.savedRingtones#c1e92cc5 hash:long ringtones:Vector<Document> = account.SavedRingtones;
 
@@ -1656,10 +1661,10 @@ messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = mes
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
 messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#1aee33af bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#fa04dff flags:# silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
+messages.requestWebView#fa04dff flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
 messages.prolongWebView#d22ad148 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int = Bool;
 messages.requestSimpleWebView#6abb2f73 flags:# bot:InputUser url:string theme_params:flags.0?DataJSON = SimpleWebViewResult;
-messages.sendWebViewResultMessage#ddcf50eb query_id:long result:InputBotInlineResult = WebViewMessageSent;
+messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
 
 updates.getState#edd4882a = updates.State;
@@ -1748,6 +1753,10 @@ bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
 bots.setBotCommands#517165a scope:BotCommandScope lang_code:string commands:Vector<BotCommand> = Bool;
 bots.resetBotCommands#3d8de0f9 scope:BotCommandScope lang_code:string = Bool;
 bots.getBotCommands#e34c0dd6 scope:BotCommandScope lang_code:string = Vector<BotCommand>;
+bots.setBotMenuButton#4504d54f user_id:InputUser button:BotMenuButton = Bool;
+bots.getBotMenuButton#9c60eb28 user_id:InputUser = BotMenuButton;
+bots.setBotBroadcastDefaultAdminRights#788464e1 admin_rights:ChatAdminRights = Bool;
+bots.setBotGroupDefaultAdminRights#925ec9ea admin_rights:ChatAdminRights = Bool;
 
 payments.getPaymentForm#8a333c8d flags:# peer:InputPeer msg_id:int theme_params:flags.0?DataJSON = payments.PaymentForm;
 payments.getPaymentReceipt#2478d1cc peer:InputPeer msg_id:int = payments.PaymentReceipt;
