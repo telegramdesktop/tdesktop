@@ -22,7 +22,7 @@ class Ringtones final {
 public:
 	explicit Ringtones(not_null<ApiWrap*> api);
 
-	using Ids = std::unordered_set<DocumentId>;
+	using Ids = std::vector<DocumentId>;
 
 	void requestList();
 	void applyUpdate();
@@ -36,6 +36,7 @@ public:
 	[[nodiscard]] const Ids &list() const;
 	[[nodiscard]] rpl::producer<> listUpdates() const;
 	[[nodiscard]] rpl::producer<QString> uploadFails() const;
+	[[nodiscard]] rpl::producer<DocumentId> uploadDones() const;
 
 private:
 	struct UploadedData {
@@ -49,6 +50,7 @@ private:
 
 	base::flat_map<FullMsgId, UploadedData> _uploads;
 	rpl::event_stream<QString> _uploadFails;
+	rpl::event_stream<DocumentId> _uploadDones;
 
 	struct {
 		uint64 hash = 0;

@@ -43,9 +43,34 @@ constexpr auto kNoSoundValue = -2;
 
 } // namespace
 
+QString ExtractRingtoneName(not_null<DocumentData*> document) {
+	if (document->isNull()) {
+		return QString();
+	}
+	const auto name = document->filename();
+	if (!name.isEmpty()) {
+		const auto extension = Data::FileExtension(name);
+		if (extension.isEmpty()) {
+			return name;
+		} else if (name.size() > extension.size() + 1) {
+			return name.mid(0, name.size() - extension.size() - 1);
+		}
+	}
+	const auto date = langDateTime(
+		base::unixtime::parse(document->date));
+	const auto base = document->isVoiceMessage()
+		? (tr::lng_in_dlg_audio(tr::now) + ' ')
+		: document->isAudioFile()
+		? (tr::lng_in_dlg_audio_file(tr::now) + ' ')
+		: QString();
+	return base + date;
+}
+
 void RingtonesBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
+		not_null<Main::Session*> session,
+		Data::NotifySound selected,
+		Fn<void(Data::NotifySound)> save) {
 	box->setTitle(tr::lng_ringtones_box_title());
 
 	const auto container = box->verticalLayout();
@@ -56,13 +81,15 @@ void RingtonesBox(
 	struct State {
 		std::shared_ptr<Ui::RadiobuttonGroup> group;
 		std::vector<DocumentId> documentIds;
+		Data::NotifySound chosen;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		QPointer<Ui::Radiobutton> defaultButton;
 		QPointer<Ui::Radiobutton> chosenButton;
 		std::vector<QPointer<Ui::Radiobutton>> buttons;
 	};
 	const auto state = container->lifetime().make_state<State>(State{
-		std::make_shared<Ui::RadiobuttonGroup>(),
+		.group = std::make_shared<Ui::RadiobuttonGroup>(),
+		.chosen = selected,
 	});
 
 	const auto addToGroup = [=](
@@ -73,15 +100,12 @@ void RingtonesBox(
 		if (chosen) {
 			state->group->setValue(value);
 		}
-		const auto extension = Data::FileExtension(text);
 		const auto button = verticalLayout->add(
 			object_ptr<Ui::Radiobutton>(
 				verticalLayout,
 				state->group,
 				value,
-				extension.isEmpty()
-					? text
-					: text.mid(0, text.length() - extension.length() - 1),
+				text,
 				st::defaultCheckbox),
 			padding);
 		if (chosen) {
@@ -105,7 +129,7 @@ void RingtonesBox(
 				st::popupMenuWithIcons);
 			auto callback = [=] {
 				const auto id = state->documentIds[value];
-				peer->session().api().ringtones().remove(id);
+				session->api().ringtones().remove(id);
 			};
 			state->menu->addAction(
 				tr::lng_box_delete(tr::now),
@@ -116,7 +140,7 @@ void RingtonesBox(
 		});
 	};
 
-	peer->session().api().ringtones().uploadFails(
+	session->api().ringtones().uploadFails(
 	) | rpl::start_with_next([=](const QString &error) {
 		if ((error == u"RINGTONE_DURATION_TOO_LONG"_q)
 			|| (error == u"RINGTONE_SIZE_TOO_BIG"_q)) {
@@ -132,7 +156,7 @@ void RingtonesBox(
 		container,
 		tr::lng_ringtones_box_cloud_subtitle());
 
-	const auto noSound = peer->owner().notifySettings().sound(peer).none;
+	const auto noSound = selected.none;
 	addToGroup(
 		container,
 		kDefaultValue,
@@ -154,23 +178,10 @@ void RingtonesBox(
 			delete custom->widgetAt(0);
 		}
 
-		const auto checkedId = peer->owner().notifySettings().sound(peer);
-		for (const auto &id : peer->session().api().ringtones().list()) {
-			const auto chosen = (checkedId.id && checkedId.id == id);
-			const auto document = peer->session().data().document(id);
-			const auto text = [&] {
-				if (!document->filename().isEmpty()) {
-					return document->filename();
-				}
-				const auto date = langDateTime(
-					base::unixtime::parse(document->date));
-				const auto base = document->isVoiceMessage()
-					? (tr::lng_in_dlg_audio(tr::now) + ' ')
-					: document->isAudioFile()
-					? (tr::lng_in_dlg_audio_file(tr::now) + ' ')
-					: QString();
-				return base + date;
-			}();
+		for (const auto &id : session->api().ringtones().list()) {
+			const auto chosen = (state->chosen.id && state->chosen.id == id);
+			const auto document = session->data().document(id);
+			const auto text = ExtractRingtoneName(document);
 			addToGroup(custom, value++, text, chosen);
 			state->documentIds.push_back(id);
 		}
@@ -182,10 +193,16 @@ void RingtonesBox(
 		}
 	};
 
-	peer->session().api().ringtones().listUpdates(
+	session->api().ringtones().listUpdates(
 	) | rpl::start_with_next(rebuild, container->lifetime());
 
-	peer->session().api().ringtones().requestList();
+	session->api().ringtones().uploadDones(
+	) | rpl::start_with_next([=](DocumentId id) {
+		state->chosen = Data::NotifySound{ .id = id };
+		rebuild();
+	}, container->lifetime());
+
+	session->api().ringtones().requestList();
 	rebuild();
 
 	const auto upload = box->addRow(
@@ -221,7 +238,7 @@ void RingtonesBox(
 					name = "audio";
 				}
 
-				peer->session().api().ringtones().upload(name, mime, content);
+				session->api().ringtones().upload(name, mime, content);
 			};
 			FileDialog::GetOpenPath(
 				box.get(),
@@ -243,9 +260,18 @@ void RingtonesBox(
 			? Data::NotifySound()
 			: (value == kNoSoundValue)
 			? Data::NotifySound{ .none = true }
-			: Data::NotifySound{ .id = state->documentIds[value] };
-		peer->owner().notifySettings().update(peer, {}, {}, sound);
+		: Data::NotifySound{ .id = state->documentIds[value] };
+		save(sound);
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void PeerRingtonesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer) {
+	const auto now = peer->owner().notifySettings().sound(peer);
+	RingtonesBox(box, &peer->session(), now, [=](Data::NotifySound sound) {
+		peer->owner().notifySettings().update(peer, {}, {}, sound);
+	});
 }

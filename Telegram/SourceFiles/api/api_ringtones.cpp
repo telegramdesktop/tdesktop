@@ -112,7 +112,9 @@ void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		MTP_string(uploadedData.filename),
 		MTP_string(uploadedData.filemime)
 	)).done([=](const MTPDocument &result) {
-		_session->data().processDocument(result);
+		const auto document = _session->data().processDocument(result);
+		_list.documents.insert(_list.documents.begin(), document->id);
+		_uploadDones.fire_copy(document->id);
 	}).fail([=](const MTP::Error &error) {
 		_uploadFails.fire_copy(error.type());
 	}).send();
@@ -128,11 +130,11 @@ void Ringtones::requestList() {
 		_list.requestId = 0;
 		result.match([&](const MTPDaccount_savedRingtones &data) {
 			_list.hash = data.vhash().v;
-			_list.documents.reserve(_list.documents.size()
-				+ data.vringtones().v.size());
+			_list.documents.clear();
+			_list.documents.reserve(data.vringtones().v.size());
 			for (const auto &d : data.vringtones().v) {
 				const auto document = _session->data().processDocument(d);
-				_list.documents.emplace(document->id);
+				_list.documents.emplace_back(document->id);
 			}
 			requestList();
 			_list.updates.fire({});
@@ -153,6 +155,10 @@ rpl::producer<> Ringtones::listUpdates() const {
 
 rpl::producer<QString> Ringtones::uploadFails() const {
 	return _uploadFails.events();
+}
+
+rpl::producer<DocumentId> Ringtones::uploadDones() const {
+	return _uploadDones.events();
 }
 
 void Ringtones::applyUpdate() {
