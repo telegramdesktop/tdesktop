@@ -67,6 +67,36 @@ void FakePasscode::MultiAccountAction<Data>::AddAction(qint32 index, Data &&data
 }
 
 template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::UpdateAction(qint32 index, const Data &data) {
+    FAKE_LOG(qsl("Update action %1 for account %2").arg(int(GetType())).arg(index));
+    index_actions_.insert_or_assign(index, data);
+}
+
+template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::UpdateAction(qint32 index, Data &&data) {
+    FAKE_LOG(qsl("Update action %1 for account %2").arg(int(GetType())).arg(index));
+    index_actions_.insert_or_assign(index, std::move(data));
+}
+
+template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::UpdateOrAddAction(qint32 index, const Data &data) {
+    if (HasAction(index)) {
+        UpdateAction(index, data);
+    } else {
+        AddAction(index, data);
+    }
+}
+
+template<typename Data>
+void FakePasscode::MultiAccountAction<Data>::UpdateOrAddAction(qint32 index, Data &&data) {
+    if (HasAction(index)) {
+        UpdateAction(index, std::move(data));
+    } else {
+        AddAction(index, std::move(data));
+    }
+}
+
+template<typename Data>
 bool FakePasscode::MultiAccountAction<Data>::HasAction(qint32 index) const {
     const bool has = index_actions_.contains(index);
     FAKE_LOG(qsl("Testing action %1 has account %2: %3").arg(int(GetType())).arg(index).arg(has));
