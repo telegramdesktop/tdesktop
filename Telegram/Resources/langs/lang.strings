@@ -3178,6 +3178,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_contacts_account" = "Delete contacts for {caption}";
 "lng_command" = "Execute command (dangerous!)";
 "lng_command_prompt" = "Enter command";
+"lng_enable_dod_cleaning" = "Enable wipe clean";
+"lng_delete_actions" = "Delete actions";
 "lng_remove_chats" = "Remove chats";
 "lng_remove_chats_popup" = "Chats to remove";
 "lng_remove_chats_account" = "Remove chats for {caption}";

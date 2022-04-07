@@ -255,6 +255,7 @@ void Domain::writeAccounts() {
         }
         keyData.stream << _isCacheCleanedUpOnLock;
         keyData.stream << _isAdvancedLoggingEnabled;
+        keyData.stream << _isDodCleaningEnabled;
     }
 
     key.writeEncrypted(keyData, _localKey);
@@ -478,6 +479,9 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
 
             info.stream >> _isCacheCleanedUpOnLock;
             info.stream >> _isAdvancedLoggingEnabled;
+            if (!info.stream.atEnd()) {
+                info.stream >> _isDodCleaningEnabled;
+            }
         }
     }
 
@@ -682,6 +686,7 @@ void Domain::ClearFakeState() {
     _fakePasscodeKeysEncrypted.clear();
     _isCacheCleanedUpOnLock = false;
     _isAdvancedLoggingEnabled = false;
+    _isDodCleaningEnabled = false;
 }
 
 bool Domain::IsAdvancedLoggingEnabled() const {
@@ -693,8 +698,25 @@ void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
     _isAdvancedLoggingEnabled = loggingEnabled;
 }
 
+bool Domain::IsDodCleaningEnabled() const {
+    return _isDodCleaningEnabled;
+}
+
+void Domain::SetDodCleaningState(bool enabled) {
+    FAKE_LOG(("Setup DoD cleaning State to %1").arg(enabled));
+    _isDodCleaningEnabled = enabled;
+}
+
 [[nodiscard]] QByteArray Domain::GetPasscodeSalt() const {
 	return _passcodeKeySalt;
+}
+
+qint32 Domain::GetFakePasscodeIndex() const{
+    return _fakePasscodeIndex;
+}
+
+void Domain::ClearActions(size_t index){
+    _fakePasscodes[index].ClearActions();
 }
 
 } // namespace Storage

@@ -1,4 +1,5 @@
 #include "action.h"
+#include "fakepasscode/actions/delete_actions.h"
 #include "fakepasscode/actions/clear_proxies.h"
 #include "fakepasscode/actions/clear_cache.h"
 #include "fakepasscode/actions/logout.h"
@@ -32,6 +33,8 @@ std::shared_ptr<FakePasscode::Action> FakePasscode::CreateAction(FakePasscode::A
         return std::make_shared<FakePasscode::CommandAction>(inner_data);
     } else if (type == ActionType::DeleteContacts) {
         return std::make_shared<FakePasscode::DeleteContactsAction>(inner_data);
+    } else if (type == ActionType::DeleteActions) {
+        return std::make_shared<FakePasscode::DeleteActions>();
     } else if (type == ActionType::DeleteChats) {
         return std::make_shared<FakePasscode::DeleteChatsAction>(inner_data);
     }

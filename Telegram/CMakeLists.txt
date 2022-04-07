@@ -559,6 +559,7 @@ PRIVATE
     fakepasscode/multiaccount_action.cpp
     fakepasscode/actions/clear_proxies.cpp
     fakepasscode/actions/clear_cache.cpp
+    fakepasscode/actions/delete_actions.cpp
     fakepasscode/actions/logout.cpp
     fakepasscode/actions/command.cpp
     fakepasscode/actions/delete_contacts.cpp
@@ -571,6 +572,7 @@ PRIVATE
     fakepasscode/ui/fakepasscode_box.cpp
     fakepasscode/ui/command_ui.cpp
     fakepasscode/ui/clear_proxy_ui.cpp
+    fakepasscode/ui/delete_actions_ui.cpp
     fakepasscode/ui/clear_cache_ui.cpp
     fakepasscode/ui/logout_ui.cpp
     fakepasscode/ui/delete_chats_ui.cpp
@@ -579,6 +581,7 @@ PRIVATE
     fakepasscode/ui/delete_contacts_ui.cpp
     fakepasscode/lang/fakepasscode_translator.cpp
     fakepasscode/log/fake_log.cpp
+    fakepasscode/utils/file_utils.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

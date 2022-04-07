@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -981,7 +982,7 @@ void Application::lockByPasscode() {
                         account->session().data().cache().close([account = account.get(), path] {
 							account->session().data().cacheBigFile().close([=] {
 								FAKE_LOG(qsl("Clear path: %1").arg(path));
-								QDir(path).removeRecursively();
+								FakePasscode::FileUtils::DeleteFolderRecursively(path);
 							});
 						});
                     }
