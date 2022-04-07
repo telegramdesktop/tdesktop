@@ -44,12 +44,9 @@ MessageIdsList HistoryItemsFromTL(
 
 } // namespace
 
-MessagesSearch::MessagesSearch(
-	not_null<Main::Session*> session,
-	not_null<History*> history)
-: _session(session)
-, _history(history)
-, _api(&session->mtp()) {
+MessagesSearch::MessagesSearch(not_null<History*> history)
+: _history(history)
+, _api(&history->session().mtp()) {
 }
 
 void MessagesSearch::searchMessages(const QString &query, PeerData *from) {
@@ -115,7 +112,7 @@ void MessagesSearch::searchRequest() {
 		}).send();
 		return _requestId;
 	};
-	_searchInHistoryRequest = _session->data().histories().sendRequest(
+	_searchInHistoryRequest = _history->owner().histories().sendRequest(
 		_history,
 		Data::Histories::RequestType::History,
 		std::move(callback));
@@ -128,7 +125,7 @@ void MessagesSearch::searchReceived(
 	if (requestId != _requestId) {
 		return;
 	}
-	auto &owner = _session->data();
+	auto &owner = _history->owner();
 	auto found = result.match([&](const MTPDmessages_messages &data) {
 		if (_requestId != 0) {
 			// Don't apply cached data!

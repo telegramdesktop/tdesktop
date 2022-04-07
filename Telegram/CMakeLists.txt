@@ -131,6 +131,8 @@ PRIVATE
     api/api_media.h
     api/api_messages_search.cpp
     api/api_messages_search.h
+    api/api_messages_search_merged.cpp
+    api/api_messages_search_merged.h
     api/api_peer_photo.cpp
     api/api_peer_photo.h
     api/api_polls.cpp

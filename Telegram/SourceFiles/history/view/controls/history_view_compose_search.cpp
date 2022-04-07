@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_compose_search.h"
 
-#include "api/api_messages_search.h"
+#include "api/api_messages_search_merged.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
@@ -29,17 +29,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+using SearchRequest = Api::MessagesSearchMerged::Request;
+
 [[nodiscard]] inline bool HasChooseFrom(not_null<History*> history) {
 	if (const auto peer = history->peer) {
 		return (peer->isChat() || peer->isMegagroup());
 	}
 	return false;
 }
-
-struct SearchRequest {
-	QString query;
-	PeerData *from = nullptr;
-};
 
 class Row final : public PeerListRow {
 public:
@@ -269,7 +266,7 @@ private:
 
 	base::Timer _searchTimer;
 
-	std::vector<SearchRequest> _typedRequests;
+	Api::MessagesSearchMerged::CachedRequests _typedRequests;
 
 	rpl::event_stream<SearchRequest> _searchRequests;
 	rpl::event_stream<> _queryChanges;
@@ -342,18 +339,17 @@ void TopBar::clearItems() {
 void TopBar::requestSearch(bool cache) {
 	const auto search = SearchRequest{ _select->getQuery(), _from.current() };
 	if (cache) {
-		_typedRequests.push_back(search);
+		_typedRequests.insert(search);
 	}
 	_searchRequests.fire_copy(search);
 }
 
 void TopBar::requestSearchDelayed() {
 	// Check cached queries.
-	for (const auto &t : _typedRequests) {
-		if (t.query == _select->getQuery() && t.from == _from.current()) {
-			requestSearch(false);
-			return;
-		}
+	const auto search = SearchRequest{ _select->getQuery(), _from.current() };
+	if (_typedRequests.contains(search)) {
+		requestSearch(false);
+		return;
 	}
 
 	_searchTimer.callOnce(AutoSearchTimeout);
@@ -575,134 +571,6 @@ void BottomBar::buttonCalendarToggleOn(rpl::producer<bool> &&visible) {
 	}, _jumpToDate->lifetime());
 }
 
-class ApiSearch final {
-public:
-	ApiSearch(not_null<Main::Session*> session, not_null<History*> history);
-
-	void clear();
-	void search(const SearchRequest &search);
-	void searchMore();
-
-	const Api::FoundMessages &messages() const;
-
-	[[nodiscard]] rpl::producer<> newFounds() const;
-	[[nodiscard]] rpl::producer<> nextFounds() const;
-
-private:
-	void addFound(const Api::FoundMessages &data);
-
-	Api::MessagesSearch _apiSearch;
-
-	std::optional<Api::MessagesSearch> _migratedSearch;
-	Api::FoundMessages _migratedFirstFound;
-
-	Api::FoundMessages _concatedFound;
-
-	bool _waitingForTotal = false;
-	bool _isFull = false;
-
-	rpl::event_stream<> _newFounds;
-	rpl::event_stream<> _nextFounds;
-
-	rpl::lifetime _lifetime;
-
-};
-
-ApiSearch::ApiSearch(
-	not_null<Main::Session*> session,
-	not_null<History*> history)
-: _apiSearch(session, history)
-, _migratedSearch(history->migrateFrom()
-	? std::make_optional<Api::MessagesSearch>(session, history->migrateFrom())
-	: std::nullopt) {
-
-	const auto checkWaitingForTotal = [=] {
-		if (_waitingForTotal) {
-			if (_concatedFound.total >= 0 && _migratedFirstFound.total >= 0) {
-				_waitingForTotal = false;
-				_concatedFound.total += _migratedFirstFound.total;
-				_newFounds.fire({});
-			}
-		} else {
-			_newFounds.fire({});
-		}
-	};
-
-	const auto checkFull = [=](const Api::FoundMessages &data) {
-		if (data.total == int(_concatedFound.messages.size())) {
-			_isFull = true;
-			addFound(_migratedFirstFound);
-		}
-	};
-
-	_apiSearch.messagesFounds(
-	) | rpl::start_with_next([=](const Api::FoundMessages &data) {
-		if (data.nextToken == _concatedFound.nextToken) {
-			addFound(data);
-			checkFull(data);
-			_nextFounds.fire({});
-		} else {
-			_concatedFound = data;
-			checkFull(data);
-			checkWaitingForTotal();
-		}
-	}, _lifetime);
-
-	if (_migratedSearch) {
-		_migratedSearch->messagesFounds(
-		) | rpl::start_with_next([=](const Api::FoundMessages &data) {
-			if (_isFull) {
-				addFound(data);
-			}
-			if (data.nextToken == _migratedFirstFound.nextToken) {
-				_nextFounds.fire({});
-			} else {
-				_migratedFirstFound = data;
-				checkWaitingForTotal();
-			}
-		}, _lifetime);
-	}
-}
-
-void ApiSearch::addFound(const Api::FoundMessages &data) {
-	for (const auto &message : data.messages) {
-		_concatedFound.messages.push_back(message);
-	}
-}
-
-const Api::FoundMessages &ApiSearch::messages() const {
-	return _concatedFound;
-}
-
-void ApiSearch::clear() {
-	_concatedFound = {};
-	_migratedFirstFound = {};
-}
-
-void ApiSearch::search(const SearchRequest &search) {
-	if (_migratedSearch) {
-		_waitingForTotal = true;
-		_migratedSearch->searchMessages(search.query, search.from);
-	}
-	_apiSearch.searchMessages(search.query, search.from);
-}
-
-void ApiSearch::searchMore() {
-	if (_migratedSearch && _isFull) {
-		_migratedSearch->searchMore();
-	} else {
-		_apiSearch.searchMore();
-	}
-}
-
-rpl::producer<> ApiSearch::newFounds() const {
-	return _newFounds.events();
-}
-
-rpl::producer<> ApiSearch::nextFounds() const {
-	return _nextFounds.events();
-}
-
 } // namespace
 
 class ComposeSearch::Inner final {
@@ -729,7 +597,7 @@ private:
 	const base::unique_qptr<BottomBar> _bottomBar;
 	const List _list;
 
-	ApiSearch _apiSearch;
+	Api::MessagesSearchMerged _apiSearch;
 
 	struct {
 		struct {
@@ -752,7 +620,7 @@ ComposeSearch::Inner::Inner(
 , _topBar(base::make_unique_q<TopBar>(parent))
 , _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
 , _list(CreateList(parent, history))
-, _apiSearch(&window->session(), history) {
+, _apiSearch(history) {
 	showAnimated();
 
 	rpl::combine(

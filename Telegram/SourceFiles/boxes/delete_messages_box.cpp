@@ -184,7 +184,6 @@ void DeleteMessagesBox::prepare() {
 			st::defaultBoxCheckbox);
 		if (_moderateDeleteAll) {
 			const auto search = lifetime().make_state<Api::MessagesSearch>(
-				_session,
 				_session->data().message(_ids.front())->history());
 			_deleteAll.create(
 				this,
