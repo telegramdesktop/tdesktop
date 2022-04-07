@@ -64,6 +64,9 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		const WebViewButton &button);
+	void requestMenu(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> bot);
 
 	void cancel();
 

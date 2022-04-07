@@ -133,10 +133,23 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		const auto changedCommands = Data::UpdateBotCommands(
 			botInfo->commands,
 			d.vcommands());
+		auto text = QString();
+		auto url = QString();
+		d.vmenu_button().match([&](const MTPDbotMenuButton &data) {
+			text = qs(data.vtext());
+			url = qs(data.vurl());
+		}, [&](const auto &) {
+		});
+		const auto changedButton = (botInfo->botMenuButtonText != text)
+			|| (botInfo->botMenuButtonUrl != url);
+		if (changedButton) {
+			botInfo->botMenuButtonText = text;
+			botInfo->botMenuButtonUrl = url;
+		}
 
 		botInfo->inited = true;
 
-		if (changedCommands) {
+		if (changedCommands || changedButton) {
 			owner().botCommandsChanged(this);
 		}
 	} break;

@@ -612,6 +612,10 @@ HistoryWidget::HistoryWidget(
 	) | rpl::filter([=](not_null<PeerData*> peer) {
 		return _peer && (_peer == peer);
 	}) | rpl::start_with_next([=] {
+		if (updateCmdStartShown()) {
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
 		if (_fieldAutocomplete->clearFilteredBotCommands()) {
 			checkFieldAutocomplete();
 		}
@@ -2701,6 +2705,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
+		if (_botMenuButton) {
+			_botMenuButton->hide();
+		}
 		if (_tabbedPanel) {
 			_tabbedPanel->hide();
 		}
@@ -2751,6 +2758,9 @@ void HistoryWidget::updateControlsVisibility() {
 			}
 		}
 		_attachToggle->show();
+		if (_botMenuButton) {
+			_botMenuButton->show();
+		}
 		if (_silent) {
 			_silent->show();
 		}
@@ -2797,6 +2807,9 @@ void HistoryWidget::updateControlsVisibility() {
 		}
 		if (_sendAs) {
 			_sendAs->hide();
+		}
+		if (_botMenuButton) {
+			_botMenuButton->hide();
 		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
@@ -4427,19 +4440,66 @@ void HistoryWidget::updateSendButtonType() {
 }
 
 bool HistoryWidget::updateCmdStartShown() {
+	const auto bot = (_peer && _peer->asUser()->isBot())
+		? _peer->asUser()
+		: nullptr;
 	bool cmdStartShown = false;
-	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0) || (_peer->isUser() && _peer->asUser()->isBot()))) {
+	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0))) {
 		if (!isBotStart() && !isBlocked() && !_keyboard->hasMarkup() && !_keyboard->forceReply() && !_editMsgId) {
 			if (!HasSendText(_field)) {
 				cmdStartShown = true;
 			}
 		}
 	}
-	if (_cmdStartShown != cmdStartShown) {
-		_cmdStartShown = cmdStartShown;
-		return true;
+	const auto commandsChanged = (_cmdStartShown != cmdStartShown);
+	auto buttonChanged = false;
+	if (!bot
+		|| (bot->botInfo->botMenuButtonUrl.isEmpty()
+			&& bot->botInfo->commands.empty())) {
+		buttonChanged = (_botMenuButton != nullptr);
+		_botMenuButton.destroy();
+	} else if (!_botMenuButton) {
+		buttonChanged = true;
+		_botMenuButtonText = bot->botInfo->botMenuButtonText;
+		_botMenuButton.create(
+			this,
+			(_botMenuButtonText.isEmpty()
+				? tr::lng_bot_menu_button()
+				: rpl::single(_botMenuButtonText)),
+			st::historyBotMenuButton);
+		_botMenuButton->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
+		_botMenuButton->setFullRadius(true);
+		_botMenuButton->setClickedCallback([=] {
+			const auto user = _peer ? _peer->asUser() : nullptr;
+			const auto bot = (user && user->isBot()) ? user : nullptr;
+			if (bot && !bot->botInfo->botMenuButtonUrl.isEmpty()) {
+				session().attachWebView().requestMenu(controller(), bot);
+			} else if (!_fieldAutocomplete->isHidden()) {
+				_fieldAutocomplete->hideAnimated();
+			} else {
+				_fieldAutocomplete->showFiltered(_peer, "/", true);
+			}
+		});
+		_botMenuButton->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			if (width > st::historyBotMenuMaxWidth) {
+				_botMenuButton->setFullWidth(st::historyBotMenuMaxWidth);
+			} else {
+				updateFieldSize();
+			}
+		}, _botMenuButton->lifetime());
 	}
-	return false;
+	const auto textChanged = _botMenuButton
+		&& (_botMenuButtonText != bot->botInfo->botMenuButtonText);
+	if (textChanged) {
+		_botMenuButtonText = bot->botInfo->botMenuButtonText;
+		_botMenuButton->setText(_botMenuButtonText.isEmpty()
+			? tr::lng_bot_menu_button()
+			: rpl::single(_botMenuButtonText));
+	}
+	_cmdStartShown = cmdStartShown;
+	return commandsChanged || buttonChanged || textChanged;
 }
 
 void HistoryWidget::searchInChat() {
@@ -4697,12 +4757,16 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometryToLeft(0, bottom, width(), keyboardHeight);
 	}
 
-// _attachToggle (_sendAs) ------- _inlineResults ---------------------------------- _tabbedPanel -------- _fieldBarCancel
+// (_botMenuButton) _attachToggle (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = st::historySendRight;
+	if (_botMenuButton) {
+		const auto skip = st::historyBotMenuSkip;
+		_botMenuButton->moveToLeft(left + skip, buttonsBottom + skip); left += skip + _botMenuButton->width();
+	}
 	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
 	if (_sendAs) {
 		_sendAs->moveToLeft(left, buttonsBottom); left += _sendAs->width();
@@ -4762,6 +4826,7 @@ void HistoryWidget::updateFieldSize() {
 		- st::historySendRight
 		- _send->width()
 		- _tabbedSelectorToggle->width();
+	if (_botMenuButton) fieldWidth -= st::historyBotMenuSkip + _botMenuButton->width();
 	if (_sendAs) fieldWidth -= _sendAs->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();

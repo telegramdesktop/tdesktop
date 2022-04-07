@@ -167,6 +167,7 @@ void Panel::Button::updateFg(QColor fg) {
 
 void Panel::Button::updateArgs(MainButtonArgs &&args) {
 	_textFull = std::move(args.text);
+	setDisabled(!args.isActive);
 	setVisible(args.isVisible);
 	toggleProgress(args.isProgressVisible);
 	update();
@@ -251,8 +252,11 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 		p,
 		rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
 		RectPart::BottomLeft | RectPart::BottomRight);
-	const auto ripple = ResolveRipple(_bg.color()->c);
-	paintRipple(p, rect().topLeft(), &ripple);
+
+	if (!isDisabled()) {
+		const auto ripple = ResolveRipple(_bg.color()->c);
+		paintRipple(p, rect().topLeft(), &ripple);
+	}
 
 	p.setFont(_st.font);
 
@@ -646,6 +650,7 @@ void Panel::processMainButtonMessage(const QJsonValue &value) {
 	}
 
 	_mainButton->updateArgs({
+		.isActive = args["is_active"].toBool(),
 		.isVisible = args["is_visible"].toBool(),
 		.isProgressVisible = args["is_progress_visible"].toBool(),
 		.text = args["text"].toString(),
@@ -659,7 +664,9 @@ void Panel::createMainButton() {
 	const auto button = _mainButton.get();
 
 	button->setClickedCallback([=] {
-		postEvent("main_button_pressed");
+		if (!button->isDisabled()) {
+			postEvent("main_button_pressed");
+		}
 	});
 	button->hide();
 

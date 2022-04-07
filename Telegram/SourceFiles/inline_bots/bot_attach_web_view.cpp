@@ -572,6 +572,40 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 	}).send();
 }
 
+void AttachWebView::requestMenu(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> bot) {
+	cancel();
+	_bot = bot;
+	_peer = bot;
+	const auto url = bot->botInfo->botMenuButtonUrl;
+	const auto text = bot->botInfo->botMenuButtonText;
+	confirmOpen(controller, [=] {
+		using Flag = MTPmessages_RequestWebView::Flag;
+		_requestId = _session->api().request(MTPmessages_RequestWebView(
+			MTP_flags(Flag::f_theme_params
+				| Flag::f_url
+				| Flag::f_from_bot_menu),
+			_bot->input,
+			_bot->inputUser,
+			MTP_string(url),
+			MTPstring(),
+			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams())),
+			MTPint()
+		)).done([=](const MTPWebViewResult &result) {
+			_requestId = 0;
+			result.match([&](const MTPDwebViewResultUrl &data) {
+				show(data.vquery_id().v, qs(data.vurl()), text);
+			});
+		}).fail([=](const MTP::Error &error) {
+			_requestId = 0;
+			if (error.type() == u"BOT_INVALID"_q) {
+				requestBots();
+			}
+		}).send();
+	});
+}
+
 void AttachWebView::confirmOpen(
 		not_null<Window::SessionController*> controller,
 		Fn<void()> done) {

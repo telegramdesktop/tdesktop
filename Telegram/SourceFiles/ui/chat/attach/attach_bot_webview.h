@@ -22,6 +22,7 @@ struct Available;
 namespace Ui::BotWebView {
 
 struct MainButtonArgs {
+	bool isActive = false;
 	bool isVisible = false;
 	bool isProgressVisible = false;
 	QString text;

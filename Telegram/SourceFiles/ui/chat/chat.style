@@ -239,6 +239,13 @@ historyComposeFieldMaxHeight: 224px;
 
 historySendPadding: 9px;
 historySendRight: 2px;
+historyBotMenuSkip: 8px;
+historyBotMenuMaxWidth: 160px;
+historyBotMenuButton: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 30px;
+	textTop: 6px;
+}
 
 historyComposeButton: FlatButton {
 	color: windowActiveTextFg;
