@@ -62,6 +62,7 @@ void AddPollActions(
 	Context context);
 void AddSaveSoundForNotifications(
 	not_null<Ui::PopupMenu*> menu,
+	not_null<HistoryItem*> item,
 	not_null<DocumentData*> document,
 	not_null<Window::SessionController*> controller);
 void AddWhoReactedAction(

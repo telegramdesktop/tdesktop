@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_ringtones.h"
 
+#include "api/api_toggling_media.h"
 #include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
@@ -175,15 +177,16 @@ void Ringtones::applyUpdate() {
 
 void Ringtones::remove(DocumentId id) {
 	if (const auto document = _session->data().document(id)) {
-		_api.request(MTPaccount_SaveRingtone(
-			document->mtpInput(),
-			MTP_bool(true)
-		)).done([=] {
-			const auto it = ranges::find(_list.documents, id);
-			if (it != end(_list.documents)) {
-				_list.documents.erase(it);
-			}
-		}).send();
+		ToggleSavedRingtone(
+			document,
+			Data::FileOriginRingtones(),
+			crl::guard(&document->session(), [=] {
+				const auto it = ranges::find(_list.documents, id);
+				if (it != end(_list.documents)) {
+					_list.documents.erase(it);
+				}
+			}),
+			false);
 	}
 }
 

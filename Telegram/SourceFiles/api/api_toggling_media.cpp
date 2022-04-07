@@ -29,11 +29,7 @@ void ToggleExistingMedia(
 		const auto usedFileReference = document->fileReference();
 		api->request(std::move(
 			toggleRequest
-		)).done([=](const MTPBool &result) {
-			if (mtpIsTrue(result)) {
-				done();
-			}
-		}).fail([=](const MTP::Error &error) {
+		)).done(done).fail([=](const MTP::Error &error) {
 			if (error.code() == 400
 				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
 				auto refreshed = [=](const Data::UpdatedFileReferences &d) {
@@ -111,6 +107,18 @@ void ToggleSavedGif(
 		document,
 		std::move(origin),
 		MTPmessages_SaveGif(document->mtpInput(), MTP_bool(!saved)),
+		std::move(done));
+}
+
+void ToggleSavedRingtone(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		Fn<void()> &&done,
+		bool saved) {
+	ToggleExistingMedia(
+		document,
+		std::move(origin),
+		MTPaccount_SaveRingtone(document->mtpInput(), MTP_bool(!saved)),
 		std::move(done));
 }
 

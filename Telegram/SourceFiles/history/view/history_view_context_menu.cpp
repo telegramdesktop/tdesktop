@@ -296,8 +296,9 @@ void AddDocumentActions(
 			std::move(callback),
 			&st::menuIconStickers);
 	}
-	if (!list->hasCopyRestriction(item)) {
-		AddSaveSoundForNotifications(menu, document, list->controller());
+	if (item && !list->hasCopyRestriction(item)) {
+		const auto controller = list->controller();
+		AddSaveSoundForNotifications(menu, item, document, controller);
 	}
 	AddSaveDocumentAction(menu, item, document, list);
 }
@@ -1078,6 +1079,7 @@ void AddPollActions(
 
 void AddSaveSoundForNotifications(
 		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item,
 		not_null<DocumentData*> document,
 		not_null<Window::SessionController*> controller) {
 	const auto &ringtones = document->session().api().ringtones();
@@ -1098,17 +1100,15 @@ void AddSaveSoundForNotifications(
 	}
 	const auto toastParent = Window::Show(controller).toastParent();
 	menu->addAction(tr::lng_context_save_custom_sound(tr::now), [=] {
-		document->session().api().request(MTPaccount_SaveRingtone(
-			document->mtpInput(),
-			MTP_bool(false)
-		)).done([=] {
-			Ui::Toast::Show(
-				toastParent,
-				tr::lng_ringtones_toast_added(tr::now));
-		}).fail([](const MTP::Error &error) {
-			LOG(("API Error: Saving ringtone failed with %1 message."
-				).arg(error.type()));
-		}).send();
+		Api::ToggleSavedRingtone(
+			document,
+			item->fullId(),
+			[=] {
+				Ui::Toast::Show(
+					toastParent,
+					tr::lng_ringtones_toast_added(tr::now));
+			},
+			true);
 	}, &st::menuIconSoundAdd);
 }
 
