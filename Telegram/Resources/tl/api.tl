@@ -1366,6 +1366,9 @@ notificationSoundNone#6f0c34df = NotificationSound;
 notificationSoundLocal#830b9ae4 title:string data:string = NotificationSound;
 notificationSoundRingtone#ff6c8049 id:long = NotificationSound;
 
+account.savedRingtone#b7263f6d = account.SavedRingtone;
+account.savedRingtoneConverted#1f307eb7 document:Document = account.SavedRingtone;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1470,7 +1473,7 @@ account.getChatThemes#d638de89 hash:long = account.Themes;
 account.setAuthorizationTTL#bf899aa0 authorization_ttl_days:int = Bool;
 account.changeAuthorizationSettings#40f48462 flags:# hash:long encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Bool;
 account.getSavedRingtones#e1902288 hash:long = account.SavedRingtones;
-account.saveRingtone#e9f81323 id:InputDocument unsave:Bool = Bool;
+account.saveRingtone#3dea5b03 id:InputDocument unsave:Bool = account.SavedRingtone;
 account.uploadRingtone#831a83a2 file:InputFile file_name:string mime_type:string = Document;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
