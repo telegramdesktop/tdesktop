@@ -13,15 +13,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "base/timer_rpl.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "core/application.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "media/audio/media_audio.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
@@ -40,6 +44,50 @@ namespace {
 
 constexpr auto kDefaultValue = -1;
 constexpr auto kNoSoundValue = -2;
+constexpr auto kNoDetachTimeout = crl::time(250);
+
+class AudioCreator final {
+public:
+	AudioCreator();
+	AudioCreator(AudioCreator &&other);
+	AudioCreator &operator=(AudioCreator &&other);
+	~AudioCreator();
+
+private:
+	rpl::lifetime _lifetime;
+	bool _attached = false;
+
+};
+
+AudioCreator::AudioCreator()
+: _attached(true) {
+	crl::async([] {
+		QMutexLocker lock(Media::Player::internal::audioPlayerMutex());
+		Media::Audio::AttachToDevice();
+	});
+	base::timer_each(
+		kNoDetachTimeout
+	) | rpl::start_with_next([=] {
+		Media::Audio::StopDetachIfNotUsedSafe();
+	}, _lifetime);
+}
+
+AudioCreator::AudioCreator(AudioCreator &&other)
+: _lifetime(base::take(other._lifetime))
+, _attached(base::take(other._attached)) {
+}
+
+AudioCreator &AudioCreator::operator=(AudioCreator &&other) {
+	_lifetime = base::take(other._lifetime);
+	_attached = base::take(other._attached);
+	return *this;
+}
+
+AudioCreator::~AudioCreator() {
+	if (_attached) {
+		Media::Audio::ScheduleDetachIfNotUsedSafe();
+	}
+}
 
 } // namespace
 
@@ -79,8 +127,9 @@ void RingtonesBox(
 	padding.setTop(padding.bottom());
 
 	struct State {
+		AudioCreator creator;
 		std::shared_ptr<Ui::RadiobuttonGroup> group;
-		std::vector<DocumentId> documentIds;
+		std::vector<std::shared_ptr<Data::DocumentMedia>> medias;
 		Data::NotifySound chosen;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		QPointer<Ui::Radiobutton> defaultButton;
@@ -113,6 +162,9 @@ void RingtonesBox(
 		}
 		if (value == kDefaultValue) {
 			state->defaultButton = button;
+			button->setClickedCallback([=] {
+				Core::App().notifications().playSound(session, 0);
+			});
 		}
 		if (value < 0) {
 			return;
@@ -120,6 +172,14 @@ void RingtonesBox(
 		while (state->buttons.size() <= value) {
 			state->buttons.push_back(nullptr);
 		}
+		button->setClickedCallback([=] {
+			const auto media = state->medias[value].get();
+			if (media->loaded()) {
+				Core::App().notifications().playSound(
+					session,
+					media->owner()->id);
+			}
+		});
 		base::install_event_filter(button, [=](not_null<QEvent*> e) {
 			if (e->type() != QEvent::ContextMenu || state->menu) {
 				return base::EventFilterResult::Continue;
@@ -128,7 +188,7 @@ void RingtonesBox(
 				button,
 				st::popupMenuWithIcons);
 			auto callback = [=] {
-				const auto id = state->documentIds[value];
+				const auto id = state->medias[value]->owner()->id;
 				session->api().ringtones().remove(id);
 			};
 			state->menu->addAction(
@@ -172,7 +232,7 @@ void RingtonesBox(
 		object_ptr<Ui::VerticalLayout>(container));
 
 	const auto rebuild = [=] {
-		state->documentIds.clear();
+		const auto old = base::take(state->medias);
 		auto value = 0;
 		while (custom->count()) {
 			delete custom->widgetAt(0);
@@ -183,7 +243,8 @@ void RingtonesBox(
 			const auto document = session->data().document(id);
 			const auto text = ExtractRingtoneName(document);
 			addToGroup(custom, value++, text, chosen);
-			state->documentIds.push_back(id);
+			state->medias.push_back(document->createMediaView());
+			document->owner().notifySettings().cacheSound(document);
 		}
 
 		custom->resizeToWidth(container->width());
@@ -260,7 +321,7 @@ void RingtonesBox(
 			? Data::NotifySound()
 			: (value == kNoSoundValue)
 			? Data::NotifySound{ .none = true }
-			: Data::NotifySound{ .id = state->documentIds[value] };
+			: Data::NotifySound{ .id = state->medias[value]->owner()->id };
 		save(sound);
 		box->closeBox();
 	});

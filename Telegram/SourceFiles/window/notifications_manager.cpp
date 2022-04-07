@@ -510,7 +510,7 @@ void System::showNext() {
 		}
 		if (settings.soundNotify() && !_manager->skipAudio()) {
 			const auto track = lookupSound(
-				alertPeer,
+				&alertPeer->owner(),
 				alertPeer->owner().notifySettings().sound(alertPeer).id);
 			track->playOnce();
 			Media::Player::mixer()->suppressAll(track->getLengthMs());
@@ -699,7 +699,7 @@ void System::showNext() {
 }
 
 not_null<Media::Audio::Track*> System::lookupSound(
-		not_null<PeerData*> peer,
+		not_null<Data::Session*> owner,
 		DocumentId id) {
 	if (!id) {
 		ensureSoundCreated();
@@ -709,7 +709,7 @@ not_null<Media::Audio::Track*> System::lookupSound(
 	if (i != end(_customSoundTracks)) {
 		return i->second.get();
 	}
-	const auto &notifySettings = peer->owner().notifySettings();
+	const auto &notifySettings = owner->notifySettings();
 	const auto custom = notifySettings.lookupRingtone(id);
 	if (custom && !custom->bytes().isEmpty()) {
 		const auto j = _customSoundTracks.emplace(
@@ -745,6 +745,10 @@ rpl::producer<ChangeType> System::settingsChanged() const {
 
 void System::notifySettingsChanged(ChangeType type) {
 	return _settingsChanged.fire(std::move(type));
+}
+
+void System::playSound(not_null<Main::Session*> session, DocumentId id) {
+	lookupSound(&session->data(), id)->playOnce();
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(

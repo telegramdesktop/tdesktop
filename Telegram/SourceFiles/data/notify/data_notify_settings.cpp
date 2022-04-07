@@ -163,24 +163,16 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	}
 
 	if (const auto sound = peer->notifySound(); sound && sound->id) {
-		const auto cache = [=](DocumentId id) {
-			if (const auto document = _owner->document(id)) {
-				const auto view = document->createMediaView();
-				_ringtones.views.emplace(id, view);
-				document->forceToCache(true);
-				document->save(Data::FileOriginRingtones(), QString());
-			}
-		};
 		if (const auto doc = _owner->document(sound->id); !doc->isNull()) {
-			cache(sound->id);
+			cacheSound(doc);
 		} else {
 			_ringtones.pendingIds.push_back(sound->id);
 			if (!_ringtones.pendingLifetime) {
 				// Not requested yet.
 				_owner->session().api().ringtones().listUpdates(
 				) | rpl::start_with_next([=] {
-					for (const auto &id : base::take(_ringtones.pendingIds)) {
-						cache(id);
+					for (const auto id : base::take(_ringtones.pendingIds)) {
+						cacheSound(id);
 					}
 					_ringtones.pendingLifetime.destroy();
 				}, _ringtones.pendingLifetime);
@@ -188,6 +180,20 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 			}
 		}
 	}
+}
+
+void NotifySettings::cacheSound(DocumentId id) {
+	cacheSound(_owner->document(id));
+}
+
+void NotifySettings::cacheSound(not_null<DocumentData*> document) {
+	if (document->isNull()) {
+		return;
+	}
+	const auto view = document->createMediaView();
+	_ringtones.views.emplace(document->id, view);
+	document->forceToCache(true);
+	document->save(Data::FileOriginRingtones(), QString());
 }
 
 void NotifySettings::updateLocal(DefaultNotify type) {

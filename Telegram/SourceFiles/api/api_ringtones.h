@@ -42,6 +42,7 @@ private:
 	struct UploadedData {
 		QString filename;
 		QString filemime;
+		QByteArray content;
 	};
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);
 

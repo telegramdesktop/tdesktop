@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
@@ -83,7 +85,7 @@ void Ringtones::upload(
 		filemime,
 		content);
 
-	const auto uploadedData = UploadedData{ filename, filemime };
+	const auto uploadedData = UploadedData{ filename, filemime, content };
 	const auto fakeId = FullMsgId(
 		_session->userPeerId(),
 		_session->data().nextLocalMessageId());
@@ -111,9 +113,12 @@ void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		file,
 		MTP_string(uploadedData.filename),
 		MTP_string(uploadedData.filemime)
-	)).done([=](const MTPDocument &result) {
+	)).done([=, content = uploadedData.content](const MTPDocument &result) {
 		const auto document = _session->data().processDocument(result);
 		_list.documents.insert(_list.documents.begin(), document->id);
+		const auto media = document->createMediaView();
+		media->setBytes(content);
+		document->owner().notifySettings().cacheSound(document);
 		_uploadDones.fire_copy(document->id);
 	}).fail([=](const MTP::Error &error) {
 		_uploadFails.fire_copy(error.type());
@@ -134,6 +139,7 @@ void Ringtones::requestList() {
 			_list.documents.reserve(data.vringtones().v.size());
 			for (const auto &d : data.vringtones().v) {
 				const auto document = _session->data().processDocument(d);
+				document->forceToCache(true);
 				_list.documents.emplace_back(document->id);
 			}
 			requestList();

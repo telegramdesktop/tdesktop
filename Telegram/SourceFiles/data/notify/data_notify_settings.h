@@ -39,7 +39,10 @@ public:
 		std::optional<NotifySound> sound = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
 
-	std::shared_ptr<DocumentMedia> lookupRingtone(DocumentId id) const;
+	void cacheSound(DocumentId id);
+	void cacheSound(not_null<DocumentData*> document);
+	[[nodiscard]] std::shared_ptr<DocumentMedia> lookupRingtone(
+		DocumentId id) const;
 
 	[[nodiscard]] rpl::producer<> defaultUpdates(DefaultNotify type) const;
 	[[nodiscard]] rpl::producer<> defaultUpdates(
