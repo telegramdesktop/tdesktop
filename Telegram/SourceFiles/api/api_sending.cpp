@@ -169,7 +169,7 @@ void SendExistingMedia(
 						} else {
 							api->sendMessageFail(error, peer, randomId, newId);
 						}
-						});
+					});
 				} else {
 					api->sendMessageFail(error, peer, randomId, newId);
 				}

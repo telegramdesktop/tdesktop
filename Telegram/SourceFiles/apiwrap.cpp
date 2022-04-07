@@ -2332,6 +2332,9 @@ void ApiWrap::refreshFileReference(
 void ApiWrap::refreshFileReference(
 		Data::FileOrigin origin,
 		FileReferencesHandler &&handler) {
+	const auto fail = [&] {
+		handler(UpdatedFileReferences());
+	};
 	const auto request = [&](
 			auto &&data,
 			Fn<void()> &&additional = nullptr) {
@@ -2348,9 +2351,6 @@ void ApiWrap::refreshFileReference(
 				});
 			}
 		}
-	};
-	const auto fail = [&] {
-		handler(UpdatedFileReferences());
 	};
 	v::match(origin.data, [&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
