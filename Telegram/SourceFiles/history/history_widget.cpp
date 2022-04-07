@@ -4440,7 +4440,7 @@ void HistoryWidget::updateSendButtonType() {
 }
 
 bool HistoryWidget::updateCmdStartShown() {
-	const auto bot = (_peer && _peer->asUser()->isBot())
+	const auto bot = (_peer && _peer->isUser() && _peer->asUser()->isBot())
 		? _peer->asUser()
 		: nullptr;
 	bool cmdStartShown = false;
