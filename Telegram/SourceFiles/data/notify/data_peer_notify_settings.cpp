@@ -106,9 +106,6 @@ bool NotifyPeerSettingsValue::change(
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
 	const auto now = base::unixtime::now();
-	const auto notMuted = muteForSeconds
-		? !(*muteForSeconds)
-		: (!_mute || *_mute <= now);
 	const auto newMute = muteForSeconds
 		? base::make_optional((*muteForSeconds > 0)
 			? (now + *muteForSeconds)

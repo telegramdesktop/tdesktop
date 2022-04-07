@@ -568,7 +568,6 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
-		int a = error.code();
 	}).send();
 }
 

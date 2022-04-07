@@ -181,56 +181,6 @@ enum AVPixelFormat GetFormatImplementation(
 	return AV_PIX_FMT_NONE;
 }
 
-template <AVPixelFormat Format>
-[[nodiscard]] HwAccelDescriptor HwAccelByFormat() {
-	return {
-		.getFormat = GetFormatImplementation<Format>,
-		.format = Format,
-	};
-}
-
-[[nodiscard]] HwAccelDescriptor ResolveHwAccel(
-		not_null<const AVCodec*> decoder,
-		AVHWDeviceType type) {
-	Expects(type != AV_HWDEVICE_TYPE_NONE);
-
-	const auto format = [&] {
-		for (auto i = 0;; i++) {
-			const auto config = avcodec_get_hw_config(decoder, i);
-			if (!config) {
-				break;
-			} else if (config->device_type == type
-				&& (config->methods
-					& AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)) {
-				return config->pix_fmt;
-			}
-		}
-		return AV_PIX_FMT_NONE;
-	}();
-
-	switch (format) {
-#ifdef Q_OS_WIN
-	case AV_PIX_FMT_D3D11:
-		return HwAccelByFormat<AV_PIX_FMT_D3D11>();
-	case AV_PIX_FMT_DXVA2_VLD:
-		return HwAccelByFormat<AV_PIX_FMT_DXVA2_VLD>();
-	case AV_PIX_FMT_D3D11VA_VLD:
-		return HwAccelByFormat<AV_PIX_FMT_D3D11VA_VLD>();
-#elif defined Q_OS_MAC // Q_OS_WIN
-	case AV_PIX_FMT_VIDEOTOOLBOX:
-		return HwAccelByFormat<AV_PIX_FMT_VIDEOTOOLBOX>();
-#else // Q_OS_WIN || Q_OS_MAC
-	case AV_PIX_FMT_VAAPI:
-		return HwAccelByFormat<AV_PIX_FMT_VAAPI>();
-	case AV_PIX_FMT_VDPAU:
-		return HwAccelByFormat<AV_PIX_FMT_VDPAU>();
-#endif // Q_OS_WIN || Q_OS_MAC
-	case AV_PIX_FMT_CUDA:
-		return HwAccelByFormat<AV_PIX_FMT_CUDA>();
-	}
-	return {};
-}
-
 } // namespace
 
 IOPointer MakeIOPointer(

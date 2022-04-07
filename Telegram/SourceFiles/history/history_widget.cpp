@@ -483,9 +483,6 @@ HistoryWidget::HistoryWidget(
 	session().attachWebView().requestBots();
 	session().attachWebView().attachBotsUpdates(
 	) | rpl::start_with_next([=] {
-		const auto list = [=] {
-			return session().attachWebView().attachBots();
-		};
 		if (session().attachWebView().attachBots().empty()) {
 			_attachBotsMenu = nullptr;
 			return;

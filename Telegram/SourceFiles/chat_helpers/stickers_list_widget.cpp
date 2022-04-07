@@ -2288,7 +2288,6 @@ void StickersListWidget::paintSticker(
 		p.drawPixmapLeft(ppos, width(), frame);
 	} else {
 		const auto image = media->getStickerSmall();
-		const auto ratio = style::DevicePixelRatio();
 		const auto useSavedFrame = !sticker.savedFrame.isNull()
 			&& (sticker.savedFrameFor == _singleSize);
 		const auto pixmap = useSavedFrame

@@ -50,7 +50,6 @@ class AudioCreator final {
 public:
 	AudioCreator();
 	AudioCreator(AudioCreator &&other);
-	AudioCreator &operator=(AudioCreator &&other);
 	~AudioCreator();
 
 private:
@@ -75,12 +74,6 @@ AudioCreator::AudioCreator()
 AudioCreator::AudioCreator(AudioCreator &&other)
 : _lifetime(base::take(other._lifetime))
 , _attached(base::take(other._attached)) {
-}
-
-AudioCreator &AudioCreator::operator=(AudioCreator &&other) {
-	_lifetime = base::take(other._lifetime);
-	_attached = base::take(other._attached);
-	return *this;
 }
 
 AudioCreator::~AudioCreator() {

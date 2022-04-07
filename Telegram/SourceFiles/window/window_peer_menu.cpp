@@ -177,7 +177,6 @@ private:
 
 	void addHidePromotion();
 	void addTogglePin();
-	void addToggleMute();
 	void addToggleMuteSubmenu(bool addSeparator);
 	void addSupportInfo();
 	void addInfo();
@@ -372,13 +371,6 @@ void Filler::addTogglePin() {
 		Data::HistoryUpdate::Flag::IsPinned
 	) | rpl::map(pinText);
 	SetActionText(pinAction, std::move(actionText));
-}
-
-void Filler::addToggleMute() {
-	if (_peer->isSelf()) {
-		return;
-	}
-	PeerMenuAddMuteAction(_controller, _peer, _addAction);
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {
