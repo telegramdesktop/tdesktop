@@ -78,9 +78,7 @@ private:
 	int _outerIndex = 0;
 
 	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
-	base::flat_map<
-		not_null<Main::Account*>,
-		base::unique_qptr<Ui::SettingsButton>> _watched;
+	base::flat_map<not_null<Main::Account*>, Ui::SettingsButton*> _watched;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
@@ -730,7 +728,7 @@ void AccountsList::rebuild() {
 				order.reserve(inner->count());
 				for (auto i = 0; i < inner->count(); i++) {
 					for (const auto &[account, button] : _watched) {
-						if (button.get() == inner->widgetAt(i)) {
+						if (button == inner->widgetAt(i)) {
 							order.push_back(account->session().uniqueId());
 						}
 					}
@@ -769,11 +767,11 @@ void AccountsList::rebuild() {
 					account,
 					std::move(activate));
 			};
-			button.reset(inner->add(MakeAccountButton(
+			button = inner->add(MakeAccountButton(
 				inner,
 				_controller,
 				account,
-				std::move(callback))));
+				std::move(callback)));
 		}
 	}
 	inner->resizeToWidth(_outer->width());
