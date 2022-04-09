@@ -697,8 +697,9 @@ void SetupOpenGL(
 			Local::writeSettings();
 			Core::Restart();
 		});
-		const auto cancelled = crl::guard(button, [=] {
+		const auto cancelled = crl::guard(button, [=](Fn<void()> close) {
 			toggles->fire(!enabled);
+			close();
 		});
 		controller->show(Ui::MakeConfirmBox({
 			.text = tr::lng_settings_need_restart(),
