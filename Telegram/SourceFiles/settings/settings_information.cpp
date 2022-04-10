@@ -78,7 +78,9 @@ private:
 	int _outerIndex = 0;
 
 	Ui::SlideWrap<Ui::SettingsButton> *_addAccount = nullptr;
-	base::flat_map<not_null<Main::Account*>, Ui::SettingsButton*> _watched;
+	base::flat_map<
+		not_null<Main::Account*>,
+		QPointer<Ui::SettingsButton>> _watched;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
@@ -728,7 +730,7 @@ void AccountsList::rebuild() {
 				order.reserve(inner->count());
 				for (auto i = 0; i < inner->count(); i++) {
 					for (const auto &[account, button] : _watched) {
-						if (button == inner->widgetAt(i)) {
+						if (button.data() == inner->widgetAt(i)) {
 							order.push_back(account->session().uniqueId());
 						}
 					}
