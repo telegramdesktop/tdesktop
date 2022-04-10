@@ -69,8 +69,6 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kRescheduleLimit = 20;
-constexpr auto kMaxDurationForRingtone = 10;
-constexpr auto kMaxSizeForRingtone = 1024 * 500;
 
 bool HasEditMessageAction(
 		const ContextMenuRequest &request,
@@ -1083,16 +1081,18 @@ void AddSaveSoundForNotifications(
 		not_null<DocumentData*> document,
 		not_null<Window::SessionController*> controller) {
 	const auto &ringtones = document->session().api().ringtones();
-	if (document->size > kMaxSizeForRingtone) {
+	if (document->size > ringtones.maxSize()) {
 		return;
 	} else if (ranges::contains(ringtones.list(), document->id)) {
 		return;
+	} else if (int(ringtones.list().size()) >= ringtones.maxSavedCount()) {
+		return;
 	} else if (const auto song = document->song()) {
-		if (song->duration > kMaxDurationForRingtone) {
+		if (song->duration > ringtones.maxDuration()) {
 			return;
 		}
 	} else if (const auto voice = document->voice()) {
-		if (voice->duration > kMaxDurationForRingtone) {
+		if (voice->duration > ringtones.maxDuration()) {
 			return;
 		}
 	} else {

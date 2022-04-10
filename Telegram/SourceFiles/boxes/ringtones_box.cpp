@@ -12,11 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/base_file_utilities.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
-#include "base/unixtime.h"
 #include "base/timer_rpl.h"
+#include "base/unixtime.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
@@ -195,10 +196,20 @@ void RingtonesBox(
 
 	session->api().ringtones().uploadFails(
 	) | rpl::start_with_next([=](const QString &error) {
-		if ((error == u"RINGTONE_DURATION_TOO_LONG"_q)
-			|| (error == u"RINGTONE_SIZE_TOO_BIG"_q)) {
-			box->getDelegate()->show(
-				Ui::MakeInformBox(tr::lng_ringtones_box_error()));
+		if ((error == u"RINGTONE_DURATION_TOO_LONG"_q)) {
+			box->getDelegate()->show(Ui::MakeInformBox(
+				tr::lng_ringtones_error_max_duration(
+					tr::now,
+					lt_duration,
+					Ui::FormatMuteFor(
+						session->api().ringtones().maxDuration()))));
+		} else if ((error == u"RINGTONE_SIZE_TOO_BIG"_q)) {
+			box->getDelegate()->show(Ui::MakeInformBox(
+				tr::lng_ringtones_error_max_size(
+					tr::now,
+					lt_size,
+					Ui::FormatSizeText(
+						session->api().ringtones().maxSize()))));
 		} else if (error == u"RINGTONE_MIME_INVALID"_q) {
 			box->getDelegate()->show(
 				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
@@ -290,6 +301,15 @@ void RingtonesBox(
 				} else {
 					mime = Core::MimeTypeForData(content).name();
 					name = "audio";
+				}
+				const auto &ringtones = session->api().ringtones();
+				if (int(content.size()) > ringtones.maxSize()) {
+					box->getDelegate()->show(Ui::MakeInformBox(
+						tr::lng_ringtones_error_max_size(
+							tr::now,
+							lt_size,
+							Ui::FormatSizeText(ringtones.maxSize()))));
+					return;
 				}
 
 				session->api().ringtones().upload(name, mime, content);

@@ -3133,8 +3133,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ringtones_box_about" = "Click on any short voice note or mp3 file in chat and select \"Save for Notifications\". It will appear here.";
 "lng_ringtones_box_default" = "Default";
 "lng_ringtones_box_no_sound" = "No sound";
-"lng_ringtones_box_error" = "Sorry, but your file is too big.";
 "lng_ringtones_toast_added" = "Sound added!";
+"lng_ringtones_error_max_size" = "Sorry, but your file is too big. The maximum size for ringtones is {size}.";
+"lng_ringtones_error_max_duration" = "Sorry, but your file is too long. The maximum duration for ringtones is {duration}.";
 
 // Wnd specific
 
