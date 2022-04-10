@@ -420,27 +420,17 @@ void Filler::addInfo() {
 
 void Filler::addToggleFolder() {
 	const auto history = _request.key.history();
-	if (!history) {
+	if (!history || history->owner().chatsFilters().list().empty()) {
 		return;
 	}
-	if (!_request.filterId) {
-		if (!ChooseFilterValidator(history).canAdd()) {
-			return;
-		}
-		const auto window = _controller;
-		_addAction(tr::lng_filters_menu_add(tr::now), [=] {
-			window->show(Box(ChooseFilterBox, history));
-		}, nullptr);
-	} else {
-		const auto id = _request.filterId;
-		const auto validator = ChooseFilterValidator(history);
-		if (!validator.canRemove(id)) {
-			return;
-		}
-		_addAction(tr::lng_filters_menu_remove(tr::now), [=] {
-			validator.remove(id);
-		}, nullptr);
-	}
+	_addAction(PeerMenuCallback::Args{
+		.text = tr::lng_filters_menu_add(tr::now),
+		.handler = nullptr,
+		.icon = &st::menuIconAddToFolder,
+		.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
+			FillChooseFilterMenu(menu, history);
+		},
+	});
 }
 
 void Filler::addToggleUnreadMark() {

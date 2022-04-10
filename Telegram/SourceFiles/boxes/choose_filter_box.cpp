@@ -19,9 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::Bold
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_payments.h" // paymentsSectionButton
+#include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
 namespace {
 
@@ -202,4 +204,32 @@ void ChooseFilterBox(
 	rebuild();
 
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+}
+
+void FillChooseFilterMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<History*> history) {
+	const auto validator = ChooseFilterValidator(history);
+	for (const auto &filter : history->owner().chatsFilters().list()) {
+		const auto id = filter.id();
+		const auto contains = filter.contains(history);
+		const auto action = menu->addAction(filter.title(), [=] {
+			if (filter.contains(history)) {
+				if (validator.canRemove(id)) {
+					validator.remove(id);
+				}
+			} else {
+				if (validator.canAdd()) {
+					validator.add(id);
+				}
+			}
+		}, contains ? &st::mediaPlayerMenuCheck : nullptr);
+		action->setEnabled(contains
+			? validator.canRemove(id)
+			: validator.canAdd());
+	}
+	history->owner().chatsFilters().changed(
+	) | rpl::start_with_next([=] {
+		menu->hideMenu();
+	}, menu->lifetime());
 }

@@ -111,6 +111,7 @@ menuIconSoundSelect: icon {{ "menu/sound_select", menuIconColor }};
 menuIconSoundAdd: icon {{ "menu/sound_add", menuIconColor }};
 menuIconFile: icon {{ "menu/file", menuIconColor }};
 menuIconPhoto: icon {{ "menu/image", menuIconColor }};
+menuIconAddToFolder: icon {{ "menu/add_to_folder", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

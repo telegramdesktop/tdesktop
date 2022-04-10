@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class GenericBox;
+class PopupMenu;
 } // namespace Ui
 
 class History;
@@ -30,4 +31,8 @@ private:
 
 void ChooseFilterBox(
 	not_null<Ui::GenericBox*> box,
+	not_null<History*> history);
+
+void FillChooseFilterMenu(
+	not_null<Ui::PopupMenu*> menu,
 	not_null<History*> history);
