@@ -54,6 +54,7 @@ public:
 	enum class ImageSize {
 		BottomInfo,
 		InlineList,
+		Settings,
 	};
 	void preloadImageFor(const QString &emoji);
 	void preloadAnimationsFor(const QString &emoji);
@@ -77,6 +78,7 @@ private:
 	struct ImageSet {
 		QImage bottomInfo;
 		QImage inlineList;
+		QImage settings;
 		std::shared_ptr<DocumentMedia> media;
 		std::unique_ptr<Lottie::Icon> icon;
 		bool fromAppearAnimation = false;

@@ -437,6 +437,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
+"lng_settings_chat_quick_action_reply" = "Reply with double click";
+"lng_settings_chat_quick_action_react" = "Send reaction with double click";
 
 "lng_settings_section_filters" = "Folders";
 

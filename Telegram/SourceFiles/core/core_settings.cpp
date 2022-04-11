@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 
 #include "boxes/send_files_box.h"
+#include "history/view/history_view_quick_action.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/serialize_common.h"
 #include "window/section_widget.h"
@@ -238,7 +239,8 @@ QByteArray Settings::serialize() const {
 		}
 
 		stream
-			<< qint32(_hardwareAcceleratedVideo ? 1 : 0);
+			<< qint32(_hardwareAcceleratedVideo ? 1 : 0)
+			<< qint32(_chatQuickAction);
 	}
 	return result;
 }
@@ -329,6 +331,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 accountsOrderCount = 0;
 	std::vector<uint64> accountsOrder;
 	qint32 hardwareAcceleratedVideo = _hardwareAcceleratedVideo ? 1 : 0;
+	qint32 chatQuickAction = static_cast<qint32>(_chatQuickAction);
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -513,6 +516,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> hardwareAcceleratedVideo;
 	}
+	if (!stream.atEnd()) {
+		stream >> chatQuickAction;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -670,6 +676,16 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_macWarnBeforeQuit = (macWarnBeforeQuit == 1);
 	_hardwareAcceleratedVideo = (hardwareAcceleratedVideo == 1);
+	{
+		using Quick = HistoryView::DoubleClickQuickAction;
+		const auto uncheckedChatQuickAction = static_cast<Quick>(
+			chatQuickAction);
+		switch (uncheckedChatQuickAction) {
+		case Quick::None:
+		case Quick::Reply:
+		case Quick::React: _chatQuickAction = uncheckedChatQuickAction; break;
+		}
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {

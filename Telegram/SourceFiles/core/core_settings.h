@@ -20,6 +20,10 @@ namespace Ui {
 enum class InputSubmitSettings;
 } // namespace Ui
 
+namespace HistoryView {
+enum class DoubleClickQuickAction;
+} // namespace HistoryView
+
 namespace Window {
 enum class Column;
 } // namespace Window
@@ -676,6 +680,12 @@ public:
 	[[nodiscard]] bool macWarnBeforeQuit() const {
 		return _macWarnBeforeQuit;
 	}
+	void setChatQuickAction(HistoryView::DoubleClickQuickAction value) {
+		_chatQuickAction = value;
+	}
+	[[nodiscard]] HistoryView::DoubleClickQuickAction chatQuickAction() const {
+		return _chatQuickAction;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -783,6 +793,8 @@ private:
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
 	bool _hardwareAcceleratedVideo = true;
+	HistoryView::DoubleClickQuickAction _chatQuickAction =
+		HistoryView::DoubleClickQuickAction();
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

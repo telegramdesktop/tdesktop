@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_react_button.h"
+#include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -2089,7 +2090,27 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& _overElement
 		&& _overElement->data()->isRegular()) {
 		mouseActionCancel();
-		replyToMessageRequestNotify(_overElement->data()->fullId());
+		switch (CurrentQuickAction()) {
+		case DoubleClickQuickAction::Reply: {
+			replyToMessageRequestNotify(_overElement->data()->fullId());
+		} break;
+		case DoubleClickQuickAction::React: {
+			toggleFavoriteReaction(_overElement);
+		} break;
+		default: break;
+		}
+	}
+}
+
+void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
+	const auto favorite = session().data().reactions().favorite();
+	const auto allowed = _reactionsManager->allowedSublist();
+	if (allowed && !allowed->contains(favorite)) {
+		return;
+	}
+	view->data()->toggleReaction(favorite);
+	if (const auto top = itemTop(view); top >= 0) {
+		view->animateReaction({ .emoji = favorite });
 	}
 }
 

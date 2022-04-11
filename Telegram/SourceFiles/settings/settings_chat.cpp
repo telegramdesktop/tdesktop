@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
+#include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
 #include "window/themes/window_theme.h"
@@ -49,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
+#include "data/data_message_reactions.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
@@ -780,6 +782,7 @@ void SetupMessages(
 	AddSkip(container, st::settingsSendTypeSkip);
 
 	using SendByType = Ui::InputSubmitSettings;
+	using Quick = HistoryView::DoubleClickQuickAction;
 
 	const auto skip = st::settingsSendTypeSkip;
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
@@ -790,29 +793,90 @@ void SetupMessages(
 			std::move(wrap),
 			QMargins(0, skip, 0, skip)));
 
-	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
+	const auto groupSend = std::make_shared<Ui::RadioenumGroup<SendByType>>(
 		Core::App().settings().sendSubmitWay());
-	const auto add = [&](SendByType value, const QString &text) {
+	const auto addSend = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
-				group,
+				groupSend,
 				value,
 				text,
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
-	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
-	add(
+	addSend(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
+	addSend(
 		SendByType::CtrlEnter,
 		(Platform::IsMac()
 			? tr::lng_settings_send_cmdenter(tr::now)
 			: tr::lng_settings_send_ctrlenter(tr::now)));
 
-	group->setChangedCallback([=](SendByType value) {
+	groupSend->setChangedCallback([=](SendByType value) {
 		Core::App().settings().setSendSubmitWay(value);
 		Core::App().saveSettingsDelayed();
 		controller->content()->ctrlEnterSubmitUpdated();
+	});
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	const auto groupQuick = std::make_shared<Ui::RadioenumGroup<Quick>>(
+		Core::App().settings().chatQuickAction());
+	const auto addQuick = [&](Quick value, const QString &text) {
+		return inner->add(
+			object_ptr<Ui::Radioenum<Quick>>(
+				inner,
+				groupQuick,
+				value,
+				text,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+	addQuick(Quick::Reply, tr::lng_settings_chat_quick_action_reply(tr::now));
+	const auto react = addQuick(
+		Quick::React,
+		tr::lng_settings_chat_quick_action_react(tr::now));
+	const auto reactRight = Ui::CreateChild<Ui::RpWidget>(inner);
+
+	struct State {
+		QString lastFavorite;
+		QImage cache;
+	};
+	const auto state = reactRight->lifetime().make_state<State>();
+	const auto updateState = [=] {
+		auto &reactions = controller->session().data().reactions();
+		if (state->lastFavorite == reactions.favorite()) {
+			return;
+		}
+		state->lastFavorite = reactions.favorite();
+		state->cache = reactions.resolveImageFor(
+			reactions.favorite(),
+			Data::Reactions::ImageSize::Settings);
+		reactRight->resize(state->cache.size() / style::DevicePixelRatio());
+	};
+	updateState();
+	controller->session().data().reactions().updates(
+	) | rpl::start_with_next(updateState, reactRight->lifetime());
+
+	reactRight->setAttribute(Qt::WA_TransparentForMouseEvents);
+	reactRight->paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(reactRight);
+
+		p.drawImage(0, 0, state->cache);
+	}, reactRight->lifetime());
+	rpl::combine(
+		reactRight->sizeValue(),
+		react->geometryValue()
+	) | rpl::start_with_next([=](const QSize &rightSize, const QRect &r) {
+		reactRight->moveToRight(
+			st::settingsButtonRightSkip,
+			r.y() + (r.height() - rightSize.height()) / 2);
+	}, reactRight->lifetime());
+
+	groupQuick->setChangedCallback([=](Quick value) {
+		Core::App().settings().setChatQuickAction(value);
+		Core::App().saveSettingsDelayed();
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_react_button.h"
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
@@ -1854,8 +1855,28 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& !_emptyPainter) {
 		if (const auto view = Element::Moused()) {
 			mouseActionCancel();
-			_widget->replyToMessage(view->data());
+			switch (HistoryView::CurrentQuickAction()) {
+			case HistoryView::DoubleClickQuickAction::Reply: {
+				_widget->replyToMessage(view->data());
+			} break;
+			case HistoryView::DoubleClickQuickAction::React: {
+				toggleFavoriteReaction(view);
+			} break;
+			default: break;
+			}
 		}
+	}
+}
+
+void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
+	const auto favorite = session().data().reactions().favorite();
+	const auto allowed = _reactionsManager->allowedSublist();
+	if (allowed && !allowed->contains(favorite)) {
+		return;
+	}
+	view->data()->toggleReaction(favorite);
+	if (const auto top = itemTop(view); top >= 0) {
+		view->animateReaction({ .emoji = favorite });
 	}
 }
 

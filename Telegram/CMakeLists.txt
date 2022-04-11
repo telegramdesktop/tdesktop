@@ -658,6 +658,8 @@ PRIVATE
     history/view/history_view_pinned_section.h
     history/view/history_view_pinned_tracker.cpp
     history/view/history_view_pinned_tracker.h
+    history/view/history_view_quick_action.cpp
+    history/view/history_view_quick_action.h
     history/view/history_view_react_animation.cpp
     history/view/history_view_react_animation.h
     history/view/history_view_react_button.cpp

@@ -179,6 +179,13 @@ QImage Reactions::resolveImageFor(
 		}
 		image.setDevicePixelRatio(factor);
 	};
+	if (size == ImageSize::Settings) {
+		if (set.settings.isNull() && set.icon) {
+			resolve(set.settings, st::reactionSettingsImage);
+			crl::async([icon = std::move(set.icon)]{});
+		}
+		return set.settings;
+	}
 	if (set.bottomInfo.isNull() && set.icon) {
 		resolve(set.bottomInfo, st::reactionInfoImage);
 		resolve(set.inlineList, st::reactionInlineImage);
