@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_peer_notify_settings.h"
 #include "data/data_cloud_file.h"
 
+struct BotInfo;
 class PeerData;
 class UserData;
 class ChatData;
@@ -109,6 +110,9 @@ bool UpdateBotCommands(
 bool UpdateBotCommands(
 	base::flat_map<UserId, std::vector<BotCommand>> &commands,
 	const MTPVector<MTPBotInfo> &data);
+bool ApplyBotMenuButton(
+	not_null<BotInfo*> info,
+	const MTPBotMenuButton &button);
 
 } // namespace Data
 

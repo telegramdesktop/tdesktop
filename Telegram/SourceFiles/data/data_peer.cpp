@@ -159,6 +159,25 @@ bool UpdateBotCommands(
 	return result;
 }
 
+bool ApplyBotMenuButton(
+		not_null<BotInfo*> info,
+		const MTPBotMenuButton &button) {
+	auto text = QString();
+	auto url = QString();
+	button.match([&](const MTPDbotMenuButton &data) {
+		text = qs(data.vtext());
+		url = qs(data.vurl());
+	}, [&](const auto &) {
+	});
+	const auto changed = (info->botMenuButtonText != text)
+		|| (info->botMenuButtonUrl != url);
+
+	info->botMenuButtonText = text;
+	info->botMenuButtonUrl = url;
+
+	return changed;
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)

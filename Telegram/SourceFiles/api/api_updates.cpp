@@ -2010,6 +2010,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		session().data().webViewResultSent({ .queryId = d.vquery_id().v });
 	} break;
 
+	case mtpc_updateBotMenuButton: {
+		const auto &d = update.c_updateBotMenuButton();
+		if (const auto bot = session().data().userLoaded(d.vbot_id())) {
+			if (const auto info = bot->botInfo.get(); info && info->inited) {
+				if (Data::ApplyBotMenuButton(info, d.vbutton())) {
+					session().data().botCommandsChanged(bot);
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updatePendingJoinRequests: {
 		const auto &d = update.c_updatePendingJoinRequests();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
