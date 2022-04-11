@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_message_reactions.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
@@ -2002,7 +2003,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateAttachMenuBots: {
-
+		session().attachWebView().requestBots();
 	} break;
 
 	case mtpc_updateWebViewResultSent: {
