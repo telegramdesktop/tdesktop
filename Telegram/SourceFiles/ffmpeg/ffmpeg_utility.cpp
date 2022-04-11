@@ -150,6 +150,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #else // Q_OS_WIN || Q_OS_MAC
 			case AV_PIX_FMT_VAAPI: return AV_HWDEVICE_TYPE_VAAPI;
 			case AV_PIX_FMT_VDPAU: return AV_HWDEVICE_TYPE_VDPAU;
+			case AV_PIX_FMT_CUDA: return AV_HWDEVICE_TYPE_CUDA;
 #endif // Q_OS_WIN || Q_OS_MAC
 			}
 			return AV_HWDEVICE_TYPE_NONE;
