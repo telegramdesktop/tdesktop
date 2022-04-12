@@ -6101,10 +6101,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 					controller()->show(Ui::MakeConfirmBox({
 						.text = tr::lng_cancel_edit_post_sure(),
 						.confirmed = crl::guard(this, [this, item] {
-							if (_editMsgId) {
-								item ? editMessage(item) : cancelEdit();
-								Ui::hideLayer();
-							}
+							item ? editMessage(item) : cancelEdit();
+							Ui::hideLayer();
 						}),
 						.confirmText = tr::lng_cancel_edit_post_yes(),
 						.cancelText = tr::lng_cancel_edit_post_no(),
@@ -6134,10 +6132,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 					controller()->show(Ui::MakeConfirmBox({
 						.text = tr::lng_cancel_edit_post_sure(),
 						.confirmed = crl::guard(this, [this, item] {
-							if (_editMsgId) {
-								editMessage(item);
-								Ui::hideLayer();
-							}
+							editMessage(item);
+							Ui::hideLayer();
 						}),
 						.confirmText = tr::lng_cancel_edit_post_yes(),
 						.cancelText = tr::lng_cancel_edit_post_no(),
