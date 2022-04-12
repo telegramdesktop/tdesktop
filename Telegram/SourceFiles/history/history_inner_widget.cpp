@@ -1852,9 +1852,9 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 			|| _mouseCursorState == CursorState::Date)
 		&& !inSelectionMode()
 		&& !_emptyPainter) {
-		if (const auto item = _mouseActionItem) {
+		if (const auto view = Element::Moused()) {
 			mouseActionCancel();
-			_widget->replyToMessage(item);
+			_widget->replyToMessage(view->data());
 		}
 	}
 }
