@@ -256,6 +256,8 @@ PRIVATE
     boxes/phone_banned_box.h
     boxes/pin_messages_box.cpp
     boxes/pin_messages_box.h
+    boxes/reactions_settings_box.cpp
+    boxes/reactions_settings_box.h
     boxes/ringtones_box.cpp
     boxes/ringtones_box.h
     boxes/self_destruction_box.cpp

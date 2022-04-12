@@ -440,6 +440,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_chat_quick_action_reply" = "Reply with double click";
 "lng_settings_chat_quick_action_react" = "Send reaction with double click";
 
+"lng_settings_chat_reactions_title" = "Quick Reaction";
+"lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";
+"lng_settings_chat_message_reply_from" = "Bob Harris";
+"lng_settings_chat_message_reply" = "Good morning";
+"lng_settings_chat_message" = "Do you know what time it is?";
+
 "lng_settings_section_filters" = "Folders";
 
 "lng_settings_section_background" = "Chat background";

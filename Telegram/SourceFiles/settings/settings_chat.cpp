@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_advanced.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
+#include "boxes/reactions_settings_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/background_box.h"
@@ -62,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "facades.h"
+#include "styles/style_chat_helpers.h" // stickersRemove
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -836,6 +838,25 @@ void SetupMessages(
 	const auto react = addQuick(
 		Quick::React,
 		tr::lng_settings_chat_quick_action_react(tr::now));
+
+	class EmptyButton final : public Ui::IconButton {
+	public:
+		EmptyButton(not_null<Ui::RpWidget*> p, const style::IconButton &st)
+		: Ui::IconButton(p, st)
+		, _rippleAreaPosition(st.rippleAreaPosition) {
+		}
+	protected:
+		void paintEvent(QPaintEvent *e) override {
+			Painter p(this);
+
+			paintRipple(p, _rippleAreaPosition, nullptr);
+		}
+	private:
+		const QPoint _rippleAreaPosition;
+	};
+	const auto buttonRight = Ui::CreateChild<EmptyButton>(
+		inner,
+		st::stickersRemove);
 	const auto reactRight = Ui::CreateChild<Ui::RpWidget>(inner);
 
 	struct State {
@@ -872,11 +893,20 @@ void SetupMessages(
 		reactRight->moveToRight(
 			st::settingsButtonRightSkip,
 			r.y() + (r.height() - rightSize.height()) / 2);
+		buttonRight->moveToLeft(
+			reactRight->x()
+				+ (rightSize.width() - buttonRight->width()) / 2,
+			reactRight->y()
+				+ (rightSize.height() - buttonRight->height()) / 2);
 	}, reactRight->lifetime());
 
 	groupQuick->setChangedCallback([=](Quick value) {
 		Core::App().settings().setChatQuickAction(value);
 		Core::App().saveSettingsDelayed();
+	});
+
+	buttonRight->setClickedCallback([=, show = Window::Show(controller)] {
+		show.showBox(Box(ReactionsSettingsBox, controller));
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
