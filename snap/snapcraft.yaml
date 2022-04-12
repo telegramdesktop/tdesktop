@@ -93,6 +93,7 @@ parts:
     build-packages:
       - clang
       - g++-10
+      - ninja-build
       - python
       - libasound2-dev
       - libglib2.0-dev
@@ -195,23 +196,6 @@ parts:
       - mozjpeg
       - qt
 
-  epoxy:
-    source: https://github.com/anholt/libepoxy.git
-    source-depth: 1
-    source-tag: 1.5.9
-    plugin: meson
-    meson-parameters:
-      - --buildtype=release
-      - --prefix=/usr
-      - --default-library=static
-      - -Dtests=false
-    override-pull: |
-      snapcraftctl pull
-      patch -p1 < $SNAPCRAFT_STAGE/patches/libepoxy.patch
-    prime: [-./*]
-    after:
-      - patches
-
   ffmpeg:
     plugin: nil
     build-packages:
@@ -236,6 +220,8 @@ parts:
     source-depth: 1
     source-tag: v4.0.3
     plugin: cmake
+    build-packages:
+      - ninja-build
     cmake-parameters:
       - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
@@ -256,6 +242,7 @@ parts:
     source-branch: fix_pulse_default
     plugin: cmake
     build-packages:
+      - ninja-build
       - libasound2-dev
       - libpulse-dev
     stage-packages:
@@ -309,7 +296,6 @@ parts:
       - libxcb-sync-dev
       - libxcb-util-dev
       - libxcb-xfixes0-dev
-      - libxcb-xinput-dev
       - libxcb-xkb-dev
       - libxcursor-dev
       - libxkbcommon-dev
@@ -349,22 +335,19 @@ parts:
       - libxcb-sync1
       - libxcb-util1
       - libxcb-xfixes0
-      - libxcb-xinput0
       - libxcb-xkb1
       - libxcursor1
       - libxkbcommon0
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_2_4
+      QT=6_3_0
 
-      git clone -b v6.2.4 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.3.0 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ../qtwayland
-      find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
@@ -379,9 +362,7 @@ parts:
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
-        -nomake tests \
-        -- \
-        -DINPUT_egl_extension_platform_wayland=no
+        -nomake tests
 
       cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
@@ -403,7 +384,6 @@ parts:
       # Allow tdesktop's custom try-portal-and-fallback logic to work
       - -./usr/plugins/platformthemes/libqxdgdesktopportal.so
     after:
-      - epoxy
       - mozjpeg
       - patches
 
@@ -450,12 +430,15 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 1fe5e68d999e0bf88d0128ad813438726732f6e0
+    source-commit: 60db14acbda90de6d47bc19f59f3c70e9c3e08a3
     plugin: cmake
     build-packages:
+      - ninja-build
       - yasm
       #- libdrm-dev
+      #- libegl-dev
       #- libgbm-dev
+      #- libgl-dev
       #- libglib2.0-dev
       - libopus-dev
       #- libpipewire-0.2-dev
@@ -470,7 +453,9 @@ parts:
       - libxtst-dev
     stage-packages:
       #- libdrm2
+      #- libegl1
       #- libgbm1
+      #- libgl1
       #- libglib2.0-0
       - libopus0
       #- libpipewire-0.2-1
@@ -495,7 +480,6 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
     after:
-      #- epoxy
       - ffmpeg
       - mozjpeg
       - vpx
