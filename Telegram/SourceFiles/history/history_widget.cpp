@@ -6093,18 +6093,36 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_PageUp) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Down && !commonModifiers) {
-		_scroll->keyPressEvent(e);
-	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
-		const auto item = _history
-			? _history->lastEditableMessage()
-			: nullptr;
-		if (item
-			&& _field->empty()
-			&& !_editMsgId
+		if (_editMsgId
 			&& !_replyToId) {
-			editMessage(item);
+				const auto item = _history ? _history->editableMessageAfter(_editMsgId) : nullptr;
+				if(item) {
+					editMessage(item);
+				}
 			return;
 		}
+
+		_scroll->keyPressEvent(e);
+	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
+		if (_field->empty()
+			&& !_editMsgId
+			&& !_replyToId) {
+				const auto item = _history ? _history->lastEditableMessage() : nullptr;
+				if(item) {
+					editMessage(item);
+				}
+				return;
+		}
+
+		if (_editMsgId
+			&& !_replyToId) {
+				const auto item = _history ? _history->editableMessageBefore(_editMsgId) : nullptr;
+				if(item) {
+					editMessage(item);
+				}
+				return;
+		}
+
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		if (!_botStart->isHidden()) {
