@@ -3,9 +3,9 @@ FROM centos:7 AS builder
 ENV GIT https://github.com
 ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
-ENV QT 6_2_4
-ENV QT_TAG v6.2.4
-ENV QT_PREFIX /usr/local/desktop-app/Qt-6.2.4
+ENV QT 6_3_0
+ENV QT_TAG v6.3.0
+ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.0
 ENV Qt6_DIR ${QT_PREFIX}
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
@@ -44,7 +44,7 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN rm $CMAKE_FILE
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 43c34f586a
+RUN git clone $GIT/desktop-app/patches.git && cd patches && git checkout 86187a0437
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 $GIT/libffi/libffi.git
@@ -80,22 +80,6 @@ RUN DESTDIR="$LibrariesPath/xz-cache" cmake --install build
 
 WORKDIR ..
 RUN rm -rf xz
-
-FROM patches AS libepoxy
-RUN git clone -b 1.5.9 --depth=1 $GIT/anholt/libepoxy.git
-
-WORKDIR libepoxy
-RUN git apply ../patches/libepoxy.patch
-RUN meson build \
-	--buildtype=release \
-	--default-library=both \
-	-Dtests=false
-
-RUN meson compile -C build
-RUN DESTDIR="$LibrariesPath/libepoxy-cache" meson install -C build
-
-WORKDIR ..
-RUN rm -rf libepoxy
 
 FROM patches AS libproxy
 RUN git clone -b 0.4.17 --depth=1 $GIT/libproxy/libproxy.git
@@ -585,7 +569,6 @@ FROM patches AS qt
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=zlib ${LibrariesPath}/zlib-cache /
-COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
@@ -604,8 +587,6 @@ RUN perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,q
 
 WORKDIR qtbase
 RUN find ../../patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-WORKDIR ../qtwayland
-RUN find ../../patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
 RUN ./configure -prefix "$QT_PREFIX" \
@@ -617,7 +598,6 @@ RUN ./configure -prefix "$QT_PREFIX" \
 	-qt-libpng \
 	-qt-harfbuzz \
 	-qt-pcre \
-	-no-pch \
 	-no-icu \
 	-no-feature-xcb-sm \
 	-no-feature-highdpiscaling \
@@ -625,9 +605,7 @@ RUN ./configure -prefix "$QT_PREFIX" \
 	-dbus-runtime \
 	-openssl-linked \
 	-nomake examples \
-	-nomake tests \
-	-- \
-	-DINPUT_egl_extension_platform_wayland=no
+	-nomake tests
 
 RUN cmake --build . --parallel
 RUN DESTDIR="$LibrariesPath/qt-cache" cmake --install .
@@ -655,7 +633,6 @@ WORKDIR ..
 
 FROM builder AS webrtc
 
-COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
@@ -668,7 +645,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin 347400dc2377b16be702397ff8db44d5739d2650
+RUN git fetch --depth=1 origin 60db14acbda90de6d47bc19f59f3c70e9c3e08a3
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update
@@ -698,7 +675,6 @@ FROM builder
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=zlib ${LibrariesPath}/zlib-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
-COPY --from=libepoxy ${LibrariesPath}/libepoxy-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
