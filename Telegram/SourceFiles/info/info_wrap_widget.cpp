@@ -645,10 +645,10 @@ rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
 
 rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 	using namespace rpl::mappers;
-	return rpl::combine(
+	return rpl::single(0) | rpl::then(rpl::combine(
 		_content->desiredHeightValue(),
 		topWidget()->heightValue(),
-		_1 + _2);
+		_1 + _2));
 }
 
 rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
@@ -738,7 +738,14 @@ QPixmap WrapWidget::grabForShowAnimation(
 	//if (params.withTabs && _topTabs) {
 	//	_topTabs->hide();
 	//}
+	const auto expanding = _expanding;
+	if (expanding) {
+		_grabbingForExpanding = true;
+	}
 	auto result = Ui::GrabWidget(this);
+	if (expanding) {
+		_grabbingForExpanding = false;
+	}
 	if (params.withTopBarShadow) {
 		_topShadow->setVisible(true);
 	}
@@ -1007,11 +1014,15 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 	return nullptr;
 }
 
-void WrapWidget::updateGeometry(QRect newGeometry, int additionalScroll) {
+void WrapWidget::updateGeometry(
+		QRect newGeometry,
+		bool expanding,
+		int additionalScroll) {
 	auto scrollChanged = (_additionalScroll != additionalScroll);
 	auto geometryChanged = (geometry() != newGeometry);
 	auto shrinkingContent = (additionalScroll < _additionalScroll);
 	_additionalScroll = additionalScroll;
+	_expanding = expanding;
 
 	if (geometryChanged) {
 		if (shrinkingContent) {
@@ -1036,6 +1047,10 @@ rpl::producer<int> WrapWidget::scrollTillBottomChanges() const {
 	return _scrollTillBottomChanges.events_starting_with(
 		_content->scrollTillBottomChanges()
 	) | rpl::flatten_latest();
+}
+
+rpl::producer<bool> WrapWidget::grabbingForExpanding() const {
+	return _grabbingForExpanding.value();
 }
 
 WrapWidget::~WrapWidget() = default;

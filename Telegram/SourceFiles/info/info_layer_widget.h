@@ -68,11 +68,17 @@ private:
 		not_null<const HistoryItem*> item) override;
 
 	void setupHeightConsumers();
+	void setContentHeight(int height);
 
 	not_null<Window::SessionController*> _controller;
 	object_ptr<WrapWidget> _content;
 
 	int _desiredHeight = 0;
+	int _contentHeight = 0;
+	int _savedHeight = 0;
+	Ui::Animations::Simple _heightAnimation;
+	Ui::Animations::Simple _savedHeightAnimation;
+	bool _heightAnimated = false;
 	bool _inResize = false;
 	bool _tillBottom = false;
 

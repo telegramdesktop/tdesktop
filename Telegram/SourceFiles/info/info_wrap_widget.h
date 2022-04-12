@@ -118,11 +118,15 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
-	bool closeByOutsideClick() const;
+	[[nodiscard]] bool closeByOutsideClick() const;
 
-	void updateGeometry(QRect newGeometry, int additionalScroll);
-	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int>  scrollTillBottomChanges() const;
+	void updateGeometry(
+		QRect newGeometry,
+		bool expanding,
+		int additionalScroll);
+	[[nodiscard]] int scrollTillBottom(int forHeight) const;
+	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
+	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;
 
 	~WrapWidget();
 
@@ -203,6 +207,8 @@ private:
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
 	int _additionalScroll = 0;
+	bool _expanding = false;
+	rpl::variable<bool> _grabbingForExpanding = false;
 	//object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
