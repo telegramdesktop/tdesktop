@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
+#include "webview/webview_interface.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
 #include "styles/style_widgets.h"
@@ -1491,7 +1492,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 	return true;
 }
 
-[[nodiscard]] QByteArray WebViewParams() {
+[[nodiscard]] Webview::ThemeParams WebViewParams() {
 	const auto colors = std::vector<std::pair<QString, const style::color&>>{
 		{ "bg_color", st::windowBg },
 		{ "text_color", st::windowFg },
@@ -1514,7 +1515,14 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		};
 		object.insert(name, '#' + hex(r) + hex(g) + hex(b));
 	}
-	return QJsonDocument(object).toJson(QJsonDocument::Compact);
+	return {
+		.scrollBg = st::scrollBg->c,
+		.scrollBgOver = st::scrollBgOver->c,
+		.scrollBarBg = st::scrollBarBg->c,
+		.scrollBarBgOver = st::scrollBarBgOver->c,
+
+		.json = QJsonDocument(object).toJson(QJsonDocument::Compact),
+	};
 }
 
 } // namespace Theme

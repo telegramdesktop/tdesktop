@@ -783,15 +783,20 @@ void Panel::showWebviewError(
 	showCriticalError(rich);
 }
 
-void Panel::updateThemeParams(const QByteArray &json) {
+void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 	if (!_webview || !_webview->window.widget()) {
 		return;
 	}
+	_webview->window.updateTheme(
+		params.scrollBg,
+		params.scrollBgOver,
+		params.scrollBarBg,
+		params.scrollBarBgOver);
 	_webview->window.eval(R"(
 if (window.TelegramGameProxy) {
 	window.TelegramGameProxy.receiveEvent(
 		"theme_changed",
-		{ "theme_params": )" + json + R"( });
+		{ "theme_params": )" + params.json + R"( });
 }
 )");
 }

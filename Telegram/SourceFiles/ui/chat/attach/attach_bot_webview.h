@@ -17,6 +17,7 @@ class SeparatePanel;
 
 namespace Webview {
 struct Available;
+struct ThemeParams;
 } // namespace Webview
 
 namespace Ui::BotWebView {
@@ -36,7 +37,7 @@ public:
 		Fn<bool(QString)> handleLocalUri,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
-		Fn<QByteArray()> themeParams);
+		Fn<Webview::ThemeParams()> themeParams);
 	~Panel();
 
 	void requestActivate();
@@ -44,6 +45,7 @@ public:
 
 	bool showWebview(
 		const QString &url,
+		const Webview::ThemeParams &params,
 		rpl::producer<QString> bottomText);
 
 	void showBox(object_ptr<BoxContent> box);
@@ -53,7 +55,7 @@ public:
 		const QString &text,
 		const Webview::Available &information);
 
-	void updateThemeParams(const QByteArray &json);
+	void updateThemeParams(const Webview::ThemeParams &params);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -101,7 +103,7 @@ struct Args {
 	Fn<bool(QString)> handleLocalUri;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
-	Fn<QByteArray()> themeParams;
+	Fn<Webview::ThemeParams()> themeParams;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);
 

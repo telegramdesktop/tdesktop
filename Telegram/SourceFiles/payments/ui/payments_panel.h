@@ -18,6 +18,7 @@ class Checkbox;
 
 namespace Webview {
 struct Available;
+struct ThemeParams;
 } // namespace Webview
 
 namespace Payments::Ui {
@@ -76,7 +77,7 @@ public:
 		const QString &url,
 		bool allowBack,
 		rpl::producer<QString> bottomText);
-	void updateThemeParams(const QByteArray &json);
+	void updateThemeParams(const Webview::ThemeParams &params);
 
 	[[nodiscard]] rpl::producer<> backRequests() const;
 

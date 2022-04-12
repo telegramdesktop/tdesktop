@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "webview/webview_interface.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
 #include "ui/basic_click_handlers.h"
@@ -366,7 +367,7 @@ void AttachWebView::request(const WebViewButton &button) {
 		_bot->inputUser,
 		MTP_bytes(button.url),
 		MTP_string(_startCommand),
-		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams())),
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 		MTPint() // reply_to_msg_id
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
@@ -559,7 +560,7 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 		MTP_flags(Flag::f_theme_params),
 		_bot->inputUser,
 		MTP_bytes(button.url),
-		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams()))
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPSimpleWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDsimpleWebViewResultUrl &data) {
@@ -589,7 +590,7 @@ void AttachWebView::requestMenu(
 			_bot->inputUser,
 			MTP_string(url),
 			MTPstring(),
-			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams())),
+			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 			MTPint()
 		)).done([=](const MTPWebViewResult &result) {
 			_requestId = 0;
@@ -644,7 +645,7 @@ void AttachWebView::show(
 	Expects(_bot != nullptr && _peer != nullptr);
 
 	const auto close = crl::guard(this, [=] {
-		cancel();
+		crl::on_main(this, [=] { cancel(); });
 	});
 	const auto sendData = crl::guard(this, [=](QByteArray data) {
 		if (_peer != _bot || queryId) {
@@ -669,7 +670,7 @@ void AttachWebView::show(
 			return false;
 		}
 		UrlClickHandler::Open(local, {});
-		crl::on_main(close);
+		close();
 		return true;
 	};
 	auto title = Info::Profile::NameValue(

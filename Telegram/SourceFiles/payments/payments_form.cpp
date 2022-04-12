@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
 #include "window/themes/window_theme.h"
+#include "webview/webview_interface.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
 
 #include <QtCore/QJsonDocument>
@@ -242,7 +243,7 @@ void Form::requestForm() {
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
 		_peer->input,
 		MTP_int(_msgId),
-		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams()))
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
 		result.match([&](const auto &data) {

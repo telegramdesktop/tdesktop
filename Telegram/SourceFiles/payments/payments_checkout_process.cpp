@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "window/themes/window_theme.h"
+#include "webview/webview_interface.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>

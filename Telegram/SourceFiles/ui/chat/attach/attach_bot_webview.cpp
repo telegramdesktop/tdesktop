@@ -307,7 +307,7 @@ Panel::Panel(
 	Fn<bool(QString)> handleLocalUri,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
-	Fn<QByteArray()> themeParams)
+	Fn<Webview::ThemeParams()> themeParams)
 : _userDataPath(userDataPath)
 , _handleLocalUri(std::move(handleLocalUri))
 , _sendData(std::move(sendData))
@@ -465,6 +465,7 @@ void Panel::hideWebviewProgress() {
 
 bool Panel::showWebview(
 		const QString &url,
+		const Webview::ThemeParams &params,
 		rpl::producer<QString> bottomText) {
 	if (!_webview && !createWebview()) {
 		return false;
@@ -472,6 +473,7 @@ bool Panel::showWebview(
 	const auto allowBack = false;
 	showWebviewProgress();
 	_widget->destroyLayer();
+	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
@@ -523,6 +525,7 @@ bool Panel::createWebview() {
 			.userDataPath = _userDataPath,
 		});
 	const auto raw = &_webview->window;
+
 	QObject::connect(container, &QObject::destroyed, [=] {
 		if (_webview && &_webview->window == raw) {
 			_webview = nullptr;
@@ -741,11 +744,16 @@ void Panel::showCriticalError(const TextWithEntities &text) {
 	_widget->showInner(std::move(error));
 }
 
-void Panel::updateThemeParams(const QByteArray &json) {
+void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 	if (!_webview || !_webview->window.widget()) {
 		return;
 	}
-	postEvent("theme_changed", "\"theme_params\": " + json);
+	_webview->window.updateTheme(
+		params.scrollBg,
+		params.scrollBgOver,
+		params.scrollBarBg,
+		params.scrollBarBgOver);
+	postEvent("theme_changed", "\"theme_params\": " + params.json);
 }
 
 void Panel::postEvent(const QString &event, const QString &data) {
@@ -803,6 +811,7 @@ rpl::lifetime &Panel::lifetime() {
 }
 
 std::unique_ptr<Panel> Show(Args &&args) {
+	const auto params = args.themeParams();
 	auto result = std::make_unique<Panel>(
 		args.userDataPath,
 		std::move(args.title),
@@ -810,7 +819,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		std::move(args.sendData),
 		std::move(args.close),
 		std::move(args.themeParams));
-	if (!result->showWebview(args.url, std::move(args.bottom))) {
+	if (!result->showWebview(args.url, params, std::move(args.bottom))) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			result->showWebviewError(
