@@ -179,21 +179,16 @@ QImage Reactions::resolveImageFor(
 		}
 		image.setDevicePixelRatio(factor);
 	};
-	if (size == ImageSize::Settings) {
-		if (set.settings.isNull() && set.icon) {
-			resolve(set.settings, st::reactionSettingsImage);
-			crl::async([icon = std::move(set.icon)]{});
-		}
-		return set.settings;
-	}
 	if (set.bottomInfo.isNull() && set.icon) {
 		resolve(set.bottomInfo, st::reactionInfoImage);
 		resolve(set.inlineList, st::reactionInlineImage);
+		resolve(set.settings, st::reactionSettingsImage);
 		crl::async([icon = std::move(set.icon)]{});
 	}
 	switch (size) {
 	case ImageSize::BottomInfo: return set.bottomInfo;
 	case ImageSize::InlineList: return set.inlineList;
+	case ImageSize::Settings: return set.settings;
 	}
 	Unexpected("ImageSize in Reactions::resolveImageFor.");
 }
