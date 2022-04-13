@@ -57,8 +57,8 @@ PRIVATE
 
     v2/ContentNegotiation.cpp
     v2/ContentNegotiation.h
-    v2/InstanceV2ReferenceImpl.cpp
-    v2/InstanceV2ReferenceImpl.h
+    # v2/InstanceV2ReferenceImpl.cpp
+    # v2/InstanceV2ReferenceImpl.h
     v2/InstanceV2Impl.cpp
     v2/InstanceV2Impl.h
     v2/NativeNetworkingImpl.cpp
