@@ -414,7 +414,7 @@ void ReactionsSettingsBox(
 		buttonsContainer->resizeToWidth(s.width());
 	}, scroll->lifetime());
 
-	const auto check = Ui::CreateChild<Ui::RpWidget>(buttonsContainer.get());
+	const auto check = Ui::CreateChild<Ui::RpWidget>(buttonsContainer.data());
 	check->resize(st::settingsReactionCornerSize);
 	check->setAttribute(Qt::WA_TransparentForMouseEvents);
 	check->paintRequest(
