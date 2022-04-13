@@ -141,12 +141,18 @@ if [ "$BuildTarget" == "linux" ]; then
 
   DropboxSymbolsPath="/media/psf/Dropbox/Telegram/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
-    Error "Dropbox path not found!"
+    DropboxSymbolsPath="/mnt/c/Telegram/Dropbox/Telegram/symbols"
+    if [ ! -d "$DropboxSymbolsPath" ]; then
+      Error "Dropbox path not found!"
+    fi
   fi
 
   BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
   if [ ! -d "/media/psf/backup/tdesktop" ]; then
-    Error "Backup folder not found!"
+    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+    if [ ! -d "/mnt/c/Telegram/Projects/backup/tdesktop" ]; then
+      Error "Backup folder not found!"
+    fi
   fi
 
   ./build/docker/centos_env/run.sh /usr/src/tdesktop/Telegram/build/docker/build.sh
