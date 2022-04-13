@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
+#include "boxes/abstract_box.h" // Ui::show().
 
 namespace Api {
 namespace {
@@ -149,8 +150,7 @@ void EditMessageWithUploadedMedia(
 			session->data().sendHistoryChangeNotifications();
 			if (mediaInvalid) {
 				Ui::show(
-					Box<Ui::InformBox>(
-						tr::lng_edit_media_invalid_file(tr::now)),
+					Ui::MakeInformBox(tr::lng_edit_media_invalid_file()),
 					Ui::LayerOption::KeepOther);
 			}
 		} else {

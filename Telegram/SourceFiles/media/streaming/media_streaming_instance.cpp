@@ -172,6 +172,10 @@ QImage Instance::frame(const FrameRequest &request) const {
 	return player().frame(request, this);
 }
 
+FrameWithInfo Instance::frameWithInfo(const FrameRequest &request) const {
+	return player().frameWithInfo(request, this);
+}
+
 FrameWithInfo Instance::frameWithInfo() const {
 	return player().frameWithInfo(this);
 }

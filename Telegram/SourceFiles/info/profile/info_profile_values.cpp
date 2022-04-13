@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "base/unixtime.h"
 
 namespace Info {
 namespace Profile {
@@ -405,9 +406,7 @@ rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
 rpl::producer<int> FullReactionsCountValue(
 		not_null<Main::Session*> session) {
 	const auto reactions = &session->data().reactions();
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		reactions->updates()
 	) | rpl::map([=] {
 		return int(reactions->list(Data::Reactions::Type::Active).size());

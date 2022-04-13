@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace style {
+struct ShortInfoCover;
+} // namespace style
+
 namespace Ui {
 class BoxContent;
 } // namespace Ui
@@ -39,4 +43,5 @@ struct PreparedShortInfoUserpic {
 	not_null<PeerData*> peer);
 
 [[nodiscard]] PreparedShortInfoUserpic PrepareShortInfoUserpic(
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	const style::ShortInfoCover &st);

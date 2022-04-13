@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "styles/style_layers.h"
 
 namespace Lang {
@@ -367,14 +368,14 @@ bool CloudManager::showOfferSwitchBox() {
 		Local::writeLangPack();
 	};
 	Ui::show(
-		Box<Ui::ConfirmBox>(
-			"Do you want to switch your language to "
+		Ui::MakeConfirmBox({
+			.text = QString("Do you want to switch your language to ")
 			+ language.nativeName
-			+ "? You can always change your language in Settings.",
-			"Change",
-			tr::lng_cancel(tr::now),
-			confirm,
-			cancel),
+			+ QString("? You can always change your language in Settings."),
+			.confirmed = confirm,
+			.cancelled = cancel,
+			.confirmText = QString("Change"),
+		}),
 		Ui::LayerOption::KeepOther);
 	return true;
 }
@@ -419,7 +420,7 @@ void CloudManager::requestLanguageAndSwitch(
 	Expects(!id.isEmpty());
 
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_language_already(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_language_already()));
 		return;
 	} else if (id == qstr("#custom")) {
 		performSwitchToCustom();
@@ -464,7 +465,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 	}).fail([=](const MTP::Error &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
-			Ui::show(Box<Ui::InformBox>(tr::lng_language_not_found(tr::now)));
+			Ui::show(Ui::MakeInformBox(tr::lng_language_not_found()));
 		}
 	}).send();
 }
@@ -502,11 +503,11 @@ void CloudManager::switchToLanguage(const Language &data) {
 				+ "\n\n"
 				+ getValue(tr::lng_sure_save_language.base);
 			Ui::show(
-				Box<Ui::ConfirmBox>(
-					text,
-					tr::lng_box_ok(tr::now),
-					tr::lng_cancel(tr::now),
-					[=] { performSwitchAndRestart(data); }),
+				Ui::MakeConfirmBox({
+					.text = text,
+					.confirmed = [=] { performSwitchAndRestart(data); },
+					.confirmText = tr::lng_box_ok(),
+				}),
 				Ui::LayerOption::KeepOther);
 		}).fail([=] {
 			_getKeysForSwitchRequestId = 0;
@@ -550,16 +551,16 @@ void CloudManager::performSwitchToCustom() {
 					Core::Restart();
 				};
 				Ui::show(
-					Box<Ui::ConfirmBox>(
-						text,
-						tr::lng_box_ok(tr::now),
-						tr::lng_cancel(tr::now),
-						change),
+					Ui::MakeConfirmBox({
+						.text = text,
+						.confirmed = change,
+						.confirmText = tr::lng_box_ok(),
+					}),
 					Ui::LayerOption::KeepOther);
 			}
 		} else {
 			Ui::show(
-				Box<Ui::InformBox>(
+				Ui::MakeInformBox(
 					"Custom lang failed :(\n\nError: " + loader.errors()),
 				Ui::LayerOption::KeepOther);
 		}

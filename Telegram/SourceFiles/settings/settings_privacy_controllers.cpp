@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "calls/calls_instance.h"
 #include "base/unixtime.h"
+#include "base/event_filter.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/checkbox.h"
@@ -34,7 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
+#include "ui/text/text_utilities.h"
 #include "window/section_widget.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "ui/boxes/confirm_box.h"
@@ -44,11 +47,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Settings {
 namespace {
 
 using UserPrivacy = Api::UserPrivacy;
 using PrivacyRule = Api::UserPrivacy::Rule;
+using Option = EditPrivacyBox::Option;
+
+[[nodiscard]] QString PublicLinkByPhone(not_null<UserData*> user) {
+	return user->session().createInternalLinkFull('+' + user->phone());
+}
 
 class BlockPeerBoxController final : public ChatsListBoxController {
 public:
@@ -175,6 +186,119 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	});
 
 	return AdminLog::OwnedItem(delegate, item);
+}
+
+struct ForwardedTooltip {
+	QRect geometry;
+	Fn<void(Painter&)> paint;
+};
+[[nodiscard]] ForwardedTooltip PrepareForwardedTooltip(
+		not_null<HistoryView::Element*> view,
+		Option value) {
+	// This breaks HistoryView::Element encapsulation :(
+	const auto forwarded = view->data()->Get<HistoryMessageForwarded>();
+	const auto availableWidth = view->width()
+		- st::msgMargin.left()
+		- st::msgMargin.right();
+	const auto bubbleWidth = ranges::min({
+		availableWidth,
+		view->maxWidth(),
+		st::msgMaxWidth
+	});
+	const auto innerWidth = bubbleWidth
+		- st::msgPadding.left()
+		- st::msgPadding.right();
+	const auto phrase = tr::lng_forwarded(
+		tr::now,
+		lt_user,
+		view->data()->history()->session().user()->name);
+	const auto kReplacementPosition = QChar(0x0001);
+	const auto possiblePosition = tr::lng_forwarded(
+		tr::now,
+		lt_user,
+		QString(1, kReplacementPosition)
+	).indexOf(kReplacementPosition);
+	const auto position = (possiblePosition >= 0
+		&& possiblePosition < phrase.size())
+		? possiblePosition
+		: 0;
+	const auto before = phrase.mid(0, position);
+	const auto skip = st::msgMargin.left() + st::msgPadding.left();
+	const auto small = forwarded->text.countHeight(innerWidth)
+		< 2 * st::msgServiceFont->height;
+	const auto nameLeft = skip
+		+ (small ? st::msgServiceFont->width(before) : 0);
+	const auto right = skip + innerWidth;
+	const auto text = [&] {
+		switch (value) {
+		case Option::Everyone:
+			return tr::lng_edit_privacy_forwards_sample_everyone(tr::now);
+		case Option::Contacts:
+			return tr::lng_edit_privacy_forwards_sample_contacts(tr::now);
+		case Option::Nobody:
+			return tr::lng_edit_privacy_forwards_sample_nobody(tr::now);
+		}
+		Unexpected("Option value in ForwardsPrivacyController.");
+	}();
+	const auto &font = st::defaultToast.style.font;
+	const auto textWidth = font->width(text);
+	const auto arrowSkip = st::settingsForwardPrivacyArrowSkip;
+	const auto arrowSize = st::settingsForwardPrivacyArrowSize;
+	const auto padding = st::settingsForwardPrivacyTooltipPadding;
+	const auto rect = QRect(0, 0, textWidth, font->height).marginsAdded(
+		padding
+	).translated(padding.left(), padding.top());
+
+	const auto top = st::settingsForwardPrivacyPadding
+		+ view->marginTop()
+		+ st::msgPadding.top()
+		- arrowSize
+		- rect.height();
+	const auto left1 = std::min(nameLeft, right - rect.width());
+	const auto left2 = std::max(left1, skip);
+	const auto left = left2;
+	const auto arrowLeft1 = nameLeft + arrowSkip;
+	const auto arrowLeft2 = std::min(
+		arrowLeft1,
+		std::max((left + right) / 2, right - arrowSkip));
+	const auto arrowLeft = arrowLeft2;
+	const auto geometry = rect.translated(left, top);
+
+	const auto line = st::lineWidth;
+	const auto full = geometry.marginsAdded(
+		{ line, line, line, line + arrowSize });
+	const auto origin = full.topLeft();
+
+	const auto paint = [=](Painter &p) {
+		p.translate(-origin);
+
+		Ui::FillRoundRect(
+			p,
+			geometry,
+			st::toastBg,
+			ImageRoundRadius::Large);
+
+		p.setFont(font);
+		p.setPen(st::toastFg);
+		p.drawText(
+			geometry.x() + padding.left(),
+			geometry.y() + padding.top() + font->ascent,
+			text);
+
+		const auto bottom = full.y() + full.height() - line;
+
+		QPainterPath path;
+		path.moveTo(arrowLeft - arrowSize, bottom - arrowSize);
+		path.lineTo(arrowLeft, bottom);
+		path.lineTo(arrowLeft + arrowSize, bottom - arrowSize);
+		path.lineTo(arrowLeft - arrowSize, bottom - arrowSize);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.fillPath(path, st::toastBg);
+		}
+	};
+	return { .geometry = full, .paint = paint };
 }
 
 } // namespace
@@ -316,6 +440,11 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 	return row;
 }
 
+PhoneNumberPrivacyController::PhoneNumberPrivacyController(
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
+
 UserPrivacy::Key PhoneNumberPrivacyController::key() {
 	return Key::PhoneNumber;
 }
@@ -328,17 +457,44 @@ rpl::producer<QString> PhoneNumberPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_phone_number_header();
 }
 
-rpl::producer<QString> PhoneNumberPrivacyController::warning() {
+rpl::producer<TextWithEntities> PhoneNumberPrivacyController::warning() {
 	using namespace rpl::mappers;
+	const auto self = _controller->session().user();
 	return rpl::combine(
 		_phoneNumberOption.value(),
 		_addedByPhone.value(),
 		(_1 == Option::Nobody) && (_2 != Option::Everyone)
-	) | rpl::map([](bool onlyContactsSee) {
+	) | rpl::map([=](bool onlyContactsSee) {
 		return onlyContactsSee
-			? tr::lng_edit_privacy_phone_number_contacts()
-			: tr::lng_edit_privacy_phone_number_warning();
+			? tr::lng_edit_privacy_phone_number_contacts(
+				Ui::Text::WithEntities)
+			: rpl::combine(
+				tr::lng_edit_privacy_phone_number_warning(),
+				tr::lng_username_link()
+			) | rpl::map([=](const QString &warning, const QString &added) {
+				auto base = TextWithEntities{
+					warning + "\n\n" + added + "\n",
+				};
+				const auto link = PublicLinkByPhone(self);
+				return base.append(Ui::Text::Link(link, link));
+			});
 	}) | rpl::flatten_latest();
+}
+
+void PhoneNumberPrivacyController::prepareWarningLabel(
+		not_null<Ui::FlatLabel*> warning) {
+	warning->setClickHandlerFilter([=](
+			const ClickHandlerPtr &link,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
+			QGuiApplication::clipboard()->setText(PublicLinkByPhone(
+				_controller->session().user()));
+			_controller->window().showToast(
+				tr::lng_username_copied(tr::now));
+			return false;
+		}
+		return true;
+	});
 }
 
 rpl::producer<QString> PhoneNumberPrivacyController::exceptionButtonTextKey(
@@ -379,7 +535,6 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 		object_ptr<Ui::VerticalLayout>(parent));
 
 	const auto container = widget->entity();
-	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_edit_privacy_phone_number_find());
 	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>();
@@ -399,7 +554,8 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 	};
 	addOption(Option::Everyone);
 	addOption(Option::Contacts);
-	AddSkip(container);
+	AddSkip(container, st::settingsSectionSkip + st::settingsPrivacySkipTop);
+	AddDivider(container);
 
 	using namespace rpl::mappers;
 	widget->toggleOn(_phoneNumberOption.value(
@@ -439,8 +595,8 @@ rpl::producer<QString> LastSeenPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_lastseen_header();
 }
 
-rpl::producer<QString> LastSeenPrivacyController::warning() {
-	return tr::lng_edit_privacy_lastseen_warning();
+rpl::producer<TextWithEntities> LastSeenPrivacyController::warning() {
+	return tr::lng_edit_privacy_lastseen_warning(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> LastSeenPrivacyController::exceptionButtonTextKey(
@@ -469,22 +625,22 @@ rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
 
 void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
-		FnMut<void()> saveCallback) {
+		Fn<void()> saveCallback) {
 	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		auto callback = [
 			=,
 			saveCallback = std::move(saveCallback)
-		](Fn<void()> &&close) mutable {
+		](Fn<void()> &&close) {
 			close();
 			saveCallback();
 			Core::App().settings().setLastSeenWarningSeen(true);
 			Core::App().saveSettingsDelayed();
 		};
-		auto box = Box<Ui::ConfirmBox>(
-			tr::lng_edit_privacy_lastseen_warning(tr::now),
-			tr::lng_continue(tr::now),
-			tr::lng_cancel(tr::now),
-			std::move(callback));
+		auto box = Ui::MakeConfirmBox({
+			.text = tr::lng_edit_privacy_lastseen_warning(),
+			.confirmed = std::move(callback),
+			.confirmText = tr::lng_continue(),
+		});
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
 		saveCallback();
@@ -570,13 +726,13 @@ object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	const auto content = result.data();
 
-	AddDivider(content);
-	AddSkip(content);
+	AddSkip(content, st::settingsPeerToPeerSkip);
 	AddSubsectionTitle(content, tr::lng_settings_calls_peer_to_peer_title());
 	Settings::AddPrivacyButton(
 		controller,
 		content,
 		tr::lng_settings_calls_peer_to_peer_button(),
+		{ &st::settingsIconArrows, kIconLightBlue },
 		UserPrivacy::Key::CallsPeer2Peer,
 		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
 	AddSkip(content);
@@ -606,8 +762,8 @@ QString CallsPeer2PeerPrivacyController::optionLabel(
 	Unexpected("Option value in optionsLabelKey.");
 }
 
-rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
-	return tr::lng_settings_peer_to_peer_about();
+rpl::producer<TextWithEntities> CallsPeer2PeerPrivacyController::warning() {
+	return tr::lng_settings_peer_to_peer_about(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionButtonTextKey(
@@ -652,8 +808,8 @@ rpl::producer<QString> ForwardsPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_forwards_header();
 }
 
-rpl::producer<QString> ForwardsPrivacyController::warning() {
-	return tr::lng_edit_privacy_forwards_warning();
+rpl::producer<TextWithEntities> ForwardsPrivacyController::warning() {
+	return tr::lng_edit_privacy_forwards_warning(Ui::Text::WithEntities);
 }
 
 rpl::producer<QString> ForwardsPrivacyController::exceptionButtonTextKey(
@@ -681,7 +837,8 @@ auto ForwardsPrivacyController::exceptionsDescription()
 
 object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		not_null<QWidget*> parent,
-		rpl::producer<Option> optionValue) {
+		rpl::producer<Option> optionValue,
+		not_null<QWidget*> outerContainer) {
 	using namespace rpl::mappers;
 
 	auto message = GenerateForwardedItem(
@@ -691,11 +848,64 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
 
-	auto result = object_ptr<Ui::RpWidget>(parent);
-	const auto widget = result.data();
-	Ui::AttachAsChild(widget, std::move(message));
+	auto result = object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
+		parent,
+		object_ptr<Ui::RpWidget>(parent),
+		style::margins(
+			0,
+			st::settingsSectionSkip,
+			0,
+			st::settingsPrivacySkipTop));
+	const auto widget = result->entity();
 
-	const auto option = widget->lifetime().make_state<Option>();
+	struct State {
+		AdminLog::OwnedItem item;
+		Option option = {};
+		base::unique_qptr<Ui::RpWidget> tooltip;
+		ForwardedTooltip info;
+		Fn<void()> refreshGeometry;
+	};
+	const auto state = widget->lifetime().make_state<State>();
+	state->item = std::move(message);
+	state->tooltip = base::make_unique_q<Ui::RpWidget>(outerContainer);
+	state->tooltip->paintRequest(
+	) | rpl::start_with_next([=] {
+		if (state->info.paint) {
+			auto p = Painter(state->tooltip.get());
+			state->info.paint(p);
+		}
+	}, state->tooltip->lifetime());
+	state->refreshGeometry = [=] {
+		state->tooltip->show();
+		state->tooltip->raise();
+		auto position = state->info.geometry.topLeft();
+		auto parent = (QWidget*)widget;
+		while (parent && parent != outerContainer) {
+			position += parent->pos();
+			parent = parent->parentWidget();
+		}
+		state->tooltip->move(position);
+	};
+	const auto watch = [&](QWidget *widget, const auto &self) -> void {
+		if (!widget) {
+			return;
+		}
+		base::install_event_filter(state->tooltip, widget, [=](
+				not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move
+				|| e->type() == QEvent::Show
+				|| e->type() == QEvent::ShowToParent
+				|| e->type() == QEvent::ZOrderChange) {
+				state->refreshGeometry();
+			}
+			return base::EventFilterResult::Continue;
+		});
+		if (widget == outerContainer) {
+			return;
+		}
+		self(widget->parentWidget(), self);
+	};
+	watch(widget, watch);
 
 	const auto padding = st::settingsForwardPrivacyPadding;
 	widget->widthValue(
@@ -705,9 +915,19 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		const auto height = view->resizeGetHeight(width);
 		const auto top = view->marginTop();
 		const auto bottom = view->marginBottom();
-		const auto full = padding + bottom + height + top + padding;
+		const auto full = padding + top + height + bottom + padding;
 		widget->resize(width, full);
 	}, widget->lifetime());
+
+	rpl::combine(
+		widget->widthValue(),
+		std::move(optionValue)
+	) | rpl::start_with_next([=](int width, Option value) {
+		state->info = PrepareForwardedTooltip(view, value);
+		state->tooltip->resize(state->info.geometry.size());
+		state->refreshGeometry();
+		state->tooltip->update();
+	}, state->tooltip->lifetime());
 
 	widget->paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
@@ -724,113 +944,12 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 			_chatStyle.get(),
 			widget->rect(),
 			widget->rect());
-		p.translate(0, padding + view->marginBottom());
+		p.translate(padding / 2, padding + view->marginBottom());
 		context.outbg = view->hasOutLayout();
 		view->draw(p, context);
-
-		PaintForwardedTooltip(p, view, *option);
-	}, widget->lifetime());
-
-	std::move(
-		optionValue
-	) | rpl::start_with_next([=](Option value) {
-		*option = value;
-		widget->update();
 	}, widget->lifetime());
 
 	return result;
-}
-
-void ForwardsPrivacyController::PaintForwardedTooltip(
-		Painter &p,
-		not_null<HistoryView::Element*> view,
-		Option value) {
-	// This breaks HistoryView::Element encapsulation :(
-	const auto forwarded = view->data()->Get<HistoryMessageForwarded>();
-	const auto availableWidth = view->width()
-		- st::msgMargin.left()
-		- st::msgMargin.right();
-	const auto bubbleWidth = ranges::min({
-		availableWidth,
-		view->maxWidth(),
-		st::msgMaxWidth
-	});
-	const auto innerWidth = bubbleWidth
-		- st::msgPadding.left()
-		- st::msgPadding.right();
-	const auto phrase = tr::lng_forwarded(
-		tr::now,
-		lt_user,
-		view->data()->history()->session().user()->name);
-	const auto kReplacementPosition = QChar(0x0001);
-	const auto possiblePosition = tr::lng_forwarded(
-		tr::now,
-		lt_user,
-		QString(1, kReplacementPosition)
-	).indexOf(kReplacementPosition);
-	const auto position = (possiblePosition >= 0
-		&& possiblePosition < phrase.size())
-		? possiblePosition
-		: 0;
-	const auto before = phrase.mid(0, position);
-	const auto skip = st::msgMargin.left() + st::msgPadding.left();
-	const auto small = forwarded->text.countHeight(innerWidth)
-		< 2 * st::msgServiceFont->height;
-	const auto nameLeft = skip + (small ? st::msgServiceFont->width(before) : 0);
-	const auto right = skip + innerWidth;
-	const auto text = [&] {
-		switch (value) {
-		case Option::Everyone:
-			return tr::lng_edit_privacy_forwards_sample_everyone(tr::now);
-		case Option::Contacts:
-			return tr::lng_edit_privacy_forwards_sample_contacts(tr::now);
-		case Option::Nobody:
-			return tr::lng_edit_privacy_forwards_sample_nobody(tr::now);
-		}
-		Unexpected("Option value in ForwardsPrivacyController.");
-	}();
-	const auto &font = st::defaultToast.style.font;
-	const auto textWidth = font->width(text);
-	const auto arrowSkip = st::settingsForwardPrivacyArrowSkip;
-	const auto arrowSize = st::settingsForwardPrivacyArrowSize;
-	const auto padding = st::settingsForwardPrivacyTooltipPadding;
-	const auto rect = QRect(0, 0, textWidth, font->height).marginsAdded(
-		padding
-	).translated(padding.left(), padding.top());
-
-	const auto top = view->marginTop()
-		+ st::msgPadding.top()
-		+ (small ? 1 : 2) * st::msgServiceFont->height
-		+ arrowSize;
-	const auto left1 = std::min(nameLeft, right - rect.width());
-	const auto left2 = std::max(left1, skip);
-	const auto left = left2;
-	const auto arrowLeft1 = nameLeft + arrowSkip;
-	const auto arrowLeft2 = std::min(
-		arrowLeft1,
-		std::max((left + right) / 2, right - arrowSkip));
-	const auto arrowLeft = arrowLeft2;
-	const auto geometry = rect.translated(left, top);
-
-	Ui::FillRoundRect(p, geometry, st::toastBg, ImageRoundRadius::Small);
-
-	p.setFont(font);
-	p.setPen(st::toastFg);
-	p.drawText(
-		geometry.x() + padding.left(),
-		geometry.y() + padding.top() + font->ascent,
-		text);
-
-	QPainterPath path;
-	path.moveTo(arrowLeft - arrowSize, top);
-	path.lineTo(arrowLeft, top - arrowSize);
-	path.lineTo(arrowLeft + arrowSize, top);
-	path.lineTo(arrowLeft - arrowSize, top);
-	{
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.fillPath(path, st::toastBg);
-	}
 }
 
 auto ForwardsPrivacyController::delegate()

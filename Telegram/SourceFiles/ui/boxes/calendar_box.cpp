@@ -344,7 +344,8 @@ public:
 	Inner(
 		QWidget *parent,
 		not_null<Context*> context,
-		const style::CalendarSizes &st);
+		const style::CalendarSizes &st,
+		const style::CalendarColors &styleColors);
 
 	[[nodiscard]] int countMaxHeight() const;
 	void setDateChosenCallback(Fn<void(QDate)> callback);
@@ -368,6 +369,7 @@ private:
 	void paintRows(Painter &p, QRect clip);
 
 	const style::CalendarSizes &_st;
+	const style::CalendarColors &_styleColors;
 	const not_null<Context*> _context;
 	bool _twoPressSelectionStarted = false;
 
@@ -461,9 +463,11 @@ void CalendarBox::FloatingDate::paint() {
 CalendarBox::Inner::Inner(
 	QWidget *parent,
 	not_null<Context*> context,
-	const style::CalendarSizes &st)
+	const style::CalendarSizes &st,
+	const style::CalendarColors &styleColors)
 : RpWidget(parent)
 , _st(st)
+, _styleColors(styleColors)
 , _context(context) {
 	setMouseTracking(true);
 
@@ -572,10 +576,10 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 			const auto it = _ripples.find(index);
 			if (it != _ripples.cend() && !selectionMode) {
 				const auto colorOverride = (!highlighted
-					? st::windowBgOver
+					? _styleColors.rippleColor
 					: grayedOut
-					? st::windowBgRipple
-					: st::dialogsRippleBgActive)->c;
+					? _styleColors.rippleGrayedOutColor
+					: _styleColors.rippleColorHighlighted)->c;
 				it->second->paint(p, innerLeft, innerTop, width(), &colorOverride);
 				if (it->second->empty()) {
 					_ripples.erase(it);
@@ -584,9 +588,13 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 			p.setPen(selected
 				? st::activeButtonFg
 				: highlighted
-				? (grayedOut ? st::windowSubTextFg : st::dialogsNameFgActive)
+				? (grayedOut
+					? _styleColors.dayTextGrayedOutColor
+					: st::dialogsNameFgActive)
 				: enabled
-				? (grayedOut ? st::windowSubTextFg : st::boxTextFg)
+				? (grayedOut
+					? _styleColors.dayTextGrayedOutColor
+					: _styleColors.dayTextColor)
 				: st::windowSubTextFg);
 			p.drawText(rect, _context->labelFromIndex(index), style::al_center);
 		}
@@ -727,7 +735,8 @@ public:
 	Title(
 		QWidget *parent,
 		not_null<Context*> context,
-		const style::CalendarSizes &st);
+		const style::CalendarSizes &st,
+		const style::CalendarColors &styleColors);
 
 protected:
 	void paintEvent(QPaintEvent *e);
@@ -738,6 +747,7 @@ private:
 	void paintDayNames(Painter &p, QRect clip);
 
 	const style::CalendarSizes &_st;
+	const style::CalendarColors &_styleColors;
 	const not_null<Context*> _context;
 
 	QString _text;
@@ -749,9 +759,11 @@ private:
 CalendarBox::Title::Title(
 	QWidget *parent,
 	not_null<Context*> context,
-	const style::CalendarSizes &st)
+	const style::CalendarSizes &st,
+	const style::CalendarColors &styleColors)
 : RpWidget(parent)
 , _st(st)
+, _styleColors(styleColors)
 , _context(context) {
 	const auto dayWidth = st::calendarDaysFont->width(langDayOfWeek(1));
 	_textLeft = _st.padding.left() + (_st.cellSize.width() - dayWidth) / 2;
@@ -794,7 +806,7 @@ void CalendarBox::Title::paintEvent(QPaintEvent *e) {
 	const auto clip = e->rect();
 
 	p.setFont(st::calendarTitleFont);
-	p.setPen(st::boxTitleFg);
+	p.setPen(_styleColors.titleTextColor);
 	p.drawTextLeft(
 		_textLeft,
 		(st::calendarTitleHeight - st::calendarTitleFont->height) / 2,
@@ -824,14 +836,18 @@ void CalendarBox::Title::paintDayNames(Painter &p, QRect clip) {
 
 CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 : _st(args.st)
+, _styleColors(args.stColors)
 , _context(
 	std::make_unique<Context>(args.month.value(), args.highlighted.value()))
 , _scroll(std::make_unique<ScrollArea>(this, st::calendarScroll))
-, _inner(
-	_scroll->setOwnedWidget(object_ptr<Inner>(this, _context.get(), _st)))
-, _title(this, _context.get(), _st)
-, _previous(this, st::calendarPrevious)
-, _next(this, st::calendarNext)
+, _inner(_scroll->setOwnedWidget(object_ptr<Inner>(
+	this,
+	_context.get(),
+	_st,
+	_styleColors)))
+, _title(this, _context.get(), _st, _styleColors)
+, _previous(this, _styleColors.iconButtonPrevious)
+, _next(this, _styleColors.iconButtonNext)
 , _callback(std::move(args.callback.value()))
 , _finalize(std::move(args.finalize))
 , _jumpTimer([=] { jump(_jumpButton); })
@@ -1062,18 +1078,28 @@ bool CalendarBox::tooltipWindowActive() const {
 }
 
 void CalendarBox::monthChanged(QDate month) {
-	setDimensions(_st.width, st::calendarTitleHeight + _st.daysHeight + _inner->countMaxHeight());
+	setDimensions(
+		_st.width,
+		st::calendarTitleHeight + _st.daysHeight + _inner->countMaxHeight());
 
 	_previousEnabled = isPreviousEnabled();
-	_previous->setIconOverride(_previousEnabled ? nullptr : &st::calendarPreviousDisabled);
-	_previous->setRippleColorOverride(_previousEnabled ? nullptr : &st::boxBg);
+	_previous->setIconOverride(_previousEnabled
+		? nullptr
+		: &_styleColors.iconButtonPreviousDisabled);
+	_previous->setRippleColorOverride(_previousEnabled
+		? nullptr
+		: &_styleColors.iconButtonRippleColorDisabled);
 	_previous->setPointerCursor(_previousEnabled);
 	if (!_previousEnabled) {
 		_previous->clearState();
 	}
 	_nextEnabled = isNextEnabled();
-	_next->setIconOverride(_nextEnabled ? nullptr : &st::calendarNextDisabled);
-	_next->setRippleColorOverride(_nextEnabled ? nullptr : &st::boxBg);
+	_next->setIconOverride(_nextEnabled
+		? nullptr
+		: &_styleColors.iconButtonNextDisabled);
+	_next->setRippleColorOverride(_nextEnabled
+		? nullptr
+		: &_styleColors.iconButtonRippleColorDisabled);
 	_next->setPointerCursor(_nextEnabled);
 	if (!_nextEnabled) {
 		_next->clearState();

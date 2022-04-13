@@ -167,11 +167,9 @@ public:
 		return _lifetime;
 	}
 
-	base::Observable<DocumentData*> documentUpdated;
-
-	bool supportMode() const;
-	Support::Helper &supportHelper() const;
-	Support::Templates &supportTemplates() const;
+	[[nodiscard]] bool supportMode() const;
+	[[nodiscard]] Support::Helper &supportHelper() const;
+	[[nodiscard]] Support::Templates &supportTemplates() const;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);

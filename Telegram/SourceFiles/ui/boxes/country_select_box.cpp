@@ -135,7 +135,7 @@ void CountrySelectBox::prepare() {
 
 	_inner->mustScrollTo(
 	) | rpl::start_with_next([=](ScrollToRequest request) {
-		onScrollToY(request.ymin, request.ymax);
+		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
 }
 
@@ -167,7 +167,7 @@ void CountrySelectBox::resizeEvent(QResizeEvent *e) {
 }
 
 void CountrySelectBox::applyFilterUpdate(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	_inner->updateFilter(query);
 }
 

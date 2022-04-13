@@ -140,6 +140,16 @@ private:
 		QRectF rect;
 		qreal rotation = 0.;
 	};
+	struct StartStreaming {
+		StartStreaming() : continueStreaming(false), startTime(0) {
+		}
+		StartStreaming(bool continueStreaming, crl::time startTime)
+		: continueStreaming(continueStreaming)
+		, startTime(startTime) {
+		}
+		const bool continueStreaming = false;
+		const crl::time startTime = 0;
+	};
 
 	[[nodiscard]] not_null<QWindow*> window() const;
 	[[nodiscard]] int width() const;
@@ -213,8 +223,8 @@ private:
 	void assignMediaPointer(not_null<PhotoData*> photo);
 
 	void updateOver(QPoint mpos);
-	void moveToScreen();
-	void updateGeometry();
+	void moveToScreen(bool inMove = false);
+	void updateGeometry(bool inMove = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
@@ -287,7 +297,7 @@ private:
 	void displayDocument(
 		DocumentData *document,
 		const Data::CloudTheme &cloud = Data::CloudTheme(),
-		bool continueStreaming = false);
+		const StartStreaming &startStreaming = StartStreaming());
 	void displayFinished();
 	void redisplayContent();
 	void findCurrent();
@@ -303,8 +313,9 @@ private:
 	void refreshClipControllerGeometry();
 	void refreshCaptionGeometry();
 
-	bool initStreaming(bool continueStreaming = false);
-	void startStreamingPlayer();
+	bool initStreaming(
+		const StartStreaming &startStreaming = StartStreaming());
+	void startStreamingPlayer(const StartStreaming &startStreaming);
 	void initStreamingThumbnail();
 	void streamingReady(Streaming::Information &&info);
 	[[nodiscard]] bool createStreamingObjects();
@@ -316,7 +327,7 @@ private:
 	void destroyThemePreview();
 	void updateThemePreviewGeometry();
 
-	void documentUpdated(DocumentData *doc);
+	void documentUpdated(not_null<DocumentData*> document);
 	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
 
 	[[nodiscard]] int finalContentRotation() const;

@@ -50,8 +50,7 @@ class SectionMemento;
 class InnerWidget final
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
-	, public HistoryView::ElementDelegate
-	, private base::Subscriber {
+	, public HistoryView::ElementDelegate {
 public:
 	InnerWidget(
 		QWidget *parent,

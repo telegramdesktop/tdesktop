@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 #include "ui/effects/animations.h"
 #include "base/object_ptr.h"
+#include "base/observer.h"
 
 namespace Window {
 class SessionController;

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
 #include "media/player/media_player_instance.h"
+#include "media/view/media_view_open_common.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
@@ -162,7 +163,7 @@ bool ShareGameScore(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(&controller->session(), params.value(qsl("hash")));
+	ShareGameScoreByHash(controller, params.value(qsl("hash")));
 	return true;
 }
 
@@ -250,7 +251,7 @@ bool ShowWallPaper(
 		params);
 }
 
-bool ResolveUsername(
+bool ResolveUsernameOrPhone(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
@@ -261,16 +262,20 @@ bool ResolveUsername(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto domain = params.value(qsl("domain"));
-	const auto valid = [](const QString &domain) {
+	const auto phone = params.value(qsl("phone"));
+	const auto validDomain = [](const QString &domain) {
 		return qthelp::regex_match(
 			qsl("^[a-zA-Z0-9\\.\\_]+$"),
 			domain,
 			{}
 		).valid();
 	};
+	const auto validPhone = [](const QString &phone) {
+		return qthelp::regex_match(qsl("^[0-9]+$"), phone, {}).valid();
+	};
 	if (domain == qsl("telegrampassport")) {
 		return ShowPassportForm(controller, params);
-	} else if (!valid(domain)) {
+	} else if (!validDomain(domain) && !validPhone(phone)) {
 		return false;
 	}
 	auto start = qsl("start");
@@ -294,7 +299,7 @@ bool ResolveUsername(
 	const auto threadParam = params.value(qsl("thread"));
 	const auto threadId = threadParam.toInt();
 	const auto gameParam = params.value(qsl("game"));
-	if (!gameParam.isEmpty() && valid(gameParam)) {
+	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
 	}
@@ -302,6 +307,7 @@ bool ResolveUsername(
 	using Navigation = Window::SessionNavigation;
 	controller->showPeerByLink(Navigation::PeerByLinkInfo{
 		.usernameOrId = domain,
+		.phone = phone,
 		.messageId = post,
 		.repliesInfo = commentId
 			? Navigation::RepliesByLinkInfo{
@@ -411,12 +417,13 @@ bool HandleUnknown(
 				Core::UpdateApplication();
 				close();
 			};
-			controller->show(Box<Ui::ConfirmBox>(
-				text,
-				tr::lng_menu_update(tr::now),
-				callback));
+			controller->show(Ui::MakeConfirmBox({
+				.text = text,
+				.confirmed = callback,
+				.confirmText = tr::lng_menu_update(),
+			}));
 		} else {
-			controller->show(Box<Ui::InformBox>(text));
+			controller->show(Ui::MakeInformBox(text));
 		}
 	});
 	controller->session().api().requestDeepLinkInfo(request, callback);
@@ -443,12 +450,18 @@ bool OpenMediaTimestamp(
 			MsgId(parts.value(2).toLongLong()));
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
-		session->settings().setMediaLastPlaybackPosition(
-			documentId,
-			time * crl::time(1000));
+		const auto timeMs = time * crl::time(1000);
 		if (document->isVideoFile()) {
-			controller->openDocument(document, itemId, true);
+			controller->window().openInMediaView(Media::View::OpenRequest(
+				controller,
+				document,
+				session->data().message(itemId),
+				false,
+				timeMs));
 		} else if (document->isSong() || document->isVoiceMessage()) {
+			session->settings().setMediaLastPlaybackPosition(
+				documentId,
+				timeMs);
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
@@ -674,7 +687,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		},
 		{
 			qsl("^resolve/?\\?(.+)(#|$)"),
-			ResolveUsername
+			ResolveUsernameOrPhone
 		},
 		{
 			qsl("^privatepost/?\\?(.+)(#|$)"),
@@ -724,7 +737,9 @@ QString TryConvertUrlToLocal(QString url) {
 	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedView(5);
-		if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+		if (auto phoneMatch = regex_match(qsl("^\\+([0-9]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://resolve?phone=") + phoneMatch->captured(1);
+		} else if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
@@ -770,7 +785,7 @@ QString TryConvertUrlToLocal(QString url) {
 			if (auto postMatch = regex_match(qsl("^/\\d+/?(?:\\?|$)"), usernameMatch->captured(2))) {
 				postParam = qsl("&post=") + usernameMatch->captured(3);
 			}
-			return qsl("tg://resolve/?domain=") + url_encode(usernameMatch->captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
+			return qsl("tg://resolve?domain=") + url_encode(usernameMatch->captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
 		}
 	}
 	return url;

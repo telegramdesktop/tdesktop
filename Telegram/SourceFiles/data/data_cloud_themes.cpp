@@ -224,8 +224,7 @@ void CloudThemes::resolve(
 		showPreview(controller, result);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("THEME_FORMAT_INVALID")) {
-			controller->show(Box<Ui::InformBox>(
-				tr::lng_theme_no_desktop(tr::now)));
+			controller->show(Ui::MakeInformBox(tr::lng_theme_no_desktop()));
 		}
 	}).send();
 }
@@ -249,8 +248,7 @@ void CloudThemes::showPreview(
 			controller,
 			cloud));
 	} else {
-		controller->show(Box<Ui::InformBox>(
-			tr::lng_theme_no_desktop(tr::now)));
+		controller->show(Ui::MakeInformBox(tr::lng_theme_no_desktop()));
 	}
 }
 

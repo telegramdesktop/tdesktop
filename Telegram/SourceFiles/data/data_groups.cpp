@@ -113,12 +113,9 @@ HistoryItemsList::const_iterator Groups::findPositionForItem(
 		const HistoryItemsList &group,
 		not_null<HistoryItem*> item) {
 	const auto last = end(group);
-	if (!item->isRegular()) {
-		return last;
-	}
 	const auto itemId = item->id;
 	for (auto result = begin(group); result != last; ++result) {
-		if ((*result)->isRegular() && (*result)->id > itemId) {
+		if ((*result)->id > itemId) {
 			return result;
 		}
 	}

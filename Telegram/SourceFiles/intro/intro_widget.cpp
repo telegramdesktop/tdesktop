@@ -149,7 +149,7 @@ Widget::Widget(
 		Core::UpdateChecker checker;
 		checker.start();
 		rpl::merge(
-			rpl::single(rpl::empty_value()),
+			rpl::single(rpl::empty),
 			checker.isLatest(),
 			checker.failed(),
 			checker.ready()
@@ -237,7 +237,7 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(nullptr, data.ventities().v)
 		};
-		Ui::show(Box<Ui::InformBox>(text));
+		Ui::show(Ui::MakeInformBox(text));
 	}, [](const auto &) {});
 }
 
@@ -551,15 +551,15 @@ void Widget::resetAccount() {
 						lt_minutes_count,
 						when);
 				}
-				Ui::show(Box<Ui::InformBox>(tr::lng_signin_reset_wait(
+				Ui::show(Ui::MakeInformBox(tr::lng_signin_reset_wait(
 					tr::now,
 					lt_phone_number,
 					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-				Ui::show(Box<Ui::InformBox>(
-					tr::lng_signin_reset_cancelled(tr::now)));
+				Ui::show(Ui::MakeInformBox(
+					tr::lng_signin_reset_cancelled()));
 			} else {
 				Ui::hideLayer();
 				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
@@ -567,11 +567,12 @@ void Widget::resetAccount() {
 		}).send();
 	});
 
-	Ui::show(Box<Ui::ConfirmBox>(
-		tr::lng_signin_sure_reset(tr::now),
-		tr::lng_signin_reset(tr::now),
-		st::attentionBoxButton,
-		callback));
+	Ui::show(Ui::MakeConfirmBox({
+		.text = tr::lng_signin_sure_reset(),
+		.confirmed = callback,
+		.confirmText = tr::lng_signin_reset(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 void Widget::getNearestDC() {

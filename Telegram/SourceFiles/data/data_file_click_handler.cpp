@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
+#include "data/data_download_manager.h"
 #include "data/data_photo.h"
 
 FileClickHandler::FileClickHandler(FullMsgId context)
@@ -97,8 +100,23 @@ void DocumentSaveClickHandler::Save(
 	data->save(origin, savename);
 }
 
+void DocumentSaveClickHandler::SaveAndTrack(
+		FullMsgId itemId,
+		not_null<DocumentData*> document,
+		Mode mode) {
+	Save(itemId ? itemId : Data::FileOrigin(), document, mode);
+	if (document->loading() && !document->loadingFilePath().isEmpty()) {
+		if (const auto item = document->owner().message(itemId)) {
+			Core::App().downloadManager().addLoading({
+				.item = item,
+				.document = document,
+			});
+		}
+	}
+}
+
 void DocumentSaveClickHandler::onClickImpl() const {
-	Save(context(), document());
+	SaveAndTrack(context(), document());
 }
 
 DocumentCancelClickHandler::DocumentCancelClickHandler(

@@ -35,7 +35,7 @@ constexpr ShiftedDcId updaterDcId(DcId dcId) {
 	return ShiftDcId(dcId, kUpdaterDcShift);
 }
 
-// send(MTPupload_GetFile(), MTP::groupCallStreamDcId(dc)) - for gorup call stream
+// send(MTPupload_GetFile(), MTP::groupCallStreamDcId(dc)) - for group call stream
 constexpr ShiftedDcId groupCallStreamDcId(DcId dcId) {
 	return ShiftDcId(dcId, kGroupCallStreamDcShift);
 }
@@ -60,6 +60,14 @@ inline ShiftedDcId downloadDcId(DcId dcId, int index) {
 inline constexpr bool isDownloadDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= details::downloadDcId(0, 0))
 		&& (shiftedDcId < details::downloadDcId(0, kMaxMediaDcCount - 1) + kDcShift);
+}
+
+inline constexpr bool isMediaClusterDcId(ShiftedDcId shiftedDcId) {
+	const auto shift = GetDcIdShift(shiftedDcId);
+	return isDownloadDcId(shiftedDcId)
+		|| (shift == kGroupCallStreamDcShift)
+		|| (shift == kExportMediaDcShift)
+		|| (shift == kUpdaterDcShift);
 }
 
 inline bool isCdnDc(MTPDdcOption::Flags flags) {

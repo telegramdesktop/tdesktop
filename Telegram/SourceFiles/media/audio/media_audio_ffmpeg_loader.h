@@ -60,7 +60,11 @@ protected:
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;
 	AVFormatContext *fmtContext = nullptr;
+#if LIBAVFORMAT_VERSION_MAJOR >= 59
+	const AVCodec *codec = nullptr;
+#else
 	AVCodec *codec = nullptr;
+#endif
 	int32 streamId = 0;
 
 	bool _opened = false;

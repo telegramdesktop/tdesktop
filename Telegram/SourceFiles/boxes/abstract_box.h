@@ -47,7 +47,6 @@ QPointer<BoxType> show(
 }
 
 void hideLayer(anim::type animated = anim::type::normal);
-void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
 } // namespace Ui

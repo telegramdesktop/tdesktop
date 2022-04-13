@@ -35,6 +35,11 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 
 } // namespace
 
+const std::string &RtmpEndpointId() {
+	static const auto result = std::string("unified");
+	return result;
+}
+
 const std::string &GroupCallParticipant::cameraEndpoint() const {
 	return GetCameraEndpoint(videoParams);
 }
@@ -55,13 +60,16 @@ GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	CallId id,
 	CallId accessHash,
-	TimeId scheduleDate)
+	TimeId scheduleDate,
+	bool rtmp)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
-, _scheduleDate(scheduleDate) {
+, _scheduleDate(scheduleDate)
+, _rtmp(rtmp)
+, _listenersHidden(rtmp) {
 }
 
 GroupCall::~GroupCall() {
@@ -76,6 +84,14 @@ CallId GroupCall::id() const {
 
 bool GroupCall::loaded() const {
 	return _version > 0;
+}
+
+bool GroupCall::rtmp() const {
+	return _rtmp;
+}
+
+bool GroupCall::listenersHidden() const {
+	return _listenersHidden;
 }
 
 not_null<PeerData*> GroupCall::peer() const {
@@ -383,6 +399,8 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		LOG(("API Error: Got zero version in groupCall."));
 		_version = 1;
 	}
+	_rtmp = data.is_rtmp_stream();
+	_listenersHidden = data.is_listeners_hidden();
 	_joinMuted = data.is_join_muted();
 	_canChangeJoinMuted = data.is_can_change_join_muted();
 	_joinedToTop = !data.is_join_date_asc();
@@ -474,7 +492,7 @@ void GroupCall::processQueuedUpdates() {
 }
 
 void GroupCall::computeParticipantsCount() {
-	_fullCount = _allParticipantsLoaded
+	_fullCount = (_allParticipantsLoaded && !_listenersHidden)
 		? int(_participants.size())
 		: std::max(int(_participants.size()), _serverParticipantsCount);
 }

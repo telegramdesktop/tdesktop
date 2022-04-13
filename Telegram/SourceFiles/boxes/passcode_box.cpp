@@ -108,7 +108,7 @@ void StartPendingReset(
 	auto finish = [=](const QString &message) mutable {
 		if (const auto strong = weak.data()) {
 			if (!message.isEmpty()) {
-				strong->getDelegate()->show(Box<Ui::InformBox>(message));
+				strong->getDelegate()->show(Ui::MakeInformBox(message));
 			}
 			strong->closeBox();
 		}
@@ -139,7 +139,7 @@ void StartPendingReset(
 				lt_count,
 				minutes);
 		if (const auto strong = weak.data()) {
-			strong->getDelegate()->show(Box<Ui::InformBox>(
+			strong->getDelegate()->show(Ui::MakeInformBox(
 				tr::lng_cloud_password_reset_later(
 					tr::now,
 					lt_duration,
@@ -441,8 +441,8 @@ void PasscodeBox::recoverPasswordDone(
 	if (weak) {
 		_newPasswordSet.fire_copy(newPasswordBytes);
 		if (weak) {
-			getDelegate()->show(Box<Ui::InformBox>(
-				tr::lng_cloud_password_updated(tr::now)));
+			getDelegate()->show(Ui::MakeInformBox(
+				tr::lng_cloud_password_updated()));
 			if (weak) {
 				closeBox();
 			}
@@ -458,12 +458,12 @@ void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
 	const auto weak = Ui::MakeWeak(this);
 	_newPasswordSet.fire_copy(newPasswordBytes);
 	if (weak) {
-		const auto text = _reenterPasscode->isHidden()
-			? tr::lng_cloud_password_removed(tr::now)
+		auto text = _reenterPasscode->isHidden()
+			? tr::lng_cloud_password_removed()
 			: _oldPasscode->isHidden()
-			? tr::lng_cloud_password_was_set(tr::now)
-			: tr::lng_cloud_password_updated(tr::now);
-		getDelegate()->show(Box<Ui::InformBox>(text));
+			? tr::lng_cloud_password_was_set()
+			: tr::lng_cloud_password_updated();
+		getDelegate()->show(Ui::MakeInformBox(std::move(text)));
 		if (weak) {
 			closeBox();
 		}
@@ -559,8 +559,9 @@ void PasscodeBox::validateEmail(
 				const auto weak = Ui::MakeWeak(this);
 				_clearUnconfirmedPassword.fire({});
 				if (weak) {
-					auto box = Box<Ui::InformBox>(
-						Lang::Hard::EmailConfirmationExpired());
+					auto box = Ui::MakeInformBox({
+						Lang::Hard::EmailConfirmationExpired()
+					});
 					weak->getDelegate()->show(
 						std::move(box),
 						Ui::LayerOption::CloseOther);
@@ -685,12 +686,12 @@ void PasscodeBox::save(bool force) {
 		}
 		if (!onlyCheck && !_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = getDelegate()->show(
-				Box<Ui::ConfirmBox>(
-					tr::lng_cloud_password_about_recover(tr::now),
-					tr::lng_cloud_password_skip_email(tr::now),
-					st::attentionBoxButton,
-					crl::guard(this, [this] { save(true); })));
+			_replacedBy = getDelegate()->show(Ui::MakeConfirmBox({
+				.text = { tr::lng_cloud_password_about_recover() },
+				.confirmed = crl::guard(this, [this] { save(true); }),
+				.confirmText = tr::lng_cloud_password_skip_email(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
 		} else if (onlyCheck) {
 			submitOnlyCheckCloudPassword(old);
 		} else if (_oldPasscode->isHidden()) {
@@ -719,14 +720,11 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 	if (_cloudFields.turningOff && _cloudFields.notEmptyPassport) {
 		Assert(!_cloudFields.customCheckCallback);
 
-		const auto confirmed = [=](Fn<void()> &&close) {
-			send();
-			close();
-		};
-		getDelegate()->show(Box<Ui::ConfirmBox>(
-			tr::lng_cloud_password_passport_losing(tr::now),
-			tr::lng_continue(tr::now),
-			confirmed));
+		getDelegate()->show(Ui::MakeConfirmBox({
+			.text = tr::lng_cloud_password_passport_losing(),
+			.confirmed = [=](Fn<void()> &&close) { send(); close(); },
+			.confirmText = tr::lng_continue(),
+		}));
 	} else {
 		send();
 	}
@@ -794,7 +792,7 @@ void PasscodeBox::requestPasswordData() {
 }
 
 void PasscodeBox::serverError() {
-	getDelegate()->show(Box<Ui::InformBox>(Lang::Hard::ServerError()));
+	getDelegate()->show(Ui::MakeInformBox(Lang::Hard::ServerError()));
 	closeBox();
 }
 
@@ -949,10 +947,11 @@ void PasscodeBox::suggestSecretReset(const QString &newPassword) {
 			resetSecret(check, newPassword, std::move(close));
 		});
 	};
-	getDelegate()->show(Box<Ui::ConfirmBox>(
-		Lang::Hard::PassportCorruptedChange(),
-		Lang::Hard::PassportCorruptedReset(),
-		std::move(resetSecretAndSave)));
+	getDelegate()->show(Ui::MakeConfirmBox({
+		.text = { Lang::Hard::PassportCorruptedChange() },
+		.confirmed = std::move(resetSecretAndSave),
+		.confirmText = Lang::Hard::PassportCorruptedReset(),
+	}));
 }
 
 void PasscodeBox::resetSecret(
@@ -1074,18 +1073,14 @@ void PasscodeBox::recoverByEmail() {
 	if (!_cloudFields.hasRecovery) {
 		Assert(_session != nullptr);
 		const auto session = _session;
-		const auto confirmBox = std::make_shared<QPointer<BoxContent>>();
-		const auto reset = crl::guard(this, [=] {
-			StartPendingReset(session, this, [=] {
-				if (const auto box = *confirmBox) {
-					box->closeBox();
-				}
-			});
+		const auto reset = crl::guard(this, [=](Fn<void()> &&close) {
+			StartPendingReset(session, this, std::move(close));
 		});
-		*confirmBox = getDelegate()->show(Box<Ui::ConfirmBox>(
-			tr::lng_cloud_password_reset_no_email(tr::now),
-			tr::lng_cloud_password_reset_ok(tr::now),
-			reset));
+		getDelegate()->show(Ui::MakeConfirmBox({
+			.text = tr::lng_cloud_password_reset_no_email(tr::now),
+			.confirmed = reset,
+			.confirmText = tr::lng_cloud_password_reset_ok(tr::now),
+		}));
 	} else if (_pattern.isEmpty()) {
 		_pattern = "-";
 		_api.request(MTPauth_RequestPasswordRecovery(
@@ -1155,22 +1150,20 @@ RecoverBox::RecoverBox(
 		_noEmailAccess.destroy();
 	} else {
 		_noEmailAccess->setClickedCallback([=] {
-			const auto confirmBox = std::make_shared<QPointer<BoxContent>>();
-			const auto reset = crl::guard(this, [=] {
+			const auto reset = crl::guard(this, [=](Fn<void()> &&close) {
 				const auto closeParent = _closeParent;
-				StartPendingReset(session, this, [=] {
+				StartPendingReset(session, this, [=, c = std::move(close)] {
 					if (closeParent) {
 						closeParent();
 					}
-					if (const auto box = *confirmBox) {
-						box->closeBox();
-					}
+					c();
 				});
 			});
-			*confirmBox = getDelegate()->show(Box<Ui::ConfirmBox>(
-				tr::lng_cloud_password_reset_with_email(tr::now),
-				tr::lng_cloud_password_reset_ok(tr::now),
-				reset));
+			getDelegate()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_reset_with_email(),
+				.confirmed = reset,
+				.confirmText = tr::lng_cloud_password_reset_ok(),
+			}));
 		});
 	}
 }
@@ -1265,14 +1258,11 @@ void RecoverBox::submit() {
 		}
 	});
 	if (_cloudFields.notEmptyPassport) {
-		const auto confirmed = [=](Fn<void()> &&close) {
-			send();
-			close();
-		};
-		getDelegate()->show(Box<Ui::ConfirmBox>(
-			tr::lng_cloud_password_passport_losing(tr::now),
-			tr::lng_continue(tr::now),
-			confirmed));
+		getDelegate()->show(Ui::MakeConfirmBox({
+			.text = tr::lng_cloud_password_passport_losing(),
+			.confirmed = [=](Fn<void()> &&close) { send(); close(); },
+			.confirmText = tr::lng_continue(),
+		}));
 	} else {
 		send();
 	}
@@ -1294,7 +1284,7 @@ void RecoverBox::proceedToClear() {
 	_submitRequest = 0;
 	_newPasswordSet.fire({});
 	getDelegate()->show(
-		Box<Ui::InformBox>(tr::lng_cloud_password_removed(tr::now)),
+		Ui::MakeInformBox(tr::lng_cloud_password_removed()),
 		Ui::LayerOption::CloseOther);
 }
 
@@ -1342,7 +1332,7 @@ void RecoverBox::checkSubmitFail(const MTP::Error &error) {
 	if (err == qstr("PASSWORD_EMPTY")) {
 		_newPasswordSet.fire(QByteArray());
 		getDelegate()->show(
-			Box<Ui::InformBox>(tr::lng_cloud_password_removed(tr::now)),
+			Ui::MakeInformBox(tr::lng_cloud_password_removed()),
 			Ui::LayerOption::CloseOther);
 	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		closeBox();
@@ -1383,8 +1373,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 			reloads->fire({});
 			if (*weak) {
 				(*weak)->getDelegate()->show(
-					Box<Ui::InformBox>(
-						tr::lng_cloud_password_was_set(tr::now)),
+					Ui::MakeInformBox(tr::lng_cloud_password_was_set()),
 					Ui::LayerOption::CloseOther);
 			}
 		}).fail([=](const MTP::Error &error) {
@@ -1396,7 +1385,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
 				cancels->fire({});
 				if (*weak) {
-					auto box = Box<Ui::InformBox>(
+					auto box = Ui::MakeInformBox(
 						Lang::Hard::EmailConfirmationExpired());
 					(*weak)->getDelegate()->show(
 						std::move(box),

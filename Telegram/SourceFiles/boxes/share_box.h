@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "base/observer.h"
 #include "base/timer.h"
+#include "history/view/history_view_schedule_box.h"
 #include "ui/chat/forward_options_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
@@ -26,7 +26,7 @@ enum class Type;
 } // namespace SendMenu
 
 namespace Window {
-class SessionNavigation;
+class SessionController;
 } // namespace Window
 
 namespace Api {
@@ -60,8 +60,11 @@ QString AppendShareGameScoreUrl(
 	const QString &url,
 	const FullMsgId &fullId);
 void ShareGameScoreByHash(
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const QString &hash);
+void FastShareMessage(
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item);
 
 class ShareBox final : public Ui::BoxContent {
 public:
@@ -78,7 +81,6 @@ public:
 		CopyCallback copyCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
-		Window::SessionNavigation *navigation = nullptr;
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
@@ -86,11 +88,13 @@ public:
 		const style::MultiSelect *stMultiSelect = nullptr;
 		const style::InputField *stComment = nullptr;
 		const style::PeerList *st = nullptr;
+		const style::InputField *stLabel = nullptr;
 		struct {
 			int messagesCount = 0;
 			bool show = false;
 			bool hasCaptions = false;
 		} forwardOptions;
+		HistoryView::ScheduleBoxStyleArgs scheduleBoxStyle;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 
@@ -135,6 +139,8 @@ private:
 
 	Descriptor _descriptor;
 	MTP::Sender _api;
+
+	std::shared_ptr<Ui::BoxShow> _show;
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;

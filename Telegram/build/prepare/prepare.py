@@ -27,7 +27,7 @@ os.chdir(scriptPath + '/../../../..')
 
 dirSep = '\\' if win else '/'
 pathSep = ';' if win else ':'
-libsLoc = 'Libraries' if not win64 else 'Libraries/win64'
+libsLoc = 'Libraries' if not win64 else ('Libraries' + dirSep + 'win64')
 keysLoc = 'cache_keys'
 
 rootDir = os.getcwd()
@@ -400,7 +400,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 47d447b531
+    git checkout 43c34f586a
 """)
 
 stage('depot_tools', """
@@ -685,6 +685,13 @@ depends:yasm/yasm
     make install
 """)
 
+stage('nv-codec-headers', """
+win:
+    git clone https://github.com/FFmpeg/nv-codec-headers.git
+    cd nv-codec-headers
+    git checkout n11.1.5.1
+""")
+
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
@@ -729,6 +736,7 @@ depends:yasm/yasm
     --enable-decoder=aasc \
     --enable-decoder=alac \
     --enable-decoder=alac_at \
+    --enable-decoder=av1 \
     --enable-decoder=flac \
     --enable-decoder=gif \
     --enable-decoder=h264 \
@@ -781,6 +789,7 @@ depends:yasm/yasm
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
     --enable-decoder=vorbis \
+    --enable-decoder=vp8 \
     --enable-decoder=wavpack \
     --enable-decoder=wmalossless \
     --enable-decoder=wmapro \
@@ -1113,30 +1122,30 @@ release:
 """)
 
 if buildQt5:
-    stage('qt_5_15_2', """
-    git clone https://code.qt.io/qt/qt5.git qt_5_15_2
-    cd qt_5_15_2
+    stage('qt_5_15_3', """
+    git clone https://code.qt.io/qt/qt5.git qt_5_15_3
+    cd qt_5_15_3
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.2
+    git checkout v5.15.3-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5_15_2/*.patch
+depends:patches/qtbase_5_15_3/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5_15_2\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5_15_3\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.2\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.3\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib\\contrib\\vstudio\\vc14\\%X8664%
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.2" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.3" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1167,14 +1176,14 @@ win:
     jom -j16
     jom -j16 install
 mac:
-    find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.2" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.3" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1195,28 +1204,22 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_2', """
+    stage('qt_6_2_4', """
 mac:
-    git clone -b v6.2.2 https://code.qt.io/qt/qt5.git qt_6_2_2
-    cd qt_6_2_2
+    git clone -b v6.2.4 https://code.qt.io/qt/qt5.git qt_6_2_4
+    cd qt_6_2_4
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
-depends:patches/qtbase_6_2_2/*.patch
+depends:patches/qtbase_6_2_4/*.patch
     cd qtbase
 
-    find ../../patches/qtbase_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
-    cd ..
-
-depends:patches/qt5compat_6_2_2/*.patch
-    cd qt5compat
-
-    find ../../patches/qt5compat_6_2_2 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6_2_4 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.2" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.4" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1238,7 +1241,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 8d9c724c07
+    git checkout 1fe5e68d99
     git submodule init
     git submodule update src/third_party/libyuv
 win:

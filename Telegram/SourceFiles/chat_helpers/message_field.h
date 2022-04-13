@@ -28,6 +28,7 @@ class SessionController;
 
 namespace Ui {
 class PopupMenu;
+class Show;
 } // namespace Ui
 
 QString PrepareMentionTag(not_null<UserData*> user);
@@ -38,12 +39,19 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::InputField*> field);
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		not_null<Ui::InputField*> field,
+		const style::InputField *fieldStyle = nullptr);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);
 
+void InitSpellchecker(
+	std::shared_ptr<Ui::Show> show,
+	not_null<Main::Session*> session,
+	not_null<Ui::InputField*> field,
+	bool skipDictionariesManager = false);
 void InitSpellchecker(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);

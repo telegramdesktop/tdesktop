@@ -190,6 +190,7 @@ public:
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
+	[[nodiscard]] UserData *userByPhone(const QString &phone) const;
 	[[nodiscard]] PeerData *peerByUsername(const QString &username) const;
 
 	[[nodiscard]] not_null<History*> history(PeerId peerId);
@@ -226,9 +227,10 @@ public:
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
 	};
-	[[nodiscard]] base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
-		return _queryItemVisibility;
-	}
+	[[nodiscard]] bool queryItemVisibility(not_null<HistoryItem*> item) const;
+	[[nodiscard]] rpl::producer<ItemVisibilityQuery> itemVisibilityQueries() const;
+	void itemVisibilitiesUpdated();
+
 	struct IdChange {
 		not_null<HistoryItem*> item;
 		MsgId oldId = 0;
@@ -320,8 +322,11 @@ public:
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	int pinnedChatsCount(Data::Folder *folder, FilterId filterId) const;
-	int pinnedChatsLimit(Data::Folder *folder, FilterId filterId) const;
+	int pinnedCanPin(
+		Data::Folder *folder,
+		FilterId filterId,
+		not_null<History*> history) const;
+	int pinnedChatsLimit(Data::Folder *folder) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Data::Folder *folder,
 		FilterId filterId) const;
@@ -414,6 +419,11 @@ public:
 	void documentLoadProgress(not_null<DocumentData*> document);
 	void documentLoadDone(not_null<DocumentData*> document);
 	void documentLoadFail(not_null<DocumentData*> document, bool started);
+
+	[[nodiscard]] auto documentLoadProgress() const
+	-> rpl::producer<not_null<DocumentData*>> {
+		return _documentLoadProgress.events();
+	}
 
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
@@ -833,7 +843,7 @@ private:
 	rpl::event_stream<Data::Folder*> _chatsListChanged;
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
 	rpl::event_stream<not_null<PeerData*>> _botCommandsChanges;
-	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
+	rpl::event_stream<ItemVisibilityQuery> _itemVisibilityQueries;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
@@ -929,6 +939,7 @@ private:
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	rpl::event_stream<not_null<DocumentData*>> _documentLoadProgress;
 	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
@@ -985,7 +996,7 @@ private:
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
 
-	MsgId _nonHistoryEntryId = ServerMaxMsgId;
+	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 
 	rpl::lifetime _lifetime;
 

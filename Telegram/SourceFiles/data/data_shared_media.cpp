@@ -211,9 +211,7 @@ rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
 
 	const auto history = session->data().history(key.mergedKey.peerId);
 
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		session->data().scheduledMessages().updates(history)
 	) | rpl::map([=] {
 		const auto list = session->data().scheduledMessages().list(history);

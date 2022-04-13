@@ -56,6 +56,8 @@ private:
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated);
 
+	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
+
 	void addInviteLinkButton();
 	bool inviteSelectedUsers(not_null<PeerListBox*> box) const;
 	void subscribeToMigration();
@@ -125,6 +127,8 @@ private:
 
 	void subscribeToMigration();
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
+
+	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;

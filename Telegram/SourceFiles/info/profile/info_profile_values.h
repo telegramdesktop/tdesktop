@@ -38,37 +38,55 @@ inline auto ToSingleLine() {
 rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 
-rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
-rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
-rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user);
-rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user);
+[[nodiscard]] rpl::producer<TextWithEntities> NameValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<TextWithEntities> PhoneValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
+	not_null<UserData*> user);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);
-rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer);
-rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
-rpl::producer<const ChannelLocation*> LocationValue(
+[[nodiscard]] rpl::producer<TextWithEntities> AboutValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);
-rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer);
-rpl::producer<bool> IsContactValue(not_null<UserData*> user);
-rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user);
-rpl::producer<bool> CanShareContactValue(not_null<UserData*> user);
-rpl::producer<bool> CanAddContactValue(not_null<UserData*> user);
-rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel);
-rpl::producer<int> MembersCountValue(not_null<PeerData*> peer);
-rpl::producer<int> PendingRequestsCountValue(not_null<PeerData*> peer);
-rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer);
-rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer);
-rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel);
-rpl::producer<int> KickedCountValue(not_null<ChannelData*> channel);
-rpl::producer<int> SharedMediaCountValue(
+[[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
+[[nodiscard]] rpl::producer<bool> CanInviteBotToGroupValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<bool> CanShareContactValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<bool> CanAddContactValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<bool> AmInChannelValue(
+	not_null<ChannelData*> channel);
+[[nodiscard]] rpl::producer<int> MembersCountValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> PendingRequestsCountValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> RestrictionsCountValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> RestrictedCountValue(
+	not_null<ChannelData*> channel);
+[[nodiscard]] rpl::producer<int> KickedCountValue(
+	not_null<ChannelData*> channel);
+[[nodiscard]] rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
 	PeerData *migrated,
 	Storage::SharedMediaType type);
-rpl::producer<int> CommonGroupsCountValue(not_null<UserData*> user);
-rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer);
-rpl::producer<int> FullReactionsCountValue(not_null<Main::Session*> peer);
-rpl::producer<int> AllowedReactionsCountValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> CommonGroupsCountValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<bool> CanAddMemberValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> FullReactionsCountValue(
+	not_null<Main::Session*> peer);
+[[nodiscard]] rpl::producer<int> AllowedReactionsCountValue(
+	not_null<PeerData*> peer);
 
 enum class Badge {
 	None,
@@ -76,7 +94,7 @@ enum class Badge {
 	Scam,
 	Fake,
 };
-rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
 
 } // namespace Profile
 } // namespace Info

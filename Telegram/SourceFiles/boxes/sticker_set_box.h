@@ -16,7 +16,6 @@ class SessionController;
 } // namespace Window
 
 namespace Ui {
-class ConfirmBox;
 class PlainShadow;
 } // namespace Ui
 

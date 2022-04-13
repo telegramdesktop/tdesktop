@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
-#include "base/unique_qptr.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
@@ -351,7 +350,7 @@ void SendKeySequence(
 	const auto focused = QApplication::focusWidget();
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
-		|| qobject_cast<HistoryInner*>(focused)) {
+		|| dynamic_cast<HistoryInner*>(focused)) {
 		QApplication::postEvent(
 			focused,
 			new QKeyEvent(QEvent::KeyPress, key, modifiers));
@@ -405,43 +404,8 @@ uint djbStringHash(const std::string &string) {
 
 } // namespace
 
-class MainWindow::Private : public QObject {
-public:
-	explicit Private(not_null<MainWindow*> window)
-	: _public(window) {
-		QCoreApplication::instance()->installEventFilter(this);
-	}
-
-	base::unique_qptr<Ui::PopupMenu> trayIconMenuXEmbed;
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-protected:
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
-private:
-	not_null<MainWindow*> _public;
-};
-
-bool MainWindow::Private::eventFilter(QObject *obj, QEvent *e) {
-	if (obj->objectName() == qstr("QSystemTrayIconSys")
-			&& e->type() == QEvent::MouseButtonPress) {
-		const auto ee = static_cast<QMouseEvent*>(e);
-		if (ee->button() == Qt::RightButton) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_public->handleTrayIconActication(QSystemTrayIcon::Context);
-			});
-			return true;
-		}
-	}
-	return QObject::eventFilter(obj, e);
-}
-
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this)) {
+: Window::MainWindow(controller) {
 }
 
 void MainWindow::initHook() {
@@ -467,12 +431,6 @@ void MainWindow::initHook() {
 	});
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	try {
-		_private->dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	} catch (...) {
-	}
-
 	if (UseUnityCounter()) {
 		LOG(("Using Unity launcher counter."));
 	} else {
@@ -497,7 +455,7 @@ bool MainWindow::isActiveForTrayMenu() {
 }
 
 void MainWindow::psShowTrayMenu() {
-	_private->trayIconMenuXEmbed->popup(QCursor::pos());
+	_trayIconMenuXEmbed->popup(QCursor::pos());
 }
 
 void MainWindow::psTrayMenuUpdated() {
@@ -566,18 +524,19 @@ void MainWindow::updateIconCounters() {
 		}
 
 		try {
-			if (_private->dbusConnection) {
-				_private->dbusConnection->emit_signal(
-					"/com/canonical/unity/launcherentry/"
-						+ std::to_string(djbStringHash(launcherUrl)),
-					"com.canonical.Unity.LauncherEntry",
-					"Update",
-					{},
-					base::Platform::MakeGlibVariant(std::tuple{
-						launcherUrl,
-						dbusUnityProperties,
-					}));
-			}
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			connection->emit_signal(
+				"/com/canonical/unity/launcherentry/"
+					+ std::to_string(djbStringHash(launcherUrl)),
+				"com.canonical.Unity.LauncherEntry",
+				"Update",
+				{},
+				base::Platform::MakeGlibVariant(std::tuple{
+					launcherUrl,
+					dbusUnityProperties,
+				}));
 		} catch (...) {
 		}
 	}
@@ -589,8 +548,8 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::initTrayMenuHook() {
-	_private->trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
-	_private->trayIconMenuXEmbed->deleteOnHide(false);
+	_trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
+	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
 void MainWindow::createGlobalMenu() {
@@ -826,12 +785,12 @@ void MainWindow::updateGlobalMenuHook() {
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(
+			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 				focused->parentWidget())) {
 				markdownEnabled = inputField->isMarkdownEnabled();
 			}
 		}
-	} else if (const auto list = qobject_cast<HistoryInner*>(focused)) {
+	} else if (const auto list = dynamic_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
@@ -858,6 +817,27 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psStrikeOut, !markdownEnabled);
 	ForceDisabled(psMonospace, !markdownEnabled);
 	ForceDisabled(psClearFormat, !markdownEnabled);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
+	QEvent::Type t = evt->type();
+	if (t == QEvent::MouseButtonPress
+		&& obj->objectName() == qstr("QSystemTrayIconSys")) {
+		const auto ee = static_cast<QMouseEvent*>(evt);
+		if (ee->button() == Qt::RightButton) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				handleTrayIconActication(QSystemTrayIcon::Context);
+			});
+			return true;
+		}
+	} else if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
+		if (qobject_cast<QLineEdit*>(obj)
+			|| qobject_cast<QTextEdit*>(obj)
+			|| dynamic_cast<HistoryInner*>(obj)) {
+			updateGlobalMenu();
+		}
+	}
+	return Window::MainWindow::eventFilter(obj, evt);
 }
 
 void MainWindow::handleNativeSurfaceChanged(bool exist) {

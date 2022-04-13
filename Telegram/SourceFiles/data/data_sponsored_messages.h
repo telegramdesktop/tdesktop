@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "base/timer.h"
+#include "ui/image/image_location.h"
 
 class History;
 
@@ -29,6 +30,7 @@ struct SponsoredFrom {
 	bool isPublic = false;
 	bool isBot = false;
 	bool isExactPost = false;
+	ImageWithLocation userpic;
 };
 
 struct SponsoredMessage {

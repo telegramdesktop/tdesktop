@@ -86,7 +86,7 @@ void ConfirmPhone::resolve(
 				)).done([=] {
 					_checkRequestId = 0;
 					controller->show(
-						Box<Ui::InformBox>(
+						Ui::MakeInformBox(
 							tr::lng_confirm_phone_success(
 								tr::now,
 								lt_phone,
@@ -120,7 +120,7 @@ void ConfirmPhone::resolve(
 			? tr::lng_confirm_phone_link_invalid(tr::now)
 			: Lang::Hard::ServerError();
 		controller->show(
-			Box<Ui::InformBox>(errorText),
+			Ui::MakeInformBox(errorText),
 			Ui::LayerOption::CloseOther);
 	}).handleFloodErrors().send();
 }

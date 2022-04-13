@@ -28,7 +28,10 @@ public:
 	File(const File &other) = delete;
 	File &operator=(const File &other) = delete;
 
-	void start(not_null<FileDelegate*> delegate, crl::time position);
+	void start(
+		not_null<FileDelegate*> delegate,
+		crl::time position,
+		bool hwAllow);
 	void wake();
 	void stop(bool stillActive = false);
 
@@ -43,7 +46,7 @@ private:
 		Context(not_null<FileDelegate*> delegate, not_null<Reader*> reader);
 		~Context();
 
-		void start(crl::time position);
+		void start(crl::time position, bool hwAllow);
 		void readNextPacket();
 
 		void interrupt();
@@ -75,7 +78,8 @@ private:
 		[[nodiscard]] Stream initStream(
 			not_null<AVFormatContext *> format,
 			AVMediaType type,
-			Mode mode);
+			Mode mode,
+			bool hwAllowed);
 		void seekToPosition(
 			not_null<AVFormatContext *> format,
 			const Stream &stream,

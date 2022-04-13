@@ -1234,7 +1234,7 @@ void Call::handleRequestError(const QString &error) {
 		? Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)
 		: QString();
 	if (!inform.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(inform));
+		Ui::show(Ui::MakeInformBox(inform));
 	}
 	finish(FinishType::Failed);
 }
@@ -1246,7 +1246,7 @@ void Call::handleControllerError(const QString &error) {
 		? tr::lng_call_error_audio_io(tr::now)
 		: QString();
 	if (!inform.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(inform));
+		Ui::show(Ui::MakeInformBox(inform));
 	}
 	finish(FinishType::Failed);
 }

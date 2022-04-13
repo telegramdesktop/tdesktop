@@ -184,22 +184,12 @@ void MainWindow::applyInitialWorkMode() {
 		|| (cLaunchMode() == LaunchModeAutoStart
 			&& cStartMinimized()
 			&& !Core::App().passcodeLocked())) {
-		const auto minimizeAndHide = [=] {
-			DEBUG_LOG(("Window Pos: First show, setting minimized after."));
-			setWindowState(windowState() | Qt::WindowMinimized);
-			if (workMode == Core::Settings::WorkMode::TrayOnly
-				|| workMode == Core::Settings::WorkMode::WindowAndTray) {
-				hide();
-			}
-		};
-
-		if (Platform::IsLinux()) {
-			// If I call hide() synchronously here after show() then on Ubuntu 14.04
-			// it will show a window frame with transparent window body, without content.
-			// And to be able to "Show from tray" one more hide() will be required.
-			crl::on_main(this, minimizeAndHide);
+		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
+		if (workMode == Core::Settings::WorkMode::TrayOnly
+			|| workMode == Core::Settings::WorkMode::WindowAndTray) {
+			hide();
 		} else {
-			minimizeAndHide();
+			setWindowState(windowState() | Qt::WindowMinimized);
 		}
 	}
 	setPositionInited();
@@ -252,7 +242,7 @@ void MainWindow::setupPasscodeLock() {
 	updateControlsGeometry();
 
 	Core::App().hideMediaView();
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->hide();
 	}
@@ -743,7 +733,7 @@ bool MainWindow::skipTrayClick() const {
 void MainWindow::toggleDisplayNotifyFromTray() {
 	if (controller().locked()) {
 		if (!isActive()) showFromTray();
-		Ui::show(Box<Ui::InformBox>(tr::lng_passcode_need_unblock(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_passcode_need_unblock()));
 		return;
 	}
 	if (!sessionController()) {
@@ -851,7 +841,7 @@ void MainWindow::sendPaths() {
 		return;
 	}
 	Core::App().hideMediaView();
-	Ui::hideSettingsAndLayer(anim::type::instant);
+	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->activate();
 	}

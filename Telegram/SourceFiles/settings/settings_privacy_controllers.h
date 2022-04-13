@@ -57,11 +57,15 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
+	explicit PhoneNumberPrivacyController(
+		not_null<Window::SessionController*> controller);
+
 	Key key() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<QString> warning() override;
+	rpl::producer<TextWithEntities> warning() override;
+	void prepareWarningLabel(not_null<Ui::FlatLabel*> warning) override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) override;
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
@@ -75,6 +79,7 @@ public:
 	void saveAdditional() override;
 
 private:
+	const not_null<Window::SessionController*> _controller;
 	rpl::variable<Option> _phoneNumberOption = { Option::Contacts };
 	rpl::variable<Option> _addedByPhone = { Option::Everyone };
 	Fn<void()> _saveAdditional;
@@ -92,7 +97,7 @@ public:
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<QString> warning() override;
+	rpl::producer<TextWithEntities> warning() override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) override;
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
@@ -100,7 +105,7 @@ public:
 
 	void confirmSave(
 		bool someAreDisallowed,
-		FnMut<void()> saveCallback) override;
+		Fn<void()> saveCallback) override;
 
 private:
 	const not_null<::Main::Session*> _session;
@@ -154,7 +159,7 @@ public:
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
 	QString optionLabel(EditPrivacyBox::Option option) override;
-	rpl::producer<QString> warning() override;
+	rpl::producer<TextWithEntities> warning() override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) override;
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
@@ -176,7 +181,7 @@ public:
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<QString> warning() override;
+	rpl::producer<TextWithEntities> warning() override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) override;
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
@@ -184,17 +189,13 @@ public:
 
 	object_ptr<Ui::RpWidget> setupAboveWidget(
 		not_null<QWidget*> parent,
-		rpl::producer<Option> optionValue) override;
+		rpl::producer<Option> optionValue,
+		not_null<QWidget*> outerContainer) override;
 
 private:
 	using Element = HistoryView::Element;
 	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
-
-	static void PaintForwardedTooltip(
-		Painter &p,
-		not_null<HistoryView::Element*> view,
-		Option value);
 
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;

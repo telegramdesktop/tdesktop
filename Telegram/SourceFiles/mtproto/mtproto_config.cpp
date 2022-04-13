@@ -75,7 +75,7 @@ QByteArray Config::serialize() const {
 			<< qint32(_fields.callPacketTimeoutMs)
 			<< qint32(_fields.webFileDcId)
 			<< _fields.txtDomainString
-			<< qint32(_fields.phoneCallsEnabled.current() ? 1 : 0)
+			<< qint32(1) // legacy phoneCallsEnabled
 			<< qint32(_fields.blockedMode ? 1 : 0)
 			<< qint32(_fields.captionLengthMax);
 	}
@@ -109,6 +109,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	}
 
 	auto dcOptionsSerialized = QByteArray();
+	auto legacyPhoneCallsEnabled = rpl::variable<bool>();
 	const auto read = [&](auto &field) {
 		using Type = std::remove_reference_t<decltype(field)>;
 		if constexpr (std::is_same_v<Type, int>
@@ -157,7 +158,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	read(raw->_fields.callPacketTimeoutMs);
 	read(raw->_fields.webFileDcId);
 	read(raw->_fields.txtDomainString);
-	read(raw->_fields.phoneCallsEnabled);
+	read(legacyPhoneCallsEnabled);
 	read(raw->_fields.blockedMode);
 	read(raw->_fields.captionLengthMax);
 
@@ -217,7 +218,6 @@ void Config::apply(const MTPDconfig &data) {
 	_fields.callRingTimeoutMs = data.vcall_ring_timeout_ms().v;
 	_fields.callConnectTimeoutMs = data.vcall_connect_timeout_ms().v;
 	_fields.callPacketTimeoutMs = data.vcall_packet_timeout_ms().v;
-	_fields.phoneCallsEnabled = data.is_phonecalls_enabled();
 	_fields.blockedMode = data.is_blocked_mode();
 	_fields.captionLengthMax = data.vcaption_length_max().v;
 

@@ -311,16 +311,22 @@ void PasswordCheckWidget::toRecover() {
 			}).send();
 		}
 	} else {
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_signin_no_email_forgot(tr::now),
-			[=] { showReset(); }));
+		const auto box = Ui::show(
+			Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
+		box->boxClosing(
+		) | rpl::start_with_next([=] {
+			showReset();
+		}, box->lifetime());
 	}
 }
 
 void PasswordCheckWidget::toPassword() {
-	Ui::show(Box<Ui::InformBox>(
-		tr::lng_signin_cant_email_forgot(tr::now),
-		[=] { showReset(); }));
+	const auto box = Ui::show(
+		Ui::MakeInformBox(tr::lng_signin_cant_email_forgot()));
+	box->boxClosing(
+	) | rpl::start_with_next([=] {
+		showReset();
+	}, box->lifetime());
 }
 
 void PasswordCheckWidget::showReset() {
@@ -372,10 +378,11 @@ void PasswordCheckWidget::submit() {
 				send();
 				close();
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_cloud_password_passport_losing(tr::now),
-				tr::lng_continue(tr::now),
-				confirmed));
+			Ui::show(Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_passport_losing(),
+				.confirmed = confirmed,
+				.confirmText = tr::lng_continue(),
+			}));
 		} else {
 			send();
 		}

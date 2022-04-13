@@ -364,9 +364,7 @@ void Row::setupContent(const Set &set) {
 	) | rpl::map([=](Loader *loader) {
 		return (loader && loader->id() == _id)
 			? loader->state()
-			: rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			: rpl::single(rpl::empty) | rpl::then(
 				Updated()
 			) | rpl::map([=] {
 				return ComputeState(_id);

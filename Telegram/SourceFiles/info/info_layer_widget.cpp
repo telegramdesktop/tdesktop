@@ -216,12 +216,14 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
 	auto newBottom = newTop;
-	auto desiredHeight = st::boxRadius + _desiredHeight + st::boxRadius;
+
+	// Top rounding is included in _desiredHeight.
+	auto desiredHeight = _desiredHeight + st::boxRadius;
 	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
 
 	// First resize content to new width and get the new desired height.
 	auto contentLeft = 0;
-	auto contentTop = st::boxRadius;
+	auto contentTop = 0;
 	auto contentBottom = st::boxRadius;
 	auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;
@@ -262,16 +264,19 @@ void LayerWidget::doSetInnerFocus() {
 void LayerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto clip = e->rect();
-	auto r = st::boxRadius;
+	const auto clip = e->rect();
+	const auto radius = st::boxRadius;
 	auto parts = RectPart::None | 0;
-	if (clip.intersects({ 0, 0, width(), r })) {
-		parts |= RectPart::FullTop;
-	}
 	if (!_tillBottom) {
-		if (clip.intersects({ 0, height() - r, width(), r })) {
+		if (clip.intersects({ 0, height() - radius, width(), radius })) {
 			parts |= RectPart::FullBottom;
 		}
+	}
+	if (_content->animatingShow()) {
+		if (clip.intersects({ 0, 0, width(), radius })) {
+			parts |= RectPart::FullTop;
+		}
+		parts |= RectPart::Left | RectPart::Center | RectPart::Right;
 	}
 	if (parts) {
 		Ui::FillRoundRect(

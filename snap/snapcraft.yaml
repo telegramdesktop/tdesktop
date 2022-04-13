@@ -125,6 +125,8 @@ parts:
       - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
+      - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
@@ -354,17 +356,15 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_2_2
+      QT=6_2_4
 
-      git clone -b v6.2.2 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.2.4 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
       find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $SNAPCRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ../qt5compat
-      find $SNAPCRAFT_STAGE/patches/qt5compat_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
@@ -373,6 +373,9 @@ parts:
         -release \
         -opensource \
         -confirm-license \
+        -no-feature-getentropy \
+        -no-feature-renameat2 \
+        -no-feature-statx \
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
@@ -447,7 +450,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: d618d0b5ff3e59bea0143e6070481f8f4316a428
+    source-commit: 1fe5e68d999e0bf88d0128ad813438726732f6e0
     plugin: cmake
     build-packages:
       - yasm

@@ -270,7 +270,7 @@ bool PinnedWidget::showAtPositionNow(
 }
 
 void PinnedWidget::updateScrollDownVisibility() {
-	if (animating()) {
+	if (animatingShow()) {
 		return;
 	}
 
@@ -467,7 +467,7 @@ void PinnedWidget::updateControlsGeometry() {
 }
 
 void PinnedWidget::paintEvent(QPaintEvent *e) {
-	if (animating()) {
+	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
 	} else if (Ui::skipPaintEvent(this, e)) {

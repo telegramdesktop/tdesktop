@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct CalendarSizes;
+struct CalendarColors;
 } // namespace style
 
 namespace st {
 extern const style::CalendarSizes &defaultCalendarSizes;
+extern const style::CalendarColors &defaultCalendarColors;
 } // namespace st
 
 namespace Ui {
@@ -43,6 +45,7 @@ struct CalendarBoxArgs {
 	Fn<void(
 		not_null<Ui::CalendarBox*>,
 		std::optional<int>)> selectionChanged;
+	const style::CalendarColors &stColors = st::defaultCalendarColors;
 };
 
 class CalendarBox final : public BoxContent, private AbstractTooltipShower {
@@ -82,6 +85,7 @@ private:
 	bool tooltipWindowActive() const override;
 
 	const style::CalendarSizes &_st;
+	const style::CalendarColors &_styleColors;
 
 	class Context;
 	std::unique_ptr<Context> _context;

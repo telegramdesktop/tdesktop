@@ -97,9 +97,14 @@ public:
 	[[nodiscard]] bool hasDraftCursors(PeerId peerId);
 	[[nodiscard]] bool hasDraft(PeerId peerId);
 
-	void writeFileLocation(MediaKey location, const Core::FileLocation &local);
+	void writeFileLocation(
+		MediaKey location,
+		const Core::FileLocation &local);
 	[[nodiscard]] Core::FileLocation readFileLocation(MediaKey location);
 	void removeFileLocation(MediaKey location);
+
+	void updateDownloads(Fn<std::optional<QByteArray>()> downloadsSerialize);
+	[[nodiscard]] QByteArray downloadsSerialized() const;
 
 	[[nodiscard]] EncryptionKey cacheKey() const;
 	[[nodiscard]] QString cachePath() const;
@@ -255,6 +260,9 @@ private:
 	QMultiMap<MediaKey, Core::FileLocation> _fileLocations;
 	QMap<QString, QPair<MediaKey, Core::FileLocation>> _fileLocationPairs;
 	QMap<MediaKey, MediaKey> _fileLocationAliases;
+
+	QByteArray _downloadsSerialized;
+	Fn<std::optional<QByteArray>()> _downloadsSerialize;
 
 	FileKey _locationsKey = 0;
 	FileKey _trustedBotsKey = 0;

@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 #include <vector>
+#include <deque>
 #include <set>
 #include <map>
 #include <unordered_map>
@@ -115,7 +116,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
-#include "base/observer.h"
 
 #include "base/basic_types.h"
 #include "logs.h"
