@@ -13,8 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class InputField;
 class ScrollArea;
-class FadeShadow;
-class PlainShadow;
 class FlatLabel;
 class RoundButton;
 class VerticalLayout;
@@ -157,8 +155,6 @@ private:
 	Scheme _scheme;
 
 	object_ptr<Ui::ScrollArea> _scroll;
-	object_ptr<Ui::FadeShadow> _topShadow;
-	object_ptr<Ui::PlainShadow> _bottomShadow;
 
 	QPointer<EditScans> _editScans;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _commonError;

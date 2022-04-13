@@ -223,6 +223,8 @@ PRIVATE
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp
     ui/controls/window_outdated_bar.h
+    ui/effects/scroll_content_shadow.cpp
+    ui/effects/scroll_content_shadow.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

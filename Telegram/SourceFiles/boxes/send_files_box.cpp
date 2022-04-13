@@ -26,11 +26,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "base/event_filter.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
@@ -312,34 +312,6 @@ void SendFilesBox::enqueueNextPrepare() {
 	});
 }
 
-void SendFilesBox::setupShadows() {
-	using namespace rpl::mappers;
-
-	const auto topShadow = Ui::CreateChild<Ui::FadeShadow>(this);
-	const auto bottomShadow = Ui::CreateChild<Ui::FadeShadow>(this);
-	_scroll->geometryValue(
-	) | rpl::start_with_next_done([=](const QRect &geometry) {
-		topShadow->resizeToWidth(geometry.width());
-		topShadow->move(
-			geometry.x(),
-			geometry.y());
-		bottomShadow->resizeToWidth(geometry.width());
-		bottomShadow->move(
-			geometry.x(),
-			geometry.y() + geometry.height() - st::lineWidth);
-	}, [t = Ui::MakeWeak(topShadow), b = Ui::MakeWeak(bottomShadow)] {
-		Ui::DestroyChild(t.data());
-		Ui::DestroyChild(b.data());
-	}, topShadow->lifetime());
-
-	topShadow->toggleOn(_scroll->scrollTopValue() | rpl::map(_1 > 0));
-	bottomShadow->toggleOn(rpl::combine(
-		_scroll->scrollTopValue(),
-		_scroll->heightValue(),
-		_inner->heightValue(),
-		_1 + _2 < _3));
-}
-
 void SendFilesBox::prepare() {
 	_send = addButton(
 		(_sendType == Api::SendType::Normal
@@ -359,7 +331,7 @@ void SendFilesBox::prepare() {
 	setupSendWayControls();
 	preparePreview();
 	initPreview();
-	setupShadows();
+	SetupShadowsToScrollContent(this, _scroll, _inner->heightValue());
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {

@@ -23,11 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/scroll_content_shadow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
@@ -373,37 +373,6 @@ void AddMessage(
 	}, widget->lifetime());
 }
 
-void SetupShadows(
-		not_null<Ui::RpWidget*> parent,
-		not_null<Ui::ScrollArea*> scroll,
-		not_null<Ui::RpWidget*> inner) {
-	using namespace rpl::mappers;
-
-	const auto topShadow = Ui::CreateChild<Ui::FadeShadow>(parent.get());
-	const auto bottomShadow = Ui::CreateChild<Ui::FadeShadow>(parent.get());
-	scroll->geometryValue(
-	) | rpl::start_with_next_done([=](const QRect &geometry) {
-		topShadow->resizeToWidth(geometry.width());
-		topShadow->move(
-			geometry.x(),
-			geometry.y());
-		bottomShadow->resizeToWidth(geometry.width());
-		bottomShadow->move(
-			geometry.x(),
-			geometry.y() + geometry.height() - st::lineWidth);
-	}, [t = Ui::MakeWeak(topShadow), b = Ui::MakeWeak(bottomShadow)] {
-		Ui::DestroyChild(t.data());
-		Ui::DestroyChild(b.data());
-	}, topShadow->lifetime());
-
-	topShadow->toggleOn(scroll->scrollTopValue() | rpl::map(_1 > 0));
-	bottomShadow->toggleOn(rpl::combine(
-		scroll->scrollTopValue(),
-		scroll->heightValue(),
-		inner->heightValue(),
-		_1 + _2 < _3));
-}
-
 } // namespace
 
 void ReactionsSettingsBox(
@@ -503,7 +472,10 @@ void ReactionsSettingsBox(
 	}
 	check->raise();
 
-	SetupShadows(scrollContainer, scroll, buttonsContainer);
+	Ui::SetupShadowsToScrollContent(
+		scrollContainer,
+		scroll,
+		buttonsContainer->heightValue());
 
 	box->setTitle(tr::lng_settings_chat_reactions_title());
 	box->setWidth(st::boxWideWidth);
