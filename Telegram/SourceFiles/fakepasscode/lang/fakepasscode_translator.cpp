@@ -185,6 +185,21 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 }
                 break;
             }
+            case tr::lng_send_autodelete_message.base: {
+                return "Удалить после прочтения";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Удалить после прочтения через:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "часов:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "минут:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
+            }
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -258,6 +273,21 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_send_autodelete_message.base: {
+                return "Выдаліць пасля чытання";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Выдаліць пасля чытання праз:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "гадзін:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "хвілін:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
             }
         }
     }

@@ -301,7 +301,8 @@ HistoryWidget::HistoryWidget(
 		_send.get(),
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
-		[=] { sendScheduled(); });
+		[=] { sendScheduled(); },
+		[=] { sendAutoDelete(); });
 
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
@@ -3713,6 +3714,15 @@ void HistoryWidget::sendScheduled() {
 	controller()->show(
 		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
+}
+
+void HistoryWidget::sendAutoDelete() {
+	if (!_list) {
+		return;
+	}
+	SendMenu::DefaultAutoDeleteCallback(_list,
+		[=] (auto box) { controller()->show(std::move(box), Ui::LayerOption::KeepOther); },
+		[=] (auto opts) { send(opts); })();
 }
 
 SendMenu::Type HistoryWidget::sendMenuType() const {

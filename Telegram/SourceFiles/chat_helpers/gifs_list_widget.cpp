@@ -383,7 +383,8 @@ void GifsListWidget::fillContextMenu(
 		menu,
 		type,
 		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(this, type, send));
+		SendMenu::DefaultScheduleCallback(this, type, send),
+		SendMenu::DefaultAutoDeleteCallback(this, send));
 
 	if (const auto item = _mosaic.maybeItemAt(_selected)) {
 		const auto document = item->getDocument()

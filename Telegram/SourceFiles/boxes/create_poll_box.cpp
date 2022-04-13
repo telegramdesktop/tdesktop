@@ -1098,6 +1098,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				send),
 			Ui::LayerOption::KeepOther);
 	};
+    const auto sendAutoDelete = SendMenu::DefaultAutoDeleteCallback(this, [=] (auto box) {
+        _controller->show(std::move(box), Ui::LayerOption::KeepOther);
+    }, send);
 
 	options->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
@@ -1122,11 +1125,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			? SendMenu::Type::Disabled
 			: _sendMenuType;
 	};
+    
 	SendMenu::SetupMenuAndShortcuts(
 		submit.data(),
 		sendMenuType,
 		sendSilent,
-		sendScheduled);
+		sendScheduled,
+		sendAutoDelete);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

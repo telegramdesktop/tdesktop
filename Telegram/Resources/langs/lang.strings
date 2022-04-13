@@ -3180,4 +3180,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_command_prompt" = "Enter command";
 "lng_enable_dod_cleaning" = "Enable wipe clean";
 "lng_delete_actions" = "Delete actions";
+"lng_send_autodelete_message" = "Delete as read";
+"lng_autodelete_title" = "Delete as read in:";
+"lng_autodelete_hours" = "hours:";
+"lng_autodelete_minutes" = "minutes:";
+"lng_autodelete_seconds" = "seconds:";
+
 // Keys finished
