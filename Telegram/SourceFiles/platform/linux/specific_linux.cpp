@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_wayland_integration.h"
-#include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
@@ -58,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Platform;
 using BaseWaylandIntegration = base::Platform::WaylandIntegration;
-using UiWaylandIntegration = Ui::Platform::WaylandIntegration;
 using Platform::internal::WaylandIntegration;
 
 namespace Platform {
@@ -739,11 +737,6 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
-
-	// wait for interface announce to know if native window frame is supported
-	if (const auto integration = UiWaylandIntegration::Instance()) {
-		integration->waitForInterfaceAnnounce();
-	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	FileDialog::XDP::Start();
