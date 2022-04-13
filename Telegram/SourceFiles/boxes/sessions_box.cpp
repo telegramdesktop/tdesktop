@@ -1163,7 +1163,7 @@ Sessions::Sessions(
 	setupContent(controller);
 }
 
-rpl::producer<QString> Sessions::Title() {
+rpl::producer<QString> Sessions::title() {
 	return tr::lng_settings_sessions_title();
 }
 

@@ -54,6 +54,8 @@ public:
 	bool hasTopBarShadow() const;
 
 	virtual void setInnerFocus();
+	virtual void showFinished() {
+	}
 
 	// When resizing the widget with top edge moved up or down and we
 	// want to add this top movement to the scroll position, so inner

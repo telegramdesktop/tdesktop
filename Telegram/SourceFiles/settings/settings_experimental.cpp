@@ -146,7 +146,7 @@ Experimental::Experimental(
 	setupContent(controller);
 }
 
-rpl::producer<QString> Experimental::Title() {
+rpl::producer<QString> Experimental::title() {
 	return tr::lng_settings_experimental();
 }
 

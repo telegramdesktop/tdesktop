@@ -33,6 +33,10 @@ struct FlatLabel;
 struct SettingsButton;
 } // namespace style
 
+namespace Lottie {
+struct IconDescriptor;
+} // namespace Lottie
+
 namespace Settings {
 
 extern const char kOptionMonoSettingsIcons[];
@@ -45,7 +49,6 @@ struct SectionMeta {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller) const = 0;
-	[[nodiscard]] virtual rpl::producer<QString> title() const = 0;
 };
 
 template <typename SectionType>
@@ -55,9 +58,6 @@ struct SectionMetaImplementation : SectionMeta {
 		not_null<Window::SessionController*> controller
 	) const final override {
 		return object_ptr<SectionType>(parent, controller);
-	}
-	rpl::producer<QString> title() const final override {
-		return SectionType::Title();
 	}
 
 	[[nodiscard]] static not_null<SectionMeta*> Meta() {
@@ -74,8 +74,11 @@ public:
 	[[nodiscard]] virtual rpl::producer<Type> sectionShowOther() {
 		return nullptr;
 	}
+	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
+	}
+	virtual void showFinished() {
 	}
 };
 
@@ -170,6 +173,15 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	rpl::producer<QString> text,
 	style::margins addPadding = {},
 	const style::FlatLabel *st = nullptr);
+
+struct LottieIcon {
+	object_ptr<Ui::RpWidget> widget;
+	Fn<void()> animate;
+};
+[[nodiscard]] LottieIcon CreateLottieIcon(
+	not_null<QWidget*> parent,
+	Lottie::IconDescriptor &&descriptor,
+	style::margins padding = {});
 
 void FillMenu(
 	not_null<Window::SessionController*> controller,

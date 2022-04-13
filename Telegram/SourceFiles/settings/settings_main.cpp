@@ -530,7 +530,7 @@ Main::Main(
 	setupContent(controller);
 }
 
-rpl::producer<QString> Main::Title() {
+rpl::producer<QString> Main::title() {
 	return tr::lng_menu_settings();
 }
 

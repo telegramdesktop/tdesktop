@@ -1143,7 +1143,7 @@ Notifications::Notifications(
 	setupContent(controller);
 }
 
-rpl::producer<QString> Notifications::Title() {
+rpl::producer<QString> Notifications::title() {
 	return tr::lng_settings_section_notify();
 }
 

@@ -65,6 +65,8 @@ public:
 
 	void saveChanges(FnMut<void()> done) override;
 
+	void showFinished() override;
+
 	rpl::producer<bool> desiredShadowVisibility() const override;
 
 	rpl::producer<QString> title() override;

@@ -965,7 +965,7 @@ PrivacySecurity::PrivacySecurity(
 	setupContent(controller);
 }
 
-rpl::producer<QString> PrivacySecurity::Title() {
+rpl::producer<QString> PrivacySecurity::title() {
 	return tr::lng_settings_section_privacy();
 }
 

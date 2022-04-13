@@ -38,7 +38,7 @@ public:
 	Calls(QWidget *parent, not_null<Window::SessionController*> controller);
 	~Calls();
 
-	[[nodiscard]] static rpl::producer<QString> Title();
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 	void sectionSaveChanges(FnMut<void()> done) override;
 

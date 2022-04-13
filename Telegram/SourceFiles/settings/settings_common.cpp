@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
+#include "lottie/lottie_icon.h"
 #include "base/options.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -243,6 +244,40 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 			std::move(text),
 			st ? *st : st::settingsSubsectionTitle),
 		st::settingsSubsectionTitlePadding + addPadding);
+}
+
+LottieIcon CreateLottieIcon(
+		not_null<QWidget*> parent,
+		Lottie::IconDescriptor &&descriptor,
+		style::margins padding) {
+	auto object = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = object.data();
+
+	const auto width = descriptor.sizeOverride.width();
+	raw->resize(QRect(
+		QPoint(),
+		descriptor.sizeOverride).marginsAdded(padding).size());
+
+	auto owned = Lottie::MakeIcon(std::move(descriptor));
+	const auto icon = owned.get();
+
+	raw->lifetime().add([kept = std::move(owned)]{});
+
+	const auto animate = [=] {
+		icon->animate([=] { raw->update(); }, 0, icon->framesCount());
+	};
+	raw->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		const auto left = (raw->width() - width) / 2;
+		icon->paint(p, left, padding.top());
+		if (!icon->animating() && icon->frameIndex() > 0) {
+			animate();
+		}
+
+	}, raw->lifetime());
+
+	return { .widget = std::move(object), .animate = std::move(animate) };
 }
 
 void FillMenu(

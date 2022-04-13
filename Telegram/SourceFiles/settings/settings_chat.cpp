@@ -1607,7 +1607,7 @@ Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 	setupContent(controller);
 }
 
-rpl::producer<QString> Chat::Title() {
+rpl::producer<QString> Chat::title() {
 	return tr::lng_settings_section_chat_settings();
 }
 

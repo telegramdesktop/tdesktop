@@ -83,6 +83,10 @@ void Widget::saveChanges(FnMut<void()> done) {
 	_inner->sectionSaveChanges(std::move(done));
 }
 
+void Widget::showFinished() {
+	_inner->showFinished();
+}
+
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
 	return (_type == ::Settings::Main::Id()
 		|| _type == ::Settings::Information::Id())
@@ -91,7 +95,7 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 }
 
 rpl::producer<QString> Widget::title() {
-	return _type()->title();
+	return _inner->title();
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {

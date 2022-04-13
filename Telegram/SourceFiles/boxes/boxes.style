@@ -576,13 +576,24 @@ colorValueInput: InputField(defaultInputField) {
 colorResultInput: InputField(colorValueInput) {
 }
 
-changePhoneDescription: FlatLabel(boxLabel) {
+changePhoneButton: RoundButton(defaultActiveButton) {
+	width: 256px;
+	height: 42px;
+	textTop: 11px;
+	font: boxButtonFont;
+}
+changePhoneButtonPadding: margins(0px, 32px, 0px, 44px);
+changePhoneTitle: FlatLabel(boxTitle) {
+}
+changePhoneTitlePadding: margins(0px, 8px, 0px, 8px);
+changePhoneDescription: FlatLabel(defaultFlatLabel) {
 	minWidth: 332px;
 	align: align(top);
+	textFg: windowSubTextFg;
 }
-changePhoneIconTop: 16px;
-changePhoneIconSize: 96px;
-changePhoneDescriptionTop: 128px;
+changePhoneDescriptionPadding: margins(0px, 1px, 0px, 8px);
+changePhoneIconPadding: margins(0px, 39px, 0px, 5px);
+changePhoneIconSize: 120px;
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 275px;
 	textFg: windowSubTextFg;

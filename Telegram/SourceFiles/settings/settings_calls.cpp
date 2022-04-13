@@ -56,7 +56,7 @@ Calls::Calls(
 
 Calls::~Calls() = default;
 
-rpl::producer<QString> Calls::Title() {
+rpl::producer<QString> Calls::title() {
 	return tr::lng_settings_section_call_settings();
 }
 

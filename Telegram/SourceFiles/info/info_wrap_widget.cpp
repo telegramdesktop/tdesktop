@@ -777,6 +777,7 @@ void WrapWidget::showFinishedHook() {
 	// Restore shadow visibility after showChildren() call.
 	_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
 	_topBarSurrogate.destroy();
+	_content->showFinished();
 }
 
 bool WrapWidget::showInternal(

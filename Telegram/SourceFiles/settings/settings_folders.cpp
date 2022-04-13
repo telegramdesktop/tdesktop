@@ -580,7 +580,7 @@ Folders::~Folders() {
 	}
 }
 
-rpl::producer<QString> Folders::Title() {
+rpl::producer<QString> Folders::title() {
 	return tr::lng_filters_title();
 }
 

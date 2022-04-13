@@ -18,7 +18,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~Folders();
 
-	[[nodiscard]] static rpl::producer<QString> Title();
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);

@@ -741,7 +741,7 @@ Advanced::Advanced(
 	setupContent(controller);
 }
 
-rpl::producer<QString> Advanced::Title() {
+rpl::producer<QString> Advanced::title() {
 	return tr::lng_settings_advanced();
 }
 

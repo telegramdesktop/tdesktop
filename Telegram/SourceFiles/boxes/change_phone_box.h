@@ -26,36 +26,18 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
-	[[nodiscard]] static rpl::producer<QString> Title();
+	void showFinished() override;
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 private:
-	void setupContent(not_null<Window::SessionController*> controller);
+	class EnterPhone;
+	class EnterCode;
+
+	void setupContent();
+
+	const not_null<Window::SessionController*> _controller;
+	Fn<void()> _animate;
 
 };
 
 } // namespace Settings
-
-class ChangePhoneBox : public Ui::BoxContent {
-public:
-	ChangePhoneBox(
-		QWidget*,
-		not_null<Window::SessionController*> controller);
-
-	void showFinished() override;
-
-protected:
-	void prepare() override;
-
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void animateIcon();
-
-	class EnterPhone;
-	class EnterCode;
-
-	const not_null<Window::SessionController*> _controller;
-	const std::unique_ptr<Lottie::Icon> _icon;
-
-};
-

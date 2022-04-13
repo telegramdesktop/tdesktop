@@ -36,7 +36,7 @@ class Main : public Section<Main> {
 public:
 	Main(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	[[nodiscard]] static rpl::producer<QString> Title();
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 	rpl::producer<Type> sectionShowOther() override;
 
