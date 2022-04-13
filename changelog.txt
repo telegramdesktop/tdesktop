@@ -1,3 +1,11 @@
+3.6.3 beta (13.04.22)
+
+- Allow sending the default reaction by a double click.
+- Select a custom sound for message notifications.
+- Add chats to folders from a chat context menu.
+- Fix group and channel photo upload.
+- Test hardware video decoding.
+
 3.6.2 (27.03.22)
 
 - Fix photo changing in settings, groups and channels.

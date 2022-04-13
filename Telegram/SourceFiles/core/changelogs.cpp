@@ -101,10 +101,26 @@ std::map<int, const char*> BetaLogs() {
 	{
 		3005006,
 		"- Show viewers count in RTMP streams.\n"
+
 		"- Send GIFs search results without \"via @bot\".\n"
+
 		"- Display the file thumbnail in downloads bar.\n"
+
 		"- Always try to save original photo bytes to disk.\n"
+
 		"- Fix crash when deleting a user from your contacts list.\n"
+	},
+	{
+		3006003,
+		"- Allow sending the default reaction by a double click.\n"
+
+		"- Select a custom sound for message notifications.\n"
+
+		"- Add chats to folders from a chat context menu.\n"
+
+		"- Fix group and channel photo upload.\n"
+
+		"- Test hardware video decoding.\n"
 	}
 	};
 };
