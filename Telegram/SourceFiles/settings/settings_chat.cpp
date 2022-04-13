@@ -857,48 +857,72 @@ void SetupMessages(
 	const auto buttonRight = Ui::CreateChild<EmptyButton>(
 		inner,
 		st::stickersRemove);
-	const auto reactRight = Ui::CreateChild<Ui::RpWidget>(inner);
+	const auto toggleButtonRight = [=](bool value) {
+		buttonRight->setAttribute(Qt::WA_TransparentForMouseEvents, !value);
+	};
+	toggleButtonRight(false);
 
 	struct State {
-		QString lastFavorite;
-		QImage cache;
+		struct {
+			std::vector<rpl::lifetime> lifetimes;
+			bool flag = false;
+		} icons;
 	};
-	const auto state = reactRight->lifetime().make_state<State>();
-	const auto updateState = [=] {
-		auto &reactions = controller->session().data().reactions();
-		if (state->lastFavorite == reactions.favorite()) {
-			return;
+	const auto state = buttonRight->lifetime().make_state<State>();
+	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
+
+	const auto &reactions = controller->session().data().reactions();
+	auto emojiValue = rpl::single(
+		reactions.favorite()
+	) | rpl::then(
+		reactions.updates() | rpl::map([=] {
+			return controller->session().data().reactions().favorite();
+		})
+	) | rpl::filter([](const QString &emoji) {
+		return !emoji.isEmpty();
+	});
+	rpl::duplicate(
+		emojiValue
+	) | rpl::start_with_next([=, emojiValue = std::move(emojiValue)](
+			const QString &emoji) {
+		const auto &reactions = controller->session().data().reactions();
+		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
+			if (emoji != r.emoji) {
+				continue;
+			}
+			const auto index = state->icons.flag ? 1 : 0;
+			state->icons.lifetimes[index] = rpl::lifetime();
+			const auto iconSize = st::settingsReactionRightIcon;
+			AddReactionLottieIcon(
+				inner,
+				buttonRight->geometryValue(
+				) | rpl::map([=](const QRect &r) {
+					return QPoint(
+						r.left() + (r.width() - iconSize) / 2,
+						r.top() + (r.height() - iconSize) / 2);
+				}),
+				iconSize,
+				&controller->session(),
+				r,
+				buttonRight->events(
+				) | rpl::filter([=](not_null<QEvent*> event) {
+					return event->type() == QEvent::Enter;
+				}) | rpl::to_empty,
+				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
+				&state->icons.lifetimes[index]);
+			state->icons.flag = !state->icons.flag;
+			toggleButtonRight(true);
+			break;
 		}
-		state->lastFavorite = reactions.favorite();
-		state->cache = reactions.resolveImageFor(
-			reactions.favorite(),
-			Data::Reactions::ImageSize::Settings);
-		reactRight->resize(state->cache.size() / style::DevicePixelRatio());
-	};
-	updateState();
-	controller->session().data().reactions().updates(
-	) | rpl::start_with_next(updateState, reactRight->lifetime());
+	}, buttonRight->lifetime());
 
-	reactRight->setAttribute(Qt::WA_TransparentForMouseEvents);
-	reactRight->paintRequest(
-	) | rpl::start_with_next([=] {
-		Painter p(reactRight);
-
-		p.drawImage(0, 0, state->cache);
-	}, reactRight->lifetime());
-	rpl::combine(
-		reactRight->sizeValue(),
-		react->geometryValue()
-	) | rpl::start_with_next([=](const QSize &rightSize, const QRect &r) {
-		reactRight->moveToRight(
+	react->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		const auto rightSize = buttonRight->size();
+		buttonRight->moveToRight(
 			st::settingsButtonRightSkip,
 			r.y() + (r.height() - rightSize.height()) / 2);
-		buttonRight->moveToLeft(
-			reactRight->x()
-				+ (rightSize.width() - buttonRight->width()) / 2,
-			reactRight->y()
-				+ (rightSize.height() - buttonRight->height()) / 2);
-	}, reactRight->lifetime());
+	}, buttonRight->lifetime());
 
 	groupQuick->setChangedCallback([=](Quick value) {
 		Core::App().settings().setChatQuickAction(value);

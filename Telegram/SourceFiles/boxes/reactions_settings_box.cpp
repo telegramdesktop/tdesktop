@@ -41,138 +41,6 @@ namespace {
 
 constexpr auto kVisibleButtonsCount = 7;
 
-void AddIcon(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<QPoint> iconPositionValue,
-		int iconSize,
-		not_null<Main::Session*> session,
-		const Data::Reaction &reaction,
-		rpl::producer<> &&selects,
-		rpl::producer<> &&destroys,
-		not_null<rpl::lifetime*> stateLifetime) {
-
-	struct State {
-		struct Entry {
-			std::shared_ptr<Data::DocumentMedia> media;
-			std::shared_ptr<Lottie::Icon> icon;
-		};
-		Entry appear;
-		Entry select;
-		bool appearAnimated = false;
-		rpl::lifetime loadingLifetime;
-
-		base::unique_qptr<Ui::RpWidget> widget;
-
-		Ui::Animations::Simple finalAnimation;
-	};
-
-	const auto state = stateLifetime->make_state<State>();
-	state->widget = base::make_unique_q<Ui::RpWidget>(parent);
-
-	state->appear.media = reaction.appearAnimation->createMediaView();
-	state->select.media = reaction.selectAnimation->createMediaView();
-	state->appear.media->checkStickerLarge();
-	state->select.media->checkStickerLarge();
-	rpl::single() | rpl::then(
-		session->downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
-		const auto check = [&](State::Entry &entry) {
-			if (!entry.media) {
-				return true;
-			} else if (!entry.media->loaded()) {
-				return false;
-			}
-			entry.icon = HistoryView::Reactions::DefaultIconFactory(
-				entry.media.get(),
-				iconSize);
-			entry.media = nullptr;
-			return true;
-		};
-		if (check(state->select) && check(state->appear)) {
-			state->loadingLifetime.destroy();
-		}
-	}, state->loadingLifetime);
-
-	const auto widget = state->widget.get();
-	widget->resize(iconSize, iconSize);
-	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	std::move(
-		iconPositionValue
-	) | rpl::start_with_next([=](const QPoint &point) {
-		widget->moveToLeft(point.x(), point.y());
-	}, widget->lifetime());
-
-	const auto update = crl::guard(widget, [=] { widget->update(); });
-
-	widget->paintRequest(
-	) | rpl::start_with_next([=,
-			frameSize = (iconSize / style::DevicePixelRatio())] {
-		Painter p(widget);
-
-		if (state->finalAnimation.animating()) {
-			const auto progress = 1. - state->finalAnimation.value(0.);
-			const auto size = widget->size();
-			const auto scaledSize = size * progress;
-			const auto scaledCenter = QPoint(
-				(size.width() - scaledSize.width()) / 2.,
-				(size.height() - scaledSize.height()) / 2.);
-			p.setOpacity(progress);
-			p.translate(scaledCenter);
-			p.scale(progress, progress);
-		}
-
-		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
-			const auto frame = animation->frame();
-			p.drawImage(
-				QRect(
-					(widget->width() - frameSize) / 2,
-					(widget->height() - frameSize) / 2,
-					frameSize,
-					frameSize),
-				frame);
-		};
-
-		const auto appear = state->appear.icon.get();
-		if (appear && !state->appearAnimated) {
-			state->appearAnimated = true;
-			appear->animate(update, 0, appear->framesCount() - 1);
-		}
-		if (appear && appear->animating()) {
-			paintFrame(appear);
-		} else if (const auto select = state->select.icon.get()) {
-			paintFrame(select);
-		}
-	}, widget->lifetime());
-
-	std::move(
-		selects
-	) | rpl::start_with_next([=] {
-		const auto select = state->select.icon.get();
-		if (select && !select->animating()) {
-			select->animate(update, 0, select->framesCount() - 1);
-		}
-	}, widget->lifetime());
-
-	std::move(
-		destroys
-	) | rpl::take(1) | rpl::start_with_next([=, from = 0., to = 1.] {
-		state->finalAnimation.start(
-			[=](float64 value) {
-				update();
-				if (value == to) {
-					stateLifetime->destroy();
-				}
-			},
-			from,
-			to,
-			st::defaultPopupMenu.showDuration);
-	}, widget->lifetime());
-
-	widget->raise();
-	widget->show();
-}
-
 PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
 	const auto peerId = Data::FakePeerIdForJustName(name);
@@ -351,7 +219,7 @@ void AddMessage(
 			}
 			const auto index = state->icons.flag ? 1 : 0;
 			state->icons.lifetimes[index] = rpl::lifetime();
-			AddIcon(
+			AddReactionLottieIcon(
 				box->verticalLayout(),
 				widget->geometryValue(
 				) | rpl::map([=](const QRect &r) {
@@ -374,6 +242,138 @@ void AddMessage(
 }
 
 } // namespace
+
+void AddReactionLottieIcon(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QPoint> iconPositionValue,
+		int iconSize,
+		not_null<Main::Session*> session,
+		const Data::Reaction &reaction,
+		rpl::producer<> &&selects,
+		rpl::producer<> &&destroys,
+		not_null<rpl::lifetime*> stateLifetime) {
+
+	struct State {
+		struct Entry {
+			std::shared_ptr<Data::DocumentMedia> media;
+			std::shared_ptr<Lottie::Icon> icon;
+		};
+		Entry appear;
+		Entry select;
+		bool appearAnimated = false;
+		rpl::lifetime loadingLifetime;
+
+		base::unique_qptr<Ui::RpWidget> widget;
+
+		Ui::Animations::Simple finalAnimation;
+	};
+
+	const auto state = stateLifetime->make_state<State>();
+	state->widget = base::make_unique_q<Ui::RpWidget>(parent);
+
+	state->appear.media = reaction.appearAnimation->createMediaView();
+	state->select.media = reaction.selectAnimation->createMediaView();
+	state->appear.media->checkStickerLarge();
+	state->select.media->checkStickerLarge();
+	rpl::single() | rpl::then(
+		session->downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		const auto check = [&](State::Entry &entry) {
+			if (!entry.media) {
+				return true;
+			} else if (!entry.media->loaded()) {
+				return false;
+			}
+			entry.icon = HistoryView::Reactions::DefaultIconFactory(
+				entry.media.get(),
+				iconSize);
+			entry.media = nullptr;
+			return true;
+		};
+		if (check(state->select) && check(state->appear)) {
+			state->loadingLifetime.destroy();
+		}
+	}, state->loadingLifetime);
+
+	const auto widget = state->widget.get();
+	widget->resize(iconSize, iconSize);
+	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	std::move(
+		iconPositionValue
+	) | rpl::start_with_next([=](const QPoint &point) {
+		widget->moveToLeft(point.x(), point.y());
+	}, widget->lifetime());
+
+	const auto update = crl::guard(widget, [=] { widget->update(); });
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=,
+			frameSize = (iconSize / style::DevicePixelRatio())] {
+		Painter p(widget);
+
+		if (state->finalAnimation.animating()) {
+			const auto progress = 1. - state->finalAnimation.value(0.);
+			const auto size = widget->size();
+			const auto scaledSize = size * progress;
+			const auto scaledCenter = QPoint(
+				(size.width() - scaledSize.width()) / 2.,
+				(size.height() - scaledSize.height()) / 2.);
+			p.setOpacity(progress);
+			p.translate(scaledCenter);
+			p.scale(progress, progress);
+		}
+
+		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
+			const auto frame = animation->frame();
+			p.drawImage(
+				QRect(
+					(widget->width() - frameSize) / 2,
+					(widget->height() - frameSize) / 2,
+					frameSize,
+					frameSize),
+				frame);
+		};
+
+		const auto appear = state->appear.icon.get();
+		if (appear && !state->appearAnimated) {
+			state->appearAnimated = true;
+			appear->animate(update, 0, appear->framesCount() - 1);
+		}
+		if (appear && appear->animating()) {
+			paintFrame(appear);
+		} else if (const auto select = state->select.icon.get()) {
+			paintFrame(select);
+		}
+	}, widget->lifetime());
+
+	std::move(
+		selects
+	) | rpl::start_with_next([=] {
+		const auto select = state->select.icon.get();
+		if (select && !select->animating()) {
+			select->animate(update, 0, select->framesCount() - 1);
+		}
+	}, widget->lifetime());
+
+	std::move(
+		destroys
+	) | rpl::take(1) | rpl::start_with_next([=, from = 0., to = 1.] {
+		state->finalAnimation.start(
+			[=](float64 value) {
+				update();
+				if (value == to) {
+					stateLifetime->destroy();
+				}
+			},
+			from,
+			to,
+			st::defaultPopupMenu.showDuration);
+	}, widget->lifetime());
+
+	widget->raise();
+	widget->show();
+}
 
 void ReactionsSettingsBox(
 		not_null<Ui::GenericBox*> box,
@@ -436,7 +436,7 @@ void ReactionsSettingsBox(
 			stButton);
 
 		const auto iconSize = st::settingsReactionSize;
-		AddIcon(
+		AddReactionLottieIcon(
 			button,
 			button->sizeValue(
 			) | rpl::map([=, left = button->st().iconLeft](const QSize &s) {

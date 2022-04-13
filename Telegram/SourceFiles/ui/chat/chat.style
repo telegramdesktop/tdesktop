@@ -1007,8 +1007,6 @@ reactionInfoSkip: 3px;
 reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
-reactionSettingsImage: 40px;
-
 reactionCornerSize: size(36px, 32px);
 reactionCornerCenter: point(7px, -9px);
 reactionCornerImage: 22px;

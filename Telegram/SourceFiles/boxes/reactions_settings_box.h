@@ -9,11 +9,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class GenericBox;
+class RpWidget;
 } // namespace Ui
 
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace Data {
+struct Reaction;
+} // namespace Data
+
+void AddReactionLottieIcon(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<QPoint> iconPositionValue,
+	int iconSize,
+	not_null<Main::Session*> session,
+	const Data::Reaction &reaction,
+	rpl::producer<> &&selects,
+	rpl::producer<> &&destroys,
+	not_null<rpl::lifetime*> stateLifetime);
 
 void ReactionsSettingsBox(
 	not_null<Ui::GenericBox*> box,
