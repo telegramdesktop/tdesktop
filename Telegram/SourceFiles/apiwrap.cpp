@@ -3570,7 +3570,7 @@ void ApiWrap::sendBotStart(
 	}
 
 	auto &info = bot->botInfo;
-	auto &token = chat ? startTokenForChat : info->startToken;
+	const auto token = chat ? startTokenForChat : info->startToken;
 	if (token.isEmpty()) {
 		auto message = MessageToSend(
 			Api::SendAction(_session->data().history(chat
