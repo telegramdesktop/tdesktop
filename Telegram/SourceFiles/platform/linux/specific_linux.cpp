@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
@@ -56,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <iostream>
 
 using namespace Platform;
-using BaseWaylandIntegration = base::Platform::WaylandIntegration;
 using Platform::internal::WaylandIntegration;
 
 namespace Platform {
@@ -65,8 +63,6 @@ namespace {
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
 
-constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
-constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
 constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 
@@ -81,24 +77,13 @@ void PortalAutostart(bool start, bool silent) {
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
-			std::stringstream result;
-
 			const auto activeWindow = Core::App().activeWindow();
 			if (!activeWindow) {
-				return result.str();
+				return {};
 			}
 
-			const auto window = activeWindow->widget()->windowHandle();
-			if (const auto integration = BaseWaylandIntegration::Instance()) {
-				if (const auto handle = integration->nativeHandle(window)
-					; !handle.isEmpty()) {
-					result << "wayland:" << handle.toStdString();
-				}
-			} else if (IsX11()) {
-				result << "x11:" << std::hex << window->winId();
-			}
-
-			return result.str();
+			return base::Platform::XDP::ParentWindowID(
+				activeWindow->widget()->windowHandle());
 		}();
 
 		const auto handleToken = Glib::ustring("tdesktop")
@@ -163,7 +148,7 @@ void PortalAutostart(bool start, bool silent) {
 
 				loop->quit();
 			},
-			std::string(kXDGDesktopPortalService),
+			std::string(base::Platform::XDP::kService),
 			"org.freedesktop.portal.Request",
 			"Response",
 			requestPath);
@@ -175,14 +160,14 @@ void PortalAutostart(bool start, bool silent) {
 		});
 
 		connection->call_sync(
-			std::string(kXDGDesktopPortalObjectPath),
+			std::string(base::Platform::XDP::kObjectPath),
 			"org.freedesktop.portal.Background",
 			"RequestBackground",
 			base::Platform::MakeGlibVariant(std::tuple{
 				parentWindowId,
 				options,
 			}),
-			std::string(kXDGDesktopPortalService));
+			std::string(base::Platform::XDP::kService));
 
 		if (signalId != 0) {
 			QWindow window;
