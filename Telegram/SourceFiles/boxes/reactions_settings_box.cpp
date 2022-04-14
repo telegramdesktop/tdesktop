@@ -206,12 +206,14 @@ void AddMessage(
 		view->draw(p, context);
 	}, widget->lifetime());
 
-	rpl::duplicate(
-		emojiValue
-	) | rpl::start_with_next([=,
-				emojiValue = std::move(emojiValue),
-				iconSize = st::settingsReactionMessageSize](
-			const QString &emoji) {
+	auto selectedEmoji = rpl::duplicate(emojiValue);
+	std::move(
+		selectedEmoji
+	) | rpl::start_with_next([
+		=,
+		emojiValue = std::move(emojiValue),
+		iconSize = st::settingsReactionMessageSize
+	](const QString &emoji) {
 		const auto &reactions = controller->session().data().reactions();
 		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
 			if (emoji != r.emoji) {
@@ -308,8 +310,7 @@ void AddReactionLottieIcon(
 	const auto update = crl::guard(widget, [=] { widget->update(); });
 
 	widget->paintRequest(
-	) | rpl::start_with_next([=,
-			frameSize = (iconSize / style::DevicePixelRatio())] {
+	) | rpl::start_with_next([=] {
 		Painter p(widget);
 
 		if (state->finalAnimation.animating()) {
@@ -328,10 +329,10 @@ void AddReactionLottieIcon(
 			const auto frame = animation->frame();
 			p.drawImage(
 				QRect(
-					(widget->width() - frameSize) / 2,
-					(widget->height() - frameSize) / 2,
-					frameSize,
-					frameSize),
+					(widget->width() - iconSize) / 2,
+					(widget->height() - iconSize) / 2,
+					iconSize,
+					iconSize),
 				frame);
 		};
 

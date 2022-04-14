@@ -881,8 +881,9 @@ void SetupMessages(
 	) | rpl::filter([](const QString &emoji) {
 		return !emoji.isEmpty();
 	});
-	rpl::duplicate(
-		emojiValue
+	auto selectedEmoji = rpl::duplicate(emojiValue);
+	std::move(
+		selectedEmoji
 	) | rpl::start_with_next([=, emojiValue = std::move(emojiValue)](
 			const QString &emoji) {
 		const auto &reactions = controller->session().data().reactions();

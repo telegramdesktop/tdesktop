@@ -370,13 +370,13 @@ settingsPeerToPeerSkip: 9px;
 
 settingsIconRadius: 6px;
 
-settingsReactionSize: 50px;
-settingsReactionRightSkip: -10px;
+settingsReactionSize: 25px;
+settingsReactionRightSkip: 0px;
 settingsReactionCornerSize: size(28px, 22px);
 settingsReactionCornerSkip: point(11px, -6px);
-settingsReactionMessageSize: 36px;
+settingsReactionMessageSize: 18px;
 
-settingsReactionRightIcon: 40px;
+settingsReactionRightIcon: 20px;
 
 notifyPreviewMargins: margins(40px, 20px, 40px, 58px);
 notifyPreviewUserpicSize: 36px;
