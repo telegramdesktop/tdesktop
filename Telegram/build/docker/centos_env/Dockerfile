@@ -600,6 +600,7 @@ RUN ./configure -prefix "$QT_PREFIX" \
 	-qt-pcre \
 	-no-icu \
 	-no-feature-xcb-sm \
+	-no-feature-egl-extension-platform-wayland \
 	-no-feature-highdpiscaling \
 	-static \
 	-dbus-runtime \
