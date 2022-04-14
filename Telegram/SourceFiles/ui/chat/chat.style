@@ -479,7 +479,7 @@ historyPinnedShowAll: IconButton(historyReplyCancel) {
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbIconPadding: 2px;
+msgBotKbIconPadding: 4px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
