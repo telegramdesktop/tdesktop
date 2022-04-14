@@ -89,12 +89,13 @@ enum class GifPauseReason {
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
-enum class BotStartType {
-	None,
-	Personal,
-	Group,
-	Channel,
+enum class ResolveType {
+	Default,
+	BotStart,
+	AddToGroup,
+	AddToChannel,
 	ShareGame,
+	Mention,
 };
 
 struct PeerThemeOverride {
@@ -189,7 +190,7 @@ public:
 		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
-		BotStartType startType = BotStartType::None;
+		ResolveType resolveType = ResolveType::Default;
 		QString startToken;
 		ChatAdminRights startAdminRights;
 		QString attachBotUsername;

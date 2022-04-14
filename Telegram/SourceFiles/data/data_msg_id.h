@@ -82,7 +82,6 @@ constexpr auto ShowAtUnreadMsgId = MsgId(0);
 constexpr auto SpecialMsgIdShift = EndClientMsgId.bare;
 constexpr auto ShowAtTheEndMsgId = MsgId(SpecialMsgIdShift + 1);
 constexpr auto SwitchAtTopMsgId = MsgId(SpecialMsgIdShift + 2);
-constexpr auto ShowAtProfileMsgId = MsgId(SpecialMsgIdShift + 3);
 constexpr auto ShowAndStartBotMsgId = MsgId(SpecialMsgIdShift + 4);
 constexpr auto ShowForChooseMessagesMsgId = MsgId(SpecialMsgIdShift + 6);
 

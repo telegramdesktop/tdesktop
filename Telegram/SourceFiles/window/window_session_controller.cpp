@@ -317,14 +317,14 @@ void SessionNavigation::showPeerByLinkResolved(
 			commentId->id,
 			params);
 	} else if (bot
-		&& (info.startType == BotStartType::Group
-			|| info.startType == BotStartType::Channel
-			|| info.startType == BotStartType::ShareGame)) {
-		const auto scope = (info.startType == BotStartType::ShareGame)
+		&& (info.resolveType == ResolveType::AddToGroup
+			|| info.resolveType == ResolveType::AddToChannel
+			|| info.resolveType == ResolveType::ShareGame)) {
+		const auto scope = (info.resolveType == ResolveType::ShareGame)
 			? Scope::ShareGame
-			: (info.startType == BotStartType::Group)
+			: (info.resolveType == ResolveType::AddToGroup)
 			? (info.startAdminRights ? Scope::GroupAdmin : Scope::All)
-			: (info.startType == BotStartType::Channel)
+			: (info.resolveType == ResolveType::AddToChannel)
 			? Scope::ChannelAdmin
 			: Scope::None;
 		Assert(scope != Scope::None);
@@ -334,11 +334,10 @@ void SessionNavigation::showPeerByLinkResolved(
 			scope,
 			info.startToken,
 			info.startAdminRights);
-	} else if (info.messageId == ShowAtProfileMsgId) {
-		if (bot) {
-			// Always open bot chats, even from mention links.
+	} else if (info.resolveType == ResolveType::Mention) {
+		if (bot || peer->isChannel()) {
 			crl::on_main(this, [=] {
-				showPeerHistory(bot->id, params);
+				showPeerHistory(peer->id, params);
 			});
 		} else {
 			showPeerInfo(peer, params);

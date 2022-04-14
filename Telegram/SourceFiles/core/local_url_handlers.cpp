@@ -330,22 +330,21 @@ bool ResolveUsernameOrPhone(
 	} else if (!validDomain(domain) && !validPhone(phone)) {
 		return false;
 	}
-	using BotStartType = Window::BotStartType;
-	auto startType = BotStartType::None;
+	using ResolveType = Window::ResolveType;
+	auto resolveType = ResolveType::Default;
 	auto startToken = params.value(u"start"_q);
 	if (!startToken.isEmpty()) {
-		startType = BotStartType::Personal;
+		resolveType = ResolveType::BotStart;
 	} else if (params.contains(u"startgroup"_q)) {
-		startType = BotStartType::Group;
+		resolveType = ResolveType::AddToGroup;
 		startToken = params.value(u"startgroup"_q);
 	} else if (params.contains(u"startchannel"_q)) {
-		startType = BotStartType::Channel;
+		resolveType = ResolveType::AddToChannel;
 	}
 	auto post = ShowAtUnreadMsgId;
 	auto adminRights = ChatAdminRights();
-	if (startType == BotStartType::Group
-		|| startType == BotStartType::Channel) {
-		post = ShowAtProfileMsgId;
+	if (resolveType == ResolveType::AddToGroup
+		|| resolveType == ResolveType::AddToChannel) {
 		adminRights = ParseRequestedAdminRights(params.value(u"admin"_q));
 	}
 	const auto postParam = params.value(qsl("post"));
@@ -359,8 +358,7 @@ bool ResolveUsernameOrPhone(
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
-		post = ShowAtProfileMsgId;
-		startType = BotStartType::ShareGame;
+		resolveType = ResolveType::ShareGame;
 	}
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	using Navigation = Window::SessionNavigation;
@@ -377,7 +375,7 @@ bool ResolveUsernameOrPhone(
 				Navigation::ThreadId{ threadId }
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
-		.startType = startType,
+		.resolveType = resolveType,
 		.startToken = startToken,
 		.startAdminRights = adminRights,
 		.attachBotUsername = params.value(u"attach"_q),
