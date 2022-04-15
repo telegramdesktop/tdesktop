@@ -58,7 +58,6 @@ jobs:
     defaults:
       run:
         shell: cmd
-        working-directory: ${{ github.workspace }}
 
     steps:
       - name: Prepare directories.
@@ -98,6 +97,8 @@ jobs:
           echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
           echo "C:\\ProgramData\\chocolatey\\lib\\ninja\\tools\\" >> $GITHUB_PATH
 
+          echo "CACHE_KEY=$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> $GITHUB_ENV
+
           echo "Configurate git for cherry-picks."
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
@@ -112,7 +113,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.TBUILD }}/Libraries
-          key: ${{ runner.OS }}-libs
+          key: ${{ runner.OS }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-libs-
 
       - name: Libraries.
         env:
