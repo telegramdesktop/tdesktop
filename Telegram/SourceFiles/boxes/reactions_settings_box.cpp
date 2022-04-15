@@ -125,6 +125,7 @@ void AddMessage(
 		controller,
 		crl::guard(widget, [=] { widget->update(); }));
 	state->style = std::make_unique<Ui::ChatStyle>();
+	state->style->apply(controller->defaultChatTheme().get());
 	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
 
 	const auto history = controller->session().data().history(
