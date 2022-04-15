@@ -159,7 +159,7 @@ void MessagesSearch::searchReceived(
 			owner.processChats(data.vchats());
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
-		const auto total = int(data.vmessages().v.size());
+		const auto total = int(data.vcount().v);
 		return FoundMessages{ total, std::move(items), nextToken };
 	}, [](const MTPDmessages_messagesNotModified &data) {
 		return FoundMessages{};
