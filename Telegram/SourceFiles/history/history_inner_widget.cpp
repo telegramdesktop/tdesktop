@@ -1874,10 +1874,13 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	if (allowed && !allowed->contains(favorite)) {
 		return;
 	}
-	view->data()->toggleReaction(favorite);
-	if (const auto top = itemTop(view); top >= 0) {
-		view->animateReaction({ .emoji = favorite });
+	const auto item = view->data();
+	if (item->chosenReaction() != favorite) {
+		if (const auto top = itemTop(view); top >= 0) {
+			view->animateReaction({ .emoji = favorite });
+		}
 	}
+	item->toggleReaction(favorite);
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
