@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl.h"
@@ -104,7 +105,8 @@ Args TTLValidator::createArgs() const {
 bool TTLValidator::can() const {
 	return (_peer->isUser()
 			&& !_peer->isSelf()
-			&& !_peer->isNotificationsUser())
+			&& !_peer->isNotificationsUser()
+			&& !_peer->asUser()->isInaccessible())
 		|| (_peer->isChat()
 			&& _peer->asChat()->canDeleteMessages())
 		|| (_peer->isChannel()

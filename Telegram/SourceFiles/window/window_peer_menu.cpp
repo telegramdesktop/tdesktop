@@ -637,7 +637,11 @@ void Filler::addReport() {
 
 void Filler::addNewContact() {
 	const auto user = _peer->asUser();
-	if (!user || user->isContact() || user->isSelf() || user->isBot()) {
+	if (!user
+		|| user->isContact()
+		|| user->isSelf()
+		|| user->isInaccessible()
+		|| user->isBot()) {
 		return;
 	}
 	const auto controller = _controller;
