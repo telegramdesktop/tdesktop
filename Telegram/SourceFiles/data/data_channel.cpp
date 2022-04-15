@@ -56,7 +56,7 @@ bool MegagroupInfo::updateBotCommands(const MTPVector<MTPBotInfo> &data) {
 bool MegagroupInfo::updateBotCommands(
 		UserId botId,
 		const MTPVector<MTPBotCommand> &data) {
-	return Data::UpdateBotCommands(_botCommands, botId, data);
+	return Data::UpdateBotCommands(_botCommands, botId, &data);
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)

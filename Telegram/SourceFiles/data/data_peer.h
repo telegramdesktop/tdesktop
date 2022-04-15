@@ -102,17 +102,17 @@ struct UnavailableReason {
 
 bool UpdateBotCommands(
 	std::vector<BotCommand> &commands,
-	const MTPVector<MTPBotCommand> &data);
+	const MTPVector<MTPBotCommand> *data);
 bool UpdateBotCommands(
 	base::flat_map<UserId, std::vector<BotCommand>> &commands,
 	UserId botId,
-	const MTPVector<MTPBotCommand> &data);
+	const MTPVector<MTPBotCommand> *data);
 bool UpdateBotCommands(
 	base::flat_map<UserId, std::vector<BotCommand>> &commands,
 	const MTPVector<MTPBotInfo> &data);
 bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
-	const MTPBotMenuButton &button);
+	const MTPBotMenuButton *button);
 
 } // namespace Data
 

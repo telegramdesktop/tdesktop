@@ -562,6 +562,7 @@ auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
 
 chatInviteExported#ab4a819 flags:# revoked:flags.0?true permanent:flags.5?true request_needed:flags.6?true link:string admin_id:long date:int start_date:flags.4?int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int requested:flags.7?int title:flags.8?string = ExportedChatInvite;
+chatInvitePublicJoinRequests#ed107ab7 = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
 chatInvite#300c44c1 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true request_needed:flags.6?true title:string about:flags.5?string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
@@ -581,7 +582,7 @@ messages.stickerSetNotModified#d3f924eb = messages.StickerSet;
 
 botCommand#c27ac8c7 command:string description:string = BotCommand;
 
-botInfo#e4169b5d user_id:long description:string commands:Vector<BotCommand> menu_button:BotMenuButton = BotInfo;
+botInfo#cc8ba4d7 flags:# user_id:flags.0?long description:flags.1?string description_photo:flags.4?Photo commands:flags.2?Vector<BotCommand> menu_button:flags.3?BotMenuButton = BotInfo;
 
 keyboardButton#a2fa4880 text:string = KeyboardButton;
 keyboardButtonUrl#258aff05 text:string url:string = KeyboardButton;
@@ -1750,6 +1751,8 @@ channels.viewSponsoredMessage#beaedb94 channel:InputChannel random_id:bytes = Bo
 channels.getSponsoredMessages#ec210fbf channel:InputChannel = messages.SponsoredMessages;
 channels.getSendAs#dc770ee peer:InputPeer = channels.SendAsPeers;
 channels.deleteParticipantHistory#367544db channel:InputChannel participant:InputPeer = messages.AffectedHistory;
+channels.toggleJoinToSend#e4cb9580 channel:InputChannel enabled:Bool = Updates;
+channels.toggleJoinRequest#4c2985b6 channel:InputChannel enabled:Bool = Updates;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;

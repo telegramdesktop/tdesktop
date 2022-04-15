@@ -157,13 +157,13 @@ private:
 	[[nodiscard]] Links parseSlice(
 		not_null<PeerData*> peer,
 		const MTPmessages_ExportedChatInvites &slice) const;
-	[[nodiscard]] Link parse(
+	[[nodiscard]] std::optional<Link> parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
 	[[nodiscard]] Link *lookupMyPermanent(not_null<PeerData*> peer);
 	[[nodiscard]] Link *lookupMyPermanent(Links &links);
 	[[nodiscard]] const Link *lookupMyPermanent(const Links &links) const;
-	Link prepend(
+	std::optional<Link> prepend(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite);

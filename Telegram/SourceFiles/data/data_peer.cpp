@@ -90,8 +90,13 @@ PeerId FakePeerIdForJustName(const QString &name) {
 
 bool UpdateBotCommands(
 		std::vector<BotCommand> &commands,
-		const MTPVector<MTPBotCommand> &data) {
-	const auto &v = data.v;
+		const MTPVector<MTPBotCommand> *data) {
+	if (!data) {
+		const auto changed = !commands.empty();
+		commands.clear();
+		return changed;
+	}
+	const auto &v = data->v;
 	commands.reserve(v.size());
 	auto result = false;
 	auto index = 0;
@@ -127,8 +132,8 @@ bool UpdateBotCommands(
 bool UpdateBotCommands(
 		base::flat_map<UserId, std::vector<BotCommand>> &commands,
 		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	return data.v.isEmpty()
+		const MTPVector<MTPBotCommand> *data) {
+	return (!data || data->v.isEmpty())
 		? commands.remove(botId)
 		: UpdateBotCommands(commands[botId], data);
 }
@@ -141,7 +146,11 @@ bool UpdateBotCommands(
 	filled.reserve(data.v.size());
 	for (const auto &item : data.v) {
 		item.match([&](const MTPDbotInfo &data) {
-			const auto id = UserId(data.vuser_id().v);
+			if (!data.vuser_id()) {
+				LOG(("API Error: BotInfo without UserId for commands map."));
+				return;
+			}
+			const auto id = UserId(*data.vuser_id());
 			if (!filled.emplace(id).second) {
 				LOG(("API Error: Two BotInfo for a single bot."));
 				return;
@@ -163,14 +172,16 @@ bool UpdateBotCommands(
 
 bool ApplyBotMenuButton(
 		not_null<BotInfo*> info,
-		const MTPBotMenuButton &button) {
+		const MTPBotMenuButton *button) {
 	auto text = QString();
 	auto url = QString();
-	button.match([&](const MTPDbotMenuButton &data) {
-		text = qs(data.vtext());
-		url = qs(data.vurl());
-	}, [&](const auto &) {
-	});
+	if (button) {
+		button->match([&](const MTPDbotMenuButton &data) {
+			text = qs(data.vtext());
+			url = qs(data.vurl());
+		}, [&](const auto &) {
+		});
+	}
 	const auto changed = (info->botMenuButtonText != text)
 		|| (info->botMenuButtonUrl != url);
 

@@ -1988,7 +1988,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			const auto botId = UserId(d.vbot_id().v);
 			if (const auto user = peer->asUser()) {
 				if (user->isBot() && user->id == peerFromUser(botId)) {
-					if (Data::UpdateBotCommands(user->botInfo->commands, d.vcommands())) {
+					if (Data::UpdateBotCommands(user->botInfo->commands, &d.vcommands())) {
 						session().data().botCommandsChanged(user);
 					}
 				}
@@ -2015,7 +2015,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateBotMenuButton();
 		if (const auto bot = session().data().userLoaded(d.vbot_id())) {
 			if (const auto info = bot->botInfo.get(); info && info->inited) {
-				if (Data::ApplyBotMenuButton(info, d.vbutton())) {
+				if (Data::ApplyBotMenuButton(info, &d.vbutton())) {
 					session().data().botCommandsChanged(bot);
 				}
 			}

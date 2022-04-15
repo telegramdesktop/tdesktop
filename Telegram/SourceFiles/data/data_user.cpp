@@ -121,11 +121,13 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
 		const auto &d = info.c_botInfo();
-		if (peerFromUser(d.vuser_id().v) != id || !isBot()) {
+		if (!isBot()) {
+			return;
+		} else if (d.vuser_id() && peerFromUser(*d.vuser_id()) != id) {
 			return;
 		}
 
-		QString desc = qs(d.vdescription());
+		QString desc = qs(d.vdescription().value_or_empty());
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
