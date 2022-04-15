@@ -316,8 +316,7 @@ infoProfileSeparatorPadding: margins(
 
 infoIconFg: windowBoldFg;
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
-//infoIconMembers: icon {{ "info/edit/group_manage_members", infoIconFg, point(-2px, 0px) }};
-infoIconRequests: icon {{ "info/info_add_member", infoIconFg, point(0px, 2px) }};
+infoIconRequests: icon {{ "info/info_add_member", infoIconFg }};
 infoIconNotifications: icon {{ "info/info_notifications", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info/info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info/info_media_video", infoIconFg }};
@@ -328,11 +327,11 @@ infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info/info_media_round", infoIconFg }};
-infoIconRecentActions: icon {{ "info/edit/group_manage_actions", infoIconFg, point(-2px, -1px) }};
-infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg, point(-3px, 0px) }};
-infoIconBlacklist: icon {{ "info/info_blacklist", infoIconFg, point(-2px, -2px) }};
-infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg, point(0px, -2px) }};
-infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg, point(-2px, 0px) }};
+infoIconRecentActions: icon {{ "info/edit/group_manage_actions", infoIconFg }};
+infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg }};
+infoIconBlacklist: icon {{ "info/info_blacklist", infoIconFg }};
+infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg }};
+infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg }};
 infoIconReactions: icon {{ "info/edit/group_manage_reactions", infoIconFg }};
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
