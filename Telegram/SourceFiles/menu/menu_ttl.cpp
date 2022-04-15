@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_ttl.h"
 
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/time_picker_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
@@ -186,17 +187,21 @@ void TTLBox(not_null<Ui::GenericBox*> box, Args args) {
 
 	const auto pickerTtl = TimePickerBox(box, ttls, phrases, args.startTtl);
 
-	box->addButton(tr::lng_settings_save(), [=] {
-		args.callback(pickerTtl());
-		box->getDelegate()->hideLayer();
+	Ui::ConfirmBox(box, {
+		.confirmed = [=] {
+			args.callback(pickerTtl());
+			box->getDelegate()->hideLayer();
+		},
+		.confirmText = tr::lng_settings_save(),
+		.cancelText = tr::lng_cancel(),
 	});
 
 	box->setTitle(tr::lng_manage_messages_ttl_title());
 
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	if (args.startTtl) {
 		box->addLeftButton(tr::lng_manage_messages_ttl_disable(), [=] {
 			args.callback(0);
+			box->getDelegate()->hideLayer();
 		});
 	}
 }

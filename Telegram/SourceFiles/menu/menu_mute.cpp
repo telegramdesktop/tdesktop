@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/boxes/choose_time.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/time_picker_box.h"
 #include "ui/effects/animation_value.h"
 #include "ui/layers/generic_box.h"
@@ -153,11 +154,14 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			? tr::lng_mute_menu_unmute()
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
-	const auto confirm = box->addButton(std::move(confirmText), [=] {
-		peer->owner().notifySettings().update(peer, state->lastSeconds);
-		box->getDelegate()->hideLayer();
+	Ui::ConfirmBox(box, {
+		.confirmed = [=] {
+			peer->owner().notifySettings().update(peer, state->lastSeconds);
+			box->getDelegate()->hideLayer();
+		},
+		.confirmText = std::move(confirmText),
+		.cancelText = tr::lng_cancel(),
 	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
@@ -190,17 +194,19 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 
 	const auto pickerCallback = TimePickerBox(box, seconds, phrases, 0);
 
-	box->addButton(tr::lng_mute_menu_mute(), [=] {
-		const auto muteFor = pickerCallback();
-		peer->owner().notifySettings().update(peer, muteFor);
-		peer->session().settings().addMutePeriod(muteFor);
-		peer->session().saveSettings();
-		box->closeBox();
+	Ui::ConfirmBox(box, {
+		.confirmed = [=] {
+			const auto muteFor = pickerCallback();
+			peer->owner().notifySettings().update(peer, muteFor);
+			peer->session().settings().addMutePeriod(muteFor);
+			peer->session().saveSettings();
+			box->closeBox();
+		},
+		.confirmText = tr::lng_mute_menu_mute(),
+		.cancelText = tr::lng_cancel(),
 	});
 
 	box->setTitle(tr::lng_mute_box_title());
-
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	const auto top = box->addTopButton(st::infoTopBarMenu);
 	top->setClickedCallback([=] {
