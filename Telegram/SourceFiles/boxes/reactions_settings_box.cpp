@@ -215,7 +215,7 @@ void AddMessage(
 		iconSize = st::settingsReactionMessageSize
 	](const QString &emoji) {
 		const auto &reactions = controller->session().data().reactions();
-		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
+		for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
 			if (emoji != r.emoji) {
 				continue;
 			}
@@ -430,7 +430,7 @@ void ReactionsSettingsBox(
 	};
 
 	auto firstCheckedButton = (Ui::RpWidget*)(nullptr);
-	for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
+	for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
 		const auto button = Settings::AddButton(
 			buttonsContainer,
 			rpl::single<QString>(base::duplicate(r.title)),
