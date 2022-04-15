@@ -1000,6 +1000,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_view_discussion" = "View discussion";
 "lng_profile_join_channel" = "Join Channel";
 "lng_profile_join_group" = "Join Group";
+"lng_profile_apply_to_join_group" = "Apply to Join Group";
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
 "lng_profile_delete_removed" = "Delete";
@@ -1128,6 +1129,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_public_group_title" = "Public";
 "lng_manage_private_peer_title" = "Private";
 "lng_manage_public_peer_title" = "Public";
+"lng_manage_peer_send_title" = "Who can send new messages?";
+"lng_manage_peer_send_only_members" = "Only members";
+"lng_manage_peer_send_only_members_about" = "Turn this on if you expect users to join your group before being able to send messages.";
+"lng_manage_peer_send_approve_members" = "Approve new members";
+"lng_manage_peer_send_approve_members_about" = "Turn this on if you want users to join the group only after they are approved by an admin.";
 "lng_manage_peer_no_forwards_title" = "Saving content";
 "lng_manage_peer_no_forwards" = "Restrict saving content";
 "lng_manage_peer_no_forwards_about" = "Members won't be able to forward messages from this group or save media files.";

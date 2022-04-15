@@ -375,6 +375,7 @@ private:
 	[[nodiscard]] Dialogs::EntryState computeDialogsEntryState() const;
 	void refreshTopBarActiveChat();
 
+	void refreshJoinChannelText();
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 

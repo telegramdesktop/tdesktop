@@ -52,6 +52,8 @@ enum class ChannelDataFlag {
 	HasLink = (1 << 18),
 	SlowmodeEnabled = (1 << 19),
 	NoForwards = (1 << 20),
+	JoinToWrite = (1 << 21),
+	RequestToJoin = (1 << 22),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -254,6 +256,12 @@ public:
 	}
 	[[nodiscard]] bool amCreator() const {
 		return flags() & Flag::Creator;
+	}
+	[[nodiscard]] bool joinToWrite() const {
+		return flags() & Flag::JoinToWrite;
+	}
+	[[nodiscard]] bool requestToJoin() const {
+		return flags() & Flag::RequestToJoin;
 	}
 
 	[[nodiscard]] auto adminRights() const {

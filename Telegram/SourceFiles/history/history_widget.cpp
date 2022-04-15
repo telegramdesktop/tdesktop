@@ -913,6 +913,16 @@ Dialogs::EntryState HistoryWidget::computeDialogsEntryState() const {
 	};
 }
 
+void HistoryWidget::refreshJoinChannelText() {
+	if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
+		_joinChannel->setText((channel->isBroadcast()
+			? tr::lng_profile_join_channel(tr::now)
+			: (channel->requestToJoin() && !channel->amCreator())
+			? tr::lng_profile_apply_to_join_group(tr::now)
+			: tr::lng_profile_join_group(tr::now)).toUpper());
+	}
+}
+
 void HistoryWidget::refreshTopBarActiveChat() {
 	const auto state = computeDialogsEntryState();
 	_topBar->setActiveChat(state, _history->sendActionPainter());
@@ -2210,12 +2220,6 @@ void HistoryWidget::showHistory(
 			&& !_peer->asUser()->isSupport())
 				? tr::lng_restart_button(tr::now)
 				: tr::lng_unblock_button(tr::now)).toUpper());
-		if (const auto channel = _peer->asChannel()) {
-			channel->updateFull();
-			_joinChannel->setText((channel->isMegagroup()
-				? tr::lng_profile_join_group(tr::now)
-				: tr::lng_profile_join_channel(tr::now)).toUpper());
-		}
 	}
 
 	_nonEmptySelection = false;
@@ -2268,6 +2272,18 @@ void HistoryWidget::showHistory(
 		_list = _scroll->setOwnedWidget(
 			object_ptr<HistoryInner>(this, _scroll, controller(), _history));
 		_list->show();
+
+		if (const auto channel = _peer->asChannel()) {
+			channel->updateFull();
+			if (!channel->isBroadcast()) {
+				channel->flagsValue(
+				) | rpl::start_with_next([=] {
+					refreshJoinChannelText();
+				}, _list->lifetime());
+			} else {
+				refreshJoinChannelText();
+			}
+		}
 
 		controller()->adaptive().changes(
 		) | rpl::start_with_next([=] {
