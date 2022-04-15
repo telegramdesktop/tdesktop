@@ -51,6 +51,7 @@ jobs:
     env:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
     steps:
       - name: Get repository name.
@@ -78,14 +79,16 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ThirdParty
-          key: ${{ runner.OS }}-third-party
+          key: ${{ runner.OS }}-third-party-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
+          restore-keys: ${{ runner.OS }}-third-party-
 
       - name: Libraries cache.
         id: cache-libs
         uses: actions/cache@v2
         with:
           path: Libraries
-          key: ${{ runner.OS }}-libs
+          key: ${{ runner.OS }}-libs-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
+          restore-keys: ${{ runner.OS }}-libs-
 
       - name: Libraries.
         run: |
