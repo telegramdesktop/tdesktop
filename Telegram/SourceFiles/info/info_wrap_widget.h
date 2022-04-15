@@ -200,7 +200,7 @@ private:
 
 	void addTopBarMenuButton();
 	void addProfileCallsButton();
-	void showTopBarMenu();
+	void showTopBarMenu(bool check);
 	void deleteAllDownloads();
 
 	rpl::variable<Wrap> _wrap;

@@ -437,6 +437,14 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 void WrapWidget::addTopBarMenuButton() {
 	Expects(_topBar != nullptr);
 
+	{
+		const auto guard = gsl::finally([&] { _topBarMenu = nullptr; });
+		showTopBarMenu(true);
+		if (_topBarMenu->empty()) {
+			return;
+		}
+	}
+
 	_topBarMenuToggle.reset(_topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
@@ -444,7 +452,7 @@ void WrapWidget::addTopBarMenuButton() {
 				? st::infoLayerTopBarMenu
 				: st::infoTopBarMenu))));
 	_topBarMenuToggle->addClickHandler([this] {
-		showTopBarMenu();
+		showTopBarMenu(false);
 	});
 }
 
@@ -485,7 +493,7 @@ void WrapWidget::addProfileCallsButton() {
 	}
 }
 
-void WrapWidget::showTopBarMenu() {
+void WrapWidget::showTopBarMenu(bool check) {
 	if (_topBarMenu) {
 		_topBarMenu->hideMenu(true);
 		return;
@@ -500,7 +508,6 @@ void WrapWidget::showTopBarMenu() {
 			toggle->setForceRippled(false);
 		}
 	});
-	_topBarMenuToggle->setForceRippled(true);
 
 	const auto addAction = Menu::CreateAddActionCallback(_topBarMenu);
 	if (key().isDownloads()) {
@@ -532,6 +539,10 @@ void WrapWidget::showTopBarMenu() {
 		return;
 	}
 	_topBarMenu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	if (check) {
+		return;
+	}
+	_topBarMenuToggle->setForceRippled(true);
 	_topBarMenu->popup(_topBarMenuToggle->mapToGlobal(
 		st::infoLayerTopBarMenuPosition));
 }
