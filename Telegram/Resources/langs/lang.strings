@@ -988,6 +988,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_delete_contact" = "Delete contact";
 "lng_info_share_contact" = "Share contact";
 "lng_profile_clear_history" = "Clear history";
+"lng_profile_delete_my_messages" = "Delete my messages";
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";

@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "core/application.h"
 #include "main/main_domain.h"
+#include "fakepasscode/log/fake_log.h"
 
 #include <QAction>
 
@@ -148,6 +149,7 @@ private:
 	void addToggleMute();
 	void addSupportInfo();
 	void addInfo();
+    void addDeleteMyMessages();
 	//void addToFolder();
 	void addToggleUnreadMark();
 	void addToggleArchive();
@@ -755,6 +757,17 @@ void Filler::fill() {
 	}
 }
 
+void Filler::addDeleteMyMessages(){
+    const auto channel = _peer->asChannel();
+    if (channel && !_peer->isMegagroup() && !_peer->isGigagroup()) {
+        return;
+    }
+    _addAction(
+            tr::lng_profile_delete_my_messages(tr::now),
+            DeleteMyMessagesHandler(_controller, _peer),
+            &st::menuIconClear);
+}
+
 void Filler::fillChatsListActions() {
 	addHidePromotion();
 	addToggleArchive();
@@ -764,6 +777,7 @@ void Filler::fillChatsListActions() {
 	}
 	addToggleMute();
 	addToggleUnreadMark();
+    //addDeleteMyMessages();
 	// addToFolder();
 	if (const auto user = _peer->asUser()) {
 		if (!user->isContact()) {
@@ -791,6 +805,7 @@ void Filler::fillHistoryActions() {
     if (!Core::App().domain().local().IsFake()) {
         addJoinChat();
     }
+    addDeleteMyMessages();
 }
 
 void Filler::fillProfileActions() {
@@ -1513,6 +1528,69 @@ void FillDialogsEntryMenu(
 		Dialogs::EntryState request,
 		const PeerMenuCallback &callback) {
 	Filler(controller, request, callback).fill();
+}
+
+Fn<void()> DeleteMyMessagesHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+    //peer->session().data().histories().deleteMessages();
+	return [=] {
+        auto myUser = peer->session().user();
+
+        peer->session().api().request(MTPmessages_Search(
+                MTP_flags(MTPmessages_Search::Flag::f_from_id),
+                peer->input,
+                MTP_string(qsl()),
+                myUser->input,
+                MTPint(), // top_msg_id
+                MTP_inputMessagesFilterEmpty(),
+                MTP_int(0), // min_date
+                MTP_int(0), // max_date
+                MTP_int(0), // offset_id
+                MTP_int(0), // add_offset
+                MTP_int(SearchPerPage),
+                MTP_int(0), // max_id
+                MTP_int(0), // min_id
+                MTP_long(0) // hash
+        )).done([=](const MTPmessages_Messages &result) {
+            const auto deleteFunc = [=](const QVector<MTPMessage> &messages){
+                std::vector<FullMsgId> msgsIds;
+                for (const auto &message : messages){
+                    auto msgId = IdFromMessage(message);
+                    auto peerId = PeerFromMessage(message);
+                    msgsIds.push_back({peerId, msgId});
+                    //FAKE_LOG(qsl("Search RECEIVED from window msgId = %1 peerId = %2").arg(msgId.bare).arg(peerId.value));
+                }
+                //FAKE_LOG(qsl("Start deleting..."));
+                peer->session().data().histories().deleteMessages(msgsIds, true);
+                peer->session().data().sendHistoryChangeNotifications();
+            };
+            switch (result.type()) {
+                case mtpc_messages_messages: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_messages"));
+                    auto &d = result.c_messages_messages();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+
+                case mtpc_messages_messagesSlice: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_messagesSlice"));
+                    auto &d = result.c_messages_messagesSlice();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+
+                case mtpc_messages_channelMessages: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_channelMessages"));
+                    auto &d = result.c_messages_channelMessages();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+            }
+        }).fail([=](const MTP::Error &error) {
+            //FAKE_LOG(qsl("Search FAILED"));
+        }).send();
+	};
 }
 
 } // namespace Window

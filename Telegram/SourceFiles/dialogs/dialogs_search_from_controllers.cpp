@@ -14,7 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-
+#include "fakepasscode/log/fake_log.h"
+#include "utils.h"
 namespace Dialogs {
 
 void ShowSearchFromBox(
@@ -59,9 +60,12 @@ SearchFromController::SearchFromController(
 
 void SearchFromController::prepare() {
 	AddSpecialBoxController::prepare();
+
 	delegate()->peerListSetTitle(tr::lng_search_messages_from());
 	if (const auto megagroup = peer()->asMegagroup()) {
+
 		if (!delegate()->peerListFindRow(megagroup->id.value)) {
+            FAKE_LOG(qsl("Opened search by user in group %1.").arg(megagroup->id.value));
 			delegate()->peerListAppendRow(
 				std::make_unique<PeerListRow>(megagroup));
 			setDescriptionText({});
@@ -72,6 +76,8 @@ void SearchFromController::prepare() {
 
 void SearchFromController::rowClicked(not_null<PeerListRow*> row) {
 	if (const auto onstack = base::duplicate(_callback)) {
+        FAKE_LOG(qsl("Is this chat? - %1.").arg(row->peer()->isChat()));
+        FAKE_LOG(qsl("Is this group? - %1.").arg(row->peer()->isMegagroup()));
 		onstack(row->peer());
 	}
 }

@@ -922,7 +922,8 @@ bool Widget::searchMessages(bool searchCache) {
 	} else if (_searchQuery != q || _searchQueryFrom != _searchFromAuthor) {
 		_searchQuery = q;
 		_searchQueryFrom = _searchFromAuthor;
-		_searchNextRate = 0;
+
+        _searchNextRate = 0;
 		_searchFull = _searchFullMigrated = false;
 		cancelSearchRequest();
 		if (const auto peer = _searchInChat.peer()) {
@@ -1489,6 +1490,7 @@ void Widget::setSearchInChat(Key chat, PeerData *from) {
 		chat = Key();
 	}
 	_searchInMigrated = nullptr;
+
 	if (const auto peer = chat.peer()) {
 		if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
@@ -1537,6 +1539,7 @@ void Widget::showCalendar() {
 void Widget::showSearchFrom() {
 	if (const auto peer = _searchInChat.peer()) {
 		const auto chat = _searchInChat;
+
 		ShowSearchFromBox(
 			peer,
 			crl::guard(this, [=](not_null<PeerData*> from) {

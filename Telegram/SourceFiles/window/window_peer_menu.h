@@ -107,6 +107,10 @@ Fn<void()> DeleteAndLeaveHandler(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
 
+Fn<void()> DeleteMyMessagesHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer);
+
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	Data::ForwardDraft &&draft,
