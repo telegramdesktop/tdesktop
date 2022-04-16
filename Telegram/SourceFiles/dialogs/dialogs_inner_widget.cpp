@@ -2057,7 +2057,6 @@ bool InnerWidget::searchReceived(
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);
 		auto lastDate = DateFromMessage(message);
-
 		if (const auto peer = session().data().peerLoaded(peerId)) {
 			if (lastDate) {
 				const auto item = session().data().addNewMessage(

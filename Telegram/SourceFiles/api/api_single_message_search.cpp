@@ -165,6 +165,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 		const QString &username,
 		Fn<void()> ready) {
 	Expects(!_requestKey.empty());
+
 	if (const auto peer = _session->data().peerByUsername(username)) {
 		if (const auto channel = peer->asChannel()) {
 			return performLookupByChannel(channel, ready);
