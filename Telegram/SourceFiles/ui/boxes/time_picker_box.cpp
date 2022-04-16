@@ -35,11 +35,14 @@ Fn<TimeId()> TimePickerBox(
 
 	const auto font = st::boxTextFont;
 	const auto maxPhraseWidth = [&] {
+		// We have to use QFontMetricsF instead of
+		// FontData::width for more precise calculation.
+		const auto mf = QFontMetricsF(font->f);
 		const auto maxPhrase = ranges::max_element(
 			phrases,
 			std::less<>(),
-			[&](const QString &s) { return font->width(s); });
-		return font->width(*maxPhrase) + font->spacew * 2;
+			[&](const QString &s) { return mf.horizontalAdvance(s); });
+		return std::ceil(mf.horizontalAdvance(*maxPhrase));
 	}();
 	const auto itemHeight = st::historyMessagesTTLPickerItemHeight;
 	auto paintCallback = [=](
