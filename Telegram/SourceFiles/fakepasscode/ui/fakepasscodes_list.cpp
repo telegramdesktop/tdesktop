@@ -67,7 +67,7 @@ void FakePasscodeContent::setupContent() {
 
     for (const auto& type : FakePasscode::kAvailableActions) {
         const auto ui = GetUIByAction(type, _domain, _passcodeIndex, this);
-        ui->Create(content);
+        ui->Create(content, _controller);
         Settings::AddDivider(content);
     }
     Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton)

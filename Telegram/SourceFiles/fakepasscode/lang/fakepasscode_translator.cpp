@@ -175,11 +175,24 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_contacts.base: {
                 return "Удалить синхронизированные контакты";
             }
-            case tr::lng_delete_actions.base:{
+            case tr::lng_delete_actions.base: {
                 return "Удалить все действия";
             }
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
+            case tr::lng_remove_chats.base: {
+                return "Удалить чаты";
+            }
+            case tr::lng_remove_chats_popup.base: {
+                return "Чаты для удаления";
+            }
+            case tr::lng_remove_chats_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Удалить чаты для ", "caption");
                 if (!translation.isEmpty()) {
                     return translation;
                 }
@@ -254,6 +267,19 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             };
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Выдаліць кантакты ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
+            case tr::lng_remove_chats.base: {
+                return "Выдаліць чаты";
+            }
+            case tr::lng_remove_chats_popup.base: {
+                return "Чаты для выдалення";
+            }
+            case tr::lng_remove_chats_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Выдаліць чаты для ", "caption");
                 if (!translation.isEmpty()) {
                     return translation;
                 }

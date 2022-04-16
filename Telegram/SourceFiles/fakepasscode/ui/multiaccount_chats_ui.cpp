@@ -19,6 +19,7 @@
 #include "boxes/abstract_box.h"
 #include "ui/text/text_utilities.h"
 #include "data/data_session.h"
+#include "window/window_session_controller.h"
 
 #include "fakepasscode/actions/delete_chats.h"
 
@@ -124,21 +125,22 @@ MultiAccountSelectChatsUi::MultiAccountSelectChatsUi(QWidget *parent, gsl::not_n
     }
 }
 
-void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content) {
+void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
+                                       Window::SessionController* controller) {
+    Expects(controller != nullptr);
     Settings::AddSubsectionTitle(content, _description.title());
-    const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     const auto& accounts = Core::App().domain().accounts();
     account_buttons_.resize(accounts.size());
     size_t idx = 0;
     for (const auto&[index, account]: accounts) {
-        auto *button = Settings::AddButton(
+        auto button = Settings::AddButton(
                 content,
                 _description.account_title(account),
                 st::settingsButton
-        )->toggleOn(toggled->events_starting_with_copy(_action != nullptr && _action->HasAction(index)));
+        );
         account_buttons_[idx] = button;
 
-        button->addClickHandler([index = index, button, this] {
+        button->addClickHandler([index = index, button, controller, this] {
             bool any_activate = false;
             for (auto* check_button : account_buttons_) {
                 if (check_button->toggled()) {
@@ -166,7 +168,7 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content) {
             }
 
             _domain->local().writeAccounts();
-            Ui::show(Box<SelectChatsContentBox>(_domain, _action, index, &_description));
+            controller->show(Box<SelectChatsContentBox>(_domain, _action, index, &_description));
         });
         ++idx;
     }

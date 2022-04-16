@@ -20,7 +20,8 @@ MultiAccountToggleUi::MultiAccountToggleUi(QWidget *parent, gsl::not_null<Main::
     }
 }
 
-void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content) {
+void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content,
+                                  Window::SessionController*) {
     Settings::AddSubsectionTitle(content, _description.title());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     const auto& accounts = Core::App().domain().accounts();

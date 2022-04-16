@@ -8,7 +8,8 @@ class CommandUI : public ActionUI {
 public:
     CommandUI(QWidget* parent, gsl::not_null<Main::Domain*> domain, size_t index);
 
-    void Create(not_null<Ui::VerticalLayout*> content) override;
+    void Create(not_null<Ui::VerticalLayout*> content,
+                Window::SessionController* controller = nullptr) override;
 
     void resizeEvent(QResizeEvent *e) final;
 
