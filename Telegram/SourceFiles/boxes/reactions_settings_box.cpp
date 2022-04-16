@@ -43,6 +43,7 @@ constexpr auto kVisibleButtonsCount = 7;
 
 PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
+
 	const auto peerId = Data::FakePeerIdForJustName(name);
 	history->owner().processUser(MTP_user(
 		MTP_flags(MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_min),

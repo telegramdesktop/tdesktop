@@ -81,9 +81,11 @@ style::color PeerUserpicColor(PeerId peerId) {
 }
 
 PeerId FakePeerIdForJustName(const QString &name) {
-	return peerFromUser(name.isEmpty()
+	constexpr auto kShift = (0xFEULL << 32);
+	const auto base = name.isEmpty()
 		? 777
-		: base::crc32(name.constData(), name.size() * sizeof(QChar)));
+		: base::crc32(name.constData(), name.size() * sizeof(QChar));
+	return peerFromUser(kShift + std::abs(base));
 }
 
 bool UpdateBotCommands(
