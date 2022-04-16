@@ -128,6 +128,9 @@ void MuteItem::paintEvent(QPaintEvent *e) {
 		st::settingsIconBg2,
 		progress);
 	p.setPen(color);
+
+	Action::paintBackground(p, Action::isSelected());
+	RippleButton::paintRipple(p, 0, 0);
 	Action::paintText(p);
 
 	const auto &icon = _isMuted ? st::menuIconUnmute : st::menuIconMute;
