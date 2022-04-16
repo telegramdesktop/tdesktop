@@ -10,12 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "ui/layers/generic_box.h"
+#include "ui/effects/animation_value.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/vertical_drum_picker.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 
 namespace Ui {
+
+namespace {
+
+constexpr auto kMinYScale = 0.2;
+
+} // namespace
 
 Fn<TimeId()> TimePickerBox(
 		not_null<GenericBox*> box,
@@ -53,10 +60,18 @@ Fn<TimeId()> TimePickerBox(
 			int outerWidth) {
 		const auto r = QRectF(0, y, outerWidth, itemHeight);
 		const auto progress = std::abs(distanceFromCenter);
-		p.setOpacity(1. - progress);
+		const auto revProgress = 1. - progress;
+		p.save();
+		p.translate(r.center());
+		const auto yScale = kMinYScale
+			+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
+		p.scale(1., yScale);
+		p.translate(-r.center());
+		p.setOpacity(revProgress);
 		p.setFont(font);
 		p.setPen(st::defaultFlatLabel.textFg);
 		p.drawText(r, phrases[index], style::al_center);
+		p.restore();
 	};
 
 	const auto picker = Ui::CreateChild<Ui::VerticalDrumPicker>(
