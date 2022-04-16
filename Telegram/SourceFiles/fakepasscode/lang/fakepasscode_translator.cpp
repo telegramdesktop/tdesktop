@@ -178,6 +178,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_actions.base:{
                 return "Удалить все действия";
             }
+            case tr::lng_profile_delete_my_messages.base:{
+                return "Удалить мои сообщения";
+            }
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
                 if (!translation.isEmpty()) {
@@ -266,6 +269,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_delete_actions.base:{
                 return "Выдаліць усе дзеянні";
+            };
+            case tr::lng_profile_delete_my_messages.base:{
+                return "Выдаліць мае паведамленні";
             };
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Выдаліць кантакты ", "caption");
