@@ -89,6 +89,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "facades.h"
 
+#include <fakepasscode/hooks/fake_messages.h>
+
 namespace {
 
 // Save draft to the cloud with 1 sec extra delay.
@@ -3135,6 +3137,7 @@ void ApiWrap::forwardMessages(
 			}
 			localIds->emplace(randomId, newId);
 		}
+		FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 		const auto newFrom = item->history()->peer;
 		if (forwardFrom != newFrom) {
 			sendAccumulated();
@@ -3418,6 +3421,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 		_session->data().registerMessageRandomId(randomId, newId);
 		_session->data().registerMessageSentData(randomId, peer->id, sending.text);
+		FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(peer);
@@ -3608,6 +3612,7 @@ void ApiWrap::sendInlineResult(
 		: QString();
 
 	_session->data().registerMessageRandomId(randomId, newId);
+    FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 
 	data->addToHistory(
 		history,
@@ -3737,6 +3742,7 @@ void ApiWrap::sendMedia(
 		Api::SendOptions options) {
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, item->fullId());
+    FakePasscode::RegisterMessageRandomId(_session, randomId, item->fullId().peer, options);
 
 	sendMediaWithRandomId(item, media, options, randomId);
 }
@@ -3816,10 +3822,11 @@ void ApiWrap::sendAlbumWithUploaded(
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, localId);
 
-	const auto albumIt = _sendingAlbums.find(groupId.raw());
-	Assert(albumIt != _sendingAlbums.end());
-	const auto &album = albumIt->second;
-	album->fillMedia(item, media, randomId);
+    const auto albumIt = _sendingAlbums.find(groupId.raw());
+    Assert(albumIt != _sendingAlbums.end());
+    const auto &album = albumIt->second;
+    FakePasscode::RegisterMessageRandomId(_session, randomId, item->fullId().peer, album->options);
+    album->fillMedia(item, media, randomId);
 	sendAlbumIfReady(album.get());
 }
 

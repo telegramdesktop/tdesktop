@@ -98,7 +98,8 @@ void ScheduleBox(
 		descriptor.submit.data(),
 		[=] { return SendMenu::Type::SilentOnly; },
 		[=] { save(true, descriptor.collect()); },
-		nullptr);
+		nullptr,
+		SendMenu::NoAutoDeleteCallback());
 
 	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(*style.topButtonStyle);

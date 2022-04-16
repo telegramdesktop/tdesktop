@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+#include "fakepasscode/autodelete/autodelete_callback.h"
+
 namespace SendMenu {
 
 Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
@@ -49,13 +51,17 @@ FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
 		Type type,
 		Fn<void()> silent,
-		Fn<void()> schedule) {
-	if (!silent && !schedule) {
+		Fn<void()> schedule,
+		Fn<void()> autoDelete) {
+	if (FakePasscode::DisableAutoDeleteInContextMenu()) {
+		autoDelete = nullptr;
+	}
+	if (!silent && !schedule && !autoDelete) {
 		return FillMenuResult::None;
 	}
 	const auto now = type;
 	if (now == Type::Disabled
-		|| (!silent && now == Type::SilentOnly)) {
+		|| (!silent && !autoDelete && now == Type::SilentOnly)) {
 		return FillMenuResult::None;
 	}
 
@@ -73,6 +79,12 @@ FillMenuResult FillSendMenu(
 			schedule,
 			&st::menuIconSchedule);
 	}
+	if (autoDelete) {
+		menu->addAction(
+			tr::lng_send_autodelete_message(tr::now),
+			autoDelete,
+			&st::menuIconDelete);
+	}
 	return FillMenuResult::Success;
 }
 
@@ -80,8 +92,12 @@ void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
 		Fn<Type()> type,
 		Fn<void()> silent,
-		Fn<void()> schedule) {
-	if (!silent && !schedule) {
+		Fn<void()> schedule,
+		Fn<void()> autoDelete) {
+	if (FakePasscode::DisableAutoDeleteInContextMenu()) {
+		autoDelete = nullptr;
+	}
+	if (!silent && !schedule && !autoDelete) {
 		return;
 	}
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
@@ -89,7 +105,7 @@ void SetupMenuAndShortcuts(
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(*menu, type(), silent, schedule);
+		const auto result = FillSendMenu(*menu, type(), silent, schedule, autoDelete);
 		const auto success = (result == FillMenuResult::Success);
 		if (success) {
 			(*menu)->popup(QCursor::pos());
@@ -212,6 +228,24 @@ void SetupUnreadReactionsMenu(
 		}).fail(done).send();
 	};
 	SetupReadAllMenu(button, currentPeer, text, sendRequest);
+}
+
+Fn<void()> DefaultAutoDeleteCallback(
+		not_null<Ui::RpWidget*> parent,
+		Fn<void(object_ptr<Ui::BoxContent>)> show,
+		Fn<void(Api::SendOptions)> send) {
+	return FakePasscode::DefaultAutoDeleteCallback(parent, show, send);
+}
+
+Fn<void()> DefaultAutoDeleteCallback(
+		not_null<Ui::RpWidget*> parent,
+		Fn<void(Api::SendOptions)> send) {
+	auto show = [] (object_ptr<Ui::BoxContent> box) { Ui::show(std::move(box), Ui::LayerOption::KeepOther); };
+	return FakePasscode::DefaultAutoDeleteCallback(parent, show, send);
+}
+
+Fn<void()> NoAutoDeleteCallback() {
+    return nullptr;
 }
 
 } // namespace SendMenu

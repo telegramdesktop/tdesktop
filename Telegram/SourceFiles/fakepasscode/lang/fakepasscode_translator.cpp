@@ -178,12 +178,30 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_actions.base: {
                 return "Удалить все действия";
             }
+            case tr::lng_profile_delete_my_messages.base:{
+                return "Удалить мои сообщения";
+            }
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
                 if (!translation.isEmpty()) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_send_autodelete_message.base: {
+                return "Удалить после прочтения";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Удалить после прочтения через:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "часов:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "минут:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
             }
             case tr::lng_remove_chats.base: {
                 return "Удалить чаты";
@@ -265,6 +283,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_actions.base:{
                 return "Выдаліць усе дзеянні";
             };
+            case tr::lng_profile_delete_my_messages.base:{
+                return "Выдаліць мае паведамленні";
+            };
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Выдаліць кантакты ", "caption");
                 if (!translation.isEmpty()) {
@@ -284,6 +305,21 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_send_autodelete_message.base: {
+                return "Выдаліць пасля чытання";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Выдаліць пасля чытання праз:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "гадзін:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "хвілін:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
             }
         }
     }

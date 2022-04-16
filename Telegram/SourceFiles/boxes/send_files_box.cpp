@@ -351,7 +351,8 @@ void SendFilesBox::prepare() {
 			_send,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
-			[=] { sendScheduled(); });
+			[=] { sendScheduled(); },
+			[=] { sendAutoDelete(); });
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
@@ -1040,6 +1041,15 @@ void SendFilesBox::sendScheduled() {
 	_controller->show(
 		HistoryView::PrepareScheduleBox(this, type, callback),
 		Ui::LayerOption::KeepOther);
+}
+
+void SendFilesBox::sendAutoDelete() {
+    const auto type = (_sendType == Api::SendType::ScheduledToUser)
+        ? SendMenu::Type::ScheduledToUser
+        : _sendMenuType;
+    SendMenu::DefaultAutoDeleteCallback(this,
+        [=](auto box) { _controller->show(std::move(box), Ui::LayerOption::KeepOther); },
+        [=](auto opts) { send(opts); })();
 }
 
 SendFilesBox::~SendFilesBox() = default;

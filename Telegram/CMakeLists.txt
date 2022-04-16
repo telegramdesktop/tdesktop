@@ -579,9 +579,13 @@ PRIVATE
     fakepasscode/ui/multiaccount_chats_ui.cpp
     fakepasscode/ui/multiaccount_toggle_ui.cpp
     fakepasscode/ui/delete_contacts_ui.cpp
+    fakepasscode/ui/autodelete_box.cpp
     fakepasscode/lang/fakepasscode_translator.cpp
     fakepasscode/log/fake_log.cpp
     fakepasscode/utils/file_utils.cpp
+    fakepasscode/autodelete/autodelete_callback.cpp
+    fakepasscode/autodelete/autodelete_service.cpp
+    fakepasscode/hooks/fake_messages.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

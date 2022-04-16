@@ -1228,7 +1228,8 @@ void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu,
 		type,
 		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(this, type, send));
+		SendMenu::DefaultScheduleCallback(this, type, send),
+		SendMenu::DefaultAutoDeleteCallback(this, send));
 
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());

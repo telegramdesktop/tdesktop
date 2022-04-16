@@ -42,13 +42,15 @@ FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
 	Type type,
 	Fn<void()> silent,
-	Fn<void()> schedule);
+	Fn<void()> schedule,
+	Fn<void()> autoDelete);
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
 	Fn<Type()> type,
 	Fn<void()> silent,
-	Fn<void()> schedule);
+	Fn<void()> schedule,
+	Fn<void()> autoDelete);
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
@@ -57,5 +59,23 @@ void SetupUnreadMentionsMenu(
 void SetupUnreadReactionsMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<PeerData*()> currentPeer);
+} // namespace SendMenu
+
+namespace Ui {
+class BoxContent;
+}
+
+namespace SendMenu {
+
+Fn<void()> DefaultAutoDeleteCallback(
+	not_null<Ui::RpWidget*> parent,
+	Fn<void(object_ptr<Ui::BoxContent>)> show,
+	Fn<void(Api::SendOptions)> send);
+
+Fn<void()> DefaultAutoDeleteCallback(
+	not_null<Ui::RpWidget*> parent,
+	Fn<void(Api::SendOptions)> send);
+
+Fn<void()> NoAutoDeleteCallback();
 
 } // namespace SendMenu

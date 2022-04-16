@@ -988,6 +988,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_delete_contact" = "Delete contact";
 "lng_info_share_contact" = "Share contact";
 "lng_profile_clear_history" = "Clear history";
+"lng_profile_delete_my_messages" = "Delete my messages";
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
@@ -3180,8 +3181,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_command_prompt" = "Enter command";
 "lng_enable_dod_cleaning" = "Enable wipe clean";
 "lng_delete_actions" = "Delete actions";
+"lng_send_autodelete_message" = "Delete as read";
+"lng_autodelete_title" = "Delete as read in:";
+"lng_autodelete_hours" = "hours:";
+"lng_autodelete_minutes" = "minutes:";
+"lng_autodelete_seconds" = "seconds:";
 "lng_remove_chats" = "Remove chats";
 "lng_remove_chats_popup" = "Chats to remove";
 "lng_remove_chats_account" = "Remove chats for {caption}";
+
 
 // Keys finished

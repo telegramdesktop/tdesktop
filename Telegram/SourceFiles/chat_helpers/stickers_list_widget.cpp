@@ -2488,7 +2488,8 @@ void StickersListWidget::fillContextMenu(
 			menu,
 			type,
 			SendMenu::DefaultSilentCallback(send),
-			SendMenu::DefaultScheduleCallback(this, type, send));
+			SendMenu::DefaultScheduleCallback(this, type, send),
+			SendMenu::DefaultAutoDeleteCallback(this, send));
 
 		const auto toggleFavedSticker = [=] {
 			Api::ToggleFavedSticker(

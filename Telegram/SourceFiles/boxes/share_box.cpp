@@ -51,6 +51,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_media_player.h"
 
+#include "fakepasscode/hooks/fake_messages.h"
+#include "fakepasscode/ui/autodelete_box.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -533,7 +536,8 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 		_menu.get(),
 		sendMenuType(),
 		[=] { submitSilent(); },
-		[=] { submitScheduled(); });
+		[=] { submitScheduled(); },
+		[=] { submitAutoDelete(); });
 	const auto success = (result == SendMenu::FillMenuResult::Success);
 	if (_descriptor.forwardOptions.show || success) {
 		_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
@@ -618,6 +622,13 @@ void ShareBox::submitScheduled() {
 			callback,
 			HistoryView::DefaultScheduleTime(),
 			_descriptor.scheduleBoxStyle),
+		Ui::LayerOption::KeepOther);
+}
+
+void ShareBox::submitAutoDelete() {
+    const auto callback = [=](Api::SendOptions options) { submit(options); };
+	_show->showBox(
+		FakePasscode::AutoDeleteBox(this, callback, _descriptor.scheduleBoxStyle.chooseDateTimeArgs),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -1378,10 +1389,11 @@ void FastShareMessage(
 		for (const auto &fullId : data->msgIds) {
 			msgIds.push_back(MTP_int(fullId.msg));
 		}
-		const auto generateRandom = [&] {
+		const auto generateRandom = [&] (PeerId peer) {
 			auto result = QVector<MTPlong>(data->msgIds.size());
 			for (auto &value : result) {
 				value = base::RandomValue<MTPlong>();
+				FakePasscode::RegisterMessageRandomId(&owner->session(), value.v, peer, options);
 			}
 			return result;
 		};
@@ -1408,7 +1420,7 @@ void FastShareMessage(
 						MTP_flags(sendFlags),
 						data->peer->input,
 						MTP_vector<MTPint>(msgIds),
-						MTP_vector<MTPlong>(generateRandom()),
+						MTP_vector<MTPlong>(generateRandom(peer->id)),
 						peer->input,
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty() // send_as
