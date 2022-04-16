@@ -25,15 +25,14 @@ if win and not win32 and not win64:
 
 os.chdir(scriptPath + '/../../../..')
 
-dirSep = '\\' if win else '/'
 pathSep = ';' if win else ':'
-libsLoc = 'Libraries' if not win64 else ('Libraries' + dirSep + 'win64')
+libsLoc = 'Libraries' if not win64 else (os.path.join('Libraries', 'win64'))
 keysLoc = 'cache_keys'
 
 rootDir = os.getcwd()
-libsDir = rootDir + dirSep + libsLoc
-thirdPartyDir = rootDir + dirSep + 'ThirdParty'
-usedPrefix = libsDir + dirSep + 'local'
+libsDir = os.path.realpath(os.path.join(rootDir, libsLoc))
+thirdPartyDir = os.path.realpath(os.path.join(rootDir, 'ThirdParty'))
+usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 
 optionsList = [
     'skip-release',
@@ -56,10 +55,10 @@ for arg in sys.argv[1:]:
 buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
 buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
-if not os.path.isdir(libsDir + '/' + keysLoc):
-    pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
-if not os.path.isdir(thirdPartyDir + '/' + keysLoc):
-    pathlib.Path(thirdPartyDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
+if not os.path.isdir(os.path.join(libsDir, keysLoc)):
+    pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
+if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
+    pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
     'ThirdParty\\Strawberry\\perl\\bin',
@@ -76,7 +75,7 @@ pathPrefixes = [
 ]
 pathPrefix = ''
 for singlePrefix in pathPrefixes:
-    pathPrefix = pathPrefix + rootDir + dirSep + singlePrefix + pathSep
+    pathPrefix = pathPrefix + os.path.join(rootDir, singlePrefix) + pathSep
 
 environment = {
     'MAKE_THREADS_CNT': '-j8',
@@ -138,10 +137,10 @@ def computeCacheKey(stage):
         stage['commands']
     ]
     for pattern in stage['dependencies']:
-        pathlist = glob.glob(libsDir + '/' + pattern)
+        pathlist = glob.glob(os.path.join(libsDir, pattern))
         items = [pattern]
         if len(pathlist) == 0:
-            pathlist = glob.glob(thirdPartyDir + '/' + pattern)
+            pathlist = glob.glob(os.path.join(thirdPartyDir, pattern))
         if len(pathlist) == 0:
             error('Nothing found: ' + pattern)
         for path in pathlist:
@@ -152,13 +151,13 @@ def computeCacheKey(stage):
     return hashlib.sha1(';'.join(objects).encode('utf-8')).hexdigest()
 
 def keyPath(stage):
-    return stage['directory'] + '/' + keysLoc + '/' + stage['name']
+    return os.path.join(stage['directory'], keysLoc, stage['name'])
 
 def checkCacheKey(stage):
     if not 'key' in stage:
         error('Key not set in stage: ' + stage['name'])
     key = keyPath(stage)
-    if not os.path.exists(stage['directory'] + '/' + stage['name']):
+    if not os.path.exists(os.path.join(stage['directory'], stage['name'])):
         return 'NotFound'
     if not os.path.exists(key):
         return 'Stale'
@@ -341,7 +340,7 @@ def runStages():
             continue
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
-        prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
+        prefix = '[' + os.path.join(str(index), str(count)) + '](' + os.path.join(stage['location'], stage['name']) + version + ')'
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
         commands = removeDir(stage['name']) + '\n' + stage['commands']
