@@ -516,8 +516,8 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	const auto openglWidget = _opengl
 		? static_cast<QOpenGLWidget*>(_widget.get())
 		: nullptr;
-	const auto useSizeHack = Platform::IsWindows()
-		&& openglWidget
+	const auto possibleSizeHack = Platform::IsWindows() && openglWidget;
+	const auto useSizeHack = possibleSizeHack
 		&& (openglWidget->format().renderableType()
 			!= QSurfaceFormat::OpenGLES);
 	const auto use = useSizeHack
@@ -530,7 +530,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		return;
 	}
 	if ((_widget->geometry() == use)
-		&& (!useSizeHack || _widget->mask() == mask)) {
+		&& (!possibleSizeHack || _widget->mask() == mask)) {
 		return;
 	}
 	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
@@ -541,7 +541,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	_widget->setGeometry(use);
 	_widget->setMinimumSize(use.size());
 	_widget->setMaximumSize(use.size());
-	if (useSizeHack) {
+	if (possibleSizeHack) {
 		_widget->setMask(mask);
 	}
 }
