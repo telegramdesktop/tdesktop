@@ -23,14 +23,14 @@ namespace {
 
 struct ChooseTimeoutBoxDescriptor {
     QPointer<RoundButton> submit;
-    Fn<TimeId()> collect;
+    Fn<std::optional<TimeId>()> collect;
 };
 
 struct ChooseTimeoutBoxArgs {
     rpl::producer<QString> title;
     TimeId timeout = 5;
     rpl::producer<QString> submit;
-    Fn<void(TimeId)> done;
+    Fn<void(std::optional<TimeId>)> done;
     ChooseDateTimeStyleArgs style;
 };
 
@@ -128,6 +128,8 @@ static ChooseTimeoutBoxDescriptor ChooseTimeoutBox(
             59),
     });
 
+    box->setFocusCallback([=] { state->seconds->setFocusFast(); });
+
     auto installScrollEvent = [](NumInput* input) {
         base::install_event_filter(input, [=](not_null<QEvent*> event) {
             if (event->type() == QEvent::Wheel) {
@@ -172,41 +174,37 @@ static ChooseTimeoutBoxDescriptor ChooseTimeoutBox(
             state->seconds->moveToLeft(left, st::scheduleDateTop, width);
         }, content->lifetime());
 
-    const auto collect = [=] {
+    const auto collect = [=]() -> std::optional<TimeId> {
         QString hours = state->hours->text(),
                 minutes = state->minutes->text(),
                 seconds = state->seconds->text();
         if (hours.isEmpty() && minutes.isEmpty() && seconds.isEmpty()) {
-            return 0;
+            return std::nullopt;
         }
         auto result = TimeId(
-            hours.toInt(nullptr, 10) * 60 * 60
-            + minutes.toInt(nullptr, 10) * 60
-            + seconds.toInt(nullptr, 10));
-        if (result == 0) {
-             result = -1;
-        }
+            hours.toInt() * 60 * 60
+            + minutes.toInt() * 60
+            + seconds.toInt());
         return result;
-    };
-    const auto save = [=, done = args.done] {
-        if (const auto result = collect()) {
-            done(result);
-        } else {
-            state->seconds->showError();
-        }
     };
     /*state->time->submitRequests(
     ) | rpl::start_with_next(save, state->time->lifetime());*/
 
     auto result = ChooseTimeoutBoxDescriptor();
-    box->setFocusCallback([=] { state->seconds->setFocusFast(); });
-    result.submit = box->addButton(std::move(args.submit), save);
-    result.collect = [=] {
-        if (const auto result = collect()) {
-            return result;
+    result.submit = box->addButton(std::move(args.submit), [=, done = args.done] {
+        if (auto result = collect()) {
+            done(result);
+        } else {
+            state->seconds->showError();
         }
-        state->seconds->showError();
-        return 0;
+    });
+    result.collect = [=]() -> std::optional<TimeId> {
+        if (auto result = collect()) {
+            return result;
+        } else {
+            state->seconds->showError();
+            return std::nullopt;
+        }
     };
     box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
@@ -230,7 +228,7 @@ static void MakeAutoDeleteBox(
     auto descriptor = ChooseTimeoutBox(box, {
         .title = tr::lng_autodelete_title(),
         .submit = tr::lng_send_button(),
-        .done = [=](TimeId result) { save({ .ptgAutoDelete = result }); },
+        .done = [=](std::optional<TimeId> result) { save({ .ptgAutoDelete = result }); },
         .style = style,
     });
 

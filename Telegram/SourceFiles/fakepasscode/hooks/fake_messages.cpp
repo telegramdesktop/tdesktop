@@ -9,9 +9,9 @@
 namespace FakePasscode {
 
 void RegisterMessageRandomId(Main::Session* session, uint64 randomId, PeerId peer, Api::SendOptions options) {
-    if (options.ptgAutoDelete != 0) {
+    if (options.ptgAutoDelete) {
         if (auto autoDelete = session->domainLocal().GetAutoDelete()) {
-            autoDelete->RegisterAutoDeleteMessage(session, randomId, peer, options.ptgAutoDelete);
+            autoDelete->RegisterAutoDeleteMessage(session, randomId, peer, *options.ptgAutoDelete);
         }
     }
 }

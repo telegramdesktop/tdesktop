@@ -371,6 +371,8 @@ void AutoDeleteService::onLogout(int index) {
     registered.erase(index);
     waitRead.erase(index);
     scheduled.erase(index);
+    watchingSessions.erase(index);
+    postponeSave();
 }
 
 void AutoDeleteService::save() {
