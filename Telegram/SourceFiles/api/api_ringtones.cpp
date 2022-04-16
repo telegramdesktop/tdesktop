@@ -146,7 +146,6 @@ void Ringtones::requestList() {
 				document->forceToCache(true);
 				_list.documents.emplace_back(document->id);
 			}
-			requestList();
 			_list.updates.fire({});
 		}, [&](const MTPDaccount_savedRingtonesNotModified &) {
 		});
