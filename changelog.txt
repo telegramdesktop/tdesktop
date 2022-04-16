@@ -1,3 +1,20 @@
+3.7 (16.04.22)
+
+- Use any short music file or voice message as a notification sound.
+- Right click audio files in chats to add them to your list of sounds - or use 'Upload Sound' in the Notifications menu.
+- Click on Mute notifications > Select sound in a chat's (...) menu to change its notification sound.
+- Set custom tones for notifications in Settings > Notifications > Play sound.
+- Click on Mute notifications in a chat's (...) menu to manage its notifications.
+- Choose 'Mute for...' to turn off notifications for a preset period, like 1 hour or 1 day.
+- Quickly configure Auto-Delete settings from any chat info page.
+- Click (...) to turn on Auto-Delete, then select a specific duration.
+- Replies are now preserved when forwarding messages, making forwarded conversations easier to read.
+- Bots can now open detailed pages directly in the chat.
+- Use these streamlined interfaces to buy real-world goods and services without leaving the app.
+- Open a bot's profile to add it to your group or channel.
+- Instantly configure a bot's rights and permissions when adding it.
+- Bots can send a new type of button that lets you add them to your group or channel.
+
 3.6.3 beta (13.04.22)
 
 - Allow sending the default reaction by a double click.
