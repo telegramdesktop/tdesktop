@@ -1,0 +1,29 @@
+#include "autodelete_callback.h"
+
+#include <base/qt/qt_key_modifiers.h>
+#include <core/application.h>
+#include <main/main_domain.h>
+#include <storage/storage_domain.h>
+
+#include "api/api_common.h"
+#include "chat_helpers/send_context_menu.h"
+
+#include "fakepasscode/ui/autodelete_box.h"
+#include "fakepasscode/log/fake_log.h"
+
+namespace FakePasscode{
+
+bool DisableAutoDeleteInContextMenu() {
+    return Core::App().domain().local().IsFake();
+}
+
+Fn<void()> DefaultAutoDeleteCallback(
+        not_null<Ui::RpWidget*> parent,
+        Fn<void(object_ptr<Ui::BoxContent>)> show,
+        Fn<void(Api::SendOptions)> send) {
+    return crl::guard(parent, [=] {
+        show(AutoDeleteBox(parent, send));
+    });
+}
+
+}

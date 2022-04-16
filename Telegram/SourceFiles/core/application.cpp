@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
+#include "fakepasscode/autodelete/autodelete_service.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -683,6 +684,11 @@ void Application::logoutWithChecks(Main::Account *account) {
 }
 
 void Application::logoutWithChecksAndClear(Main::Account* account) {
+	if (account && account->sessionExists()) {
+		if (auto autoDelete = domain().local().GetAutoDelete()) {
+			autoDelete->DeleteAll(account->maybeSession());
+		}
+	}
 	const auto weak = base::make_weak(account);
 	const auto retry = [=] {
 		if (const auto account = weak.get()) {

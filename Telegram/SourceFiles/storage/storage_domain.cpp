@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "base/random.h"
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/autodelete/autodelete_service.h"
 
 namespace Storage {
 namespace {
@@ -191,6 +192,7 @@ void Domain::writeAccounts() {
     std::vector<QByteArray> serializedActions;
     std::vector<QByteArray> fakePasscodes;
     std::vector<QByteArray> fakeNames;
+    QByteArray autoDeleteData;
 
     for (const auto& fakePasscode : _fakePasscodes) {
         QByteArray curSerializedActions = fakePasscode.SerializeActions();
@@ -201,11 +203,14 @@ void Domain::writeAccounts() {
         fakePasscodes.push_back(std::move(fakePass));
         fakeNames.push_back(std::move(name));
     }
+    if (_autoDelete) {
+        autoDeleteData = _autoDelete->Serialize();
+    }
 
 	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size() + 3 * sizeof(bool) + sizeof(qint32);
 
     if (!_isInfinityFakeModeActivated) {
-        keySize += serializedSize + sizeof(qint32);
+        keySize += serializedSize + sizeof(qint32) + autoDeleteData.size();
     }
 
 	EncryptedDescriptor keyData(keySize);
@@ -256,6 +261,7 @@ void Domain::writeAccounts() {
         keyData.stream << _isCacheCleanedUpOnLock;
         keyData.stream << _isAdvancedLoggingEnabled;
         keyData.stream << _isDodCleaningEnabled;
+        keyData.stream << autoDeleteData;
     }
 
     key.writeEncrypted(keyData, _localKey);
@@ -301,6 +307,9 @@ void Domain::setPasscode(const QByteArray &passcode) {
             _isInfinityFakeModeActivated = true;
             _fakePasscodeIndex = -1;
             encryptLocalKey(passcode);
+            if (_autoDelete) {
+                _autoDelete->DeleteAll();
+            }
         }
     } else {
         encryptLocalKey(passcode);
@@ -479,8 +488,22 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
 
             info.stream >> _isCacheCleanedUpOnLock;
             info.stream >> _isAdvancedLoggingEnabled;
+
             if (!info.stream.atEnd()) {
                 info.stream >> _isDodCleaningEnabled;
+            }
+
+            if (!_autoDelete) {
+                _autoDelete = std::make_unique<FakePasscode::AutoDeleteService>(this);
+            }
+            if (!info.stream.atEnd()) {
+                QByteArray autoDeleteData;
+                info.stream >> autoDeleteData;
+                _autoDelete->DeSerialize(autoDeleteData);
+            }
+        } else {
+            if (_autoDelete) {
+                _autoDelete->DeleteAll();
             }
         }
     }
@@ -631,6 +654,10 @@ bool Domain::IsFakeWithoutInfinityFlag() const {
     return _fakePasscodeIndex >= 0;
 }
 
+bool Domain::IsFakeInfinityFlag() const {
+    return _isInfinityFakeModeActivated;
+}
+
 void Domain::SetFakePasscodeIndex(qint32 index) {
     _fakePasscodeIndex = index;
 }
@@ -715,8 +742,12 @@ qint32 Domain::GetFakePasscodeIndex() const{
     return _fakePasscodeIndex;
 }
 
-void Domain::ClearActions(size_t index){
+void Domain::ClearActions(size_t index) {
     _fakePasscodes[index].ClearActions();
+}
+
+FakePasscode::AutoDeleteService *Domain::GetAutoDelete() const {
+    return _autoDelete.get();
 }
 
 } // namespace Storage
