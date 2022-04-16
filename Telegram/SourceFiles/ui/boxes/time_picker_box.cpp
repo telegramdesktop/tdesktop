@@ -39,7 +39,7 @@ Fn<TimeId()> TimePickerBox(
 			phrases,
 			std::less<>(),
 			[&](const QString &s) { return font->width(s); });
-		return font->width(*maxPhrase);
+		return font->width(*maxPhrase) + font->spacew * 2;
 	}();
 	const auto itemHeight = st::historyMessagesTTLPickerItemHeight;
 	auto paintCallback = [=](
