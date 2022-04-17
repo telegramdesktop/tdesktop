@@ -3877,19 +3877,17 @@ void HistoryWidget::reportSelectedMessages() {
 	const auto ids = _list->getSelectedItems();
 	const auto peer = _peer;
 	const auto reason = _chooseForReport->reason;
-	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
 	const auto weak = Ui::MakeWeak(_list.data());
-	const auto send = [=](const QString &text) {
-		if (weak) {
-			clearSelected();
-			controller()->clearChooseReportMessages();
-		}
-		HistoryView::SendReport(peer, reason, text, ids);
-		if (*box) {
-			(*box)->closeBox();
-		}
-	};
-	*box = controller()->window().show(Box(Ui::ReportDetailsBox, send));
+	controller()->window().show(Box([=](not_null<Ui::GenericBox*> box) {
+		Ui::ReportDetailsBox(box, [=](const QString &text) {
+			if (weak) {
+				clearSelected();
+				controller()->clearChooseReportMessages();
+			}
+			HistoryView::SendReport(peer, reason, text, ids);
+			box->closeBox();
+		});
+	}));
 }
 
 History *HistoryWidget::history() const {
