@@ -457,6 +457,9 @@ RUN ./configure \
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/ffmpeg-cache" install
 
+WORKDIR ..
+RUN rm -rf ffmpeg
+
 FROM builder AS openal
 ADD https://api.github.com/repos/telegramdesktop/openal-soft/git/refs/heads/fix_pulse_default openal-soft-version.json
 RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git
@@ -631,6 +634,7 @@ RUN make -j$(nproc)
 RUN make DESTDIR="${LibrariesPath}/breakpad-cache" install
 
 WORKDIR ..
+RUN rm -rf breakpad
 
 FROM builder AS webrtc
 
@@ -671,6 +675,9 @@ RUN cmake -G"Ninja Multi-Config" -B out . \
 RUN cmake --build out --config Release --parallel
 RUN cmake --build out --config Debug --parallel
 
+RUN find out -mindepth 1 -maxdepth 1 ! -name Release ! -name Debug -exec rm -rf {} \;
+RUN rm -rf .git
+
 FROM builder
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
@@ -695,7 +702,6 @@ COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=libXdamage ${LibrariesPath}/libXdamage-cache /
 COPY --from=libXcomposite ${LibrariesPath}/libXcomposite-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
-COPY --from=ffmpeg ${LibrariesPath}/ffmpeg ffmpeg
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openal ${LibrariesPath}/openal-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
@@ -703,7 +709,6 @@ COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 COPY --from=libsigcplusplus ${LibrariesPath}/libsigcplusplus-cache /
 COPY --from=glibmm ${LibrariesPath}/glibmm-cache /
 COPY --from=qt ${LibrariesPath}/qt-cache /
-COPY --from=breakpad ${LibrariesPath}/breakpad breakpad
 COPY --from=breakpad ${LibrariesPath}/breakpad-cache /
 COPY --from=webrtc ${LibrariesPath}/tg_owt tg_owt
 
