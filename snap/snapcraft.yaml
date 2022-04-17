@@ -121,6 +121,7 @@ parts:
       - libxcb-record0
       - libxcb-screensaver0
       - zlib1g
+      - glib-networking
       - systemd
     cmake-parameters:
       - -GNinja
