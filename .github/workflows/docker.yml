@@ -22,4 +22,4 @@ jobs:
           submodules: recursive
 
       - name: Docker image build.
-        run: docker build -t telegram_desktop Telegram/build/docker/centos_env
+        run: docker build -t telegram_desktop --build-arg DEBUG= Telegram/build/docker/centos_env
