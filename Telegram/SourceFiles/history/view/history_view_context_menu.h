@@ -83,10 +83,5 @@ void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids);
 void ShowReportPeerBox(
 	not_null<Window::SessionController*> window,
 	not_null<PeerData*> peer);
-void SendReport(
-	not_null<PeerData*> peer,
-	Ui::ReportReason reason,
-	const QString &comment,
-	MessageIdsList ids = {});
 
 } // namespace HistoryView

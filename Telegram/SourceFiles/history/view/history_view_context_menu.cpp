@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_polls.h"
+#include "api/api_report.h"
 #include "api/api_ringtones.h"
 #include "api/api_who_reacted.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
@@ -1207,7 +1208,7 @@ void ShowWhoReactedMenu(
 void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids) {
 	const auto chosen = [=](Ui::ReportReason reason) {
 		Ui::show(Box(Ui::ReportDetailsBox, [=](const QString &text) {
-			SendReport(peer, reason, text, ids);
+			Api::SendReport(peer, reason, text, ids);
 			Ui::hideLayer();
 		}));
 	};
@@ -1229,7 +1230,7 @@ void ShowReportPeerBox(
 	const auto chosen = [=](Ui::ReportReason reason) {
 		const auto send = [=](const QString &text) {
 			window->clearChooseReportMessages();
-			SendReport(peer, reason, text, std::move(state->ids));
+			Api::SendReport(peer, reason, text, std::move(state->ids));
 			if (const auto strong = state->reasonBox.data()) {
 				strong->closeBox();
 			}
@@ -1259,53 +1260,6 @@ void ShowReportPeerBox(
 			? Ui::ReportSource::Bot
 			: Ui::ReportSource::Group),
 		chosen));
-}
-
-void SendReport(
-		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		const QString &comment,
-		MessageIdsList ids) {
-	const auto apiReason = [&] {
-		using Reason = Ui::ReportReason;
-		switch (reason) {
-		case Reason::Spam: return MTP_inputReportReasonSpam();
-		case Reason::Fake: return MTP_inputReportReasonFake();
-		case Reason::Violence: return MTP_inputReportReasonViolence();
-		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
-		case Reason::Pornography: return MTP_inputReportReasonPornography();
-		case Reason::Copyright: return MTP_inputReportReasonCopyright();
-		case Reason::IllegalDrugs:
-			return MTP_inputReportReasonIllegalDrugs();
-		case Reason::PersonalDetails:
-			return MTP_inputReportReasonPersonalDetails();
-		case Reason::Other: return MTP_inputReportReasonOther();
-		}
-		Unexpected("Bad reason group value.");
-	}();
-	if (ids.empty()) {
-		peer->session().api().request(MTPaccount_ReportPeer(
-			peer->input,
-			apiReason,
-			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).send();
-	} else {
-		auto apiIds = QVector<MTPint>();
-		apiIds.reserve(ids.size());
-		for (const auto &fullId : ids) {
-			apiIds.push_back(MTP_int(fullId.msg));
-		}
-		peer->session().api().request(MTPmessages_Report(
-			peer->input,
-			MTP_vector<MTPint>(apiIds),
-			apiReason,
-			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).send();
-	}
 }
 
 } // namespace HistoryView

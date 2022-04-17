@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_editing.h"
 #include "api/api_bot.h"
 #include "api/api_chat_participants.h"
+#include "api/api_report.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_send_progress.h"
@@ -3884,7 +3885,7 @@ void HistoryWidget::reportSelectedMessages() {
 				clearSelected();
 				controller()->clearChooseReportMessages();
 			}
-			HistoryView::SendReport(peer, reason, text, ids);
+			Api::SendReport(peer, reason, text, ids);
 			box->closeBox();
 		});
 	}));
