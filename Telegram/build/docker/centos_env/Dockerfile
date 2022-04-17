@@ -6,13 +6,13 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 ENV QT 6_3_0
 ENV QT_TAG v6.3.0
 ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.0
-ENV Qt6_DIR ${QT_PREFIX}
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 ENV OPENSSL_ROOT_DIR ${OPENSSL_PREFIX}
 ENV CMAKE_VER 3.21.3
 ENV CMAKE_FILE cmake-$CMAKE_VER-Linux-x86_64.sh
-ENV PATH ${PATH}:${QT_PREFIX}/bin
+ENV CMAKE_PREFIX_PATH ${QT_PREFIX}
+ENV PATH ${QT_PREFIX}/bin:${PATH}
 ENV HFLAGS_DEBUG "-fstack-protector-all -fstack-clash-protection -fPIC"
 ENV HFLAGS "$HFLAGS_DEBUG -D_FORTIFY_SOURCE=2"
 
