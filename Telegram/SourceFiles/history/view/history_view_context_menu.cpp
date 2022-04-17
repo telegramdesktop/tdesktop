@@ -56,11 +56,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
-#include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
-#include "facades.h"
+#include "facades.h" // LambdaDelayed
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -962,7 +961,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	} else if (lnkDocument) {
 		AddDocumentActions(result, lnkDocument, item, list);
 	} else if (poll) {
-		AddPollActions(result, poll, item, list->elementContext());
+		const auto context = list->elementContext();
+		AddPollActions(result, poll, item, context, list->controller());
 	} else if (!request.overSelection && view && !hasSelection) {
 		const auto owner = &view->data()->history()->owner();
 		const auto media = view->media();
@@ -1036,26 +1036,12 @@ void CopyPostLink(
 		: tr::lng_context_about_private_link(tr::now));
 }
 
-void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
-	const auto stop = [=] {
-		Ui::hideLayer();
-		if (const auto item = session->data().message(itemId)) {
-			session->api().polls().close(item);
-		}
-	};
-	Ui::show(Ui::MakeConfirmBox({
-		.text = tr::lng_polls_stop_warning(),
-		.confirmed = stop,
-		.confirmText = tr::lng_polls_stop_sure(),
-		.cancelText = tr::lng_cancel(),
-	}));
-}
-
 void AddPollActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PollData*> poll,
 		not_null<HistoryItem*> item,
-		Context context) {
+		Context context,
+		not_null<Window::SessionController*> controller) {
 	if ((context != Context::History)
 		&& (context != Context::Replies)
 		&& (context != Context::Pinned)) {
@@ -1072,7 +1058,17 @@ void AddPollActions(
 	}
 	if (item->canStopPoll()) {
 		menu->addAction(tr::lng_polls_stop(tr::now), [=] {
-			StopPoll(&poll->session(), itemId);
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_polls_stop_warning(),
+				.confirmed = [=](Fn<void()> &&close) {
+					close();
+					if (const auto item = poll->owner().message(itemId)) {
+						controller->session().api().polls().close(item);
+					}
+				},
+				.confirmText = tr::lng_polls_stop_sure(),
+				.cancelText = tr::lng_cancel(),
+			}));
 		}, &st::menuIconStopPoll);
 	}
 }
