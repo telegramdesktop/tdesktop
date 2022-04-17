@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_surface.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/report_messages_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
@@ -1033,6 +1034,25 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 
 			peer->session().api().peerPhoto().set(peer, photo);
 		}, &st::mediaMenuIconProfile);
+	}();
+	[&] { // Report userpic.
+		if (!_peer
+			|| !_photo
+			|| _peer->isSelf()
+			|| _peer->isNotificationsUser()
+			|| !userPhotosKey()) {
+			return;
+		}
+		const auto photo = _photo;
+		const auto peer = _peer;
+		addAction(tr::lng_mediaview_report_profile_photo(tr::now), [=] {
+			if (const auto window = findWindow()) {
+				close();
+				window->show(
+					ReportProfilePhotoBox(peer, photo),
+					Ui::LayerOption::CloseOther);
+			}
+		}, &st::mediaMenuIconReport);
 	}();
 }
 

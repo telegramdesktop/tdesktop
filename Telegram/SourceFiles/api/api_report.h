@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class PeerData;
+class PhotoData;
 
 namespace Ui {
 enum class ReportReason;
@@ -20,6 +21,6 @@ void SendReport(
 	not_null<PeerData*> peer,
 	Ui::ReportReason reason,
 	const QString &comment,
-	MessageIdsList ids = {});
+	std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data);
 
 } // namespace Api

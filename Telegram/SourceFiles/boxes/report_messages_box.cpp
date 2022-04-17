@@ -9,28 +9,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_report.h"
 #include "data/data_peer.h"
+#include "data/data_photo.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
 #include "window/window_session_controller.h"
 
-object_ptr<Ui::BoxContent> ReportItemsBox(
+namespace {
+
+[[nodiscard]] object_ptr<Ui::BoxContent> Report(
 		not_null<PeerData*> peer,
-		MessageIdsList ids) {
+		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
+	const auto source = v::match(data, [](const MessageIdsList &ids) {
+		return Ui::ReportSource::Message;
+	}, [](not_null<PhotoData*> photo) {
+		return photo->hasVideo()
+			? Ui::ReportSource::ProfileVideo
+			: Ui::ReportSource::ProfilePhoto;
+	}, [](v::null_t) {
+		Unexpected("Bad source report.");
+		return Ui::ReportSource::Bot;
+	});
 	return Box([=](not_null<Ui::GenericBox*> box) {
-		using Source = Ui::ReportSource;
-		using Reason = Ui::ReportReason;
-		Ui::ReportReasonBox(box, Source::Message, [=](Reason reason) {
+		Ui::ReportReasonBox(box, source, [=](Ui::ReportReason reason) {
 			Ui::BoxShow(box).showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				const auto show = Ui::BoxShow(box);
 				Ui::ReportDetailsBox(box, [=](const QString &text) {
 					const auto toastParent = show.toastParent();
-					Api::SendReport(toastParent, peer, reason, text, ids);
+					Api::SendReport(toastParent, peer, reason, text, data);
 					show.hideLayer();
 				});
 			}));
 		});
 	});
+}
+
+} // namespace
+
+object_ptr<Ui::BoxContent> ReportItemsBox(
+		not_null<PeerData*> peer,
+		MessageIdsList ids) {
+	return Report(peer, ids);
+}
+
+object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
+		not_null<PeerData*> peer,
+		not_null<PhotoData*> photo) {
+	return Report(peer, photo);
 }
 
 void ShowReportPeerBox(

@@ -1141,6 +1141,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_group_title" = "Report group";
 "lng_report_bot_title" = "Report bot";
 "lng_report_message_title" = "Report message";
+"lng_report_profile_photo_title" = "Report profile photo";
+"lng_report_profile_video_title" = "Report profile video";
 "lng_report_please_select_messages" = "Please select messages to report.";
 "lng_report_select_messages" = "Select messages";
 "lng_report_messages_none" = "Select Messages";
@@ -2053,6 +2055,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_yesterday" = "yesterday at {time}";
 "lng_mediaview_date_time" = "{date} at {time}";
 "lng_mediaview_set_userpic" = "Set as Main";
+"lng_mediaview_report_profile_photo" = "Report";
 
 "lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";

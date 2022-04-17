@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_peer.h"
+#include "data/data_photo.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/report_box.h"
@@ -42,16 +43,17 @@ void SendReport(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
 		const QString &comment,
-		MessageIdsList ids) {
-	if (ids.empty()) {
+		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
+	auto done = [=] {
+		Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
+	};
+	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,
 			ReasonToTL(reason),
 			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
-		}).send();
-	} else {
+		)).done(std::move(done)).send();
+	}, [&](const MessageIdsList &ids) {
 		auto apiIds = QVector<MTPint>();
 		apiIds.reserve(ids.size());
 		for (const auto &fullId : ids) {
@@ -62,10 +64,15 @@ void SendReport(
 			MTP_vector<MTPint>(apiIds),
 			ReasonToTL(reason),
 			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
-		}).send();
-	}
+		)).done(std::move(done)).send();
+	}, [&](not_null<PhotoData*> photo) {
+		peer->session().api().request(MTPaccount_ReportProfilePhoto(
+			peer->input,
+			photo->mtpInput(),
+			ReasonToTL(reason),
+			MTP_string(comment)
+		)).done(std::move(done)).send();
+	});
 }
 
 } // namespace Api

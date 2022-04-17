@@ -40,9 +40,15 @@ void ReportReasonBox(
 		case Source::Channel: return tr::lng_report_title();
 		case Source::Group: return tr::lng_report_group_title();
 		case Source::Bot: return tr::lng_report_bot_title();
+		case Source::ProfilePhoto:
+			return tr::lng_report_profile_photo_title();
+		case Source::ProfileVideo:
+			return tr::lng_report_profile_video_title();
 		}
 		Unexpected("'source' in ReportReasonBox.");
 	}());
+	const auto isProfileSource = (source == Source::ProfilePhoto)
+		|| (source == Source::ProfileVideo);
 	auto margin = style::margins{ 0, st::reportReasonTopSkip, 0, 0 };
 	const auto add = [&](
 			Reason reason,
@@ -69,7 +75,7 @@ void ReportReasonBox(
 			});
 	};
 	add(Reason::Spam, tr::lng_report_reason_spam, st::menuIconDelete);
-	if (source != Source::Message) {
+	if (source != Source::Message && !isProfileSource) {
 		add(Reason::Fake, tr::lng_report_reason_fake, st::menuIconFake);
 	}
 	add(
