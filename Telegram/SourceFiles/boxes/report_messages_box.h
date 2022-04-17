@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+template <typename Object>
+class object_ptr;
+
 namespace Ui {
-class GenericBox;
+class BoxContent;
 } // namespace Ui
 
 namespace Window {
@@ -17,8 +20,9 @@ class SessionController;
 
 class PeerData;
 
-void ShowReportItemsBox(
-	not_null<PeerData*> peer, MessageIdsList ids);
+[[nodiscard]] object_ptr<Ui::BoxContent> ReportItemsBox(
+	not_null<PeerData*> peer,
+	MessageIdsList ids);
 void ShowReportPeerBox(
 	not_null<Window::SessionController*> window,
 	not_null<PeerData*> peer);

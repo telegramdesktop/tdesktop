@@ -3865,17 +3865,17 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::reportItem(FullMsgId itemId) {
-	ShowReportItemsBox(_peer, { 1, itemId });
+	_controller->show(ReportItemsBox(_peer, { 1, itemId }));
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		const auto group = session().data().groups().find(item);
-		ShowReportItemsBox(
+		_controller->show(ReportItemsBox(
 			_peer,
 			(group
 				? session().data().itemsToIds(group->items)
-				: MessageIdsList{ 1, itemId }));
+				: MessageIdsList{ 1, itemId })));
 	}
 }
 

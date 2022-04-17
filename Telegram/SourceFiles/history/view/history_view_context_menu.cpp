@@ -808,11 +808,11 @@ void AddReportAction(
 	const auto callback = crl::guard(controller, [=] {
 		if (const auto item = owner->message(itemId)) {
 			const auto group = owner->groups().find(item);
-			ShowReportItemsBox(
+			controller->show(ReportItemsBox(
 				item->history()->peer,
 				(group
 					? owner->itemsToIds(group->items)
-					: MessageIdsList{ 1, itemId }));
+					: MessageIdsList{ 1, itemId })));
 		}
 	});
 	menu->addAction(
