@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "boxes/about_sponsored_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -3864,13 +3865,13 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::reportItem(FullMsgId itemId) {
-	HistoryView::ShowReportItemsBox(_peer, { 1, itemId });
+	ShowReportItemsBox(_peer, { 1, itemId });
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		const auto group = session().data().groups().find(item);
-		HistoryView::ShowReportItemsBox(
+		ShowReportItemsBox(
 			_peer,
 			(group
 				? session().data().itemsToIds(group->items)

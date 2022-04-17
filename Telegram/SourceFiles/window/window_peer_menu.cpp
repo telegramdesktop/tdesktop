@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/pin_messages_box.h"
+#include "boxes/report_messages_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_contact_box.h"
@@ -631,7 +632,7 @@ void Filler::addReport() {
 	const auto peer = _peer;
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_report(tr::now), [=] {
-		HistoryView::ShowReportPeerBox(navigation, peer);
+		ShowReportPeerBox(navigation, peer);
 	}, &st::menuIconReport);
 }
 

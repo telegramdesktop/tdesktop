@@ -79,9 +79,4 @@ void ShowWhoReactedMenu(
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
 
-void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids);
-void ShowReportPeerBox(
-	not_null<Window::SessionController*> window,
-	not_null<PeerData*> peer);
-
 } // namespace HistoryView
