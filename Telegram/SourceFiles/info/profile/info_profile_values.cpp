@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "countries/countries_instance.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
@@ -81,9 +82,11 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
-	return user->session().changes().peerFlagsValue(
-		user,
-		UpdateFlag::PhoneNumber
+	return rpl::merge(
+		Countries::Instance().updated(),
+		user->session().changes().peerFlagsValue(
+			user,
+			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
 		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
