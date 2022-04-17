@@ -16,10 +16,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Data {
 struct Reaction;
 } // namespace Data
@@ -28,7 +24,6 @@ void AddReactionLottieIcon(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<QPoint> iconPositionValue,
 	int iconSize,
-	not_null<Main::Session*> session,
 	const Data::Reaction &reaction,
 	rpl::producer<> &&selects,
 	rpl::producer<> &&destroys,

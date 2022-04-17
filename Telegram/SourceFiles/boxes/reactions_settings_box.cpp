@@ -234,7 +234,6 @@ void AddMessage(
 							(rightSize.height() - iconSize) / 2);
 				}),
 				iconSize,
-				&controller->session(),
 				r,
 				rpl::never<>(),
 				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
@@ -251,7 +250,6 @@ void AddReactionLottieIcon(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<QPoint> iconPositionValue,
 		int iconSize,
-		not_null<Main::Session*> session,
 		const Data::Reaction &reaction,
 		rpl::producer<> &&selects,
 		rpl::producer<> &&destroys,
@@ -280,7 +278,7 @@ void AddReactionLottieIcon(
 	state->appear.media->checkStickerLarge();
 	state->select.media->checkStickerLarge();
 	rpl::single() | rpl::then(
-		session->downloaderTaskFinished()
+		reaction.appearAnimation->session().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		const auto check = [&](State::Entry &entry) {
 			if (!entry.media) {
@@ -448,7 +446,6 @@ void ReactionsSettingsBox(
 					(s.height() - iconSize) / 2);
 			}),
 			iconSize,
-			&controller->session(),
 			r,
 			button->events(
 			) | rpl::filter([=](not_null<QEvent*> event) {

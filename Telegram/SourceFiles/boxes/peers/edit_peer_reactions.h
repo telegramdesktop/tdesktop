@@ -7,13 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
-
 class PeerData;
 
 namespace Data {
 struct Reaction;
 } // namespace Data
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 void EditAllowedReactionsBox(
 	not_null<Ui::GenericBox*> box,

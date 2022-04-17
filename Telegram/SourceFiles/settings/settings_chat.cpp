@@ -903,7 +903,6 @@ void SetupMessages(
 						r.top() + (r.height() - iconSize) / 2);
 				}),
 				iconSize,
-				&controller->session(),
 				r,
 				buttonRight->events(
 				) | rpl::filter([=](not_null<QEvent*> event) {
