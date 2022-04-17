@@ -20,10 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/boxes/calendar_box.h"
 #include "ui/special_buttons.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "settings/settings_privacy_security.h"
+#include "ui/boxes/choose_date_time.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
@@ -783,35 +783,33 @@ ChatRestrictionsInfo EditRestrictedBox::defaultRights() const {
 }
 
 void EditRestrictedBox::showRestrictUntil() {
-	auto tomorrow = QDate::currentDate().addDays(1);
-	auto highlighted = isUntilForever()
-		? tomorrow
-		: base::unixtime::parse(getRealUntilValue()).date();
-	auto month = highlighted;
-	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
-		.month = month,
-		.highlighted = highlighted,
-		.callback = [=](const QDate &date) {
-			setRestrictUntil(
-				static_cast<int>(date.startOfDay().toSecsSinceEpoch()));
-		},
-		.finalize = [=](not_null<Ui::CalendarBox*> box) {
-			box->addLeftButton(
-				tr::lng_rights_chat_banned_forever(),
-				[=] { setRestrictUntil(0); });
-		},
-		.minDate = tomorrow,
-		.maxDate = QDate::currentDate().addDays(kMaxRestrictDelayDays),
-	});
-	_restrictUntilBox = Ui::MakeWeak(box.data());
-	_show.showBox(std::move(box));
+	_show.showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto save = [=](TimeId result) {
+			if (!result) {
+				return;
+			}
+			setRestrictUntil(result);
+			box->closeBox();
+		};
+		const auto now = base::unixtime::now();
+		const auto time = isUntilForever()
+			? (now + kSecondsInDay)
+			: getRealUntilValue();
+		ChooseDateTimeBox(box, {
+			.title = tr::lng_rights_chat_banned_until_header(),
+			.submit = tr::lng_settings_save(),
+			.done = save,
+			.min = [=] { return now; },
+			.time = time,
+			.max = [=] {
+				return now + kSecondsInDay * kMaxRestrictDelayDays;
+			},
+		});
+	}));
 }
 
 void EditRestrictedBox::setRestrictUntil(TimeId until) {
 	_until = until;
-	if (_restrictUntilBox) {
-		_restrictUntilBox->closeBox();
-	}
 	_untilVariants.clear();
 	createUntilGroup();
 	createUntilVariants();
@@ -861,8 +859,7 @@ void EditRestrictedBox::createUntilVariants() {
 				tr::lng_rights_chat_banned_custom_date(
 					tr::now,
 					lt_date,
-					langDayOfMonthFull(
-						base::unixtime::parse(until).date())));
+					langDateTime(base::unixtime::parse(until))));
 		}
 	};
 	auto addCurrentVariant = [&](TimeId from, TimeId to) {

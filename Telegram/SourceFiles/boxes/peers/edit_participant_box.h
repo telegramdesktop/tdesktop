@@ -17,7 +17,6 @@ class LinkButton;
 class Checkbox;
 class Radiobutton;
 class RadiobuttonGroup;
-class CalendarBox;
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
@@ -176,7 +175,6 @@ private:
 
 	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
 	std::vector<base::unique_qptr<Ui::Radiobutton>> _untilVariants;
-	QPointer<Ui::CalendarBox> _restrictUntilBox;
 
 	static constexpr auto kUntilOneDay = -1;
 	static constexpr auto kUntilOneWeek = -2;
