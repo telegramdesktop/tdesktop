@@ -1,5 +1,6 @@
-FROM centos:7 AS builder
+ARG DEBUG 1
 
+FROM centos:7 AS builder
 ENV GIT https://github.com
 ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
@@ -527,6 +528,7 @@ COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 
+ARG DEBUG
 RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT} \
 	&& cd qt_${QT} \
 	&& perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat \
@@ -535,7 +537,7 @@ RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT} \
 	&& cd .. \
 	&& ./configure -prefix "$QT_PREFIX" \
 		-release \
-		-force-debug-info \
+		${DEBUG:+-force-debug-info} \
 		-opensource \
 		-confirm-license \
 		-libproxy \
@@ -609,8 +611,10 @@ RUN cmake --build out --config Release --parallel \
 	&& find out -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} \;
 
 FROM webrtc AS webrtc_debug
-RUN cmake --build out --config Debug --parallel \
-	&& find out -mindepth 1 -maxdepth 1 ! -name Debug -exec rm -rf {} \;
+ARG DEBUG
+RUN [ -z "$DEBUG" ] || (cmake --build out --config Debug --parallel \
+	&& find out -mindepth 1 -maxdepth 1 ! -name Debug -exec rm -rf {} \;)
+RUN [ -n "$DEBUG" ] || mkdir -p out/Debug
 
 FROM builder
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
