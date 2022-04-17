@@ -3885,7 +3885,8 @@ void HistoryWidget::reportSelectedMessages() {
 				clearSelected();
 				controller()->clearChooseReportMessages();
 			}
-			Api::SendReport(peer, reason, text, ids);
+			const auto toastParent = Window::Show(controller()).toastParent();
+			Api::SendReport(toastParent, peer, reason, text, ids);
 			box->closeBox();
 		});
 	}));

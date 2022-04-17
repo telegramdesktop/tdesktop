@@ -16,6 +16,7 @@ enum class ReportReason;
 namespace Api {
 
 void SendReport(
+	not_null<QWidget*> toastParent,
 	not_null<PeerData*> peer,
 	Ui::ReportReason reason,
 	const QString &comment,

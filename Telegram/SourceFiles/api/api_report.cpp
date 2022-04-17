@@ -38,6 +38,7 @@ MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 } // namespace
 
 void SendReport(
+		not_null<QWidget*> toastParent,
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
 		const QString &comment,
@@ -48,7 +49,7 @@ void SendReport(
 			ReasonToTL(reason),
 			MTP_string(comment)
 		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
+			Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
 		}).send();
 	} else {
 		auto apiIds = QVector<MTPint>();
@@ -62,7 +63,7 @@ void SendReport(
 			ReasonToTL(reason),
 			MTP_string(comment)
 		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
+			Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
 		}).send();
 	}
 }

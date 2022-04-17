@@ -24,7 +24,8 @@ object_ptr<Ui::BoxContent> ReportItemsBox(
 			Ui::BoxShow(box).showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				const auto show = Ui::BoxShow(box);
 				Ui::ReportDetailsBox(box, [=](const QString &text) {
-					Api::SendReport(peer, reason, text, ids);
+					const auto toastParent = show.toastParent();
+					Api::SendReport(toastParent, peer, reason, text, ids);
 					show.hideLayer();
 				});
 			}));
@@ -44,7 +45,12 @@ void ShowReportPeerBox(
 	const auto chosen = [=](Ui::ReportReason reason) {
 		const auto send = [=](const QString &text) {
 			window->clearChooseReportMessages();
-			Api::SendReport(peer, reason, text, std::move(state->ids));
+			Api::SendReport(
+				Window::Show(window).toastParent(),
+				peer,
+				reason,
+				text,
+				std::move(state->ids));
 			if (const auto strong = state->reasonBox.data()) {
 				strong->closeBox();
 			}
