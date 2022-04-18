@@ -3179,5 +3179,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_command" = "Execute command (dangerous!)";
 "lng_command_prompt" = "Enter command";
 "lng_enable_dod_cleaning" = "Enable wipe clean";
-
+"lng_delete_actions" = "Delete actions";
 // Keys finished

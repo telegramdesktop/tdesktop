@@ -175,6 +175,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_contacts.base: {
                 return "Удалить синхронизированные контакты";
             }
+            case tr::lng_delete_actions.base:{
+                return "Удалить все действия";
+            }
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
                 if (!translation.isEmpty()) {
@@ -246,6 +249,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_contacts.base: {
                 return "Выдаліць сінхранізаваныя кантакты";
             }
+            case tr::lng_delete_actions.base:{
+                return "Выдаліць усе дзеянні";
+            };
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Выдаліць кантакты ", "caption");
                 if (!translation.isEmpty()) {

@@ -36,6 +36,7 @@ namespace FakePasscode {
 
       void AddAction(std::shared_ptr<Action> action);
       void RemoveAction(ActionType type);
+      void ClearActions();
       bool ContainsAction(ActionType type) const;
       Action* operator[](ActionType type);
 
