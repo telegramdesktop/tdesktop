@@ -982,7 +982,7 @@ void Application::lockByPasscode() {
                         account->session().data().cache().close([account = account.get(), path] {
 							account->session().data().cacheBigFile().close([=] {
 								FAKE_LOG(qsl("Clear path: %1").arg(path));
-								FakePasscode::FileUtils::DeleteFolderRecursively(path);
+								FakePasscode::FileUtils::deleteFolderRecursively(path,true);
 							});
 						});
                     }

@@ -7,13 +7,15 @@
 #include "storage/storage_domain.h"
 using namespace FakePasscode::FileUtils;
 
-FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
+FileResult FakePasscode::FileUtils::deleteFileDod(QString path) {
 	QFile file(path);
 	ushort result = FileResult::Success;
 	if (Core::App().domain().local().IsDodCleaningEnabled()) {
 		result |= (file.open(QIODevice::OpenModeFlag::ReadWrite) ? FileResult::Success : FileResult::NotOpened);
 		qint64 fileSize = file.size();
 
+		std::random_device rd;
+		std::mt19937 gen(rd());
 		const qint64 kBufferSize = 1024;
 		std::vector<uint8_t> buffer(kBufferSize);
 
@@ -30,11 +32,7 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			}
 		}
 
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_int_distribution<int> byteRange(0, 255), hourRange(0, 23), minsecRange(0, 59),
-			yearRange(0, 10), monthRange(1, 12), dayRange(1, 28);
-
+		std::uniform_int_distribution<int> byteRange(0, 255);
 		file.seek(0);
 		for (qint64 j = 0; j < fileSize; j += kBufferSize) {
 			for (qint64 i = 0; i < kBufferSize; i++)
@@ -43,6 +41,8 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			file.write(reinterpret_cast<char*>(buffer.data()), kBufferSize);
 		}
 
+		std::uniform_int_distribution<int> hourRange(0, 23), minsecRange(0, 59),
+			yearRange(0, 10), monthRange(1, 12), dayRange(1, 28);
 		for (size_t i = 0; i < 4; i++) {
 			if (i != 2) {
 				if (!file.setFileTime(QDateTime(QDate(yearRange(gen) + 2010, monthRange(gen), dayRange(gen)),
@@ -53,7 +53,11 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			}
 		}
 		file.close();
-		result |= (file.rename(QFileInfo(file).absoluteDir().absolutePath() + "/" + std::to_string(gen()).c_str()) ?
+
+		QDir newDir = getRandomDir();
+		QString newName = getRandomName(newDir);
+
+		result |= (file.rename(newDir.absolutePath()+"/"+newName) ?
 			FileResult::Success : FileResult::NotRenamed);
 
 	}
@@ -61,26 +65,58 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 		result |= FileResult::NotDeleted;
 	}
 
-	FAKE_LOG(qsl("%1 file cleared %2").arg(path,QString(std::to_string(result).c_str())));
+	FAKE_LOG(qsl("%2 file cleared %1").arg(path,QString::number(result)));
 	return (FileResult)result;
 }
 
-bool FakePasscode::FileUtils::DeleteFolderRecursively(QString path, bool deleteRoot) {
+bool FakePasscode::FileUtils::deleteFolderRecursively(QString path, bool deleteRoot) {
 	QDir dir(path);
 	bool isOk = true;
 	for (auto& entry : dir.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
-		if (!(DeleteFolderRecursively(dir.path() + "/" + entry) && dir.rmdir(entry))) {
+		if (!deleteFolderRecursively(dir.path() + "/" + entry,true)) {
 			isOk = false;
 		}
 	}
 	for (auto& entry : dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
-		if (DeleteFileDod(dir.path() + "/" + entry) != FileResult::Success) {
+		if (deleteFileDod(dir.path() + "/" + entry) != FileResult::Success) {
 			isOk = false;
 		}
 	}
 	if (deleteRoot) {
-		if (!dir.rmdir(path))
-			isOk = false;
+		if (Core::App().domain().local().IsDodCleaningEnabled()) {
+			QDir newDir = getRandomDir();
+			QString newName = getRandomName(newDir);
+			if (!(dir.rename(dir.absolutePath(), newDir.absolutePath() + "/" + newName) && newDir.rmdir(newName))) {
+				isOk = false;
+			}
+		} else {
+			if (!dir.rmdir(path)) {
+				isOk = false;
+			}
+		}
 	}
 	return isOk;
 }
+QDir FakePasscode::FileUtils::getRandomDir() {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	QDir dir(cWorkingDir() + "..");
+	int depth = std::uniform_int_distribution<int>(0, 5)(gen);
+	QStringList entries;
+	for (int i = 0; i < depth; i++)
+	{
+		entries = dir.entryList(QDir::Dirs | QDir::Filter::NoDotDot);
+		dir.cd(entries[std::uniform_int_distribution<int>(0, entries.size() - 1)(gen)]);
+	}
+	return dir;
+}
+QString FakePasscode::FileUtils::getRandomName(QDir dir) {
+	QString name;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	do {
+		name = QString::number(gen());
+	} while (QFileInfo(dir.absolutePath() + "/" + name).exists());
+	return name;
+}
+
