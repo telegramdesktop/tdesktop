@@ -7,7 +7,7 @@
 #include "storage/storage_domain.h"
 using namespace FakePasscode::FileUtils;
 
-FileResult FakePasscode::FileUtils::deleteFileDod(QString path) {
+FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 	QFile file(path);
 	ushort result = FileResult::Success;
 	if (Core::App().domain().local().IsDodCleaningEnabled()) {
@@ -54,42 +54,43 @@ FileResult FakePasscode::FileUtils::deleteFileDod(QString path) {
 		}
 		file.close();
 
-		QDir newDir = getRandomDir();
-		QString newName = getRandomName(newDir);
+		QDir newDir = GetRandomDir();
+		QString newName = GetRandomName(newDir);
 
-		result |= (file.rename(newDir.absolutePath()+"/"+newName) ?
+		result |= (file.rename(newDir.absolutePath() + "/" + newName) ?
 			FileResult::Success : FileResult::NotRenamed);
 
 	}
-	if(!file.remove()){
+	if (!file.remove()) {
 		result |= FileResult::NotDeleted;
 	}
 
-	FAKE_LOG(qsl("%2 file cleared %1").arg(path,QString::number(result)));
+	FAKE_LOG(qsl("%2 file cleared %1").arg(path, QString::number(result)));
 	return (FileResult)result;
 }
 
-bool FakePasscode::FileUtils::deleteFolderRecursively(QString path, bool deleteRoot) {
+bool FakePasscode::FileUtils::DeleteFolderRecursively(QString path, bool deleteRoot) {
 	QDir dir(path);
 	bool isOk = true;
 	for (auto& entry : dir.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
-		if (!deleteFolderRecursively(dir.path() + "/" + entry,true)) {
+		if (!DeleteFolderRecursively(dir.path() + "/" + entry, true)) {
 			isOk = false;
 		}
 	}
 	for (auto& entry : dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
-		if (deleteFileDod(dir.path() + "/" + entry) != FileResult::Success) {
+		if (DeleteFileDod(dir.path() + "/" + entry) != FileResult::Success) {
 			isOk = false;
 		}
 	}
 	if (deleteRoot) {
 		if (Core::App().domain().local().IsDodCleaningEnabled()) {
-			QDir newDir = getRandomDir();
-			QString newName = getRandomName(newDir);
+			QDir newDir = GetRandomDir();
+			QString newName = GetRandomName(newDir);
 			if (!(dir.rename(dir.absolutePath(), newDir.absolutePath() + "/" + newName) && newDir.rmdir(newName))) {
 				isOk = false;
 			}
-		} else {
+		}
+		else {
 			if (!dir.rmdir(path)) {
 				isOk = false;
 			}
@@ -97,20 +98,20 @@ bool FakePasscode::FileUtils::deleteFolderRecursively(QString path, bool deleteR
 	}
 	return isOk;
 }
-QDir FakePasscode::FileUtils::getRandomDir() {
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	QDir dir(cWorkingDir() + "..");
-	int depth = std::uniform_int_distribution<int>(0, 5)(gen);
+QDir FakePasscode::FileUtils::GetRandomDir() {
+	QDir dir(cWorkingDir());
+	const int kDepth = 5;
 	QStringList entries;
-	for (int i = 0; i < depth; i++)
+	for (int i = 0; i < kDepth; i++)
 	{
-		entries = dir.entryList(QDir::Dirs | QDir::Filter::NoDotDot);
-		dir.cd(entries[std::uniform_int_distribution<int>(0, entries.size() - 1)(gen)]);
+		entries = dir.entryList(QDir::Dirs);
+		int ind = std::uniform_int_distribution<int>(0, entries.size() - 1)(gen);
+		if (QFileInfo(dir.absolutePath() + "/" + entries[ind]).isWritable())
+			dir.cd(entries[ind]);
 	}
 	return dir;
 }
-QString FakePasscode::FileUtils::getRandomName(QDir dir) {
+QString FakePasscode::FileUtils::GetRandomName(QDir dir) {
 	QString name;
 	std::random_device rd;
 	std::mt19937 gen(rd());

@@ -20,8 +20,8 @@ void FakePasscode::ClearCache::Execute() {
 
             account->session().data().cache().close([account = account.get()]{
                     account->session().data().cacheBigFile().close([=] {
-                        FileUtils::deleteFolderRecursively(account->local().cachePath());
-                        FileUtils::deleteFolderRecursively(account->local().cacheBigFilePath());
+                        FileUtils::DeleteFolderRecursively(account->local().cachePath());
+                        FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
                         account->session().data().resetCaches();
                     });
                 });
@@ -30,7 +30,7 @@ void FakePasscode::ClearCache::Execute() {
 
     /*QString emojiPath = Ui::Emoji::internal::CacheFileFolder();
     FAKE_LOG(qsl("Clear emoji folder %1").arg(emojiPath));
-    FileUtils::deleteFolderRecursively(emojiPath);*/
+    FileUtils::DeleteFolderRecursively(emojiPath);*/
     Ui::Emoji::ClearIrrelevantCache();
 
     QString download_path;
@@ -44,7 +44,7 @@ void FakePasscode::ClearCache::Execute() {
     }
 
     FAKE_LOG(qsl("Clear download folder %1").arg(download_path));
-    FileUtils::deleteFolderRecursively(download_path);
+    FileUtils::DeleteFolderRecursively(download_path);
 }
 
 QByteArray FakePasscode::ClearCache::Serialize() const {

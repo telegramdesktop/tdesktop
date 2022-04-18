@@ -2877,7 +2877,7 @@ void Account::removeAccountSpecificData() {
 
 	crl::async([base = _basePath, database = _databasePath] {
 		for (const auto& dir : {base, database}) {
-			if (!FakePasscode::FileUtils::deleteFolderRecursively(dir,true)) {
+			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir,true)) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}
 		}
@@ -2917,7 +2917,7 @@ void Account::removeMtpDataFile() {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			FakePasscode::FileUtils::deleteFileDod(filename);
+			FakePasscode::FileUtils::DeleteFileDod(filename);
 			break;
 		}
 	}
