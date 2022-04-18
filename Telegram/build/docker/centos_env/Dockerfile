@@ -47,7 +47,7 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 86187a0437 \
+	&& git checkout bf8dfd399d \
 	&& rm -rf .git
 
 FROM builder AS libffi
