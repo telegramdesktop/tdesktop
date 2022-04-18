@@ -46,7 +46,7 @@ jobs:
     name: CentOS 7
     runs-on: ubuntu-latest
     container:
-      image: docker.pkg.github.com/telegramdesktop/tdesktop/centos_env
+      image: ghcr.io/${{ github.repository }}/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
