@@ -4763,6 +4763,7 @@ void OverlayWidget::clearBeforeHide() {
 	_userPhotosData = std::nullopt;
 	_collage = nullptr;
 	_collageData = std::nullopt;
+	clearStreaming();
 	assignMediaPointer(nullptr);
 	_preloadPhotos.clear();
 	_preloadDocuments.clear();
