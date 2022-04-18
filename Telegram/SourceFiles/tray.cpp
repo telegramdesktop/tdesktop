@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Core {
 
 Tray::Tray() {
@@ -39,6 +41,18 @@ void Tray::create() {
 	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		rebuildMenu();
+	}, _tray.lifetime());
+
+	_tray.iconClicks(
+	) | rpl::start_with_next([=] {
+		const auto skipTrayClick = (_lastTrayClickTime > 0)
+			&& (crl::now() - _lastTrayClickTime
+				< QApplication::doubleClickInterval());
+		if (!skipTrayClick) {
+			_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
+			_minimizeMenuItemClicks.fire({});
+			_lastTrayClickTime = crl::now();
+		}
 	}, _tray.lifetime());
 }
 
@@ -100,12 +114,20 @@ rpl::producer<> Tray::showFromTrayRequests() const {
 }
 
 rpl::producer<> Tray::hideToTrayRequests() const {
-	return rpl::merge(
+	auto triggers = rpl::merge(
 		_tray.hideToTrayRequests(),
 		_minimizeMenuItemClicks.events() | rpl::filter([=] {
 			return _activeForTrayIconAction;
 		})
 	);
+	if (_tray.hasTrayMessageSupport()) {
+		return std::move(triggers) | rpl::map([=]() -> rpl::empty_value {
+			_tray.showTrayMessage();
+			return {};
+		});
+	} else {
+		return triggers;
+	}
 }
 
 void Tray::toggleSoundNotifications() {

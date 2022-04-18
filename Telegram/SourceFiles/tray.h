@@ -30,6 +30,8 @@ private:
 	Platform::Tray _tray;
 
 	bool _activeForTrayIconAction = false;
+	crl::time _lastTrayClickTime = 0;
+
 	rpl::event_stream<> _textUpdates;
 	rpl::event_stream<> _minimizeMenuItemClicks;
 
