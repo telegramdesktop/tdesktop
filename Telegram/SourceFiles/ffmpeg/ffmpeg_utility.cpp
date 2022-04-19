@@ -86,6 +86,8 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 }
 
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
+	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
+
 	auto hwDeviceContext = (AVBufferRef*)nullptr;
 	AvErrorWrap error = av_hwdevice_ctx_create(
 		&hwDeviceContext,
@@ -101,11 +103,13 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		"Trying \"%1\" hardware acceleration for \"%2\" decoder."
 		).arg(av_hwdevice_get_type_name(type)
 		).arg(context->codec->name));
-	if (context->hw_device_ctx) {
-		av_buffer_unref(&context->hw_device_ctx);
+	if (parent->hw_device_ctx) {
+		av_buffer_unref(&parent->hw_device_ctx);
 	}
-	context->hw_device_ctx = av_buffer_ref(hwDeviceContext);
+	parent->hw_device_ctx = av_buffer_ref(hwDeviceContext);
 	av_buffer_unref(&hwDeviceContext);
+
+	context->hw_device_ctx = parent->hw_device_ctx;
 	return true;
 }
 
@@ -294,6 +298,7 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 
 	if (descriptor.hwAllowed) {
 		context->get_format = GetHwFormat;
+		context->opaque = context;
 	} else {
 		DEBUG_LOG(("Video Info: Using software \"%2\" decoder."
 			).arg(codec->name));
