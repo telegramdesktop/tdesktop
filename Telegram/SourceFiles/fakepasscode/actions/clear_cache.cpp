@@ -18,11 +18,13 @@ void FakePasscode::ClearCache::Execute() {
         if (account->sessionExists()) {
             FAKE_LOG(qsl("Clear cache for account %1").arg(index));
 
-            account->session().data().cache().close();
-            account->session().data().cacheBigFile().close();
-            FileUtils::DeleteFolderRecursively(account->local().cachePath());
-            FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
-            account->session().data().resetCaches();
+            account->session().data().cache().close([account = account.get()]{
+                    account->session().data().cacheBigFile().close([=] {
+                        FileUtils::DeleteFolderRecursively(account->local().cachePath());
+                        FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
+                        account->session().data().resetCaches();
+                    });
+                });
         }
     }
 
