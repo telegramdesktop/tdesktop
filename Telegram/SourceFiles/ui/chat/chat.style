@@ -325,7 +325,8 @@ historyMessagesTTL: IconButtonWithText {
 	}
 	textFg: historyComposeIconFg;
 	textFgOver: historyComposeIconFgOver;
-	textPadding: margins(16px, 20px, 6px, 7px);
+	textPadding: margins(21px, 20px, 3px, 7px);
+	textAlign: align(left);
 
 	font: font(10px semibold);
 }
