@@ -102,6 +102,8 @@ QDir FakePasscode::FileUtils::GetRandomDir() {
 	QDir dir(cWorkingDir());
 	const int kDepth = 5;
 	QStringList entries;
+	std::random_device rd;
+	std::mt19937 gen(rd());
 	for (int i = 0; i < kDepth; i++)
 	{
 		entries = dir.entryList(QDir::Dirs);
