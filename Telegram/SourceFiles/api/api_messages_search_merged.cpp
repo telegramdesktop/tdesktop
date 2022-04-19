@@ -18,11 +18,10 @@ bool MessagesSearchMerged::RequestCompare::operator()(
 }
 
 MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
-: _apiSearch(history)
-, _migratedSearch(history->migrateFrom()
-	? std::make_optional<MessagesSearch>(history->migrateFrom())
-	: std::nullopt) {
-
+: _apiSearch(history) {
+	if (const auto migrated = history->migrateFrom()) {
+		_migratedSearch.emplace(migrated);
+	}
 	const auto checkWaitingForTotal = [=] {
 		if (_waitingForTotal) {
 			if (_concatedFound.total >= 0 && _migratedFirstFound.total >= 0) {
