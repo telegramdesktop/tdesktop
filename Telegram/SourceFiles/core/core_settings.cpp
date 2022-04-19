@@ -239,8 +239,9 @@ QByteArray Settings::serialize() const {
 		}
 
 		stream
-			<< qint32(_hardwareAcceleratedVideo ? 1 : 0)
-			<< qint32(_chatQuickAction);
+			<< qint32(0) // old hardwareAcceleratedVideo
+			<< qint32(_chatQuickAction)
+			<< qint32(_hardwareAcceleratedVideo ? 1 : 0);
 	}
 	return result;
 }
@@ -514,10 +515,14 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		}
 	}
 	if (!stream.atEnd()) {
-		stream >> hardwareAcceleratedVideo;
+		qint32 legacyHardwareAcceleratedVideo = 0;
+		stream >> legacyHardwareAcceleratedVideo;
 	}
 	if (!stream.atEnd()) {
 		stream >> chatQuickAction;
+	}
+	if (!stream.atEnd()) {
+		stream >> hardwareAcceleratedVideo;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

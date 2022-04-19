@@ -792,7 +792,11 @@ private:
 	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
+#ifdef Q_OS_MAC
 	bool _hardwareAcceleratedVideo = true;
+#else // Q_OS_MAC
+	bool _hardwareAcceleratedVideo = false;
+#endif // Q_OS_MAC
 	HistoryView::DoubleClickQuickAction _chatQuickAction =
 		HistoryView::DoubleClickQuickAction();
 
