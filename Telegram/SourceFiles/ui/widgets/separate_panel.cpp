@@ -120,6 +120,13 @@ void SeparatePanel::setHideOnDeactivate(bool hideOnDeactivate) {
 }
 
 void SeparatePanel::showAndActivate() {
+	if (isHidden()) {
+		while (const auto widget = QApplication::activePopupWidget()) {
+			if (!widget->close()) {
+				break;
+			}
+		}
+	}
 	toggleOpacityAnimation(true);
 	raise();
 	setWindowState(windowState() | Qt::WindowActive);
