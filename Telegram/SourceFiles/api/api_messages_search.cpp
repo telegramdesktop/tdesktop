@@ -17,10 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 namespace Api {
-
 namespace {
 
-MessageIdsList HistoryItemsFromTL(
+[[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
 		const QVector<MTPMessage> &messages) {
 	auto result = MessageIdsList();
@@ -45,8 +44,12 @@ MessageIdsList HistoryItemsFromTL(
 } // namespace
 
 MessagesSearch::MessagesSearch(not_null<History*> history)
-: _history(history)
-, _api(&history->session().mtp()) {
+: _history(history) {
+}
+
+MessagesSearch::~MessagesSearch() {
+	_history->owner().histories().cancelRequest(
+		base::take(_searchInHistoryRequest));
 }
 
 void MessagesSearch::searchMessages(const QString &query, PeerData *from) {
@@ -78,7 +81,7 @@ void MessagesSearch::searchRequest() {
 		const auto flags = _from
 			? MTP_flags(MTPmessages_Search::Flag::f_from_id)
 			: MTP_flags(0);
-		_requestId = _api.request(MTPmessages_Search(
+		_requestId = _history->session().api().request(MTPmessages_Search(
 			flags,
 			_history->peer->input,
 			MTP_string(_query),
@@ -102,10 +105,11 @@ void MessagesSearch::searchRequest() {
 		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			_searchInHistoryRequest = 0;
 
+			if (_requestId == id) {
+				_requestId = 0;
+			}
 			if (error.type() == u"SEARCH_QUERY_EMPTY"_q) {
 				_messagesFounds.fire({ 0, MessageIdsList(), nextToken });
-			} else if (_requestId == id) {
-				_requestId = 0;
 			}
 
 			finish();

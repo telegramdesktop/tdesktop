@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
-
 class HistoryItem;
 class History;
 class PeerData;
@@ -24,6 +22,7 @@ struct FoundMessages {
 class MessagesSearch final {
 public:
 	explicit MessagesSearch(not_null<History*> history);
+	~MessagesSearch();
 
 	void searchMessages(const QString &query, PeerData *from);
 	void searchMore();
@@ -39,7 +38,6 @@ private:
 		const QString &nextToken);
 
 	const not_null<History*> _history;
-	MTP::Sender _api;
 
 	base::flat_map<QString, TLMessages> _cacheOfStartByToken;
 
