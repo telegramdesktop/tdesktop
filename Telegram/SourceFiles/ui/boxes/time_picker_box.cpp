@@ -31,9 +31,17 @@ Fn<TimeId()> TimePickerBox(
 		TimeId startValue) {
 	Expects(phrases.size() == values.size());
 
-	const auto startIndex = [&] {
-		const auto it = ranges::find(values, startValue);
-		return (it == end(values)) ? 0 : std::distance(begin(values), it);
+	const auto startIndex = [&, &v = startValue] {
+		const auto it = ranges::lower_bound(values, v);
+		if (it == begin(values)) {
+			return 0;
+		}
+		const auto left = *(it - 1);
+		const auto right = *it;
+		const auto shift = (std::abs(v - left) < std::abs(v - right))
+			? -1
+			: 0;
+		return int(std::distance(begin(values), it - shift));
 	}();
 
 	const auto content = box->addRow(object_ptr<Ui::FixedHeightWidget>(
