@@ -509,10 +509,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	if (Platform::IsWayland()) {
 		return;
 	}
-	const auto screen = _widget->screen()
-		? _widget->screen()
-		: QApplication::primaryScreen();
-	const auto available = screen->geometry();
+	const auto available = _widget->screen()->geometry();
 	const auto openglWidget = _opengl
 		? static_cast<QOpenGLWidget*>(_widget.get())
 		: nullptr;
