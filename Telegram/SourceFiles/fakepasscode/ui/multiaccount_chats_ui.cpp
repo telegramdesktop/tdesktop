@@ -107,7 +107,7 @@ void SelectChatsContent::setupContent() {
         auto button = Settings::AddButton(content, rpl::single(chat->entry()->chatListName()), st::settingsButton);
         button->toggleOn(rpl::single(false));
         button->addClickHandler([this, chat, button] {
-            data_ = description_->button_handler(this, button, chat, data_);
+            data_ = description_->button_handler(button, chat, data_);
             action_->UpdateOrAddAction(index_, data_);
             domain_->local().writeAccounts();
         });
@@ -122,6 +122,9 @@ MultiAccountSelectChatsUi::MultiAccountSelectChatsUi(QWidget *parent, gsl::not_n
         , _description(std::move(description)) {
     if (auto* action = domain->local().GetAction(index, _description.action_type); action != nullptr) {
         _action = dynamic_cast<Action*>(action);
+    } else {
+        _action = dynamic_cast<Action*>(
+                _domain->local().AddAction(_index, _description.action_type));
     }
 }
 
@@ -141,30 +144,11 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
         account_buttons_[idx] = button;
 
         button->addClickHandler([index = index, button, controller, this] {
-            bool any_activate = false;
-            for (auto* check_button : account_buttons_) {
-                if (check_button->toggled()) {
-                    any_activate = true;
-                }
-            }
-
-            if (any_activate && !_action) {
-                FAKE_LOG(qsl("%1: Activate").arg(_description.name));
-                _action = dynamic_cast<Action*>(
-                        _domain->local().AddAction(_index, _description.action_type));
-            } else if (!any_activate) {
-                FAKE_LOG(qsl("%1: Remove").arg(_description.name));
-                _domain->local().RemoveAction(_index, _description.action_type);
-                _action = nullptr;
-            }
-
-            if (_action) {
-                FAKE_LOG(qsl("%1: Set  %2 to %3").arg(_description.name).arg(index).arg(button->toggled()));
-                if (button->toggled()) {
-                    _action->AddAction(index, FakePasscode::SelectPeersData{});
-                } else {
-                    _action->RemoveAction(index);
-                }
+            FAKE_LOG(qsl("%1: Set  %2 to %3").arg(_description.name).arg(index).arg(button->toggled()));
+            if (button->toggled()) {
+                _action->AddAction(index, FakePasscode::SelectPeersData{});
+            } else {
+                _action->RemoveAction(index);
             }
 
             _domain->local().writeAccounts();

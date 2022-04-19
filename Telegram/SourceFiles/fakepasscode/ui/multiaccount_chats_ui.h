@@ -17,8 +17,7 @@ class SelectChatsContent;
 class MultiAccountSelectChatsUi : public ActionUI {
 public:
     using ButtonHandler = std::function<FakePasscode::SelectPeersData(
-            const SelectChatsContent*, not_null<Ui::SettingsButton *>,
-                    not_null<Dialogs::Row*>, FakePasscode::SelectPeersData)>;
+            not_null<Ui::SettingsButton *>, not_null<Dialogs::Row*>, FakePasscode::SelectPeersData)>;
 
     struct Description {
         QString name;
