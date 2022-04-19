@@ -386,33 +386,33 @@ QString FormatPhone(const QString &phone) {
 
 QString FormatTTL(float64 ttl) {
 	return (ttl <= 3600 * 23)
-		? tr::lng_hours(tr::now, lt_count, std::ceil(ttl / 3600))
+		? tr::lng_hours(tr::now, lt_count, int(ttl / 3600))
 		: (ttl <= (86400) * 6)
-		? tr::lng_days(tr::now, lt_count, std::ceil(ttl / (86400)))
+		? tr::lng_days(tr::now, lt_count, int(ttl / (86400)))
 		: (ttl <= (86400 * 7) * 3)
-		? tr::lng_weeks(tr::now, lt_count, std::ceil(ttl / (86400 * 7)))
-		: (ttl <= (86400 * 30) * 11)
-		? tr::lng_months({}, lt_count, std::ceil(ttl / (86400 * 30)))
-		: tr::lng_years({}, lt_count, std::ceil(ttl / (86400 * 30 * 12)));
+		? tr::lng_weeks(tr::now, lt_count, int(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 31) * 11)
+		? tr::lng_months({}, lt_count, int(ttl / (86400 * 31)))
+		: tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
 }
 
 QString FormatTTLTiny(float64 ttl) {
 	return (ttl <= 3600 * 9)
-		? tr::lng_hours_tiny(tr::now, lt_count, std::ceil(ttl / 3600))
+		? tr::lng_hours_tiny(tr::now, lt_count, int(ttl / 3600))
 		: (ttl <= (86400) * 6)
-		? tr::lng_days_tiny(tr::now, lt_count, std::ceil(ttl / (86400)))
+		? tr::lng_days_tiny(tr::now, lt_count, int(ttl / (86400)))
 		: (ttl <= (86400 * 7) * 3)
-		? tr::lng_weeks_tiny(tr::now, lt_count, std::ceil(ttl / (86400 * 7)))
-		: (ttl <= (86400 * 30) * 11)
-		? tr::lng_months_tiny({}, lt_count, std::ceil(ttl / (86400 * 30)))
-		: tr::lng_years_tiny({}, lt_count, std::ceil(ttl / (86400 * 360)));
+		? tr::lng_weeks_tiny(tr::now, lt_count, int(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 31) * 11)
+		? tr::lng_months_tiny({}, lt_count, int(ttl / (86400 * 31)))
+		: tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)));
 }
 
 QString FormatMuteFor(float64 sec) {
 	return (sec <= 60)
 		? tr::lng_seconds(tr::now, lt_count, sec)
 		: (sec <= 60 * 59)
-		? tr::lng_minutes(tr::now, lt_count, std::ceil(sec / 60))
+		? tr::lng_minutes(tr::now, lt_count, int(sec / 60))
 		: FormatTTL(sec);
 }
 
@@ -420,13 +420,13 @@ QString FormatMuteForTiny(float64 sec) {
 	return (sec <= 60)
 		? QString()
 		: (sec <= 60 * 59)
-		? tr::lng_minutes_tiny(tr::now, lt_count, std::ceil(sec / 60))
+		? tr::lng_minutes_tiny(tr::now, lt_count, int(sec / 60))
 		: (sec <= 3600 * 23)
-		? tr::lng_hours_tiny(tr::now, lt_count, std::ceil(sec / 3600))
+		? tr::lng_hours_tiny(tr::now, lt_count, int(sec / 3600))
 		: (sec <= 86400 * 6)
-		? tr::lng_days_tiny(tr::now, lt_count, std::ceil(sec / 86400))
+		? tr::lng_days_tiny(tr::now, lt_count, int(sec / 86400))
 		: (sec <= (86400 * 7) * 3)
-		? tr::lng_weeks_tiny(tr::now, lt_count, std::ceil(sec / (86400 * 7)))
+		? tr::lng_weeks_tiny(tr::now, lt_count, int(sec / (86400 * 7)))
 		: QString();
 }
 
