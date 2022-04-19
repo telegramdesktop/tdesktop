@@ -9,6 +9,8 @@ namespace FakePasscode {
             NotOpened = 8
         };
         FileResult DeleteFileDod(QString path);
+        QDir GetRandomDir();
+        QString GetRandomName(QDir);
         bool DeleteFolderRecursively(QString path, bool deleteRoot = false);
     };
 }
