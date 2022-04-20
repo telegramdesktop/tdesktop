@@ -75,12 +75,13 @@ void ContentWidget::updateControlsGeometry() {
 	if (!_innerWrap) {
 		return;
 	}
+	_innerWrap->resizeToWidth(width());
+
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
-		_innerWrap->resizeToWidth(_scroll->width());
 	}
 
 	if (!_scroll->isHidden()) {

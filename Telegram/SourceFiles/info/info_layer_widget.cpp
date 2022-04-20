@@ -105,10 +105,6 @@ void LayerWidget::setupHeightConsumers() {
 			// New content arrived.
 			_heightAnimated = _heightAnimation.animating();
 			return;
-		} else if (height < _desiredHeight
-			&& height < st::columnMinimalWidthMain) {
-			// Don't animate layer height to a very small one.
-			return;
 		}
 		std::swap(_desiredHeight, height);
 		if (!height
