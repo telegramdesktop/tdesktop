@@ -1,3 +1,8 @@
+3.7.1 (19.04.22)
+
+- Hardware accelerated video decoding off by default.
+- Fix several crashes.
+
 3.7 (16.04.22)
 
 - Use any short music file or voice message as a notification sound.
