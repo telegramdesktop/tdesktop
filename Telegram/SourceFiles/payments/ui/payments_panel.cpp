@@ -776,6 +776,9 @@ void Panel::showWebviewError(
 	case Error::Wayland:
 		rich.append(tr::lng_payments_webview_switch_wayland(tr::now));
 		break;
+	case Error::OldWindows:
+		rich.append(tr::lng_payments_webview_update_windows(tr::now));
+		break;
 	default:
 		rich.append(QString::fromStdString(information.details));
 		break;
