@@ -414,6 +414,35 @@ void Application::startSystemDarkModeViewer() {
 }
 
 void Application::startTray() {
+	using WindowRaw = not_null<Window::Controller*>;
+	const auto enumerate = [=](Fn<void(WindowRaw)> c) {
+		if (_primaryWindow) {
+			c(_primaryWindow.get());
+		}
+		for (const auto &window : ranges::views::values(_secondaryWindows)) {
+			c(window.get());
+		}
+	};
+	_tray->create();
+	_tray->aboutToShowRequests(
+	) | rpl::start_with_next([=] {
+		enumerate([&](WindowRaw w) { w->updateIsActive(); });
+		_tray->updateMenuText();
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->showFromTrayRequests(
+	) | rpl::start_with_next([=] {
+		const auto last = _lastActiveWindow;
+		enumerate([&](WindowRaw w) { w->widget()->showFromTrayMenu(); });
+		if (last) {
+			last->widget()->showFromTrayMenu();
+		}
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->hideToTrayRequests(
+	) | rpl::start_with_next([=] {
+		enumerate([&](WindowRaw w) { w->widget()->minimizeToTray(); });
+	}, _primaryWindow->widget()->lifetime());
 }
 
 auto Application::prepareEmojiSourceImages()

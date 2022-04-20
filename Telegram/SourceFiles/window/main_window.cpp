@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
+#include "tray.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -811,6 +812,7 @@ void MainWindow::updateUnreadCounter() {
 	const auto counter = Core::App().unreadBadge();
 	setTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 
+	Core::App().tray().updateIconCounters();
 	unreadCounterChangedHook();
 }
 

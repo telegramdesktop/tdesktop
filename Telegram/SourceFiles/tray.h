@@ -15,8 +15,23 @@ class Tray final {
 public:
 	Tray();
 
+	void create();
+	void updateMenuText();
+	void updateIconCounters();
+
+	[[nodiscard]] rpl::producer<> aboutToShowRequests() const;
+	[[nodiscard]] rpl::producer<> showFromTrayRequests() const;
+	[[nodiscard]] rpl::producer<> hideToTrayRequests() const;
+
 private:
+	void rebuildMenu();
+	void toggleSoundNotifications();
+
 	Platform::Tray _tray;
+
+	bool _activeForTrayIconAction = false;
+	rpl::event_stream<> _textUpdates;
+	rpl::event_stream<> _minimizeMenuItemClicks;
 
 };
 

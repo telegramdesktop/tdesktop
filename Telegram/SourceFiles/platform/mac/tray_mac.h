@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_tray.h"
 
+#include "base/unique_qptr.h"
+
+class QMenu;
+class QSystemTrayIcon;
+
 namespace Platform {
 
 class Tray final {
@@ -36,6 +41,11 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	base::unique_qptr<QSystemTrayIcon> _icon;
+	base::unique_qptr<QMenu> _menu;
+
+	rpl::lifetime _actionsLifetime;
+	rpl::lifetime _lifetime;
 
 };
 

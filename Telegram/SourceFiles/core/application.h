@@ -148,6 +148,9 @@ public:
 	[[nodiscard]] Data::DownloadManager &downloadManager() const {
 		return *_downloadManager;
 	}
+	[[nodiscard]] Tray &tray() const {
+		return *_tray;
+	}
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
