@@ -282,9 +282,13 @@ void FillMuteMenu(
 		menu->addAction(std::move(item));
 	}
 
+	const auto callback = [=, show = args.show] {
+		DEBUG_LOG(("Mute Info: PickMuteBox called."));
+		show->showBox(Box(PickMuteBox, peer));
+	};
 	menu->addAction(
 		tr::lng_mute_menu_duration(tr::now),
-		[=, show = args.show] { show->showBox(Box(PickMuteBox, peer)); },
+		callback,
 		&st::menuIconMuteFor);
 
 	menu->addAction(
