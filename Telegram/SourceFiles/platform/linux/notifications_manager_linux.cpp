@@ -679,8 +679,12 @@ void NotificationData::setImage(const QString &imagePath) {
 		return;
 	}
 
-	const auto image = QImage(imagePath)
-		.convertToFormat(QImage::Format_RGBA8888);
+	const auto image = [&] {
+		const auto original = QImage(imagePath);
+		return original.hasAlphaChannel()
+			? original.convertToFormat(QImage::Format_RGBA8888)
+			: original.convertToFormat(QImage::Format_RGB888);
+	}();
 
 	if (image.isNull()) {
 		return;
@@ -690,9 +694,9 @@ void NotificationData::setImage(const QString &imagePath) {
 		image.width(),
 		image.height(),
 		int(image.bytesPerLine()),
-		true,
+		image.hasAlphaChannel(),
 		8,
-		4,
+		image.hasAlphaChannel() ? 4 : 3,
 		std::vector<uchar>(
 			image.constBits(),
 			image.constBits() + image.sizeInBytes()),
