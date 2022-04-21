@@ -66,7 +66,6 @@ private:
 
 	void hideAndDeactivate();
 	void updateIconCounters();
-	[[nodiscard]] QIcon generateIconForTray(int counter, bool muted) const;
 
 	std::unique_ptr<Private> _private;
 
