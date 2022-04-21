@@ -46,6 +46,7 @@ enum class UserDataFlag {
 	CanPinMessages = (1 << 11),
 	DiscardMinPhoto = (1 << 12),
 	Self = (1 << 13),
+	Premium = (1 << 14),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -95,6 +96,9 @@ public:
 	}
 	[[nodiscard]] bool isFake() const {
 		return flags() & UserDataFlag::Fake;
+	}
+	[[nodiscard]] bool isPremium() const {
+		return flags() & UserDataFlag::Premium;
 	}
 	[[nodiscard]] bool isBotInlineGeo() const {
 		return flags() & UserDataFlag::BotInlineGeo;

@@ -109,6 +109,7 @@ enum class FilterType {
 		InlineImageLocation(),
 		ImageWithLocation(),
 		ImageWithLocation(),
+		false, // isPremiumSticker
 		owner->session().mainDcId(),
 		int32(0));
 }

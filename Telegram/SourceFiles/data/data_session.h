@@ -502,6 +502,7 @@ public:
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
 		int32 size);
 	void documentConvert(
@@ -753,6 +754,7 @@ private:
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
 		int32 size);
 	DocumentData *documentFromWeb(

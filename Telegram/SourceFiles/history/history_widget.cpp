@@ -6680,9 +6680,10 @@ bool HistoryWidget::sendExistingDocument(
 			Ui::MakeInformBox(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
-	} else if (!_peer || !_peer->canWrite()) {
-		return false;
-	} else if (showSlowmodeError()) {
+	} else if (!_peer
+		|| !_peer->canWrite()
+		|| showSlowmodeError()
+		|| ShowSendPremiumError(controller(), document)) {
 		return false;
 	}
 

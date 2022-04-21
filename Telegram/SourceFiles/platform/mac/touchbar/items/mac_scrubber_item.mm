@@ -462,6 +462,8 @@ void AppendEmojiPacks(
 			if (const auto error = RestrictionToSendStickers(_controller)) {
 				_controller->show(Ui::MakeInformBox(*error));
 				return true;
+			} else if (ShowSendPremiumError(_controller, document)) {
+				return true;
 			}
 			Api::SendExistingDocument(
 				Api::MessageToSend(

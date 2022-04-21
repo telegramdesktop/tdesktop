@@ -205,4 +205,8 @@ private:
 	not_null<PeerData*> peer)
 -> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
 
+[[nodiscard]] bool ShowSendPremiumError(
+	not_null<SessionController*> controller,
+	not_null<DocumentData*> document);
+
 } // namespace Window

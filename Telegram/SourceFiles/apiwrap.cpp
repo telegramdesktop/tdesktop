@@ -450,6 +450,11 @@ void ApiWrap::sendMessageFail(
 			? tr::lng_error_noforwards_channel(tr::now)
 			: tr::lng_error_noforwards_group(tr::now)
 		}, .duration = kJoinErrorDuration });
+	} else if (error.type() == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
+		Ui::ShowMultilineToast({
+			.text = { u"Premium sticker."_q },
+			.duration = kJoinErrorDuration,
+		});
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

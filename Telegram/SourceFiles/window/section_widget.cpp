@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "ui/ui_utility.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/toasts/common_toasts.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
+#include "data/data_document.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
@@ -320,6 +323,19 @@ auto ChatThemeValueFromPeer(
 			? std::move(overriden.theme)
 			: std::move(cloud);
 	});
+}
+
+bool ShowSendPremiumError(
+		not_null<SessionController*> controller,
+		not_null<DocumentData*> document) {
+	if (!document->isPremiumSticker()
+		|| document->session().user()->isPremium()) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.text = { u"Premium sticker."_q },
+	});
+	return true;
 }
 
 } // namespace Window

@@ -743,6 +743,7 @@ void DownloadManager::generateEntry(
 		InlineImageLocation(), // inlineThumbnail
 		ImageWithLocation(), // thumbnail
 		ImageWithLocation(), // videoThumbnail
+		false, // isPremiumSticker
 		0, // dc
 		id.size);
 	document->setLocation(Core::FileLocation(info));

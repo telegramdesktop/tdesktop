@@ -685,6 +685,8 @@ bool ScheduledWidget::sendExistingDocument(
 			Ui::MakeInformBox(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
+	} else if (ShowSendPremiumError(controller(), document)) {
+		return false;
 	}
 
 	Api::SendExistingDocument(

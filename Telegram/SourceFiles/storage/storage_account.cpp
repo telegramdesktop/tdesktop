@@ -2169,8 +2169,9 @@ void Account::importOldRecentStickers() {
 			attributes,
 			mime,
 			InlineImageLocation(),
-			ImageWithLocation(),
-			ImageWithLocation(),
+			ImageWithLocation(), // thumbnail
+			ImageWithLocation(), // videoThumbnail
+			false, // isPremiumSticker
 			dc,
 			size);
 		if (!doc->sticker()) {

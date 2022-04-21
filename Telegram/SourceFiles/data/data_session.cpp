@@ -2672,7 +2672,8 @@ not_null<DocumentData*> Session::processDocument(
 			qs(data.vmime_type()),
 			InlineImageLocation(),
 			thumbnail,
-			ImageWithLocation(),
+			ImageWithLocation(), // videoThumbnail
+			false, // isPremiumSticker
 			data.vdc_id().v,
 			data.vsize().v);
 	}, [&](const MTPDdocumentEmpty &data) {
@@ -2690,6 +2691,7 @@ not_null<DocumentData*> Session::document(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
 		int32 size) {
 	const auto result = document(id);
@@ -2703,6 +2705,7 @@ not_null<DocumentData*> Session::document(
 		inlineThumbnail,
 		thumbnail,
 		videoThumbnail,
+		isPremiumSticker,
 		dc,
 		size);
 	return result;
@@ -2771,6 +2774,7 @@ DocumentData *Session::documentFromWeb(
 		InlineImageLocation(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
+		false, // isPremiumSticker
 		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
@@ -2793,6 +2797,7 @@ DocumentData *Session::documentFromWeb(
 		InlineImageLocation(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
+		false, // isPremiumSticker
 		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
@@ -2820,6 +2825,8 @@ void Session::documentApplyFields(
 	const auto videoThumbnail = videoThumbnailSize
 		? Images::FromVideoSize(_session, data, *videoThumbnailSize)
 		: ImageWithLocation();
+	const auto isPremiumSticker = videoThumbnailSize
+		&& (videoThumbnailSize->c_videoSize().vtype().v == "fp");
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,
@@ -2830,6 +2837,7 @@ void Session::documentApplyFields(
 		inlineThumbnail,
 		prepared,
 		videoThumbnail,
+		isPremiumSticker,
 		data.vdc_id().v,
 		data.vsize().v);
 }
@@ -2844,6 +2852,7 @@ void Session::documentApplyFields(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
 		int32 size) {
 	if (!date) {
@@ -2854,7 +2863,8 @@ void Session::documentApplyFields(
 	document->updateThumbnails(
 		inlineThumbnail,
 		thumbnail,
-		videoThumbnail);
+		videoThumbnail,
+		isPremiumSticker);
 	document->size = size;
 	document->setattributes(attributes);
 

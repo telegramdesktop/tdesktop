@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 3;
+constexpr auto kVersion = 4;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -45,6 +45,7 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		}
 	}
 	stream << qint32(document->getDuration());
+	stream << qint32(document->isPremiumSticker() ? 1 : 0);
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());
@@ -86,6 +87,7 @@ DocumentData *Document::readFromStreamHelper(
 	}
 
 	qint32 duration = -1;
+	qint32 isPremiumSticker = 0;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -116,6 +118,9 @@ DocumentData *Document::readFromStreamHelper(
 		}
 		if (version >= 3) {
 			stream >> duration;
+			if (version >= 4) {
+				stream >> isPremiumSticker;
+			}
 		}
 	} else {
 		stream >> duration;
@@ -185,6 +190,7 @@ DocumentData *Document::readFromStreamHelper(
 			.location = *videoThumb,
 			.bytesCount = videoThumbnailByteSize
 		},
+		(isPremiumSticker == 1),
 		dc,
 		size);
 }

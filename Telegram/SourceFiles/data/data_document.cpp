@@ -465,7 +465,8 @@ bool DocumentData::checkWallPaperProperties() {
 void DocumentData::updateThumbnails(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &videoThumbnail) {
+		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker) {
 	if (!inlineThumbnail.bytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnail.bytes;
@@ -474,6 +475,11 @@ void DocumentData::updateThumbnails(
 		} else {
 			_flags &= ~Flag::InlineThumbnailIsPath;
 		}
+	}
+	if (isPremiumSticker) {
+		_flags |= Flag::PremiumSticker;
+	} else {
+		_flags &= ~Flag::PremiumSticker;
 	}
 	Data::UpdateCloudFile(
 		_thumbnail,
@@ -509,6 +515,10 @@ bool DocumentData::isPatternWallPaperPNG() const {
 
 bool DocumentData::isPatternWallPaperSVG() const {
 	return isWallPaper() && hasMimeType(qstr("application/x-tgwallpattern"));
+}
+
+bool DocumentData::isPremiumSticker() const {
+	return (_flags & Flag::PremiumSticker);
 }
 
 bool DocumentData::hasThumbnail() const {
