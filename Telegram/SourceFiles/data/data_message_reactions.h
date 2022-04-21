@@ -29,6 +29,7 @@ struct Reaction {
 	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
 	bool active = false;
+	bool premium = false;
 };
 
 class Reactions final {
@@ -39,6 +40,7 @@ public:
 	void refresh();
 
 	enum class Type {
+		ActiveNonPremium,
 		Active,
 		All,
 	};
@@ -101,6 +103,7 @@ private:
 
 	const not_null<Session*> _owner;
 
+	std::vector<Reaction> _activeNonPremium;
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
 	QString _favorite;

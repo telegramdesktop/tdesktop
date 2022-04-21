@@ -381,7 +381,11 @@ HistoryInner::HistoryInner(
 	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
 		const auto item = session().data().message(reaction.context);
-		if (!item) {
+		if (!item
+			|| Window::ShowReactPremiumError(
+				_controller,
+				item,
+				reaction.emoji)) {
 			return;
 		}
 		item->toggleReaction(reaction.emoji);
@@ -1876,7 +1880,9 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 		return;
 	}
 	const auto item = view->data();
-	if (item->chosenReaction() != favorite) {
+	if (Window::ShowReactPremiumError(_controller, item, favorite)) {
+		return;
+	} else if (item->chosenReaction() != favorite) {
 		if (const auto top = itemTop(view); top >= 0) {
 			view->animateReaction({ .emoji = favorite });
 		}

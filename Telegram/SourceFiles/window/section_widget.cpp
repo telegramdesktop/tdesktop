@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_message_reactions.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
@@ -334,6 +336,26 @@ bool ShowSendPremiumError(
 	}
 	Ui::ShowMultilineToast({
 		.text = { u"Premium sticker."_q },
+	});
+	return true;
+}
+
+bool ShowReactPremiumError(
+		not_null<SessionController*> controller,
+		not_null<HistoryItem*> item,
+		const QString &emoji) {
+	if (item->chosenReaction() == emoji
+		|| controller->session().user()->isPremium()) {
+		return false;
+	}
+	const auto &list = controller->session().data().reactions().list(
+		Data::Reactions::Type::Active);
+	const auto i = ranges::find(list, emoji, &Data::Reaction::emoji);
+	if (i == end(list) || !i->premium) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.text = { u"Premium reaction."_q },
 	});
 	return true;
 }

@@ -209,4 +209,9 @@ private:
 	not_null<SessionController*> controller,
 	not_null<DocumentData*> document);
 
+[[nodiscard]] bool ShowReactPremiumError(
+	not_null<SessionController*> controller,
+	not_null<HistoryItem*> item,
+	const QString &emoji);
+
 } // namespace Window

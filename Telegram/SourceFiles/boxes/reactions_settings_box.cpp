@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/reactions_settings_box.h"
 
 #include "base/unixtime.h"
+#include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_message_reactions.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
@@ -424,6 +426,7 @@ void ReactionsSettingsBox(
 			rpl::single<QString>(base::duplicate(r.title)),
 			st::settingsButton);
 
+		const auto premium = r.premium;
 		const auto iconSize = st::settingsReactionSize;
 		AddReactionLottieIcon(
 			button,
@@ -443,6 +446,12 @@ void ReactionsSettingsBox(
 			&button->lifetime());
 
 		button->setClickedCallback([=, emoji = r.emoji] {
+			if (premium && !controller->session().user()->isPremium()) {
+				Ui::ShowMultilineToast({
+					.text = { u"Premium reaction."_q },
+				});
+				return;
+			}
 			checkButton(button);
 			state->selectedEmoji = emoji;
 		});

@@ -1016,7 +1016,7 @@ void Controller::fillManageSection() {
 					EditAllowedReactionsBox,
 					!_peer->isBroadcast(),
 					session->data().reactions().list(
-						Data::Reactions::Type::Active),
+						Data::Reactions::Type::ActiveNonPremium),
 					*Data::PeerAllowedReactions(_peer),
 					done));
 			},

@@ -425,6 +425,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_scam() ? Flag::Scam : Flag())
 			| (data.is_fake() ? Flag::Fake : Flag())
 			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
+			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
 			| (!minimal
 				? (data.is_contact() ? Flag::Contact : Flag())

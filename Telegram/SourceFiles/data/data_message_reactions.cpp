@@ -73,6 +73,7 @@ void Reactions::refresh() {
 
 const std::vector<Reaction> &Reactions::list(Type type) const {
 	switch (type) {
+	case Type::ActiveNonPremium: return _activeNonPremium;
 	case Type::Active: return _active;
 	case Type::All: return _available;
 	}
@@ -301,6 +302,7 @@ void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
 			_iconsCache.emplace(document, document->createMediaView());
 		}
 	};
+	_activeNonPremium.clear();
 	_active.clear();
 	_available.clear();
 	_active.reserve(list.size());
@@ -315,6 +317,9 @@ void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
 				toCache(parsed->selectAnimation);
 				toCache(parsed->centerIcon);
 				toCache(parsed->aroundAnimation);
+				if (!parsed->premium) {
+					_activeNonPremium.push_back(*parsed);
+				}
 			}
 		}
 	}
@@ -354,6 +359,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 						*data.varound_animation()).get()
 					: nullptr),
 				.active = !data.is_inactive(),
+				.premium = data.is_premium(),
 			})
 			: std::nullopt;
 	});
