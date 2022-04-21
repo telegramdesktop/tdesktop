@@ -82,7 +82,7 @@ environment = {
     'MAKE_THREADS_CNT': '-j8',
     'MACOSX_DEPLOYMENT_TARGET': '10.13',
     'UNGUARDED': '-Werror=unguarded-availability-new',
-    'MIN_VER': '-mmacosx-version-min=10.12',
+    'MIN_VER': '-mmacosx-version-min=10.13',
     'USED_PREFIX': usedPrefix,
     'ROOT_DIR': rootDir,
     'LIBS_DIR': libsDir,
