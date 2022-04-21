@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
+#include "data/notify/data_notify_settings.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -377,9 +378,21 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 		tr::lng_profile_enable_notifications(),
 		st::infoNotificationsButton);
 	result->toggleOn(NotificationsEnabledValue(peer), true);
+	result->setAcceptBoth();
 	MuteMenu::SetupMuteMenu(
 		result.data(),
-		result->clicks() | rpl::to_empty,
+		result->clicks(
+		) | rpl::filter([=](Qt::MouseButton button) {
+			if (button == Qt::RightButton) {
+				return true;
+			}
+			if (peer->owner().notifySettings().isMuted(peer)) {
+				peer->owner().notifySettings().update(peer, 0);
+				return false;
+			} else {
+				return true;
+			}
+		}) | rpl::to_empty,
 		{ peer, std::make_shared<Window::Show>(_controller) });
 	object_ptr<FloatingIcon>(
 		result,
