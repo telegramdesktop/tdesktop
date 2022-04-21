@@ -322,7 +322,9 @@ Panel::Panel(
 	_widget->closeEvents(
 	) | rpl::start_with_next(_close, _widget->lifetime());
 
-	style::PaletteChanged(
+	rpl::combine(
+		style::PaletteChanged(),
+		_themeUpdateForced.events()
 	) | rpl::filter([=] {
 		return !_themeUpdateScheduled;
 	}) | rpl::start_with_next([=] {
@@ -564,6 +566,8 @@ bool Panel::createWebview() {
 			sendDataMessage(list.at(1));
 		} else if (command == "web_app_setup_main_button") {
 			processMainButtonMessage(list.at(1));
+		} else if (command == "web_app_request_theme") {
+			_themeUpdateForced.fire({});
 		}
 	});
 
