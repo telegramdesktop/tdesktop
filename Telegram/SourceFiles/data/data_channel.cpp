@@ -467,7 +467,8 @@ bool ChannelData::canPublish() const {
 
 bool ChannelData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	const auto allowed = amIn() || (flags() & Flag::HasLink);
+	const auto allowed = amIn()
+		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
 	return allowed && (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::SendMessages)));

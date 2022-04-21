@@ -1215,6 +1215,19 @@ void ComposeControls::checkAutocomplete() {
 		autocomplete.fromStart);
 }
 
+void ComposeControls::hide() {
+	showStarted();
+	_hidden = true;
+}
+
+void ComposeControls::show() {
+	if (_hidden.current()) {
+		_hidden = false;
+		showFinished();
+		checkAutocomplete();
+	}
+}
+
 void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
@@ -1223,6 +1236,11 @@ void ComposeControls::init() {
 	initWriteRestriction();
 	initVoiceRecordBar();
 	initKeyHandler();
+
+	_hidden.changes(
+	) | rpl::start_with_next([=] {
+		updateWrappingVisibility();
+	}, _wrap->lifetime());
 
 	_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
 
@@ -2021,10 +2039,11 @@ void ComposeControls::initVoiceRecordBar() {
 }
 
 void ComposeControls::updateWrappingVisibility() {
+	const auto hidden = _hidden.current();
 	const auto restricted = _writeRestriction.current().has_value();
-	_writeRestricted->setVisible(restricted);
-	_wrap->setVisible(!restricted);
-	if (!restricted) {
+	_writeRestricted->setVisible(!hidden && restricted);
+	_wrap->setVisible(!hidden && !restricted);
+	if (!hidden && !restricted) {
 		_wrap->raise();
 	}
 }

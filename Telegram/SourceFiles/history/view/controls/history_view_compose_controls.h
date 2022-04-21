@@ -169,6 +169,9 @@ public:
 	void hidePanelsAnimated();
 	void clearListenState();
 
+	void hide();
+	void show();
+
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
@@ -285,6 +288,7 @@ private:
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<std::optional<QString>> _writeRestriction;
+	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

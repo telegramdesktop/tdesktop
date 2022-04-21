@@ -205,6 +205,7 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 	using Flag = ChannelDataFlag;
 	const auto mask = 0
 		| Flag::Left
+		| Flag::JoinToWrite
 		| Flag::HasLink
 		| Flag::Forbidden
 		| Flag::Creator
@@ -227,7 +228,7 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 				bool defaultSendMessagesRestriction) {
 			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
 			const auto allowed = !(flags & notAmInFlags)
-				|| (flags & Flag::HasLink);
+				|| ((flags & Flag::HasLink) && !(flags & Flag::JoinToWrite));
 			return allowed && (postMessagesRight
 					|| (flags & Flag::Creator)
 					|| (!(flags & Flag::Broadcast)
