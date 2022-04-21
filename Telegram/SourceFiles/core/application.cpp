@@ -433,9 +433,9 @@ void Application::startTray() {
 	_tray->showFromTrayRequests(
 	) | rpl::start_with_next([=] {
 		const auto last = _lastActiveWindow;
-		enumerate([&](WindowRaw w) { w->widget()->showFromTrayMenu(); });
+		enumerate([&](WindowRaw w) { w->widget()->showFromTray(); });
 		if (last) {
-			last->widget()->showFromTrayMenu();
+			last->widget()->showFromTray();
 		}
 	}, _primaryWindow->widget()->lifetime());
 

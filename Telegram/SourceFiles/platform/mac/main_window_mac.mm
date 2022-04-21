@@ -237,9 +237,6 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 	}
 }
 
-void MainWindow::handleActiveChangedHook() {
-}
-
 void MainWindow::initHook() {
 	_customTitleHeight = 0;
 	if (auto view = reinterpret_cast<NSView*>(winId())) {
@@ -260,9 +257,6 @@ void MainWindow::hideAndDeactivate() {
 	hide();
 }
 
-void MainWindow::psShowTrayMenu() {
-}
-
 bool MainWindow::preventsQuit(Core::QuitReason reason) {
 	// Thanks Chromium, see
 	// chromium.org/developers/design-documents/confirm-to-quit-experiment
@@ -274,15 +268,6 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 				tr::now,
 				lt_text,
 				Platform::ConfirmQuit::QuitKeysString()));
-}
-
-void MainWindow::psTrayMenuUpdated() {
-}
-
-void MainWindow::psSetupTrayIcon() {
-}
-
-void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 }
 
 void MainWindow::unreadCounterChangedHook() {

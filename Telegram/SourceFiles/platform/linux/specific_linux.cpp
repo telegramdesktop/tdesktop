@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtGui/QWindow>

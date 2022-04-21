@@ -215,9 +215,6 @@ void MainWindow::shadowsDeactivate() {
 	_hasActiveFrame = false;
 }
 
-void MainWindow::psShowTrayMenu() {
-}
-
 void MainWindow::destroyedFromSystem() {
 	Core::Quit();
 }
@@ -245,15 +242,6 @@ void MainWindow::forceIconRefresh() {
 	refresher->activateWindow();
 
 	updateIconCounters();
-}
-
-void MainWindow::psTrayMenuUpdated() {
-}
-
-void MainWindow::psSetupTrayIcon() {
-}
-
-void MainWindow::showTrayTooltip() {
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
@@ -513,10 +501,6 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 	// Didn't find any other way to definitely repaint with the new style.
 	SendMessage(_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 0 : 1, 0);
 	SendMessage(_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 1 : 0, 0);
-}
-
-void MainWindow::showFromTrayMenu() {
-	showFromTray();
 }
 
 HWND MainWindow::psHwnd() const {

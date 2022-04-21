@@ -255,22 +255,9 @@ void MainWindow::initHook() {
 	LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
 }
 
-bool MainWindow::hasTrayIcon() const {
-	return trayIcon;
-}
-
 bool MainWindow::isActiveForTrayMenu() {
 	updateIsActive();
 	return Platform::IsWayland() ? isVisible() : isActive();
-}
-
-void MainWindow::psShowTrayMenu() {
-}
-
-void MainWindow::psTrayMenuUpdated() {
-}
-
-void MainWindow::psSetupTrayIcon() {
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
@@ -327,9 +314,6 @@ void MainWindow::updateIconCounters() {
 		}
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-}
-
-void MainWindow::initTrayMenuHook() {
 }
 
 void MainWindow::createGlobalMenu() {

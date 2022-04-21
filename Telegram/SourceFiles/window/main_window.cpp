@@ -491,9 +491,6 @@ void MainWindow::handleActiveChanged() {
 	if (isActiveWindow()) {
 		Core::App().checkMediaViewActivation();
 	}
-	InvokeQueued(this, [=] {
-		handleActiveChangedHook();
-	});
 }
 
 void MainWindow::handleVisibleChanged(bool visible) {
@@ -765,16 +762,6 @@ void MainWindow::setPositionInited() {
 	_positionInited = true;
 }
 
-void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
-	icon->setToolTip(AppName.utf16());
-	connect(icon, &QSystemTrayIcon::activated, this, [=](
-			QSystemTrayIcon::ActivationReason reason) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			handleTrayIconActication(reason);
-		});
-	});
-}
-
 rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
 }
@@ -903,7 +890,6 @@ bool MainWindow::minimizeToTray() {
 	closeWithoutDestroy();
 	controller().updateIsActiveBlur();
 	updateGlobalMenu();
-	showTrayTooltip();
 	return true;
 }
 
