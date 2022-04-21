@@ -124,52 +124,6 @@ void MainWindow::initHook() {
 }
 
 void MainWindow::createTrayIconMenu() {
-#ifdef Q_OS_WIN
-	trayIconMenu = new Ui::PopupMenu(nullptr);
-	trayIconMenu->deleteOnHide(false);
-#else // Q_OS_WIN
-	trayIconMenu = new QMenu(this);
-
-	connect(trayIconMenu, &QMenu::aboutToShow, [=] {
-		updateIsActive();
-		updateTrayMenu();
-	});
-#endif // else for Q_OS_WIN
-
-	const auto minimizeAction = trayIconMenu->addAction(QString(), [=] {
-		if (_activeForTrayIconAction) {
-			minimizeToTray();
-		} else {
-			showFromTrayMenu();
-		}
-	});
-	const auto notificationAction = trayIconMenu->addAction(QString(), [=] {
-		toggleDisplayNotifyFromTray();
-	});
-	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), [=] {
-		quitFromTray();
-	});
-
-	_updateTrayMenuTextActions.events(
-	) | rpl::start_with_next([=] {
-		if (!trayIconMenu) {
-			return;
-		}
-
-		_activeForTrayIconAction = isActiveForTrayMenu();
-		minimizeAction->setText(_activeForTrayIconAction
-			? tr::lng_minimize_to_tray(tr::now)
-			: tr::lng_open_from_tray(tr::now));
-
-		auto notificationActionText = Core::App().settings().desktopNotify()
-			? tr::lng_disable_notifications_from_tray(tr::now)
-			: tr::lng_enable_notifications_from_tray(tr::now);
-		notificationAction->setText(notificationActionText);
-	}, lifetime());
-
-	_updateTrayMenuTextActions.fire({});
-
-	initTrayMenuHook();
 }
 
 void MainWindow::applyInitialWorkMode() {

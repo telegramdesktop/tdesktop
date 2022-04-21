@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+namespace Window {
+class CounterLayerArgs;
+} // namespace Window
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -43,6 +47,16 @@ public:
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
+	// Windows only.
+	[[nodiscard]] static Window::CounterLayerArgs CounterLayerArgs(
+		int size,
+		int counter,
+		bool muted);
+	[[nodiscard]] static QPixmap IconWithCounter(
+		Window::CounterLayerArgs &&args,
+		bool smallIcon,
+		bool supportMode);
+
 private:
 	base::unique_qptr<QSystemTrayIcon> _icon;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -50,6 +64,7 @@ private:
 	rpl::event_stream<> _iconClicks;
 	rpl::event_stream<> _aboutToShowRequests;
 
+	rpl::lifetime _callbackFromTrayLifetime;
 	rpl::lifetime _actionsLifetime;
 	rpl::lifetime _lifetime;
 

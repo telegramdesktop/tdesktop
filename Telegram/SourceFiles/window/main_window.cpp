@@ -896,7 +896,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (Core::Quitting() || !hasTrayIcon()) {
+	if (Core::Quitting()/* || !hasTrayIcon()*/) {
 		return false;
 	}
 

@@ -26,7 +26,7 @@ namespace {
 
 constexpr auto kTooltipDelay = crl::time(10000);
 
-[[nodiscard]] QImage IconWithCounter(
+[[nodiscard]] QImage ImageIconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool supportMode,
 		bool smallIcon) {
@@ -141,39 +141,23 @@ void Tray::updateIcon() {
 		: !controller->sessionController()
 		? nullptr
 		: &controller->sessionController()->session();
+	const auto supportMode = session && session->supportMode();
+	const auto iconSizeWidth = GetSystemMetrics(SM_CXSMICON);
 
-	const auto iconSizeSmall = QSize(
-		GetSystemMetrics(SM_CXSMICON),
-		GetSystemMetrics(SM_CYSMICON));
-	const auto iconSizeBig = QSize(
-		GetSystemMetrics(SM_CXICON),
-		GetSystemMetrics(SM_CYICON));
-
-	const auto &bg = muted ? st::trayCounterBgMute : st::trayCounterBg;
-	const auto &fg = st::trayCounterFg;
-	const auto counterArgs = [&](int size, int counter) {
-		return Window::CounterLayerArgs{
-			.size = size,
-			.count = counter,
-			.bg = bg,
-			.fg = fg,
-		};
-	};
-	const auto iconWithCounter = [&](int size, int counter, bool smallIcon) {
-		return Ui::PixmapFromImage(IconWithCounter(
-			counterArgs(size, counter),
-			session && session->supportMode(),
-			smallIcon));
-	};
-
-	auto iconSmallPixmap16 = iconWithCounter(16, counter, true);
-	auto iconSmallPixmap32 = iconWithCounter(32, counter, true);
+	auto iconSmallPixmap16 = Tray::IconWithCounter(
+		CounterLayerArgs(16, counter, muted),
+		true,
+		supportMode);
+	auto iconSmallPixmap32 = Tray::IconWithCounter(
+		CounterLayerArgs(32, counter, muted),
+		true,
+		supportMode);
 	auto iconSmall = QIcon();
 	iconSmall.addPixmap(iconSmallPixmap16);
 	iconSmall.addPixmap(iconSmallPixmap32);
 	// Force Qt to use right icon size, not the larger one.
 	QIcon forTrayIcon;
-	forTrayIcon.addPixmap(iconSizeSmall.width() >= 20
+	forTrayIcon.addPixmap(iconSizeWidth >= 20
 		? iconSmallPixmap32
 		: iconSmallPixmap16);
 	_icon->setIcon(forTrayIcon);
@@ -196,7 +180,18 @@ void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
 		return;
 	}
 
-	const auto action = _menu->addAction(QString(), std::move(callback));
+	// If we try to activate() window before the _menu is hidden,
+	// then the window will be shown in semi-active state (Qt bug).
+	// It will receive input events, but it will be rendered as inactive.
+	auto callbackLater = crl::guard(_menu.get(), [=] {
+		using namespace rpl::mappers;
+		_callbackFromTrayLifetime = _menu->shownValue(
+		) | rpl::filter(!_1) | rpl::take(1) | rpl::start_with_next([=] {
+			callback();
+		});
+	});
+
+	const auto action = _menu->addAction(QString(), std::move(callbackLater));
 	std::move(
 		text
 	) | rpl::start_with_next([=](const QString &text) {
@@ -238,6 +233,26 @@ rpl::producer<> Tray::iconClicks() const {
 
 rpl::lifetime &Tray::lifetime() {
 	return _lifetime;
+}
+
+Window::CounterLayerArgs Tray::CounterLayerArgs(
+		int size,
+		int counter,
+		bool muted) {
+	return Window::CounterLayerArgs{
+		.size = size,
+		.count = counter,
+		.bg = muted ? st::trayCounterBgMute : st::trayCounterBg,
+		.fg = st::trayCounterFg,
+	};
+}
+
+QPixmap Tray::IconWithCounter(
+		Window::CounterLayerArgs &&args,
+		bool smallIcon,
+		bool supportMode) {
+	return Ui::PixmapFromImage(
+		ImageIconWithCounter(std::move(args), supportMode, smallIcon));
 }
 
 } // namespace Platform
