@@ -20,11 +20,13 @@ class QSystemTrayIcon;
 
 namespace Platform {
 
+class IconGraphic;
 class TrayEventFilter;
 
 class Tray final {
 public:
 	Tray();
+	~Tray();
 
 	[[nodiscard]] rpl::producer<> aboutToShowRequests() const;
 	[[nodiscard]] rpl::producer<> showFromTrayRequests() const;
@@ -47,6 +49,8 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	std::unique_ptr<IconGraphic> _iconGraphic;
+
 	base::unique_qptr<QSystemTrayIcon> _icon;
 	base::unique_qptr<QMenu> _menu;
 	base::unique_qptr<Ui::PopupMenu> _menuXEmbed;
