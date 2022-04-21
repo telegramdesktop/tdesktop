@@ -80,7 +80,7 @@ for singlePrefix in pathPrefixes:
 
 environment = {
     'MAKE_THREADS_CNT': '-j8',
-    'MACOSX_DEPLOYMENT_TARGET': '10.12',
+    'MACOSX_DEPLOYMENT_TARGET': '10.13',
     'UNGUARDED': '-Werror=unguarded-availability-new',
     'MIN_VER': '-mmacosx-version-min=10.12',
     'USED_PREFIX': usedPrefix,
