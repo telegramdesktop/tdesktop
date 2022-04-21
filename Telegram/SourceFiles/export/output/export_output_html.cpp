@@ -1113,6 +1113,10 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionChatJoinedByRequest &data) {
 		return serviceFrom
 			+ " joined group by request";
+	}, [&](const ActionWebViewDataSent &data) {
+		return "You have just successfully transferred data from the &laquo;"
+			+ SerializeString(data.text)
+			+ "&raquo; button to the bot";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
 #include "settings/settings_common.h"
+#include "settings/settings_calls.h"
 #include "settings/settings_information.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
@@ -85,7 +86,7 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
 				window->showSettings(
-					Settings::Type::Calls,
+					Settings::Calls::Id(),
 					Window::SectionShow(anim::type::instant));
 			};
 			const auto clearAll = crl::guard(box, [=] {
@@ -474,15 +475,13 @@ void MainMenu::setupArchive() {
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 			this,
 			st::popupMenuWithIcons);
-		const auto addAction = [&](
-				const QString &text,
-				Fn<void()> callback,
-				const style::icon *icon) {
+		const auto addAction = PeerMenuCallback([&](
+				PeerMenuCallback::Args a) {
 			return _contextMenu->addAction(
-				text,
-				std::move(callback),
-				icon);
-		};
+				a.text,
+				std::move(a.handler),
+				a.icon);
+		});
 
 		const auto hide = [=] {
 			controller->session().settings().setArchiveInMainMenu(false);

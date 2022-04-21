@@ -30,7 +30,8 @@ struct Stream {
 	crl::time duration = kTimeUnknown;
 	AVRational timeBase = FFmpeg::kUniversalTimeBase;
 	FFmpeg::CodecPointer codec;
-	FFmpeg::FramePointer frame;
+	FFmpeg::FramePointer decodedFrame;
+	FFmpeg::FramePointer transferredFrame;
 	std::deque<FFmpeg::Packet> queue;
 	int invalidDataPackets = 0;
 
@@ -54,12 +55,16 @@ struct Stream {
 	bool hasAlpha,
 	int rotation,
 	const FrameRequest &request);
+[[nodiscard]] bool TransferFrame(
+	Stream &stream,
+	not_null<AVFrame*> decodedFrame,
+	not_null<AVFrame*> transferredFrame);
 [[nodiscard]] QImage ConvertFrame(
 	Stream &stream,
-	AVFrame *frame,
+	not_null<AVFrame*> frame,
 	QSize resize,
 	QImage storage);
-[[nodiscard]] FrameYUV420 ExtractYUV420(Stream &stream, AVFrame *frame);
+[[nodiscard]] FrameYUV ExtractYUV(Stream &stream, AVFrame *frame);
 [[nodiscard]] QImage PrepareByRequest(
 	const QImage &original,
 	bool alpha,

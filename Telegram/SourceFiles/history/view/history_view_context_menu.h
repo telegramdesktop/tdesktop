@@ -54,12 +54,17 @@ void CopyPostLink(
 	not_null<Main::Session*> session,
 	FullMsgId itemId,
 	Context context);
-void StopPoll(not_null<Main::Session*> session, FullMsgId itemId);
 void AddPollActions(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<PollData*> poll,
 	not_null<HistoryItem*> item,
-	Context context);
+	Context context,
+	not_null<Window::SessionController*> controller);
+void AddSaveSoundForNotifications(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<HistoryItem*> item,
+	not_null<DocumentData*> document,
+	not_null<Window::SessionController*> controller);
 void AddWhoReactedAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<QWidget*> context,
@@ -73,15 +78,5 @@ void ShowWhoReactedMenu(
 	const QString &emoji,
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
-
-void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids);
-void ShowReportPeerBox(
-	not_null<Window::SessionController*> window,
-	not_null<PeerData*> peer);
-void SendReport(
-	not_null<PeerData*> peer,
-	Ui::ReportReason reason,
-	const QString &comment,
-	MessageIdsList ids = {});
 
 } // namespace HistoryView

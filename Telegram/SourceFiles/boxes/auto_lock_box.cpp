@@ -53,8 +53,8 @@ void AutoLockBox::prepare() {
 			}
 			const auto minutes = (seconds % 3600);
 			return (minutes
-				? tr::lng_passcode_autolock_minutes
-				: tr::lng_passcode_autolock_hours)(
+				? tr::lng_minutes
+				: tr::lng_hours)(
 					tr::now,
 					lt_count,
 					minutes ? (seconds / 60) : (seconds / 3600));

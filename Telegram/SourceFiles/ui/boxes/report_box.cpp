@@ -9,12 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/layers/generic_box.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
+#include "info/profile/info_profile_icon.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
+#include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -36,30 +40,71 @@ void ReportReasonBox(
 		case Source::Channel: return tr::lng_report_title();
 		case Source::Group: return tr::lng_report_group_title();
 		case Source::Bot: return tr::lng_report_bot_title();
+		case Source::ProfilePhoto:
+			return tr::lng_report_profile_photo_title();
+		case Source::ProfileVideo:
+			return tr::lng_report_profile_video_title();
 		}
 		Unexpected("'source' in ReportReasonBox.");
 	}());
-	const auto add = [&](Reason reason, tr::phrase<> text) {
+	const auto isProfileSource = (source == Source::ProfilePhoto)
+		|| (source == Source::ProfileVideo);
+	auto margin = style::margins{ 0, st::reportReasonTopSkip, 0, 0 };
+	const auto add = [&](
+			Reason reason,
+			tr::phrase<> text,
+			const style::icon &icon) {
+		const auto &st = st::reportReasonButton;
 		const auto layout = box->verticalLayout();
 		const auto button = layout->add(
-			object_ptr<SettingsButton>(layout, text()));
+			object_ptr<Ui::SettingsButton>(layout.get(), text(), st),
+			margin);
+		margin = {};
 		button->setClickedCallback([=] {
 			done(reason);
 		});
+		const auto height = st.padding.top()
+			+ st.height
+			+ st.padding.bottom();
+		object_ptr<Info::Profile::FloatingIcon>(
+			button,
+			icon,
+			QPoint{
+				st::infoSharedMediaButtonIconPosition.x(),
+				(height - icon.height()) / 2,
+			});
 	};
-	add(Reason::Spam, tr::lng_report_reason_spam);
-	if (source != Source::Message) {
-		add(Reason::Fake, tr::lng_report_reason_fake);
+	add(Reason::Spam, tr::lng_report_reason_spam, st::menuIconDelete);
+	if (source != Source::Message && !isProfileSource) {
+		add(Reason::Fake, tr::lng_report_reason_fake, st::menuIconFake);
 	}
-	add(Reason::Violence, tr::lng_report_reason_violence);
-	add(Reason::ChildAbuse, tr::lng_report_reason_child_abuse);
-	add(Reason::Pornography, tr::lng_report_reason_pornography);
-	add(Reason::Copyright, tr::lng_report_reason_copyright);
+	add(
+		Reason::Violence,
+		tr::lng_report_reason_violence,
+		st::menuIconViolence);
+	add(
+		Reason::ChildAbuse,
+		tr::lng_report_reason_child_abuse,
+		st::menuIconBlock);
+	add(
+		Reason::Pornography,
+		tr::lng_report_reason_pornography,
+		st::menuIconPorn);
+	add(
+		Reason::Copyright,
+		tr::lng_report_reason_copyright,
+		st::menuIconCopyright);
 	if (source == Source::Message) {
-		add(Reason::IllegalDrugs, tr::lng_report_reason_illegal_drugs);
-		add(Reason::PersonalDetails, tr::lng_report_reason_personal_details);
+		add(
+			Reason::IllegalDrugs,
+			tr::lng_report_reason_illegal_drugs,
+			st::menuIconDrugs);
+		add(
+			Reason::PersonalDetails,
+			tr::lng_report_reason_personal_details,
+			st::menuIconPersonal);
 	}
-	add(Reason::Other, tr::lng_report_reason_other);
+	add(Reason::Other, tr::lng_report_reason_other, st::menuIconReport);
 
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

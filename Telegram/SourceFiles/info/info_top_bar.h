@@ -35,11 +35,6 @@ namespace Info {
 class Key;
 class Section;
 
-rpl::producer<QString> TitleValue(
-	const Section &section,
-	Key key,
-	bool isStackBottom);
-
 class TopBar : public Ui::RpWidget {
 public:
 	TopBar(

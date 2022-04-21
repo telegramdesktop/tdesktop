@@ -1130,6 +1130,12 @@ ServiceAction ParseServiceAction(
 		};
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		result.content = ActionChatJoinedByRequest();
+	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
+		// Should not be in user inbox.
+	}, [&](const MTPDmessageActionWebViewDataSent &data) {
+		auto content = ActionWebViewDataSent();
+		content.text = ParseString(data.vtext());
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

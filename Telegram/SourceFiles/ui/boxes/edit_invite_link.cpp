@@ -30,20 +30,11 @@ constexpr auto kMaxLabelLength = 32;
 	if (date > 0) {
 		return langDateTime(base::unixtime::parse(date));
 	} else if (-date < kDay) {
-		return tr::lng_group_call_duration_hours(
-			tr::now,
-			lt_count,
-			(-date / kHour));
+		return tr::lng_hours(tr::now, lt_count, (-date / kHour));
 	} else if (-date < 7 * kDay) {
-		return tr::lng_group_call_duration_days(
-			tr::now,
-			lt_count,
-			(-date / kDay));
+		return tr::lng_days(tr::now, lt_count, (-date / kDay));
 	} else {
-		return tr::lng_local_storage_limit_weeks(
-			tr::now,
-			lt_count,
-			(-date / (7 * kDay)));
+		return tr::lng_weeks(tr::now, lt_count, (-date / (7 * kDay)));
 	}
 }
 

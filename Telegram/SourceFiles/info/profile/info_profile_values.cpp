@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "countries/countries_instance.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
 #include "data/data_message_reactions.h"
@@ -80,9 +82,11 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
-	return user->session().changes().peerFlagsValue(
-		user,
-		UpdateFlag::PhoneNumber
+	return rpl::merge(
+		Countries::Instance().updated(),
+		user->session().changes().peerFlagsValue(
+			user,
+			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
 		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
@@ -171,9 +175,9 @@ rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
 			peer,
 			UpdateFlag::Notifications
 		) | rpl::to_empty,
-		peer->owner().defaultNotifyUpdates(peer)
+		peer->owner().notifySettings().defaultUpdates(peer)
 	) | rpl::map([=] {
-		return !peer->owner().notifyIsMuted(peer);
+		return !peer->owner().notifySettings().isMuted(peer);
 	}) | rpl::distinct_until_changed();
 }
 
@@ -186,15 +190,45 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 	});
 }
 
-rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user) {
-	if (!user->isBot() || user->isSupport()) {
-		return rpl::single(false);
+[[nodiscard]] rpl::producer<QString> InviteToChatButton(
+		not_null<UserData*> user) {
+	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+		return rpl::single(QString());
 	}
+	using Flag = Data::PeerUpdate::Flag;
 	return user->session().changes().peerFlagsValue(
 		user,
-		UpdateFlag::BotCanBeInvited
+		Flag::BotCanBeInvited | Flag::Rights
 	) | rpl::map([=] {
-		return !user->botInfo->cantJoinGroups;
+		const auto info = user->botInfo.get();
+		return info->cantJoinGroups
+			? (info->channelAdminRights
+				? tr::lng_profile_invite_to_channel(tr::now)
+				: QString())
+			: (info->channelAdminRights
+				? tr::lng_profile_add_bot_as_admin(tr::now)
+				: tr::lng_profile_invite_to_group(tr::now));
+	});
+}
+
+[[nodiscard]] rpl::producer<QString> InviteToChatAbout(
+		not_null<UserData*> user) {
+	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+		return rpl::single(QString());
+	}
+	using Flag = Data::PeerUpdate::Flag;
+	return user->session().changes().peerFlagsValue(
+		user,
+		Flag::BotCanBeInvited | Flag::Rights
+	) | rpl::map([=] {
+		const auto info = user->botInfo.get();
+		return (info->cantJoinGroups || !info->groupAdminRights)
+			? (info->channelAdminRights
+				? tr::lng_profile_invite_to_channel_about(tr::now)
+				: QString())
+			: (info->channelAdminRights
+				? tr::lng_profile_add_bot_as_admin_about(tr::now)
+				: tr::lng_profile_invite_to_group_about(tr::now));
 	});
 }
 

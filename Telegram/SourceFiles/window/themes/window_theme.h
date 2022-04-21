@@ -27,6 +27,10 @@ namespace Ui {
 struct ChatThemeBackground;
 } // namespace Ui
 
+namespace Webview {
+struct ThemeParams;
+} // namespace Webview
+
 namespace Window {
 namespace Theme {
 
@@ -292,6 +296,8 @@ private:
 bool ReadPaletteValues(
 	const QByteArray &content,
 	Fn<bool(QLatin1String name, QLatin1String value)> callback);
+
+[[nodiscard]] Webview::ThemeParams WebViewParams();
 
 } // namespace Theme
 } // namespace Window

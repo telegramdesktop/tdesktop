@@ -41,6 +41,8 @@ struct HistoryMessageMarkupButton {
 		Buy,
 		Auth,
 		UserProfile,
+		WebView,
+		SimpleWebView,
 	};
 
 	HistoryMessageMarkupButton(

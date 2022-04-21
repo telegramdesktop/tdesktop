@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 #include "history/history_unread_things.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
@@ -70,7 +71,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _delegateMixin(HistoryInner::DelegateMixin())
-, _mute(owner->notifyIsMuted(peer))
+, _mute(owner->notifySettings().isMuted(peer))
 , _chatListNameSortKey(owner->nameSortKey(peer->name))
 , _sendActionPainter(this) {
 	if (const auto user = peer->asUser()) {
@@ -2553,7 +2554,7 @@ void History::applyDialog(
 			}
 		}
 	}
-	owner().applyNotifySetting(
+	owner().notifySettings().apply(
 		MTP_notifyPeer(data.vpeer()),
 		data.vnotify_settings());
 

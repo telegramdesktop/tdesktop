@@ -69,12 +69,9 @@ void GroupCallScheduledLeft::update() {
 	constexpr auto kDay = 24 * 60 * 60;
 	if (left >= kDay) {
 		const auto days = (left / kDay);
-		_textNonNegative = tr::lng_group_call_duration_days(
-			tr::now,
-			lt_count,
-			days);
+		_textNonNegative = tr::lng_days(tr::now, lt_count, days);
 		_text = late
-			? tr::lng_group_call_duration_days(tr::now, lt_count, -days)
+			? tr::lng_days(tr::now, lt_count, -days)
 			: _textNonNegative.current();
 	} else {
 		const auto hours = left / (60 * 60);

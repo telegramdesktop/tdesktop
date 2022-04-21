@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "menu/add_action_callback_factory.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -1771,6 +1772,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
+		const auto addAction = Menu::CreateAddActionCallback(_menu);
 		Window::FillDialogsEntryMenu(
 			_controller,
 			Dialogs::EntryState{
@@ -1778,12 +1780,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				.section = Dialogs::EntryState::Section::ChatsList,
 				.filterId = _filterId,
 			},
-			[&](
-					const QString &text,
-					Fn<void()> callback,
-					const style::icon *icon) {
-				return _menu->addAction(text, std::move(callback), icon);
-			});
+			addAction);
 	}
 	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {

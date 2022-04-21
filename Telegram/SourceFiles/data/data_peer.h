@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 #include "data/data_flags.h"
-#include "data/data_notify_settings.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "data/data_cloud_file.h"
 
+struct BotInfo;
 class PeerData;
 class UserData;
 class ChatData;
@@ -109,6 +110,9 @@ bool UpdateBotCommands(
 bool UpdateBotCommands(
 	base::flat_map<UserId, std::vector<BotCommand>> &commands,
 	const MTPVector<MTPBotInfo> &data);
+bool ApplyBotMenuButton(
+	not_null<BotInfo*> info,
+	const MTPBotMenuButton &button);
 
 } // namespace Data
 
@@ -194,14 +198,18 @@ public:
 	}
 	bool notifyChange(
 			std::optional<int> muteForSeconds,
-			std::optional<bool> silentPosts) {
-		return _notify.change(muteForSeconds, silentPosts);
+			std::optional<bool> silentPosts,
+			std::optional<Data::NotifySound> sound) {
+		return _notify.change(muteForSeconds, silentPosts, sound);
 	}
 	[[nodiscard]] bool notifySettingsUnknown() const {
 		return _notify.settingsUnknown();
 	}
 	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
 		return _notify.silentPosts();
+	}
+	[[nodiscard]] std::optional<Data::NotifySound> notifySound() const {
+		return _notify.sound();
 	}
 	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
 		return _notify.serialize();
@@ -436,7 +444,7 @@ private:
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 	Ui::Text::String _nameText;
 
-	Data::NotifySettings _notify;
+	Data::PeerNotifySettings _notify;
 
 	ClickHandlerPtr _openLink;
 	base::flat_set<QString> _nameWords; // for filtering

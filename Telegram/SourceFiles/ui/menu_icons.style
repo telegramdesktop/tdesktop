@@ -8,9 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/colors.palette";
 using "ui/widgets/widgets.style";
 
+menuIconColor: windowBoldFg;
+menuIconAttentionColor: attentionButtonFg;
+
+menuIconSubmenuArrow: icon {{ "menu/submenu_arrow", menuIconColor }};
+
 menuWithIcons: Menu(defaultMenu) {
 	itemIconPosition: point(15px, 5px);
 	itemPadding: margins(54px, 8px, 17px, 8px);
+
+	arrow: menuIconSubmenuArrow;
+}
+menuWithIconsAttention: Menu(menuWithIcons) {
+	itemFg: attentionButtonFg;
+	itemFgOver: attentionButtonFgOver;
 }
 popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
@@ -23,7 +34,6 @@ dropdownMenuWithIcons: DropdownMenu(defaultDropdownMenu) {
 	menu: menuWithIcons;
 }
 
-menuIconColor: windowBoldFg;
 menuIconReactions: icon {{ "menu/read_reactions", menuIconColor }};
 menuIconReply: icon {{ "menu/reply", menuIconColor }};
 menuIconViewReplies: icon {{ "menu/view_replies", menuIconColor }};
@@ -67,7 +77,6 @@ menuIconExport: icon {{ "menu/export", menuIconColor }};
 menuIconClear: icon {{ "menu/clear", menuIconColor }};
 menuIconManage: icon {{ "menu/manage", menuIconColor }};
 menuIconDiscussion: icon {{ "menu/discussion", menuIconColor }};
-menuIconLeave: icon {{ "menu/leave", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};
 menuIconExpand: icon {{ "menu/expand", menuIconColor }};
@@ -87,6 +96,30 @@ menuIconImportTheme: icon {{ "menu/import_theme", menuIconColor }};
 menuIconExportTheme: icon {{ "menu/export_theme", menuIconColor }};
 menuIconRestore: icon {{ "menu/restore", menuIconColor }};
 menuIconSettings: icon {{ "menu/settings", menuIconColor }};
+menuIconCopyright: icon {{ "menu/copyright", menuIconColor }};
+menuIconDrugs: icon {{ "menu/drugs", menuIconColor }};
+menuIconFake: icon {{ "menu/fake", menuIconColor }};
+menuIconPersonal: icon {{ "menu/personal", menuIconColor }};
+menuIconPorn: icon {{ "menu/porn", menuIconColor }};
+menuIconViolence: icon {{ "menu/violence", menuIconColor }};
+menuIconMuteFor: icon {{ "menu/mute_for", menuIconColor }};
+menuIconSilent: icon {{ "menu/silent", menuIconColor }};
+menuIconCustomize: icon {{ "menu/customize", menuIconColor }};
+menuIconSoundOn: icon {{ "menu/sound_enable", menuIconColor }};
+menuIconSoundOff: icon {{ "menu/sound_disable", menuIconColor }};
+menuIconSoundSelect: icon {{ "menu/sound_select", menuIconColor }};
+menuIconSoundAdd: icon {{ "menu/sound_add", menuIconColor }};
+menuIconFile: icon {{ "menu/file", menuIconColor }};
+menuIconPhoto: icon {{ "menu/image", menuIconColor }};
+menuIconAddToFolder: icon {{ "menu/add_to_folder", menuIconColor }};
+
+menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
+menuIconTTLAnyTextPosition: point(11px, 22px);
+menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
+
+menuIconMuteForAny: icon {{ "menu/mute_for_plain", menuIconColor }};
+menuIconMuteForAnyTextPosition: point(14px, 9px);
+menuIconMuteForAnyTextFont: font(8px semibold);
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
@@ -97,6 +130,12 @@ mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
 mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
 mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
+mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
+mediaMenuIconReport: icon {{ "menu/report", mediaviewMenuFg }};
 
 menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
 menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
+
+menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
+menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
+menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};

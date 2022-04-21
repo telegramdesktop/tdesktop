@@ -174,20 +174,11 @@ void ScheduleGroupCallBox(
 		const auto now = base::unixtime::now();
 		const auto duration = (date - now);
 		if (duration >= 24 * 60 * 60) {
-			return tr::lng_group_call_duration_days(
-				tr::now,
-				lt_count,
-				duration / (24 * 60 * 60));
+			return tr::lng_days(tr::now, lt_count, duration / (24 * 60 * 60));
 		} else if (duration >= 60 * 60) {
-			return tr::lng_group_call_duration_hours(
-				tr::now,
-				lt_count,
-				duration / (60 * 60));
+			return tr::lng_hours(tr::now, lt_count, duration / (60 * 60));
 		}
-		return tr::lng_group_call_duration_minutes(
-			tr::now,
-			lt_count,
-			std::max(duration / 60, 1));
+		return tr::lng_minutes(tr::now, lt_count, std::max(duration / 60, 1));
 	});
 }
 
@@ -240,11 +231,9 @@ void ChooseJoinAsBox(
 		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
-	auto next = (context == Context::Switch)
-		? tr::lng_settings_save()
-		: tr::lng_continue();
-#if 0
-	if ((context == Context::Create)) {
+	const auto &peer = info.peer;
+	if ((context == Context::Create)
+		&& (peer->isChannel() && peer->asChannel()->hasAdminRights())) {
 		const auto makeLink = [](const QString &text) {
 			return Ui::Text::Link(text);
 		};
@@ -265,7 +254,9 @@ void ChooseJoinAsBox(
 			return false;
 		});
 	}
-#endif
+	auto next = (context == Context::Switch)
+		? tr::lng_settings_save()
+		: tr::lng_continue();
 	box->addButton(std::move(next), [=] {
 		auto copy = info;
 		copy.joinAs = controller->selected();

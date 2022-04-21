@@ -983,10 +983,7 @@ void Controller::fillManageSection() {
 			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
-	if (canEditInviteLinks
-		&& (canEditType
-			|| !_peer->isChannel()
-			|| !_peer->asChannel()->hasUsername())) {
+	if (canEditInviteLinks) {
 		auto count = Info::Profile::MigratedOrMeValue(
 			_peer
 		) | rpl::map([=](not_null<PeerData*> peer) {

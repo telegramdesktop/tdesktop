@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 #ifdef Q_OS_WIN
 
+#include <new.h>
+
 #pragma warning(push)
 #pragma warning(disable:4091)
 #include "client/windows/handler/exception_handler.h"
@@ -105,11 +107,20 @@ std::unique_ptr<ReservedMemoryChunk> ReservedMemory;
 
 void InstallOperatorNewHandler() {
 	ReservedMemory = std::make_unique<ReservedMemoryChunk>();
+#ifdef Q_OS_WIN
+	_set_new_handler([](size_t requested) -> int {
+		_set_new_handler(nullptr);
+		ReservedMemory.reset();
+		CrashReports::SetAnnotation("Requested", QString::number(requested));
+		Unexpected("Could not allocate!");
+	});
+#else // Q_OS_WIN
 	std::set_new_handler([] {
 		std::set_new_handler(nullptr);
 		ReservedMemory.reset();
 		Unexpected("Could not allocate!");
 	});
+#endif // Q_OS_WIN
 }
 
 void InstallQtMessageHandler() {

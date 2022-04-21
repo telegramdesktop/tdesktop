@@ -15,6 +15,9 @@ jobs:
     name: Ubuntu
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_TAG: ghcr.io/${{ github.repository }}/centos_env:latest
+
     steps:
       - name: Clone.
         uses: actions/checkout@v2
@@ -22,4 +25,10 @@ jobs:
           submodules: recursive
 
       - name: Docker image build.
-        run: docker build -t telegram_desktop Telegram/build/docker/centos_env
+        run: docker build -t $IMAGE_TAG --build-arg DEBUG= Telegram/build/docker/centos_env
+      
+      - name: Push the Docker image.
+        if: ${{ github.ref_name == github.event.repository.default_branch }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+          docker push $IMAGE_TAG

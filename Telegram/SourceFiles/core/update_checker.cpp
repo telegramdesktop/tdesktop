@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/settings/info_settings_widget.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_advanced.h"
 #include "settings/settings_intro.h"
 #include "ui/layers/box_content.h"
 
@@ -1652,7 +1653,7 @@ void UpdateApplication() {
 				controller->showSection(
 					std::make_shared<Info::Memento>(
 						Info::Settings::Tag{ controller->session().user() },
-						Info::Section::SettingsType::Advanced),
+						::Settings::Advanced::Id()),
 					Window::SectionShow());
 			} else {
 				window->showSpecialLayer(

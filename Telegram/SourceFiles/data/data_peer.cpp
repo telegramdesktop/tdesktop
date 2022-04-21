@@ -81,9 +81,11 @@ style::color PeerUserpicColor(PeerId peerId) {
 }
 
 PeerId FakePeerIdForJustName(const QString &name) {
-	return peerFromUser(name.isEmpty()
+	constexpr auto kShift = (0xFEULL << 32);
+	const auto base = name.isEmpty()
 		? 777
-		: base::crc32(name.constData(), name.size() * sizeof(QChar)));
+		: base::crc32(name.constData(), name.size() * sizeof(QChar));
+	return peerFromUser(kShift + std::abs(base));
 }
 
 bool UpdateBotCommands(
@@ -157,6 +159,25 @@ bool UpdateBotCommands(
 		}
 	}
 	return result;
+}
+
+bool ApplyBotMenuButton(
+		not_null<BotInfo*> info,
+		const MTPBotMenuButton &button) {
+	auto text = QString();
+	auto url = QString();
+	button.match([&](const MTPDbotMenuButton &data) {
+		text = qs(data.vtext());
+		url = qs(data.vurl());
+	}, [&](const auto &) {
+	});
+	const auto changed = (info->botMenuButtonText != text)
+		|| (info->botMenuButtonUrl != url);
+
+	info->botMenuButtonText = text;
+	info->botMenuButtonUrl = url;
+
+	return changed;
 }
 
 } // namespace Data

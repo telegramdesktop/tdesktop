@@ -8,25 +8,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "settings/settings_common.h"
+
+namespace Lottie {
+class Icon;
+} // namespace Lottie
 
 namespace Window {
 class SessionController;
 } // namespace Window
 
-class ChangePhoneBox : public Ui::BoxContent {
+namespace Settings {
+
+class ChangePhone : public Section<ChangePhone> {
 public:
-	ChangePhoneBox(QWidget*, not_null<Window::SessionController*> controller);
+	ChangePhone(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
-protected:
-	void prepare() override;
-
-	void paintEvent(QPaintEvent *e) override;
+	void showFinished() override;
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 private:
 	class EnterPhone;
 	class EnterCode;
 
+	void setupContent();
+
 	const not_null<Window::SessionController*> _controller;
+	Fn<void()> _animate;
 
 };
 
+} // namespace Settings

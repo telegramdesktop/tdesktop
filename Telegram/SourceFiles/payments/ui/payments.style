@@ -131,3 +131,9 @@ paymentsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: windowSubTextFg;
 	thickness: 4px;
 }
+
+botWebViewBottomButton: RoundButton(paymentsPanelSubmit) {
+	height: 56px;
+	font: boxButtonFont;
+	textTop: 19px;
+}
