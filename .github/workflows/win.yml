@@ -45,7 +45,8 @@ jobs:
   windows:
     name: Windows
     runs-on: windows-2022
-
+    continue-on-error: true
+    
     strategy:
       matrix:
         arch: [Win32, x64]
