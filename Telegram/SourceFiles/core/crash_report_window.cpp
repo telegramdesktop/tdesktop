@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
+#include <qpa/qplatformscreen.h>
 
 namespace {
 
@@ -43,7 +44,18 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	_size = QFontMetrics(QGuiApplication::font()).height();
+	constexpr auto processDpi = [](const QDpi &dpi) {
+		return (dpi.first + dpi.second) * 0.5;
+	};
+
+	const auto screen = QGuiApplication::primaryScreen();
+	const auto scale = processDpi(screen->handle()->logicalDpi())
+		/ processDpi(screen->handle()->logicalBaseDpi());
+
+	auto font = QGuiApplication::font();
+	font.setPixelSize(base::SafeRound(font.pointSize() * scale));
+
+	_size = QFontMetrics(font).height();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;

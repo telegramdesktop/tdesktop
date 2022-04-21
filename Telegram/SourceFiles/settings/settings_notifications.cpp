@@ -30,6 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "api/api_authorizations.h"
+#include "api/api_ringtones.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/notify/data_notify_settings.h"
+#include "boxes/ringtones_box.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_settings.h"
@@ -824,12 +829,6 @@ void SetupNotificationsContent(
 		{ &st::settingsIconNotifications, kIconRed },
 		desktopToggles->events_starting_with(settings.desktopNotify()));
 
-	const auto soundToggles = container->lifetime(
-	).make_state<rpl::event_stream<bool>>();
-	const auto sound = addCheckbox(
-		tr::lng_settings_sound_notify(),
-		{ &st::settingsIconSound, kIconLightBlue },
-		soundToggles->events_starting_with(settings.soundNotify()));
 	const auto flashbounceToggles = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();
 	const auto flashbounce = addCheckbox(
@@ -841,6 +840,42 @@ void SetupNotificationsContent(
 		{ &st::settingsIconDock, kIconDarkBlue },
 		flashbounceToggles->events_starting_with(
 			settings.flashBounceNotify()));
+
+	const auto soundLabel = container->lifetime(
+	).make_state<rpl::event_stream<QString>>();
+	const auto soundValue = [=] {
+		const auto owner = &controller->session().data();
+		const auto &settings = owner->notifySettings().defaultSettings(
+			Data::DefaultNotify::User);
+		return !Core::App().settings().soundNotify()
+			? Data::NotifySound{ .none = true }
+			: settings.sound().value_or(Data::NotifySound());
+	};
+	const auto label = [=] {
+		const auto now = soundValue();
+		const auto owner = &controller->session().data();
+		return now.none
+			? tr::lng_settings_sound_notify_off(tr::now)
+			: !now.id
+			? tr::lng_ringtones_box_default(tr::now)
+			: ExtractRingtoneName(owner->document(now.id));
+	};
+	controller->session().data().notifySettings().defaultUpdates(
+		Data::DefaultNotify::User
+	) | rpl::start_with_next([=] {
+		soundLabel->fire(label());
+	}, container->lifetime());
+	controller->session().api().ringtones().listUpdates(
+	) | rpl::start_with_next([=] {
+		soundLabel->fire(label());
+	}, container->lifetime());
+
+	const auto sound = AddButtonWithLabel(
+		container,
+		tr::lng_settings_sound_notify(),
+		soundLabel->events_starting_with(label()),
+		st::settingsButton,
+		{ &st::settingsIconSound, kIconLightBlue });
 
 	AddSkip(container);
 
@@ -1012,13 +1047,24 @@ void SetupNotificationsContent(
 		changed(Change::ViewParams);
 	}, preview->lifetime());
 
-	sound->toggledChanges(
-	) | rpl::filter([](bool checked) {
-		return (checked != Core::App().settings().soundNotify());
-	}) | rpl::start_with_next([=](bool checked) {
-		Core::App().settings().setSoundNotify(checked);
-		changed(Change::SoundEnabled);
-	}, sound->lifetime());
+	sound->setClickedCallback([=] {
+		controller->show(Box(RingtonesBox, session, soundValue(), [=](
+				Data::NotifySound sound) {
+			Core::App().settings().setSoundNotify(!sound.none);
+			if (!sound.none) {
+				using Type = Data::DefaultNotify;
+				const auto owner = &controller->session().data();
+				auto &settings = owner->notifySettings();
+				const auto updateType = [&](Type type) {
+					settings.defaultUpdate(type, {}, {}, sound);
+				};
+				updateType(Type::User);
+				updateType(Type::Group);
+				updateType(Type::Broadcast);
+			}
+			changed(Change::SoundEnabled);
+		}));
+	});
 
 	flashbounce->toggledChanges(
 	) | rpl::filter([](bool checked) {
@@ -1057,7 +1103,7 @@ void SetupNotificationsContent(
 		} else if (change == Change::ViewParams) {
 			//
 		} else if (change == Change::SoundEnabled) {
-			soundToggles->fire(Core::App().settings().soundNotify());
+			soundLabel->fire(label());
 		} else if (change == Change::FlashBounceEnabled) {
 			flashbounceToggles->fire(
 				Core::App().settings().flashBounceNotify());
@@ -1095,6 +1141,10 @@ Notifications::Notifications(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Notifications::title() {
+	return tr::lng_settings_section_notify();
 }
 
 void Notifications::setupContent(

@@ -234,7 +234,7 @@ void Reactions::loadImage(
 
 void Reactions::setLottie(ImageSet &set) {
 	const auto size = style::ConvertScale(kSizeForDownscale);
-	set.icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+	set.icon = Lottie::MakeIcon({
 		.path = set.media->owner()->filepath(true),
 		.json = set.media->bytes(),
 		.sizeOverride = QSize(size, size),

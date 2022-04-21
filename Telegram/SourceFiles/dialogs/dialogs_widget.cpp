@@ -1537,7 +1537,7 @@ void Widget::showCalendar() {
 void Widget::showSearchFrom() {
 	if (const auto peer = _searchInChat.peer()) {
 		const auto chat = _searchInChat;
-		ShowSearchFromBox(
+		auto box = SearchFromBox(
 			peer,
 			crl::guard(this, [=](not_null<PeerData*> from) {
 				Ui::hideLayer();
@@ -1545,6 +1545,9 @@ void Widget::showSearchFrom() {
 				applyFilterUpdate(true);
 			}),
 			crl::guard(this, [=] { _filter->setFocus(); }));
+		if (box) {
+			Window::Show(controller()).showBox(std::move(box));
+		}
 	}
 }
 

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
+#include "data/notify/data_notify_settings.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -177,7 +179,10 @@ System::SkipState System::computeSkipState(
 		return SkipState{
 			.value = value,
 			.silent = (forceSilent
-				|| (messageNotification && item->isSilent())),
+				|| !messageNotification
+				|| item->isSilent()
+				|| history->owner().notifySettings().sound(
+					history->peer).none),
 		};
 	};
 	const auto showForMuted = messageNotification
@@ -194,29 +199,30 @@ System::SkipState System::computeSkipState(
 	}
 
 	if (messageNotification) {
-		history->owner().requestNotifySettings(history->peer);
+		history->owner().notifySettings().request(
+			history->peer);
 	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
 		notifyBy->updateFull();
 	}
 	if (notifyBy) {
-		history->owner().requestNotifySettings(notifyBy);
+		history->owner().notifySettings().request(notifyBy);
 	}
 
 	if (messageNotification
-		&& history->owner().notifyMuteUnknown(history->peer)) {
+		&& history->owner().notifySettings().muteUnknown(history->peer)) {
 		return { SkipState::Unknown };
 	} else if (messageNotification
-		&& !history->owner().notifyIsMuted(history->peer)) {
+		&& !history->owner().notifySettings().isMuted(history->peer)) {
 		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
 		return withSilent(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
 			showForMuted);
-	} else if (history->owner().notifyMuteUnknown(notifyBy)
+	} else if (history->owner().notifySettings().muteUnknown(notifyBy)
 		|| (!messageNotification
 			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
 		return withSilent(SkipState::Unknown);
-	} else if (!history->owner().notifyIsMuted(notifyBy)
+	} else if (!history->owner().notifySettings().isMuted(notifyBy)
 		&& (messageNotification || !notifyBy->isBlocked())) {
 		return withSilent(SkipState::DontSkip);
 	} else {
@@ -462,20 +468,21 @@ void System::showNext() {
 	};
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
-	bool alert = false;
+	auto alertPeer = (PeerData*)nullptr;
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto peer = i->first->peer;
-			const auto peerUnknown = peer->owner().notifyMuteUnknown(peer);
+			const auto &notifySettings = peer->owner().notifySettings();
+			const auto peerUnknown = notifySettings.muteUnknown(peer);
 			const auto peerAlert = !peerUnknown
-				&& !peer->owner().notifyIsMuted(peer);
+				&& !notifySettings.isMuted(peer);
 			const auto from = i->second.begin()->second;
 			const auto fromUnknown = (!from
-				|| peer->owner().notifyMuteUnknown(from));
+				|| notifySettings.muteUnknown(from));
 			const auto fromAlert = !fromUnknown
-				&& !peer->owner().notifyIsMuted(from);
+				&& !notifySettings.isMuted(from);
 			if (peerAlert || fromAlert) {
-				alert = true;
+				alertPeer = peer;
 			}
 			while (!i->second.empty()
 				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
@@ -492,7 +499,7 @@ void System::showNext() {
 		}
 	}
 	const auto &settings = Core::App().settings();
-	if (alert) {
+	if (alertPeer) {
 		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
 			if (const auto window = Core::App().primaryWindow()) {
 				if (const auto handle = window->widget()->windowHandle()) {
@@ -502,9 +509,11 @@ void System::showNext() {
 			}
 		}
 		if (settings.soundNotify() && !_manager->skipAudio()) {
-			ensureSoundCreated();
-			_soundTrack->playOnce();
-			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			const auto track = lookupSound(
+				&alertPeer->owner(),
+				alertPeer->owner().notifySettings().sound(alertPeer).id);
+			track->playOnce();
+			Media::Player::mixer()->suppressAll(track->getLengthMs());
 			Media::Player::mixer()->faderOnTimer();
 		}
 	}
@@ -689,6 +698,31 @@ void System::showNext() {
 	}
 }
 
+not_null<Media::Audio::Track*> System::lookupSound(
+		not_null<Data::Session*> owner,
+		DocumentId id) {
+	if (!id) {
+		ensureSoundCreated();
+		return _soundTrack.get();
+	}
+	const auto i = _customSoundTracks.find(id);
+	if (i != end(_customSoundTracks)) {
+		return i->second.get();
+	}
+	const auto &notifySettings = owner->notifySettings();
+	const auto custom = notifySettings.lookupRingtone(id);
+	if (custom && !custom->bytes().isEmpty()) {
+		const auto j = _customSoundTracks.emplace(
+			id,
+			Media::Audio::Current().createTrack()
+		).first;
+		j->second->fillFromData(bytes::make_vector(custom->bytes()));
+		return j->second.get();
+	}
+	ensureSoundCreated();
+	return _soundTrack.get();
+}
+
 void System::ensureSoundCreated() {
 	if (_soundTrack) {
 		return;
@@ -711,6 +745,10 @@ rpl::producer<ChangeType> System::settingsChanged() const {
 
 void System::notifySettingsChanged(ChangeType type) {
 	return _settingsChanged.fire(std::move(type));
+}
+
+void System::playSound(not_null<Main::Session*> session, DocumentId id) {
+	lookupSound(&session->data(), id)->playOnce();
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(

@@ -20,13 +20,25 @@ on:
       - 'Telegram/Telegram/**'
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
-  workflow_dispatch:
-    inputs:
-      buildCommit:
-        description: 'Commit for building. Default it latest on branch'
-        required: false
-        type: string
-        default: ''
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '!docs/building-win.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/win.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/docker/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.sh'
+      - 'Telegram/Telegram.plist'
 
 jobs:
 
@@ -46,12 +58,12 @@ jobs:
     defaults:
       run:
         shell: cmd
-        working-directory: ${{ github.workspace }}
 
     steps:
       - name: Prepare directories.
         run: |
-          mkdir %userprofile%\TBuild\Libraries
+          mkdir %userprofile%\TBuild Libraries
+          mklink /d %userprofile%\TBuild\Libraries %GITHUB_WORKSPACE%\Libraries
           echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
       - name: Get repository name.
         shell: bash
@@ -91,6 +103,7 @@ jobs:
           echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
           echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
           echo "C:\\ProgramData\\chocolatey\\lib\\ninja\\tools\\" >> $GITHUB_PATH
+          echo "CACHE_KEY=$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> $GITHUB_ENV
           echo "Configurate git for cherry-picks."
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
@@ -102,8 +115,9 @@ jobs:
         id: cache-libs
         uses: actions/cache@v2
         with:
-          path: ${{ env.TBUILD }}/Libraries
-          key: ${{ runner.OS }}-libs
+          path: Libraries
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
 
       - name: Setup NASM.
         uses: ilammy/setup-nasm@v1
@@ -130,8 +144,6 @@ jobs:
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
       - name: Free up some disk space.
         run: |
-          C:
-          cd %TBUILD%
           del /S Libraries\*.pdb
           del /S Libraries\*.pch
           del /S Libraries\*.obj

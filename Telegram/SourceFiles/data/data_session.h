@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
-#include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -62,6 +61,7 @@ class DocumentMedia;
 class PhotoMedia;
 class Stickers;
 class GroupCall;
+class NotifySettings;
 
 class Session final {
 public:
@@ -116,6 +116,9 @@ public:
 	}
 	[[nodiscard]] Reactions &reactions() const {
 		return *_reactions;
+	}
+	[[nodiscard]] NotifySettings &notifySettings() const {
+		return *_notifySettings;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -189,7 +192,7 @@ public:
 
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
-	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
+	void enumerateBroadcasts(Fn<void(not_null<ChannelData*>)> action) const;
 	[[nodiscard]] UserData *userByPhone(const QString &phone) const;
 	[[nodiscard]] PeerData *peerByUsername(const QString &username) const;
 
@@ -659,28 +662,6 @@ public:
 	void dialogsRowReplaced(DialogsRowReplacement replacement);
 	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
 
-	void requestNotifySettings(not_null<PeerData*> peer);
-	void applyNotifySetting(
-		const MTPNotifyPeer &notifyPeer,
-		const MTPPeerNotifySettings &settings);
-	void updateNotifySettings(
-		not_null<PeerData*> peer,
-		std::optional<int> muteForSeconds,
-		std::optional<bool> silentPosts = std::nullopt);
-	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
-	bool notifyIsMuted(
-		not_null<const PeerData*> peer,
-		crl::time *changesIn = nullptr) const;
-	bool notifySilentPosts(not_null<const PeerData*> peer) const;
-	bool notifyMuteUnknown(not_null<const PeerData*> peer) const;
-	bool notifySilentPostsUnknown(not_null<const PeerData*> peer) const;
-	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
-	rpl::producer<> defaultUserNotifyUpdates() const;
-	rpl::producer<> defaultChatNotifyUpdates() const;
-	rpl::producer<> defaultBroadcastNotifyUpdates() const;
-	rpl::producer<> defaultNotifyUpdates(
-		not_null<const PeerData*> peer) const;
-
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty());
@@ -697,6 +678,12 @@ public:
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
 	uint64 wallpapersHash() const;
+
+	struct WebViewResultSent {
+		uint64 queryId = 0;
+	};
+	void webViewResultSent(WebViewResultSent &&sent);
+	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
 
 	void clearLocalStorage();
 
@@ -812,13 +799,6 @@ private:
 		DocumentData *document);
 
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
-
-	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
-	const NotifySettings &defaultNotifySettings(
-		not_null<const PeerData*> peer) const;
-	void unmuteByFinished();
-	void unmuteByFinishedDelayed(crl::time delay);
-	void updateNotifySettingsLocal(not_null<PeerData*> peer);
 
 	template <typename Method>
 	void enumerateItemViews(
@@ -967,15 +947,6 @@ private:
 
 	History *_topPromoted = nullptr;
 
-	NotifySettings _defaultUserNotifySettings;
-	NotifySettings _defaultChatNotifySettings;
-	NotifySettings _defaultBroadcastNotifySettings;
-	rpl::event_stream<> _defaultUserNotifyUpdates;
-	rpl::event_stream<> _defaultChatNotifyUpdates;
-	rpl::event_stream<> _defaultBroadcastNotifyUpdates;
-	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
-	base::Timer _unmuteByFinishedTimer;
-
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> _peers;
 
 	MessageIdsList _mimeForwardIds;
@@ -988,6 +959,8 @@ private:
 	std::vector<WallPaper> _wallpapers;
 	uint64 _wallpapersHash = 0;
 
+	rpl::event_stream<WebViewResultSent> _webViewResultSent;
+
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
@@ -999,6 +972,7 @@ private:
 	const std::unique_ptr<Stickers> _stickers;
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
+	const std::unique_ptr<NotifySettings> _notifySettings;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

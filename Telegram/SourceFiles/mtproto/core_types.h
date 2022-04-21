@@ -73,6 +73,7 @@ enum {
 	mtpc_vector = tl::id_vector,
 	mtpc_bytes = tl::id_bytes,
 	mtpc_flags = tl::id_flags,
+	mtpc_flags64 = tl::id_flags64,
 
 	// layers
 	mtpc_invokeWithLayer1 = 0x53835315,

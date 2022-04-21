@@ -1474,7 +1474,9 @@ TextWithEntities MediaInvoice::notificationText() const {
 }
 
 QString MediaInvoice::pinnedTextSubstring() const {
-	return QString();
+	return QString::fromUtf8("\xC2\xAB")
+		+ _invoice.title
+		+ QString::fromUtf8("\xC2\xBB");
 }
 
 TextForMimeData MediaInvoice::clipboardText() const {

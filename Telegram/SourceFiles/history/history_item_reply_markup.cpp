@@ -121,6 +121,16 @@ void HistoryMessageMarkupData::fillRows(
 				}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
 					LOG(("API Error: inputKeyboardButtonUserProfile."));
 					// Should not get those for the users.
+				}, [&](const MTPDkeyboardButtonWebView &data) {
+					row.emplace_back(
+						Type::WebView,
+						qs(data.vtext()),
+						data.vurl().v);
+				}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
+					row.emplace_back(
+						Type::SimpleWebView,
+						qs(data.vtext()),
+						data.vurl().v);
 				});
 			}
 			if (!row.empty()) {

@@ -12,10 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/layers/show.h"
+#include "settings/settings_type.h"
 #include "window/window_adaptive.h"
+#include "mtproto/sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -34,9 +37,9 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Settings {
-enum class Type;
-} // namespace Settings
+namespace InlineBots {
+class AttachWebView;
+} // namespace InlineBots
 
 namespace Calls {
 struct StartGroupCallArgs;
@@ -85,6 +88,15 @@ enum class GifPauseReason {
 };
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
+
+enum class ResolveType {
+	Default,
+	BotStart,
+	AddToGroup,
+	AddToChannel,
+	ShareGame,
+	Mention,
+};
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
@@ -178,7 +190,11 @@ public:
 		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
+		ResolveType resolveType = ResolveType::Default;
 		QString startToken;
+		ChatAdminRights startAdminRights;
+		QString attachBotUsername;
+		std::optional<QString> attachBotToggleCommand;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};
@@ -231,7 +247,6 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
-
 private:
 	void resolvePhone(
 		const QString &phone,
@@ -250,8 +265,13 @@ private:
 	void showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
+	void joinVoiceChatFromLink(
+		not_null<PeerData*> peer,
+		const PeerByLinkInfo &info);
 
 	const not_null<Main::Session*> _session;
+
+	MTP::Sender _api;
 
 	mtpRequestId _resolveRequestId = 0;
 

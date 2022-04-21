@@ -133,6 +133,7 @@ public:
 	bool saveFromDataSilent();
 	[[nodiscard]] QString filepath(bool check = false) const;
 
+	void forceToCache(bool force);
 	[[nodiscard]] bool saveToCache() const;
 
 	[[nodiscard]] Image *getReplyPreview(
@@ -268,15 +269,16 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	enum class Flag : uchar {
-		StreamingMaybeYes = 0x01,
-		StreamingMaybeNo = 0x02,
-		StreamingPlaybackFailed = 0x04,
-		ImageType = 0x08,
-		DownloadCancelled = 0x10,
-		LoadedInMediaCache = 0x20,
-		HasAttachedStickers = 0x40,
-		InlineThumbnailIsPath = 0x80,
+	enum class Flag : ushort {
+		StreamingMaybeYes = 0x001,
+		StreamingMaybeNo = 0x002,
+		StreamingPlaybackFailed = 0x004,
+		ImageType = 0x008,
+		DownloadCancelled = 0x010,
+		LoadedInMediaCache = 0x020,
+		HasAttachedStickers = 0x040,
+		InlineThumbnailIsPath = 0x080,
+		ForceToCache = 0x100,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

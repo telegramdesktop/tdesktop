@@ -82,8 +82,9 @@ private:
 	};
 	struct Frame {
 		FFmpeg::FramePointer decoded = FFmpeg::MakeFramePointer();
+		FFmpeg::FramePointer transferred;
 		QImage original;
-		FrameYUV420 yuv420;
+		FrameYUV yuv;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;

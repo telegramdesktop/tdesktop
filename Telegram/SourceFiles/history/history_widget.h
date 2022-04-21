@@ -51,6 +51,7 @@ class ItemBase;
 class Widget;
 } // namespace Layout
 struct ResultSelected;
+class AttachBotsList;
 } // namespace InlineBots
 
 namespace Support {
@@ -105,6 +106,7 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+class ComposeSearch;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
@@ -422,7 +424,7 @@ private:
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
-	void chooseAttach();
+	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
 	void cornerButtonsAnimationFinish();
 	void sendButtonClicked();
 	void newItemAdded(not_null<HistoryItem*> item);
@@ -610,6 +612,7 @@ private:
 	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
 
 	[[nodiscard]] bool isRecording() const;
+	[[nodiscard]] bool isSearching() const;
 
 	[[nodiscard]] bool isBotStart() const;
 	[[nodiscard]] bool isBlocked() const;
@@ -630,6 +633,8 @@ private:
 	void refreshSendAsToggle();
 
 	bool kbWasHidden() const;
+
+	void searchInChat();
 
 	MTP::Sender _api;
 	MsgId _replyToId = 0;
@@ -734,6 +739,8 @@ private:
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::FlatButton> _reportMessages;
+	object_ptr<Ui::RoundButton> _botMenuButton = { nullptr };
+	QString _botMenuButtonText;
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::SendAsButton> _sendAs = { nullptr };
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
@@ -744,6 +751,7 @@ private:
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
 	std::unique_ptr<HistoryView::Controls::TTLButton> _ttlInfo;
 	const std::unique_ptr<VoiceRecordBar> _voiceRecordBar;
+	std::unique_ptr<HistoryView::ComposeSearch> _composeSearch;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
 	bool _inReplyEditForward = false;
@@ -761,6 +769,7 @@ private:
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	std::unique_ptr<TabbedPanel> _tabbedPanel;
+	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 
 	DragArea::Areas _attachDragAreas;
 

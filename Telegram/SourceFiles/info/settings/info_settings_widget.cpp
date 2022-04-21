@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "settings/settings_common.h"
+#include "settings/settings_main.h"
+#include "settings/settings_information.h"
 #include "ui/ui_utility.h"
 
 namespace Info {
@@ -43,11 +45,9 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
-, _inner(setInnerWidget(
-	::Settings::CreateSection(
-		_type,
-		this,
-		controller->parentController()))) {
+, _inner(
+	setInnerWidget(
+		_type()->create(this, controller->parentController()))) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		controller->showSettings(type);
@@ -83,10 +83,19 @@ void Widget::saveChanges(FnMut<void()> done) {
 	_inner->sectionSaveChanges(std::move(done));
 }
 
+void Widget::showFinished() {
+	_inner->showFinished();
+}
+
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
-	return (_type == Type::Main || _type == Type::Information)
+	return (_type == ::Settings::Main::Id()
+		|| _type == ::Settings::Information::Id())
 		? ContentWidget::desiredShadowVisibility()
 		: rpl::single(true);
+}
+
+rpl::producer<QString> Widget::title() {
+	return _inner->title();
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {

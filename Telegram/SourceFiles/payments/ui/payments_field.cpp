@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/country_select_box.h"
 #include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "countries/countries_instance.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"

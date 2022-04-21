@@ -9,6 +9,7 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
 #include "ui/special_buttons.h"
@@ -75,9 +76,7 @@ void MuteSettingsBox::prepare() {
 
 	_save = [=] {
 		const auto muteForSeconds = group->value() * 3600;
-		_peer->owner().updateNotifySettings(
-			_peer,
-			muteForSeconds);
+		_peer->owner().notifySettings().update(_peer, muteForSeconds);
 		closeBox();
 	};
 	addButton(tr::lng_box_ok(), _save);

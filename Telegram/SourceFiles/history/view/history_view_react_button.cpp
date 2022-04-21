@@ -591,13 +591,16 @@ void Manager::applyList(
 	setSelectedIcon(selected < _icons.size() ? selected : -1);
 }
 
-void Manager::updateAllowedSublist(
-		std::optional<base::flat_set<QString>> filter) {
+void Manager::updateAllowedSublist(AllowedSublist filter) {
 	if (_filter == filter) {
 		return;
 	}
 	_filter = std::move(filter);
 	applyListFilters();
+}
+
+const Manager::AllowedSublist &Manager::allowedSublist() const {
+	return _filter;
 }
 
 void Manager::updateUniqueLimit(not_null<HistoryItem*> item) {
@@ -1598,7 +1601,7 @@ rpl::producer<QString> Manager::faveRequests() const {
 void SetupManagerList(
 		not_null<Manager*> manager,
 		not_null<Main::Session*> session,
-		rpl::producer<std::optional<base::flat_set<QString>>> filter) {
+		rpl::producer<Manager::AllowedSublist> filter) {
 	const auto reactions = &session->data().reactions();
 	rpl::single(rpl::empty) | rpl::then(
 		reactions->updates()
@@ -1610,8 +1613,7 @@ void SetupManagerList(
 
 	std::move(
 		filter
-	) | rpl::start_with_next([=](
-			std::optional<base::flat_set<QString>> &&list) {
+	) | rpl::start_with_next([=](Manager::AllowedSublist &&list) {
 		manager->updateAllowedSublist(std::move(list));
 	}, manager->lifetime());
 

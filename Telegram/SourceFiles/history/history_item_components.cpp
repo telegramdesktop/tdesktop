@@ -54,10 +54,16 @@ void HistoryMessageVia::create(
 		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
 			ClickContext context) {
-		if (base::IsCtrlPressed()) {
-			if (const auto window = App::wnd()) {
-				if (const auto controller = window->sessionController()) {
+		if (const auto window = App::wnd()) {
+			if (const auto controller = window->sessionController()) {
+				if (base::IsCtrlPressed()) {
 					controller->showPeerInfo(bot);
+					return;
+				} else if (!bot->isBot()
+					|| bot->botInfo->inlinePlaceholder.isEmpty()) {
+					controller->showPeerHistory(
+						bot->id,
+						Window::SectionShow::Way::Forward);
 					return;
 				}
 			}

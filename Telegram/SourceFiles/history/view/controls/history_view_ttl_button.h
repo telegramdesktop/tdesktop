@@ -7,21 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/buttons.h"
+#include "ui/widgets/icon_button_with_text.h"
 
 namespace Ui {
-class GenericBox;
+class Show;
 } // namespace Ui
 
 namespace HistoryView::Controls {
 
-void AutoDeleteSettingsBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer);
-
 class TTLButton final {
 public:
-	TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer);
+	TTLButton(
+		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
@@ -35,7 +34,7 @@ public:
 
 private:
 	const not_null<PeerData*> _peer;
-	Ui::IconButton _button;
+	Ui::IconButtonWithText _button;
 
 };
 

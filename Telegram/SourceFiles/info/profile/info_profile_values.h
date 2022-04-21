@@ -57,7 +57,9 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
-[[nodiscard]] rpl::producer<bool> CanInviteBotToGroupValue(
+[[nodiscard]] rpl::producer<QString> InviteToChatButton(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<QString> InviteToChatAbout(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> CanShareContactValue(
 	not_null<UserData*> user);

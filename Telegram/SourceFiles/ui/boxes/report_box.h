@@ -16,6 +16,8 @@ enum class ReportSource {
 	Channel,
 	Group,
 	Bot,
+	ProfilePhoto,
+	ProfileVideo,
 };
 
 enum class ReportReason {

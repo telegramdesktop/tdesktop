@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "settings/settings_common.h"
+#include "settings/settings_folders.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
@@ -275,13 +276,13 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		} else {
 			const auto filters = &_session->session().data().chatsFilters();
 			if (filters->suggestedLoaded()) {
-				_session->showSettings(Settings::Type::Folders);
+				_session->showSettings(Settings::Folders::Id());
 			} else if (!_waitingSuggested) {
 				_waitingSuggested = true;
 				filters->requestSuggested();
 				filters->suggestedUpdated(
 				) | rpl::take(1) | rpl::start_with_next([=] {
-					_session->showSettings(Settings::Type::Folders);
+					_session->showSettings(Settings::Folders::Id());
 				}, _outer.lifetime());
 			}
 		}
@@ -309,15 +310,13 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	_popupMenu = base::make_unique_q<Ui::PopupMenu>(
 		i->second.get(),
 		st::popupMenuWithIcons);
-	const auto addAction = [&](
-			const QString &text,
-			Fn<void()> callback,
-			const style::icon *icon) {
+	const auto addAction = Window::PeerMenuCallback([&](
+			Window::PeerMenuCallback::Args args) {
 		return _popupMenu->addAction(
-			text,
-			crl::guard(&_outer, std::move(callback)),
-			icon);
-	};
+			args.text,
+			crl::guard(&_outer, std::move(args.handler)),
+			args.icon);
+	});
 
 	addAction(
 		tr::lng_filters_context_edit(tr::now),

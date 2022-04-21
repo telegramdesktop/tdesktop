@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_advanced.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
+#include "boxes/reactions_settings_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/background_box.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
+#include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
 #include "window/themes/window_theme.h"
@@ -49,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
+#include "data/data_message_reactions.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
@@ -60,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "facades.h"
+#include "styles/style_chat_helpers.h" // stickersRemove
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -780,6 +784,7 @@ void SetupMessages(
 	AddSkip(container, st::settingsSendTypeSkip);
 
 	using SendByType = Ui::InputSubmitSettings;
+	using Quick = HistoryView::DoubleClickQuickAction;
 
 	const auto skip = st::settingsSendTypeSkip;
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
@@ -790,29 +795,142 @@ void SetupMessages(
 			std::move(wrap),
 			QMargins(0, skip, 0, skip)));
 
-	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
+	const auto groupSend = std::make_shared<Ui::RadioenumGroup<SendByType>>(
 		Core::App().settings().sendSubmitWay());
-	const auto add = [&](SendByType value, const QString &text) {
+	const auto addSend = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
-				group,
+				groupSend,
 				value,
 				text,
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
-	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
-	add(
+	addSend(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
+	addSend(
 		SendByType::CtrlEnter,
 		(Platform::IsMac()
 			? tr::lng_settings_send_cmdenter(tr::now)
 			: tr::lng_settings_send_ctrlenter(tr::now)));
 
-	group->setChangedCallback([=](SendByType value) {
+	groupSend->setChangedCallback([=](SendByType value) {
 		Core::App().settings().setSendSubmitWay(value);
 		Core::App().saveSettingsDelayed();
 		controller->content()->ctrlEnterSubmitUpdated();
+	});
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	const auto groupQuick = std::make_shared<Ui::RadioenumGroup<Quick>>(
+		Core::App().settings().chatQuickAction());
+	const auto addQuick = [&](Quick value, const QString &text) {
+		return inner->add(
+			object_ptr<Ui::Radioenum<Quick>>(
+				inner,
+				groupQuick,
+				value,
+				text,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+	addQuick(Quick::Reply, tr::lng_settings_chat_quick_action_reply(tr::now));
+	const auto react = addQuick(
+		Quick::React,
+		tr::lng_settings_chat_quick_action_react(tr::now));
+
+	class EmptyButton final : public Ui::IconButton {
+	public:
+		EmptyButton(not_null<Ui::RpWidget*> p, const style::IconButton &st)
+		: Ui::IconButton(p, st)
+		, _rippleAreaPosition(st.rippleAreaPosition) {
+		}
+	protected:
+		void paintEvent(QPaintEvent *e) override {
+			Painter p(this);
+
+			paintRipple(p, _rippleAreaPosition, nullptr);
+		}
+	private:
+		const QPoint _rippleAreaPosition;
+	};
+	const auto buttonRight = Ui::CreateChild<EmptyButton>(
+		inner,
+		st::stickersRemove);
+	const auto toggleButtonRight = [=](bool value) {
+		buttonRight->setAttribute(Qt::WA_TransparentForMouseEvents, !value);
+	};
+	toggleButtonRight(false);
+
+	struct State {
+		struct {
+			std::vector<rpl::lifetime> lifetimes;
+			bool flag = false;
+		} icons;
+	};
+	const auto state = buttonRight->lifetime().make_state<State>();
+	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
+
+	const auto &reactions = controller->session().data().reactions();
+	auto emojiValue = rpl::single(
+		reactions.favorite()
+	) | rpl::then(
+		reactions.updates() | rpl::map([=] {
+			return controller->session().data().reactions().favorite();
+		})
+	) | rpl::filter([](const QString &emoji) {
+		return !emoji.isEmpty();
+	});
+	auto selectedEmoji = rpl::duplicate(emojiValue);
+	std::move(
+		selectedEmoji
+	) | rpl::start_with_next([=, emojiValue = std::move(emojiValue)](
+			const QString &emoji) {
+		const auto &reactions = controller->session().data().reactions();
+		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
+			if (emoji != r.emoji) {
+				continue;
+			}
+			const auto index = state->icons.flag ? 1 : 0;
+			state->icons.lifetimes[index] = rpl::lifetime();
+			const auto iconSize = st::settingsReactionRightIcon;
+			AddReactionLottieIcon(
+				inner,
+				buttonRight->geometryValue(
+				) | rpl::map([=](const QRect &r) {
+					return QPoint(
+						r.left() + (r.width() - iconSize) / 2,
+						r.top() + (r.height() - iconSize) / 2);
+				}),
+				iconSize,
+				r,
+				buttonRight->events(
+				) | rpl::filter([=](not_null<QEvent*> event) {
+					return event->type() == QEvent::Enter;
+				}) | rpl::to_empty,
+				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
+				&state->icons.lifetimes[index]);
+			state->icons.flag = !state->icons.flag;
+			toggleButtonRight(true);
+			break;
+		}
+	}, buttonRight->lifetime());
+
+	react->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		const auto rightSize = buttonRight->size();
+		buttonRight->moveToRight(
+			st::settingsButtonRightSkip,
+			r.y() + (r.height() - rightSize.height()) / 2);
+	}, buttonRight->lifetime());
+
+	groupQuick->setChangedCallback([=](Quick value) {
+		Core::App().settings().setChatQuickAction(value);
+		Core::App().saveSettingsDelayed();
+	});
+
+	buttonRight->setClickedCallback([=, show = Window::Show(controller)] {
+		show.showBox(Box(ReactionsSettingsBox, controller));
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
@@ -1511,6 +1629,10 @@ void SetupSupport(
 Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Chat::title() {
+	return tr::lng_settings_section_chat_settings();
 }
 
 void Chat::setupContent(not_null<Window::SessionController*> controller) {

@@ -17,7 +17,7 @@ class LinkButton;
 class Checkbox;
 class Radiobutton;
 class RadiobuttonGroup;
-class CalendarBox;
+class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -64,6 +64,11 @@ private:
 
 };
 
+struct EditAdminBotFields {
+	QString token;
+	ChatAdminRights existing;
+};
+
 class EditAdminBox : public EditParticipantBox {
 public:
 	EditAdminBox(
@@ -71,7 +76,8 @@ public:
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank);
+		const QString &rank,
+		std::optional<EditAdminBotFields> addingBot = {});
 
 	void setSaveCallback(
 			Fn<void(
@@ -87,7 +93,8 @@ protected:
 private:
 	[[nodiscard]] ChatAdminRightsInfo defaultRights() const;
 
-	not_null<Ui::InputField*> addRankInput();
+	not_null<Ui::InputField*> addRankInput(
+		not_null<Ui::VerticalLayout*> container);
 	void transferOwnership();
 	void transferOwnershipChecked();
 	bool handleTransferPasswordError(const QString &error);
@@ -99,9 +106,13 @@ private:
 	bool canSave() const {
 		return _saveCallback != nullptr;
 	}
+	void finishAddAdmin();
+	void refreshButtons();
 	void refreshAboutAddAdminsText(bool canAddAdmins);
 	bool canTransferOwnership() const;
-	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(bool isGroup);
+	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(
+		not_null<Ui::VerticalLayout*> container,
+		bool isGroup);
 
 	const Ui::BoxShow _show;
 	const ChatAdminRightsInfo _oldRights;
@@ -111,9 +122,16 @@ private:
 		ChatAdminRightsInfo,
 		const QString &rank)> _saveCallback;
 
+	QPointer<Ui::BoxContent> _confirmBox;
+	Ui::Checkbox *_addAsAdmin = nullptr;
+	Ui::SlideWrap<Ui::VerticalLayout> *_adminControlsWrap = nullptr;
+	Ui::InputField *_rank = nullptr;
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
 	mtpRequestId _checkTransferRequestId = 0;
 	mtpRequestId _transferRequestId = 0;
+	Fn<void()> _save, _finishSave;
+
+	std::optional<EditAdminBotFields> _addingBot;
 
 };
 
@@ -157,7 +175,6 @@ private:
 
 	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
 	std::vector<base::unique_qptr<Ui::Radiobutton>> _untilVariants;
-	QPointer<Ui::CalendarBox> _restrictUntilBox;
 
 	static constexpr auto kUntilOneDay = -1;
 	static constexpr auto kUntilOneWeek = -2;

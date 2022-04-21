@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_polls.h"
+#include "api/api_report.h"
+#include "api/api_ringtones.h"
 #include "api/api_who_reacted.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
@@ -30,9 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/boxes/report_box.h"
 #include "ui/ui_utility.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -53,11 +56,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
-#include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
-#include "facades.h"
+#include "facades.h" // LambdaDelayed
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -292,6 +294,10 @@ void AddDocumentActions(
 			tr::lng_context_attached_stickers(tr::now),
 			std::move(callback),
 			&st::menuIconStickers);
+	}
+	if (item && !list->hasCopyRestriction(item)) {
+		const auto controller = list->controller();
+		AddSaveSoundForNotifications(menu, item, document, controller);
 	}
 	AddSaveDocumentAction(menu, item, document, list);
 }
@@ -801,11 +807,11 @@ void AddReportAction(
 	const auto callback = crl::guard(controller, [=] {
 		if (const auto item = owner->message(itemId)) {
 			const auto group = owner->groups().find(item);
-			ShowReportItemsBox(
+			controller->show(ReportItemsBox(
 				item->history()->peer,
 				(group
 					? owner->itemsToIds(group->items)
-					: MessageIdsList{ 1, itemId }));
+					: MessageIdsList{ 1, itemId })));
 		}
 	});
 	menu->addAction(
@@ -955,7 +961,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	} else if (lnkDocument) {
 		AddDocumentActions(result, lnkDocument, item, list);
 	} else if (poll) {
-		AddPollActions(result, poll, item, list->elementContext());
+		const auto context = list->elementContext();
+		AddPollActions(result, poll, item, context, list->controller());
 	} else if (!request.overSelection && view && !hasSelection) {
 		const auto owner = &view->data()->history()->owner();
 		const auto media = view->media();
@@ -1029,26 +1036,12 @@ void CopyPostLink(
 		: tr::lng_context_about_private_link(tr::now));
 }
 
-void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
-	const auto stop = [=] {
-		Ui::hideLayer();
-		if (const auto item = session->data().message(itemId)) {
-			session->api().polls().close(item);
-		}
-	};
-	Ui::show(Ui::MakeConfirmBox({
-		.text = tr::lng_polls_stop_warning(),
-		.confirmed = stop,
-		.confirmText = tr::lng_polls_stop_sure(),
-		.cancelText = tr::lng_cancel(),
-	}));
-}
-
 void AddPollActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PollData*> poll,
 		not_null<HistoryItem*> item,
-		Context context) {
+		Context context,
+		not_null<Window::SessionController*> controller) {
 	if ((context != Context::History)
 		&& (context != Context::Replies)
 		&& (context != Context::Pinned)) {
@@ -1065,9 +1058,56 @@ void AddPollActions(
 	}
 	if (item->canStopPoll()) {
 		menu->addAction(tr::lng_polls_stop(tr::now), [=] {
-			StopPoll(&poll->session(), itemId);
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_polls_stop_warning(),
+				.confirmed = [=](Fn<void()> &&close) {
+					close();
+					if (const auto item = poll->owner().message(itemId)) {
+						controller->session().api().polls().close(item);
+					}
+				},
+				.confirmText = tr::lng_polls_stop_sure(),
+				.cancelText = tr::lng_cancel(),
+			}));
 		}, &st::menuIconStopPoll);
 	}
+}
+
+void AddSaveSoundForNotifications(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item,
+		not_null<DocumentData*> document,
+		not_null<Window::SessionController*> controller) {
+	const auto &ringtones = document->session().api().ringtones();
+	if (document->size > ringtones.maxSize()) {
+		return;
+	} else if (ranges::contains(ringtones.list(), document->id)) {
+		return;
+	} else if (int(ringtones.list().size()) >= ringtones.maxSavedCount()) {
+		return;
+	} else if (const auto song = document->song()) {
+		if (song->duration > ringtones.maxDuration()) {
+			return;
+		}
+	} else if (const auto voice = document->voice()) {
+		if (voice->duration > ringtones.maxDuration()) {
+			return;
+		}
+	} else {
+		return;
+	}
+	const auto toastParent = Window::Show(controller).toastParent();
+	menu->addAction(tr::lng_context_save_custom_sound(tr::now), [=] {
+		Api::ToggleSavedRingtone(
+			document,
+			item->fullId(),
+			[=] {
+				Ui::Toast::Show(
+					toastParent,
+					tr::lng_ringtones_toast_added(tr::now));
+			},
+			true);
+	}, &st::menuIconSoundAdd);
 }
 
 void AddWhoReactedAction(
@@ -1160,110 +1200,6 @@ void ShowWhoReactedMenu(
 			(*menu)->popup(position);
 		}
 	}, lifetime);
-}
-
-void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids) {
-	const auto chosen = [=](Ui::ReportReason reason) {
-		Ui::show(Box(Ui::ReportDetailsBox, [=](const QString &text) {
-			SendReport(peer, reason, text, ids);
-			Ui::hideLayer();
-		}));
-	};
-	Ui::show(Box(
-		Ui::ReportReasonBox,
-		Ui::ReportSource::Message,
-		chosen));
-}
-
-void ShowReportPeerBox(
-		not_null<Window::SessionController*> window,
-		not_null<PeerData*> peer) {
-	struct State {
-		QPointer<Ui::GenericBox> reasonBox;
-		QPointer<Ui::GenericBox> detailsBox;
-		MessageIdsList ids;
-	};
-	const auto state = std::make_shared<State>();
-	const auto chosen = [=](Ui::ReportReason reason) {
-		const auto send = [=](const QString &text) {
-			window->clearChooseReportMessages();
-			SendReport(peer, reason, text, std::move(state->ids));
-			if (const auto strong = state->reasonBox.data()) {
-				strong->closeBox();
-			}
-			if (const auto strong = state->detailsBox.data()) {
-				strong->closeBox();
-			}
-		};
-		if (reason == Ui::ReportReason::Fake
-			|| reason == Ui::ReportReason::Other) {
-			state->ids = {};
-			state->detailsBox = window->window().show(
-				Box(Ui::ReportDetailsBox, send));
-			return;
-		}
-		window->showChooseReportMessages(peer, reason, [=](
-				MessageIdsList ids) {
-			state->ids = std::move(ids);
-			state->detailsBox = window->window().show(
-				Box(Ui::ReportDetailsBox, send));
-		});
-	};
-	state->reasonBox = window->window().show(Box(
-		Ui::ReportReasonBox,
-		(peer->isBroadcast()
-			? Ui::ReportSource::Channel
-			: peer->isUser()
-			? Ui::ReportSource::Bot
-			: Ui::ReportSource::Group),
-		chosen));
-}
-
-void SendReport(
-		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		const QString &comment,
-		MessageIdsList ids) {
-	const auto apiReason = [&] {
-		using Reason = Ui::ReportReason;
-		switch (reason) {
-		case Reason::Spam: return MTP_inputReportReasonSpam();
-		case Reason::Fake: return MTP_inputReportReasonFake();
-		case Reason::Violence: return MTP_inputReportReasonViolence();
-		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
-		case Reason::Pornography: return MTP_inputReportReasonPornography();
-		case Reason::Copyright: return MTP_inputReportReasonCopyright();
-		case Reason::IllegalDrugs:
-			return MTP_inputReportReasonIllegalDrugs();
-		case Reason::PersonalDetails:
-			return MTP_inputReportReasonPersonalDetails();
-		case Reason::Other: return MTP_inputReportReasonOther();
-		}
-		Unexpected("Bad reason group value.");
-	}();
-	if (ids.empty()) {
-		peer->session().api().request(MTPaccount_ReportPeer(
-			peer->input,
-			apiReason,
-			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).send();
-	} else {
-		auto apiIds = QVector<MTPint>();
-		apiIds.reserve(ids.size());
-		for (const auto &fullId : ids) {
-			apiIds.push_back(MTP_int(fullId.msg));
-		}
-		peer->session().api().request(MTPmessages_Report(
-			peer->input,
-			MTP_vector<MTPint>(apiIds),
-			apiReason,
-			MTP_string(comment)
-		)).done([=] {
-			Ui::Toast::Show(tr::lng_report_thanks(tr::now));
-		}).send();
-	}
 }
 
 } // namespace HistoryView

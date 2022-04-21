@@ -165,6 +165,37 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	}
 }
 
+void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
+	if (peer->userpicPhotoId() == photo->id) {
+		return;
+	}
+	if (peer == _session->user()) {
+		_api.request(MTPphotos_UpdateProfilePhoto(
+			photo->mtpInput()
+		)).done([=](const MTPphotos_Photo &result) {
+			result.match([&](const MTPDphotos_photo &data) {
+				_session->data().processPhoto(data.vphoto());
+				_session->data().processUsers(data.vusers());
+			});
+		}).send();
+	} else {
+		const auto applier = [=](const MTPUpdates &result) {
+			_session->updates().applyUpdates(result);
+		};
+		if (const auto chat = peer->asChat()) {
+			_api.request(MTPmessages_EditChatPhoto(
+				chat->inputChat,
+				MTP_inputChatPhoto(photo->mtpInput())
+			)).done(applier).send();
+		} else if (const auto channel = peer->asChannel()) {
+			_api.request(MTPchannels_EditPhoto(
+				channel->inputChannel,
+				MTP_inputChatPhoto(photo->mtpInput())
+			)).done(applier).send();
+		}
+	}
+}
+
 void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 	const auto maybePeer = _uploads.take(msgId);
 	if (!maybePeer) {
