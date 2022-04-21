@@ -123,7 +123,6 @@ private:
 	void refreshControls();
 	void setupSendWayControls();
 	void setupCaption();
-	void setupShadows();
 
 	void setupEmojiPanel();
 	void updateSendWayControlsVisibility();

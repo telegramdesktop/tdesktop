@@ -482,6 +482,10 @@ struct ActionSetChatTheme {
 struct ActionChatJoinedByRequest {
 };
 
+struct ActionWebViewDataSent {
+	Utf8String text;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -512,7 +516,8 @@ struct ServiceAction {
 		ActionSetMessagesTTL,
 		ActionGroupCallScheduled,
 		ActionSetChatTheme,
-		ActionChatJoinedByRequest> content;
+		ActionChatJoinedByRequest,
+		ActionWebViewDataSent> content;
 };
 
 ServiceAction ParseServiceAction(

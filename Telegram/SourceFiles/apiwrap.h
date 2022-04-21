@@ -30,6 +30,7 @@ namespace Data {
 struct UpdatedFileReferences;
 class WallPaper;
 struct ResolvedForwardDraft;
+enum class DefaultNotify;
 } // namespace Data
 
 namespace InlineBots {
@@ -68,6 +69,7 @@ class PeerPhoto;
 class Polls;
 class ChatParticipants;
 class UnreadThings;
+class Ringtones;
 
 namespace details {
 
@@ -238,6 +240,7 @@ public:
 
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
+	void updateDefaultNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	static int OnlineTillFromStatus(
@@ -320,7 +323,10 @@ public:
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
 	void sendMessage(MessageToSend &&message);
-	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
+	void sendBotStart(
+		not_null<UserData*> bot,
+		PeerData *chat = nullptr,
+		const QString &startTokenForChat = QString());
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
@@ -354,6 +360,7 @@ public:
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
+	[[nodiscard]] Api::Ringtones &ringtones();
 
 	void updatePrivacyLastSeens();
 
@@ -590,6 +597,7 @@ private:
 	base::Timer _topPromotionTimer;
 
 	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
+	base::flat_set<Data::DefaultNotify> _updateNotifySettingsDefaults;
 	base::Timer _updateNotifySettingsTimer;
 
 	std::map<
@@ -635,6 +643,7 @@ private:
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
+	const std::unique_ptr<Api::Ringtones> _ringtones;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

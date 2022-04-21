@@ -48,7 +48,7 @@ protected:
 
 private:
 	struct RevokeConfig {
-		QString checkbox;
+		TextWithEntities checkbox;
 		TextWithEntities description;
 	};
 	void deleteAndClear();

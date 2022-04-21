@@ -17,23 +17,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-template <typename ToggleRequest, typename DoneCallback>
+template <typename ToggleRequestCallback, typename DoneCallback>
 void ToggleExistingMedia(
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
-		ToggleRequest toggleRequest,
+		ToggleRequestCallback toggleRequest,
 		DoneCallback &&done) {
 	const auto api = &document->owner().session().api();
 
 	auto performRequest = [=](const auto &repeatRequest) -> void {
 		const auto usedFileReference = document->fileReference();
-		api->request(std::move(
-			toggleRequest
-		)).done([=](const MTPBool &result) {
-			if (mtpIsTrue(result)) {
-				done();
-			}
-		}).fail([=](const MTP::Error &error) {
+		api->request(
+			toggleRequest()
+		).done(done).fail([=](const MTP::Error &error) {
 			if (error.code() == 400
 				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
 				auto refreshed = [=](const Data::UpdatedFileReferences &d) {
@@ -69,7 +65,9 @@ void ToggleFavedSticker(
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
-		MTPmessages_FaveSticker(document->mtpInput(), MTP_bool(!faved)),
+		[=, d = document] {
+			return MTPmessages_FaveSticker(d->mtpInput(), MTP_bool(!faved));
+		},
 		[=] { document->owner().stickers().setFaved(document, faved); });
 }
 
@@ -88,10 +86,12 @@ void ToggleRecentSticker(
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
-		MTPmessages_SaveRecentSticker(
-			MTP_flags(MTPmessages_SaveRecentSticker::Flag(0)),
-			document->mtpInput(),
-			MTP_bool(!saved)),
+		[=] {
+			return MTPmessages_SaveRecentSticker(
+				MTP_flags(MTPmessages_SaveRecentSticker::Flag(0)),
+				document->mtpInput(),
+				MTP_bool(!saved));
+		},
 		std::move(done));
 }
 
@@ -110,7 +110,23 @@ void ToggleSavedGif(
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
-		MTPmessages_SaveGif(document->mtpInput(), MTP_bool(!saved)),
+		[=, d = document] {
+			return MTPmessages_SaveGif(d->mtpInput(), MTP_bool(!saved));
+		},
+		std::move(done));
+}
+
+void ToggleSavedRingtone(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		Fn<void()> &&done,
+		bool saved) {
+	ToggleExistingMedia(
+		document,
+		std::move(origin),
+		[=, d = document] {
+			return MTPaccount_SaveRingtone(d->mtpInput(), MTP_bool(!saved));
+		},
 		std::move(done));
 }
 

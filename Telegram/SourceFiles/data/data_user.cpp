@@ -133,10 +133,12 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		const auto changedCommands = Data::UpdateBotCommands(
 			botInfo->commands,
 			d.vcommands());
-
+		const auto changedButton = Data::ApplyBotMenuButton(
+			botInfo.get(),
+			d.vmenu_button());
 		botInfo->inited = true;
 
-		if (changedCommands) {
+		if (changedCommands || changedButton) {
 			owner().botCommandsChanged(this);
 		}
 	} break;
@@ -239,6 +241,25 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+
+	if (const auto info = user->botInfo.get()) {
+		const auto group = update.vbot_group_admin_rights()
+			? ChatAdminRightsInfo(*update.vbot_group_admin_rights()).flags
+			: ChatAdminRights();
+		const auto channel = update.vbot_broadcast_admin_rights()
+			? ChatAdminRightsInfo(
+				*update.vbot_broadcast_admin_rights()).flags
+			: ChatAdminRights();
+		if (info->groupAdminRights != group
+			|| info->channelAdminRights != channel) {
+			info->groupAdminRights = group;
+			info->channelAdminRights = channel;
+			user->session().changes().peerUpdated(
+				user,
+				Data::PeerUpdate::Flag::Rights);
+		}
+	}
+
 	user->fullUpdated();
 }
 

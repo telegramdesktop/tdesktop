@@ -25,15 +25,14 @@ if win and not win32 and not win64:
 
 os.chdir(scriptPath + '/../../../..')
 
-dirSep = '\\' if win else '/'
 pathSep = ';' if win else ':'
-libsLoc = 'Libraries' if not win64 else ('Libraries' + dirSep + 'win64')
+libsLoc = 'Libraries' if not win64 else (os.path.join('Libraries', 'win64'))
 keysLoc = 'cache_keys'
 
 rootDir = os.getcwd()
-libsDir = rootDir + dirSep + libsLoc
-thirdPartyDir = rootDir + dirSep + 'ThirdParty'
-usedPrefix = libsDir + dirSep + 'local'
+libsDir = os.path.realpath(os.path.join(rootDir, libsLoc))
+thirdPartyDir = os.path.realpath(os.path.join(rootDir, 'ThirdParty'))
+usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 
 optionsList = [
     'skip-release',
@@ -56,10 +55,10 @@ for arg in sys.argv[1:]:
 buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
 buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
-if not os.path.isdir(libsDir + '/' + keysLoc):
-    pathlib.Path(libsDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
-if not os.path.isdir(thirdPartyDir + '/' + keysLoc):
-    pathlib.Path(thirdPartyDir + '/' + keysLoc).mkdir(parents=True, exist_ok=True)
+if not os.path.isdir(os.path.join(libsDir, keysLoc)):
+    pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
+if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
+    pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
     'ThirdParty\\Strawberry\\perl\\bin',
@@ -76,7 +75,7 @@ pathPrefixes = [
 ]
 pathPrefix = ''
 for singlePrefix in pathPrefixes:
-    pathPrefix = pathPrefix + rootDir + dirSep + singlePrefix + pathSep
+    pathPrefix = pathPrefix + os.path.join(rootDir, singlePrefix) + pathSep
 
 environment = {
     'MAKE_THREADS_CNT': '-j8',
@@ -138,10 +137,10 @@ def computeCacheKey(stage):
         stage['commands']
     ]
     for pattern in stage['dependencies']:
-        pathlist = glob.glob(libsDir + '/' + pattern)
+        pathlist = glob.glob(os.path.join(libsDir, pattern))
         items = [pattern]
         if len(pathlist) == 0:
-            pathlist = glob.glob(thirdPartyDir + '/' + pattern)
+            pathlist = glob.glob(os.path.join(thirdPartyDir, pattern))
         if len(pathlist) == 0:
             error('Nothing found: ' + pattern)
         for path in pathlist:
@@ -152,13 +151,13 @@ def computeCacheKey(stage):
     return hashlib.sha1(';'.join(objects).encode('utf-8')).hexdigest()
 
 def keyPath(stage):
-    return stage['directory'] + '/' + keysLoc + '/' + stage['name']
+    return os.path.join(stage['directory'], keysLoc, stage['name'])
 
 def checkCacheKey(stage):
     if not 'key' in stage:
         error('Key not set in stage: ' + stage['name'])
     key = keyPath(stage)
-    if not os.path.exists(stage['directory'] + '/' + stage['name']):
+    if not os.path.exists(os.path.join(stage['directory'], stage['name'])):
         return 'NotFound'
     if not os.path.exists(key):
         return 'Stale'
@@ -341,7 +340,7 @@ def runStages():
             continue
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
-        prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
+        prefix = '[' + os.path.join(str(index), str(count)) + '](' + os.path.join(stage['location'], stage['name']) + version + ')'
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
         commands = removeDir(stage['name']) + '\n' + stage['commands']
@@ -400,7 +399,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 2ccddbe673
+    git checkout 22629a5df5
 """)
 
 stage('depot_tools', """
@@ -443,6 +442,7 @@ stage('xz', """
 !win:
     git clone -b v5.2.5 https://git.tukaani.org/xz.git
     cd xz
+    sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -748,6 +748,13 @@ depends:yasm/yasm
     make install
 """)
 
+stage('nv-codec-headers', """
+win:
+    git clone https://github.com/FFmpeg/nv-codec-headers.git
+    cd nv-codec-headers
+    git checkout n11.1.5.1
+""")
+
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
@@ -792,6 +799,7 @@ depends:yasm/yasm
     --enable-decoder=aasc \
     --enable-decoder=alac \
     --enable-decoder=alac_at \
+    --enable-decoder=av1 \
     --enable-decoder=flac \
     --enable-decoder=gif \
     --enable-decoder=h264 \
@@ -844,6 +852,7 @@ depends:yasm/yasm
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
     --enable-decoder=vorbis \
+    --enable-decoder=vp8 \
     --enable-decoder=wavpack \
     --enable-decoder=wmalossless \
     --enable-decoder=wmapro \
@@ -1258,28 +1267,22 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_3', """
+    stage('qt_6_3_0', """
 mac:
-    git clone -b v6.2.3 https://code.qt.io/qt/qt5.git qt_6_2_3
-    cd qt_6_2_3
+    git clone -b v6.3.0 https://code.qt.io/qt/qt5.git qt_6_3_0
+    cd qt_6_3_0
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
-depends:patches/qtbase_6_2_3/*.patch
+depends:patches/qtbase_6_3_0/*.patch
     cd qtbase
 
-    find ../../patches/qtbase_6_2_3 -type f -print0 | sort -z | xargs -0 git apply
-    cd ..
-
-depends:patches/qt5compat_6_2_3/*.patch
-    cd qt5compat
-
-    find ../../patches/qt5compat_6_2_3 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6_3_0 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.3" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.3.0" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \

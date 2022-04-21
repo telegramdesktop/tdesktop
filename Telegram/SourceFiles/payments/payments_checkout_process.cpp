@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
+#include "window/themes/window_theme.h"
+#include "webview/webview_interface.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -160,6 +162,17 @@ CheckoutProcess::CheckoutProcess(
 	}, _panel->lifetime());
 	showForm();
 	_panel->toggleProgress(true);
+
+	style::PaletteChanged(
+	) | rpl::filter([=] {
+		return !_themeUpdateScheduled;
+	}) | rpl::start_with_next([=] {
+		_themeUpdateScheduled = true;
+		crl::on_main(this, [=] {
+			_themeUpdateScheduled = false;
+			_panel->updateThemeParams(Window::Theme::WebViewParams());
+		});
+	}, _panel->lifetime());
 
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(

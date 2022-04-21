@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
@@ -285,12 +286,16 @@ void SetupRows(
 		[=] { controller->show(Box<EditNameBox>(self)); },
 		{ &st::settingsIconUser, kIconLightBlue });
 
+	const auto showChangePhone = [=] {
+		controller->showSettings(ChangePhone::Id());
+		controller->window().activate();
+	};
 	AddRow(
 		container,
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[=] { controller->show(Box<ChangePhoneBox>(controller)); },
+		showChangePhone,
 		{ &st::settingsIconCalls, kIconGreen });
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -450,7 +455,6 @@ void SetupBio(
 void SetupAccountsWrap(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller) {
-	AddSkip(container);
 	AddDivider(container);
 	AddSkip(container);
 
@@ -547,15 +551,13 @@ void SetupAccountsWrap(
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		const auto addAction = [&](
-				const QString &text,
-				Fn<void()> callback,
-				const style::icon *icon) {
+		const auto addAction = Window::PeerMenuCallback([&](
+				Window::PeerMenuCallback::Args args) {
 			return state->menu->addAction(
-				text,
-				crl::guard(raw, std::move(callback)),
-				icon);
-		};
+				args.text,
+				crl::guard(raw, std::move(args.handler)),
+				args.icon);
+		});
 		if (!state->menu && IsAltShift(raw->clickModifiers())) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				raw,
@@ -574,7 +576,8 @@ void SetupAccountsWrap(
 		addAction(tr::lng_menu_activate(tr::now), [=] {
 			Core::App().domain().activate(&session->account());
 		}, &st::menuIconProfile);
-		addAction(tr::lng_settings_logout(tr::now), [=] {
+
+		auto logoutCallback = [=] {
 			const auto callback = [=](Fn<void()> &&close) {
 				close();
 				Core::App().logoutWithChecks(&session->account());
@@ -587,7 +590,13 @@ void SetupAccountsWrap(
 					.confirmStyle = &st::attentionBoxButton,
 				}),
 				Ui::LayerOption::CloseOther);
-		}, &st::menuIconLeave);
+		};
+		addAction({
+			.text = tr::lng_settings_logout(tr::now),
+			.handler = std::move(logoutCallback),
+			.icon = &st::menuIconLeaveAttention,
+			.isAttention = true,
+		});
 		state->menu->popup(QCursor::pos());
 	}, raw->lifetime());
 
@@ -792,6 +801,10 @@ Information::Information(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Information::title() {
+	return tr::lng_settings_section_info();
 }
 
 void Information::setupContent(

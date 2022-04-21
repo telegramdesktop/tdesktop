@@ -86,7 +86,7 @@ bool AudioTrack::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 					return false;
 				}
 				// Return the last valid frame if we seek too far.
-				_stream.frame = std::move(_initialSkippingFrame);
+				_stream.decodedFrame = std::move(_initialSkippingFrame);
 				return processFirstFrame();
 			} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
 				return false;
@@ -102,15 +102,15 @@ bool AudioTrack::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		std::swap(_initialSkippingFrame, _stream.frame);
-		if (!_stream.frame) {
-			_stream.frame = FFmpeg::MakeFramePointer();
+		std::swap(_initialSkippingFrame, _stream.decodedFrame);
+		if (!_stream.decodedFrame) {
+			_stream.decodedFrame = FFmpeg::MakeFramePointer();
 		}
 	}
 }
 
 bool AudioTrack::processFirstFrame() {
-	if (!FFmpeg::FrameHasData(_stream.frame.get())) {
+	if (!FFmpeg::FrameHasData(_stream.decodedFrame.get())) {
 		return false;
 	}
 	mixerInit();
@@ -131,7 +131,7 @@ void AudioTrack::mixerInit() {
 	Expects(!initialized());
 
 	auto data = std::make_unique<ExternalSoundData>();
-	data->frame = std::move(_stream.frame);
+	data->frame = std::move(_stream.decodedFrame);
 	data->codec = std::move(_stream.codec);
 	data->frequency = _stream.frequency;
 	data->length = (_stream.duration * data->frequency) / 1000LL;
