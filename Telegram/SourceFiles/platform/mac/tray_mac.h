@@ -12,13 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 class QMenu;
-class QSystemTrayIcon;
 
 namespace Platform {
+
+class NativeIcon;
 
 class Tray final {
 public:
 	Tray();
+	~Tray();
 
 	[[nodiscard]] rpl::producer<> aboutToShowRequests() const;
 	[[nodiscard]] rpl::producer<> showFromTrayRequests() const;
@@ -41,8 +43,10 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	base::unique_qptr<QSystemTrayIcon> _icon;
+	std::unique_ptr<NativeIcon> _nativeIcon;
 	base::unique_qptr<QMenu> _menu;
+
+	rpl::event_stream<> _showFromTrayRequests;
 
 	rpl::lifetime _actionsLifetime;
 	rpl::lifetime _lifetime;
