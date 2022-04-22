@@ -29,7 +29,7 @@ void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content) {
     for (const auto&[index, account]: accounts) {
         auto *button = Settings::AddButton(
                 content,
-                _description.account_title(account),
+                _description.account_title(account.get()),
                 st::settingsButton
         )->toggleOn(toggled->events_starting_with_copy(_action != nullptr && _action->HasAction(index)));
         account_buttons_[idx] = button;
@@ -66,7 +66,7 @@ void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content) {
     }
 }
 
-rpl::producer<QString> MultiAccountToggleUi::DefaultAccountNameFormat(const std::unique_ptr<Main::Account>& account) {
+rpl::producer<QString> MultiAccountToggleUi::DefaultAccountNameFormat(const Main::Account* account) {
     auto user = account->session().user();
     return rpl::single(user->firstName + " " + user->lastName);
 }
