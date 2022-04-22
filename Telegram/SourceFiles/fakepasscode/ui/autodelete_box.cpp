@@ -10,7 +10,7 @@
 #include <ui/widgets/input_fields.h>
 #include <ui/widgets/buttons.h>
 
-#include <chat_helpers/send_context_menu.h>
+#include "menu/menu_send.h"
 
 #include <styles/style_layers.h>
 #include <styles/style_boxes.h>

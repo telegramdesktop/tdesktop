@@ -1016,9 +1016,6 @@ void SendFilesBox::sendScheduled() {
 }
 
 void SendFilesBox::sendAutoDelete() {
-    const auto type = (_sendType == Api::SendType::ScheduledToUser)
-        ? SendMenu::Type::ScheduledToUser
-        : _sendMenuType;
     SendMenu::DefaultAutoDeleteCallback(this,
         [=](auto box) { _controller->show(std::move(box), Ui::LayerOption::KeepOther); },
         [=](auto opts) { send(opts); })();
