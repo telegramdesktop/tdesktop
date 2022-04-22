@@ -6389,23 +6389,27 @@ void HistoryWidget::checkPinnedBarState() {
 		&session(),
 		_pinnedTracker->shownMessageId());
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(this);
-	_pinnedBar->setContent(std::move(barContent));
-	Info::Profile::SharedMediaCountValue(
-		_peer,
-		nullptr,
-		Storage::SharedMediaType::Pinned
-	) | rpl::distinct_until_changed(
-	) | rpl::map([=](int count) {
-		if (_pinnedClickedId) {
-			_pinnedClickedId = FullMsgId();
-			_minPinnedId = std::nullopt;
-			updatePinnedViewer();
-		}
-		return (count > 1);
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool many) {
-		refreshPinnedBarButton(many);
+	rpl::combine(
+		Info::Profile::SharedMediaCountValue(
+			_peer,
+			nullptr,
+			Storage::SharedMediaType::Pinned
+		) | rpl::distinct_until_changed(
+		) | rpl::map([=](int count) {
+			if (_pinnedClickedId) {
+				_pinnedClickedId = FullMsgId();
+				_minPinnedId = std::nullopt;
+				updatePinnedViewer();
+			}
+			return (count > 1);
+		}) | rpl::distinct_until_changed(),
+		HistoryView::PinnedBarItemWithReplyMarkup(
+			&session(),
+			_pinnedTracker->shownMessageId())
+	) | rpl::start_with_next([=](bool many, HistoryItem *item) {
+		refreshPinnedBarButton(many, item);
 	}, _pinnedBar->lifetime());
+	_pinnedBar->setContent(std::move(barContent));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
@@ -6492,7 +6496,30 @@ void HistoryWidget::setChooseReportMessagesDetails(
 	}
 }
 
-void HistoryWidget::refreshPinnedBarButton(bool many) {
+void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
+	if (const auto replyMarkup = item ? item->inlineReplyMarkup() : nullptr) {
+		const auto &rows = replyMarkup->data.rows;
+		if ((rows.size() == 1) && (rows.front().size() == 1)) {
+			const auto text = rows.front().front().text;
+			if (!text.isEmpty()) {
+				auto button = object_ptr<Ui::RoundButton>(
+					this,
+					rpl::single(text),
+					st::historyPinnedBotButton);
+				button->setTextTransform(
+					Ui::RoundButton::TextTransform::NoTransform);
+				button->setFullRadius(true);
+				button->setClickedCallback([=] {
+					App::activateBotCommand(controller(), item, 0, 0);
+				});
+				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
+					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
+				}
+				_pinnedBar->setRightButton(std::move(button));
+				return;
+			}
+		}
+	}
 	const auto close = !many;
 	auto button = object_ptr<Ui::IconButton>(
 		this,

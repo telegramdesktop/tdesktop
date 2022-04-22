@@ -512,7 +512,7 @@ private:
 	void updatePinnedViewer();
 	void setupPinnedTracker();
 	void checkPinnedBarState();
-	void refreshPinnedBarButton(bool many);
+	void refreshPinnedBarButton(bool many, HistoryItem *item);
 	void checkLastPinnedClickedIdReset(
 		int wasScrollTop,
 		int nowScrollTop);

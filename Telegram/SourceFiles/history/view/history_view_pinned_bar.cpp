@@ -154,4 +154,56 @@ rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 	}) | rpl::flatten_latest();
 }
 
+rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
+		not_null<Main::Session*> session,
+		rpl::producer<PinnedId> id) {
+	return rpl::make_producer<HistoryItem*>([=,
+			id = std::move(id)](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		consumer.put_next(nullptr);
+
+		struct State {
+			HistoryMessageReplyMarkup *previousReplyMarkup = nullptr;
+			rpl::lifetime lifetime;
+		};
+		const auto state = lifetime.make_state<State>();
+
+		const auto pushUnique = [=](not_null<HistoryItem*> item) {
+			const auto replyMarkup = item->inlineReplyMarkup();
+			if (state->previousReplyMarkup == replyMarkup) {
+				return;
+			}
+			consumer.put_next(item.get());
+			state->previousReplyMarkup = replyMarkup;
+		};
+
+		rpl::duplicate(
+			id
+		) | rpl::start_with_next([=](PinnedId current) {
+			const auto fullId = current.message;
+			if (!fullId) {
+				return;
+			}
+			const auto messageFlag = [=](not_null<HistoryItem*> item) {
+				using Update = Data::MessageUpdate;
+				session->changes().messageFlagsValue(
+					item,
+					Update::Flag::ReplyMarkup
+				) | rpl::start_with_next([=](const Update &update) {
+					pushUnique(update.item);
+				}, state->lifetime);
+			};
+			if (const auto item = session->data().message(fullId)) {
+				messageFlag(item);
+			} else {
+				session->api().requestMessageData(
+					session->data().peer(fullId.peer),
+					fullId.msg,
+					[=] { messageFlag(session->data().message(fullId)); });
+			}
+		}, lifetime);
+		return lifetime;
+	});
+}
+
 } // namespace HistoryView

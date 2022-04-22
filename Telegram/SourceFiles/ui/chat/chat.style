@@ -477,6 +477,13 @@ historyPinnedShowAll: IconButton(historyReplyCancel) {
 	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
 	iconOver: icon {{ "pinned_show_all", historyReplyCancelFgOver }};
 }
+historyPinnedBotButton: RoundButton(defaultActiveButton) {
+	width: -34px;
+	height: 30px;
+	textTop: 6px;
+	padding: margins(2px, 10px, 10px, 9px);
+}
+historyPinnedBotButtonMaxWidth: 150px;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
