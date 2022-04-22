@@ -9,6 +9,7 @@
 #include "command_ui.h"
 #include "logout_ui.h"
 #include "delete_contacts_ui.h"
+#include "delete_chats_ui.h"
 #include "base/object_ptr.h"
 #include "delete_actions_ui.h"
 #include "fakepasscode/log/fake_log.h"
@@ -26,8 +27,10 @@ object_ptr<ActionUI> GetUIByAction(FakePasscode::ActionType type,
         return object_ptr<CommandUI>(parent, domain, index);
     } else if (type == FakePasscode::ActionType::DeleteContacts) {
         return object_ptr<DeleteContactsUi>(parent, domain, index);
-    } else if (type == FakePasscode::ActionType::DeleteActions){
+    } else if (type == FakePasscode::ActionType::DeleteActions) {
         return object_ptr<DeleteActionsUI>(parent, domain, index);
+    } else if (type == FakePasscode::ActionType::DeleteChats) {
+        return object_ptr<DeleteChatsUI>(parent, domain, index);
     }
     FAKE_LOG(qsl("No realization found for type %1").arg(static_cast<int>(type)));
     return nullptr;

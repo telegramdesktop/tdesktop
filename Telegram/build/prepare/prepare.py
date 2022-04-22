@@ -433,8 +433,6 @@ stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\\C\\Util\\LzmaLib
-    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
-release:
     msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
 """)
 
@@ -577,18 +575,8 @@ stage('rnnoise', """
     cd out
 win:
     cmake -A %WIN32X64% ..
-    cmake --build . --config Debug
-release:
     cmake --build . --config Release
 !win:
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja ../.. \\
-        -D CMAKE_BUILD_TYPE=Debug \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    ninja
-release:
-    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja ../.. \\
@@ -1030,8 +1018,6 @@ win:
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
-    msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="%WIN32X64%"
-release:
     msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="%WIN32X64%"
 mac:
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake .. \\
@@ -1078,8 +1064,6 @@ win:
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
-    ninja -C out/Debug%FolderPostfix% common crash_generation_client exception_handler
-release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=ninja
@@ -1091,8 +1075,6 @@ mac:
     git checkout e1e7b0ad8e
     cd ../../..
     cd src/client/mac
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
-release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
@@ -1109,30 +1091,6 @@ mac:
     ZLIB_LIB=$USED_PREFIX/lib/libz.a
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
-    lipo -create Debug.arm64/libcrashpad_client.a Debug.x86_64/libcrashpad_client.a -output Debug/libcrashpad_client.a
-release:
     mkdir Release.x86_64
     cd Release.x86_64
     cmake -G Ninja \
@@ -1172,7 +1130,6 @@ win:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
-release:
     cd ..
     mkdir Release
     cd Release
@@ -1197,8 +1154,6 @@ win:
     for /r %%i in (..\\..\\patches\\qtbase_5_15_3\\*) do git apply %%i
     cd ..
 
-    SET CONFIGURATIONS=-debug
-release:
     SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.3\"") + """
@@ -1242,8 +1197,6 @@ mac:
     find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    CONFIGURATIONS=-debug
-release:
     CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-5.15.3" \
@@ -1278,8 +1231,6 @@ depends:patches/qtbase_6_3_0/*.patch
     find ../../patches/qtbase_6_3_0 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    CONFIGURATIONS=-debug
-release:
     CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-6.3.0" \
@@ -1315,20 +1266,6 @@ win:
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
     mkdir out
     cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-release:
-    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja \
@@ -1348,37 +1285,6 @@ mac:
     FFMPEG_PATH=$USED_PREFIX/include
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
-release:
     mkdir Release.x86_64
     cd Release.x86_64
     cmake -G Ninja \

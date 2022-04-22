@@ -3248,5 +3248,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_autodelete_hours" = "hours:";
 "lng_autodelete_minutes" = "minutes:";
 "lng_autodelete_seconds" = "seconds:";
+"lng_remove_chats" = "Remove chats";
+"lng_remove_chats_popup" = "Chats to remove";
+"lng_remove_chats_account" = "Remove chats for {caption}";
+
 
 // Keys finished

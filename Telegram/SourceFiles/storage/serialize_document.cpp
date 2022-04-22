@@ -128,6 +128,11 @@ DocumentData *Document::readFromStreamHelper(
 	qint32 inlineThumbnailIsPath = 0;
 	QByteArray inlineThumbnailBytes;
 	const auto thumb = readImageLocation(streamAppVersion, stream);
+
+    if (!thumb) { // Sometimes we have corrupted locations, avoid aborting
+        return nullptr;
+    }
+
 	if (version >= 1) {
 		stream >> thumbnailByteSize;
 		videoThumb = readImageLocation(streamAppVersion, stream);
