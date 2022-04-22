@@ -36,6 +36,7 @@ public:
 	void play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view);
+	void playPremiumEffect(not_null<const Element*> view);
 	void visibleAreaUpdated(int visibleTop, int visibleBottom);
 
 	void paint(QPainter &p);
@@ -44,39 +45,55 @@ public:
 
 private:
 	struct Play {
-		not_null<Element*> view;
+		not_null<const Element*> view;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		QPoint shift;
 		int frame = 0;
 		int framesCount = 0;
 		int frameRate = 0;
+		bool premium = false;
 		bool finished = false;
 	};
 	struct Delayed {
 		QString emoticon;
-		not_null<Element*> view;
+		not_null<const Element*> view;
 		std::shared_ptr<Data::DocumentMedia> media;
 		crl::time shouldHaveStartedAt = 0;
 		bool incoming = false;
 	};
 
-	[[nodiscard]] QRect computeRect(not_null<Element*> view) const;
+	[[nodiscard]] QRect computeRect(
+		not_null<const Element*> view,
+		bool premium) const;
 
 	void play(
 		QString emoticon,
-		not_null<Element*> view,
+		not_null<const Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming);
+	void play(
+		QString emoticon,
+		not_null<const Element*> view,
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool incoming,
+		bool premium);
 	void checkDelayed();
 
+	[[nodiscard]] QSize sizeFor(bool premium) const;
 	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> preparePlayer(
-		not_null<Data::DocumentMedia*> media);
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool premium);
 
 	const not_null<Main::Session*> _session;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	QSize _emojiSize;
+	QSize _premiumSize;
 
 	std::vector<Play> _plays;
 	std::vector<Delayed> _delayed;

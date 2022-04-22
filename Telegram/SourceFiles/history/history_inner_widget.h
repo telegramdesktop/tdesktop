@@ -145,6 +145,7 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
 	void elementReplyTo(const FullMsgId &to);
 	void elementStartInteraction(not_null<const Element*> view);
+	void elementStartPremium(not_null<const Element*> view);
 	void elementShowSpoilerAnimation();
 
 	void updateBotInfo(bool recount = true);

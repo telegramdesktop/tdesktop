@@ -43,16 +43,10 @@ public:
 		Painter &p,
 		const PaintContext &context,
 		const QRect &r) override;
-	ClickHandlerPtr link() override {
-		return _link;
-	}
+	ClickHandlerPtr link() override;
 
-	DocumentData *document() override {
-		return _data;
-	}
-	void stickerClearLoopPlayed() override {
-		_lottieOncePlayed = false;
-	}
+	DocumentData *document() override;
+	void stickerClearLoopPlayed() override;
 	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
@@ -111,6 +105,7 @@ private:
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
 	mutable bool _lottieOncePlayed = false;
+	mutable bool _premiumEffectPlayed = false;
 	mutable bool _nextLastDiceFrame = false;
 
 	rpl::lifetime _lifetime;

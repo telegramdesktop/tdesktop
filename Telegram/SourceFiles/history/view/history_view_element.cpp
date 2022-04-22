@@ -205,6 +205,10 @@ void SimpleElementDelegate::elementStartInteraction(
 	not_null<const Element*> view) {
 }
 
+void SimpleElementDelegate::elementStartPremium(
+	not_null<const Element*> view) {
+}
+
 void SimpleElementDelegate::elementShowSpoilerAnimation() {
 }
 

@@ -68,6 +68,9 @@ Sticker::Sticker(
 		dataMediaCreated();
 	} else {
 		_data->loadThumbnail(parent->data()->fullId());
+		if (_data->isPremiumSticker()) {
+			_data->loadVideoThumbnail(parent->data()->fullId());
+		}
 	}
 	if (const auto media = replacing ? replacing->media() : nullptr) {
 		_lottie = media->stickerTakeLottie(_data, _replacements);
@@ -123,7 +126,9 @@ bool Sticker::readyToDrawLottie() {
 	ensureDataMediaCreated();
 	_dataMedia->checkStickerLarge();
 	const auto loaded = _dataMedia->loaded();
-	if (sticker->isLottie() && !_lottie && loaded) {
+	const auto waitingForPremium = _data->isPremiumSticker()
+		&& _dataMedia->videoThumbnailContent().isEmpty();
+	if (sticker->isLottie() && !_lottie && loaded && !waitingForPremium) {
 		setupLottie();
 	}
 	return (_lottie && _lottie->ready());
@@ -153,6 +158,19 @@ void Sticker::draw(
 	}
 }
 
+ClickHandlerPtr Sticker::link() {
+	return _link;
+}
+
+DocumentData *Sticker::document() {
+	return _data;
+}
+
+void Sticker::stickerClearLoopPlayed() {
+	_lottieOncePlayed = false;
+	_premiumEffectPlayed = false;
+}
+
 void Sticker::paintLottie(
 		Painter &p,
 		const PaintContext &context,
@@ -161,6 +179,14 @@ void Sticker::paintLottie(
 	request.box = _size * cIntRetinaFactor();
 	if (context.selected() && !_nextLastDiceFrame) {
 		request.colored = context.st->msgStickerOverlay()->c;
+	}
+	const auto premium = _data->isPremiumSticker();
+	if (premium) {
+		const auto rightAligned = _parent->hasOutLayout()
+			&& !_parent->delegate()->elementIsChatWide();
+		if (!rightAligned) {
+			request.mirrorHorizontal = true;
+		}
 	}
 	const auto frame = _lottie
 		? _lottie->frameInfo(request)
@@ -201,10 +227,10 @@ void Sticker::paintLottie(
 	_framesCount = count;
 	_nextLastDiceFrame = !paused
 		&& (_diceIndex > 0)
-		&& (frame.index + 2 == count);
+		&& (_frameIndex + 2 == count);
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
 	const auto switchToNext = !playOnce
-		|| (!lastDiceFrame && (frame.index != 0 || !_lottieOncePlayed));
+		|| (!lastDiceFrame && (_frameIndex != 0 || !_lottieOncePlayed));
 	if (!paused
 		&& switchToNext
 		&& _lottie->markFrameShown()
@@ -338,6 +364,9 @@ void Sticker::dataMediaCreated() const {
 	if (_dataMedia->thumbnailPath().isEmpty()) {
 		_dataMedia->thumbnailWanted(_parent->data()->fullId());
 	}
+	if (_data->isPremiumSticker()) {
+		_data->loadVideoThumbnail(_parent->data()->fullId());
+	}
 	_parent->history()->owner().registerHeavyViewPart(_parent);
 }
 
@@ -355,6 +384,11 @@ void Sticker::setupLottie() {
 		ChatHelpers::StickerLottieSize::MessageHistory,
 		size() * cIntRetinaFactor(),
 		Lottie::Quality::High);
+	if (_data->isPremiumSticker()
+		&& !_premiumEffectPlayed) {
+		_premiumEffectPlayed = true;
+		_parent->delegate()->elementStartPremium(_parent);
+	}
 	lottieCreated();
 }
 

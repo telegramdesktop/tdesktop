@@ -24,8 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kSizeMultiplier = 3;
-constexpr auto kCachesCount = 4;
+constexpr auto kEmojiMultiplier = 3;
+constexpr auto kPremiumMultiplier = 2.25;
+constexpr auto kEmojiCachesCount = 4;
+constexpr auto kPremiumCachesCount = 8;
 constexpr auto kMaxPlays = 5;
 constexpr auto kMaxPlaysWithSmallDelay = 3;
 constexpr auto kSmallDelay = crl::time(200);
@@ -55,6 +57,7 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 	}, _lifetime);
 
 	_emojiSize = Sticker::EmojiSize();
+	_premiumSize = Sticker::Size();
 }
 
 EmojiInteractions::~EmojiInteractions() = default;
@@ -84,27 +87,63 @@ void EmojiInteractions::play(
 	}
 }
 
+void EmojiInteractions::playPremiumEffect(not_null<const Element*> view) {
+	if (const auto media = view->media()) {
+		if (const auto document = media->getDocument()) {
+			if (document->isPremiumSticker()) {
+				play(
+					QString(),
+					view,
+					document,
+					document->createMediaView()->videoThumbnailContent(),
+					QString(),
+					false,
+					true);
+			}
+		}
+	}
+}
+
 void EmojiInteractions::play(
 		QString emoticon,
-		not_null<Element*> view,
+		not_null<const Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming) {
+	play(
+		std::move(emoticon),
+		view,
+		media->owner(),
+		media->bytes(),
+		media->owner()->filepath(),
+		incoming,
+		false);
+}
+
+void EmojiInteractions::play(
+		QString emoticon,
+		not_null<const Element*> view,
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool incoming,
+		bool premium) {
 	const auto top = view->block()->y() + view->y();
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
 		|| _visibleBottom <= top
-		|| _visibleTop == _visibleBottom) {
+		|| _visibleTop == _visibleBottom
+		|| (data.isEmpty() && filepath.isEmpty())) {
 		return;
 	}
 
-	auto lottie = preparePlayer(media.get());
+	auto lottie = preparePlayer(document, data, filepath, premium);
 
-	const auto shift = GenerateRandomShift(_emojiSize);
+	const auto shift = premium ? QPoint() : GenerateRandomShift(_emojiSize);
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 		}, [&](const Lottie::DisplayFrameRequest &request) {
-			const auto rect = computeRect(view).translated(shift);
+			const auto rect = computeRect(view, premium).translated(shift);
 			if (rect.y() + rect.height() >= _visibleTop
 				&& rect.y() <= _visibleBottom) {
 				_updateRequests.fire_copy(rect);
@@ -115,19 +154,30 @@ void EmojiInteractions::play(
 		.view = view,
 		.lottie = std::move(lottie),
 		.shift = shift,
+		.premium = premium,
 	});
 	if (incoming) {
 		_playStarted.fire(std::move(emoticon));
 	}
 	if (const auto media = view->media()) {
-		media->stickerClearLoopPlayed();
+		if (!premium) {
+			media->stickerClearLoopPlayed();
+		}
 	}
 }
 
+QSize EmojiInteractions::sizeFor(bool premium) const {
+	return premium
+		? (_premiumSize * kPremiumMultiplier)
+		: (_emojiSize * kEmojiMultiplier);
+}
+
 std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
-		not_null<Data::DocumentMedia*> media) {
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool premium) {
 	// Shortened copy from stickers_lottie module.
-	const auto document = media->owner();
 	const auto baseKey = document->bigFileBaseCacheKey();
 	const auto tag = uint8(0);
 	const auto keyShift = ((tag << 4) & 0xF0)
@@ -149,10 +199,8 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
 				std::move(data));
 		});
 	};
-	const auto data = media->bytes();
-	const auto filepath = document->filepath();
 	const auto request = Lottie::FrameRequest{
-		_emojiSize * kSizeMultiplier * style::DevicePixelRatio(),
+		sizeFor(premium) * style::DevicePixelRatio(),
 	};
 	auto &weakProvider = _sharedProviders[document];
 	auto shared = [&] {
@@ -160,7 +208,7 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
 			return result;
 		}
 		const auto result = Lottie::SinglePlayer::SharedProvider(
-			kCachesCount,
+			premium ? kPremiumCachesCount : kEmojiCachesCount,
 			get,
 			put,
 			Lottie::ReadContent(data, filepath),
@@ -179,19 +227,23 @@ void EmojiInteractions::visibleAreaUpdated(
 	_visibleBottom = visibleBottom;
 }
 
-QRect EmojiInteractions::computeRect(not_null<Element*> view) const {
+QRect EmojiInteractions::computeRect(
+		not_null<const Element*> view,
+		bool premium) const {
 	const auto fullWidth = view->width();
-	const auto shift = (_emojiSize.width() * kSizeMultiplier) / 40;
+	const auto sticker = premium ? _premiumSize : _emojiSize;
+	const auto size = sizeFor(premium);
+	const auto shift = size.width() / 40;
 	const auto skip = (view->hasFromPhoto() ? st::msgPhotoSkip : 0)
 		+ st::msgMargin.left();
 	const auto rightAligned = view->hasOutLayout()
 		&& !view->delegate()->elementIsChatWide();
 	const auto left = rightAligned
-		? (fullWidth - skip + shift - _emojiSize.width() * kSizeMultiplier)
+		? (fullWidth - skip + shift - size.width())
 		: (skip - shift);
 	const auto viewTop = view->block()->y() + view->y() + view->marginTop();
-	const auto top = viewTop - _emojiSize.height();
-	return QRect(QPoint(left, top), _emojiSize * kSizeMultiplier);
+	const auto top = viewTop + (sticker.height() - size.height()) / 2;
+	return QRect(QPoint(left, top), size);
 }
 
 void EmojiInteractions::paint(QPainter &p) {
@@ -201,7 +253,7 @@ void EmojiInteractions::paint(QPainter &p) {
 			continue;
 		}
 		auto request = Lottie::FrameRequest();
-		request.box = _emojiSize * kSizeMultiplier * factor;
+		request.box = sizeFor(play.premium) * factor;
 		const auto rightAligned = play.view->hasOutLayout()
 			&& !play.view->delegate()->elementIsChatWide();
 		if (!rightAligned) {
@@ -217,7 +269,7 @@ void EmojiInteractions::paint(QPainter &p) {
 		if (play.frame + 1 == play.framesCount) {
 			play.finished = true;
 		}
-		const auto rect = computeRect(play.view);
+		const auto rect = computeRect(play.view, play.premium);
 		p.drawImage(
 			QRect(rect.topLeft() + play.shift, frame.image.size() / factor),
 			frame.image);

@@ -414,6 +414,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::Scam
 			| Flag::Fake
 			| Flag::BotInlineGeo
+			| Flag::Premium
 			| Flag::Support
 			| (!minimal
 				? Flag::Contact
@@ -2827,7 +2828,7 @@ void Session::documentApplyFields(
 		? Images::FromVideoSize(_session, data, *videoThumbnailSize)
 		: ImageWithLocation();
 	const auto isPremiumSticker = videoThumbnailSize
-		&& (videoThumbnailSize->c_videoSize().vtype().v == "fp");
+		&& (videoThumbnailSize->c_videoSize().vtype().v == "f");
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,

@@ -45,7 +45,9 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		}
 	}
 	stream << qint32(document->getDuration());
-	stream << qint32(document->isPremiumSticker() ? 1 : 0);
+	if (document->type == StickerDocument) {
+		stream << qint32(document->isPremiumSticker() ? 1 : 0);
+	}
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());

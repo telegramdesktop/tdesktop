@@ -254,6 +254,11 @@ public:
 			_widget->elementStartInteraction(view);
 		}
 	}
+	void elementStartPremium(not_null<const Element*> view) override {
+		if (_widget) {
+			_widget->elementStartPremium(view);
+		}
+	}
 	void elementShowSpoilerAnimation() override {
 		if (_widget) {
 			_widget->elementShowSpoilerAnimation();
@@ -3169,6 +3174,11 @@ void HistoryInner::elementReplyTo(const FullMsgId &to) {
 
 void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
 	_controller->emojiInteractions().startOutgoing(view);
+}
+
+void HistoryInner::elementStartPremium(not_null<const Element*> view) {
+	_emojiInteractions->playPremiumEffect(view);
+	_animatedStickersPlayed.emplace(view->data());
 }
 
 void HistoryInner::elementShowSpoilerAnimation() {
