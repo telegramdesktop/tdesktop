@@ -6388,9 +6388,8 @@ void HistoryWidget::checkPinnedBarState() {
 	auto barContent = HistoryView::PinnedBarContent(
 		&session(),
 		_pinnedTracker->shownMessageId());
-	_pinnedBar = std::make_unique<Ui::PinnedBar>(
-		this,
-		std::move(barContent));
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(this);
+	_pinnedBar->setContent(std::move(barContent));
 	Info::Profile::SharedMediaCountValue(
 		_peer,
 		nullptr,

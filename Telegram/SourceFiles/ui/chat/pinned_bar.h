@@ -22,9 +22,7 @@ class RpWidget;
 
 class PinnedBar final {
 public:
-	PinnedBar(
-		not_null<QWidget*> parent,
-		rpl::producer<Ui::MessageBarContent> content);
+	PinnedBar(not_null<QWidget*> parent);
 	~PinnedBar();
 
 	void show();
@@ -34,6 +32,7 @@ public:
 
 	void setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess);
 
+	void setContent(rpl::producer<Ui::MessageBarContent> content);
 	void setRightButton(object_ptr<Ui::RpWidget> button);
 
 	void move(int x, int y);
@@ -65,6 +64,8 @@ private:
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
+
+	rpl::lifetime _contentLifetime;
 
 };
 

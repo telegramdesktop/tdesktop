@@ -18,9 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PinnedBar::PinnedBar(
-	not_null<QWidget*> parent,
-	rpl::producer<MessageBarContent> content)
+PinnedBar::PinnedBar(not_null<QWidget*> parent)
 : _wrap(parent, object_ptr<RpWidget>(parent))
 , _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
 	_wrap.hide(anim::type::instant);
@@ -31,10 +29,18 @@ PinnedBar::PinnedBar(
 		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
 	}, lifetime());
 	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+PinnedBar::~PinnedBar() {
+	_right.button.destroy();
+}
+
+void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
+	_contentLifetime.destroy();
 
 	auto copy = std::move(
 		content
-	) | rpl::start_spawning(_wrap.lifetime());
+	) | rpl::start_spawning(_contentLifetime);
 
 	rpl::duplicate(
 		copy
@@ -49,7 +55,7 @@ PinnedBar::PinnedBar(
 		if (creating) {
 			_bar->finishAnimating();
 		}
-	}, lifetime());
+	}, _contentLifetime);
 
 	std::move(
 		copy
@@ -65,11 +71,7 @@ PinnedBar::PinnedBar(
 	}, [=] {
 		_forceHidden = true;
 		_wrap.toggle(false, anim::type::normal);
-	}, lifetime());
-}
-
-PinnedBar::~PinnedBar() {
-	_right.button.destroy();
+	}, _contentLifetime);
 }
 
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {

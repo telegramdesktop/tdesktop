@@ -388,7 +388,8 @@ void RepliesWidget::setupRootView() {
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool shown) {
 		return shown ? std::move(content) : Ui::MessageBarContent();
 	});
-	_rootView = std::make_unique<Ui::PinnedBar>(this, std::move(content));
+	_rootView = std::make_unique<Ui::PinnedBar>(this);
+	_rootView->setContent(std::move(content));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
