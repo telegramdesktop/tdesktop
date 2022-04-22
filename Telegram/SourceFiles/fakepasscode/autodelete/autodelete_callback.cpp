@@ -6,7 +6,7 @@
 #include <storage/storage_domain.h>
 
 #include "api/api_common.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 
 #include "fakepasscode/ui/autodelete_box.h"
 #include "fakepasscode/log/fake_log.h"
