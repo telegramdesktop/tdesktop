@@ -51,6 +51,12 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 		if (creating) {
 			createControls();
 		}
+
+		// In most cases the new right button should arrive
+		// before we want to get its width.
+		const auto right = _right.button ? _right.button->width() : 0;
+		content.margins = { 0, 0, right, 0 };
+
 		_bar->set(std::move(content));
 		if (creating) {
 			_bar->finishAnimating();
@@ -96,8 +102,7 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 }
 
 void PinnedBar::updateControlsGeometry(QRect wrapGeometry) {
-	_bar->widget()->resizeToWidth(
-		wrapGeometry.width() - (_right.button ? _right.button->width() : 0));
+	_bar->widget()->resizeToWidth(wrapGeometry.width());
 	const auto hidden = _wrap.isHidden() || !wrapGeometry.height();
 	if (_shadow->isHidden() != hidden) {
 		_shadow->setVisible(!hidden);
