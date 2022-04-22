@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 struct MessageBarContent;
+template <typename Widget>
+class FadeWrapScaled;
 class MessageBar;
 class IconButton;
 class PlainShadow;
@@ -45,13 +47,19 @@ public:
 	}
 
 private:
+	using RightButton = object_ptr<Ui::FadeWrapScaled<Ui::RpWidget>>;
 	void createControls();
 	void updateShadowGeometry(QRect wrapGeometry);
 	void updateControlsGeometry(QRect wrapGeometry);
 
 	Ui::SlideWrap<> _wrap;
 	std::unique_ptr<Ui::MessageBar> _bar;
-	object_ptr<Ui::RpWidget> _rightButton = { nullptr };
+
+	struct {
+		RightButton button = { nullptr };
+		rpl::lifetime previousButtonLifetime;
+	} _right;
+
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;

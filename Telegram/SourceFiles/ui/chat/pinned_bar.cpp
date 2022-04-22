@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bar.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/fade_wrap.h"
 #include "styles/style_chat.h"
 #include "styles/palette.h"
 
@@ -68,15 +69,24 @@ PinnedBar::PinnedBar(
 }
 
 PinnedBar::~PinnedBar() {
-	_rightButton.destroy();
+	_right.button.destroy();
 }
 
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
-	_rightButton.destroy();
-	_rightButton = std::move(button);
-	if (_rightButton) {
-		_rightButton->setParent(_wrap.entity());
-		_rightButton->show();
+	if (auto previous = _right.button.release()) {
+		_right.previousButtonLifetime.make_state<RightButton>(
+			RightButton::fromRaw(std::move(previous)));
+		_right.previousButtonLifetime = previous->toggledValue(
+		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
+			_right.previousButtonLifetime.destroy();
+		});
+		previous->hide(anim::type::normal);
+	}
+	_right.button.create(_wrap.entity(), std::move(button));
+	if (_right.button) {
+		_right.button->setParent(_wrap.entity());
+		_right.button->setDuration(st::defaultMessageBar.duration);
+		_right.button->show(anim::type::normal);
 	}
 	if (_bar) {
 		updateControlsGeometry(_wrap.geometry());
@@ -85,13 +95,13 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 
 void PinnedBar::updateControlsGeometry(QRect wrapGeometry) {
 	_bar->widget()->resizeToWidth(
-		wrapGeometry.width() - (_rightButton ? _rightButton->width() : 0));
+		wrapGeometry.width() - (_right.button ? _right.button->width() : 0));
 	const auto hidden = _wrap.isHidden() || !wrapGeometry.height();
 	if (_shadow->isHidden() != hidden) {
 		_shadow->setVisible(!hidden);
 	}
-	if (_rightButton) {
-		_rightButton->moveToRight(0, 0);
+	if (_right.button) {
+		_right.button->moveToRight(0, 0);
 	}
 }
 
@@ -117,8 +127,8 @@ void PinnedBar::createControls() {
 	_bar = std::make_unique<MessageBar>(
 		_wrap.entity(),
 		st::defaultMessageBar);
-	if (_rightButton) {
-		_rightButton->raise();
+	if (_right.button) {
+		_right.button->raise();
 	}
 
 	// Clicks.
