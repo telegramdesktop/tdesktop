@@ -12,4 +12,4 @@ static auto description = MultiAccountToggleUi::Description{
 };
 
 DeleteContactsUi::DeleteContactsUi(QWidget *parent, gsl::not_null<Main::Domain*> domain, size_t index)
-        : MultiAccountToggleUi(parent, domain, index, description) {}
+    : MultiAccountToggleUi(parent, domain, index, description) {}
