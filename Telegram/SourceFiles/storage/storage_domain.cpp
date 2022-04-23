@@ -746,13 +746,12 @@ void Domain::ClearActions(size_t index) {
     _fakePasscodes[index].ClearActions();
 }
 
-
 void Domain::ClearCurrentPasscodeActions(){
     ClearActions(_fakePasscodeIndex);
+}
 
 FakePasscode::AutoDeleteService *Domain::GetAutoDelete() const {
     return _autoDelete.get();
-
 }
 
 } // namespace Storage
