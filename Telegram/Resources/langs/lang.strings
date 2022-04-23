@@ -3251,6 +3251,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_remove_chats" = "Remove chats";
 "lng_remove_chats_popup" = "Chats to remove";
 "lng_remove_chats_account" = "Remove chats for {caption}";
-
+"lng_chats_action_archive" = "Archived chats";
+"lng_chats_action_main_chats" = "Main chats";
 
 // Keys finished

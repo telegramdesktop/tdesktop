@@ -19,6 +19,7 @@
 #include "boxes/abstract_box.h"
 #include "ui/text/text_utilities.h"
 #include "data/data_session.h"
+#include "data/data_folder.h"
 #include "window/window_session_controller.h"
 
 #include "fakepasscode/actions/delete_chats.h"
@@ -92,7 +93,8 @@ void SelectChatsContentBox::prepare() {
     using namespace Settings;
     addButton(tr::lng_close(), [=] { closeBox(); });
     const auto content =
-            setInnerWidget(object_ptr<SelectChatsContent>(this, domain_, action_, this, index_, description_),
+            setInnerWidget(object_ptr<SelectChatsContent>(this, domain_, action_, this, index_, description_,
+                                                          action_->GetData(index_)),
                            st::sessionsScroll);
     content->resize(st::boxWideWidth, st::noContactsHeight);
     content->setupContent();
@@ -100,18 +102,37 @@ void SelectChatsContentBox::prepare() {
 }
 
 void SelectChatsContent::setupContent() {
+    using ChatWithName = std::pair<not_null<const Dialogs::MainList*>, rpl::producer<QString>>;
+
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     Settings::AddSubsectionTitle(content, description_->popup_window_title());
 
-    for (auto chat : domain_->active().session().data().chatsList()->indexed()->all()) {
-        auto button = Settings::AddButton(content, rpl::single(chat->entry()->chatListName()), st::settingsButton);
-        button->toggleOn(rpl::single(false));
-        button->addClickHandler([this, chat, button] {
-            data_ = description_->button_handler(button, chat, data_);
-            action_->UpdateOrAddAction(index_, data_);
-            domain_->local().writeAccounts();
-        });
-        buttons_.push_back(button);
+    const auto& account_data = domain_->accounts()[index_].account->session().data();
+
+    std::vector<ChatWithName> chat_lists;
+    if (auto archive_folder = account_data.folderLoaded(Data::Folder::kId)) {
+        chat_lists.emplace_back(account_data.chatsList(archive_folder), tr::lng_chats_action_archive());
+    }
+    chat_lists.emplace_back(account_data.chatsList(), tr::lng_chats_action_main_chats());
+    for (const auto&[list, name] : chat_lists) {
+        Settings::AddSubsectionTitle(content, name);
+        for (auto chat: list->indexed()->all()) {
+            if (chat->entry()->fixedOnTopIndex() == Dialogs::Entry::kArchiveFixOnTopIndex) {
+                continue; // Archive, skip
+            }
+
+            chat->entry()->loadUserpic();
+            auto button = Settings::AddButton(content, rpl::single(chat->entry()->chatListName()), st::settingsButton);
+            Settings::AddDialogImageToButton(button, st::settingsButton, chat);
+            auto dialog_id = chat->key().peer()->id.value;
+            button->toggleOn(rpl::single(data_.peer_ids.contains(dialog_id)));
+            button->addClickHandler([this, chat, button] {
+                data_ = description_->button_handler(button, chat, data_);
+                action_->UpdateOrAddAction(index_, data_);
+                domain_->local().writeAccounts();
+            });
+            buttons_.push_back(button);
+        }
     }
 
     Ui::ResizeFitChild(this, content);
@@ -134,8 +155,8 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
     Settings::AddSubsectionTitle(content, _description.title());
     const auto& accounts = Core::App().domain().accounts();
     account_buttons_.resize(accounts.size());
-    size_t idx = 0;
-    for (const auto&[index, account]: accounts) {
+    for (size_t idx = 0; idx < accounts.size(); ++idx) {
+        const auto&[index, account] = accounts[idx];
         auto button = Settings::AddButton(
                 content,
                 _description.account_title(account),
@@ -145,16 +166,13 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
 
         button->addClickHandler([index = index, button, controller, this] {
             FAKE_LOG(qsl("%1: Set  %2 to %3").arg(_description.name).arg(index).arg(button->toggled()));
-            if (button->toggled()) {
+            if (!_action->HasAction(index)) {
                 _action->AddAction(index, FakePasscode::SelectPeersData{});
-            } else {
-                _action->RemoveAction(index);
             }
 
             _domain->local().writeAccounts();
             controller->show(Box<SelectChatsContentBox>(_domain, _action, index, &_description));
         });
-        ++idx;
     }
 }
 

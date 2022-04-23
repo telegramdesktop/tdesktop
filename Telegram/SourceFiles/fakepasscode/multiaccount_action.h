@@ -38,6 +38,8 @@ namespace FakePasscode {
         void UpdateAction(qint32 index, const Data& data);
         void UpdateAction(qint32 index, Data&& data);
 
+        const Data& GetData(qint32 index) const;
+
         void UpdateOrAddAction(qint32 index, const Data& data);
         void UpdateOrAddAction(qint32 index, Data&& data);
 
@@ -50,6 +52,8 @@ namespace FakePasscode {
         base::flat_map<qint32, Data> index_actions_;
 
         void OnAccountLoggedOut(qint32 index) override;
+
+        static const Data kEmptyData;
     };
 
     struct SelectPeersData {

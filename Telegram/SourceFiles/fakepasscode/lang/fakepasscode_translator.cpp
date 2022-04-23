@@ -216,6 +216,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                 }
                 break;
             }
+            case tr::lng_chats_action_archive.base: {
+                return "Архивированные чаты";
+            }
+            case tr::lng_chats_action_main_chats.base: {
+                return "Основные чаты";
+            }
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -320,6 +326,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_autodelete_seconds.base: {
                 return "секунд:";
+            }
+            case tr::lng_chats_action_archive.base: {
+                return "Архіваваныя чаты";
+            }
+            case tr::lng_chats_action_main_chats.base: {
+                return "Асноўныя чаты";
             }
         }
     }

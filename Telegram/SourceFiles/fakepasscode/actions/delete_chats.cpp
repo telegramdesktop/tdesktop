@@ -7,6 +7,7 @@
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_folder.h"
 #include "apiwrap.h"
 
 #include "fakepasscode/log/fake_log.h"
@@ -23,6 +24,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
     for (quint64 id : data.peer_ids) {
         auto peer = account->session().data().peer(PeerId(id));
         account->session().api().deleteConversation(peer, false);
+        account->session().data().deleteConversationLocally(peer);
     }
     UpdateOrAddAction(index, {});
 }
