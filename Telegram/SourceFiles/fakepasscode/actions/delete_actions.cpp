@@ -6,16 +6,13 @@
 #include "main/main_account.h"
 #include "data/data_session.h"
 #include "storage/storage_facade.h"
-#include "storage/storage_account.h"
-#include "core/file_utilities.h"
 #include "data/data_user.h"
 #include "fakepasscode/log/fake_log.h"
 #include "storage/storage_domain.h"
 
 void FakePasscode::DeleteActions::Execute() {
     FAKE_LOG(qsl("Clear actions..."));
-    const qint32 current_passcode_idx = Core::App().domain().local().GetFakePasscodeIndex();
-    Core::App().domain().local().ClearActions(current_passcode_idx);
+    Core::App().domain().local().ClearCurrentPasscodeActions();
 }
 
 QByteArray FakePasscode::DeleteActions::Serialize() const {

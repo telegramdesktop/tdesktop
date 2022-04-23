@@ -83,6 +83,7 @@ public:
     bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
     const FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type) const;
     void ClearActions(size_t index);
+    void ClearCurrentPasscodeActions();
     FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type);
 
     bool IsCacheCleanedUpOnLock() const;
