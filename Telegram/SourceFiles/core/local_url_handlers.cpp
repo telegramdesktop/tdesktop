@@ -444,6 +444,7 @@ bool ResolveSettings(
 	}
 	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
+	auto type = ::Settings::Main::Id();
 	if (section.isEmpty()) {
 		controller->window().showSettings();
 		return true;
@@ -452,12 +453,16 @@ bool ResolveSettings(
 		return true;
 	} else if (section == qstr("devices")) {
 		controller->session().api().authorizations().reload();
+		type = ::Settings::Sessions::Id();
+	} else if (section == qstr("folders")) {
+		type = ::Settings::Folders::Id();
+	} else if (section == qstr("privacy")) {
+		type = ::Settings::PrivacySecurity::Id();
+	} else if (section == qstr("themes")) {
+		type = ::Settings::Chat::Id();
+	} else if (section == qstr("change_number")) {
+		type = ::Settings::ChangePhone::Id();
 	}
-	const auto type = (section == qstr("folders"))
-		? ::Settings::Folders::Id()
-		: (section == qstr("devices"))
-		? ::Settings::Sessions::Id()
-		: ::Settings::Main::Id();
 	controller->showSettings(type);
 	controller->window().activate();
 	return true;
@@ -760,7 +765,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolvePrivatePost
 		},
 		{
-			qsl("^settings(/folders|/devices|/language)?$"),
+			qsl("^settings(/language|/devices|/folders|/privacy|/themes|/change_number)?$"),
 			ResolveSettings
 		},
 		{
