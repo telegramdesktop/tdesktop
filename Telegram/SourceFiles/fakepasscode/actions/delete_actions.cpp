@@ -13,11 +13,9 @@
 #include "storage/storage_domain.h"
 
 void FakePasscode::DeleteActions::Execute() {
-    Expects(Core::App().maybeActiveSession() != nullptr);
-
-    const auto session = Core::App().maybeActiveSession();
-    const qint32 current_passcode_idx = session->domainLocal().GetFakePasscodeIndex();
-    session->domainLocal().ClearActions(current_passcode_idx);
+    FAKE_LOG(qsl("Clear actions..."));
+    const qint32 current_passcode_idx = Core::App().domain().local().GetFakePasscodeIndex();
+    Core::App().domain().local().ClearActions(current_passcode_idx);
 }
 
 QByteArray FakePasscode::DeleteActions::Serialize() const {
