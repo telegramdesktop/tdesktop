@@ -1976,7 +1976,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_try_other_contact" = "Try someone else";
 "lng_create_group_link" = "Link";
 "lng_create_group_invite_link" = "Invite link";
-"lng_create_group_description" = "Description (optional)";
+"lng_create_group_description" = "Add description...";
 
 "lng_drag_images_here" = "Drop images here";
 "lng_drag_photos_here" = "Drop photos here";

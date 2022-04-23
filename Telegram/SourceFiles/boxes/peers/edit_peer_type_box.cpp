@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_type_box.h"
 
-#include "apiwrap.h"
-#include "api/api_invite_links.h"
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -19,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
-#include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
@@ -27,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
@@ -35,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -47,11 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
-
-#include <rpl/flatten_latest.h>
 
 namespace {
 
@@ -209,21 +199,22 @@ void Controller::createContent() {
 				Ui::LayerOption::KeepOther);
 		},
 		st::manageGroupButton,
-		&st::infoIconInviteLinks));
+		{ &st::infoIconInviteLinks, Settings::kIconLightOrange }));
 	AddSkip(_wrap.get());
 	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (!_linkOnly) {
 		AddSkip(_wrap.get());
-		AddSubsectionTitle(_wrap.get(), tr::lng_manage_peer_no_forwards_title());
+		AddSubsectionTitle(
+			_wrap.get(),
+			tr::lng_manage_peer_no_forwards_title());
 		_controls.noForwards = _wrap->add(EditPeerInfoBox::CreateButton(
 			_wrap.get(),
 			tr::lng_manage_peer_no_forwards(),
 			rpl::single(QString()),
-			[=] {},
-			st::manageGroupTopButtonWithText,
-			nullptr
-		));
+			[] {},
+			st::peerPermissionsButton,
+			{}));
 		_controls.noForwards->toggleOn(
 			rpl::single(_noForwardsSavedValue.value_or(false))
 		)->toggledValue(

@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
-#include "base/timer.h"
+#include "ui/layers/box_content.h"
 
 namespace style {
 struct SettingsCountButton;
