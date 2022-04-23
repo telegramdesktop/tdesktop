@@ -518,16 +518,13 @@ void Widget::resetAccount() {
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;
-				auto when = tr::lng_signin_reset_minutes(
-					tr::now,
-					lt_count,
-					minutes);
+				auto when = tr::lng_minutes(tr::now, lt_count, minutes);
 				if (days > 0) {
-					const auto daysCount = tr::lng_signin_reset_days(
+					const auto daysCount = tr::lng_days(
 						tr::now,
 						lt_count,
 						days);
-					const auto hoursCount = tr::lng_signin_reset_hours(
+					const auto hoursCount = tr::lng_hours(
 						tr::now,
 						lt_count,
 						hours);
@@ -540,7 +537,7 @@ void Widget::resetAccount() {
 						lt_minutes_count,
 						when);
 				} else if (hours > 0) {
-					const auto hoursCount = tr::lng_signin_reset_hours(
+					const auto hoursCount = tr::lng_hours(
 						tr::now,
 						lt_count,
 						hours);

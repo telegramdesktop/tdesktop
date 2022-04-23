@@ -53,6 +53,10 @@ class EmojiPack;
 class DicePacks;
 } // namespace Stickers;
 
+namespace InlineBots {
+class AttachWebView;
+} // namespace InlineBots
+
 namespace Main {
 
 class Account;
@@ -116,6 +120,9 @@ public:
 	}
 	[[nodiscard]] SendAsPeers &sendAsPeers() const {
 		return *_sendAsPeers;
+	}
+	[[nodiscard]] InlineBots::AttachWebView &attachWebView() const {
+		return *_attachWebView;
 	}
 
 	void saveSettings();
@@ -194,6 +201,7 @@ private:
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
+	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

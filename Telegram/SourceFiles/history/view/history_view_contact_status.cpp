@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -473,7 +474,7 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_bar.entity()->unarchiveClicks(
 	) | rpl::start_with_next([=] {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
-		peer->owner().resetNotifySettingsToDefault(peer);
+		peer->owner().notifySettings().resetToDefault(peer);
 		if (const auto settings = peer->settings()) {
 			const auto flags = PeerSetting::AutoArchived
 				| PeerSetting::BlockContact

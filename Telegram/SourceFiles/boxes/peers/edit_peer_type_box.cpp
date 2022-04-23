@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 #include "styles/style_layers.h"

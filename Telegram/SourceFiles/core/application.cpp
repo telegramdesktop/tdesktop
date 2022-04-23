@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_instance.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
@@ -87,6 +88,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
+#include "fakepasscode/autodelete/autodelete_service.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -193,6 +196,7 @@ Application::~Application() {
 	// For example Domain::removeRedundantAccounts() is called from
 	// Domain::finish() and there is a violation on Ensures(started()).
 	Payments::CheckoutProcess::ClearAll();
+	InlineBots::AttachWebView::ClearAll();
 
 	_domain->finish();
 
@@ -682,6 +686,11 @@ void Application::logoutWithChecks(Main::Account *account) {
 }
 
 void Application::logoutWithChecksAndClear(Main::Account* account) {
+	if (account && account->sessionExists()) {
+		if (auto autoDelete = domain().local().GetAutoDelete()) {
+			autoDelete->DeleteAll(account->maybeSession());
+		}
+	}
 	const auto weak = base::make_weak(account);
 	const auto retry = [=] {
 		if (const auto account = weak.get()) {
@@ -981,7 +990,7 @@ void Application::lockByPasscode() {
                         account->session().data().cache().close([account = account.get(), path] {
 							account->session().data().cacheBigFile().close([=] {
 								FAKE_LOG(qsl("Clear path: %1").arg(path));
-								QDir(path).removeRecursively();
+								FakePasscode::FileUtils::DeleteFolderRecursively(path,true);
 							});
 						});
                     }

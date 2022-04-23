@@ -12,7 +12,8 @@
 #include "styles/style_settings.h"
 #include "fakepasscode/log/fake_log.h"
 
-void LogoutUI::Create(not_null<Ui::VerticalLayout *> content) {
+void LogoutUI::Create(not_null<Ui::VerticalLayout *> content,
+                      Window::SessionController*) {
     Settings::AddSubsectionTitle(content, tr::lng_logout());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     const auto& accounts = Core::App().domain().accounts();

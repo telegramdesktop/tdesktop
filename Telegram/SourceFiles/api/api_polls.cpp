@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h" // ShouldSendSilent
 #include "main/main_session.h"
 
+#include "fakepasscode/hooks/fake_messages.h"
+
 namespace Api {
 namespace {
 
@@ -74,7 +76,7 @@ void Polls::create(
 			MTP_int(replyTo),
 			PollDataToInputMedia(&data),
 			MTP_string(),
-			MTP_long(base::RandomValue<uint64>()),
+			MTP_long(FakePasscode::RegisterMessageRandomId(_session, peer->id, action.options)),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),

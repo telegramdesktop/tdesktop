@@ -38,7 +38,9 @@ QByteArray SessionSettings::serialize() const {
 	size += _groupStickersSectionHidden.size() * sizeof(quint64);
 	size += _mediaLastPlaybackPosition.size() * 2 * sizeof(quint64);
 	size += Serialize::bytearraySize(autoDownload);
-	size += sizeof(qint32) + _hiddenPinnedMessages.size() * (sizeof(quint64) + sizeof(qint32));
+	size += sizeof(qint32)
+		+ _hiddenPinnedMessages.size() * (sizeof(quint64) + sizeof(qint32))
+		+ (_mutePeriods.size() * sizeof(quint64));
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -71,6 +73,10 @@ QByteArray SessionSettings::serialize() const {
 		stream << qint32(_hiddenPinnedMessages.size());
 		for (const auto &[key, value] : _hiddenPinnedMessages) {
 			stream << SerializePeerId(key) << qint64(value.bare);
+		}
+		stream << qint32(_mutePeriods.size());
+		for (const auto &period : _mutePeriods) {
+			stream << quint64(period);
 		}
 	}
 	return result;
@@ -132,6 +138,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 dialogsFiltersEnabled = _dialogsFiltersEnabled ? 1 : 0;
 	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
 	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
+	std::vector<TimeId> mutePeriods;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -351,6 +358,17 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				quint64 period;
+				stream >> period;
+				mutePeriods.emplace_back(period);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -394,6 +412,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_dialogsFiltersEnabled = (dialogsFiltersEnabled == 1);
 	_supportAllSilent = (supportAllSilent == 1);
 	_photoEditorHintShowsCount = std::move(photoEditorHintShowsCount);
+	_mutePeriods = std::move(mutePeriods);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -539,6 +558,22 @@ bool SessionSettings::photoEditorHintShown() const {
 void SessionSettings::incrementPhotoEditorHintShown() {
 	if (photoEditorHintShown()) {
 		_photoEditorHintShowsCount++;
+	}
+}
+
+std::vector<TimeId> SessionSettings::mutePeriods() const {
+	return _mutePeriods;
+}
+
+void SessionSettings::addMutePeriod(TimeId period) {
+	if (_mutePeriods.empty()) {
+		_mutePeriods.push_back(period);
+	} else if (_mutePeriods.back() != period) {
+		if (_mutePeriods.back() < period) {
+			_mutePeriods = { _mutePeriods.back(), period };
+		} else {
+			_mutePeriods = { period, _mutePeriods.back() };
+		}
 	}
 }
 

@@ -125,7 +125,12 @@ struct CodecDeleter {
 	void operator()(AVCodecContext *value);
 };
 using CodecPointer = std::unique_ptr<AVCodecContext, CodecDeleter>;
-[[nodiscard]] CodecPointer MakeCodecPointer(not_null<AVStream*> stream);
+
+struct CodecDescriptor {
+	not_null<AVStream*> stream;
+	bool hwAllowed = false;
+};
+[[nodiscard]] CodecPointer MakeCodecPointer(CodecDescriptor descriptor);
 
 struct FrameDeleter {
 	void operator()(AVFrame *value);

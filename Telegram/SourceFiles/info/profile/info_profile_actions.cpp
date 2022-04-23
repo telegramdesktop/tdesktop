@@ -31,8 +31,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
+#include "boxes/report_messages_box.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_mute.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
@@ -47,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "facades.h"
@@ -372,14 +376,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 		_wrap,
 		tr::lng_profile_enable_notifications(),
 		st::infoNotificationsButton);
-	result->toggleOn(
-		NotificationsEnabledValue(peer)
-	)->addClickHandler([=] {
-		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
-			? 0
-			: Data::NotifySettings::kDefaultMutePeriod;
-		peer->owner().updateNotifySettings(peer, muteForSeconds);
-	});
+	result->toggleOn(NotificationsEnabledValue(peer), true);
+	MuteMenu::SetupMuteMenu(
+		result.data(),
+		result->clicks() | rpl::to_empty,
+		{ peer, std::make_shared<Window::Show>(_controller) });
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,
@@ -507,12 +508,26 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
+	const auto notEmpty = [](const QString &value) {
+		return !value.isEmpty();
+	};
 	AddActionButton(
 		_wrap,
-		tr::lng_profile_invite_to_group(),
-		CanInviteBotToGroupValue(user),
+		InviteToChatButton(user) | rpl::filter(notEmpty),
+		InviteToChatButton(user) | rpl::map(notEmpty),
 		[=] { AddBotToGroupBoxController::Start(user); },
 		&st::infoIconRequests);
+	const auto about = _wrap->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_wrap.data(),
+			object_ptr<Ui::VerticalLayout>(_wrap.data())));
+	about->toggleOn(InviteToChatAbout(user) | rpl::map(notEmpty));
+	::Settings::AddSkip(about->entity());
+	::Settings::AddDividerText(
+		about->entity(),
+		InviteToChatAbout(user) | rpl::filter(notEmpty));
+	::Settings::AddSkip(about->entity());
+	about->finishAnimating();
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
@@ -605,7 +620,7 @@ void ActionsFiller::addReportAction() {
 	const auto peer = _peer;
 	const auto controller = _controller->parentController();
 	const auto report = [=] {
-		HistoryView::ShowReportPeerBox(controller, peer);
+		ShowReportPeerBox(controller, peer);
 	};
 	AddActionButton(
 		_wrap,

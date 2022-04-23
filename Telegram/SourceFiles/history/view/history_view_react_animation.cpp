@@ -45,7 +45,7 @@ Animation::Animation(
 		if (!media || !media->loaded()) {
 			return false;
 		}
-		icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+		icon = Lottie::MakeIcon({
 			.path = document->filepath(true),
 			.json = media->bytes(),
 			.sizeOverride = QSize(size, size),

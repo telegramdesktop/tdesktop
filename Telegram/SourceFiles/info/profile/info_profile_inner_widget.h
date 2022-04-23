@@ -44,9 +44,6 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	void setIsStackBottom(bool isStackBottom) {
-		_isStackBottom = isStackBottom;
-	}
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -67,8 +64,6 @@ private:
 
 	bool canHideDetailsEver() const;
 	rpl::producer<bool> canHideDetails() const;
-
-	rpl::variable<bool> _isStackBottom = true;
 
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;

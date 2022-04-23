@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/utils/file_utils.h"
 
 namespace Storage {
 namespace {
@@ -2845,6 +2846,31 @@ bool Account::isBotTrustedPayment(PeerId botId) {
 		&& ((i->second & BotTrustFlag::Payment) != 0);
 }
 
+void Account::markBotTrustedOpenWebView(PeerId botId) {
+	if (isBotTrustedOpenWebView(botId)) {
+		return;
+	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(
+			botId,
+			BotTrustFlag::NoOpenGame | BotTrustFlag::OpenWebView);
+	} else {
+		i->second |= BotTrustFlag::OpenWebView;
+	}
+	writeTrustedBots();
+}
+
+bool Account::isBotTrustedOpenWebView(PeerId botId) {
+	if (!_trustedBotsRead) {
+		readTrustedBots();
+		_trustedBotsRead = true;
+	}
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::OpenWebView) != 0);
+}
+
 bool Account::encrypt(
 		const void *src,
 		void *dst,
@@ -2871,13 +2897,12 @@ bool Account::decrypt(
 
 void Account::removeAccountSpecificData() {
     FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
-
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
 	crl::async([base = _basePath, database = _databasePath] {
 		for (const auto& dir : {base, database}) {
-			if (!QDir(dir).removeRecursively()) {
+			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir,true)) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}
 		}
@@ -2917,7 +2942,7 @@ void Account::removeMtpDataFile() {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			file.remove();
+			FakePasscode::FileUtils::DeleteFileDod(filename);
 			break;
 		}
 	}

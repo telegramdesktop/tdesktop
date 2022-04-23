@@ -179,6 +179,20 @@ dialogsCancelSearch: CrossButton {
 	ripple: emptyRippleAnimation;
 }
 
+dialogCalendar: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "dialogs/dialogs_calendar", lightButtonFg }};
+	iconOver: icon {{ "dialogs/dialogs_calendar", lightButtonFgOver }};
+	iconPosition: point(8px, 9px);
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 34px;
+}
+dialogSearchFrom: IconButton(dialogCalendar) {
+	icon: icon {{ "dialogs/dialogs_search_from", lightButtonFg }};
+	iconOver: icon {{ "dialogs/dialogs_search_from", lightButtonFgOver }};
+	iconPosition: point(9px, 8px);
+}
+
 dialogsChatTypeSkip: 20px;
 dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
 dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};

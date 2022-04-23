@@ -51,8 +51,6 @@ public:
 		QWidget *parent,
 		not_null<Controller*> controller);
 
-	void setIsStackBottom(bool isStackBottom) override;
-
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
 
@@ -61,6 +59,8 @@ public:
 		not_null<Memento*> memento);
 
 	void setInnerFocus() override;
+
+	rpl::producer<QString> title() override;
 
 private:
 	void saveState(not_null<Memento*> memento);

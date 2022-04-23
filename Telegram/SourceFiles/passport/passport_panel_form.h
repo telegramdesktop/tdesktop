@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class BoxContentDivider;
 class ScrollArea;
-class FadeShadow;
 class RoundButton;
 class FlatLabel;
 class UserpicButton;
@@ -47,8 +46,6 @@ private:
 	not_null<PanelController*> _controller;
 
 	object_ptr<Ui::ScrollArea> _scroll;
-	object_ptr<Ui::FadeShadow> _topShadow;
-	object_ptr<Ui::FadeShadow> _bottomShadow;
 	object_ptr<Ui::RoundButton> _submit;
 
 	QPointer<Ui::UserpicButton> _userpic;

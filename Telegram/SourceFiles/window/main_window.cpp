@@ -815,7 +815,7 @@ void MainWindow::updateUnreadCounter() {
 }
 
 QRect MainWindow::computeDesktopRect() const {
-	return (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	return screen()->availableGeometry();
 }
 
 void MainWindow::savePosition(Qt::WindowState state) {
@@ -941,7 +941,7 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	const auto nowMinimumWidth = computeMinWidth();
 	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);
 	if (firstResize) {
-		setMinimumWidth(nowMinimumWidth);
+		updateMinimumSize();
 	}
 	if (!isMaximized()) {
 		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
@@ -949,17 +949,17 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 		updateControlsGeometry();
 	}
 	if (!firstResize) {
-		setMinimumWidth(nowMinimumWidth);
+		updateMinimumSize();
 	}
 }
 
 int MainWindow::maximalExtendBy() const {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	return std::max(desktop.width() - body()->width(), 0);
 }
 
 bool MainWindow::canExtendNoMove(int extendBy) const {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	auto innerRight = (inner.x() + inner.width() + extendBy);
 	auto desktopRight = (desktop.x() + desktop.width());
@@ -967,7 +967,7 @@ bool MainWindow::canExtendNoMove(int extendBy) const {
 }
 
 int MainWindow::tryToExtendWidthBy(int addToWidth) {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	accumulate_min(
 		addToWidth,

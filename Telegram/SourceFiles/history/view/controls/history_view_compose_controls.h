@@ -74,6 +74,7 @@ class TTLButton;
 } // namespace Controls
 
 class FieldHeader;
+class WebpageProcessor;
 
 class ComposeControls final {
 public:
@@ -336,9 +337,7 @@ private:
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
 
-	Fn<void()> _previewCancel;
-	Fn<void(Data::PreviewState)> _previewSetState;
-	Data::PreviewState _previewState = Data::PreviewState();
+	std::unique_ptr<WebpageProcessor> _preview;
 
 	rpl::lifetime _uploaderSubscriptions;
 

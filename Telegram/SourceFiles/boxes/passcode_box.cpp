@@ -131,13 +131,10 @@ void StartPendingReset(
 		const auto hours = (left / kHour);
 		const auto minutes = (left / kMinute);
 		const auto duration = days
-			? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+			? tr::lng_days(tr::now, lt_count, days)
 			: hours
-			? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
-			: tr::lng_group_call_duration_minutes(
-				tr::now,
-				lt_count,
-				minutes);
+			? tr::lng_hours(tr::now, lt_count, hours)
+			: tr::lng_minutes(tr::now, lt_count, minutes);
 		if (const auto strong = weak.data()) {
 			strong->getDelegate()->show(Ui::MakeInformBox(
 				tr::lng_cloud_password_reset_later(
@@ -622,11 +619,9 @@ void PasscodeBox::handleSrpIdInvalid() {
 }
 
 void PasscodeBox::save(bool force) {
-    DEBUG_LOG(("PasscodeBox: Save passcode"));
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
-    DEBUG_LOG(("PasscodeBox: We have: " + old + "; " + pwd + "; " + conf));
 	const auto has = currentlyHave();
 	if (!_cloudPwd && (_turningOff || has)) {
 		if (!passcodeCanTry()) {
@@ -701,7 +696,15 @@ void PasscodeBox::save(bool force) {
 		} else {
 			changeCloudPassword(old, pwd);
 		}
-	} else {
+	} else if (_session->domain().local().CheckFakePasscodeExists(pwd.toUtf8())) {
+        _newPasscode->selectAll();
+        _newPasscode->setFocus();
+        _newPasscode->showError();
+        _newError = tr::lng_passcode_exists(tr::now);
+        update();
+        closeReplacedBy();
+        return;
+    } else {
 		closeReplacedBy();
 		const auto weak = Ui::MakeWeak(this);
 		cSetPasscodeBadTries(0);

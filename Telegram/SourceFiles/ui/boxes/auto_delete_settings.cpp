@@ -200,7 +200,7 @@ void AutoDeleteSettingsBox(
 	});
 
 	const auto options = std::vector<QString>{
-		tr::lng_manage_messages_ttl_never(tr::now),
+		tr::lng_manage_messages_ttl_disable(tr::now),
 		//u"5 seconds"_q, AssertIsDebug()
 		tr::lng_manage_messages_ttl_after1(tr::now),
 		tr::lng_manage_messages_ttl_after2(tr::now),

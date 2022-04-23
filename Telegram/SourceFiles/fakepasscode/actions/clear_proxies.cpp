@@ -5,13 +5,15 @@
 
 void FakePasscode::ClearProxies::Execute() {
     FAKE_LOG(("Remove proxies, setup disabled proxy"));
-    auto& proxies = Core::App().settings().proxy();
+    auto& app = Core::App();
+    auto& proxies = app.settings().proxy();
     proxies.list().clear();
-    proxies.setUseProxyForCalls(false);
-    proxies.setTryIPv6(false);
-    proxies.setSelected(MTP::ProxyData());
-    proxies.setSettings(MTP::ProxyData::Settings::Disabled);
-    Core::App().saveSettings();
+    if (proxies.settings() == MTP::ProxyData::Settings::Enabled) {
+        proxies.setUseProxyForCalls(false);
+        proxies.setTryIPv6(false);
+        app.setCurrentProxy(MTP::ProxyData(), MTP::ProxyData::Settings::Disabled);
+    }
+    app.saveSettings();
 }
 
 QByteArray FakePasscode::ClearProxies::Serialize() const {

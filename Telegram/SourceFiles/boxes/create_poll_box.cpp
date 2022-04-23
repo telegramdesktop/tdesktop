@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "history/view/history_view_schedule_box.h"
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
@@ -1098,6 +1098,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				send),
 			Ui::LayerOption::KeepOther);
 	};
+    const auto sendAutoDelete = SendMenu::DefaultAutoDeleteCallback(this, [=] (auto box) {
+        _controller->show(std::move(box), Ui::LayerOption::KeepOther);
+    }, send);
 
 	options->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
@@ -1122,11 +1125,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			? SendMenu::Type::Disabled
 			: _sendMenuType;
 	};
+    
 	SendMenu::SetupMenuAndShortcuts(
 		submit.data(),
 		sendMenuType,
 		sendSilent,
-		sendScheduled);
+		sendScheduled,
+		sendAutoDelete);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

@@ -7,7 +7,8 @@
 #include "storage/storage_domain.h"
 #include "fakepasscode/log/fake_log.h"
 
-void DeleteActionsUI::Create(not_null<Ui::VerticalLayout*> content) {
+void DeleteActionsUI::Create(not_null<Ui::VerticalLayout*> content,
+                             Window::SessionController*) {
     Settings::AddSubsectionTitle(content, tr::lng_delete_actions());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto *button = Settings::AddButton(content, tr::lng_delete_actions(), st::settingsButton)

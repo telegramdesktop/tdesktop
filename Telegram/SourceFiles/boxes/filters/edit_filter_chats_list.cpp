@@ -89,35 +89,6 @@ private:
 
 };
 
-[[nodiscard]] object_ptr<Ui::RpWidget> CreateSectionSubtitle(
-		not_null<QWidget*> parent,
-		rpl::producer<QString> text) {
-	auto result = object_ptr<Ui::FixedHeightWidget>(
-		parent,
-		st::searchedBarHeight);
-
-	const auto raw = result.data();
-	raw->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		auto p = QPainter(raw);
-		p.fillRect(clip, st::searchedBarBg);
-	}, raw->lifetime());
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		std::move(text),
-		st::windowFilterChatsSectionSubtitle);
-	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		const auto padding = st::windowFilterChatsSectionSubtitlePadding;
-		const auto available = width - padding.left() - padding.right();
-		label->resizeToNaturalWidth(available);
-		label->moveToLeft(padding.left(), padding.top(), width);
-	}, label->lifetime());
-
-	return result;
-}
-
 [[nodiscard]] uint64 TypeId(Flag flag) {
 	return PeerId(FakeChatId(static_cast<BareId>(flag))).value;
 }
@@ -291,6 +262,35 @@ void PaintFilterChatsTypeIcon(
 	icon.paintInCenter(p, rect);
 }
 
+object_ptr<Ui::RpWidget> CreatePeerListSectionSubtitle(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text) {
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		parent,
+		st::searchedBarHeight);
+
+	const auto raw = result.data();
+	raw->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(raw);
+		p.fillRect(clip, st::searchedBarBg);
+	}, raw->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		std::move(text),
+		st::windowFilterChatsSectionSubtitle);
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto padding = st::windowFilterChatsSectionSubtitlePadding;
+		const auto available = width - padding.left() - padding.right();
+		label->resizeToNaturalWidth(available);
+		label->moveToLeft(padding.left(), padding.top(), width);
+	}, label->lifetime());
+
+	return result;
+}
+
 EditFilterChatsListController::EditFilterChatsListController(
 	not_null<Main::Session*> session,
 	rpl::producer<QString> title,
@@ -357,7 +357,7 @@ void EditFilterChatsListController::prepareViewHook() {
 object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
 	const auto container = result.data();
-	container->add(CreateSectionSubtitle(
+	container->add(CreatePeerListSectionSubtitle(
 		container,
 		tr::lng_filters_edit_types()));
 	container->add(object_ptr<Ui::FixedHeightWidget>(
@@ -390,7 +390,7 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::membersMarginBottom));
-	container->add(CreateSectionSubtitle(
+	container->add(CreatePeerListSectionSubtitle(
 		container,
 		tr::lng_filters_edit_chats()));
 

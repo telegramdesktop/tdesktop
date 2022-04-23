@@ -67,7 +67,7 @@ void FakePasscodeContent::setupContent() {
 
     for (const auto& type : FakePasscode::kAvailableActions) {
         const auto ui = GetUIByAction(type, _domain, _passcodeIndex, this);
-        ui->Create(content);
+        ui->Create(content, _controller);
         Settings::AddDivider(content);
     }
     Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton)
@@ -110,19 +110,22 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     for (size_t i = 0; i < passcodesSize; ++i) {
         AddButton(content, tr::lng_fakepasscode(lt_caption, _domain->local().GetFakePasscodeName(i)),
-                  st::settingsButton)->addClickHandler([this, i]{
+                  st::settingsButton, { &st::settingsIconLock, kIconGreen }
+                  )->addClickHandler([this, i]{
             _controller->show(Box<FakePasscodeContentBox>(_domain, _controller, i),
                               Ui::LayerOption::KeepOther);
         });
     }
     AddDivider(content);
-    AddButton(content, tr::lng_add_fakepasscode(), st::settingsButton)->addClickHandler([this] {
+    AddButton(content, tr::lng_add_fakepasscode(), st::settingsButton,
+              {&st::settingsIconPlus, kIconGreen})->addClickHandler([this] {
         _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, true, 0), // _domain
                           Ui::LayerOption::KeepOther);
     });
     AddDividerText(content, tr::lng_special_actions());
     const auto toggledCacheCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto buttonCacheCleaning = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton)
+    auto buttonCacheCleaning = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton,
+                                         {&st::settingsIconArchive, kIconRed})
             ->toggleOn(toggledCacheCleaning->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
 
     buttonCacheCleaning->addClickHandler([=] {
@@ -131,13 +134,24 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     });
 
     const auto toggledLogging = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto buttonLogging = AddButton(content, tr::lng_enable_advance_logging(), st::settingsButton)
+    auto buttonLogging = AddButton(content, tr::lng_enable_advance_logging(), st::settingsButton,
+                                   {&st::settingsIconGeneral, kIconGreen})
             ->toggleOn(toggledLogging->events_starting_with_copy(_domain->local().IsAdvancedLoggingEnabled()));
 
     buttonLogging->addClickHandler([=] {
         _domain->local().SetAdvancedLoggingEnabled(buttonLogging->toggled());
         _domain->local().writeAccounts();
     });
+
+    const auto toggledDodCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonDodCleaning = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton)
+        ->toggleOn(toggledDodCleaning->events_starting_with_copy(_domain->local().IsDodCleaningEnabled()));
+
+    buttonDodCleaning->addClickHandler([=] {
+        _domain->local().SetDodCleaningState(buttonDodCleaning->toggled());
+        _domain->local().writeAccounts();
+        });
+
     Ui::ResizeFitChild(this, content);
     FAKE_LOG(("Draw %1 passcodes: success").arg(passcodesSize));
 }

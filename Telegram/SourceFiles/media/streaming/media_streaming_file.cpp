@@ -148,7 +148,8 @@ void File::Context::logFatal(
 Stream File::Context::initStream(
 		not_null<AVFormatContext*> format,
 		AVMediaType type,
-		Mode mode) {
+		Mode mode,
+		bool hwAllowed) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
 		format,
@@ -158,7 +159,7 @@ Stream File::Context::initStream(
 		nullptr,
 		0);
 	if (index < 0) {
-		return result;
+		return {};
 	}
 
 	const auto info = format->streams[index];
@@ -167,6 +168,13 @@ Stream File::Context::initStream(
 			// ignore cover streams
 			return Stream();
 		}
+		result.codec = FFmpeg::MakeCodecPointer({
+			.stream = info,
+			.hwAllowed = hwAllowed,
+		});
+		if (!result.codec) {
+			return result;
+		}
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
 		result.aspect = FFmpeg::ValidateAspectRatio(info->sample_aspect_ratio);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
@@ -174,15 +182,14 @@ Stream File::Context::initStream(
 		if (!result.frequency) {
 			return result;
 		}
+		result.codec = FFmpeg::MakeCodecPointer({ .stream = info });
+		if (!result.codec) {
+			return result;
+		}
 	}
 
-	result.codec = FFmpeg::MakeCodecPointer(info);
-	if (!result.codec) {
-		return result;
-	}
-
-	result.frame = FFmpeg::MakeFramePointer();
-	if (!result.frame) {
+	result.decodedFrame = FFmpeg::MakeFramePointer();
+	if (!result.decodedFrame) {
 		result.codec = nullptr;
 		return result;
 	}
@@ -260,7 +267,7 @@ std::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
 	return error;
 }
 
-void File::Context::start(crl::time position) {
+void File::Context::start(crl::time position, bool hwAllow) {
 	auto error = FFmpeg::AvErrorWrap();
 
 	if (unroll()) {
@@ -280,12 +287,12 @@ void File::Context::start(crl::time position) {
 	}
 
 	const auto mode = _delegate->fileOpenMode();
-	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode);
+	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode, hwAllow);
 	if (unroll()) {
 		return;
 	}
 
-	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode);
+	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode, false);
 	if (unroll()) {
 		return;
 	}
@@ -425,7 +432,10 @@ File::File(std::shared_ptr<Reader> reader)
 : _reader(std::move(reader)) {
 }
 
-void File::start(not_null<FileDelegate*> delegate, crl::time position) {
+void File::start(
+		not_null<FileDelegate*> delegate,
+		crl::time position,
+		bool hwAllow) {
 	stop(true);
 
 	_reader->startStreaming();
@@ -433,7 +443,7 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 
 	_thread = std::thread([=, context = &*_context] {
 		crl::toggle_fp_exceptions(true);
-		context->start(position);
+		context->start(position, hwAllow);
 		while (!context->finished()) {
 			context->readNextPacket();
 		}

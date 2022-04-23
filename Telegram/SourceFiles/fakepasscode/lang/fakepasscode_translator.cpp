@@ -163,6 +163,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_advance_logging.base: {
                 return "Включить логи (только для разработки!)";
             }
+            case tr::lng_enable_dod_cleaning.base: {
+                return "Включить очистку с затиранием";
+            }
 			case tr::lng_command.base: {
 				return "Запуск команды (опасно!)";
 			}
@@ -172,7 +175,7 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_delete_contacts.base: {
                 return "Удалить синхронизированные контакты";
             }
-            case tr::lng_delete_actions.base:{
+            case tr::lng_delete_actions.base: {
                 return "Удалить все действия";
             }
             case tr::lng_profile_delete_my_messages.base:{
@@ -180,6 +183,34 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_delete_contacts_account.base: {
                 auto translation = MakeTranslationWithTag(key, "Удалить контакты ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
+            case tr::lng_send_autodelete_message.base: {
+                return "Удалить после прочтения";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Удалить после прочтения через:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "часов:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "минут:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
+            }
+            case tr::lng_remove_chats.base: {
+                return "Удалить чаты";
+            }
+            case tr::lng_remove_chats_popup.base: {
+                return "Чаты для удаления";
+            }
+            case tr::lng_remove_chats_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Удалить чаты для ", "caption");
                 if (!translation.isEmpty()) {
                     return translation;
                 }
@@ -237,6 +268,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_advance_logging.base: {
                 return "Уключыць логі (толькі для распрацоўкі!)";
             }
+            case tr::lng_enable_dod_cleaning.base: {
+                return "Уключыць ачыстку з заціраннем";
+            }
 			case tr::lng_command.base: {
 				return "Запуск каманды (небяспечна!)";
 			}
@@ -258,6 +292,34 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
                     return translation;
                 }
                 break;
+            }
+            case tr::lng_remove_chats.base: {
+                return "Выдаліць чаты";
+            }
+            case tr::lng_remove_chats_popup.base: {
+                return "Чаты для выдалення";
+            }
+            case tr::lng_remove_chats_account.base: {
+                auto translation = MakeTranslationWithTag(key, "Выдаліць чаты для ", "caption");
+                if (!translation.isEmpty()) {
+                    return translation;
+                }
+                break;
+            }
+            case tr::lng_send_autodelete_message.base: {
+                return "Выдаліць пасля чытання";
+            }
+            case tr::lng_autodelete_title.base: {
+                return "Выдаліць пасля чытання праз:";
+            }
+            case tr::lng_autodelete_hours.base: {
+                return "гадзін:";
+            }
+            case tr::lng_autodelete_minutes.base: {
+                return "хвілін:";
+            }
+            case tr::lng_autodelete_seconds.base: {
+                return "секунд:";
             }
         }
     }
