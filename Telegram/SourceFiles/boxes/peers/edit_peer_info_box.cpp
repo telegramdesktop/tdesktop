@@ -837,12 +837,11 @@ void Controller::fillHistoryVisibilityButton() {
 		_historyVisibilitySavedValue = checked;
 	});
 	const auto buttonCallback = [=] {
-		_navigation->parentController()->show(
-			Box<EditPeerHistoryVisibilityBox>(
-				_peer,
-				boxCallback,
-				*_historyVisibilitySavedValue),
-			Ui::LayerOption::KeepOther);
+		_navigation->parentController()->show(Box(
+			EditPeerHistoryVisibilityBox,
+			_peer,
+			boxCallback,
+			*_historyVisibilitySavedValue));
 	};
 	AddButtonWithText(
 		container,
