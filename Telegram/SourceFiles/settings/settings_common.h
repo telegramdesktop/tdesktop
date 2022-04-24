@@ -37,6 +37,10 @@ namespace Lottie {
 struct IconDescriptor;
 } // namespace Lottie
 
+namespace Dialogs {
+class Row;
+}
+
 namespace Settings {
 
 extern const char kOptionMonoSettingsIcons[];
@@ -147,6 +151,10 @@ void AddButtonIcon(
 	not_null<Ui::AbstractButton*> button,
 	const style::SettingsButton &st,
 	IconDescriptor &&descriptor);
+void AddDialogImageToButton(
+    not_null<Ui::AbstractButton*> button,
+    const style::SettingsButton &st,
+    not_null<Dialogs::Row*> dialog);
 object_ptr<Button> CreateButton(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> text,
