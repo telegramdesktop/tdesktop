@@ -837,9 +837,21 @@ void Controller::fillHistoryVisibilityButton() {
 		_historyVisibilitySavedValue = checked;
 	});
 	const auto buttonCallback = [=] {
+		_peer->updateFull();
+		const auto canEdit = [&] {
+			if (const auto chat = _peer->asChat()) {
+				return chat->canEditPreHistoryHidden();
+			} else if (const auto channel = _peer->asChannel()) {
+				return channel->canEditPreHistoryHidden();
+			}
+			Unexpected("User in HistoryVisibilityEdit.");
+		}();
+		if (!canEdit) {
+			return;
+		}
 		_navigation->parentController()->show(Box(
 			EditPeerHistoryVisibilityBox,
-			_peer,
+			_peer->isChat(),
 			boxCallback,
 			*_historyVisibilitySavedValue));
 	};

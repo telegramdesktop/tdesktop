@@ -18,6 +18,6 @@ enum class HistoryVisibility {
 
 void EditPeerHistoryVisibilityBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer,
+	bool isLegacy,
 	Fn<void(HistoryVisibility)> savedCallback,
 	HistoryVisibility historyVisibilitySavedValue);

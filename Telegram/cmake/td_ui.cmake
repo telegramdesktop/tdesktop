@@ -48,6 +48,9 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
 
+    boxes/peers/edit_peer_history_visibility_box.cpp
+    boxes/peers/edit_peer_history_visibility_box.h
+
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h
     calls/group/ui/calls_group_scheduled_labels.cpp
