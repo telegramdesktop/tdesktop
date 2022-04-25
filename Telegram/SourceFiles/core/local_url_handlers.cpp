@@ -447,27 +447,31 @@ bool ResolveSettings(
 	}
 	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
-	auto type = ::Settings::Main::Id();
-	if (section.isEmpty()) {
-		controller->window().showSettings();
-		return true;
-	} else if (section == qstr("language")) {
-		ShowLanguagesBox();
-		return true;
-	} else if (section == qstr("devices")) {
-		controller->session().api().authorizations().reload();
-		type = ::Settings::Sessions::Id();
-	} else if (section == qstr("folders")) {
-		type = ::Settings::Folders::Id();
-	} else if (section == qstr("privacy")) {
-		type = ::Settings::PrivacySecurity::Id();
-	} else if (section == qstr("themes")) {
-		type = ::Settings::Chat::Id();
-	} else if (section == qstr("change_number")) {
-		type = ::Settings::ChangePhone::Id();
+	
+	const auto getSectionType = [&]() -> std::optional<::Settings::Type> {
+		if (section.isEmpty()) {
+			return ::Settings::Main::Id();
+		} else if (section == qstr("language")) {
+			ShowLanguagesBox();
+		} else if (section == qstr("devices")) {
+			controller->session().api().authorizations().reload();
+			return ::Settings::Sessions::Id();
+		} else if (section == qstr("folders")) {
+			return ::Settings::Folders::Id();
+		} else if (section == qstr("privacy")) {
+			return ::Settings::PrivacySecurity::Id();
+		} else if (section == qstr("themes")) {
+			return ::Settings::Chat::Id();
+		} else if (section == qstr("change_number")) {
+			return ::Settings::ChangePhone::Id();
+		}
+		return {};
+	};
+	
+	if (const auto type = getSectionType()) {
+		controller->showSettings(*type);
+		controller->window().activate();
 	}
-	controller->showSettings(type);
-	controller->window().activate();
 	return true;
 }
 
