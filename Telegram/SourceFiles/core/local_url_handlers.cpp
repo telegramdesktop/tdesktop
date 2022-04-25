@@ -448,7 +448,7 @@ bool ResolveSettings(
 	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
 	
-	const auto getSectionType = [&]() -> std::optional<::Settings::Type> {
+	const auto type = [&]() -> std::optional<::Settings::Type> {
 		if (section.isEmpty()) {
 			return ::Settings::Main::Id();
 		} else if (section == qstr("language")) {
@@ -466,9 +466,9 @@ bool ResolveSettings(
 			return ::Settings::ChangePhone::Id();
 		}
 		return {};
-	};
+	}();
 	
-	if (const auto type = getSectionType()) {
+	if (type.has_value()) {
 		controller->showSettings(*type);
 		controller->window().activate();
 	}
