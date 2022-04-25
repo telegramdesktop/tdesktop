@@ -105,13 +105,15 @@ bool PaintStickerThumbnailPath(
 	QPainter &p,
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
-	QLinearGradient *gradient = nullptr);
+	QLinearGradient *gradient = nullptr,
+	bool mirrorHorizontal = false);
 
 bool PaintStickerThumbnailPath(
 	QPainter &p,
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
-	not_null<Ui::PathShiftGradient*> gradient);
+	not_null<Ui::PathShiftGradient*> gradient,
+	bool mirrorHorizontal = false);
 
 [[nodiscard]] QSize ComputeStickerSize(
 	not_null<DocumentData*> document,

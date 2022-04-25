@@ -83,6 +83,7 @@ private:
 	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
 	void paintPath(Painter &p, const PaintContext &context, const QRect &r);
 	[[nodiscard]] QPixmap paintedPixmap(const PaintContext &context) const;
+	[[nodiscard]] bool mirrorHorizontal() const;
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;

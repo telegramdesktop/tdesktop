@@ -180,14 +180,7 @@ void Sticker::paintLottie(
 	if (context.selected() && !_nextLastDiceFrame) {
 		request.colored = context.st->msgStickerOverlay()->c;
 	}
-	const auto premium = _data->isPremiumSticker();
-	if (premium) {
-		const auto rightAligned = _parent->hasOutLayout()
-			&& !_parent->delegate()->elementIsChatWide();
-		if (!rightAligned) {
-			request.mirrorHorizontal = true;
-		}
-	}
+	request.mirrorHorizontal = mirrorHorizontal();
 	const auto frame = _lottie
 		? _lottie->frameInfo(request)
 		: Lottie::Animation::FrameInfo();
@@ -249,11 +242,24 @@ bool Sticker::paintPixmap(
 	if (pixmap.isNull()) {
 		return false;
 	}
-	p.drawPixmap(
-		QPoint(
-			r.x() + (r.width() - _size.width()) / 2,
-			r.y() + (r.height() - _size.height()) / 2),
-		pixmap);
+	const auto position = QPoint(
+		r.x() + (r.width() - _size.width()) / 2,
+		r.y() + (r.height() - _size.height()) / 2);
+	const auto size = pixmap.size() / pixmap.devicePixelRatio();
+	const auto mirror = mirrorHorizontal();
+	if (mirror) {
+		p.save();
+		const auto middle = QPointF(
+			position.x() + size.width() / 2.,
+			position.y() + size.height() / 2.);
+		p.translate(middle);
+		p.scale(-1., 1.);
+		p.translate(-middle);
+	}
+	p.drawPixmap(position, pixmap);
+	if (mirror) {
+		p.restore();
+	}
 	return true;
 }
 
@@ -274,7 +280,8 @@ void Sticker::paintPath(
 		p,
 		_dataMedia.get(),
 		r,
-		pathGradient);
+		pathGradient,
+		mirrorHorizontal());
 }
 
 QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
@@ -299,6 +306,15 @@ QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 			{ .colored = colored, .options = Images::Option::Blur });
 	}
 	return QPixmap();
+}
+
+bool Sticker::mirrorHorizontal() const {
+	if (!_data->isPremiumSticker()) {
+		return false;
+	}
+	const auto rightAligned = _parent->hasOutLayout()
+		&& !_parent->delegate()->elementIsChatWide();
+	return !rightAligned;
 }
 
 ClickHandlerPtr Sticker::ShowSetHandler(not_null<DocumentData*> document) {
