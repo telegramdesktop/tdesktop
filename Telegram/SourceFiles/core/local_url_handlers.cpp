@@ -449,9 +449,7 @@ bool ResolveSettings(
 	const auto section = match->captured(1).mid(1).toLower();
 	
 	const auto type = [&]() -> std::optional<::Settings::Type> {
-		if (section.isEmpty()) {
-			return ::Settings::Main::Id();
-		} else if (section == qstr("language")) {
+		if (section == qstr("language")) {
 			ShowLanguagesBox();
 			return {};
 		} else if (section == qstr("devices")) {
