@@ -537,8 +537,6 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		.arg(use.width())
 		.arg(use.height()));
 	_widget->setGeometry(use);
-	_widget->setMinimumSize(use.size());
-	_widget->setMaximumSize(use.size());
 	if (possibleSizeHack) {
 		_widget->setMask(mask);
 	}
