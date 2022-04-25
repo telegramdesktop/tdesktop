@@ -156,6 +156,7 @@ public:
 
 	void setInCall();
 	void reload();
+	void reloadIfStale();
 	void processFullCall(const MTPphone_GroupCall &call);
 
 	void setJoinMutedLocally(bool muted);
@@ -206,6 +207,7 @@ private:
 	int _version = 0;
 	mtpRequestId _participantsRequestId = 0;
 	mtpRequestId _reloadRequestId = 0;
+	crl::time _reloadLastFinished = 0;
 	rpl::variable<QString> _title;
 
 	base::flat_multi_map<
