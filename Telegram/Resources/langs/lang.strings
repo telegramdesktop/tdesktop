@@ -2661,7 +2661,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_pinned_message" = "{from} pinned this message:";
 "lng_admin_log_unpinned_message" = "{from} unpinned this message";
 "lng_admin_log_edited_caption" = "{from} edited caption:";
-"lng_admin_log_removed_caption" = "{from} removed caption";
+"lng_admin_log_edited_media" = "{from} edited media:";
+"lng_admin_log_edited_media_and_caption" = "{from} edited media and caption:";
+"lng_admin_log_edited_media_and_removed_caption" = "{from} edited media and removed caption:";
+"lng_admin_log_removed_caption" = "{from} removed caption:";
 "lng_admin_log_previous_caption" = "Original caption";
 "lng_admin_log_edited_message" = "{from} edited this message:";
 "lng_admin_log_previous_message" = "Original message";

@@ -179,4 +179,7 @@ UpdatedFileReferences GetFileReferences(const MTPTheme &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPaccount_SavedRingtones &data);
 
+// Admin Log Event.
+UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data);
+
 } // namespace Data
