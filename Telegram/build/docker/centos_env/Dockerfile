@@ -419,17 +419,35 @@ RUN git init ffmpeg \
 	&& cd .. \
 	&& rm -rf ffmpeg
 
+FROM builder AS pipewire
+RUN git clone -b 0.3.42 --depth=1 $GIT/PipeWire/pipewire.git \
+	&& cd pipewire \
+	&& meson build \
+		--buildtype=release \
+		-Dtests=disabled \
+		-Dexamples=disabled \
+		-Dpipewire-v4l2=disabled \
+		-Dspa-plugins=disabled \
+		-Dsession-managers=[] \
+	&& meson compile -C build \
+	&& DESTDIR="$LibrariesPath/pipewire-cache" meson install -C build \
+	&& cd .. \
+	&& rm -rf pipewire
+
 FROM builder AS openal
-ADD https://api.github.com/repos/telegramdesktop/openal-soft/git/refs/heads/fix_pulse_default openal-soft-version.json
-RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git \
+COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
+
+RUN git clone -b 1.22.0 --depth=1 $GIT/kcat/openal-soft.git \
 	&& cd openal-soft \
+	&& curl -sSL https://github.com/kcat/openal-soft/commit/2ea5bb91686ee1a7350672bf15b7b63649dbf111.patch \
+		| git apply \
 	&& CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLIBTYPE:STRING=STATIC \
 		-DALSOFT_EXAMPLES=OFF \
 		-DALSOFT_TESTS=OFF \
 		-DALSOFT_UTILS=OFF \
-		-DALSOFT_CONFIG=OFF \
+		-DALSOFT_INSTALL_CONFIG=OFF \
 	&& cmake --build build --parallel \
 	&& DESTDIR="$LibrariesPath/openal-cache" cmake --install build \
 	&& cd .. \
@@ -580,18 +598,16 @@ COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
+COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 
 # Shallow clone on a specific commit.
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin $GIT/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 63a934db1ed212ebf8aaaa20f0010dd7b0d7b396 \
+	&& git fetch --depth=1 origin c1aea3d142e0c1dbab80511d555a828f47dcbd8b \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \
-	&& cd src/third_party/pipewire \
-	&& meson build -Dspa-plugins=disabled \
-	&& cd ../../.. \
 	&& cmake -G"Ninja Multi-Config" -B out . \
 		-DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG $HFLAGS" \
 		-DCMAKE_C_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \
