@@ -238,16 +238,18 @@ parts:
       - -./usr/share
 
   openal:
-    source: https://github.com/telegramdesktop/openal-soft.git
+    source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-branch: fix_pulse_default
+    source-tag: 1.22.0
     plugin: cmake
     build-packages:
       - ninja-build
       - libasound2-dev
+      - libdbus-1-dev
       - libpulse-dev
     stage-packages:
       - libasound2
+      - libdbus-1-3
       - libpulse0
     cmake-parameters:
       - -GNinja
@@ -256,7 +258,7 @@ parts:
       - -DALSOFT_EXAMPLES=OFF
       - -DALSOFT_TESTS=OFF
       - -DALSOFT_UTILS=OFF
-      - -DALSOFT_CONFIG=OFF
+      - -DALSOFT_INSTALL_CONFIG=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
@@ -432,7 +434,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 63a934db1ed212ebf8aaaa20f0010dd7b0d7b396
+    source-commit: c1aea3d142e0c1dbab80511d555a828f47dcbd8b
     plugin: cmake
     build-packages:
       - ninja-build
