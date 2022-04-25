@@ -453,6 +453,7 @@ bool ResolveSettings(
 			return ::Settings::Main::Id();
 		} else if (section == qstr("language")) {
 			ShowLanguagesBox();
+			return {};
 		} else if (section == qstr("devices")) {
 			controller->session().api().authorizations().reload();
 			return ::Settings::Sessions::Id();
@@ -465,7 +466,7 @@ bool ResolveSettings(
 		} else if (section == qstr("change_number")) {
 			return ::Settings::ChangePhone::Id();
 		}
-		return {};
+		return ::Settings::Main::Id();
 	}();
 	
 	if (type.has_value()) {
