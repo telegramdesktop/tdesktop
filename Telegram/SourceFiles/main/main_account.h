@@ -63,8 +63,6 @@ public:
 	void forcedLogOut();
 	[[nodiscard]] bool loggingOut() const;
 
-    void postLogoutClearing();
-
 	[[nodiscard]] AppConfig &appConfig() const {
 		Expects(_appConfig != nullptr);
 

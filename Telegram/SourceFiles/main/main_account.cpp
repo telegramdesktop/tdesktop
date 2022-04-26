@@ -226,7 +226,6 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 		_session->data().cache().close();
 		_session->data().cacheBigFile().close();
 		_session->unlockTerms();
-		_session->data().clear();
 		_session->updates().updateOnline();
 
 	}
@@ -581,6 +580,9 @@ void Account::loggedOutAfterAction() {
 	Media::Player::mixer()->stopAndClear();
 	destroySessionAfterAction(DestroyReason::LoggedOut);
 	local().resetWithoutWrite();
+	FAKE_LOG(("Remove account files"));
+	local().removeAccountSpecificData();
+	local().removeMtpDataFile();
 	cSetOtherOnline(0);
 	FAKE_LOG(qsl("LoggedOut success."));
 }
@@ -655,20 +657,15 @@ void Account::resetAuthorizationKeys() {
 	local().writeMtpData();
 }
 
-void Account::postLogoutClearing() {
-	FAKE_LOG(("Remove account files"));
-
-	local().removeAccountSpecificData();
-	local().removeMtpDataFile();
-}
-
 void Account::logOutAfterAction() {
-	loggedOutAfterAction();
+	_loggingOut = true;
 	if (_mtp) {
-		_mtp->logout([] {});
-		resetAuthorizationKeys();
+		_mtp->logout([=] { loggedOutAfterAction(); });
+		//resetAuthorizationKeys();
 	}
-	postLogoutClearing();
+	else {
+		loggedOutAfterAction();
+	}
 }
 
 } // namespace Main

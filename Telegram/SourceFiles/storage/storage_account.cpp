@@ -143,9 +143,6 @@ Account::~Account() {
 	if (_localKey && _mapChanged) {
 		writeMap();
 	}
-	if (!QDir(_databasePath).removeRecursively()) {
-		FAKE_LOG(qsl("Someone else holds cache %1").arg(_databasePath));
-	}
 }
 
 QString Account::tempDirectory() const {
@@ -656,21 +653,6 @@ void Account::resetWithoutWrite() {
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
-
-	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)]{
-		for (const auto& name : names) {
-			if (!name.endsWith(qstr("map0"))
-				&& !name.endsWith(qstr("map1"))
-				&& !name.endsWith(qstr("maps"))
-				&& !name.endsWith(qstr("configs"))) {
-				QFile::remove(base + name);
-			}
-		}
-		QDir(LegacyTempDirectory()).removeRecursively();
-		QDir(temp).removeRecursively();
-	});
-
-	Local::sync();
 }
 
 void Account::writeLocations() {
@@ -977,7 +959,7 @@ void Account::writeMtpData() {
 
 	const auto serialized = _owner->serializeMtpAuthorization();
 	const auto size = sizeof(quint32) + Serialize::bytearraySize(serialized);
-
+	
 	FileWriteDescriptor mtp(ToFilePart(_dataNameKey), BaseGlobalPath());
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiMtpAuthorization) << serialized;
@@ -2871,17 +2853,26 @@ bool Account::decrypt(
 }
 
 void Account::removeAccountSpecificData() {
-    FAKE_LOG(qsl("Remove specific data from %1 and %2").arg(_basePath).arg(_databasePath));
+	auto names = collectGoodNames();
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
-	crl::async([base = _basePath, database = _databasePath] {
-		for (const auto& dir : {base, database}) {
-			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir,true)) {
+	crl::async([base = _basePath, temp = _tempPath, database = _databasePath, names = std::move(names)]{
+		for (const auto& name : names) {
+			if (!name.endsWith(qstr("map0"))
+				&& !name.endsWith(qstr("map1"))
+				&& !name.endsWith(qstr("maps"))
+				&& !name.endsWith(qstr("configs"))) {
+				FakePasscode::FileUtils::DeleteFileDod(base + name);
+			}
+		}
+	for (const auto& dir : { database, temp, LegacyTempDirectory(), base }) {
+			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir, true)) {
 				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
 			}
 		}
-	});
+		});
+
 	Local::sync();
 }
 
