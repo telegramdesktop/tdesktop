@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "base/weak_ptr.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -163,27 +164,32 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 		consumer.put_next(nullptr);
 
 		struct State {
-			HistoryMessageReplyMarkup *previousReplyMarkup = nullptr;
+			bool hasReplyMarkup = false;
+			base::has_weak_ptr guard;
 			rpl::lifetime lifetime;
+			FullMsgId resolvedId;
 		};
 		const auto state = lifetime.make_state<State>();
 
 		const auto pushUnique = [=](not_null<HistoryItem*> item) {
 			const auto replyMarkup = item->inlineReplyMarkup();
-			if (state->previousReplyMarkup == replyMarkup) {
+			if (!state->hasReplyMarkup && !replyMarkup) {
 				return;
 			}
+			state->hasReplyMarkup = (replyMarkup != nullptr);
 			consumer.put_next(item.get());
-			state->previousReplyMarkup = replyMarkup;
 		};
 
 		rpl::duplicate(
 			id
-		) | rpl::start_with_next([=](PinnedId current) {
+		) | rpl::filter([=](PinnedId current) {
+			return current.message && (current.message != state->resolvedId);
+		}) | rpl::start_with_next([=](PinnedId current) {
 			const auto fullId = current.message;
-			if (!fullId) {
-				return;
-			}
+			state->lifetime.destroy();
+			state->resolvedId = fullId;
+			invalidate_weak_ptrs(&state->guard);
+
 			const auto messageFlag = [=](not_null<HistoryItem*> item) {
 				using Update = Data::MessageUpdate;
 				session->changes().messageFlagsValue(
@@ -195,12 +201,17 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 			};
 			if (const auto item = session->data().message(fullId)) {
 				messageFlag(item);
-			} else {
-				session->api().requestMessageData(
-					session->data().peer(fullId.peer),
-					fullId.msg,
-					[=] { messageFlag(session->data().message(fullId)); });
+				return;
 			}
+			const auto resolved = crl::guard(&state->guard, [=] {
+				if (const auto item = session->data().message(fullId)) {
+					messageFlag(item);
+				}
+			});
+			session->api().requestMessageData(
+				session->data().peer(fullId.peer),
+				fullId.msg,
+				resolved);
 		}, lifetime);
 		return lifetime;
 	});
