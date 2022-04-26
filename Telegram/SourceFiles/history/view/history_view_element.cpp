@@ -206,6 +206,11 @@ void SimpleElementDelegate::elementStartInteraction(
 }
 
 void SimpleElementDelegate::elementStartPremium(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
+void SimpleElementDelegate::elementCancelPremium(
 	not_null<const Element*> view) {
 }
 
@@ -405,6 +410,19 @@ void Element::setY(int y) {
 }
 
 void Element::refreshDataIdHook() {
+}
+
+void Element::externalLottieProgressing(bool external) const {
+	if (const auto media = _media.get()) {
+		media->externalLottieProgressing(external);
+	}
+}
+
+bool Element::externalLottieTill(int frame) const {
+	if (const auto media = _media.get()) {
+		return media->externalLottieTill(frame);
+	}
+	return true;
 }
 
 void Element::repaint() const {

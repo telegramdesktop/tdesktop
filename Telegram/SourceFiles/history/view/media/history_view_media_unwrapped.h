@@ -40,6 +40,16 @@ public:
 		virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
 			not_null<DocumentData*> data,
 			const Lottie::ColorReplacements *replacements);
+
+		virtual void externalLottieProgressing(bool external) {
+		}
+		virtual bool externalLottieTill(int frame) {
+			return true;
+		}
+		virtual int externalLottieTillFrame() const {
+			return -1;
+		}
+
 		virtual bool hasHeavyPart() const {
 			return false;
 		}
@@ -91,6 +101,10 @@ public:
 	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
+
+	void externalLottieProgressing(bool external) override;
+	bool externalLottieTill(int frame) override;
+	int externalLottieTillFrame() const override;
 
 	bool hasHeavyPart() const override {
 		return _content->hasHeavyPart();

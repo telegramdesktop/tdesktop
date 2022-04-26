@@ -460,6 +460,18 @@ std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
 	return _content->stickerTakeLottie(data, replacements);
 }
 
+void UnwrappedMedia::externalLottieProgressing(bool external) {
+	_content->externalLottieProgressing(external);
+}
+
+bool UnwrappedMedia::externalLottieTill(int frame) {
+	return _content->externalLottieTill(frame);
+}
+
+int UnwrappedMedia::externalLottieTillFrame() const {
+	return _content->externalLottieTillFrame();
+}
+
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	const auto rightAligned = _parent->hasOutLayout()
 		&& !_parent->delegate()->elementIsChatWide();

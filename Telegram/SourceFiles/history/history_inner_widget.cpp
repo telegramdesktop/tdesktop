@@ -254,11 +254,20 @@ public:
 			_widget->elementStartInteraction(view);
 		}
 	}
-	void elementStartPremium(not_null<const Element*> view) override {
+	void elementStartPremium(
+			not_null<const Element*> view,
+			Element *replacing) override {
 		if (_widget) {
-			_widget->elementStartPremium(view);
+			_widget->elementStartPremium(view, replacing);
 		}
 	}
+
+	void elementCancelPremium(not_null<const Element*> view) override {
+		if (_widget) {
+			_widget->elementCancelPremium(view);
+		}
+	}
+
 	void elementShowSpoilerAnimation() override {
 		if (_widget) {
 			_widget->elementShowSpoilerAnimation();
@@ -3175,9 +3184,15 @@ void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
 	_controller->emojiInteractions().startOutgoing(view);
 }
 
-void HistoryInner::elementStartPremium(not_null<const Element*> view) {
-	_emojiInteractions->playPremiumEffect(view);
+void HistoryInner::elementStartPremium(
+		not_null<const Element*> view,
+		Element *replacing) {
+	_emojiInteractions->playPremiumEffect(view, replacing);
 	_animatedStickersPlayed.emplace(view->data());
+}
+
+void HistoryInner::elementCancelPremium(not_null<const Element*> view) {
+	_emojiInteractions->cancelPremiumEffect(view);
 }
 
 void HistoryInner::elementShowSpoilerAnimation() {

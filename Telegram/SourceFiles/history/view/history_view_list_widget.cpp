@@ -1519,7 +1519,12 @@ void ListWidget::elementReplyTo(const FullMsgId &to) {
 void ListWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
-void ListWidget::elementStartPremium(not_null<const Element*> view) {
+void ListWidget::elementStartPremium(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
+void ListWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
 void ListWidget::elementShowSpoilerAnimation() {

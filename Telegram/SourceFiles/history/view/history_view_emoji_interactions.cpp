@@ -63,7 +63,13 @@ EmojiInteractions::EmojiInteractions(
 	_premiumSize = Sticker::Size();
 }
 
-EmojiInteractions::~EmojiInteractions() = default;
+EmojiInteractions::~EmojiInteractions() {
+	for (const auto &play : _plays) {
+		if (play.premium) {
+			play.view->externalLottieProgressing(false);
+		}
+	}
+}
 
 void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
@@ -90,7 +96,22 @@ void EmojiInteractions::play(
 	}
 }
 
-void EmojiInteractions::playPremiumEffect(not_null<const Element*> view) {
+void EmojiInteractions::playPremiumEffect(
+		not_null<const Element*> view,
+		Element *replacing) {
+	if (replacing) {
+		const auto i = ranges::find(_plays, replacing, &Play::view);
+		if (i != end(_plays)) {
+			if (i->premium) {
+				replacing->externalLottieProgressing(false);
+			}
+			i->view = view;
+			if (i->premium) {
+				view->externalLottieProgressing(true);
+			}
+			return;
+		}
+	}
 	if (const auto media = view->media()) {
 		if (const auto document = media->getDocument()) {
 			if (document->isPremiumSticker()) {
@@ -105,6 +126,17 @@ void EmojiInteractions::playPremiumEffect(not_null<const Element*> view) {
 			}
 		}
 	}
+}
+
+void EmojiInteractions::cancelPremiumEffect(not_null<const Element*> view) {
+	_plays.erase(ranges::remove_if(_plays, [&](const Play &play) {
+		if (play.view != view) {
+			return false;
+		} else if (play.premium) {
+			play.view->externalLottieProgressing(false);
+		}
+		return true;
+	}), end(_plays));
 }
 
 void EmojiInteractions::play(
@@ -142,17 +174,26 @@ void EmojiInteractions::play(
 	auto lottie = preparePlayer(document, data, filepath, premium);
 
 	const auto shift = premium ? QPoint() : GenerateRandomShift(_emojiSize);
+	const auto raw = lottie.get();
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 		}, [&](const Lottie::DisplayFrameRequest &request) {
-			const auto rect = computeRect(view, premium).translated(shift);
+			const auto i = ranges::find(_plays, raw, [](const Play &p) {
+				return p.lottie.get();
+			});
+			const auto rect = computeRect(
+				i->view,
+				i->premium).translated(shift);
 			if (rect.y() + rect.height() >= _visibleTop
 				&& rect.y() <= _visibleBottom) {
 				_updateRequests.fire_copy(rect);
 			}
 		});
 	}, lottie->lifetime());
+	if (premium) {
+		view->externalLottieProgressing(true);
+	}
 	_plays.push_back({
 		.view = view,
 		.lottie = std::move(lottie),
@@ -285,9 +326,18 @@ void EmojiInteractions::paint(QPainter &p) {
 		p.drawImage(
 			QRect(rect.topLeft(), frame.image.size() / factor),
 			frame.image);
-		play.lottie->markFrameShown();
+		if (!play.premium || play.view->externalLottieTill(frame.index)) {
+			play.lottie->markFrameShown();
+		}
 	}
-	_plays.erase(ranges::remove(_plays, true, &Play::finished), end(_plays));
+	_plays.erase(ranges::remove_if(_plays, [](const Play &play) {
+		if (!play.finished) {
+			return false;
+		} else if (play.premium) {
+			play.view->externalLottieProgressing(false);
+		}
+		return true;
+	}), end(_plays));
 	checkDelayed();
 }
 

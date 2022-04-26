@@ -139,6 +139,9 @@ public:
 	void elementStartInteraction(
 		not_null<const HistoryView::Element*> view) override;
 	void elementStartPremium(
+		not_null<const HistoryView::Element*> view,
+		HistoryView::Element *replacing) override;
+	void elementCancelPremium(
 		not_null<const HistoryView::Element*> view) override;
 	void elementShowSpoilerAnimation() override;
 

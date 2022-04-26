@@ -51,6 +51,10 @@ public:
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
 
+	void externalLottieProgressing(bool external) override;
+	bool externalLottieTill(int frame) override;
+	int externalLottieTillFrame() const override;
+
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
@@ -92,6 +96,7 @@ private:
 	void lottieCreated();
 	void unloadLottie();
 	void emojiStickerClicked();
+	bool markFramesTillExternal();
 
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _data;
@@ -105,6 +110,7 @@ private:
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
+	int _externalTillFrame = -1;
 	mutable bool _lottieOncePlayed = false;
 	mutable bool _premiumEffectPlayed = false;
 	mutable bool _nextLastDiceFrame = false;

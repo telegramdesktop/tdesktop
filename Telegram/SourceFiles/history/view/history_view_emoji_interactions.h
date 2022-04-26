@@ -38,7 +38,10 @@ public:
 	void play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view);
-	void playPremiumEffect(not_null<const Element*> view);
+	void playPremiumEffect(
+		not_null<const Element*> view,
+		Element *replacing);
+	void cancelPremiumEffect(not_null<const Element*> view);
 	void visibleAreaUpdated(int visibleTop, int visibleBottom);
 
 	void paint(QPainter &p);

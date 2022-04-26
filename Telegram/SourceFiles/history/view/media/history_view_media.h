@@ -173,6 +173,15 @@ public:
 	virtual void checkAnimation() {
 	}
 
+	virtual void externalLottieProgressing(bool external) {
+	}
+	virtual bool externalLottieTill(int frame) {
+		return true;
+	}
+	virtual int externalLottieTillFrame() const {
+		return -1;
+	}
+
 	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {
 		Unexpected("Grouping method call.");
 	}

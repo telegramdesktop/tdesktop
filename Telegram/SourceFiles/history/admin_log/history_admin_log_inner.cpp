@@ -673,7 +673,12 @@ void InnerWidget::elementReplyTo(const FullMsgId &to) {
 void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
-void InnerWidget::elementStartPremium(not_null<const Element*> view) {
+void InnerWidget::elementStartPremium(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
+void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
 void InnerWidget::elementShowSpoilerAnimation() {

@@ -75,6 +75,12 @@ Sticker::Sticker(
 	if (const auto media = replacing ? replacing->media() : nullptr) {
 		_lottie = media->stickerTakeLottie(_data, _replacements);
 		if (_lottie) {
+			_externalTillFrame = media->externalLottieTillFrame();
+			if (_data->isPremiumSticker()
+				&& !_premiumEffectPlayed) {
+				_premiumEffectPlayed = true;
+				_parent->delegate()->elementStartPremium(_parent, replacing);
+			}
 			lottieCreated();
 		}
 	}
@@ -208,21 +214,24 @@ void Sticker::paintLottie(
 		return;
 	}
 
-	const auto paused = _parent->delegate()->elementIsGifPaused();
+	const auto count = _lottie->information().framesCount;
+	_frameIndex = frame.index;
+	_framesCount = count;
+	const auto paused = (_externalTillFrame >= 0)
+		? (_frameIndex >= _externalTillFrame)
+		: _parent->delegate()->elementIsGifPaused();
+	_nextLastDiceFrame = !paused
+		&& (_diceIndex > 0)
+		&& (_frameIndex + 2 == count);
 	const auto playOnce = (_diceIndex > 0)
 		? true
 		: (_diceIndex == 0)
 		? false
 		: (isEmojiSticker()
 			|| !Core::App().settings().loopAnimatedStickers());
-	const auto count = _lottie->information().framesCount;
-	_frameIndex = frame.index;
-	_framesCount = count;
-	_nextLastDiceFrame = !paused
-		&& (_diceIndex > 0)
-		&& (_frameIndex + 2 == count);
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
-	const auto switchToNext = !playOnce
+	const auto switchToNext = (_externalTillFrame >= 0)
+		|| !playOnce
 		|| (!lastDiceFrame && (_frameIndex != 0 || !_lottieOncePlayed));
 	if (!paused
 		&& switchToNext
@@ -403,7 +412,7 @@ void Sticker::setupLottie() {
 	if (_data->isPremiumSticker()
 		&& !_premiumEffectPlayed) {
 		_premiumEffectPlayed = true;
-		_parent->delegate()->elementStartPremium(_parent);
+		_parent->delegate()->elementStartPremium(_parent, nullptr);
 	}
 	lottieCreated();
 }
@@ -417,6 +426,7 @@ void Sticker::lottieCreated() {
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 			_parent->history()->owner().requestViewResize(_parent);
+			markFramesTillExternal();
 		}, [&](const Lottie::DisplayFrameRequest &request) {
 			_parent->history()->owner().requestViewRepaint(_parent);
 		});
@@ -441,6 +451,9 @@ void Sticker::unloadLottie() {
 		_lottieOncePlayed = false;
 	}
 	_lottie = nullptr;
+	if (_data->isPremiumSticker()) {
+		_parent->delegate()->elementCancelPremium(_parent);
+	}
 	_parent->checkHeavyPart();
 }
 
@@ -450,6 +463,37 @@ std::unique_ptr<Lottie::SinglePlayer> Sticker::stickerTakeLottie(
 	return (data == _data && replacements == _replacements)
 		? std::move(_lottie)
 		: nullptr;
+}
+
+void Sticker::externalLottieProgressing(bool external) {
+	_externalTillFrame = !external
+		? -1
+		: (_externalTillFrame > 0)
+		? _externalTillFrame
+		: 0;
+}
+
+bool Sticker::externalLottieTill(int frame) {
+	_externalTillFrame = (_externalTillFrame >= 0) ? frame : -1;
+	return markFramesTillExternal();
+}
+
+int Sticker::externalLottieTillFrame() const {
+	return _externalTillFrame;
+}
+
+bool Sticker::markFramesTillExternal() {
+	if (_externalTillFrame < 0 || !_lottie) {
+		return true;
+	} else if (!_lottie->ready()) {
+		return false;
+	}
+	while (_lottie->frameIndex() < _externalTillFrame) {
+		if (!_lottie->markFrameShown()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 } // namespace HistoryView
