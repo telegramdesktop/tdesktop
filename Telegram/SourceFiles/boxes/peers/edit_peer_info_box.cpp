@@ -707,6 +707,9 @@ void Controller::fillPrivacyTypeButton() {
 	_noForwardsSavedValue = !_peer->allowsForwarding();
 
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
+	const auto icon = isGroup
+		? &st::infoIconGroupType
+		: &st::infoIconChannelType;
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		(hasLocation
@@ -729,7 +732,7 @@ void Controller::fillPrivacyTypeButton() {
 					: tr::lng_manage_private_peer_title)();
 		}) | rpl::flatten_latest(),
 		[=] { showEditPeerTypeBox(); },
-		{ &st::infoIconGroupType, Settings::kIconLightBlue });
+		{ icon, Settings::kIconLightBlue });
 
 	_privacyTypeUpdates.fire_copy(*_privacySavedValue);
 }
