@@ -20,7 +20,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kDaysInWeek = 7;
-constexpr auto kMaxDaysForScroll = kDaysInWeek * 1000;
 constexpr auto kTooltipDelay = crl::time(1000);
 constexpr auto kJumpDelay = 2 * crl::time(1000);
 
