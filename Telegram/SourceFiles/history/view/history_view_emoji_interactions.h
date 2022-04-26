@@ -52,6 +52,7 @@ private:
 		int framesCount = 0;
 		int frameRate = 0;
 		bool premium = false;
+		bool started = false;
 		bool finished = false;
 	};
 	struct Delayed {

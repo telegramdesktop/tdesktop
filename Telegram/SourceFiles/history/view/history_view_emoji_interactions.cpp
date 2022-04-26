@@ -266,12 +266,18 @@ void EmojiInteractions::paint(QPainter &p) {
 			play.framesCount = information.framesCount;
 			play.frameRate = information.frameRate;
 		}
-		if (play.frame + 1 == play.framesCount) {
+		const auto rect = computeRect(
+			play.view,
+			play.premium).translated(play.shift);
+		if (play.started && !play.frame) {
 			play.finished = true;
+			_updateRequests.fire_copy(rect);
+			continue;
+		} else if (play.frame > 0) {
+			play.started = true;
 		}
-		const auto rect = computeRect(play.view, play.premium);
 		p.drawImage(
-			QRect(rect.topLeft() + play.shift, frame.image.size() / factor),
+			QRect(rect.topLeft(), frame.image.size() / factor),
 			frame.image);
 		play.lottie->markFrameShown();
 	}
