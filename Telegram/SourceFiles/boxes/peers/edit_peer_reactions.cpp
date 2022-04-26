@@ -148,7 +148,7 @@ void SaveAllowedReactions(
 		const std::vector<QString> &allowed) {
 	auto ids = allowed | ranges::views::transform([=](QString value) {
 		return MTP_string(value);
-	}) | ranges::to<QVector>;
+	}) | ranges::to<QVector<MTPstring>>;
 
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
 		peer->input,
