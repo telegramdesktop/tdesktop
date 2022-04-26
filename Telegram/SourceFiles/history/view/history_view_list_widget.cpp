@@ -1243,6 +1243,11 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 	if (hasCopyRestriction()) {
 		return true;
 	}
+	if (_selected.empty()) {
+		if (_selectedTextItem && _selectedTextItem->forbidsForward()) {
+			return true;
+		}
+	}
 	for (const auto &[itemId, selection] : _selected) {
 		if (const auto item = session().data().message(itemId)) {
 			if (item->forbidsForward()) {
@@ -1254,6 +1259,11 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 }
 
 bool ListWidget::showCopyRestrictionForSelected() {
+	if (_selected.empty()) {
+		if (_selectedTextItem && showCopyRestriction(_selectedTextItem)) {
+			return true;
+		}
+	}
 	for (const auto &[itemId, selection] : _selected) {
 		if (showCopyRestriction(session().data().message(itemId))) {
 			return true;
