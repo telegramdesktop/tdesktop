@@ -44,8 +44,11 @@ constexpr auto kDropDelayedAfterDelay = crl::time(2000);
 
 } // namespace
 
-EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
-: _session(session) {
+EmojiInteractions::EmojiInteractions(
+	not_null<Main::Session*> session,
+	Fn<int(not_null<const Element*>)> itemTop)
+: _session(session)
+, _itemTop(std::move(itemTop)) {
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
 		return !_plays.empty() || !_delayed.empty();
@@ -241,7 +244,10 @@ QRect EmojiInteractions::computeRect(
 	const auto left = rightAligned
 		? (fullWidth - skip + shift - size.width())
 		: (skip - shift);
-	const auto viewTop = view->block()->y() + view->y() + view->marginTop();
+	const auto viewTop = _itemTop(view) + view->marginTop();
+	if (viewTop < 0) {
+		return QRect();
+	}
 	const auto top = viewTop + (sticker.height() - size.height()) / 2;
 	return QRect(QPoint(left, top), size);
 }

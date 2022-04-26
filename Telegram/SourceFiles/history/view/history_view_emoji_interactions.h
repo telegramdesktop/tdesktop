@@ -30,7 +30,9 @@ class Element;
 
 class EmojiInteractions final {
 public:
-	explicit EmojiInteractions(not_null<Main::Session*> session);
+	EmojiInteractions(
+		not_null<Main::Session*> session,
+		Fn<int(not_null<const Element*>)> itemTop);
 	~EmojiInteractions();
 
 	void play(
@@ -90,6 +92,7 @@ private:
 		bool premium);
 
 	const not_null<Main::Session*> _session;
+	const Fn<int(not_null<const Element*>)> _itemTop;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

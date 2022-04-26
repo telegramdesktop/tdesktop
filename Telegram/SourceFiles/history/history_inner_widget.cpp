@@ -321,7 +321,8 @@ HistoryInner::HistoryInner(
 , _history(history)
 , _elementDelegate(_history->delegateMixin()->delegate())
 , _emojiInteractions(std::make_unique<HistoryView::EmojiInteractions>(
-	&controller->session()))
+	&controller->session(),
+	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _migrated(history->migrateFrom())
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
@@ -375,7 +376,7 @@ HistoryInner::HistoryInner(
 	}, lifetime());
 	_emojiInteractions->updateRequests(
 	) | rpl::start_with_next([=](QRect rect) {
-		update(rect.translated(0, _historyPaddingTop));
+		update(rect);
 	}, lifetime());
 	_emojiInteractions->playStarted(
 	) | rpl::start_with_next([=](QString &&emoji) {
@@ -1173,8 +1174,6 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	p.setOpacity(1.);
 
 	_reactionsManager->paint(p, context);
-
-	p.translate(0, _historyPaddingTop);
 	_emojiInteractions->paint(p);
 }
 
@@ -2831,8 +2830,8 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	checkHistoryActivation();
 
 	_emojiInteractions->visibleAreaUpdated(
-		_visibleAreaTop - _historyPaddingTop,
-		_visibleAreaBottom - _historyPaddingTop);
+		_visibleAreaTop,
+		_visibleAreaBottom);
 }
 
 bool HistoryInner::displayScrollDate() const {
