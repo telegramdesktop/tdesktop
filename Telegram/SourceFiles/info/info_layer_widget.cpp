@@ -82,7 +82,11 @@ void LayerWidget::setupHeightConsumers() {
 
 	_content->scrollTillBottomChanges(
 	) | rpl::filter([this] {
-		return !_inResize;
+		if (!_inResize) {
+			return true;
+		}
+		_pendingResize = true;
+		return false;
 	}) | rpl::start_with_next([this] {
 		resizeToWidth(width());
 	}, lifetime());
@@ -125,8 +129,11 @@ void LayerWidget::setContentHeight(int height) {
 	if (_contentHeight == height) {
 		return;
 	}
+
 	_contentHeight = height;
-	if (_content && !_inResize) {
+	if (_inResize) {
+		_pendingResize = true;
+	} else if (_content) {
 		resizeToWidth(width());
 	}
 }
@@ -240,9 +247,29 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	if (!parentWidget() || !_content) {
 		return 0;
 	}
-	_inResize = true;
-	auto guard = gsl::finally([&] { _inResize = false; });
+	constexpr auto kMaxAttempts = 5;
+	auto attempts = 0;
+	while (true) {
+		_inResize = true;
+		const auto newGeometry = countGeometry(newWidth);
+		_inResize = false;
+		if (!_pendingResize) {
+			const auto oldGeometry = geometry();
+			if (newGeometry != oldGeometry) {
+				_content->forceContentRepaint();
+			}
+			if (newGeometry.topLeft() != oldGeometry.topLeft()) {
+				move(newGeometry.topLeft());
+			}
+			floatPlayerUpdatePositions();
+			return newGeometry.height();
+		}
+		_pendingResize = false;
+		Assert(attempts++ < kMaxAttempts);
+	}
+}
 
+QRect LayerWidget::countGeometry(int newWidth) {
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();
 	auto windowHeight = parentSize.height();
@@ -282,16 +309,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		contentHeight,
 	}, expanding, additionalScroll);
 
-	auto newGeometry = QRect(newLeft, newTop, newWidth, desiredHeight);
-	if (newGeometry != geometry()) {
-		_content->forceContentRepaint();
-	}
-	if (newGeometry.topLeft() != geometry().topLeft()) {
-		move(newGeometry.topLeft());
-	}
-
-	floatPlayerUpdatePositions();
-	return desiredHeight;
+	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }
 
 void LayerWidget::doSetInnerFocus() {

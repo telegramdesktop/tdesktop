@@ -69,6 +69,7 @@ private:
 
 	void setupHeightConsumers();
 	void setContentHeight(int height);
+	[[nodiscard]] QRect countGeometry(int newWidth);
 
 	not_null<Window::SessionController*> _controller;
 	object_ptr<WrapWidget> _content;
@@ -80,6 +81,7 @@ private:
 	Ui::Animations::Simple _savedHeightAnimation;
 	bool _heightAnimated = false;
 	bool _inResize = false;
+	bool _pendingResize = false;
 	bool _tillBottom = false;
 
 	bool _floatPlayerDelegateRestored = false;
