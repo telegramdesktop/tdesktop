@@ -2275,7 +2275,9 @@ void MainWidget::refreshResizeAreas() {
 	if (!isOneColumn()) {
 		ensureFirstColumnResizeAreaCreated();
 		_firstColumnResizeArea->setGeometryToLeft(
-			_history->x(),
+			(rtl() 
+				? _dialogsWidth 
+				: _history->x()),
 			0,
 			st::historyResizeWidth,
 			height());
