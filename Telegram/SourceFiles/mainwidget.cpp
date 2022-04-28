@@ -2317,6 +2317,9 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = globalLeft - mapToGlobal(QPoint(0, 0)).x();
+		newWidth = rtl() 
+			? width() - newWidth 
+			: newWidth;
 		auto newRatio = (newWidth < st::columnMinimalWidthLeft / 2)
 			? 0.
 			: float64(newWidth) / width();
