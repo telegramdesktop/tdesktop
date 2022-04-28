@@ -2236,7 +2236,9 @@ void MainWidget::updateControlsGeometry() {
 				_callTopBarHeight + _exportTopBarHeight);
 		}
 		_history->setGeometryWithTopMoved(QRect(
-			dialogsWidth,
+			(rtl() 
+				? thirdSectionWidth 
+				: dialogsWidth),
 			mainSectionTop,
 			mainSectionWidth,
 			height() - mainSectionTop
