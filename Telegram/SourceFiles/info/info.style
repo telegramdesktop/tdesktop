@@ -623,13 +623,6 @@ editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
 editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
-editPeerSectionLabel: FlatLabel(boxTitle) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(15px semibold);
-		linkFont: font(15px semibold);
-		linkFontOver: font(15px semibold underline);
-	}
-}
 editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
 editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 20px);
 editPeerUsername: setupChannelLink;
@@ -638,7 +631,6 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	minWidth: 1px; // for break everywhere
 	style: boxTextStyle;
 }
-editPeerInviteLinkButton: boxLinkButton;
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -647,11 +639,6 @@ editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 	textFg: boxTextFgError;
 }
 editPeerUsernamePosition: point(22px, 18px);
-editPeerInviteLinkSkip: 10px;
-editPeerInvitesMargins: margins(22px, 17px, 22px, 16px);
-editPeerInvitesTopSkip: 10px;
-editPeerInvitesSkip: 10px;
-editPeerInviteLinkBoxBottomSkip: 15px;
 
 editPeerReactionsButton: SettingsButton(infoProfileButton) {
 	padding: margins(59px, 13px, 8px, 11px);

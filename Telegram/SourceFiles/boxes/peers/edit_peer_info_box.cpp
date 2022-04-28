@@ -544,38 +544,36 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
+	const auto bottomSkip = st::editPeerTopButtonsLayoutSkipCustomBottom;
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
+		object_ptr<Ui::VerticalLayout>(_wrap));
 	const auto container = result->entity();
 
-	container->add(object_ptr<Ui::FlatLabel>(
+	Settings::AddSubsectionTitle(
 		container,
 		tr::lng_group_stickers(),
-		st::editPeerSectionLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
+		{ 0, st::settingsSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
 
-	container->add(object_ptr<Ui::FlatLabel>(
+	AddButtonWithCount(
 		container,
-		tr::lng_group_stickers_description(),
-		st::editPeerPrivacyLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
+		tr::lng_group_stickers_add(),
+		rpl::single(QString()), //Empty count.
+		[=, controller = _navigation->parentController()] {
+			controller->show(
+				Box<StickersBox>(controller, channel),
+				Ui::LayerOption::KeepOther);
+		},
+		{ &st::settingsIconStickers, Settings::kIconLightOrange });
 
-	container->add(object_ptr<Ui::LinkButton>(
-		_wrap,
-		tr::lng_group_stickers_add(tr::now),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] {
-		_navigation->parentController()->show(
-			Box<StickersBox>(_navigation->parentController(), channel),
-			Ui::LayerOption::KeepOther);
-	});
+	Settings::AddSkip(container, bottomSkip);
+
+	Settings::AddDividerText(
+		container,
+		tr::lng_group_stickers_description());
+
+	Settings::AddSkip(container, bottomSkip);
 
 	return result;
 }
