@@ -2290,7 +2290,9 @@ void MainWidget::refreshResizeAreas() {
 	if (isThreeColumn() && _thirdSection) {
 		ensureThirdColumnResizeAreaCreated();
 		_thirdColumnResizeArea->setGeometryToLeft(
-			_thirdSection->x(),
+			(rtl() 
+				? (width() - _thirdSection->width())
+				: _thirdSection->x()),
 			0,
 			st::historyResizeWidth,
 			height());
