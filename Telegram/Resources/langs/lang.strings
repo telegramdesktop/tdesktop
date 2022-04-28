@@ -1592,6 +1592,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers" = "Group stickers";
 "lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
+"lng_premium_stickers" = "Premium stickers";
+"lng_premium_unlock_button" = "Unlock Premium Stickers";
+"lng_premium_unlock_about" = "Unlock this sticker and more by subscribing to Telegram Premium.";
 
 "lng_group_about_header" = "You have created a group.";
 "lng_group_about_text" = "Groups can have:";

@@ -220,6 +220,7 @@ private:
 	bool stickerHasDeleteButton(const Set &set, int index) const;
 	std::vector<Sticker> collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
+	void refreshPremiumStickers();
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
 		Visible,
@@ -341,6 +342,7 @@ private:
 	std::vector<Set> _mySets;
 	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
+	int _premiumsIndex = -1;
 	int _featuredSetsCount = 0;
 	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;

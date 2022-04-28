@@ -96,6 +96,7 @@ stickersTrendingUnread: icon {
 };
 stickersRecent: icon {{ "emoji/stickers_recent", emojiIconFg }};
 stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
+stickersPremium: icon {{ "emoji/stickers_search", emojiIconFg }};
 
 stickersSettingsUnreadSize: 6px;
 stickersSettingsUnreadPosition: point(6px, 10px);
