@@ -71,6 +71,25 @@ struct ParsedBot {
 	return nullptr;
 }
 
+[[nodiscard]] PeerTypes ResolvePeerTypes(
+		const QVector<MTPAttachMenuPeerType> &types) {
+	auto result = PeerTypes();
+	for (const auto &type : types) {
+		result |= type.match([&](const MTPDattachMenuPeerTypeSameBotPM &) {
+			return PeerType::SameBot;
+		}, [&](const MTPDattachMenuPeerTypeBotPM &) {
+			return PeerType::Bot;
+		}, [&](const MTPDattachMenuPeerTypePM &) {
+			return PeerType::User;
+		}, [&](const MTPDattachMenuPeerTypeChat &) {
+			return PeerType::Group;
+		}, [&](const MTPDattachMenuPeerTypeBroadcast &) {
+			return PeerType::Broadcast;
+		});
+	}
+	return result;
+}
+
 [[nodiscard]] std::optional<AttachWebViewBot> ParseAttachBot(
 		not_null<Main::Session*> session,
 		const MTPAttachMenuBot &bot) {
@@ -84,6 +103,7 @@ struct ParsedBot {
 				.user = user,
 				.icon = ResolveIcon(session, data),
 				.name = qs(data.vshort_name()),
+				.types = ResolvePeerTypes(data.vpeer_types().v),
 				.inactive = data.is_inactive(),
 			} : std::optional<AttachWebViewBot>();
 	});
@@ -295,6 +315,22 @@ void BotAction::handleKeyPress(not_null<QKeyEvent*> e) {
 
 } // namespace
 
+bool PeerMatchesTypes(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot,
+		PeerTypes types) {
+	if (const auto user = peer->asUser()) {
+		return (user == bot)
+			? (types & PeerType::SameBot)
+			: user->isBot()
+			? (types & PeerType::Bot)
+			: (types & PeerType::User);
+	} else if (peer->isBroadcast()) {
+		return (types & PeerType::Broadcast);
+	}
+	return (types & PeerType::Group);
+}
+
 AttachWebView::AttachWebView(not_null<Main::Session*> session)
 : _session(session) {
 }
@@ -368,7 +404,8 @@ void AttachWebView::request(const WebViewButton &button) {
 		MTP_bytes(button.url),
 		MTP_string(_startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
-		MTPint() // reply_to_msg_id
+		MTPint(), // reply_to_msg_id
+		MTPInputPeer() // send_as
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDwebViewResultUrl &data) {
@@ -589,9 +626,10 @@ void AttachWebView::requestMenu(
 			_bot->input,
 			_bot->inputUser,
 			MTP_string(url),
-			MTPstring(),
+			MTPstring(), // url
 			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
-			MTPint()
+			MTPint(), // reply_to_msg_id
+			MTPInputPeer() // send_as
 		)).done([=](const MTPWebViewResult &result) {
 			_requestId = 0;
 			result.match([&](const MTPDwebViewResultUrl &data) {
@@ -713,7 +751,8 @@ void AttachWebView::started(uint64 queryId) {
 			_peer->input,
 			_bot->inputUser,
 			MTP_long(queryId),
-			MTP_int(_replyToMsgId.bare)
+			MTP_int(_replyToMsgId.bare),
+			MTPInputPeer() // send_as
 		)).done([=] {
 			_prolongId = 0;
 		}).send();
@@ -764,45 +803,42 @@ void AttachWebView::toggleInMenu(
 
 std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller,
-		Fn<void(bool)> forceShown,
+		not_null<PeerData*> peer,
 		Fn<void(bool)> attach) {
 	auto result = std::make_unique<Ui::DropdownMenu>(
 		parent,
 		st::dropdownMenuWithIcons);
-	const auto bots = &controller->session().attachWebView();
+	const auto bots = &peer->session().attachWebView();
 	const auto raw = result.get();
-	const auto refresh = [=] {
-		raw->clearActions();
-		raw->addAction(tr::lng_attach_photo_or_video(tr::now), [=] {
-			attach(true);
-		}, &st::menuIconPhoto);
-		raw->addAction(tr::lng_attach_document(tr::now), [=] {
-			attach(false);
-		}, &st::menuIconFile);
-		for (const auto &bot : bots->attachBots()) {
-			const auto callback = [=] {
-				const auto active = controller->activeChatCurrent();
-				if (const auto history = active.history()) {
-					bots->request(nullptr, history->peer, bot.user, {});
-				}
-			};
-			auto action = base::make_unique_q<BotAction>(
-				raw,
-				raw->menu()->st(),
-				bot,
-				callback);
-			action->forceShown(
-			) | rpl::start_with_next([=](bool shown) {
-				forceShown(shown);
-			}, action->lifetime());
-			raw->addAction(std::move(action));
+	raw->addAction(tr::lng_attach_photo_or_video(tr::now), [=] {
+		attach(true);
+	}, &st::menuIconPhoto);
+	raw->addAction(tr::lng_attach_document(tr::now), [=] {
+		attach(false);
+	}, &st::menuIconFile);
+	for (const auto &bot : bots->attachBots()) {
+		if (!PeerMatchesTypes(peer, bot.user, bot.types)) {
+			continue;
 		}
-	};
-	refresh();
-	bots->attachBotsUpdates(
-	) | rpl::start_with_next(refresh, raw->lifetime());
-
+		auto action = base::make_unique_q<BotAction>(
+			raw,
+			raw->menu()->st(),
+			bot,
+			[=] { bots->request(nullptr, peer, bot.user, {}); });
+		action->forceShown(
+		) | rpl::start_with_next([=](bool shown) {
+			if (shown) {
+				raw->setAutoHiding(false);
+			} else {
+				raw->hideAnimated();
+				raw->setAutoHiding(true);
+			}
+		}, action->lifetime());
+		raw->addAction(std::move(action));
+	}
+	if (raw->actions().size() < 3) {
+		return nullptr;
+	}
 	return result;
 }
 

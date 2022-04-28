@@ -631,6 +631,7 @@ private:
 	void refreshScheduledToggle();
 	void setupSendAsToggle();
 	void refreshSendAsToggle();
+	void refreshAttachBotsMenu();
 
 	bool kbWasHidden() const;
 

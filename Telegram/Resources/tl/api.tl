@@ -1342,7 +1342,7 @@ attachMenuBotIconColor#4576f3f0 name:string color:int = AttachMenuBotIconColor;
 
 attachMenuBotIcon#b2a7386b flags:# name:string icon:Document colors:flags.0?Vector<AttachMenuBotIconColor> = AttachMenuBotIcon;
 
-attachMenuBot#e93cb772 flags:# inactive:flags.0?true bot_id:long short_name:string icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
+attachMenuBot#c8aa2cd2 flags:# inactive:flags.0?true bot_id:long short_name:string peer_types:Vector<AttachMenuPeerType> icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
 
 attachMenuBotsNotModified#f1d88a5c = AttachMenuBots;
 attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> = AttachMenuBots;
@@ -1369,6 +1369,12 @@ notificationSoundRingtone#ff6c8049 id:long = NotificationSound;
 
 account.savedRingtone#b7263f6d = account.SavedRingtone;
 account.savedRingtoneConverted#1f307eb7 document:Document = account.SavedRingtone;
+
+attachMenuPeerTypeSameBotPM#7d6be90e = AttachMenuPeerType;
+attachMenuPeerTypeBotPM#c32bfa1a = AttachMenuPeerType;
+attachMenuPeerTypePM#f146d31f = AttachMenuPeerType;
+attachMenuPeerTypeChat#509113f = AttachMenuPeerType;
+attachMenuPeerTypeBroadcast#7bfbdefc = AttachMenuPeerType;
 
 ---functions---
 
@@ -1665,8 +1671,8 @@ messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = mes
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
 messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#1aee33af bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#fa04dff flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int = WebViewResult;
-messages.prolongWebView#d22ad148 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int = Bool;
+messages.requestWebView#91b15831 flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON reply_to_msg_id:flags.0?int send_as:flags.13?InputPeer = WebViewResult;
+messages.prolongWebView#ea5fbcce flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int send_as:flags.13?InputPeer = Bool;
 messages.requestSimpleWebView#6abb2f73 flags:# bot:InputUser url:string theme_params:flags.0?DataJSON = SimpleWebViewResult;
 messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;

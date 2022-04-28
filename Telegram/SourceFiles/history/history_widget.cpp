@@ -484,36 +484,7 @@ HistoryWidget::HistoryWidget(
 	session().attachWebView().requestBots();
 	session().attachWebView().attachBotsUpdates(
 	) | rpl::start_with_next([=] {
-		if (session().attachWebView().attachBots().empty()) {
-			_attachBotsMenu = nullptr;
-			return;
-		} else if (!_attachBotsMenu) {
-			const auto forceShown = [=](bool shown) {
-				if (shown) {
-					_attachBotsMenu->setAutoHiding(false);
-				} else {
-					_attachBotsMenu->hideAnimated();
-					_attachBotsMenu->setAutoHiding(true);
-				}
-			};
-			const auto attach = [=](bool compress) {
-				chooseAttach(compress);
-			};
-			_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
-				this,
-				controller,
-				forceShown,
-				attach);
-			_attachBotsMenu->setOrigin(
-				Ui::PanelAnimation::Origin::BottomLeft);
-			if (_history && _history->peer->isUser()) {
-				_attachToggle->installEventFilter(_attachBotsMenu.get());
-			}
-			_attachBotsMenu->heightValue(
-			) | rpl::start_with_next([=] {
-				moveFieldControls();
-			}, _attachBotsMenu->lifetime());
-		}
+		refreshAttachBotsMenu();
 	}, lifetime());
 
 	_botKeyboardShow->addClickHandler([=] { toggleKeyboard(); });
@@ -2419,6 +2390,28 @@ void HistoryWidget::setHistory(History *history) {
 		_migrated = _history ? _history->migrateFrom() : nullptr;
 		registerDraftSource();
 	}
+	refreshAttachBotsMenu();
+}
+
+void HistoryWidget::refreshAttachBotsMenu() {
+	_attachBotsMenu = nullptr;
+	if (!_history) {
+		return;
+	}
+	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
+		this,
+		_history->peer,
+		[=](bool compress) { chooseAttach(compress); });
+	if (!_attachBotsMenu) {
+		return;
+	}
+	_attachBotsMenu->setOrigin(
+		Ui::PanelAnimation::Origin::BottomLeft);
+	_attachToggle->installEventFilter(_attachBotsMenu.get());
+	_attachBotsMenu->heightValue(
+	) | rpl::start_with_next([=] {
+		moveFieldControls();
+	}, _attachBotsMenu->lifetime());
 }
 
 void HistoryWidget::unregisterDraftSources() {
