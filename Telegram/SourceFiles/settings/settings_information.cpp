@@ -223,7 +223,7 @@ void ShowMenu(
 		QWidget *parent,
 		const QString &copyButton,
 		const QString &text) {
-	const auto menu = new Ui::PopupMenu(parent);
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(parent);
 
 	menu->addAction(copyButton, [=] {
 		QGuiApplication::clipboard()->setText(text);
@@ -568,6 +568,12 @@ void SetupAccountsWrap(
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			raw,
 			st::popupMenuWithIcons);
+		addAction(tr::lng_profile_copy_phone(tr::now), [=] {
+			const auto phone = rpl::variable<TextWithEntities>(
+				Info::Profile::PhoneValue(session->user()));
+			QGuiApplication::clipboard()->setText(phone.current().text);
+		}, &st::menuIconCopy);
+
 		addAction(tr::lng_menu_activate(tr::now), [=] {
 			Core::App().domain().activate(&session->account());
 		}, &st::menuIconProfile);
