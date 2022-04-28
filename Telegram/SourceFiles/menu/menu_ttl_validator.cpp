@@ -108,9 +108,11 @@ bool TTLValidator::can() const {
 			&& !_peer->isNotificationsUser()
 			&& !_peer->asUser()->isInaccessible())
 		|| (_peer->isChat()
-			&& _peer->asChat()->canDeleteMessages())
+			&& _peer->asChat()->canDeleteMessages()
+			&& _peer->asChat()->amIn())
 		|| (_peer->isChannel()
-			&& _peer->asChannel()->canDeleteMessages());
+			&& _peer->asChannel()->canDeleteMessages()
+			&& _peer->asChannel()->amIn());
 }
 
 void TTLValidator::showToast() const {
