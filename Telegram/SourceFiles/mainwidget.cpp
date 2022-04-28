@@ -2351,6 +2351,9 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
+		newWidth = rtl() 
+			? (width() - newWidth) 
+			: newWidth;
 		Core::App().settings().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
