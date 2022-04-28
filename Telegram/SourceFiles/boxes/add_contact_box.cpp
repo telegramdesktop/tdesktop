@@ -1393,6 +1393,18 @@ void EditNameBox::prepare() {
 
 	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
 	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
+
+	_first->customTab(true);
+	_last->customTab(true);
+
+	QObject::connect(
+		_first,
+		&Ui::InputField::tabbed,
+		[=] { _last->setFocus(); });
+	QObject::connect(
+		_last,
+		&Ui::InputField::tabbed,
+		[=] { _first->setFocus(); });
 }
 
 void EditNameBox::setInnerFocus() {
