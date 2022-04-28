@@ -2191,7 +2191,9 @@ void MainWidget::updateControlsGeometry() {
 		if (_thirdSection) {
 			auto thirdSectionTop = getThirdSectionTop();
 			_thirdSection->setGeometry(
-				width() - thirdSectionWidth,
+				(rtl() 
+					? 0 
+					: width() - thirdSectionWidth),
 				thirdSectionTop,
 				thirdSectionWidth,
 				height() - thirdSectionTop);
