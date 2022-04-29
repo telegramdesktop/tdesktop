@@ -234,8 +234,6 @@ PRIVATE
     ui/text/format_values.h
     ui/text/text_options.cpp
     ui/text/text_options.h
-    ui/toasts/common_toasts.cpp
-    ui/toasts/common_toasts.h
 
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
@@ -245,8 +243,6 @@ PRIVATE
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
-    ui/widgets/separate_panel.cpp
-    ui/widgets/separate_panel.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
