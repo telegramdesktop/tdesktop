@@ -110,11 +110,11 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 	setFont(logFont);
 
 	QPalette p(palette());
+	p.setColor(QPalette::Window, QColor(255, 255, 255));
+	p.setColor(QPalette::Base, QColor(255, 255, 255));
 	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
 	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
-
-	setStyleSheet("QLineEdit { background-color: white; }");
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
