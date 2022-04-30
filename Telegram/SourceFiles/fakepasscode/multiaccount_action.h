@@ -50,8 +50,12 @@ namespace FakePasscode {
 
     protected:
         base::flat_map<qint32, Data> index_actions_;
+        base::flat_set<qint32> executionInProgress_;
+        base::has_weak_ptr _guard;
 
         void OnAccountLoggedOut(qint32 index) override;
+        template<typename Fn>
+        void postponeCall(Fn&& fn);
 
         static const Data kEmptyData;
     };

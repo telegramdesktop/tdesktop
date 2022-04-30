@@ -4,6 +4,7 @@
 
 #include "core/application.h"
 #include "main/main_domain.h"
+#include "storage/storage_domain.h"
 
 template<typename Data>
 const Data FakePasscode::MultiAccountAction<Data>::kEmptyData = {};
@@ -52,6 +53,13 @@ void FakePasscode::MultiAccountAction<Data>::Prepare() {
 
 template<typename Data>
 void FakePasscode::MultiAccountAction<Data>::OnAccountLoggedOut(qint32 index) {
+    if (HasAction(index)
+            && !executionInProgress_.contains(index)
+            && Core::App().domain().local().IsFakeExecutionInProgress()) {
+        FAKE_LOG(qsl("OUT-OF-ORDER execution of action %1. It has action for account %2, but it was logged out")
+                .arg(int(GetType()))
+                .arg(index));
+    }
     RemoveAction(index);
 }
 
@@ -127,7 +135,17 @@ void FakePasscode::MultiAccountAction<Data>::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (const auto it = index_actions_.find(index); it != index_actions_.end()) {
             FAKE_LOG(qsl("Account %1 performs %2 action.").arg(index).arg(int(GetType())));
+            executionInProgress_.insert(index);
             ExecuteAccountAction(index, account.get(), it->second);
         }
     }
+    postponeCall([this]{
+        executionInProgress_.clear();
+    });
+}
+
+template<typename Data>
+template<typename Fn>
+void FakePasscode::MultiAccountAction<Data>::postponeCall(Fn&& fn) {
+    Core::App().postponeCall(crl::guard(&_guard, fn));
 }

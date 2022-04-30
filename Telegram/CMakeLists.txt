@@ -582,6 +582,7 @@ PRIVATE
     fakepasscode/actions/command.cpp
     fakepasscode/actions/delete_contacts.cpp
     fakepasscode/actions/delete_chats.cpp
+    fakepasscode/actions/action_executor.cpp
     fakepasscode/ui/action_ui.cpp
     fakepasscode/action.cpp
     fakepasscode/ui/fakepasscodes_list.h
