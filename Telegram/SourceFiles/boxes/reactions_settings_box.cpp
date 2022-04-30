@@ -89,12 +89,13 @@ AdminLog::OwnedItem GenerateItem(
 }
 
 void AddMessage(
-		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
-		rpl::producer<QString> &&emojiValue) {
+		rpl::producer<QString> &&emojiValue,
+		int width) {
 
-	const auto widget = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
+	const auto widget = container->add(
+		object_ptr<Ui::RpWidget>(container),
 		style::margins(
 			0,
 			st::settingsSectionSkip,
@@ -121,7 +122,7 @@ void AddMessage(
 			bool flag = false;
 		} icons;
 	};
-	const auto state = box->lifetime().make_state<State>();
+	const auto state = container->lifetime().make_state<State>();
 	state->delegate = std::make_unique<Delegate>(
 		controller,
 		crl::guard(widget, [=] { widget->update(); }));
@@ -150,16 +151,18 @@ void AddMessage(
 
 	const auto padding = st::settingsForwardPrivacyPadding;
 
-	widget->widthValue(
-	) | rpl::filter(
-		rpl::mappers::_1 >= (st::historyMinimalWidth / 2)
-	) | rpl::start_with_next([=](int width) {
+	const auto updateWidgetSize = [=](int width) {
 		const auto height = view->resizeGetHeight(width);
 		const auto top = view->marginTop();
 		const auto bottom = view->marginBottom();
 		const auto full = padding + top + height + bottom + padding;
 		widget->resize(width, full);
-	}, widget->lifetime());
+	};
+	widget->widthValue(
+	) | rpl::filter(
+		rpl::mappers::_1 >= (st::historyMinimalWidth / 2)
+	) | rpl::start_with_next(updateWidgetSize, widget->lifetime());
+	updateWidgetSize(width);
 
 	const auto rightSize = st::settingsReactionCornerSize;
 	const auto rightRect = [=] {
@@ -224,7 +227,7 @@ void AddMessage(
 			const auto index = state->icons.flag ? 1 : 0;
 			state->icons.lifetimes[index] = rpl::lifetime();
 			AddReactionLottieIcon(
-				box->verticalLayout(),
+				container,
 				widget->geometryValue(
 				) | rpl::map([=](const QRect &r) {
 					return widget->pos()
@@ -388,34 +391,19 @@ void ReactionsSettingsBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->selectedEmoji = reactions.favorite();
 
-	AddMessage(box, controller, state->selectedEmoji.value());
+	const auto pinnedToTop = box->setPinnedToTopContent(
+		object_ptr<Ui::VerticalLayout>(box));
 
-	const auto container = box->verticalLayout();
+	auto emojiValue = state->selectedEmoji.value();
+	AddMessage(pinnedToTop, controller, std::move(emojiValue), box->width());
+
 	Settings::AddSubsectionTitle(
-		container,
+		pinnedToTop,
 		tr::lng_settings_chat_reactions_subtitle());
 
-	const auto &stButton = st::settingsButton;
-	const auto scrollContainer = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
-			box,
-			kVisibleButtonsCount
-				* (stButton.height
-					+ stButton.padding.top()
-					+ stButton.padding.bottom())),
-		style::margins());
-	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
-		scrollContainer,
-		st::boxScroll);
-	const auto buttonsContainer = scroll->setOwnedWidget(
-		object_ptr<Ui::VerticalLayout>(scroll));
-	scrollContainer->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		scroll->resize(s.width(), s.height());
-		buttonsContainer->resizeToWidth(s.width());
-	}, scroll->lifetime());
+	const auto container = box->verticalLayout();
 
-	const auto check = Ui::CreateChild<Ui::RpWidget>(buttonsContainer.data());
+	const auto check = Ui::CreateChild<Ui::RpWidget>(container.get());
 	check->resize(st::settingsReactionCornerSize);
 	check->setAttribute(Qt::WA_TransparentForMouseEvents);
 	check->paintRequest(
@@ -432,9 +420,9 @@ void ReactionsSettingsBox(
 	auto firstCheckedButton = (Ui::RpWidget*)(nullptr);
 	for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
 		const auto button = Settings::AddButton(
-			buttonsContainer,
+			container,
 			rpl::single<QString>(base::duplicate(r.title)),
-			stButton);
+			st::settingsButton);
 
 		const auto iconSize = st::settingsReactionSize;
 		AddReactionLottieIcon(
@@ -471,11 +459,6 @@ void ReactionsSettingsBox(
 		}, firstCheckedButton->lifetime());
 	}
 	check->raise();
-
-	Ui::SetupShadowsToScrollContent(
-		scrollContainer,
-		scroll,
-		buttonsContainer->heightValue());
 
 	box->setTitle(tr::lng_settings_chat_reactions_title());
 	box->setWidth(st::boxWideWidth);
