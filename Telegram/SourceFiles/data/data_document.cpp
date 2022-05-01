@@ -677,9 +677,14 @@ Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
 		: Storage::Cache::Key();
 }
 
+void DocumentData::forceToCache(bool force) {
+	_flags |= Flag::ForceToCache;
+}
+
 bool DocumentData::saveToCache() const {
 	return (size < Storage::kMaxFileInMemory)
 		&& ((type == StickerDocument)
+			|| (_flags & Flag::ForceToCache)
 			|| isAnimation()
 			|| isVoiceMessage()
 			|| isWallPaper()

@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_instance.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
@@ -88,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
+#include "fakepasscode/autodelete/autodelete_service.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -194,6 +196,7 @@ Application::~Application() {
 	// For example Domain::removeRedundantAccounts() is called from
 	// Domain::finish() and there is a violation on Ensures(started()).
 	Payments::CheckoutProcess::ClearAll();
+	InlineBots::AttachWebView::ClearAll();
 
 	_domain->finish();
 

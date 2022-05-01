@@ -14,10 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
+#include "settings/settings_chat.h"
+#include "settings/settings_main.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "core/application.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_download_manager.h"
 #include "data/data_session.h"
@@ -36,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 #include "styles/style_menu_icons.h"
@@ -351,10 +355,6 @@ void WrapWidget::createTopBar() {
 		_content->selectionAction(action);
 	}, _topBar->lifetime());
 
-	_topBar->setTitle(TitleValue(
-		_controller->section(),
-		_controller->key(),
-		!hasStackHistory()));
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest(
@@ -395,8 +395,8 @@ void WrapWidget::createTopBar() {
 		addTopBarMenuButton();
 		addProfileCallsButton();
 	} else if (section.type() == Section::Type::Settings
-		&& (section.settingsType() == Section::SettingsType::Main
-			|| section.settingsType() == Section::SettingsType::Chat)) {
+		&& (section.settingsType() == ::Settings::Main::Id()
+			|| section.settingsType() == ::Settings::Chat::Id())) {
 		addTopBarMenuButton();
 	} else if (section.type() == Section::Type::Downloads) {
 		auto &manager = Core::App().downloadManager();
@@ -437,6 +437,14 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 void WrapWidget::addTopBarMenuButton() {
 	Expects(_topBar != nullptr);
 
+	{
+		const auto guard = gsl::finally([&] { _topBarMenu = nullptr; });
+		showTopBarMenu(true);
+		if (_topBarMenu->empty()) {
+			return;
+		}
+	}
+
 	_topBarMenuToggle.reset(_topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
@@ -444,7 +452,7 @@ void WrapWidget::addTopBarMenuButton() {
 				? st::infoLayerTopBarMenu
 				: st::infoTopBarMenu))));
 	_topBarMenuToggle->addClickHandler([this] {
-		showTopBarMenu();
+		showTopBarMenu(false);
 	});
 }
 
@@ -485,40 +493,23 @@ void WrapWidget::addProfileCallsButton() {
 	}
 }
 
-void WrapWidget::showTopBarMenu() {
+void WrapWidget::showTopBarMenu(bool check) {
 	if (_topBarMenu) {
-		_topBarMenu->hideAnimated(
-			Ui::InnerDropdown::HideOption::IgnoreShow);
+		_topBarMenu->hideMenu(true);
 		return;
 	}
-	_topBarMenu = base::make_unique_q<Ui::DropdownMenu>(
+	_topBarMenu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::dropdownMenuWithIcons);
+		st::popupMenuExpandedSeparator);
 
-	_topBarMenu->setHiddenCallback([this] {
+	_topBarMenu->setDestroyedCallback([this] {
 		InvokeQueued(this, [this] { _topBarMenu = nullptr; });
 		if (auto toggle = _topBarMenuToggle.get()) {
 			toggle->setForceRippled(false);
 		}
 	});
-	_topBarMenu->setShowStartCallback([this] {
-		if (auto toggle = _topBarMenuToggle.get()) {
-			toggle->setForceRippled(true);
-		}
-	});
-	_topBarMenu->setHideStartCallback([this] {
-		if (auto toggle = _topBarMenuToggle.get()) {
-			toggle->setForceRippled(false);
-		}
-	});
-	_topBarMenuToggle->installEventFilter(_topBarMenu.get());
 
-	const auto addAction = [=](
-			const QString &text,
-			Fn<void()> callback,
-			const style::icon *icon) {
-		return _topBarMenu->addAction(text, std::move(callback), icon);
-	};
+	const auto addAction = Menu::CreateAddActionCallback(_topBarMenu);
 	if (key().isDownloads()) {
 		addAction(
 			tr::lng_context_delete_all_files(tr::now),
@@ -547,11 +538,13 @@ void WrapWidget::showTopBarMenu() {
 		_topBarMenu = nullptr;
 		return;
 	}
-	auto position = (wrap() == Wrap::Layer)
-		? st::infoLayerTopBarMenuPosition
-		: st::infoTopBarMenuPosition;
-	_topBarMenu->moveToRight(position.x(), position.y());
-	_topBarMenu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+	_topBarMenu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	if (check) {
+		return;
+	}
+	_topBarMenuToggle->setForceRippled(true);
+	_topBarMenu->popup(_topBarMenuToggle->mapToGlobal(
+		st::infoLayerTopBarMenuPosition));
 }
 
 void WrapWidget::deleteAllDownloads() {
@@ -630,8 +623,9 @@ void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 }
 
 void WrapWidget::finishShowContent() {
-	_content->setIsStackBottom(!hasStackHistory());
 	updateContentGeometry();
+	_content->setIsStackBottom(!hasStackHistory());
+	_topBar->setTitle(_content->title());
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
 	_selectedLists.fire(_content->selectedListValue());
@@ -662,10 +656,10 @@ rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
 
 rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 	using namespace rpl::mappers;
-	return rpl::combine(
+	return rpl::single(0) | rpl::then(rpl::combine(
 		_content->desiredHeightValue(),
 		topWidget()->heightValue(),
-		_1 + _2);
+		_1 + _2));
 }
 
 rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
@@ -755,7 +749,14 @@ QPixmap WrapWidget::grabForShowAnimation(
 	//if (params.withTabs && _topTabs) {
 	//	_topTabs->hide();
 	//}
+	const auto expanding = _expanding;
+	if (expanding) {
+		_grabbingForExpanding = true;
+	}
 	auto result = Ui::GrabWidget(this);
+	if (expanding) {
+		_grabbingForExpanding = false;
+	}
 	if (params.withTopBarShadow) {
 		_topShadow->setVisible(true);
 	}
@@ -787,6 +788,7 @@ void WrapWidget::showFinishedHook() {
 	// Restore shadow visibility after showChildren() call.
 	_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
 	_topBarSurrogate.destroy();
+	_content->showFinished();
 }
 
 bool WrapWidget::showInternal(
@@ -1024,11 +1026,15 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 	return nullptr;
 }
 
-void WrapWidget::updateGeometry(QRect newGeometry, int additionalScroll) {
+void WrapWidget::updateGeometry(
+		QRect newGeometry,
+		bool expanding,
+		int additionalScroll) {
 	auto scrollChanged = (_additionalScroll != additionalScroll);
 	auto geometryChanged = (geometry() != newGeometry);
 	auto shrinkingContent = (additionalScroll < _additionalScroll);
 	_additionalScroll = additionalScroll;
+	_expanding = expanding;
 
 	if (geometryChanged) {
 		if (shrinkingContent) {
@@ -1053,6 +1059,10 @@ rpl::producer<int> WrapWidget::scrollTillBottomChanges() const {
 	return _scrollTillBottomChanges.events_starting_with(
 		_content->scrollTillBottomChanges()
 	) | rpl::flatten_latest();
+}
+
+rpl::producer<bool> WrapWidget::grabbingForExpanding() const {
+	return _grabbingForExpanding.value();
 }
 
 WrapWidget::~WrapWidget() = default;

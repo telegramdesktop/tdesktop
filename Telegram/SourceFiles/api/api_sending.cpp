@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 
+#include "fakepasscode/hooks/fake_messages.h"
+
 namespace Api {
 namespace {
 
@@ -127,6 +129,7 @@ void SendExistingMedia(
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
+	FakePasscode::RegisterMessageRandomId(session, randomId, peer->id, message.action.options);
 
 	const auto viaBotId = UserId();
 	history->addNewLocalMessage(
@@ -169,7 +172,7 @@ void SendExistingMedia(
 						} else {
 							api->sendMessageFail(error, peer, randomId, newId);
 						}
-						});
+					});
 				} else {
 					api->sendMessageFail(error, peer, randomId, newId);
 				}
@@ -300,6 +303,7 @@ bool SendDice(MessageToSend &message) {
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
+	FakePasscode::RegisterMessageRandomId(session, randomId, peer->id, message.action.options);
 
 	const auto viaBotId = UserId();
 	history->addNewLocalMessage(

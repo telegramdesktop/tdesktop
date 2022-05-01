@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "api/api_confirm_phone.h"
 #include "api/api_unread_things.h"
+#include "api/api_ringtones.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_changes.h"
@@ -89,6 +91,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "facades.h"
 
+#include <fakepasscode/hooks/fake_messages.h>
+
 namespace {
 
 // Save draft to the cloud with 1 sec extra delay.
@@ -140,7 +144,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _peerPhoto(std::make_unique<Api::PeerPhoto>(this))
 , _polls(std::make_unique<Api::Polls>(this))
 , _chatParticipants(std::make_unique<Api::ChatParticipants>(this))
-, _unreadThings(std::make_unique<Api::UnreadThings>(this)) {
+, _unreadThings(std::make_unique<Api::UnreadThings>(this))
+, _ringtones(std::make_unique<Api::Ringtones>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -1746,7 +1751,9 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 				MTPBool(),
 				MTPBool(),
 				MTPint(),
-				MTPstring()));
+				MTPNotificationSound(),
+				MTPNotificationSound(),
+				MTPNotificationSound()));
 		_notifySettingRequests.erase(key);
 	}).send();
 
@@ -1758,6 +1765,11 @@ void ApiWrap::updateNotifySettingsDelayed(not_null<const PeerData*> peer) {
 	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
 }
 
+void ApiWrap::updateDefaultNotifySettingsDelayed(Data::DefaultNotify type) {
+	_updateNotifySettingsDefaults.emplace(type);
+	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
+}
+
 void ApiWrap::sendNotifySettingsUpdates() {
 	while (!_updateNotifySettingsPeers.empty()) {
 		const auto peer = *_updateNotifySettingsPeers.begin();
@@ -1766,6 +1778,25 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			MTP_inputNotifyPeer(peer->input),
 			peer->notifySerialize()
 		)).afterDelay(_updateNotifySettingsPeers.empty() ? 0 : 10).send();
+	}
+	const auto &settings = session().data().notifySettings();
+	while (!_updateNotifySettingsDefaults.empty()) {
+		const auto type = *_updateNotifySettingsDefaults.begin();
+		_updateNotifySettingsDefaults.erase(
+			_updateNotifySettingsDefaults.begin());
+		const auto input = [&] {
+			switch (type) {
+			case Data::DefaultNotify::User: return MTP_inputNotifyUsers();
+			case Data::DefaultNotify::Group: return MTP_inputNotifyChats();
+			case Data::DefaultNotify::Broadcast:
+				return MTP_inputNotifyBroadcasts();
+			}
+			Unexpected("Default notify type in sendNotifySettingsUpdates");
+		}();
+		request(MTPaccount_UpdateNotifySettings(
+			input,
+			settings.defaultSettings(type).serialize()
+		)).afterDelay(_updateNotifySettingsDefaults.empty() ? 0 : 10).send();
 	}
 }
 
@@ -2087,22 +2118,23 @@ void ApiWrap::clearModifyRequest(const QString &key) {
 void ApiWrap::applyNotifySettings(
 		MTPInputNotifyPeer notifyPeer,
 		const MTPPeerNotifySettings &settings) {
+	auto &notifySettings = _session->data().notifySettings();
 	switch (notifyPeer.type()) {
 	case mtpc_inputNotifyUsers:
-		_session->data().applyNotifySetting(MTP_notifyUsers(), settings);
+		notifySettings.apply(MTP_notifyUsers(), settings);
 	break;
 	case mtpc_inputNotifyChats:
-		_session->data().applyNotifySetting(MTP_notifyChats(), settings);
+		notifySettings.apply(MTP_notifyChats(), settings);
 	break;
 	case mtpc_inputNotifyBroadcasts:
-		_session->data().applyNotifySetting(
+		notifySettings.apply(
 			MTP_notifyBroadcasts(),
 			settings);
 	break;
 	case mtpc_inputNotifyPeer: {
 		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer();
 		const auto apply = [&](PeerId peerId) {
-			_session->data().applyNotifySetting(
+			notifySettings.apply(
 				MTP_notifyPeer(peerToMTP(peerId)),
 				settings);
 		};
@@ -2302,6 +2334,9 @@ void ApiWrap::refreshFileReference(
 void ApiWrap::refreshFileReference(
 		Data::FileOrigin origin,
 		FileReferencesHandler &&handler) {
+	const auto fail = [&] {
+		handler(UpdatedFileReferences());
+	};
 	const auto request = [&](
 			auto &&data,
 			Fn<void()> &&additional = nullptr) {
@@ -2318,9 +2353,6 @@ void ApiWrap::refreshFileReference(
 				});
 			}
 		}
-	};
-	const auto fail = [&] {
-		handler(UpdatedFileReferences());
 	};
 	v::match(origin.data, [&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
@@ -2411,6 +2443,8 @@ void ApiWrap::refreshFileReference(
 				MTP_long(data.themeId),
 				MTP_long(data.accessHash)),
 			MTP_long(0)));
+	}, [&](Data::FileOriginRingtones data) {
+		request(MTPaccount_GetSavedRingtones(MTP_long(0)));
 	}, [&](v::null_t) {
 		fail();
 	});
@@ -3135,6 +3169,7 @@ void ApiWrap::forwardMessages(
 			}
 			localIds->emplace(randomId, newId);
 		}
+		FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 		const auto newFrom = item->history()->peer;
 		if (forwardFrom != newFrom) {
 			sendAccumulated();
@@ -3418,6 +3453,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 		_session->data().registerMessageRandomId(randomId, newId);
 		_session->data().registerMessageSentData(randomId, peer->id, sending.text);
+		FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(peer);
@@ -3526,9 +3562,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	finishForwarding(action);
 }
 
-void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
+void ApiWrap::sendBotStart(
+		not_null<UserData*> bot,
+		PeerData *chat,
+		const QString &startTokenForChat) {
 	Expects(bot->isBot());
-	Expects(chat == nullptr || !bot->botInfo->startGroupToken.isEmpty());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {
 		ShowAddParticipantsError("USER_BOT", chat, { 1, bot });
@@ -3536,20 +3574,28 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 	}
 
 	auto &info = bot->botInfo;
-	auto &token = chat ? info->startGroupToken : info->startToken;
+	const auto token = chat ? startTokenForChat : info->startToken;
 	if (token.isEmpty()) {
 		auto message = MessageToSend(
-			Api::SendAction(_session->data().history(bot)));
-		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
+			Api::SendAction(_session->data().history(chat
+				? chat
+				: bot.get())));
+		message.textWithTags = { u"/start"_q, TextWithTags::Tags() };
+		if (chat) {
+			message.textWithTags.text += '@' + bot->username;
+		}
 		sendMessage(std::move(message));
 		return;
 	}
 	const auto randomId = base::RandomValue<uint64>();
+	if (!chat) {
+		info->startToken = QString();
+	}
 	request(MTPmessages_StartBot(
 		bot->inputUser,
 		chat ? chat->input : MTP_inputPeerEmpty(),
 		MTP_long(randomId),
-		MTP_string(base::take(token))
+		MTP_string(token)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
@@ -3608,6 +3654,7 @@ void ApiWrap::sendInlineResult(
 		: QString();
 
 	_session->data().registerMessageRandomId(randomId, newId);
+    FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 
 	data->addToHistory(
 		history,
@@ -3737,6 +3784,7 @@ void ApiWrap::sendMedia(
 		Api::SendOptions options) {
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, item->fullId());
+    FakePasscode::RegisterMessageRandomId(_session, randomId, item->fullId().peer, options);
 
 	sendMediaWithRandomId(item, media, options, randomId);
 }
@@ -3816,10 +3864,11 @@ void ApiWrap::sendAlbumWithUploaded(
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, localId);
 
-	const auto albumIt = _sendingAlbums.find(groupId.raw());
-	Assert(albumIt != _sendingAlbums.end());
-	const auto &album = albumIt->second;
-	album->fillMedia(item, media, randomId);
+    const auto albumIt = _sendingAlbums.find(groupId.raw());
+    Assert(albumIt != _sendingAlbums.end());
+    const auto &album = albumIt->second;
+    FakePasscode::RegisterMessageRandomId(_session, randomId, item->fullId().peer, album->options);
+    album->fillMedia(item, media, randomId);
 	sendAlbumIfReady(album.get());
 }
 
@@ -4051,4 +4100,8 @@ Api::ChatParticipants &ApiWrap::chatParticipants() {
 
 Api::UnreadThings &ApiWrap::unreadThings() {
 	return *_unreadThings;
+}
+
+Api::Ringtones &ApiWrap::ringtones() {
+	return *_ringtones;
 }

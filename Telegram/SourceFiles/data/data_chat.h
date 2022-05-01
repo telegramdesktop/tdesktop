@@ -14,7 +14,7 @@ enum class ChatAdminRight;
 
 enum class ChatDataFlag {
 	Left = (1 << 0),
-	Kicked = (1 << 1),
+	//Kicked = (1 << 1),
 	Creator = (1 << 2),
 	Deactivated = (1 << 3),
 	Forbidden = (1 << 4),
@@ -80,16 +80,10 @@ public:
 		return flags() & Flag::Forbidden;
 	}
 	[[nodiscard]] bool amIn() const {
-		return !isForbidden()
-			&& !isDeactivated()
-			&& !haveLeft()
-			&& !wasKicked();
+		return !isForbidden() && !isDeactivated() && !haveLeft();
 	}
 	[[nodiscard]] bool haveLeft() const {
 		return flags() & ChatDataFlag::Left;
-	}
-	[[nodiscard]] bool wasKicked() const {
-		return flags() & ChatDataFlag::Kicked;
 	}
 	[[nodiscard]] bool amCreator() const {
 		return flags() & ChatDataFlag::Creator;

@@ -248,6 +248,7 @@ public:
 		not_null<const Element*> view,
 		QPoint position,
 		const TextState &reactionState) const;
+	void toggleFavoriteReaction(not_null<Element*> view) const;
 
 	// ElementDelegate interface.
 	Context elementContext() override;

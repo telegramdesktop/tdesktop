@@ -120,6 +120,13 @@ void SeparatePanel::setHideOnDeactivate(bool hideOnDeactivate) {
 }
 
 void SeparatePanel::showAndActivate() {
+	if (isHidden()) {
+		while (const auto widget = QApplication::activePopupWidget()) {
+			if (!widget->close()) {
+				break;
+			}
+		}
+	}
 	toggleOpacityAnimation(true);
 	raise();
 	setWindowState(windowState() | Qt::WindowActive);
@@ -357,7 +364,7 @@ void SeparatePanel::initGeometry(QSize size) {
 	const auto active = QApplication::activeWindow();
 	const auto available = !active
 		? QGuiApplication::primaryScreen()->availableGeometry()
-		: active->windowHandle()->screen()->availableGeometry();
+		: active->screen()->availableGeometry();
 	const auto parentGeometry = (active
 		&& active->isVisible()
 		&& active->isActiveWindow())

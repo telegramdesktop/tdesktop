@@ -219,8 +219,8 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
-	const auto processDpi = [](const QDpi &dpi) {
-		return (dpi.first + dpi.second) * qreal(0.5);
+	constexpr auto processDpi = [](const QDpi &dpi) {
+		return (dpi.first + dpi.second) * 0.5;
 	};
 	const auto dpi = processDpi(
 		Sandbox::primaryScreen()->handle()->logicalDpi());

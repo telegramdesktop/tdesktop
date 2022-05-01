@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/animations">
+    <file alias="change_number.tgs">../../animations/change_number.tgs</file>
+  </qresource>
+</RCC>

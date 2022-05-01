@@ -23,6 +23,10 @@ class Account;
 class Domain;
 } // namespace Main
 
+namespace FakePasscode {
+class AutoDeleteService;
+}
+
 namespace Storage {
 
 enum class StartResult : uchar {
@@ -61,6 +65,7 @@ public:
     void ExecuteIfFake();
     bool CheckAndExecuteIfFake(const QByteArray& passcode);
     bool IsFakeWithoutInfinityFlag() const;
+    bool IsFakeInfinityFlag() const;
     bool IsFake() const;
     void SetFakePasscodeIndex(qint32 index);
 
@@ -83,6 +88,7 @@ public:
     bool ContainsAction(size_t index, FakePasscode::ActionType type) const;
     const FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type) const;
     void ClearActions(size_t index);
+    void ClearCurrentPasscodeActions();
     FakePasscode::Action* GetAction(size_t index, FakePasscode::ActionType type);
 
     bool IsCacheCleanedUpOnLock() const;
@@ -95,6 +101,9 @@ public:
     void SetDodCleaningState(bool Enabled);
 
     qint32 GetFakePasscodeIndex() const;
+
+	FakePasscode::AutoDeleteService* GetAutoDelete() const;
+
 private:
 	enum class StartModernResult {
 		Success,
@@ -153,6 +162,8 @@ private:
 	bool _hasLocalPasscode = false;
 	rpl::event_stream<> _passcodeKeyChanged;
     rpl::event_stream<> _fakePasscodeChanged;
+
+	std::unique_ptr<FakePasscode::AutoDeleteService> _autoDelete;
 };
 
 } // namespace Storage

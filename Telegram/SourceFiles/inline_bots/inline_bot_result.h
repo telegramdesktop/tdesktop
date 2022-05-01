@@ -132,6 +132,7 @@ private:
 struct ResultSelected {
 	not_null<Result*> result;
 	not_null<UserData*> bot;
+	PeerData *recipientOverride = nullptr;
 	Api::SendOptions options;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 	// Open in OverlayWidget;

@@ -448,12 +448,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			const auto hours = seconds / 3600;
 			const auto minutes = seconds / 60;
 			auto text = (days > 1)
-				? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+				? tr::lng_days(tr::now, lt_count, days)
 				: (hours > 1)
-				? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+				? tr::lng_hours(tr::now, lt_count, hours)
 				: (minutes > 1)
-				? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
-				: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
+				? tr::lng_minutes(tr::now, lt_count, minutes)
+				: tr::lng_seconds(tr::now, lt_count, seconds);
 			if (history()->peer->isBroadcast()) {
 				result.text = tr::lng_action_group_call_finished(
 					tr::now,
@@ -508,11 +508,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		const auto period = action.vperiod().v;
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
-			: (period < 2 * 86400)
-			? tr::lng_ttl_about_duration1(tr::now)
-			: (period < 8 * 86400)
-			? tr::lng_ttl_about_duration2(tr::now)
-			: tr::lng_ttl_about_duration3(tr::now);
+			: Ui::FormatTTL(period);
 		if (isPost()) {
 			if (!period) {
 				result.text = tr::lng_action_ttl_removed_channel(
@@ -606,6 +602,16 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareWebViewDataSent = [](const MTPDmessageActionWebViewDataSent &action) {
+		auto result = PreparedText{};
+		result.text = tr::lng_action_webview_data_done(
+			tr::now,
+			lt_text,
+			{ .text = qs(action.vtext()) },
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -671,6 +677,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareSetChatTheme(data);
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		return prepareChatJoinedByRequest(data);
+	}, [&](const MTPDmessageActionWebViewDataSent &data) {
+		return prepareWebViewDataSent(data);
+	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
+		LOG(("API Error: messageActionWebViewDataSentMe received."));
+		return PreparedText{
+			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
+		};
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{
 			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)

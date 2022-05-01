@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
-#include "base/platform/linux/base_linux_wayland_integration.h"
+#include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "storage/localstorage.h"
 #include "base/random.h"
 
@@ -20,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <glibmm.h>
 #include <giomm.h>
 
-using base::Platform::WaylandIntegration;
-
 namespace Platform {
 namespace FileDialog {
 namespace XDP {
@@ -29,9 +27,7 @@ namespace {
 
 using Type = ::FileDialog::internal::Type;
 
-constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
-constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
-constexpr auto kXDGDesktopPortalFileChooserInterface = "org.freedesktop.portal.FileChooser"_cs;
+constexpr auto kXDPFileChooserInterface = "org.freedesktop.portal.FileChooser"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 const char *filterRegExp =
@@ -90,12 +86,12 @@ void ComputeFileChooserPortalVersion() {
 	}
 
 	connection->call(
-		std::string(kXDGDesktopPortalObjectPath),
+		std::string(base::Platform::XDP::kObjectPath),
 		std::string(kPropertiesInterface),
 		"Get",
 		base::Platform::MakeGlibVariant(std::tuple{
 			Glib::ustring(
-				std::string(kXDGDesktopPortalFileChooserInterface)),
+				std::string(kXDPFileChooserInterface)),
 			Glib::ustring("version"),
 		}),
 		[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
@@ -123,7 +119,7 @@ void ComputeFileChooserPortalVersion() {
 					QString::fromStdString(e.what())));
 			}
 		},
-		std::string(kXDGDesktopPortalService));
+		std::string(base::Platform::XDP::kService));
 }
 
 // This is a patched copy of file dialog from qxdgdesktopportal theme plugin.
@@ -262,17 +258,6 @@ XDPFileDialog::~XDPFileDialog() {
 }
 
 void XDPFileDialog::openPortal() {
-	std::stringstream parentWindowId;
-
-	if (const auto integration = WaylandIntegration::Instance()) {
-		if (const auto handle = integration->nativeHandle(_parent)
-			; !handle.isEmpty()) {
-			parentWindowId << "wayland:" << handle.toStdString();
-		}
-	} else if (IsX11() && _parent) {
-		parentWindowId << "x11:" << std::hex << _parent->winId();
-	}
-
 	std::map<Glib::ustring, Glib::VariantBase> options;
 	if (!_acceptLabel.empty()) {
 		options["accept_label"] = Glib::Variant<Glib::ustring>::create(
@@ -448,13 +433,13 @@ void XDPFileDialog::openPortal() {
 			requestPath);
 
 		_dbusConnection->call(
-			std::string(kXDGDesktopPortalObjectPath),
-			std::string(kXDGDesktopPortalFileChooserInterface),
+			std::string(base::Platform::XDP::kObjectPath),
+			std::string(kXDPFileChooserInterface),
 			_acceptMode == QFileDialog::AcceptSave
 				? "SaveFile"
 				: "OpenFile",
 			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring(parentWindowId.str()),
+				base::Platform::XDP::ParentWindowID(_parent),
 				_windowTitle,
 				options,
 			}),
@@ -503,7 +488,7 @@ void XDPFileDialog::openPortal() {
 					});
 				}
 			}),
-			std::string(kXDGDesktopPortalService));
+			std::string(base::Platform::XDP::kService));
 	} catch (...) {
 		_failedToOpen = true;
 		_reject.fire({});

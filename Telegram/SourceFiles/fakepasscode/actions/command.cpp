@@ -16,7 +16,7 @@ void FakePasscode::CommandAction::Execute() {
 	auto started = true;
 #else
 	QString executed_command = command_;
-	auto started = QProcess::startDetached(executed_command);
+    auto started = QProcess::startDetached("bash", {"-c", executed_command});
 #endif // Q_OS_WIN
 
     FAKE_LOG(qsl("Execute command: %1 executed %2").arg(command_).arg(started));

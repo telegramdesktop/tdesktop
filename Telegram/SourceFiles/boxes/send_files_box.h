@@ -123,7 +123,6 @@ private:
 	void refreshControls();
 	void setupSendWayControls();
 	void setupCaption();
-	void setupShadows();
 
 	void setupEmojiPanel();
 	void updateSendWayControlsVisibility();
@@ -136,6 +135,7 @@ private:
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
 	void sendSilent();
 	void sendScheduled();
+	void sendAutoDelete();
 	void captionResized();
 	void saveSendWaySettings();
 

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-void ShowSearchFromBox(
+object_ptr<Ui::BoxContent> SearchFromBox(
 	not_null<PeerData*> peer,
 	Fn<void(not_null<PeerData*>)> callback,
 	Fn<void()> closedCallback);

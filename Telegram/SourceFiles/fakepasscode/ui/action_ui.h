@@ -11,14 +11,19 @@
 #include "ui/wrap/vertical_layout.h"
 
 namespace Main {
-    class Domain;
+class Domain;
+}
+
+namespace Window {
+class SessionController;
 }
 
 class ActionUI: public Ui::RpWidget {
 public:
     ActionUI(QWidget* parent, gsl::not_null<Main::Domain*> domain, size_t index);
 
-    virtual void Create(not_null<Ui::VerticalLayout*> content) = 0;
+    virtual void Create(not_null<Ui::VerticalLayout*> content,
+                        Window::SessionController* controller = nullptr) = 0;
 
 protected:
     QWidget* _parent;

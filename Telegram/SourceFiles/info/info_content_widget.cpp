@@ -75,12 +75,13 @@ void ContentWidget::updateControlsGeometry() {
 	if (!_innerWrap) {
 		return;
 	}
+	_innerWrap->resizeToWidth(width());
+
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
-		_innerWrap->resizeToWidth(_scroll->width());
 	}
 
 	if (!_scroll->isHidden()) {
@@ -98,6 +99,14 @@ std::shared_ptr<ContentMemento> ContentWidget::createMemento() {
 	auto result = doCreateMemento();
 	_controller->saveSearchState(result.get());
 	return result;
+}
+
+void ContentWidget::setIsStackBottom(bool isStackBottom) {
+	_isStackBottom = isStackBottom;
+}
+
+bool ContentWidget::isStackBottom() const {
+	return _isStackBottom;
 }
 
 void ContentWidget::paintEvent(QPaintEvent *e) {

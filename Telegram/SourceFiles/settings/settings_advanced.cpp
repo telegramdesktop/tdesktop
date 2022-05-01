@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
+#include "settings/settings_experimental.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -133,7 +134,7 @@ void SetupUpdate(
 			experimental->toggleOn(install->toggledValue());
 		}
 		experimental->entity()->setClickedCallback([=] {
-			showOther(Type::Experimental);
+			showOther(Experimental::Id());
 		});
 	}
 
@@ -582,6 +583,23 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
+	const auto settings = &Core::App().settings();
+	AddButton(
+		container,
+		tr::lng_settings_enable_hwaccel(),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		rpl::single(settings->hardwareAcceleratedVideo())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != settings->hardwareAcceleratedVideo());
+	}) | rpl::start_with_next([=](bool enabled) {
+		settings->setHardwareAcceleratedVideo(enabled);
+		Core::App().saveSettingsDelayed();
+	}, container->lifetime());
+}
+
 #ifdef Q_OS_WIN
 void SetupANGLE(
 		not_null<Window::SessionController*> controller,
@@ -679,8 +697,9 @@ void SetupOpenGL(
 			Local::writeSettings();
 			Core::Restart();
 		});
-		const auto cancelled = crl::guard(button, [=] {
+		const auto cancelled = crl::guard(button, [=](Fn<void()> close) {
 			toggles->fire(!enabled);
+			close();
 		});
 		controller->show(Ui::MakeConfirmBox({
 			.text = tr::lng_settings_need_restart(),
@@ -695,6 +714,7 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
+	SetupHardwareAcceleration(container);
 #ifdef Q_OS_WIN
 	SetupANGLE(controller, container);
 #else // Q_OS_WIN
@@ -720,6 +740,10 @@ Advanced::Advanced(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Advanced::title() {
+	return tr::lng_settings_advanced();
 }
 
 rpl::producer<Type> Advanced::sectionShowOther() {

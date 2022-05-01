@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "data/data_poll.h"
+#include "menu/add_action_callback.h"
 
 class History;
 
@@ -38,10 +39,7 @@ class SessionNavigation;
 
 extern const char kOptionViewProfileInChatsListContextMenu[];
 
-using PeerMenuCallback = Fn<QAction*(
-	const QString &text,
-	Fn<void()> handler,
-	const style::icon *icon)>;
+using PeerMenuCallback = Menu::MenuCallback;
 
 void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
@@ -106,6 +104,10 @@ Fn<void()> ClearHistoryHandler(
 Fn<void()> DeleteAndLeaveHandler(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
+
+Fn<void()> DeleteMyMessagesHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer);
 
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,

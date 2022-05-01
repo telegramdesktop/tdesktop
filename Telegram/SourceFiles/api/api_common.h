@@ -18,6 +18,8 @@ struct SendOptions {
 	bool handleSupportSwitch = false;
 	bool removeWebPageId = false;
 	bool hideViaBot = false;
+
+    std::optional<TimeId> ptgAutoDelete = std::nullopt;
 };
 
 enum class SendType {

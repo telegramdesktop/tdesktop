@@ -143,10 +143,13 @@ public:
 		IconFactory iconFactory);
 	~Manager();
 
+	using AllowedSublist = std::optional<base::flat_set<QString>>;
+
 	void applyList(
 		const std::vector<Data::Reaction> &list,
 		const QString &favorite);
-	void updateAllowedSublist(std::optional<base::flat_set<QString>> filter);
+	void updateAllowedSublist(AllowedSublist filter);
+	[[nodiscard]] const AllowedSublist &allowedSublist() const;
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
 	void updateButton(ButtonParameters parameters);
@@ -307,7 +310,7 @@ private:
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<ReactionIcons> _list;
 	QString _favorite;
-	std::optional<base::flat_set<QString>> _filter;
+	AllowedSublist _filter;
 	QSize _outer;
 	QRect _inner;
 	QSize _overlayFull;
@@ -382,7 +385,7 @@ private:
 void SetupManagerList(
 	not_null<Manager*> manager,
 	not_null<Main::Session*> session,
-	rpl::producer<std::optional<base::flat_set<QString>>> filter);
+	rpl::producer<Manager::AllowedSublist> filter);
 
 [[nodiscard]] std::shared_ptr<Lottie::Icon> DefaultIconFactory(
 	not_null<Data::DocumentMedia*> media,

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_xdp_open_with_dialog.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-#include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -34,11 +33,7 @@ void UnsafeOpenUrl(const QString &url) {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-	if (QDesktopServices::openUrl(url)) {
-		return;
-	}
-
-	QProcess::startDetached(qsl("xdg-open"), { url });
+	QDesktopServices::openUrl(url);
 }
 
 void UnsafeOpenEmailLink(const QString &email) {
@@ -71,12 +66,7 @@ void UnsafeLaunch(const QString &filepath) {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-	const auto qUrlPath = QUrl::fromLocalFile(filepath);
-	if (QDesktopServices::openUrl(qUrlPath)) {
-		return;
-	}
-
-	QProcess::startDetached(qsl("xdg-open"), { qUrlPath.toEncoded() });
+	QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
 }
 
 } // namespace File

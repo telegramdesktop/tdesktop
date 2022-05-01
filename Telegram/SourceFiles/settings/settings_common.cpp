@@ -31,10 +31,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
+#include "lottie/lottie_icon.h"
 #include "base/options.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+
+#include <QAction>
+
+#include "data/data_cloud_file.h"
+#include "dialogs/dialogs_row.h"
+#include "dialogs/dialogs_entry.h"
 
 namespace Settings {
 namespace {
@@ -106,35 +113,6 @@ QSize Icon::size() const {
 	return _icon->size();
 }
 
-object_ptr<Section> CreateSection(
-		Type type,
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) {
-	switch (type) {
-	case Type::Main:
-		return object_ptr<Main>(parent, controller);
-	case Type::Information:
-		return object_ptr<Information>(parent, controller);
-	case Type::Notifications:
-		return object_ptr<Notifications>(parent, controller);
-	case Type::PrivacySecurity:
-		return object_ptr<PrivacySecurity>(parent, controller);
-	case Type::Sessions:
-		return object_ptr<Sessions>(parent, controller);
-	case Type::Advanced:
-		return object_ptr<Advanced>(parent, controller);
-	case Type::Folders:
-		return object_ptr<Folders>(parent, controller);
-	case Type::Chat:
-		return object_ptr<Chat>(parent, controller);
-	case Type::Calls:
-		return object_ptr<Calls>(parent, controller);
-	case Type::Experimental:
-		return object_ptr<Experimental>(parent, controller);
-	}
-	Unexpected("Settings section type in Widget::createInnerWidget.");
-}
-
 void AddSkip(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsSectionSkip);
 }
@@ -192,6 +170,38 @@ void AddButtonIcon(
 		auto p = QPainter(&icon->widget);
 		icon->icon.paint(p, 0, 0);
 	}, icon->widget.lifetime());
+}
+
+void AddDialogImageToButton(
+        not_null<Ui::AbstractButton*> button,
+        const style::SettingsButton &st,
+        not_null<Dialogs::Row*> dialog) {
+
+    struct IconWidget {
+        IconWidget(QWidget *parent, Dialogs::Row* dialog)
+                : widget(parent)
+                , dialog(std::move(dialog)) {
+        }
+        Ui::RpWidget widget;
+        Dialogs::Row* dialog;
+    };
+    const auto icon = button->lifetime().make_state<IconWidget>(
+            button,
+            std::move(dialog));
+    icon->widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+    icon->widget.resize(st::settingsIconLock.size()); // use size from icon
+    button->sizeValue(
+    ) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
+        icon->widget.moveToLeft(
+                left,
+                (size.height() - icon->widget.height()) / 2,
+                size.width());
+    }, icon->widget.lifetime());
+    icon->widget.paintRequest(
+    ) | rpl::start_with_next([=] {
+        auto p = Painter(&icon->widget);
+        icon->dialog->entry()->paintUserpicLeft(p, icon->dialog->userpicView(), 0, 0, icon->widget.width(), icon->widget.height());
+    }, icon->widget.lifetime());
 }
 
 object_ptr<Button> CreateButton(
@@ -272,13 +282,47 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		st::settingsSubsectionTitlePadding + addPadding);
 }
 
+LottieIcon CreateLottieIcon(
+		not_null<QWidget*> parent,
+		Lottie::IconDescriptor &&descriptor,
+		style::margins padding) {
+	auto object = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = object.data();
+
+	const auto width = descriptor.sizeOverride.width();
+	raw->resize(QRect(
+		QPoint(),
+		descriptor.sizeOverride).marginsAdded(padding).size());
+
+	auto owned = Lottie::MakeIcon(std::move(descriptor));
+	const auto icon = owned.get();
+
+	raw->lifetime().add([kept = std::move(owned)]{});
+
+	const auto animate = [=] {
+		icon->animate([=] { raw->update(); }, 0, icon->framesCount());
+	};
+	raw->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		const auto left = (raw->width() - width) / 2;
+		icon->paint(p, left, padding.top());
+		if (!icon->animating() && icon->frameIndex() > 0) {
+			animate();
+		}
+
+	}, raw->lifetime());
+
+	return { .widget = std::move(object), .animate = std::move(animate) };
+}
+
 void FillMenu(
 		not_null<Window::SessionController*> controller,
 		Type type,
 		Fn<void(Type)> showOther,
-		MenuCallback addAction) {
+		Menu::MenuCallback addAction) {
 	const auto window = &controller->window();
-	if (type == Type::Chat) {
+	if (type == Chat::Id()) {
 		addAction(
 			tr::lng_settings_bg_theme_create(tr::now),
 			[=] { window->show(Box(Window::Theme::CreateBox, window)); },
@@ -293,13 +337,15 @@ void FillMenu(
 		if (!controller->session().supportMode()) {
 			addAction(
 				tr::lng_settings_information(tr::now),
-				[=] { showOther(Type::Information); },
+				[=] { showOther(Information::Id()); },
 				&st::menuIconInfo);
 		}
-		addAction(
-			tr::lng_settings_logout(tr::now),
-			[=] { window->showLogoutConfirmation(); },
-			&st::menuIconLeave);
+		addAction({
+			.text = tr::lng_settings_logout(tr::now),
+			.handler = [=] { window->showLogoutConfirmation(); },
+			.icon = &st::menuIconLeaveAttention,
+			.isAttention = true,
+		});
 	}
 }
 

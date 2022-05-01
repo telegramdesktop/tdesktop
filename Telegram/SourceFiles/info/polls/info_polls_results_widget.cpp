@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/polls/info_polls_results_inner_widget.h"
 #include "boxes/peer_list_box.h"
+#include "lang/lang_keys.h"
+#include "data/data_poll.h"
 
 namespace Info {
 namespace Polls {
@@ -86,6 +88,12 @@ void Widget::setInternalState(
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
+}
+
+rpl::producer<QString> Widget::title() {
+	return poll()->quiz()
+		? tr::lng_polls_quiz_results_title()
+		: tr::lng_polls_poll_results_title();
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {

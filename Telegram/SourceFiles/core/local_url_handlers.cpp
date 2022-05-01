@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "settings/settings_common.h"
+#include "settings/settings_folders.h"
+#include "settings/settings_main.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -60,6 +62,7 @@ bool JoinGroupByHash(
 		return false;
 	}
 	Api::CheckChatInvite(controller, match->captured(1));
+	controller->window().activate();
 	return true;
 }
 
@@ -74,6 +77,7 @@ bool ShowStickerSet(
 	controller->show(Box<StickerSetBox>(
 		controller,
 		StickerSetIdentifier{ .shortName = match->captured(1) }));
+	controller->window().activate();
 	return true;
 }
 
@@ -90,6 +94,7 @@ bool ShowTheme(
 		&controller->window(),
 		match->captured(1),
 		fromMessageId);
+	controller->window().activate();
 	return true;
 }
 
@@ -107,6 +112,9 @@ bool SetLanguage(
 	} else {
 		const auto languageId = match->captured(2);
 		Lang::CurrentCloudManager().switchWithWarning(languageId);
+	}
+	if (controller) {
+		controller->window().activate();
 	}
 	return true;
 }
@@ -126,6 +134,7 @@ bool ShareUrl(
 		return false;
 	} else {
 		controller->content()->shareUrlLayer(url, params.value("text"));
+		controller->window().activate();
 		return true;
 	}
 	return false;
@@ -150,6 +159,7 @@ bool ConfirmPhone(
 		controller,
 		phone,
 		hash);
+	controller->window().activate();
 	return true;
 }
 
@@ -164,6 +174,7 @@ bool ShareGameScore(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	ShareGameScoreByHash(controller, params.value(qsl("hash")));
+	controller->window().activate();
 	return true;
 }
 
@@ -177,6 +188,9 @@ bool ApplySocksProxy(
 	ProxiesBoxController::ShowApplyConfirmation(
 		MTP::ProxyData::Type::Socks5,
 		params);
+	if (controller) {
+		controller->window().activate();
+	}
 	return true;
 }
 
@@ -190,6 +204,9 @@ bool ApplyMtprotoProxy(
 	ProxiesBoxController::ShowApplyConfirmation(
 		MTP::ProxyData::Type::Mtproto,
 		params);
+	if (controller) {
+		controller->window().activate();
+	}
 	return true;
 }
 
@@ -241,7 +258,7 @@ bool ShowWallPaper(
 	const auto bg = params.value("bg_color");
 	const auto color = params.value("color");
 	const auto gradient = params.value("gradient");
-	return BackgroundPreviewBox::Start(
+	const auto result = BackgroundPreviewBox::Start(
 		controller,
 		(!color.isEmpty()
 			? color
@@ -249,6 +266,41 @@ bool ShowWallPaper(
 			? gradient
 			: params.value(qsl("slug"))),
 		params);
+	controller->window().activate();
+	return result;
+}
+
+[[nodiscard]] ChatAdminRights ParseRequestedAdminRights(
+		const QString &value) {
+	auto result = ChatAdminRights();
+	for (const auto &element : value.split(QRegularExpression("[+ ]"))) {
+		if (element == u"change_info"_q) {
+			result |= ChatAdminRight::ChangeInfo;
+		} else if (element == u"post_messages"_q) {
+			result |= ChatAdminRight::PostMessages;
+		} else if (element == u"edit_messages"_q) {
+			result |= ChatAdminRight::EditMessages;
+		} else if (element == u"delete_messages"_q) {
+			result |= ChatAdminRight::DeleteMessages;
+		} else if (element == u"restrict_members"_q) {
+			result |= ChatAdminRight::BanUsers;
+		} else if (element == u"invite_users"_q) {
+			result |= ChatAdminRight::InviteUsers;
+		} else if (element == u"pin_messages"_q) {
+			result |= ChatAdminRight::PinMessages;
+		} else if (element == u"promote_members"_q) {
+			result |= ChatAdminRight::AddAdmins;
+		} else if (element == u"manage_video_chats"_q) {
+			result |= ChatAdminRight::ManageCall;
+		} else if (element == u"anonymous"_q) {
+			result |= ChatAdminRight::Anonymous;
+		} else if (element == u"manage_chat"_q) {
+			result |= ChatAdminRight::Other;
+		} else {
+			return {};
+		}
+	}
+	return result;
 }
 
 bool ResolveUsernameOrPhone(
@@ -278,18 +330,23 @@ bool ResolveUsernameOrPhone(
 	} else if (!validDomain(domain) && !validPhone(phone)) {
 		return false;
 	}
-	auto start = qsl("start");
-	auto startToken = params.value(start);
-	if (startToken.isEmpty()) {
-		start = qsl("startgroup");
-		startToken = params.value(start);
-		if (startToken.isEmpty()) {
-			start = QString();
-		}
+	using ResolveType = Window::ResolveType;
+	auto resolveType = ResolveType::Default;
+	auto startToken = params.value(u"start"_q);
+	if (!startToken.isEmpty()) {
+		resolveType = ResolveType::BotStart;
+	} else if (params.contains(u"startgroup"_q)) {
+		resolveType = ResolveType::AddToGroup;
+		startToken = params.value(u"startgroup"_q);
+	} else if (params.contains(u"startchannel"_q)) {
+		resolveType = ResolveType::AddToChannel;
 	}
-	auto post = (start == qsl("startgroup"))
-		? ShowAtProfileMsgId
-		: ShowAtUnreadMsgId;
+	auto post = ShowAtUnreadMsgId;
+	auto adminRights = ChatAdminRights();
+	if (resolveType == ResolveType::AddToGroup
+		|| resolveType == ResolveType::AddToChannel) {
+		adminRights = ParseRequestedAdminRights(params.value(u"admin"_q));
+	}
 	const auto postParam = params.value(qsl("post"));
 	if (const auto postId = postParam.toInt()) {
 		post = postId;
@@ -301,7 +358,7 @@ bool ResolveUsernameOrPhone(
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
-		post = ShowAtGameShareMsgId;
+		resolveType = ResolveType::ShareGame;
 	}
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	using Navigation = Window::SessionNavigation;
@@ -318,7 +375,13 @@ bool ResolveUsernameOrPhone(
 				Navigation::ThreadId{ threadId }
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
+		.resolveType = resolveType,
 		.startToken = startToken,
+		.startAdminRights = adminRights,
+		.attachBotUsername = params.value(u"attach"_q),
+		.attachBotToggleCommand = (params.contains(u"startattach"_q)
+			? params.value(u"startattach"_q)
+			: std::optional<QString>()),
 		.voicechatHash = (params.contains(u"livestream"_q)
 			? std::make_optional(params.value(u"livestream"_q))
 			: params.contains(u"videochat"_q)
@@ -328,6 +391,7 @@ bool ResolveUsernameOrPhone(
 			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
 	});
+	controller->window().activate();
 	return true;
 }
 
@@ -367,6 +431,7 @@ bool ResolvePrivatePost(
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.clickFromMessageId = fromMessageId,
 	});
+	controller->window().activate();
 	return true;
 }
 
@@ -389,11 +454,12 @@ bool ResolveSettings(
 		controller->session().api().authorizations().reload();
 	}
 	const auto type = (section == qstr("folders"))
-		? ::Settings::Type::Folders
+		? ::Settings::Folders::Id()
 		: (section == qstr("devices"))
-		? ::Settings::Type::Sessions
-		: ::Settings::Type::Main;
+		? ::Settings::Sessions::Id()
+		: ::Settings::Main::Id();
 	controller->showSettings(type);
+	controller->window().activate();
 	return true;
 }
 
@@ -738,7 +804,8 @@ QString TryConvertUrlToLocal(QString url) {
 	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedView(5);
 		if (auto phoneMatch = regex_match(qsl("^\\+([0-9]+)(\\?|$)"), query, matchOptions)) {
-			return qsl("tg://resolve?phone=") + phoneMatch->captured(1);
+			auto params = query.mid(phoneMatch->captured(0).size()).toString();
+			return qsl("tg://resolve?phone=") + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {

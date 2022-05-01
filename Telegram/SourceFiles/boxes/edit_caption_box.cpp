@@ -37,13 +37,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_single_file_preview.h"
 #include "ui/chat/attach/attach_single_media_preview.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/effects/scroll_content_shadow.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -125,9 +125,7 @@ EditCaptionBox::EditCaptionBox(
 	PrepareEditText(item)))
 , _emojiToggle(base::make_unique_q<Ui::EmojiButton>(
 	this,
-	st::boxAttachEmoji))
-, _topShadow(base::make_unique_q<Ui::FadeShadow>(this))
-, _bottomShadow(base::make_unique_q<Ui::FadeShadow>(this)) {
+	st::boxAttachEmoji)) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 
@@ -151,7 +149,7 @@ void EditCaptionBox::prepare() {
 
 	rebuildPreview();
 	setupEditEventHandler();
-	setupShadows();
+	SetupShadowsToScrollContent(this, _scroll, _contentHeight.events());
 
 	setupControls();
 	setupPhotoEditorEventHandler();
@@ -280,31 +278,6 @@ void EditCaptionBox::setupField() {
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
-}
-
-void EditCaptionBox::setupShadows() {
-	using namespace rpl::mappers;
-
-	const auto _topShadow = Ui::CreateChild<Ui::FadeShadow>(this);
-	const auto _bottomShadow = Ui::CreateChild<Ui::FadeShadow>(this);
-	_scroll->geometryValue(
-	) | rpl::start_with_next([=](const QRect &geometry) {
-		_topShadow->resizeToWidth(geometry.width());
-		_topShadow->move(
-			geometry.x(),
-			geometry.y());
-		_bottomShadow->resizeToWidth(geometry.width());
-		_bottomShadow->move(
-			geometry.x(),
-			geometry.y() + geometry.height() - st::lineWidth);
-	}, _topShadow->lifetime());
-
-	_topShadow->toggleOn(_scroll->scrollTopValue() | rpl::map(_1 > 0));
-	_bottomShadow->toggleOn(rpl::combine(
-		_scroll->scrollTopValue(),
-		_scroll->heightValue(),
-		_contentHeight.events(),
-		_1 + _2 < _3));
 }
 
 void EditCaptionBox::setupControls() {

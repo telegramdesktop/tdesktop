@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"
@@ -98,7 +98,8 @@ void ScheduleBox(
 		descriptor.submit.data(),
 		[=] { return SendMenu::Type::SilentOnly; },
 		[=] { save(true, descriptor.collect()); },
-		nullptr);
+		nullptr,
+		SendMenu::NoAutoDeleteCallback());
 
 	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(*style.topButtonStyle);

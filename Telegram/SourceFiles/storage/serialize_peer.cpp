@@ -318,7 +318,6 @@ PeerData *readPeer(
 				};
 				const auto conversions = {
 					Conversion{ Saved::f_left, Flag::Left },
-					Conversion{ Saved::f_kicked, Flag::Kicked },
 					Conversion{ Saved::f_creator, Flag::Creator },
 					Conversion{ Saved::f_deactivated, Flag::Deactivated },
 					Conversion{ Saved(1U << 31), Flag::Forbidden },

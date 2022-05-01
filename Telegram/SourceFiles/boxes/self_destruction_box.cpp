@@ -113,16 +113,10 @@ QString SelfDestructionBox::DaysLabel(int days) {
 	return !days
 		? QString()
 		: (days > 364)
-		? tr::lng_self_destruct_years(tr::now, lt_count, days / 365)
+		? tr::lng_years(tr::now, lt_count, days / 365)
 		: (days > 25)
-		? tr::lng_self_destruct_months(
-			tr::now,
-			lt_count,
-			qMax(days / 30, 1))
-		: tr::lng_self_destruct_weeks(
-			tr::now,
-			lt_count,
-			qMax(days / 7, 1));
+		? tr::lng_months(tr::now, lt_count, std::max(days / 30, 1))
+		: tr::lng_weeks(tr::now, lt_count, std::max(days / 7, 1));
 }
 
 void SelfDestructionBox::prepare() {

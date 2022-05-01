@@ -15,6 +15,7 @@ struct ItemNotification;
 enum class ItemNotificationType;
 
 namespace Data {
+class Session;
 class CloudImageView;
 } // namespace Data
 
@@ -99,6 +100,8 @@ public:
 	[[nodiscard]] rpl::producer<ChangeType> settingsChanged() const;
 	void notifySettingsChanged(ChangeType type);
 
+	void playSound(not_null<Main::Session*> session, DocumentId id);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -158,6 +161,9 @@ private:
 	void showNext();
 	void showGrouped();
 	void ensureSoundCreated();
+	[[nodiscard]] not_null<Media::Audio::Track*> lookupSound(
+		not_null<Data::Session*> owner,
+		DocumentId id);
 
 	base::flat_map<
 		not_null<History*>,
@@ -181,6 +187,9 @@ private:
 	rpl::event_stream<ChangeType> _settingsChanged;
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
+	base::flat_map<
+		DocumentId,
+		std::unique_ptr<Media::Audio::Track>> _customSoundTracks;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;

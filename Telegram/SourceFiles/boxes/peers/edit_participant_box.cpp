@@ -20,12 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/boxes/calendar_box.h"
 #include "ui/special_buttons.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "settings/settings_privacy_security.h"
+#include "ui/boxes/choose_date_time.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
+#include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_peer_values.h"
@@ -198,7 +199,8 @@ EditAdminBox::EditAdminBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	ChatAdminRightsInfo rights,
-	const QString &rank)
+	const QString &rank,
+	std::optional<EditAdminBotFields> addingBot)
 : EditParticipantBox(
 	nullptr,
 	peer,
@@ -206,7 +208,8 @@ EditAdminBox::EditAdminBox(
 	(rights.flags != 0))
 , _show(this)
 , _oldRights(rights)
-, _oldRank(rank) {
+, _oldRank(rank)
+, _addingBot(std::move(addingBot)) {
 }
 
 ChatAdminRightsInfo EditAdminBox::defaultRights() const {
@@ -236,17 +239,52 @@ void EditAdminBox::prepare() {
 
 	EditParticipantBox::prepare();
 
-	setTitle(_oldRights.flags
+	setTitle(_addingBot
+		? (_addingBot->existing
+			? tr::lng_rights_edit_admin()
+			: tr::lng_bot_add_title())
+		: _oldRights.flags
 		? tr::lng_rights_edit_admin()
 		: tr::lng_channel_add_admin());
 
-	addControl(
-		object_ptr<Ui::BoxContentDivider>(this),
+	if (_addingBot
+		&& !_addingBot->existing
+		&& !peer()->isBroadcast()
+		&& _saveCallback) {
+		addControl(
+			object_ptr<Ui::BoxContentDivider>(this),
+			st::rightsDividerMargin / 2);
+		_addAsAdmin = addControl(
+			object_ptr<Ui::Checkbox>(
+				this,
+				tr::lng_bot_as_admin_check(tr::now),
+				st::rightsCheckbox,
+				std::make_unique<Ui::ToggleView>(
+					st::rightsToggle,
+					true)),
+			st::rightsToggleMargin + (st::rightsDividerMargin / 2));
+		_addAsAdmin->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			_adminControlsWrap->toggle(checked, anim::type::normal);
+			refreshButtons();
+		}, _addAsAdmin->lifetime());
+	}
+
+	_adminControlsWrap = addControl(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
+	const auto inner = _adminControlsWrap->entity();
+
+	inner->add(
+		object_ptr<Ui::BoxContentDivider>(inner),
 		st::rightsDividerMargin);
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
-	const auto prepareRights = _oldRights.flags
+	const auto prepareRights = _addingBot
+		? ChatAdminRightsInfo(_oldRights.flags | _addingBot->existing)
+		: _oldRights.flags
 		? _oldRights
 		: defaultRights();
 	const auto disabledByDefaults = (channel && !channel->isMegagroup())
@@ -290,21 +328,21 @@ void EditAdminBox::prepare() {
 		? chat->anyoneCanAddMembers()
 		: channel->anyoneCanAddMembers();
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
-		this,
+		inner,
 		tr::lng_rights_edit_admin_header(),
 		prepareFlags,
 		disabledMessages,
 		isGroup,
 		anyoneCanAddMembers);
-	addControl(std::move(checkboxes), QMargins());
+	inner->add(std::move(checkboxes), QMargins());
 
 	auto selectedFlags = rpl::single(
 		getChecked()
 	) | rpl::then(std::move(
 		changes
 	));
-	_aboutAddAdmins = addControl(
-		object_ptr<Ui::FlatLabel>(this, st::boxDividerLabel),
+	_aboutAddAdmins = inner->add(
+		object_ptr<Ui::FlatLabel>(inner, st::boxDividerLabel),
 		st::rightsAboutMargin);
 	rpl::duplicate(
 		selectedFlags
@@ -318,6 +356,7 @@ void EditAdminBox::prepare() {
 	if (canTransferOwnership()) {
 		const auto allFlags = AdminRightsForOwnershipTransfer(isGroup);
 		setupTransferButton(
+			inner,
 			isGroup
 		)->toggleOn(rpl::duplicate(
 			selectedFlags
@@ -327,14 +366,10 @@ void EditAdminBox::prepare() {
 	}
 
 	if (canSave()) {
-		const auto rank = (chat || channel->isMegagroup())
-			? addRankInput().get()
+		_rank = (chat || channel->isMegagroup())
+			? addRankInput(inner).get()
 			: nullptr;
-
-		addButton(tr::lng_settings_save(), [=, value = getChecked] {
-			if (!_saveCallback) {
-				return;
-			}
+		_finishSave = [=, value = getChecked] {
 			const auto newFlags = (value() | ChatAdminRight::Other)
 				& ((!channel || channel->amCreator())
 					? ~Flags(0)
@@ -342,22 +377,65 @@ void EditAdminBox::prepare() {
 			_saveCallback(
 				_oldRights,
 				ChatAdminRightsInfo(newFlags),
-				rank ? rank->getLastText().trimmed() : QString());
-		});
+				_rank ? _rank->getLastText().trimmed() : QString());
+		};
+		_save = [=] {
+			if (!_saveCallback) {
+				return;
+			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
+				AddBotToGroup(user(), peer(), _addingBot->token);
+				return;
+			} else if (_addingBot && !_addingBot->existing) {
+				const auto phrase = peer()->isBroadcast()
+					? tr::lng_bot_sure_add_text_channel
+					: tr::lng_bot_sure_add_text_group;
+				_confirmBox = getDelegate()->show(Ui::MakeConfirmBox({
+					phrase(
+						tr::now,
+						lt_group,
+						Ui::Text::Bold(peer()->name),
+						Ui::Text::WithEntities),
+					crl::guard(this, [=] { finishAddAdmin(); })
+				}), Ui::LayerOption::KeepOther);
+			} else {
+				_finishSave();
+			}
+		};
+	}
+
+	refreshButtons();
+}
+
+void EditAdminBox::finishAddAdmin() {
+	_finishSave();
+	if (_confirmBox) {
+		_confirmBox->closeBox();
+	}
+}
+
+void EditAdminBox::refreshButtons() {
+	clearButtons();
+	if (canSave()) {
+		addButton((!_addingBot || _addingBot->existing)
+			? tr::lng_settings_save()
+			: _adminControlsWrap->toggled()
+			? tr::lng_bot_add_as_admin()
+			: tr::lng_bot_add_as_member(), _save);
 		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {
 		addButton(tr::lng_box_ok(), [=] { closeBox(); });
 	}
 }
 
-not_null<Ui::InputField*> EditAdminBox::addRankInput() {
-	addControl(
-		object_ptr<Ui::BoxContentDivider>(this),
+not_null<Ui::InputField*> EditAdminBox::addRankInput(
+		not_null<Ui::VerticalLayout*> container) {
+	container->add(
+		object_ptr<Ui::BoxContentDivider>(container),
 		st::rightsRankMargin);
 
-	addControl(
+	container->add(
 		object_ptr<Ui::FlatLabel>(
-			this,
+			container,
 			tr::lng_rights_edit_admin_rank_name(),
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
@@ -372,9 +450,9 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 		}
 		Unexpected("Peer type in EditAdminBox::addRankInput.");
 	}();
-	const auto result = addControl(
+	const auto result = container->add(
 		object_ptr<Ui::InputField>(
-			this,
+			container,
 			st::customBadgeField,
 			(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)(),
 			TextUtilities::RemoveEmoji(_oldRank)),
@@ -389,9 +467,9 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 		}
 	});
 
-	addControl(
+	container->add(
 		object_ptr<Ui::FlatLabel>(
-			this,
+			container,
 			tr::lng_rights_edit_admin_rank_about(
 				lt_title,
 				(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)()),
@@ -413,19 +491,20 @@ bool EditAdminBox::canTransferOwnership() const {
 }
 
 not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
+		not_null<Ui::VerticalLayout*> container,
 		bool isGroup) {
-	const auto wrap = addControl(
+	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			this,
-			object_ptr<Ui::VerticalLayout>(this)));
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
 
-	const auto container = wrap->entity();
+	const auto inner = wrap->entity();
 
-	container->add(
-		object_ptr<Ui::BoxContentDivider>(container),
+	inner->add(
+		object_ptr<Ui::BoxContentDivider>(inner),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
-	container->add(EditPeerInfoBox::CreateButton(
-		this,
+	inner->add(EditPeerInfoBox::CreateButton(
+		inner,
 		(isGroup
 			? tr::lng_rights_transfer_group
 			: tr::lng_rights_transfer_channel)(),
@@ -545,8 +624,10 @@ void EditAdminBox::sendTransferRequestFrom(
 					tr::now,
 					lt_user,
 					user->shortName()));
-		if (weak) {
-			_show.hideLayer();
+		if (box) {
+			Ui::BoxShow(box).hideLayer();
+		} else if (weak) {
+			weak->_show.hideLayer();
 		}
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
@@ -702,35 +783,33 @@ ChatRestrictionsInfo EditRestrictedBox::defaultRights() const {
 }
 
 void EditRestrictedBox::showRestrictUntil() {
-	auto tomorrow = QDate::currentDate().addDays(1);
-	auto highlighted = isUntilForever()
-		? tomorrow
-		: base::unixtime::parse(getRealUntilValue()).date();
-	auto month = highlighted;
-	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
-		.month = month,
-		.highlighted = highlighted,
-		.callback = [=](const QDate &date) {
-			setRestrictUntil(
-				static_cast<int>(date.startOfDay().toSecsSinceEpoch()));
-		},
-		.finalize = [=](not_null<Ui::CalendarBox*> box) {
-			box->addLeftButton(
-				tr::lng_rights_chat_banned_forever(),
-				[=] { setRestrictUntil(0); });
-		},
-		.minDate = tomorrow,
-		.maxDate = QDate::currentDate().addDays(kMaxRestrictDelayDays),
-	});
-	_restrictUntilBox = Ui::MakeWeak(box.data());
-	_show.showBox(std::move(box));
+	_show.showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto save = [=](TimeId result) {
+			if (!result) {
+				return;
+			}
+			setRestrictUntil(result);
+			box->closeBox();
+		};
+		const auto now = base::unixtime::now();
+		const auto time = isUntilForever()
+			? (now + kSecondsInDay)
+			: getRealUntilValue();
+		ChooseDateTimeBox(box, {
+			.title = tr::lng_rights_chat_banned_until_header(),
+			.submit = tr::lng_settings_save(),
+			.done = save,
+			.min = [=] { return now; },
+			.time = time,
+			.max = [=] {
+				return now + kSecondsInDay * kMaxRestrictDelayDays;
+			},
+		});
+	}));
 }
 
 void EditRestrictedBox::setRestrictUntil(TimeId until) {
 	_until = until;
-	if (_restrictUntilBox) {
-		_restrictUntilBox->closeBox();
-	}
 	_untilVariants.clear();
 	createUntilGroup();
 	createUntilVariants();
@@ -780,8 +859,7 @@ void EditRestrictedBox::createUntilVariants() {
 				tr::lng_rights_chat_banned_custom_date(
 					tr::now,
 					lt_date,
-					langDayOfMonthFull(
-						base::unixtime::parse(until).date())));
+					langDateTime(base::unixtime::parse(until))));
 		}
 	};
 	auto addCurrentVariant = [&](TimeId from, TimeId to) {

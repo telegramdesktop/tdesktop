@@ -18,7 +18,7 @@ struct ConfirmBoxArgs {
 		Fn<void()>,
 		Fn<void(Fn<void()>)>>;
 
-	v::text::data text;
+	v::text::data text = v::null;
 	Callback confirmed = v::null;
 	Callback cancelled = v::null;
 
