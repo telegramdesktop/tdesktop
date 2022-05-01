@@ -602,6 +602,9 @@ changePhoneError: FlatLabel(changePhoneLabel) {
 	textFg: boxTextFgError;
 }
 
+blockedUsersListSubtitleAddPadding: margins(0px, 1px, 0px, -14px);
+blockedUsersListIconPadding: margins(0px, 34px, 0px, 5px);
+
 adminLogFilterUserpicLeft: 15px;
 adminLogFilterLittleSkip: 16px;
 adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {

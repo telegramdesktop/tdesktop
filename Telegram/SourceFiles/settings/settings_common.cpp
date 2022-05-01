@@ -264,7 +264,7 @@ LottieIcon CreateLottieIcon(
 	raw->lifetime().add([kept = std::move(owned)]{});
 
 	const auto animate = [=] {
-		icon->animate([=] { raw->update(); }, 0, icon->framesCount());
+		icon->animate([=] { raw->update(); }, 0, icon->framesCount() - 1);
 	};
 	raw->paintRequest(
 	) | rpl::start_with_next([=] {

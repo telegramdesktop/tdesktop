@@ -799,6 +799,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_blocked_list_confirm_text" = "Do you want to block {name} from messaging and calling you on Telegram?";
 "lng_blocked_list_confirm_clear" = "Delete this chat";
 "lng_blocked_list_confirm_ok" = "Block";
+"lng_blocked_list_empty_title" = "No blocked users";
+"lng_blocked_list_empty_description" = "You haven't blocked anyone yet.";
+"lng_blocked_list_subtitle#one" = "{count} blocked user";
+"lng_blocked_list_subtitle#other" = "{count} blocked users";
 
 "lng_edit_privacy_everyone" = "Everybody";
 "lng_edit_privacy_contacts" = "My contacts";

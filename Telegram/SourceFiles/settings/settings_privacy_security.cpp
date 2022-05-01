@@ -13,11 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
+#include "settings/settings_blocked_peers.h"
 #include "settings/settings_common.h"
 #include "settings/settings_privacy_controllers.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
-#include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/auto_lock_box.h"
@@ -772,17 +772,7 @@ void SetupBlockedList(
 		st::settingsButton,
 		{ &st::settingsIconMinus, kIconRed });
 	blockedPeers->addClickHandler([=] {
-		const auto initBox = [=](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_close(), [=] {
-				box->closeBox();
-			});
-			box->addLeftButton(tr::lng_blocked_list_add(), [=] {
-				BlockedBoxController::BlockNewPeer(controller);
-			});
-		};
-		controller->show(Box<PeerListBox>(
-			std::make_unique<BlockedBoxController>(controller),
-			initBox));
+		showOther(Blocked::Id());
 	});
 	std::move(
 		updateTrigger

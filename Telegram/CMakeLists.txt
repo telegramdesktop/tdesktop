@@ -1067,6 +1067,8 @@ PRIVATE
     profile/profile_cover_drop_area.h
     settings/settings_advanced.cpp
     settings/settings_advanced.h
+    settings/settings_blocked_peers.cpp
+    settings/settings_blocked_peers.h
     settings/settings_chat.cpp
     settings/settings_chat.h
     settings/settings_calls.cpp
