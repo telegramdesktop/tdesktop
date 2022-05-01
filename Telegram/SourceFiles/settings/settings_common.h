@@ -80,6 +80,10 @@ public:
 	}
 	virtual void showFinished() {
 	}
+	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
+			not_null<QWidget*> parent) {
+		return nullptr;
+	}
 };
 
 template <typename SectionType>

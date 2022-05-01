@@ -47,11 +47,25 @@ Widget::Widget(
 , _type(controller->section().settingsType())
 , _inner(
 	setInnerWidget(
-		_type()->create(this, controller->parentController()))) {
+		_type()->create(this, controller->parentController())))
+, _pinnedToTop(_inner->createPinnedToTop(this)) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		controller->showSettings(type);
 	}, _inner->lifetime());
+
+	if (_pinnedToTop) {
+		_inner->widthValue(
+		) | rpl::start_with_next([=](int w) {
+			_pinnedToTop->resizeToWidth(w);
+			setScrollTopSkip(_pinnedToTop->height());
+		}, _pinnedToTop->lifetime());
+
+		_pinnedToTop->heightValue(
+		) | rpl::start_with_next([=](int h) {
+			setScrollTopSkip(h);
+		}, _pinnedToTop->lifetime());
+	}
 }
 
 Widget::~Widget() = default;

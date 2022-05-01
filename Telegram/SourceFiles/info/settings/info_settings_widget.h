@@ -81,6 +81,7 @@ private:
 	Type _type = Type();
 
 	not_null<::Settings::AbstractSection*> _inner;
+	QPointer<Ui::RpWidget> _pinnedToTop;
 
 };
 
