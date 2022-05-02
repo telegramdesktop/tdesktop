@@ -150,14 +150,17 @@ DocumentData *Document::readFromStreamHelper(
 		}
 	}
 
-	const auto storage = std::get_if<StorageFileLocation>(
-		&thumb->file().data);
 	if ((stream.status() != QDataStream::Ok)
 		|| (!dc && !access)
 		|| !thumb
-		|| !videoThumb
-		|| (thumb->valid()
-			&& (!storage || !storage->isDocumentThumbnail()))) {
+		|| !videoThumb) {
+		stream.setStatus(QDataStream::ReadCorruptData);
+		return nullptr;
+	}
+	const auto storage = std::get_if<StorageFileLocation>(
+		&thumb->file().data);
+	if (thumb->valid()
+		&& (!storage || !storage->isDocumentThumbnail())) {
 		stream.setStatus(QDataStream::ReadCorruptData);
 		// We can't convert legacy thumbnail location to modern, because
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
