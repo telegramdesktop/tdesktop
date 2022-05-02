@@ -162,7 +162,7 @@ void EmojiInteractions::play(
 		QString filepath,
 		bool incoming,
 		bool premium) {
-	const auto top = view->block()->y() + view->y();
+	const auto top = _itemTop(view);
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
 		|| _visibleBottom <= top
@@ -278,14 +278,13 @@ QRect EmojiInteractions::computeRect(
 	const auto sticker = premium ? _premiumSize : _emojiSize;
 	const auto size = sizeFor(premium);
 	const auto shift = size.width() / 40;
-	const auto skip = (view->hasFromPhoto() ? st::msgPhotoSkip : 0)
-		+ st::msgMargin.left();
+	const auto inner = view->innerGeometry();
 	const auto rightAligned = view->hasOutLayout()
 		&& !view->delegate()->elementIsChatWide();
 	const auto left = rightAligned
-		? (fullWidth - skip + shift - size.width())
-		: (skip - shift);
-	const auto viewTop = _itemTop(view) + view->marginTop();
+		? (inner.x() + inner.width() + shift - size.width())
+		: (inner.x() - shift);
+	const auto viewTop = _itemTop(view) + inner.y();
 	if (viewTop < 0) {
 		return QRect();
 	}

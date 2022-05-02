@@ -45,6 +45,7 @@ namespace HistoryView {
 
 struct TextState;
 struct StateRequest;
+class EmojiInteractions;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
@@ -546,6 +547,8 @@ private:
 
 	const not_null<ListDelegate*> _delegate;
 	const not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<EmojiInteractions> _emojiInteractions;
+
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
 	Context _context;

@@ -2940,9 +2940,6 @@ void HistoryInner::updateSize() {
 
 	if (_historyPaddingTop != newHistoryPaddingTop) {
 		_historyPaddingTop = newHistoryPaddingTop;
-		_emojiInteractions->visibleAreaUpdated(
-			_visibleAreaTop - _historyPaddingTop,
-			_visibleAreaBottom - _historyPaddingTop);
 	}
 
 	int newHeight = _historyPaddingTop + itemsHeight + st::historyPaddingBottom;

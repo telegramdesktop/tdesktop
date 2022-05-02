@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_emoji_interactions.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -264,6 +265,9 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _delegate(delegate)
 , _controller(controller)
+, _emojiInteractions(std::make_unique<EmojiInteractions>(
+	&controller->session(),
+	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _context(_delegate->listContext())
 , _itemAverageHeight(itemMinimalHeight())
 , _pathGradient(
@@ -379,6 +383,11 @@ ListWidget::ListWidget(
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
+	}, lifetime());
+
+	_emojiInteractions->updateRequests(
+	) | rpl::start_with_next([=](QRect rect) {
+		update(rect);
 	}, lifetime());
 
 	_selectScroll.scrolls(
@@ -804,6 +813,8 @@ void ListWidget::visibleTopBottomUpdated(
 	_controller->floatPlayerAreaUpdated();
 	session().data().itemVisibilitiesUpdated();
 	_applyUpdatedScrollState.call();
+
+	_emojiInteractions->visibleAreaUpdated(_visibleTop, _visibleBottom);
 }
 
 void ListWidget::applyUpdatedScrollState() {
@@ -1520,11 +1531,13 @@ void ListWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
 void ListWidget::elementStartPremium(
-	not_null<const Element*> view,
-	Element *replacing) {
+		not_null<const Element*> view,
+		Element *replacing) {
+	_emojiInteractions->playPremiumEffect(view, replacing);
 }
 
 void ListWidget::elementCancelPremium(not_null<const Element*> view) {
+	_emojiInteractions->cancelPremiumEffect(view);
 }
 
 void ListWidget::elementShowSpoilerAnimation() {
@@ -1917,6 +1930,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		});
 
 		_reactionsManager->paint(p, context);
+		_emojiInteractions->paint(p);
 	}
 }
 
