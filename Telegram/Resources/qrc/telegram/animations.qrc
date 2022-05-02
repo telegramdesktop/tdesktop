@@ -5,4 +5,7 @@
   <qresource prefix="/animations">
     <file alias="blocked_peers_empty.tgs">../../animations/blocked_peers_empty.tgs</file>
   </qresource>
+  <qresource prefix="/animations">
+    <file alias="filters.tgs">../../animations/filters.tgs</file>
+  </qresource>
 </RCC>

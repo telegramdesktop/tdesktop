@@ -571,8 +571,9 @@ void EditFilterBox(
 
 	const auto includeAdd = AddButton(
 		content,
-		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate);
+		tr::lng_filters_add_chats(),
+		st::settingsFolderButton,
+		{ &st::settingsIconPlus, kIconGreen });
 
 	const auto include = SetupChatsPreview(
 		content,
@@ -595,8 +596,9 @@ void EditFilterBox(
 
 	const auto excludeAdd = AddButton(
 		content,
-		tr::lng_filters_remove_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate);
+		tr::lng_filters_remove_chats(),
+		st::settingsFolderButton,
+		{ &st::settingsIconMinus, kIconRed });
 
 	const auto exclude = SetupChatsPreview(
 		content,

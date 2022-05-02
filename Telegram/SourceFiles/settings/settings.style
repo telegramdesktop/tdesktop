@@ -51,6 +51,9 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
+settingsFolderButton: SettingsButton(infoMainButton, settingsButton) {
+}
+
 settingsIconAccount: icon {{ "settings/account", settingsIconFg }};
 settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
@@ -250,6 +253,14 @@ settingsAccentColorLine: 3px;
 
 settingsFilterIconSkip: 68px;
 settingsFilterIconLeft: 17px;
+settingsFilterDividerLabel: FlatLabel(boxDividerLabel) {
+	minWidth: 258px;
+	maxHeight: 0px;
+	align: align(top);
+}
+settingsFilterDividerLabelPadding: margins(0px, 16px, 0px, 22px);
+settingsFilterIconSize: 74px;
+settingsFilterIconPadding: margins(0px, 17px, 0px, 5px);
 
 settingsDeviceName: InputField(defaultInputField) {
 	textBg: transparent;

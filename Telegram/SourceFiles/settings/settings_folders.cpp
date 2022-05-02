@@ -7,27 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_folders.h"
 
+#include "apiwrap.h"
 #include "boxes/filters/edit_filter_box.h"
-#include "data/data_session.h"
+#include "core/application.h"
+#include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
-#include "data/data_chat_filters.h"
+#include "data/data_session.h"
 #include "history/history.h"
+#include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
-#include "window/window_controller.h"
+#include "settings/settings_common.h"
+#include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/labels.h"
+#include "ui/painter.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/text/text_utilities.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/painter.h"
-#include "ui/filter_icons.h"
-#include "settings/settings_common.h"
-#include "core/application.h"
-#include "lang/lang_keys.h"
-#include "apiwrap.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -183,6 +185,8 @@ FilterRowButton::FilterRowButton(
 , _restore(this, tr::lng_filters_restore(), st::stickersUndoRemove)
 , _add(this, tr::lng_filters_recommended_add(), st::stickersTrendingAdd)
 , _state(state) {
+	_restore.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	_add.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	setup(filter, status);
 }
 
@@ -407,8 +411,9 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	AddButton(
 		container,
-		tr::lng_filters_create() | Ui::Text::ToUpper(),
-		st::settingsUpdate
+		tr::lng_filters_create(),
+		st::settingsFolderButton,
+		{ &st::settingsIconFolders, kIconLightBlue }
 	)->setClickedCallback([=] {
 		if (showLimitReached()) {
 			return;
@@ -423,22 +428,13 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			crl::guard(container, doneCallback)));
 	});
 	AddSkip(container);
-	const auto emptyAbout = container->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_filters_about(),
-				st::boxDividerLabel),
-			st::settingsDividerLabelPadding)
-	)->setDuration(0);
 	const auto nonEmptyAbout = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container))
 	)->setDuration(0);
 	const auto aboutRows = nonEmptyAbout->entity();
-	AddDividerText(aboutRows, tr::lng_filters_about());
+	AddDivider(aboutRows);
 	AddSkip(aboutRows);
 	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
@@ -477,14 +473,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		AddSkip(aboutRows, st::settingsSectionSkip);
 	}, aboutRows->lifetime());
 
-	using namespace rpl::mappers;
 	auto showSuggestions = rpl::combine(
 		suggested->value(),
 		rowsCount->value()
-	) | rpl::map(_1 > 0 && _2 < kFiltersLimit);
-	emptyAbout->toggleOn(rpl::duplicate(
-		showSuggestions
-	) | rpl::map(!_1));
+	) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_2 < kFiltersLimit);
 	nonEmptyAbout->toggleOn(std::move(showSuggestions));
 
 	const auto prepareGoodIdsForNewFilters = [=] {
@@ -592,6 +584,46 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 	_save = SetupFoldersContent(controller, content);
 
 	Ui::ResizeFitChild(this, content);
+}
+
+void Folders::showFinished() {
+	_showFinished.fire({});
+}
+
+QPointer<Ui::RpWidget> Folders::createPinnedToTop(not_null<QWidget*> parent) {
+	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
+	const auto verticalLayout = Ui::CreateChild<Ui::VerticalLayout>(divider);
+
+	auto icon = CreateLottieIcon(this, {
+		.name = u"filters"_q,
+		.sizeOverride = {
+			st::settingsFilterIconSize,
+			st::settingsFilterIconSize,
+		},
+	}, st::settingsFilterIconPadding);
+	_showFinished.events(
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		animate();
+	}, verticalLayout->lifetime());
+	verticalLayout->add(std::move(icon.widget));
+
+	verticalLayout->add(
+		object_ptr<Ui::CenterWrap<>>(
+			verticalLayout,
+			object_ptr<Ui::FlatLabel>(
+				verticalLayout,
+				tr::lng_filters_about(),
+				st::settingsFilterDividerLabel)),
+		st::settingsFilterDividerLabelPadding);
+
+	verticalLayout->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		divider->resize(s);
+	}, divider->lifetime());
+
+	verticalLayout->resizeToWidth(parent->width());
+
+	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ verticalLayout });
 }
 
 } // namespace Settings

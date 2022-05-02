@@ -18,12 +18,19 @@ public:
 		not_null<Window::SessionController*> controller);
 	~Folders();
 
+	void showFinished() override;
+
 	[[nodiscard]] rpl::producer<QString> title() override;
+
+	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
+		not_null<QWidget*> parent) override;
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
 	Fn<void()> _save;
+
+	rpl::event_stream<> _showFinished;
 
 };
 
