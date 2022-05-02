@@ -706,8 +706,8 @@ void Controller::fillPrivacyTypeButton() {
 
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
 	const auto icon = isGroup
-		? &st::infoIconGroupType
-		: &st::infoIconChannelType;
+		? &st::settingsIconGroup
+		: &st::settingsIconChannel;
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		(hasLocation

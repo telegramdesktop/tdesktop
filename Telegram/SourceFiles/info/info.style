@@ -331,8 +331,6 @@ infoIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg 
 infoIconAdministrators: icon {{ "info/edit/group_manage_admins", settingsIconFg }};
 infoIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
 infoIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
-infoIconGroupType: icon {{ "info/edit/group_manage_type", settingsIconFg }};
-infoIconChannelType: icon {{ "info/edit/channel_manage_type", settingsIconFg }};
 infoIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
