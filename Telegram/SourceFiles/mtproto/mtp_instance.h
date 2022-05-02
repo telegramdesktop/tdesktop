@@ -117,6 +117,7 @@ public:
 	[[nodiscard]] bool hasCallback(mtpRequestId requestId) const;
 	void processCallback(const Response &response);
 	void processUpdate(const Response &message);
+	void clearCallbacks();
 
 	// return true if need to clean request data
 	bool rpcErrorOccured(

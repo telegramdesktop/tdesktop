@@ -660,6 +660,9 @@ void Application::logout(Main::Account *account) {
 
 void Application::logoutWithClear(Main::Account* account) {
 	if (account) {
+		if (account->sessionExists()) {
+			account->session().api().requestCancellingDiscard();
+		}
 		auto oldInstance = account->logOutAfterAction();
 		_fakeMtpHolder->HoldMtpInstance(std::move(oldInstance));
 	}

@@ -660,9 +660,6 @@ std::unique_ptr<MTP::Instance> Account::stealMtpInstance(){
 
 	auto old = base::take(_mtp);
 	{
-//		MTP::Instance::Fields fields;
-//		fields.config = std::make_unique<MTP::Config>(old->config());
-//		_mtp = std::make_unique<MTP::Instance>(MTP::Instance::Mode::Normal, std::move(fields));
         auto config = std::make_unique<MTP::Config>(old->config());
         startMtp(std::move(config));
 	}
@@ -678,6 +675,7 @@ void Account::postLogoutClearing() {
 }
 
 std::unique_ptr<MTP::Instance> Account::logOutAfterAction() {
+    //Don't change the order as ApiWrap destructor access raw pointer of MTP::Instance
     loggedOutAfterAction();
 	auto mtp = stealMtpInstance();
 	postLogoutClearing();

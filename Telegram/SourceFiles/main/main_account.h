@@ -120,7 +120,7 @@ public:
     void loggedOut();
 	void loggedOutAfterAction();
 
-	std::unique_ptr<MTP::Instance> logOutAfterAction();
+    [[nodiscard]] std::unique_ptr<MTP::Instance> logOutAfterAction();
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
@@ -142,7 +142,7 @@ private:
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void resetAuthorizationKeys();
-	std::unique_ptr<MTP::Instance> stealMtpInstance();
+    [[nodiscard]] std::unique_ptr<MTP::Instance> stealMtpInstance();
 
 	void destroySession(DestroyReason reason);
 	void destroySessionAfterAction();

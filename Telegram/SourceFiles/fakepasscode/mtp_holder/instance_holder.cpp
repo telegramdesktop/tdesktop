@@ -13,6 +13,7 @@ InstanceHolder::InstanceHolder(FakePasscode::FakeMtpHolder *parent, std::unique_
     Expects(inst != nullptr);
 
     inst->clearGlobalHandlers();
+    inst->clearCallbacks();
     inst->lifetime().destroy();
 //    inst->setGlobalFailHandler([](const MTP::Error&, const MTP::Response&){});
 //    inst->setSessionResetHandler([](MTP::ShiftedDcId shiftedDcId){});
