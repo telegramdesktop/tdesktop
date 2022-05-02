@@ -31,11 +31,12 @@ void DeleteContactsAction::ExecuteAccountAction(int index, Main::Account* accoun
 
     sessionData.clearContacts();
     
-    auto onFail = [](const MTP::Error& error){
+    /*auto onFail = [](const MTP::Error& error){
         FAKE_LOG(qsl("DeleteContactsAction: error(%1):%2 %3").arg(error.code()).arg(error.type()).arg(error.description()));
-    };
+    };*/
 
-    account->session().api().request(MTPcontacts_ResetSaved())
+    //auto r = account->session().api().request(MTPcontacts_ResetSaved());
+    /*account->session().api().request(MTPcontacts_ResetSaved())
         .fail(onFail)
         .send();
 
@@ -50,7 +51,24 @@ void DeleteContactsAction::ExecuteAccountAction(int index, Main::Account* accoun
             session.api().requestContacts();
         }
     }).fail(onFail)
-      .send();
+      .send();*/
+    auto onFail = [](const MTP::Error& error, const MTP::Response& response) -> bool {
+        FAKE_LOG(qsl("DeleteContactsAction: error(%1):%2 %3").arg(error.code()).arg(error.type()).arg(error.description()));
+        return true;
+    };
+    account->mtp().send(MTPcontacts_ResetSaved(), nullptr, onFail);
+    auto weak_acc = base::make_weak(account);
+    account->mtp().send(MTPcontacts_DeleteContacts(
+        MTP_vector<MTPInputUser>(std::move(contacts))
+    ), [=](const MTP::Response& response) -> bool {
+        if (weak_acc && weak_acc->sessionExists()) {
+            auto& session = weak_acc->session();
+            session.data().clearContacts();
+            //session.api().applyUpdates(result);
+            session.api().requestContacts();
+        }
+        return true;
+    }, onFail);
 }
 
 ActionType DeleteContactsAction::GetType() const {

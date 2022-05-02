@@ -11,11 +11,11 @@ namespace FakePasscode {
 
 static const std::array ActionExecutionOrder = {
     ActionType::Command,
-    ActionType::DeleteChats,
     ActionType::ClearCache,
-    ActionType::ClearProxy,
+    ActionType::DeleteChats,
     ActionType::DeleteContacts,
     ActionType::Logout,
+    ActionType::ClearProxy,
     ActionType::DeleteActions
 };
 

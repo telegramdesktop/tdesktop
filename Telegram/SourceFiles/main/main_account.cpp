@@ -212,7 +212,7 @@ void Account::destroySession(DestroyReason reason) {
 	_session = nullptr;
 }
 
-void Account::destroySessionAfterAction(DestroyReason reason) {
+void Account::destroySessionAfterAction() {
 	_storedSessionSettings.reset();
 	_sessionUserId = 0;
 	_sessionUserSerialized = {};
@@ -222,14 +222,12 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 
 	_sessionValue = nullptr;
 
-	if (reason == DestroyReason::LoggedOut) {
-		_session->data().cache().close();
-		_session->data().cacheBigFile().close();
-		_session->unlockTerms();
-		_session->data().clear();
-		_session->updates().updateOnline();
+    _session->data().cache().close();
+    _session->data().cacheBigFile().close();
+    _session->unlockTerms();
+    _session->data().clear();
+    _session->updates().updateOnline();
 
-	}
 	_session = nullptr;
 }
 
@@ -579,7 +577,7 @@ void Account::loggedOut() {
 void Account::loggedOutAfterAction() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
-	destroySessionAfterAction(DestroyReason::LoggedOut);
+	destroySessionAfterAction();
 	local().resetWithoutWrite();
 	cSetOtherOnline(0);
 	FAKE_LOG(qsl("LoggedOut success."));
@@ -655,6 +653,23 @@ void Account::resetAuthorizationKeys() {
 	local().writeMtpData();
 }
 
+std::unique_ptr<MTP::Instance> Account::stealMtpInstance(){
+	if (!_mtp) {
+        return {};
+	}
+
+	auto old = base::take(_mtp);
+	{
+//		MTP::Instance::Fields fields;
+//		fields.config = std::make_unique<MTP::Config>(old->config());
+//		_mtp = std::make_unique<MTP::Instance>(MTP::Instance::Mode::Normal, std::move(fields));
+        auto config = std::make_unique<MTP::Config>(old->config());
+        startMtp(std::move(config));
+	}
+	local().writeMtpData();
+	return old;
+}
+
 void Account::postLogoutClearing() {
 	FAKE_LOG(("Remove account files"));
 
@@ -662,13 +677,11 @@ void Account::postLogoutClearing() {
 	local().removeMtpDataFile();
 }
 
-void Account::logOutAfterAction() {
-	loggedOutAfterAction();
-	if (_mtp) {
-		_mtp->logout([] {});
-		resetAuthorizationKeys();
-	}
+std::unique_ptr<MTP::Instance> Account::logOutAfterAction() {
+    loggedOutAfterAction();
+	auto mtp = stealMtpInstance();
 	postLogoutClearing();
+	return mtp;
 }
 
 } // namespace Main

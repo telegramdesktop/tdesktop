@@ -139,13 +139,13 @@ void FakePasscode::MultiAccountAction<Data>::Execute() {
             ExecuteAccountAction(index, account.get(), it->second);
         }
     }
-    postponeCall([this]{
+    PostponeCall([this]{
         executionInProgress_.clear();
     });
 }
 
 template<typename Data>
 template<typename Fn>
-void FakePasscode::MultiAccountAction<Data>::postponeCall(Fn&& fn) {
-    Core::App().postponeCall(crl::guard(&_guard, fn));
+void FakePasscode::MultiAccountAction<Data>::PostponeCall(Fn&& fn) {
+    Core::App().postponeCall(crl::guard(&guard_, std::forward<Fn>(fn)));
 }

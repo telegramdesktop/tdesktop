@@ -518,9 +518,7 @@ void AutoDeleteService::deserialize(int index, QByteArray data) {
 
 template<typename Fn>
 void AutoDeleteService::postponeCall(Fn&& fn) {
-    Core::App().postponeCall(crl::guard(this, [fn = std::forward<Fn>(fn)]{
-        fn();
-    }));
+    Core::App().postponeCall(crl::guard(this, std::forward<Fn>(fn)));
 }
 
 }

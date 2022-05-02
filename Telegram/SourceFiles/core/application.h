@@ -99,6 +99,10 @@ namespace Calls {
 class Instance;
 } // namespace Calls
 
+namespace FakePasscode {
+class FakeMtpHolder;
+}
+
 namespace Core {
 
 class Launcher;
@@ -298,6 +302,8 @@ public:
 	// Global runtime variables.
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;
+    
+    FakePasscode::FakeMtpHolder* GetFakeMtpHolder() const;
 
 	static void RegisterUrlScheme();
 
@@ -400,6 +406,7 @@ private:
 
 	crl::time _lastNonIdleTime = 0;
 
+	FakePasscode::FakeMtpHolder* _fakeMtpHolder;
 };
 
 [[nodiscard]] bool IsAppLaunched();

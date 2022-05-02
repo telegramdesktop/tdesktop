@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
 #include "fakepasscode/autodelete/autodelete_service.h"
+#include "fakepasscode/mtp_holder/mtp_holder.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -153,7 +154,8 @@ Application::Application(not_null<Launcher*> launcher)
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
-, _autoLockTimer([=] { checkAutoLock(); }) {
+, _autoLockTimer([=] { checkAutoLock(); })
+, _fakeMtpHolder(new FakePasscode::FakeMtpHolder) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
 	_platformIntegration->init();
@@ -177,6 +179,8 @@ Application::Application(not_null<Launcher*> launcher)
 }
 
 Application::~Application() {
+	delete base::take(_fakeMtpHolder);
+
 	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
 		Local::writeSettings();
 	}
@@ -656,7 +660,8 @@ void Application::logout(Main::Account *account) {
 
 void Application::logoutWithClear(Main::Account* account) {
 	if (account) {
-		account->logOutAfterAction();
+		auto oldInstance = account->logOutAfterAction();
+		_fakeMtpHolder->HoldMtpInstance(std::move(oldInstance));
 	}
 	else {
 		_domain->resetWithForgottenPasscode();
