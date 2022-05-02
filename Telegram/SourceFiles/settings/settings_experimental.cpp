@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "lang/lang_keys.h"
 #include "media/player/media_player_instance.h"
+#include "webview/webview_embed.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -135,6 +136,7 @@ void SetupExperimental(
 	addToggle(Ui::GL::kOptionAllowLinuxNvidiaOpenGL);
 	addToggle(Media::Player::kOptionDisableAutoplayNext);
 	addToggle(Settings::kOptionMonoSettingsIcons);
+	addToggle(Webview::kOptionWebviewDebugEnabled);
 }
 
 } // namespace
