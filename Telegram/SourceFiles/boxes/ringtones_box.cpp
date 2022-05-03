@@ -39,7 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-#include "styles/style_window.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -276,7 +276,7 @@ void RingtonesBox(
 			tr::lng_ringtones_box_upload_button(),
 			st::ringtonesBoxButton,
 			{
-				&st::mainMenuAddAccount,
+				&st::settingsIconAdd,
 				0,
 				Settings::IconType::Round,
 				&st::windowBgActive

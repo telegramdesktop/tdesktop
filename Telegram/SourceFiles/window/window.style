@@ -143,7 +143,6 @@ mainMenuAddAccountButton: SettingsButton(mainMenuButton) {
 }
 
 mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
-mainMenuAddAccount: icon {{ "settings/add", windowFgActive }};
 mainMenuAccountSize: 26px;
 mainMenuAccountLine: 2px;
 mainMenuBadgeFont: font(11px bold);

@@ -517,7 +517,7 @@ void SetupAccountsWrap(
 	raw->heightValue(
 	) | rpl::start_with_next([=](int height) {
 		const auto left = st::mainMenuAddAccountButton.iconLeft
-			+ (st::mainMenuAddAccount.width() - userpicSize) / 2;
+			+ (st::settingsIconAdd.width() - userpicSize) / 2;
 		const auto top = (height - userpicSize) / 2;
 		state->userpic.setGeometry(left, top, userpicSize, userpicSize);
 	}, state->userpic.lifetime());
@@ -684,7 +684,7 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 				tr::lng_menu_add_account(),
 				st::mainMenuAddAccountButton,
 				{
-					&st::mainMenuAddAccount,
+					&st::settingsIconAdd,
 					0,
 					IconType::Round,
 					&st::windowBgActive
