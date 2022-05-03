@@ -71,6 +71,8 @@ private:
 		rpl::event_stream<> updates;
 	};
 
+	void cacheSound(const std::optional<NotifySound> &sound);
+
 	[[nodiscard]] bool isMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const;
