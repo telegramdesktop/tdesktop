@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/filter_icons.h"
-#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h" // Ui::Text::Bold
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -26,46 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
 namespace {
-
-class FolderButton : public Ui::SettingsButton {
-public:
-	FolderButton(
-		not_null<Ui::RpWidget*> parent,
-		const Data::ChatFilter &filter);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const Ui::FilterIcon _icon;
-
-};
-
-FolderButton::FolderButton(
-		not_null<Ui::RpWidget*> parent,
-		const Data::ChatFilter &filter)
-: SettingsButton(
-	parent,
-	rpl::single(filter.title()),
-	st::paymentsSectionButton)
-, _icon(Ui::ComputeFilterIcon(filter)) {
-}
-
-void FolderButton::paintEvent(QPaintEvent *e) {
-	SettingsButton::paintEvent(e);
-
-	Painter p(this);
-	const auto over = isOver() || isDown();
-	const auto icon = Ui::LookupFilterIcon(_icon).normal;
-	icon->paint(
-		p,
-		st::settingsFilterIconLeft,
-		(height() - icon->height()) / 2,
-		width(),
-		(over
-			? st::dialogsUnreadBgMutedOver
-			: st::dialogsUnreadBgMuted)->c);
-}
 
 Data::ChatFilter ChangedFilter(
 		const Data::ChatFilter &filter,
@@ -163,47 +122,6 @@ void ChooseFilterValidator::add(FilterId filterId) const {
 
 void ChooseFilterValidator::remove(FilterId filterId) const {
 	ChangeFilterById(filterId, _history, false);
-}
-
-void ChooseFilterBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<History*> history) {
-	box->setTitle(tr::lng_filters_add_box_title());
-
-	const auto validator = ChooseFilterValidator(history);
-
-	const auto container = box->verticalLayout()->add(
-		object_ptr<Ui::VerticalLayout>(box->verticalLayout()));
-
-	const auto rebuild = [=] {
-		while (container->count()) {
-			delete container->widgetAt(0);
-		}
-		for (const auto &filter : history->owner().chatsFilters().list()) {
-			if (filter.contains(history)) {
-				continue;
-			}
-			container->add(
-				object_ptr<FolderButton>(box, filter),
-				style::margins()
-			)->setClickedCallback([=, id = filter.id()] {
-				validator.add(id);
-				box->closeBox();
-			});
-		}
-		container->resizeToWidth(box->verticalLayout()->width());
-		if (!container->count()) {
-			box->closeBox();
-		}
-	};
-
-	history->owner().chatsFilters().changed(
-	) | rpl::start_with_next([=] {
-		rebuild();
-	}, box->lifetime());
-	rebuild();
-
-	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 }
 
 void FillChooseFilterMenu(

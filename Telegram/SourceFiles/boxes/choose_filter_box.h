@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Ui {
-class GenericBox;
 class PopupMenu;
 } // namespace Ui
 
@@ -28,10 +27,6 @@ private:
 	const not_null<History*> _history;
 
 };
-
-void ChooseFilterBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<History*> history);
 
 void FillChooseFilterMenu(
 	not_null<Ui::PopupMenu*> menu,
