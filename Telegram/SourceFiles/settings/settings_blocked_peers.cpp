@@ -162,13 +162,17 @@ void Blocked::setupContent() {
 
 	{
 		const auto content = emptyWrap->entity();
-		auto icon = CreateLottieIcon(content, {
-			.name = u"blocked_peers_empty"_q,
-			.sizeOverride = {
-				st::changePhoneIconSize,
-				st::changePhoneIconSize,
+		auto icon = CreateLottieIcon(
+			content,
+			{
+				.name = u"blocked_peers_empty"_q,
+				.sizeOverride = {
+					st::changePhoneIconSize,
+					st::changePhoneIconSize,
+				},
 			},
-		}, st::blockedUsersListIconPadding);
+			st::blockedUsersListIconPadding,
+			true);
 		content->add(std::move(icon.widget));
 
 		_showFinished.events(

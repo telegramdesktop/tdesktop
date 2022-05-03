@@ -185,7 +185,8 @@ struct LottieIcon {
 [[nodiscard]] LottieIcon CreateLottieIcon(
 	not_null<QWidget*> parent,
 	Lottie::IconDescriptor &&descriptor,
-	style::margins padding = {});
+	style::margins padding = {},
+	bool playOnce = false);
 
 void FillMenu(
 	not_null<Window::SessionController*> controller,

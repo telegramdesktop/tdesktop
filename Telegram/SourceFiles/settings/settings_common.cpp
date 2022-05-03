@@ -249,7 +249,8 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 LottieIcon CreateLottieIcon(
 		not_null<QWidget*> parent,
 		Lottie::IconDescriptor &&descriptor,
-		style::margins padding) {
+		style::margins padding,
+		bool playOnce) {
 	auto object = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = object.data();
 
@@ -262,8 +263,14 @@ LottieIcon CreateLottieIcon(
 	const auto icon = owned.get();
 
 	raw->lifetime().add([kept = std::move(owned)]{});
+	const auto animationRequired = raw->lifetime().make_state<bool>(true);
 
 	const auto animate = [=] {
+		if (playOnce) {
+			if (!base::take(*animationRequired)) {
+				return;
+			}
+		}
 		icon->animate([=] { raw->update(); }, 0, icon->framesCount() - 1);
 	};
 	raw->paintRequest(
