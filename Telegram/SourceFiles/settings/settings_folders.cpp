@@ -412,7 +412,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	AddButton(
 		container,
 		tr::lng_filters_create(),
-		st::settingsFolderButton,
+		st::settingsButtonActive,
 		{ &st::settingsIconFolders, kIconLightBlue }
 	)->setClickedCallback([=] {
 		if (showLimitReached()) {

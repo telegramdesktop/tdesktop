@@ -286,8 +286,8 @@ windowFiltersMainMenuUnreadMuted: icon {
 };
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
-	photoPosition: point(15px, 5px);
-	namePosition: point(62px, 14px);
+	photoPosition: point(13px, 5px);
+	namePosition: point(59px, 14px);
 	photoSize: 34px;
 	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 		imageRadius: 17px;
@@ -324,7 +324,6 @@ windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	textFg: searchedBarFg;
 }
 windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
-windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
 
 windowArchiveToast: Toast(defaultToast) {
 	minWidth: boxWideWidth;

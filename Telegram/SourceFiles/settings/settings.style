@@ -18,6 +18,8 @@ settingsButton: SettingsButton(infoProfileButton) {
 settingsButtonNoIcon: SettingsButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
+settingsButtonActive: SettingsButton(infoMainButton, settingsButton) {
+}
 settingsAttentionButton: SettingsButton(settingsButtonNoIcon) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
@@ -50,9 +52,6 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 }
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
-
-settingsFolderButton: SettingsButton(infoMainButton, settingsButton) {
-}
 
 settingsIconAccount: icon {{ "settings/account", settingsIconFg }};
 settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
@@ -94,6 +93,9 @@ settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 settingsIconBlocked: icon {{ "settings/blocked", settingsIconFg }};
+
+settingsIconAdd: icon {{ "settings/add", windowFgActive }};
+settingsIconRemove: icon {{ "settings/remove", windowFgActive }};
 
 settingsCheckbox: Checkbox(defaultBoxCheckbox) {
 	textPosition: point(15px, 1px);
