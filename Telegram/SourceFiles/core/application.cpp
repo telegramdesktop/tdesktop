@@ -686,6 +686,11 @@ void Application::logoutWithChecks(Main::Account *account) {
 }
 
 void Application::logoutWithChecksAndClear(Main::Account* account) {
+	if (account && account->sessionExists()) {
+		if (auto autoDelete = domain().local().GetAutoDelete()) {
+			autoDelete->DeleteAll(account->maybeSession());
+		}
+	}
 	if (!account || !account->sessionExists()) {
 		logoutWithClear(account);
 	}
