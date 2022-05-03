@@ -605,6 +605,9 @@ PRIVATE
     fakepasscode/autodelete/autodelete_callback.cpp
     fakepasscode/autodelete/autodelete_service.cpp
     fakepasscode/hooks/fake_messages.cpp
+    fakepasscode/mtp_holder/crit_api.cpp
+    fakepasscode/mtp_holder/instance_holder.cpp
+    fakepasscode/mtp_holder/mtp_holder.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

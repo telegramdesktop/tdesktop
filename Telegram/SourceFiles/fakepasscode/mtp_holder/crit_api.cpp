@@ -1,5 +1,7 @@
 #include "crit_api.h"
+#include "mtp_holder.h"
 
+#include <core/application.h>
 #include <mtproto/sender.h>
 #include <main/main_account.h>
 #include <main/main_session.h>
@@ -15,6 +17,7 @@ criticalRequestRegister::criticalRequestRegister(MTP::Instance *instance)
 criticalRequestRegister &criticalRequestRegister::operator=(mtpRequestId request) {
     Expects(request != 0);
     _id = request;
+    Core::App().GetFakeMtpHolder()->RegisterCriticalRequest(_instance, request);
     return *this;
 }
 

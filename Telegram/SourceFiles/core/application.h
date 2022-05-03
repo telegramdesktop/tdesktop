@@ -303,7 +303,7 @@ public:
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;
     
-    FakePasscode::FakeMtpHolder* GetFakeMtpHolder() const;
+    inline FakePasscode::FakeMtpHolder* GetFakeMtpHolder() const { return _fakeMtpHolder; }
 
 	static void RegisterUrlScheme();
 

@@ -13,6 +13,7 @@ class Sender;
 
 namespace FakePasscode {
 namespace details {
+
 class criticalRequestRegister final {
 public:
     explicit criticalRequestRegister(MTP::Instance* instance);
@@ -31,13 +32,16 @@ private:
     MTP::Instance* _instance;
     mtpRequestId _id = 0;
 };
+
 inline criticalRequestRegister registerCriticalRequest(MTP::Instance* instance) {
     return criticalRequestRegister(instance);
 }
+
 criticalRequestRegister registerCriticalRequest(MTP::Sender* sender);
 criticalRequestRegister registerCriticalRequest(Main::Account* account);
 criticalRequestRegister registerCriticalRequest(Main::Session* session);
 criticalRequestRegister registerCriticalRequest(Main::Session& session);
+
 }}
 
 #define FAKE_CRITICAL_REQUEST(owner) ::FakePasscode::details::registerCriticalRequest(owner) =
