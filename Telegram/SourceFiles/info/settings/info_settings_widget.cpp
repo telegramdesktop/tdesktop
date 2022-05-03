@@ -48,7 +48,8 @@ Widget::Widget(
 , _inner(
 	setInnerWidget(
 		_type()->create(this, controller->parentController())))
-, _pinnedToTop(_inner->createPinnedToTop(this)) {
+, _pinnedToTop(_inner->createPinnedToTop(this))
+, _pinnedToBottom(_inner->createPinnedToBottom(this)) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		controller->showSettings(type);
@@ -80,6 +81,26 @@ Widget::Widget(
 		) | rpl::start_with_next([=](int h) {
 			setScrollTopSkip(h);
 		}, _pinnedToTop->lifetime());
+	}
+
+	if (_pinnedToBottom) {
+		const auto processHeight = [=](int bottomHeight, int height) {
+			setScrollBottomSkip(bottomHeight);
+			_pinnedToBottom->moveToLeft(
+				_pinnedToBottom->x(),
+				height - bottomHeight);
+		};
+
+		_inner->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			_pinnedToBottom->resizeToWidth(s.width());
+			processHeight(_pinnedToBottom->height(), height());
+		}, _pinnedToBottom->lifetime());
+
+		rpl::combine(
+			_pinnedToBottom->heightValue(),
+			heightValue()
+		) | rpl::start_with_next(processHeight, _pinnedToBottom->lifetime());
 	}
 }
 

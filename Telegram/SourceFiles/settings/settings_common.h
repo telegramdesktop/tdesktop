@@ -96,6 +96,10 @@ public:
 			not_null<QWidget*> parent) {
 		return nullptr;
 	}
+	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToBottom(
+			not_null<Ui::RpWidget*> parent) {
+		return nullptr;
+	}
 };
 
 template <typename SectionType>

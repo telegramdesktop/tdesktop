@@ -83,6 +83,7 @@ private:
 
 	not_null<::Settings::AbstractSection*> _inner;
 	QPointer<Ui::RpWidget> _pinnedToTop;
+	QPointer<Ui::RpWidget> _pinnedToBottom;
 
 	rpl::event_stream<std::vector<Type>> _removesFromStack;
 

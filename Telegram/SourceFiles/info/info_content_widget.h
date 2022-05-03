@@ -94,6 +94,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void setScrollTopSkip(int scrollTopSkip);
+	void setScrollBottomSkip(int scrollBottomSkip);
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
 	void scrollTo(const Ui::ScrollToRequest &request);
@@ -109,6 +110,7 @@ private:
 
 	style::color _bg;
 	rpl::variable<int> _scrollTopSkip = -1;
+	rpl::variable<int> _scrollBottomSkip = -1;
 	rpl::event_stream<int> _scrollTillBottomChanges;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;
