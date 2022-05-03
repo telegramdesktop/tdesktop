@@ -1092,6 +1092,8 @@ PRIVATE
     settings/settings_information.h
     settings/settings_intro.cpp
     settings/settings_intro.h
+    settings/settings_local_passcode.cpp
+    settings/settings_local_passcode.h
     settings/settings_main.cpp
     settings/settings_main.h
     settings/settings_notifications.cpp

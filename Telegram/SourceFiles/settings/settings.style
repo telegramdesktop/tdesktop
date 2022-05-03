@@ -142,6 +142,19 @@ settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 }
 settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
 
+settingLocalPasscodeInputField: InputField(defaultInputField) {
+	width: 256px;
+}
+settingLocalPasscodeDescription: FlatLabel(changePhoneDescription) {
+	minWidth: 256px;
+}
+settingLocalPasscodeError: FlatLabel(changePhoneError) {
+	minWidth: 256px;
+}
+settingLocalPasscodeDescriptionBottomSkip: 15px;
+settingLocalPasscodeIconPadding: margins(0px, 19px, 0px, 5px);
+settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 15px);
+
 settingsInfoPhotoHeight: 161px;
 settingsInfoPhotoSize: 100px;
 settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
