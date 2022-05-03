@@ -212,6 +212,8 @@ public:
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
 
+	void removeFromStack(const std::vector<Section> &sections) const;
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

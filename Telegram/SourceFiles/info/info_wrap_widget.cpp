@@ -596,6 +596,26 @@ bool WrapWidget::showBackFromStackInternal(
 	return (wrap() == Wrap::Layer);
 }
 
+void WrapWidget::removeFromStack(const std::vector<Section> &sections) {
+	for (const auto &section : sections) {
+		const auto it = ranges::find_if(_historyStack, [&](
+				const StackItem &item) {
+			const auto &s = item.section->section();
+			if (s.type() != section.type()) {
+				return false;
+			} else if (s.type() == Section::Type::Media) {
+				return (s.mediaType() == section.mediaType());
+			} else if (s.type() == Section::Type::Settings) {
+				return (s.settingsType() == section.settingsType());
+			}
+			return false;
+		});
+		if (it != end(_historyStack)) {
+			_historyStack.erase(it);
+		}
+	}
+}
+
 not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 	// This was done for tabs support.
 	//

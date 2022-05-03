@@ -59,6 +59,16 @@ Widget::Widget(
 		controller->showBackFromStack();
 	}, _inner->lifetime());
 
+	_removesFromStack.events(
+	) | rpl::start_with_next([=](const std::vector<Type> &types) {
+		const auto sections = ranges::views::all(
+			types
+		) | ranges::views::transform([](Type type) {
+			return Section(type);
+		}) | ranges::to_vector;
+		controller->removeFromStack(sections);
+	}, _inner->lifetime());
+
 	if (_pinnedToTop) {
 		_inner->widthValue(
 		) | rpl::start_with_next([=](int w) {
@@ -104,6 +114,9 @@ void Widget::saveChanges(FnMut<void()> done) {
 
 void Widget::showFinished() {
 	_inner->showFinished();
+
+	_inner->removeFromStack(
+	) | rpl::start_to_stream(_removesFromStack, lifetime());
 }
 
 void Widget::setInnerFocus() {

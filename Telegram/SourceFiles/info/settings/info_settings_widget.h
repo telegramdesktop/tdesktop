@@ -84,6 +84,8 @@ private:
 	not_null<::Settings::AbstractSection*> _inner;
 	QPointer<Ui::RpWidget> _pinnedToTop;
 
+	rpl::event_stream<std::vector<Type>> _removesFromStack;
+
 };
 
 } // namespace Settings

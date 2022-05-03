@@ -290,6 +290,10 @@ void Controller::showBackFromStack(const Window::SectionShow &params) {
 	}
 }
 
+void Controller::removeFromStack(const std::vector<Section> &sections) const {
+	_widget->removeFromStack(sections);
+}
+
 auto Controller::produceSearchQuery(
 		const QString &query) const -> SearchQuery {
 	Expects(_key.peer() != nullptr);
