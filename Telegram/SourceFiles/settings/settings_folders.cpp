@@ -275,7 +275,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	const auto left = (_state == State::Suggested)
 		? st::settingsSubsectionTitlePadding.left()
-		: st::settingsFilterIconSkip;
+		: st::settingsButtonActive.padding.left();
 	const auto buttonsLeft = std::min(
 		_add.x(),
 		std::min(_remove.x(), _restore.x()));
@@ -299,14 +299,24 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	if (_state != State::Suggested) {
 		const auto icon = Ui::LookupFilterIcon(_icon).normal;
+
+		// For now.
+		const auto iconWidth = icon->width() - style::ConvertScale(9);
+		const auto scale = st::settingsIconAdd.width() / float64(iconWidth);
+		p.translate(
+			st::settingsButtonActive.iconLeft,
+			(height() - icon->height() * scale) / 2);
+		p.translate(-iconWidth / 2, -iconWidth / 2);
+		p.scale(scale, scale);
+		p.translate(iconWidth / 2, iconWidth / 2);
 		icon->paint(
 			p,
-			st::settingsFilterIconLeft,
-			(height() - icon->height()) / 2,
+			0,
+			0,
 			width(),
 			(over
-				? st::dialogsUnreadBgMutedOver
-				: st::dialogsUnreadBgMuted)->c);
+				? st::activeButtonBgOver
+				: st::activeButtonBg)->c);
 	}
 }
 
@@ -413,7 +423,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		container,
 		tr::lng_filters_create(),
 		st::settingsButtonActive,
-		{ &st::settingsIconFolders, kIconLightBlue }
+		{ &st::settingsIconAdd, 0, IconType::Round, &st::windowBgActive }
 	)->setClickedCallback([=] {
 		if (showLimitReached()) {
 			return;
