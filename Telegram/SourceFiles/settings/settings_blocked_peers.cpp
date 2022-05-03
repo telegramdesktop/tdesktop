@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Settings {
 
@@ -74,8 +75,8 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 	AddButton(
 		content,
 		tr::lng_blocked_list_add(),
-		st::settingsButton,
-		{ &st::settingsIconBlocked, kIconLightBlue }
+		st::settingsButtonActive,
+		{ &st::menuIconBlockSettings, 0, IconType::Round, &st::transparent }
 	)->addClickHandler([=] {
 		BlockedBoxController::BlockNewPeer(_controller);
 	});

@@ -139,3 +139,5 @@ menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
+
+menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};

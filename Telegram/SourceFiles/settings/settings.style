@@ -92,7 +92,6 @@ settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
-settingsIconBlocked: icon {{ "settings/blocked", settingsIconFg }};
 
 settingsIconAdd: icon {{ "settings/add", windowFgActive }};
 settingsIconRemove: icon {{ "settings/remove", windowFgActive }};
