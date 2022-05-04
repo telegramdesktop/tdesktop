@@ -434,7 +434,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: c1aea3d142e0c1dbab80511d555a828f47dcbd8b
+    source-commit: 442d5bb593c0ae314960308d78f2016ad1f80c3e
     plugin: cmake
     build-packages:
       - ninja-build
