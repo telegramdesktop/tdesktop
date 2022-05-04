@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "media/audio/media_openal_functions.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "webrtc/webrtc_media_devices.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
@@ -80,6 +81,10 @@ bool PlaybackErrorHappened() {
 }
 
 void EnumeratePlaybackDevices() {
+	if (!Webrtc::InitPipewireStubs()) {
+		LOG(("Audio Info: Failed to load pipewire 0.3 stubs."));
+	}
+
 	auto deviceNames = QStringList();
 	auto devices = [&] {
 		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {

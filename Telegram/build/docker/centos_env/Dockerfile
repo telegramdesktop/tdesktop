@@ -604,7 +604,7 @@ COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin $GIT/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin c1aea3d142e0c1dbab80511d555a828f47dcbd8b \
+	&& git fetch --depth=1 origin 442d5bb593c0ae314960308d78f2016ad1f80c3e \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \
