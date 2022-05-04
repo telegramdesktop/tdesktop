@@ -101,6 +101,10 @@ void Widget::showFinished() {
 	_inner->showFinished();
 }
 
+void Widget::setInnerFocus() {
+	_inner->setInnerFocus();
+}
+
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
 	return (_type == ::Settings::Main::Id()
 		|| _type == ::Settings::Information::Id())

@@ -84,6 +84,8 @@ public:
 	}
 	virtual void showFinished() {
 	}
+	virtual void setInnerFocus() {
+	}
 	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
 			not_null<QWidget*> parent) {
 		return nullptr;
