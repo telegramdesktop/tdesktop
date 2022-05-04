@@ -613,11 +613,10 @@ QPointer<Ui::RpWidget> Folders::createPinnedToTop(not_null<QWidget*> parent) {
 				st::settingsFilterIconSize,
 			},
 		},
-		st::settingsFilterIconPadding,
-		true);
+		st::settingsFilterIconPadding);
 	_showFinished.events(
 	) | rpl::start_with_next([animate = std::move(icon.animate)] {
-		animate();
+		animate(anim::repeat::once);
 	}, verticalLayout->lifetime());
 	verticalLayout->add(std::move(icon.widget));
 

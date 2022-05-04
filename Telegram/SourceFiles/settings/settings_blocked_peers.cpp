@@ -171,13 +171,12 @@ void Blocked::setupContent() {
 					st::changePhoneIconSize,
 				},
 			},
-			st::blockedUsersListIconPadding,
-			true);
+			st::blockedUsersListIconPadding);
 		content->add(std::move(icon.widget));
 
 		_showFinished.events(
 		) | rpl::start_with_next([animate = std::move(icon.animate)] {
-			animate();
+			animate(anim::repeat::once);
 		}, content->lifetime());
 
 		content->add(

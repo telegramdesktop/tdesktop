@@ -36,7 +36,7 @@ private:
 	void setupContent();
 
 	const not_null<Window::SessionController*> _controller;
-	Fn<void()> _animate;
+	Fn<void(anim::repeat)> _animate;
 
 };
 
