@@ -153,7 +153,7 @@ settingLocalPasscodeError: FlatLabel(changePhoneError) {
 }
 settingLocalPasscodeDescriptionBottomSkip: 15px;
 settingLocalPasscodeIconPadding: margins(0px, 19px, 0px, 5px);
-settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 15px);
+settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 35px);
 
 settingsInfoPhotoHeight: 161px;
 settingsInfoPhotoSize: 100px;

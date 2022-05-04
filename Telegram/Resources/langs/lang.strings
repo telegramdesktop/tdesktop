@@ -490,7 +490,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
-"lng_settings_passcode_disable" = "Disable passcode";
+"lng_settings_passcode_disable" = "Disable Passcode";
+"lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
 "lng_settings_password_disable" = "Disable cloud password";
 "lng_settings_password_abort" = "Abort two-step verification setup";
 "lng_settings_password_reenter_email" = "Re-enter recovery email";
@@ -634,7 +635,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_remove_button" = "Remove";
 
 "lng_passcode_turn_on" = "Turn on local passcode";
-"lng_passcode_change" = "Change local passcode";
+"lng_passcode_change" = "Change Passcode";
 "lng_passcode_create" = "Local passcode";
 "lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";

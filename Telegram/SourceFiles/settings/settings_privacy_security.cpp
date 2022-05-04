@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "settings/settings_blocked_peers.h"
 #include "settings/settings_common.h"
+#include "settings/settings_local_passcode.h"
 #include "settings/settings_privacy_controllers.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
@@ -223,7 +224,8 @@ void SetupArchiveAndMute(
 
 void SetupLocalPasscode(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	AddSkip(container);
 	AddDivider(container);
 	AddSkip(container);
@@ -237,7 +239,7 @@ void SetupLocalPasscode(
 	auto text = rpl::combine(
 		tr::lng_passcode_change(),
 		tr::lng_passcode_turn_on(),
-		base::duplicate(has),
+		std::move(has),
 		[](const QString &change, const QString &create, bool has) {
 			return has ? change : create;
 		});
@@ -247,60 +249,12 @@ void SetupLocalPasscode(
 		st::settingsButton,
 		{ &st::settingsIconLock, kIconGreen }
 	)->addClickHandler([=] {
-		controller->show(Box<PasscodeBox>(&controller->session(), false));
+		if (controller->session().domain().local().hasLocalPasscode()) {
+			showOther(LocalPasscodeCheck::Id());
+		} else {
+			showOther(LocalPasscodeCreate::Id());
+		}
 	});
-
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	const auto inner = wrap->entity();
-	AddButton(
-		inner,
-		tr::lng_settings_passcode_disable(),
-		st::settingsButton,
-		{ &st::settingsIconMinus, kIconRed }
-	)->addClickHandler([=] {
-		controller->show(Box<PasscodeBox>(&controller->session(), true));
-	});
-
-	const auto autoLockBoxClosing =
-		container->lifetime().make_state<rpl::event_stream<>>();
-	const auto label = base::Platform::LastUserInputTimeSupported()
-		? tr::lng_passcode_autolock_away
-		: tr::lng_passcode_autolock_inactive;
-	auto value = autoLockBoxClosing->events_starting_with(
-		{}
-	) | rpl::map([] {
-		const auto autolock = Core::App().settings().autoLock();
-		const auto hours = autolock / 3600;
-		const auto minutes = (autolock - (hours * 3600)) / 60;
-
-		return (hours && minutes)
-			? tr::lng_passcode_autolock_hours_minutes(
-				tr::now,
-				lt_hours_count,
-				QString::number(hours),
-				lt_minutes_count,
-				QString::number(minutes))
-			: minutes
-			? tr::lng_minutes(tr::now, lt_count, minutes)
-			: tr::lng_hours(tr::now, lt_count, hours);
-	});
-
-	AddButtonWithLabel(
-		inner,
-		label(),
-		std::move(value),
-		st::settingsButton,
-		{ &st::settingsIconTimer, kIconGreen }
-	)->addClickHandler([=] {
-		const auto box = controller->show(Box<AutoLockBox>());
-		box->boxClosing(
-		) | rpl::start_to_stream(*autoLockBoxClosing, box->lifetime());
-	});
-
-	wrap->toggleOn(base::duplicate(has));
 }
 
 void SetupCloudPassword(
@@ -826,7 +780,7 @@ void SetupSecurity(
 		container,
 		rpl::duplicate(updateTrigger),
 		showOther);
-	SetupLocalPasscode(controller, container);
+	SetupLocalPasscode(controller, container, showOther);
 	SetupCloudPassword(controller, container);
 }
 

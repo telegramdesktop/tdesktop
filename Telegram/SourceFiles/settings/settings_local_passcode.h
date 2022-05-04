@@ -27,6 +27,8 @@ public:
 
 	void showFinished() override;
 	void setInnerFocus() override;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
@@ -41,6 +43,8 @@ private:
 
 	rpl::event_stream<> _showFinished;
 	rpl::event_stream<> _setInnerFocus;
+	rpl::event_stream<Type> _showOther;
+	rpl::event_stream<> _showBack;
 
 };
 
@@ -101,6 +105,37 @@ class LocalPasscodeChange final
 	: public TypedLocalPasscodeEnter<LocalPasscodeChange> {
 public:
 	using TypedLocalPasscodeEnter::TypedLocalPasscodeEnter;
+
+};
+
+class LocalPasscodeManage : public Section<LocalPasscodeManage> {
+public:
+	LocalPasscodeManage(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+	~LocalPasscodeManage();
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+	void showFinished() override;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override;
+
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
+
+	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
+			not_null<Ui::RpWidget*> parent) override;
+
+private:
+	void setupContent();
+
+	const not_null<Window::SessionController*> _controller;
+
+	rpl::variable<bool> _isBottomFillerShown;
+
+	rpl::event_stream<> _showFinished;
+	rpl::event_stream<Type> _showOther;
+	rpl::event_stream<> _showBack;
 
 };
 
