@@ -78,6 +78,9 @@ public:
 	[[nodiscard]] virtual rpl::producer<Type> sectionShowOther() {
 		return nullptr;
 	}
+	[[nodiscard]] virtual rpl::producer<> sectionShowBack() {
+		return nullptr;
+	}
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();

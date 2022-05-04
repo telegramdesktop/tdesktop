@@ -54,6 +54,11 @@ Widget::Widget(
 		controller->showSettings(type);
 	}, _inner->lifetime());
 
+	_inner->sectionShowBack(
+	) | rpl::start_with_next([=] {
+		controller->showBackFromStack();
+	}, _inner->lifetime());
+
 	if (_pinnedToTop) {
 		_inner->widthValue(
 		) | rpl::start_with_next([=](int w) {
