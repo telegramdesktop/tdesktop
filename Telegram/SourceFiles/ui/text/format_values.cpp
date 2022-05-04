@@ -405,7 +405,9 @@ QString FormatTTLTiny(float64 ttl) {
 		? tr::lng_weeks_tiny(tr::now, lt_count, int(ttl / (86400 * 7)))
 		: (ttl <= (86400 * 31) * 11)
 		? tr::lng_months_tiny({}, lt_count, int(ttl / (86400 * 31)))
-		: tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)));
+		: (ttl <= 86400 * 366)
+		? tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)))
+		: QString();
 }
 
 QString FormatMuteFor(float64 sec) {
@@ -429,7 +431,9 @@ QString FormatMuteForTiny(float64 sec) {
 		? tr::lng_weeks_tiny(tr::now, lt_count, std::round(sec / (86400 * 7)))
 		: (sec <= (86400 * 31) * 11)
 		? tr::lng_months_tiny({}, lt_count, std::round(sec / (86400 * 31)))
-		: tr::lng_years_tiny({}, lt_count, std::round(sec / (86400 * 365)));
+		: (sec <= 86400 * 366)
+		? tr::lng_years_tiny({}, lt_count, std::round(sec / (86400 * 365)))
+		: QString();
 }
 
 } // namespace Ui
