@@ -81,10 +81,6 @@ bool PlaybackErrorHappened() {
 }
 
 void EnumeratePlaybackDevices() {
-	if (!Webrtc::InitPipewireStubs()) {
-		LOG(("Audio Info: Failed to load pipewire 0.3 stubs."));
-	}
-
 	auto deviceNames = QStringList();
 	auto devices = [&] {
 		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {
@@ -199,6 +195,10 @@ void Start(not_null<Instance*> instance) {
 
 	qRegisterMetaType<AudioMsgId>();
 	qRegisterMetaType<VoiceWaveform>();
+
+	if (!Webrtc::InitPipewireStubs()) {
+		LOG(("Audio Info: Failed to load pipewire 0.3 stubs."));
+	}
 
 	auto loglevel = getenv("ALSOFT_LOGLEVEL");
 	LOG(("OpenAL Logging Level: %1").arg(loglevel ? loglevel : "(not set)"));
