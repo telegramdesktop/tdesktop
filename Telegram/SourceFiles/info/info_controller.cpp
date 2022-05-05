@@ -342,6 +342,14 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 		limitAfter);
 }
 
+std::any &Controller::stepDataReference() {
+	return _stepData;
+}
+
+void Controller::takeStepData(not_null<Controller*> another) {
+	_stepData = base::take(another->_stepData);
+}
+
 Controller::~Controller() = default;
 
 } // namespace Info

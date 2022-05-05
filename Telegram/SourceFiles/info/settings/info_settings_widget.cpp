@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h"
 
 #include "info/info_memento.h"
-#include "info/info_controller.h"
 #include "settings/settings_common.h"
 #include "settings/settings_main.h"
 #include "settings/settings_information.h"
@@ -59,6 +58,8 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		controller->showBackFromStack();
 	}, _inner->lifetime());
+
+	_inner->setStepDataReference(controller->stepDataReference());
 
 	_removesFromStack.events(
 	) | rpl::start_with_next([=](const std::vector<Type> &types) {

@@ -920,6 +920,9 @@ void WrapWidget::showNewContent(
 	auto newController = createController(
 		_controller->parentController(),
 		memento);
+	if (_controller && newController) {
+		newController->takeStepData(_controller.get());
+	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);
 	if (needAnimation) {
 		newContent = createContent(memento, newController.get());

@@ -100,6 +100,8 @@ public:
 			not_null<Ui::RpWidget*> parent) {
 		return nullptr;
 	}
+	virtual void setStepDataReference(std::any &data) {
+	}
 };
 
 template <typename SectionType>
