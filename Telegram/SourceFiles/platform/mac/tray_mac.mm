@@ -81,6 +81,15 @@ namespace Platform {
 
 namespace {
 
+[[nodiscard]] bool IsAnyActiveForTrayMenu() {
+	for (const NSWindow *w in [[NSApplication sharedApplication] windows]) {
+		if (w.isKeyWindow) {
+			return true;
+		}
+	}
+	return false;
+}
+
 [[nodiscard]] QImage TrayIconBack(bool darkMode) {
 	static const auto WithColor = [](QColor color) {
 		return st::macTrayIcon.instance(color, 100);
@@ -332,7 +341,7 @@ void Tray::createIcon() {
 		// instead of showing the menu, when the window is not activated.
 		_nativeIcon->clicks(
 		) | rpl::start_with_next([=] {
-			if (Core::App().isActiveForTrayMenu()) {
+			if (IsAnyActiveForTrayMenu()) {
 				_nativeIcon->showMenu(_menu.get());
 			} else {
 				_nativeIcon->deactivateButton();

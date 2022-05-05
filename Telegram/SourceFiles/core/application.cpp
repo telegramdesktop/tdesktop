@@ -464,8 +464,8 @@ void Application::clearEmojiSourceImages() {
 }
 
 bool Application::isActiveForTrayMenu() const {
-	if (_primaryWindow) {
-		return _primaryWindow->widget()->isActiveForTrayMenu();
+	if (_primaryWindow && _primaryWindow->widget()->isActiveForTrayMenu()) {
+		return true;
 	}
 	return ranges::any_of(ranges::views::values(_secondaryWindows), [=](
 			const std::unique_ptr<Window::Controller> &controller) {
