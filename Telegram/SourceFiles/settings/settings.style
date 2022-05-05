@@ -141,6 +141,7 @@ settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 }
 settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
+settingsCloudPasswordIconSize: 100px;
 
 settingLocalPasscodeInputField: InputField(defaultInputField) {
 	width: 256px;
