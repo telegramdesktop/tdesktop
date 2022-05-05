@@ -22,9 +22,6 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
-		not_null<QWidget*> parent) override;
-
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 

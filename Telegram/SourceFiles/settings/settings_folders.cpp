@@ -567,6 +567,46 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 }
 
+void SetupTopContent(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<> showFinished) {
+	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
+	const auto verticalLayout = parent->add(
+		object_ptr<Ui::VerticalLayout>(parent.get()));
+
+	auto icon = CreateLottieIcon(
+		verticalLayout,
+		{
+			.name = u"filters"_q,
+			.sizeOverride = {
+				st::settingsFilterIconSize,
+				st::settingsFilterIconSize,
+			},
+		},
+		st::settingsFilterIconPadding);
+	std::move(
+		showFinished
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	}, verticalLayout->lifetime());
+	verticalLayout->add(std::move(icon.widget));
+
+	verticalLayout->add(
+		object_ptr<Ui::CenterWrap<>>(
+			verticalLayout,
+			object_ptr<Ui::FlatLabel>(
+				verticalLayout,
+				tr::lng_filters_about(),
+				st::settingsFilterDividerLabel)),
+		st::settingsFilterDividerLabelPadding);
+
+	verticalLayout->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		divider->setGeometry(r);
+	}, divider->lifetime());
+
+}
+
 } // namespace
 
 Folders::Folders(
@@ -591,6 +631,8 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	SetupTopContent(content, _showFinished.events());
+
 	_save = SetupFoldersContent(controller, content);
 
 	Ui::ResizeFitChild(this, content);
@@ -598,45 +640,6 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 
 void Folders::showFinished() {
 	_showFinished.fire({});
-}
-
-QPointer<Ui::RpWidget> Folders::createPinnedToTop(not_null<QWidget*> parent) {
-	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
-	const auto verticalLayout = Ui::CreateChild<Ui::VerticalLayout>(divider);
-
-	auto icon = CreateLottieIcon(
-		this,
-		{
-			.name = u"filters"_q,
-			.sizeOverride = {
-				st::settingsFilterIconSize,
-				st::settingsFilterIconSize,
-			},
-		},
-		st::settingsFilterIconPadding);
-	_showFinished.events(
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
-		animate(anim::repeat::once);
-	}, verticalLayout->lifetime());
-	verticalLayout->add(std::move(icon.widget));
-
-	verticalLayout->add(
-		object_ptr<Ui::CenterWrap<>>(
-			verticalLayout,
-			object_ptr<Ui::FlatLabel>(
-				verticalLayout,
-				tr::lng_filters_about(),
-				st::settingsFilterDividerLabel)),
-		st::settingsFilterDividerLabelPadding);
-
-	verticalLayout->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		divider->resize(s);
-	}, divider->lifetime());
-
-	verticalLayout->resizeToWidth(parent->width());
-
-	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ verticalLayout });
 }
 
 } // namespace Settings
