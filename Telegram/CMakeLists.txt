@@ -1074,6 +1074,8 @@ PRIVATE
     profile/profile_cover_drop_area.h
     settings/cloud_password/settings_cloud_password_common.cpp
     settings/cloud_password/settings_cloud_password_common.h
+    settings/cloud_password/settings_cloud_password_start.cpp
+    settings/cloud_password/settings_cloud_password_start.h
     settings/settings_advanced.cpp
     settings/settings_advanced.h
     settings/settings_blocked_peers.cpp

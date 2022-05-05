@@ -4,5 +4,6 @@
     <file alias="blocked_peers_empty.tgs">../../animations/blocked_peers_empty.tgs</file>
     <file alias="filters.tgs">../../animations/filters.tgs</file>
     <file alias="local_passcode_enter.tgs">../../animations/local_passcode_enter.tgs</file>
+    <file alias="cloud_password/intro.tgs">../../animations/cloud_password/intro.tgs</file>
   </qresource>
 </RCC>
