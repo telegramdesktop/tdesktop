@@ -250,9 +250,9 @@ void SetupLocalPasscode(
 		{ &st::settingsIconLock, kIconGreen }
 	)->addClickHandler([=] {
 		if (controller->session().domain().local().hasLocalPasscode()) {
-			showOther(LocalPasscodeCheck::Id());
+			showOther(LocalPasscodeCheckId());
 		} else {
-			showOther(LocalPasscodeCreate::Id());
+			showOther(LocalPasscodeCreateId());
 		}
 	});
 }

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
@@ -90,6 +91,42 @@ void Divider::paintEvent(QPaintEvent *e) {
 } // namespace
 
 namespace details {
+
+class LocalPasscodeEnter : public AbstractSection {
+public:
+	enum class EnterType {
+		Create,
+		Check,
+		Change,
+	};
+
+	LocalPasscodeEnter(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+	~LocalPasscodeEnter();
+
+	void showFinished() override;
+	void setInnerFocus() override;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override;
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+protected:
+	void setupContent();
+
+	[[nodiscard]] virtual EnterType enterType() const = 0;
+
+private:
+
+	const not_null<Window::SessionController*> _controller;
+
+	rpl::event_stream<> _showFinished;
+	rpl::event_stream<> _setInnerFocus;
+	rpl::event_stream<Type> _showOther;
+	rpl::event_stream<> _showBack;
+
+};
 
 LocalPasscodeEnter::LocalPasscodeEnter(
 	QWidget *parent,
@@ -246,7 +283,7 @@ void LocalPasscodeEnter::setupContent() {
 				}
 				SetPasscode(_controller, newText);
 				if (isCreate) {
-					_showOther.fire(LocalPasscodeManage::Id());
+					_showOther.fire(LocalPasscodeManageId());
 				} else if (isChange) {
 					_showBack.fire({});
 				}
@@ -262,7 +299,7 @@ void LocalPasscodeEnter::setupContent() {
 			const auto &domain = _controller->session().domain();
 			if (domain.local().checkPasscode(newText.toUtf8())) {
 				cSetPasscodeBadTries(0);
-				_showOther.fire(LocalPasscodeManage::Id());
+				_showOther.fire(LocalPasscodeManageId());
 			} else {
 				cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 				cSetPasscodeLastTry(crl::now());
@@ -321,6 +358,95 @@ rpl::producer<> LocalPasscodeEnter::sectionShowBack() {
 LocalPasscodeEnter::~LocalPasscodeEnter() = default;
 
 } // namespace details
+
+class LocalPasscodeCreate;
+class LocalPasscodeCheck;
+class LocalPasscodeChange;
+
+template <typename SectionType>
+class TypedLocalPasscodeEnter : public details::LocalPasscodeEnter {
+public:
+	TypedLocalPasscodeEnter(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller)
+	: details::LocalPasscodeEnter(parent, controller) {
+		setupContent();
+	}
+
+	[[nodiscard]] static Type Id() {
+		return &SectionMetaImplementation<SectionType>::Meta;
+	}
+	[[nodiscard]] Type id() const final override {
+		return Id();
+	}
+
+protected:
+	[[nodiscard]] EnterType enterType() const final override {
+		if constexpr (std::is_same_v<SectionType, LocalPasscodeCreate>) {
+			return EnterType::Create;
+		}
+		if constexpr (std::is_same_v<SectionType, LocalPasscodeCheck>) {
+			return EnterType::Check;
+		}
+		if constexpr (std::is_same_v<SectionType, LocalPasscodeChange>) {
+			return EnterType::Change;
+		}
+		return EnterType::Create;
+	}
+
+};
+
+class LocalPasscodeCreate final
+	: public TypedLocalPasscodeEnter<LocalPasscodeCreate> {
+public:
+	using TypedLocalPasscodeEnter::TypedLocalPasscodeEnter;
+
+};
+
+class LocalPasscodeCheck final
+	: public TypedLocalPasscodeEnter<LocalPasscodeCheck> {
+public:
+	using TypedLocalPasscodeEnter::TypedLocalPasscodeEnter;
+
+};
+
+class LocalPasscodeChange final
+	: public TypedLocalPasscodeEnter<LocalPasscodeChange> {
+public:
+	using TypedLocalPasscodeEnter::TypedLocalPasscodeEnter;
+
+};
+
+class LocalPasscodeManage : public Section<LocalPasscodeManage> {
+public:
+	LocalPasscodeManage(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+	~LocalPasscodeManage();
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+	void showFinished() override;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override;
+
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
+
+	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
+			not_null<Ui::RpWidget*> parent) override;
+
+private:
+	void setupContent();
+
+	const not_null<Window::SessionController*> _controller;
+
+	rpl::variable<bool> _isBottomFillerShown;
+
+	rpl::event_stream<> _showFinished;
+	rpl::event_stream<Type> _showOther;
+	rpl::event_stream<> _showBack;
+
+};
 
 LocalPasscodeManage::LocalPasscodeManage(
 	QWidget *parent,
@@ -490,5 +616,17 @@ rpl::producer<> LocalPasscodeManage::sectionShowBack() {
 }
 
 LocalPasscodeManage::~LocalPasscodeManage() = default;
+
+Type LocalPasscodeCreateId() {
+	return LocalPasscodeCreate::Id();
+}
+
+Type LocalPasscodeCheckId() {
+	return LocalPasscodeCheck::Id();
+}
+
+Type LocalPasscodeManageId() {
+	return LocalPasscodeManage::Id();
+}
 
 } // namespace Settings
