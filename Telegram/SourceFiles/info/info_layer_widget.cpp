@@ -247,7 +247,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	if (!parentWidget() || !_content) {
 		return 0;
 	}
-	constexpr auto kMaxAttempts = 5;
+	constexpr auto kMaxAttempts = 16;
 	auto attempts = 0;
 	while (true) {
 		_inResize = true;
