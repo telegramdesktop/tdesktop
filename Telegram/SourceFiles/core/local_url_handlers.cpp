@@ -871,8 +871,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://proxy?") + proxyMatch->captured(1);
-		} else if (auto invoiceMatch = regex_match(qsl("^invoice/([a-zA-Z0-9]+)(\\?|#|$)"), query, matchOptions)) {
-			return qsl("tg://invoice?slug=") + invoiceMatch->captured(1);
+		} else if (auto invoiceMatch = regex_match(qsl("^(invoice/|\\$)([a-zA-Z0-9]+)(\\?|#|$)"), query, matchOptions)) {
+			return qsl("tg://invoice?slug=") + invoiceMatch->captured(2);
 		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
 			const auto bg = bgMatch->captured(1);
