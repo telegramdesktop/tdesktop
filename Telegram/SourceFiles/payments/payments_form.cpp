@@ -110,11 +110,17 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 
 } // namespace
 
-Form::Form(not_null<PeerData*> peer, MsgId itemId, bool receipt)
-: _session(&peer->session())
+not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
+	if (const auto slug = std::get_if<InvoiceSlug>(&id.value)) {
+		return slug->session;
+	}
+	return &v::get<InvoiceMessage>(id.value).peer->session();
+}
+
+Form::Form(InvoiceId id, bool receipt)
+: _id(id)
+, _session(SessionFromId(id))
 , _api(&_session->mtp())
-, _peer(peer)
-, _msgId(itemId)
 , _receiptMode(receipt) {
 	fillInvoiceFromMessage();
 	if (_receiptMode) {
@@ -128,7 +134,11 @@ Form::Form(not_null<PeerData*> peer, MsgId itemId, bool receipt)
 Form::~Form() = default;
 
 void Form::fillInvoiceFromMessage() {
-	const auto id = FullMsgId(_peer->id, _msgId);
+	const auto message = std::get_if<InvoiceMessage>(&_id.value);
+	if (!message) {
+		return;
+	}
+	const auto id = FullMsgId(message->peer->id, message->itemId);
 	if (const auto item = _session->data().message(id)) {
 		const auto media = [&] {
 			if (const auto payment = item->Get<HistoryServicePayment>()) {
@@ -175,7 +185,7 @@ void Form::loadThumbnail(not_null<PhotoData*> photo) {
 		_invoice.cover.thumbnail = prepareEmptyThumbnail();
 	}
 	_thumbnailLoadProcess->view = std::move(view);
-	photo->load(Data::PhotoSize::Thumbnail, FullMsgId(_peer->id, _msgId));
+	photo->load(Data::PhotoSize::Thumbnail, thumbnailFileOrigin());
 	_session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		const auto &view = _thumbnailLoadProcess->view;
@@ -193,6 +203,14 @@ void Form::loadThumbnail(not_null<PhotoData*> photo) {
 		}
 		_updates.fire(ThumbnailUpdated{ _invoice.cover.thumbnail });
 	}, _thumbnailLoadProcess->lifetime);
+}
+
+Data::FileOrigin Form::thumbnailFileOrigin() const {
+	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+		return Data::FileOrigin();
+	}
+	const auto message = v::get<InvoiceMessage>(_id.value);
+	return FullMsgId(message.peer->id, message.itemId);
 }
 
 QImage Form::prepareGoodThumbnail(
@@ -237,11 +255,21 @@ QImage Form::prepareEmptyThumbnail() const {
 	return result;
 }
 
+MTPInputInvoice Form::inputInvoice() const {
+	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
+	}
+	const auto message = v::get<InvoiceMessage>(_id.value);
+	return MTP_inputInvoiceMessage(
+		message.peer->input,
+		MTP_int(message.itemId.bare));
+}
+
 void Form::requestForm() {
 	showProgress();
 	_api.request(MTPpayments_GetPaymentForm(
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
-		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
+		inputInvoice(),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
@@ -255,10 +283,13 @@ void Form::requestForm() {
 }
 
 void Form::requestReceipt() {
+	Expects(v::is<InvoiceMessage>(_id.value));
+
+	const auto message = v::get<InvoiceMessage>(_id.value);
 	showProgress();
 	_api.request(MTPpayments_GetPaymentReceipt(
-		_peer->input,
-		MTP_int(_msgId)
+		message.peer->input,
+		MTP_int(message.itemId.bare)
 	)).done([=](const MTPpayments_PaymentReceipt &result) {
 		hideProgress();
 		result.match([&](const auto &data) {
@@ -553,7 +584,7 @@ void Form::submit() {
 				: Flag::f_shipping_option_id)
 			| (_invoice.tipsMax > 0 ? Flag::f_tip_amount : Flag(0))),
 		MTP_long(_details.formId),
-		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
+		inputInvoice(),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
 		(_paymentMethod.newCredentials
@@ -624,7 +655,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(information.save ? Flag::f_save : Flag(0)),
-		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
+		inputInvoice(),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
 		hideProgress();

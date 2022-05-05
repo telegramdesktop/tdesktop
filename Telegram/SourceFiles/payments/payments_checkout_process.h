@@ -36,6 +36,7 @@ namespace Payments {
 class Form;
 struct FormUpdate;
 struct Error;
+struct InvoiceId;
 
 enum class Mode {
 	Payment,
@@ -52,13 +53,16 @@ public:
 		not_null<const HistoryItem*> item,
 		Mode mode,
 		Fn<void()> reactivate);
+	static void Start(
+		not_null<Main::Session*> session,
+		const QString &slug,
+		Fn<void()> reactivate);
 	[[nodiscard]] static bool TakePaymentStarted(
 		not_null<const HistoryItem*> item);
 	static void ClearAll();
 
 	CheckoutProcess(
-		not_null<PeerData*> peer,
-		MsgId itemId,
+		InvoiceId id,
 		Mode mode,
 		Fn<void()> reactivate,
 		PrivateTag);

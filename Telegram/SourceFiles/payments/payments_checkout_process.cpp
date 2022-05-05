@@ -35,16 +35,17 @@ namespace Payments {
 namespace {
 
 struct SessionProcesses {
-	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> map;
-	base::flat_set<FullMsgId> paymentStarted;
+	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> byItem;
+	base::flat_map<QString, std::unique_ptr<CheckoutProcess>> bySlug;
+	base::flat_set<FullMsgId> paymentStartedByItem;
+	base::flat_set<QString> paymentStartedBySlug;
 	rpl::lifetime lifetime;
 };
 
 base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 
 [[nodiscard]] SessionProcesses &LookupSessionProcesses(
-		not_null<const HistoryItem*> item) {
-	const auto session = &item->history()->session();
+		not_null<Main::Session*> session) {
 	const auto i = Processes.find(session);
 	if (i != end(Processes)) {
 		return i->second;
@@ -64,7 +65,7 @@ void CheckoutProcess::Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
 		Fn<void()> reactivate) {
-	auto &processes = LookupSessionProcesses(item);
+	auto &processes = LookupSessionProcesses(&item->history()->session());
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
 	if (mode == Mode::Payment && !invoice) {
@@ -79,18 +80,38 @@ void CheckoutProcess::Start(
 		LOG(("API Error: CheckoutProcess Payment start without invoice."));
 		return;
 	}
-	const auto i = processes.map.find(id);
-	if (i != end(processes.map)) {
+	const auto i = processes.byItem.find(id);
+	if (i != end(processes.byItem)) {
 		i->second->setReactivateCallback(std::move(reactivate));
 		i->second->requestActivate();
 		return;
 	}
-	const auto j = processes.map.emplace(
+	const auto j = processes.byItem.emplace(
 		id,
 		std::make_unique<CheckoutProcess>(
-			item->history()->peer,
-			id.msg,
+			InvoiceId{ InvoiceMessage{ item->history()->peer, id.msg } },
 			mode,
+			std::move(reactivate),
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
+void CheckoutProcess::Start(
+		not_null<Main::Session*> session,
+		const QString &slug,
+		Fn<void()> reactivate) {
+	auto &processes = LookupSessionProcesses(session);
+	const auto i = processes.bySlug.find(slug);
+	if (i != end(processes.bySlug)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.bySlug.emplace(
+		slug,
+		std::make_unique<CheckoutProcess>(
+			InvoiceId{ InvoiceSlug{ session, slug } },
+			Mode::Payment,
 			std::move(reactivate),
 			PrivateTag{})).first;
 	j->second->requestActivate();
@@ -101,14 +122,16 @@ bool CheckoutProcess::TakePaymentStarted(
 	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
 	const auto i = Processes.find(session);
-	if (i == end(Processes) || !i->second.paymentStarted.contains(itemId)) {
+	if (i == end(Processes)
+		|| !i->second.paymentStartedByItem.contains(itemId)) {
 		return false;
 	}
-	i->second.paymentStarted.erase(itemId);
-	const auto j = i->second.map.find(itemId);
-	if (j != end(i->second.map)) {
+	i->second.paymentStartedByItem.erase(itemId);
+	const auto j = i->second.byItem.find(itemId);
+	if (j != end(i->second.byItem)) {
 		j->second->closeAndReactivate();
-	} else if (i->second.paymentStarted.empty() && i->second.map.empty()) {
+	} else if (i->second.paymentStartedByItem.empty()
+		&& i->second.byItem.empty()) {
 		Processes.erase(i);
 	}
 	return true;
@@ -122,9 +145,16 @@ void CheckoutProcess::RegisterPaymentStart(
 		not_null<CheckoutProcess*> process) {
 	const auto i = Processes.find(process->_session);
 	Assert(i != end(Processes));
-	for (const auto &[itemId, itemProcess] : i->second.map) {
+	for (const auto &[itemId, itemProcess] : i->second.byItem) {
 		if (itemProcess.get() == process) {
-			i->second.paymentStarted.emplace(itemId);
+			i->second.paymentStartedByItem.emplace(itemId);
+			return;
+		}
+	}
+	for (const auto &[slug, itemProcess] : i->second.bySlug) {
+		if (itemProcess.get() == process) {
+			i->second.paymentStartedBySlug.emplace(slug);
+			return;
 		}
 	}
 }
@@ -133,22 +163,28 @@ void CheckoutProcess::UnregisterPaymentStart(
 		not_null<CheckoutProcess*> process) {
 	const auto i = Processes.find(process->_session);
 	if (i != end(Processes)) {
-		for (const auto &[itemId, itemProcess] : i->second.map) {
+		for (const auto &[itemId, itemProcess] : i->second.byItem) {
 			if (itemProcess.get() == process) {
-				i->second.paymentStarted.emplace(itemId);
+				i->second.paymentStartedByItem.emplace(itemId);
+				return;
+			}
+		}
+		for (const auto &[slug, itemProcess] : i->second.bySlug) {
+			if (itemProcess.get() == process) {
+				i->second.paymentStartedBySlug.emplace(slug);
+				return;
 			}
 		}
 	}
 }
 
 CheckoutProcess::CheckoutProcess(
-	not_null<PeerData*> peer,
-	MsgId itemId,
+	InvoiceId id,
 	Mode mode,
 	Fn<void()> reactivate,
 	PrivateTag)
-: _session(&peer->session())
-, _form(std::make_unique<Form>(peer, itemId, (mode == Mode::Receipt)))
+: _session(SessionFromId(id))
+, _form(std::make_unique<Form>(id, (mode == Mode::Receipt)))
 , _panel(std::make_unique<Ui::Panel>(panelDelegate()))
 , _reactivate(std::move(reactivate)) {
 	_form->updates(
@@ -404,14 +440,23 @@ void CheckoutProcess::close() {
 	if (i == end(Processes)) {
 		return;
 	}
-	const auto j = ranges::find(i->second.map, this, [](const auto &pair) {
+	auto &entry = i->second;
+	const auto j = ranges::find(entry.byItem, this, [](const auto &pair) {
 		return pair.second.get();
 	});
-	if (j == end(i->second.map)) {
-		return;
+	if (j != end(entry.byItem)) {
+		entry.byItem.erase(j);
 	}
-	i->second.map.erase(j);
-	if (i->second.map.empty() && i->second.paymentStarted.empty()) {
+	const auto k = ranges::find(entry.bySlug, this, [](const auto &pair) {
+		return pair.second.get();
+	});
+	if (k != end(entry.bySlug)) {
+		entry.bySlug.erase(k);
+	}
+	if (entry.byItem.empty()
+		&& entry.bySlug.empty()
+		&& entry.paymentStartedByItem.empty()
+		&& entry.paymentStartedBySlug.empty()) {
 		Processes.erase(i);
 	}
 }

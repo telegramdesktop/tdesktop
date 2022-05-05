@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
+#include "payments/payments_checkout_process.h"
 #include "settings/settings_common.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_main.h"
@@ -447,7 +448,7 @@ bool ResolveSettings(
 	}
 	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
-	
+
 	const auto type = [&]() -> std::optional<::Settings::Type> {
 		if (section == qstr("language")) {
 			ShowLanguagesBox();
@@ -466,7 +467,7 @@ bool ResolveSettings(
 		}
 		return ::Settings::Main::Id();
 	}();
-	
+
 	if (type.has_value()) {
 		controller->showSettings(*type);
 		controller->window().activate();
@@ -714,6 +715,28 @@ bool ResolveTestChatTheme(
 	return true;
 }
 
+bool ResolveInvoice(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto slug = params.value(qsl("slug"));
+	if (slug.isEmpty()) {
+		return false;
+	}
+	const auto window = &controller->window();
+	Payments::CheckoutProcess::Start(
+		&controller->session(),
+		slug,
+		crl::guard(window, [=] { window->activate(); }));
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -777,6 +800,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^test_chat_theme/?\\?(.+)(#|$)"),
 			ResolveTestChatTheme,
+		},
+		{
+			qsl("invoice/?\\?(.+)(#|$)"),
+			ResolveInvoice,
 		},
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
@@ -844,6 +871,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://proxy?") + proxyMatch->captured(1);
+		} else if (auto invoiceMatch = regex_match(qsl("^invoice/([a-zA-Z0-9]+)(\\?|#|$)"), query, matchOptions)) {
+			return qsl("tg://invoice?slug=") + invoiceMatch->captured(1);
 		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
 			const auto bg = bgMatch->captured(1);
