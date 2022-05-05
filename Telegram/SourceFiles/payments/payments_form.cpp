@@ -241,8 +241,7 @@ void Form::requestForm() {
 	showProgress();
 	_api.request(MTPpayments_GetPaymentForm(
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
-		_peer->input,
-		MTP_int(_msgId),
+		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
@@ -554,8 +553,7 @@ void Form::submit() {
 				: Flag::f_shipping_option_id)
 			| (_invoice.tipsMax > 0 ? Flag::f_tip_amount : Flag(0))),
 		MTP_long(_details.formId),
-		_peer->input,
-		MTP_int(_msgId),
+		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
 		(_paymentMethod.newCredentials
@@ -626,8 +624,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(information.save ? Flag::f_save : Flag(0)),
-		_peer->input,
-		MTP_int(_msgId),
+		MTP_inputInvoiceMessage(_peer->input, MTP_int(_msgId)),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
 		hideProgress();
