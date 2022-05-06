@@ -23,6 +23,10 @@ namespace Api {
 
 class CloudPassword final {
 public:
+	struct SetOk {
+		int unconfirmedEmailLengthCode = 0;
+	};
+
 	using ResetRetryDate = int;
 	explicit CloudPassword(not_null<ApiWrap*> api);
 
@@ -34,7 +38,16 @@ public:
 	rpl::producer<ResetRetryDate, QString> resetPassword();
 	rpl::producer<rpl::no_value, QString> cancelResetPassword();
 
+	rpl::producer<SetOk, QString> set(
+		const QString &oldPassword,
+		const QString &newPassword,
+		const QString &hint,
+		bool hasRecoveryEmail,
+		const QString &recoveryEmail);
+
 private:
+	void apply(Core::CloudPasswordState state);
+
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 	std::unique_ptr<Core::CloudPasswordState> _state;
