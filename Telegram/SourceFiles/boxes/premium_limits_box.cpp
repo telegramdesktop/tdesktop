@@ -252,11 +252,13 @@ void SimpleLimitBox(
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
-		bool premium) {
+		bool premium,
+		bool fixed = false) {
 	box->setWidth(st::boxWideWidth);
 
-	const auto top = box->setPinnedToTopContent(
-		object_ptr<Ui::VerticalLayout>(box));
+	const auto top = fixed
+		? box->setPinnedToTopContent(object_ptr<Ui::VerticalLayout>(box))
+		: box->verticalLayout();
 	top->add(
 		object_ptr<Ui::CenterWrap<>>(
 			box,
@@ -286,6 +288,42 @@ void SimpleLimitBox(
 			});
 		});
 	}
+}
+
+void SimplePinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		const QString &keyDefault,
+		int limitDefault,
+		const QString &keyPremium,
+		int limitPremium) {
+	const auto premium = session->user()->isPremium();
+
+	auto text = rpl::combine(
+		tr::lng_filter_pin_limit1(
+			lt_count,
+			rpl::single(Limit(
+				session,
+				(premium ? keyPremium : keyDefault),
+				premium ? limitPremium : limitDefault)),
+			Ui::Text::RichLangValue),
+		(premium
+			? rpl::single(TextWithEntities())
+			: tr::lng_filter_pin_limit2(
+				lt_count,
+				rpl::single(Limit(session, keyPremium, limitPremium)),
+				Ui::Text::RichLangValue))
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return b.text.isEmpty()
+			? a
+			: a.append(QChar(' ')).append(std::move(b));
+	});
+	SimpleLimitBox(
+		box,
+		session,
+		tr::lng_filter_pin_limit_title(),
+		std::move(text),
+		premium);
 }
 
 } // namespace
@@ -320,7 +358,8 @@ void ChannelsLimitBox(
 		session,
 		tr::lng_channels_limit_title(),
 		std::move(text),
-		premium);
+		premium,
+		true);
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<InactiveController>(
@@ -489,36 +528,23 @@ void FiltersLimitBox(
 void FilterPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
-
-	auto text = rpl::combine(
-		tr::lng_filter_pin_limit1(
-			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium
-					? "dialog_filters_pinned_limit_premium"
-					: "dialog_filters_pinned_limit_default"),
-				premium ? 200 : 100)),
-			Ui::Text::RichLangValue),
-		(premium
-			? rpl::single(TextWithEntities())
-			: tr::lng_filter_pin_limit2(
-				lt_count,
-				rpl::single(Limit(
-					session,
-					"dialog_filters_pinned_limit_premium",
-					200)),
-				Ui::Text::RichLangValue))
-	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
-		return b.text.isEmpty()
-			? a
-			: a.append(QChar(' ')).append(std::move(b));
-	});
-	SimpleLimitBox(
+	SimplePinsLimitBox(
 		box,
 		session,
-		tr::lng_filter_pin_limit_title(),
-		std::move(text),
-		premium);
+		"dialog_filters_pinned_limit_default",
+		100,
+		"dialog_filters_pinned_limit_premium",
+		200);
+}
+
+void PinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	SimplePinsLimitBox(
+		box,
+		session,
+		"dialogs_pinned_limit_default",
+		5,
+		"dialogs_pinned_limit_premium",
+		10);
 }

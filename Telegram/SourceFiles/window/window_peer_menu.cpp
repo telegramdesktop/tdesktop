@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/pin_messages_box.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/add_participants_box.h"
@@ -247,15 +248,13 @@ bool PinnedLimitReached(
 		owner->setChatPinned(wasted, FilterId(), false);
 		owner->setChatPinned(history, FilterId(), true);
 		history->session().api().savePinnedOrder(folder);
-	} else {
-		const auto errorText = filterId
-			? tr::lng_filters_error_pinned_max(tr::now)
-			: tr::lng_error_pinned_max(
-				tr::now,
-				lt_count,
-				owner->pinnedChatsLimit(folder));
+	} else if (filterId) {
 		controller->show(
-			Ui::MakeInformBox(errorText),
+			Box(FilterPinsLimitBox, &history->session()),
+			Ui::LayerOption::CloseOther);
+	} else {
+		controller->show(
+			Box(PinsLimitBox, &history->session()),
 			Ui::LayerOption::CloseOther);
 	}
 	return true;

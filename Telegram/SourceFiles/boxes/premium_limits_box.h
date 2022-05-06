@@ -28,3 +28,6 @@ void FiltersLimitBox(
 void FilterPinsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
+void PinsLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
