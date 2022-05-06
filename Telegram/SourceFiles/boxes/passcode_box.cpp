@@ -154,9 +154,10 @@ void StartPendingReset(
 PasscodeBox::CloudFields PasscodeBox::CloudFields::From(
 		const Core::CloudPasswordState &current) {
 	auto result = CloudFields();
-	result.curRequest = current.mtp.request;
-	result.newAlgo = current.mtp.newPassword;
-	result.newSecureSecretAlgo = current.mtp.newSecureSecret;
+	result.hasPassword = current.hasPassword;
+	result.mtp.curRequest = current.mtp.request;
+	result.mtp.newAlgo = current.mtp.newPassword;
+	result.mtp.newSecureSecretAlgo = current.mtp.newSecureSecret;
 	result.hasRecovery = current.hasRecovery;
 	result.notEmptyPassport = current.notEmptyPassport;
 	result.hint = current.hint;
@@ -200,21 +201,21 @@ PasscodeBox::PasscodeBox(
 , _newPasscode(
 	this,
 	st::defaultInputField,
-	(fields.curRequest
+	(fields.hasPassword
 		? tr::lng_cloud_password_enter_new()
 		: tr::lng_cloud_password_enter_first()))
 , _reenterPasscode(this, st::defaultInputField, tr::lng_cloud_password_confirm_new())
 , _passwordHint(
 	this,
 	st::defaultInputField,
-	(fields.curRequest
+	(fields.hasPassword
 		? tr::lng_cloud_password_change_hint()
 		: tr::lng_cloud_password_hint()))
 , _recoverEmail(this, st::defaultInputField, tr::lng_cloud_password_email())
 , _recover(this, tr::lng_signin_recover(tr::now))
 , _showRecoverLink(_cloudFields.hasRecovery || !_cloudFields.pendingResetDate) {
 	Expects(session != nullptr || !fields.fromRecoveryCode.isEmpty());
-	Expects(!_turningOff || _cloudFields.curRequest);
+	Expects(!_turningOff || _cloudFields.hasPassword);
 
 	if (!_cloudFields.hint.isEmpty()) {
 		_hintText.setText(
@@ -248,7 +249,7 @@ rpl::producer<MTPauth_Authorization> PasscodeBox::newAuthorization() const {
 
 bool PasscodeBox::currentlyHave() const {
 	return _cloudPwd
-		? (!!_cloudFields.curRequest)
+		? _cloudFields.hasPassword
 		: _session->domain().local().hasLocalPasscode();
 }
 
@@ -609,7 +610,7 @@ void PasscodeBox::handleSrpIdInvalid() {
 	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
-		_cloudFields.curRequest.id = 0;
+		_cloudFields.mtp.curRequest.id = 0;
 		_oldError = Lang::Hard::ServerError();
 		update();
 	} else {
@@ -743,14 +744,14 @@ void PasscodeBox::checkPassword(
 		CheckPasswordCallback callback) {
 	const auto passwordUtf = oldPassword.toUtf8();
 	_checkPasswordHash = Core::ComputeCloudPasswordHash(
-		_cloudFields.curRequest.algo,
+		_cloudFields.mtp.curRequest.algo,
 		bytes::make_span(passwordUtf));
 	checkPasswordHash(std::move(callback));
 }
 
 void PasscodeBox::checkPasswordHash(CheckPasswordCallback callback) {
 	_checkPasswordCallback = std::move(callback);
-	if (_cloudFields.curRequest.id) {
+	if (_cloudFields.mtp.curRequest.id) {
 		passwordChecked();
 	} else {
 		requestPasswordData();
@@ -758,16 +759,16 @@ void PasscodeBox::checkPasswordHash(CheckPasswordCallback callback) {
 }
 
 void PasscodeBox::passwordChecked() {
-	if (!_cloudFields.curRequest || !_cloudFields.curRequest.id || !_checkPasswordCallback) {
+	if (!_cloudFields.mtp.curRequest || !_cloudFields.mtp.curRequest.id || !_checkPasswordCallback) {
 		return serverError();
 	}
 	const auto check = Core::ComputeCloudPasswordCheck(
-		_cloudFields.curRequest,
+		_cloudFields.mtp.curRequest,
 		_checkPasswordHash);
 	if (!check) {
 		return serverError();
 	}
-	_cloudFields.curRequest.id = 0;
+	_cloudFields.mtp.curRequest.id = 0;
 	_checkPasswordCallback(check);
 }
 
@@ -782,7 +783,7 @@ void PasscodeBox::requestPasswordData() {
 	).done([=](const MTPaccount_Password &result) {
 		_setRequest = 0;
 		result.match([&](const MTPDaccount_password &data) {
-			_cloudFields.curRequest = Core::ParseCloudPasswordCheckRequest(data);
+			_cloudFields.mtp.curRequest = Core::ParseCloudPasswordCheckRequest(data);
 			passwordChecked();
 		});
 	}).send();
@@ -820,7 +821,7 @@ void PasscodeBox::sendClearCloudPassword(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
-			Core::PrepareCloudPasswordAlgo(_cloudFields.newAlgo),
+			Core::PrepareCloudPasswordAlgo(_cloudFields.mtp.newAlgo),
 			MTP_bytes(), // new_password_hash
 			MTP_string(hint),
 			MTP_string(email),
@@ -835,7 +836,7 @@ void PasscodeBox::sendClearCloudPassword(
 void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 	const auto newPasswordBytes = newPassword.toUtf8();
 	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
-		_cloudFields.newAlgo,
+		_cloudFields.mtp.newAlgo,
 		bytes::make_span(newPasswordBytes));
 	if (newPasswordHash.modpow.empty()) {
 		return serverError();
@@ -851,7 +852,7 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 
 	const auto settings = MTP_account_passwordInputSettings(
 		MTP_flags(flags),
-		Core::PrepareCloudPasswordAlgo(_cloudFields.newAlgo),
+		Core::PrepareCloudPasswordAlgo(_cloudFields.mtp.newAlgo),
 		MTP_bytes(newPasswordHash.modpow),
 		MTP_string(hint),
 		MTP_string(email),
@@ -989,7 +990,7 @@ void PasscodeBox::sendChangeCloudPassword(
 		const QByteArray &secureSecret) {
 	const auto newPasswordBytes = newPassword.toUtf8();
 	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
-		_cloudFields.newAlgo,
+		_cloudFields.mtp.newAlgo,
 		bytes::make_span(newPasswordBytes));
 	if (newPasswordHash.modpow.empty()) {
 		return serverError();
@@ -1007,19 +1008,19 @@ void PasscodeBox::sendChangeCloudPassword(
 		newSecureSecret = Passport::EncryptSecureSecret(
 			bytes::make_span(secureSecret),
 			Core::ComputeSecureSecretHash(
-				_cloudFields.newSecureSecretAlgo,
+				_cloudFields.mtp.newSecureSecretAlgo,
 				bytes::make_span(newPasswordBytes)));
 	}
 	_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
-			Core::PrepareCloudPasswordAlgo(_cloudFields.newAlgo),
+			Core::PrepareCloudPasswordAlgo(_cloudFields.mtp.newAlgo),
 			MTP_bytes(newPasswordHash.modpow),
 			MTP_string(hint),
 			MTPstring(), // email is not changing
 			MTP_secureSecretSettings(
-				Core::PrepareSecureSecretAlgo(_cloudFields.newSecureSecretAlgo),
+				Core::PrepareSecureSecretAlgo(_cloudFields.mtp.newSecureSecretAlgo),
 				MTP_bytes(newSecureSecret),
 				MTP_long(newSecureSecretId)))
 	)).done([=] {
@@ -1294,7 +1295,8 @@ void RecoverBox::proceedToChange(const QString &code) {
 	fields.hasRecovery = false;
 	// we could've been turning off, no need to force new password then
 	// like if (_cloudFields.turningOff) { just RecoverPassword else Check }
-	fields.curRequest = {};
+	fields.mtp.curRequest = {};
+	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(_session, fields);
 
 	box->boxClosing(

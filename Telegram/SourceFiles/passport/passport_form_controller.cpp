@@ -988,9 +988,11 @@ void FormController::recoverPassword() {
 		const auto &data = result.c_auth_passwordRecovery();
 		const auto pattern = qs(data.vemail_pattern());
 		auto fields = PasscodeBox::CloudFields{
-			.newAlgo = _password.newAlgo,
+			.mtp = PasscodeBox::CloudFields::Mtp {
+				.newAlgo = _password.newAlgo,
+				.newSecureSecretAlgo = _password.newSecureAlgo,
+			},
 			.hasRecovery = _password.hasRecovery,
-			.newSecureSecretAlgo = _password.newSecureAlgo,
 			.pendingResetDate = _password.pendingResetDate,
 		};
 		const auto box = _view->show(Box<RecoverBox>(

@@ -226,7 +226,8 @@ void PasswordCheckWidget::codeSubmitDone(
 	auto fields = PasscodeBox::CloudFields::From(_passwordState);
 	fields.fromRecoveryCode = code;
 	fields.hasRecovery = false;
-	fields.curRequest = {};
+	fields.mtp.curRequest = {};
+	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
 	const auto boxShared = std::make_shared<QPointer<PasscodeBox>>();
 

@@ -683,9 +683,11 @@ void PanelController::setupPassword() {
 	}
 
 	auto fields = PasscodeBox::CloudFields{
-		.newAlgo = settings.newAlgo,
+		.mtp = PasscodeBox::CloudFields::Mtp{
+			.newAlgo = settings.newAlgo,
+			.newSecureSecretAlgo = settings.newSecureAlgo,
+		},
 		.hasRecovery = settings.hasRecovery,
-		.newSecureSecretAlgo = settings.newSecureAlgo,
 		.pendingResetDate = settings.pendingResetDate,
 	};
 	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
