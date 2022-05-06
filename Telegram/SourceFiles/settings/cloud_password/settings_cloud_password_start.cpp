@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_input.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_settings.h"
@@ -49,6 +50,7 @@ void Start::setupContent() {
 		content,
 		tr::lng_settings_cloud_password_password_subtitle()
 	)->setClickedCallback([=] {
+		showOther(CloudPasswordInputId());
 	});
 
 	Ui::ResizeFitChild(this, content);

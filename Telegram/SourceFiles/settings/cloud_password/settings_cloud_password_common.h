@@ -19,6 +19,10 @@ class VerticalLayout;
 
 namespace Settings::CloudPassword {
 
+struct StepData {
+	QString password;
+};
+
 void SetupHeader(
 	not_null<Ui::VerticalLayout*> content,
 	const QString &lottie,
@@ -79,6 +83,8 @@ public:
 	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 	[[nodiscard]] rpl::producer<> sectionShowBack() override;
 
+	void setStepDataReference(std::any &data) override;
+
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 
@@ -89,6 +95,9 @@ protected:
 
 	[[nodiscard]] rpl::producer<> showFinishes() const;
 
+	StepData stepData() const;
+	void setStepData(StepData data);
+
 private:
 	const not_null<Window::SessionController*> _controller;
 
@@ -98,15 +107,17 @@ private:
 	rpl::event_stream<Type> _showOther;
 	rpl::event_stream<> _showBack;
 
+	std::any *_stepData;
+
 };
 
 template <typename SectionType>
 class TypedAbstractStep : public AbstractStep {
 public:
-	TypedAbstractStep(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller)
-	: AbstractStep(parent, controller) {
+	using AbstractStep::AbstractStep;
+
+	void setStepDataReference(std::any &data) override final {
+		AbstractStep::setStepDataReference(data);
 		static_cast<SectionType*>(this)->setupContent();
 	}
 

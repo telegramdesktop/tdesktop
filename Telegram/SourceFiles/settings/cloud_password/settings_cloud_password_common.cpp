@@ -244,6 +244,24 @@ rpl::producer<> AbstractStep::sectionShowBack() {
 	return _showBack.events();
 }
 
+void AbstractStep::setStepDataReference(std::any &data) {
+	_stepData = &data;
+}
+
+StepData AbstractStep::stepData() const {
+	if (!_stepData || !_stepData->has_value()) {
+		StepData();
+	}
+	const auto my = std::any_cast<StepData>(_stepData);
+	return my ? (*my) : StepData();
+}
+
+void AbstractStep::setStepData(StepData data) {
+	if (_stepData) {
+		*_stepData = data;
+	}
+}
+
 AbstractStep::~AbstractStep() = default;
 
 } // namespace Settings::CloudPassword

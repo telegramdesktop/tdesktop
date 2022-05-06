@@ -699,8 +699,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_reset_cancel" = "Cancel password reset";
 "lng_cloud_password_enter_old" = "Enter current password";
 "lng_cloud_password_enter_first" = "Enter a password";
-"lng_cloud_password_enter_new" = "Enter new password";
-"lng_cloud_password_confirm_new" = "Re-enter new password";
+"lng_cloud_password_enter_new" = "Enter password";
+"lng_cloud_password_confirm_new" = "Re-enter password";
 "lng_cloud_password_hint" = "Enter password hint";
 "lng_cloud_password_change_hint" = "Enter new password hint";
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
