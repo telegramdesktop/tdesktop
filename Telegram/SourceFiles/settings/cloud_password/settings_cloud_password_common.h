@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 
 namespace Ui {
+template <typename Widget>
+class CenterWrap;
 class FlatLabel;
+class InputField;
 class PasswordInput;
 class RoundButton;
 class VerticalLayout;
@@ -21,6 +24,7 @@ namespace Settings::CloudPassword {
 
 struct StepData {
 	QString password;
+	QString hint;
 };
 
 void SetupHeader(
@@ -31,6 +35,11 @@ void SetupHeader(
 	rpl::producer<QString> &&about);
 
 [[nodiscard]] not_null<Ui::PasswordInput*> AddPasswordField(
+	not_null<Ui::VerticalLayout*> content,
+	rpl::producer<QString> &&placeholder,
+	const QString &text);
+
+[[nodiscard]] not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
 	not_null<Ui::VerticalLayout*> content,
 	rpl::producer<QString> &&placeholder,
 	const QString &text);

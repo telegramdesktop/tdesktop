@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -130,6 +131,7 @@ void Input::setupContent() {
 			auto data = stepData();
 			data.password = newText;
 			setStepData(std::move(data));
+			showOther(CloudPasswordHintId());
 		}
 	});
 

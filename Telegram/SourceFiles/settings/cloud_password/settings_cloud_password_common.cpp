@@ -150,6 +150,19 @@ not_null<Ui::PasswordInput*> AddPasswordField(
 	return field;
 }
 
+not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
+		not_null<Ui::VerticalLayout*> content,
+		rpl::producer<QString> &&placeholder,
+		const QString &text) {
+	return content->add(object_ptr<Ui::CenterWrap<Ui::InputField>>(
+		content,
+		object_ptr<Ui::InputField>(
+			content,
+			st::settingLocalPasscodeInputField,
+			std::move(placeholder),
+			text)));
+}
+
 not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
 		Ui::PasswordInput *input) {
