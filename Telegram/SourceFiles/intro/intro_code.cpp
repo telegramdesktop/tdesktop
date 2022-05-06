@@ -346,7 +346,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
 		return;
-	} else if (!getData()->pwdState.request) {
+	} else if (!getData()->pwdState.hasPassword) {
 		const auto callback = [=](Fn<void()> &&close) {
 			Core::UpdateApplication();
 			close();

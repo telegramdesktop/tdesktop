@@ -273,8 +273,8 @@ void SetupCloudPassword(
 		false
 	) | rpl::then(controller->session().api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
-		return state.request
-			|| state.unknownAlgorithm
+		return state.mtp.request
+			|| state.mtp.unknownAlgorithm
 			|| !state.unconfirmedPattern.isEmpty();
 	})) | rpl::distinct_until_changed();
 	auto pattern = session->api().cloudPassword().state(
@@ -802,12 +802,7 @@ bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
 	const auto current = session->api().cloudPassword().stateCurrent();
 	Assert(current.has_value());
 
-	if (!current->unknownAlgorithm
-		&& !v::is_null(current->newPassword)
-		&& !v::is_null(current->newSecureSecret)) {
-		return true;
-	}
-	return false;
+	return !current->outdatedClient;
 }
 
 object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
@@ -839,7 +834,7 @@ void RemoveCloudPassword(not_null<Window::SessionController*> controller) {
 	const auto current = session->api().cloudPassword().stateCurrent();
 	Assert(current.has_value());
 
-	if (!current->request) {
+	if (!current->hasPassword) {
 		session->api().cloudPassword().clearUnconfirmedPassword();
 		return;
 	}

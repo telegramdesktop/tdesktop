@@ -177,7 +177,7 @@ CheckoutProcess::CheckoutProcess(
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
-			_form->setHasPassword(!!state.request);
+			_form->setHasPassword(state.hasPassword);
 		}, _lifetime);
 	}
 }
@@ -624,7 +624,7 @@ void CheckoutProcess::requestPassword() {
 
 void CheckoutProcess::panelSetPassword() {
 	getPasswordState([=](const Core::CloudPasswordState &state) {
-		if (state.request) {
+		if (state.hasPassword) {
 			return;
 		}
 		auto owned = Box<PasscodeBox>(

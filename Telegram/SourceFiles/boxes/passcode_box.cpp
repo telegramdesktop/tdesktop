@@ -154,9 +154,9 @@ void StartPendingReset(
 PasscodeBox::CloudFields PasscodeBox::CloudFields::From(
 		const Core::CloudPasswordState &current) {
 	auto result = CloudFields();
-	result.curRequest = current.request;
-	result.newAlgo = current.newPassword;
-	result.newSecureSecretAlgo = current.newSecureSecret;
+	result.curRequest = current.mtp.request;
+	result.newAlgo = current.mtp.newPassword;
+	result.newSecureSecretAlgo = current.mtp.newSecureSecret;
 	result.hasRecovery = current.hasRecovery;
 	result.notEmptyPassport = current.notEmptyPassport;
 	result.hint = current.hint;
