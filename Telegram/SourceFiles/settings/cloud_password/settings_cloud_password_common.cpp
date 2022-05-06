@@ -20,6 +20,73 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings::CloudPassword {
 
+void OneEdgeBoxContentDivider::skipEdge(Qt::Edge edge, bool skip) {
+	const auto was = _skipEdges;
+	if (skip) {
+		_skipEdges |= edge;
+	} else {
+		_skipEdges &= ~edge;
+	}
+	if (was != _skipEdges) {
+		update();
+	}
+}
+
+void OneEdgeBoxContentDivider::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.fillRect(e->rect(), Ui::BoxContentDivider::color());
+	if (!(_skipEdges & Qt::TopEdge)) {
+		Ui::BoxContentDivider::paintTop(p);
+	}
+	if (!(_skipEdges & Qt::BottomEdge)) {
+		Ui::BoxContentDivider::paintBottom(p);
+	}
+}
+
+BottomButton CreateBottomDisableButton(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QRect> &&sectionGeometryValue,
+		rpl::producer<QString> &&buttonText,
+		Fn<void()> &&callback) {
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
+
+	AddSkip(content);
+
+	AddButton(
+		content,
+		std::move(buttonText),
+		st::settingsAttentionButton
+	)->addClickHandler(std::move(callback));
+
+	const auto divider = Ui::CreateChild<OneEdgeBoxContentDivider>(
+		parent.get());
+	divider->skipEdge(Qt::TopEdge, true);
+	rpl::combine(
+		std::move(sectionGeometryValue),
+		parent->geometryValue(),
+		content->geometryValue()
+	) | rpl::start_with_next([=](
+			const QRect &r,
+			const QRect &parentRect,
+			const QRect &bottomRect) {
+		const auto top = r.y() + r.height();
+		divider->setGeometry(
+			0,
+			top,
+			r.width(),
+			parentRect.height() - top - bottomRect.height());
+	}, divider->lifetime());
+	divider->show();
+
+	return {
+		.content = Ui::MakeWeak(not_null<Ui::RpWidget*>{ content }),
+		.isBottomFillerShown = divider->geometryValue(
+		) | rpl::map([](const QRect &r) {
+			return r.height() > 0;
+		}),
+	};
+}
+
 void SetupHeader(
 		not_null<Ui::VerticalLayout*> content,
 		const QString &lottie,

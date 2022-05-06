@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/settings_common.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
@@ -49,43 +50,6 @@ void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback) {
 		}
 	});
 	timer->callEach(kTimerCheck);
-}
-
-class Divider : public Ui::BoxContentDivider {
-public:
-	using Ui::BoxContentDivider::BoxContentDivider;
-
-	void skipEdge(Qt::Edge edge, bool skip);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	Qt::Edges _skipEdges;
-
-};
-
-void Divider::skipEdge(Qt::Edge edge, bool skip) {
-	const auto was = _skipEdges;
-	if (skip) {
-		_skipEdges |= edge;
-	} else {
-		_skipEdges &= ~edge;
-	}
-	if (was != _skipEdges) {
-		update();
-	}
-}
-
-void Divider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), Ui::BoxContentDivider::color());
-	if (!(_skipEdges & Qt::TopEdge)) {
-		Ui::BoxContentDivider::paintTop(p);
-	}
-	if (!(_skipEdges & Qt::BottomEdge)) {
-		Ui::BoxContentDivider::paintBottom(p);
-	}
 }
 
 } // namespace
@@ -525,6 +489,7 @@ void LocalPasscodeManage::setupContent() {
 
 	AddSkip(content);
 
+	using Divider = CloudPassword::OneEdgeBoxContentDivider;
 	const auto divider = Ui::CreateChild<Divider>(this);
 	divider->lower();
 	const auto about = content->add(
@@ -554,15 +519,7 @@ void LocalPasscodeManage::setupContent() {
 
 QPointer<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
-
-	AddSkip(content);
-
-	AddButton(
-		content,
-		tr::lng_settings_passcode_disable(),
-		st::settingsAttentionButton
-	)->addClickHandler([=] {
+	auto callback = [=] {
 		_controller->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_settings_passcode_disable_sure(),
@@ -575,32 +532,16 @@ QPointer<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 				.confirmText = tr::lng_settings_auto_night_disable(),
 				.confirmStyle = &st::attentionBoxButton,
 			}));
-	});
-
-	const auto divider = Ui::CreateChild<Divider>(parent.get());
-	divider->skipEdge(Qt::TopEdge, true);
-	rpl::combine(
+	};
+	auto bottomButton = CloudPassword::CreateBottomDisableButton(
+		parent,
 		geometryValue(),
-		parent->geometryValue(),
-		content->geometryValue()
-	) | rpl::start_with_next([=](
-			const QRect &r,
-			const QRect &parentRect,
-			const QRect &bottomRect) {
-		const auto top = r.y() + r.height();
-		divider->setGeometry(
-			0,
-			top,
-			r.width(),
-			parentRect.height() - top - bottomRect.height());
-	}, divider->lifetime());
-	divider->show();
-	_isBottomFillerShown = divider->geometryValue(
-	) | rpl::map([](const QRect &r) {
-		return r.height() > 0;
-	});
+		tr::lng_settings_passcode_disable(),
+		std::move(callback));
 
-	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
+	_isBottomFillerShown = base::take(bottomButton.isBottomFillerShown);
+
+	return bottomButton.content;
 }
 
 void LocalPasscodeManage::showFinished() {

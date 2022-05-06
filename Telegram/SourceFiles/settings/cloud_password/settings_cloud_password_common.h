@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "settings/settings_common.h"
+#include "ui/widgets/box_content_divider.h"
 
 namespace Ui {
 class FlatLabel;
@@ -40,6 +41,31 @@ void SetupHeader(
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content);
 void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content);
+
+struct BottomButton {
+	QPointer<Ui::RpWidget> content;
+	rpl::producer<bool> isBottomFillerShown;
+};
+
+BottomButton CreateBottomDisableButton(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<QRect> &&sectionGeometryValue,
+	rpl::producer<QString> &&buttonText,
+	Fn<void()> &&callback);
+
+class OneEdgeBoxContentDivider : public Ui::BoxContentDivider {
+public:
+	using Ui::BoxContentDivider::BoxContentDivider;
+
+	void skipEdge(Qt::Edge edge, bool skip);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	Qt::Edges _skipEdges;
+
+};
 
 class AbstractStep : public AbstractSection {
 public:
