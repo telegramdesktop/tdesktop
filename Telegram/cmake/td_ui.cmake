@@ -218,6 +218,8 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
+    ui/controls/peer_list_dummy.cpp
+    ui/controls/peer_list_dummy.h
     ui/controls/send_as_button.cpp
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp

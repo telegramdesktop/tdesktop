@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/premium_limits_box.h"
 #include "window/notifications_manager.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_session_controller.h"
@@ -1229,7 +1230,7 @@ void ApiWrap::migrateDone(
 
 void ApiWrap::migrateFail(not_null<PeerData*> peer, const QString &error) {
 	if (error == u"CHANNELS_TOO_MUCH"_q) {
-		Ui::show(Ui::MakeInformBox(tr::lng_migrate_error()));
+		Ui::show(Box(ChannelsLimitBox, _session));
 	}
 	if (auto handlers = _migrateCallbacks.take(peer)) {
 		for (auto &handler : *handlers) {
@@ -1645,6 +1646,9 @@ void ApiWrap::saveStickerSets(
 }
 
 void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
+	Ui::show(Box(ChannelsLimitBox, _session));
+	AssertIsDebug();
+	return;
 	if (channel->amIn()) {
 		session().changes().peerUpdated(
 			channel,
@@ -1660,6 +1664,8 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			if (type == qstr("CHANNEL_PRIVATE")
 				&& channel->invitePeekExpires()) {
 				channel->privateErrorReceived();
+			} else if (type == qstr("CHANNELS_TOO_MUCH")) {
+				Ui::show(Box(ChannelsLimitBox, _session));
 			} else {
 				const auto text = [&] {
 					if (type == qstr("INVITE_REQUEST_SENT")) {
@@ -1672,8 +1678,6 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 						return channel->isMegagroup()
 							? tr::lng_group_not_accessible(tr::now)
 							: tr::lng_channel_not_accessible(tr::now);
-					} else if (type == qstr("CHANNELS_TOO_MUCH")) {
-						return tr::lng_join_channel_error(tr::now);
 					} else if (type == qstr("USERS_TOO_MUCH")) {
 						return tr::lng_group_full(tr::now);
 					}

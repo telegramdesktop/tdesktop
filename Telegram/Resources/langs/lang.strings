@@ -164,11 +164,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scam_badge" = "SCAM";
 "lng_fake_badge" = "FAKE";
 
+"lng_channels_limit_title" = "Too Many Communities";
+"lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
+"lng_channels_limit1#other" = "You are a member of **{count}** groups and channels.";
+"lng_channels_limit2#one" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
+"lng_channels_limit2#other" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
+"lng_channels_limit2_final" = "Please leave some before joining a new one.";
+"lng_channels_leave_title" = "Least active communities";
+"lng_channels_leave_status" = "{type}, inactive {time}";
+"lng_channels_leave#one" = "Leave {count} community";
+"lng_channels_leave#other" = "Leave {count} communities";
+"lng_channels_leave_done" = "You've left the selected communities.";
+
+"lng_links_limit_title" = "Too Many Public Links";
+"lng_links_limit1#one" = "You have reserved **{count}** public link.";
+"lng_links_limit1#other" = "You have reserved **{count}** public links.";
+"lng_links_limit2#one" = "Try revoking the link from an older group or channel, or upgrade to **Telegram Premium** to double the limit to **{count}** public link.";
+"lng_links_limit2#other" = "Try revoking the link from an older group or channel, or upgrade to **Telegram Premium** to double the limit to **{count}** public links.";
+"lng_links_limit2_final" = "Try revoking the link from an older group or channel";
+"lng_links_revoke_title" = "Your public communities";
+
+"lng_filter_chats_limit_title" = "Limit Reached";
+"lng_filter_chats_limit1#one" = "Sorry, you can't add more than **{count}** chat to a folder.";
+"lng_filter_chats_limit1#other" = "Sorry, you can't add more than **{count}** chats to a folder.";
+"lng_filter_chats_limit2#one" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
+"lng_filter_chats_limit2#other" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
+
+"lng_filters_limit_title" = "Limit Reached";
+"lng_filters_limit1#one" = "You have reached the limit of **{count}** folder.";
+"lng_filters_limit1#other" = "You have reached the limit of **{count}** folders.";
+"lng_filters_limit2#one" = "You can double the limit to **{count}** folder by subscribing to **Telegram Premium**.";
+"lng_filters_limit2#other" = "You can double the limit to **{count}** folders by subscribing to **Telegram Premium**.";
+
+"lng_filter_pin_limit_title" = "Limit Reached";
+"lng_filter_pin_limit1#one" = "Sorry, you can't pin more than **{count}** chat to the top.";
+"lng_filter_pin_limit1#other" = "Sorry, you can't pin more than **{count}** chats to the top.";
+"lng_filter_pin_limit2#one" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chat.";
+"lng_filter_pin_limit2#other" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chats.";
+
+"lng_fave_sticker_limit_title#one" = "The Limit of {count} Stickers Reached";
+"lng_fave_sticker_limit_title#other" = "The Limit of {count} Stickers Reached";
+"lng_fave_sticker_limit_more#one" = "An older sticker was replaced with this one. You can {link} to {count} sticker.";
+"lng_fave_sticker_limit_more#other" = "An older sticker was replaced with this one. You can {link} to {count} stickers.";
+"lng_fave_sticker_limit_link" = "increase the limit";
+
+"lng_saved_gif_limit_title#one" = "The Limit of {count} GIF Reached";
+"lng_saved_gif_limit_title#other" = "The Limit of {count} GIFs Reached";
+"lng_saved_gif_limit_more#one" = "An older GIF was replaced with this one. You can {link} to {count} GIF.";
+"lng_saved_gif_limit_more#other" = "An older GIF was replaced with this one. You can {link} to {count} GIFs.";
+"lng_saved_gif_limit_link" = "increase the limit";
+
+"lng_limits_increase" = "Increase Limit";
+
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
-"lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining this one.";
-"lng_migrate_error" = "This action will convert the group to a supergroup. Unfortunately, you are a member of too many supergroups and channels. Please leave some of the channels or groups you don't need before proceeding.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";

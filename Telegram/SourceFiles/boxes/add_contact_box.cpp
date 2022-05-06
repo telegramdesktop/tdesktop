@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_peer_common.h"
 #include "boxes/peers/edit_participant_box.h"
@@ -782,7 +783,7 @@ void GroupInfoBox::createChannel(
 				Ui::LayerOption::CloseOther);
 		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
 			controller->show(
-				Ui::MakeInformBox(tr::lng_cant_do_this()),
+				Box(ChannelsLimitBox, &controller->session()),
 				Ui::LayerOption::CloseOther); // TODO
 		}
 	}).send();
