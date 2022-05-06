@@ -562,6 +562,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_cloud_password_manage_email_change" = "Change Recovery Email";
 "lng_settings_cloud_password_manage_password_change" = "Change Password";
 "lng_settings_cloud_password_skip_hint" = "Skip hint";
+"lng_settings_cloud_password_save" = "Save and Finish";
+"lng_settings_cloud_password_email_confirm" = "Confirm and Finish";
 
 "lng_clear_payment_info_title" = "Clear payment info";
 "lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
@@ -705,7 +707,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_hint" = "Enter Password Hint";
 "lng_cloud_password_change_hint" = "Enter new password hint";
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
-"lng_cloud_password_email" = "Enter recovery email";
+"lng_cloud_password_email" = "Enter Email";
 "lng_cloud_password_bad_email" = "Incorrect email, please try other.";
 "lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the SMS code.";
 "lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery email?\n\nIf you forget your password, you will\nlose access to your Telegram account.";

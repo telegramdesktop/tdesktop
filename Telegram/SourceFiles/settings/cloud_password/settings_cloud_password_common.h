@@ -20,11 +20,18 @@ class RoundButton;
 class VerticalLayout;
 } // namespace Ui
 
+namespace Api {
+class CloudPassword;
+} // namespace Api
+
 namespace Settings::CloudPassword {
 
 struct StepData {
+	QString currentPassword;
 	QString password;
 	QString hint;
+	QString email;
+	int unconfirmedEmailLengthCode;
 };
 
 void SetupHeader(
@@ -96,6 +103,7 @@ public:
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
+	[[nodiscard]] Api::CloudPassword &cloudPassword();
 
 	void showBack();
 	void showOther(Type type);

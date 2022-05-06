@@ -7,13 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_common.h"
 
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
+#include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -221,6 +224,10 @@ AbstractStep::AbstractStep(
 
 not_null<Window::SessionController*> AbstractStep::controller() const {
 	return _controller;
+}
+
+Api::CloudPassword &AbstractStep::cloudPassword() {
+	return _controller->session().api().cloudPassword();
 }
 
 void AbstractStep::showBack() {
