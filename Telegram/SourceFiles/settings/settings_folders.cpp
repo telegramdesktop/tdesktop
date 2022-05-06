@@ -301,6 +301,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto icon = Ui::LookupFilterIcon(_icon).normal;
 
 		// For now.
+		auto hq = PainterHighQualityEnabler(p);
 		const auto iconWidth = icon->width() - style::ConvertScale(9);
 		const auto scale = st::settingsIconAdd.width() / float64(iconWidth);
 		p.translate(
