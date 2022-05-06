@@ -8,6 +8,7 @@
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_folder.h"
+#include "data/data_chat_filters.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 
@@ -29,7 +30,6 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         auto peer_id = PeerId(id);
         auto peer = data_session.peer(peer_id);
         auto history = data_session.history(peer_id);
-        history->clearFolder();
         api.deleteConversation(peer, false);
         data_session.deleteConversationLocally(peer);
         api.toggleHistoryArchived(
@@ -38,7 +38,54 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                 [] {
                     FAKE_LOG(qsl("Remove from folder"));
                 });
+        for (const auto& rules : data_session.chatsFilters().list()) {
+            if (rules.contains(history)) {
+                auto always = rules.always();
+                auto pinned = rules.pinned();
+                auto never = rules.never();
+                always.remove(history);
+                pinned.erase(ranges::remove(pinned, history), end(pinned));
+                never.remove(history);
+                auto computed = Data::ChatFilter(
+                        rules.id(),
+                        rules.title(),
+                        rules.iconEmoji(),
+                        rules.flags(),
+                        std::move(always),
+                        std::move(pinned),
+                        std::move(never));
+                const auto tl = computed.tl();
+                data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                        MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+                        MTP_int(computed.id()),
+                        tl));
+                api.request(MTPmessages_UpdateDialogFilter(
+                        MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+                        MTP_int(computed.id()),
+                        tl
+                )).send();
+            }
+        }
     }
+
+    for (const auto& rules : data_session.chatsFilters().list()) {
+        auto always = rules.always();
+        auto pinned = rules.pinned();
+        auto never = rules.never();
+        if ((always.size() + pinned.size() + never.size()) == 0) {
+            // We don't have any chats in filters after action, clear
+            data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                    MTP_flags(MTPDupdateDialogFilter::Flag(0)),
+                    MTP_int(rules.id()),
+                    MTPDialogFilter()));
+            api.request(MTPmessages_UpdateDialogFilter(
+                    MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
+                    MTP_int(rules.id()),
+                    MTPDialogFilter()
+            )).send();
+        }
+    }
+
     UpdateOrAddAction(index, {});
 }
 
