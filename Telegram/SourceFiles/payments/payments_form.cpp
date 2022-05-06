@@ -392,6 +392,15 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.canSaveCredentials = data.is_can_save_credentials(),
 		.passwordMissing = data.is_password_missing(),
 	};
+	_invoice.isTest = data.is_test();
+	_invoice.cover.title = qs(data.vtitle());
+	_invoice.cover.description = qs(data.vdescription());
+	if (_invoice.cover.thumbnail.isNull() && !_thumbnailLoadProcess) {
+		if (const auto photo = data.vphoto()) {
+			loadThumbnail(
+				_session->data().photoFromWeb(*photo, ImageLocation()));
+		}
+	}
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
 			_invoice.cover.seller = bot->name;
