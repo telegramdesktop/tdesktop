@@ -1080,6 +1080,8 @@ PRIVATE
     settings/cloud_password/settings_cloud_password_hint.h
     settings/cloud_password/settings_cloud_password_input.cpp
     settings/cloud_password/settings_cloud_password_input.h
+    settings/cloud_password/settings_cloud_password_manage.cpp
+    settings/cloud_password/settings_cloud_password_manage.h
     settings/cloud_password/settings_cloud_password_start.cpp
     settings/cloud_password/settings_cloud_password_start.h
     settings/settings_advanced.cpp

@@ -397,7 +397,7 @@ public:
 	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
 
 	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
-			not_null<Ui::RpWidget*> parent) override;
+		not_null<Ui::RpWidget*> parent) override;
 
 private:
 	void setupContent();

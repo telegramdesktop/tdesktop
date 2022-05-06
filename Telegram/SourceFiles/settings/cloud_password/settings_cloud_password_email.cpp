@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -86,8 +87,11 @@ void Email::setupContent() {
 			_requestLifetime.destroy();
 
 			auto empty = StepData();
-			empty.currentPassword = stepData().password;
+			empty.currentPassword = stepData().password.isEmpty()
+				? stepData().currentPassword
+				: stepData().password;
 			setStepData(std::move(empty));
+			showOther(CloudPasswordManageId());
 		});
 
 		if (close) {
