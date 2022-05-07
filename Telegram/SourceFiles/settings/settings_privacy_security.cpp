@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "settings/cloud_password/settings_cloud_password_input.h"
+#include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_blocked_peers.h"
 #include "settings/settings_common.h"
 #include "settings/settings_local_passcode.h"
@@ -259,7 +262,8 @@ void SetupLocalPasscode(
 
 void SetupCloudPassword(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	using namespace rpl::mappers;
 	using State = Core::CloudPasswordState;
 
@@ -268,14 +272,60 @@ void SetupCloudPassword(
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_password_title());
 
+	enum class PasswordState {
+		Loading,
+		On,
+		Off,
+		Unconfirmed,
+	};
 	const auto session = &controller->session();
+	auto passwordState = rpl::single(
+		PasswordState::Loading
+	) | rpl::then(session->api().cloudPassword().state(
+	) | rpl::map([](const State &state) {
+		return (!state.unconfirmedPattern.isEmpty())
+			? PasswordState::Unconfirmed
+			: state.hasPassword
+			? PasswordState::On
+			: PasswordState::Off;
+	})) | rpl::distinct_until_changed();
+
+	auto label = rpl::duplicate(
+		passwordState
+	) | rpl::map([=](PasswordState state) {
+		return (state == PasswordState::Loading)
+			? tr::lng_profile_loading(tr::now)
+			: (state == PasswordState::On)
+			? tr::lng_settings_cloud_password_on(tr::now)
+			: tr::lng_settings_cloud_password_off(tr::now);
+	});
+
+	AddButtonWithLabel(
+		container,
+		tr::lng_settings_cloud_password_start_title(),
+		std::move(label),
+		st::settingsButton,
+		{ &st::settingsIconKey, kIconLightBlue }
+	)->addClickHandler([=, passwordState = base::duplicate(passwordState)] {
+		const auto state = rpl::variable<PasswordState>(
+			base::duplicate(passwordState)).current();
+		if (state == PasswordState::Loading) {
+			return;
+		} else if (state == PasswordState::On) {
+			showOther(CloudPasswordInputId());
+		} else if (state == PasswordState::Off) {
+			showOther(CloudPasswordStartId());
+		} else if (state == PasswordState::Unconfirmed) {
+			showOther(CloudPasswordEmailConfirmId());
+		}
+	});
+
+#if 0
 	auto has = rpl::single(
 		false
 	) | rpl::then(controller->session().api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
-		return state.mtp.request
-			|| state.mtp.unknownAlgorithm
-			|| !state.unconfirmedPattern.isEmpty();
+		return state.hasPassword;
 	})) | rpl::distinct_until_changed();
 	auto pattern = session->api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
@@ -300,10 +350,6 @@ void SetupCloudPassword(
 	) | rpl::then(rpl::duplicate(
 		unconfirmed
 	));
-	auto resetAt = session->api().cloudPassword().state(
-	) | rpl::map([](const State &state) {
-		return state.pendingResetDate;
-	});
 	const auto label = container->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			container,
@@ -411,7 +457,12 @@ void SetupCloudPassword(
 		rpl::duplicate(noconfirmed),
 		_1 && !_2));
 	disable->entity()->addClickHandler(remove);
+#endif
 
+	auto resetAt = session->api().cloudPassword().state(
+	) | rpl::map([](const State &state) {
+		return state.pendingResetDate;
+	});
 	auto resetInSeconds = rpl::duplicate(
 		resetAt
 	) | rpl::filter([](TimeId time) {
@@ -523,6 +574,7 @@ void SetupCloudPassword(
 		}
 	});
 
+#if 0
 	const auto abort = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
@@ -535,16 +587,16 @@ void SetupCloudPassword(
 		rpl::duplicate(noconfirmed),
 		_1 && _2));
 	abort->entity()->addClickHandler(remove);
+#endif
 
 	const auto reloadOnActivation = [=](Qt::ApplicationState state) {
-		if (label->toggled() && state == Qt::ApplicationActive) {
+		if (/*label->toggled() && */state == Qt::ApplicationActive) {
 			controller->session().api().cloudPassword().reload();
 		}
 	};
 	QObject::connect(
 		static_cast<QGuiApplication*>(QCoreApplication::instance()),
 		&QGuiApplication::applicationStateChanged,
-		label,
 		reloadOnActivation);
 
 	session->api().cloudPassword().reload();
@@ -781,7 +833,7 @@ void SetupSecurity(
 		rpl::duplicate(updateTrigger),
 		showOther);
 	SetupLocalPasscode(controller, container, showOther);
-	SetupCloudPassword(controller, container);
+	SetupCloudPassword(controller, container, showOther);
 }
 
 } // namespace
