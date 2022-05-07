@@ -295,4 +295,39 @@ rpl::producer<CloudPassword::SetOk, QString> CloudPassword::set(
 	};
 }
 
+rpl::producer<rpl::no_value, QString> CloudPassword::check(
+		const QString &password) {
+	return [=](auto consumer) {
+		_api.request(MTPaccount_GetPassword(
+		)).done([=](const MTPaccount_Password &result) {
+			const auto latestState = ProcessMtpState(result);
+			const auto input = [&] {
+				if (password.isEmpty()) {
+					return Core::CloudPasswordResult{
+						MTP_inputCheckPasswordEmpty()
+					};
+				}
+				const auto hash = Core::ComputeCloudPasswordHash(
+					latestState.mtp.request.algo,
+					bytes::make_span(password.toUtf8()));
+				return Core::ComputeCloudPasswordCheck(
+					latestState.mtp.request,
+					hash);
+			}();
+
+			_api.request(MTPaccount_GetPasswordSettings(
+				input.result
+			)).done([=](const MTPaccount_PasswordSettings &result) {
+				consumer.put_done();
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
 } // namespace Api

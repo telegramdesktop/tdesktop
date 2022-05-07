@@ -44,6 +44,7 @@ public:
 		const QString &hint,
 		bool hasRecoveryEmail,
 		const QString &recoveryEmail);
+	rpl::producer<rpl::no_value, QString> check(const QString &password);
 
 private:
 	void apply(Core::CloudPasswordState state);
