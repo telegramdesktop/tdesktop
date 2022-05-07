@@ -330,4 +330,44 @@ rpl::producer<rpl::no_value, QString> CloudPassword::check(
 	};
 }
 
+rpl::producer<rpl::no_value, QString> CloudPassword::confirmEmail(
+		const QString &code) {
+	return [=](auto consumer) {
+		_api.request(MTPaccount_ConfirmPasswordEmail(
+			MTP_string(code)
+		)).done([=] {
+			_api.request(MTPaccount_GetPassword(
+			)).done([=](const MTPaccount_Password &result) {
+				apply(ProcessMtpState(result));
+				consumer.put_done();
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).handleFloodErrors().send();
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::resendEmailCode() {
+	return [=](auto consumer) {
+		_api.request(MTPaccount_ResendPasswordEmail(
+		)).done([=] {
+			_api.request(MTPaccount_GetPassword(
+			)).done([=](const MTPaccount_Password &result) {
+				apply(ProcessMtpState(result));
+				consumer.put_done();
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).handleFloodErrors().send();
+
+		return rpl::lifetime();
+	};
+}
+
 } // namespace Api

@@ -46,6 +46,9 @@ public:
 		const QString &recoveryEmail);
 	rpl::producer<rpl::no_value, QString> check(const QString &password);
 
+	rpl::producer<rpl::no_value, QString> confirmEmail(const QString &code);
+	rpl::producer<rpl::no_value, QString> resendEmailCode();
+
 private:
 	void apply(Core::CloudPasswordState state);
 
