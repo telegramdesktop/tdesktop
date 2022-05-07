@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_main.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -395,7 +396,9 @@ void WrapWidget::createTopBar() {
 		addTopBarMenuButton();
 		addProfileCallsButton();
 	} else if (section.type() == Section::Type::Settings
-		&& (section.settingsType() == ::Settings::Main::Id()
+		&& (section.settingsType()
+				== ::Settings::CloudPasswordEmailConfirmId()
+			|| section.settingsType() == ::Settings::Main::Id()
 			|| section.settingsType() == ::Settings::Chat::Id())) {
 		addTopBarMenuButton();
 	} else if (section.type() == Section::Type::Downloads) {

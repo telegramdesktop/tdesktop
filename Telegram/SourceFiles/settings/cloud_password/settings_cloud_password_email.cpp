@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
@@ -80,6 +81,7 @@ void Email::setupContent() {
 			auto data = stepData();
 			data.unconfirmedEmailLengthCode = d.unconfirmedEmailLengthCode;
 			setStepData(std::move(data));
+			showOther(CloudPasswordEmailConfirmId());
 		}, [=](const QString &error) {
 			_requestLifetime.destroy();
 

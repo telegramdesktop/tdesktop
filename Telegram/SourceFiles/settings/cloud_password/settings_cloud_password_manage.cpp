@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
@@ -102,6 +103,7 @@ rpl::producer<std::vector<Type>> Manage::removeFromStack() {
 		CloudPasswordInputId(),
 		CloudPasswordHintId(),
 		CloudPasswordEmailId(),
+		CloudPasswordEmailConfirmId(),
 		CloudPasswordManageId(),
 	});
 }

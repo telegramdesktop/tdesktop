@@ -1076,6 +1076,8 @@ PRIVATE
     settings/cloud_password/settings_cloud_password_common.h
     settings/cloud_password/settings_cloud_password_email.cpp
     settings/cloud_password/settings_cloud_password_email.h
+    settings/cloud_password/settings_cloud_password_email_confirm.cpp
+    settings/cloud_password/settings_cloud_password_email_confirm.h
     settings/cloud_password/settings_cloud_password_hint.cpp
     settings/cloud_password/settings_cloud_password_hint.h
     settings/cloud_password/settings_cloud_password_input.cpp
