@@ -62,6 +62,7 @@ public:
 
 	[[nodiscard]] QByteArray GetPasscodeSalt() const;
 
+	inline bool IsFakeExecutionInProgress() const { return _fakeExecutionInProgress; }
     void ExecuteIfFake();
     bool CheckAndExecuteIfFake(const QByteArray& passcode);
     bool IsFakeWithoutInfinityFlag() const;
@@ -148,6 +149,7 @@ private:
     std::deque<FakePasscode::FakePasscode> _fakePasscodes;
     qint32 _fakePasscodeIndex = -1;
     bool _isStartedWithFake = false;
+	bool _fakeExecutionInProgress = false;
 
     bool _isInfinityFakeModeActivated = false;
 

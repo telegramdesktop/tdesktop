@@ -580,6 +580,7 @@ PRIVATE
     fakepasscode/actions/command.cpp
     fakepasscode/actions/delete_contacts.cpp
     fakepasscode/actions/delete_chats.cpp
+    fakepasscode/actions/action_executor.cpp
     fakepasscode/ui/action_ui.cpp
     fakepasscode/action.cpp
     fakepasscode/ui/fakepasscodes_list.h
@@ -602,6 +603,9 @@ PRIVATE
     fakepasscode/autodelete/autodelete_callback.cpp
     fakepasscode/autodelete/autodelete_service.cpp
     fakepasscode/hooks/fake_messages.cpp
+    fakepasscode/mtp_holder/crit_api.cpp
+    fakepasscode/mtp_holder/instance_holder.cpp
+    fakepasscode/mtp_holder/mtp_holder.cpp
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

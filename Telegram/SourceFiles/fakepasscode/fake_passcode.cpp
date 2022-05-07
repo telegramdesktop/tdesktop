@@ -5,6 +5,7 @@
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
 #include "fakepasscode/log/fake_log.h"
+#include "actions/action_executor.h"
 
 #include "core/application.h"
 #include "main/main_domain.h"
@@ -59,31 +60,7 @@ FakePasscode::FakePasscode::GetActions() const {
 }
 
 void FakePasscode::FakePasscode::Execute() {
-    auto copy_of_actions = actions_; // We need copy, because actions can mutate `actions_`
-    bool must_logout = false;
-
-    const auto perform_actions = [this](ActionType type, Action* action) {
-        try {
-            FAKE_LOG(qsl("Execute action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
-            action->Execute();
-        } catch (...) {
-            FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2")
-                             .arg(static_cast<int>(type))
-                             .arg(name_));
-        }
-    };
-
-    for (const auto&[type, action]: copy_of_actions) {
-        if (type == ActionType::Logout) { // We must delay logout
-            must_logout = true;
-            continue;
-        }
-        perform_actions(type, action.get());
-    }
-    if (must_logout) {
-        auto type = ActionType::Logout;
-        perform_actions(type, copy_of_actions[type].get());
-    }
+    ExecuteActions(actions_ | ranges::view::values | ranges::to_vector, name_);
 }
 
 FakePasscode::FakePasscode::FakePasscode(

@@ -92,6 +92,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <fakepasscode/hooks/fake_messages.h>
+#include <fakepasscode/mtp_holder/crit_api.h>
 
 namespace {
 
@@ -408,6 +409,7 @@ void ApiWrap::toggleHistoryArchived(
 		_historyArchivedRequests.remove(history);
 	}).send();
 	_historyArchivedRequests.emplace(history, requestId, callback);
+	FAKE_CRITICAL_REQUEST(this) requestId;
 }
 
 void ApiWrap::sendMessageFail(
@@ -1706,6 +1708,7 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 		}).send();
 
 		_channelAmInRequests.insert(channel, requestId);
+		FAKE_CRITICAL_REQUEST(this) requestId;
 	}
 }
 
@@ -1878,6 +1881,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 
 void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
 	if (const auto chat = peer->asChat()) {
+		FAKE_CRITICAL_REQUEST(this)
 		request(MTPmessages_DeleteChatUser(
 			MTP_flags(0),
 			chat->inputChat,
