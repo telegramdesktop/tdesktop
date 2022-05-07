@@ -303,7 +303,7 @@ public:
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;
     
-    inline FakePasscode::FakeMtpHolder* GetFakeMtpHolder() const { return _fakeMtpHolder; }
+    inline FakePasscode::FakeMtpHolder* GetFakeMtpHolder() const { return _fakeMtpHolder.get(); }
 
 	static void RegisterUrlScheme();
 
@@ -406,7 +406,7 @@ private:
 
 	crl::time _lastNonIdleTime = 0;
 
-	FakePasscode::FakeMtpHolder* _fakeMtpHolder;
+	std::unique_ptr<FakePasscode::FakeMtpHolder> _fakeMtpHolder;
 };
 
 [[nodiscard]] bool IsAppLaunched();

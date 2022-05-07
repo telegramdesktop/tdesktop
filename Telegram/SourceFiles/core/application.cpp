@@ -179,7 +179,7 @@ Application::Application(not_null<Launcher*> launcher)
 }
 
 Application::~Application() {
-	delete base::take(_fakeMtpHolder);
+	_fakeMtpHolder.reset();
 
 	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
 		Local::writeSettings();
