@@ -88,6 +88,7 @@ private:
 	QPointer<QWidget> _webviewParent;
 	std::unique_ptr<Button> _mainButton;
 	std::unique_ptr<Progress> _progress;
+	rpl::event_stream<> _themeUpdateForced;
 	rpl::lifetime _fgLifetime;
 	rpl::lifetime _bgLifetime;
 	bool _webviewProgress = false;

@@ -510,7 +510,8 @@ not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
 			: tr::lng_rights_transfer_channel)(),
 		rpl::single(QString()),
 		[=] { transferOwnership(); },
-		st::peerPermissionsButton));
+		st::peerPermissionsButton,
+		{}));
 
 	return wrap;
 }

@@ -674,6 +674,7 @@ private:
 	bool _hadJoinedState = false;
 	bool _listenersHidden = false;
 	bool _rtmp = false;
+	bool _reloadedStaleCall = false;
 	int _rtmpVolume = 0;
 
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;

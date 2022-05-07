@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "settings/settings_common.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -612,7 +613,8 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 		AboutGigagroupCallback(
 			_peer->asChannel(),
 			_navigation->parentController()),
-		st::peerPermissionsButton));
+		st::peerPermissionsButton,
+		{}));
 
 	container->add(
 		object_ptr<Ui::DividerLabel>(
@@ -645,7 +647,8 @@ void EditPeerPermissionsBox::addBannedButtons(
 				_peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
-		st::peerPermissionsButton));
+		st::peerPermissionsButton,
+		{}));
 	if (channel) {
 		container->add(EditPeerInfoBox::CreateButton(
 			container,
@@ -658,7 +661,8 @@ void EditPeerPermissionsBox::addBannedButtons(
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
-			st::peerPermissionsButton));
+			st::peerPermissionsButton,
+			{}));
 	}
 }
 
