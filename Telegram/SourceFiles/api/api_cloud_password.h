@@ -52,6 +52,14 @@ public:
 		const QString &oldPassword,
 		const QString &recoveryEmail);
 
+	rpl::producer<rpl::no_value, QString> recoverPassword(
+		const QString &code,
+		const QString &newPassword,
+		const QString &newHint);
+	rpl::producer<QString, QString> requestPasswordRecovery();
+	rpl::producer<rpl::no_value, QString> checkRecoveryEmailAddressCode(
+		const QString &code);
+
 private:
 	void apply(Core::CloudPasswordState state);
 
