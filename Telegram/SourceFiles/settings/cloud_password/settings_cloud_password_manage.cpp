@@ -130,6 +130,16 @@ void Manage::setupContent() {
 		}
 	}, lifetime());
 
+	const auto showOtherAndRememberPassword = [=](Type type) {
+		// Remember the current password to have ability
+		// to return from Change Password to Password Manage.
+		auto data = stepData();
+		data.currentPassword = _currentPassword;
+		setStepData(std::move(data));
+
+		showOther(type);
+	};
+
 	SetupTopContent(content, showFinishes());
 
 	AddSkip(content);
@@ -139,13 +149,7 @@ void Manage::setupContent() {
 		st::settingsButton,
 		{ &st::settingsIconKey, kIconLightBlue }
 	)->setClickedCallback([=] {
-		// Remember the current password to have ability
-		// to return from Change Password to Password Manage.
-		auto data = stepData();
-		data.currentPassword = _currentPassword;
-		setStepData(std::move(data));
-
-		showOther(CloudPasswordInputId());
+		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
 	AddButton(
 		content,
@@ -155,6 +159,11 @@ void Manage::setupContent() {
 		st::settingsButton,
 		{ &st::settingsIconEmail, kIconLightOrange }
 	)->setClickedCallback([=] {
+		auto data = stepData();
+		data.setOnlyRecoveryEmail = true;
+		setStepData(std::move(data));
+
+		showOtherAndRememberPassword(CloudPasswordEmailId());
 	});
 	AddSkip(content);
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email.h"
 
 #include "api/api_cloud_password.h"
+#include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
@@ -45,13 +46,19 @@ void Email::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	auto currentStepData = stepData();
 	const auto currentStepDataEmail = base::take(currentStepData.email);
+	const auto setOnly = base::take(currentStepData.setOnlyRecoveryEmail);
 	setStepData(currentStepData);
+
+	const auto state = cloudPassword().stateCurrent();
+	const auto hasRecovery = state && state->hasRecovery;
 
 	SetupHeader(
 		content,
 		u"cloud_password/email"_q,
 		showFinishes(),
-		tr::lng_settings_cloud_password_email_subtitle(),
+		hasRecovery
+			? tr::lng_settings_cloud_password_manage_email_change()
+			: tr::lng_settings_cloud_password_email_subtitle(),
 		tr::lng_settings_cloud_password_email_about());
 
 	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
@@ -69,12 +76,14 @@ void Email::setupContent() {
 
 		const auto data = stepData();
 
-		_requestLifetime = cloudPassword().set(
-			data.currentPassword,
-			data.password,
-			data.hint,
-			!data.email.isEmpty(),
-			data.email
+		_requestLifetime = (setOnly
+			? cloudPassword().setEmail(data.currentPassword, data.email)
+			: cloudPassword().set(
+				data.currentPassword,
+				data.password,
+				data.hint,
+				!data.email.isEmpty(),
+				data.email)
 		) | rpl::start_with_next_error_done([=](Api::CloudPassword::SetOk d) {
 			_requestLifetime.destroy();
 
@@ -134,6 +143,7 @@ void Email::setupContent() {
 	skip->setClickedCallback([=] {
 		confirm(QString());
 	});
+	skip->setVisible(!setOnly);
 
 	const auto button = AddDoneButton(
 		content,

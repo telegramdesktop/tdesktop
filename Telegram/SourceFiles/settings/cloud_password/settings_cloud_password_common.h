@@ -32,6 +32,7 @@ struct StepData {
 	QString hint;
 	QString email;
 	int unconfirmedEmailLengthCode;
+	bool setOnlyRecoveryEmail = false;
 };
 
 void SetupHeader(
