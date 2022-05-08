@@ -136,6 +136,10 @@ public:
 	[[nodiscard]] bool hasCallback(mtpRequestId requestId) const;
 	void processCallback(const Response &response);
 	void processUpdate(const Response &message);
+	void clearCallbacks() {
+		QMutexLocker locker(&_parserMapLock);
+		_parserMap.clear();
+	}
 
 	void onStateChange(ShiftedDcId shiftedDcId, int32 state);
 	void onSessionReset(ShiftedDcId shiftedDcId);
@@ -2007,6 +2011,10 @@ void Instance::processCallback(const Response &response) {
 
 void Instance::processUpdate(const Response &message) {
 	_private->processUpdate(message);
+}
+
+void Instance::clearCallbacks() {
+	_private->clearCallbacks();
 }
 
 bool Instance::rpcErrorOccured(

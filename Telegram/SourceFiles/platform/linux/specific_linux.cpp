@@ -382,12 +382,6 @@ QString GetIconName() {
 std::optional<bool> IsDarkMode() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	[[maybe_unused]] static const auto Inited = [] {
-		static const auto Setter = [] {
-			crl::on_main([] {
-				Core::App().settings().setSystemDarkMode(IsDarkMode());
-			});
-		};
-
 		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
 		static const XDPSettingWatcher Watcher(
 			[=](
@@ -396,7 +390,14 @@ std::optional<bool> IsDarkMode() {
 				const Glib::VariantBase &value) {
 				if (group == "org.freedesktop.appearance"
 					&& key == "color-scheme") {
-					Setter();
+					try {
+						const auto ivalue = base::Platform::GlibVariantCast<uint>(value);
+
+						crl::on_main([=] {
+							Core::App().settings().setSystemDarkMode(ivalue == 1);
+						});
+					} catch (...) {
+					}
 				}
 			});
 
@@ -410,10 +411,7 @@ std::optional<bool> IsDarkMode() {
 
 		if (result.has_value()) {
 			const auto value = base::Platform::GlibVariantCast<uint>(*result);
-			if (value == 1) {
-				return true;
-			}
-			return false;
+			return value == 1;
 		}
 	} catch (...) {
 	}

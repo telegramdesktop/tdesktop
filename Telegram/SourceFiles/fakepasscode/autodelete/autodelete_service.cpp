@@ -17,6 +17,7 @@
 #include <storage/storage_domain.h>
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/mtp_holder/crit_api.h"
 
 constexpr int VERSION = 1;
 
@@ -340,11 +341,11 @@ mtpRequestId AutoDeleteService::autoDeleteRaw(Main::Session* session, PeerData* 
         onError();
     };
     if (const auto channel = peer->asChannel()) {
-        return session->api().request(MTPchannels_DeleteMessages(channel->inputChannel, ids))
+        return FAKE_CRITICAL_REQUEST(session) session->api().request(MTPchannels_DeleteMessages(channel->inputChannel, ids))
             .done(done).fail(error).send();
     } else {
         using Flag = MTPmessages_DeleteMessages::Flag;
-        return session->api().request(MTPmessages_DeleteMessages(MTP_flags(Flag::f_revoke), ids))
+        return FAKE_CRITICAL_REQUEST(session) session->api().request(MTPmessages_DeleteMessages(MTP_flags(Flag::f_revoke), ids))
             .done(done).fail(error).send();
     }
 }
@@ -518,9 +519,7 @@ void AutoDeleteService::deserialize(int index, QByteArray data) {
 
 template<typename Fn>
 void AutoDeleteService::postponeCall(Fn&& fn) {
-    Core::App().postponeCall(crl::guard(this, [fn = std::forward<Fn>(fn)]{
-        fn();
-    }));
+    Core::App().postponeCall(crl::guard(this, std::forward<Fn>(fn)));
 }
 
 }

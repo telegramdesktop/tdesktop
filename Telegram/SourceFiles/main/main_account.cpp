@@ -212,7 +212,7 @@ void Account::destroySession(DestroyReason reason) {
 	_session = nullptr;
 }
 
-void Account::destroySessionAfterAction(DestroyReason reason) {
+void Account::destroySessionAfterAction() {
 	_storedSessionSettings.reset();
 	_sessionUserId = 0;
 	_sessionUserSerialized = {};
@@ -221,6 +221,13 @@ void Account::destroySessionAfterAction(DestroyReason reason) {
 	}
 
 	_sessionValue = nullptr;
+
+
+    _session->data().cache().close();
+    _session->data().cacheBigFile().close();
+    _session->unlockTerms();
+    _session->data().clear();
+    _session->updates().updateOnline();
 
 	_session = nullptr;
 }
@@ -571,8 +578,10 @@ void Account::loggedOut() {
 void Account::loggedOutAfterAction() {
 
 	Media::Player::mixer()->stopAndClear();
-	destroySessionAfterAction(DestroyReason::LoggedOut);
-	_loggingOut = false;
+
+	destroySessionAfterAction();
+	local().resetWithoutWrite();
+	cSetOtherOnline(0);
 	FAKE_LOG(qsl("LoggedOut success."));
 }
 
@@ -646,24 +655,34 @@ void Account::resetAuthorizationKeys() {
 	local().writeMtpData();
 }
 
-void Account::logOutAfterAction() {
-	_loggingOut = true;
-	if (_mtp) {
-		_mtp->logout([=] { loggedOutAfterAction(); });
-		//resetAuthorizationKeys();
-	}
-	else {
-		loggedOutAfterAction();
+
+std::unique_ptr<MTP::Instance> Account::stealMtpInstance(){
+	if (!_mtp) {
+        return {};
 	}
 
+	auto old = base::take(_mtp);
+	{
+        auto config = std::make_unique<MTP::Config>(old->config());
+        startMtp(std::move(config));
+	}
+	local().writeMtpData();
+	return old;
+}
+
+void Account::postLogoutClearing() {
 	FAKE_LOG(("Remove account files"));
-	_session->data().cache().close();
-	_session->data().cacheBigFile().close();
-	_sessionValue = nullptr;
-	local().resetWithoutWrite();
+
 	local().removeAccountSpecificData();
 	local().removeMtpDataFile();
-	cSetOtherOnline(0);
+}
+
+std::unique_ptr<MTP::Instance> Account::logOutAfterAction() {
+    //Don't change the order as ApiWrap destructor access raw pointer of MTP::Instance
+    loggedOutAfterAction();
+	auto mtp = stealMtpInstance();
+	postLogoutClearing();
+	return mtp;
 }
 
 } // namespace Main

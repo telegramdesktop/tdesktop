@@ -364,9 +364,8 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByPeer(
 	-> rpl::producer<Ui::GroupCallBarContent> {
 		if (!call) {
 			return rpl::single(Ui::GroupCallBarContent{ .shown = false });
-		} else if (!call->fullCount() && !call->participantsLoaded()) {
-			call->reload();
 		}
+		call->reloadIfStale();
 		return GroupCallBarContentByCall(call, userpicSize);
 	}) | rpl::flatten_latest();
 }

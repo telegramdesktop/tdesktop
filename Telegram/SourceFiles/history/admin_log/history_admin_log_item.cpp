@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
@@ -134,6 +135,18 @@ bool MediaCanHaveCaption(const MTPMessage &message) {
 	const auto mediaType = media ? media->type() : mtpc_messageMediaEmpty;
 	return (mediaType == mtpc_messageMediaDocument)
 		|| (mediaType == mtpc_messageMediaPhoto);
+}
+
+uint64 MediaId(const MTPMessage &message) {
+	if (!MediaCanHaveCaption(message)) {
+		return 0;
+	}
+	const auto &media = message.c_message().vmedia();
+	return media
+		? v::match(
+			Data::GetFileReferences(*media).data.begin()->first,
+			[](const auto &d) { return d.id; })
+		: 0;
 }
 
 TextWithEntities ExtractEditedText(
@@ -868,22 +881,36 @@ void GenerateItems(
 		const auto newValue = ExtractEditedText(
 			session,
 			action.vnew_message());
+		auto oldValue = ExtractEditedText(
+			session,
+			action.vprev_message());
+
 		const auto canHaveCaption = MediaCanHaveCaption(
 			action.vnew_message());
+		const auto changedCaption = (newValue != oldValue);
+		const auto changedMedia = MediaId(action.vnew_message())
+			!= MediaId(action.vprev_message());
+		const auto removedCaption = !oldValue.text.isEmpty()
+			&& newValue.text.isEmpty();
 		const auto text = (!canHaveCaption
 			? tr::lng_admin_log_edited_message
-			: newValue.text.isEmpty()
+			: (changedMedia && removedCaption)
+			? tr::lng_admin_log_edited_media_and_removed_caption
+			: (changedMedia && changedCaption)
+			? tr::lng_admin_log_edited_media_and_caption
+			: changedMedia
+			? tr::lng_admin_log_edited_media
+			: removedCaption
 			? tr::lng_admin_log_removed_caption
-			: tr::lng_admin_log_edited_caption)(
+			: changedCaption
+			? tr::lng_admin_log_edited_caption
+			: tr::lng_admin_log_edited_message)(
 				tr::now,
 				lt_from,
 				fromLinkText,
 				Ui::Text::WithEntities);
 		addSimpleServiceMessage(text);
 
-		auto oldValue = ExtractEditedText(
-			session,
-			action.vprev_message());
 		const auto detachExistingItem = false;
 		const auto body = history->createItem(
 			history->nextNonHistoryEntryId(),

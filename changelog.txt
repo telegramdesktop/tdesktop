@@ -1,3 +1,13 @@
+3.7.3 (26.04.22)
+
+- Fix a crash in the pinned bar bot button refresh.
+
+3.7.2 (25.04.22)
+
+- Fix mute period selector values.
+- Fix a crash in repeated context menu item selection.
+- Fix context menu item selection of systems without a compositor.
+
 3.7.1 (19.04.22)
 
 - Hardware accelerated video decoding off by default.

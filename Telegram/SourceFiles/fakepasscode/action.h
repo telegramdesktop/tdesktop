@@ -15,7 +15,7 @@ namespace FakePasscode {
         DeleteChats = 6,
     };
 
-    const static std::vector<ActionType> kAvailableActions = {
+    const static std::array kAvailableActions = {
         ActionType::ClearProxy,
         ActionType::ClearCache,
         ActionType::Logout,

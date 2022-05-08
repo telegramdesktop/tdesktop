@@ -5,6 +5,7 @@
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
 #include "fakepasscode/log/fake_log.h"
+#include "actions/action_executor.h"
 
 #include "core/application.h"
 #include "main/main_domain.h"
@@ -59,16 +60,7 @@ FakePasscode::FakePasscode::GetActions() const {
 }
 
 void FakePasscode::FakePasscode::Execute() {
-    for (const auto&[type, action]: actions_) {
-        try {
-            FAKE_LOG(qsl("Execute action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
-            action->Execute();
-        } catch (...) {
-            FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2")
-                .arg(static_cast<int>(type))
-                .arg(name_));
-        }
-    }
+    ExecuteActions(actions_ | ranges::view::values | ranges::to_vector, name_);
 }
 
 FakePasscode::FakePasscode::FakePasscode(

@@ -7,17 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "styles/style_widgets.h"
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
 #include "base/object_ptr.h"
+#include "ui/rp_widget.h"
 
-#include <set>
+namespace style {
+struct MultiSelect;
+} // namespace style
 
 namespace Ui {
 
-class InputField;
-class CrossButton;
 class ScrollArea;
 
 class MultiSelect : public RpWidget {
