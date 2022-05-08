@@ -67,6 +67,8 @@ void EmailConfirm::setupContent() {
 	// we should forget the current password.
 	const auto currentPassword = base::take(currentStepData.currentPassword);
 	const auto typedPassword = base::take(currentStepData.password);
+	const auto recoverEmailPattern = base::take(
+		currentStepData.processRecover.emailPattern);
 	setStepData(currentStepData);
 
 	const auto state = cloudPassword().stateCurrent();
@@ -77,7 +79,9 @@ void EmailConfirm::setupContent() {
 	}
 	cloudPassword().state(
 	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
-		if (!_requestLifetime && state.unconfirmedPattern.isEmpty()) {
+		if (!_requestLifetime
+			&& state.unconfirmedPattern.isEmpty()
+			&& recoverEmailPattern.isEmpty()) {
 			setStepData(StepData());
 			showBack();
 		}
@@ -87,12 +91,16 @@ void EmailConfirm::setupContent() {
 		content,
 		u"cloud_password/email"_q,
 		showFinishes(),
-		tr::lng_cloud_password_confirm(),
+		state->unconfirmedPattern.isEmpty()
+			? tr::lng_settings_cloud_password_email_recovery_subtitle()
+			: tr::lng_cloud_password_confirm(),
 		rpl::single(
 			tr::lng_cloud_password_waiting_code(
 				tr::now,
 				lt_email,
-				state->unconfirmedPattern)));
+				state->unconfirmedPattern.isEmpty()
+					? recoverEmailPattern
+					: state->unconfirmedPattern)));
 
 	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
@@ -147,16 +155,19 @@ void EmailConfirm::setupContent() {
 			newInput->hideError();
 		});
 	});
+	resend->setVisible(recoverEmailPattern.isEmpty());
 
 	const auto button = AddDoneButton(
 		content,
-		tr::lng_settings_cloud_password_email_confirm());
+		recoverEmailPattern.isEmpty()
+			? tr::lng_settings_cloud_password_email_confirm()
+			: tr::lng_passcode_check_button());
 	button->setClickedCallback([=] {
 		const auto newText = newInput->getDigitsOnly();
 		if (newText.isEmpty()) {
 			newInput->setFocus();
 			newInput->showError();
-		} else if (!_requestLifetime) {
+		} else if (!_requestLifetime && recoverEmailPattern.isEmpty()) {
 			_requestLifetime = cloudPassword().confirmEmail(
 				newText
 			) | rpl::start_with_error_done([=](const QString &type) {
@@ -192,6 +203,44 @@ void EmailConfirm::setupContent() {
 				} else {
 					showOther(CloudPasswordManageId());
 				}
+			});
+		} else if (!_requestLifetime) {
+			_requestLifetime = cloudPassword().checkRecoveryEmailAddressCode(
+				newText
+			) | rpl::start_with_error_done([=](const QString &type) {
+				_requestLifetime.destroy();
+
+				newInput->setFocus();
+				newInput->showError();
+				error->show();
+
+				if (MTP::IsFloodError(type)) {
+					error->setText(tr::lng_flood_error(tr::now));
+					return;
+				}
+
+				if (type == u"PASSWORD_RECOVERY_NA"_q) {
+					setStepData(StepData());
+					showBack();
+				} else if (type == u"PASSWORD_RECOVERY_EXPIRED"_q) {
+					setStepData(StepData());
+					showBack();
+				} else if (type == u"CODE_INVALID"_q) {
+					error->setText(tr::lng_signin_wrong_code(tr::now));
+				} else {
+					error->setText(Logs::DebugEnabled()
+						// internal server error
+						? type
+						: Lang::Hard::ServerError());
+				}
+			}, [=] {
+				_requestLifetime.destroy();
+
+				auto empty = StepData();
+				empty.processRecover.checkedCode = newText;
+				empty.processRecover.setNewPassword = true;
+				setStepData(std::move(empty));
+				showOther(CloudPasswordInputId());
 			});
 		}
 	});

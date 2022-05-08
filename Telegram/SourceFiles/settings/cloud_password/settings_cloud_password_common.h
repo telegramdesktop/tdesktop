@@ -34,6 +34,13 @@ struct StepData {
 	QString email;
 	int unconfirmedEmailLengthCode;
 	bool setOnlyRecoveryEmail = false;
+
+	struct ProcessRecover {
+		bool setNewPassword = false;
+		QString checkedCode;
+		QString emailPattern;
+	};
+	ProcessRecover processRecover;
 };
 
 void SetupHeader(

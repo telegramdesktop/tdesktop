@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 
+#include "api/api_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
+#include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -27,6 +29,9 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
+
+private:
+	rpl::lifetime _requestLifetime;
 
 };
 
@@ -61,10 +66,37 @@ void Hint::setupContent() {
 	AddSkipInsteadOfField(content);
 
 	const auto save = [=](const QString &hint) {
-		auto data = stepData();
-		data.hint = hint;
-		setStepData(std::move(data));
-		showOther(CloudPasswordEmailId());
+		if (currentStepData.processRecover.setNewPassword) {
+			if (_requestLifetime) {
+				return;
+			}
+			_requestLifetime = cloudPassword().recoverPassword(
+				currentStepData.processRecover.checkedCode,
+				currentStepData.password,
+				hint
+			) | rpl::start_with_error_done([=](const QString &type) {
+				_requestLifetime.destroy();
+
+				error->show();
+				if (MTP::IsFloodError(type)) {
+					error->setText(tr::lng_flood_error(tr::now));
+				} else {
+					error->setText(Lang::Hard::ServerError());
+				}
+			}, [=] {
+				_requestLifetime.destroy();
+
+				auto empty = StepData();
+				empty.currentPassword = stepData().password;
+				setStepData(std::move(empty));
+				showOther(CloudPasswordManageId());
+			});
+		} else {
+			auto data = stepData();
+			data.hint = hint;
+			setStepData(std::move(data));
+			showOther(CloudPasswordEmailId());
+		}
 	};
 
 	AddLinkButton(

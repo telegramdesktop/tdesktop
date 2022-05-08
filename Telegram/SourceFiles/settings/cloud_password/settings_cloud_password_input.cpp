@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "ui/widgets/buttons.h"
@@ -68,10 +69,17 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
+
 private:
+	rpl::variable<std::vector<Type>> _removesFromStack;
 	rpl::lifetime _requestLifetime;
 
 };
+
+rpl::producer<std::vector<Type>> Input::removeFromStack() {
+	return _removesFromStack.value();
+}
 
 rpl::producer<QString> Input::title() {
 	return tr::lng_settings_cloud_password_password_title();
@@ -81,11 +89,22 @@ void Input::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	auto currentStepData = stepData();
 	const auto currentStepDataPassword = base::take(currentStepData.password);
+	const auto currentStepProcessRecover = base::take(
+		currentStepData.processRecover);
 	setStepData(currentStepData);
 
 	const auto currentState = cloudPassword().stateCurrent();
-	const auto hasPassword = currentState ? currentState->hasPassword : false;
-	const auto isCheck = stepData().currentPassword.isEmpty() && hasPassword;
+	const auto hasPassword = !currentStepProcessRecover.setNewPassword
+		&& (currentState ? currentState->hasPassword : false);
+	const auto isCheck = currentStepData.currentPassword.isEmpty()
+		&& hasPassword
+		&& !currentStepProcessRecover.setNewPassword;
+
+	if (currentStepProcessRecover.setNewPassword) {
+		_removesFromStack = std::vector<Type>{
+			CloudPasswordEmailConfirmId()
+		};
+	}
 
 	const auto icon = CreateInteractiveLottieIcon(
 		content,
@@ -131,6 +150,8 @@ void Input::setupContent() {
 	}
 
 	if (isCheck) {
+		AddSkipInsteadOfField(content);
+
 		const auto hint = currentState ? currentState->hint : QString();
 		const auto hintInfo = Ui::CreateChild<Ui::FlatLabel>(
 			error->parentWidget(),
@@ -149,6 +170,44 @@ void Input::setupContent() {
 				hintInfo->setVisible(!hint.isEmpty());
 			}
 		}, hintInfo->lifetime());
+
+		const auto recover = Ui::CreateChild<Ui::LinkButton>(
+			content,
+			tr::lng_signin_recover(tr::now));
+
+		rpl::merge(
+			content->geometryValue(),
+			newInput->geometryValue()
+		) | rpl::start_with_next([=] {
+			const auto topLeft = newInput->mapTo(content, newInput->pos());
+			recover->moveToLeft(
+				newInput->pos().x(),
+				topLeft.y() + newInput->height() + st::passcodeTextLine);
+		}, recover->lifetime());
+		recover->setClickedCallback([=] {
+			if (_requestLifetime) {
+				return;
+			}
+			_requestLifetime = cloudPassword().requestPasswordRecovery(
+			) | rpl::start_with_next_error([=](const QString &pattern) {
+				_requestLifetime.destroy();
+
+				auto data = stepData();
+				data.processRecover = currentStepProcessRecover;
+				data.processRecover.emailPattern = pattern;
+				setStepData(std::move(data));
+				showOther(CloudPasswordEmailConfirmId());
+			}, [=](const QString &type) {
+				_requestLifetime.destroy();
+
+				error->show();
+				if (MTP::IsFloodError(type)) {
+					error->setText(tr::lng_flood_error(tr::now));
+				} else {
+					error->setText(Lang::Hard::ServerError());
+				}
+			});
+		});
 	}
 
 	if (!newInput->text().isEmpty()) {
@@ -168,7 +227,9 @@ void Input::setupContent() {
 			newInput->showError();
 			newInput->selectAll();
 			error->show();
-			if (type == u"PASSWORD_HASH_INVALID"_q
+			if (MTP::IsFloodError(type)) {
+				error->setText(tr::lng_flood_error(tr::now));
+			} else if (type == u"PASSWORD_HASH_INVALID"_q
 				|| type == u"SRP_PASSWORD_CHANGED"_q) {
 				error->setText(tr::lng_cloud_password_wrong(tr::now));
 			} else {
@@ -206,6 +267,7 @@ void Input::setupContent() {
 			checkPassword(newText);
 		} else {
 			auto data = stepData();
+			data.processRecover = currentStepProcessRecover;
 			data.password = newText;
 			setStepData(std::move(data));
 			showOther(CloudPasswordHintId());
