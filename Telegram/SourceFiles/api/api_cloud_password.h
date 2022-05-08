@@ -48,6 +48,9 @@ public:
 
 	rpl::producer<rpl::no_value, QString> confirmEmail(const QString &code);
 	rpl::producer<rpl::no_value, QString> resendEmailCode();
+	rpl::producer<SetOk, QString> setEmail(
+		const QString &oldPassword,
+		const QString &recoveryEmail);
 
 private:
 	void apply(Core::CloudPasswordState state);

@@ -25,8 +25,6 @@ namespace {
 
 } // namespace
 
-// #TODO Add ability to set recovery email separately.
-
 CloudPassword::CloudPassword(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
 }
@@ -366,6 +364,80 @@ rpl::producer<rpl::no_value, QString> CloudPassword::resendEmailCode() {
 			consumer.put_error_copy(error.type());
 		}).handleFloodErrors().send();
 
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<CloudPassword::SetOk, QString> CloudPassword::setEmail(
+		const QString &oldPassword,
+		const QString &recoveryEmail) {
+	const auto generatePasswordCheck = [=](
+			const Core::CloudPasswordState &latestState) {
+		if (oldPassword.isEmpty() || !latestState.hasPassword) {
+			return Core::CloudPasswordResult{
+				MTP_inputCheckPasswordEmpty()
+			};
+		}
+		const auto hash = Core::ComputeCloudPasswordHash(
+			latestState.mtp.request.algo,
+			bytes::make_span(oldPassword.toUtf8()));
+		return Core::ComputeCloudPasswordCheck(
+			latestState.mtp.request,
+			hash);
+	};
+
+	const auto finish = [=](auto consumer, int unconfirmedEmailLengthCode) {
+		_api.request(MTPaccount_GetPassword(
+		)).done([=](const MTPaccount_Password &result) {
+			apply(ProcessMtpState(result));
+			if (unconfirmedEmailLengthCode) {
+				consumer.put_next(SetOk{ unconfirmedEmailLengthCode });
+			} else {
+				consumer.put_done();
+			}
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).handleFloodErrors().send();
+	};
+
+	const auto sendMTPaccountUpdatePasswordSettings = [=](
+			const Core::CloudPasswordState &latestState,
+			auto consumer) {
+		const auto settings = MTP_account_passwordInputSettings(
+			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
+			MTP_passwordKdfAlgoUnknown(),
+			MTP_bytes(),
+			MTP_string(),
+			MTP_string(recoveryEmail),
+			MTPSecureSecretSettings());
+		_api.request(MTPaccount_UpdatePasswordSettings(
+			generatePasswordCheck(latestState).result,
+			settings
+		)).done([=] {
+			finish(consumer, 0);
+		}).fail([=](const MTP::Error &error) {
+			const auto &type = error.type();
+			const auto prefix = u"EMAIL_UNCONFIRMED_"_q;
+			if (type.startsWith(prefix)) {
+				const auto codeLength = base::StringViewMid(
+					type,
+					prefix.size()).toInt();
+
+				finish(consumer, codeLength);
+			} else {
+				consumer.put_error_copy(type);
+			}
+		}).handleFloodErrors().send();
+	};
+
+	return [=](auto consumer) {
+		_api.request(MTPaccount_GetPassword(
+		)).done([=](const MTPaccount_Password &result) {
+			const auto latestState = ProcessMtpState(result);
+			sendMTPaccountUpdatePasswordSettings(latestState, consumer);
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
 		return rpl::lifetime();
 	};
 }
