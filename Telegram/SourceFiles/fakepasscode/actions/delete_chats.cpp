@@ -32,6 +32,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         auto history = data_session.history(peer_id);
         api.deleteConversation(peer, false);
         data_session.deleteConversationLocally(peer);
+        history->clearFolder();
         api.toggleHistoryArchived(
                 history,
                 false,
@@ -39,10 +40,10 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                     FAKE_LOG(qsl("Remove from folder"));
                 });
         for (const auto& rules : data_session.chatsFilters().list()) {
-            if (rules.contains(history)) {
-                auto always = rules.always();
-                auto pinned = rules.pinned();
-                auto never = rules.never();
+            auto always = rules.always();
+            auto pinned = rules.pinned();
+            auto never = rules.never();
+            if (rules.contains(history) || never.contains(history)) {
                 always.remove(history);
                 pinned.erase(ranges::remove(pinned, history), end(pinned));
                 never.remove(history);
@@ -85,7 +86,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
             )).send();
         }
     }
-
+    data_session.notifyPinnedDialogsOrderUpdated();
     UpdateOrAddAction(index, {});
 }
 
